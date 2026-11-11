@@ -1,18 +1,73 @@
 import type { EventBus } from '@wrongstack/contracts/kernel';
+import type {
+  Config,
+  Logger,
+  ModelsDevModel,
+  ModelsRegistry,
+  Provider,
+  ProviderConfig,
+} from '@wrongstack/contracts/types';
 import {
   CONTEXT_WINDOW_MODE_PINNED_META_KEY,
-  type Config,
-  type Logger,
-  type ModelsRegistry,
-  type Provider,
-  type ProviderConfig,
   resolveContextWindowPolicy,
 } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import type { AutoCompactionMiddleware } from '@wrongstack/core/execution';
 import { refreshCatalogIfStale } from '@wrongstack/core/models';
-import { toErrorMessage } from '@wrongstack/core/utils';
+import {
+  priceCliffRouteForContext,
+  resolvePriceCliffTokens,
+  toErrorMessage,
+  writePriceCliffMeta,
+} from '@wrongstack/core/utils';
 import { resolveProviderModelMetadata } from './model-catalog.js';
+
+/**
+ * Publish (or clear) the route's long-context price cliff on a session's meta.
+ *
+ * Both WebUI stamp points — service boot and a model switch — go through this
+ * one function so they can never disagree about when the cap is cleared. Boot
+ * is what makes the protection real for a tab that opens on a cliffed model and
+ * is never switched: without a boot stamp the compaction ladder finds no cliff
+ * meta and stays purely window-relative, filling a 1M window straight into the
+ * 2x billed tier the cap exists to avoid.
+ *
+ * The key is stamped through `priceCliffRouteForContext` from the LIVE context —
+ * the same derivation the ladder reads back with — so a cliff published for
+ * another route is dropped rather than silently applied to this session.
+ */
+export function publishRoutePriceCliff(input: {
+  meta: Record<string, unknown>;
+  /** The catalog pricing already fetched for this route; no second registry walk. */
+  catalogCost: ModelsDevModel['cost'] | undefined;
+  /** The window the compaction ladder is using; <= 0 means "unknown", so clear. */
+  maxContext: number;
+  /** The live context the ladder will read the cliff back from. */
+  routeCtx: { provider?: { id?: string }; model?: string };
+  /** `context.priceCliff !== false`. False clears the cap entirely. */
+  enabled: boolean;
+  /**
+   * False when the catalog read FAILED (threw, or no registry to read from).
+   * Then the pricing is UNKNOWN, not absent, so the existing cap is preserved:
+   * writing `null` would clear a cliff published from a good read and silently
+   * disable the protection until the next switch or refresh. Preserving is safe
+   * because the key is route-stamped — a cliff belonging to another
+   * provider/model is dropped by the reader rather than mis-applied here.
+   */
+  costKnown: boolean;
+}): void {
+  const routeKey = priceCliffRouteForContext(input.routeCtx);
+  if (!input.enabled || input.maxContext <= 0) {
+    writePriceCliffMeta(input.meta, null, routeKey);
+    return;
+  }
+  if (!input.costKnown) return;
+  writePriceCliffMeta(
+    input.meta,
+    resolvePriceCliffTokens(input.catalogCost, input.maxContext),
+    routeKey,
+  );
+}
 
 /**
  * A context window only counts when it is a positive, finite token count —
@@ -93,6 +148,15 @@ export function createMaxContextUpdater(
     let newMaxContext =
       positiveWindow(currentConfig.context?.effectiveMaxContext) ??
       newProvider.capabilities.maxContext;
+    // The catalog's published pricing for THIS route, captured while the model
+    // metadata is already in hand — the long-context price cliff is derived
+    // from it below, so no second registry walk is needed.
+    let catalogCost: ModelsDevModel['cost'];
+    // "No published tier" and "could not read the tier" are different states:
+    // only the first may clear the cap. A throw leaves pricing UNKNOWN, so the
+    // helper preserves whatever the route had instead of silently disabling the
+    // protection for the rest of the session.
+    let catalogCostKnown = false;
     try {
       const m = await resolveProviderModelMetadata(
         modelsRegistry,
@@ -101,8 +165,10 @@ export function createMaxContextUpdater(
         providerCfg ?? currentConfig.providers?.[providerId],
       );
       newMaxContext = positiveWindow(m?.capabilities?.maxContext) ?? newMaxContext;
+      catalogCost = m?.cost;
+      catalogCostKnown = true;
     } catch {
-      // best-effort: use provider capability
+      // best-effort: use provider capability, keep the existing cliff
     }
     if (gen !== current()) return;
     newProvider.capabilities.maxContext = newMaxContext;
@@ -138,6 +204,20 @@ export function createMaxContextUpdater(
       delete target.meta['effectiveMaxContext'];
       if (leader) autoCompactor?.setEnabled(false);
     }
+    // Publish the route's long-context price cliff from the catalog pricing
+    // already fetched above — no second registry walk. Cleared when the new
+    // model publishes no step-up tier, the window is unknown, or the user
+    // turned the protection off, so a switch off a cliffed model can never
+    // leave a stale cap compacting the new route too early. A failed catalog
+    // read is NOT "no tier": the existing cap is preserved.
+    publishRoutePriceCliff({
+      meta: target.meta,
+      catalogCost,
+      maxContext: newMaxContext,
+      routeCtx: target,
+      enabled: currentConfig.context?.priceCliff !== false,
+      costKnown: catalogCostKnown,
+    });
     events.emit('ctx.max_context', {
       sessionId: target.session.id,
       providerId: newProvider.id,

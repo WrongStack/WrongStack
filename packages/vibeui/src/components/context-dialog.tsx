@@ -74,6 +74,19 @@ export function ContextDialog({
     };
   }, [open, state.id, connection, send, subscribe, revision, compactPending, view]);
   const metrics = record(snapshot?.readonlyContext);
+  // Price-cliff awareness: the server publishes the models.dev long-context
+  // step-up tier and the compaction trigger it forces, `min(threshold x
+  // window, cliff)`. Rows appear only while a cliff is actually in force, so
+  // models without a step-up tier keep the three original metric cards.
+  const cliff = record(debug?.cliff);
+  const cliffRows: Array<[string, unknown]> =
+    cliff.binding === true
+      ? [
+          ['Price cliff', cliff.cliffTokens],
+          ['Fires at', cliff.triggerTokens],
+          ['Window-only', cliff.uncappedTriggerTokens],
+        ]
+      : [];
   const messages = useMemo(
     () =>
       rows(snapshot?.messages)
@@ -205,6 +218,7 @@ export function ContextDialog({
                 ['Messages', metrics.messageTokens],
                 ['System prompt', metrics.systemPromptTokens],
                 ['Tool schemas', metrics.toolSchemaTokens],
+                ...cliffRows,
               ].map(([label, value]) => (
                 <div key={String(label)}>
                   <small>{String(label)}</small>

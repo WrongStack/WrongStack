@@ -76,6 +76,12 @@ export {
   systemOneBrainSettles,
 } from './brain-system-one.js';
 export { compactionReportStillCurrent } from './compaction-result-state.js';
+// The shared price-cliff report: every surface that shows context cost reads
+// the trigger through this, so the number shown is the number the ladder uses.
+export {
+  describePriceCliffForContext,
+  type PriceCliffSummary,
+} from './compaction-thresholds.js';
 export { type CompactorOptions, HybridCompactor } from './compactor.js';
 export {
   COUNCIL_REFUSE_OPTION_ID,
@@ -202,7 +208,6 @@ export {
   recentTextTurns,
   shouldEnhance,
 } from './prompt-enhancer.js';
-export { type RefinerTargetSpec, resolveRefinerTargetSpecs } from './refiner-target.js';
 export { DefaultPromptLoader, type PromptLoaderOptions, renderPrompt } from './prompt-loader.js';
 export {
   projectRefineResult,
@@ -217,6 +222,7 @@ export {
   resolveFailureNextStep,
   resolvePreviewAction,
 } from './refine-decisions.js';
+export { type RefinerTargetSpec, resolveRefinerTargetSpecs } from './refiner-target.js';
 export {
   DefaultRetryPolicy,
   MODEL_RETRIES,

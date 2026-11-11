@@ -149,8 +149,9 @@ export function updateSummary(acc: SummaryAcc, event: ChronicleEvent): void {
   // under (its own EventBus never reaches Chronicle); scopeKey includes the
   // agent, so leader and subagent snapshots occupy separate slots and the
   // cost sum covers both instead of silently dropping every subagent.
-  if (event.eventType === 'token.accounted' || event.eventType === 'subagent.token_accounted') {
-    const cost = readPath(event.attributes ?? {}, 'cost.total');
+  const tokenAttributes = tokenSnapshotAttributes(event);
+  if (tokenAttributes) {
+    const cost = readPath(tokenAttributes, 'cost.total');
     if (typeof cost === 'number' && Number.isFinite(cost) && cost >= 0) {
       const key = scopeKey(event);
       const existing = acc.costByScope.get(key);
@@ -211,6 +212,44 @@ export function finalizeSummary(acc: SummaryAcc): ChronicleSummary {
     cancellations: acc.cancellations,
     families: acc.families,
     failuresByFamily: acc.failuresByFamily,
+  };
+}
+
+const TOKEN_EVENT_TYPES: ReadonlySet<string> = new Set([
+  'token.accounted',
+  'subagent.token_accounted',
+]);
+
+/**
+ * The cumulative token snapshot an event carries, shaped like a raw
+ * `token.accounted` payload (`usage.*`, `cost.total`), or undefined when the
+ * event carries none.
+ *
+ * At the default `balanced` detail level the counter sink folds every
+ * `token.accounted` / `subagent.token_accounted` into a `metrics.counter`
+ * aggregate and keeps the cumulative fields under `latest` (counter-sink.ts
+ * LATEST_ATTRIBUTES). Readers that only recognized the raw names saw no cost
+ * at all for a default-configured project. Shared with the metrics ingest so
+ * both cost views read the aggregate the same way.
+ */
+export function tokenSnapshotAttributes(
+  event: ChronicleEvent,
+): Record<string, unknown> | undefined {
+  if (TOKEN_EVENT_TYPES.has(event.eventType)) return event.attributes ?? {};
+  if (event.eventType !== 'metrics.counter') return undefined;
+  const counter = event.attributes?.counter;
+  if (typeof counter !== 'string' || !TOKEN_EVENT_TYPES.has(counter)) return undefined;
+  const latest = event.attributes?.latest;
+  const value = (key: string): unknown =>
+    latest && typeof latest === 'object' ? (latest as Record<string, unknown>)[key] : undefined;
+  return {
+    usage: {
+      input: value('usage.input'),
+      output: value('usage.output'),
+      cacheRead: value('usage.cacheRead'),
+      cacheWrite: value('usage.cacheWrite'),
+    },
+    cost: { total: value('cost.total') },
   };
 }
 

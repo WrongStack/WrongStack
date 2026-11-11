@@ -2,7 +2,7 @@ import type { CompactReport } from '@wrongstack/contracts/types/compactor';
 import { type Context, resolveEventSessionId } from '../core/context.js';
 import type { ContextWindowBudgetSnapshot } from '../utils/context-budget.js';
 import { truncateDigest } from './compaction-reporting-support.js';
-import type { PressureLevel } from './compaction-thresholds.js';
+import type { AppliedPriceCliff, PressureLevel } from './compaction-thresholds.js';
 
 export interface CompactionReportingHost {
   events: import('@wrongstack/contracts/kernel/events').EventBus | undefined;
@@ -19,6 +19,7 @@ export async function reportCompaction(
     level: PressureLevel;
     tokens: number;
     load: number;
+    priceCliff?: AppliedPriceCliff | undefined;
     budget: ContextWindowBudgetSnapshot;
     signals: { repeatedReadCount: number };
   },
@@ -59,6 +60,7 @@ export async function reportCompaction(
       maxContext: pressure.budget.maxContext,
       budget: pressure.budget,
       signals: pressure.signals,
+      priceCliff: pressure.priceCliff,
       report,
       aggressive,
     });
@@ -79,6 +81,7 @@ export async function reportCompaction(
       reductions: report.reductions?.map((r) => ({ phase: r.phase, saved: r.saved })),
       budget: pressure.budget,
       signals: pressure.signals,
+      ...(pressure.priceCliff ? { priceCliff: pressure.priceCliff } : {}),
       ...(report.collapsedDigest ? { digest: truncateDigest(report.collapsedDigest) } : {}),
     });
   } catch (err) {

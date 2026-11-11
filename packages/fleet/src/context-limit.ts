@@ -3,13 +3,21 @@ import type {
   Config,
   CustomModelDefinition,
   Logger,
+  ModelsDevModel,
   ModelsRegistry,
   Provider,
   ProviderConfig,
 } from '@wrongstack/contracts/types';
 import { refreshCatalogIfStale } from '@wrongstack/core/models';
-import { mergeCustomModelDefs, toErrorMessage } from '@wrongstack/core/utils';
-import { capabilitiesFor } from '@wrongstack/providers';
+import type { ContextPriceCliff } from '@wrongstack/core/utils';
+import {
+  mergeCustomModelDefs,
+  priceCliffRouteKey,
+  resolvePriceCliffTokens,
+  toErrorMessage,
+  writePriceCliffMeta,
+} from '@wrongstack/core/utils';
+import { capabilitiesFor, catalogProviderIdFor } from '@wrongstack/providers';
 
 /**
  * Config-only OAuth/subscription wire families → the canonical models.dev
@@ -362,4 +370,137 @@ function readConfiguredMaxContext(providerConfig: unknown): number | undefined {
 
 function positiveNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+/**
+ * Per-model long-context PRICE CLIFF lookup for the runtime ladder.
+ *
+ * The cliff is a published catalog FACT (`cost.tiers[]` / legacy
+ * `context_over_200k`), not a WrongStack guess, so it is read from models.dev
+ * through the same alias/sibling path the context window itself uses:
+ * `type`-alias → OAuth/subscription sibling catalog → own id. A custom model
+ * with no published tiers yields `null`, which means "no cap" — the ladder
+ * keeps its current window-relative behavior instead of inventing a boundary.
+ *
+ * Two outcomes are NOT the same thing, and callers must keep them apart:
+ *  - `null`       — the catalog was read and publishes no step-up tier. Safe to
+ *                   clear any previously published cap for this route.
+ *  - `undefined`  — pricing could not be read at all (no registry, every
+ *                   candidate lookup threw). The existing cap must be PRESERVED:
+ *                   clearing on a transient network error would silently disable
+ *                   the protection and let the session fill into the billed tier.
+ *
+ * Either way the cliff is a cost optimization, so this never throws — it must
+ * not block boot or a model switch.
+ */
+export interface ResolvePriceCliffInput {
+  modelsRegistry?: Pick<ModelsRegistry, 'getModel'> | undefined;
+  providerId: string;
+  modelId: string;
+  /** Configured provider slice — supplies the `type` alias and `family`. */
+  providerConfig?: ProviderConfig | undefined;
+  /** The window the compaction ladder is using, to reject unreachable tiers. */
+  maxContext: number;
+}
+
+export async function resolveRuntimePriceCliff(
+  input: ResolvePriceCliffInput,
+): Promise<ContextPriceCliff | null | undefined> {
+  const { modelsRegistry, providerId, modelId, providerConfig, maxContext } = input;
+  // Tri-state, deliberately: `null` means the catalog was read and publishes no
+  // step-up tier (so the cap SHOULD be cleared), while `undefined` means pricing
+  // could not be read at all. Callers must never treat the second as the first —
+  // a transient catalog error that cleared the cap would silently let the
+  // session compact window-relative straight into the billed tier.
+  if (!modelsRegistry) return undefined;
+  if (!modelId) return null;
+  const catalogId = catalogProviderIdFor(providerId, providerConfig?.type);
+  const sibling = providerConfig?.family ? SIBLING_CATALOG[providerConfig.family] : undefined;
+  const candidates = [catalogId, sibling, providerId].filter(
+    (id, index, all): id is string => Boolean(id) && all.indexOf(id) === index,
+  );
+  let pricingRead = false;
+  for (const id of candidates) {
+    let cost: ModelsDevModel['cost'];
+    try {
+      cost = (await modelsRegistry.getModel(id, modelId))?.cost;
+      pricingRead = true;
+    } catch {
+      continue;
+    }
+    const cliff = resolvePriceCliffTokens(cost, maxContext);
+    if (cliff) return cliff;
+  }
+  return pricingRead ? null : undefined;
+}
+
+export interface PublishPriceCliffInput extends ResolvePriceCliffInput {
+  /** The session meta the compaction middleware reads. Mutated in place. */
+  meta: Record<string, unknown>;
+  /** `context.priceCliff !== false`. False clears the cliff entirely. */
+  enabled?: boolean | undefined;
+  /**
+   * Freshness gate checked AFTER the catalog lookup and BEFORE the meta write.
+   * Model switches fire without awaiting, so an older switch can finish last;
+   * without this guard its cliff would be published onto the NEW model's route.
+   */
+  isCurrent?: (() => boolean) | undefined;
+  /**
+   * Identity the compaction ladder reads this cliff back under. Hosts pass
+   * `priceCliffRouteForContext(context)` — the LIVE provider/model — because
+   * `providerId`/`modelId` here are the CATALOG lookup ids, which legitimately
+   * differ (an `work` → `anthropic` alias, or a config default vs the session's
+   * model). Keying the write off the lookup id would make the reader see
+   * "another route's cliff", drop the cap, and silently disable the protection.
+   * Defaults to the lookup pair when the caller has no live context to name.
+   */
+  routeKey?: string | undefined;
+}
+
+/**
+ * Resolve the active model's price cliff and publish it on a session's meta —
+ * the single entry point every host (CLI boot, CLI model switch, WebUI tab
+ * switch) goes through, so the ladder can never see a cliff formatted
+ * differently per host. Returns what was published for the caller's own use.
+ *
+ * Clearing is part of the contract: no published cliff, an unknown window, or
+ * `context.priceCliff: false` all REMOVE the key, so a model switch away from a
+ * cliffed model cannot leave a stale cap that silently compacts the new route.
+ * A rejected {@link PublishPriceCliffInput.isCurrent} writes nothing at all and
+ * reports `null` without clearing — the newer switch publishes its own value.
+ * An unreadable catalog also writes nothing (preserving the existing cap) and
+ * reports `null`; "nothing published this time" covers both, since neither may
+ * clear. The return value never distinguishes them — the meta always does.
+ */
+export async function publishRuntimePriceCliff(
+  input: PublishPriceCliffInput,
+): Promise<ContextPriceCliff | null> {
+  const {
+    meta,
+    providerId,
+    modelId,
+    maxContext,
+    enabled,
+    isCurrent,
+    routeKey: routeKeyOverride,
+  } = input;
+  // The cliff is stamped with the ROUTE identity the reader uses (the live
+  // provider/model), which is not necessarily the CATALOG lookup pair: a
+  // provider alias ('work' → 'anthropic') or a config default model that
+  // differs from the session's model would otherwise publish a key the reader
+  // sees as "another route's cliff" and drops — silently disabling the cap.
+  const routeKey = routeKeyOverride ?? priceCliffRouteKey(providerId, modelId);
+  const publish = (cliff: ContextPriceCliff | null): ContextPriceCliff | null => {
+    if (isCurrent && !isCurrent()) return null;
+    writePriceCliffMeta(meta, cliff, routeKey);
+    return cliff;
+  };
+  if (enabled === false || maxContext <= 0 || !modelId) return publish(null);
+  const cliff = await resolveRuntimePriceCliff(input);
+  // `undefined` = pricing could not be read (no registry, or every catalog
+  // lookup threw). Write NOTHING in that case: clearing here would turn a
+  // transient network error into a session that compacts purely window-relative
+  // straight into the billed tier. A subsequent switch/refresh re-publishes.
+  if (cliff === undefined) return null;
+  return publish(cliff);
 }

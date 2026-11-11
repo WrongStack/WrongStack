@@ -6,7 +6,7 @@ import type { ContextWindowBudgetSnapshot } from '../utils/context-budget.js';
 import { estimateRequestTokens } from '../utils/token-estimate.js';
 import type { CompactionFailureMode } from './auto-compaction-run-contracts.js';
 import { compactionReportStillCurrent } from './compaction-result-state.js';
-import type { PressureLevel } from './compaction-thresholds.js';
+import type { AppliedPriceCliff, PressureLevel } from './compaction-thresholds.js';
 import { contextWindowBudget } from './compaction-thresholds.js';
 export interface AutoCompactionRunHost {
   compactor: Compactor;
@@ -18,6 +18,7 @@ export interface AutoCompactionRunHost {
       level: PressureLevel;
       tokens: number;
       load: number;
+      priceCliff?: AppliedPriceCliff | undefined;
       budget: ContextWindowBudgetSnapshot;
       signals: { repeatedReadCount: number };
     },
@@ -62,6 +63,7 @@ export async function compact(
     load: number;
     hardThreshold: number;
     targetLoad: number;
+    priceCliff?: AppliedPriceCliff | undefined;
     budget: ContextWindowBudgetSnapshot;
     signals: { repeatedReadCount: number };
   },

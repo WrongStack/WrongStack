@@ -5,11 +5,15 @@ import { AutoCompactionMiddleware } from '@wrongstack/core/execution';
 import { DefaultLogger } from '@wrongstack/core/infrastructure';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultPermissionPolicy, DefaultSecretScrubber } from '@wrongstack/core/security';
+import { priceCliffRouteForContext, readPriceCliffTokens } from '@wrongstack/core/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAgent, setupCompaction, setupPipelines } from '../src/wiring/pipeline.js';
 
 vi.mock('@wrongstack/providers', () => ({
   capabilitiesFor: vi.fn(),
+  // `publishRuntimePriceCliff` (fleet/context-limit) resolves the catalog
+  // provider id through this export, so the mock has to cover it.
+  catalogProviderIdFor: vi.fn((providerId: string) => providerId),
 }));
 
 const { capabilitiesFor } = (await import('@wrongstack/providers')) as unknown as {
@@ -145,6 +149,43 @@ describe('setupCompaction', () => {
     });
     expect(result.effectiveMaxContext).toBe(50_000);
     expect(result.autoCompactor).toBeInstanceOf(AutoCompactionMiddleware);
+  });
+
+  // The price cliff must be stamped with the LIVE route the compaction
+  // middleware reads back (`ctx.provider?.id` / `ctx.model`). A cliff stamped
+  // with the catalog/config lookup pair is treated as "another route's cliff"
+  // by `readPriceCliffTokens` and dropped, so the cap would silently never
+  // apply — exactly when config and the live route disagree.
+  it('stamps the published price cliff with the live route identity', async () => {
+    capabilitiesFor.mockResolvedValue({ maxContext: 200_000 });
+    const events = new EventBus();
+    const pipelines = setupPipelines({ events, logger: new DefaultLogger({ level: 'error' }) });
+    const context = fakeContext({ model: 'live-model', provider: { id: 'live-provider' } });
+    await setupCompaction({
+      compactor: { compact: vi.fn() } as never,
+      events,
+      modelsRegistry: {
+        getModel: vi.fn().mockResolvedValue({
+          maxContext: 200_000,
+          cost: {
+            input: 3,
+            output: 15,
+            tiers: [{ tier: { type: 'context', size: 100_000 }, input: 6, output: 30 }],
+          },
+        }),
+      } as never,
+      context,
+      config: {
+        // The configured default names a DIFFERENT route than the live one.
+        provider: 'config-provider',
+        model: 'config-model',
+        context: { warnThreshold: 70, softThreshold: 85, hardThreshold: 95 },
+      },
+      provider: fakeProvider(200_000),
+      pipelines,
+    });
+    const meta = (context as unknown as { meta: Record<string, unknown> }).meta;
+    expect(readPriceCliffTokens(meta, priceCliffRouteForContext(context))).toBe(100_000);
   });
 
   // The global effectiveMaxContext is a FALLBACK, not an override: one stale

@@ -7,8 +7,14 @@ import {
 } from '@wrongstack/contracts/types';
 import type { Context, SystemBlockSource } from '@wrongstack/core/agent';
 import { type ContextBreakdown, getContextBreakdown } from '@wrongstack/core/agent';
+import { describePriceCliffForContext } from '@wrongstack/core/execution';
 import { noOpVault } from '@wrongstack/core/security';
-import { color, repairToolUseAdjacency } from '@wrongstack/core/utils';
+import {
+  color,
+  priceCliffRouteForContext,
+  readPriceCliffForRoute,
+  repairToolUseAdjacency,
+} from '@wrongstack/core/utils';
 import { activeProfileConfigPath } from '../profile-config-path.js';
 import { persistConfigSetting } from '../settings-menu.js';
 import type { SlashCommandContext } from './command-context.js';
@@ -37,6 +43,8 @@ export function buildContextCommand(opts: SlashCommandContext): SlashCommand {
       '  /context mode      List context-window modes.',
       '  /context mode <id> Switch context-window mode for this session.',
       '  /context cache     Prompt-cache report: hit ratio, $ saved, per-provider, and each provider’s cache mechanism.',
+      '  /context cliff     Long-context price cliff: the published boundary, the capped',
+      '                     compaction trigger it forces, and the tokens left before it fires.',
       '  /context residency What the last request held, which part was cached / written / never cached,',
       '                     what broke the cache, and what the next compaction keeps.',
     ].join('\n'),
@@ -171,6 +179,12 @@ export function buildContextCommand(opts: SlashCommandContext): SlashCommand {
           `  preserve:   last ${policy.preserveK} user/assistant messages`,
           `  elide:      old tool results >= ${policy.eliseThreshold.toLocaleString()} tokens`,
         ].join('\n');
+        opts.renderer.write(`${msg}\n`);
+        return { message: msg };
+      }
+
+      if (trimmed === 'cliff') {
+        const msg = renderCliffReport(ctx);
         opts.renderer.write(`${msg}\n`);
         return { message: msg };
       }
@@ -526,6 +540,92 @@ async function persistContextConfig(
     return `Could not persist context settings to ${configPath}: ${(err as Error).message}`;
   }
   return null;
+}
+
+/**
+ * `/context cliff` — the price-cliff half of the Context Window Report.
+ *
+ * Reads the same published meta the compaction ladder reads, so the numbers on
+ * screen are the numbers that decide compaction, not a second calculation.
+ * Three states are distinguished because they mean different things to the
+ * user: no tier published, a tier that the window-relative ladder already
+ * beats (nothing to cap), and a tier that is actively pulling the trigger in.
+ */
+function renderCliffReport(ctx: Context): string {
+  const route = priceCliffRouteForContext(ctx);
+  const policy = readPolicy(ctx);
+  const published = readPriceCliffForRoute(ctx.meta, route);
+  const summary = describePriceCliffForContext(
+    ctx,
+    typeof ctx.lastRealInputTokens === 'number' ? ctx.lastRealInputTokens : 0,
+    ctx.provider?.capabilities?.maxContext ?? 0,
+    policy?.thresholds,
+    policy?.targetLoad,
+  );
+
+  if (!published) {
+    return [
+      `${color.bold('Context price cliff')} — none published for ${route}`,
+      '  The models.dev catalog lists no context step-up tier for this model, so',
+      '  compaction stays window-relative. Toggle: context.priceCliff (default: on).',
+    ].join('\n');
+  }
+
+  const rate =
+    typeof published.multiplier === 'number' && published.multiplier > 1
+      ? `  ·  ${published.multiplier.toFixed(2)}x ${published.field ?? 'input'} ($${published.baseRate ?? 0} → $${published.cliffRate ?? 0}/M)`
+      : '';
+
+  // `describePriceCliffForContext` declines for two different reasons — no
+  // known window to measure against, or a window-relative rung that already
+  // fires before the boundary. They need opposite advice, so tell them apart
+  // here with the same denominator the ladder resolves: the session meta
+  // override first, then the provider window.
+  const metaLimit = ctx.meta?.['effectiveMaxContext'];
+  const windowTokens =
+    typeof metaLimit === 'number' && Number.isFinite(metaLimit) && metaLimit > 0
+      ? metaLimit
+      : (ctx.provider?.capabilities?.maxContext ?? 0);
+
+  if (!summary) {
+    if (windowTokens <= 0) {
+      return [
+        `${color.bold('Context price cliff')} — ${K(published.cliffTokens)} tokens${rate}`,
+        '  Cannot be applied: this session has no known context window, so there',
+        '  is no budget to cap. Set one with `/context limit <tokens>` (auto-',
+        '  compaction needs a window too).',
+      ].join('\n');
+    }
+    return [
+      `${color.bold('Context price cliff')} — ${K(published.cliffTokens)} tokens${rate}`,
+      `  Not in force: the window-relative soft rung already fires first inside the ${K(
+        windowTokens,
+      )}`,
+      '  token window, so no cap is applied — you are compacting before the',
+      '  boundary regardless. A frugal mode moves that rung even earlier.',
+    ].join('\n');
+  }
+
+  const saved = summary.uncappedTriggerTokens - summary.triggerTokens;
+  const lines = [
+    `${color.bold('Context price cliff')} — IN FORCE for ${route}`,
+    `  boundary:    ${K(summary.cliffTokens)} tokens${rate}`,
+    `  fires at:    ${K(summary.triggerTokens)} (min(threshold x window, cliff))`,
+    `  would fire:  ${K(summary.uncappedTriggerTokens)} by window alone → capped ${K(saved)} earlier`,
+    `  compacts to: ${K(summary.targetTokens)} (lands under the boundary, not just under the rung)`,
+    `  budget:      ${K(summary.availableInputTokens)} input tokens available`,
+  ];
+  if (summary.inputTokens > 0) {
+    lines.push(
+      summary.tokensToTrigger > 0
+        ? `  headroom:    ${K(summary.tokensToTrigger)} tokens before the cliff triggers compaction`
+        : `  crossed:     ${K(-summary.tokensToTrigger)} tokens past the trigger — compacting next pass`,
+    );
+  }
+  lines.push(
+    `  ${color.dim('turn protection off: context.priceCliff = false (window-relative only)')}`,
+  );
+  return lines.join('\n');
 }
 
 function readEffectiveLimit(ctx: Context, opts: SlashCommandContext): number {

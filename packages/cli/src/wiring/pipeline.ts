@@ -17,8 +17,8 @@ import {
 import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
 import { createSessionEventBridge, resolveAuditLevel } from '@wrongstack/core/storage';
-import { estimateRequestTokensCalibrated } from '@wrongstack/core/utils';
-import { resolveRuntimeMaxContext } from '@wrongstack/fleet';
+import { estimateRequestTokensCalibrated, priceCliffRouteForContext } from '@wrongstack/core/utils';
+import { publishRuntimePriceCliff, resolveRuntimeMaxContext } from '@wrongstack/fleet';
 import { bootstrapMailboxBridgeAtStartup } from './mailbox-bridge-bootstrap.js';
 
 type CompactionDriver = ConstructorParameters<typeof AutoCompactionMiddleware>[0];
@@ -66,6 +66,8 @@ export async function setupCompaction(params: {
       eliseThreshold?: number | undefined;
       targetLoad?: number | undefined;
       effectiveMaxContext?: number | undefined;
+      /** Cap compaction at the model's long-context price cliff (default: on). */
+      priceCliff?: boolean | undefined;
     };
     /** Slice that may contain session.auditLevel (for future richer logging). */
     session?: { auditLevel?: 'minimal' | 'standard' | 'full' | undefined } | undefined;
@@ -110,6 +112,29 @@ export async function setupCompaction(params: {
   context.meta ??= {};
   context.meta['contextWindowMode'] = initialPolicy.id;
   context.meta['contextWindowPolicy'] = initialPolicy;
+  // Publish the model's long-context price cliff so auto-compaction fires at
+  // min(threshold x window, cliff) instead of filling a 1M window into the 2x
+  // tier. Best-effort: no published cliff (or `context.priceCliff: false`)
+  // clears the key, which leaves the ladder purely window-relative.
+  //
+  // The cliff is RESOLVED for the billed model but STAMPED with the live route
+  // identity the compaction middleware reads back
+  // (`priceCliffRouteForContext(ctx)` — `ctx.provider?.id` / `ctx.model`).
+  // `readPriceCliffTokens` ignores a cliff whose `routeKey` names another
+  // route, so publishing with catalog/config-level ids instead would silently
+  // disable the cap exactly when the two disagree (provider alias, or a config
+  // default model that is not the session's model).
+  const liveModelId = context.model ?? config.model;
+  await publishRuntimePriceCliff({
+    modelsRegistry,
+    providerId: config.provider ?? provider.id,
+    modelId: liveModelId,
+    providerConfig: config.providers?.[config.provider ?? provider.id],
+    routeKey: priceCliffRouteForContext(context),
+    maxContext: effectiveMaxContext,
+    meta: context.meta,
+    enabled: config.context.priceCliff !== false,
+  });
   let autoCompactor: AutoCompactionMiddleware | undefined;
   let resolvedBridge: SessionEventBridge | undefined;
   // Skip auto-compaction when the context window is unknown (0).

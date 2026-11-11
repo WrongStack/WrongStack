@@ -207,4 +207,43 @@ describe('session story projection', () => {
       ).events,
     ).toEqual([]);
   });
+
+  it('projects non-main session branches as child actor lanes and formats branch DAG milestones', () => {
+    const story = buildSessionStory('tab-a', [
+      record('b-create', 'branch_created', {
+        observedAt: new Date(base + 100).toISOString(),
+        scope: { sessionId: 'tab-a' },
+        attributes: {
+          parentBranchId: 'main',
+          newBranchId: 'br_redis',
+          name: 'try-redis',
+        },
+      }),
+      record('b-tool', 'tool.executed', {
+        observedAt: new Date(base + 200).toISOString(),
+        scope: { sessionId: 'tab-a' },
+        attributes: {
+          toolName: 'bash',
+          branchId: 'br_redis',
+          branchName: 'try-redis',
+        },
+      }),
+      record('b-fold', 'branch_folded', {
+        observedAt: new Date(base + 300).toISOString(),
+        scope: { sessionId: 'tab-a' },
+        attributes: {
+          sourceBranchId: 'br_redis',
+          targetBranchId: 'main',
+          summary: 'Redis latency 0.4ms',
+        },
+      }),
+    ]);
+
+    const branchLane = story.actors.find((a) => a.id === 'branch:br_redis');
+    expect(branchLane).toBeDefined();
+    expect(branchLane?.name).toBe('⎇ try-redis');
+    expect(branchLane?.parent).toBe('session');
+    expect(story.events.find((e) => e.id === 'b-create')?.title).toContain('try-redis');
+    expect(story.events.find((e) => e.id === 'b-fold')?.title).toBe('⎇ Folded try-redis → main');
+  });
 });

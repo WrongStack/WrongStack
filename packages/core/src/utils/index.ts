@@ -150,6 +150,7 @@ export {
   useDaemonPerfDefaults,
 } from './perf-profile.js';
 export { isPidAlive } from './pid.js';
+export * from './price-cliff.js';
 export {
   detectProjectKind,
   isOutsideProject,
@@ -241,6 +242,7 @@ export {
   setRawMode,
   setTitle,
   type TerminalCapability,
+  type TerminalGraphicsProtocol,
   TerminalLifecycle,
   writeErr,
   writeOut,

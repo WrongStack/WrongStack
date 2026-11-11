@@ -59,6 +59,7 @@ const CORE_RUNTIME_TREE: ContractNode = {
   context: {
     mode: true,
     autoCompact: true,
+    priceCliff: true,
     strategy: true,
     warnThreshold: true,
     softThreshold: true,

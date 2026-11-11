@@ -1,6 +1,43 @@
 import type { UserInputRequest, UserInputResponse } from '@wrongstack/contracts/types';
+import type { ContextBreakdown } from '@wrongstack/core/agent';
 import type { HistoryRetention, RequestResidency } from '@wrongstack/core/utils/residency-labels';
 import type { SessionScopedPayload } from './protocol-core.js';
+
+/**
+ * Browser-side mirror of core's `PriceCliffSummary`
+ * (`@wrongstack/core/execution/compaction-thresholds`).
+ *
+ * The WebUI must not import `@wrongstack/core/execution` — that barrel is
+ * Node-only and `tests/lib/browser-import-boundaries.test.ts` enforces it — so
+ * the wire shape is mirrored here, exactly as `chat-types.ts` mirrors
+ * `AppliedPriceCliff`. Keep in sync with the server, which builds this object
+ * with `describePriceCliffForContext` and sends it on `context.debug`; the
+ * figures are what the compaction ladder actually acts on.
+ */
+export interface PriceCliffSummary {
+  /** The published step-up boundary (absolute tokens), this route only. */
+  cliffTokens: number;
+  /** Published step-up factor, e.g. 2 = double price above the boundary. */
+  multiplier?: number;
+  /** Which billed rate steps up. */
+  field?: string;
+  baseRate?: number;
+  cliffRate?: number;
+  /** True when the cliff, not window fill, drives compaction here. */
+  binding: boolean;
+  /** Tokens the ladder fires at: min(threshold x window, cliff x headroom). */
+  triggerTokens: number;
+  /** Tokens the ladder would fire at without the cliff. */
+  uncappedTriggerTokens: number;
+  /** The measured request size this report was computed for. */
+  inputTokens: number;
+  /** Tokens left before the trigger; negative once it is already crossed. */
+  tokensToTrigger: number;
+  /** Tokens the post-compaction target lands at, cliff-capped too. */
+  targetTokens: number;
+  /** Input budget the rungs are measured against. */
+  availableInputTokens: number;
+}
 
 /** Moved to webui-protocol (conversation-core.ts), the single source the SDK shares. */
 export type {
@@ -285,6 +322,19 @@ export interface WSContextDebug {
     residency?: RequestResidency | undefined;
     /** What the next compaction keeps. */
     retention?: HistoryRetention | undefined;
+    /**
+     * Context X-Ray: item-by-item occupancy of the window (system prompt per
+     * section, builtin vs MCP tool schemas, history text/tool inputs/file
+     * outputs/thinking, volatile blocks). Core's canonical accounting, so it
+     * reconciles with the CLI `/context` report and the TUI bar.
+     */
+    xray?: ContextBreakdown | undefined;
+    /**
+     * Long-context price cliff: the published boundary and the compaction
+     * trigger it forces — `min(threshold x window, cliff)`, computed by the
+     * same arithmetic the ladder uses. Absent when no cliff applies.
+     */
+    cliff?: PriceCliffSummary | undefined;
   };
 }
 

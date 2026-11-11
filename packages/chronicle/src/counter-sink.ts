@@ -80,11 +80,15 @@ const LATEST_ATTRIBUTES: Record<string, readonly string[]> = {
     'usage.cacheWrite',
     'cost.total',
   ],
+  // The bridged subagent event carries the subagent counter's own cumulative
+  // cost (host-event-bridge.ts); dropping it left folded subagent spend out of
+  // every cost total.
   'subagent.token_accounted': [
     'usage.input',
     'usage.output',
     'usage.cacheRead',
     'usage.cacheWrite',
+    'cost.total',
   ],
 };
 

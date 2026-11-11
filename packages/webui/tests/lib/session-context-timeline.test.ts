@@ -102,6 +102,40 @@ describe('buildContextTimeline', () => {
     expect(t.removedTotal).toBe(36_000);
   });
 
+  it('says WHY it fired when the long-context price cliff capped the pass', () => {
+    // The distinction the whole feature exists to make: on a 1M window a
+    // compaction at 210K is not capacity pressure, it is the 2x billing
+    // boundary at 200K. Without this fact the timeline reads like a runaway.
+    const t = buildContextTimeline([
+      residency(1_000, 1),
+      event('compaction.fired', 2_000, {
+        level: 'soft',
+        report: {
+          before: 210_000,
+          after: 120_000,
+          reductions: [{ phase: 'summary', saved: 90_000 }],
+        },
+        priceCliff: { cliffTokens: 200_000, triggerTokens: 190_000 },
+      }),
+    ]);
+    expect(t.marks[0]?.facts).toEqual(['price cliff 200,000 → fired 190,000', 'summary −90,000']);
+  });
+
+  it('leaves window-relative marks untouched when no cliff was applied', () => {
+    const t = buildContextTimeline([
+      residency(1_000, 1),
+      event('compaction.fired', 2_000, {
+        level: 'hard',
+        report: {
+          before: 900_000,
+          after: 400_000,
+          reductions: [{ phase: 'elide', saved: 50_000 }],
+        },
+      }),
+    ]);
+    expect(t.marks[0]?.facts).toEqual(['elide −50,000']);
+  });
+
   it('separates agent lanes and keeps agentless marks on the main lane', () => {
     const events = [
       residency(1_000, 1),

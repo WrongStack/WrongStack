@@ -32,10 +32,15 @@ import {
   SlashCommandRegistry,
   type ToolRegistry,
 } from '@wrongstack/core/registry';
-import { toErrorMessage, type WstackPaths } from '@wrongstack/core/utils';
+import {
+  priceCliffRouteForContext,
+  toErrorMessage,
+  type WstackPaths,
+} from '@wrongstack/core/utils';
 import type { MaxContextBranch } from '@wrongstack/fleet';
 import {
   describeMaxContextChange,
+  publishRuntimePriceCliff,
   refreshRuntimeModelCatalog,
   resolveRuntimeMaxContextDetailed,
 } from '@wrongstack/fleet';
@@ -364,6 +369,38 @@ export async function setupLifecycleAndPlugins(
     | { providerId: string; modelId: string; cfg: ProviderConfig | undefined }
     | undefined;
 
+  /**
+   * Re-publish the route's long-context price cliff. Every path that resolves
+   * the window must call this: tier reachability depends on the window
+   * (`size < maxContext`), so a switch to a model without a published step-up
+   * has to CLEAR the old cap, and a catalog refresh can introduce or move a
+   * tier under the model that is already active.
+   *
+   * The cliff is stamped with the LIVE context route (`priceCliffRouteForContext`),
+   * not the lookup pair — `providerId` may name an alias whose catalog `type`
+   * differs — because `readPriceCliffTokens` discards a cliff keyed to another
+   * route, which would silently disable the cap.
+   */
+  const publishCliff = async (
+    providerId: string,
+    modelId: string,
+    maxContext: number,
+    runtimeProviderConfig: ProviderConfig | undefined,
+    seq: number,
+  ): Promise<void> => {
+    await publishRuntimePriceCliff({
+      modelsRegistry,
+      providerId,
+      modelId,
+      providerConfig: runtimeProviderConfig ?? config.providers?.[providerId],
+      maxContext,
+      meta: context.meta,
+      enabled: config.context.priceCliff !== false,
+      routeKey: priceCliffRouteForContext(context),
+      isCurrent: () => seq === maxContextRefreshSeq,
+    });
+  };
+
   const refreshMaxContext = async (
     providerId: string,
     modelId: string,
@@ -381,6 +418,7 @@ export async function setupLifecycleAndPlugins(
         modelId,
       });
       applyMaxContext(providerId, modelId, maxContext, seq, branch);
+      await publishCliff(providerId, modelId, maxContext, runtimeProviderConfig, seq);
     };
     await resolveAndApply();
     const refreshed = await refreshRuntimeModelCatalog({
@@ -408,9 +446,14 @@ export async function setupLifecycleAndPlugins(
       providerId,
       modelId,
     })
-      .then(({ maxContext, branch }) =>
-        applyMaxContext(providerId, modelId, maxContext, seq, branch),
-      )
+      .then(async ({ maxContext, branch }) => {
+        applyMaxContext(providerId, modelId, maxContext, seq, branch);
+        // A refreshed catalog can introduce, move, or drop a price tier under
+        // the model that is already active — re-stamp the cliff so the ladder
+        // neither keeps a boundary the catalog no longer publishes nor misses a
+        // newly published one.
+        await publishCliff(providerId, modelId, maxContext, lastMaxContextTarget?.cfg, seq);
+      })
       .catch((err: unknown) => {
         logger.debug(`max-context re-resolve after catalog change failed: ${toErrorMessage(err)}`);
       });

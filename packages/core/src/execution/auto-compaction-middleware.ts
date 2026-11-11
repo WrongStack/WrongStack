@@ -1,11 +1,16 @@
 import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import type { MiddlewareHandler } from '@wrongstack/contracts/kernel/pipeline';
-import type { Compactor, CompactReport } from '@wrongstack/contracts/types/compactor';
 import type { ContextWindowAggressiveOn, ContextWindowPolicy } from '@wrongstack/contracts/types';
+import type { Compactor, CompactReport } from '@wrongstack/contracts/types/compactor';
 import type { Context } from '../core/context.js';
 import type { SessionEventBridge } from '../storage/session-event-bridge.js';
 import type { ContextWindowBudgetSnapshot } from '../utils/context-budget.js';
 import { repeatedReadPressure } from '../utils/context-evidence.js';
+import {
+  adjustLadderForPriceCliff,
+  priceCliffRouteKey,
+  readPriceCliffTokens,
+} from '../utils/price-cliff.js';
 import {
   estimateRequestTokensCalibrated,
   estimateRequestTokensUpperBound,
@@ -35,7 +40,7 @@ import {
 } from './compaction-history-policy.js';
 import type { CompactionReportingHost } from './compaction-reporting.js';
 import { reportCompaction as reportCompactionFromHost } from './compaction-reporting.js';
-import type { PressureLevel } from './compaction-thresholds.js';
+import type { AppliedPriceCliff, PressureLevel } from './compaction-thresholds.js';
 import {
   adaptThresholdsForSignals,
   contextWindowBudget,
@@ -261,6 +266,29 @@ export class AutoCompactionMiddleware {
       });
       const aggressiveOn = policy?.aggressiveOn ?? this.aggressiveOn;
       const targetLoad = normalizeTargetLoad(policy?.targetLoad, adaptiveThresholds);
+      // Long-context PRICE CLIFF: some providers bill the same model at a
+      // step-up rate once ONE request crosses a published boundary (2x above
+      // 200K on the Anthropic/Gemini long-context tiers). A window-relative
+      // ladder on a 1M window reaches soft long after that money is spent, so
+      // the cliff is folded in as an absolute cap — Goose's
+      // `min(threshold x window, token_cap)` — and `hard` deliberately keeps
+      // its overflow meaning: a 2x price is not a provider rejection.
+      const ladder = adjustLadderForPriceCliff(
+        { ...adaptiveThresholds, targetLoad },
+        budget.availableInputTokens,
+        readPriceCliffTokens(ctx.meta, priceCliffRouteKey(ctx.provider?.id, ctx.model)),
+      );
+      const cliffThresholds = ladder.thresholds;
+      const cliffTargetLoad = ladder.targetLoad;
+      // What the ladder ACTUALLY applied, captured once here and forwarded to
+      // the `compaction.fired` event and the session record. Reporters must not
+      // re-derive it: some provider routes already pre-subtract the output
+      // reserve before this middleware subtracts it again, so a second
+      // derivation can name a boundary different from the one that fired.
+      const cliffApplied: AppliedPriceCliff | undefined =
+        ladder.binding && ladder.cliffTokens !== undefined && ladder.triggerTokens !== undefined
+          ? { cliffTokens: ladder.cliffTokens, triggerTokens: ladder.triggerTokens }
+          : undefined;
 
       // Escalate past a calibrated under-count before deciding pressure.
       // The protected line is warn: inflation that crosses warn, soft, or hard
@@ -269,11 +297,11 @@ export class AutoCompactionMiddleware {
         ctx,
         calibratedLoad,
         budget.availableInputTokens,
-        adaptiveThresholds.warn,
+        cliffThresholds.warn,
         exactAnchor,
       );
 
-      let level = pressureLevelFor(load, adaptiveThresholds);
+      let level = pressureLevelFor(load, cliffThresholds);
 
       if (!level) {
         // Load dropped back below all thresholds — any previously stuck state
@@ -290,9 +318,7 @@ export class AutoCompactionMiddleware {
       // the session. Gating on real pressure plus a growth interval turns that
       // into one rewrite per interval, leaving history append-only — and the
       // prompt prefix cacheable — for every turn in between.
-      if (
-        this.shouldRunHygiene(ctx, level, tokens, budget.availableInputTokens, adaptiveThresholds)
-      ) {
+      if (this.shouldRunHygiene(ctx, level, tokens, budget.availableInputTokens, cliffThresholds)) {
         const changed = this.runHistoryHygiene(ctx);
         // Anchor the next interval on the post-hygiene size even when nothing
         // changed, so a session with nothing left to trim does not re-attempt
@@ -313,11 +339,11 @@ export class AutoCompactionMiddleware {
               ctx,
               budget.load,
               budget.availableInputTokens,
-              adaptiveThresholds.warn,
+              cliffThresholds.warn,
             ),
             exactAnchor,
           );
-          const relevelled = pressureLevelFor(load, adaptiveThresholds);
+          const relevelled = pressureLevelFor(load, cliffThresholds);
           if (!relevelled) {
             this.stateFor(ctx).lastNoopAttempt = null;
             return next(ctx);
@@ -341,8 +367,9 @@ export class AutoCompactionMiddleware {
         level,
         tokens,
         load,
-        hardThreshold: adaptiveThresholds.hard,
-        targetLoad,
+        hardThreshold: cliffThresholds.hard,
+        targetLoad: cliffTargetLoad,
+        priceCliff: cliffApplied,
         budget,
         signals: { repeatedReadCount: repetition },
       });
@@ -603,6 +630,7 @@ export class AutoCompactionMiddleware {
       load: number;
       hardThreshold: number;
       targetLoad: number;
+      priceCliff?: AppliedPriceCliff | undefined;
       budget: ContextWindowBudgetSnapshot;
       signals: { repeatedReadCount: number };
     },

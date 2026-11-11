@@ -787,6 +787,10 @@
       "compileGlob",
       "matchCommandGlob"
     ],
+    "packages/core/src/utils/price-cliff.ts": [
+      "CONTEXT_PRICE_CLIFF_META",
+      "readPriceCliffMeta"
+    ],
     "packages/core/src/utils/project-identity.ts": [
       "isProjectId"
     ],
@@ -1979,6 +1983,9 @@
     ],
     "packages/webui-server/src/server/http-server/api-handlers.ts": [
       "fleetBroadcastTargets"
+    ],
+    "packages/webui-server/src/server/max-context-updater.ts": [
+      "publishRoutePriceCliff"
     ],
     "packages/webui-server/src/server/mcp-tool-handlers.ts": [
       "conversationNote"

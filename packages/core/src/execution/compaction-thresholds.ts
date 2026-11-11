@@ -5,9 +5,32 @@ import {
   type ContextWindowBudgetSnapshot,
   computeContextWindowBudget,
 } from '../utils/context-budget.js';
+import {
+  adjustLadderForPriceCliff,
+  priceCliffRouteForContext,
+  readPriceCliffForRoute,
+} from '../utils/price-cliff.js';
 
 export type PressureLevel = 'warn' | 'soft' | 'hard';
 export const LEVEL_RANK: Record<PressureLevel, number> = { warn: 0, soft: 1, hard: 2 };
+
+/**
+ * The price-cliff cap the compaction ladder ACTUALLY applied for a pass.
+ *
+ * Recorded at decision time in the middleware and forwarded verbatim to the
+ * `compaction.fired` event and the session record, so the WebUI, the Session
+ * Story timeline and the `/context cliff` report all name the same boundary
+ * that fired. Reporting must never recompute a budget: some provider routes
+ * already pre-subtract the output reserve before the middleware subtracts it
+ * again, so a second derivation can report a different number than the one
+ * that triggered the compaction.
+ */
+export interface AppliedPriceCliff {
+  /** The published long-context boundary, in tokens. */
+  cliffTokens: number;
+  /** Absolute token point the ladder fired at because of the cliff. */
+  triggerTokens: number;
+}
 
 export function pressureLevelFor(
   load: number,
@@ -121,4 +144,82 @@ export function normalizeTargetLoad(
     return Math.min(Math.max(0.05, targetLoad), Math.max(0.05, thresholds.hard - 0.01));
   }
   return Math.max(0.05, thresholds.warn);
+}
+
+/** What a surface needs to explain the price cliff to the user, in tokens. */
+export interface PriceCliffSummary {
+  /** The published step-up boundary (absolute tokens), this route only. */
+  cliffTokens: number;
+  /** Published step-up factor, e.g. 2 = double price above the boundary. */
+  multiplier?: number;
+  /** Which billed rate steps up. */
+  field?: string;
+  baseRate?: number;
+  cliffRate?: number;
+  /** True when the cliff, not window fill, is what drives compaction here. */
+  binding: boolean;
+  /** Tokens the ladder fires at: min(threshold x window, cliff x headroom). */
+  triggerTokens: number;
+  /** Tokens the ladder would fire at without the cliff. */
+  uncappedTriggerTokens: number;
+  /** The measured request size this report was computed for. */
+  inputTokens: number;
+  /** Tokens left before the trigger; negative once it is already crossed. */
+  tokensToTrigger: number;
+  /** Tokens the post-compaction target lands at, cliff-capped too. */
+  targetTokens: number;
+  /** Input budget the rungs are measured against. */
+  availableInputTokens: number;
+}
+
+/**
+ * The single source for the "Context Window Report" cliff line, shared by the
+ * CLI `/context` report and the WebUI `context.debug` payload. Both surfaces
+ * therefore show the trigger the compaction ladder actually uses — computed
+ * with `contextWindowBudget` + `adjustLadderForPriceCliff`, the same two calls
+ * the middleware makes — instead of each re-deriving the arithmetic and drifting.
+ *
+ * `undefined` means "no cliff applies to this route": no published boundary, an
+ * unknown window, or a boundary the window-relative ladder already beats.
+ */
+export function describePriceCliffForContext(
+  ctx: Context,
+  inputTokens: number,
+  maxContext: number,
+  thresholds: { warn: number; soft: number; hard: number } | null | undefined,
+  targetLoad: number | null | undefined,
+): PriceCliffSummary | undefined {
+  const runtimeMax = effectiveMaxContext(ctx, maxContext);
+  if (runtimeMax <= 0) return undefined;
+  const routeKey = priceCliffRouteForContext(ctx);
+  const cliff = readPriceCliffForRoute(ctx.meta, routeKey);
+  if (!cliff) return undefined;
+
+  const budget = contextWindowBudget(ctx, inputTokens, runtimeMax);
+  const rungs = sanitizeThresholds(thresholds ?? { warn: 0.55, soft: 0.7, hard: 0.85 });
+  const target = normalizeTargetLoad(targetLoad, rungs);
+  const adjusted = adjustLadderForPriceCliff(
+    { ...rungs, targetLoad: target },
+    budget.availableInputTokens,
+    cliff.cliffTokens,
+  );
+  // A cliff the ladder already beats is published, but it is not what saves
+  // money here — report it as non-binding so no surface claims a cap that is
+  // not in force.
+  if (!adjusted.binding || adjusted.triggerTokens === undefined) return undefined;
+
+  return {
+    cliffTokens: cliff.cliffTokens,
+    ...(cliff.multiplier !== undefined ? { multiplier: cliff.multiplier } : {}),
+    ...(cliff.field !== undefined ? { field: cliff.field } : {}),
+    ...(cliff.baseRate !== undefined ? { baseRate: cliff.baseRate } : {}),
+    ...(cliff.cliffRate !== undefined ? { cliffRate: cliff.cliffRate } : {}),
+    binding: true,
+    triggerTokens: adjusted.triggerTokens,
+    uncappedTriggerTokens: Math.floor(rungs.soft * budget.availableInputTokens),
+    inputTokens: budget.inputTokens,
+    tokensToTrigger: adjusted.triggerTokens - budget.inputTokens,
+    targetTokens: Math.floor(adjusted.targetLoad * budget.availableInputTokens),
+    availableInputTokens: budget.availableInputTokens,
+  };
 }

@@ -2,12 +2,20 @@
  * Session context route handlers: clear, debug, compact, repair, and context editor.
  */
 
-import { DEFAULT_CONTEXT_WINDOW_MODE_ID } from '@wrongstack/contracts/types';
+import {
+  type ContextWindowPolicy,
+  DEFAULT_CONTEXT_WINDOW_MODE_ID,
+} from '@wrongstack/contracts/types';
 import {
   resetSessionSubagentPolicy,
   unlockSessionSubagentPolicyForSession,
 } from '@wrongstack/coordination';
-import { compactionReportStillCurrent, getHistoryRetention } from '@wrongstack/core/execution';
+import { type ContextBreakdown, getContextBreakdown } from '@wrongstack/core/agent';
+import {
+  compactionReportStillCurrent,
+  describePriceCliffForContext,
+  getHistoryRetention,
+} from '@wrongstack/core/execution';
 import {
   getRequestResidency,
   type HistoryRetention,
@@ -149,10 +157,34 @@ export function createSessionContextHandlers(
         tools: target.tools ?? ctx.listTools?.() ?? ctx.toolRegistry?.list(),
         messages: target.messages,
       });
+      // The cliff report must use the rungs in THIS session's policy meta, not
+      // the mode defaults — otherwise the viewer shows a trigger that is not
+      // the one the compaction ladder reads back.
+      const policy = target.meta['contextWindowPolicy'] as ContextWindowPolicy | undefined;
+      const cliff = safeSnapshot(() =>
+        describePriceCliffForContext(
+          target,
+          breakdown.total,
+          target.provider?.capabilities?.maxContext ?? 0,
+          policy?.thresholds,
+          policy?.targetLoad,
+        ),
+      );
       sendTo(ws, {
         type: 'context.debug',
         payload: withRequestId(msg.payload, {
           ...breakdown,
+          // The Context X-Ray: item-by-item occupancy of the window — system
+          // prompt per section (identity, skills, project instructions…),
+          // builtin vs MCP tool schemas per server, message history split into
+          // text / tool inputs / file outputs / thinking, and the volatile
+          // per-turn blocks. Core's canonical accounting, so it reconciles with
+          // the CLI `/context` report and the TUI bar. Display-only: a failure
+          // here must never fail the debug reply it rides on.
+          xray: safeSnapshot<ContextBreakdown | undefined>(() => getContextBreakdown(target)),
+          // The long-context price cliff, computed by the SAME arithmetic the
+          // compaction ladder uses — what the viewer shows is what fires.
+          cliff,
           mode: target.meta['contextWindowMode'] ?? DEFAULT_CONTEXT_WINDOW_MODE_ID,
           policy: target.meta['contextWindowPolicy'],
           // What the last request sent was cached / written / never cached,

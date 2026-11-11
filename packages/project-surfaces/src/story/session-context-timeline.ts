@@ -154,6 +154,18 @@ function toMark(event: ChronicleEventView): ContextMark | undefined {
         .map(record)
         .filter((r) => num(r.saved) > 0)
         .map((r) => `${str(r.phase, 'phase')} −${num(r.saved).toLocaleString(displayLocale())}`);
+      // Why it fired. The engine forwards the cliff it ACTUALLY applied, so a
+      // cost-driven compaction reads differently from a capacity-driven one —
+      // the distinction the whole price-cliff feature exists to make. Absent
+      // for window-relative passes, which keeps every existing mark unchanged.
+      const cliff = record(a.priceCliff);
+      const cliffTokens = num(cliff.cliffTokens);
+      const triggerTokens = num(cliff.triggerTokens);
+      if (cliffTokens > 0 && triggerTokens > 0) {
+        facts.unshift(
+          `price cliff ${cliffTokens.toLocaleString(displayLocale())} → fired ${triggerTokens.toLocaleString(displayLocale())}`,
+        );
+      }
       return {
         ...base,
         kind: 'compaction',

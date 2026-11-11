@@ -67,9 +67,12 @@ export function storyKind(type: string, tool?: string): StoryKind {
   if (/drift|error|failed|retry|fallback|denied|conflict|loop_detected/.test(type)) return 'alert';
   if (/^memory\./.test(type) || /^(remember|forget|memory[._])/.test(tool ?? '')) return 'memory';
   if (/mail/.test(type) || /mail/.test(tool ?? '')) return 'mail';
-  if (/task|kanban|goal|checkpoint|sdd/.test(type) || /^(task|kanban|plan|todo)$/.test(tool ?? ''))
+  if (
+    /task|kanban|goal|checkpoint|sdd|branch/.test(type) ||
+    /^(task|kanban|plan|todo)$/.test(tool ?? '')
+  )
     return 'work';
-  if (/^file\.|resource\.observed/.test(type)) return 'file';
+  if (/^file\.|resource\.observed|workspace\.files_materialized/.test(type)) return 'file';
   if (/tool/.test(type)) return 'tool';
   if (/subagent|agent\.|delegate|fleet/.test(type)) return 'agent';
   if (/provider|llm|thinking/.test(type)) return 'model';
@@ -137,19 +140,27 @@ export function buildSessionStory(
       );
   }
   const knownTraces = new Set<string>();
+  const branchNames = new Map<string, string>([['main', 'main']]);
   const ensureActor = (id: string, at: number) => {
     let actor = actors.get(id);
     if (!actor) {
+      const branchId = id.startsWith('branch:') ? id.slice('branch:'.length) : undefined;
       actor = {
         id,
-        name:
-          names.get(id) ??
-          (id === 'session' ? 'Session / unattributed' : `Agent ${id.slice(0, 12)}`),
+        name: branchId
+          ? `⎇ ${branchNames.get(branchId) ?? branchId}`
+          : (names.get(id) ??
+            (id === 'session' ? 'Session / unattributed' : `Agent ${id.slice(0, 12)}`)),
+        ...(branchId ? { parent: 'session' } : {}),
         start: at,
         end: at,
         events: 0,
       };
       actors.set(id, actor);
+    } else if (id.startsWith('branch:')) {
+      const branchId = id.slice('branch:'.length);
+      const knownBranchName = branchNames.get(branchId);
+      if (knownBranchName) actor.name = `⎇ ${knownBranchName}`;
     }
     actor.start = Math.min(actor.start, at);
     actor.end = Math.max(actor.end, at);
@@ -161,9 +172,23 @@ export function buildSessionStory(
     const at = timestamp(record.occurredAt) ?? timestamp(record.observedAt);
     if (at === undefined) continue;
     const attributes = record.attributes ?? {};
+    const attrBranchId =
+      string(attributes.branchId) ??
+      string(attributes.newBranchId) ??
+      string(attributes.toBranchId) ??
+      string(attributes.sourceBranchId);
+    const attrBranchName = string(attributes.branchName) ?? string(attributes.name);
+    if (attrBranchId && attrBranchName) {
+      branchNames.set(attrBranchId, attrBranchName);
+    }
     const spawnedId =
       record.eventType === 'subagent.spawned' ? string(attributes.subagentId) : undefined;
-    const actorId = spawnedId ?? record.scope.agentId ?? string(attributes.subagentId) ?? 'session';
+    const baseActorId =
+      spawnedId ?? record.scope.agentId ?? string(attributes.subagentId) ?? 'session';
+    const actorId =
+      baseActorId === 'session' && attrBranchId && attrBranchId !== 'main'
+        ? `branch:${attrBranchId}`
+        : baseActorId;
     const actor = ensureActor(actorId, at);
     if (record.runtime?.modelId) actor.model = record.runtime.modelId;
     const actorName =
@@ -207,12 +232,20 @@ export function buildSessionStory(
     if (ms !== undefined) actor.start = Math.min(actor.start, at - ms);
     const runId = string(attributes.runId);
     if (record.eventType === 'memory.injector_run' && runId) knownTraces.add(runId);
+    const branchTitle =
+      record.eventType === 'branch_created'
+        ? `⎇ Branch created: ${string(attributes.name) ?? string(attributes.branchId) ?? 'branch'}`
+        : record.eventType === 'branch_switched' || record.eventType === 'session.branch_switched'
+          ? `⎇ Switched branch → ${branchNames.get(string(attributes.toBranchId) ?? '') ?? string(attributes.toBranchId) ?? 'branch'}`
+          : record.eventType === 'branch_folded'
+            ? `⎇ Folded ${branchNames.get(string(attributes.sourceBranchId) ?? '') ?? string(attributes.sourceBranchId) ?? 'branch'} → ${branchNames.get(string(attributes.targetBranchId) ?? '') ?? string(attributes.targetBranchId) ?? 'main'}`
+            : undefined;
     events.push({
       id: record.eventId,
       at,
       actor: actorId,
       kind: storyKind(record.eventType, tool),
-      title: tool ?? string(attributes.operation) ?? record.eventType,
+      title: branchTitle ?? tool ?? string(attributes.operation) ?? record.eventType,
       detail: [record.eventType, record.outcome, path].filter(Boolean).join(' · '),
       durationMs: ms,
       path,

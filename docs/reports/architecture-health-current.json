@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-11T21:31:34.159Z",
+  "generatedAt": "2026-11-11T21:34:17.845Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6245,
-    "testFiles": 5197,
-    "sourceLines": 1281253,
+    "sourceFiles": 6247,
+    "testFiles": 5204,
+    "sourceLines": 1282684,
     "workspaceEdges": 250,
-    "moduleEdges": 18385,
+    "moduleEdges": 18390,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 321,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1044
+    "testOnlyExports": 1047
   },
   "errors": [],
   "packageCycles": [],
@@ -185,7 +185,7 @@
       "name": "@wrongstack/chronicle",
       "dir": "packages/chronicle",
       "sourceFiles": 53,
-      "testFiles": 44,
+      "testFiles": 45,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -201,7 +201,7 @@
         {
           "path": "packages/chronicle/tsconfig.test.json",
           "error": null,
-          "testFiles": 44
+          "testFiles": 45
         }
       ]
     },
@@ -361,8 +361,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 648,
-      "testFiles": 705,
+      "sourceFiles": 649,
+      "testFiles": 708,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -379,7 +379,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 705
+          "testFiles": 708
         }
       ]
     },
@@ -1117,8 +1117,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 784,
-      "testFiles": 521,
+      "sourceFiles": 785,
+      "testFiles": 522,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1144,7 +1144,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 521
+          "testFiles": 522
         }
       ]
     },
@@ -1175,7 +1175,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 350,
-      "testFiles": 391,
+      "testFiles": 393,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1210,7 +1210,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 391
+          "testFiles": 393
         }
       ]
     },
@@ -4311,6 +4311,12 @@
       },
       {
         "file": "packages/chronicle/tests/chronicle-stop-drain.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/chronicle/tests/counter-sink-token-cost.test.ts",
         "projects": [
           "root-node"
         ]
@@ -10970,6 +10976,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/execution/auto-compaction-price-cliff.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/execution/auto-compaction-state-isolation.test.ts",
         "projects": [
           "root-node"
@@ -11391,6 +11403,12 @@
       },
       {
         "file": "packages/core/tests/execution/post-tool-write-paths.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/execution/price-cliff-summary.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13953,6 +13971,12 @@
       },
       {
         "file": "packages/core/tests/utils/pid.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/utils/price-cliff.test.ts",
         "projects": [
           "root-node"
         ]
@@ -27884,6 +27908,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/max-context-updater-price-cliff.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/max-context-updater-stale-switch.test.ts",
         "projects": [
           "root-node"
@@ -28635,6 +28665,12 @@
       },
       {
         "file": "packages/webui-server/tests/session-context-ops-per-session.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/session-context-xray.test.ts",
         "projects": [
           "root-node"
         ]
@@ -29739,6 +29775,12 @@
       },
       {
         "file": "packages/webui/tests/components/context-window-editor.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/context-xray.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -35664,8 +35706,8 @@
     },
     {
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
-      "lines": 704,
-      "relativeImports": 18
+      "lines": 732,
+      "relativeImports": 19
     },
     {
       "file": "packages/core/src/storage/file-session-writer.ts",
@@ -36045,6 +36087,11 @@
       "relativeImports": 6
     },
     {
+      "file": "packages/core/src/execution/auto-compaction-middleware.ts",
+      "lines": 732,
+      "relativeImports": 19
+    },
+    {
       "file": "packages/coordination/src/multi-agent-coordinator.ts",
       "lines": 726,
       "relativeImports": 13
@@ -36138,11 +36185,6 @@
       "file": "packages/webui/src/components/ChronicleDashboard.tsx",
       "lines": 705,
       "relativeImports": 5
-    },
-    {
-      "file": "packages/core/src/execution/auto-compaction-middleware.ts",
-      "lines": 704,
-      "relativeImports": 18
     }
   ],
   "testOnlyExports": [
@@ -37553,6 +37595,14 @@
     {
       "file": "packages/core/src/utils/glob-match.ts",
       "name": "matchCommandGlob"
+    },
+    {
+      "file": "packages/core/src/utils/price-cliff.ts",
+      "name": "CONTEXT_PRICE_CLIFF_META"
+    },
+    {
+      "file": "packages/core/src/utils/price-cliff.ts",
+      "name": "readPriceCliffMeta"
     },
     {
       "file": "packages/core/src/utils/project-identity.ts",
@@ -39725,6 +39775,10 @@
     {
       "file": "packages/webui-server/src/server/http-server/api-handlers.ts",
       "name": "fleetBroadcastTargets"
+    },
+    {
+      "file": "packages/webui-server/src/server/max-context-updater.ts",
+      "name": "publishRoutePriceCliff"
     },
     {
       "file": "packages/webui-server/src/server/mcp-tool-handlers.ts",

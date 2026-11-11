@@ -1,7 +1,9 @@
+import type { ContextBreakdown } from '@wrongstack/core/agent';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getWSClient } from '@/lib/ws-client';
 import { isActiveSessionMessage } from '@/lib/ws-client-utils';
 import { useActiveSessionId } from '@/stores';
+import type { PriceCliffSummary } from '@/types';
 import { useServerMessage } from './useServerMessage';
 
 const FIRST_SNAPSHOT_TIMEOUT_MS = 5_000;
@@ -26,6 +28,18 @@ interface LiveContextDebugPayload {
     count: number;
     breakdown: Array<{ index: number; role: string; tokens: number; preview: string }>;
   };
+  /**
+   * Context X-Ray — item-by-window-section occupancy from core's canonical
+   * accounting. Optional: older servers and a failed snapshot omit it, and the
+   * X-Ray section hides itself rather than render empty rows.
+   */
+  xray?: ContextBreakdown | undefined;
+  /**
+   * The long-context price cliff in force for this route: the published
+   * boundary plus the `min(threshold x window, cliff)` trigger the compaction
+   * ladder actually uses. Optional: absent when no cliff applies.
+   */
+  cliff?: PriceCliffSummary | undefined;
 }
 
 interface UseLiveContextDebugOptions {

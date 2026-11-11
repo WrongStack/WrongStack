@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 518,
-      "typeOnly": 390,
-      "runtimeOrMixed": 160
+      "files": 523,
+      "typeOnly": 394,
+      "runtimeOrMixed": 161
     },
     "@wrongstack/core/boot": {
       "files": 6,
@@ -39,9 +39,9 @@
       "runtimeOrMixed": 16
     },
     "@wrongstack/core/execution": {
-      "files": 111,
+      "files": 112,
       "typeOnly": 25,
-      "runtimeOrMixed": 100
+      "runtimeOrMixed": 101
     },
     "@wrongstack/core/execution/refine-decisions": {
       "files": 2,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 984,
-      "typeOnly": 74,
-      "runtimeOrMixed": 943
+      "files": 988,
+      "typeOnly": 75,
+      "runtimeOrMixed": 947
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -3059,6 +3059,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/session-context-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/session-handler-helpers.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -3287,6 +3293,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/tests/session-context-xray.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/tests/setup-events.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -3329,7 +3341,25 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui/src/components/ContextXRay.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui/src/hooks/useLiveContextDebug.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/webui/src/stores/auto-submit-streak.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui/src/types/runtime.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -3768,6 +3798,12 @@
     {
       "specifier": "@wrongstack/core/execution",
       "file": "packages/cli/src/slash-commands/context-residency.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
+      "file": "packages/cli/src/slash-commands/context.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -13523,6 +13559,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/slash-context.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/tests/slash-doctor.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -13694,6 +13736,12 @@
       "file": "packages/cli/tests/webui-server/client-registration-control.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/wiring-pipeline.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -13980,7 +14028,7 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/fleet/src/context-limit.ts",
-      "typeOnly": 0,
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {
@@ -17009,6 +17057,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/tests/max-context-updater-price-cliff.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/tests/mcp-tool-handlers.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -17040,6 +17094,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/tests/session-context-ops-per-session.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/tests/session-context-xray.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

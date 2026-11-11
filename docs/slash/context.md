@@ -22,6 +22,7 @@ Shows a live snapshot of the current context window. In TUI, bare `/context` ope
 | `/context mode <id>` | Switch to a named mode: `balanced`, `frugal`, `deep`, or `archival` |
 | `/context cache` | Prompt-cache report: last-request and session hit ratio, tokens read/written, USD saved, per-provider split, and the active provider's cache mechanism |
 | `/context residency` | What the last request held on the wire: each segment's cached / written / uncached lanes, the provider-reported read/write split, the cache verdict and what broke it, and what the next compaction keeps |
+| `/context cliff` | Long-context **price cliff** report for the active model: the published boundary and multiplier from the model catalog, the compaction trigger it forces — `min(threshold × window, cliff × 0.95)` — where the next compaction lands, the headroom left, and whether the cap is actually binding. Distinguishes the four honest states: no cliff published, a cliff that the window-relative ladder already beats, a cliff that can't apply because the session has no known window, and a cliff in force. Toggle: `context.priceCliff` |
 
 ## What "repair" does
 

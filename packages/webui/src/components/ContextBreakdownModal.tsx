@@ -11,6 +11,7 @@ import {
 import { useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { fmtTok } from '@/components/ChatView/utils';
+import { ContextXRay } from '@/components/ContextXRay';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { useLiveContextDebug } from '@/hooks/useLiveContextDebug';
 import { useAppTranslation } from '@/i18n';
@@ -314,6 +315,9 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                 {cacheCoverageSection}
 
                 {providerCacheSection}
+
+                {/* ── Context X-Ray: item-by-item occupancy + the price cliff ── */}
+                <ContextXRay xray={data.xray} cliff={data.cliff} maxContext={maxContext} />
 
                 {/* ── Token allocation: composition ring + bar ── */}
                 <section>

@@ -10,7 +10,7 @@ import {
   readPath,
   stringAt,
 } from './metrics-schema.js';
-import { isTerminalFailure, signalFamily } from './query.js';
+import { isTerminalFailure, signalFamily, tokenSnapshotAttributes } from './query.js';
 import type { ChronicleEvent } from './types.js';
 
 /**
@@ -27,11 +27,17 @@ export function ingestEvent(stmt: StatementCache, event: ChronicleEvent): void {
   const type = event.eventType;
   if (type.startsWith('provider.attempt.') || type === 'provider.fallback') {
     ingestProvider(stmt, event);
-  } else if (type === 'token.accounted' || type === 'subagent.token_accounted') {
+  } else if (
+    type === 'token.accounted' ||
+    type === 'subagent.token_accounted' ||
+    type === 'metrics.counter'
+  ) {
     // Both names feed the same table. A subagent's counter emits on its
     // private EventBus, so its spend reaches the host — and therefore
     // Chronicle — only under the bridged `subagent.` name; scope.agentId is
-    // what keeps its row distinct from the leader's.
+    // what keeps its row distinct from the leader's. At the default
+    // `balanced` detail level both arrive folded into `metrics.counter`;
+    // ingestTokenCost ignores every other counter.
     ingestTokenCost(stmt, event);
   } else if (/^(?:sdd|subagent|kanban)\.task[._]/.test(type)) {
     ingestTask(stmt, event);
@@ -213,17 +219,23 @@ function ingestProvider(stmt: StatementCache, event: ChronicleEvent): void {
 }
 
 function ingestTokenCost(stmt: StatementCache, event: ChronicleEvent): void {
+  const snapshot = tokenSnapshotAttributes(event);
+  if (!snapshot) return;
   const attributes = event.attributes ?? {};
-  const cost = readPath(attributes, 'cost.total');
+  const cost = readPath(snapshot, 'cost.total');
   // Tokens are authoritative even when pricing is not: subscription-plan
   // providers resolve to cost 0, so gating the whole row on a finite cost
   // discarded every one of those sessions along with the token counts the
   // cost was derived from. Keep the row when EITHER is usable.
+  const tokens = (dotPath: string): number => {
+    const value = readPath(snapshot, dotPath);
+    return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+  };
   const usage = {
-    input: numberAt(event, 'usage.input'),
-    output: numberAt(event, 'usage.output'),
-    cacheRead: numberAt(event, 'usage.cacheRead'),
-    cacheWrite: numberAt(event, 'usage.cacheWrite'),
+    input: tokens('usage.input'),
+    output: tokens('usage.output'),
+    cacheRead: tokens('usage.cacheRead'),
+    cacheWrite: tokens('usage.cacheWrite'),
   };
   const finiteCost = typeof cost === 'number' && Number.isFinite(cost) ? cost : undefined;
   const anyTokens =

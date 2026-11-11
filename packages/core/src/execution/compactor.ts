@@ -1,9 +1,12 @@
 import type { Compactor, CompactReport } from '@wrongstack/contracts/types/compactor';
 import type { ContextWindowPolicy } from '@wrongstack/contracts/types/context-window';
+import type { ExtensionRegistryPort } from '@wrongstack/contracts/types/extension-points';
 import type { Logger } from '@wrongstack/contracts/types/logger';
 import type { Message } from '@wrongstack/contracts/types/messages';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
 import type { Context } from '../core/context.js';
 import { noOpLogger } from '../infrastructure/logger.js';
+import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
 import {
   buildContextEvidenceDigest,
   checkCompactionQuality,
@@ -43,6 +46,10 @@ export interface CompactorOptions {
   estimator?: ((text: string) => number) | undefined;
   /** Structured logger. Defaults to noOpLogger (silent). */
   logger?: Logger | undefined;
+  /** Optional extension registry consulted for `beforeCompact` hooks. */
+  extensions?: ExtensionRegistryPort | undefined;
+  /** Scrubber applied to any plugin-contributed compaction summary or instructions. */
+  secretScrubber?: SecretScrubber | undefined;
 }
 
 /**
@@ -64,18 +71,26 @@ export class HybridCompactor implements Compactor {
   private readonly eliseThreshold: number;
   private readonly smart: boolean;
   private readonly logger: Logger;
+  private readonly extensions: ExtensionRegistryPort | undefined;
+  private readonly secretScrubber: SecretScrubber;
 
   constructor(opts: CompactorOptions = {}) {
     this.preserveK = opts.preserveK ?? 5;
     this.eliseThreshold = opts.eliseThreshold ?? 2000;
     this.smart = opts.smart ?? false;
     this.logger = opts.logger ?? noOpLogger;
+    this.extensions = opts.extensions;
+    this.secretScrubber = opts.secretScrubber ?? new DefaultSecretScrubber();
     setCompactionDebugLogger(this.logger);
   }
 
   async compact(
     ctx: Context,
-    opts: { aggressive?: boolean | undefined } = {},
+    opts: {
+      aggressive?: boolean | undefined;
+      reason?: 'threshold' | 'manual' | undefined;
+      targetTokens?: number | undefined;
+    } = {},
   ): Promise<CompactReport> {
     const beforeTokens = estimateMessages(ctx.messages);
     const beforeFull = this.estimateFullRequest(ctx);
@@ -83,6 +98,14 @@ export class HybridCompactor implements Compactor {
     const policy = readContextWindowPolicy(ctx);
     const preserveK = policy?.preserveK ?? this.preserveK;
     const eliseThreshold = policy?.eliseThreshold ?? this.eliseThreshold;
+    const hookDirective = this.extensions
+      ? await this.extensions.runBeforeCompact({
+          sessionId: ctx.session?.id,
+          messages: ctx.messages,
+          targetTokens: opts.targetTokens,
+          reason: opts.reason ?? 'threshold',
+        })
+      : undefined;
 
     // Phase 1: elision (shared core handles tool_use/tool_result pair preservation).
     // A configured `keepTokens` tail stays verbatim: no elision inside it.
@@ -108,7 +131,7 @@ export class HybridCompactor implements Compactor {
     let collapsedDigest: string | undefined;
     let evidenceDigest: string | undefined;
     if (opts.aggressive) {
-      const phase2 = this.collapseAncientTurns(ctx, preserveK);
+      const phase2 = this.collapseAncientTurns(ctx, preserveK, hookDirective);
       if (phase2.saved > 0) reductions.push({ phase: 'summary', saved: phase2.saved });
       collapsedDigest = phase2.digest;
       evidenceDigest = phase2.evidenceDigest;
@@ -176,6 +199,13 @@ export class HybridCompactor implements Compactor {
   private collapseAncientTurns(
     ctx: Context,
     preserveK = this.preserveK,
+    hookDirective?:
+      | {
+          pinnedMessageIndices?: readonly number[] | undefined;
+          additionalInstructions?: string | undefined;
+          customSummary?: string | undefined;
+        }
+      | undefined,
   ): { saved: number; digest?: string | undefined; evidenceDigest?: string | undefined } {
     const messages = ctx.messages;
     const cutTarget = widenTailCut(ctx, messages, Math.max(0, messages.length - preserveK * 2));
@@ -193,14 +223,33 @@ export class HybridCompactor implements Compactor {
     }
     if (boundary <= 0) return { saved: 0 };
 
-    const removed = messages.slice(0, boundary);
+    const pinnedSet = new Set(
+      (hookDirective?.pinnedMessageIndices ?? []).filter((idx) => idx >= 0 && idx < boundary),
+    );
+    const pinnedMessages = messages.filter((_, idx) => pinnedSet.has(idx));
+    const removed = messages.slice(0, boundary).filter((_, idx) => !pinnedSet.has(idx));
+    if (removed.length === 0) return { saved: 0 };
     const removedTokens = estimateMessages(removed);
 
-    const historyDigest = this.smart
-      ? buildSmartDigest(removed) ||
-        `${removed.length} earlier turns (no textual content; tool I/O omitted; see session log)`
-      : buildLosslessDigest(removed) ||
-        `${removed.length} earlier turns (no textual content; tool I/O omitted; see session log)`;
+    const scrubbedCustom = hookDirective?.customSummary
+      ? this.secretScrubber.scrub(hookDirective.customSummary)
+      : undefined;
+    const scrubbedInstructions = hookDirective?.additionalInstructions
+      ? this.secretScrubber.scrub(hookDirective.additionalInstructions)
+      : undefined;
+
+    const baseHistoryDigest =
+      scrubbedCustom && scrubbedCustom.trim().length > 0
+        ? scrubbedCustom.trim()
+        : this.smart
+          ? buildSmartDigest(removed) ||
+            `${removed.length} earlier turns (no textual content; tool I/O omitted; see session log)`
+          : buildLosslessDigest(removed) ||
+            `${removed.length} earlier turns (no textual content; tool I/O omitted; see session log)`;
+    const historyDigest =
+      !scrubbedCustom && scrubbedInstructions
+        ? `${baseHistoryDigest}\n\n[plugin_compaction_notes]\n${scrubbedInstructions}`
+        : baseHistoryDigest;
 
     const evidenceDigest = buildContextEvidenceDigest(ctx);
     const digest = evidenceDigest
@@ -214,7 +263,7 @@ export class HybridCompactor implements Compactor {
 
     // L1-A: route through ConversationState so subscribers see the rewrite.
     const tail = ctx.messages.slice(boundary);
-    ctx.state.replaceMessages([summaryMsg, ...tail]);
+    ctx.state.replaceMessages([summaryMsg, ...pinnedMessages, ...tail]);
     return {
       saved: Math.max(0, removedTokens - estimateMessages([summaryMsg])),
       digest,

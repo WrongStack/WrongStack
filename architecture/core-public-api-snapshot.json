@@ -225,6 +225,7 @@
         "export * from './expect-defined.js';",
         "export * from './glob-match.js';",
         "export * from './newline-normalize.js';",
+        "export * from './price-cliff.js';",
         "export * from './project-identity.js';",
         "export * from './residency-labels.js';",
         "export * from './safe-json.js';",
@@ -248,7 +249,7 @@
         "export { authoredBlocks, authoredText, LIVE_CONTEXT_MARKER, } from '@wrongstack/contracts/types/live-context';",
         "export { bindProviderCatalogId, configuredProviderIdentities, providerIdentities, } from './provider-catalog-binding.js';",
         "export { buildCompletedWorkLedgerBlock, buildContextEvidenceDigest, COMPLETED_WORK_LEDGER_MARKER, createContextEvidenceState, formatCompletedWorkLedger, markAssistantReferencedEvidence, type RecordCompletedWorkInput, type RecordToolOutputEvidenceInput, recordCompletedWorkEvidence, recordToolOutputEvidence, recordUserIntentEvidence, rehydrateContextEvidenceFromMessages, repeatedReadPressure, syncCompletedWorkLedgerBlock, } from './context-evidence.js';",
-        "export { buildSgrSequence, buildTitleSequence, type ColorDepth, detectTerminal, ESCAPE_TERMINATOR, type EscapeEmitResult, type EscapeSequence, isStdinTTY, type MouseProtocol, onResize, safeEmit, setOutputLineGuard, setRawMode, setTitle, type TerminalCapability, TerminalLifecycle, writeErr, writeOut, } from './term.js';",
+        "export { buildSgrSequence, buildTitleSequence, type ColorDepth, detectTerminal, ESCAPE_TERMINATOR, type EscapeEmitResult, type EscapeSequence, isStdinTTY, type MouseProtocol, onResize, safeEmit, setOutputLineGuard, setRawMode, setTitle, type TerminalCapability, type TerminalGraphicsProtocol, TerminalLifecycle, writeErr, writeOut, } from './term.js';",
         "export { buildWin32CmdShimInvocation, type Win32CmdShimInvocation } from './win32-cmd.js';",
         "export { capSageLines, SAGE_INJECTOR_HEADINGS, type SageOutputSplit, splitSageOutputBlock, } from './sage-output-block.js';",
         "export { checkConnectivity, resetConnectivityCache } from './connectivity.js';",
@@ -483,6 +484,7 @@
         "export { buildRefinerContextSections, completeRefinerPass, DEFAULT_REFINER_RETRY_FEEDBACK, ENHANCER_SYSTEM_PROMPT, type EnhanceFailureKind, enhanceUserPrompt, gatedEnhancerReasoning, isValidEnglishRefinement, normalizedEqual, parseBilingualEnhancement, recentTextTurns, shouldEnhance, } from './prompt-enhancer.js';",
         "export { compactionReportStillCurrent } from './compaction-result-state.js';",
         "export { createSystemOneBrainTier, probeSystemOneBrain, type SystemOneBrainProbe, type SystemOneBrainTier, type SystemOneBrainTierOptions, systemOneBrainSettles, } from './brain-system-one.js';",
+        "export { describePriceCliffForContext, type PriceCliffSummary, } from './compaction-thresholds.js';",
         "export { getHistoryRetention } from './history-retention.js';",
         "export { installSubagentAutoCompaction } from './subagent-compaction.js';",
         "export { nextEnhanceTimeout, resolveConfiguredRefinerRef, resolveEnhanceFallbackRef, } from './enhance-recovery.js';",
@@ -1093,7 +1095,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 107,
-      "sourceLines": 26469
+      "sourceLines": 26658
     },
     {
       "directory": "extension",
@@ -1219,7 +1221,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 122,
-      "sourceLines": 28497
+      "sourceLines": 28498
     },
     {
       "directory": "tasking",
@@ -1239,8 +1241,8 @@
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
-      "sourceFiles": 96,
-      "sourceLines": 15146
+      "sourceFiles": 97,
+      "sourceLines": 15519
     },
     {
       "directory": "vcs",

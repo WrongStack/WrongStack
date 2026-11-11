@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
 import { DefaultConfigStore } from '@wrongstack/core/storage';
+import { priceCliffRouteForContext, writePriceCliffMeta } from '@wrongstack/core/utils';
 import { describe, expect, it, vi } from 'vitest';
 import { buildContextCommand, cacheTrendVerdict } from '../src/slash-commands/context.js';
 
@@ -366,5 +367,82 @@ describe('buildContextCommand', () => {
     expect(res?.message).toContain('Context repaired');
     expect(res?.message).toContain('tool_use');
     expect(ctx.state.replaceMessages).toHaveBeenCalled();
+  });
+});
+
+describe('/context cliff', () => {
+  const ONE_M = 1_000_000;
+
+  function cliffCtx(opts: {
+    maxContext?: number;
+    cliff?: { cliffTokens: number; multiplier?: number };
+    thresholds?: { warn: number; soft: number; hard: number };
+    inputTokens?: number;
+  }): Context {
+    const ctx = fakeCtx({
+      model: 'claude-x',
+      provider: {
+        id: 'anthropic',
+        capabilities: { maxContext: opts.maxContext ?? ONE_M },
+      },
+      lastRealInputTokens: opts.inputTokens ?? 150_000,
+    });
+    ctx.meta['contextWindowPolicy'] = {
+      thresholds: opts.thresholds ?? { warn: 0.55, soft: 0.7, hard: 0.85 },
+      targetLoad: 0.65,
+    };
+    if (opts.cliff) {
+      writePriceCliffMeta(
+        ctx.meta,
+        {
+          cliffTokens: opts.cliff.cliffTokens,
+          ...(opts.cliff.multiplier === undefined ? {} : { multiplier: opts.cliff.multiplier }),
+          field: 'input',
+        },
+        priceCliffRouteForContext(ctx),
+      );
+    }
+    return ctx;
+  }
+
+  async function cliff(overrides: Parameters<typeof cliffCtx>[0]): Promise<string> {
+    const renderer = fakeRenderer();
+    const cmd = buildContextCommand({ renderer } as never);
+    const res = await cmd.run('cliff', cliffCtx(overrides));
+    return res?.message ?? '';
+  }
+
+  it('says so plainly when the catalog publishes no tier for this route', async () => {
+    const msg = await cliff({});
+    expect(msg).toContain('none published');
+    expect(msg).toContain('anthropic/claude-x');
+    expect(msg).toContain('context.priceCliff');
+  });
+
+  it('reports the capped trigger, not the window-relative one, when it binds', async () => {
+    const msg = await cliff({ cliff: { cliffTokens: 200_000, multiplier: 2 } });
+    expect(msg).toContain('IN FORCE');
+    // min(threshold x window, cliff x 0.95) — the cap wins on a 1M window.
+    expect(msg).toContain('190,000');
+    // ...and the number the user would have paid for is still shown, so the
+    // saving is legible rather than implied.
+    expect(msg).toContain('691,398');
+    expect(msg).toContain('40,000');
+  });
+
+  it('does not claim a cap the window-relative ladder already beats', async () => {
+    const msg = await cliff({ cliff: { cliffTokens: 900_000 } });
+    expect(msg).toContain('Not in force');
+    expect(msg).toContain('1,000,000');
+    expect(msg).not.toContain('IN FORCE');
+  });
+
+  it('tells an unknown window apart from a beaten cliff', async () => {
+    // No window at all: the cliff cannot be turned into a budget, so the advice
+    // is to set one — not to lower a rung that never ran.
+    const msg = await cliff({ maxContext: 0, cliff: { cliffTokens: 200_000 } });
+    expect(msg).toContain('Cannot be applied');
+    expect(msg).toContain('/context limit');
+    expect(msg).not.toContain('Not in force');
   });
 });
