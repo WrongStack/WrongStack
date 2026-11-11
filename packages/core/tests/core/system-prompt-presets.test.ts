@@ -34,7 +34,7 @@ afterEach(async () => {
 
 describe('profile system prompt presets', () => {
   it('accepts the expanded shipped variants as editable copies', () => {
-    for (const variant of ['lite', 'default', 'pro', 'scout'] as const) {
+    for (const variant of ['lite', 'default', 'pro', 'scout', 'quick'] as const) {
       expect(
         validateSystemPromptPreset(bundledPromptText(variant)).filter(
           (i) => i.severity === 'error',

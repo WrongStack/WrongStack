@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import type { Tool } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it } from 'vitest';
 import { loadInstructionBundle } from '../../src/core/instruction-bundle.js';
+import { renderInstructionLayer } from '../../src/core/instruction-template.js';
 import {
   isSystemInstructionVariant,
   SYSTEM_PROMPT_VARIANTS,
@@ -97,5 +98,31 @@ describe('Quick variant', () => {
     expect(text.length).toBeLessThan(2_000);
     const bundle = await loadInstructionBundle({ systemVariant: 'quick' });
     expect(bundle.system?.identity).toContain('WrongStack Quick');
+  });
+
+  it('preserves all three numbered workflow steps and denial guardrail even without clarify or gateway tools', async () => {
+    const bundle = await loadInstructionBundle({ systemVariant: 'quick' });
+    const bare = renderInstructionLayer(bundle.system?.identity ?? '', {
+      toolNames: new Set(['read', 'edit', 'bash']),
+      tier: 'minimal',
+      subagent: false,
+      strictToolReferences: true,
+    });
+    expect(bare).toContain('1. **');
+    expect(bare).toContain('2. **');
+    expect(bare).toContain('3. **');
+    expect(bare).toContain('A denial is final');
+    expect(bare).not.toContain('`clarify`');
+    expect(bare).not.toContain('`tool_search`');
+
+    const withClarify = renderInstructionLayer(bundle.system?.identity ?? '', {
+      toolNames: new Set(['read', 'clarify', 'tool_search', 'tool_use']),
+      tier: 'minimal',
+      subagent: false,
+      strictToolReferences: true,
+    });
+    expect(withClarify).toContain('`clarify`');
+    expect(withClarify).toContain('`tool_search`');
+    expect(withClarify).toContain('`tool_use`');
   });
 });

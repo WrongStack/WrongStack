@@ -24,7 +24,7 @@ import { describe, expect, it } from 'vitest';
  * the assertion fires the moment that tool is absent from a render.
  */
 
-const VARIANTS: readonly SystemInstructionVariant[] = ['default', 'lite', 'pro', 'scout'];
+const VARIANTS: readonly SystemInstructionVariant[] = ['default', 'lite', 'pro', 'scout', 'quick'];
 
 async function loadVariant(variant: SystemInstructionVariant): Promise<string> {
   const bundle = await loadInstructionBundle({ systemVariant: variant });
@@ -143,14 +143,17 @@ describe.each(VARIANTS)('bundled identity prompt — %s variant', (variant) => {
   it('shrinks measurably when the tool set shrinks', async () => {
     const source = await loadVariant(variant);
     const full = renderInstructionLayer(source, ctx(builtinTools, 'off')).length;
-    const tier1 = renderInstructionLayer(source, ctx(TIER1_TOOLS, 'minimal')).length;
+    // Quick only gates Tier-1 gateway/clarify tools, so its shrink boundary is [] vs TIER1.
+    const smallerTools = variant === 'quick' ? [] : TIER1_TOOLS;
+    const smallerLabel = variant === 'quick' ? 'bare' : 'TIER1';
+    const smaller = renderInstructionLayer(source, ctx(smallerTools, 'minimal')).length;
     // Reported so the saving is visible when the suite runs verbosely.
     console.log(
       `[${variant}] full=${full} chars (~${Math.round(full / 4)} tok) → ` +
-        `TIER1=${tier1} chars (~${Math.round(tier1 / 4)} tok), ` +
-        `${Math.round((1 - tier1 / full) * 100)}% smaller`,
+        `${smallerLabel}=${smaller} chars (~${Math.round(smaller / 4)} tok), ` +
+        `${Math.round((1 - smaller / full) * 100)}% smaller`,
     );
-    expect(tier1).toBeLessThan(full);
+    expect(smaller).toBeLessThan(full);
   });
 });
 
