@@ -545,7 +545,7 @@ export function findTransitiveIncomingCallsByName(
        FROM refs r
        WHERE r.to_id IN (${seedSource})`
            : `SELECT s0.id, 1 FROM symbols s0 WHERE s0.id IN (${seedSource})`
-}
+       }
 
        UNION
 

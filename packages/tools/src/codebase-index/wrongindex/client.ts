@@ -8,10 +8,13 @@
  * `<dataRoot>/runtime/token` (owner-private); the token never leaves this
  * module and is never logged.
  */
+
+import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as net from 'node:net';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { Duplex } from 'node:stream';
 
 export const PROTOCOL_MAJOR = 1;
 export const PROTOCOL_MINOR = 0;
@@ -63,11 +66,12 @@ export function wrongIndexDataRoot(explicit?: string): string {
 interface Discovery {
   endpoint: string;
   token: string;
+  clientBridge?: string;
 }
 
 function discover(dataRoot: string): Discovery {
   const runtime = path.join(dataRoot, 'runtime');
-  let info: { endpoint?: unknown };
+  let info: { endpoint?: unknown; clientBridge?: unknown };
   let token: string;
   try {
     info = JSON.parse(fs.readFileSync(path.join(runtime, 'endpoint.json'), 'utf8'));
@@ -80,7 +84,11 @@ function discover(dataRoot: string): Discovery {
   if (typeof info.endpoint !== 'string' || !info.endpoint || !token) {
     throw new WrongIndexUnavailableError(`invalid discovery metadata in ${runtime}`);
   }
-  return { endpoint: info.endpoint, token };
+  return {
+    endpoint: info.endpoint,
+    token,
+    ...(typeof info.clientBridge === 'string' ? { clientBridge: info.clientBridge } : {}),
+  };
 }
 
 export function encodeFrame(value: unknown): Buffer {
@@ -124,7 +132,10 @@ interface Waiter {
  * answers in order on a connection); concurrent callers queue.
  */
 export class WrongIndexClient {
-  private readonly socket: net.Socket;
+  private readonly socket: Duplex;
+  private readonly dispose: () => void;
+  private readonly requestTimeoutMs: number;
+  private pendingCalls = 0;
   private readonly reader = new FrameReader();
   private readonly waiters: Waiter[] = [];
   private chain: Promise<unknown> = Promise.resolve();
@@ -133,8 +144,10 @@ export class WrongIndexClient {
   private closeReason: Error | null = null;
   hello!: WrongIndexHello;
 
-  private constructor(socket: net.Socket) {
+  private constructor(socket: Duplex, dispose: () => void, requestTimeoutMs: number) {
     this.socket = socket;
+    this.dispose = dispose;
+    this.requestTimeoutMs = requestTimeoutMs;
     socket.on('data', (chunk: Buffer) => {
       let frames: unknown[];
       try {
@@ -157,6 +170,8 @@ export class WrongIndexClient {
     if (!this.closed) {
       this.closed = true;
       this.closeReason = err;
+      this.socket.destroy();
+      this.dispose();
     }
     for (const w of this.waiters.splice(0)) w.reject(this.closeReason ?? err);
   }
@@ -166,32 +181,122 @@ export class WrongIndexClient {
     return new Promise((resolve, reject) => this.waiters.push({ resolve, reject }));
   }
 
+  private async bounded<T>(work: Promise<T>, ms: number, signal?: AbortSignal): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let onAbort: (() => void) | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      onAbort = () => {
+        // Replies are sequential on this stream. Invalidate it so an old
+        // reply cannot satisfy the next caller after this wait ends.
+        const error = new WrongIndexRemoteError({
+          code: 'CANCELED',
+          message: 'IPC wait was canceled',
+        });
+        this.fail(error);
+        reject(error);
+      };
+      signal?.addEventListener('abort', onAbort, { once: true });
+      if (signal?.aborted) onAbort();
+      timer = setTimeout(() => {
+        const error = new WrongIndexRemoteError({
+          code: 'DEADLINE_EXCEEDED',
+          message: 'IPC operation timed out',
+        });
+        this.fail(error);
+        reject(error);
+      }, ms);
+      timer.unref?.();
+    });
+    try {
+      return await Promise.race([work, timeout]);
+    } finally {
+      clearTimeout(timer);
+      if (onAbort) signal?.removeEventListener('abort', onAbort);
+    }
+  }
+
   static async connect(
     opts: {
       dataRoot?: string | undefined;
       clientName?: string | undefined;
       timeoutMs?: number | undefined;
+      requestTimeoutMs?: number | undefined;
     } = {},
   ): Promise<WrongIndexClient> {
-    const { endpoint, token } = discover(wrongIndexDataRoot(opts.dataRoot));
-    const socket = await new Promise<net.Socket>((resolve, reject) => {
-      const s = net.createConnection(endpoint);
-      const timer = setTimeout(() => {
-        s.destroy();
-        reject(new WrongIndexUnavailableError(`connecting to ${endpoint} timed out`));
-      }, opts.timeoutMs ?? 5_000);
-      timer.unref?.();
-      s.once('connect', () => {
-        clearTimeout(timer);
-        resolve(s);
+    const root = wrongIndexDataRoot(opts.dataRoot);
+    const { endpoint, token, clientBridge } = discover(root);
+    let dispose = () => {};
+    let socket: Duplex;
+    if (process.platform === 'win32') {
+      // The native bridge verifies the SID of the *connected* server before
+      // forwarding any byte. Never fall back to an unverified JS pipe.
+      if (
+        !clientBridge ||
+        !path.isAbsolute(clientBridge) ||
+        clientBridge.startsWith('\\\\') ||
+        path.basename(clientBridge).toLowerCase() !== 'wrongindexd.exe'
+      ) {
+        throw new WrongIndexRemoteError({
+          code: 'PROTOCOL_UNSUPPORTED',
+          message:
+            'Install the matching WrongIndex daemon build: this adapter requires verified IPC bridge support',
+        });
+      }
+      const child = spawn(clientBridge, ['--ipc-bridge', '--data-root', root], {
+        windowsHide: true,
+        stdio: ['pipe', 'pipe', 'ignore'],
       });
-      s.once('error', (err) => {
-        clearTimeout(timer);
-        reject(new WrongIndexUnavailableError(`${endpoint}: ${err.message}`));
+      socket = new Duplex({
+        read() {
+          child.stdout.resume();
+        },
+        write(chunk, encoding, callback) {
+          child.stdin.write(chunk, encoding, callback);
+        },
+        final(callback) {
+          child.stdin.end(callback);
+        },
+        destroy(error, callback) {
+          child.kill();
+          callback(error);
+        },
       });
-    });
-    socket.unref();
-    const client = new WrongIndexClient(socket);
+      child.stdout.on('data', (chunk: Buffer) => {
+        if (!socket.push(chunk)) child.stdout.pause();
+      });
+      child.stdout.on('end', () => socket.push(null));
+      child.stdout.on('error', (error) => socket.destroy(error));
+      child.stdin.on('error', (error) => socket.destroy(error));
+      dispose = () => {
+        child.kill();
+      };
+      child.on('error', () =>
+        socket.destroy(new WrongIndexUnavailableError('native IPC bridge could not start')),
+      );
+      child.on('exit', () =>
+        socket.destroy(new WrongIndexUnavailableError('native IPC bridge closed')),
+      );
+      child.unref();
+    } else {
+      socket = await new Promise<net.Socket>((resolve, reject) => {
+        const s = net.createConnection(endpoint);
+        const timer = setTimeout(() => {
+          s.destroy();
+          reject(new WrongIndexUnavailableError(`connecting to ${endpoint} timed out`));
+        }, opts.timeoutMs ?? 5_000);
+        timer.unref?.();
+        s.once('connect', () => {
+          clearTimeout(timer);
+          resolve(s);
+        });
+        s.once('error', (err) => {
+          clearTimeout(timer);
+          reject(new WrongIndexUnavailableError(`${endpoint}: ${err.message}`));
+        });
+      });
+      (socket as net.Socket).unref();
+    }
+    const client = new WrongIndexClient(socket, dispose, opts.requestTimeoutMs ?? 30_000);
     const reply = client.nextFrame();
     socket.write(
       encodeFrame({
@@ -203,7 +308,7 @@ export class WrongIndexClient {
         supportedProfileIds: [BASELINE_PROFILE_ID],
       }),
     );
-    const auth = (await reply) as {
+    const auth = (await client.bounded(reply, opts.timeoutMs ?? 5_000)) as {
       status?: string;
       hello?: WrongIndexHello;
       error?: WrongIndexErrorBody;
@@ -231,8 +336,17 @@ export class WrongIndexClient {
     projectId: string | null,
     params: unknown = {},
     idempotencyKey?: string,
+    options: { timeoutMs?: number | undefined; signal?: AbortSignal | undefined } = {},
   ): Promise<T> {
+    if (this.pendingCalls >= 128)
+      return Promise.reject(
+        new WrongIndexRemoteError({ code: 'QUEUE_SATURATED', message: 'IPC client queue is full' }),
+      );
+    this.pendingCalls++;
     const run = async (): Promise<T> => {
+      // The connection may have gone away while this request was queued.
+      if (this.closed)
+        throw this.closeReason ?? new WrongIndexUnavailableError('connection closed');
       const requestId = `r${this.nextId++}`;
       const reply = this.nextFrame();
       this.socket.write(
@@ -259,11 +373,14 @@ export class WrongIndexClient {
     };
     const next = this.chain.then(run, run);
     this.chain = next.catch(() => undefined);
-    return next;
+    return this.bounded(next, options.timeoutMs ?? this.requestTimeoutMs, options.signal).finally(
+      () => {
+        this.pendingCalls--;
+      },
+    );
   }
 
   close(): void {
-    this.closed = true;
-    this.socket.destroy();
+    this.fail(new WrongIndexUnavailableError('connection closed'));
   }
 }

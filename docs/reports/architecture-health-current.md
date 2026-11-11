@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-11T21:23:30.211Z
+**Generated:** 2026-11-11T21:26:09.103Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 48 |
-| Production source files | 6225 |
-| Production source lines | 1272914 |
-| Test files | 5188 |
+| Production source files | 6226 |
+| Production source lines | 1273426 |
+| Test files | 5191 |
 | Workspace dependency edges | 250 |
-| Relative module edges | 18335 |
+| Relative module edges | 18340 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -64,7 +64,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/security-scanner | 21 | 34 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/techstack | 55 | 65 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 28 | 44 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
-| @wrongstack/tools | 399 | 385 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/tools | 400 | 388 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 501 | 437 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 18 | 29 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/vibeui | 71 | 25 | @wrongstack/webui-protocol |
@@ -128,6 +128,7 @@ None.
 | 719 | `packages/mailbox-mcp/src/adapter.ts` |
 | 718 | `packages/project-surfaces/src/sage/useMemoryManagerState.ts` |
 | 716 | `packages/requirement-intake/src/service.ts` |
+| 715 | `packages/tools/src/codebase-index/background-indexer.ts` |
 | 714 | `packages/tui/src/reducers/panel-pickers.ts` |
 | 713 | `packages/webui-server/src/server/pref-helpers.ts` |
 | 709 | `packages/core/src/storage/file-session-writer.ts` |
@@ -139,11 +140,10 @@ None.
 | 705 | `packages/webui/src/components/ChronicleDashboard.tsx` |
 | 704 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 | 703 | `packages/tools/src/codebase-index/ast-symbol-mutator.ts` |
-| 703 | `packages/tui/src/reducers/settings-value-cycle.ts` |
 
 ## Exports only tests reference
 
-- 1042 runtime exports are referenced by tests and by no other production file.
+- 1044 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

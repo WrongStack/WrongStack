@@ -27,6 +27,26 @@ async function call(server: MCPServer, msg: unknown): Promise<Record<string, unk
 }
 
 describe('MCPServer.handleMessage', () => {
+  it('preserves tool-result metadata without adding it to model content', async () => {
+    const metadata = {
+      'wrongindex/publications': [{ generation: 7, daemonInstanceId: 'fixture' }],
+    };
+    const server = new MCPServer({
+      host: makeHost({
+        callTool: async () => ({ content: 'unchanged', isError: false, _meta: metadata }),
+      }),
+    });
+    const response = await call(server, {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'echo', arguments: {} },
+    });
+    expect(response!.result).toMatchObject({
+      content: [{ type: 'text', text: 'unchanged' }],
+      _meta: metadata,
+    });
+  });
   it('advertises instructions in initialize only when given', async () => {
     const init = { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} };
     const withText = await call(

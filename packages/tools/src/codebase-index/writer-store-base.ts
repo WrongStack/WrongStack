@@ -30,7 +30,7 @@ import * as writerRefs from './writer-refs.js';
 import type { WriterSymbolQueriesHost } from './writer-symbol-queries.js';
 import type { IndexTransactionHost } from './writer-transactions.js';
 import * as writerTransactions from './writer-transactions.js';
-import { isOwnedByWrongIndex } from './wrongindex/owner-lock.js';
+import { isWrongIndexWriteBlocked } from './wrongindex/owner-lock.js';
 
 const DB_FILE = 'index.db';
 
@@ -76,7 +76,7 @@ export abstract class IndexStoreBase {
     fs.mkdirSync(this.indexDir, { recursive: true });
     const Database = loadDatabaseSync();
     this.db = new Database(path.join(this.indexDir, DB_FILE));
-    if (isOwnedByWrongIndex(this.indexDir)) {
+    if (isWrongIndexWriteBlocked(this.indexDir)) {
       const { ftsAvailable, vectorsAvailable } = openOwnedIndexQueryOnly(this.db);
       this.ftsAvailable = ftsAvailable;
       this.vectorsAvailable = vectorsAvailable;

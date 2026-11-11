@@ -74,6 +74,14 @@ export interface ProjectIndexServerClientHealth {
 }
 
 export interface ProjectIndexServerConnectionState {
+  /** External service publication identity; never a local daemon election key. */
+  publication?:
+    | {
+        daemonInstanceId: string;
+        graphStamp?: string | null | undefined;
+        freshness?: string | undefined;
+      }
+    | undefined;
   status: ProjectIndexServerConnectionStatus;
   connected: boolean;
   projectRoot?: string | undefined;

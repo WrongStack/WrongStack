@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-11T21:23:30.211Z",
+  "generatedAt": "2026-11-11T21:26:09.103Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6225,
-    "testFiles": 5188,
-    "sourceLines": 1272914,
+    "sourceFiles": 6226,
+    "testFiles": 5191,
+    "sourceLines": 1273426,
     "workspaceEdges": 250,
-    "moduleEdges": 18335,
+    "moduleEdges": 18340,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 321,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1042
+    "testOnlyExports": 1044
   },
   "errors": [],
   "packageCycles": [],
@@ -1008,8 +1008,8 @@
     {
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
-      "sourceFiles": 399,
-      "testFiles": 385,
+      "sourceFiles": 400,
+      "testFiles": 388,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -1028,7 +1028,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 385
+          "testFiles": 388
         }
       ]
     },
@@ -23852,6 +23852,24 @@
         ]
       },
       {
+        "file": "packages/tools/tests/wrongindex-client-lifecycle.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/wrongindex-delegation.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/wrongindex-publication.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/wrongindex-wire-contract.test.ts",
         "projects": [
           "root-node"
@@ -35659,6 +35677,11 @@
       "relativeImports": 6
     },
     {
+      "file": "packages/tools/src/codebase-index/background-indexer.ts",
+      "lines": 715,
+      "relativeImports": 17
+    },
+    {
       "file": "packages/tools/src/codebase-index/infra-parser.ts",
       "lines": 903,
       "relativeImports": 2
@@ -36016,6 +36039,11 @@
       "relativeImports": 17
     },
     {
+      "file": "packages/tools/src/codebase-index/background-indexer.ts",
+      "lines": 715,
+      "relativeImports": 17
+    },
+    {
       "file": "packages/tui/src/reducers/panel-pickers.ts",
       "lines": 714,
       "relativeImports": 5
@@ -36067,11 +36095,6 @@
     },
     {
       "file": "packages/tools/src/codebase-index/ast-symbol-mutator.ts",
-      "lines": 703,
-      "relativeImports": 6
-    },
-    {
-      "file": "packages/tui/src/reducers/settings-value-cycle.ts",
       "lines": 703,
       "relativeImports": 6
     }
@@ -38920,6 +38943,14 @@
     {
       "file": "packages/tools/src/codebase-index/wrongindex/owner-lock.ts",
       "name": "readWrongIndexOwner"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/wrongindex/owner-lock.ts",
+      "name": "withWrongIndexWriteDelegation"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/wrongindex/publication.ts",
+      "name": "getWrongIndexPublication"
     },
     {
       "file": "packages/tools/src/codebase-index/wrongindex/service.ts",

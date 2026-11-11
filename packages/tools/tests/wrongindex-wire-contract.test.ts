@@ -25,15 +25,23 @@ import {
   WrongIndexClient,
   WrongIndexRemoteError,
 } from '../src/codebase-index/wrongindex/client.js';
-import { OWNER_INFO_FILE, readWrongIndexOwner } from '../src/codebase-index/wrongindex/owner-lock.js';
-import { toIndexResult, type WrongIndexJobRecord } from '../src/codebase-index/wrongindex/service.js';
+import {
+  OWNER_INFO_FILE,
+  readWrongIndexOwner,
+} from '../src/codebase-index/wrongindex/owner-lock.js';
+import {
+  toIndexResult,
+  type WrongIndexJobRecord,
+} from '../src/codebase-index/wrongindex/service.js';
 
 type Json = Record<string, any>;
 const wire = JSON.parse(
   fs.readFileSync(new URL('./fixtures/wrongindex-wire.json', import.meta.url), 'utf8'),
 ) as Json;
 const types = wire['types'] as Record<string, Json>;
-const errorCodes = (wire['enums']['ErrorCode'] as { code: string; retryable: boolean }[]).map((c) => c.code);
+const errorCodes = (wire['enums']['ErrorCode'] as { code: string; retryable: boolean }[]).map(
+  (c) => c.code,
+);
 const adapterSources = ['client.ts', 'service.ts', 'owner-lock.ts'].map((f) =>
   fs.readFileSync(new URL(`../src/codebase-index/wrongindex/${f}`, import.meta.url), 'utf8'),
 );
@@ -79,7 +87,13 @@ describe('WrongIndex wire contract', () => {
   });
 
   it('knows every job state the service reports', () => {
-    const states: WrongIndexJobRecord['state'][] = ['queued', 'running', 'succeeded', 'failed', 'canceled'];
+    const states: WrongIndexJobRecord['state'][] = [
+      'queued',
+      'running',
+      'succeeded',
+      'failed',
+      'canceled',
+    ];
     expect([...states].sort()).toEqual([...(wire['enums']['JobState'] as string[])].sort());
   });
 
@@ -124,56 +138,72 @@ describe('WrongIndex wire contract', () => {
       root = null;
     });
 
-    it('handshakes, sends the request the service expects, and maps its answers', async () => {
-      root = fs.mkdtempSync(path.join(os.tmpdir(), 'wi-wire-'));
-      const endpoint =
-        process.platform === 'win32'
-          ? `\\\\.\\pipe\\wi-wire-${process.pid}-${Date.now()}`
-          : path.join(root, 'wire.sock');
-      const received: Json[] = [];
-      server = net.createServer((socket) => {
-        const reader = new FrameReader();
-        socket.on('data', (chunk: Buffer) => {
-          for (const frame of reader.push(chunk) as Json[]) {
-            received.push(frame);
-            if (received.length === 1) {
-              socket.write(encodeFrame(types['AuthResponseOk']));
-            } else if (received.length === 2) {
-              socket.write(encodeFrame({ ...types['ResponseOk'], requestId: frame['requestId'] }));
-            } else {
-              socket.write(encodeFrame({ ...types['ResponseError'], requestId: frame['requestId'] }));
+    it.runIf(process.platform !== 'win32' || Boolean(process.env['WRONGINDEX_TEST_DAEMON']))(
+      'handshakes, sends the request the service expects, and maps its answers',
+      async () => {
+        root = fs.mkdtempSync(path.join(os.tmpdir(), 'wi-wire-'));
+        const endpoint =
+          process.platform === 'win32'
+            ? `\\\\.\\pipe\\wi-wire-${process.pid}-${Date.now()}`
+            : path.join(root, 'wire.sock');
+        const received: Json[] = [];
+        server = net.createServer((socket) => {
+          const reader = new FrameReader();
+          socket.on('data', (chunk: Buffer) => {
+            for (const frame of reader.push(chunk) as Json[]) {
+              received.push(frame);
+              if (received.length === 1) {
+                socket.write(encodeFrame(types['AuthResponseOk']));
+              } else if (received.length === 2) {
+                socket.write(
+                  encodeFrame({ ...types['ResponseOk'], requestId: frame['requestId'] }),
+                );
+              } else {
+                socket.write(
+                  encodeFrame({ ...types['ResponseError'], requestId: frame['requestId'] }),
+                );
+              }
             }
-          }
+          });
         });
-      });
-      await new Promise<void>((resolve) => server!.listen(endpoint, resolve));
-      fs.mkdirSync(path.join(root, 'runtime'));
-      fs.writeFileSync(
-        path.join(root, 'runtime', 'endpoint.json'),
-        JSON.stringify({ ...types['EndpointInfo'], endpoint }),
-      );
-      fs.writeFileSync(path.join(root, 'runtime', 'token'), 'fixture-token\n');
+        await new Promise<void>((resolve) => server!.listen(endpoint, resolve));
+        fs.mkdirSync(path.join(root, 'runtime'));
+        fs.writeFileSync(
+          path.join(root, 'runtime', 'endpoint.json'),
+          JSON.stringify({
+            ...types['EndpointInfo'],
+            endpoint,
+            clientBridge: process.env['WRONGINDEX_TEST_DAEMON'],
+          }),
+        );
+        fs.writeFileSync(path.join(root, 'runtime', 'token'), 'fixture-token\n');
 
-      const client = await WrongIndexClient.connect({ dataRoot: root, clientName: 'wrongstack' });
-      // The hello the service sends is read as sent.
-      expect(client.hello).toEqual(types['Hello']);
-      // The auth frame has exactly the service's AuthRequest shape.
-      sameShape(received[0]!, types['AuthRequest']!);
-      expect(received[0]!['token']).toBe('fixture-token');
-      expect(received[0]!['supportedProfileIds']).toEqual([BASELINE_PROFILE_ID]);
+        const client = await WrongIndexClient.connect({ dataRoot: root, clientName: 'wrongstack' });
+        // The hello the service sends is read as sent.
+        expect(client.hello).toEqual(types['Hello']);
+        // The auth frame has exactly the service's AuthRequest shape.
+        sameShape(received[0]!, types['AuthRequest']!);
+        expect(received[0]!['token']).toBe('fixture-token');
+        expect(received[0]!['supportedProfileIds']).toEqual([BASELINE_PROFILE_ID]);
 
-      // The first request is byte-for-byte the Request the Rust types build.
-      const req = types['Request']!;
-      const result = await client.call(req['method'], req['projectId'], req['params'], req['idempotencyKey']);
-      expect(received[1]).toEqual(req);
-      expect(result).toEqual(types['ResponseOk']!['result']);
+        // The first request is byte-for-byte the Request the Rust types build.
+        const req = types['Request']!;
+        const result = await client.call(
+          req['method'],
+          req['projectId'],
+          req['params'],
+          req['idempotencyKey'],
+        );
+        expect(received[1]).toEqual(req);
+        expect(result).toEqual(types['ResponseOk']!['result']);
 
-      // A typed refusal arrives as a WrongIndexRemoteError with its code.
-      await expect(client.call('job.get', null, { jobId: 'j_1' })).rejects.toMatchObject({
-        code: 'QUEUE_SATURATED',
-        retryable: true,
-      });
-      client.close();
-    });
+        // A typed refusal arrives as a WrongIndexRemoteError with its code.
+        await expect(client.call('job.get', null, { jobId: 'j_1' })).rejects.toMatchObject({
+          code: 'QUEUE_SATURATED',
+          retryable: true,
+        });
+        client.close();
+      },
+    );
   });
 });

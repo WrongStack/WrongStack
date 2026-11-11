@@ -11,6 +11,7 @@
  * every local writer and every direct store consults this before opening the
  * database read-write.
  */
+import { AsyncLocalStorage } from 'node:async_hooks';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -23,6 +24,80 @@ export interface WrongIndexOwnerInfo {
   pid?: number;
   epoch?: number;
   acquiredAtMs?: number;
+}
+
+/** Private supervisor-to-child request data, never a global environment bypass. */
+export interface WrongIndexWriteDelegation {
+  instanceId: string;
+  pid: number;
+  epoch: number;
+}
+
+const delegatedWrite = new AsyncLocalStorage<{
+  indexDir: string;
+  owner: WrongIndexWriteDelegation;
+  active: boolean;
+}>();
+
+function canonicalIndexDir(indexDir: string): string {
+  const resolved = fs.realpathSync.native(indexDir);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+function validDelegation(indexDir: string, expected: WrongIndexWriteDelegation): boolean {
+  const actual = readWrongIndexOwner(indexDir);
+  return (
+    Number.isSafeInteger(expected.pid) &&
+    expected.pid > 0 &&
+    process.ppid === expected.pid &&
+    Number.isSafeInteger(expected.epoch) &&
+    expected.epoch > 0 &&
+    typeof expected.instanceId === 'string' &&
+    expected.instanceId.length > 0 &&
+    actual?.pid === expected.pid &&
+    actual.epoch === expected.epoch &&
+    actual.instanceId === expected.instanceId &&
+    isOwnedByWrongIndex(indexDir)
+  );
+}
+
+/**
+ * Run a supervised worker's single write while its parent keeps the OS lock.
+ * The daemon validates the job fence and retains its run guard throughout.
+ * A descriptive owner file alone never grants permission: the live lock,
+ * direct parent PID, exact directory, instance and epoch must all match.
+ * Async descendants lose permission when this call ends, including on error.
+ * This is a cooperative writer protocol, not a sandbox against same-user code
+ * that ignores the writer API and opens SQLite itself.
+ */
+export async function withWrongIndexWriteDelegation<T>(
+  indexDir: string,
+  owner: WrongIndexWriteDelegation,
+  action: () => Promise<T>,
+): Promise<T> {
+  if (!owner || !validDelegation(indexDir, owner)) throw new IndexOwnedExternallyError(indexDir);
+  const scope = { indexDir: canonicalIndexDir(indexDir), owner: { ...owner }, active: true };
+  return delegatedWrite.run(scope, async () => {
+    try {
+      return await action();
+    } finally {
+      scope.active = false;
+    }
+  });
+}
+
+/** Write admission only; ownership detection itself always reports the owner. */
+export function isWrongIndexWriteBlocked(indexDir: string): boolean {
+  if (!isOwnedByWrongIndex(indexDir)) return false;
+  const scope = delegatedWrite.getStore();
+  if (!scope?.active) return true;
+  try {
+    return (
+      canonicalIndexDir(indexDir) !== scope.indexDir || !validDelegation(indexDir, scope.owner)
+    );
+  } catch {
+    return true;
+  }
 }
 
 /** The descriptive owner record, when readable. */

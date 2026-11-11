@@ -1,15 +1,7 @@
 {
   "enums": {
-    "Backend": [
-      "legacy",
-      "native",
-      "unsupported"
-    ],
-    "BackendPreference": [
-      "auto",
-      "native",
-      "legacy"
-    ],
+    "Backend": ["legacy", "native", "unsupported"],
+    "BackendPreference": ["auto", "native", "legacy"],
     "ErrorCode": [
       {
         "code": "UNAUTHENTICATED",
@@ -100,42 +92,21 @@
         "retryable": false
       }
     ],
-    "Freshness": [
-      "unknown",
-      "current",
-      "pending",
-      "degraded",
-      "unavailable"
-    ],
+    "Freshness": ["unknown", "current", "pending", "degraded", "unavailable"],
     "JobKind": [
       "check",
       "incremental",
       "full",
       "reconcile",
       "rebuild",
-      "restore"
+      "restore",
+      "backup",
+      "checkpoint"
     ],
-    "JobState": [
-      "queued",
-      "running",
-      "succeeded",
-      "failed",
-      "canceled"
-    ],
-    "Ownership": [
-      "unowned",
-      "negotiating",
-      "owned",
-      "conflict",
-      "releasing",
-      "recovery_required"
-    ],
-    "WatchPolicy": [
-      "session",
-      "pinned",
-      "manual",
-      "disabled"
-    ]
+    "JobState": ["queued", "running", "succeeded", "failed", "canceled"],
+    "Ownership": ["unowned", "negotiating", "owned", "conflict", "releasing", "recovery_required"],
+    "WatchMode": ["auto", "poll"],
+    "WatchPolicy": ["session", "pinned", "manual", "disabled"]
   },
   "generator": "node scripts/contracts/export-wire-fixtures.mjs (cargo run -p wrongindexd --example wire_fixtures)",
   "methods": [
@@ -150,6 +121,8 @@
     "index.check",
     "index.query",
     "index.backups",
+    "index.backup",
+    "index.checkpoint",
     "settings.get",
     "settings.set",
     "daemon.metrics",
@@ -179,9 +152,7 @@
       "clientVersion": "0.0.0",
       "protocolMajor": 1,
       "protocolMinor": 0,
-      "supportedProfileIds": [
-        "wrongstack-index-v5-baseline"
-      ],
+      "supportedProfileIds": ["wrongstack-index-v5-baseline"],
       "token": "<runtime/token contents; never logged>"
     },
     "AuthResponseError": {
@@ -194,10 +165,7 @@
     },
     "AuthResponseOk": {
       "hello": {
-        "capabilities": [
-          "index.native",
-          "watch"
-        ],
+        "capabilities": ["index.native", "watch"],
         "daemonInstanceId": "d_0123456789abcdef",
         "daemonVersion": "0.1.0",
         "limits": {
@@ -209,23 +177,26 @@
         "protocolMajor": 1,
         "protocolMinor": 0,
         "selectedProfileId": "wrongstack-index-v5-baseline",
-        "supportedProfileIds": [
-          "wrongstack-index-v5-baseline"
-        ]
+        "supportedProfileIds": ["wrongstack-index-v5-baseline"]
       },
       "status": "ok"
     },
     "DaemonSettings": {
       "backupKeep": 3,
+      "integrityCheckHours": 24,
       "nativeMemoryMb": 0,
       "parallelJobs": 2,
       "paused": false,
+      "pollIntervalSeconds": 5,
+      "reconcileMinutes": 15,
       "sessionGraceSeconds": 120,
       "watchDebounceMs": 400,
       "watchMaxWaitMs": 2000,
-      "watchParkAfterFailures": 8
+      "watchParkAfterFailures": 8,
+      "workerMemoryMb": 0
     },
     "EndpointInfo": {
+      "clientBridge": "C:\\Program Files\\WrongIndex\\wrongindexd.exe",
       "daemonInstanceId": "d_0123456789abcdef",
       "daemonVersion": "0.1.0",
       "endpoint": "\\\\.\\pipe\\wrongindex-0123456789abcdef",
@@ -240,9 +211,7 @@
       "retryable": false
     },
     "Health": {
-      "backendInventory": [
-        "native"
-      ],
+      "backendInventory": ["native"],
       "daemonInstanceId": "d_0123456789abcdef",
       "daemonVersion": "0.1.0",
       "draining": false,
@@ -257,10 +226,7 @@
       "uptimeMs": 60000
     },
     "Hello": {
-      "capabilities": [
-        "index.native",
-        "watch"
-      ],
+      "capabilities": ["index.native", "watch"],
       "daemonInstanceId": "d_0123456789abcdef",
       "daemonVersion": "0.1.0",
       "limits": {
@@ -272,9 +238,7 @@
       "protocolMajor": 1,
       "protocolMinor": 0,
       "selectedProfileId": "wrongstack-index-v5-baseline",
-      "supportedProfileIds": [
-        "wrongstack-index-v5-baseline"
-      ]
+      "supportedProfileIds": ["wrongstack-index-v5-baseline"]
     },
     "IndexRequestParams": {
       "kind": "full",
@@ -295,9 +259,7 @@
             "ownerEpoch": 2
           },
           "kind": "incremental",
-          "paths": [
-            "C:\\work\\demo\\src\\greet.ts"
-          ]
+          "paths": ["C:\\work\\demo\\src\\greet.ts"]
         },
         "projectId": "p_0123456789abcdef0123456789abcdef",
         "result": null,
@@ -322,9 +284,7 @@
           "ownerEpoch": 2
         },
         "kind": "incremental",
-        "paths": [
-          "C:\\work\\demo\\src\\greet.ts"
-        ]
+        "paths": ["C:\\work\\demo\\src\\greet.ts"]
       },
       "projectId": "p_0123456789abcdef0123456789abcdef",
       "result": null,
@@ -344,9 +304,7 @@
           "ownerEpoch": 2
         },
         "kind": "incremental",
-        "paths": [
-          "C:\\work\\demo\\src\\greet.ts"
-        ]
+        "paths": ["C:\\work\\demo\\src\\greet.ts"]
       },
       "projectId": "p_0123456789abcdef0123456789abcdef",
       "result": {
@@ -393,6 +351,7 @@
       "projectId": "p_0123456789abcdef0123456789abcdef",
       "registeredAtMs": 1793600000000,
       "repositoryIdentity": "git:4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+      "watchMode": "auto",
       "watchPolicy": "session"
     },
     "ProjectStatus": {
@@ -419,9 +378,7 @@
             "ownerEpoch": 2
           },
           "kind": "incremental",
-          "paths": [
-            "C:\\work\\demo\\src\\greet.ts"
-          ]
+          "paths": ["C:\\work\\demo\\src\\greet.ts"]
         },
         "projectId": "p_0123456789abcdef0123456789abcdef",
         "result": null,
@@ -432,6 +389,14 @@
       "ownership": "owned",
       "parked": true,
       "pendingPaths": 2,
+      "polling": {
+        "everyMs": 5000,
+        "files": 412,
+        "lastPassMs": 1793600000400,
+        "overdue": false,
+        "passMs": 38,
+        "reason": "the file system does not report changes (ReadDirectoryChangesW: Windows error 1)"
+      },
       "project": {
         "backend": "native",
         "backendPreference": "auto",
@@ -445,6 +410,7 @@
         "projectId": "p_0123456789abcdef0123456789abcdef",
         "registeredAtMs": 1793600000000,
         "repositoryIdentity": "git:4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+        "watchMode": "auto",
         "watchPolicy": "session"
       },
       "reconcileReason": null,
@@ -471,6 +437,7 @@
         "projectId": "p_0123456789abcdef0123456789abcdef",
         "registeredAtMs": 1793600000000,
         "repositoryIdentity": "git:4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+        "watchMode": "auto",
         "watchPolicy": "session"
       }
     },
@@ -479,9 +446,7 @@
       "method": "index.request",
       "params": {
         "kind": "incremental",
-        "paths": [
-          "src/greet.ts"
-        ]
+        "paths": ["src/greet.ts"]
       },
       "projectId": "p_0123456789abcdef0123456789abcdef",
       "protocol": 1,

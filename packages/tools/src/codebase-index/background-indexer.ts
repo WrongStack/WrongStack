@@ -62,6 +62,7 @@ import {
   resolveProjectIndexDaemonAvailability,
   shutdownProjectIndexServer,
 } from './project-server-client.js';
+import { publishConnectionState } from './project-server-client-state.js';
 import type { CodeMapGraph, IndexResult, IndexStats } from './schema.js';
 import type {
   CallRefsOpArgs,
@@ -79,10 +80,11 @@ import type {
 import { indexStorePool } from './writer.js';
 import { resolveIndexDir } from './writer-helpers.js';
 import { isOwnedByWrongIndex } from './wrongindex/owner-lock.js';
+import { onWrongIndexPublication } from './wrongindex/publication.js';
 import {
   acquireWrongIndexSession,
-  releaseWrongIndexSessions,
   registerWrongIndexProject,
+  releaseWrongIndexSessions,
   resolveIndexRoute,
   setBeforeWrongIndexClaim,
   WrongIndexUnavailableError,
@@ -178,6 +180,27 @@ function emitState() {
 // Server lifecycle changes are part of index state even while no indexing job
 // is active, so the TUI can keep a truthful connected/offline/error indicator.
 onProjectIndexServerConnectionStateChange(() => emitState());
+onWrongIndexPublication((publication) => {
+  publishConnectionState(`wrongindex:${publication.indexDir}`, {
+    status: 'connected',
+    connected: true,
+    projectRoot: publication.projectRoot,
+    indexDir: publication.indexDir,
+    publication: {
+      daemonInstanceId: publication.daemonInstanceId,
+      graphStamp: publication.graphStamp,
+      freshness: publication.freshness,
+    },
+    activity: {
+      generation: publication.generation,
+      indexing: publication.indexing === true,
+      currentFile: 0,
+      totalFiles: 0,
+      updatedAt: publication.observedAt,
+      lastError: publication.lastError ?? null,
+    },
+  });
+});
 
 function setIndexProgress(current: number, total: number) {
   _currentFile = current;

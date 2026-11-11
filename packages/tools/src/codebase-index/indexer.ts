@@ -33,7 +33,7 @@ import type { ParserWorkerPool } from './parser-worker-pool.js';
 import type { FileMeta, IndexResult } from './schema.js';
 import { IndexStore } from './writer.js';
 import { resolveIndexDir } from './writer-helpers.js';
-import { IndexOwnedExternallyError, isOwnedByWrongIndex } from './wrongindex/owner-lock.js';
+import { IndexOwnedExternallyError, isWrongIndexWriteBlocked } from './wrongindex/owner-lock.js';
 
 export { GRAPH_STAMP_KEY } from './indexer-run-state.js';
 
@@ -71,7 +71,7 @@ export async function runIndexerWithStore(
   // Checked per run: a long-lived store (project server, pool) may predate a
   // WrongIndex claim on this index.
   const ownedDir = resolveIndexDir(opts.projectRoot, opts.indexDir);
-  if (isOwnedByWrongIndex(ownedDir)) throw new IndexOwnedExternallyError(ownedDir);
+  if (isWrongIndexWriteBlocked(ownedDir)) throw new IndexOwnedExternallyError(ownedDir);
   // An edit that races the run no longer voids it: the finalize pass withholds
   // the Git stamp of a file that moved, and its next run reads it again.
   const result = await store.runAtomicIndexUpdate(() => runIndexerAtomic(store, opts));

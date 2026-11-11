@@ -54,6 +54,8 @@ export interface MCPServerCallResult {
   /** Text or pre-built MCP content blocks. Strings are wrapped as a text block. */
   content: unknown;
   isError: boolean;
+  /** Client-facing metadata, separate from model content. */
+  _meta?: Record<string, unknown> | undefined;
 }
 
 /**
@@ -361,7 +363,11 @@ export class MCPServer {
         await this.assertArgumentsMatchSchema(p.name, args);
         signal?.throwIfAborted();
         const res = await this.host.callTool(p.name, args, { signal });
-        return { content: toContentBlocks(res.content), isError: res.isError };
+        return {
+          content: toContentBlocks(res.content),
+          isError: res.isError,
+          ...(res._meta ? { _meta: res._meta } : {}),
+        };
       }
       case 'resources/list': {
         if (this.resources.length === 0) return METHOD_NOT_FOUND_SENTINEL;

@@ -8,19 +8,23 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 process.env['WRONGSTACK_INDEX_INLINE'] = '1';
 
+import { ensureCodebaseIndexServer } from '../src/codebase-index/background-indexer.js';
 import { dispatchIndexOp } from '../src/codebase-index/index-worker-rpc.js';
 import { IndexStore } from '../src/codebase-index/writer.js';
-import { encodeFrame, FrameReader } from '../src/codebase-index/wrongindex/client.js';
+import {
+  encodeFrame,
+  FrameReader,
+  WrongIndexClient,
+} from '../src/codebase-index/wrongindex/client.js';
 import {
   IndexOwnedExternallyError,
   isOwnedByWrongIndex,
   OWNER_LOCK_FILE,
 } from '../src/codebase-index/wrongindex/owner-lock.js';
-import { ensureCodebaseIndexServer } from '../src/codebase-index/background-indexer.js';
 import {
   releaseWrongIndexSessions,
   resetWrongIndexConnection,
@@ -294,6 +298,53 @@ describe.runIf(Boolean(daemonExe) && process.platform === 'win32')(
         false,
       );
       expect(JSON.stringify(hits)).toContain('alphaEntry');
+
+      // A cached query relies on the daemon's atomic ownership/run guard.
+      // Re-probing a held lock with Atomics.wait stalls the whole JS host
+      // for 50 ms before every otherwise fast IPC query.
+      const synchronousWait = vi.spyOn(Atomics, 'wait');
+      try {
+        const cachedHits = await dispatchIndexOp(
+          'search',
+          { projectRoot: root, indexDir, query: 'alphaEntry', limit: 5 },
+          opts,
+          false,
+        );
+        expect(JSON.stringify(cachedHits)).toContain('alphaEntry');
+        expect(synchronousWait).not.toHaveBeenCalled();
+      } finally {
+        synchronousWait.mockRestore();
+      }
+
+      // The daemon remains the authority after a cached registration:
+      // ownership loss is refused, then the next explicit call re-admits.
+      const control = await WrongIndexClient.connect({ dataRoot: home });
+      try {
+        const listed = await control.call<{ projects: { projectId: string }[] }>(
+          'project.list',
+          null,
+          {},
+        );
+        const projectId = listed.projects[0]!.projectId;
+        await control.call('ownership.release', projectId, {});
+        await expect(
+          dispatchIndexOp(
+            'search',
+            { projectRoot: root, indexDir, query: 'alphaEntry', limit: 5 },
+            opts,
+            false,
+          ),
+        ).rejects.toThrow('OWNER_CONFLICT');
+        const reclaimed = await dispatchIndexOp(
+          'search',
+          { projectRoot: root, indexDir, query: 'alphaEntry', limit: 5 },
+          opts,
+          false,
+        );
+        expect(JSON.stringify(reclaimed)).toContain('alphaEntry');
+      } finally {
+        control.close();
+      }
 
       fs.writeFileSync(
         path.join(root, 'src', 'c.ts'),

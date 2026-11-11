@@ -268,6 +268,7 @@ export {
   IndexOwnedExternallyError,
   isOwnedByWrongIndex,
 } from './wrongindex/owner-lock.js';
+export { captureWrongIndexPublications } from './wrongindex/publication.js';
 export {
   type IndexServiceMode,
   resolveIndexRoute,

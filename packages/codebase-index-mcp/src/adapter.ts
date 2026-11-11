@@ -7,6 +7,7 @@ import {
   type MCPServerToolHost,
 } from '@wrongstack/mcp';
 import {
+  captureWrongIndexPublications,
   codebaseAstReplaceTool,
   codebaseAtlasTool,
   codebaseContextTool,
@@ -339,97 +340,130 @@ export function createCodebaseIndexMcpToolHost(
       args: Record<string, unknown>,
       callOptions?: { signal?: AbortSignal | undefined },
     ): Promise<MCPServerCallResult> {
-      if (!allowed.has(name as CodebaseIndexMcpToolName)) {
-        return {
-          content: `Tool "${name}" is not exposed by this Codebase Index MCP server`,
-          isError: true,
-        };
-      }
-      if (!args || typeof args !== 'object' || Array.isArray(args)) {
-        return {
-          content: `Tool "${name}" arguments must be a JSON object`,
-          isError: true,
-        };
-      }
-
-      const toolName = name as CodebaseIndexMcpToolName;
-      const validationError = validateArgs(toolName, args);
-      if (validationError) return { content: validationError, isError: true };
-      if (opts.writable !== true) {
-        const writeVariant = codebaseIndexMcpWriteVariant(toolName, args);
-        if (writeVariant) return { content: writeVariant, isError: true };
-      }
-      const signal = callOptions?.signal ?? new AbortController().signal;
-
-      try {
-        signal.throwIfAborted();
-        const builtin = BUILTIN_TOOLS[toolName];
-        if (builtin) {
-          const validate = builtin.validate;
-          if (typeof validate === 'function') {
-            const errors = await validate(args);
-            if (Array.isArray(errors) && errors.length > 0) {
-              return { content: errors.join('\n'), isError: true };
-            }
+      const captured = await captureWrongIndexPublications(
+        async (): Promise<MCPServerCallResult> => {
+          if (!allowed.has(name as CodebaseIndexMcpToolName)) {
+            return {
+              content: `Tool "${name}" is not exposed by this Codebase Index MCP server`,
+              isError: true,
+            };
           }
-          const content = await executeTool(builtin, args, context, signal);
-          signal.throwIfAborted();
-          // The built-in tools THROW on failure (caught below). This guards a
-          // payload from an older tool build that still degraded a failed
-          // query to `indexStatus: 'error'` — an MCP client must see a failure.
-          if (isDegradedFailure(content)) return { content, isError: true };
-          // A tool's own model-facing text, as the in-process agent gets it.
-          // Without it codebase_skeleton went out as one-line JSON carrying
-          // every file's skeleton twice.
-          const serialize = builtin.serialize;
-          const normalizedContent =
-            content &&
-            typeof content === 'object' &&
-            !Array.isArray(content) &&
-            typeof (content as { note?: unknown }).note === 'string'
-              ? {
-                  ...(content as Record<string, unknown>),
-                  note: mcpToolNote((content as { note: string }).note, opts),
-                }
-              : content;
-          return {
-            content:
-              typeof serialize === 'function'
-                ? serialize(normalizedContent, args)
-                : normalizedContent,
-            isError: false,
-          };
-        }
+          if (!args || typeof args !== 'object' || Array.isArray(args)) {
+            return {
+              content: `Tool "${name}" arguments must be a JSON object`,
+              isError: true,
+            };
+          }
 
-        const base = {
-          projectRoot,
-          ...(opts.indexDir ? { indexDir: opts.indexDir } : {}),
-        };
-        if (toolName === 'codebase_package_graph') {
-          const content = await getPackageGraph(base, signal);
-          signal.throwIfAborted();
-          return { content, isError: false };
-        }
-        if (toolName === 'codebase_file_graph') {
-          const content = await getFileGraph(
-            { ...base, packageFilter: String(args['package']).trim() },
-            signal,
-          );
-          signal.throwIfAborted();
-          return { content, isError: false };
-        }
-        const content = await getSymbolGraph(
-          { ...base, fileFilter: String(args['file']).trim() },
-          signal,
-        );
-        signal.throwIfAborted();
-        return { content, isError: false };
-      } catch (error) {
-        return {
-          content: error instanceof Error ? error.message : String(error),
-          isError: true,
-        };
-      }
+          const toolName = name as CodebaseIndexMcpToolName;
+          const validationError = validateArgs(toolName, args);
+          if (validationError) return { content: validationError, isError: true };
+          if (opts.writable !== true) {
+            const writeVariant = codebaseIndexMcpWriteVariant(toolName, args);
+            if (writeVariant) return { content: writeVariant, isError: true };
+          }
+          const signal = callOptions?.signal ?? new AbortController().signal;
+
+          try {
+            signal.throwIfAborted();
+            const builtin = BUILTIN_TOOLS[toolName];
+            if (builtin) {
+              const validate = builtin.validate;
+              if (typeof validate === 'function') {
+                const errors = await validate(args);
+                if (Array.isArray(errors) && errors.length > 0) {
+                  return { content: errors.join('\n'), isError: true };
+                }
+              }
+              const content = await executeTool(builtin, args, context, signal);
+              signal.throwIfAborted();
+              // The built-in tools THROW on failure (caught below). This guards a
+              // payload from an older tool build that still degraded a failed
+              // query to `indexStatus: 'error'` — an MCP client must see a failure.
+              if (isDegradedFailure(content)) return { content, isError: true };
+              // A tool's own model-facing text, as the in-process agent gets it.
+              // Without it codebase_skeleton went out as one-line JSON carrying
+              // every file's skeleton twice.
+              const serialize = builtin.serialize;
+              const normalizedContent =
+                content &&
+                typeof content === 'object' &&
+                !Array.isArray(content) &&
+                typeof (content as { note?: unknown }).note === 'string'
+                  ? {
+                      ...(content as Record<string, unknown>),
+                      note: mcpToolNote((content as { note: string }).note, opts),
+                    }
+                  : content;
+              return {
+                content:
+                  typeof serialize === 'function'
+                    ? serialize(normalizedContent, args)
+                    : normalizedContent,
+                isError: false,
+              };
+            }
+
+            const base = {
+              projectRoot,
+              ...(opts.indexDir ? { indexDir: opts.indexDir } : {}),
+            };
+            if (toolName === 'codebase_package_graph') {
+              const content = await getPackageGraph(base, signal);
+              signal.throwIfAborted();
+              return { content, isError: false };
+            }
+            if (toolName === 'codebase_file_graph') {
+              const content = await getFileGraph(
+                { ...base, packageFilter: String(args['package']).trim() },
+                signal,
+              );
+              signal.throwIfAborted();
+              return { content, isError: false };
+            }
+            const content = await getSymbolGraph(
+              { ...base, fileFilter: String(args['file']).trim() },
+              signal,
+            );
+            signal.throwIfAborted();
+            return { content, isError: false };
+          } catch (error) {
+            return {
+              content: error instanceof Error ? error.message : String(error),
+              isError: true,
+            };
+          }
+        },
+      );
+      return {
+        ...captured.value,
+        ...(captured.publications.length
+          ? {
+              _meta: {
+                'wrongindex/publications': captured.publications.map(
+                  ({
+                    daemonInstanceId,
+                    projectId,
+                    generation,
+                    graphStamp,
+                    observedAt,
+                    freshness,
+                    indexing,
+                  }) => ({
+                    daemonInstanceId,
+                    projectId,
+                    generation,
+                    graphStamp,
+                    observedAt,
+                    freshness,
+                    indexing,
+                  }),
+                ),
+                'wrongindex/publicationsTruncated': captured.truncated,
+              },
+            }
+          : {}),
+      };
     },
   };
 }
