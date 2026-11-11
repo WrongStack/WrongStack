@@ -86,6 +86,15 @@ const llmProfiles: Record<string, DeclaredLlmProfile> = {
     routing: 'Uses api.llm as a second opinion, not as the install policy engine.',
     fallback: 'Deny lists, package-name validation and warnings remain deterministic.',
   },
+  'adversary-mode': {
+    mode: 'optional',
+    summary:
+      'Dormant until adversary.md exists; evaluates watched pre-tool calls against natural-language policy and user task alignment.',
+    routing:
+      'Routes scrubbed tool context through BrainArbiter, Jev, Council (on external-tainted sessions), or per-plugin api.llm.',
+    fallback:
+      'Self-tamper protection on adversary.md is deterministic; unreachable reviewers follow configured failurePolicy ("open" or "closed").',
+  },
   'error-lens': {
     mode: 'optional',
     summary: 'New failure digests can include a concise LLM-generated fix hint.',

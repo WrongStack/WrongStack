@@ -681,4 +681,109 @@ export const pluginDetailsPart6: Record<string, PluginDetail> = {
     hooks: ['PostToolUse (write|edit) — lifecycle: hot'],
     apiVersion: '^0.1.10',
   },
+  'adversary-mode': {
+    version: '0.1.0',
+    longDescription:
+      'Independent natural-language pre-tool intent and task-drift reviewer inspired by Goose adversary.md. Dormant at zero LLM cost until ~/.wrongstack/adversary.md (or additive <project>/.wrongstack/adversary.md) is created; once active, PreToolUse compares the user original task, recent prompts, and untrusted external data taint against your plain-language rules via BrainArbiter, Jev, Council, or One-Shot LLM to block contextual task hijacking.',
+    tools: [
+      {
+        name: 'adversary_mode_status',
+        category: 'Diagnostics',
+        mutating: false,
+        permission: 'auto',
+        summary:
+          'Reports Adversary Mode state: whether adversary.md policy is active, loaded policy sources, watched tools, session external-data taint, and decision counters.',
+        params: [
+          {
+            name: 'sessionId',
+            type: 'string',
+            description:
+              'Optional session id to inspect external-data taint and captured user task.',
+          },
+          {
+            name: 'cwd',
+            type: 'string',
+            description: 'Optional working directory to resolve project .wrongstack/adversary.md.',
+          },
+        ],
+      },
+    ],
+    configOptions: [
+      {
+        name: 'enabled',
+        type: 'boolean',
+        defaultValue: 'true',
+        description: 'Master switch for Adversary Mode hooks.',
+      },
+      {
+        name: 'alwaysOn',
+        type: 'boolean',
+        defaultValue: 'false',
+        description:
+          'Enforce the built-in baseline adversary rules even when no adversary.md file exists on disk.',
+      },
+      {
+        name: 'mode',
+        type: '"block" | "warn"',
+        defaultValue: '"block"',
+        description: 'Deny flagged tool calls ("block") or allow with warning context ("warn").',
+      },
+      {
+        name: 'engine',
+        type: '"auto" | "brain" | "jev" | "council" | "llm"',
+        defaultValue: '"auto"',
+        description:
+          'Reviewer decision engine ("auto" routes through BrainArbiter, Jev, Council on tainted sessions, and One-Shot LLM).',
+      },
+      {
+        name: 'failurePolicy',
+        type: '"open" | "closed"',
+        defaultValue: '"open"',
+        description:
+          'Fallback when no reviewer tier is reachable ("open" allows, "closed" blocks).',
+      },
+      {
+        name: 'projectPolicy',
+        type: '"additive" | "ignore"',
+        defaultValue: '"additive"',
+        description:
+          'How repository .wrongstack/adversary.md is handled ("additive" adds extra BLOCK rules only; "ignore" skips repo files).',
+      },
+      {
+        name: 'onlyAfterExternal',
+        type: 'boolean',
+        defaultValue: 'false',
+        description:
+          'Run semantic pre-tool checks only after untrusted external/web/MCP data or injection signals enter the session.',
+      },
+      {
+        name: 'expandToolsAfterExternalData',
+        type: 'boolean',
+        defaultValue: 'true',
+        description:
+          'Automatically expand watched tools to outbound network, browser, and package-install tools once a session is tainted by external data.',
+      },
+      {
+        name: 'timeoutMs',
+        type: 'number',
+        defaultValue: '8000',
+        description: 'Maximum wall-clock milliseconds per pre-tool adversary check.',
+      },
+      {
+        name: 'cacheVerdicts',
+        type: 'boolean',
+        defaultValue: 'true',
+        description:
+          'Cache identical (policy, task, taint, tool, arguments) verdicts for 5 minutes.',
+      },
+    ],
+    hooks: [
+      'UserPromptSubmit (*) — captures user stated task and recent prompts',
+      'PostToolUse (*) — tracks untrusted external data taint (web/MCP/injection signals)',
+      'PreToolUse (*) — validates watched tool calls against adversary.md policy',
+    ],
+    apiVersion: '^0.1.10',
+    example:
+      '{\n  "extensions": {\n    "adversary-mode": {\n      "enabled": true,\n      "mode": "block",\n      "engine": "auto"\n    }\n  }\n}\n\n# Initialize ~/.wrongstack/adversary.md:\n/adversary init',
+  },
 };

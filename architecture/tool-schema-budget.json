@@ -5,8 +5,8 @@
   "profiles": {
     "off": {
       "count": 81,
-      "wireBytes": 100891,
-      "estimatedTokens": 27895
+      "wireBytes": 101239,
+      "estimatedTokens": 27993
     },
     "minimal": {
       "count": 30,
@@ -20,8 +20,8 @@
     },
     "medium": {
       "count": 57,
-      "wireBytes": 86495,
-      "estimatedTokens": 24050
+      "wireBytes": 86843,
+      "estimatedTokens": 24148
     },
     "aggressive": {
       "count": 30,

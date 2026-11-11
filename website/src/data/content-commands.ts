@@ -58,7 +58,10 @@ const commandRows: Array<[string, string]> = [
     '/agent-improve',
     'Inspect and develop a roster agent for this project: captured directives, per-skill project addenda, skill affinity and the optimization pass.',
   ],
-  ['/agents', 'Inspect spawned subagents, control their output in chat, and read per-agent transcripts.'],
+  [
+    '/agents',
+    'Inspect spawned subagents, control their output in chat, and read per-agent transcripts.',
+  ],
   ['/director', '(Obsolete) Director Mode is permanently on — fleet tools always available.'],
   ['/delegate', 'Hand a bounded task to a specialist role.'],
   ['/fleet', 'Inspect fleet status, budgets, logs, streams, retries and workers.'],

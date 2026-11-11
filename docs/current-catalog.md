@@ -130,7 +130,7 @@ this registry. Bench experiment actions are nested actions of `bench`.
 
 ## Plugins
 
-89 official package plugins in [packages/plugins/src/manifest/index.ts](../packages/plugins/src/manifest/index.ts);
+90 official package plugins in [packages/plugins/src/manifest/index.ts](../packages/plugins/src/manifest/index.ts);
 9 host plugins in [packages/plugins/src/plugin-audit-catalog/index.ts](../packages/plugins/src/plugin-audit-catalog/index.ts).
 
 The [feature matrix](feature-matrix.md) maps official plugins to their tools.

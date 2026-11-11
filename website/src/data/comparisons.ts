@@ -134,8 +134,7 @@ export const productComparisons: ProductComparison[] = [
     rows: [
       {
         capability: 'Execution surfaces',
-        wrongstack:
-          'Five first-class surfaces share one kernel: CLI, TUI, WebUI, VibeUI and HQ.',
+        wrongstack: 'Five first-class surfaces share one kernel: CLI, TUI, WebUI, VibeUI and HQ.',
         competitor:
           'Officially available in the terminal, VS Code and JetBrains IDEs, desktop app and browser.',
         difference:
@@ -265,8 +264,7 @@ export const productComparisons: ProductComparison[] = [
     rows: [
       {
         capability: 'Execution surfaces',
-        wrongstack:
-          'CLI, TUI, WebUI, VibeUI and HQ run on the same TypeScript kernel.',
+        wrongstack: 'CLI, TUI, WebUI, VibeUI and HQ run on the same TypeScript kernel.',
         competitor:
           'Codex runs in the ChatGPT desktop app, CLI and IDE extension, with local and OpenAI-managed cloud environments.',
         difference:
@@ -395,8 +393,7 @@ export const productComparisons: ProductComparison[] = [
     rows: [
       {
         capability: 'Execution surfaces',
-        wrongstack:
-          'CLI, optional Ink TUI, WebUI, VibeUI and HQ compose one lower-level runtime.',
+        wrongstack: 'CLI, optional Ink TUI, WebUI, VibeUI and HQ compose one lower-level runtime.',
         competitor:
           'Terminal TUI, desktop app, IDE extension, web interface and headless OpenAPI server are documented surfaces.',
         difference:
@@ -654,8 +651,7 @@ export const productComparisons: ProductComparison[] = [
     rows: [
       {
         capability: 'Execution surfaces',
-        wrongstack:
-          'CLI, Ink TUI, browser WebUI, VibeUI and a separate React HQ dashboard.',
+        wrongstack: 'CLI, Ink TUI, browser WebUI, VibeUI and a separate React HQ dashboard.',
         competitor:
           'Terminal harness with interactive, print/JSON, RPC and SDK modes for embedding in other applications.',
         difference:

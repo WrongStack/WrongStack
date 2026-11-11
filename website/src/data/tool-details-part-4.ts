@@ -306,7 +306,19 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       {
         name: 'viewports',
         type: 'integer[]',
-        description: 'Viewport widths, 1–4 (default [1440, 768, 390]).',
+        description: 'Viewport widths, 1–6 (default [1440, 1280, 1024, 768, 375]).',
+      },
+      {
+        name: 'pages',
+        type: 'string[]',
+        description:
+          'extract: additional http(s) subpage URLs (1–7) to analyze and merge into the reference DNA.',
+      },
+      {
+        name: 'maxPages',
+        type: 'integer',
+        description:
+          'extract: total number of pages (1–8) to analyze, auto-discovering same-origin internal links when > 1.',
       },
       {
         name: 'reference',

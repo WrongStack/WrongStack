@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://wrongstack.dev/schema/ws-core.schema.json",
   "title": "WrongStack WebUI WebSocket protocol — conversation core",
-  "description": "Generated from @wrongstack/webui-protocol 1.5.6 (src/conversation-core.ts, src/error-model.ts). Every frame is a JSON object {type, payload}. A client sends CoreClientMessage and receives CoreServerMessage; other message types exist (see registry.ts) and are not described here.",
+  "description": "Generated from @wrongstack/webui-protocol 1.6.0 (src/conversation-core.ts, src/error-model.ts). Every frame is a JSON object {type, payload}. A client sends CoreClientMessage and receives CoreServerMessage; other message types exist (see registry.ts) and are not described here.",
   "oneOf": [
     {
       "$ref": "#/definitions/CoreClientMessage"

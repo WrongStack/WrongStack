@@ -2188,7 +2188,7 @@ Permission: `confirm`; mutating: `true`; icon: `scaffold`; color: `#c084fc`.
 
 ### Usage
 
-`design_reference {action:"extract", url:"https://example.com"}` → build → `design_reference {action:"compare", reference:"example-com", url:"http://localhost:5173/"}`; `design_reference {action:"inspect", url:"http://localhost:5173/", surface:"app"}` before calling UI work done; a static page needs no server: `design_reference {action:"inspect", file:"index.html"}`.
+`design_reference {action:"extract", url:"https://example.com", maxPages:6}` writes `.design/references/example-com/{DESIGN.md,dna.md}` → build → `design_reference {action:"compare", reference:"example-com", url:"http://localhost:5173/"}`; `design_reference {action:"inspect", url:"http://localhost:5173/", surface:"app"}` before calling UI work done; a static page needs no server: `design_reference {action:"inspect", file:"index.html"}`.
 
 ### Input schema
 
@@ -2224,7 +2224,20 @@ Permission: `confirm`; mutating: `true`; icon: `scaffold`; color: `#c084fc`.
         "minimum": 320,
         "maximum": 3840
       },
-      "description": "Viewport widths, 1–4 (default [1440, 768, 390])."
+      "description": "Viewport widths, 1–6 (default [1440, 1280, 1024, 768, 375])."
+    },
+    "pages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "extract: additional http(s) subpage URLs (1–7) to analyze and merge into the reference DNA."
+    },
+    "maxPages": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 8,
+      "description": "extract: total number of pages (1–8) to analyze, auto-discovering same-origin internal links when > 1."
     },
     "reference": {
       "type": "string",

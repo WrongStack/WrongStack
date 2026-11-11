@@ -32,6 +32,7 @@ separately below.
 | `/tool` | — | [tool modes](tool.md) |
 | `/tools` | — | [tools](tools.md) |
 | `/plugin` | `/plugins` | [plugin manager](plugin.md) |
+| `/panel` | — | [plugin panels](panel.md) |
 | `/prune` | — | [prune](prune.md) |
 | `/mcp` | `/mcp-servers` | [MCP](mcp.md) |
 | `/browser` | `/network` | [Browser setup and local origins](browser.md) |
@@ -53,6 +54,8 @@ separately below.
 | `/tasks` | — | [tasks](tasks.md) |
 | `/sdd` | — | [SDD](sdd.md) |
 | `/save`, `/sessions`, `/exit` | `/resume`, `/load`; `/quit`, `/q` | [session management](session.md) |
+| `/tree` | — | [session tree](tree.md) |
+| `/image` | — | [inline image preview](image.md) |
 | `/yolo` | — | [YOLO](yolo.md) |
 | `/mouse` | — | [mouse](mouse.md) |
 | `/autonomy` | — | [autonomy](autonomy.md) |
@@ -161,7 +164,7 @@ REPL input "/<command> <args>"
 
 Since 1.5.0 the commands that need no terminal live in `@wrongstack/runtime/commands`, and both engine hosts (the CLI's WebUI host and the standalone engine Desktop v2 runs) serve them over the WebUI protocol: `command.list` answers with `command.catalog` (name, aliases, description, arguments, and whether the command changes or deletes data) and `command.run` with `command.result`. Hosts advertise this as the `command.bridge` capability. The CLI files re-export the moved commands, so the TUI runs the same code.
 
-The bridge serves `/sandbox`, `/prune`, `/scout-stats`, `/init`, `/git`, `/commit`, `/gitcheck`, `/push`, `/gitid`, `/security`, `/spawn`, `/delegate`, `/director`, `/supervisor`, `/acp`, `/ensemble` and `/tuneup`, then the builtin plugins' commands (the skill library, the prompt library, `/perf` and `/sync`); a portable command keeps a shared name. The plugins are set up only to collect their slash commands: none of their tools, hooks or event handlers start in the engine. Cloud config sync and specialist triggers stay with the TUI, as do `/coordinator` and `/shadow`.
+The bridge serves `/sandbox`, `/prune`, `/scout-stats`, `/init`, `/git`, `/commit`, `/gitcheck`, `/push`, `/gitid`, `/security`, `/spawn`, `/delegate`, `/director`, `/supervisor`, `/acp`, `/ensemble`, `/tuneup`, `/tree`, `/panel` and `/image`, then the builtin plugins' commands (the skill library, the prompt library, `/perf` and `/sync`); a portable command keeps a shared name. The plugins are set up only to collect their slash commands: none of their tools, hooks or event handlers start in the engine. Cloud config sync and specialist triggers stay with the TUI, as do `/coordinator` and `/shadow`.
 
 - **WebUI chat.** A slash command the WebUI does not route itself runs on the engine when the catalog lists it, instead of going to the model, and its output is written into the chat. The slash picker and `/help` list the engine's commands after the WebUI's own.
 - **Desktop composer.** Engine commands complete and run after the desktop's own commands; a desktop command of the same name wins.

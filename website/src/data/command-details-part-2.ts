@@ -5,7 +5,7 @@ export const commandDetailsPart2: CommandDetailMap = {
     purpose:
       'Inspect spawned subagents, control how much of their output reaches the chat, and read per-agent transcripts.',
     behavior:
-      '`/agents` prints a status summary of the spawned subagents. `/agents list` lists each known subagent with its status and current task, and `/agents show <id>` prints that agent\'s transcript. `/agents chat off|full|status` sets how much subagent output appears in the main chat, and `/agents stream on|off|status` shows or hides agent conversations inline. In the TUI, bare `/agents`, `/agents list` or `/agents monitor` opens the agents monitor overlay.',
+      "`/agents` prints a status summary of the spawned subagents. `/agents list` lists each known subagent with its status and current task, and `/agents show <id>` prints that agent's transcript. `/agents chat off|full|status` sets how much subagent output appears in the main chat, and `/agents stream on|off|status` shows or hides agent conversations inline. In the TUI, bare `/agents`, `/agents list` or `/agents monitor` opens the agents monitor overlay.",
     before: 'No preparation needed. Run it when you want to see what your fleet is doing.',
     during:
       'Each subagent line shows a status icon, the agent name, an id prefix, the status and the current task. `/agents show <id>` prints the transcript entries recorded for that agent.',

@@ -66,7 +66,31 @@ entry always wins over a discovered plugin with the same name):
      with a `plugins` entry or `extensions.<name>.enabled: true`)
 
    Each directory's entry is resolved from `package.json` (`main` or
-   `exports["."]`) with `index.js` / `index.mjs` / `index.cjs` fallbacks.
+   `exports["."]`) with `index.ts` / `index.mts` / `index.js` / `index.mjs` / `index.cjs` fallbacks. Single-file `.ts` / `.mts` / `.js` / `.mjs` drop-ins placed directly in `~/.wrongstack/plugins/<name>.ts` or `.wrongstack/plugins/<name>.ts` are also discovered automatically with zero build step.
+
+### Zero-build TypeScript & standalone `@wrongstack/plugin-sdk` bridge
+
+External `.ts` and `.mts` plugins run directly without `tsc` or a bundler:
+
+- Under Bun (and compiled standalone `wstack` binaries), `@wrongstack/plugin-sdk` is bridged in-memory from the host binary even when the plugin lives outside any `node_modules` tree (for example `~/.wrongstack/plugins/my-helper.ts`).
+- Under Node.js 22.6+, `.ts` and `.mts` entrypoints fall back automatically to `module.stripTypeScriptTypes`.
+- Trust-on-first-use (`~/.wrongstack/plugin-trust.json`) hashes the deterministic transitive local `.ts`/`.mts`/`.js` import closure (`sha256-...`) **before** any module code is evaluated or bundled.
+
+### Live hot-reload (`/plugin reload`)
+
+During an interactive session you can reload external plugins in place without restarting `wstack`:
+
+```bash
+/plugin reload <name>
+/plugin reload --all
+/plugin trust <name>
+/plugin watch <name>
+/plugin watch off [name]
+```
+
+Reload waits for any in-flight tool calls owned or wrapped by the plugin to quiesce, verifies the updated Merkle closure against `plugin-trust.json`, evaluates a fresh ESM module snapshot so updated local TypeScript modules bypass the module cache, swaps scoped registrations atomically, and rolls back to the previous plugin instance if the new `setup()` throws. Reloaded plugins emit `'plugin.reloaded'` on the kernel `EventBus`.
+
+When editing a pinned external plugin mid-session, `/plugin trust <name>` re-pins the updated directory closure digest and immediately hot-reloads `<name>`. For rapid iteration on personal plugins, `/plugin watch <name>` starts a session-scoped file watcher strictly restricted to `~/.wrongstack/plugins/<name>` (never persisted to config and never permitted on `<projectRoot>/.wrongstack/plugins/`).
 
 `wstack plugin add <specifier>` registers a config entry;
 `wstack plugin add <specifier> --install` additionally installs the package
@@ -149,6 +173,8 @@ distributes extensions from unknown third parties.
 | `api.session` | Append custom events to the JSONL session log |
 | `api.metrics` | Record scoped counters/histograms/gauges → Prometheus/OTLP |
 | `api.llm` | Host-routed One Shot completions and optional Council deliberation (guard for `undefined`) |
+| `api.ui` | Declarative host-neutral status chips, `/panel` views, and toast notifications (`capabilities.ui: true`) |
+| `api.signal` | Per-instance `AbortSignal` aborted automatically before `teardown` / `/plugin reload` |
 
 Use `onEvent` instead of `events.on(...)` when you want the listener to
 disappear with the plugin. Use raw `events.on` only when you need to
@@ -248,6 +274,72 @@ Every consumer is guarded on `api.llm` and honors the per-plugin
 optional generation declare `capabilities.llm: true`; this is an audit/UX
 signal, not permission to require an LLM. The deterministic path must stay
 usable when `api.llm` is absent, cancelled, fails, or returns invalid output.
+
+### `api.ui`, `api.signal`, and `beforeCompact`
+
+Plugins that declare `capabilities: { ui: true }` can contribute host-neutral declarative status chips and interactive panels without importing React or Ink, so the exact same plugin works in the TUI (`/panel`), REPL, and headless surfaces:
+
+```ts
+import { definePlugin } from '@wrongstack/plugin-sdk';
+
+export default definePlugin(
+  {
+    name: 'build-watch',
+    version: '0.1.0',
+    capabilities: { ui: true, extensions: true },
+  },
+  async (api) => {
+    let buildOk = true;
+
+    // Aborted automatically on shutdown or `/plugin reload`
+    api.signal?.addEventListener('abort', () => {
+      // cancel background watchers or timers
+    });
+
+    const chip = api.ui?.registerStatusChip({
+      id: 'ci',
+      text: 'CI green',
+      tone: 'success',
+      priority: 50,
+    });
+
+    api.ui?.registerPanel({
+      id: 'status',
+      title: 'Build Watch',
+      actions: [{ id: 'toggle', label: 'Toggle state', shortcut: 't' }],
+      render: () => ({
+        kind: 'stack',
+        direction: 'vertical',
+        children: [
+          {
+            kind: 'kv',
+            items: [{ label: 'Status', value: buildOk ? 'Passing' : 'Failing', tone: buildOk ? 'success' : 'danger' }],
+          },
+        ],
+      }),
+      onAction: async (actionId) => {
+        if (actionId === 'toggle') {
+          buildOk = !buildOk;
+          chip?.update({
+            text: buildOk ? 'CI green' : 'CI failing',
+            tone: buildOk ? 'success' : 'danger',
+          });
+        }
+      },
+    });
+
+    api.extensions.register({
+      name: 'preserve-critical-turns',
+      beforeCompact: async ({ reason }) => ({
+        additionalInstructions: `Compaction trigger: ${reason}. Preserve failing test names.`,
+        pinnedMessageIndices: [0],
+      }),
+    });
+  },
+);
+```
+
+All `customSummary` and `additionalInstructions` strings returned from `beforeCompact` hooks are automatically scrubbed through `SecretScrubber` before entering the compacted transcript or branch fold-back handoff.
 
 ---
 

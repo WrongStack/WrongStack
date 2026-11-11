@@ -1431,6 +1431,14 @@ export const pluginCatalog = [
     defaultState: 'inactive',
     source: 'Suite',
   },
+  {
+    name: 'adversary-mode',
+    risk: 'medium',
+    summary:
+      'Natural-language pre-tool intent and task-drift reviewer (adversary.md) backed by Brain, Jev, Council, and LLM tiers',
+    defaultState: 'active',
+    source: 'Suite',
+  },
 ] as const;
 
 /* =========================================================================

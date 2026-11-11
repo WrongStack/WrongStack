@@ -1,4 +1,4 @@
-# /save · /sessions · /exit — Session Management
+# /save · /sessions · /tree · /panel · /image · /exit — Session & Surface Commands
 
 ## /save
 
@@ -55,6 +55,42 @@ Deletes any saved session — not just empty ones. Removes the `.jsonl` transcri
 There is no project-wide `active.json` lock. Multiple surfaces in one project start separate fresh sessions by default. A session is loaded only through an explicit resume action. Without `--force`/`-y`, a delete confirmation prompt is shown (skipped automatically in non-TTY/scripted contexts).
 
 The device-wide registry lives at `~/.wrongstack/session-registry.json`. Each entry includes the session id, owner PID and start generation, client type, project/working-directory identity, heartbeat status, and live agents, so TUI, WebUI, and HQ consumers share the same ownership view. A missing heartbeat does not release a session while its PID is still alive: the entry becomes `lost` and remains protected until that process exits. Dead-PID entries are pruned automatically.
+
+## /tree
+
+Manages non-destructive, intra-session conversation branches backed by content-addressable workspace checkpoints (`checkpointCas`). Inside the TUI, running `/tree` with no subcommand opens the interactive `<SessionTreeOverlay>` modal (`↑/↓` navigate, `Enter` switch + restore workspace, `k` switch keeping working copy, `f` fold summary into parent, `x` archive, `Esc` close).
+
+```bash
+/tree                                                    # TUI modal or ASCII DAG list
+/tree list                                               # Render the full ASCII branch DAG
+/tree branch <name> [--at <N>] [--no-switch] [--from <b>] [--label "<text>"]
+/tree switch <target> [--keep-files]                     # Switch branch & restore CAS files
+/tree fold [source] [--into <target>] [--focus "<text>"] [--archive]
+/tree rename <target> <new-name>
+/tree archive <target>                                   # Release exclusive CAS refs for GC
+```
+
+`fold` synthesizes an empirical summary of an exploratory branch, runs `beforeCompact` extension hooks, scrubs any detected secrets via `DefaultSecretScrubber`, switches to the target branch, and injects a single bounded handoff message into the active context. Sessions with multiple non-archived branches display a `⎇ N branches (<active>)` badge in `/resume`.
+
+## /panel
+
+Inspects and interacts with host-neutral declarative UI panels contributed by plugins via `api.ui.registerPanel(...)`. Inside the TUI, `/panel` or `/panel open [id]` launches `<PluginPanelOverlay>` (`←/→` or `Tab` switch panels, single-key action shortcuts, `r` refresh, `Esc` close); in REPL/headless surfaces it renders deterministic plain-text output.
+
+```bash
+/panel                               # Open TUI overlay (if panels exist) or list panels
+/panel list                          # List registered plugin panels and status chips
+/panel show <id>                     # Render a specific panel to text
+/panel action <id> <actionId>        # Invoke a scoped panel action
+```
+
+## /image
+
+Inspects a project-contained local PNG, JPEG, GIF, or WebP artifact. Inside the TUI, `/image <path>` opens `<ImagePreviewModal>` using native Kitty APC or iTerm2 `OSC 1337` graphics when supported by the terminal (with automatic 24-bit Unicode half-block `▀` fallback and Kitty slot cleanup on close). Passing `--info` prints header dimensions and byte size without opening the modal.
+
+```bash
+/image artifacts/diagram.png
+/image artifacts/diagram.png --info
+```
 
 ## /exit (aliases: `/quit`, `/q`)
 

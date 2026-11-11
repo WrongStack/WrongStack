@@ -20,7 +20,22 @@ Manages the lifecycle of installed plugins via the `onPlugin` callback. Delegate
 | `/plugin enable <alias\|package>` | Enable a configured plugin |
 | `/plugin disable <alias\|package>` | Disable a configured plugin |
 | `/plugin toggle <name>` | Toggle a safe audit-list plugin row |
+| `/plugin reload [name\|--all]` | Hot-reload one or all external `.ts`/`.mts`/`.js` plugins in-place without restarting the session |
+| `/plugin trust [name\|--remove]` | List or re-pin external plugin closure trust and immediately hot-reload |
+| `/plugin watch [name\|off]` | Watch a user-global (`~/.wrongstack/plugins/<name>`) plugin for live reload during the current session |
 | `/plugin remove <alias\|package>` | Remove from config |
+
+## Zero-build TypeScript plugins & closure trust
+
+Drop-in single-file `.ts`/`.mts`/`.js` plugins and directory plugins (`<dir>/index.ts`) under `.wrongstack/plugins/` or `~/.wrongstack/plugins/` are executed natively by Bun without a build step, resolving `@wrongstack/plugin-sdk` and `@wrongstack/contracts` from the active WrongStack runtime.
+
+Project-scoped plugins require Trust-On-First-Use (TOFU) pinning over the entire directory file closure (Merkle root SHA-256):
+
+```bash
+wstack plugin trust <plugin-name>
+```
+
+Running `/plugin reload [name]` re-verifies the closure digest, drains all tools, slash commands, hooks, `api.ui` slots, and `api.signal` listeners owned by the previous generation, and swaps in the new instance atomically (rolling back to the previous generation if `setup()` throws).
 
 ## Official plugin aliases
 

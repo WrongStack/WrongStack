@@ -102,6 +102,7 @@ pick the right one for a job using the source-derived plugin catalog.
 | 87 | [`visual-regression-reviewer`](../packages/plugins/src/visual-regression-reviewer) | developer workflow | — | `visual_regression_compare` |
 | 88 | [`workspace-health`](../packages/plugins/src/workspace-health) | developer workflow | — | `workspace-health` |
 | 89 | [`workspace-recipe-runner`](../packages/plugins/src/workspace-recipe-runner) | developer workflow | — | `workspace_recipe_run`, `workspace_recipes` |
+| 90 | [`adversary-mode`](../packages/plugins/src/adversary-mode) | safety | `UserPromptSubmit` (`*`) + `PostToolUse` (`*`) + `PreToolUse` (`*`) | `adversary_mode_status` |
 
 ---
 
@@ -171,6 +172,7 @@ Plugins that stop destructive operations from happening by accident.
 | `loop-breaker` | Runaway tool-call loops — identical repeats *and* A-B-A-B oscillation; warns then blocks | `warn` → `block` after threshold |
 | `dep-guard` | Risky `install` calls: deny list, just-published packages (registry age), typosquat lookalike warnings, unknown names, OSV advisories, unpinned version warnings | `warn` |
 | `injection-shield` | Prompt-injection patterns in tool *output* (warns the model that content is data, not instructions) | `warn` |
+| `adversary-mode` | Contextual task hijacking and policy violations in `PreToolUse` evaluated against plain-language `adversary.md` rules via Brain / Jev / Council / LLM (dormant until `adversary.md` exists) | `block` |
 | `prompt-firewall` | Credential-leak scanner on the provider wire (provider wrapper) | `warn` |
 | `dependency-vulnerability-gate` | Surfaces `bun audit` results before/after installs | `block` / `warn` |
 | `license-audit-gate` | Scans dependency licenses against an allowlist | `block` |
@@ -247,6 +249,7 @@ noticeable per-tool overhead.
 | `bash\|exec` | `process-guard` | Blocks `kill`/`taskkill`/`Stop-Process`/`pkill`/`killall` against active WrongStack PIDs or host terminals (cross-instance persistent registry) |
 | `install` | `dep-guard` | Refuses deny-listed and just-published packages; warns on typosquat / unknown-name / vulnerable-version / unpinned install calls |
 | `*` | `loop-breaker` | Detects identical-repeat and A-B-A-B oscillation loops; warns then blocks after threshold |
+| `*` | `adversary-mode` | Evaluates watched tool calls (`bash`, `exec`, `pwsh` + taint-expanded outbound tools) against `adversary.md` natural-language policy and user task alignment |
 | `*` | `prompt-firewall` | Scans provider request wire for credential leaks before sending |
 | `todo` | `todo-listener` | (technically PostToolUse; tracks todo changes) |
 
@@ -350,6 +353,7 @@ consistency.
 | `security-hotspot-scanner` | yes | hotspots scanned, findings |
 | `test-flake-detector` | yes | test runs analyzed, flakes flagged |
 | `test-generator` | yes | tests generated, last generation |
+| `adversary-mode` | yes | evaluations, allows, blocks, tamper blocks, cache hits, last decision |
 
 **All 90 plugins follow the H1 pattern** — every `setup()` re-zeros
 state, every `teardown()` releases it, and every `health()` reports
