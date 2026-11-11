@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdir, readdir, stat, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import { portableDirectory } from '../scripts/portable.ts';
 import { longReplyLines } from './local-provider.mjs';
 import { openProjectView } from './native-project-navigation.mjs';
@@ -9,18 +9,42 @@ import { openProjectView } from './native-project-navigation.mjs';
 const mb = (bytes) => Math.round((bytes / 1048576) * 10) / 10;
 const since = (start) => Math.round(performance.now() - start);
 
+export function ownedProcessIds(processes, rootPids) {
+  const byPid = new Map(processes.map((item) => [item.ProcessId, item]));
+  const owned = new Set(rootPids);
+  for (const item of processes) if (item.Owned) owned.add(item.ProcessId);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const item of processes) {
+      if (owned.has(item.ProcessId) || !owned.has(item.ParentProcessId)) continue;
+      const parent = byPid.get(item.ParentProcessId);
+      // Windows can reuse an exited parent's PID while its original child is still running.
+      if (
+        typeof parent?.CreatedAtMs === 'number' &&
+        typeof item.CreatedAtMs === 'number' &&
+        item.CreatedAtMs >= parent.CreatedAtMs
+      ) {
+        owned.add(item.ProcessId);
+        grew = true;
+      }
+    }
+  }
+  return owned;
+}
+
 /**
  * Memory of every process this app owns: the UI process, its WebView2 processes, the native host
  * and the engines it started. Working sets count shared pages in each process; private bytes do
  * not, so their sum is the closer estimate of what the app costs.
  */
 function processMemory({ dataDir, uiPid, hostPid }) {
+  assert.ok(isAbsolute(dataDir), 'Memory attribution requires the isolated native data directory');
   // Command lines stay in PowerShell: only whether one names the data directory, and the
   // script a Bun process runs, come back.
   const code = [
     '[Console]::OutputEncoding = [Text.Encoding]::UTF8',
-    '$dir = $env:WRONGSTACK_PERF_DIR',
-    "Get-CimInstance Win32_Process | ForEach-Object { $line = [string]$_.CommandLine; [pscustomobject]@{ ProcessId = $_.ProcessId; ParentProcessId = $_.ParentProcessId; Name = $_.Name; WorkingSetSize = $_.WorkingSetSize; PrivatePageCount = $_.PrivatePageCount; Owned = $line.Contains($dir); Script = $(if ($line -match '([A-Za-z0-9_.-]+[.][cm]?[jt]s)') { $Matches[1] } else { $null }) } } | ConvertTo-Json -Compress",
+    '$prefix = [IO.Path]::GetFullPath($env:WRONGSTACK_PERF_DIR).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar',
+    "Get-CimInstance Win32_Process | ForEach-Object { $line = [string]$_.CommandLine; [pscustomobject]@{ ProcessId = $_.ProcessId; ParentProcessId = $_.ParentProcessId; CreatedAtMs = $(if ($_.CreationDate) { ([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds() } else { $null }); Name = $_.Name; WorkingSetSize = $_.WorkingSetSize; PrivatePageCount = $_.PrivatePageCount; Owned = ($line.IndexOf($prefix, [StringComparison]::OrdinalIgnoreCase) -ge 0 -or ([string]$_.ExecutablePath).StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)); Script = $(if ($line -match '([A-Za-z0-9_.-]+[.][cm]?[jt]s)') { $Matches[1] } else { $null }) } } | ConvertTo-Json -Compress",
   ].join('; ');
   const out = spawnSync(
     join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe'),
@@ -34,16 +58,7 @@ function processMemory({ dataDir, uiPid, hostPid }) {
   );
   assert.equal(out.status, 0, out.stderr);
   const all = JSON.parse(out.stdout);
-  const owned = new Set([uiPid, hostPid]);
-  for (const item of all) if (item.Owned) owned.add(item.ProcessId);
-  for (let grew = true; grew; ) {
-    grew = false;
-    for (const item of all)
-      if (!owned.has(item.ProcessId) && owned.has(item.ParentProcessId)) {
-        owned.add(item.ProcessId);
-        grew = true;
-      }
-  }
+  const owned = ownedProcessIds(all, [uiPid, hostPid]);
   const groups = {};
   let workingSet = 0;
   let privateBytes = 0;
@@ -118,7 +133,7 @@ async function packageSizes({ root, release }) {
   };
   const portable = (() => {
     try {
-      return portableDirectory(app);
+      return process.env.WRONGSTACK_DESKTOP_TEST_PORTABLE ?? portableDirectory(app);
     } catch {
       return null;
     }

@@ -9,6 +9,8 @@ import {
   reviewLabel,
   reviewOutcomes,
   reviewReportTransitions,
+  reviewTokensCompact,
+  reviewUsdCost,
 } from './chimera-model';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
@@ -144,6 +146,15 @@ export function ProjectChimera({
     if (focusReportId) select(focusReportId);
   }, [focusReportId]);
   const report = record(detail?.['report']);
+  const reportUsage = record(report['usage']);
+  const scopeManifest = record(report['scopeManifest']);
+  const scopeFilesByPath = new Map(
+    entries(scopeManifest['files']).map((entry) => [String(entry['path']), entry]),
+  );
+  const skippedFiles = entries(scopeManifest['skippedFiles']);
+  const deletedFiles = Array.isArray(scopeManifest['deletedFiles'])
+    ? scopeManifest['deletedFiles'].filter((item): item is string => typeof item === 'string')
+    : [];
   const findings = entries(detail?.['findings']);
   const visibleFindings = findings.filter(
     (row) =>
@@ -327,6 +338,23 @@ export function ProjectChimera({
                     </span>
                   ))}
               </div>
+              {(Number(record(item['usage'])['totalTokens']) > 0 ||
+                typeof item['headSha'] === 'string') && (
+                <div className="review-report-meta">
+                  {typeof item['headSha'] === 'string' && item['headSha'] && (
+                    <span>HEAD {item['headSha'].slice(0, 8)}</span>
+                  )}
+                  {Number(record(item['usage'])['totalTokens']) > 0 && (
+                    <span>
+                      {reviewTokensCompact(record(item['usage'])['totalTokens'])}{' '}
+                      {t('reviews.tokensShort')}
+                      {reviewUsdCost(record(item['usage'])['costUsd'])
+                        ? ` · ${reviewUsdCost(record(item['usage'])['costUsd'])}`
+                        : ''}
+                    </span>
+                  )}
+                </div>
+              )}
               {item['reviewStatus'] === 'failed' && (
                 <strong className="review-failed">{t('reviews.executionFailed')}</strong>
               )}
@@ -373,6 +401,44 @@ export function ProjectChimera({
                     </dd>
                   </div>
                 ))}
+                {typeof scopeManifest['headSha'] === 'string' && scopeManifest['headSha'] && (
+                  <div>
+                    <dt>{t('reviews.fact.headSha')}</dt>
+                    <dd>
+                      {scopeManifest['headSha']}
+                      {scopeManifest['isIncremental'] === true
+                        ? ` · ${t('reviews.incrementalDelta')}`
+                        : ''}
+                    </dd>
+                  </div>
+                )}
+                {Number(reportUsage['totalTokens']) > 0 && (
+                  <>
+                    <div>
+                      <dt>{t('reviews.fact.tokens')}</dt>
+                      <dd>
+                        {t('reviews.tokensBreakdown', {
+                          total: Number(reportUsage['totalTokens']).toLocaleString(),
+                          input: reviewTokensCompact(reportUsage['inputTokens']),
+                          output: reviewTokensCompact(reportUsage['outputTokens']),
+                          cache: reviewTokensCompact(reportUsage['cacheReadTokens'] ?? 0),
+                        })}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>{t('reviews.fact.execution')}</dt>
+                      <dd>
+                        {t('reviews.executionBreakdown', {
+                          turns: String(reportUsage['iterations'] ?? 0),
+                          tools: String(reportUsage['toolCalls'] ?? 0),
+                        })}
+                        {reviewUsdCost(reportUsage['costUsd'])
+                          ? ` · ${reviewUsdCost(reportUsage['costUsd'])}`
+                          : ''}
+                      </dd>
+                    </div>
+                  </>
+                )}
               </dl>
               {Number(report['unparseableCount']) > 0 && (
                 <p className="review-incomplete">
@@ -412,19 +478,78 @@ export function ProjectChimera({
                   {t('reviews.reviewedFiles', { n: entries(report['files']).length })}
                 </summary>
                 <div className="review-file-list">
-                  {entries(report['files']).map((file) => (
-                    <button
-                      type="button"
-                      className="button secondary small"
-                      key={String(file['path'])}
-                      onClick={() => openFile(String(file['path']))}
-                    >
-                      <FileCode2 size={13} />
-                      {String(file['path'])} · {named(file['status'])}
-                    </button>
-                  ))}
+                  {entries(report['files']).map((file) => {
+                    const path = String(file['path']);
+                    const sf = scopeFilesByPath.get(path);
+                    const symbols = Array.isArray(sf?.['changedSymbols'])
+                      ? sf['changedSymbols'].filter((s): s is string => typeof s === 'string')
+                      : [];
+                    return (
+                      <div className="review-file-entry" key={path}>
+                        <button
+                          type="button"
+                          className="button secondary small"
+                          onClick={() => openFile(path)}
+                        >
+                          <FileCode2 size={13} />
+                          {path} · {named(file['status'])}
+                        </button>
+                        {sf && (
+                          <small className="review-file-scope-meta">
+                            {(sf['addedLines'] !== undefined ||
+                              sf['removedLines'] !== undefined) && (
+                              <span>
+                                +{String(sf['addedLines'] ?? 0)} −{String(sf['removedLines'] ?? 0)}
+                              </span>
+                            )}
+                            {sf['isIncrementalDelta'] === true && (
+                              <span>{t('reviews.incrementalDelta')}</span>
+                            )}
+                            {typeof sf['pairedTestPath'] === 'string' && (
+                              <span>
+                                {sf['pairedTestUpdated'] === true
+                                  ? t('reviews.pairedTestUpdated')
+                                  : t('reviews.pairedTestUntouched')}
+                              </span>
+                            )}
+                            {symbols.length > 0 && (
+                              <span>
+                                [{symbols.slice(0, 4).join(', ')}
+                                {symbols.length > 4 ? '…' : ''}]
+                              </span>
+                            )}
+                          </small>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
+                {deletedFiles.length > 0 && (
+                  <p className="review-scope-note">
+                    {t('reviews.deletedFiles', { files: deletedFiles.join(', ') })}
+                  </p>
+                )}
               </details>
+              {skippedFiles.length > 0 && (
+                <details>
+                  <summary>{t('reviews.skippedFiles', { n: skippedFiles.length })}</summary>
+                  <div className="review-skipped-list">
+                    {skippedFiles.map((sk, idx) => {
+                      const reason = String(sk['reason'] ?? 'unknown');
+                      return (
+                        <div key={`${String(sk['path'] ?? idx)}:${reason}`}>
+                          <code>{String(sk['path'] ?? '')}</code>
+                          <span>
+                            {t(`reviews.skipReason.${reason}`, {
+                              defaultValue: reviewLabel(reason),
+                            })}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </details>
+              )}
               {entries(report['evidenceChecks']).length > 0 && (
                 <details>
                   <summary>

@@ -1,12 +1,10 @@
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import { useEffect, useRef } from 'react';
-import { currentCodeFont, subscribeCodeFont } from './appearance-fonts';
+import { currentCodeFont, DEFAULT_CODE_STACK, subscribeCodeFont } from './appearance-fonts';
 import { useDesktopText } from './desktop-i18n';
 import { request, streamTerminal } from './platform';
 import '@xterm/xterm/css/xterm.css';
-
-const TERMINAL_FONT = 'Cascadia Code, Consolas, monospace';
 
 /** ANSI colours readable on the light terminal background. */
 const LIGHT_ANSI = {
@@ -44,7 +42,7 @@ export function TerminalPane({
     const terminal = new Terminal({
       cursorBlink: true,
       fontSize: 13,
-      fontFamily: currentCodeFont().family ?? TERMINAL_FONT,
+      fontFamily: currentCodeFont().family ?? DEFAULT_CODE_STACK,
       scrollback: 10000,
     });
     const updateTheme = () => {
@@ -90,7 +88,7 @@ export function TerminalPane({
     };
     // A code font chosen in Appearance re-measures the grid, which may change its size.
     const stopFont = subscribeCodeFont(() => {
-      terminal.options.fontFamily = currentCodeFont().family ?? TERMINAL_FONT;
+      terminal.options.fontFamily = currentCodeFont().family ?? DEFAULT_CODE_STACK;
       resize();
     });
     const observer = new ResizeObserver(resize);

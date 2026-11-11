@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ComposerAttachment } from './composer-attachments';
 import { validateAttachments } from './composer-attachments';
 import type { SubmitMode } from './composer-model';
@@ -7,6 +7,7 @@ import { conversationDisplay } from './conversation-appearance';
 import { DraftWriter } from './draft-storage';
 import type { InputDraft } from './input-form-model';
 import { initialSnapshot, isLive, type Session, type Snapshot, visibleSessions } from './model';
+import { acknowledgePendingLayout, pendingLayoutValue, stagePendingLayout } from './pending-layout';
 import { getSnapshot, layoutKey, native, request } from './platform';
 import { type DraftRevisions, type SavedDraft, validateSavedDraft } from './saved-draft';
 import { nextSessionAfterDetach, restoreSessionTabs } from './session-layout';
@@ -226,15 +227,22 @@ export function useDesktop() {
     },
     [modeWriter, reportDraftFailure],
   );
+  const snapshotText = useRef('');
   const refresh = useCallback(async () => {
     try {
       const next = await getSnapshot();
-      setSnapshot(next);
+      // Polled every second; an unchanged registry must not re-render the whole window.
+      const text = JSON.stringify(next);
+      if (text !== snapshotText.current) {
+        snapshotText.current = text;
+        setSnapshot(next);
+      }
       setConnected(true);
       if (!restoredRef.current) {
         restoredRef.current = true;
         try {
-          const layout: unknown = next.layout ? JSON.parse(next.layout) : null;
+          const savedLayout = pendingLayoutValue(layoutKey) ?? next.layout;
+          const layout: unknown = savedLayout ? JSON.parse(savedLayout) : null;
           if (layout && typeof layout === 'object') {
             const saved = layout as Record<string, unknown>;
             if (
@@ -284,13 +292,16 @@ export function useDesktop() {
       clearTimeout(timer);
     };
   }, [refresh]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!restored || !native) return;
+    const value = JSON.stringify({ project, selected, openSessionIds, section, projectPage });
+    // A reload can destroy the timer or its IPC reply; retain this window's visible layout.
+    const token = stagePendingLayout(layoutKey, value);
     const timer = setTimeout(() => {
-      void request('settings.save', {
-        key: layoutKey,
-        value: JSON.stringify({ project, selected, openSessionIds, section, projectPage }),
-      }).catch(reportError);
+      void request('settings.save', { key: layoutKey, value }).then(
+        () => acknowledgePendingLayout(layoutKey, token),
+        reportError,
+      );
     }, 400);
     return () => clearTimeout(timer);
   }, [project, selected, openSessionIds, section, projectPage, restored, reportError]);
@@ -437,6 +448,7 @@ export function useDesktop() {
     );
     if (!target || projectRequestLock.current)
       throw Error('Choose an available conversation in this project.');
+    if (draftConflictRef.current[id]) return false;
     projectRequestLock.current = true;
     try {
       let current = drafts[id];
@@ -451,6 +463,7 @@ export function useDesktop() {
         setComposerAttachments((all) => ({ ...all, [id]: saved.attachments }));
         setDraftModes((all) => ({ ...all, [id]: saved.mode }));
       }
+      if (!(await validateDraft(id))) return false;
       const saved = await setDraft(id, current.trim() ? `${current}\n\n${text}` : text);
       // Never send automatically. The user reviews the appended instruction in chat.
       jumpToSession(target);

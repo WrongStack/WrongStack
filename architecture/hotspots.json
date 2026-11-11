@@ -198,6 +198,10 @@
       "lines": 853,
       "relativeImports": 17
     },
+    "apps/desktop-v2/src/EngineWorkspace.tsx": {
+      "lines": 773,
+      "relativeImports": 54
+    },
     "apps/desktop-v2/src/FileWorkspace.tsx": {
       "lines": 2069,
       "relativeImports": 36
@@ -211,7 +215,7 @@
       "relativeImports": 18
     },
     "apps/desktop-v2/src/ProjectChimera.tsx": {
-      "lines": 766,
+      "lines": 891,
       "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectChronicle.tsx": {
@@ -219,8 +223,8 @@
       "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectDesignStudio.tsx": {
-      "lines": 791,
-      "relativeImports": 10
+      "lines": 853,
+      "relativeImports": 12
     },
     "apps/desktop-v2/src/ProjectGoals.tsx": {
       "lines": 1080,

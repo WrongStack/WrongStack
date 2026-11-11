@@ -125,13 +125,17 @@ export function AgentWorking({
 export function LiveRunActivity({
   display = conversationAppearanceDefaults,
   events,
+  projectRoot,
   onOpenFile,
+  onOpenDesign,
   command,
   live = true,
 }: {
   events: readonly EngineEvent[];
+  projectRoot?: string | null | undefined;
   display?: ConversationDisplay | undefined;
   onOpenFile: (path: string) => void;
+  onOpenDesign?: (() => void) | undefined;
   command?: EngineCommand | undefined;
   live?: boolean | undefined;
 }) {
@@ -142,9 +146,12 @@ export function LiveRunActivity({
     return (
       <SessionActivity
         compact
+        settled={!live}
         showThinkingLogs={display.showThinkingLogs}
         events={events}
+        projectRoot={projectRoot}
         onOpenFile={onOpenFile}
+        onOpenDesign={onOpenDesign}
         command={command}
       />
     );
@@ -165,9 +172,12 @@ export function LiveRunActivity({
       </summary>
       <SessionActivity
         compact
+        settled={!live}
         showThinkingLogs={display.showThinkingLogs}
         events={events}
+        projectRoot={projectRoot}
         onOpenFile={onOpenFile}
+        onOpenDesign={onOpenDesign}
         command={command}
       />
     </details>

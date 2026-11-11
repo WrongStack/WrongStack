@@ -1,0 +1,127 @@
+.design-flow-fields {
+  display: grid;
+  gap: 10px;
+  min-inline-size: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+.design-studio-reference {
+  margin-top: 12px;
+}
+.conversation-welcome-design {
+  container-type: inline-size;
+}
+@container (max-width: 520px) {
+  .conversation-welcome-design-controls {
+    grid-template-columns: 1fr;
+  }
+}
+.design-flow-fields > label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.design-review-controls > label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.design-review-controls > select {
+  align-self: end;
+}
+.design-flow-fields > label select {
+  max-width: 100%;
+}
+.design-flow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.design-extraction-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  background: var(--raised);
+  border-radius: 6px;
+}
+.design-extraction-card > header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  justify-content: space-between;
+}
+.design-extraction-card > header span,
+.design-extraction-card small,
+.conversation-welcome-design > small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.design-extraction-card li[data-state="running"] {
+  border-color: var(--accent);
+}
+.design-extraction-card li[data-state="done"] svg,
+.design-extraction-card li[data-state="running"] svg {
+  color: var(--accent);
+}
+.design-extraction-card li[data-state="failed"] {
+  border-color: var(--danger);
+}
+.design-extraction-card li[data-state="failed"] svg {
+  color: var(--danger);
+}
+.design-extraction-card .design-step-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.design-extraction-artifact {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.design-extraction-artifact code {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.design-review-card header time,
+.design-review-card dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+.design-review-card dl {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+.design-review-card dl:empty {
+  display: none;
+}
+.design-review-card dl div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+}
+.design-review-card dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.design-review-metrics[data-failed="true"] {
+  color: var(--danger);
+}
+.design-flow-fields .conversation-welcome-design-footer > button:only-child {
+  margin-inline-start: auto;
+}

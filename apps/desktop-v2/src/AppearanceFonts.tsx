@@ -71,8 +71,7 @@ function FontChoice({
 }
 
 /**
- * The WebUI's typography settings, on the desktop's own faces: the interface and code fonts
- * (or any font installed on this computer), the text size and code ligatures.
+ * Interface and code font choices, window zoom and code ligatures.
  */
 export function AppearanceFonts({
   appearance,

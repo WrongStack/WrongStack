@@ -40,8 +40,10 @@ export function TranscriptMessage({
   message,
   display = conversationAppearanceDefaults,
   state,
+  projectRoot,
   onLink,
   onOpenFile,
+  onOpenDesign,
   command,
   edit,
   askAgain,
@@ -55,8 +57,10 @@ export function TranscriptMessage({
   message: Message;
   display?: ConversationDisplay | undefined;
   state: Pick<EngineState, 'turnActivity' | 'turnStats'>;
+  projectRoot?: string | null | undefined;
   onLink: (href: string) => void;
   onOpenFile: (path: string) => void;
+  onOpenDesign?: (() => void) | undefined;
   /** The conversation's engine, for the pictures a turn's tools saved. */
   command?: EngineCommand | undefined;
   /** Puts this prompt into the composer. */
@@ -183,8 +187,10 @@ export function TranscriptMessage({
         <LiveRunActivity
           display={display}
           events={message.activityAfter}
+          projectRoot={projectRoot}
           live={activityLive}
           onOpenFile={onOpenFile}
+          onOpenDesign={onOpenDesign}
           command={command}
         />
       )}

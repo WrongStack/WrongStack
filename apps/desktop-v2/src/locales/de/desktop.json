@@ -98,6 +98,7 @@
     "projectTools": "Projektwerkzeuge"
   },
   "explorer": {
+    "toggle": "Projekte und Sitzungen",
     "findAnything": "Alles finden",
     "workspace": "Arbeitsbereich {{name}}",
     "projects": "Projekte",
@@ -798,7 +799,7 @@
     },
     "fonts": {
       "title": "Schriftarten",
-      "body": "Die Schriften für Oberfläche und Code. „Installierte Schrift“ verwendet jede Schrift auf diesem Computer über ihren Namen.",
+      "body": "Wählen Sie die Schriften für Oberfläche und Code. Ist eine Schrift unter dem eingegebenen Namen nicht verfügbar, werden die Standardschriften verwendet.",
       "uiLabel": "Oberflächenschrift",
       "codeLabel": "Codeschrift",
       "geist": "Geist (Standard)",
@@ -3549,7 +3550,26 @@
       "agentId": "Geprüfter Agent",
       "cascadeDepth": "Kaskadentiefe",
       "evidenceStatus": "Belegstatus",
-      "durationSeconds": "Dauer der Prüfung (Sekunden)"
+      "durationSeconds": "Dauer der Prüfung (Sekunden)",
+      "headSha": "Geprüfter HEAD",
+      "tokens": "Token-Nutzung",
+      "execution": "Ausführung & Kosten"
+    },
+    "tokensShort": "Tok.",
+    "tokensBreakdown": "{{total}} ({{input}} rein · {{output}} raus · {{cache}} Cache)",
+    "executionBreakdown": "{{turns}} Züge · {{tools}} Tool-Aufrufe",
+    "incrementalDelta": "Inkrementelles Delta",
+    "pairedTestUpdated": "Zugehöriger Test aktualisiert ✓",
+    "pairedTestUntouched": "Zugehöriger Test unverändert !",
+    "deletedFiles": "Im Arbeitsverzeichnis gelöscht: {{files}}",
+    "skippedFiles": "Übersprungene oder gefilterte Dateien ({{n}})",
+    "skipReason": {
+      "max_files_cap": "Dateilimit erreicht",
+      "already_reviewed": "Bereits geprüft (gleiche SHA)",
+      "in_flight": "Prüfung läuft bereits",
+      "ignored_non_source": "Nicht-Quellcode / generiert gefiltert",
+      "too_large": "Datei zu groß",
+      "unreadable": "Nicht lesbar / gelöscht"
     },
     "unparseable": "{{count}} gemeldete Einträge wurden nicht einzeln ausgewertet. Prüfe den vollständigen Bericht unten.",
     "reopenReport": "Bericht wieder öffnen",
@@ -3904,7 +3924,9 @@
     "staleLabel": "Frühere Designänderungen",
     "stale": "Nicht gespeicherte Änderungen auf diesem Gerät gehören zu {{kit}}, das nicht mehr das aktive Kit ist. Sie werden nicht auf das aktuelle Kit angewendet.",
     "discardStale": "Frühere Änderungen verwerfen",
-    "restored": "Auf diesem Gerät abgelegte, nicht gespeicherte Designänderungen wiederhergestellt."
+    "restored": "Auf diesem Gerät abgelegte, nicht gespeicherte Designänderungen wiederhergestellt.",
+    "extractCalloutTitle": "Referenzseite → DESIGN.md-Synthese",
+    "extractCalloutBody": "Starten Sie im Chat mit einer Live-Referenzseite (5 Breakpoints + Unterseiten → 10-teilige DESIGN.md) und übernehmen Sie die Tokens anschließend hier."
   },
   "mailboxPage": {
     "agentStatus_offline": "Offline",
@@ -9355,7 +9377,21 @@
       "editDraft": "Senden oder leeren Sie zuerst den Entwurf; Bearbeiten würde ihn ersetzen",
       "running": "Warten Sie, bis der laufende Durchgang endet",
       "offline": "Die Engine ist nicht verbunden"
-    }
+    },
+    "designTitle": "Referenzseite → DESIGN.md-Synthese",
+    "designBody": "Messen Sie jede Live-URL oder lokale HTML-Datei über 5 Breakpoints und bis zu 8 Unterseiten, um eine 10-teilige DESIGN.md-Spezifikation zu erzeugen.",
+    "designStageCrawl": "5-Breakpoint-Messung",
+    "designStageSubpages": "Unterseiten-Analyse",
+    "designStageSynthesis": "DNA-Synthese",
+    "designStageSpec": "10-teilige DESIGN.md",
+    "designSourceLabel": "Referenz-URL oder lokale HTML-Datei",
+    "designPagesLabel": "Zu analysierende Seiten",
+    "designPagesCount": "Seiten: {{count}}",
+    "designWorkflowLabel": "Synthese-Ablauf",
+    "designWorkflowExtract": "DESIGN.md extrahieren",
+    "designWorkflowMaterialize": "Extrahieren + Web-Theme erzeugen",
+    "designPresets": "Beispiele:",
+    "designStart": "DESIGN.md-Prompt vorbereiten"
   },
   "worklist": {
     "plan": "Plan",
@@ -9690,6 +9726,42 @@
     "mismatch": "Host und Journal haben verschiedene Sitzungen.",
     "pending": "Identitätsvergleich ausstehend.",
     "expected": "Core-Sitzung des Hosts: {{id}}"
+  },
+  "designFlow": {
+    "materializeNative": "Extrahieren und React-Native-Theme erzeugen",
+    "draftOnly": "Fügt die Anfrage zum Gesprächsentwurf hinzu. Sende sie, wenn du bereit bist.",
+    "draftRefused": "Der Entwurf wurde geändert oder konnte nicht gespeichert werden. Prüfe ihn vor dem Hinzufügen der Anfrage.",
+    "launch": "Referenz vorbereiten",
+    "measure": "Gerenderte Seiten messen",
+    "openSpec": "DESIGN.md öffnen",
+    "measuredPages": "Analysierte Seiten: {{count}}",
+    "noArtifact": "Es wurde kein Pfad zu DESIGN.md gemeldet.",
+    "pending": "Ausstehend"
+  },
+  "designReview": {
+    "title": "Designprüfung",
+    "inspect": "Gerenderte Designprüfung",
+    "compare": "Vergleich der Designtreue",
+    "target": "Ziel",
+    "reference": "Referenz",
+    "widths": "Gemessene Breiten",
+    "noSharedWidths": "Keine gemeinsamen Breiten",
+    "findings": "{{fails}} Fehler · {{warns}} Warnungen",
+    "fidelity": "Designtreue {{score}}",
+    "openReport": "Bericht öffnen",
+    "unavailable": "Prüfwerte sind nicht verfügbar",
+    "prepare": "Prüfanfrage vorbereiten",
+    "surface": "Oberfläche",
+    "page": "Seite",
+    "app": "Anwendung",
+    "targetInput": "Implementierungs-URL oder lokale HTML-Datei",
+    "referenceInput": "Name der extrahierten Referenz",
+    "formBody": "Eine gerenderte Seite vermessen oder mit einer extrahierten Referenz vergleichen."
+  },
+  "renderError": {
+    "title": "Diese Ansicht konnte nicht angezeigt werden",
+    "body": "Beim Neuladen des Fensters können ungespeicherte Änderungen verloren gehen.",
+    "reload": "Fenster neu laden"
   },
   "recoveryDraft": {
     "match": "Entwurfsrevisionen stimmen mit dem gespeicherten Entwurf überein.",

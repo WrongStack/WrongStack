@@ -1,3 +1,5 @@
+import { decodeProtocolMessage } from '@wrongstack/webui-protocol';
+import { replyFailure } from './engine-operations';
 import { engineEvent } from './engine-state';
 import { request } from './platform';
 
@@ -30,7 +32,11 @@ export class JournalTail {
   /** Resolves once the tail has a position, so a request sent after it is never missed. */
   ready(): Promise<void> {
     if (this.offset !== null) return Promise.resolve();
-    this.pending ??= this.locate();
+    // A failed lookup (services still starting) is not remembered: the next caller retries.
+    this.pending ??= this.locate().catch((error: unknown) => {
+      this.pending = undefined;
+      throw error;
+    });
     return this.pending;
   }
   private pending: Promise<void> | undefined;
@@ -83,4 +89,53 @@ export function journalTail(projectId: string): JournalTail {
     tails.set(projectId, tail);
   }
   return tail;
+}
+
+/**
+ * Asks a project's engine once and waits for the reply on the journal's live end. A view that
+ * only needs one answer (the composer's prompt recall and its file or skill suggestions) must
+ * not open the project's full reader: that replays the whole project journal first, which on a
+ * long-lived project is hundreds of megabytes read before the reply can even be seen.
+ */
+export async function projectRequest(
+  projectId: string,
+  type: string,
+  payload: Record<string, unknown>,
+  replies: readonly string[],
+  {
+    timeoutMs = 15000,
+    tail = journalTail(projectId),
+  }: { timeoutMs?: number; tail?: JournalTail } = {},
+): Promise<Record<string, unknown>> {
+  const requestId = crypto.randomUUID();
+  const message = { type, payload: { ...payload, requestId } };
+  const decoded = decodeProtocolMessage(message, 'client');
+  if (!decoded.ok) throw new Error(decoded.issue.message);
+  let stop = () => {};
+  try {
+    return await new Promise<Record<string, unknown>>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error('The project engine did not answer. Try again in a moment.')),
+        timeoutMs,
+      );
+      stop = tail.listen((event) => {
+        if (event.payload['requestId'] !== requestId) return;
+        if (!replies.includes(event.type) && event.type !== 'error') return;
+        clearTimeout(timer);
+        const failure = replyFailure(event);
+        if (failure) reject(failure);
+        else resolve(event.payload);
+      });
+      // Sent once the tail has a position, so the reply cannot land before the tail reads.
+      void tail
+        .ready()
+        .then(() => request('project.send', { projectId, message }))
+        .catch((error: unknown) => {
+          clearTimeout(timer);
+          reject(error instanceof Error ? error : new Error(String(error)));
+        });
+    });
+  } finally {
+    stop();
+  }
 }

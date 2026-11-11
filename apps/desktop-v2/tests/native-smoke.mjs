@@ -29,6 +29,10 @@ import { exerciseNativeComposer } from './native-composer.mjs';
 import { exerciseNativeComposerResources } from './native-composer-resources.mjs';
 import { exerciseNativeConversation } from './native-conversation.mjs';
 import { exerciseNativeDeadCode } from './native-dead-code.mjs';
+import {
+  exerciseNativeDesignHandoff,
+  resolveNativeDesignToolCall,
+} from './native-design-handoff.mjs';
 import { exerciseNativeDesignStudio } from './native-design-studio.mjs';
 import { exerciseNativeDisplayPrefs } from './native-display-prefs.mjs';
 import { exerciseNativeDraftConflict } from './native-draft-conflict.mjs';
@@ -41,6 +45,7 @@ import { exerciseNativeGitGraph } from './native-git-graph.mjs';
 import { exerciseNativeGoals } from './native-goals.mjs';
 import { exerciseNativeTaskExecution } from './native-kanban-execution.mjs';
 import { exerciseNativeKanbanRun } from './native-kanban-run.mjs';
+import { exerciseNativeLayoutReload } from './native-layout-reload.mjs';
 import { exerciseNativeLiveFleet } from './native-live-fleet.mjs';
 import { exerciseNativeMailbox } from './native-mailbox.mjs';
 import { exerciseNativeMcpComposer, exerciseNativeMcpContent } from './native-mcp-content.mjs';
@@ -55,6 +60,10 @@ import { exerciseNativeNextSteps } from './native-next-steps.mjs';
 import { exerciseNativeOfficeStory } from './native-office-story.mjs';
 import { exerciseNativeParityCards } from './native-parity-cards.mjs';
 import { exerciseNativeParityFinish } from './native-parity-finish.mjs';
+import {
+  exerciseNativePendingQuestion,
+  resolveNativePendingQuestionToolCall,
+} from './native-pending-question.mjs';
 import { exerciseNativePerformance } from './native-performance.mjs';
 import { exerciseNativeProcesses } from './native-processes.mjs';
 import { exerciseNativeProjectHistory } from './native-project-history.mjs';
@@ -62,6 +71,10 @@ import { exerciseNativeProjectKit } from './native-project-kit.mjs';
 import { openProjectView } from './native-project-navigation.mjs';
 import { exerciseNativeProjects } from './native-projects.mjs';
 import { exerciseNativeProviderHealth } from './native-provider-health.mjs';
+import {
+  exerciseNativeReadingPosition,
+  resolveNativeReadingToolCall,
+} from './native-reading-position.mjs';
 import { exerciseNativeRefinementPolicy } from './native-refinement-policy.mjs';
 import { exerciseNativeReviewPolicy } from './native-review-policy.mjs';
 import { exerciseNativeSage } from './native-sage.mjs';
@@ -73,6 +86,7 @@ import { exerciseNativeSessionUsage } from './native-session-usage.mjs';
 import { exerciseNativeSettingsManagement } from './native-settings-management.mjs';
 import { exerciseNativeSettingsPolicy } from './native-settings-policy.mjs';
 import { exerciseNativeSkills } from './native-skills.mjs';
+import { exerciseNativeStreamPause } from './native-stream-pause.mjs';
 import { exerciseNativeTechStack } from './native-techstack.mjs';
 import { exerciseNativeTierProposal } from './native-tier-proposal.mjs';
 
@@ -92,6 +106,11 @@ const skillsOnly = process.argv.includes('--skills');
 const techstackOnly = process.argv.includes('--techstack');
 const deadCodeOnly = process.argv.includes('--deadcode');
 const designOnly = process.argv.includes('--design');
+const designHandoffOnly = process.argv.includes('--design-handoff');
+const layoutReloadOnly = process.argv.includes('--layout-reload');
+const readingPositionOnly = process.argv.includes('--reading-position');
+const streamPauseOnly = process.argv.includes('--stream-pause');
+const pendingQuestionOnly = process.argv.includes('--pending-question');
 const chimeraOnly = process.argv.includes('--chimera');
 const recoveryOnly = process.argv.includes('--recovery');
 const historyOnly = process.argv.includes('--history');
@@ -121,7 +140,7 @@ const serviceHealingOnly = process.argv.includes('--service-healing');
 const chimeraGeneratedOnly = process.argv.includes('--chimera-generated');
 const parityFinishOnly = process.argv.includes('--parity-finish');
 const officeStoryOnly = process.argv.includes('--office-story');
-const artifactDir = resolve(
+let artifactDir = resolve(
   root,
   '.temp_files/desktop-v2-native',
   officeStoryOnly
@@ -216,6 +235,13 @@ const artifactDir = resolve(
                                                                                         ? 'gap-close'
                                                                                         : '.',
 );
+if (designHandoffOnly) artifactDir = resolve(root, '.temp_files/desktop-v2-native/design-handoff');
+if (layoutReloadOnly) artifactDir = resolve(root, '.temp_files/desktop-v2-native/layout-reload');
+if (readingPositionOnly)
+  artifactDir = resolve(root, '.temp_files/desktop-v2-native/reading-position');
+if (streamPauseOnly) artifactDir = resolve(root, '.temp_files/desktop-v2-native/stream-pause');
+if (pendingQuestionOnly)
+  artifactDir = resolve(root, '.temp_files/desktop-v2-native/pending-question');
 await mkdir(artifactDir, { recursive: true });
 if (modelDraftRestartOnly || modelProfilesOnly)
   await rm(join(artifactDir, 'native-result.json'), { force: true });
@@ -622,11 +648,14 @@ async function copyTranscripts() {
 }
 
 try {
-  providerFixture = await startLocalProvider(
-    refinementPolicyOnly
-      ? { models: [fixtureModel, 'profile/refiner', 'explicit/refiner'] }
-      : { models: [fixtureModel, 'alternate-refiner'] },
-  );
+  providerFixture = await startLocalProvider({
+    models: refinementPolicyOnly
+      ? [fixtureModel, 'profile/refiner', 'explicit/refiner']
+      : [fixtureModel, 'alternate-refiner'],
+    ...(designHandoffOnly ? { resolveToolCall: resolveNativeDesignToolCall } : {}),
+    ...(readingPositionOnly ? { resolveToolCall: resolveNativeReadingToolCall } : {}),
+    ...(pendingQuestionOnly ? { resolveToolCall: resolveNativePendingQuestionToolCall } : {}),
+  });
   await launch();
   console.log('PASS: native shell boot');
   const initialPid = (await rpc('snapshot')).hostPid;
@@ -1175,6 +1204,108 @@ try {
     result = {
       result: 'PASS',
       scope: 'chimera',
+      portableIdentity,
+      bundledEngine: bundled,
+      portableChecksumsVerified: bundled,
+      artifacts: artifactDir,
+    };
+  } else if (pendingQuestionOnly) {
+    await configureRosterProvider({ rpc: workspaceRpc, waitFor, providerFixture });
+    await exerciseNativePendingQuestion({
+      page,
+      rpc: workspaceRpc,
+      project: a,
+      waitFor,
+      artifactDir,
+      sessionIds: sessions,
+    });
+    assert.deepEqual(errors, []);
+    result = {
+      result: 'PASS',
+      scope: 'pending-question',
+      portableIdentity,
+      bundledEngine: bundled,
+      portableChecksumsVerified: bundled,
+      artifacts: artifactDir,
+    };
+  } else if (streamPauseOnly) {
+    await configureRosterProvider({ rpc: workspaceRpc, waitFor, providerFixture });
+    await exerciseNativeStreamPause({
+      page,
+      rpc: workspaceRpc,
+      project: a,
+      waitFor,
+      providerFixture,
+      artifactDir,
+      sessionIds: sessions,
+    });
+    assert.deepEqual(errors, []);
+    result = {
+      result: 'PASS',
+      scope: 'stream-pause',
+      portableIdentity,
+      bundledEngine: bundled,
+      portableChecksumsVerified: bundled,
+      artifacts: artifactDir,
+    };
+  } else if (readingPositionOnly) {
+    await configureRosterProvider({ rpc: workspaceRpc, waitFor, providerFixture });
+    await exerciseNativeReadingPosition({
+      page,
+      rpc: workspaceRpc,
+      project: a,
+      waitFor,
+      providerFixture,
+      artifactDir,
+      sessionIds: sessions,
+    });
+    assert.deepEqual(errors, []);
+    result = {
+      result: 'PASS',
+      scope: 'reading-position',
+      portableIdentity,
+      bundledEngine: bundled,
+      portableChecksumsVerified: bundled,
+      artifacts: artifactDir,
+    };
+  } else if (layoutReloadOnly) {
+    await configureRosterProvider({ rpc: workspaceRpc, waitFor, providerFixture });
+    await exerciseNativeLayoutReload({
+      page,
+      rpc: workspaceRpc,
+      projects: [a, b],
+      waitFor,
+      artifactDir,
+      sessionIds: sessions,
+    });
+    assert.deepEqual(errors, []);
+    result = {
+      result: 'PASS',
+      scope: 'layout-reload',
+      portableIdentity,
+      bundledEngine: bundled,
+      portableChecksumsVerified: bundled,
+      artifacts: artifactDir,
+    };
+  } else if (designHandoffOnly) {
+    await configureRosterProvider({ rpc: workspaceRpc, waitFor, providerFixture });
+    await exerciseNativeDesignHandoff({
+      page,
+      rpc: workspaceRpc,
+      project: a,
+      otherProject: b,
+      root: repo1,
+      waitFor,
+      artifactDir,
+      sessionIds: sessions,
+      providerFixture,
+    });
+    assert.deepEqual(errors, []);
+    result = {
+      result: 'PASS',
+      scope: 'design-handoff',
+      handoffMode:
+        process.env.WRONGSTACK_DESKTOP_HANDOFF_ROOT_CONTROL === '1' ? 'root-control' : 'complete',
       portableIdentity,
       bundledEngine: bundled,
       portableChecksumsVerified: bundled,

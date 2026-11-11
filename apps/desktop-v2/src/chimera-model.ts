@@ -27,10 +27,25 @@ export function reviewFilteredReports(
   return reports.filter(
     (item) =>
       (!session || item['sessionId'] === session) &&
-      `${item['reportId']} ${item['sessionId']} ${item['reviewerModel'] ?? ''} ${item['agentId'] ?? ''} ${item['source'] ?? ''}`
+      `${item['reportId']} ${item['sessionId']} ${item['reviewerModel'] ?? ''} ${item['agentId'] ?? ''} ${item['source'] ?? ''} ${item['headSha'] ?? ''}`
         .toLowerCase()
         .includes(query.trim().toLowerCase()),
   );
+}
+
+export function reviewTokensCompact(n: unknown): string {
+  const val = Number(n);
+  if (!Number.isFinite(val) || val <= 0) return '0';
+  if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(2)}M`;
+  if (val >= 10_000) return `${Math.round(val / 1000)}k`;
+  if (val >= 1_000) return `${(val / 1000).toFixed(1)}k`;
+  return String(Math.round(val));
+}
+
+export function reviewUsdCost(usd: unknown): string {
+  const val = Number(usd);
+  if (!Number.isFinite(val) || val <= 0) return '';
+  return val < 0.01 ? `$${val.toFixed(4)}` : `$${val.toFixed(3)}`;
 }
 export function reviewFindingCounts(findings: Record<string, unknown>[]) {
   const values = findings.map((item) => record(item['finding']));

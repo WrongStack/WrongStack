@@ -98,6 +98,7 @@
     "projectTools": "Ferramentas do projeto"
   },
   "explorer": {
+    "toggle": "Projetos e sessões",
     "findAnything": "Encontrar qualquer coisa",
     "workspace": "Espaço de trabalho {{name}}",
     "projects": "Projetos",
@@ -798,7 +799,7 @@
     },
     "fonts": {
       "title": "Fontes",
-      "body": "As fontes da interface e do código. “Fonte instalada” usa qualquer fonte deste computador pelo nome.",
+      "body": "Escolha as fontes da interface e do código. Se o nome informado não corresponder a uma fonte instalada, serão usadas as fontes padrão.",
       "uiLabel": "Fonte da interface",
       "codeLabel": "Fonte do código",
       "geist": "Geist (padrão)",
@@ -3549,7 +3550,26 @@
       "agentId": "Agente revisado",
       "cascadeDepth": "Profundidade da cascata",
       "evidenceStatus": "Status das evidências",
-      "durationSeconds": "Duração da revisão (segundos)"
+      "durationSeconds": "Duração da revisão (segundos)",
+      "headSha": "HEAD revisado",
+      "tokens": "Uso de tokens",
+      "execution": "Execução e custo"
+    },
+    "tokensShort": "tok",
+    "tokensBreakdown": "{{total}} ({{input}} ent. · {{output}} saí. · {{cache}} cache)",
+    "executionBreakdown": "{{turns}} turnos · {{tools}} chamadas de ferramenta",
+    "incrementalDelta": "Delta incremental",
+    "pairedTestUpdated": "Teste associado atualizado ✓",
+    "pairedTestUntouched": "Teste associado intocado !",
+    "deletedFiles": "Excluídos na árvore de trabalho: {{files}}",
+    "skippedFiles": "Arquivos ignorados ou filtrados ({{n}})",
+    "skipReason": {
+      "max_files_cap": "Limite máximo de arquivos",
+      "already_reviewed": "Já revisado (mesmo SHA)",
+      "in_flight": "Revisão em andamento",
+      "ignored_non_source": "Filtrado (não fonte / gerado)",
+      "too_large": "Arquivo muito grande",
+      "unreadable": "Ilegível / excluído"
     },
     "unparseable": "{{count}} itens informados não foram analisados individualmente. Revise o relatório completo abaixo.",
     "reopenReport": "Reabrir o relatório",
@@ -3904,7 +3924,9 @@
     "staleLabel": "Edições de design anteriores",
     "stale": "As edições não salvas neste dispositivo pertencem a {{kit}}, que não é mais o kit ativo. Elas não são aplicadas ao kit atual.",
     "discardStale": "Descartar as edições anteriores",
-    "restored": "Edições de design não salvas guardadas neste dispositivo restauradas."
+    "restored": "Edições de design não salvas guardadas neste dispositivo restauradas.",
+    "extractCalloutTitle": "Site de referência → Síntese DESIGN.md",
+    "extractCalloutBody": "Comece por um site de referência no Chat (5 breakpoints + subpáginas → DESIGN.md de 10 seções) e materialize os tokens aqui."
   },
   "mailboxPage": {
     "agentStatus_offline": "Offline",
@@ -9355,7 +9377,21 @@
       "editDraft": "Envie ou limpe o rascunho primeiro; editar o substituiria",
       "running": "Aguarde o turno em andamento terminar",
       "offline": "O motor não está conectado"
-    }
+    },
+    "designTitle": "Site de referência → Síntese DESIGN.md",
+    "designBody": "Meça qualquer URL ao vivo ou arquivo HTML local em 5 breakpoints e até 8 subpáginas para sintetizar uma especificação DESIGN.md de 10 seções.",
+    "designStageCrawl": "Medição em 5 telas",
+    "designStageSubpages": "Subpáginas",
+    "designStageSynthesis": "Síntese de DNA",
+    "designStageSpec": "DESIGN.md (10 seções)",
+    "designSourceLabel": "URL de referência ou arquivo HTML local",
+    "designPagesLabel": "Páginas para analisar",
+    "designPagesCount": "Páginas: {{count}}",
+    "designWorkflowLabel": "Fluxo de síntese",
+    "designWorkflowExtract": "Extrair DESIGN.md",
+    "designWorkflowMaterialize": "Extrair + Materializar tema Web",
+    "designPresets": "Exemplos:",
+    "designStart": "Preparar prompt DESIGN.md"
   },
   "worklist": {
     "plan": "Plano",
@@ -9690,6 +9726,42 @@
     "mismatch": "As sessões do host e do journal são diferentes.",
     "pending": "Comparação de identidade pendente.",
     "expected": "Sessão Core do host: {{id}}"
+  },
+  "designFlow": {
+    "materializeNative": "Extrair e gerar tema React Native",
+    "draftOnly": "Adiciona a solicitação ao rascunho da conversa. Envie quando estiver pronta.",
+    "draftRefused": "O rascunho mudou ou não pôde ser salvo. Revise-o antes de adicionar a solicitação.",
+    "launch": "Preparar referência",
+    "measure": "Medir páginas renderizadas",
+    "openSpec": "Abrir DESIGN.md",
+    "measuredPages": "Páginas analisadas: {{count}}",
+    "noArtifact": "Nenhum caminho para DESIGN.md foi informado.",
+    "pending": "Pendente"
+  },
+  "designReview": {
+    "title": "Revisão de design",
+    "inspect": "Inspeção do design renderizado",
+    "compare": "Comparação de fidelidade do design",
+    "target": "Alvo",
+    "reference": "Referência",
+    "widths": "Larguras medidas",
+    "noSharedWidths": "Sem larguras em comum",
+    "findings": "{{fails}} falhas · {{warns}} avisos",
+    "fidelity": "Fidelidade {{score}}",
+    "openReport": "Abrir relatório",
+    "unavailable": "As métricas da revisão estão indisponíveis",
+    "prepare": "Preparar solicitação de revisão",
+    "surface": "Superfície",
+    "page": "Página",
+    "app": "Aplicativo",
+    "targetInput": "URL da implementação ou arquivo HTML local",
+    "referenceInput": "Nome da referência extraída",
+    "formBody": "Meça uma página renderizada ou compare-a com uma referência extraída."
+  },
+  "renderError": {
+    "title": "Não foi possível exibir esta visualização",
+    "body": "Recarregar a janela pode descartar alterações não salvas.",
+    "reload": "Recarregar janela"
   },
   "recoveryDraft": {
     "match": "As revisões correspondem ao rascunho salvo desta conversa.",

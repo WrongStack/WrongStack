@@ -28,6 +28,11 @@ pub struct Engine {
     path: PathBuf,
 }
 
+/// Most complete journal lines one `events` page returns.
+pub(crate) const PAGE_EVENTS: usize = 1000;
+/// About how many journal bytes one `events` page reads (a longer last line still completes).
+pub(crate) const PAGE_BYTES: u64 = 1024 * 1024;
+
 /// Whether an engine message is a live browser frame that bypasses the event log.
 pub(crate) fn is_live_frame(message: &Value) -> bool {
     message["type"] == "browser.live.frame"
@@ -156,7 +161,7 @@ mod tests {
 
         let large = format!(
             "{}\n",
-            json!({"type":"large","payload":{"text":"x".repeat(262144)}})
+            json!({"type":"large","payload":{"text":"x".repeat(super::PAGE_BYTES as usize)}})
         );
         fs::write(&path, format!("{large}{small}")).unwrap();
         let first = Engine::events(&path, 0).unwrap();
@@ -169,9 +174,12 @@ mod tests {
         assert_eq!(tail["events"][0]["type"], "control");
         assert_eq!(tail["hasMore"], false);
 
-        fs::write(&path, small.repeat(201)).unwrap();
+        fs::write(&path, small.repeat(super::PAGE_EVENTS + 1)).unwrap();
         let first = Engine::events(&path, 0).unwrap();
-        assert_eq!(first["events"].as_array().unwrap().len(), 200);
+        assert_eq!(
+            first["events"].as_array().unwrap().len(),
+            super::PAGE_EVENTS
+        );
         assert_eq!(first["hasMore"], true);
         let tail = Engine::events(&path, first["offset"].as_u64().unwrap()).unwrap();
         assert_eq!(tail["events"].as_array().unwrap().len(), 1);
@@ -258,9 +266,12 @@ impl Engine {
         });
         let owner = Arc::clone(&engine);
         thread::spawn(move || {
+            // One write per frame: `to_writer` on a bare `File` makes a system call per JSON
+            // token, and a busy engine sends many frames tens of kilobytes long.
             let record = |log: &mut File, message: &Value| -> std::io::Result<()> {
-                serde_json::to_writer(&mut *log, message)?;
-                log.write_all(b"\n")
+                let mut line = serde_json::to_vec(message)?;
+                line.push(b'\n');
+                log.write_all(&line)
             };
             let result = (|| -> Result<()> {
                 let mut unflushed = false;
@@ -397,6 +408,9 @@ impl Engine {
         }
         Ok(json!({"offset":end,"events":[],"hasMore":false,"tail":true}))
     }
+    /// Reads at most [`PAGE_EVENTS`] complete lines or about [`PAGE_BYTES`] from `offset`.
+    /// Every page is a round trip through the session host and a renderer update, so small
+    /// pages made a long journal slow to reopen; a page stays far below the response frame.
     pub fn events(path: &Path, offset: u64) -> Result<Value> {
         let file = match File::open(path) {
             Ok(f) => f,
@@ -411,19 +425,20 @@ impl Engine {
         reader.seek(SeekFrom::Start(offset)).map_err(err)?;
         let mut events = Vec::new();
         let mut cursor = offset;
-        for _ in 0..200 {
-            let mut line = String::new();
+        let mut line = String::new();
+        for _ in 0..PAGE_EVENTS {
+            line.clear();
             let read = reader.read_line(&mut line).map_err(err)?;
             if read == 0 || !line.ends_with('\n') {
                 break;
             }
             cursor += read as u64;
             events.push(serde_json::from_str::<Value>(&line).map_err(err)?);
-            if cursor - offset >= 262144 {
+            if cursor - offset >= PAGE_BYTES {
                 break;
             }
         }
-        let has_more = events.len() == 200 || cursor - offset >= 262144;
+        let has_more = events.len() == PAGE_EVENTS || cursor - offset >= PAGE_BYTES;
         Ok(json!({"offset":cursor,"events":events,"hasMore":has_more,"size":size}))
     }
     pub fn event_path(&self) -> &Path {

@@ -63,7 +63,8 @@
       "reduceEngine"
     ],
     "apps/desktop-v2/src/engine-stream.ts": [
-      "DORMANT_STREAM_LIMIT"
+      "DORMANT_STREAM_LIMIT",
+      "REPLAY_NOTIFY_MS"
     ],
     "apps/desktop-v2/src/FallbackPicker.tsx": [
       "fallbackPending"

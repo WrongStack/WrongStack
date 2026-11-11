@@ -9,12 +9,13 @@ import {
   GitCompareArrows,
   LayoutGrid,
   Palette,
+  PanelLeft,
   Plus,
   Search,
   Settings,
   Shapes,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import { ProjectToolsMenu } from './ProjectToolsMenu';
 import { addProject, native } from './platform';
@@ -106,6 +107,36 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
     jumpToSession,
     currentProject,
   } = vm;
+  const [explorerOpen, setExplorerOpen] = useState(false);
+  const sidebar = useRef<HTMLElement>(null);
+  const explorerToggle = useRef<HTMLButtonElement>(null);
+  const explorerSearch = useRef<HTMLButtonElement>(null);
+  const explorerId = useId();
+  useEffect(() => {
+    setExplorerOpen(false);
+  }, [project, selected, section, vm.projectPage]);
+  useEffect(() => {
+    if (!explorerOpen) return;
+    explorerSearch.current?.focus();
+    const outside = (event: PointerEvent) => {
+      if (!sidebar.current?.contains(event.target as Node)) setExplorerOpen(false);
+    };
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || document.querySelector('dialog[open]')) return;
+      setExplorerOpen(false);
+      explorerToggle.current?.focus();
+    };
+    const compact = matchMedia('(max-width: 619px)');
+    const reset = () => setExplorerOpen(false);
+    window.addEventListener('pointerdown', outside);
+    window.addEventListener('keydown', onEscape);
+    compact.addEventListener('change', reset);
+    return () => {
+      window.removeEventListener('pointerdown', outside);
+      window.removeEventListener('keydown', onEscape);
+      compact.removeEventListener('change', reset);
+    };
+  }, [explorerOpen]);
   const page = section === 'project' ? vm.projectPage : undefined;
   const shownSettings = useShownSettingsSection();
   const quotaShown = section === 'wrongstack' && shownSettings === 'quota';
@@ -133,7 +164,7 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
     </button>
   );
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" ref={sidebar}>
       <nav className="rail" aria-label={t('rail.navigation')}>
         <button
           type="button"
@@ -149,6 +180,18 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
         {main('fleet', t('rail.missionControl'), LayoutGrid, vm.active.length)}
         {main('projects', t('rail.projects'), Folder)}
         {main('activity', t('rail.activity'), Activity)}
+        <button
+          type="button"
+          className="rail-button compact-explorer-toggle"
+          ref={explorerToggle}
+          aria-label={t('explorer.toggle')}
+          title={t('explorer.toggle')}
+          aria-controls={explorerId}
+          aria-expanded={explorerOpen}
+          onClick={() => setExplorerOpen(!explorerOpen)}
+        >
+          <PanelLeft size={17} />
+        </button>
         <div className="rail-spacer" />
         <button
           type="button"
@@ -181,10 +224,11 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
           <Settings size={17} />
         </button>
       </nav>
-      <div className="explorer">
+      <div className="explorer" id={explorerId} data-expanded={explorerOpen}>
         <button
           type="button"
           className="quick-search"
+          ref={explorerSearch}
           onClick={() => {
             setSearch('');
             setDialog('palette');

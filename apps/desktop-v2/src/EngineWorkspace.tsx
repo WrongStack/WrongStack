@@ -8,6 +8,7 @@ import {
   PanelsTopLeft,
   Settings2,
   Square,
+  X,
 } from 'lucide-react';
 import { lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAgentTabs } from './AgentTranscripts';
@@ -25,6 +26,9 @@ import {
   withReference,
 } from './composer-resources-model';
 import { type ConversationAppearance, conversationDisplay } from './conversation-appearance';
+import { DesignExtractForm } from './DesignExtractForm';
+import { designArtifactRoot, designSpecPath } from './design-extraction-result';
+import { designReviewPath } from './design-review-result';
 import type { AppNavigation, DesktopNavigation } from './desktop-commands';
 import { useDesktopText } from './desktop-i18n';
 import { EngineDataView } from './EngineDataView';
@@ -35,6 +39,7 @@ import { failedRun } from './failed-run-model';
 import { workspaceFilePath } from './file-model';
 import { InputRequestCard } from './InputRequestCard';
 import type { InputDraft } from './input-form-model';
+import { Modal } from './Modal';
 import { markdownTarget } from './markdown-target';
 import { useMessagePins } from './message-pins';
 import { ProjectSessionTools } from './ProjectSessionTools';
@@ -58,6 +63,7 @@ import { type TranscriptHandle, TranscriptVirtualizer } from './TranscriptVirtua
 import { AgentWorking, LiveRunActivity } from './TurnTools';
 import { useTranscriptFollowHandlers } from './transcript-follow';
 import { useComposerCollapse } from './useComposerCollapse';
+import { useDesignDraftPreparation } from './useDesignDraftPreparation';
 import { useEngine } from './useEngine';
 import { WorkspaceTools } from './WorkspaceTools';
 
@@ -114,6 +120,11 @@ export function EngineWorkspace({
   projectRoot: string;
 }) {
   const { state, send, command } = useEngine(id, onError);
+  const artifactRoot = designArtifactRoot(
+    projectRoot,
+    state.results['session.start']?.['projectRoot'],
+  );
+  const workspace = useRef<HTMLDivElement>(null);
   const display = conversationDisplay(appearance);
   const composerFold = useComposerCollapse({
     sessionId: id,
@@ -125,12 +136,13 @@ export function EngineWorkspace({
   const focusComposer = () => {
     composerFold.expand();
     requestAnimationFrame(() =>
-      document.querySelector<HTMLTextAreaElement>('.composer-input textarea')?.focus(),
+      workspace.current?.querySelector<HTMLTextAreaElement>('.composer-input textarea')?.focus(),
     );
   };
   const { t } = useDesktopText();
   const [fileTarget, setFileTarget] = useState('');
   const [tab, setTab] = useState<EngineTab>('chat');
+  const chatActive = tab === 'chat';
   const backToChat = useCallback(() => setTab('chat'), []);
   const planDraftStorage = useMemo(() => sessionObjectDraftStorage(id, 'plan'), [id]);
   const refineDraftStorage = useMemo(() => sessionObjectDraftStorage(id, 'refine'), [id]);
@@ -149,6 +161,19 @@ export function EngineWorkspace({
     );
   }, [projectId, state.sessionId]);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [designOpen, setDesignOpen] = useState(false);
+  const prepareDesignDraft = useDesignDraftPreparation({
+    owner: designOpen ? `${id}:design-dialog` : id,
+    draft,
+    conflict: draftConflict,
+    validate: validateDraft,
+    save: onDraftChange,
+    onPrepared: () => {
+      setDesignOpen(false);
+      setTab('chat');
+      focusComposer();
+    },
+  });
   const openTool = (name: EngineTab) => () => {
     setTab(name);
     setToolsOpen(false);
@@ -185,14 +210,26 @@ export function EngineWorkspace({
     hadQuestions.current = state.inputs.length > 0;
   }, [state.inputs]);
   useEffect(() => {
-    if (!state.inputs.length && following.current)
+    if (!chatActive || !state.inputs.length || showConversation) return;
+    // A hidden transcript is measured again when Chat opens. Focus the question
+    // after that layout, preserving the reader's separate conversation review mode.
+    const frame = requestAnimationFrame(() => chatPane.current?.scrollTo({ top: 0 }));
+    return () => cancelAnimationFrame(frame);
+  }, [chatActive, state.inputs.length, showConversation]);
+  useEffect(() => {
+    if (chatActive && !state.inputs.length && following.current)
       end.current?.scrollIntoView({ block: 'nearest' });
-  }, [state.messages, state.inputs, state.approvals]);
+  }, [chatActive, state.messages, state.inputs, state.approvals]);
   // A panel opening under the conversation shrinks it, and a card can grow after it renders;
   // while following, keep the newest content in view through those changes too.
   useEffect(() => {
     const pane = chatPane.current;
-    if (!pane || typeof ResizeObserver === 'undefined' || typeof MutationObserver === 'undefined')
+    if (
+      !chatActive ||
+      !pane ||
+      typeof ResizeObserver === 'undefined' ||
+      typeof MutationObserver === 'undefined'
+    )
       return;
     const keep = () => {
       if (following.current) end.current?.scrollIntoView({ block: 'nearest' });
@@ -205,7 +242,7 @@ export function EngineWorkspace({
       resize.disconnect();
       mutation.disconnect();
     };
-  }, [tab]);
+  }, [chatActive]);
   const resolved = state.results['user.input_resolved']?.['requestId'];
   useEffect(() => {
     if (typeof resolved === 'string') onInputDraftChange(`${id}:${resolved}`, null);
@@ -214,9 +251,12 @@ export function EngineWorkspace({
     void send(type, payload).catch(onError);
   };
   const openFile = (path: string) => {
-    setFileTarget(path);
+    // Design reference output is relative to the project, even in a nested work directory.
+    const designArtifact = designSpecPath(path) ?? designReviewPath(path);
+    setFileTarget(designArtifact && artifactRoot ? `${artifactRoot}/${designArtifact}` : path);
     setTab('files');
   };
+  const openDesign = () => onOpen({ page: 'design' });
   const resendPrompt = async (text: string) => {
     const capabilities = state.results['session.start']?.['protocolCapabilities'];
     if (!Array.isArray(capabilities) || !capabilities.includes('session.user-ack'))
@@ -275,14 +315,14 @@ export function EngineWorkspace({
   const agentTabs = useAgentTabs(state, openLink);
   const finder = useTranscriptFind({
     messages: state.messages,
-    enabled: tab === 'chat' && !agentTabs.view,
+    enabled: chatActive && !agentTabs.view,
     reveal: (index) => {
       pauseFollowing();
       transcript.current?.scrollToMessage(index);
     },
   });
   return (
-    <div className="engine-workspace" data-engine-session={state.sessionId}>
+    <div className="engine-workspace" data-engine-session={state.sessionId} ref={workspace}>
       {shortcuts}
       <nav className="workspace-tabs" aria-label={t('workspace.views')}>
         {(
@@ -352,6 +392,10 @@ export function EngineWorkspace({
           onStory={openTool('story')}
           onContext={openTool('context')}
           onPlan={openTool('plan')}
+          onDesign={() => {
+            setToolsOpen(false);
+            setDesignOpen(true);
+          }}
           onProject={() => {
             setToolsOpen(false);
             onOpen({ page: 'overview' });
@@ -363,12 +407,34 @@ export function EngineWorkspace({
           onActivity={openTool('activity')}
         />
       )}
+      {designOpen && (
+        <Modal title={t('chatView.designTitle')} onClose={() => setDesignOpen(false)}>
+          <header>
+            <strong>
+              {t('projectKit.target')}: {sessionTitle}
+            </strong>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t('sessionTools.close')}
+              onClick={() => setDesignOpen(false)}
+            >
+              <X size={17} />
+            </button>
+          </header>
+          <DesignExtractForm
+            onPrepare={prepareDesignDraft}
+            disabled={draftConflict}
+            target={draftConflict ? <p role="alert">{t('designFlow.draftRefused')}</p> : undefined}
+          />
+        </Modal>
+      )}
       {state.error && state.error !== failedRun(state)?.message && (
         <div className="session-error" role="alert">
           {state.error}
         </div>
       )}
-      {tab === 'chat' ? (
+      {chatActive && (
         <>
           {state.connected && state.needsSetup && (
             <div className="provider-setup-banner">
@@ -431,111 +497,120 @@ export function EngineWorkspace({
               })}
             </details>
           )}
-          <div
-            ref={chatPane}
-            hidden={agentTabs.view !== null}
-            className="native-chat-messages"
-            aria-live="polite"
-            {...followHandlers}
-          >
-            <TranscriptVirtualizer
-              ref={transcript}
-              scrollRef={chatPane}
-              following={following}
-              messages={
-                state.synced && (!state.inputs.length || showConversation) ? state.messages : []
-              }
-              header={
-                <>
-                  {/* A conversation read for the first time appears once read to its end, not
+        </>
+      )}
+      {/* The scroll element, measured rows and open disclosures belong to the conversation. */}
+      <div
+        ref={chatPane}
+        hidden={!chatActive || agentTabs.view !== null}
+        className="native-chat-messages"
+        aria-live="polite"
+        {...followHandlers}
+      >
+        <TranscriptVirtualizer
+          ref={transcript}
+          scrollRef={chatPane}
+          following={chatActive ? following : undefined}
+          messages={
+            state.synced && (!state.inputs.length || showConversation) ? state.messages : []
+          }
+          header={
+            <>
+              {/* A conversation read for the first time appears once read to its end, not
                 message by message from its first prompt as if it were starting over. */}
-                  {!state.synced && (
-                    <div className="native-chat-welcome" role="status">
-                      <LoaderCircle size={18} className="spin" />
-                      <p>{t('chatView.loading')}</p>
-                      {state.replay && <small>{replayProgress(state.replay)}</small>}
-                    </div>
-                  )}
-                  {state.synced && !state.messages.length && !state.inputs.length && (
-                    <ConversationWelcome
-                      projectRoot={projectRoot}
-                      provider={state.provider}
-                      model={state.model}
-                      connected={state.connected}
-                      onStart={(prompt) => void onDraftChange(prompt).then(focusComposer)}
-                    />
-                  )}
-                  {state.synced && (!state.inputs.length || showConversation) && (
-                    <LiveRunActivity
-                      display={display}
-                      events={state.leadingActivity}
-                      live={state.running && !state.messages.length}
-                      command={command}
-                      onOpenFile={openFile}
-                    />
-                  )}
-                </>
-              }
-              footer={
-                <>
-                  {state.inputs.map((request) => (
-                    <InputRequestCard
-                      key={request.id}
-                      request={request}
-                      draft={inputDrafts[`${id}:${request.id}`]}
-                      onChange={(value) => onInputDraftChange(`${id}:${request.id}`, value)}
-                      send={send}
-                      connected={state.connected}
-                    />
-                  ))}
-                  {state.approvals.map((approval) => (
-                    <ToolApprovalCard
-                      key={String(approval['id'])}
-                      approval={approval}
-                      send={send}
-                      connected={state.connected}
-                    />
-                  ))}
-                  {state.running && (
-                    <AgentWorking waiting={state.inputs.length > 0} since={state.runStartAt} />
-                  )}
-                  <div ref={end} />
-                </>
-              }
-              renderMessage={(message, index) => (
-                <TranscriptMessage
-                  key={message.id}
-                  message={message}
-                  display={display}
-                  state={state}
-                  activityLive={state.running && index === state.messages.length - 1}
-                  onLink={openLink}
-                  onOpenFile={openFile}
-                  command={command}
-                  edit={editAction(message)}
-                  pin={{
-                    active: pins.ids.includes(message.id),
-                    toggle: () => pins.toggle(message.id),
-                  }}
-                  chimeraAction={
-                    message.chimera ? chimeraAction(message.chimera.reportId) : undefined
-                  }
-                  onOpenChimera={
-                    message.chimera
-                      ? () => onOpen({ page: 'reviews', reportId: message.chimera!.reportId })
-                      : undefined
-                  }
-                  mark={finder.mark(message.id)}
-                  day={dayLabel(message, index ? state.messages[index - 1] : undefined)}
-                  askAgain={
-                    index === state.messages.length - 1 && message.role === 'assistant'
-                      ? askAgainAction()
-                      : undefined
-                  }
+              {!state.synced && (
+                <div className="native-chat-welcome" role="status">
+                  <LoaderCircle size={18} className="spin" />
+                  <p>{t('chatView.loading')}</p>
+                  {state.replay && <small>{replayProgress(state.replay)}</small>}
+                </div>
+              )}
+              {state.synced && !state.messages.length && !state.inputs.length && (
+                <ConversationWelcome
+                  projectRoot={projectRoot}
+                  provider={state.provider}
+                  model={state.model}
+                  connected={state.connected}
+                  onStart={(prompt) => void onDraftChange(prompt).then(focusComposer)}
+                  onPrepareDesign={prepareDesignDraft}
+                  designBlocked={draftConflict}
                 />
               )}
+              {state.synced && (!state.inputs.length || showConversation) && (
+                <LiveRunActivity
+                  display={display}
+                  events={state.leadingActivity}
+                  projectRoot={artifactRoot}
+                  live={state.running && !state.messages.length}
+                  command={command}
+                  onOpenFile={openFile}
+                  onOpenDesign={openDesign}
+                />
+              )}
+            </>
+          }
+          footer={
+            <>
+              {state.inputs.map((request) => (
+                <InputRequestCard
+                  key={request.id}
+                  request={request}
+                  draft={inputDrafts[`${id}:${request.id}`]}
+                  onChange={(value) => onInputDraftChange(`${id}:${request.id}`, value)}
+                  send={send}
+                  connected={state.connected}
+                />
+              ))}
+              {state.approvals.map((approval) => (
+                <ToolApprovalCard
+                  key={String(approval['id'])}
+                  approval={approval}
+                  send={send}
+                  connected={state.connected}
+                />
+              ))}
+              {state.running && (
+                <AgentWorking waiting={state.inputs.length > 0} since={state.runStartAt} />
+              )}
+              <div ref={end} />
+            </>
+          }
+          renderMessage={(message, index) => (
+            <TranscriptMessage
+              key={message.id}
+              message={message}
+              display={display}
+              state={state}
+              projectRoot={artifactRoot}
+              activityLive={state.running && index === state.messages.length - 1}
+              onLink={openLink}
+              onOpenFile={openFile}
+              onOpenDesign={openDesign}
+              command={command}
+              edit={editAction(message)}
+              pin={{
+                active: pins.ids.includes(message.id),
+                toggle: () => pins.toggle(message.id),
+              }}
+              chimeraAction={message.chimera ? chimeraAction(message.chimera.reportId) : undefined}
+              onOpenChimera={
+                message.chimera
+                  ? () => onOpen({ page: 'reviews', reportId: message.chimera!.reportId })
+                  : undefined
+              }
+              mark={finder.mark(message.id)}
+              day={dayLabel(message, index ? state.messages[index - 1] : undefined)}
+              askAgain={
+                index === state.messages.length - 1 && message.role === 'assistant'
+                  ? askAgainAction()
+                  : undefined
+              }
             />
-          </div>
+          )}
+        />
+      </div>
+      {chatActive ? (
+        <>
           {showLatest && !state.inputs.length && (
             <div className="chat-follow-control">
               <button
@@ -659,8 +734,10 @@ export function EngineWorkspace({
       ) : tab === 'activity' ? (
         <SessionActivity
           events={state.activity}
+          projectRoot={artifactRoot}
           command={command}
           onOpenFile={openFile}
+          onOpenDesign={openDesign}
           collab={<SessionCollab id={id} state={state} />}
         />
       ) : tab === 'skills' || tab === 'files' || tab === 'changes' ? (

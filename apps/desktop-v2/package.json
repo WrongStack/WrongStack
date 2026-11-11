@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/desktop-v2",
-  "version": "1.5.6",
+  "version": "1.6.0",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -17,10 +17,13 @@
     "build:engine": "bun scripts/build-engine.mjs",
     "typecheck": "bun ../../scripts/bun-typecheck.mjs --noEmit",
     "test": "bun --bun run vitest run --config vitest.config.ts",
+    "test:render-recovery": "bun tests/render-recovery-browser.mjs",
     "test:native": "cargo test --manifest-path src-tauri/Cargo.toml --no-default-features",
     "test:native-ui": "bun tests/native-smoke.mjs",
     "test:native-update": "bun tests/native-engine-update.mjs",
     "test:native-installer": "bun tests/native-installer-hook.mjs",
+    "test:native-installer-release": "bun tests/native-installer-release.mjs",
+    "test:native-installer-messages": "bun tests/native-installer-messages.mjs",
     "test:engine-concurrency": "bun tests/engine-concurrency.mjs",
     "check:native": "cargo check --manifest-path src-tauri/Cargo.toml"
   },

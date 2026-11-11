@@ -16,7 +16,7 @@
 
 .ws-surfaces {
   color: hsl(var(--foreground));
-  font-family: var(--font-sans);
+  font-family: inherit;
   line-height: 1.5;
 }
 .ws-surfaces *,

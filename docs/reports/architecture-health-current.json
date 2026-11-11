@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-11T21:42:05.131Z",
+  "generatedAt": "2026-11-11T21:44:52.184Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6267,
-    "testFiles": 5215,
-    "sourceLines": 1291800,
+    "sourceFiles": 6276,
+    "testFiles": 5225,
+    "sourceLines": 1293074,
     "workspaceEdges": 250,
-    "moduleEdges": 18454,
+    "moduleEdges": 18485,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 321,
+    "testsWithoutTypecheck": 331,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1047
+    "testOnlyExports": 1048
   },
   "errors": [],
   "packageCycles": [],
@@ -386,8 +386,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 505,
-      "testFiles": 321,
+      "sourceFiles": 514,
+      "testFiles": 331,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1334,6 +1334,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/app-render-recovery.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/appearance-density.test.ts",
         "projects": [
           "root-node"
@@ -1742,7 +1748,31 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/design-dna-prompt.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/design-draft-preparation.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/design-edit-draft.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/design-flow.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/design-review.test.ts",
         "projects": [
           "root-node"
         ]
@@ -1767,6 +1797,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/desktop-hunt.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/desktop-layout-reload.test.ts",
         "projects": [
           "root-node"
         ]
@@ -1905,6 +1941,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/engine-state.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/engine-stream-replay-notify.test.ts",
         "projects": [
           "root-node"
         ]
@@ -2432,6 +2474,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/native-performance-processes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/next-steps.test.ts",
         "projects": [
           "root-node"
@@ -2475,6 +2523,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/pdf-frame.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/pending-layout.test.ts",
         "projects": [
           "root-node"
         ]
@@ -3123,6 +3177,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/snippet-references.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/surface-confirm-locale.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32628,6 +32688,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/app-render-recovery.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/appearance-density.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33104,7 +33171,35 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/design-dna-prompt.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/design-draft-preparation.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/design-edit-draft.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/design-flow.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/design-review.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -33133,6 +33228,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/desktop-hunt.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/desktop-layout-reload.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -33294,6 +33396,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/engine-state.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/engine-stream-replay-notify.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -33909,6 +34018,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/native-performance-processes.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/next-steps.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33959,6 +34075,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/pdf-frame.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/pending-layout.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -34721,6 +34844,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/surface-confirm-locale.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/surface-i18n.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -35157,6 +35287,31 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/DesignExtractForm.tsx",
+      "specifier": "./conversation-welcome.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/DesignExtractForm.tsx",
+      "specifier": "./design-flow.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/DesignExtractionCard.tsx",
+      "specifier": "./conversation-welcome.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/DesignExtractionCard.tsx",
+      "specifier": "./design-flow.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/DesignReviewCard.tsx",
+      "specifier": "./design-flow.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/desktop-atlas-host.tsx",
       "specifier": "./atlas-views.css",
       "syntax": "import"
@@ -35519,6 +35674,11 @@
     {
       "from": "apps/desktop-v2/src/RefinementPolicySettings.tsx",
       "specifier": "./refinement-policy.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/RenderErrorBoundary.tsx",
+      "specifier": "./render-error.css",
       "syntax": "import"
     },
     {
@@ -35971,6 +36131,11 @@
       "relativeImports": 17
     },
     {
+      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
+      "lines": 773,
+      "relativeImports": 54
+    },
+    {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
       "lines": 2069,
       "relativeImports": 36
@@ -35987,7 +36152,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectChimera.tsx",
-      "lines": 766,
+      "lines": 891,
       "relativeImports": 11
     },
     {
@@ -35997,8 +36162,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectDesignStudio.tsx",
-      "lines": 791,
-      "relativeImports": 10
+      "lines": 853,
+      "relativeImports": 12
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
@@ -36113,9 +36278,19 @@
       "relativeImports": 10
     },
     {
+      "file": "apps/desktop-v2/src/ProjectChimera.tsx",
+      "lines": 891,
+      "relativeImports": 11
+    },
+    {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
       "lines": 853,
       "relativeImports": 17
+    },
+    {
+      "file": "apps/desktop-v2/src/ProjectDesignStudio.tsx",
+      "lines": 853,
+      "relativeImports": 12
     },
     {
       "file": "packages/plugins/src/adversary-mode/evaluator.ts",
@@ -36143,11 +36318,6 @@
       "relativeImports": 12
     },
     {
-      "file": "apps/desktop-v2/src/ProjectDesignStudio.tsx",
-      "lines": 791,
-      "relativeImports": 10
-    },
-    {
       "file": "packages/client/src/client.ts",
       "lines": 785,
       "relativeImports": 4
@@ -36158,9 +36328,9 @@
       "relativeImports": 5
     },
     {
-      "file": "apps/desktop-v2/src/ProjectChimera.tsx",
-      "lines": 766,
-      "relativeImports": 11
+      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
+      "lines": 773,
+      "relativeImports": 54
     },
     {
       "file": "packages/plugins/src/adversary-mode/index.ts",
@@ -36286,11 +36456,6 @@
       "file": "packages/requirement-intake/src/service.ts",
       "lines": 716,
       "relativeImports": 17
-    },
-    {
-      "file": "packages/tools/src/codebase-index/background-indexer.ts",
-      "lines": 715,
-      "relativeImports": 17
     }
   ],
   "testOnlyExports": [
@@ -36405,6 +36570,10 @@
     {
       "file": "apps/desktop-v2/src/engine-stream.ts",
       "name": "DORMANT_STREAM_LIMIT"
+    },
+    {
+      "file": "apps/desktop-v2/src/engine-stream.ts",
+      "name": "REPLAY_NOTIFY_MS"
     },
     {
       "file": "apps/desktop-v2/src/FallbackPicker.tsx",

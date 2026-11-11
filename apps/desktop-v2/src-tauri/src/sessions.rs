@@ -472,6 +472,11 @@ impl HostState {
             .env("WEBUI_TOKEN", &token)
             .env("WEBUI_STRICT_PORT", "1")
             .env("WRONGSTACK_DESKTOP", "1")
+            // The registry already resolved project and profile service roots.
+            .env(
+                "WRONGSTACK_DESKTOP_USE_CWD_AS_PROJECT_ROOT",
+                if bind_session { "0" } else { "1" },
+            )
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());

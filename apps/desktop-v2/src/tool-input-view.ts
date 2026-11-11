@@ -13,6 +13,7 @@ export type ToolInputView =
       files: string[];
       details: string[];
     }
+  | { kind: 'design_reference'; action: string; target: string; details: string[] }
   | { kind: 'generic' };
 
 /** Lines shown for a file written in full; the rest is counted. */
@@ -118,6 +119,21 @@ export function toolInputView(name: string, input: unknown): ToolInputView {
       files,
       details,
     };
+  }
+  if (name === 'design_reference') {
+    const action = text(value['action']) || 'extract';
+    const target = text(value['url']) || text(value['file']) || text(value['reference']);
+    if (target) {
+      const maxPages = positiveCount(value['maxPages']);
+      const viewports = Array.isArray(value['viewports']) ? value['viewports'].length : undefined;
+      const details = [
+        action === 'extract' && maxPages !== undefined ? `up to ${maxPages} pages` : '',
+        action === 'extract' ? `${viewports ?? 5} breakpoints` : '',
+        text(value['against']) && `vs ${text(value['against'])}`,
+        text(value['surface']) && `surface ${text(value['surface'])}`,
+      ].filter(Boolean);
+      return { kind: 'design_reference', action, target, details };
+    }
   }
   return { kind: 'generic' };
 }

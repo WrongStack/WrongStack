@@ -10,6 +10,8 @@ import {
   reviewFindingTransitions,
   reviewFollowup,
   reviewReportTransitions,
+  reviewTokensCompact,
+  reviewUsdCost,
 } from '../src/chimera-model';
 
 describe('Project Chimera review contracts', () => {
@@ -78,5 +80,16 @@ describe('Project Chimera review contracts', () => {
     expect(markup).toContain('Medium reviewer confidence');
     expect(markup).not.toContain('Recorded outcome:');
     expect(markup).not.toContain('[object Object]');
+  });
+  it('formats compact token/cost telemetry and filters reports by headSha', () => {
+    expect(reviewTokensCompact(0)).toBe('0');
+    expect(reviewTokensCompact(850)).toBe('850');
+    expect(reviewTokensCompact(1_850)).toBe('1.9k');
+    expect(reviewTokensCompact(24_200)).toBe('24k');
+    expect(reviewUsdCost(0)).toBe('');
+    expect(reviewUsdCost(0.0038)).toBe('$0.0038');
+    expect(reviewUsdCost(0.045)).toBe('$0.045');
+    const rows = [{ reportId: 'r1', sessionId: 's1', headSha: 'deadbeef12' }];
+    expect(reviewFilteredReports(rows, 'deadbeef', '')).toEqual(rows);
   });
 });

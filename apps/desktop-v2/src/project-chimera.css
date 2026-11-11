@@ -100,6 +100,22 @@
   font-size: 11px;
   margin-top: 12px;
 }
+.review-report-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.review-report-meta > span {
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
 .review-failed {
   display: block;
   color: var(--danger);
@@ -168,6 +184,52 @@
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 14px;
+  min-width: 0;
+}
+.review-file-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+.review-file-scope-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.review-scope-note {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.review-skipped-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  min-width: 0;
+}
+.review-skipped-list > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.review-skipped-list span {
+  color: var(--muted);
+  font-size: 11px;
 }
 .review-evidence-check {
   padding: 14px;

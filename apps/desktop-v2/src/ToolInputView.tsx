@@ -98,5 +98,14 @@ export function ToolInputView({ name, input }: { name: string; input: unknown })
         )}
       </div>
     );
+  if (view.kind === 'design_reference')
+    return (
+      <div className="tool-input-view">
+        <span>
+          <code>{view.action}</code> · <code>{view.target}</code>
+        </span>
+        {view.details.length > 0 && <small>{view.details.join(' · ')}</small>}
+      </div>
+    );
   return <StructuredToolValue value={input} />;
 }

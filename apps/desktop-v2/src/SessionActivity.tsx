@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { type ReactNode, Suspense, useMemo, useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
+import { DesignExtractionCard } from './DesignExtractionCard';
+import { DesignReviewCard } from './DesignReviewCard';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineEvent } from './engine-state';
@@ -39,15 +41,21 @@ function readableOutput(value: string): unknown {
 }
 export function SessionActivity({
   events,
+  projectRoot,
   onOpenFile,
+  onOpenDesign,
   compact = false,
+  settled = false,
   showThinkingLogs = true,
   command,
   collab,
 }: {
   events: readonly EngineEvent[];
+  projectRoot?: string | null | undefined;
   onOpenFile: (path: string) => void;
+  onOpenDesign?: (() => void) | undefined;
   compact?: boolean;
+  settled?: boolean;
   showThinkingLogs?: boolean | undefined;
   /** The conversation's engine, to show the pictures an `image_generate` call saved. */
   command?: EngineCommand | undefined;
@@ -56,7 +64,12 @@ export function SessionActivity({
 }) {
   const { t } = useDesktopText();
   const [filter, setFilter] = useState<'all' | 'tool' | 'reasoning' | 'run'>('all');
-  const rows = useMemo(() => activityRows(events), [events]);
+  const rows = useMemo(() => {
+    const rows = activityRows(events);
+    return settled
+      ? rows.map((row) => (row.status === 'running' ? { ...row, status: 'info' as const } : row))
+      : rows;
+  }, [events, settled]);
   const shown = rows.filter(
     (row) =>
       (showThinkingLogs || row.kind !== 'reasoning') &&
@@ -98,7 +111,24 @@ export function SessionActivity({
         <p className="quiet-state">{rows.length ? t('runLog.noMatch') : t('runLog.empty')}</p>
       )}
       <div className="activity-list">
-        {shown.map((row) => (
+        {shown.flatMap((row) => [
+          row.kind === 'tool' && row.title === 'design_reference' ? (
+            <DesignExtractionCard
+              key={`design:${row.id}`}
+              row={row}
+              projectRoot={projectRoot}
+              onOpenFile={onOpenFile}
+              onOpenDesign={onOpenDesign}
+            />
+          ) : null,
+          row.kind === 'tool' && row.title === 'design_reference' ? (
+            <DesignReviewCard
+              key={`review:${row.id}`}
+              row={row}
+              projectRoot={projectRoot}
+              onOpenFile={onOpenFile}
+            />
+          ) : null,
           <details key={row.id} className={`activity-entry activity-${row.status}`}>
             <summary>
               <span className="activity-entry-icon">
@@ -240,8 +270,8 @@ export function SessionActivity({
                 !row.files.length &&
                 !row.sage.length && <p>{t('runLog.noDetails')}</p>}
             </div>
-          </details>
-        ))}
+          </details>,
+        ])}
       </div>
     </section>
   );

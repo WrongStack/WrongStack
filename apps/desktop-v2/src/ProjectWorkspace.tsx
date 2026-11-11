@@ -218,6 +218,9 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
             key={project.id}
             projectId={project.id}
             command={command}
+            sessions={projectSessions}
+            onPrepare={(id, text) => vm.prepareProjectRequest(project.id, id, text)}
+            onNewSession={() => vm.newSession(project.id)}
             onOpenFile={(path) => {
               setFileTarget(path);
               vm.setProjectPage('files');

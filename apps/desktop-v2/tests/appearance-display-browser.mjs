@@ -89,16 +89,49 @@ try {
     );
     for (const input of await controls.getByRole('checkbox').all()) {
       const box = await input.boundingBox();
-      assert(
-        box.width >= 14 && box.width <= 24 && box.height >= 14,
-        'Native checkbox retains a usable size',
-      );
+      assert.deepEqual([box.width, box.height], [38, 22], 'The checkbox renders as a switch');
     }
     await page.screenshot({ path: path.join(directory, name + '.png'), fullPage: true });
   }
   assert.deepEqual(errors, []);
   console.log(
     'PASS: four appearance controls; live toggle; desktop and compact Turkish layouts without overflow',
+  );
+
+  const shell = await browser.newPage({ viewport: { width: 800, height: 600 } });
+  shell.setDefaultTimeout(15000);
+  shell.on('pageerror', (error) => errors.push(String(error)));
+  await shell.goto(server.resolvedUrls.local[0], { waitUntil: 'commit' });
+  await shell.getByRole('button', { name: 'Appearance', exact: true }).click();
+  const appearance = shell.getByRole('region', { name: 'Appearance settings' });
+  // Effective CSS viewport of the 800×600 window under its native zoom steps.
+  for (const zoom of [1, 1.25, 1.5, 1.75, 2]) {
+    await shell.setViewportSize({ width: Math.round(800 / zoom), height: Math.round(600 / zoom) });
+    const size = appearance.getByRole('button', { name: '200%', exact: true });
+    await size.scrollIntoViewIfNeeded();
+    assert.equal(
+      await shell.evaluate(() => document.documentElement.scrollWidth),
+      Math.round(800 / zoom),
+    );
+  }
+  const explorer = shell.getByRole('button', { name: 'Projects and sessions', exact: true });
+  const search = shell.getByRole('button', { name: /Find anything/ });
+  assert.equal(await search.isVisible(), false);
+  await explorer.press('Enter');
+  await search.waitFor();
+  assert.equal(await search.evaluate((button) => document.activeElement === button), true);
+  await shell.keyboard.press('Escape');
+  assert.equal(await explorer.getAttribute('aria-expanded'), 'false');
+  assert.equal(await explorer.evaluate((button) => document.activeElement === button), true);
+  await explorer.click();
+  await shell.mouse.click(389, 30);
+  assert.equal(await explorer.getAttribute('aria-expanded'), 'false');
+  await shell.setViewportSize({ width: 800, height: 600 });
+  assert.equal(await explorer.isVisible(), false);
+  await search.waitFor();
+  assert.deepEqual(errors, []);
+  console.log(
+    'PASS: 100–200% minimum-window layouts and compact explorer keyboard/pointer controls',
   );
 } finally {
   await browser?.close();

@@ -98,6 +98,7 @@
     "projectTools": "Outils du projet"
   },
   "explorer": {
+    "toggle": "Projets et sessions",
     "findAnything": "Tout rechercher",
     "workspace": "Espace de travail {{name}}",
     "projects": "Projets",
@@ -798,7 +799,7 @@
     },
     "fonts": {
       "title": "Polices",
-      "body": "Les polices de l’interface et du code. « Police installée » utilise n’importe quelle police de cet ordinateur par son nom.",
+      "body": "Choisissez les polices de l’interface et du code. Si le nom saisi ne correspond à aucune police installée, les polices par défaut sont utilisées.",
       "uiLabel": "Police de l’interface",
       "codeLabel": "Police du code",
       "geist": "Geist (par défaut)",
@@ -3549,7 +3550,26 @@
       "agentId": "Agent examiné",
       "cascadeDepth": "Profondeur de cascade",
       "evidenceStatus": "Statut des preuves",
-      "durationSeconds": "Durée de la revue (secondes)"
+      "durationSeconds": "Durée de la revue (secondes)",
+      "headSha": "HEAD examiné",
+      "tokens": "Utilisation des jetons",
+      "execution": "Exécution et coût"
+    },
+    "tokensShort": "tok",
+    "tokensBreakdown": "{{total}} ({{input}} ent. · {{output}} sort. · {{cache}} cache)",
+    "executionBreakdown": "{{turns}} tours · {{tools}} appels d’outils",
+    "incrementalDelta": "Delta incrémental",
+    "pairedTestUpdated": "Test associé mis à jour ✓",
+    "pairedTestUntouched": "Test associé inchangé !",
+    "deletedFiles": "Supprimés dans l’arbre de travail : {{files}}",
+    "skippedFiles": "Fichiers ignorés ou filtrés ({{n}})",
+    "skipReason": {
+      "max_files_cap": "Limite maximale de fichiers",
+      "already_reviewed": "Déjà examiné (même SHA)",
+      "in_flight": "Revue en cours",
+      "ignored_non_source": "Filtré (non-source / généré)",
+      "too_large": "Fichier trop volumineux",
+      "unreadable": "Illisible / supprimé"
     },
     "unparseable": "{{count}} éléments signalés n'ont pas été analysés individuellement. Consultez le rapport complet ci-dessous.",
     "reopenReport": "Rouvrir le rapport",
@@ -3904,7 +3924,9 @@
     "staleLabel": "Modifications de design antérieures",
     "stale": "Les modifications non enregistrées sur cet appareil appartiennent à {{kit}}, qui n’est plus le kit actif. Elles ne sont pas appliquées au kit actuel.",
     "discardStale": "Abandonner les modifications antérieures",
-    "restored": "Modifications de design non enregistrées conservées sur cet appareil restaurées."
+    "restored": "Modifications de design non enregistrées conservées sur cet appareil restaurées.",
+    "extractCalloutTitle": "Site source → Synthèse DESIGN.md",
+    "extractCalloutBody": "Partez d’un site de référence dans le Chat (5 tailles + sous-pages → DESIGN.md en 10 sections), puis matérialisez ses tokens ici."
   },
   "mailboxPage": {
     "agentStatus_offline": "Hors ligne",
@@ -9355,7 +9377,21 @@
       "editDraft": "Envoyez ou effacez d’abord le brouillon ; la modification le remplacerait",
       "running": "Attendez la fin du tour en cours",
       "offline": "Le moteur n’est pas connecté"
-    }
+    },
+    "designTitle": "Site source → Synthèse DESIGN.md",
+    "designBody": "Mesurez une URL en direct ou un fichier HTML local sur 5 points de rupture et jusqu’à 8 sous-pages pour générer une spécification DESIGN.md en 10 sections.",
+    "designStageCrawl": "Mesure 5 tailles",
+    "designStageSubpages": "Sous-pages",
+    "designStageSynthesis": "Synthèse ADN",
+    "designStageSpec": "DESIGN.md (10 sections)",
+    "designSourceLabel": "URL de référence ou fichier HTML local",
+    "designPagesLabel": "Pages à analyser",
+    "designPagesCount": "Pages : {{count}}",
+    "designWorkflowLabel": "Flux de synthèse",
+    "designWorkflowExtract": "Extraire DESIGN.md",
+    "designWorkflowMaterialize": "Extraire + Matérialiser thème Web",
+    "designPresets": "Exemples :",
+    "designStart": "Préparer le prompt DESIGN.md"
   },
   "worklist": {
     "plan": "Plan",
@@ -9690,6 +9726,42 @@
     "mismatch": "Les sessions du host et du journal diffèrent.",
     "pending": "Comparaison des identités en attente.",
     "expected": "Session Core du host : {{id}}"
+  },
+  "designFlow": {
+    "materializeNative": "Extraire et générer un thème React Native",
+    "draftOnly": "Ajoute la demande au brouillon de la conversation. Envoyez-la quand elle est prête.",
+    "draftRefused": "Le brouillon a changé ou n’a pas pu être enregistré. Vérifiez-le avant d’ajouter la demande.",
+    "launch": "Préparer la référence",
+    "measure": "Mesurer les pages rendues",
+    "openSpec": "Ouvrir DESIGN.md",
+    "measuredPages": "Pages analysées : {{count}}",
+    "noArtifact": "Aucun chemin vers DESIGN.md n’a été indiqué.",
+    "pending": "En attente"
+  },
+  "designReview": {
+    "title": "Examen du design",
+    "inspect": "Inspection du rendu",
+    "compare": "Comparaison de la fidélité visuelle",
+    "target": "Cible",
+    "reference": "Référence",
+    "widths": "Largeurs mesurées",
+    "noSharedWidths": "Aucune largeur commune",
+    "findings": "{{fails}} erreurs · {{warns}} avertissements",
+    "fidelity": "Fidélité {{score}}",
+    "openReport": "Ouvrir le rapport",
+    "unavailable": "Les mesures sont indisponibles",
+    "prepare": "Préparer la demande d’examen",
+    "surface": "Surface",
+    "page": "Page",
+    "app": "Application",
+    "targetInput": "URL de l’implémentation ou fichier HTML local",
+    "referenceInput": "Nom de la référence extraite",
+    "formBody": "Mesurez le rendu d’une page ou comparez-le à une référence extraite."
+  },
+  "renderError": {
+    "title": "Cette vue n’a pas pu être affichée",
+    "body": "Le rechargement de la fenêtre peut entraîner la perte des modifications non enregistrées.",
+    "reload": "Recharger la fenêtre"
   },
   "recoveryDraft": {
     "match": "Les révisions correspondent au brouillon enregistré de cette conversation.",

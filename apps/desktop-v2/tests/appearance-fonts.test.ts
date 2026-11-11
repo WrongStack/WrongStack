@@ -106,7 +106,7 @@ describe('appearance typography', () => {
     });
     applyFontAppearance(root, {});
     expect(root.style.getPropertyValue('--user-font-ui')).toBe('');
-    expect(root.style.getPropertyValue('--user-font-code')).toBe('');
+    expect(root.style.getPropertyValue('--user-font-code')).toBe(DEFAULT_CODE_STACK);
     expect(root.dataset['uiFont']).toBeUndefined();
     expect(root.dataset['codeFont']).toBeUndefined();
     expect(root.dataset['ligatures']).toBeUndefined();

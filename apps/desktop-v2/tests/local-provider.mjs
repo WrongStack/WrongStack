@@ -96,7 +96,7 @@ const longReply = () => {
   return lines.join('\n');
 };
 
-export async function startLocalProvider({ models = [fixtureModel] } = {}) {
+export async function startLocalProvider({ models = [fixtureModel], resolveToolCall } = {}) {
   const acceptedModels = new Set(models);
   const calls = [];
   const toolResults = [];
@@ -185,12 +185,16 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
           : refiner
             ? 'Build the desktop composer and preserve the requested session boundaries.\n---\nImplement the desktop composer while keeping the requested session boundaries.'
             : composerInstruction.trim().startsWith('[native-composer-long-reply]')
-              ? longReply()
+              ? longReply() +
+                (composerInstruction.includes('[native-composer-stream-pause]')
+                  ? '\n<nextsteps-complete/>'
+                  : '')
               : composerInstruction.trim().startsWith('[native-composer-nextsteps]')
                 ? `${fixtureMarkdown}\n\n<nextsteps>\n1. [native-composer-nextstep-selected] Inspect the result\n2. Run the checks\n</nextsteps>`
                 : // A leader turn without either marker gets a priced next-steps side request;
                   // usage proofs count exactly one provider answer per prompt.
-                  /^\[native-(?:usage-(?:cold|warm)|tier-proposal)\]/.test(
+                  composerInstruction.includes('[native-composer-reading-finished]') ||
+                    /^\[native-(?:usage-(?:cold|warm)|tier-proposal)\]/.test(
                       (userTexts.at(-1) ?? '').trim(),
                     )
                   ? `${fixtureMarkdown}\n\n<nextsteps-complete/>`
@@ -454,7 +458,7 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
           body.tools?.some((tool) => tool.function?.name === 'delegate'),
           'The real delegate tool must be available to the owning leader',
         );
-      const toolCall = needsOfficeDelegate
+      let toolCall = needsOfficeDelegate
         ? {
             index: 0,
             id: officeCallId,
@@ -571,6 +575,7 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
                           },
                         }
                       : undefined;
+      if (resolveToolCall) toolCall = resolveToolCall(body) ?? toolCall;
       if (!body.stream) {
         if (officeWorker) {
           const hold = `office-${officeWorker}`;
@@ -653,10 +658,29 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
         refiner || topicAdvisor || chimeraReview ? 0 : 'Native provider '.length,
       );
       // A long answer streams in many small deltas, like a real provider.
-      for (let start = 0; start < rest.length; start += 2048)
+      let streamPhase = 0;
+      for (let start = 0; start < rest.length; start += 2048) {
         chunk([
           { index: 0, delta: { content: rest.slice(start, start + 2048) }, finish_reason: null },
         ]);
+        if (
+          composerInstruction.includes('[native-composer-stream-pause]') &&
+          streamPhase < 2 &&
+          start + 2048 >= (streamPhase + 1) * 32768
+        ) {
+          const name = `stream-pause-${++streamPhase}`;
+          await new Promise((resolve) => {
+            holds.set(name, resolve);
+            response.once('close', () => {
+              if (!response.writableEnded) canceledHolds.add(name);
+              holds.delete(name);
+              resolve();
+            });
+          });
+          holds.delete(name);
+          if (response.destroyed) return;
+        }
+      }
       chunk([{ index: 0, delta: {}, finish_reason: 'stop' }], { usage });
       response.end('data: [DONE]\n\n');
     } catch (error) {

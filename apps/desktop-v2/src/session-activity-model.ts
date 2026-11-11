@@ -11,6 +11,7 @@ export interface ActivityRow {
   files: Array<{ path: string; operation: string }>;
   sage: string[];
   durationMs?: number;
+  finishedAt?: number;
   outputBytes?: number;
   agent?: string;
   /** Catalog wording for run rows; `title` stays the English plain-text form. */
@@ -79,6 +80,8 @@ export function activityRows(events: readonly EngineEvent[]): ActivityRow[] {
       if (event.type === 'tool.executed') {
         row.status = p['ok'] === false ? 'failed' : p['ok'] === true ? 'done' : 'info';
         row.output = contentText(p['output']);
+        if (typeof event.at === 'number' && !Number.isNaN(new Date(event.at).getTime()))
+          row.finishedAt = event.at;
         if (typeof p['durationMs'] === 'number') row.durationMs = p['durationMs'];
         if (typeof p['outputBytes'] === 'number') row.outputBytes = p['outputBytes'];
         if (Array.isArray(p['sage']))
@@ -175,6 +178,10 @@ export function activityRows(events: readonly EngineEvent[]): ActivityRow[] {
         files: [],
         sage: [],
       });
+      // An interrupted run may close without a final frame for its in-flight tools.
+      for (const tool of tools.values()) {
+        if (tool.status === 'running') tool.status = status === 'done' ? 'info' : status;
+      }
       tools.clear();
       runIndex++;
     }

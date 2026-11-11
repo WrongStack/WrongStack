@@ -3,8 +3,8 @@ import { FileText, LoaderCircle, Sparkles } from 'lucide-react';
 import { type MutableRefObject, useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import { entries } from './engine-values';
+import { projectRequest } from './journal-tail';
 import { RuntimeGate } from './RuntimeGate';
-import { useProjectEngine } from './useEngine';
 
 export function ComposerMentionPicker(props: {
   projectId: string;
@@ -46,19 +46,17 @@ function ProjectMentionPicker({
     (e: unknown) => setError(e instanceof Error ? e.message : String(e)),
     [],
   );
-  const { state, command } = useProjectEngine(projectId, report);
   useEffect(() => {
     let active = true;
     setRows([]);
     setLoading(true);
     setError('');
     setIndex(0);
-    if (!state.connected)
-      return () => {
-        active = false;
-      };
+    // Asked on the journal's live end; the project's full reader would replay its whole
+    // journal before the first suggestion could appear.
     const timer = setTimeout(() => {
-      void command(
+      void projectRequest(
+        projectId,
         kind === 'file' ? 'files.list' : 'skills.list',
         kind === 'file' ? { query, limit: 40 } : {},
         [kind === 'file' ? 'files.list' : 'skills.list'],
@@ -92,7 +90,7 @@ function ProjectMentionPicker({
       active = false;
       clearTimeout(timer);
     };
-  }, [query, kind, state.connected, command, report]);
+  }, [query, kind, projectId, report]);
   useLayoutEffect(() => {
     keys.current = (key) => {
       if (key === 'Escape') onDismiss();

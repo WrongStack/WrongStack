@@ -1,12 +1,13 @@
-import { useCallback, useEffect } from 'react';
+import { useEffect } from 'react';
 import { journalRecallTexts, RECALL_JOURNAL_LIMIT } from './journal-recall';
+import { projectRequest } from './journal-tail';
 import { RuntimeGate } from './RuntimeGate';
-import { useProjectEngine } from './useEngine';
 
 /**
  * Reads the project's newest original prompts for up-arrow recall through the project engine
  * (project resources never go through a conversation engine), reports them once, and is then
- * removed by its owner so the project connection does not keep polling.
+ * removed by its owner. It asks on the journal's live end: opening a conversation must not
+ * replay the project's whole journal just to learn that its engine is connected.
  */
 export function JournalRecallLoader({
   projectId,
@@ -25,14 +26,10 @@ export function JournalRecallLoader({
 }
 
 function Load({ projectId, onLoad }: { projectId: string; onLoad: (prompts: string[]) => void }) {
-  const ignore = useCallback(() => {
-    // Without a journal, recall stays within the conversation.
-  }, []);
-  const { state, command } = useProjectEngine(projectId, ignore);
   useEffect(() => {
-    if (!state.connected) return;
     let active = true;
-    void command(
+    void projectRequest(
+      projectId,
       'prompts.journal',
       { filter: { limit: RECALL_JOURNAL_LIMIT, category: 'raw_user' } },
       ['prompts.journal'],
@@ -41,11 +38,12 @@ function Load({ projectId, onLoad }: { projectId: string; onLoad: (prompts: stri
         if (active) onLoad(journalRecallTexts(result));
       })
       .catch(() => {
+        // Without a journal, recall stays within the conversation.
         if (active) onLoad([]);
       });
     return () => {
       active = false;
     };
-  }, [state.connected, command, onLoad]);
+  }, [projectId, onLoad]);
   return null;
 }

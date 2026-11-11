@@ -98,6 +98,7 @@
     "projectTools": "Proje araçları"
   },
   "explorer": {
+    "toggle": "Projeler ve oturumlar",
     "findAnything": "Her şeyi bul",
     "workspace": "{{name}} çalışma alanı",
     "projects": "Projeler",
@@ -798,7 +799,7 @@
     },
     "fonts": {
       "title": "Yazı tipleri",
-      "body": "Arayüz ve kod için yazı tipleri. Yüklü yazı tipi, bu bilgisayardaki herhangi bir yazı tipini adıyla kullanır.",
+      "body": "Arayüz ve kod yazı tiplerini seçin. Adıyla seçilen yazı tipi bulunamazsa varsayılan yazı tipi sırası kullanılır.",
       "uiLabel": "Arayüz yazı tipi",
       "codeLabel": "Kod yazı tipi",
       "geist": "Geist (varsayılan)",
@@ -3549,7 +3550,26 @@
       "agentId": "İncelenen ajan",
       "cascadeDepth": "Kademe derinliği",
       "evidenceStatus": "Kanıt durumu",
-      "durationSeconds": "İnceleme süresi (saniye)"
+      "durationSeconds": "İnceleme süresi (saniye)",
+      "headSha": "İncelenen HEAD",
+      "tokens": "Token kullanımı",
+      "execution": "Çalıştırma ve maliyet"
+    },
+    "tokensShort": "tok",
+    "tokensBreakdown": "{{total}} ({{input}} giriş · {{output}} çıkış · {{cache}} önbellek)",
+    "executionBreakdown": "{{turns}} tur · {{tools}} araç çağrısı",
+    "incrementalDelta": "Artımlı delta",
+    "pairedTestUpdated": "Eşli test güncellendi ✓",
+    "pairedTestUntouched": "Eşli test dokunulmadı !",
+    "deletedFiles": "Çalışma ağacında silinenler: {{files}}",
+    "skippedFiles": "Atlanan veya filtrelenen dosyalar ({{n}})",
+    "skipReason": {
+      "max_files_cap": "Maksimum dosya sınırı",
+      "already_reviewed": "Zaten incelendi (aynı SHA)",
+      "in_flight": "İnceleme devam ediyor",
+      "ignored_non_source": "Filtrelendi (kaynak dışı / üretilmiş)",
+      "too_large": "Dosya çok büyük",
+      "unreadable": "Okunamıyor / silinmiş"
     },
     "unparseable": "{{count}} bildirilen öğe tek tek ayrıştırılamadı. Aşağıdaki tam raporu incele.",
     "reopenReport": "Raporu yeniden aç",
@@ -3904,7 +3924,9 @@
     "staleLabel": "Önceki tasarım düzenlemeleri",
     "stale": "Bu cihazdaki kaydedilmemiş düzenlemeler artık etkin kit olmayan {{kit}} kitine ait. Mevcut kite uygulanmazlar.",
     "discardStale": "Önceki düzenlemeleri at",
-    "restored": "Bu cihazda saklanan kaydedilmemiş tasarım düzenlemeleri geri yüklendi."
+    "restored": "Bu cihazda saklanan kaydedilmemiş tasarım düzenlemeleri geri yüklendi.",
+    "extractCalloutTitle": "Kaynak Site → DESIGN.md Sentezi",
+    "extractCalloutBody": "Sohbette canlı bir kaynak siteden başlayın (5 kırılım + alt sayfalar → 10 bölümlü DESIGN.md), ardından tokenları burada yakalayıp temaya dönüştürün."
   },
   "mailboxPage": {
     "agentStatus_offline": "Çevrim dışı",
@@ -9355,7 +9377,21 @@
       "editDraft": "Önce yazım alanındaki taslağı gönderin ya da temizleyin; düzenleme onu değiştirir",
       "running": "Çalışan turun bitmesini bekleyin",
       "offline": "Motor bağlı değil"
-    }
+    },
+    "designTitle": "Kaynak Site → DESIGN.md Sentezi",
+    "designBody": "Canlı bir siteyi veya yerel HTML dosyasını 5 kırılım noktasında ve 8 alt sayfaya kadar ölçerek 10 bölümlü DESIGN.md spesifikasyonu üretin.",
+    "designStageCrawl": "5 Kırılımlı Ölçüm",
+    "designStageSubpages": "Alt Sayfa Keşfi",
+    "designStageSynthesis": "DNA Sentezi",
+    "designStageSpec": "10 Bölümlü DESIGN.md",
+    "designSourceLabel": "Kaynak URL veya yerel HTML dosyası",
+    "designPagesLabel": "Analiz edilecek sayfa sayısı",
+    "designPagesCount": "Sayfa: {{count}}",
+    "designWorkflowLabel": "Sentez iş akışı",
+    "designWorkflowExtract": "DESIGN.md Üret",
+    "designWorkflowMaterialize": "Üret + Web Temasına Dönüştür",
+    "designPresets": "Örnekler:",
+    "designStart": "DESIGN.md istemini hazırla"
   },
   "worklist": {
     "plan": "Plan",
@@ -9690,6 +9726,42 @@
     "mismatch": "Host ve journal oturumu farklı.",
     "pending": "Kimlik karşılaştırması bekleniyor.",
     "expected": "Host Core oturumu: {{id}}"
+  },
+  "designFlow": {
+    "materializeNative": "Çıkar ve React Native teması üret",
+    "draftOnly": "İsteği konuşma taslağına ekler. Hazır olduğunda gönder.",
+    "draftRefused": "Taslak değişti veya kaydedilemedi. İsteği eklemeden önce taslağı kontrol et.",
+    "launch": "Referans hazırla",
+    "measure": "Görüntülenen sayfaları ölç",
+    "openSpec": "DESIGN.md dosyasını aç",
+    "measuredPages": "İncelenen sayfalar: {{count}}",
+    "noArtifact": "DESIGN.md dosya yolu bildirilmedi.",
+    "pending": "Bekliyor"
+  },
+  "designReview": {
+    "title": "Tasarım incelemesi",
+    "inspect": "Görsel tasarım incelemesi",
+    "compare": "Tasarım uyumu karşılaştırması",
+    "target": "Hedef",
+    "reference": "Referans",
+    "widths": "Ölçülen genişlikler",
+    "noSharedWidths": "Ortak genişlik yok",
+    "findings": "{{fails}} hata · {{warns}} uyarı",
+    "fidelity": "Uyum {{score}}",
+    "openReport": "Raporu aç",
+    "unavailable": "İnceleme ölçümleri kullanılamıyor",
+    "prepare": "İnceleme istemini hazırla",
+    "surface": "Yüzey",
+    "page": "Sayfa",
+    "app": "Uygulama",
+    "targetInput": "Uygulama URL’si veya yerel HTML dosyası",
+    "referenceInput": "Çıkarılan referansın adı",
+    "formBody": "Oluşturulan sayfayı ölçün veya çıkarılan bir referansla karşılaştırın."
+  },
+  "renderError": {
+    "title": "Bu görünüm gösterilemedi",
+    "body": "Pencereyi yeniden yüklemek kaydedilmemiş değişiklikleri kaybettirebilir.",
+    "reload": "Pencereyi yeniden yükle"
   },
   "recoveryDraft": {
     "match": "Taslak sürümleri bu konuşmanın kayıtlı taslağıyla eşleşiyor.",

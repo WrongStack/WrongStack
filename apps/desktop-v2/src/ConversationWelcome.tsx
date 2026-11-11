@@ -7,6 +7,7 @@
  */
 
 import { Bug, FlaskConical, GitPullRequest, LoaderCircle, Map as MapIcon } from 'lucide-react';
+import { DesignExtractForm } from './DesignExtractForm';
 import { useDesktopText } from './desktop-i18n';
 import './conversation-welcome.css';
 
@@ -23,6 +24,8 @@ export function ConversationWelcome({
   model,
   connected,
   onStart,
+  onPrepareDesign,
+  designBlocked,
 }: {
   projectRoot?: string | undefined;
   provider: string;
@@ -30,6 +33,8 @@ export function ConversationWelcome({
   connected: boolean;
   /** Puts a starting prompt into the composer. */
   onStart: (prompt: string) => void;
+  onPrepareDesign?: ((prompt: string) => Promise<boolean>) | undefined;
+  designBlocked?: boolean | undefined;
 }) {
   const { t } = useDesktopText();
   const root = projectRoot?.replace(/^\\\\\?\\/, '');
@@ -61,6 +66,11 @@ export function ConversationWelcome({
           )}
         </dl>
       </section>
+      <DesignExtractForm
+        variant="welcome"
+        onPrepare={onPrepareDesign ?? onStart}
+        disabled={designBlocked}
+      />
       <div className="conversation-welcome-starters">
         {STARTERS.map(({ id, Icon }) => (
           <button

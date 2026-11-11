@@ -39,6 +39,7 @@ if (resumeIndex >= 0) {
   }
 }
 await startWebUI({
+  useCwdAsProjectRoot: process.env['WRONGSTACK_DESKTOP_USE_CWD_AS_PROJECT_ROOT'] === '1',
   wsHost: '127.0.0.1',
   httpPort: port,
   accessToken,

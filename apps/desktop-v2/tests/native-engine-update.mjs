@@ -24,7 +24,7 @@ import { fixtureKey, fixtureModel, startLocalProvider } from './local-provider.m
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const appDir = resolve(root, 'apps/desktop-v2');
 const work = resolve(root, '.temp_files/desktop-v2-native', `engine-update-${Date.now()}`);
-const portable = stagePortable(appDir);
+const portable = process.env.WRONGSTACK_DESKTOP_TEST_PORTABLE ?? stagePortable(appDir);
 const sourceEngine = join(portable, 'wrongstack-engine.exe');
 const app = join(work, 'app');
 const exe = join(app, 'wrongstack-desktop-native.exe');
@@ -40,7 +40,9 @@ const powershell = (command) =>
     encoding: 'utf8',
     windowsHide: true,
   }).stdout;
-const insideWork = `($_.ExecutablePath -and $_.ExecutablePath.StartsWith('${work}', [StringComparison]::OrdinalIgnoreCase)) -or ($_.CommandLine -and $_.CommandLine.Contains('${work}'))`;
+// The query's own PowerShell command line also contains this path. Only a WebView needs command
+// line ownership: all application/host/engine executables already live inside the fixture.
+const insideWork = `($_.ExecutablePath -and $_.ExecutablePath.StartsWith('${work}\\', [StringComparison]::OrdinalIgnoreCase)) -or ($_.Name -eq 'msedgewebview2.exe' -and $_.CommandLine -and $_.CommandLine.Contains('${work}\\'))`;
 const processes = () =>
   JSON.parse(
     powershell(
@@ -53,6 +55,7 @@ const stopEverything = async () => {
   );
   for (let attempt = 0; attempt < 50 && processes().length > 0; attempt++)
     await new Promise((resolve) => setTimeout(resolve, 200));
+  assert.deepEqual(processes(), [], 'all fixture-owned processes have exited');
 };
 
 const call = (endpoint, method, params = {}) =>
@@ -144,7 +147,7 @@ async function launch(name, { legacy }) {
   );
   const env = environment(name);
   if (legacy) env.WRONGSTACK_DESKTOP_ENGINE = installedEngine;
-  const child = spawn(exe, [], { cwd: dir, env, stdio: 'ignore', windowsHide: false });
+  const child = spawn(exe, [], { cwd: dir, env, stdio: 'ignore', windowsHide: true });
   child.unref();
   const previous = await readFile(join(dir, 'data', 'host.json'), 'utf8').catch(() => null);
   const endpoint = await until(async () => {
@@ -166,6 +169,15 @@ async function startConversationEngine({ dir, endpoint }) {
     return current.status === 'running' ? current : null;
   }, 'the project engine reports running');
   assert.equal(status.status, 'running');
+  const conversation = await call(endpoint, 'session.open', {
+    projectId: project.id,
+    kind: 'agent',
+    title: 'Engine update acceptance',
+  });
+  await until(async () => {
+    const identity = await call(endpoint, 'engine.identity', { id: conversation.id });
+    return identity.sessionId;
+  }, 'the conversation engine is ready');
   return processes().filter((entry) => entry.name === 'wrongstack-engine.exe');
 }
 

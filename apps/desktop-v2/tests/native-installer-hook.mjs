@@ -107,13 +107,17 @@ try {
     setups[name] = join(work, `${name}-setup.exe`);
     await writeFile(
       join(script, `${name}.nsi`),
-      text.replace('!define OUTFILE "nsis-output.exe"', `!define OUTFILE "${setups[name]}"`),
+      text
+        .replace('!define OUTFILE "nsis-output.exe"', `!define OUTFILE "${setups[name]}"`)
+        // These copies test file ownership; compression only adds minutes to their builds.
+        .replace('SetCompressor /SOLID "lzma"', 'SetCompress off'),
     );
     const build = spawnSync(makensis, ['/V1', `${name}.nsi`], {
       cwd: script,
       encoding: 'utf8',
       windowsHide: true,
     });
+    assert.equal(build.status, 0, `${name} installer build: ${build.stdout}${build.stderr}`);
     assert.ok(existsSync(setups[name]), `${name} installer built: ${build.stdout}${build.stderr}`);
   }
   pass('the installer builds with and without the hook (renamed product)');

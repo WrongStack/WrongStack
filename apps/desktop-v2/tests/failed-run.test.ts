@@ -62,7 +62,9 @@ describe('failed run recovery', () => {
       sessionId: 's',
       connected: true,
       running,
-      results: { 'run.result': { status: 'failed', error: { message: 'Overloaded\nat x (a:1:2)' } } },
+      results: {
+        'run.result': { status: 'failed', error: { message: 'Overloaded\nat x (a:1:2)' } },
+      },
     });
     const render = (running: boolean) =>
       renderToStaticMarkup(

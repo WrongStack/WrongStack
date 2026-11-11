@@ -1,14 +1,7 @@
 /*
- * Typography a person chose in Appearance (appearance-fonts.ts). Every rule waits for its
- * data attribute, so without a choice each stylesheet keeps the family it was written with.
- * Rules that name a family themselves read `--user-font-ui` / `--user-font-code` with their
- * own family as the fallback; these cover what inherits the browser's defaults instead.
+ * Keep plain code elements on the same font stack as the editors and terminal.
  */
-:root[data-ui-font] .ws-surfaces {
-  font-family: var(--user-font-ui);
-}
-
-:root[data-code-font] :is(code, pre, kbd, samp, .mono, .font-mono) {
+:root :is(code, pre, kbd, samp, .mono, .font-mono) {
   font-family: var(--user-font-code);
 }
 

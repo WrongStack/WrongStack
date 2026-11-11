@@ -12,7 +12,7 @@ import {
 import { SurfacePortalContext } from '@wrongstack/project-surfaces/ui/portal';
 import { type ReactNode, useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { I18nextProvider } from 'react-i18next';
+import { I18nextProvider, useTranslation } from 'react-i18next';
 import { SurfaceLanguageSync } from './SurfaceLanguageSync';
 import { surfaceI18n } from './surface-i18n';
 import './surfaces.css';
@@ -51,6 +51,7 @@ export function SurfaceFrame({
   fill?: boolean;
   children: ReactNode;
 }) {
+  const { t } = useTranslation('common', { i18n: surfaceI18n });
   const [portal, setPortal] = useState<HTMLDivElement | null>(null);
   const pending = confirm.pending;
   return (
@@ -78,13 +79,13 @@ export function SurfaceFrame({
                 )}
                 <DialogFooter>
                   <Button variant="outline" onClick={() => confirm.settle(false)}>
-                    {pending.options.cancelLabel ?? 'Cancel'}
+                    {pending.options.cancelLabel ?? t('action.cancel')}
                   </Button>
                   <Button
                     variant={pending.options.danger ? 'destructive' : 'default'}
                     onClick={() => confirm.settle(true)}
                   >
-                    {pending.options.confirmLabel ?? 'Confirm'}
+                    {pending.options.confirmLabel ?? t('action.confirm')}
                   </Button>
                 </DialogFooter>
               </DialogContent>

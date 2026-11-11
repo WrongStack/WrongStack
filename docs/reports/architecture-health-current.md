@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-11T21:42:05.131Z
+**Generated:** 2026-11-11T21:44:52.184Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,15 +8,15 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 48 |
-| Production source files | 6267 |
-| Production source lines | 1291800 |
-| Test files | 5215 |
+| Production source files | 6276 |
+| Production source lines | 1293074 |
+| Test files | 5225 |
 | Workspace dependency edges | 250 |
-| Relative module edges | 18454 |
+| Relative module edges | 18485 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
-| Tests without TypeScript test-project coverage | 321 |
+| Tests without TypeScript test-project coverage | 331 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
@@ -38,7 +38,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/contracts | 131 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 192 | 190 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 649 | 708 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 505 | 321 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 514 | 331 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 62 | 4 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 24 | 25 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
@@ -104,16 +104,17 @@ None.
 | 920 | `packages/webui/src/components/ChimeraReviewsView.tsx` |
 | 903 | `packages/tools/src/codebase-index/infra-parser.ts` |
 | 898 | `apps/desktop-v2/src/SkillLibrary.tsx` |
+| 891 | `apps/desktop-v2/src/ProjectChimera.tsx` |
 | 853 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
+| 853 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
 | 853 | `packages/plugins/src/adversary-mode/evaluator.ts` |
 | 832 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 815 | `packages/vibeui/src/lib/session.ts` |
 | 800 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
-| 791 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
 | 785 | `packages/client/src/client.ts` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
-| 766 | `apps/desktop-v2/src/ProjectChimera.tsx` |
+| 773 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
 | 763 | `packages/plugins/src/adversary-mode/index.ts` |
 | 762 | `packages/vibeui/src/lib/use-session.ts` |
 | 757 | `packages/tools/src/design-reference.ts` |
@@ -139,17 +140,16 @@ None.
 | 718 | `packages/project-surfaces/src/sage/useMemoryManagerState.ts` |
 | 716 | `packages/plugins/src/audit/index.ts` |
 | 716 | `packages/requirement-intake/src/service.ts` |
-| 715 | `packages/tools/src/codebase-index/background-indexer.ts` |
 
 ## Exports only tests reference
 
-- 1047 runtime exports are referenced by tests and by no other production file.
+- 1048 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 
 ## TypeScript test coverage debt
 
-- 321 test files are not included in a package TypeScript test project.
+- 331 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.

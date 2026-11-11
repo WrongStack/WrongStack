@@ -38,7 +38,7 @@ const fingerprint = async () => {
   const files = (await readdir(join(app, 'tests')))
     .filter(
       (name) =>
-        /^native-.*\.mjs$/.test(name) ||
+        /^native-.*\.(?:mjs|ps1)$/.test(name) ||
         name === 'local-provider.mjs' ||
         name === 'transcript-test-helpers.mjs',
     )

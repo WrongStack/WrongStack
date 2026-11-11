@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { desktopSurfaceHost } from '../src/desktop-surface-host';
 import { emptyEngineState } from '../src/engine-state';
 import type { BackendStream } from '../src/engine-stream';
-import { JournalTail } from '../src/journal-tail';
+import { JournalTail, projectRequest } from '../src/journal-tail';
 import { request } from '../src/platform';
 
 vi.mock('../src/platform', () => ({ request: vi.fn() }));
@@ -58,6 +58,70 @@ describe('journal tail for the shared surfaces', () => {
     await vi.advanceTimersByTimeAsync(300);
     expect(seen).toEqual(['new']);
     stop();
+  });
+  it('answers a one-off project request from the journal end without replaying it', async () => {
+    vi.useFakeTimers();
+    const sent: { type: string; payload: Record<string, unknown> }[] = [];
+    const reads: { tail?: boolean; offset?: number }[] = [];
+    mocked.mockImplementation(async (command, args) => {
+      const a = args as { tail?: boolean; offset?: number; message?: (typeof sent)[number] };
+      if (command === 'project.send') {
+        sent.push(a.message!);
+        return null;
+      }
+      reads.push(a);
+      if (a.tail) return { offset: 900_000_000, events: [], hasMore: false, tail: true };
+      const requestId = sent[0]?.payload['requestId'];
+      return requestId && a.offset === 900_000_000
+        ? {
+            offset: 900_000_100,
+            events: [
+              frame('prompts.journal', { requestId: 'someone-else', entries: [] }),
+              frame('prompts.journal', { requestId, entries: [{ content: 'hi' }] }),
+            ],
+          }
+        : { offset: a.offset, events: [] };
+    });
+    const reply = projectRequest(
+      'p3',
+      'prompts.journal',
+      { filter: { limit: 5 } },
+      ['prompts.journal'],
+      { tail: new JournalTail('p3', 20) },
+    );
+    await vi.advanceTimersByTimeAsync(100);
+    await expect(reply).resolves.toEqual(expect.objectContaining({ entries: [{ content: 'hi' }] }));
+    expect(sent).toEqual([
+      { type: 'prompts.journal', payload: expect.objectContaining({ filter: { limit: 5 } }) },
+    ]);
+    // Never a read from the journal's start: the first read locates the end.
+    expect(reads[0]).toEqual({ projectId: 'p3', tail: true });
+    expect(reads.some((read) => read.offset === 0)).toBe(false);
+  });
+  it('rejects a one-off project request the engine refuses', async () => {
+    vi.useFakeTimers();
+    let requestId: unknown;
+    mocked.mockImplementation(async (command, args) => {
+      const a = args as {
+        tail?: boolean;
+        offset?: number;
+        message?: { payload: Record<string, unknown> };
+      };
+      if (command === 'project.send') {
+        requestId = a.message!.payload['requestId'];
+        return null;
+      }
+      if (a.tail) return { offset: 10, events: [], hasMore: false, tail: true };
+      return requestId
+        ? { offset: 20, events: [frame('error', { requestId, message: 'no skills here' })] }
+        : { offset: a.offset, events: [] };
+    });
+    const reply = projectRequest('p4', 'skills.list', {}, ['skills.list'], {
+      tail: new JournalTail('p4', 20),
+    });
+    const settled = expect(reply).rejects.toThrow('no skills here');
+    await vi.advanceTimersByTimeAsync(100);
+    await settled;
   });
   it('gives a surface only replies to its own requests', async () => {
     let listener: ((event: { type: string; payload: Record<string, unknown> }) => void) | null =

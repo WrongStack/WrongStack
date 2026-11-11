@@ -7,6 +7,7 @@ import { NotificationMenu } from './NotificationMenu';
 import { useNotificationFeed } from './notification-feed';
 import { ProjectViews } from './ProjectViews';
 import { native, openProjectWindow } from './platform';
+import { RenderErrorBoundary } from './RenderErrorBoundary';
 import { Sidebar } from './Sidebar';
 import { SurfaceLanguageSync } from './SurfaceLanguageSync';
 import { cachedLanguage, surfaceI18n } from './surface-i18n';
@@ -148,15 +149,24 @@ export function App() {
           </div>
         )}
         <main className="main-content">
-          <Suspense fallback={<div className="runtime-state">{t('topbar.opening')}</div>}>
-            {section === 'fleet' &&
-              (focused ? <SessionWorkbench vm={vm} /> : <FleetPanel vm={vm} />)}
-            <ProjectViews vm={vm} />
-            {section === 'project' && currentProject && (
-              <ProjectWorkspace key={currentProject.id} project={currentProject} vm={vm} />
-            )}
-            {section === 'wrongstack' && <WrongStackSettings vm={vm} />}
-          </Suspense>
+          <RenderErrorBoundary
+            key={`${section}:${vm.project ?? ''}:${currentSession?.id ?? ''}:${vm.projectPage}`}
+            onHome={() => {
+              setSection('fleet');
+              setSelected(null);
+              setProject(null);
+            }}
+          >
+            <Suspense fallback={<div className="runtime-state">{t('topbar.opening')}</div>}>
+              {section === 'fleet' &&
+                (focused ? <SessionWorkbench vm={vm} /> : <FleetPanel vm={vm} />)}
+              <ProjectViews vm={vm} />
+              {section === 'project' && currentProject && (
+                <ProjectWorkspace key={currentProject.id} project={currentProject} vm={vm} />
+              )}
+              {section === 'wrongstack' && <WrongStackSettings vm={vm} />}
+            </Suspense>
+          </RenderErrorBoundary>
         </main>
       </div>
       <WorkspaceDialogs vm={vm} />

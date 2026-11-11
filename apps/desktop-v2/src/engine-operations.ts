@@ -18,6 +18,21 @@ export class EngineReplyError extends Error {
   }
 }
 
+/** The error a reply carries, or null when it reports success. */
+export function replyFailure(event: EngineEvent): EngineReplyError | null {
+  const p = event.payload;
+  if (
+    event.type !== 'error' &&
+    p['success'] !== false &&
+    p['ok'] !== false &&
+    typeof p['error'] !== 'string'
+  )
+    return null;
+  return new EngineReplyError(String(p['error'] ?? p['message'] ?? 'Engine request failed.'), {
+    ...p,
+  });
+}
+
 /**
  * Tracks acknowledgements without persisting outgoing payloads or credentials.
  *
@@ -90,18 +105,8 @@ export class EngineOperations {
     if (!pending || (!pending.replies.includes(event.type) && event.type !== 'error')) return;
     this.pending.delete(id);
     clearTimeout(pending.timer);
-    if (
-      event.type === 'error' ||
-      event.payload['success'] === false ||
-      event.payload['ok'] === false ||
-      typeof event.payload['error'] === 'string'
-    )
-      pending.reject(
-        new EngineReplyError(
-          String(event.payload['error'] ?? event.payload['message'] ?? 'Engine request failed.'),
-          { ...event.payload },
-        ),
-      );
+    const failure = replyFailure(event);
+    if (failure) pending.reject(failure);
     else pending.resolve(event.payload);
   }
   clear(): void {

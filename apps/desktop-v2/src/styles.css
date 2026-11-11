@@ -29,7 +29,6 @@
   }
   body {
     margin: 0;
-    min-width: 620px;
     font-size: 14px;
   }
   button,
@@ -938,7 +937,7 @@ h1 {
 }
 .workspace-focused {
   height: 100dvh;
-  min-height: 600px;
+  min-height: 0;
   overflow: hidden;
 }
 .workspace-focused .main-content {

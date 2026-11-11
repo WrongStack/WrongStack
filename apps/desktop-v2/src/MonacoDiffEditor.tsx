@@ -2,11 +2,11 @@ import { DiffEditor } from '@monaco-editor/react';
 import { getLanguage } from '@wrongstack/project-surfaces/lib/completion';
 import type * as monaco from 'monaco-editor';
 import { useEffect, useRef, useState } from 'react';
-import { useCodeFont } from './appearance-fonts';
+import { DEFAULT_CODE_STACK, useCodeFont } from './appearance-fonts';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { saveFileVersion } from './file-save';
-import { MONACO_FONT, useEditorTheme } from './MonacoFileEditor';
+import { useEditorTheme } from './MonacoFileEditor';
 import './monaco-diff.css';
 
 /**
@@ -107,7 +107,7 @@ export default function MonacoDiffEditor({
           originalEditable: false,
           automaticLayout: true,
           fontSize: 13,
-          fontFamily: codeFont.family ?? MONACO_FONT,
+          fontFamily: codeFont.family ?? DEFAULT_CODE_STACK,
           fontLigatures: codeFont.ligatures,
           minimap: { enabled: false },
           scrollBeyondLastLine: false,

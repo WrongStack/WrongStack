@@ -9,6 +9,7 @@ import {
   History,
   KeyRound,
   ListChecks,
+  Palette,
   Plug,
   ShieldCheck,
   Terminal,
@@ -29,6 +30,7 @@ export function WorkspaceTools({
   onStory,
   onContext,
   onPlan,
+  onDesign,
   onProject,
   onSettings,
 }: {
@@ -43,6 +45,7 @@ export function WorkspaceTools({
   onStory: () => void;
   onContext: () => void;
   onPlan: () => void;
+  onDesign: () => void;
   onProject: () => void;
   onSettings: () => void;
 }) {
@@ -73,6 +76,14 @@ export function WorkspaceTools({
         </button>
       </header>
       <div className="session-tool-choices">
+        <button type="button" onClick={onDesign}>
+          <Palette size={21} />
+          <div>
+            <strong>{t('chatView.designTitle')}</strong>
+            <span>{t('designFlow.draftOnly')}</span>
+          </div>
+          <ArrowUpRight size={14} />
+        </button>
         <button type="button" onClick={onStory}>
           <BookOpenText size={21} />
           <div>

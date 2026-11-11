@@ -1,6 +1,9 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
+import { ConversationWelcome } from '../src/ConversationWelcome';
+import { buildDesktopDesignPrompt } from '../src/design-dna-prompt';
+import { surfaceI18n } from '../src/surface-i18n';
 import { ToolInputView } from '../src/ToolInputView';
 import { toolInputView, WRITE_PREVIEW_LINES } from '../src/tool-input-view';
 
@@ -92,5 +95,73 @@ describe('read, search, replace and exec views', () => {
     expect(
       toolInputView('exec', { command: 'git', args: ['commit', '-m', 'two words'], cwd: 'repo' }),
     ).toEqual({ kind: 'command', command: 'git commit -m "two words"', cwd: 'repo' });
+  });
+
+  it('formats design_reference calls with action, target, page count and breakpoints', () => {
+    expect(
+      toolInputView('design_reference', {
+        action: 'extract',
+        url: 'https://stripe.com',
+        maxPages: 6,
+      }),
+    ).toEqual({
+      kind: 'design_reference',
+      action: 'extract',
+      target: 'https://stripe.com',
+      details: ['up to 6 pages', '5 breakpoints'],
+    });
+    const html = renderToStaticMarkup(
+      createElement(ToolInputView, {
+        name: 'design_reference',
+        input: { action: 'extract', url: 'https://stripe.com', maxPages: 6 },
+      }),
+    );
+    expect(html).toContain('extract');
+    expect(html).toContain('https://stripe.com');
+    expect(html).toContain('up to 6 pages · 5 breakpoints');
+  });
+});
+
+describe('ConversationWelcome Design DNA synthesis launcher', () => {
+  afterAll(async () => {
+    await surfaceI18n.changeLanguage('en');
+  });
+
+  it('renders the 4-stage DESIGN.md synthesis card in English and Turkish and builds prompts', async () => {
+    await surfaceI18n.changeLanguage('en');
+    const enHtml = renderToStaticMarkup(
+      createElement(ConversationWelcome, {
+        projectRoot: '/workspace/demo',
+        provider: 'anthropic',
+        model: 'claude-sonnet',
+        connected: true,
+        onStart: () => undefined,
+      }),
+    );
+    expect(enHtml).toContain('Reference Site → DESIGN.md Synthesis');
+    expect(enHtml).toContain('5-Breakpoint Crawl');
+    expect(enHtml).toContain('10-Section DESIGN.md');
+
+    await surfaceI18n.changeLanguage('tr');
+    const trHtml = renderToStaticMarkup(
+      createElement(ConversationWelcome, {
+        projectRoot: '/workspace/demo',
+        provider: 'anthropic',
+        model: 'claude-sonnet',
+        connected: true,
+        onStart: () => undefined,
+      }),
+    );
+    expect(trHtml).toContain('Kaynak Site → DESIGN.md Sentezi');
+    expect(trHtml).toContain('5 Kırılımlı Ölçüm');
+    expect(trHtml).toContain('10 Bölümlü DESIGN.md');
+
+    const prompt = buildDesktopDesignPrompt({
+      source: 'linear.app',
+      maxPages: 6,
+      workflow: 'materialize-web',
+    });
+    expect(prompt).toContain('url: "https://linear.app", maxPages: 6');
+    expect(prompt).toContain('files: [".design/references/<slug>/DESIGN.md"]');
   });
 });

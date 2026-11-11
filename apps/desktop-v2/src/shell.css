@@ -268,6 +268,54 @@
   }
 }
 
+.rail .compact-explorer-toggle {
+  display: none;
+}
+/* At high window zoom the explorer can share the rail's space on demand. */
+@media (max-width: 619px) {
+  .sidebar,
+  .sidebar .rail {
+    width: 48px;
+  }
+  .sidebar .rail {
+    overflow-y: auto;
+  }
+  .sidebar .rail > button {
+    flex-shrink: 0;
+  }
+  .rail .compact-explorer-toggle {
+    display: grid;
+  }
+  .sidebar .explorer {
+    position: absolute;
+    inset: 0 auto 0 48px;
+    width: min(260px, calc(100vw - 48px));
+    border-right: 1px solid var(--border);
+    background: var(--sidebar);
+  }
+  .sidebar .explorer:not([data-expanded="true"]) {
+    display: none;
+  }
+  .workspace-shell {
+    width: calc(100% - 48px);
+    margin-left: 48px;
+  }
+  .workspace-tabs {
+    flex-wrap: wrap;
+  }
+}
+
+/* A short zoomed window needs a scrollable workbench so the transcript and composer keep
+   room for their controls. The title and navigation stay available above the scroll area. */
+@media (max-height: 500px) {
+  .workspace-focused .main-content {
+    overflow-y: auto;
+  }
+  .workspace-focused .session-workbench {
+    min-height: 500px;
+  }
+}
+
 /* Conversation screen: the session tabs carry the stop control, no path footer. */
 .session-tabs .session-stop {
   margin-left: auto;

@@ -21,7 +21,9 @@ export async function exerciseNativeDraftConflict({
     'Second project window',
     60000,
   );
-  await other.getByRole('status', { name: 'Local engine connected', exact: true }).waitFor({ timeout: 60000 });
+  await other
+    .getByRole('status', { name: 'Local engine connected', exact: true })
+    .waitFor({ timeout: 60000 });
   await other.locator('.tree-session').filter({ hasText: 'WrongStack engine proof' }).click();
   await other.locator(`[data-engine-session="${identity.sessionId}"]`).waitFor({ timeout: 60000 });
   const local = other.getByRole('textbox', { name: 'Message WrongStack', exact: true });

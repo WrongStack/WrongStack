@@ -7,7 +7,7 @@ import {
 } from '@wrongstack/project-surfaces/lib/completion';
 import * as monaco from 'monaco-editor';
 import { useEffect, useRef, useState } from 'react';
-import { useCodeFont } from './appearance-fonts';
+import { DEFAULT_CODE_STACK, useCodeFont } from './appearance-fonts';
 import './monaco-workers';
 import {
   type CompletionSuggestion,
@@ -147,8 +147,6 @@ export function useEditorTheme(): string {
   return theme;
 }
 
-export const MONACO_FONT = 'Consolas, "Courier New", monospace';
-
 /**
  * The language-aware file editor: Monaco with the language of the file's extension, the
  * engine's completions, and the selection kept on the holder (`data-editor-selection`, start and
@@ -212,8 +210,7 @@ export default function MonacoFileEditor({
           ariaLabel: label,
           automaticLayout: true,
           fontSize: 13,
-          // Monaco's own Windows face until a code font is chosen in Appearance.
-          fontFamily: codeFont.family ?? MONACO_FONT,
+          fontFamily: codeFont.family ?? DEFAULT_CODE_STACK,
           fontLigatures: codeFont.ligatures,
           minimap: { enabled: false },
           scrollBeyondLastLine: false,

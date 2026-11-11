@@ -1,9 +1,8 @@
 import { useSyncExternalStore } from 'react';
 
 /**
- * The WebUI's typography settings on the desktop: the interface and code families, the text
- * size and code ligatures. Unset fields keep the desktop's own defaults (Geist, Cascadia Code,
- * 100 %), so nothing changes until a person chooses.
+ * Desktop typography settings for interface text, code, window zoom and code ligatures.
+ * Unset fields use Geist, the Cascadia Code stack and 100% zoom.
  */
 export interface FontAppearance {
   /** Unset is Geist, which the desktop ships. */
@@ -123,14 +122,13 @@ export function useCodeFont(): CodeFont {
   return useSyncExternalStore(subscribeCodeFont, currentCodeFont);
 }
 
-/** Writes the chosen typography onto the document; defaults leave the stylesheets in charge. */
+/** Applies the chosen typography and gives code surfaces a common default stack. */
 export function applyFontAppearance(root: HTMLElement, fonts: FontAppearance) {
   const ui = uiFontStack(fonts);
   const code = codeFontStack(fonts);
   if (ui) root.style.setProperty('--user-font-ui', ui);
   else root.style.removeProperty('--user-font-ui');
-  if (code) root.style.setProperty('--user-font-code', code);
-  else root.style.removeProperty('--user-font-code');
+  root.style.setProperty('--user-font-code', code ?? DEFAULT_CODE_STACK);
   if (ui) root.dataset['uiFont'] = fonts.uiFont;
   else delete root.dataset['uiFont'];
   if (code) root.dataset['codeFont'] = fonts.codeFont;

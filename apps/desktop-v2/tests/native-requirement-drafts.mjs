@@ -77,7 +77,9 @@ export async function exerciseNativeRequirementDrafts({
   );
   const errors = [];
   other.on('pageerror', (error) => errors.push(error.message));
-  await other.getByRole('status', { name: 'Local engine connected', exact: true }).waitFor({ timeout: 60000 });
+  await other
+    .getByRole('status', { name: 'Local engine connected', exact: true })
+    .waitFor({ timeout: 60000 });
   const remote = await openRequirements(other, project);
   assert.equal(await remote.getByLabel('Original request', { exact: true }).inputValue(), original);
   const mainText = 'First window owns the saved requirement draft.';

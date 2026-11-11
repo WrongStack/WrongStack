@@ -1,4 +1,6 @@
-# Desktop v2 vs WebUI — Current Gap Analysis
+# Desktop v2 vs WebUI — Historical parity ledger
+
+For the **1.5.6 review and current acceptance**, start with the [current action matrix](desktop-v2-review-2026-11-10.md#current-action-matrix). The sections below preserve the dated comparison and implementation receipts through November 8. Their version, feature and validation statements belong to those checkpoints.
 
 Updated: **2026-11-08**. Original comparison baseline: **`745d85fe8`**; implementation and validation were performed on the shared `main` checkout.
 The shared checkout continued to advance independently during validation; native evidence is

@@ -1,6 +1,7 @@
 import { Check, FileCode2, Palette, RefreshCw, Search, ShieldCheck } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DesignEditDraftNotice, useDesignEditDraft } from './DesignEditDraftNotice';
+import { DesignExtractForm } from './DesignExtractForm';
 import { DesignThemePreview } from './DesignThemePreview';
 import { materializeProjectTheme } from './design-studio-actions';
 import {
@@ -15,6 +16,7 @@ import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
+import type { Session } from './model';
 import './project-design-studio.css';
 import { displayDecimal } from './display-dates';
 
@@ -22,13 +24,23 @@ export function ProjectDesignStudio({
   projectId,
   command,
   onOpenFile,
+  sessions = [],
+  onPrepare,
+  onNewSession,
 }: {
   projectId: string;
   command: EngineCommand;
   onOpenFile: (path: string) => void;
+  sessions?: readonly Session[] | undefined;
+  onPrepare?: ((id: string, text: string) => Promise<boolean>) | undefined;
+  onNewSession?: (() => void) | undefined;
 }) {
   const { t } = useDesktopText();
   const [catalog, setCatalog] = useState<Record<string, unknown>>({});
+  const [extractOpen, setExtractOpen] = useState(false);
+  const [conversation, setConversation] = useState('');
+  const agents = sessions.filter((item) => item.projectId === projectId && item.kind === 'agent');
+  const target = agents.find((item) => item.id === conversation);
   const [selected, setSelected] = useState('');
   const [query, setQuery] = useState('');
   const [stack, setStack] = useState('web');
@@ -269,6 +281,56 @@ export function ProjectDesignStudio({
           {t('designStudio.refresh')}
         </button>
       </header>
+      <div className="design-extract-callout">
+        <FileCode2 size={16} />
+        <div>
+          <strong>{t('designStudio.extractCalloutTitle')}</strong>
+          <span>{t(onPrepare ? 'chatView.designBody' : 'designStudio.extractCalloutBody')}</span>
+        </div>
+        {onPrepare ? (
+          <button
+            type="button"
+            className="button secondary small"
+            aria-expanded={extractOpen}
+            onClick={() => setExtractOpen((open) => !open)}
+          >
+            {t('designFlow.launch')}
+          </button>
+        ) : (
+          <code>/design extract https://stripe.com 6</code>
+        )}
+      </div>
+      {extractOpen && onPrepare && (
+        <div className="design-studio-reference">
+          <DesignExtractForm
+            variant="studio"
+            disabled={!target}
+            onPrepare={(prompt) => (target ? onPrepare(target.id, prompt) : Promise.resolve(false))}
+            target={
+              agents.length ? (
+                <label>
+                  {t('projectKit.target')}
+                  <select
+                    value={target?.id ?? ''}
+                    onChange={(event) => setConversation(event.target.value)}
+                  >
+                    <option value="">{t('projectKit.chooseConversation')}</option>
+                    {agents.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : onNewSession ? (
+                <button type="button" className="button secondary small" onClick={onNewSession}>
+                  {t('topbar.newSession')}
+                </button>
+              ) : undefined
+            }
+          />
+        </div>
+      )}
       {error && (
         <p className="composer-error" role="alert">
           {error}

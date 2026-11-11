@@ -115,3 +115,115 @@
   font-size: 12px;
   line-height: 1.5;
 }
+.conversation-welcome-design {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--raised);
+}
+.conversation-welcome-design-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.conversation-welcome-design-head > svg {
+  margin-top: 2px;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.conversation-welcome-design-head h3 {
+  margin: 0 0 3px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.native-chat-welcome.conversation-welcome .conversation-welcome-design-head p {
+  max-width: none;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.conversation-welcome-design-stages {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.conversation-welcome-design-stages li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 4%, var(--surface, var(--raised)));
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.conversation-welcome-design-stages li > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  font: 600 10px / 1 var(--user-font-code, "Cascadia Code", Consolas, monospace);
+}
+.conversation-welcome-design-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) auto minmax(0, 1fr);
+  gap: 8px;
+}
+@media (max-width: 680px) {
+  .conversation-welcome-design-controls {
+    grid-template-columns: 1fr;
+  }
+}
+.conversation-welcome-design-controls input,
+.conversation-welcome-design-controls select {
+  min-width: 0;
+  padding: 8px 11px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface, var(--bg, transparent));
+  color: var(--text);
+  font-size: 12.5px;
+}
+.conversation-welcome-design-controls input {
+  font-family: var(--user-font-code, "Cascadia Code", Consolas, monospace);
+}
+.conversation-welcome-design-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.conversation-welcome-design-presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.conversation-welcome-design-presets small {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.conversation-welcome-design-presets button {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font: 11px / 1.4 var(--user-font-code, "Cascadia Code", Consolas, monospace);
+  cursor: pointer;
+}
+.conversation-welcome-design-presets button:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}

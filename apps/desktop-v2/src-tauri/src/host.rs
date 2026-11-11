@@ -222,6 +222,58 @@ mod service_version_tests {
         ));
     }
     #[test]
+    fn a_reply_is_one_complete_newline_terminated_frame() {
+        let reply = json!({"result":{"events":[{"type":"x","payload":{"text":"é\n"}}]}});
+        let frame = super::response_frame(&reply).unwrap();
+        assert_eq!(frame.last(), Some(&b'\n'));
+        assert_eq!(
+            frame.iter().filter(|byte| **byte == b'\n').count(),
+            1,
+            "JSON escapes embedded newlines, so the frame has exactly one"
+        );
+        let text = read_frame(&frame[..], RESPONSE_FRAME_BYTES).unwrap();
+        assert_eq!(serde_json::from_str::<Value>(&text).unwrap(), reply);
+    }
+    /// Compares the old per-token socket writes with one framed write over loopback.
+    /// `cargo test --release send_page_bench -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn send_page_bench() {
+        let events: Vec<Value> = (0..200)
+            .map(|i| json!({"type":"sessions.status_update","payload":{"i":i,"text":"x".repeat(1200)}}))
+            .collect();
+        let reply = json!({"result":{"events":events,"offset":1,"hasMore":true}});
+        for framed in [false, true] {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let port = listener.local_addr().unwrap().port();
+            let reply = reply.clone();
+            let server = std::thread::spawn(move || {
+                for _ in 0..20 {
+                    let (mut stream, _) = listener.accept().unwrap();
+                    if framed {
+                        stream
+                            .write_all(&super::response_frame(&reply).unwrap())
+                            .unwrap();
+                    } else {
+                        serde_json::to_writer(&mut stream, &reply).unwrap();
+                        stream.write_all(b"\n").unwrap();
+                    }
+                }
+            });
+            let started = Instant::now();
+            for _ in 0..20 {
+                let stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
+                read_frame(stream, RESPONSE_FRAME_BYTES).unwrap();
+            }
+            server.join().unwrap();
+            println!(
+                "{}: {:.1} ms per page",
+                if framed { "framed" } else { "to_writer" },
+                started.elapsed().as_secs_f64() * 1000.0 / 20.0
+            );
+        }
+    }
+    #[test]
     fn accepts_attachment_frames_and_refuses_over_budget_or_incomplete_frames() {
         assert_eq!(
             read_frame(&b"{}\n"[..], REQUEST_FRAME_BYTES).unwrap(),
@@ -559,14 +611,18 @@ impl Client {
             Duration::from_secs(2),
         )
         .map_err(err)?;
+        // Every renderer poll is one short request on a fresh connection; Nagle's algorithm
+        // would hold a trailing small segment back until the host's delayed ACK.
+        let _ = stream.set_nodelay(true);
         stream
             .set_read_timeout(Some(Duration::from_secs(15)))
             .map_err(err)?;
         stream
             .set_write_timeout(Some(Duration::from_secs(3)))
             .map_err(err)?;
+        let mut request = request;
+        request.push(b'\n');
         stream.write_all(&request).map_err(err)?;
-        stream.write_all(b"\n").map_err(err)?;
         let text = read_frame(stream, RESPONSE_FRAME_BYTES)?;
         let reply: Value = serde_json::from_str(&text).map_err(err)?;
         if let Some(error) = reply["error"].as_str() {
@@ -614,6 +670,7 @@ pub fn serve() -> Result<()> {
     Ok(())
 }
 fn handle(mut stream: TcpStream, token: &str, state: &Arc<HostState>) -> Result<()> {
+    let _ = stream.set_nodelay(true);
     stream
         .set_read_timeout(Some(Duration::from_secs(3)))
         .map_err(err)?;
@@ -632,7 +689,15 @@ fn handle(mut stream: TcpStream, token: &str, state: &Arc<HostState>) -> Result<
         Ok(result) => json!({"result":result}),
         Err(error) => json!({"error":error}),
     };
-    serde_json::to_writer(&mut stream, &response).map_err(err)?;
-    stream.write_all(b"\n").map_err(err)?;
+    stream.write_all(&response_frame(&response)?).map_err(err)?;
     Ok(())
+}
+/// One reply as a complete newline-terminated frame, so it reaches the socket in a single
+/// write. `serde_json::to_writer` on a bare `TcpStream` issues a system call per JSON token:
+/// a 256 KiB journal page took ~150 ms to send that way (about 0.6 MB/s), which made a long
+/// conversation take minutes, and a long-lived project's journal hours, to reopen.
+fn response_frame(response: &Value) -> Result<Vec<u8>> {
+    let mut frame = serde_json::to_vec(response).map_err(err)?;
+    frame.push(b'\n');
+    Ok(frame)
 }

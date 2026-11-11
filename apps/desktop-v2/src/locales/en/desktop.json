@@ -98,6 +98,7 @@
     "projectTools": "Project tools"
   },
   "explorer": {
+    "toggle": "Projects and sessions",
     "findAnything": "Find anything",
     "workspace": "{{name}} workspace",
     "projects": "Projects",
@@ -798,7 +799,7 @@
     },
     "fonts": {
       "title": "Fonts",
-      "body": "The typefaces for the interface and for code. Installed font uses any font on this computer by its name.",
+      "body": "Choose the interface and code fonts. If an installed font cannot be found by name, the default font stack is used.",
       "uiLabel": "Interface font",
       "codeLabel": "Code font",
       "geist": "Geist (default)",
@@ -3549,7 +3550,26 @@
       "agentId": "Reviewed agent",
       "cascadeDepth": "Cascade depth",
       "evidenceStatus": "Evidence status",
-      "durationSeconds": "Review duration (seconds)"
+      "durationSeconds": "Review duration (seconds)",
+      "headSha": "Reviewed HEAD",
+      "tokens": "Token usage",
+      "execution": "Execution & cost"
+    },
+    "tokensShort": "tok",
+    "tokensBreakdown": "{{total}} ({{input}} in · {{output}} out · {{cache}} cache)",
+    "executionBreakdown": "{{turns}} turns · {{tools}} tool calls",
+    "incrementalDelta": "Incremental delta",
+    "pairedTestUpdated": "Paired test updated ✓",
+    "pairedTestUntouched": "Paired test untouched !",
+    "deletedFiles": "Deleted in worktree: {{files}}",
+    "skippedFiles": "Skipped or filtered files ({{n}})",
+    "skipReason": {
+      "max_files_cap": "Max files cap",
+      "already_reviewed": "Already reviewed (same SHA)",
+      "in_flight": "Review in flight",
+      "ignored_non_source": "Filtered non-source / generated",
+      "too_large": "File too large",
+      "unreadable": "Unreadable / deleted"
     },
     "unparseable": "{{count}} reported items were not parsed individually. Review the full report below.",
     "reopenReport": "Reopen report",
@@ -3904,7 +3924,9 @@
     "staleLabel": "Earlier design edits",
     "stale": "Unsaved edits on this device belong to {{kit}}, which is no longer the active kit. They are not applied to the current kit.",
     "discardStale": "Discard earlier edits",
-    "restored": "Restored unsaved design edits kept on this device."
+    "restored": "Restored unsaved design edits kept on this device.",
+    "extractCalloutTitle": "Reference Site → DESIGN.md Synthesis",
+    "extractCalloutBody": "Start from a live reference site in Chat (5 breakpoints + subpages → 10-section DESIGN.md), then capture and materialize its tokens here."
   },
   "mailboxPage": {
     "agentStatus_offline": "Offline",
@@ -9355,7 +9377,21 @@
       "editDraft": "Send or clear the composer draft first; editing would replace it",
       "running": "Wait for the running turn to finish",
       "offline": "The engine is not connected"
-    }
+    },
+    "designTitle": "Reference Site → DESIGN.md Synthesis",
+    "designBody": "Measure any live URL or local HTML file across 5 breakpoints and up to 8 subpages to synthesize a 10-section DESIGN.md specification.",
+    "designStageCrawl": "5-Breakpoint Crawl",
+    "designStageSubpages": "Subpage Discovery",
+    "designStageSynthesis": "DNA Synthesis",
+    "designStageSpec": "10-Section DESIGN.md",
+    "designSourceLabel": "Reference URL or local HTML file",
+    "designPagesLabel": "Pages to analyze",
+    "designPagesCount": "Pages: {{count}}",
+    "designWorkflowLabel": "Synthesis workflow",
+    "designWorkflowExtract": "Extract DESIGN.md",
+    "designWorkflowMaterialize": "Extract + Materialize Web Theme",
+    "designPresets": "Presets:",
+    "designStart": "Prepare DESIGN.md prompt"
   },
   "worklist": {
     "plan": "Plan",
@@ -9690,6 +9726,42 @@
     "mismatch": "Host and journal session differ.",
     "pending": "Identity comparison pending.",
     "expected": "Host Core session: {{id}}"
+  },
+  "designFlow": {
+    "materializeNative": "Extract + materialize React Native theme",
+    "draftOnly": "Adds the request to the conversation draft. Send it when you are ready.",
+    "draftRefused": "The draft changed or could not be saved. Review it before adding the request.",
+    "launch": "Prepare reference",
+    "measure": "Measure rendered pages",
+    "openSpec": "Open DESIGN.md",
+    "measuredPages": "Pages analyzed: {{count}}",
+    "noArtifact": "No DESIGN.md path was reported.",
+    "pending": "Pending"
+  },
+  "designReview": {
+    "title": "Design review",
+    "inspect": "Rendered design inspection",
+    "compare": "Design fidelity comparison",
+    "target": "Target",
+    "reference": "Reference",
+    "widths": "Measured widths",
+    "noSharedWidths": "No shared widths",
+    "findings": "{{fails}} FAIL · {{warns}} WARN",
+    "fidelity": "Fidelity {{score}}",
+    "openReport": "Open report",
+    "unavailable": "Review metrics are unavailable",
+    "prepare": "Prepare review prompt",
+    "surface": "Surface",
+    "page": "Page",
+    "app": "Application",
+    "targetInput": "Implementation URL or local HTML file",
+    "referenceInput": "Extracted reference name",
+    "formBody": "Measure a rendered page or compare it with an extracted reference."
+  },
+  "renderError": {
+    "title": "This view could not be displayed",
+    "body": "Reloading the window can discard unsaved changes.",
+    "reload": "Reload window"
   },
   "recoveryDraft": {
     "match": "Draft revisions match this conversation's saved draft.",

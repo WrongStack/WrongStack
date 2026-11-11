@@ -17,6 +17,8 @@ export const DORMANT_STREAM_LIMIT = 8;
  */
 const SERVICES_STARTING_GRACE_MS = 30_000;
 const SERVICES_STARTING = /Project services (have not started|are starting)/;
+/** How often views hear about a first read's progress before it reaches the journal's end. */
+export const REPLAY_NOTIFY_MS = 250;
 /** Whether `error` is the host saying the project's services are not up yet. */
 function servicesStarting(error: unknown): boolean {
   return SERVICES_STARTING.test(error instanceof Error ? error.message : String(error));
@@ -40,6 +42,7 @@ export class BackendStream {
   private offset = 0;
   private read = false;
   private startedAt = 0;
+  private notifiedAt = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
   constructor(
     private scope: BackendScope,
@@ -110,6 +113,7 @@ export class BackendStream {
           size?: number;
         }>(`${this.scope}.events`, { ...this.target(), offset: this.offset });
         if (run !== this.run || this.stopped) return;
+        // Hosts report `hasMore`; a host that predates it paged by 200 lines or 256 KiB.
         const hasMore =
           result.hasMore ?? (result.events.length === 200 || result.offset - this.offset >= 262144);
         this.offset = result.offset;
@@ -127,7 +131,14 @@ export class BackendStream {
             read: result.offset,
             total: result.size ?? 0,
           });
-          for (const subscriber of this.subscribers) subscriber.changed();
+          // While a long journal is read for the first time the views show only its progress;
+          // re-rendering every one of them after every page made the window crawl until the
+          // read finished. Progress is reported a few times a second, and the end at once.
+          const now = Date.now();
+          if (!hasMore || this.state.synced || now - this.notifiedAt >= REPLAY_NOTIFY_MS) {
+            this.notifiedAt = now;
+            for (const subscriber of this.subscribers) subscriber.changed();
+          }
         }
         // changed() may unsubscribe the last view and stop this reader. Arming
         // the next poll after that starts a read nobody is watching.
