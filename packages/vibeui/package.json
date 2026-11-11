@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/vibeui",
-  "version": "1.5.6",
+  "version": "1.6.0",
   "private": true,
   "description": "A focused WrongStack coding workspace built with Next.js and Radix UI.",
   "license": "MIT",
