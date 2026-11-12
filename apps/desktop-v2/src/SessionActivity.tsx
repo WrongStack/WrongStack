@@ -46,6 +46,7 @@ export function SessionActivity({
   onOpenDesign,
   compact = false,
   settled = false,
+  interrupted = false,
   showThinkingLogs = true,
   command,
   collab,
@@ -56,6 +57,8 @@ export function SessionActivity({
   onOpenDesign?: (() => void) | undefined;
   compact?: boolean;
   settled?: boolean;
+  /** The host knows this engine stopped without necessarily writing a final run result. */
+  interrupted?: boolean;
   showThinkingLogs?: boolean | undefined;
   /** The conversation's engine, to show the pictures an `image_generate` call saved. */
   command?: EngineCommand | undefined;
@@ -66,10 +69,14 @@ export function SessionActivity({
   const [filter, setFilter] = useState<'all' | 'tool' | 'reasoning' | 'run'>('all');
   const rows = useMemo(() => {
     const rows = activityRows(events);
-    return settled
-      ? rows.map((row) => (row.status === 'running' ? { ...row, status: 'info' as const } : row))
+    return settled || interrupted
+      ? rows.map((row) =>
+          row.status === 'running'
+            ? { ...row, status: interrupted ? ('aborted' as const) : ('info' as const) }
+            : row,
+        )
       : rows;
-  }, [events, settled]);
+  }, [events, settled, interrupted]);
   const shown = rows.filter(
     (row) =>
       (showThinkingLogs || row.kind !== 'reasoning') &&

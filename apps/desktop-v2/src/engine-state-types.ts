@@ -68,6 +68,8 @@ export interface EngineState {
     }
   >;
   sessionId: string;
+  /** Process epoch of the live engine; retained across metadata-only updates. */
+  eventEpoch: string;
   provider: string;
   model: string;
   connected: boolean;
@@ -80,6 +82,8 @@ export interface EngineState {
   activeTextMessageId: string | null;
   approvals: Record<string, unknown>[];
   inputs: UserInputRequest[];
+  /** Expired runtime questions whose unsent answers remain available for recovery. */
+  archivedInputs: UserInputRequest[];
   providerTests: Record<string, ProviderTestRun>;
   goalStates: Record<string, Record<string, unknown>>;
   goalErrors: Record<string, Record<string, unknown>>;

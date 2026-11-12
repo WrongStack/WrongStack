@@ -1,0 +1,9 @@
+.input-recovery-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.input-recovery-heading h2 {
+  margin: 0;
+}

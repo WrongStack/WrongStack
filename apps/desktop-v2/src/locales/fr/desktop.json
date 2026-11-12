@@ -872,6 +872,14 @@
     "allowOnce": "Autoriser une fois"
   },
   "input": {
+    "closeSaved": "Fermer",
+    "savedTitle": "Réponses enregistrées",
+    "reviewSaved": "Consulter les réponses enregistrées ({{count}})",
+    "copySaved": "Copier les réponses enregistrées",
+    "copiedSaved": "Copié",
+    "savedHelp": "Ces questions proviennent d’une exécution précédente. Copiez les réponses enregistrées pour poursuivre la conversation.",
+    "engineStopped": "Moteur arrêté",
+    "loadingDraft": "Chargement des réponses enregistrées…",
     "eyebrow": "VOTRE RÉPONSE EST NÉCESSAIRE",
     "groups": "Groupes de questions",
     "notConfirmed": "Le moteur n'a pas encore confirmé cette réponse. Vérifiez la session avant de réessayer.",
@@ -9757,6 +9765,8 @@
     "findings": "{{fails}} erreurs · {{warns}} avertissements",
     "fidelity": "Fidélité {{score}}",
     "openReport": "Ouvrir le rapport",
+    "openLatest": "Ouvrir le dernier rapport",
+    "latestHelp": "Ce fichier partagé peut contenir une analyse plus récente. Les mesures ci-dessus correspondent à ce résultat.",
     "unavailable": "Les mesures sont indisponibles",
     "prepare": "Préparer la demande d’examen",
     "surface": "Surface",

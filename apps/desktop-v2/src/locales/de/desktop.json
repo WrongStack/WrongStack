@@ -872,6 +872,14 @@
     "allowOnce": "Einmal erlauben"
   },
   "input": {
+    "closeSaved": "Schließen",
+    "savedTitle": "Gespeicherte Antworten",
+    "reviewSaved": "Gespeicherte Antworten ansehen ({{count}})",
+    "copySaved": "Gespeicherte Antworten kopieren",
+    "copiedSaved": "Kopiert",
+    "savedHelp": "Diese Fragen stammen aus einem früheren Lauf. Kopieren Sie gespeicherte Antworten, um das Gespräch fortzusetzen.",
+    "engineStopped": "Engine gestoppt",
+    "loadingDraft": "Gespeicherte Antworten werden geladen…",
     "eyebrow": "DEINE EINGABE WIRD GEBRAUCHT",
     "groups": "Fragengruppen",
     "notConfirmed": "Die Engine hat diese Antwort noch nicht bestätigt. Prüfe die Sitzung, bevor du es erneut versuchst.",
@@ -9757,6 +9765,8 @@
     "findings": "{{fails}} Fehler · {{warns}} Warnungen",
     "fidelity": "Designtreue {{score}}",
     "openReport": "Bericht öffnen",
+    "openLatest": "Aktuellen Bericht öffnen",
+    "latestHelp": "Diese gemeinsame Datei kann eine neuere Prüfung enthalten. Die oben aufgezeichneten Messwerte gehören zu diesem Ergebnis.",
     "unavailable": "Prüfwerte sind nicht verfügbar",
     "prepare": "Prüfanfrage vorbereiten",
     "surface": "Oberfläche",

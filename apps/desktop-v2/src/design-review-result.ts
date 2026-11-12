@@ -3,8 +3,10 @@ import { record } from './engine-values';
 import type { ActivityRow } from './session-activity-model';
 
 const reportPatterns = {
-  inspect: /^\.design\/inspect\/[a-z0-9][a-z0-9-]{0,63}\/inspect\.md$/,
-  compare: /^\.design\/references\/[a-z0-9][a-z0-9-]{0,63}\/fidelity\.md$/,
+  inspect:
+    /^\.design\/inspect\/[a-z0-9][a-z0-9-]{0,63}\/(?:runs\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\/)?inspect\.md$/,
+  compare:
+    /^\.design\/references\/[a-z0-9][a-z0-9-]{0,63}\/(?:runs\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\/)?fidelity\.md$/,
 };
 type ReviewAction = keyof typeof reportPatterns;
 interface DesignReviewResult {
@@ -13,6 +15,7 @@ interface DesignReviewResult {
   reference?: string | undefined;
   viewports?: string | undefined;
   path?: string | undefined;
+  latest?: boolean | undefined;
   fails?: number | undefined;
   warns?: number | undefined;
   score?: number | undefined;
@@ -102,5 +105,13 @@ export function designReviewResult(
   const score = inspection
     ? undefined
     : (scoreValue(output['score']) ?? scoreValue(Number(overall) / 100));
-  return { ...metadata, viewports, path, fails, warns, score };
+  return {
+    ...metadata,
+    viewports,
+    path,
+    latest: path ? !/\/runs\/[^/]+\/(?:inspect|fidelity)\.md$/.test(path) : undefined,
+    fails,
+    warns,
+    score,
+  };
 }

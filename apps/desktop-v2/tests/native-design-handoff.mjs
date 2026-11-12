@@ -6,6 +6,11 @@ import { openProjectView } from './native-project-navigation.mjs';
 import { findConversationMessages } from './transcript-test-helpers.mjs';
 
 const plans = new Map();
+export function planNativeDesignToolCall(tag, input) {
+  const plan = { input };
+  plans.set(tag, plan);
+  return plan;
+}
 const textOf = (content) =>
   typeof content === 'string'
     ? content
@@ -405,6 +410,14 @@ export async function exerciseNativeDesignHandoff({
       join(executionRoot, '.design/inspect/broken/inspect.md'),
       'utf8',
     );
+    const inspectionReport = await inspection
+      .locator('.design-extraction-artifact code')
+      .textContent();
+    assert.match(
+      inspectionReport,
+      /^\.design\/inspect\/broken\/(?:runs\/[a-f0-9-]{36}\/)?inspect\.md$/,
+    );
+    assert.equal(await readFile(join(executionRoot, inspectionReport), 'utf8'), inspectionDisk);
     await writeFile(join(artifactDir, 'native-generated-inspect.md'), inspectionDisk);
     const counts = inspectionDisk.match(/(\d+) FAIL · (\d+) WARN/);
     assert.ok(counts && Number(counts[1]) > 0);
@@ -412,7 +425,7 @@ export async function exerciseNativeDesignHandoff({
     assert.match(await inspection.textContent(), /1024, 375 px/);
     assert.ok(await inspection.locator('time').getAttribute('datetime'));
     await inspection.getByRole('button', { name: 'Open report', exact: true }).click();
-    await openedFile(projectArtifact('.design/inspect/broken/inspect.md'), 'Inspect');
+    await openedFile(projectArtifact(inspectionReport), 'Inspect');
     await send('compare', { action: 'compare', file: 'broken.html', reference: 'native-handoff' });
     await completed('compare');
     const comparison = page.getByRole('region', {
@@ -424,6 +437,14 @@ export async function exerciseNativeDesignHandoff({
       join(executionRoot, '.design/references/native-handoff/fidelity.md'),
       'utf8',
     );
+    const comparisonReport = await comparison
+      .locator('.design-extraction-artifact code')
+      .textContent();
+    assert.match(
+      comparisonReport,
+      /^\.design\/references\/native-handoff\/(?:runs\/[a-f0-9-]{36}\/)?fidelity\.md$/,
+    );
+    assert.equal(await readFile(join(executionRoot, comparisonReport), 'utf8'), fidelityDisk);
     await writeFile(join(artifactDir, 'native-generated-fidelity.md'), fidelityDisk);
     const score = fidelityDisk.match(/^Overall (\d+(?:\.\d+)?)%/m)?.[1];
     assert.ok(score && Number(score) < 100, 'Altered implementation differs from the reference');
@@ -440,7 +461,7 @@ export async function exerciseNativeDesignHandoff({
       fullPage: true,
     });
     await comparison.getByRole('button', { name: 'Open report', exact: true }).click();
-    await openedFile(projectArtifact('.design/references/native-handoff/fidelity.md'), 'Fidelity');
+    await openedFile(projectArtifact(comparisonReport), 'Fidelity');
     await page.getByRole('button', { name: 'Tools', exact: true }).click();
     await page
       .getByRole('dialog')
@@ -448,7 +469,7 @@ export async function exerciseNativeDesignHandoff({
       .click();
     const activity = page.getByRole('region', { name: 'Design fidelity comparison', exact: true });
     await activity.getByRole('button', { name: 'Open report', exact: true }).click();
-    await openedFile(projectArtifact('.design/references/native-handoff/fidelity.md'), 'Fidelity');
+    await openedFile(projectArtifact(comparisonReport), 'Fidelity');
     pass(
       'Actual inspection and fidelity results display measurements and open their own report in transcript and Run activity',
     );

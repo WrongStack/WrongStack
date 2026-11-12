@@ -131,6 +131,7 @@ export function FileWorkspace({
   projectId,
   mode = 'files',
   initialPath = '',
+  initialPathIsFile = false,
   initialLine,
   initialEndLine,
   onReview,
@@ -143,6 +144,8 @@ export function FileWorkspace({
   projectId: string;
   mode?: 'files' | 'changes';
   initialPath?: string;
+  /** A caller-validated file can be read without waiting for the explorer listing. */
+  initialPathIsFile?: boolean;
   /** 1-based source line to reveal and mark when `initialPath` opens a file. */
   initialLine?: number;
   /** Last line of the range to mark, when the target is a range. */
@@ -167,6 +170,7 @@ export function FileWorkspace({
     [expanded, setExpanded] = useState<string[]>(cached?.expanded ?? []),
     [search, setSearch] = useState(''),
     [loading, setLoading] = useState(''),
+    [treeLoading, setTreeLoading] = useState(false),
     [busy, setBusy] = useState(false),
     [plainEditor, setPlainEditor] = useState(plainEditorPreferred),
     [error, setError] = useState(''),
@@ -255,10 +259,10 @@ export function FileWorkspace({
   );
   useEffect(() => () => refresh.clear(), [refresh]);
   useEffect(() => {
-    setLoading('tree');
+    setTreeLoading(true);
     void refresh()
       .catch((e: unknown) => setError(String(e instanceof Error ? e.message : e)))
-      .finally(() => setLoading(''));
+      .finally(() => setTreeLoading(false));
   }, [refresh]);
   useTreeChanges(state.results['files.tree.changed'], refresh, setError);
   const openFile = useCallback(
@@ -328,20 +332,20 @@ export function FileWorkspace({
   }, [mode, active, openFile]);
   useEffect(() => {
     const identity = `${key}\0${initialPath}\0${initialLine ?? ''}\0${initialEndLine ?? ''}`;
+    const knownFile = initialPathIsFile && mode === 'files';
     if (
       !initialPath ||
-      !treeReady ||
-      treeFilter !== includeIgnored ||
+      (!knownFile && (!treeReady || treeFilter !== includeIgnored)) ||
       revealed.current === identity
     )
       return;
     const path = projectRelativePath(initialPath, scopeKey);
-    if (!all.some((node) => node.path === path) && !includeIgnored) {
+    if (!knownFile && !all.some((node) => node.path === path) && !includeIgnored) {
       setIncludeIgnored(true);
       return;
     }
     revealed.current = identity;
-    if (all.find((node) => node.path === path)?.type === 'directory') {
+    if (!knownFile && all.find((node) => node.path === path)?.type === 'directory') {
       setFolder(path);
       setActive('');
       setSelected(path);
@@ -368,6 +372,8 @@ export function FileWorkspace({
     }
   }, [
     initialPath,
+    initialPathIsFile,
+    mode,
     initialLine,
     initialEndLine,
     openFile,
@@ -1117,7 +1123,7 @@ export function FileWorkspace({
               </button>
             )}
           </header>
-          {loading === 'tree' ? (
+          {treeLoading ? (
             <div className="file-quiet-state">
               <LoaderCircle size={16} className="spin" />
               {t('fileView.reading')}
@@ -1748,7 +1754,7 @@ export function FileWorkspace({
                     })}
                   </button>
                 )}
-                {!visible.length && loading !== 'tree' && (
+                {!visible.length && !treeLoading && (
                   <div className="file-quiet-state">
                     <FolderOpen size={30} />
                     <h3>{search ? t('fileView.noMatch') : t('fileView.empty')}</h3>

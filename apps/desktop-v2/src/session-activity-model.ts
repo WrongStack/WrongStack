@@ -17,7 +17,7 @@ export interface ActivityRow {
   /** Catalog wording for run rows; `title` stays the English plain-text form. */
   label?: { key: string; values?: Record<string, string | number> };
 }
-/** Build readable, session-local activity from canonical engine frames. */
+/** Build readable activity from engine frames and locally observed process boundaries. */
 export function activityRows(events: readonly EngineEvent[]): ActivityRow[] {
   const rows: ActivityRow[] = [];
   const tools = new Map<string, ActivityRow>();
@@ -25,6 +25,14 @@ export function activityRows(events: readonly EngineEvent[]): ActivityRow[] {
   let runIndex = 0;
   for (const [index, event] of events.entries()) {
     const p = event.payload;
+    if (event.type === 'desktop.engine_boundary') {
+      if (iteration?.status === 'running') iteration.status = 'aborted';
+      iteration = undefined;
+      for (const tool of tools.values()) if (tool.status === 'running') tool.status = 'aborted';
+      tools.clear();
+      runIndex++;
+      continue;
+    }
     if (
       event.type === 'tool.started' ||
       event.type === 'tool.executed' ||

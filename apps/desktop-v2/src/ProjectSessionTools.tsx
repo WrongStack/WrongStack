@@ -10,6 +10,7 @@ interface Props {
   projectRoot: string;
   view: 'files' | 'changes' | 'skills';
   initialPath: string;
+  initialPathIsFile?: boolean;
   onOpenFile: (path: string) => void;
   onReview: (text: string) => void;
   onReference?: (ref: ComposerFileReference) => void;
@@ -28,6 +29,7 @@ function ProjectToolsContent({
   projectRoot,
   view,
   initialPath,
+  initialPathIsFile = false,
   onOpenFile,
   onReview,
   onReference,
@@ -48,6 +50,7 @@ function ProjectToolsContent({
       projectId={projectId}
       mode={view}
       initialPath={initialPath}
+      initialPathIsFile={initialPathIsFile}
       onReview={onReview}
       {...(onReference ? { onReference } : {})}
     />

@@ -41,6 +41,7 @@ export const emptyEngineState: EngineState = {
   drainedPromptIds: [],
   assists: {},
   sessionId: '',
+  eventEpoch: '',
   provider: '',
   model: '',
   connected: false,
@@ -51,6 +52,7 @@ export const emptyEngineState: EngineState = {
   activeTextMessageId: null,
   approvals: [],
   inputs: [],
+  archivedInputs: [],
   providerTests: {},
   goalStates: {},
   goalErrors: {},
@@ -104,6 +106,21 @@ export function replayEngineBatch(
   };
 }
 /** Applies one frame; messages it adds take the frame's time, or the latest time seen. */
+/** Expire runtime controls without losing the original questions needed for answer recovery. */
+export function expireEngineInteractions(
+  state: EngineState,
+): Pick<EngineState, 'inputs' | 'approvals' | 'archivedInputs' | 'running'> {
+  return {
+    inputs: [],
+    approvals: [],
+    running: false,
+    archivedInputs: [
+      ...new Map(
+        [...state.archivedInputs, ...state.inputs].map((item) => [item.id, item] as const),
+      ).values(),
+    ],
+  };
+}
 export function reduceEngine(state: EngineState, input: unknown): EngineState {
   const event = engineEvent(input);
   if (!event) return state;
@@ -226,9 +243,13 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
   if (event.type === 'session.start') {
     const id = String(p['sessionId'] ?? '');
     if (state.sessionId && state.sessionId !== id) return state;
+    const epoch =
+      typeof p['eventEpoch'] === 'string' && p['eventEpoch'] ? p['eventEpoch'] : state.eventEpoch;
+    const replaced = !!state.eventEpoch && epoch !== state.eventEpoch;
     next = {
       ...next,
       sessionId: id,
+      eventEpoch: epoch,
       provider: String(p['provider'] ?? ''),
       model: String(p['model'] ?? ''),
       connected: true,
@@ -237,6 +258,15 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
           ? p['needsSetup']
           : !p['provider'] || p['provider'] === 'unconfigured' || !p['model'],
     };
+    if (p['reset'] === true || replaced) {
+      next = { ...next, ...expireEngineInteractions(state) };
+      // A killed engine cannot emit a final tool result. Retain the observed process
+      // boundary in presentation history, even after the original start frame is trimmed.
+      next.activity = appendRunEvent(state.activity, {
+        type: 'desktop.engine_boundary',
+        payload: { sessionId: id },
+      }).slice(-ACTIVITY_LIMIT);
+    }
     if (p['reset'] === true) {
       next.leadingActivity = [];
       next.activeTextMessageId = null;
@@ -256,7 +286,6 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
     next.agents = hydrateAgentTranscripts(next.agents, p['agentSessions']);
     if ((!state.messages.length || p['reset'] === true) && Array.isArray(p['replayMessages'])) {
       if (p['reset'] === true) {
-        next.running = false;
         next.pendingUserMessages = {};
       }
       next.messages = entries(p['replayMessages'])
@@ -480,11 +509,25 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
     next.approvals = state.approvals.filter((a) => a['id'] !== p['id']);
   if (event.type === 'user.input_requested') {
     const request = parseInputRequest(p['request']);
-    if (request) next.inputs = [...state.inputs.filter((item) => item.id !== request.id), request];
-    else next.error = 'The engine sent an invalid question form. Stop the run or ask it to retry.';
+    if (request) {
+      next.inputs = [...state.inputs.filter((item) => item.id !== request.id), request];
+      next.archivedInputs = state.archivedInputs.filter((item) => item.id !== request.id);
+    } else
+      next.error = 'The engine sent an invalid question form. Stop the run or ask it to retry.';
   }
-  if (event.type === 'user.input_resolved')
+  if (event.type === 'user.input_resolved') {
     next.inputs = state.inputs.filter((item) => item.id !== p['requestId']);
+    if (p['source'] === 'abort' || p['source'] === 'unattended')
+      next.archivedInputs = [
+        ...new Map(
+          [
+            ...state.archivedInputs,
+            ...state.inputs.filter((item) => item.id === p['requestId']),
+          ].map((item) => [item.id, item] as const),
+        ).values(),
+      ];
+    else next.archivedInputs = state.archivedInputs.filter((item) => item.id !== p['requestId']);
+  }
   if (event.type === 'run.result') {
     next.running = false;
     next.activeTextMessageId = null;

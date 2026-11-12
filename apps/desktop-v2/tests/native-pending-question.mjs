@@ -96,6 +96,7 @@ export async function exerciseNativePendingQuestion({
   waitFor,
   artifactDir,
   sessionIds,
+  reloadAnswers = false,
 }) {
   const receipt = { checks: [], samples: [] };
   const pass = (text) => {
@@ -297,6 +298,29 @@ export async function exerciseNativePendingQuestion({
         await page.getByRole('button', { name: 'Focus questions', exact: true }).click();
         await settle(page);
         await sample(viewport, `focus after reviewing ${tool}`);
+      }
+      if (reloadAnswers) {
+        await page.reload();
+        await page.getByRole('status', { name: 'Local engine connected', exact: true }).waitFor();
+        await page.locator(`[data-engine-session="${identity.sessionId}"]`).waitFor();
+        await card.waitFor();
+        await settle(page);
+        await waitFor(() => field.isEnabled(), 'Reloaded question is ready for editing', 60000);
+        assert.equal(await draft(), draftText, 'Control: saved composer draft survives reload');
+        const actual = await field.inputValue();
+        receipt.reloads ??= [];
+        receipt.reloads.push({
+          viewport,
+          requestId: requested.payload.request.id,
+          expected: answer,
+          actual,
+        });
+        assert.equal(
+          actual,
+          answer,
+          'A typed pending-question answer must survive renderer reload',
+        );
+        await sample(viewport, 'renderer reload');
       }
       await page.screenshot({
         path: join(artifactDir, `native-question-focused-${viewport.width}.png`),

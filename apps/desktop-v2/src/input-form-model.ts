@@ -12,6 +12,28 @@ export interface QuestionDraft {
   delegated: boolean;
 }
 export type InputDraft = Record<string, QuestionDraft>;
+/** Human-readable recovery text, using the original question/option labels. */
+export function savedInputText(
+  request: UserInputRequest,
+  answers: InputDraft,
+  delegatedLabel: string,
+): string {
+  const blocks: string[] = [];
+  for (const question of request.tabs.flatMap((tab) => tab.questions)) {
+    const answer = answers[question.id];
+    if (!answer) continue;
+    const parts = answer.delegated
+      ? [delegatedLabel]
+      : [
+          ...answer.selectedOptionIds.map(
+            (id) => question.options?.find((option) => option.id === id)?.label ?? id,
+          ),
+          answer.text.trim(),
+        ].filter(Boolean);
+    if (parts.length) blocks.push(`${question.prompt}\n${parts.join('\n')}`);
+  }
+  return blocks.length ? `${request.title}\n\n${blocks.join('\n\n')}` : '';
+}
 export function parseInputRequest(value: unknown): UserInputRequest | null {
   const request = record(value);
   const tabs = entries(request['tabs']);

@@ -138,6 +138,7 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
             appearance={vm.appearance}
             key={session.id}
             id={session.id}
+            sessionStatus={session.status}
             sessionTitle={session.title}
             scopeKey={session.workdir}
             projectId={session.projectId}

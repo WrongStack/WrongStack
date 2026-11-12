@@ -18,7 +18,7 @@ export function DesignReviewCard({
   const result = designReviewResult(row, projectRoot);
   if (!result) return null;
 
-  const { action, target, reference, path, viewports, fails, warns, score } = result;
+  const { action, target, reference, path, latest, viewports, fails, warns, score } = result;
   const title = t(`designReview.${action}`);
   const metrics =
     fails !== undefined && warns !== undefined
@@ -64,6 +64,7 @@ export function DesignReviewCard({
       )}
       {path && (
         <div className="design-extraction-artifact">
+          {latest && <small>{t('designReview.latestHelp')}</small>}
           <code title={path}>{path}</code>
           <div className="design-flow-actions">
             <button
@@ -71,7 +72,8 @@ export function DesignReviewCard({
               className="button secondary small"
               onClick={() => onOpenFile(path)}
             >
-              <FileText size={14} aria-hidden="true" /> {t('designReview.openReport')}
+              <FileText size={14} aria-hidden="true" />{' '}
+              {t(latest ? 'designReview.openLatest' : 'designReview.openReport')}
             </button>
           </div>
         </div>

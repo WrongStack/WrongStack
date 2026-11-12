@@ -34,18 +34,26 @@ import type { AppNavigation, DesktopNavigation } from './desktop-commands';
 import { useDesktopText } from './desktop-i18n';
 import { EngineDataView } from './EngineDataView';
 import { EngineSessionPanels, isEngineSessionPanel } from './EngineSessionPanels';
+import { expireEngineInteractions } from './engine-state';
 import type { EngineTab } from './engine-workspace-tabs';
 import { FallbackPicker } from './FallbackPicker';
 import { failedRun } from './failed-run-model';
 import { workspaceFilePath } from './file-model';
 import { InputRequestCard } from './InputRequestCard';
+import { clearInputAnswerDraft, inputAnswerDraft } from './input-answer-draft';
 import type { InputDraft } from './input-form-model';
 import { Modal } from './Modal';
 import { markdownTarget } from './markdown-target';
 import { useMessagePins } from './message-pins';
+import type { Session } from './model';
 import { ProjectSessionTools } from './ProjectSessionTools';
 import { ProviderWaitingRoom } from './ProviderWaitingRoom';
-import { openExternal, projectFormDraftStorage, sessionObjectDraftStorage } from './platform';
+import {
+  native,
+  openExternal,
+  projectFormDraftStorage,
+  sessionObjectDraftStorage,
+} from './platform';
 import { useRunSounds } from './RunSounds';
 import { recoveryLog, recoveryLogKey, type SavedRecoveryLog } from './recovery-log';
 import type { ProjectFormDraftStorage } from './requirement-draft';
@@ -67,6 +75,7 @@ import { useComposerCollapse } from './useComposerCollapse';
 import { useDesignDraftPreparation } from './useDesignDraftPreparation';
 import { useEngine } from './useEngine';
 import { WorkspaceTools } from './WorkspaceTools';
+import './input-recovery.css';
 
 const SessionCollab = lazy(() => import('./SessionCollab'));
 
@@ -98,6 +107,7 @@ export function EngineWorkspace({
   scopeKey,
   projectId,
   projectRoot,
+  sessionStatus = 'running',
 }: {
   appearance?: ConversationAppearance | undefined;
   id: string;
@@ -122,8 +132,18 @@ export function EngineWorkspace({
   scopeKey: string;
   projectId: string;
   projectRoot: string;
+  sessionStatus?: Session['status'];
 }) {
-  const { state, send, command } = useEngine(id, onError);
+  const { state: journalState, send, command } = useEngine(id, onError);
+  const writable = sessionStatus === 'running';
+  const state = useMemo(
+    () =>
+      writable
+        ? journalState
+        : { ...journalState, ...expireEngineInteractions(journalState), connected: false },
+    [writable, journalState],
+  );
+  const [savedQuestionsOpen, setSavedQuestionsOpen] = useState(false);
   const artifactRoot = designArtifactRoot(
     projectRoot,
     state.results['session.start']?.['projectRoot'],
@@ -248,9 +268,15 @@ export function EngineWorkspace({
     };
   }, [chatActive]);
   const resolved = state.results['user.input_resolved']?.['requestId'];
+  const interruptedInput = ['abort', 'unattended'].includes(
+    String(state.results['user.input_resolved']?.['source']),
+  );
   useEffect(() => {
-    if (typeof resolved === 'string') onInputDraftChange(`${id}:${resolved}`, null);
-  }, [resolved, id, onInputDraftChange]);
+    if (typeof resolved !== 'string' || interruptedInput) return;
+    onInputDraftChange(`${id}:${resolved}`, null);
+    if (native && projectId)
+      void clearInputAnswerDraft({ projectId, sessionId: id, requestId: resolved }).catch(onError);
+  }, [resolved, interruptedInput, id, projectId, onInputDraftChange, onError]);
   const perform = (type: string, payload?: Record<string, unknown>) => {
     void send(type, payload).catch(onError);
   };
@@ -443,6 +469,15 @@ export function EngineWorkspace({
       )}
       {chatActive && (
         <>
+          {state.archivedInputs.length > 0 && (
+            <button
+              type="button"
+              className="button secondary small"
+              onClick={() => setSavedQuestionsOpen(true)}
+            >
+              {t('input.reviewSaved', { count: state.archivedInputs.length })}
+            </button>
+          )}
           {state.connected && state.needsSetup && (
             <div className="provider-setup-banner">
               <span>{t('chatView.providerNeeded')}</span>
@@ -564,6 +599,11 @@ export function EngineWorkspace({
                   request={request}
                   draft={inputDrafts[`${id}:${request.id}`]}
                   onChange={(value) => onInputDraftChange(`${id}:${request.id}`, value)}
+                  persistence={
+                    native && projectId
+                      ? inputAnswerDraft({ projectId, sessionId: id, requestId: request.id })
+                      : undefined
+                  }
                   send={send}
                   connected={state.connected}
                 />
@@ -741,6 +781,7 @@ export function EngineWorkspace({
       ) : tab === 'activity' ? (
         <SessionActivity
           events={state.activity}
+          interrupted={!writable}
           projectRoot={artifactRoot}
           command={command}
           onOpenFile={openFile}
@@ -753,6 +794,12 @@ export function EngineWorkspace({
           projectRoot={projectRoot}
           view={tab}
           initialPath={workspaceFilePath(fileTarget, projectRoot, scopeKey)}
+          initialPathIsFile={
+            !!(
+              designSpecPath(workspaceFilePath(fileTarget, projectRoot, scopeKey)) ??
+              designReviewPath(workspaceFilePath(fileTarget, projectRoot, scopeKey))
+            )
+          }
           onError={onError}
           onOpenFile={(path) => {
             setFileTarget(path);
@@ -773,7 +820,43 @@ export function EngineWorkspace({
       ) : (
         <EngineDataView tab={tab} state={state} send={send} onError={onError} />
       )}
-      <SessionStatusBar state={state} command={command} refresh={() => perform('stats.get')} />
+      {savedQuestionsOpen && (
+        <Modal title={t('input.savedTitle')} onClose={() => setSavedQuestionsOpen(false)}>
+          <header className="input-recovery-heading">
+            <h2>{t('input.savedTitle')}</h2>
+            <button
+              type="button"
+              className="button secondary small"
+              onClick={() => setSavedQuestionsOpen(false)}
+            >
+              {t('input.closeSaved')}
+            </button>
+          </header>
+          <p>{t('input.savedHelp')}</p>
+          {state.archivedInputs.map((request) => (
+            <InputRequestCard
+              key={request.id}
+              request={request}
+              draft={inputDrafts[`${id}:${request.id}`]}
+              onChange={() => {}}
+              send={send}
+              connected={false}
+              readOnly
+              persistence={
+                native && projectId
+                  ? inputAnswerDraft({ projectId, sessionId: id, requestId: request.id })
+                  : undefined
+              }
+            />
+          ))}
+        </Modal>
+      )}
+      <SessionStatusBar
+        state={state}
+        command={command}
+        refresh={() => perform('stats.get')}
+        stopped={sessionStatus !== 'running' && sessionStatus !== 'starting'}
+      />
     </div>
   );
 }

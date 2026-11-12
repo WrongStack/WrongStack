@@ -872,6 +872,14 @@
     "allowOnce": "Bir kez izin ver"
   },
   "input": {
+    "closeSaved": "Kapat",
+    "savedTitle": "Kaydedilen yanıtlar",
+    "reviewSaved": "Kaydedilen yanıtları incele ({{count}})",
+    "copySaved": "Kaydedilen yanıtları kopyala",
+    "copiedSaved": "Kopyalandı",
+    "savedHelp": "Bu sorular önceki bir çalışmaya ait. Konuşmada devam etmek için kaydedilen yanıtları kopyalayın.",
+    "engineStopped": "Motor durdu",
+    "loadingDraft": "Kaydedilen yanıtlar yükleniyor…",
     "eyebrow": "GİRDİN GEREKİYOR",
     "groups": "Soru grupları",
     "notConfirmed": "Motor bu yanıtı henüz onaylamadı. Yeniden denemeden önce oturumu kontrol et.",
@@ -9757,6 +9765,8 @@
     "findings": "{{fails}} hata · {{warns}} uyarı",
     "fidelity": "Uyum {{score}}",
     "openReport": "Raporu aç",
+    "openLatest": "Son raporu aç",
+    "latestHelp": "Bu ortak dosya daha yeni bir inceleme içerebilir. Yukarıdaki ölçümler bu kayda aittir.",
     "unavailable": "İnceleme ölçümleri kullanılamıyor",
     "prepare": "İnceleme istemini hazırla",
     "surface": "Yüzey",

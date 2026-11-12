@@ -872,6 +872,14 @@
     "allowOnce": "Permitir una vez"
   },
   "input": {
+    "closeSaved": "Cerrar",
+    "savedTitle": "Respuestas guardadas",
+    "reviewSaved": "Revisar respuestas guardadas ({{count}})",
+    "copySaved": "Copiar respuestas guardadas",
+    "copiedSaved": "Copiado",
+    "savedHelp": "Estas preguntas pertenecen a una ejecución anterior. Copia las respuestas guardadas para continuar la conversación.",
+    "engineStopped": "Motor detenido",
+    "loadingDraft": "Cargando las respuestas guardadas…",
     "eyebrow": "SE NECESITA TU RESPUESTA",
     "groups": "Grupos de preguntas",
     "notConfirmed": "El motor aún no ha confirmado esta respuesta. Comprueba la sesión antes de reintentar.",
@@ -9757,6 +9765,8 @@
     "findings": "{{fails}} errores · {{warns}} avisos",
     "fidelity": "Fidelidad {{score}}",
     "openReport": "Abrir informe",
+    "openLatest": "Abrir el informe más reciente",
+    "latestHelp": "Este archivo compartido puede contener una revisión más reciente. Las mediciones anteriores pertenecen a este resultado.",
     "unavailable": "Las métricas de revisión no están disponibles",
     "prepare": "Preparar solicitud de revisión",
     "surface": "Superficie",

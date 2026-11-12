@@ -872,6 +872,14 @@
     "allowOnce": "Allow once"
   },
   "input": {
+    "closeSaved": "Close",
+    "savedTitle": "Saved answers",
+    "reviewSaved": "Review saved answers ({{count}})",
+    "copySaved": "Copy saved answers",
+    "copiedSaved": "Copied",
+    "savedHelp": "These questions belong to an earlier run. Copy any saved answers to continue in the conversation.",
+    "engineStopped": "Engine stopped",
+    "loadingDraft": "Loading saved answers…",
     "eyebrow": "YOUR INPUT IS NEEDED",
     "groups": "Question groups",
     "notConfirmed": "The engine has not confirmed this answer yet. Check the session before retrying.",
@@ -9757,6 +9765,8 @@
     "findings": "{{fails}} FAIL · {{warns}} WARN",
     "fidelity": "Fidelity {{score}}",
     "openReport": "Open report",
+    "openLatest": "Open latest report",
+    "latestHelp": "This shared file may contain a newer review. The recorded metrics above belong to this result.",
     "unavailable": "Review metrics are unavailable",
     "prepare": "Prepare review prompt",
     "surface": "Surface",

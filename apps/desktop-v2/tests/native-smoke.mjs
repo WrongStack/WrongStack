@@ -33,6 +33,8 @@ import {
   exerciseNativeDesignHandoff,
   resolveNativeDesignToolCall,
 } from './native-design-handoff.mjs';
+import { exerciseNativeDesignInterruption } from './native-design-interruption.mjs';
+import { exerciseNativeDesignReviewHistory } from './native-design-review-history.mjs';
 import { exerciseNativeDesignStudio } from './native-design-studio.mjs';
 import { exerciseNativeDisplayPrefs } from './native-display-prefs.mjs';
 import { exerciseNativeDraftConflict } from './native-draft-conflict.mjs';
@@ -71,6 +73,7 @@ import { exerciseNativeProjectKit } from './native-project-kit.mjs';
 import { openProjectView } from './native-project-navigation.mjs';
 import { exerciseNativeProjects } from './native-projects.mjs';
 import { exerciseNativeProviderHealth } from './native-provider-health.mjs';
+import { exerciseNativeQuestionRestart } from './native-question-restart.mjs';
 import {
   exerciseNativeReadingPosition,
   resolveNativeReadingToolCall,
@@ -107,10 +110,14 @@ const techstackOnly = process.argv.includes('--techstack');
 const deadCodeOnly = process.argv.includes('--deadcode');
 const designOnly = process.argv.includes('--design');
 const designHandoffOnly = process.argv.includes('--design-handoff');
+const designInterruptionOnly = process.argv.includes('--design-interruption');
+const designReviewHistoryOnly = process.argv.includes('--design-review-history');
 const layoutReloadOnly = process.argv.includes('--layout-reload');
 const readingPositionOnly = process.argv.includes('--reading-position');
 const streamPauseOnly = process.argv.includes('--stream-pause');
 const pendingQuestionOnly = process.argv.includes('--pending-question');
+const questionReloadOnly = process.argv.includes('--question-reload');
+const questionRestartOnly = process.argv.includes('--question-restart');
 const chimeraOnly = process.argv.includes('--chimera');
 const recoveryOnly = process.argv.includes('--recovery');
 const historyOnly = process.argv.includes('--history');
@@ -236,12 +243,20 @@ let artifactDir = resolve(
                                                                                         : '.',
 );
 if (designHandoffOnly) artifactDir = resolve(root, '.temp_files/desktop-v2-native/design-handoff');
+if (designInterruptionOnly)
+  artifactDir = resolve(root, '.temp_files/desktop-v2-native/design-interruption');
+if (designReviewHistoryOnly)
+  artifactDir = resolve(root, '.temp_files/desktop-v2-native/design-review-history');
 if (layoutReloadOnly) artifactDir = resolve(root, '.temp_files/desktop-v2-native/layout-reload');
 if (readingPositionOnly)
   artifactDir = resolve(root, '.temp_files/desktop-v2-native/reading-position');
 if (streamPauseOnly) artifactDir = resolve(root, '.temp_files/desktop-v2-native/stream-pause');
 if (pendingQuestionOnly)
   artifactDir = resolve(root, '.temp_files/desktop-v2-native/pending-question');
+if (questionReloadOnly)
+  artifactDir = resolve(root, '.temp_files/desktop-v2-native/question-reload');
+if (questionRestartOnly)
+  artifactDir = resolve(root, '.temp_files/desktop-v2-native/question-restart');
 await mkdir(artifactDir, { recursive: true });
 if (modelDraftRestartOnly || modelProfilesOnly)
   await rm(join(artifactDir, 'native-result.json'), { force: true });
@@ -652,9 +667,13 @@ try {
     models: refinementPolicyOnly
       ? [fixtureModel, 'profile/refiner', 'explicit/refiner']
       : [fixtureModel, 'alternate-refiner'],
-    ...(designHandoffOnly ? { resolveToolCall: resolveNativeDesignToolCall } : {}),
+    ...(designHandoffOnly || designInterruptionOnly || designReviewHistoryOnly
+      ? { resolveToolCall: resolveNativeDesignToolCall }
+      : {}),
     ...(readingPositionOnly ? { resolveToolCall: resolveNativeReadingToolCall } : {}),
-    ...(pendingQuestionOnly ? { resolveToolCall: resolveNativePendingQuestionToolCall } : {}),
+    ...(pendingQuestionOnly || questionReloadOnly || questionRestartOnly
+      ? { resolveToolCall: resolveNativePendingQuestionToolCall }
+      : {}),
   });
   await launch();
   console.log('PASS: native shell boot');
@@ -1209,7 +1228,27 @@ try {
       portableChecksumsVerified: bundled,
       artifacts: artifactDir,
     };
-  } else if (pendingQuestionOnly) {
+  } else if (questionRestartOnly) {
+    await configureRosterProvider({ rpc: workspaceRpc, waitFor, providerFixture });
+    await exerciseNativeQuestionRestart({
+      getPage: () => page,
+      rpc: workspaceRpc,
+      project: a,
+      waitFor,
+      restart: restartForModelDrafts,
+      artifactDir,
+      sessionIds: sessions,
+    });
+    assert.deepEqual(errors, []);
+    result = {
+      result: 'PASS',
+      scope: 'question-restart',
+      portableIdentity,
+      bundledEngine: bundled,
+      portableChecksumsVerified: bundled,
+      artifacts: artifactDir,
+    };
+  } else if (pendingQuestionOnly || questionReloadOnly) {
     await configureRosterProvider({ rpc: workspaceRpc, waitFor, providerFixture });
     await exerciseNativePendingQuestion({
       page,
@@ -1218,11 +1257,12 @@ try {
       waitFor,
       artifactDir,
       sessionIds: sessions,
+      reloadAnswers: questionReloadOnly,
     });
     assert.deepEqual(errors, []);
     result = {
       result: 'PASS',
-      scope: 'pending-question',
+      scope: questionReloadOnly ? 'question-reload' : 'pending-question',
       portableIdentity,
       bundledEngine: bundled,
       portableChecksumsVerified: bundled,
@@ -1282,6 +1322,45 @@ try {
     result = {
       result: 'PASS',
       scope: 'layout-reload',
+      portableIdentity,
+      bundledEngine: bundled,
+      portableChecksumsVerified: bundled,
+      artifacts: artifactDir,
+    };
+  } else if (designReviewHistoryOnly) {
+    await configureRosterProvider({ rpc: workspaceRpc, waitFor, providerFixture });
+    await exerciseNativeDesignReviewHistory({
+      page,
+      rpc: workspaceRpc,
+      project: a,
+      waitFor,
+      artifactDir,
+      sessionIds: sessions,
+    });
+    assert.deepEqual(errors, []);
+    result = {
+      result: 'PASS',
+      scope: 'design-review-history',
+      portableIdentity,
+      bundledEngine: bundled,
+      portableChecksumsVerified: bundled,
+      artifacts: artifactDir,
+    };
+  } else if (designInterruptionOnly) {
+    await configureRosterProvider({ rpc: workspaceRpc, waitFor, providerFixture });
+    await exerciseNativeDesignInterruption({
+      getPage: () => page,
+      rpc: workspaceRpc,
+      project: a,
+      waitFor,
+      restart: restartForModelDrafts,
+      artifactDir,
+      sessionIds: sessions,
+    });
+    assert.deepEqual(errors, []);
+    result = {
+      result: 'PASS',
+      scope: 'design-interruption',
       portableIdentity,
       bundledEngine: bundled,
       portableChecksumsVerified: bundled,

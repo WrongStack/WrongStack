@@ -55,7 +55,7 @@ describe('rendered design evidence in activity', () => {
     expect(html).toContain('1024, 375 px');
     expect(html).toContain('dist/index.html');
     expect(html).toContain('dateTime="2026-11-11T04:05:00.000Z"');
-    expect(html).toContain('Open report');
+    expect(html).toContain('Open latest report');
   });
 
   it('shows zero findings and a zero fidelity score as measured values', () => {
@@ -75,7 +75,7 @@ describe('rendered design evidence in activity', () => {
     ]);
     expect(html).toContain('aria-label="Design fidelity comparison"');
     expect(html).toContain('Fidelity 0%');
-    expect(html).toContain('Open report');
+    expect(html).toContain('Open latest report');
   });
 
   it('reads a legacy plain-text report and opens its reported path', () => {
@@ -86,7 +86,7 @@ describe('rendered design evidence in activity', () => {
       ),
     ]);
     expect(html).toContain('0 FAIL · 3 WARN');
-    expect(html).toContain('Open report');
+    expect(html).toContain('Open latest report');
   });
 
   it('keeps a confirmed report action when a journal preview clips the metrics', () => {
@@ -103,7 +103,7 @@ describe('rendered design evidence in activity', () => {
       executed(inspectInput, '{"output":"truncated'),
     ]);
     expect(html).toContain('Review metrics are unavailable');
-    expect(html).toContain('Open report');
+    expect(html).toContain('Open latest report');
     expect(html).not.toContain('0 FAIL · 0 WARN');
   });
 
@@ -114,10 +114,10 @@ describe('rendered design evidence in activity', () => {
     const html = render([writeReport(report), executed(compareInput, preview)], 'D:/Project');
     expect(html).toContain('Fidelity 60%');
     expect(html).toContain('1024, 375 px');
-    expect(html).toContain('Open report');
+    expect(html).toContain('Open latest report');
     expect(
       render([writeReport(report), executed(compareInput, preview)], 'D:/Another'),
-    ).not.toContain('Open report');
+    ).not.toMatch(/Open (?:latest )?report/);
   });
 
   it('withholds completed metrics and file actions when the tool fails', () => {
@@ -125,7 +125,7 @@ describe('rendered design evidence in activity', () => {
       executed(inspectInput, { action: 'inspect', path: inspectPath, fails: 0, warns: 0 }, false),
     ]);
     expect(html).toContain('aria-label="Rendered design inspection"');
-    expect(html).not.toContain('Open report');
+    expect(html).not.toMatch(/Open (?:latest )?report/);
     expect(html).not.toContain('0 FAIL · 0 WARN');
   });
 
@@ -134,7 +134,7 @@ describe('rendered design evidence in activity', () => {
     (path) => {
       expect(
         render([executed(inspectInput, { action: 'inspect', path, fails: 1, warns: 0 })]),
-      ).not.toContain('Open report');
+      ).not.toMatch(/Open (?:latest )?report/);
     },
   );
 

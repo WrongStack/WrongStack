@@ -34,9 +34,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/design": {
-      "files": 15,
+      "files": 16,
       "typeOnly": 1,
-      "runtimeOrMixed": 16
+      "runtimeOrMixed": 17
     },
     "@wrongstack/core/execution": {
       "files": 112,
@@ -3642,6 +3642,12 @@
     {
       "specifier": "@wrongstack/core/design",
       "file": "apps/desktop-v2/tests/design-studio-model.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/design",
+      "file": "apps/desktop-v2/tests/native-design-review-history.mjs",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

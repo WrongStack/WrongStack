@@ -29,10 +29,12 @@ export function SessionStatusBar({
   state,
   command,
   refresh,
+  stopped = false,
 }: {
   state: EngineState;
   command: EngineCommand;
   refresh: () => void;
+  stopped?: boolean;
 }) {
   const { t } = useDesktopText();
   const [details, setDetails] = useState(false);
@@ -52,13 +54,15 @@ export function SessionStatusBar({
   return (
     <div className="native-usage session-status">
       <span>
-        {state.running
-          ? state.inputs.length
-            ? t('statusBar.waiting')
-            : t('statusBar.working')
-          : state.connected
-            ? t('statusBar.ready')
-            : t('statusBar.connecting')}
+        {stopped
+          ? t('input.engineStopped')
+          : state.running
+            ? state.inputs.length
+              ? t('statusBar.waiting')
+              : t('statusBar.working')
+            : state.connected
+              ? t('statusBar.ready')
+              : t('statusBar.connecting')}
       </span>
       <button
         type="button"

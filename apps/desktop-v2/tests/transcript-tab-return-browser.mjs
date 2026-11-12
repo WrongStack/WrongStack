@@ -7,6 +7,7 @@ import { createServer, transformWithOxc } from 'vite';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fixture = `
 import {createRoot} from 'react-dom/client';
+import {useState} from 'react';
 import {EngineWorkspace} from '/src/EngineWorkspace.tsx';
 import {emptyEngineState,reduceEngine} from '/src/engine-state.ts';
 import '/src/styles.css'; import '/src/chat.css'; import '/src/workspace.css';
@@ -18,12 +19,14 @@ const messages = Array.from({length:100}, (_, index) => ({
   ...(index === 64 ? {activityAfter:run} : {}),
 }));
 const listeners = new Set();
+window.sent = [];
+Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.copiedText=text}}});
 let state = {...emptyEngineState, connected:true, synced:true, needsSetup:false,
-  provider:'fixture', model:'fixture', sessionId:'fixture', messages, activity:run};
+  provider:'fixture', model:'fixture', sessionId:'fixture', eventEpoch:'engine-a', messages, activity:run};
 window.bridge = {
   subscribe: (notify) => {listeners.add(notify); return () => listeners.delete(notify)},
   snapshot: () => state,
-  send: async () => {},
+  send: async type => {window.sent.push(type)},
   command: async () => ({}),
 };
 window.feed = (type, payload) => {
@@ -31,17 +34,23 @@ window.feed = (type, payload) => {
   listeners.forEach(notify=>notify());
 };
 const noop = () => {}, save = async () => true;
-createRoot(document.getElementById('root')).render(
+function App(){
+  const [inputDrafts,setInputDrafts] = useState({});
+  const [sessionStatus,setSessionStatus] = useState('running');
+  window.setSessionStatus = setSessionStatus;
+  const changeInput = (key,value) => setInputDrafts(old=>{const next={...old};if(value)next[key]=value;else delete next[key];return next});
+  return (
   <div className="app-shell"><div className="workspace-shell workspace-focused"><main className="main-content">
     <section className="session-workbench"><div className="session-workspace focused-session">
       <EngineWorkspace id="test" sessionTitle="Reading position" projectId="project" projectRoot="D:/fixture"
         scopeKey="D:/fixture" mode="btw" draft="Keep this draft" draftConflict={false} onModeChange={noop}
-        validateDraft={save} onDraftChange={save} references={[]} attachments={[]} inputDrafts={{}}
+        validateDraft={save} onDraftChange={save} references={[]} attachments={[]} inputDrafts={inputDrafts} sessionStatus={sessionStatus}
         onError={error=>{throw error}} onAttachmentsChange={save} onReferencesChange={save}
-        onInputDraftChange={noop} onSettings={noop} onOpen={noop}/>
+        onInputDraftChange={changeInput} onSettings={noop} onOpen={noop}/>
     </div></section>
-  </main></div></div>,
-);
+  </main></div></div>
+);}
+createRoot(document.getElementById('root')).render(<App/>);
 `;
 const modules = new Map([
   ['\0transcript-tab-return.tsx', fixture],
@@ -238,6 +247,47 @@ async function checkReturn(browser, url, viewport) {
     const frame = view.getBoundingClientRect();
     return heading.top >= frame.top && heading.bottom <= frame.bottom;
   });
+  const savedAnswer = 'Keep the answer from the interrupted engine.';
+  await page.getByRole('textbox', { name: 'Review question 1', exact: true }).fill(savedAnswer);
+  await page.evaluate(() => window.setSessionStatus('interrupted'));
+  await page.getByRole('button', { name: /Review saved answers/ }).waitFor();
+  assert.equal(await page.locator('.input-request-actions button[type="submit"]').count(), 0);
+  await page.getByText('Engine stopped', { exact: true }).waitFor();
+  await page.evaluate(() => {
+    window.feed('session.start', {
+      sessionId: 'fixture',
+      provider: 'fixture',
+      model: 'fixture',
+      eventEpoch: 'engine-b',
+      replayMessages: [],
+    });
+    window.setSessionStatus('running');
+  });
+  await page.getByRole('button', { name: /Review saved answers/ }).click();
+  const recovery = page.getByRole('dialog', { name: 'Saved answers', exact: true });
+  const recoveredField = recovery.getByRole('textbox', { name: 'Review question 1', exact: true });
+  assert.equal(await recoveredField.inputValue(), savedAnswer);
+  assert.equal(await recoveredField.isEnabled(), false);
+  assert.equal(await recovery.locator('button[type="submit"]').count(), 0);
+  const sends = await page.evaluate(() => window.sent.length);
+  await recovery.getByRole('button', { name: 'Copy saved answers', exact: true }).click();
+  await recovery.getByRole('button', { name: 'Copied', exact: true }).waitFor();
+  const copied = await page.evaluate(() => window.copiedText);
+  assert.match(copied, /Review question 1/);
+  assert.ok(copied.includes(savedAnswer));
+  assert.equal(
+    await page.evaluate(() => window.sent.length),
+    sends,
+    'Read-only recovery never submits an obsolete request',
+  );
+  const bounds = await recovery.boundingBox();
+  assert.ok(
+    bounds.x >= -1 &&
+      bounds.y >= -1 &&
+      bounds.x + bounds.width <= viewport.width + 1 &&
+      bounds.y + bounds.height <= viewport.height + 1,
+  );
+  await recovery.getByRole('button', { name: 'Close', exact: true }).click();
   assert.deepEqual(errors, []);
   console.log(
     `PASS ${viewport.width}×${viewport.height}: tool visits preserve paused reading and open details during streaming; following returns to the latest reply`,
