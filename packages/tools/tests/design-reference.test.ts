@@ -87,6 +87,78 @@ async function saveReference(slug: string, dnaRaw: DesignDnaRaw): Promise<void> 
 }
 
 describe('design_reference extract / compare / inspect', () => {
+  it('keeps an earlier comparison report unchanged after the same reference is compared again', async () => {
+    await saveReference('history-a', raw('#e11d48', '12'));
+    await saveReference('history-b', raw('#2563eb', '4'));
+    const first = await designTool.execute(
+      { action: 'compare', reference: 'history-a', against: 'history-a' },
+      makeCtx(),
+      opts,
+    );
+    expect(first.score).toBe(1);
+    const original = await fs.readFile(path.join(root, first.path as string), 'utf8');
+    const second = await designTool.execute(
+      { action: 'compare', reference: 'history-a', against: 'history-b' },
+      makeCtx(),
+      opts,
+    );
+    expect(second.score).toBeLessThan(1);
+    expect(
+      await fs.readFile(path.join(root, '.design/references/history-a/fidelity.md'), 'utf8'),
+    ).toBe(`${second.output}\n`);
+    expect(await fs.readFile(path.join(root, first.path as string), 'utf8')).toBe(original);
+    expect(first.path).not.toBe(second.path);
+  });
+
+  it('keeps concurrent comparisons and their input DNA separate from future reference edits', async () => {
+    await saveReference('parallel-history-a', raw('#e11d48', '12'));
+    await saveReference('parallel-history-b', raw('#2563eb', '4'));
+    const results = await Promise.all(
+      ['parallel-history-a', 'parallel-history-b'].map((against) =>
+        designTool.execute(
+          { action: 'compare', reference: 'parallel-history-a', against },
+          makeCtx(),
+          opts,
+        ),
+      ),
+    );
+    expect(new Set(results.map((result) => result.path)).size).toBe(2);
+    for (const result of results)
+      expect(await fs.readFile(path.join(root, result.path), 'utf8')).toBe(`${result.output}\n`);
+    const referenceFile = path.join(root, path.dirname(results[0]!.path), 'reference.json');
+    const referenceBytes = await fs.readFile(referenceFile, 'utf8');
+    await saveReference('parallel-history-a', raw('#111111', '0'));
+    expect(await fs.readFile(referenceFile, 'utf8')).toBe(referenceBytes);
+  });
+
+  it('does not replace a completed report when a later comparison is rejected or already aborted', async () => {
+    await saveReference('failed-history', raw('#e11d48', '12'));
+    const result = await designTool.execute(
+      { action: 'compare', reference: 'failed-history', against: 'failed-history' },
+      makeCtx(),
+      opts,
+    );
+    const latest = await fs.readFile(path.join(root, result.latestPath!), 'utf8');
+    await expect(
+      designTool.execute(
+        { action: 'compare', reference: 'failed-history', against: 'missing-history' },
+        makeCtx(),
+        opts,
+      ),
+    ).rejects.toThrow(/no extracted reference/);
+    const aborted = new AbortController();
+    aborted.abort();
+    await expect(
+      designTool.execute(
+        { action: 'compare', reference: 'failed-history', against: 'failed-history' },
+        makeCtx(),
+        { signal: aborted.signal },
+      ),
+    ).rejects.toThrow();
+    expect(await fs.readFile(path.join(root, result.latestPath!), 'utf8')).toBe(latest);
+    expect(await fs.readFile(path.join(root, result.path), 'utf8')).toBe(`${result.output}\n`);
+  });
+
   it('compares two saved references without a browser and writes the fidelity record', async () => {
     await saveReference('ref-a', raw('#e11d48', '12'));
     await saveReference('ref-b', raw('#2563eb', '4'));
@@ -106,7 +178,8 @@ describe('design_reference extract / compare / inspect', () => {
     expect(res.score).toBeLessThan(1);
     expect(res.output).toMatch(/\| color \| off \| role primary/);
     expect(res.output).toMatch(/\| shape \| off \| dominant radius \| 12 \| 4 \|/);
-    expect(res.path).toBe('.design/references/ref-a/fidelity.md');
+    expect(res.latestPath).toBe('.design/references/ref-a/fidelity.md');
+    expect(res.path).toMatch(/^\.design\/references\/ref-a\/runs\/[a-f0-9-]{36}\/fidelity\.md$/);
     expect(await fs.readFile(path.join(root, res.path as string), 'utf8')).toContain('# Fidelity');
   });
 
@@ -247,13 +320,18 @@ describe('design_reference extract / compare / inspect', () => {
         expect.objectContaining({
           type: 'file_changed',
           operation: 'write',
-          path: '.design/references/stream-a/fidelity.md',
+          path: expect.stringMatching(
+            /^\.design\/references\/stream-a\/runs\/[a-f0-9-]{36}\/fidelity\.md$/,
+          ),
         }),
         expect.objectContaining({
           type: 'final',
           output: expect.objectContaining({
             action: 'compare',
-            path: '.design/references/stream-a/fidelity.md',
+            path: expect.stringMatching(
+              /^\.design\/references\/stream-a\/runs\/[a-f0-9-]{36}\/fidelity\.md$/,
+            ),
+            latestPath: '.design/references/stream-a/fidelity.md',
           }),
         }),
       ]),

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type {
@@ -211,6 +212,28 @@ async function writeJson(file: string, value: unknown): Promise<void> {
   await atomicWrite(file, `${JSON.stringify(value, null, 2)}\n`);
 }
 
+/** The returned report and every asset it creates belong to one retained review. */
+async function reviewRunDir(latestDir: string): Promise<string> {
+  const runs = path.join(latestDir, 'runs');
+  await fs.mkdir(runs, { recursive: true });
+  const dir = path.join(runs, randomUUID());
+  await fs.mkdir(dir);
+  return dir;
+}
+
+/** Compatibility aliases stay mutable; completed cards receive the retained run path. */
+async function publishLatestReview(
+  runDir: string,
+  latestDir: string,
+  files: string[],
+): Promise<void> {
+  for (const file of files) {
+    const target = path.join(latestDir, file);
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await atomicWrite(target, await fs.readFile(path.join(runDir, file)));
+  }
+}
+
 const rel = (projectRoot: string, file: string): string =>
   path.relative(projectRoot, file).replace(/\\/g, '/');
 
@@ -407,7 +430,13 @@ async function compareReference(
   signal: AbortSignal,
   page?: PageLabel,
   onProgress?: ((event: ToolProgressEvent) => void) | undefined,
-): Promise<{ output: string; overall: number; path: string; images: ImageBlock[] }> {
+): Promise<{
+  output: string;
+  overall: number;
+  path: string;
+  latestPath: string;
+  images: ImageBlock[];
+}> {
   const refSlug = input.reference?.trim();
   if (!refSlug) {
     throw new ToolValidationError({
@@ -420,15 +449,20 @@ async function compareReference(
   let impl: DesignDna;
   let implLabel: string;
   let images: ImageBlock[] = [];
+  const latestDir = path.join(referencesDir(ctx.projectRoot), refSlug);
+  let runDir: string;
+  let aliases: string[] = [];
   if (input.against) {
     impl = await loadDna(ctx.projectRoot, input.against.trim(), 'against');
     implLabel = input.against.trim();
+    runDir = await reviewRunDir(latestDir);
   } else {
     const url = assertHttpUrl(input.url);
     // Measure the implementation at the reference's own viewports unless told otherwise.
     const viewports =
       input.viewports === undefined ? ref.source.viewports : normalizeViewports(input.viewports);
-    const dir = path.join(referencesDir(ctx.projectRoot), refSlug, 'implementation');
+    runDir = await reviewRunDir(latestDir);
+    const dir = path.join(runDir, 'implementation');
     const measured = await measure<DesignDnaRaw>(
       ctx,
       url,
@@ -441,7 +475,10 @@ async function compareReference(
     );
     images = measured.images;
     impl = summarizeDesignDna(measured.raws);
-    await writeJson(path.join(dir, 'dna.json'), impl);
+    aliases = [
+      ...measured.screenshots.map(({ file }) => path.relative(runDir, file)),
+      'implementation/dna.json',
+    ];
     implLabel = page?.name ?? url;
   }
   onProgress?.({
@@ -450,11 +487,22 @@ async function compareReference(
   });
   const cmp = compareDesignDna(ref, impl);
   const markdown = renderDnaComparisonMarkdown(cmp, refSlug, implLabel);
-  const file = path.join(referencesDir(ctx.projectRoot), refSlug, 'fidelity.md');
+  signal.throwIfAborted();
+  await writeJson(path.join(runDir, 'reference.json'), ref);
+  await writeJson(path.join(runDir, 'implementation/dna.json'), impl);
+  const file = path.join(runDir, 'fidelity.md');
   const fidelityRel = rel(ctx.projectRoot, file);
   await atomicWrite(file, `${markdown}\n`);
+  signal.throwIfAborted();
+  await publishLatestReview(runDir, latestDir, [...aliases, 'fidelity.md']);
   onProgress?.({ type: 'file_changed', path: fidelityRel, operation: 'write' });
-  return { output: markdown, overall: cmp.overall, path: fidelityRel, images };
+  return {
+    output: markdown,
+    overall: cmp.overall,
+    path: fidelityRel,
+    latestPath: rel(ctx.projectRoot, path.join(latestDir, 'fidelity.md')),
+    images,
+  };
 }
 
 /**
@@ -468,7 +516,14 @@ async function inspectPage(
   signal: AbortSignal,
   page?: PageLabel,
   onProgress?: ((event: ToolProgressEvent) => void) | undefined,
-): Promise<{ output: string; fails: number; warns: number; path: string; images: ImageBlock[] }> {
+): Promise<{
+  output: string;
+  fails: number;
+  warns: number;
+  path: string;
+  latestPath: string;
+  images: ImageBlock[];
+}> {
   const url = assertHttpUrl(input.url);
   const viewports = normalizeViewports(input.viewports);
   if (input.surface !== undefined && input.surface !== 'page' && input.surface !== 'app') {
@@ -479,11 +534,12 @@ async function inspectPage(
     });
   }
   const surface: InspectSurface = input.surface ?? 'page';
-  const dir = path.join(
+  const latestDir = path.join(
     designProjectDir(ctx.projectRoot),
     'inspect',
     page?.slug ?? referenceSlug(url),
   );
+  const dir = await reviewRunDir(latestDir);
   const { raws, runtime, screenshots, images } = await measure<DesignInspectRaw>(
     ctx,
     url,
@@ -503,9 +559,16 @@ async function inspectPage(
     surface,
   );
   const markdown = renderInspectMarkdown(report);
+  signal.throwIfAborted();
   await writeJson(path.join(dir, 'inspect.json'), report);
   const inspectRel = rel(ctx.projectRoot, path.join(dir, 'inspect.md'));
   await atomicWrite(path.join(dir, 'inspect.md'), markdown);
+  signal.throwIfAborted();
+  await publishLatestReview(dir, latestDir, [
+    ...screenshots.map(({ file }) => path.relative(dir, file)),
+    'inspect.json',
+    'inspect.md',
+  ]);
   onProgress?.({ type: 'file_changed', path: inspectRel, operation: 'write' });
   const output = [
     markdown.trimEnd(),
@@ -519,6 +582,7 @@ async function inspectPage(
     fails: report.fails,
     warns: report.warns,
     path: inspectRel,
+    latestPath: rel(ctx.projectRoot, path.join(latestDir, 'inspect.md')),
     images,
   };
 }
@@ -548,8 +612,10 @@ export interface DesignReferenceInput {
 export interface DesignReferenceOutput {
   action: string;
   output: string;
-  /** The markdown record the action wrote, project-relative. */
+  /** The markdown record, project-relative; inspect/compare return a retained run snapshot. */
   path: string;
+  /** inspect/compare: mutable compatibility alias for the latest completed review. */
+  latestPath?: string | undefined;
   /** extract: the reference slug to pass to compare. */
   reference?: string | undefined;
   /** compare: overall fidelity 0..1 (the lowest axis). */
@@ -730,6 +796,7 @@ async function runAction(
       {
         action: input.action,
         path: result.path,
+        latestPath: result.latestPath,
         score: result.overall,
         output: result.output,
       },
@@ -742,6 +809,7 @@ async function runAction(
       {
         action: input.action,
         path: result.path,
+        latestPath: result.latestPath,
         fails: result.fails,
         warns: result.warns,
         output: result.output,

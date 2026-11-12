@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-12T22:56:22.092Z
+**Generated:** 2026-11-12T22:57:28.411Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6284 |
-| Production source lines | 1299689 |
+| Production source lines | 1299757 |
 | Test files | 5241 |
 | Workspace dependency edges | 250 |
 | Relative module edges | 18533 |
@@ -114,6 +114,7 @@
 | 853 | `packages/plugins/src/adversary-mode/evaluator.ts` |
 | 832 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 828 | `packages/builtin-plugins/src/review-claim-registry.ts` |
+| 825 | `packages/tools/src/design-reference.ts` |
 | 822 | `packages/vibeui/src/lib/session.ts` |
 | 800 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
@@ -121,7 +122,6 @@
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
 | 763 | `packages/plugins/src/adversary-mode/index.ts` |
 | 762 | `packages/vibeui/src/lib/use-session.ts` |
-| 757 | `packages/tools/src/design-reference.ts` |
 | 756 | `packages/fleet/src/host-skill-companion.ts` |
 | 755 | `apps/desktop-v2/src/ProjectSdd.tsx` |
 | 754 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |

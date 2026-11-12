@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-12T22:56:22.092Z",
+  "generatedAt": "2026-11-12T22:57:28.411Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 48,
     "sourceFiles": 6284,
     "testFiles": 5241,
-    "sourceLines": 1299689,
+    "sourceLines": 1299757,
     "workspaceEdges": 250,
     "moduleEdges": 18533,
     "nonCommandSlashImports": 0,
@@ -36210,7 +36210,7 @@
     },
     {
       "file": "packages/tools/src/design-reference.ts",
-      "lines": 757,
+      "lines": 825,
       "relativeImports": 2
     },
     {
@@ -36501,6 +36501,11 @@
       "relativeImports": 4
     },
     {
+      "file": "packages/tools/src/design-reference.ts",
+      "lines": 825,
+      "relativeImports": 2
+    },
+    {
       "file": "packages/vibeui/src/lib/session.ts",
       "lines": 822,
       "relativeImports": 5
@@ -36534,11 +36539,6 @@
       "file": "packages/vibeui/src/lib/use-session.ts",
       "lines": 762,
       "relativeImports": 8
-    },
-    {
-      "file": "packages/tools/src/design-reference.ts",
-      "lines": 757,
-      "relativeImports": 2
     },
     {
       "file": "packages/fleet/src/host-skill-companion.ts",
