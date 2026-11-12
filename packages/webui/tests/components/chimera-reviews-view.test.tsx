@@ -283,19 +283,52 @@ describe('ChimeraReviewsView', () => {
                 pairedTestUpdated: false,
               },
             ],
+            deletedFiles: ['packages/core/src/oldHelper.ts'],
+            deletedFileReferences: [
+              {
+                deletedPath: 'packages/core/src/oldHelper.ts',
+                referencedBy: ['packages/core/src/index.ts'],
+              },
+            ],
+            signatureCallers: [
+              {
+                symbol: 'initCore',
+                file: 'packages/core/src/index.ts',
+                callers: ['packages/cli/src/main.ts:12'],
+              },
+            ],
+            sessionIntent: ['Migrate core init without changing public signature'],
             skippedFiles: [{ path: 'bun.lock', reason: 'ignored_non_source' }],
           },
         },
         findings: [],
         events: [],
+        scopeDrift: {
+          stale: true,
+          checkedCount: 1,
+          modifiedPaths: ['packages/core/src/index.ts'],
+          missingPaths: [],
+        },
       },
     });
 
     render(<ChimeraReviewsView />);
 
     expect(screen.getByText('Token & Execution Telemetry')).not.toBeNull();
+    expect(screen.getByText(/Σ 1\.2k/)).not.toBeNull();
+    expect(screen.getByText(/50% cache/)).not.toBeNull();
     expect(screen.getByText('(50%)')).not.toBeNull();
     expect(screen.getByText('Incremental Delta')).not.toBeNull();
+    expect(screen.getByText('Stale on disk (1 changed)')).not.toBeNull();
+    expect(screen.getByText(/Migrate core init without changing public signature/)).not.toBeNull();
+    expect(
+      screen.getByText(/packages\/core\/src\/oldHelper\.ts → packages\/core\/src\/index\.ts/),
+    ).not.toBeNull();
+    expect(
+      screen.getByText(
+        /initCore \(packages\/core\/src\/index\.ts\) → packages\/cli\/src\/main\.ts:12/,
+      ),
+    ).not.toBeNull();
     expect(screen.getByText('test untouched !')).not.toBeNull();
     expect(screen.getByText('[initCore]')).not.toBeNull();
 

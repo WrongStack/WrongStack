@@ -4964,7 +4964,13 @@
     "skipReasonInFlight": "Prüfung läuft bereits",
     "skipReasonIgnoredNoise": "Nicht-Quellcode / generiert gefiltert",
     "skipReasonTooLarge": "Datei zu groß",
-    "skipReasonUnreadable": "Nicht lesbar / gelöscht"
+    "skipReasonUnreadable": "Nicht lesbar / gelöscht",
+    "cacheShort": "Cache",
+    "sessionIntentLabel": "Sitzungsabsicht",
+    "deletedFileRefsLabel": "Verbleibende Referenzen auf gelöschte Dateien:",
+    "scopeCurrentBadge": "Auf Datenträger aktuell ✓",
+    "scopeStaleBadge": "Auf Datenträger veraltet ({{count}} geändert)",
+    "signatureCallersLabel": "Externe Aufrufer geänderter Exporte:"
   },
   "providerTest": {
     "title": "Anbieter-Test",

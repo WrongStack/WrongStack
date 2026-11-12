@@ -15,6 +15,8 @@ import { syncReportCompletion, syncReportReopen } from './review-report-integrat
 export interface FindingCommandContext {
   /** Project root directory (~/.wrongstack/projects/<slug>) */
   projectDir: string;
+  /** Optional working-tree root used for live scope-drift checks against disk */
+  cwd?: string | undefined;
 }
 
 export async function loadStore(ctx: FindingCommandContext) {

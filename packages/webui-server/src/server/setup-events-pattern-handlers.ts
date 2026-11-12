@@ -50,6 +50,18 @@ export function registerSetupEventsPatternHandlers(options: {
         payload: sessionPayload(payload as Record<string, unknown>),
       } as never as WSServerMessage);
     }),
+    events.onPattern('chimera.report.updated', (_event, payload) => {
+      broadcast(clients, {
+        type: 'chimera.report.updated',
+        payload: projectWide(payload),
+      } as never as WSServerMessage);
+    }),
+    events.onPattern('chimera.finding.updated', (_event, payload) => {
+      broadcast(clients, {
+        type: 'chimera.finding.updated',
+        payload: projectWide(payload),
+      } as never as WSServerMessage);
+    }),
     events.onPattern('mailbox.received', (_e, payload) => {
       broadcast(clients, {
         type: 'mailbox.received',

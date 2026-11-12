@@ -30,9 +30,36 @@ export interface VerifyFindingsOptions {
    * Default 2 (i.e. the cited line plus 2 above and 2 below).
    */
   anchorWindow?: number | undefined;
+  /**
+   * Same-scope relocation radius for distinctive code anchors when the cited
+   * line drifted slightly outside `anchorWindow` (e.g. off-by-3..6 lines in a
+   * large hunk). Defaults to 6 when `anchorWindow` is not overridden, or 0 when
+   * a custom `anchorWindow` is explicitly supplied.
+   */
+  relocationWindow?: number | undefined;
 }
 
 const DEFAULT_ANCHOR_WINDOW = 2;
+const DEFAULT_RELOCATION_WINDOW = 6;
+const SCOPE_BOUNDARY_RE =
+  /^\s*(?:export\s+)?(?:default\s+)?(?:declare\s+)?(?:abstract\s+)?(?:async\s+)?(?:function\*?\s+[A-Za-z_$]|class\s+[A-Za-z_$]|def\s+[A-Za-z_]|pub(?:\([^)]*\))?\s+(?:async\s+)?fn\s+[A-Za-z_]|fn\s+[A-Za-z_])/;
+
+function isDistinctiveCodeAnchor(anchor: string): boolean {
+  return (
+    /[a-z][A-Z]/.test(anchor) || anchor.includes('_') || anchor.includes('.') || anchor.length >= 8
+  );
+}
+
+function crossesScopeBoundary(lines: readonly string[], fromIdx: number, toIdx: number): boolean {
+  const low = Math.min(fromIdx, toIdx);
+  const high = Math.max(fromIdx, toIdx);
+  // Check lines strictly after `low` up to `high`: if another function/class
+  // header starts between the two lines, they belong to different scopes.
+  for (let idx = low + 1; idx <= high; idx++) {
+    if (SCOPE_BOUNDARY_RE.test(lines[idx] ?? '')) return true;
+  }
+  return false;
+}
 
 /** English stopwords + finding-prose generics never treated as code anchors. */
 const STOPWORDS = new Set([
@@ -280,6 +307,8 @@ export async function verifyFindingsAgainstDisk(
   opts: VerifyFindingsOptions,
 ): Promise<ChimeraFinding[]> {
   const window = opts.anchorWindow ?? DEFAULT_ANCHOR_WINDOW;
+  const relocWindow =
+    opts.relocationWindow ?? (opts.anchorWindow !== undefined ? 0 : DEFAULT_RELOCATION_WINDOW);
   const cache = new Map<string, { lines: string[] } | { error: 'missing' | 'unreadable' }>();
 
   const readFile = async (
@@ -372,6 +401,39 @@ export async function verifyFindingsAgainstDisk(
                 evidence: trimEvidence(sourceLine),
               },
             };
+          }
+        }
+      }
+
+      // Same-scope relocation pass: if the cited line drifted slightly outside
+      // `window` (up to `relocWindow` lines) and a distinctive code anchor matches
+      // without crossing another function/class boundary, snap `location.line`
+      // to the exact disk line so genuine findings are not dropped by hunk drift.
+      if (relocWindow > window) {
+        const distinctiveAnchors = anchors.filter(isDistinctiveCodeAnchor);
+        for (let dist = window + 1; dist <= relocWindow; dist++) {
+          for (const dirSign of [-1, 1] as const) {
+            const candIdx = line - 1 + dirSign * dist;
+            if (candIdx < 0 || candIdx >= file.lines.length) continue;
+            if (crossesScopeBoundary(file.lines, line - 1, candIdx)) continue;
+            const sourceLine = file.lines[candIdx]!;
+            for (const a of distinctiveAnchors) {
+              if (sourceLine.includes(a)) {
+                const snappedLine = candIdx + 1;
+                return {
+                  ...finding,
+                  location: {
+                    ...finding.location,
+                    line: snappedLine,
+                  },
+                  verification: {
+                    status: 'verified',
+                    reason: 'anchor_found',
+                    evidence: trimEvidence(sourceLine),
+                  },
+                };
+              }
+            }
           }
         }
       }

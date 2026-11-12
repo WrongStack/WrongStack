@@ -11,6 +11,7 @@ import { FINDING_DEFAULT_PAGE_SIZE } from './review-finding-store.js';
 import type { FindingCommandContext } from './review-finding-transition.js';
 import { loadStore, resolveFindingId, transitionFinding } from './review-finding-transition.js';
 import type { FindingSeverity, FindingStatus } from './review-finding-types.js';
+import { computeReportScopeDrift } from './review-report-integration.js';
 import type { ReportLifecycleStatus, ReviewReport } from './review-report-types.js';
 
 export type { FindingCommandContext } from './review-finding-transition.js';
@@ -219,6 +220,25 @@ const LIFECYCLE_EMOJI: Record<string, string> = {
   skipped: '⚪',
 };
 
+function formatCompactTokens(tokens: number): string {
+  if (!Number.isFinite(tokens) || tokens <= 0) return '0';
+  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(2)}M`;
+  if (tokens >= 10_000) return `${Math.round(tokens / 1000)}k`;
+  if (tokens >= 1_000) return `${(tokens / 1000).toFixed(1)}k`;
+  return String(Math.round(tokens));
+}
+
+function formatCompactReportUsage(usage: ReviewReport['usage']): string {
+  if (!usage || usage.totalTokens <= 0) return '—';
+  const tok = formatCompactTokens(usage.totalTokens);
+  if (usage.costUsd > 0) {
+    const cost =
+      usage.costUsd < 0.01 ? `$${usage.costUsd.toFixed(4)}` : `$${usage.costUsd.toFixed(3)}`;
+    return `${tok} (${cost})`;
+  }
+  return tok;
+}
+
 async function listReports(args: string[], ctx: FindingCommandContext): Promise<string> {
   let statusFilter: string | undefined;
   let limit = 15;
@@ -249,8 +269,8 @@ async function listReports(args: string[], ctx: FindingCommandContext): Promise<
   }
 
   const lines: string[] = [
-    '| Lifecycle | Source | Findings | Reviewed | Report |',
-    '|---|---|---|---|---|',
+    '| Lifecycle | Source | Findings | Tokens | Reviewed | Report |',
+    '|---|---|---|---|---|---|',
   ];
   for (const r of reports) {
     const emoji = LIFECYCLE_EMOJI[r.lifecycle] ?? '⚪';
@@ -266,9 +286,12 @@ async function listReports(args: string[], ctx: FindingCommandContext): Promise<
           ]
             .filter(Boolean)
             .join(' ');
+    const tokenSummary = formatCompactReportUsage(r.usage);
     const date = r.reviewedAt.substring(0, 10);
     const id = r.id.substring(0, 8);
-    lines.push(`| ${emoji} ${r.lifecycle} | ${r.source} | ${sevSummary} | ${date} | \`${id}\` |`);
+    lines.push(
+      `| ${emoji} ${r.lifecycle} | ${r.source} | ${sevSummary} | ${tokenSummary} | ${date} | \`${id}\` |`,
+    );
   }
 
   lines.push('', `_${reports.length} report(s). Use \`/review report <id>\` for details._`);
@@ -298,6 +321,11 @@ async function showReport(id: string, ctx: FindingCommandContext): Promise<strin
   const report = await resolveReportId(store, id);
   if (!report) return `Report not found: ${id}`;
 
+  const scopeDrift = ctx.cwd ? await computeReportScopeDrift(report, ctx.cwd) : undefined;
+  const driftedList = scopeDrift
+    ? [...scopeDrift.modifiedPaths, ...scopeDrift.missingPaths.map((p) => `${p} (missing)`)]
+    : [];
+
   const emoji = LIFECYCLE_EMOJI[report.lifecycle] ?? '⚪';
   const lines: string[] = [
     `## ${emoji} Review Report — ${report.lifecycle}`,
@@ -310,6 +338,13 @@ async function showReport(id: string, ctx: FindingCommandContext): Promise<strin
     ...(report.cascadeDepth !== undefined ? [`**Cascade depth:** ${report.cascadeDepth}`] : []),
     ...(report.durationSeconds !== undefined ? [`**Duration:** ${report.durationSeconds}s`] : []),
     ...(report.scopeManifest?.headSha ? [`**HEAD:** \`${report.scopeManifest.headSha}\``] : []),
+    ...(scopeDrift
+      ? [
+          scopeDrift.stale
+            ? `**Scope status:** ⚠️ stale on disk (${driftedList.length} file(s) changed since review: ${driftedList.slice(0, 6).join(', ')})`
+            : `**Scope status:** ✅ current on disk (${scopeDrift.checkedCount} file(s) match reviewed SHA-256)`,
+        ]
+      : []),
     ...(report.usage !== undefined
       ? [
           `**Tokens:** ${report.usage.totalTokens.toLocaleString('en-US')} (in ${report.usage.inputTokens.toLocaleString('en-US')}, out ${report.usage.outputTokens.toLocaleString('en-US')}${
@@ -383,6 +418,34 @@ async function showReport(id: string, ctx: FindingCommandContext): Promise<strin
     }
     if (report.files.length > 20) {
       lines.push(`  _...and ${report.files.length - 20} more_`);
+    }
+  }
+
+  if (report.scopeManifest?.sessionIntent && report.scopeManifest.sessionIntent.length > 0) {
+    lines.push('', '**Session intent:**');
+    for (const snippet of report.scopeManifest.sessionIntent) {
+      lines.push(`  - ${snippet}`);
+    }
+  }
+
+  if (
+    report.scopeManifest?.deletedFileReferences &&
+    report.scopeManifest.deletedFileReferences.length > 0
+  ) {
+    lines.push('', '**Deleted-file references:**');
+    for (const ref of report.scopeManifest.deletedFileReferences) {
+      lines.push(
+        `  - \`${ref.deletedPath}\` → ${ref.referencedBy.map((p) => `\`${p}\``).join(', ')}`,
+      );
+    }
+  }
+
+  if (report.scopeManifest?.signatureCallers && report.scopeManifest.signatureCallers.length > 0) {
+    lines.push('', '**Modified export callers:**');
+    for (const entry of report.scopeManifest.signatureCallers) {
+      lines.push(
+        `  - \`${entry.symbol}\` (\`${entry.file}\`) → ${entry.callers.map((c) => `\`${c}\``).join(', ')}`,
+      );
     }
   }
 
@@ -510,8 +573,11 @@ async function addReportNote(
 }
 
 async function showStatus(ctx: FindingCommandContext): Promise<string> {
-  const store = await loadStore(ctx);
-  const all = await store.list({ limit: 9999 });
+  const [store, reportStore] = await Promise.all([loadStore(ctx), loadReportStore(ctx)]);
+  const [all, reports] = await Promise.all([
+    store.list({ limit: 9999 }),
+    reportStore.list({ limit: 9999 }),
+  ]);
 
   const counts: Record<string, number> = {};
   const severityCounts: Record<string, number> = {};
@@ -520,7 +586,7 @@ async function showStatus(ctx: FindingCommandContext): Promise<string> {
     severityCounts[f.severity] = (severityCounts[f.severity] || 0) + 1;
   }
 
-  return [
+  const lines: string[] = [
     '## Finding Store Status',
     '',
     `**Total findings:** ${all.length}`,
@@ -530,7 +596,48 @@ async function showStatus(ctx: FindingCommandContext): Promise<string> {
     '',
     '**By severity:**',
     ...Object.entries(severityCounts).map(([k, v]) => `  - ${k}: ${v}`),
-    '',
-    `_Page size: ${FINDING_DEFAULT_PAGE_SIZE}_`,
-  ].join('\n');
+  ];
+
+  if (reports.length > 0) {
+    let totalTokens = 0;
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let cacheReadTokens = 0;
+    let totalCostUsd = 0;
+    let reportsWithUsage = 0;
+    let incrementalCount = 0;
+    for (const r of reports) {
+      if (r.scopeManifest?.isIncremental) incrementalCount++;
+      if (r.usage && r.usage.totalTokens > 0) {
+        reportsWithUsage++;
+        totalTokens += r.usage.totalTokens;
+        inputTokens += r.usage.inputTokens;
+        outputTokens += r.usage.outputTokens;
+        cacheReadTokens += r.usage.cacheReadTokens ?? 0;
+        totalCostUsd += r.usage.costUsd;
+      }
+    }
+    lines.push(
+      '',
+      '### Review Reports & Token Telemetry',
+      `**Total reports:** ${reports.length}${incrementalCount > 0 ? ` (${incrementalCount} incremental delta)` : ''}`,
+    );
+    if (reportsWithUsage > 0) {
+      const denom = inputTokens + cacheReadTokens;
+      const cachePct = denom > 0 ? Math.round((cacheReadTokens / denom) * 100) : 0;
+      lines.push(
+        `**Tokens (${reportsWithUsage} metered):** ${totalTokens.toLocaleString('en-US')} (in ${inputTokens.toLocaleString('en-US')}, out ${outputTokens.toLocaleString('en-US')}${
+          cacheReadTokens > 0
+            ? `, cache read ${cacheReadTokens.toLocaleString('en-US')} [${cachePct}%]`
+            : ''
+        })`,
+      );
+      if (totalCostUsd > 0) {
+        lines.push(`**Estimated cost:** $${totalCostUsd.toFixed(4)}`);
+      }
+    }
+  }
+
+  lines.push('', `_Page size: ${FINDING_DEFAULT_PAGE_SIZE}_`);
+  return lines.join('\n');
 }

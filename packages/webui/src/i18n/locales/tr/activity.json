@@ -4964,7 +4964,13 @@
     "skipReasonInFlight": "İnceleme devam ediyor",
     "skipReasonIgnoredNoise": "Filtrelendi (kaynak dışı / üretilmiş)",
     "skipReasonTooLarge": "Dosya çok büyük",
-    "skipReasonUnreadable": "Okunamıyor / silinmiş"
+    "skipReasonUnreadable": "Okunamıyor / silinmiş",
+    "cacheShort": "önbellek",
+    "sessionIntentLabel": "Oturum amacı",
+    "deletedFileRefsLabel": "Silinen dosyalara kalan referanslar:",
+    "scopeCurrentBadge": "Diskte güncel ✓",
+    "scopeStaleBadge": "Diskte eskimiş ({{count}} dosya değişti)",
+    "signatureCallersLabel": "Değişen dışa aktarımların dış çağırıcıları:"
   },
   "providerTest": {
     "title": "Sağlayıcı Testi",

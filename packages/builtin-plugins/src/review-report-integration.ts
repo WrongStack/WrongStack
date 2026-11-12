@@ -14,16 +14,71 @@
  * @module review-report-integration
  */
 
+import { createHash } from 'node:crypto';
+import * as fsp from 'node:fs/promises';
+import * as path from 'node:path';
 import { classifyChimeraReviewSource } from './review-finding-integration.js';
 import { parseChimeraReviewReport } from './review-finding-parser.js';
 import { JsonlFindingStore } from './review-finding-store.js';
 import { JsonlReportStore, type PersistReportInput } from './review-report-store.js';
-import type { ReviewReportCounts, ReviewReportFile } from './review-report-types.js';
+import type { ReviewReport, ReviewReportCounts, ReviewReportFile } from './review-report-types.js';
 import type {
   ChimeraReviewCompletePayload,
   ReviewContextBundle,
+  ReviewScopeDrift,
   ReviewScopeManifest,
 } from './review-types.js';
+
+/**
+ * Compare a persisted report's `scopeManifest.files[].sha256` against the live
+ * working tree on disk (`projectRoot`) without spawning `git`. Returns
+ * `undefined` when `projectRoot` is empty or the report recorded no SHA-256
+ * entries.
+ */
+export async function computeReportScopeDrift(
+  report: Pick<ReviewReport, 'scopeManifest'>,
+  projectRoot: string,
+): Promise<ReviewScopeDrift | undefined> {
+  if (!projectRoot || !report.scopeManifest?.files?.length) return undefined;
+  const tracked = report.scopeManifest.files.filter(
+    (entry) => typeof entry.sha256 === 'string' && entry.sha256.length > 0,
+  );
+  if (tracked.length === 0) return undefined;
+
+  const resolvedRoot = path.resolve(projectRoot);
+  let checkedCount = 0;
+  const modifiedPaths: string[] = [];
+  const missingPaths: string[] = [];
+
+  await Promise.all(
+    tracked.map(async (entry) => {
+      const target = path.resolve(resolvedRoot, entry.path);
+      const rel = path.relative(resolvedRoot, target);
+      if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return;
+
+      checkedCount++;
+      try {
+        const content = await fsp.readFile(target, 'utf8');
+        const diskSha = createHash('sha256').update(content).digest('hex');
+        if (diskSha !== entry.sha256) {
+          modifiedPaths.push(entry.path);
+        }
+      } catch {
+        missingPaths.push(entry.path);
+      }
+    }),
+  );
+
+  if (checkedCount === 0) return undefined;
+  modifiedPaths.sort();
+  missingPaths.sort();
+  return {
+    stale: modifiedPaths.length > 0 || missingPaths.length > 0,
+    checkedCount,
+    modifiedPaths,
+    missingPaths,
+  };
+}
 
 /**
  * Synthesize a structured `ReviewScopeManifest` from a `ReviewContextBundle`
@@ -53,8 +108,17 @@ export function buildReviewScopeManifest(bundle: ReviewContextBundle): ReviewSco
     ...(bundle.deletedFiles && bundle.deletedFiles.length > 0
       ? { deletedFiles: bundle.deletedFiles }
       : {}),
+    ...(bundle.deletedFileReferences && bundle.deletedFileReferences.length > 0
+      ? { deletedFileReferences: bundle.deletedFileReferences }
+      : {}),
+    ...(bundle.signatureCallers && bundle.signatureCallers.length > 0
+      ? { signatureCallers: bundle.signatureCallers }
+      : {}),
     ...(bundle.skippedFiles && bundle.skippedFiles.length > 0
       ? { skippedFiles: bundle.skippedFiles }
+      : {}),
+    ...(bundle.sessionIntent && bundle.sessionIntent.length > 0
+      ? { sessionIntent: bundle.sessionIntent }
       : {}),
     ...(bundle.kanbanCard?.id ? { kanbanCardId: bundle.kanbanCard.id } : {}),
     ...(bundle.activeTodos && bundle.activeTodos.length > 0

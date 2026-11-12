@@ -55,6 +55,7 @@ export function installExecutionChimeraHandlers(deps: ExecuteDeps) {
     events,
     director,
     session,
+    projectDir: wpaths.projectDir,
     teardownHandlers: chimeraTeardowns,
     buildLadder: () =>
       buildMutatingAgentLadder({

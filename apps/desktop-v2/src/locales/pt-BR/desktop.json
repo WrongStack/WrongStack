@@ -3553,7 +3553,8 @@
       "durationSeconds": "Duração da revisão (segundos)",
       "headSha": "HEAD revisado",
       "tokens": "Uso de tokens",
-      "execution": "Execução e custo"
+      "execution": "Execução e custo",
+      "scopeStatus": "Status do escopo em disco"
     },
     "tokensShort": "tok",
     "tokensBreakdown": "{{total}} ({{input}} ent. · {{output}} saí. · {{cache}} cache)",
@@ -3651,7 +3652,14 @@
     "triageFinding": "Marcar como triado",
     "startFinding": "Começar o trabalho no achado",
     "history": "Histórico do achado ({{n}})",
-    "findingId": "Achado {{id}}"
+    "findingId": "Achado {{id}}",
+    "deletedFileRefs": "Ainda referenciado após exclusão: {{refs}}",
+    "sessionIntent": "Intenção da sessão: {{intent}}",
+    "scopeCurrent": "Atual no disco ✓",
+    "scopeStale": "Desatualizado no disco ({{n}} alterados)",
+    "signatureCallers": "Chamadores de exportações modificadas: {{callers}}",
+    "aggregateUsage": "Σ {{tokens}} tok",
+    "cacheShort": "cache"
   },
   "skillLib": {
     "exported_one": "{{count}} habilidade exportada.",

@@ -13,7 +13,8 @@ function harness(
     persistReview?: (payload: unknown, projectDir: string, maintenance?: unknown) => Promise<void>;
     cwd?: string;
     config?: Record<string, unknown>;
-    reviewFiles?: Array<{ path: string; status: string; content: string }>;
+    reviewFiles?: Array<Record<string, unknown>>;
+    bundleOverrides?: Record<string, unknown>;
   } = {},
 ) {
   let reviewHandler: ((event: unknown, payload: unknown) => void) | undefined;
@@ -95,6 +96,7 @@ function harness(
           files: options.reviewFiles ?? [
             { path: 'src/a.ts', status: 'modified', content: 'export const a = 1;' },
           ],
+          ...options.bundleOverrides,
         },
       );
     },
@@ -323,5 +325,172 @@ describe('Chimera passive report integration', () => {
         'wstack-chimera': { openRetentionDays: 0, activeRetentionDays: 0 },
       }),
     ).toStrictEqual({ openRetentionDays: 0, activeRetentionDays: 0 });
+  });
+
+  it('strips operator-suppressed findings at the execution boundary so they never trigger actionable alerts', async () => {
+    const { JsonlFindingStore } = await import('@wrongstack/builtin-plugins');
+    const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), 'chimera-exec-suppress-'));
+    const repoDir = await fs.mkdtemp(path.join(os.tmpdir(), 'chimera-exec-repo-'));
+    try {
+      await fs.mkdir(path.join(repoDir, 'src'), { recursive: true });
+      const fileContent = 'export const token = "guest-fallback";\n';
+      await fs.writeFile(path.join(repoDir, 'src/a.ts'), fileContent, 'utf8');
+
+      const findingStore = new JsonlFindingStore(projectDir);
+      await findingStore.upsert(
+        [
+          {
+            id: 'suppressed-1',
+            fingerprint: 'fp-suppressed-1',
+            severity: 'high',
+            source: 'chimera',
+            location: { file: 'src/a.ts', line: 1 },
+            title: 'Hardcoded guest fallback token',
+            description: 'token uses guest-fallback constant',
+            createdAt: new Date().toISOString(),
+            status: 'active',
+            originReport: {
+              reportId: 'r-old',
+              sessionId: 'session-0',
+              agentId: 'chimera-review',
+              reviewerModel: 'reviewer',
+            },
+          },
+        ],
+        { sessionId: 'session-0', reportId: 'r-old', agentId: 'chimera-review', model: 'reviewer' },
+      );
+      await findingStore.transition(
+        'suppressed-1',
+        'ignored',
+        { id: 'operator', kind: 'operator' },
+        { reason: 'intentional guest fallback' },
+      );
+
+      const rawJsonFromLlm = JSON.stringify({
+        findings: [
+          {
+            severity: 'high',
+            category: 'security',
+            confidence: 'high',
+            file: 'src/a.ts',
+            line: 1,
+            title: 'Hardcoded guest fallback token',
+            description: 'token = "guest-fallback" allows guest access',
+            suggestedFix: 'Remove fallback',
+          },
+        ],
+      });
+
+      const h = harness(rawJsonFromLlm, 'off', {
+        projectDir,
+        cwd: repoDir,
+        realPersistence: true,
+        reviewFiles: [{ path: 'src/a.ts', status: 'modified', content: fileContent }],
+      });
+
+      h.emitReview();
+      await h.wait();
+
+      expect(h.mailbox.ack).toHaveBeenCalledWith(expect.objectContaining({ completed: true }));
+      expect(h.events.emitCustom).toHaveBeenCalledWith(
+        'chimera.report_available',
+        expect.objectContaining({
+          findingCount: 0,
+          hasActionableFindings: false,
+        }),
+      );
+      expect(h.events.emitCustom).toHaveBeenCalledWith(
+        'chimera.review_complete',
+        expect.objectContaining({
+          parsedReport: expect.objectContaining({ findings: [] }),
+        }),
+      );
+    } finally {
+      await fs.rm(projectDir, { recursive: true, force: true });
+      await fs.rm(repoDir, { recursive: true, force: true });
+    }
+  });
+
+  it('completes docs-only and comment-only automated reviews in 0 LLM tokens without spawning a subagent, unless manualTrigger is set', async () => {
+    const persistedPayloads: Array<Record<string, unknown>> = [];
+    const autoDocs = harness('{"findings":[]}', 'off', {
+      persistReview: async (payload) => {
+        persistedPayloads.push(payload as Record<string, unknown>);
+      },
+      reviewFiles: [{ path: 'docs/architecture.md', status: 'modified', content: '# Notes\n' }],
+    });
+
+    autoDocs.emitReview();
+    await autoDocs.wait();
+
+    expect(autoDocs.director.spawn).not.toHaveBeenCalled();
+    expect(persistedPayloads).toHaveLength(1);
+    expect(persistedPayloads[0]).toMatchObject({
+      status: 'success',
+      usage: {
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        costUsd: 0,
+        iterations: 0,
+        toolCalls: 0,
+      },
+    });
+    expect(autoDocs.mailbox.ack).toHaveBeenCalledWith(expect.objectContaining({ completed: true }));
+    expect(autoDocs.events.emitCustom).toHaveBeenCalledWith(
+      'chimera.report_available',
+      expect.objectContaining({
+        findingCount: 0,
+        hasActionableFindings: false,
+        message: expect.stringContaining('0 tokens'),
+      }),
+    );
+
+    const manualDocs = harness('{"findings":[]}', 'off', {
+      reviewFiles: [{ path: 'docs/architecture.md', status: 'modified', content: '# Notes\n' }],
+      bundleOverrides: { manualTrigger: true },
+    });
+    manualDocs.emitReview();
+    await manualDocs.wait();
+    expect(manualDocs.director.spawn).toHaveBeenCalledTimes(1);
+  });
+
+  it('always emits chimera.review_complete when director is missing so auto-review inFlight slots never leak', async () => {
+    let reviewHandler: ((event: unknown, payload: unknown) => void) | undefined;
+    const events = {
+      onPattern: vi.fn((name: string, handler: (event: unknown, payload: unknown) => void) => {
+        if (name === 'chimera.review_needed') reviewHandler = handler;
+        return () => undefined;
+      }),
+      emitCustom: vi.fn(),
+    };
+    const session = { id: 'session-no-dir', append: vi.fn().mockResolvedValue(undefined) };
+    installChimeraReviewHandler({
+      events: events as never,
+      director: null,
+      session: session as never,
+      mailbox: { send: vi.fn(), ack: vi.fn() } as never,
+      agent: { ctx: { activeRunSessionId: undefined, session } } as never,
+      config: { provider: 'test', model: 'reviewer' } as never,
+      projectDir: 'D:/project-data',
+      trackWork: () => undefined,
+    });
+
+    const bundle = {
+      cwd: 'D:/repo',
+      config: { provider: 'test', model: 'reviewer' },
+      files: [{ path: 'src/app.ts', status: 'modified', content: 'export const x = 1;\n' }],
+    };
+    reviewHandler?.('chimera.review_needed', bundle);
+    await vi.waitFor(() =>
+      expect(events.emitCustom).toHaveBeenCalledWith(
+        'chimera.review_complete',
+        expect.objectContaining({
+          bundle,
+          status: 'skipped',
+          sessionId: 'session-no-dir',
+        }),
+      ),
+    );
   });
 });

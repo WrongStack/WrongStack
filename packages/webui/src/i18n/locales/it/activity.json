@@ -4964,7 +4964,13 @@
     "skipReasonInFlight": "Revisione in corso",
     "skipReasonIgnoredNoise": "Filtrato (non sorgente / generato)",
     "skipReasonTooLarge": "File troppo grande",
-    "skipReasonUnreadable": "Illeggibile / eliminato"
+    "skipReasonUnreadable": "Illeggibile / eliminato",
+    "cacheShort": "cache",
+    "sessionIntentLabel": "Intento della sessione",
+    "deletedFileRefsLabel": "Riferimenti residui a file eliminati:",
+    "scopeCurrentBadge": "Aggiornato su disco ✓",
+    "scopeStaleBadge": "Non aggiornato su disco ({{count}} modificati)",
+    "signatureCallersLabel": "Chiamanti esterni delle esportazioni modificate:"
   },
   "providerTest": {
     "title": "Test provider",

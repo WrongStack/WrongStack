@@ -3553,7 +3553,8 @@
       "durationSeconds": "Durata della revisione (secondi)",
       "headSha": "HEAD revisionato",
       "tokens": "Utilizzo token",
-      "execution": "Esecuzione e costo"
+      "execution": "Esecuzione e costo",
+      "scopeStatus": "Stato ambito su disco"
     },
     "tokensShort": "tok",
     "tokensBreakdown": "{{total}} ({{input}} in · {{output}} out · {{cache}} cache)",
@@ -3651,7 +3652,14 @@
     "triageFinding": "Segna come smistato",
     "startFinding": "Inizia il lavoro sul rilievo",
     "history": "Cronologia del rilievo ({{n}})",
-    "findingId": "Rilievo {{id}}"
+    "findingId": "Rilievo {{id}}",
+    "deletedFileRefs": "Ancora referenziato dopo eliminazione: {{refs}}",
+    "sessionIntent": "Intento della sessione: {{intent}}",
+    "scopeCurrent": "Aggiornato su disco ✓",
+    "scopeStale": "Non aggiornato su disco ({{n}} modificati)",
+    "signatureCallers": "Chiamanti esportazioni modificate: {{callers}}",
+    "aggregateUsage": "Σ {{tokens}} tok",
+    "cacheShort": "cache"
   },
   "skillLib": {
     "exported_one": "{{count}} skill esportata.",

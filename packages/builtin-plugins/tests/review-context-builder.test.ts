@@ -9,6 +9,7 @@ import {
   annotateUnifiedDiffWithLineNumbers,
   buildReviewContext,
   computeHybridIncrementalDeltaDiff,
+  extractSessionIntentSnippets,
   isIgnoredReviewNoisePath,
   parsePorcelainStatusZ,
   prioritizeReviewCandidates,
@@ -611,6 +612,32 @@ describe('buildReviewContext', () => {
       await fsp.rm(projectDir, { recursive: true, force: true });
     }
   });
+
+  it('pre-scans dangling references to deleted worktree files and propagates sessionIntent', async () => {
+    await writeAndCommit('src/obsoleteHelper.ts', 'export const legacyFlag = true;\n', tmpDir);
+    const callerContent =
+      'import { legacyFlag } from "./obsoleteHelper.js";\nconsole.log(legacyFlag);\n';
+    await writeAndCommit('src/caller.ts', callerContent, tmpDir);
+    await fsp.rm(path.join(tmpDir, 'src/obsoleteHelper.ts'));
+
+    const bundle = await buildReviewContext({
+      cwd: tmpDir,
+      config: MOCK_CONFIG,
+      files: [{ path: 'src/caller.ts', status: 'modified', content: callerContent }],
+      sessionIntent: ['Remove legacy flag module intentionally, keep public API'],
+    });
+
+    expect(bundle.deletedFiles).toContain('src/obsoleteHelper.ts');
+    expect(bundle.deletedFileReferences).toEqual([
+      {
+        deletedPath: 'src/obsoleteHelper.ts',
+        referencedBy: ['src/caller.ts'],
+      },
+    ]);
+    expect(bundle.sessionIntent).toEqual([
+      'Remove legacy flag module intentionally, keep public API',
+    ]);
+  });
 });
 
 describe('noise filtering, source priority, and pure diff helpers', () => {
@@ -663,5 +690,338 @@ describe('noise filtering, source priority, and pure diff helpers', () => {
 
   it('computeHybridIncrementalDeltaDiff returns null when contents match', () => {
     expect(computeHybridIncrementalDeltaDiff('same\n', 'same\n')).toBeNull();
+  });
+
+  it('extractSessionIntentSnippets strips system reminders, ignores slash commands, deduplicates, and caps to 3 recent prompts', () => {
+    const snippets = extractSessionIntentSnippets({
+      messages: [
+        { role: 'user', content: 'First prompt that should fall off when > 3' },
+        {
+          role: 'user',
+          content:
+            '<system-reminder>internal hook</system-reminder> Refactor auth token refresh to skip guest sessions',
+        },
+        { role: 'assistant', content: 'Working on it' },
+        { role: 'user', content: '/review status' },
+        {
+          role: 'user',
+          content: [{ type: 'text', text: '[System: notice]\nKeep legacy v1 endpoint read-only' }],
+        },
+      ],
+      extraInputs: ['Add unit tests for guest session bypass'],
+    });
+
+    expect(snippets).toEqual([
+      'Refactor auth token refresh to skip guest sessions',
+      'Keep legacy v1 endpoint read-only',
+      'Add unit tests for guest session bypass',
+    ]);
+  });
+
+  it('pre-computes external signatureCallers when an exported function signature is modified', async () => {
+    const repoDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'review-sig-callers-'));
+    try {
+      git(['init'], repoDir);
+      await writeAndCommit(
+        'src/tokenValidator.ts',
+        'export function validateSessionToken(token: string): boolean {\n  return token.length > 0;\n}\n',
+        repoDir,
+      );
+      await writeAndCommit(
+        'src/httpMiddleware.ts',
+        'import { validateSessionToken } from "./tokenValidator.js";\nexport function guard(req: string) {\n  return validateSessionToken(req);\n}\n',
+        repoDir,
+      );
+
+      const updatedContent =
+        'export function validateSessionToken(token: string, strict: boolean): boolean {\n  return strict ? token.length > 10 : token.length > 0;\n}\n';
+      await fsp.writeFile(path.join(repoDir, 'src/tokenValidator.ts'), updatedContent, 'utf8');
+
+      const bundle = await buildReviewContext({
+        cwd: repoDir,
+        config: MOCK_CONFIG,
+        files: [{ path: 'src/tokenValidator.ts', status: 'modified', content: updatedContent }],
+      });
+
+      expect(bundle.signatureCallers).toEqual([
+        {
+          symbol: 'validateSessionToken',
+          file: 'src/tokenValidator.ts',
+          callers: ['src/httpMiddleware.ts:1', 'src/httpMiddleware.ts:3'],
+        },
+      ]);
+    } finally {
+      await fsp.rm(repoDir, { recursive: true, force: true });
+    }
+  });
+
+  it('filters operator-suppressed findings (ignored/wontfix/false_positive) while keeping fixed regressions', async () => {
+    const { filterOperatorSuppressedFindings } = await import(
+      '../src/review-finding-integration.js'
+    );
+    const projectDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'chimera-suppressed-'));
+    try {
+      const findingStore = new JsonlFindingStore(projectDir);
+      const baseOrigin = {
+        reportId: 'r-prev',
+        sessionId: 's-1',
+        agentId: 'chimera-review',
+        reviewerModel: 'test-model',
+      };
+      await findingStore.upsert(
+        [
+          {
+            id: 'f-ignored',
+            fingerprint: 'fp-ignored',
+            severity: 'medium',
+            source: 'chimera',
+            location: { file: 'src/auth.ts', line: 10 },
+            title: 'Guest fallback allowed',
+            description: 'Guest fallback is intentional',
+            createdAt: new Date().toISOString(),
+            status: 'active',
+            originReport: baseOrigin,
+          },
+          {
+            id: 'f-wontfix',
+            fingerprint: 'fp-wontfix',
+            severity: 'high',
+            source: 'chimera',
+            location: { file: 'src/auth.ts', line: 22 },
+            title: 'Legacy sha1 compatibility',
+            description: 'Required for v1 clients',
+            createdAt: new Date().toISOString(),
+            status: 'active',
+            originReport: baseOrigin,
+          },
+          {
+            id: 'f-fixed',
+            fingerprint: 'fp-fixed',
+            severity: 'high',
+            source: 'chimera',
+            location: { file: 'src/auth.ts', line: 40 },
+            title: 'Missing null guard',
+            description: 'Throws TypeError on null user',
+            createdAt: new Date().toISOString(),
+            status: 'active',
+            originReport: baseOrigin,
+          },
+        ],
+        { sessionId: 's-1', reportId: 'r-prev', agentId: 'chimera-review', model: 'test-model' },
+      );
+
+      await findingStore.transition(
+        'f-ignored',
+        'ignored',
+        { id: 'op', kind: 'operator' },
+        { reason: 'intentional' },
+      );
+      await findingStore.transition(
+        'f-wontfix',
+        'resolved',
+        { id: 'op', kind: 'operator' },
+        { outcome: 'wontfix', reason: 'legacy contract' },
+      );
+      await findingStore.transition(
+        'f-fixed',
+        'resolved',
+        { id: 'op', kind: 'operator' },
+        { outcome: 'fixed', reason: 'patched' },
+      );
+
+      const candidateFindings = [
+        {
+          id: 'new-1',
+          fingerprint: 'different-fp-line-shifted',
+          severity: 'medium' as const,
+          source: 'chimera' as const,
+          location: { file: './src/auth.ts', line: 14 },
+          title: 'Guest fallback allowed',
+          description: 'Re-emitted despite DO NOT RE-REPORT',
+          createdAt: new Date().toISOString(),
+          status: 'active' as const,
+          originReport: baseOrigin,
+        },
+        {
+          id: 'new-2',
+          fingerprint: 'fp-wontfix',
+          severity: 'high' as const,
+          source: 'chimera' as const,
+          location: { file: 'src/auth.ts', line: 22 },
+          title: 'Legacy sha1 compatibility',
+          description: 'Re-emitted wontfix',
+          createdAt: new Date().toISOString(),
+          status: 'active' as const,
+          originReport: baseOrigin,
+        },
+        {
+          id: 'new-3',
+          fingerprint: 'fp-fixed',
+          severity: 'high' as const,
+          source: 'chimera' as const,
+          location: { file: 'src/auth.ts', line: 40 },
+          title: 'Missing null guard',
+          description: 'Regression reintroduced',
+          createdAt: new Date().toISOString(),
+          status: 'active' as const,
+          originReport: baseOrigin,
+        },
+      ];
+
+      const filtered = await filterOperatorSuppressedFindings(candidateFindings, projectDir);
+      expect(filtered.suppressedCount).toBe(2);
+      expect(filtered.findings.map((f) => f.id)).toEqual(['new-3']);
+    } finally {
+      await fsp.rm(projectDir, { recursive: true, force: true });
+    }
+  });
+
+  it('hydrates completed SHA-256 snapshots across restarts and computes live scopeDrift', async () => {
+    const { createHash } = await import('node:crypto');
+    const {
+      getCompletedReviewSnapshots,
+      hydrateCompletedSnapshotsFromReportStore,
+      isFileContentAlreadyReviewed,
+    } = await import('../src/review-claim-registry.js');
+    const { computeReportScopeDrift } = await import('../src/review-report-integration.js');
+    const { JsonlReportStore } = await import('../src/review-report-store.js');
+
+    const projectDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'chimera-hydrate-'));
+    const workDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'chimera-workdir-'));
+    try {
+      const content = 'export const ANSWER = 42;\n';
+      const sha256 = createHash('sha256').update(content).digest('hex');
+      await fsp.mkdir(path.join(workDir, 'src'), { recursive: true });
+      await fsp.writeFile(path.join(workDir, 'src/answer.ts'), content, 'utf8');
+
+      const reportStore = new JsonlReportStore(projectDir);
+      await reportStore.persist({
+        id: 'rep-hydrated-1',
+        sessionId: 'prev-session',
+        agentId: 'chimera-review',
+        reviewerModel: 'test-model',
+        source: 'chimera',
+        reviewStatus: 'success',
+        files: [{ path: 'src/answer.ts', status: 'modified' }],
+        counts: { critical: 0, high: 0, medium: 0, low: 0 },
+        totalFindings: 0,
+        unparseableCount: 0,
+        rawText: '## 🦂 Chimera Review — all clear ✅',
+        scopeManifest: {
+          files: [{ path: 'src/answer.ts', status: 'modified', sha256 }],
+        },
+      });
+
+      const fakeBus = {} as import('@wrongstack/contracts/kernel/events').EventBus;
+      expect(isFileContentAlreadyReviewed(fakeBus, workDir, 'src/answer.ts', content)).toBe(false);
+
+      await hydrateCompletedSnapshotsFromReportStore(fakeBus, workDir, projectDir);
+      expect(isFileContentAlreadyReviewed(fakeBus, workDir, 'src/answer.ts', content)).toBe(true);
+      expect(
+        isFileContentAlreadyReviewed(
+          fakeBus,
+          workDir,
+          'src/answer.ts',
+          'export const ANSWER = 43;\n',
+        ),
+      ).toBe(false);
+      // SHA-only hydrated snapshots have no content, so delta-diff base stays empty
+      expect(getCompletedReviewSnapshots(fakeBus, workDir).size).toBe(0);
+
+      const persisted = await reportStore.get('rep-hydrated-1');
+      const driftCurrent = await computeReportScopeDrift(persisted!, workDir);
+      expect(driftCurrent).toEqual({
+        stale: false,
+        checkedCount: 1,
+        modifiedPaths: [],
+        missingPaths: [],
+      });
+
+      await fsp.writeFile(
+        path.join(workDir, 'src/answer.ts'),
+        'export const ANSWER = 99;\n',
+        'utf8',
+      );
+      const driftStale = await computeReportScopeDrift(persisted!, workDir);
+      expect(driftStale).toEqual({
+        stale: true,
+        checkedCount: 1,
+        modifiedPaths: ['src/answer.ts'],
+        missingPaths: [],
+      });
+    } finally {
+      await fsp.rm(projectDir, { recursive: true, force: true });
+      await fsp.rm(workDir, { recursive: true, force: true });
+    }
+  });
+
+  it('classifies docs-only and comment/whitespace-only bundles for the 0-token fast path while rejecting suppressions, SKILL.md, and manual triggers', async () => {
+    const { classifyZeroTokenReviewFastPath } = await import('../src/review-context-builder.js');
+
+    expect(
+      classifyZeroTokenReviewFastPath({
+        files: [
+          { path: 'README.md', status: 'modified', content: '# Updated docs\n' },
+          { path: 'docs/guide.mdx', status: 'added', content: 'Guide text\n' },
+        ],
+      }),
+    ).toEqual({ eligible: true, reason: 'docs_only' });
+
+    expect(
+      classifyZeroTokenReviewFastPath({
+        files: [
+          {
+            path: 'packages/core/skills/chimera/SKILL.md',
+            status: 'modified',
+            content: '# Skill contract\n',
+          },
+        ],
+      }),
+    ).toEqual({ eligible: false });
+
+    expect(
+      classifyZeroTokenReviewFastPath({
+        files: [
+          {
+            path: 'src/service.ts',
+            status: 'modified',
+            content: 'export function run() {\n  // clarified invariant\n  return 1;\n}\n',
+            diff: [
+              '@@ -1,3 +1,4 @@',
+              '    1 |  export function run() {',
+              '    2 | +  // clarified invariant',
+              '    3 | +',
+              '    4 |    return 1;',
+            ].join('\n'),
+          },
+        ],
+      }),
+    ).toEqual({ eligible: true, reason: 'comments_or_whitespace_only' });
+
+    // Suppression comments MUST NOT bypass the LLM reviewer
+    expect(
+      classifyZeroTokenReviewFastPath({
+        files: [
+          {
+            path: 'src/service.ts',
+            status: 'modified',
+            content: '// @ts-ignore\nexport const x: number = "bad";\n',
+            diff: [
+              '@@ -1,1 +1,2 @@',
+              '    1 | +// @ts-ignore',
+              '    2 |  export const x = 1;',
+            ].join('\n'),
+          },
+        ],
+      }),
+    ).toEqual({ eligible: false });
+
+    // Manual `/review` MUST NOT bypass the LLM reviewer
+    expect(
+      classifyZeroTokenReviewFastPath({
+        manualTrigger: true,
+        files: [{ path: 'README.md', status: 'modified', content: '# Manual check\n' }],
+      }),
+    ).toEqual({ eligible: false });
   });
 });

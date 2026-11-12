@@ -56,8 +56,8 @@ import {
   handleChimeraReportAvailable,
   handleChimeraReports,
 } from '../../src/hooks/ws-handlers/misc-handlers';
-import { useChimeraReportsStore } from '../../src/stores/chimera-reports-store';
 import { DEFAULT_LANE_ID, readLane, useChatLanes } from '../../src/stores/chat-lanes';
+import { useChimeraReportsStore } from '../../src/stores/chimera-reports-store';
 
 function event(
   overrides: Record<string, unknown> = {},
@@ -161,6 +161,7 @@ describe('chimera.reports — hydration fills the registry, never the transcript
           reviewedAt: '2026-08-28T00:00:00Z',
           lifecycleStatus: 'open',
           totalFindings: 2,
+          fileCount: 4,
           hasActionableFindings: true,
         },
         {
@@ -202,6 +203,7 @@ describe('chimera.reports — hydration fills the registry, never the transcript
     // registry; the rest are addressable for the Chimera panel.
     const hydrated = useChimeraReportsStore.getState().bySession['sess-1'] ?? [];
     expect(hydrated).toHaveLength(2);
+    expect(hydrated.find((r) => r.reportId === 'report-a')?.fileCount).toBe(4);
     expect(hydrated.find((r) => r.reportId === 'report-e')?.hasActionableFindings).toBe(false);
   });
 

@@ -5,6 +5,7 @@ import { validateTransition } from '../../../packages/builtin-plugins/src/review
 import { validateReportTransition } from '../../../packages/builtin-plugins/src/review-report-types';
 import { ChimeraFinding } from '../src/ChimeraFinding';
 import {
+  reviewAggregateUsage,
   reviewFilteredReports,
   reviewFindingCounts,
   reviewFindingTransitions,
@@ -91,5 +92,35 @@ describe('Project Chimera review contracts', () => {
     expect(reviewUsdCost(0.045)).toBe('$0.045');
     const rows = [{ reportId: 'r1', sessionId: 's1', headSha: 'deadbeef12' }];
     expect(reviewFilteredReports(rows, 'deadbeef', '')).toEqual(rows);
+    expect(reviewAggregateUsage(rows)).toBeNull();
+    expect(
+      reviewAggregateUsage([
+        {
+          reportId: 'r1',
+          usage: {
+            inputTokens: 1000,
+            outputTokens: 200,
+            cacheReadTokens: 3000,
+            totalTokens: 1200,
+            costUsd: 0.002,
+          },
+        },
+        {
+          reportId: 'r2',
+          usage: {
+            inputTokens: 1000,
+            outputTokens: 100,
+            cacheReadTokens: 1000,
+            totalTokens: 1100,
+            costUsd: 0.003,
+          },
+        },
+      ]),
+    ).toEqual({
+      meteredCount: 2,
+      totalTokens: 2300,
+      cachePct: 67,
+      costUsd: 0.005,
+    });
   });
 });

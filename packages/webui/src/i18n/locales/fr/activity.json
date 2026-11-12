@@ -4964,7 +4964,13 @@
     "skipReasonInFlight": "Revue en cours",
     "skipReasonIgnoredNoise": "Filtré (non-source / généré)",
     "skipReasonTooLarge": "Fichier trop volumineux",
-    "skipReasonUnreadable": "Illisible / supprimé"
+    "skipReasonUnreadable": "Illisible / supprimé",
+    "cacheShort": "cache",
+    "sessionIntentLabel": "Intention de la session",
+    "deletedFileRefsLabel": "Références résiduelles vers des fichiers supprimés :",
+    "scopeCurrentBadge": "À jour sur le disque ✓",
+    "scopeStaleBadge": "Obsolète sur le disque ({{count}} modifiés)",
+    "signatureCallersLabel": "Appelants externes des exports modifiés :"
   },
   "providerTest": {
     "title": "Test de fournisseur",

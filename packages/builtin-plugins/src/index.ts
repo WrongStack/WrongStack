@@ -21,10 +21,13 @@ export {
   createChimeraPlugin,
   type ResolvedChimeraConfig,
   type ReviewContextBundle,
+  type ReviewDeletedFileReference,
   type ReviewFileEntry,
   type ReviewPriorFindingSummary,
+  type ReviewScopeDrift,
   type ReviewScopeFileManifest,
   type ReviewScopeManifest,
+  type ReviewSignatureCallers,
   type ReviewSkippedFile,
   type ReviewSkippedFileReason,
   type ReviewUsageMetrics,
@@ -37,6 +40,7 @@ export {
   type CompletedReviewFileSnapshot,
   emitReviewIfChanged,
   getCompletedReviewSnapshots,
+  hydrateCompletedSnapshotsFromReportStore,
   isFileContentAlreadyReviewed,
   recordCompletedReview,
   recordStartedReview,
@@ -46,11 +50,14 @@ export {
   annotateUnifiedDiffWithLineNumbers,
   type BuildReviewContextOptions,
   buildReviewContext,
+  classifyZeroTokenReviewFastPath,
   computeHybridIncrementalDeltaDiff,
+  extractSessionIntentSnippets,
   isIgnoredReviewNoisePath,
-  prioritizeReviewCandidates,
   parsePorcelainStatusZ,
+  prioritizeReviewCandidates,
   statusUnderPrefix,
+  type ZeroTokenReviewFastPathVerdict,
 } from './review-context-builder.js';
 export {
   executeFindingCommand,
@@ -60,6 +67,7 @@ export {
 export {
   classifyChimeraReviewSource,
   type FindingsIntegrationResult,
+  filterOperatorSuppressedFindings,
   integrateFindings,
 } from './review-finding-integration.js';
 export {
@@ -98,7 +106,21 @@ export {
   verifyFindingsAgainstDisk,
 } from './review-finding-verification.js';
 export {
+  type ChimeraFollowupBriefingOptions,
+  type ChimeraFollowupBriefingResult,
+  type ChimeraFollowupOutcomeItem,
+  type ChimeraFollowupOutcomeKind,
+  createChimeraFollowupExtension,
+  extractChimeraFollowupOutcomes,
+  extractChimeraReportIdFromPrompt,
+  type ReconcileChimeraFollowupOptions,
+  type ReconcileChimeraFollowupResult,
+  reconcileChimeraFollowupOutcomes,
+  resolveChimeraFollowupBriefing,
+} from './review-followup-briefing.js';
+export {
   buildReviewScopeManifest,
+  computeReportScopeDrift,
   persistReviewReport,
   type ReportIntegrationResult,
   type ReportReopenResult,

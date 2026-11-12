@@ -27,9 +27,9 @@ export type { ReviewerModelAssignment };
 import {
   type ChangedFile,
   type ChangedFileSnapshot,
-  getChangedFiles,
-  isGitRepo,
-  snapshotChangedFiles,
+  getChangedFilesWithMetaIfRepo,
+  snapshotChangedFilesIfRepo,
+  snapshotChangedFilesWithMetaIfRepo,
 } from './auto-review-git.js';
 import type {
   ChimeraCascadeNeededPayload,
@@ -39,11 +39,13 @@ import type {
 import {
   emitReviewIfChanged,
   getCompletedReviewSnapshots,
+  hydrateCompletedSnapshotsFromReportStore,
   isFileContentAlreadyReviewed,
   recordCompletedReview,
 } from './review-claim-registry.js';
 import {
   buildReviewContext,
+  extractSessionIntentSnippets,
   isIgnoredReviewNoisePath,
   prioritizeReviewCandidates,
 } from './review-context-builder.js';
@@ -240,13 +242,20 @@ export function createAutoReviewPlugin(): Plugin {
         }
       };
 
-      api.onEvent('agent.run.started', async () => {
+      const recentUserInputs: string[] = [];
+
+      api.onEvent('agent.run.started', async (ev) => {
+        if (ev?.inputText && (!ev.ctx || areSubagentsAllowed(ev.ctx))) {
+          recentUserInputs.push(ev.inputText);
+          if (recentUserInputs.length > 6) recentUserInputs.shift();
+        }
         try {
           const cwd = api.config.cwd ?? process.cwd();
-          if (!(await isGitRepo(cwd))) return;
-          const snapshots = await withSnapshotLock(() => snapshotChangedFiles(cwd));
-          if (!snapshots) return;
-          for (const file of snapshots) {
+          const result = await withSnapshotLock(async () => ({
+            files: await snapshotChangedFilesIfRepo(cwd),
+          }));
+          if (!result?.files) return;
+          for (const file of result.files) {
             rememberKnownFingerprint(file.path, file.fingerprint);
           }
           api.log.info(`[auto-review] seeded ${knownFingerprints.size} known file snapshot(s)`);
@@ -341,15 +350,19 @@ export function createAutoReviewPlugin(): Plugin {
           if (payload) latestIterationPayload = payload;
 
           const cwd = api.config.cwd ?? process.cwd();
-          if (!(await isGitRepo(cwd))) return;
-
           const ctxTodos = payload?.ctx?.todos;
 
-          const snapshots = await withSnapshotLock(() => snapshotChangedFiles(cwd));
-          if (!snapshots) {
+          const snapResult = await withSnapshotLock(async () => ({
+            meta: await snapshotChangedFilesWithMetaIfRepo(cwd),
+          }));
+          if (!snapResult) {
             if (fromQuietTimer) schedulePendingReview(cfg.debounceMs);
             return;
           }
+          if (!snapResult.meta) return;
+          const snapshots = snapResult.meta.snapshots;
+          const iterGitIsolation = snapResult.meta.isolation;
+          const iterAllChangedFiles = snapResult.meta.allChangedFiles;
           if (sessionEnded) return;
           const now = Date.now();
 
@@ -419,6 +432,8 @@ export function createAutoReviewPlugin(): Plugin {
           const bundle = await buildReviewContext({
             cwd,
             projectDir: resolveProjectDir(cwd),
+            preResolvedIsolation: iterGitIsolation,
+            precomputedChangedFiles: iterAllChangedFiles,
             previousSnapshots: getCompletedReviewSnapshots(api.events, cwd),
             skippedFiles: iterSkipped,
             fileLineage: resolveChronicleFileLineage(api.container),
@@ -435,6 +450,10 @@ export function createAutoReviewPlugin(): Plugin {
             },
             files: filesWithContent,
             activeTodos: ctxTodos,
+            sessionIntent: extractSessionIntentSnippets({
+              messages: payload?.ctx?.messages,
+              extraInputs: recentUserInputs,
+            }),
             cascadeOn: cfg.cascadeOn,
             maxCascadeDepth: cfg.maxCascadeDepth,
           });
@@ -509,9 +528,9 @@ export function createAutoReviewPlugin(): Plugin {
             if (!cfg.enabled) return;
 
             const cwd = api.config.cwd ?? process.cwd();
-            if (!(await isGitRepo(cwd))) return;
-
-            const allChanged = await getChangedFiles(cwd);
+            const repoMeta = await getChangedFilesWithMetaIfRepo(cwd);
+            if (!repoMeta) return;
+            const allChanged = repoMeta.files;
             const existing: ChangedFile[] = [];
             const sessionEndSkipped: ReviewSkippedFile[] = [];
             for (const f of allChanged) {
@@ -540,6 +559,9 @@ export function createAutoReviewPlugin(): Plugin {
             for (const capped of prioritized.capped) {
               sessionEndSkipped.push({ path: capped.path, reason: 'max_files_cap' });
             }
+
+            const projectDir = resolveProjectDir(cwd);
+            await hydrateCompletedSnapshotsFromReportStore(api.events, cwd, projectDir);
 
             const filesWithContent: ChimeraReviewNeededPayload['files'] = [];
             let alreadyReviewedCount = 0;
@@ -576,7 +598,9 @@ export function createAutoReviewPlugin(): Plugin {
 
             const bundle = await buildReviewContext({
               cwd,
-              projectDir: resolveProjectDir(cwd),
+              projectDir,
+              preResolvedIsolation: repoMeta.isolation,
+              precomputedChangedFiles: repoMeta.allChangedFiles,
               previousSnapshots: getCompletedReviewSnapshots(api.events, cwd),
               skippedFiles: sessionEndSkipped,
               fileLineage: resolveChronicleFileLineage(api.container),
@@ -592,6 +616,11 @@ export function createAutoReviewPlugin(): Plugin {
                 fallbackProfile: undefined,
               },
               files: filesWithContent,
+              activeTodos: latestIterationPayload?.ctx?.todos,
+              sessionIntent: extractSessionIntentSnippets({
+                messages: latestIterationPayload?.ctx?.messages,
+                extraInputs: recentUserInputs,
+              }),
               cascadeOn: cfg.cascadeOn,
               maxCascadeDepth: cfg.maxCascadeDepth,
             });

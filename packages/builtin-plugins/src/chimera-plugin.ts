@@ -7,21 +7,24 @@ import type { Plugin } from '@wrongstack/contracts/types/plugin';
 import type { SlashCommand } from '@wrongstack/contracts/types/slash-command';
 import { resolveChronicleFileLineage } from '@wrongstack/core/agent';
 import { projectSlug, readBundledInstructionText, toErrorMessage } from '@wrongstack/core/utils';
-import { gitIsolationEnv } from '@wrongstack/primitives';
+import { resolveCachedGitIsolation } from './auto-review-git.js';
 import {
   emitReviewIfChanged,
   getCompletedReviewSnapshots,
+  hydrateCompletedSnapshotsFromReportStore,
   isFileContentAlreadyReviewed,
   recordCompletedReview,
   recordStartedReview,
 } from './review-claim-registry.js';
 import {
   buildReviewContext,
+  extractSessionIntentSnippets,
   isIgnoredReviewNoisePath,
   prioritizeReviewCandidates,
   statusUnderPrefix,
 } from './review-context-builder.js';
 import { executeFindingCommand } from './review-finding-commands.js';
+import { createChimeraFollowupExtension } from './review-followup-briefing.js';
 import type {
   ResolvedChimeraConfig,
   ReviewContextBundle,
@@ -41,10 +44,13 @@ export type {
   ChimeraReviewNeededPayload,
   ResolvedChimeraConfig,
   ReviewContextBundle,
+  ReviewDeletedFileReference,
   ReviewFileEntry,
   ReviewPriorFindingSummary,
+  ReviewScopeDrift,
   ReviewScopeFileManifest,
   ReviewScopeManifest,
+  ReviewSignatureCallers,
   ReviewSkippedFile,
   ReviewSkippedFileReason,
   ReviewUsageMetrics,
@@ -146,10 +152,14 @@ export const CHIMERA_REVIEW_PROMPT = readBundledInstructionText('llm/chimera-rev
 async function runGit(
   args: string[],
   cwd: string,
+  preResolvedIsolation?: Record<string, string> | null,
 ): Promise<{ stdout: string; stderr: string; code: number }> {
   // The repository's config names programs git runs (fsmonitor, filters);
   // when they cannot be switched off, git does not run.
-  const isolation = await gitIsolationEnv(cwd);
+  const isolation =
+    preResolvedIsolation !== undefined
+      ? preResolvedIsolation
+      : await resolveCachedGitIsolation(cwd);
   if (!isolation) return { stdout: '', stderr: 'git isolation unavailable', code: 1 };
   return new Promise((resolve, reject) => {
     let child;
@@ -186,30 +196,45 @@ async function runGit(
   });
 }
 
-async function isGitRepo(cwd: string): Promise<boolean> {
-  const r = await runGit(['rev-parse', '--git-dir'], cwd);
-  return r.code === 0;
-}
-
 interface ChangedFile {
   path: string;
   status: 'added' | 'modified';
 }
 
-async function getChangedFiles(cwd: string): Promise<ChangedFile[]> {
+async function resolveChimeraRepoPrefix(
+  cwd: string,
+  isolation: Record<string, string>,
+): Promise<string | null> {
+  if (!process.env['GIT_DIR'] && !process.env['GIT_WORK_TREE']) {
+    try {
+      await fsp.access(path.join(cwd, '.git'));
+      return '';
+    } catch {
+      // Subdirectory or linked worktree — query git.
+    }
+  }
+  const prefix = await runGit(['rev-parse', '--show-prefix'], cwd, isolation);
+  return prefix.code === 0 ? prefix.stdout.trim() : null;
+}
+
+async function getChangedFilesWithMetaIfRepo(cwd: string): Promise<{
+  files: ChangedFile[];
+  allChangedFiles: Array<{ path: string; status: string }>;
+  isolation: Record<string, string>;
+} | null> {
+  const isolation = await resolveCachedGitIsolation(cwd);
+  if (!isolation) return null;
   // -z: line output C-quotes names with spaces/non-ASCII (`"my notes.ts"`), which
   // then fail fs.access and drop out of review. -uall: a new directory is one
   // `?? dir/` entry otherwise, and the files inside it were never reviewed.
   const [r, prefix] = await Promise.all([
-    runGit(['status', '--porcelain', '-z', '--untracked-files=all'], cwd),
-    runGit(['rev-parse', '--show-prefix'], cwd),
+    runGit(['status', '--porcelain', '-z', '--untracked-files=all'], cwd, isolation),
+    resolveChimeraRepoPrefix(cwd, isolation),
   ]);
-  if (r.code !== 0 || prefix.code !== 0) return [];
+  if (r.code !== 0 || prefix === null) return null;
+  const allChangedFiles = statusUnderPrefix(r.stdout, prefix);
   const files: ChangedFile[] = [];
-  for (const { path: filePath, status: statusCode } of statusUnderPrefix(
-    r.stdout,
-    prefix.stdout.trim(),
-  )) {
+  for (const { path: filePath, status: statusCode } of allChangedFiles) {
     if (statusCode === 'A' || statusCode === 'A ' || statusCode === ' A' || statusCode === '??') {
       files.push({ path: filePath, status: 'added' });
     } else if (
@@ -221,7 +246,7 @@ async function getChangedFiles(cwd: string): Promise<ChangedFile[]> {
       files.push({ path: filePath, status: 'modified' });
     }
   }
-  return files;
+  return { files, allChangedFiles, isolation };
 }
 
 // ---------------------------------------------------------------------------
@@ -329,7 +354,7 @@ function buildReviewCommand(_getConfig: () => ResolvedChimeraConfig): SlashComma
       const trimmed = (args ?? '').trim();
       const parts = trimmed.split(/\s+/).filter(Boolean);
       return {
-        message: await executeFindingCommand(parts, { projectDir }),
+        message: await executeFindingCommand(parts, { projectDir, cwd }),
       };
     },
   };
@@ -339,6 +364,7 @@ function buildReviewCommand(_getConfig: () => ResolvedChimeraConfig): SlashComma
 // Plugin
 // ---------------------------------------------------------------------------
 export function createChimeraPlugin(): Plugin {
+  let unregisterFollowup: (() => void) | undefined;
   return {
     name: 'wstack-chimera',
     version: '1.0.0',
@@ -348,6 +374,14 @@ export function createChimeraPlugin(): Plugin {
     defaultConfig: {},
 
     setup(api) {
+      unregisterFollowup?.();
+      unregisterFollowup = api.extensions?.register(
+        createChimeraFollowupExtension({
+          getCwd: (ctx) => ctx.projectRoot || ctx.cwd || api.config.cwd || process.cwd(),
+          events: api.events,
+        }),
+      );
+
       // ── Reactive config ──────────────────────────────────────────
       const recompute = (): ResolvedChimeraConfig => {
         const raw: ChimeraConfig =
@@ -395,6 +429,21 @@ export function createChimeraPlugin(): Plugin {
       // ── /review command (finding store) ───────────────────────────
       api.slashCommands.register(buildReviewCommand(() => resolved));
 
+      const recentUserInputs: string[] = [];
+      let latestMessages:
+        | ReadonlyArray<{ role?: string | undefined; content?: unknown }>
+        | undefined;
+      api.onEvent('agent.run.started', (ev) => {
+        if (ev?.inputText) {
+          recentUserInputs.push(ev.inputText);
+          if (recentUserInputs.length > 6) recentUserInputs.shift();
+        }
+        if (ev?.ctx?.messages) latestMessages = ev.ctx.messages;
+      });
+      api.onEvent('iteration.completed', (ev) => {
+        if (ev?.ctx?.messages) latestMessages = ev.ctx.messages;
+      });
+
       // ── session.ended → emit review event ─────────────────────────
       api.onEvent('session.ended', (event) => {
         const work = (async () => {
@@ -403,12 +452,13 @@ export function createChimeraPlugin(): Plugin {
             if (!cfg.enabled) return;
 
             const cwd = api.config.cwd ?? process.cwd();
-            if (!(await isGitRepo(cwd))) {
+            const repoMeta = await getChangedFilesWithMetaIfRepo(cwd);
+            if (!repoMeta) {
               api.log.info('[chimera] skipped — not a git repo');
               return;
             }
 
-            const allChanged = await getChangedFiles(cwd);
+            const allChanged = repoMeta.files;
             const existing: ChangedFile[] = [];
             const skippedFiles: ReviewSkippedFile[] = [];
             for (const f of allChanged) {
@@ -446,7 +496,10 @@ export function createChimeraPlugin(): Plugin {
               }
             }
 
-            // Read file contents & skip unchanged files already reviewed mid-session
+            const projectDir = path.join(os.homedir(), '.wrongstack', 'projects', projectSlug(cwd));
+            await hydrateCompletedSnapshotsFromReportStore(api.events, cwd, projectDir);
+
+            // Read file contents & skip unchanged files already reviewed mid-session or before restart
             const filesWithContent: ReviewFileEntry[] = [];
             let alreadyReviewedCount = 0;
             for (const f of toReview) {
@@ -475,13 +528,18 @@ export function createChimeraPlugin(): Plugin {
               return;
             }
 
-            const projectDir = path.join(os.homedir(), '.wrongstack', 'projects', projectSlug(cwd));
             // ── Build enriched review context (diffs, deltas, siblings, commits, prior findings) ──
             const bundle: ReviewContextBundle = await buildReviewContext({
               cwd,
               projectDir,
+              preResolvedIsolation: repoMeta.isolation,
+              precomputedChangedFiles: repoMeta.allChangedFiles,
               previousSnapshots: getCompletedReviewSnapshots(api.events, cwd),
               skippedFiles,
+              sessionIntent: extractSessionIntentSnippets({
+                messages: latestMessages,
+                extraInputs: recentUserInputs,
+              }),
               fileLineage: resolveChronicleFileLineage(api.container),
               config: cfg,
               files: filesWithContent,
@@ -510,6 +568,8 @@ export function createChimeraPlugin(): Plugin {
     },
 
     teardown(api) {
+      unregisterFollowup?.();
+      unregisterFollowup = undefined;
       api.slashCommands.unregister('chimera');
       api.slashCommands.unregister('review');
       api.log.info('[chimera] unloaded');

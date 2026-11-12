@@ -16,6 +16,7 @@
  */
 import {
   type ChimeraFinding,
+  computeReportScopeDrift,
   type FindingLifecycleEvent,
   type FindingStatus,
   JsonlFindingStore,
@@ -25,6 +26,7 @@ import {
   type ReviewReport,
   type ReviewReportCounts,
   type ReviewReportEvent,
+  type ReviewScopeDrift,
   syncReportCompletion,
   syncReportReopen,
 } from '@wrongstack/builtin-plugins';
@@ -222,11 +224,13 @@ export interface ChimeraReportDetail {
   report: ReviewReport | null;
   findings: FindingWithEvents[];
   events: ReviewReportEvent[];
+  scopeDrift?: ReviewScopeDrift | undefined;
 }
 
 /** Build the route handlers. `projectDir` is read lazily: project switches re-root it. */
 export function createChimeraRouteHandlers(deps: {
   projectDir: () => string;
+  projectRoot?: (() => string) | undefined;
   send: (ws: WebSocket, msg: { type: string; payload: unknown }) => void;
   log?: ((message: string) => void) | undefined;
 }): ChimeraRouteHandlers {
@@ -311,18 +315,28 @@ export function createChimeraRouteHandlers(deps: {
           return;
         }
 
-        const events = await reportStore.getEvents(reportId);
-        // One read: `list()` drops each finding's events, and fetching them
-        // with a `getEvents()` call per finding re-read the whole findings
-        // JSONL once per finding.
-        const findings: FindingWithEvents[] = await findingStore.listWithEvents({
-          reportId,
-          limit: 9999,
-        });
+        const [events, findings, scopeDrift] = await Promise.all([
+          reportStore.getEvents(reportId),
+          // One read: `list()` drops each finding's events, and fetching them
+          // with a `getEvents()` call per finding re-read the whole findings
+          // JSONL once per finding.
+          findingStore.listWithEvents({
+            reportId,
+            limit: 9999,
+          }),
+          deps.projectRoot
+            ? computeReportScopeDrift(report, deps.projectRoot()).catch(() => undefined)
+            : Promise.resolve(undefined),
+        ]);
 
         deps.send(ws, {
           type: 'chimera.report.detail',
-          payload: { report, findings, events },
+          payload: {
+            report,
+            findings,
+            events,
+            ...(scopeDrift ? { scopeDrift } : {}),
+          },
         });
       } catch (err) {
         const message = toErrorMessage(err);

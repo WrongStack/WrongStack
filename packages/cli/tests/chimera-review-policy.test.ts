@@ -70,6 +70,15 @@ describe('buildChimeraReviewTaskDescription context enrichment & JSON-only contr
       headSha: 'abc12345',
       cascadeDepth: 1,
       deletedFiles: ['src/removed.ts'],
+      deletedFileReferences: [{ deletedPath: 'src/removed.ts', referencedBy: ['src/auth.ts'] }],
+      signatureCallers: [
+        {
+          symbol: 'login',
+          file: 'src/auth.ts',
+          callers: ['src/routes/login.ts:24'],
+        },
+      ],
+      sessionIntent: ['Keep guest fallback intentional while tightening auth token checks'],
       config: {
         enabled: true,
         provider: 'anthropic',
@@ -121,7 +130,13 @@ describe('buildChimeraReviewTaskDescription context enrichment & JSON-only contr
     expect(task).toContain('Changed symbols: login');
     expect(task).toContain('Paired test: tests/auth.test.ts (NOT updated');
     expect(task).toContain('Deleted files in working tree');
-    expect(task).toContain('src/removed.ts');
+    expect(task).toContain('src/removed.ts — ⚠ STILL REFERENCED IN: src/auth.ts');
+    expect(task).toContain('External callers of modified exported symbols');
+    expect(task).toContain(
+      '`login` (modified in `src/auth.ts`) → referenced at: src/routes/login.ts:24',
+    );
+    expect(task).toContain('Session intent');
+    expect(task).toContain('Keep guest fallback intentional while tightening auth token checks');
     expect(task).toContain('DO NOT RE-REPORT');
     expect(task).toContain('VERIFY IF FIXED BY CASCADE');
     expect(task).toContain('Respond with ONLY the raw JSON object `{"findings": [...]}`');

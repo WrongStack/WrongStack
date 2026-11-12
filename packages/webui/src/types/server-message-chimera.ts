@@ -28,6 +28,20 @@ export interface WSChimeraScopeManifest {
     pairedTestUpdated?: boolean | undefined;
   }>;
   deletedFiles?: string[] | undefined;
+  deletedFileReferences?:
+    | Array<{
+        deletedPath: string;
+        referencedBy: string[];
+      }>
+    | undefined;
+  signatureCallers?:
+    | Array<{
+        symbol: string;
+        file: string;
+        callers: string[];
+      }>
+    | undefined;
+  sessionIntent?: string[] | undefined;
   skippedFiles?:
     | Array<{
         path: string;
@@ -168,6 +182,14 @@ export type WSChimeraServerMessage =
           timestamp: string;
           reason?: string | undefined;
         }>;
+        scopeDrift?:
+          | {
+              stale: boolean;
+              checkedCount: number;
+              modifiedPaths: string[];
+              missingPaths: string[];
+            }
+          | undefined;
         error?: string | undefined;
       };
     }

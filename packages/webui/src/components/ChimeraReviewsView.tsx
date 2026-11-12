@@ -88,6 +88,27 @@ export function ChimeraReviewsView() {
     });
   }, [reports, filterSessionId, filterLifecycle, searchQuery]);
 
+  // Aggregate token & cache telemetry across currently filtered reports
+  const aggregateTelemetry = useMemo(() => {
+    let totalTokens = 0;
+    let inputTokens = 0;
+    let cacheReadTokens = 0;
+    let totalCostUsd = 0;
+    let reportsWithUsage = 0;
+    for (const r of filteredReports) {
+      if (r.usage && r.usage.totalTokens > 0) {
+        reportsWithUsage++;
+        totalTokens += r.usage.totalTokens;
+        inputTokens += r.usage.inputTokens;
+        cacheReadTokens += r.usage.cacheReadTokens ?? 0;
+        totalCostUsd += r.usage.costUsd;
+      }
+    }
+    const denom = inputTokens + cacheReadTokens;
+    const cacheHitPct = denom > 0 ? Math.round((cacheReadTokens / denom) * 100) : 0;
+    return { totalTokens, cacheReadTokens, cacheHitPct, totalCostUsd, reportsWithUsage };
+  }, [filteredReports]);
+
   const handleAddNote = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedReportId || !noteText.trim()) return;
@@ -139,6 +160,24 @@ export function ChimeraReviewsView() {
             <span>Reports ({filteredReports.length})</span>
             {loading && <Loader2 className="h-3 w-3 animate-spin" />}
           </div>
+          {aggregateTelemetry.reportsWithUsage > 0 && aggregateTelemetry.totalTokens > 0 && (
+            <div className="border-b border-border/60 bg-muted/30 px-3 py-1.5 text-[11px] font-mono text-muted-foreground flex flex-wrap items-center gap-1.5">
+              <Coins className="h-3 w-3 text-primary shrink-0" />
+              <span className="font-semibold text-foreground">
+                Σ {fmtCompactTokens(aggregateTelemetry.totalTokens)}{' '}
+                {t('activity:chimeraReport.tokensShort', { defaultValue: 'tok' })}
+              </span>
+              {aggregateTelemetry.cacheReadTokens > 0 && (
+                <span className="text-success">
+                  · {aggregateTelemetry.cacheHitPct}%{' '}
+                  {t('activity:chimeraReport.cacheShort', { defaultValue: 'cache' })}
+                </span>
+              )}
+              {aggregateTelemetry.totalCostUsd > 0 && (
+                <span>· {fmtUsdCost(aggregateTelemetry.totalCostUsd)}</span>
+              )}
+            </div>
+          )}
 
           {error && !loading && (
             <div className="m-3 flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3">
@@ -452,8 +491,53 @@ export function ChimeraReviewsView() {
                             })}
                           </span>
                         )}
+                        {detail.scopeDrift && (
+                          <span
+                            className={cn(
+                              'rounded px-1.5 py-0.5 text-[10px] font-sans font-semibold border',
+                              detail.scopeDrift.stale
+                                ? 'border-warning/40 bg-warning/10 text-warning'
+                                : 'border-success/30 bg-success/10 text-success',
+                            )}
+                            title={
+                              detail.scopeDrift.stale
+                                ? [
+                                    ...detail.scopeDrift.modifiedPaths,
+                                    ...detail.scopeDrift.missingPaths.map((p) => `${p} (missing)`),
+                                  ].join(', ')
+                                : undefined
+                            }
+                          >
+                            {detail.scopeDrift.stale
+                              ? t('activity:chimeraReport.scopeStaleBadge', {
+                                  count:
+                                    detail.scopeDrift.modifiedPaths.length +
+                                    detail.scopeDrift.missingPaths.length,
+                                  defaultValue: 'Stale on disk ({{count}} changed)',
+                                })
+                              : t('activity:chimeraReport.scopeCurrentBadge', {
+                                  defaultValue: 'Current on disk ✓',
+                                })}
+                          </span>
+                        )}
                       </div>
                     </div>
+
+                    {detail.report.scopeManifest?.sessionIntent &&
+                      detail.report.scopeManifest.sessionIntent.length > 0 && (
+                        <div className="rounded-md border border-border/60 bg-background/50 px-2.5 py-1.5 text-[11px] space-y-1">
+                          <span className="font-semibold text-muted-foreground block text-[10px] uppercase tracking-wider">
+                            {t('activity:chimeraReport.sessionIntentLabel', {
+                              defaultValue: 'Session intent',
+                            })}
+                          </span>
+                          {detail.report.scopeManifest.sessionIntent.map((intent, idx) => (
+                            <p key={idx} className="text-foreground/90 break-words">
+                              • {intent}
+                            </p>
+                          ))}
+                        </div>
+                      )}
 
                     <div className="space-y-1.5">
                       {(detail.report.scopeManifest?.files ?? detail.report.files).map((f) => {
@@ -532,6 +616,44 @@ export function ChimeraReviewsView() {
                           <span className="font-mono">
                             {detail.report.scopeManifest.deletedFiles.join(', ')}
                           </span>
+                        </div>
+                      )}
+
+                    {detail.report.scopeManifest?.deletedFileReferences &&
+                      detail.report.scopeManifest.deletedFileReferences.length > 0 && (
+                        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-[11px] space-y-1">
+                          <span className="font-semibold text-destructive block">
+                            {t('activity:chimeraReport.deletedFileRefsLabel', {
+                              defaultValue: 'Dangling references to deleted files:',
+                            })}
+                          </span>
+                          {detail.report.scopeManifest.deletedFileReferences.map((ref) => (
+                            <div
+                              key={ref.deletedPath}
+                              className="font-mono text-destructive/90 break-all"
+                            >
+                              ⚠ {ref.deletedPath} → {ref.referencedBy.join(', ')}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                    {detail.report.scopeManifest?.signatureCallers &&
+                      detail.report.scopeManifest.signatureCallers.length > 0 && (
+                        <div className="rounded-md border border-border/60 bg-background/50 px-2.5 py-1.5 text-[11px] space-y-1">
+                          <span className="font-semibold text-muted-foreground block">
+                            {t('activity:chimeraReport.signatureCallersLabel', {
+                              defaultValue: 'External callers of modified exports:',
+                            })}
+                          </span>
+                          {detail.report.scopeManifest.signatureCallers.map((entry) => (
+                            <div
+                              key={`${entry.file}:${entry.symbol}`}
+                              className="font-mono text-foreground/90 break-all"
+                            >
+                              {entry.symbol} ({entry.file}) → {entry.callers.join(', ')}
+                            </div>
+                          ))}
                         </div>
                       )}
 

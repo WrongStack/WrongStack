@@ -70,6 +70,8 @@ describe('setup-events pattern handlers — session scope', () => {
     ['mailbox.received', 'mailbox.received'],
     ['mailbox.agent_registered', 'mailbox.agent_registered'],
     ['mailbox.agent_deregistered', 'mailbox.agent_deregistered'],
+    ['chimera.report.updated', 'chimera.report.updated'],
+    ['chimera.finding.updated', 'chimera.finding.updated'],
   ])('broadcasts %s to every connection, unstamped', (pattern, event) => {
     const sent = register().emit(pattern, event, { from: 'chimera', count: 2 });
 

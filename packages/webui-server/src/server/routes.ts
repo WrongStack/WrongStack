@@ -305,6 +305,7 @@ export function buildRoutes(
         projectRoot: state.getProjectRoot(),
         globalRoot: deps.wpaths.globalRoot,
       }).projectDir,
+    projectRoot: () => state.getProjectRoot(),
     send,
     log: (message) => deps.logger.warn(message),
   });

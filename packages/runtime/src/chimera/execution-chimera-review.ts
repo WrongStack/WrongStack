@@ -6,6 +6,8 @@ import {
   type ChimeraReviewCompletePayload,
   type ChimeraReviewNeededPayload,
   classifyChimeraReviewSource,
+  classifyZeroTokenReviewFastPath,
+  filterOperatorSuppressedFindings,
   integrateFindings,
   maybeCompactReviewStores,
   type ParsedReviewReport,
@@ -159,18 +161,37 @@ export function installChimeraReviewHandler({
         reviewModelSelection?: 'round-robin' | 'random' | undefined;
       };
       const reviewSessionId = agent.ctx.activeRunSessionId ?? agent.ctx.session?.id ?? session.id;
+      const releaseAbortedReview = async (reasonStatus: string): Promise<void> => {
+        const abortedCompletion: ChimeraReviewCompletePayload = {
+          bundle: p,
+          reviewText: '',
+          status: reasonStatus,
+          cwd: p.cwd,
+          sessionId: reviewSessionId,
+        };
+        try {
+          await recordCompletedReview(events, abortedCompletion);
+        } finally {
+          events.emitCustom('chimera.review_complete', abortedCompletion);
+        }
+      };
+
       if (!areSubagentsAllowedForSession(reviewSessionId)) {
-        void recordCompletedReview(events, { bundle: p }).catch(() => undefined);
+        void releaseAbortedReview('skipped').catch(() => undefined);
         return;
       }
       const dir = director;
       if (!dir) {
         // No Director — the review will never spawn. Release the claims made by
-        // the emitter so the file content is not blocked for other sessions.
-        void recordCompletedReview(events, { bundle: p }).catch(() => undefined);
+        // the emitter and notify `chimera.review_complete` so `inFlight` slots
+        // and file content claims are never stranded.
+        void releaseAbortedReview('skipped').catch(() => undefined);
         return;
       }
-      if (p.files.length === 0) return;
+      if (p.files.length === 0) {
+        void releaseAbortedReview('skipped').catch(() => undefined);
+        return;
+      }
 
       /**
        * Record a reviewer degradation/recovery step in the transcript. Matches the
@@ -204,6 +225,7 @@ export function installChimeraReviewHandler({
        * fails, but the failure is explicit in both the event stream and the
        * session transcript.
        */
+      let completionDispatched = false;
       const persistAndEmitCompletion = async (
         completion: ChimeraReviewCompletePayload,
       ): Promise<void> => {
@@ -231,6 +253,7 @@ export function installChimeraReviewHandler({
             `🦂 Chimera report persistence failed: ${message}. The review remains in the session transcript and mailbox.`,
           );
         } finally {
+          completionDispatched = true;
           // The optional post-session plugin previously owned this release.
           // Keep it in the always-installed execution owner so auto-review-only
           // sessions cannot retain content claims forever.
@@ -243,6 +266,100 @@ export function installChimeraReviewHandler({
         (async () => {
           let subagentId: string | undefined;
           try {
+            const fastPath = classifyZeroTokenReviewFastPath(p);
+            if (fastPath.eligible) {
+              const scopeManifest = buildReviewScopeManifest(p);
+              const usageMetrics: ReviewUsageMetrics = {
+                inputTokens: 0,
+                outputTokens: 0,
+                totalTokens: 0,
+                costUsd: 0,
+                iterations: 0,
+                toolCalls: 0,
+                durationMs: 0,
+                attemptsUsed: 0,
+              };
+              const reportId = randomUUID();
+              const reviewText = renderChimeraReportMarkdown({
+                findings: [],
+                fileCount: p.files.length,
+                skippedCount: p.skippedFiles?.length,
+                durationSeconds: 0,
+                totalTokens: 0,
+              });
+              const verifiedParsedReport: ParsedReviewReport = {
+                findings: [],
+                unparseableCount: 0,
+                durationSeconds: 0,
+                structured: true,
+              };
+              if (p.config && p.config.model !== 'deterministic-prescreen') {
+                p.config = { ...p.config, model: 'deterministic-prescreen' };
+              }
+              await persistAndEmitCompletion({
+                bundle: p,
+                reviewText,
+                status: 'success',
+                cwd: p.cwd,
+                sessionId: reviewSessionId,
+                reportId,
+                parsedReport: verifiedParsedReport,
+                usage: usageMetrics,
+                scopeManifest,
+              } satisfies ChimeraReviewCompletePayload);
+
+              const subject = `🦂 Chimera report ready — ${p.files.length} file(s) checked`;
+              let reviewMailMessageId: string | undefined;
+              try {
+                const mailMsg = await mailbox.send({
+                  from: 'chimera-review',
+                  to: 'leader',
+                  type: 'result',
+                  audience: 'leaders',
+                  subject,
+                  body: `Chimera completed with no actionable findings (0 tokens, deterministic pre-screen: ${fastPath.reason}). No follow-up was started.\n\n${reviewText}`,
+                  priority: 'normal',
+                  sessionAffinity: {
+                    sessionId: reviewSessionId,
+                    reportId,
+                    kind: 'chimera.review',
+                  },
+                });
+                if (mailMsg?.id) {
+                  reviewMailMessageId = mailMsg.id;
+                  events.emitCustom('chimera.mailbox_delivered', {
+                    subject,
+                    autoFixMode: 'off',
+                    fileCount: p.files.length,
+                    reviewLength: reviewText.length,
+                    messageId: reviewMailMessageId,
+                  });
+                  await mailbox.ack({
+                    messageId: reviewMailMessageId,
+                    readerId: 'chimera',
+                    completed: true,
+                    outcome:
+                      'Review completed via deterministic pre-screen with no actionable findings.',
+                  });
+                }
+              } catch {
+                // Best-effort mailbox delivery on zero-token fast path
+              }
+
+              const reasonLabel =
+                fastPath.reason === 'docs_only' ? 'docs-only' : 'comment/whitespace-only';
+              events.emitCustom('chimera.report_available', {
+                reportId,
+                sessionId: reviewSessionId,
+                message: `🦂 Chimera report ready — ${p.files.length} file(s) checked (${reasonLabel}, 0 tokens), no actionable findings. No follow-up started.`,
+                fileCount: p.files.length,
+                findingCount: 0,
+                hasActionableFindings: false,
+                ...(reviewMailMessageId ? { messageId: reviewMailMessageId } : {}),
+              });
+              return;
+            }
+
             const taskDesc = buildChimeraReviewTaskDescription(p);
 
             const tProvider = config.provider?.trim() || undefined;
@@ -441,9 +558,11 @@ export function installChimeraReviewHandler({
               reportId,
             });
 
-            const verifiedFindings = await verifyFindingsAgainstDisk(parsedReport.findings, {
+            const diskVerifiedFindings = await verifyFindingsAgainstDisk(parsedReport.findings, {
               cwd: p.cwd,
             });
+            const { findings: verifiedFindings, suppressedCount } =
+              await filterOperatorSuppressedFindings(diskVerifiedFindings, projectDir);
             const computedDurationSeconds =
               parsedReport.durationSeconds ??
               (usageMetrics?.durationMs && usageMetrics.durationMs >= 1000
@@ -458,14 +577,16 @@ export function installChimeraReviewHandler({
             };
 
             // JSON-only output contract: when the reviewer emitted structured JSON
-            // without Markdown report headings, deterministically synthesize the
-            // canonical `## 🦂 Chimera Review` Markdown report so every downstream
+            // without Markdown report headings (or when every emitted finding was
+            // stripped by the operator-suppression gate), deterministically synthesize
+            // the canonical `## 🦂 Chimera Review` Markdown report so every downstream
             // UI, CLI command, and mailbox reader receives clean human Markdown.
             // If a legacy/hybrid model emitted Markdown + trailing fenced JSON,
             // strip the trailing JSON fence so raw JSON never clutters report views.
             const hasMarkdownHeading = /^#{2,3}\s+/m.test(rawReviewText);
+            const allFindingsSuppressed = suppressedCount > 0 && verifiedFindings.length === 0;
             const reviewText =
-              parsedReport.structured && !hasMarkdownHeading
+              (parsedReport.structured && !hasMarkdownHeading) || allFindingsSuppressed
                 ? renderChimeraReportMarkdown({
                     findings: verifiedFindings,
                     fileCount: p.files.length,
@@ -679,6 +800,9 @@ export function installChimeraReviewHandler({
               });
             }
           } catch (err) {
+            if (!completionDispatched) {
+              await releaseAbortedReview('error').catch(() => undefined);
+            }
             try {
               await session.append({
                 type: 'error',

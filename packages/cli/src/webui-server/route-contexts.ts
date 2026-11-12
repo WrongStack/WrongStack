@@ -411,6 +411,10 @@ export function createWebuiRouteContexts({
           '',
         globalRoot: opts.globalConfigPath ? path.dirname(opts.globalConfigPath) : '',
       }).projectDir,
+    projectRoot: () =>
+      opts.projectRoot ??
+      (opts.agent.ctx as { projectRoot?: string | undefined }).projectRoot ??
+      '',
     send,
     log: (m) => console.warn(m),
   });

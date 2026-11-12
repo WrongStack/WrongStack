@@ -1,7 +1,15 @@
 ## Output format
 
 Return one structured report. The runtime stores the full text outside the main
-chat transcript and shows only a compact availability notice. Use this structure:
+chat transcript and shows only a compact availability notice.
+
+> **Runtime subagent note:** When invoked as the automated `chimera-review`
+> subagent (`packages/core/instructions/llm/chimera-review.md`), emit **raw JSON
+> only** (`{"findings": [...]}` or `{"findings": []}`). The runtime machine-verifies
+> every cited `file:line` against disk and deterministically synthesizes the
+> canonical `## 🦂 Chimera Review` Markdown structure below via
+> `renderChimeraReportMarkdown()`. Manual skill invocations use this Markdown
+> format directly:
 
 ```
 ## 🦂 Chimera Review — <session title or date>
@@ -74,18 +82,18 @@ and mark it as needing a human — do not disguise it as an actionable one-liner
 
 ## Context you receive
 
-The chimera plugin provides:
-- A list of changed file paths (relative to project root)
-- The full content of each changed file
-- A summary of the session (what was worked on, key decisions)
-- The chat history from the session
+`buildReviewContext()` provides a pre-computed epistemic `ReviewContextBundle`:
+- `HEAD` revision SHA and changed source file paths (relative to project root, with generated/lockfile noise filtered and skipped-file reasons recorded)
+- Line-numbered unified diffs (`  42 | +...`) or `[INCREMENTAL DELTA]` hunks showing only edits since an earlier completed session review
+- Pre-computed `changedSymbols`, external `signatureCallers` (`path:line`) for modified exported symbols, paired test path + `updated` / `NOT updated` status, and worktree `deletedFiles` with `STILL REFERENCED IN` dangling-import pre-scans
+- Session intent digest (bounded recent user request snippets), sibling session files, recent commits, Kanban acceptance criteria, active TODOs, and prior findings (`DO NOT RE-REPORT` / `VERIFY IF FIXED`)
 
-Use the chat history to understand intent — flag only issues the session agent
-likely missed, not decisions it explicitly made.
+Use **Session intent** and provenance to understand deliberate tradeoffs — flag
+only regressions and contract breaks the session agent missed, not explicit user
+choices.
 
-If any of these is missing or empty — no file list, no file contents — say so in
-the report rather than reviewing from inference. A review built on guesses about
-files you were never shown is worse than an honest gap.
+If no reviewable file diffs or excerpts are present, say so plainly rather than
+inferring defects from unseen files.
 
 ---
 

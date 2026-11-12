@@ -228,6 +228,68 @@ describe('/review findings slash commands', () => {
     expect(triageOut).toContain('triaged');
     expect((await store.get(f.id))?.status).toBe('triaged');
   });
+
+  it('surfaces token/cache telemetry, session intent, and deleted-file references in /review status, reports, and report detail', async () => {
+    const { JsonlReportStore } = await import('../src/review-report-store.js');
+    const reportStore = new JsonlReportStore(dir);
+    await reportStore.persist({
+      id: 'rep-12345678-aaaa',
+      sessionId: 'sess-telemetry',
+      agentId: 'chimera-review',
+      reviewerModel: 'claude-sonnet-4-6',
+      source: 'chimera',
+      reviewStatus: 'success',
+      files: [{ path: 'src/caller.ts', status: 'modified' }],
+      counts: { critical: 0, high: 1, medium: 0, low: 0 },
+      totalFindings: 1,
+      unparseableCount: 0,
+      rawText: '## 🦂 Chimera Review',
+      usage: {
+        inputTokens: 800,
+        outputTokens: 150,
+        cacheReadTokens: 2400,
+        totalTokens: 950,
+        costUsd: 0.0042,
+        iterations: 1,
+        toolCalls: 0,
+      },
+      scopeManifest: {
+        headSha: 'deadbeef',
+        isIncremental: true,
+        files: [{ path: 'src/caller.ts', status: 'modified', isIncrementalDelta: true }],
+        deletedFiles: ['src/obsoleteHelper.ts'],
+        deletedFileReferences: [
+          { deletedPath: 'src/obsoleteHelper.ts', referencedBy: ['src/caller.ts'] },
+        ],
+        signatureCallers: [
+          {
+            symbol: 'bootEngine',
+            file: 'src/engine.ts',
+            callers: ['src/cli.ts:18'],
+          },
+        ],
+        sessionIntent: ['Drop obsoleteHelper intentionally after migrating callers'],
+      },
+    });
+
+    const listOut = await executeFindingCommand(['reports'], { projectDir: dir });
+    expect(listOut).toContain('Tokens');
+    expect(listOut).toContain('950 ($0.0042)');
+
+    const detailOut = await executeFindingCommand(['report', 'rep-12345678'], { projectDir: dir });
+    expect(detailOut).toContain('**Session intent:**');
+    expect(detailOut).toContain('Drop obsoleteHelper intentionally after migrating callers');
+    expect(detailOut).toContain('**Deleted-file references:**');
+    expect(detailOut).toContain('`src/obsoleteHelper.ts` → `src/caller.ts`');
+    expect(detailOut).toContain('**Modified export callers:**');
+    expect(detailOut).toContain('`bootEngine` (`src/engine.ts`) → `src/cli.ts:18`');
+
+    const statusOut = await executeFindingCommand(['status'], { projectDir: dir });
+    expect(statusOut).toContain('### Review Reports & Token Telemetry');
+    expect(statusOut).toContain('1 incremental delta');
+    expect(statusOut).toContain('[75%]');
+    expect(statusOut).toContain('$0.0042');
+  });
 });
 
 // ── Integration ────────────────────────────────────────────────────

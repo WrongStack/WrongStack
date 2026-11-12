@@ -3553,7 +3553,8 @@
       "durationSeconds": "Review duration (seconds)",
       "headSha": "Reviewed HEAD",
       "tokens": "Token usage",
-      "execution": "Execution & cost"
+      "execution": "Execution & cost",
+      "scopeStatus": "Disk scope status"
     },
     "tokensShort": "tok",
     "tokensBreakdown": "{{total}} ({{input}} in · {{output}} out · {{cache}} cache)",
@@ -3651,7 +3652,14 @@
     "triageFinding": "Mark triaged",
     "startFinding": "Start finding work",
     "history": "Finding history ({{n}})",
-    "findingId": "Finding {{id}}"
+    "findingId": "Finding {{id}}",
+    "deletedFileRefs": "Still referenced after deletion: {{refs}}",
+    "sessionIntent": "Session intent: {{intent}}",
+    "scopeCurrent": "Current on disk ✓",
+    "scopeStale": "Stale on disk ({{n}} changed)",
+    "signatureCallers": "Modified export callers: {{callers}}",
+    "aggregateUsage": "Σ {{tokens}} tok",
+    "cacheShort": "cache"
   },
   "skillLib": {
     "exported_one": "Exported {{count}} skill.",

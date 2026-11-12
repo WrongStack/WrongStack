@@ -3553,7 +3553,8 @@
       "durationSeconds": "İnceleme süresi (saniye)",
       "headSha": "İncelenen HEAD",
       "tokens": "Token kullanımı",
-      "execution": "Çalıştırma ve maliyet"
+      "execution": "Çalıştırma ve maliyet",
+      "scopeStatus": "Disk kapsam durumu"
     },
     "tokensShort": "tok",
     "tokensBreakdown": "{{total}} ({{input}} giriş · {{output}} çıkış · {{cache}} önbellek)",
@@ -3651,7 +3652,14 @@
     "triageFinding": "Sınıflandırıldı olarak işaretle",
     "startFinding": "Bulgu üzerinde çalışmaya başla",
     "history": "Bulgu geçmişi ({{n}})",
-    "findingId": "Bulgu {{id}}"
+    "findingId": "Bulgu {{id}}",
+    "deletedFileRefs": "Silindikten sonra hâlâ referans verilenler: {{refs}}",
+    "sessionIntent": "Oturum amacı: {{intent}}",
+    "scopeCurrent": "Diskte güncel ✓",
+    "scopeStale": "Diskte eskimiş ({{n}} dosya değişti)",
+    "signatureCallers": "Değişen dışa aktarım çağırıcıları: {{callers}}",
+    "aggregateUsage": "Σ {{tokens}} tok",
+    "cacheShort": "önbellek"
   },
   "skillLib": {
     "exported_one": "{{count}} beceri dışa aktarıldı.",

@@ -3553,7 +3553,8 @@
       "durationSeconds": "Durée de la revue (secondes)",
       "headSha": "HEAD examiné",
       "tokens": "Utilisation des jetons",
-      "execution": "Exécution et coût"
+      "execution": "Exécution et coût",
+      "scopeStatus": "État sur le disque"
     },
     "tokensShort": "tok",
     "tokensBreakdown": "{{total}} ({{input}} ent. · {{output}} sort. · {{cache}} cache)",
@@ -3651,7 +3652,14 @@
     "triageFinding": "Marquer comme trié",
     "startFinding": "Commencer le travail sur le constat",
     "history": "Historique du constat ({{n}})",
-    "findingId": "Constat {{id}}"
+    "findingId": "Constat {{id}}",
+    "deletedFileRefs": "Toujours référencé après suppression : {{refs}}",
+    "sessionIntent": "Intention de la session : {{intent}}",
+    "scopeCurrent": "À jour sur le disque ✓",
+    "scopeStale": "Obsolète sur le disque ({{n}} modifiés)",
+    "signatureCallers": "Appelants des exports modifiés : {{callers}}",
+    "aggregateUsage": "Σ {{tokens}} tok",
+    "cacheShort": "cache"
   },
   "skillLib": {
     "exported_one": "{{count}} compétence exportée.",

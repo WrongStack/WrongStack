@@ -4964,7 +4964,13 @@
     "skipReasonInFlight": "Revisión en curso",
     "skipReasonIgnoredNoise": "Filtrado (no código / generado)",
     "skipReasonTooLarge": "Archivo demasiado grande",
-    "skipReasonUnreadable": "Ilegible / eliminado"
+    "skipReasonUnreadable": "Ilegible / eliminado",
+    "cacheShort": "caché",
+    "sessionIntentLabel": "Intención de la sesión",
+    "deletedFileRefsLabel": "Referencias pendientes a archivos eliminados:",
+    "scopeCurrentBadge": "Actual en disco ✓",
+    "scopeStaleBadge": "Desactualizado en disco ({{count}} cambiados)",
+    "signatureCallersLabel": "Llamadores externos de exportaciones modificadas:"
   },
   "providerTest": {
     "title": "Prueba de proveedor",

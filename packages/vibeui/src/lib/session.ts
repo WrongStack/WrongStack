@@ -773,8 +773,15 @@ export function reduceFrame(state: SessionState, frame: ProtocolEnvelope): Sessi
     }
     case 'user.input_resolved':
       return { ...state, inputs: state.inputs.filter((r) => r.id !== p.requestId) };
-    case 'chimera.report_available':
-      return { ...state, notice: 'A review report is ready. Open WebUI to inspect it.' };
+    case 'chimera.report_available': {
+      const reportSessionId = text(p.sessionId);
+      if (reportSessionId && state.id && reportSessionId !== state.id) return state;
+      if (p.hasActionableFindings === false) return state;
+      return {
+        ...state,
+        notice: text(p.message) || 'A review report is ready. Open WebUI to inspect it.',
+      };
+    }
     default: // An `error` outside a run phase refused another request; the run goes on.
       return chat?.kind === 'error' ? { ...state, notice: chat.message } : state;
   }

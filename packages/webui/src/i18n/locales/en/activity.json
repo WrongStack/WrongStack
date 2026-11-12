@@ -4964,7 +4964,13 @@
     "skipReasonInFlight": "Review in flight",
     "skipReasonIgnoredNoise": "Filtered non-source / generated",
     "skipReasonTooLarge": "File too large",
-    "skipReasonUnreadable": "Unreadable / deleted"
+    "skipReasonUnreadable": "Unreadable / deleted",
+    "cacheShort": "cache",
+    "sessionIntentLabel": "Session intent",
+    "deletedFileRefsLabel": "Dangling references to deleted files:",
+    "scopeCurrentBadge": "Current on disk ✓",
+    "scopeStaleBadge": "Stale on disk ({{count}} changed)",
+    "signatureCallersLabel": "External callers of modified exports:"
   },
   "providerTest": {
     "title": "Provider Test",

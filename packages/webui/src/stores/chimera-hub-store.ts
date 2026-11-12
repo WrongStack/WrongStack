@@ -39,6 +39,20 @@ export interface ChimeraScopeManifestItem {
   isIncremental?: boolean | undefined;
   files: ChimeraScopeFileItem[];
   deletedFiles?: string[] | undefined;
+  deletedFileReferences?:
+    | Array<{
+        deletedPath: string;
+        referencedBy: string[];
+      }>
+    | undefined;
+  signatureCallers?:
+    | Array<{
+        symbol: string;
+        file: string;
+        callers: string[];
+      }>
+    | undefined;
+  sessionIntent?: string[] | undefined;
   skippedFiles?: ChimeraSkippedFileItem[] | undefined;
   kanbanCardId?: string | undefined;
   activeTodoCount?: number | undefined;
@@ -147,6 +161,14 @@ export interface ChimeraReportFullDetail {
     timestamp: string;
     reason?: string | undefined;
   }>;
+  scopeDrift?:
+    | {
+        stale: boolean;
+        checkedCount: number;
+        modifiedPaths: string[];
+        missingPaths: string[];
+      }
+    | undefined;
 }
 
 interface ChimeraHubState {

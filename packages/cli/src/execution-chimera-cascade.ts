@@ -8,6 +8,7 @@ import type {
   ChimeraCascadeNeededPayload,
   ChimeraReviewNeededPayload,
   ReviewPriorFindingSummary,
+  ReviewSkippedFile,
 } from '@wrongstack/builtin-plugins';
 import { buildReviewContext, emitReviewIfChanged } from '@wrongstack/builtin-plugins';
 import type { StopReason } from '@wrongstack/contracts/types';
@@ -49,6 +50,8 @@ type InstallChimeraCascadeHandlerOptions = {
   buildLadder?: (() => ReviewerAttempt[]) | undefined;
   /** Test seam; production defaults to the real safe command verifier. */
   verifyEvidence?: typeof verifyCascadeEvidence | undefined;
+  /** Optional project metadata directory (`~/.wrongstack/projects/<slug>`) for finding lookups. */
+  projectDir?: string | undefined;
   /** Optional session-teardown chain — the wildcard listener disposer is
    *  pushed here so the registration is released when the session ends. */
   teardownHandlers?: Array<() => void> | undefined;
@@ -75,6 +78,7 @@ export function installChimeraCascadeHandler({
   buildLadder,
   verifyEvidence = verifyCascadeEvidence,
   persistEvidence,
+  projectDir,
   teardownHandlers,
 }: InstallChimeraCascadeHandlerOptions): void {
   // Capture the disposer instead of discarding it — the wildcard listener
@@ -124,8 +128,8 @@ export function installChimeraCascadeHandler({
               buildConfig: (attempt, timeoutMs) => ({
                 name: `chimera-cascade-${agentKind}`,
                 role,
-                maxIterations: 40,
-                maxToolCalls: 200,
+                maxIterations: 25,
+                maxToolCalls: 80,
                 timeoutMs,
                 // Cascade agents are ephemeral infrastructure: like reviewers,
                 // they must not consume the leader's lifetime maxSpawns budget.
@@ -226,6 +230,7 @@ export function installChimeraCascadeHandler({
           claimedEvidence: accumulatedEvidence,
           verifyEvidence,
           persistEvidence,
+          projectDir,
         });
       })();
 
@@ -248,6 +253,7 @@ async function maybeReReviewCascade({
   claimedEvidence,
   verifyEvidence,
   persistEvidence,
+  projectDir,
 }: {
   events: Events;
   session: Session;
@@ -256,6 +262,7 @@ async function maybeReReviewCascade({
   verifiedFindings?: ChimeraCascadeNeededPayload['verifiedFindings'] | undefined;
   verifyEvidence: NonNullable<InstallChimeraCascadeHandlerOptions['verifyEvidence']>;
   persistEvidence?: InstallChimeraCascadeHandlerOptions['persistEvidence'];
+  projectDir?: string | undefined;
   /**
    * P0-3: evidence claimed by the cascade fix agents before re-review. The
    * orchestrator re-runs the claimed commands against the working tree and
@@ -331,14 +338,88 @@ async function maybeReReviewCascade({
 
   if (maxDepth > 0 && currentDepth < maxDepth) {
     try {
-      const reReadFiles: ChimeraReviewNeededPayload['files'] = [];
+      const reReadCandidates: Array<{
+        path: string;
+        status: 'modified';
+        content: string;
+        changedOnDisk: boolean;
+      }> = [];
+      let allHadBaselineContent = true;
+
       for (const f of evidenceBundle.files) {
         try {
           const absPath = path.join(evidenceBundle.cwd, f.path);
           const content = await fsp.readFile(absPath, 'utf8');
-          reReadFiles.push({ path: f.path, status: 'modified', content });
+          const hasBaseline = typeof f.content === 'string';
+          if (!hasBaseline) allHadBaselineContent = false;
+          const prevSha = hasBaseline
+            ? (f.sha256 ?? createHash('sha256').update(f.content).digest('hex'))
+            : undefined;
+          const curSha = hasBaseline ? createHash('sha256').update(content).digest('hex') : '';
+          reReadCandidates.push({
+            path: f.path,
+            status: 'modified',
+            content,
+            changedOnDisk: !hasBaseline || curSha !== prevSha,
+          });
         } catch {
           // File deleted or unreadable — skip it.
+        }
+      }
+
+      if (
+        reReadCandidates.length > 0 &&
+        allHadBaselineContent &&
+        !reReadCandidates.some((c) => c.changedOnDisk)
+      ) {
+        await session.append({
+          type: 'llm_response',
+          ts: new Date().toISOString(),
+          content: [
+            {
+              type: 'text',
+              text: `🦂 Chimera cascade re-review skipped — content unchanged since previous review (depth ${currentDepth + 1}/${maxDepth})`,
+            },
+          ],
+          stopReason: 'end_turn' as StopReason,
+          usage: { input: 0, output: 0 },
+        });
+        return;
+      }
+
+      const flaggedPathKeys = new Set(
+        (verifiedFindings ?? [])
+          .map((vf) =>
+            vf.location?.file
+              ?.replaceAll('\\', '/')
+              .replace(/^\.\/+/, '')
+              .toLowerCase(),
+          )
+          .filter((v): v is string => Boolean(v)),
+      );
+      const isFlaggedCandidate = (candidatePath: string): boolean => {
+        const norm = candidatePath
+          .replaceAll('\\', '/')
+          .replace(/^\.\/+/, '')
+          .toLowerCase();
+        if (flaggedPathKeys.has(norm)) return true;
+        for (const key of flaggedPathKeys) {
+          if (norm.endsWith(`/${key}`) || key.endsWith(`/${norm}`)) return true;
+        }
+        return false;
+      };
+
+      const reReadFiles: ChimeraReviewNeededPayload['files'] = [];
+      const cascadeSkippedFiles: ReviewSkippedFile[] = [...(evidenceBundle.skippedFiles ?? [])];
+      for (const cand of reReadCandidates) {
+        if (cand.changedOnDisk || isFlaggedCandidate(cand.path)) {
+          reReadFiles.push({ path: cand.path, status: 'modified', content: cand.content });
+        } else {
+          cascadeSkippedFiles.push({
+            path: cand.path,
+            reason: 'already_reviewed',
+            detail: 'unchanged during cascade fix',
+          });
         }
       }
 
@@ -373,11 +454,14 @@ async function maybeReReviewCascade({
 
         const enrichedReReview = await buildReviewContext({
           cwd: evidenceBundle.cwd,
+          projectDir,
           config: evidenceBundle.config,
           files: reReadFiles,
+          skippedFiles: cascadeSkippedFiles.length > 0 ? cascadeSkippedFiles : undefined,
           previousSnapshots: previousSnapshots.size > 0 ? previousSnapshots : undefined,
           priorFindings: parentPriorFindings,
           activeTodos: evidenceBundle.activeTodos,
+          sessionIntent: evidenceBundle.sessionIntent,
           cascadeOn: evidenceBundle.cascadeOn,
           cascadeDepth: currentDepth + 1,
           maxCascadeDepth: evidenceBundle.maxCascadeDepth,

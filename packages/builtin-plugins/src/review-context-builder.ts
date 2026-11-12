@@ -7,13 +7,15 @@ import type {
   ChronicleFileLineageRow,
 } from '@wrongstack/contracts/types/chronicle-metrics';
 import type { KanbanTask } from '@wrongstack/kanban';
-import { gitIsolationEnv } from '@wrongstack/primitives';
+import { resolveCachedGitIsolation } from './auto-review-git.js';
 import { JsonlFindingStore } from './review-finding-store.js';
 import type {
   ResolvedChimeraConfig,
   ReviewContextBundle,
+  ReviewDeletedFileReference,
   ReviewFileEntry,
   ReviewPriorFindingSummary,
+  ReviewSignatureCallers,
   ReviewSkippedFile,
 } from './review-types.js';
 
@@ -211,12 +213,29 @@ function extractSymbolName(codeLine: string): string | null {
   return null;
 }
 
+const EXPORTED_SYMBOL_PATTERNS: readonly RegExp[] = [
+  /^\s*export\s+(?:default\s+)?(?:declare\s+)?(?:async\s+)?function\*?\s+([A-Za-z_$][\w$]*)/,
+  /^\s*export\s+(?:default\s+)?(?:declare\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/,
+  /^\s*export\s+(?:declare\s+)?(?:interface|type|enum)\s+([A-Za-z_$][\w$]*)/,
+  /^\s*export\s+(?:declare\s+)?const\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/,
+  /^\s*pub(?:\([^)]*\))?\s+(?:async\s+)?(?:fn|struct|enum|trait|type)\s+([A-Za-z_]\w*)/,
+];
+
+function extractExportedSymbolName(codeLine: string): string | null {
+  for (const pattern of EXPORTED_SYMBOL_PATTERNS) {
+    const match = pattern.exec(codeLine);
+    if (match?.[1]) return match[1];
+  }
+  return null;
+}
+
 export interface AnnotatedDiffResult {
   annotatedDiff: string;
   hunkCount: number;
   addedLines: number;
   removedLines: number;
   changedSymbols: string[];
+  modifiedExportedSymbols: string[];
 }
 
 const HUNK_HEADER_RE = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$/;
@@ -237,6 +256,7 @@ export function annotateUnifiedDiffWithLineNumbers(rawDiff: string): AnnotatedDi
   let addedLines = 0;
   let removedLines = 0;
   const symbols = new Set<string>();
+  const modifiedExports = new Set<string>();
 
   for (const line of lines) {
     const hunkMatch = HUNK_HEADER_RE.exec(line);
@@ -284,6 +304,8 @@ export function annotateUnifiedDiffWithLineNumbers(rawDiff: string): AnnotatedDi
       addedLines++;
       const sym = extractSymbolName(body);
       if (sym && symbols.size < 16) symbols.add(sym);
+      const exportedSym = extractExportedSymbolName(body);
+      if (exportedSym && modifiedExports.size < 8) modifiedExports.add(exportedSym);
     } else if (line.startsWith('-')) {
       seenChangeInHunk = true;
       const body = line.slice(1);
@@ -291,6 +313,8 @@ export function annotateUnifiedDiffWithLineNumbers(rawDiff: string): AnnotatedDi
       removedLines++;
       const sym = extractSymbolName(body);
       if (sym && symbols.size < 16) symbols.add(sym);
+      const exportedSym = extractExportedSymbolName(body);
+      if (exportedSym && modifiedExports.size < 8) modifiedExports.add(exportedSym);
     } else if (line.startsWith(' ')) {
       const body = line.slice(1);
       out.push(`${String(newLine).padStart(4, ' ')} |  ${body}`);
@@ -312,6 +336,7 @@ export function annotateUnifiedDiffWithLineNumbers(rawDiff: string): AnnotatedDi
     addedLines,
     removedLines,
     changedSymbols: [...symbols],
+    modifiedExportedSymbols: [...modifiedExports],
   };
 }
 
@@ -480,7 +505,9 @@ async function runGit(
   // The repository's config names programs git runs (fsmonitor, filters);
   // when they cannot be switched off, git does not run.
   const isolation =
-    preResolvedIsolation !== undefined ? preResolvedIsolation : await gitIsolationEnv(cwd);
+    preResolvedIsolation !== undefined
+      ? preResolvedIsolation
+      : await resolveCachedGitIsolation(cwd);
   if (!isolation) return { stdout: '', stderr: 'git isolation unavailable', code: 1 };
   return new Promise((resolve, reject) => {
     let child;
@@ -540,14 +567,36 @@ async function getFileDiff(
   };
 }
 
-async function getHeadSha(
+/**
+ * Fetch short HEAD SHA and recent commit subjects in a single `git log` process
+ * to minimize git subprocess overhead on Windows.
+ */
+async function getHeadAndRecentCommits(
   cwd: string,
   isolation?: Record<string, string> | null,
-): Promise<string | undefined> {
-  const r = await runGit(['rev-parse', '--short', 'HEAD'], cwd, isolation);
-  if (r.code !== 0) return undefined;
-  const sha = r.stdout.trim();
-  return sha.length > 0 ? sha : undefined;
+): Promise<{ headSha?: string | undefined; recentCommits?: string[] | undefined }> {
+  const r = await runGit(['log', `-${MAX_RECENT_COMMITS}`, '--format=%h\t%s'], cwd, isolation);
+  if (r.code !== 0 || !r.stdout.trim()) return {};
+  const lines = r.stdout.split('\n').filter(Boolean);
+  let headSha: string | undefined;
+  const subjects: string[] = [];
+  for (const line of lines) {
+    const tabIdx = line.indexOf('\t');
+    if (tabIdx === -1) {
+      subjects.push(line);
+      continue;
+    }
+    if (!headSha) {
+      const sha = line.slice(0, tabIdx).trim();
+      if (sha) headSha = sha;
+    }
+    const subj = line.slice(tabIdx + 1).trim();
+    if (subj) subjects.push(subj);
+  }
+  return {
+    ...(headSha ? { headSha } : {}),
+    ...(subjects.length > 0 ? { recentCommits: subjects } : {}),
+  };
 }
 
 function candidateTestPathsFor(filePath: string): string[] {
@@ -702,20 +751,260 @@ async function getAllChangedFiles(
   return r.code === 0 ? parsePorcelainStatusZ(r.stdout) : [];
 }
 
+// ---------------------------------------------------------------------------
+// Session intent extraction & deleted-file dangling reference helpers
+// ---------------------------------------------------------------------------
+
+const GENERIC_MODULE_STEMS = new Set([
+  'index',
+  'types',
+  'utils',
+  'helpers',
+  'common',
+  'config',
+  'constants',
+  'setup',
+  'schema',
+  'model',
+  'models',
+  'store',
+  'stores',
+  'style',
+  'styles',
+  'route',
+  'routes',
+  'server',
+  'client',
+  'error',
+  'errors',
+]);
+
+function sliceCodePoints(text: string, maxUnits: number): string {
+  if (text.length <= maxUnits) return text;
+  let out = '';
+  for (const ch of text) {
+    if (out.length + ch.length > maxUnits) break;
+    out += ch;
+  }
+  return `${out}…`;
+}
+
+function cleanUserIntentSnippet(raw: string): string {
+  const withoutSystemBlocks = raw
+    .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/gi, ' ')
+    .replace(/\[System:[\s\S]*?\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!withoutSystemBlocks || withoutSystemBlocks.startsWith('/')) return '';
+  return sliceCodePoints(withoutSystemBlocks, 220);
+}
+
 /**
- * Get recent commit messages (oneline), newest first.
+ * Extract up to the 3 most recent user request snippets from conversation
+ * messages and/or explicit `agent.run.started` `inputText` entries, bounded to
+ * ~540 UTF-16 code units total so the reviewer understands session intent
+ * without bloating prompt tokens.
  */
-async function getRecentCommits(
+export function extractSessionIntentSnippets(input: {
+  messages?: ReadonlyArray<{ role?: string | undefined; content?: unknown }> | undefined;
+  extraInputs?: readonly string[] | undefined;
+}): string[] {
+  const candidates: string[] = [];
+
+  if (Array.isArray(input.messages)) {
+    for (const msg of input.messages) {
+      if (msg?.role !== 'user') continue;
+      if (typeof msg.content === 'string') {
+        const cleaned = cleanUserIntentSnippet(msg.content);
+        if (cleaned) candidates.push(cleaned);
+      } else if (Array.isArray(msg.content)) {
+        const textParts: string[] = [];
+        for (const block of msg.content) {
+          if (
+            typeof block === 'object' &&
+            block !== null &&
+            (block as { type?: unknown }).type === 'text' &&
+            typeof (block as { text?: unknown }).text === 'string'
+          ) {
+            textParts.push((block as { text: string }).text);
+          }
+        }
+        const cleaned = cleanUserIntentSnippet(textParts.join(' '));
+        if (cleaned) candidates.push(cleaned);
+      }
+    }
+  }
+
+  if (Array.isArray(input.extraInputs)) {
+    for (const text of input.extraInputs) {
+      if (typeof text !== 'string') continue;
+      const cleaned = cleanUserIntentSnippet(text);
+      if (cleaned) candidates.push(cleaned);
+    }
+  }
+
+  // Deduplicate preserving latest position, keep at most 3 recent snippets.
+  const deduped: string[] = [];
+  const seen = new Set<string>();
+  for (let i = candidates.length - 1; i >= 0; i--) {
+    const item = candidates[i]!;
+    if (seen.has(item)) continue;
+    seen.add(item);
+    deduped.unshift(item);
+    if (deduped.length >= 3) break;
+  }
+
+  let budget = 540;
+  const bounded: string[] = [];
+  for (const snippet of deduped) {
+    if (budget <= 40) break;
+    const clipped = sliceCodePoints(snippet, budget);
+    bounded.push(clipped);
+    budget -= clipped.length;
+  }
+  return bounded;
+}
+
+async function findDeletedFileReferences(
   cwd: string,
+  deletedFiles: readonly string[],
   isolation?: Record<string, string> | null,
-): Promise<string[]> {
-  const r = await runGit(
-    ['log', `-${MAX_RECENT_COMMITS}`, '--oneline', '--format=%s'],
-    cwd,
-    isolation,
+): Promise<ReviewDeletedFileReference[] | undefined> {
+  if (deletedFiles.length === 0) return undefined;
+  const deletedNormSet = new Set(deletedFiles.map(normalizeReviewPath));
+  const candidates: Array<{ deletedPath: string; stem: string }> = [];
+
+  for (const del of deletedFiles) {
+    if (isIgnoredReviewNoisePath(del)) continue;
+    const base = path.posix.basename(del.replaceAll('\\', '/'));
+    const stem = base.replace(/\.(?:d\.ts|[^.]+)$/i, '');
+    if (stem.length < 5 || GENERIC_MODULE_STEMS.has(stem.toLowerCase())) continue;
+    candidates.push({ deletedPath: del, stem });
+    if (candidates.length >= 5) break;
+  }
+
+  if (candidates.length === 0) return undefined;
+
+  const hits = await Promise.all(
+    candidates.map(async ({ deletedPath, stem }) => {
+      const res = await runGit(['grep', '-l', '-I', '--fixed-strings', '--', stem], cwd, isolation);
+      if (res.code !== 0 || !res.stdout.trim()) return null;
+      const referencedBy = res.stdout
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(
+          (filePath) => filePath.length > 0 && !deletedNormSet.has(normalizeReviewPath(filePath)),
+        )
+        .slice(0, 8);
+      if (referencedBy.length === 0) return null;
+      return { deletedPath, referencedBy };
+    }),
   );
-  if (r.code !== 0) return [];
-  return r.stdout.split('\n').filter(Boolean);
+
+  const nonEmpty = hits.filter((item): item is ReviewDeletedFileReference => item !== null);
+  return nonEmpty.length > 0 ? nonEmpty : undefined;
+}
+
+const GENERIC_EXPORT_SYMBOL_NAMES = new Set([
+  'action',
+  'config',
+  'context',
+  'count',
+  'default',
+  'error',
+  'errors',
+  'handler',
+  'input',
+  'items',
+  'options',
+  'output',
+  'params',
+  'payload',
+  'props',
+  'result',
+  'results',
+  'schema',
+  'state',
+  'status',
+  'value',
+  'values',
+]);
+
+function escapeRegExpLiteral(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function findModifiedExportCallers(
+  cwd: string,
+  candidates: ReadonlyArray<{ symbol: string; file: string }>,
+  deletedFiles: readonly string[],
+  isolation?: Record<string, string> | null,
+): Promise<ReviewSignatureCallers[] | undefined> {
+  if (candidates.length === 0) return undefined;
+
+  const deletedNormSet = new Set(deletedFiles.map(normalizeReviewPath));
+  const selected: Array<{ symbol: string; file: string; wordRe: RegExp; callers: Set<string> }> =
+    [];
+  const seenSymbols = new Set<string>();
+  for (const cand of candidates) {
+    const lowerSym = cand.symbol.toLowerCase();
+    if (
+      cand.symbol.length < 5 ||
+      GENERIC_MODULE_STEMS.has(lowerSym) ||
+      GENERIC_EXPORT_SYMBOL_NAMES.has(lowerSym)
+    ) {
+      continue;
+    }
+    if (seenSymbols.has(cand.symbol)) continue;
+    seenSymbols.add(cand.symbol);
+    selected.push({
+      symbol: cand.symbol,
+      file: cand.file,
+      wordRe: new RegExp(`(?<![\\w$])${escapeRegExpLiteral(cand.symbol)}(?![\\w$])`),
+      callers: new Set<string>(),
+    });
+    if (selected.length >= 4) break;
+  }
+
+  // Zero git subprocess spawns when no exported signatures were modified.
+  if (selected.length === 0) return undefined;
+
+  // Single batched `git grep` across all modified exported symbols.
+  const grepArgs = ['grep', '-n', '-I', '-F', ...selected.flatMap((c) => ['-e', c.symbol])];
+  const res = await runGit(grepArgs, cwd, isolation);
+  if (res.code !== 0 || !res.stdout.trim()) return undefined;
+
+  for (const rawLine of res.stdout.split('\n')) {
+    if (!rawLine) continue;
+    const match = /^([^\0:]+):(\d+):(.*)$/.exec(rawLine);
+    if (!match) continue;
+    const hitPath = match[1]!.trim();
+    const lineNum = match[2]!;
+    const snippet = match[3] ?? '';
+    if (!hitPath || isIgnoredReviewNoisePath(hitPath)) continue;
+    const normHit = normalizeReviewPath(hitPath);
+    if (deletedNormSet.has(normHit)) continue;
+
+    for (const item of selected) {
+      if (item.callers.size >= 5) continue;
+      if (normHit === normalizeReviewPath(item.file)) continue;
+      if (item.wordRe.test(snippet)) {
+        item.callers.add(`${hitPath}:${lineNum}`);
+      }
+    }
+  }
+
+  const out: ReviewSignatureCallers[] = [];
+  for (const item of selected) {
+    if (item.callers.size > 0) {
+      out.push({
+        symbol: item.symbol,
+        file: item.file,
+        callers: [...item.callers],
+      });
+    }
+  }
+  return out.length > 0 ? out : undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -733,6 +1022,11 @@ export interface BuildReviewContextOptions {
    * Passed in by the caller — the builder itself has no ctx access.
    */
   activeTodos?: Array<{ id: string; content: string; status: string }> | undefined;
+  /**
+   * Bounded user request snippets from this session so the reviewer understands
+   * user intent and avoids flagging deliberate choices.
+   */
+  sessionIntent?: string[] | undefined;
   /**
    * Chronicle file-lineage lookup for provenance (host-bound, see
    * `CHRONICLE_FILE_LINEAGE`). Absent: the bundle carries no provenance.
@@ -777,6 +1071,16 @@ export interface BuildReviewContextOptions {
    * re-review) merged ahead of persisted store findings.
    */
   priorFindings?: ReviewPriorFindingSummary[] | undefined;
+  /**
+   * Pre-resolved `gitIsolationEnv(cwd)` from the caller so `buildReviewContext`
+   * skips spawning duplicate git-config/isolation probes on Windows.
+   */
+  preResolvedIsolation?: Record<string, string> | null | undefined;
+  /**
+   * Pre-computed porcelain status entries from the caller so `buildReviewContext`
+   * skips spawning a second `git status --porcelain -z` subprocess.
+   */
+  precomputedChangedFiles?: Array<{ path: string; status: string }> | undefined;
 }
 
 /**
@@ -794,20 +1098,43 @@ export async function buildReviewContext(
   const { cwd, config } = opts;
 
   let isolation: Record<string, string> | null = null;
-  try {
-    isolation = (await gitIsolationEnv(cwd)) ?? null;
-  } catch {
-    isolation = null;
+  if (opts.preResolvedIsolation !== undefined) {
+    isolation = opts.preResolvedIsolation;
+  } else {
+    try {
+      isolation = (await resolveCachedGitIsolation(cwd)) ?? null;
+    } catch {
+      isolation = null;
+    }
   }
 
-  // ── Sibling changes, HEAD SHA, and recent commits in parallel ──
-  const [allChangedFiles, headSha, recentCommitsRaw] = await Promise.all([
-    getAllChangedFiles(cwd, isolation).catch(() => undefined),
-    getHeadSha(cwd, isolation).catch(() => undefined),
-    getRecentCommits(cwd, isolation).catch(() => undefined),
-  ]);
-  const recentCommits =
-    recentCommitsRaw && recentCommitsRaw.length > 0 ? recentCommitsRaw : undefined;
+  const filePaths = opts.files.map((f) => f.path);
+
+  // ── Single parallel wave: git status, git log, per-file git diff, kanban, chronicle & prior findings ──
+  const [allChangedFiles, logMeta, rawFileDiffs, kanbanCard, rawFileProvenance, priorFindings] =
+    await Promise.all([
+      opts.precomputedChangedFiles !== undefined
+        ? Promise.resolve(opts.precomputedChangedFiles)
+        : getAllChangedFiles(cwd, isolation).catch(() => undefined),
+      getHeadAndRecentCommits(cwd, isolation).catch(() => ({
+        headSha: undefined,
+        recentCommits: undefined,
+      })),
+      Promise.all(
+        opts.files.map((f) =>
+          f.status === 'modified'
+            ? getFileDiff(cwd, f.path, isolation).catch(() => undefined)
+            : Promise.resolve(undefined),
+        ),
+      ),
+      findActiveKanbanCard(cwd).catch(() => undefined),
+      findFileProvenance(cwd, filePaths, opts.fileLineage).catch(() => []),
+      loadPriorFindingsForFiles(opts.projectDir, filePaths, opts.priorFindings),
+    ]);
+
+  const headSha = logMeta.headSha;
+  const recentCommits = logMeta.recentCommits;
+  const fileProvenance = rawFileProvenance.length > 0 ? rawFileProvenance : undefined;
   const changedPathSet = new Set(
     (allChangedFiles ?? []).map((entry) => normalizeReviewPath(entry.path)),
   );
@@ -815,9 +1142,10 @@ export async function buildReviewContext(
     .filter((entry) => entry.status === 'D' || entry.status.includes('D'))
     .map((entry) => entry.path);
 
-  // ── Enrich files with diffs / hybrid deltas, SHA-256, symbols & paired tests ──
+  // ── Enrich files with pre-fetched diffs / hybrid deltas, SHA-256, symbols & paired tests ──
+  const modifiedExportCandidates: Array<{ symbol: string; file: string }> = [];
   const filesWithDiffs: ReviewFileEntry[] = await Promise.all(
-    opts.files.map(async (f) => {
+    opts.files.map(async (f, fileIdx) => {
       const sha256 = createHash('sha256').update(f.content).digest('hex');
       const entry: ReviewFileEntry = {
         path: f.path,
@@ -829,18 +1157,14 @@ export async function buildReviewContext(
       const prevSnap =
         opts.previousSnapshots?.get(f.path) ??
         opts.previousSnapshots?.get(f.path.replaceAll('\\', '/').toLowerCase());
+      const hasPrevContent = Boolean(
+        prevSnap && prevSnap.content.length > 0 && prevSnap.sha256 !== sha256,
+      );
 
-      if (f.status === 'modified' || (prevSnap && prevSnap.sha256 !== sha256)) {
-        let headDiff: (AnnotatedDiffResult & { diffTruncated: boolean }) | undefined;
-        if (f.status === 'modified') {
-          try {
-            headDiff = await getFileDiff(cwd, f.path, isolation);
-          } catch {
-            // leave undefined
-          }
-        }
+      if (f.status === 'modified' || hasPrevContent) {
+        const headDiff = rawFileDiffs[fileIdx];
 
-        if (prevSnap && prevSnap.sha256 !== sha256) {
+        if (hasPrevContent && prevSnap) {
           const delta = computeHybridIncrementalDeltaDiff(
             prevSnap.content,
             f.content,
@@ -862,6 +1186,9 @@ export async function buildReviewContext(
             entry.isIncrementalDelta = true;
             entry.unchangedHunkSummary = delta.unchangedHunkSummary;
             if (delta.changedSymbols.length > 0) entry.changedSymbols = delta.changedSymbols;
+            for (const sym of delta.modifiedExportedSymbols) {
+              modifiedExportCandidates.push({ symbol: sym, file: f.path });
+            }
           } else if (headDiff) {
             entry.diff = headDiff.annotatedDiff;
             entry.hunkCount = headDiff.hunkCount;
@@ -869,6 +1196,9 @@ export async function buildReviewContext(
             entry.removedLines = headDiff.removedLines;
             entry.diffTruncated = headDiff.diffTruncated;
             if (headDiff.changedSymbols.length > 0) entry.changedSymbols = headDiff.changedSymbols;
+            for (const sym of headDiff.modifiedExportedSymbols) {
+              modifiedExportCandidates.push({ symbol: sym, file: f.path });
+            }
           }
         } else if (headDiff) {
           entry.diff = headDiff.annotatedDiff;
@@ -877,6 +1207,9 @@ export async function buildReviewContext(
           entry.removedLines = headDiff.removedLines;
           entry.diffTruncated = headDiff.diffTruncated;
           if (headDiff.changedSymbols.length > 0) entry.changedSymbols = headDiff.changedSymbols;
+          for (const sym of headDiff.modifiedExportedSymbols) {
+            modifiedExportCandidates.push({ symbol: sym, file: f.path });
+          }
         }
       } else if (f.status === 'added') {
         const addedLineList = f.content.replace(/\r\n/g, '\n').split('\n');
@@ -910,39 +1243,23 @@ export async function buildReviewContext(
     }),
   );
 
-  // ── Active todos (passed in from caller) ──
+  // ── Active todos & cascade threshold (passed in from caller) ──
   const activeTodos =
     opts.activeTodos && opts.activeTodos.length > 0 ? opts.activeTodos : undefined;
-
-  // ── Cascade threshold (passed in from caller) ──
   const cascadeOn = opts.cascadeOn ?? undefined;
   const cascadeDepth = opts.cascadeDepth ?? undefined;
   const maxCascadeDepth = opts.maxCascadeDepth ?? undefined;
 
-  // ── Kanban card (P1: find active running/review task across all boards) ──
-  let kanbanCard: ReviewContextBundle['kanbanCard'];
-  try {
-    kanbanCard = await findActiveKanbanCard(cwd);
-  } catch {
-    // kanban not configured or not installed — leave undefined
-  }
+  // ── Deleted-file dangling references & modified export callers in parallel (0 git spawns in common case) ──
+  const [deletedFileReferences, signatureCallers] = await Promise.all([
+    findDeletedFileReferences(cwd, deletedFiles, isolation).catch(() => undefined),
+    findModifiedExportCallers(cwd, modifiedExportCandidates, deletedFiles, isolation).catch(
+      () => undefined,
+    ),
+  ]);
 
-  // ── File provenance from Chronicle (P1: last event per file path) ──
-  let fileProvenance: ReviewContextBundle['fileProvenance'];
-  try {
-    const paths = opts.files.map((f) => f.path);
-    fileProvenance = await findFileProvenance(cwd, paths, opts.fileLineage);
-    if (fileProvenance.length === 0) fileProvenance = undefined;
-  } catch {
-    // chronicle not configured or journal unreadable — leave undefined
-  }
-
-  // ── Prior findings (suppressed items + open items on reviewed files) ──
-  const priorFindings = await loadPriorFindingsForFiles(
-    opts.projectDir,
-    opts.files.map((f) => f.path),
-    opts.priorFindings,
-  );
+  const sessionIntent =
+    opts.sessionIntent && opts.sessionIntent.length > 0 ? opts.sessionIntent : undefined;
 
   return {
     config,
@@ -951,6 +1268,9 @@ export async function buildReviewContext(
     allChangedFiles,
     ...(headSha ? { headSha } : {}),
     ...(deletedFiles.length > 0 ? { deletedFiles } : {}),
+    ...(deletedFileReferences ? { deletedFileReferences } : {}),
+    ...(signatureCallers ? { signatureCallers } : {}),
+    ...(sessionIntent ? { sessionIntent } : {}),
     ...(opts.skippedFiles && opts.skippedFiles.length > 0
       ? { skippedFiles: opts.skippedFiles }
       : {}),
@@ -1057,4 +1377,188 @@ function normalizeReviewPath(filePath: string): string {
 
 function lineageEventType(row: ChronicleFileLineageRow): string {
   return row.source === 'external' ? `file.external.${row.operation || 'modified'}` : 'file.event';
+}
+
+// ---------------------------------------------------------------------------
+// Deterministic zero-token pre-screen fast path (P1-3)
+// ---------------------------------------------------------------------------
+
+export interface ZeroTokenReviewFastPathVerdict {
+  eligible: boolean;
+  reason?: 'docs_only' | 'comments_or_whitespace_only' | undefined;
+}
+
+const PROSE_DOC_EXTENSIONS = new Set(['.md', '.mdx', '.txt', '.rst']);
+const PROSE_DOC_BASENAMES = new Set([
+  'license',
+  'license.md',
+  'license.txt',
+  'changelog',
+  'changelog.md',
+  'notice',
+  'authors',
+  'contributors',
+]);
+const EXECUTABLE_DOC_BASENAMES = new Set([
+  'skill.md',
+  'agents.md',
+  'claude.md',
+  '.cursorrules',
+  'copilot-instructions.md',
+]);
+const EXECUTABLE_DOC_DIR_RE = /(?:^|\/)(?:instructions|skills|prompts|agents)\//i;
+
+const SLASH_COMMENT_EXTENSIONS = new Set([
+  '.ts',
+  '.tsx',
+  '.mts',
+  '.cts',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+  '.rs',
+  '.go',
+  '.java',
+  '.kt',
+  '.c',
+  '.cc',
+  '.cpp',
+  '.h',
+  '.hpp',
+  '.cs',
+  '.swift',
+  '.dart',
+]);
+
+const HASH_COMMENT_EXTENSIONS = new Set([
+  '.py',
+  '.sh',
+  '.bash',
+  '.zsh',
+  '.yaml',
+  '.yml',
+  '.toml',
+  '.rb',
+  '.conf',
+  '.ini',
+]);
+
+const SUPPRESSION_DIRECTIVE_RE =
+  /@ts-(?:ignore|expect-error|nocheck)|eslint-disable|biome-ignore|oxlint-disable|type:\s*ignore|\bnoqa\b|\bnosec\b|#\[allow\b|\/\/\s*nolint|@SuppressWarnings|\.(?:skip|only)\s*\(/i;
+
+function isPureProseDocPath(filePath: string): boolean {
+  const norm = filePath.replaceAll('\\', '/').replace(/^\.\/+/, '');
+  const base = path.posix.basename(norm).toLowerCase();
+  if (EXECUTABLE_DOC_BASENAMES.has(base)) return false;
+  if (EXECUTABLE_DOC_DIR_RE.test(norm)) return false;
+  if (PROSE_DOC_BASENAMES.has(base)) return true;
+  const ext = path.posix.extname(base);
+  return PROSE_DOC_EXTENSIONS.has(ext);
+}
+
+function isCommentOrWhitespaceOnlyDiff(filePath: string, diff: string): boolean {
+  const ext = path.posix.extname(filePath.replaceAll('\\', '/')).toLowerCase();
+  const allowsSlashComment = SLASH_COMMENT_EXTENSIONS.has(ext);
+  const allowsHashComment = HASH_COMMENT_EXTENSIONS.has(ext);
+  if (!allowsSlashComment && !allowsHashComment) return false;
+
+  let inHunk = false;
+  let changedLines = 0;
+
+  for (const rawLine of diff.split('\n')) {
+    const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
+    if (HUNK_HEADER_RE.test(line)) {
+      inHunk = true;
+      continue;
+    }
+    if (
+      line.startsWith('diff --git ') ||
+      line.startsWith('index ') ||
+      line.startsWith('--- ') ||
+      line.startsWith('+++ ')
+    ) {
+      inHunk = false;
+      continue;
+    }
+    if (!inHunk) continue;
+
+    let changedBody: string | null = null;
+    const annotatedAdded = /^\s*\d+\s*\|\s*\+(.*)$/.exec(line);
+    if (annotatedAdded) {
+      changedBody = annotatedAdded[1] ?? '';
+    } else if (/^\s*\d+\s*\|\s(?: |$)/.test(line)) {
+      // Annotated context line — unchanged
+      continue;
+    } else if (line.startsWith('+') && !line.startsWith('+++')) {
+      changedBody = line.slice(1);
+    } else if (line.startsWith('-') && !line.startsWith('---')) {
+      changedBody = line.slice(1);
+    } else {
+      continue;
+    }
+
+    changedLines++;
+    const trimmed = changedBody.trim();
+    if (trimmed.length === 0) continue;
+    if (SUPPRESSION_DIRECTIVE_RE.test(trimmed)) return false;
+
+    if (allowsSlashComment) {
+      // Exclude TS triple-slash directives (`/// <reference ... />`)
+      if (!trimmed.startsWith('//') || /^\/\/\/\s*<reference\b/i.test(trimmed)) {
+        return false;
+      }
+      continue;
+    }
+    if (allowsHashComment) {
+      if (!trimmed.startsWith('#') || trimmed.startsWith('#!')) {
+        return false;
+      }
+    }
+  }
+
+  return changedLines > 0;
+}
+
+/**
+ * Deterministically pre-screen an automated review bundle so pure prose-doc
+ * updates and comment/whitespace-only diffs complete in 0 LLM tokens ($0.00)
+ * while still recording a full `ReviewReport` + `scopeManifest` audit trail.
+ *
+ * Never triggers for manual `/review`, cascade re-reviews, bundles with
+ * dangling deleted-file imports, active prior findings, or prompt/skill files.
+ */
+export function classifyZeroTokenReviewFastPath(
+  bundle: Pick<
+    ReviewContextBundle,
+    'files' | 'manualTrigger' | 'cascadeDepth' | 'deletedFileReferences' | 'priorFindings'
+  >,
+): ZeroTokenReviewFastPathVerdict {
+  if (bundle.files.length === 0) return { eligible: false };
+  if (bundle.manualTrigger) return { eligible: false };
+  if ((bundle.cascadeDepth ?? 0) > 0) return { eligible: false };
+  if ((bundle.deletedFileReferences?.length ?? 0) > 0) return { eligible: false };
+  if (bundle.priorFindings?.some((f) => f.status === 'active')) return { eligible: false };
+
+  let allDocs = true;
+  for (const file of bundle.files) {
+    if (isPureProseDocPath(file.path)) {
+      continue;
+    }
+    allDocs = false;
+    if (
+      file.status !== 'modified' ||
+      file.diffTruncated ||
+      typeof file.diff !== 'string' ||
+      file.diff.trim().length === 0 ||
+      !isCommentOrWhitespaceOnlyDiff(file.path, file.diff)
+    ) {
+      return { eligible: false };
+    }
+  }
+
+  return {
+    eligible: true,
+    reason: allDocs ? 'docs_only' : 'comments_or_whitespace_only',
+  };
 }

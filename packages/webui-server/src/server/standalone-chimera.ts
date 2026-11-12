@@ -1,5 +1,9 @@
-import { createAutoReviewPlugin, createChimeraPlugin } from '@wrongstack/builtin-plugins';
-import { type Container, EventBus } from '@wrongstack/contracts/kernel';
+import {
+  createAutoReviewPlugin,
+  createChimeraFollowupExtension,
+  createChimeraPlugin,
+} from '@wrongstack/builtin-plugins';
+import { type Container, EventBus, TOKENS } from '@wrongstack/contracts/kernel';
 import type { EventName, Listener } from '@wrongstack/contracts/kernel/events';
 import type { Config, Logger, ModelsRegistry, SessionWriter } from '@wrongstack/contracts/types';
 import {
@@ -42,6 +46,7 @@ interface Owner {
   reviews: ReturnType<typeof createChimeraWorkRegistry>;
   ready: Promise<void>;
   session: SessionWriter;
+  config?: Config | undefined;
   host?: PluginHostHandle | undefined;
   mailbox?: RemoteMailbox | undefined;
   teardown: Array<() => void>;
@@ -87,6 +92,7 @@ export function createStandaloneChimera(options: {
     owners.set(id, owner);
     owner.ready = (async () => {
       const config = { ...options.getConfig(), cwd: agent.ctx.cwd ?? options.cwd };
+      owner.config = config;
       const projectDir = options.getProjectDir?.(agent) ?? options.projectDir;
       const plugins = [createChimeraPlugin(), createAutoReviewPlugin()].filter(
         (plugin) =>
@@ -113,6 +119,8 @@ export function createStandaloneChimera(options: {
       };
       const mailbox = getSharedProjectMailbox(projectDir, bus);
       owner.mailbox = mailbox;
+      const statusTracker = options.container.safeResolve(TOKENS.ProviderModelStatusTracker);
+      const configStore = options.container.safeResolve(TOKENS.ConfigStore);
       installChimeraReviewHandler({
         events: bus,
         director: reviewDirector,
@@ -121,6 +129,7 @@ export function createStandaloneChimera(options: {
         agent: { ctx: { activeRunSessionId: id, session } },
         config,
         projectDir,
+        ...(statusTracker ? { statusTracker } : {}),
         trackWork: (work) => {
           owner.reviews.track(work);
         },
@@ -155,6 +164,7 @@ export function createStandaloneChimera(options: {
             providerRegistry: options.providerRegistry,
             modelsRegistry: options.modelsRegistry,
             config,
+            ...(configStore ? { configStore } : {}),
             log: options.logger,
             mailbox,
             sessionWriter: {
@@ -221,13 +231,23 @@ export function createStandaloneChimera(options: {
     contexts.add(agent.ctx);
     for (const ref of agents) if (!ref.deref()) agents.delete(ref);
     agents.add(new WeakRef(agent));
+    const followupExt = createChimeraFollowupExtension({
+      getCwd: (ctx) => ctx.projectRoot || ctx.cwd || agent.ctx.cwd || options.cwd,
+      getProjectDir: () => options.getProjectDir?.(agent) ?? options.projectDir,
+      events: options.events,
+    });
     agent.extensions.register({
       name: 'standalone-chimera-owner',
-      beforeRun: async () => {
+      beforeRun: async (ctx, input) => {
         if (disposed) return;
         const owner = ensureOwner(agent);
         await owner.ready;
         if (owner.closing) return;
+        if (owner.config) {
+          Object.assign(owner.config, options.getConfig(), {
+            cwd: agent.ctx.cwd ?? options.cwd,
+          });
+        }
         owner.ran = true;
         // Await baseline collection before tools/provider can change files. The
         // process EventBus is observe-only and does not join async listeners.
@@ -236,9 +256,15 @@ export function createStandaloneChimera(options: {
           ctx: agent.ctx,
           model: agent.ctx.model,
           at: new Date().toISOString(),
+          ...(input.text ? { inputText: input.text } : {}),
         });
         await owner.bus.join();
+        await followupExt.beforeRun?.(ctx, input);
       },
+      beforeIteration: followupExt.beforeIteration,
+      afterToolExecution: followupExt.afterToolExecution,
+      beforeTurnEnd: followupExt.beforeTurnEnd,
+      afterRun: followupExt.afterRun,
     });
   };
 

@@ -3553,7 +3553,8 @@
       "durationSeconds": "Dauer der Prüfung (Sekunden)",
       "headSha": "Geprüfter HEAD",
       "tokens": "Token-Nutzung",
-      "execution": "Ausführung & Kosten"
+      "execution": "Ausführung & Kosten",
+      "scopeStatus": "Dateistatus auf Datenträger"
     },
     "tokensShort": "Tok.",
     "tokensBreakdown": "{{total}} ({{input}} rein · {{output}} raus · {{cache}} Cache)",
@@ -3651,7 +3652,14 @@
     "triageFinding": "Als triagiert markieren",
     "startFinding": "Arbeit am Befund beginnen",
     "history": "Verlauf des Befunds ({{n}})",
-    "findingId": "Befund {{id}}"
+    "findingId": "Befund {{id}}",
+    "deletedFileRefs": "Nach dem Löschen weiterhin referenziert: {{refs}}",
+    "sessionIntent": "Sitzungsabsicht: {{intent}}",
+    "scopeCurrent": "Auf Datenträger aktuell ✓",
+    "scopeStale": "Auf Datenträger veraltet ({{n}} geändert)",
+    "signatureCallers": "Aufrufer geänderter Exporte: {{callers}}",
+    "aggregateUsage": "Σ {{tokens}} Tok",
+    "cacheShort": "Cache"
   },
   "skillLib": {
     "exported_one": "{{count}} Skills exportiert.",

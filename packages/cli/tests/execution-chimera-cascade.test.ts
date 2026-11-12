@@ -304,4 +304,132 @@ describe('installChimeraCascadeHandler', () => {
     expect(h.events.emitCustom).not.toHaveBeenCalled();
     expect(JSON.stringify(h.session.append.mock.calls)).toContain('evidence missing');
   });
+
+  it('embeds targeted disk excerpts into cascade task prompts, skips unchanged re-reviews, and narrows multi-file re-reviews to changed/flagged files', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'chimera-cascade-scoped-'));
+    roots.push(root);
+    const flaggedBefore = 'export function checkAuth(tok?: string) {\n  return tok!.trim();\n}\n';
+    const flaggedAfter =
+      'export function checkAuth(tok?: string) {\n  return (tok ?? "").trim();\n}\n';
+    const cleanContent = 'export const VERSION = "1.0.0";\n';
+    await writeFile(join(root, 'auth.ts'), flaggedBefore, 'utf8');
+    await writeFile(join(root, 'constants.ts'), cleanContent, 'utf8');
+
+    const assignedTasks: Array<{ task: string }> = [];
+    const director = {
+      spawn: vi.fn().mockResolvedValue('agent-1'),
+      assign: vi.fn(async (arg: { description?: string }) => {
+        assignedTasks.push({ task: arg.description ?? '' });
+      }),
+      awaitTasks: vi.fn(async () => [
+        {
+          status: 'success',
+          result:
+            'no edits\n```json\n{"verification_evidence":{"typecheck":{"command":"bun run typecheck","exitCode":0}}}\n```',
+        },
+      ]),
+      terminate: vi.fn().mockResolvedValue(undefined),
+    };
+    const verifyEvidence = vi.fn().mockResolvedValue({
+      status: 'verified' as const,
+      checks: [
+        {
+          name: 'typecheck' as const,
+          command: 'bun run typecheck',
+          claimedExitCode: 0,
+          actualExitCode: 0,
+          ok: true,
+        },
+      ],
+    });
+
+    // Case 1: Cascade agent makes NO disk changes -> re-review short-circuits cleanly
+    const unchangedHarness = harness(director, { verifyEvidence });
+    unchangedHarness.emit({
+      agents: ['bug-hunter'],
+      reportId: 'rep-unchanged',
+      bundle: {
+        cwd: root,
+        config: { enabled: true, maxFiles: 15, autoFix: 'off' },
+        files: [
+          { path: 'auth.ts', status: 'modified', content: flaggedBefore },
+          { path: 'constants.ts', status: 'modified', content: cleanContent },
+        ],
+        cascadeDepth: 0,
+        maxCascadeDepth: 2,
+      },
+      verifiedFindings: [
+        {
+          id: 'f-auth-1',
+          fingerprint: 'fp-auth-1',
+          severity: 'high',
+          category: 'bug',
+          status: 'active',
+          source: 'auto',
+          title: 'Non-null assertion on optional `tok` crashes',
+          description: '`tok!.trim()` throws TypeError when tok is undefined.',
+          location: { file: 'auth.ts', line: 2 },
+          createdAt: new Date().toISOString(),
+          originReport: {
+            reportId: 'rep-unchanged',
+            sessionId: 's-1',
+            agentId: 'chimera-review',
+            reviewerModel: 'test',
+          },
+        },
+      ],
+      reviewText: '## Review\n1. [HIGH] auth.ts:2 — crash',
+      severities: { critical: 0, high: 1, medium: 0 },
+    });
+    await unchangedHarness.wait();
+
+    expect(director.spawn).toHaveBeenCalledWith(
+      expect.objectContaining({ maxIterations: 25, maxToolCalls: 80 }),
+    );
+    expect(assignedTasks[0]?.task).toContain('--- Targeted verified findings & disk context ---');
+    expect(assignedTasks[0]?.task).toContain('>   2 |   return tok!.trim();');
+    expect(assignedTasks[0]?.task).toContain('1 unflagged sibling file(s) omitted');
+    expect(unchangedHarness.events.emitCustom).not.toHaveBeenCalled();
+    expect(JSON.stringify(unchangedHarness.session.append.mock.calls)).toContain(
+      'content unchanged since previous review',
+    );
+
+    // Case 2: Cascade agent modifies ONLY `auth.ts` -> re-review scopes to `auth.ts` and skips `constants.ts`
+    const editingDirector = {
+      ...director,
+      awaitTasks: vi.fn(async () => {
+        await writeFile(join(root, 'auth.ts'), flaggedAfter, 'utf8');
+        return [
+          {
+            status: 'success',
+            result:
+              'fixed\n```json\n{"verification_evidence":{"typecheck":{"command":"bun run typecheck","exitCode":0}}}\n```',
+          },
+        ];
+      }),
+    };
+    const scopedHarness = harness(editingDirector, { verifyEvidence });
+    scopedHarness.emit({
+      agents: ['bug-hunter'],
+      reportId: 'rep-scoped',
+      bundle: {
+        cwd: root,
+        config: { enabled: true, maxFiles: 15, autoFix: 'off' },
+        files: [
+          { path: 'auth.ts', status: 'modified', content: flaggedBefore },
+          { path: 'constants.ts', status: 'modified', content: cleanContent },
+        ],
+        cascadeDepth: 0,
+        maxCascadeDepth: 2,
+      },
+      verifiedFindings: [],
+      reviewText: '## Review',
+      severities: { critical: 0, high: 1, medium: 0 },
+    });
+    await scopedHarness.wait();
+
+    expect(JSON.stringify(scopedHarness.session.append.mock.calls)).toContain(
+      're-reviewing 1 file(s) after fixes',
+    );
+  });
 });

@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 998,
+      "files": 999,
       "typeOnly": 76,
-      "runtimeOrMixed": 958
+      "runtimeOrMixed": 959
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -11586,6 +11586,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/builtin-plugins/src/review-finding-transition.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/builtin-plugins/src/review-followup-briefing.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

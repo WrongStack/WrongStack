@@ -18,6 +18,10 @@
       "lines": 1565,
       "relativeImports": 3
     },
+    "packages/builtin-plugins/src/review-followup-briefing.ts": {
+      "lines": 869,
+      "relativeImports": 5
+    },
     "packages/chronicle/src/project-server-client.ts": {
       "lines": 719,
       "relativeImports": 5
@@ -107,7 +111,7 @@
       "relativeImports": 17
     },
     "packages/runtime/src/chimera/execution-chimera-review.ts": {
-      "lines": 845,
+      "lines": 869,
       "relativeImports": 3
     },
     "packages/tools/src/codebase-index/ast-symbol-mutator.ts": {
@@ -163,7 +167,7 @@
       "relativeImports": 35
     },
     "packages/vibeui/src/lib/session.ts": {
-      "lines": 815,
+      "lines": 822,
       "relativeImports": 5
     },
     "packages/vibeui/src/lib/use-session.ts": {
@@ -203,8 +207,8 @@
       "relativeImports": 17
     },
     "apps/desktop-v2/src/EngineWorkspace.tsx": {
-      "lines": 850,
-      "relativeImports": 59
+      "lines": 773,
+      "relativeImports": 54
     },
     "apps/desktop-v2/src/FileWorkspace.tsx": {
       "lines": 2069,

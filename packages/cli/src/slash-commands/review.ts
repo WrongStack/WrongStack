@@ -6,6 +6,7 @@ import type { ReviewContextBundle, ReviewSkippedFile } from '@wrongstack/builtin
 import {
   buildReviewContext,
   emitReviewIfChanged,
+  extractSessionIntentSnippets,
   getCompletedReviewSnapshots,
   isIgnoredReviewNoisePath,
   prioritizeReviewCandidates,
@@ -185,6 +186,7 @@ export function buildReviewCommand(opts: SlashCommandContext): SlashCommand {
         previousSnapshots: getCompletedReviewSnapshots(opts.events, cwd),
         skippedFiles,
         activeTodos: ctx.todos,
+        sessionIntent: extractSessionIntentSnippets({ messages: ctx.messages }),
         config: {
           enabled: true,
           provider: ctx.provider.id,
@@ -198,6 +200,7 @@ export function buildReviewCommand(opts: SlashCommandContext): SlashCommand {
         },
         files: filesWithContent,
       });
+      payload.manualTrigger = true;
 
       const emitted = await emitReviewIfChanged(
         { events: opts.events, emitCustom: opts.events.emitCustom.bind(opts.events) },

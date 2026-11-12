@@ -90,6 +90,36 @@ export interface ReviewScopeFileManifest {
 }
 
 /**
+ * Dangling reference check for a deleted file whose module stem still appears
+ * in surviving tracked files.
+ */
+export interface ReviewDeletedFileReference {
+  deletedPath: string;
+  referencedBy: string[];
+}
+
+/**
+ * External call/reference sites (`path:line`) for an exported symbol whose
+ * declaration signature line was modified in the reviewed diff.
+ */
+export interface ReviewSignatureCallers {
+  symbol: string;
+  file: string;
+  callers: string[];
+}
+
+/**
+ * Live disk staleness check comparing `ReviewScopeManifest.files[].sha256`
+ * against the current working tree on disk.
+ */
+export interface ReviewScopeDrift {
+  stale: boolean;
+  checkedCount: number;
+  modifiedPaths: string[];
+  missingPaths: string[];
+}
+
+/**
  * Structured manifest describing what a review run inspected and skipped.
  */
 export interface ReviewScopeManifest {
@@ -97,7 +127,10 @@ export interface ReviewScopeManifest {
   isIncremental?: boolean | undefined;
   files: ReviewScopeFileManifest[];
   deletedFiles?: string[] | undefined;
+  deletedFileReferences?: ReviewDeletedFileReference[] | undefined;
+  signatureCallers?: ReviewSignatureCallers[] | undefined;
   skippedFiles?: ReviewSkippedFile[] | undefined;
+  sessionIntent?: string[] | undefined;
   kanbanCardId?: string | undefined;
   activeTodoCount?: number | undefined;
   priorFindingCount?: number | undefined;
@@ -180,6 +213,12 @@ export interface ReviewContextBundle {
   reviewFallbackModels?: string[] | undefined;
   /** Selection policy for the resolved auto-review profile pool. */
   reviewModelSelection?: 'round-robin' | 'random' | undefined;
+  /**
+   * True when explicitly invoked by the operator via `/review`. Manual reviews
+   * always run the LLM reviewer and never short-circuit via the deterministic
+   * zero-token pre-screen fast path.
+   */
+  manualTrigger?: boolean | undefined;
   /**
    * Cascade severity threshold from the auto-review plugin config.
    * When the review subagent finds findings at or above this level, a
@@ -267,6 +306,25 @@ export interface ReviewContextBundle {
    * Repo-relative paths deleted in the working tree (`D` status).
    */
   deletedFiles?: string[] | undefined;
+
+  /**
+   * Surviving tracked files that still reference a deleted file's module stem,
+   * pre-computed via `git grep` at 0 LLM token cost.
+   */
+  deletedFileReferences?: ReviewDeletedFileReference[] | undefined;
+
+  /**
+   * External `path:line` caller/reference sites for exported symbols whose
+   * declaration line was modified in the diff, pre-computed in a single
+   * batched `git grep` at 0 LLM token cost.
+   */
+  signatureCallers?: ReviewSignatureCallers[] | undefined;
+
+  /**
+   * Bounded, recent user request snippets from this session so the reviewer
+   * understands user intent and avoids re-litigating deliberate choices.
+   */
+  sessionIntent?: string[] | undefined;
 
   /**
    * Files excluded from this review batch (noise, already reviewed, in-flight,

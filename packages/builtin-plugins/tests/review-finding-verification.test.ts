@@ -252,4 +252,27 @@ describe('verifyFindingsAgainstDisk', () => {
       reason: 'outside_workspace',
     });
   });
+
+  it('relocates off-by-4 citations within the same scope without crossing function boundaries', async () => {
+    // Line 5 is blank right below `getUser` (line 1) with no intervening function declaration
+    const driftedSameScope = makeFinding({
+      location: { file: 'auth.ts', line: 5 },
+    });
+    // Line 10 is inside `refreshSession()` (line 7 starts a new function boundary)
+    const acrossFunctionBoundary = makeFinding({
+      location: { file: 'auth.ts', line: 10 },
+    });
+
+    const [snapped, blocked] = await verifyFindingsAgainstDisk(
+      [driftedSameScope, acrossFunctionBoundary],
+      { cwd: dir },
+    );
+
+    expect(snapped!.verification).toMatchObject({
+      status: 'verified',
+      reason: 'anchor_found',
+    });
+    expect(snapped!.location?.line).toBe(1);
+    expect(blocked!.verification?.status).toBe('unverified');
+  });
 });

@@ -9,8 +9,96 @@
 
 import { parseChimeraReviewReport } from './review-finding-parser.js';
 import { JsonlFindingStore } from './review-finding-store.js';
-import type { FindingSource } from './review-finding-types.js';
+import type { ChimeraFinding, FindingSource } from './review-finding-types.js';
 import type { ChimeraReviewCompletePayload, ReviewContextBundle } from './review-types.js';
+
+function normalizeSuppressionPath(filePath: string): string {
+  return filePath
+    .replaceAll('\\', '/')
+    .replace(/^\.\/+/, '')
+    .toLowerCase();
+}
+
+function makeSuppressionTitleKey(filePath: string, title: string): string {
+  return `${normalizeSuppressionPath(filePath)}\0${title.trim().toLowerCase()}`;
+}
+
+/**
+ * Strip findings that match an operator-suppressed record (`ignored`, or
+ * `resolved` with outcome `wontfix` | `false_positive`) in the project's
+ * finding store.
+ *
+ * Applied at the execution boundary BEFORE Markdown report synthesis, report
+ * persistence, mailbox alerts, or auto-review fix cascades run — ensuring an
+ * LLM that disobeys `DO NOT RE-REPORT` cannot trigger a fix cascade or noisy
+ * alert on code the operator explicitly suppressed. Genuinely `fixed` findings
+ * are NOT filtered so real regressions still pass through and reopen.
+ */
+export async function filterOperatorSuppressedFindings(
+  findings: ChimeraFinding[],
+  projectDir: string,
+): Promise<{ findings: ChimeraFinding[]; suppressedCount: number }> {
+  if (findings.length === 0 || !projectDir) {
+    return { findings, suppressedCount: 0 };
+  }
+
+  let terminalRecords: ChimeraFinding[];
+  try {
+    const store = new JsonlFindingStore(projectDir);
+    terminalRecords = await store.list({ statuses: ['ignored', 'resolved'], limit: 500 });
+  } catch {
+    return { findings, suppressedCount: 0 };
+  }
+
+  if (terminalRecords.length === 0) {
+    return { findings, suppressedCount: 0 };
+  }
+
+  const suppressedFingerprints = new Set<string>();
+  const suppressedFileTitles = new Set<string>();
+
+  for (const record of terminalRecords) {
+    const outcome = record.resolution?.outcome;
+    const resolvedByAgent = record.resolution?.resolvedBy === 'leader';
+    const isOperatorSuppressed =
+      record.status === 'ignored' ||
+      (!resolvedByAgent &&
+        record.status === 'resolved' &&
+        (outcome === 'wontfix' || outcome === 'false_positive'));
+    if (!isOperatorSuppressed) continue;
+
+    if (record.fingerprint) {
+      suppressedFingerprints.add(record.fingerprint);
+    }
+    if (record.location?.file && record.title.trim().length > 0) {
+      suppressedFileTitles.add(makeSuppressionTitleKey(record.location.file, record.title));
+    }
+  }
+
+  if (suppressedFingerprints.size === 0 && suppressedFileTitles.size === 0) {
+    return { findings, suppressedCount: 0 };
+  }
+
+  const kept: ChimeraFinding[] = [];
+  let suppressedCount = 0;
+  for (const finding of findings) {
+    const matchesFingerprint = Boolean(
+      finding.fingerprint && suppressedFingerprints.has(finding.fingerprint),
+    );
+    const matchesFileTitle = Boolean(
+      finding.location?.file &&
+        finding.title.trim().length > 0 &&
+        suppressedFileTitles.has(makeSuppressionTitleKey(finding.location.file, finding.title)),
+    );
+    if (matchesFingerprint || matchesFileTitle) {
+      suppressedCount++;
+      continue;
+    }
+    kept.push(finding);
+  }
+
+  return { findings: kept, suppressedCount };
+}
 
 /**
  * Classify the review source from the payload bundle.

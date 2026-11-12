@@ -511,6 +511,7 @@ export function handleChimeraReports(msg: WSServerMessage) {
           reviewedAt: string;
           lifecycleStatus: string;
           totalFindings: number;
+          fileCount?: number | undefined;
           hasActionableFindings: boolean;
         }>
       | undefined;
@@ -533,7 +534,7 @@ export function handleChimeraReports(msg: WSServerMessage) {
           sessionId,
           message: `🦂 Chimera report ready — ${r.totalFindings} finding(s) recorded for this session.`,
           findingCount: r.totalFindings,
-          fileCount: 0,
+          fileCount: typeof r.fileCount === 'number' ? r.fileCount : 0,
           hasActionableFindings: r.hasActionableFindings === true,
           receivedAt: Number.isFinite(reviewedAt) ? reviewedAt : Date.now(),
           actionedAt: null,

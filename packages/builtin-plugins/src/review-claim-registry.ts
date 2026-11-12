@@ -12,6 +12,7 @@ import {
   warnFallbackOnce,
   withStoreLock,
 } from './review-claim-store-lock.js';
+import { JsonlReportStore } from './review-report-store.js';
 import type { ReviewContextBundle, ReviewFileEntry, ReviewSkippedFile } from './review-types.js';
 
 export { breakStaleLock } from './review-claim-store-lock.js';
@@ -24,16 +25,17 @@ export interface CompletedReviewFileSnapshot {
   reportId?: string | undefined;
 }
 
-const COMPLETED_SNAPSHOT_TTL_MS = 12 * 60 * 60 * 1000;
+const COMPLETED_SNAPSHOT_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_COMPLETED_SNAPSHOTS_PER_BUS = 500;
 const MAX_SNAPSHOT_CONTENT_CHARS = 256_000;
 
 /**
  * Per-EventBus completed review snapshots: `claimKey(cwd, path) -> snapshot`.
  * Recorded ONLY when a review finishes with `status === 'success'` (or
- * `'completed'`). Enables:
+ * `'completed'`), or hydrated once per session from persisted `success`
+ * reports in `review-reports.jsonl`. Enables:
  *  1. Skipping unchanged files at `session.ended` (0 tokens) when they were
- *     already reviewed mid-session.
+ *     already reviewed mid-session or in a recent prior session before restart.
  *  2. Computing hybrid incremental delta diffs when an already-reviewed file
  *     receives small subsequent edits later in the same session.
  */
@@ -41,6 +43,9 @@ const completedSnapshotsByEventBus = new WeakMap<
   EventBus,
   Map<string, CompletedReviewFileSnapshot>
 >();
+
+/** Tracks which `(cwd, projectDir)` pairs have already hydrated from disk on a bus. */
+const hydratedStoresByEventBus = new WeakMap<EventBus, Set<string>>();
 
 interface ReviewClaim {
   key: string;
@@ -617,9 +622,82 @@ function recordSuccessfulSnapshots(events: EventBus, payload: unknown): void {
 }
 
 /**
- * Return all non-expired completed review snapshots for `cwd` on `events`,
- * keyed by normalized lowercase forward-slash path (matching `file.path` via
- * case-insensitive lookup on Windows).
+ * Hydrate completed file SHA-256 fingerprints from persisted `success` reports
+ * in `JsonlReportStore(projectDir)` into `events` (at most once per
+ * `(events, cwd, projectDir)`).
+ *
+ * Ensures that uncommitted files already reviewed before a CLI/Desktop restart
+ * are skipped with 0 LLM tokens in a new session if their SHA-256 on disk has
+ * not changed.
+ */
+export async function hydrateCompletedSnapshotsFromReportStore(
+  events: EventBus,
+  cwd: string,
+  projectDir: string,
+): Promise<void> {
+  if (!cwd || !projectDir) return;
+  let hydratedSet = hydratedStoresByEventBus.get(events);
+  if (!hydratedSet) {
+    hydratedSet = new Set();
+    hydratedStoresByEventBus.set(events, hydratedSet);
+  }
+  const cacheKey = `${normalizeKeyPart(cwd)}\0${normalizeKeyPart(projectDir)}`;
+  if (hydratedSet.has(cacheKey)) return;
+  hydratedSet.add(cacheKey);
+
+  try {
+    const store = new JsonlReportStore(projectDir);
+    const reports = await store.list({ limit: 30 });
+    if (reports.length === 0) return;
+
+    const now = Date.now();
+    const map = ensureCompletedMap(events);
+    const sortedNewestFirst = [...reports].sort(
+      (a, b) => Date.parse(b.reviewedAt) - Date.parse(a.reviewedAt),
+    );
+
+    for (const report of sortedNewestFirst) {
+      if (report.reviewStatus !== 'success') continue;
+      const reviewedMs = Date.parse(report.reviewedAt);
+      if (!Number.isFinite(reviewedMs) || now - reviewedMs > COMPLETED_SNAPSHOT_TTL_MS) continue;
+      const manifestFiles = report.scopeManifest?.files;
+      if (!Array.isArray(manifestFiles) || manifestFiles.length === 0) continue;
+
+      for (const file of manifestFiles) {
+        if (
+          !file ||
+          typeof file.path !== 'string' ||
+          typeof file.sha256 !== 'string' ||
+          file.sha256.length === 0
+        ) {
+          continue;
+        }
+        const key = claimKey(cwd, file.path);
+        // Newer in-memory snapshots or newer persisted reports win.
+        if (map.has(key)) continue;
+        map.set(key, {
+          path: file.path,
+          sha256: file.sha256,
+          content: '',
+          reviewedAt: reviewedMs,
+          reportId: report.id,
+        });
+        if (map.size >= MAX_COMPLETED_SNAPSHOTS_PER_BUS) return;
+      }
+    }
+  } catch {
+    /* best-effort — missing or unreadable report store never blocks review */
+  }
+}
+
+/**
+ * Return all non-expired completed review snapshots that carry in-memory file
+ * `content` for `cwd` on `events`, keyed by normalized lowercase forward-slash
+ * path (matching `file.path` via case-insensitive lookup on Windows).
+ *
+ * SHA-only entries hydrated from `review-reports.jsonl` (`content === ''`) are
+ * omitted here so delta diffing never diffs against an empty baseline, while
+ * `isFileContentAlreadyReviewed()` still matches their `sha256` directly.
  */
 export function getCompletedReviewSnapshots(
   events: EventBus,
@@ -636,6 +714,7 @@ export function getCompletedReviewSnapshots(
       continue;
     }
     if (!key.startsWith(prefix)) continue;
+    if (!snap.content) continue;
     out.set(snap.path, snap);
     out.set(normalizeKeyPart(snap.path), snap);
   }

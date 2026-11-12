@@ -310,4 +310,92 @@ describe('createChimeraRouteHandlers operations', () => {
     expect(detailFrame.payload.report.usage?.totalTokens).toBe(1620);
     expect(detailFrame.payload.report.scopeManifest?.headSha).toBe('cafebabe1234');
   });
+
+  it('attaches live scopeDrift on chimera.report.detail when projectRoot is provided', async () => {
+    const { createHash } = await import('node:crypto');
+    const { mkdir, writeFile } = await import('node:fs/promises');
+    const worktreeDir = await mkdtemp(path.join(tmpdir(), 'chimera-worktree-'));
+    try {
+      await mkdir(path.join(worktreeDir, 'src'), { recursive: true });
+      const initialContent = 'export function boot() { return 1; }\n';
+      const sha256 = createHash('sha256').update(initialContent).digest('hex');
+      await writeFile(path.join(worktreeDir, 'src/boot.ts'), initialContent, 'utf8');
+
+      const reportStore = new JsonlReportStore(projectDir);
+      await reportStore.persist({
+        id: 'r-drift',
+        sessionId: 'sess-9',
+        totalFindings: 0,
+        agentId: 'chimera-review',
+        reviewerModel: 'test-model',
+        source: 'chimera',
+        reviewStatus: 'success',
+        files: [{ path: 'src/boot.ts', status: 'modified' }],
+        counts: { critical: 0, high: 0, medium: 0, low: 0 },
+        unparseableCount: 0,
+        rawText: '## 🦂 Chimera Review — all clear ✅',
+        scopeManifest: {
+          files: [{ path: 'src/boot.ts', status: 'modified', sha256 }],
+        },
+      });
+
+      const send = vi.fn();
+      const handlers = createChimeraRouteHandlers({
+        projectDir: () => projectDir,
+        projectRoot: () => worktreeDir,
+        send: send as (ws: WebSocket, msg: { type: string; payload: unknown }) => void,
+      });
+      const ws = {} as WebSocket;
+
+      await handlers.getReport?.(ws, {
+        type: 'chimera.report.get',
+        payload: { reportId: 'r-drift' },
+      });
+      const currentFrame = send.mock.calls[0]?.[1] as {
+        payload: {
+          scopeDrift?: {
+            stale: boolean;
+            checkedCount: number;
+            modifiedPaths: string[];
+            missingPaths: string[];
+          };
+        };
+      };
+      expect(currentFrame.payload.scopeDrift).toEqual({
+        stale: false,
+        checkedCount: 1,
+        modifiedPaths: [],
+        missingPaths: [],
+      });
+
+      await writeFile(
+        path.join(worktreeDir, 'src/boot.ts'),
+        'export function boot() { return 2; }\n',
+        'utf8',
+      );
+      send.mockClear();
+      await handlers.getReport?.(ws, {
+        type: 'chimera.report.get',
+        payload: { reportId: 'r-drift' },
+      });
+      const staleFrame = send.mock.calls[0]?.[1] as {
+        payload: {
+          scopeDrift?: {
+            stale: boolean;
+            checkedCount: number;
+            modifiedPaths: string[];
+            missingPaths: string[];
+          };
+        };
+      };
+      expect(staleFrame.payload.scopeDrift).toEqual({
+        stale: true,
+        checkedCount: 1,
+        modifiedPaths: ['src/boot.ts'],
+        missingPaths: [],
+      });
+    } finally {
+      await rm(worktreeDir, { recursive: true, force: true });
+    }
+  });
 });

@@ -510,12 +510,13 @@ export function useProviderEventBridge({
       const report = payload as {
         sessionId?: string | undefined;
         message?: string | undefined;
+        hasActionableFindings?: boolean | undefined;
       };
       if (report.sessionId && report.sessionId !== agent.ctx.session.id) return;
       dispatch({
         type: 'addEntry',
         entry: {
-          kind: 'warn',
+          kind: report.hasActionableFindings === false ? 'info' : 'warn',
           text:
             report.message ??
             '🦂 Chimera report ready. No follow-up started; open the mailbox to inspect it.',

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChimeraFinding, ReviewTimeline } from './ChimeraFinding';
 import { CopyButton } from './CopyButton';
 import {
+  reviewAggregateUsage,
   reviewFilteredReports,
   reviewFindingCounts,
   reviewFollowup,
@@ -155,6 +156,12 @@ export function ProjectChimera({
   const deletedFiles = Array.isArray(scopeManifest['deletedFiles'])
     ? scopeManifest['deletedFiles'].filter((item): item is string => typeof item === 'string')
     : [];
+  const deletedFileReferences = entries(scopeManifest['deletedFileReferences']);
+  const signatureCallers = entries(scopeManifest['signatureCallers']);
+  const scopeDrift = record(detail?.['scopeDrift']);
+  const sessionIntent = Array.isArray(scopeManifest['sessionIntent'])
+    ? scopeManifest['sessionIntent'].filter((item): item is string => typeof item === 'string')
+    : [];
   const findings = entries(detail?.['findings']);
   const visibleFindings = findings.filter(
     (row) =>
@@ -226,6 +233,7 @@ export function ProjectChimera({
     }
   };
   const visible = reviewFilteredReports(reports, query, sessionFilter);
+  const aggregateUsage = reviewAggregateUsage(visible);
   const agents = sessions.filter((item) => item.kind === 'agent');
   const openFile = onOpenFile;
   return (
@@ -301,7 +309,23 @@ export function ProjectChimera({
           ))}
         </select>
       </div>
-      <p className="field-help">{t('reviews.matching', { count: visible.length, limit })}</p>
+      <p className="field-help">
+        {t('reviews.matching', { count: visible.length, limit })}
+        {aggregateUsage && (
+          <>
+            {' · '}
+            {t('reviews.aggregateUsage', {
+              tokens: reviewTokensCompact(aggregateUsage.totalTokens),
+            })}
+            {aggregateUsage.cachePct > 0
+              ? ` · ${aggregateUsage.cachePct}% ${t('reviews.cacheShort')}`
+              : ''}
+            {reviewUsdCost(aggregateUsage.costUsd)
+              ? ` · ${reviewUsdCost(aggregateUsage.costUsd)}`
+              : ''}
+          </>
+        )}
+      </p>
       <div className="review-workspace-layout">
         <aside className="review-report-list" aria-label={t('reviews.catalogLabel')}>
           {loading && <p role="status">{t('reviews.reading')}</p>}
@@ -409,6 +433,24 @@ export function ProjectChimera({
                       {scopeManifest['isIncremental'] === true
                         ? ` · ${t('reviews.incrementalDelta')}`
                         : ''}
+                    </dd>
+                  </div>
+                )}
+                {typeof scopeDrift['stale'] === 'boolean' && (
+                  <div>
+                    <dt>{t('reviews.fact.scopeStatus')}</dt>
+                    <dd>
+                      {scopeDrift['stale']
+                        ? t('reviews.scopeStale', {
+                            n:
+                              (Array.isArray(scopeDrift['modifiedPaths'])
+                                ? scopeDrift['modifiedPaths'].length
+                                : 0) +
+                              (Array.isArray(scopeDrift['missingPaths'])
+                                ? scopeDrift['missingPaths'].length
+                                : 0),
+                          })
+                        : t('reviews.scopeCurrent')}
                     </dd>
                   </div>
                 )}
@@ -527,6 +569,39 @@ export function ProjectChimera({
                 {deletedFiles.length > 0 && (
                   <p className="review-scope-note">
                     {t('reviews.deletedFiles', { files: deletedFiles.join(', ') })}
+                  </p>
+                )}
+                {deletedFileReferences.length > 0 && (
+                  <p className="review-scope-note">
+                    {t('reviews.deletedFileRefs', {
+                      refs: deletedFileReferences
+                        .map((ref) => {
+                          const refs = Array.isArray(ref['referencedBy'])
+                            ? ref['referencedBy'].filter((p): p is string => typeof p === 'string')
+                            : [];
+                          return `${String(ref['deletedPath'] ?? '')} → ${refs.join(', ')}`;
+                        })
+                        .join(' · '),
+                    })}
+                  </p>
+                )}
+                {signatureCallers.length > 0 && (
+                  <p className="review-scope-note">
+                    {t('reviews.signatureCallers', {
+                      callers: signatureCallers
+                        .map((entry) => {
+                          const list = Array.isArray(entry['callers'])
+                            ? entry['callers'].filter((c): c is string => typeof c === 'string')
+                            : [];
+                          return `${String(entry['symbol'] ?? '')} (${String(entry['file'] ?? '')}) → ${list.join(', ')}`;
+                        })
+                        .join(' · '),
+                    })}
+                  </p>
+                )}
+                {sessionIntent.length > 0 && (
+                  <p className="review-scope-note">
+                    {t('reviews.sessionIntent', { intent: sessionIntent.join(' · ') })}
                   </p>
                 )}
               </details>
