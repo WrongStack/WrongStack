@@ -70,6 +70,7 @@ import {
 } from './file-model';
 import { fileRefreshQueue } from './file-refresh';
 import { selectionReference } from './file-selection-reference';
+import { currentTreeListing, rememberTreeListing, treeListingKey } from './file-tree-cache';
 import { GitHistory } from './GitHistory';
 import { GitHunkReview } from './GitHunkReview';
 import { MergeConflictReview } from './MergeConflictReview';
@@ -234,31 +235,49 @@ export function FileWorkspace({
   const asGitPath = useCallback((path: string) => `${prefix}${path}`, [prefix]);
   const fromGitPath = (path: string) =>
     prefix && path.startsWith(prefix) ? path.slice(prefix.length) : path;
+  // The change event current now, so a listing read now is known to be current at it.
+  const treeChanged = useRef<unknown>(state.results['files.tree.changed']);
+  treeChanged.current = state.results['files.tree.changed'];
+  const listingKey = treeListingKey(projectId, scopeKey, includeIgnored);
+  const applyGit = useCallback((result: PromiseSettledResult<Record<string, unknown>>) => {
+    if (result.status === 'fulfilled') setGit(result.value);
+    else
+      setGit({
+        error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+      });
+  }, []);
   const refresh = useMemo(
     () =>
       fileRefreshQueue(async () => {
+        const marker = treeChanged.current;
         const results = await Promise.allSettled([
           command('files.tree', { includeIgnored }, ['files.tree']),
           command('git.changes', {}, ['git.changes']),
         ]);
         if (results[0].status === 'fulfilled') {
+          rememberTreeListing(listingKey, results[0].value['tree'], marker);
           setTree(fileTree(results[0].value['tree']));
           setTreeReady(true);
           setTreeFilter(includeIgnored);
         } else throw results[0].reason;
-        if (results[1].status === 'fulfilled') setGit(results[1].value);
-        else
-          setGit({
-            error:
-              results[1].reason instanceof Error
-                ? results[1].reason.message
-                : String(results[1].reason),
-          });
+        applyGit(results[1]);
       }),
-    [command, includeIgnored],
+    [command, includeIgnored, listingKey, applyGit],
   );
   useEffect(() => () => refresh.clear(), [refresh]);
   useEffect(() => {
+    // Opening Files again with nothing changed since the last listing shows that listing; only
+    // the (small) Git status is read.
+    const listing = currentTreeListing(listingKey, treeChanged.current);
+    if (listing !== undefined) {
+      setTree(fileTree(listing));
+      setTreeReady(true);
+      setTreeFilter(includeIgnored);
+      void Promise.allSettled([command('git.changes', {}, ['git.changes'])]).then(([result]) =>
+        applyGit(result),
+      );
+      return;
+    }
     setTreeLoading(true);
     void refresh()
       .catch((e: unknown) => setError(String(e instanceof Error ? e.message : e)))

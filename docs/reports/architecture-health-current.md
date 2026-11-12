@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-12T22:59:35.451Z
+**Generated:** 2026-11-12T23:29:07.854Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,15 +8,15 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 48 |
-| Production source files | 6284 |
-| Production source lines | 1299800 |
-| Test files | 5241 |
+| Production source files | 6285 |
+| Production source lines | 1299862 |
+| Test files | 5242 |
 | Workspace dependency edges | 250 |
-| Relative module edges | 18533 |
+| Relative module edges | 18534 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 1 |
 | Type-inclusive module cycles | 2 |
-| Tests without TypeScript test-project coverage | 336 |
+| Tests without TypeScript test-project coverage | 337 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
@@ -38,7 +38,7 @@
 | @wrongstack/contracts | 131 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 192 | 190 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 649 | 710 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 516 | 336 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 517 | 337 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 62 | 4 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 24 | 27 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
@@ -91,7 +91,7 @@
 
 | Lines | File |
 |---:|---|
-| 2075 | `apps/desktop-v2/src/FileWorkspace.tsx` |
+| 2094 | `apps/desktop-v2/src/FileWorkspace.tsx` |
 | 1589 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1565 | `packages/builtin-plugins/src/review-context-builder.ts` |
 | 1519 | `packages/core/src/execution/design-dna.ts` |
@@ -150,7 +150,7 @@
 
 ## TypeScript test coverage debt
 
-- 336 test files are not included in a package TypeScript test project.
+- 337 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.
