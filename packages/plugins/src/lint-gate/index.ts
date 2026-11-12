@@ -237,17 +237,21 @@ const plugin: Plugin = {
     const cfg = readConfig(api.config.extensions?.['lint-gate']);
     const cwd = resolve(api.config.cwd ?? process.cwd());
 
-    // Detect linter once at setup time.
-    const linterReady = detectLinter(cfg.linter, cwd).then((linter) => {
-      if (!linter) {
-        api.log.warn('lint-gate: no linter found (biome or eslint) — hook will be a no-op', {
-          requested: cfg.linter,
-        });
-      } else {
-        api.log.info('lint-gate: detected linter', { name: linter.name });
-      }
-      return linter;
-    });
+    // Detect the linter once, on first use. Probing it starts a `--version` process, and doing
+    // that at setup put a process start on every engine boot (the desktop boots one per
+    // conversation it opens), most of which never write a file.
+    let linterProbe: Promise<Awaited<ReturnType<typeof detectLinter>>> | undefined;
+    const linterReady = () =>
+      (linterProbe ??= detectLinter(cfg.linter, cwd).then((linter) => {
+        if (!linter) {
+          api.log.warn('lint-gate: no linter found (biome or eslint) — hook will be a no-op', {
+            requested: cfg.linter,
+          });
+        } else {
+          api.log.info('lint-gate: detected linter', { name: linter.name });
+        }
+        return linter;
+      }));
 
     // PreToolUse hook: lint the would-be content before write/edit.
     const hook = async (
@@ -259,7 +263,7 @@ const plugin: Plugin = {
       modifiedInput?: Record<string, unknown>;
       additionalContext?: string;
     } | void> => {
-      const linter = await linterReady;
+      const linter = await linterReady();
       if (!linter) return; // no linter → no-op
 
       const toolName = input.toolName ?? '';
@@ -472,7 +476,7 @@ const plugin: Plugin = {
       category: 'Code Quality',
       mutating: false,
       async execute() {
-        const linter = await linterReady;
+        const linter = await linterReady();
         return {
           ok: true,
           linter: linter?.name ?? 'none',

@@ -135,6 +135,49 @@ describe('command resolver completion coverage', () => {
     vi.useRealTimers();
   });
 
+  it('finds Windows PATH hits by reading directories, in where.exe order', async () => {
+    const listings: Record<string, string[]> = {
+      'C:\\proj': [],
+      'C:\\bin': ['tsls', 'TSLS.CMD', 'other.exe'],
+      'C:\\more': ['tsls.exe', 'tsls.ps1'],
+    };
+    const readDir = async (dir: string) =>
+      new Map((listings[dir] ?? []).map((name) => [name.toLowerCase(), name] as const));
+    const env = { Path: 'C:\\bin;"C:\\more";;C:\\missing', PATHEXT: '.EXE;.CMD' };
+    const hits = await commandResolverCoverage.windowsPathHits('tsls', env, 'C:\\proj', readDir);
+    expect(hits).toEqual([
+      path.join('C:\\bin', 'tsls'),
+      path.join('C:\\bin', 'TSLS.CMD'),
+      path.join('C:\\more', 'tsls.exe'),
+    ]);
+    expect(commandResolverCoverage.pickProbeHit(hits.join('\n'), 'win32')).toBe(
+      path.join('C:\\bin', 'TSLS.CMD'),
+    );
+    expect(await commandResolverCoverage.windowsPathHits('a\\b', env, 'C:\\proj', readDir)).toEqual(
+      [],
+    );
+  });
+
+  it.runIf(process.platform === 'win32')('agrees with where.exe on this machine', async () => {
+    const { execFileSync } = await import('node:child_process');
+    const where = (command: string) => {
+      try {
+        return execFileSync('where.exe', [command], { encoding: 'utf8', windowsHide: true })
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean);
+      } catch {
+        return [];
+      }
+    };
+    const { resolveCommandOnPath } = await import('../../src/utils/command-resolver.js');
+    for (const command of ['node', 'git', 'cmd', 'definitely-missing-wrongstack-command']) {
+      const expected = commandResolverCoverage.pickProbeHit(where(command).join('\n'), 'win32');
+      const actual = await resolveCommandOnPath(command);
+      expect(actual?.toLowerCase() ?? null, command).toBe(expected?.toLowerCase() ?? null);
+    }
+  });
+
   it('prefers a PATHEXT-executable hit over the extension-less shim', () => {
     expect(commandResolverCoverage.pickProbeHit('', 'linux')).toBeNull();
     expect(commandResolverCoverage.pickProbeHit('/usr/bin/x\n', 'linux')).toBe('/usr/bin/x');

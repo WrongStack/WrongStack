@@ -1104,7 +1104,8 @@
       "workspaceTypeScriptMajor"
     ],
     "packages/plug-lsp/src/utils/command-resolver.ts": [
-      "commandResolverCoverage"
+      "commandResolverCoverage",
+      "resolveCommandOnPath"
     ],
     "packages/plug-lsp/src/utils/safe-spawn.ts": [
       "safeSpawnCoverage"

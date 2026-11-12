@@ -113,7 +113,85 @@ export async function resolveCommandOnPath(
   timeoutMs = 2000,
   accept?: ((hit: string) => boolean) | undefined,
 ): Promise<string | null> {
+  if (process.platform === 'win32') {
+    const hits = await windowsPathHits(command, buildChildEnv(), process.cwd(), readDirCached);
+    return pickProbeHit(hits.join('\n'), 'win32', accept);
+  }
   return commandProbe(command, timeoutMs, process.platform, spawn as unknown as SpawnProbe, accept);
+}
+
+/** The value of `name` in `env`, whose keys are case-insensitive on Windows (`Path`). */
+function envValue(env: NodeJS.ProcessEnv, name: string): string | undefined {
+  const key = Object.keys(env).find((candidate) => candidate.toUpperCase() === name);
+  return key === undefined ? undefined : env[key];
+}
+
+const DEFAULT_PATHEXT = '.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC';
+
+/**
+ * What `where.exe <command>` lists, in its order (the current directory, then each PATH
+ * entry; in each, the bare name and then the name with every PATHEXT extension), found by
+ * reading the directories instead of starting a process.
+ *
+ * Starting `where.exe` once per language-server preset cost 5–24 s of every engine boot on
+ * Windows (process creation is synchronous there and blocks the event loop), and the desktop
+ * starts an engine for every conversation it opens or resumes.
+ */
+async function windowsPathHits(
+  command: string,
+  env: NodeJS.ProcessEnv,
+  cwd: string,
+  readDir: (dir: string) => Promise<Map<string, string>>,
+): Promise<string[]> {
+  if (/[\\/:*?]/.test(command)) return [];
+  const extensions = (envValue(env, 'PATHEXT') || DEFAULT_PATHEXT)
+    .split(';')
+    .map((ext) => ext.trim())
+    .filter(Boolean);
+  const names = [command, ...extensions.map((ext) => command + ext)].map((name) =>
+    name.toLowerCase(),
+  );
+  const dirs = [cwd, ...(envValue(env, 'PATH') ?? '').split(';')]
+    .map((dir) => dir.trim().replace(/^"(.*)"$/, '$1'))
+    .filter(Boolean);
+  const listings = await Promise.all(dirs.map((dir) => readDir(dir)));
+  const hits: string[] = [];
+  const seen = new Set<string>();
+  listings.forEach((files, index) => {
+    for (const name of names) {
+      const file = files.get(name);
+      if (file === undefined) continue;
+      const full = path.join(dirs[index] as string, file);
+      if (seen.has(full.toLowerCase())) continue;
+      seen.add(full.toLowerCase());
+      hits.push(full);
+    }
+  });
+  return hits;
+}
+
+/** How long a directory listing answers PATH lookups; a boot asks for ~20 servers at once. */
+const DIR_LISTING_TTL_MS = 5000;
+const dirListings = new Map<string, { at: number; files: Promise<Map<string, string>> }>();
+
+/** Regular files (and links) in `dir` by lower-cased name; empty when it cannot be read. */
+function readDirCached(dir: string): Promise<Map<string, string>> {
+  const key = dir.toLowerCase();
+  const cached = dirListings.get(key);
+  if (cached && Date.now() - cached.at < DIR_LISTING_TTL_MS) return cached.files;
+  const files = fs
+    .readdir(dir, { withFileTypes: true })
+    .then(
+      (entries) =>
+        new Map(
+          entries
+            .filter((entry) => !entry.isDirectory())
+            .map((entry) => [entry.name.toLowerCase(), entry.name] as const),
+        ),
+    )
+    .catch(() => new Map<string, string>());
+  dirListings.set(key, { at: Date.now(), files });
+  return files;
 }
 
 function commandProbe(
@@ -195,6 +273,7 @@ export const commandResolverCoverage = {
   gateProjectLocalPath,
   commandCandidates,
   commandProbe,
+  windowsPathHits,
   fileExists,
   pickProbeHit,
   shellQuote,
