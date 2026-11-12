@@ -10,7 +10,13 @@ import type { FileEventRecord } from '@wrongstack/contracts/types/file-event-rec
 import type { RunEnv } from '@wrongstack/contracts/types/run-env';
 import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { isAppendableSessionWriter } from './context-conversation-journal.js';
-import { ContextEnvironment } from './context-environment.js';
+import {
+  bindContextExtensions,
+  ContextEnvironment,
+  type ContextInit,
+  getContextExtensions,
+  type RunOptions,
+} from './context-environment.js';
 import type { ProviderMemoryEvidence } from './context-evidence.js';
 import {
   recordFileEventEntry,
@@ -22,9 +28,14 @@ import { drainHooks, registerHook } from './context-hooks.js';
 import { resolveEventSessionId, resolveOwningSessionId } from './context-session-id.js';
 import { ConversationState } from './conversation-state.js';
 
-export type { ContextInit, RunOptions } from './context-environment.js';
-export type { ProviderMemoryEvidence, TodoItem };
-export { isAppendableSessionWriter, resolveEventSessionId, resolveOwningSessionId };
+export type { ContextInit, ProviderMemoryEvidence, RunOptions, TodoItem };
+export {
+  bindContextExtensions,
+  getContextExtensions,
+  isAppendableSessionWriter,
+  resolveEventSessionId,
+  resolveOwningSessionId,
+};
 
 /**
  * L1-A: `Context` is the live agent-run object. Its read-only environment

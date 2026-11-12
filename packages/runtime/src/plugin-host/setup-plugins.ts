@@ -35,7 +35,11 @@ import {
 } from '@wrongstack/plugins/factories';
 import { PLUGIN_AUDIT_ENTRIES } from '@wrongstack/plugins/plugin-audit-catalog';
 import { normalizePluginReloadTarget } from '../plugin-management/plugin-watch.js';
-import { buildPluginOptions, loadExternalPlugins } from './external-plugins.js';
+import {
+  buildPluginOptions,
+  createInteractiveTrustRepinCallback,
+  loadExternalPlugins,
+} from './external-plugins.js';
 import { installPluginToolQuiescence } from './plugin-quiescence.js';
 
 // ---------------------------------------------------------------------------
@@ -254,7 +258,12 @@ export interface ExternalPluginReloadReport {
 
 export interface ManagedPluginHostHandle extends PluginHostHandle {
   uiRegistry?: PluginUiRegistry | undefined;
-  reloadExternal?: ((targetName?: string) => Promise<ExternalPluginReloadReport>) | undefined;
+  reloadExternal?:
+    | ((
+        targetName?: string,
+        opts?: { force?: boolean | undefined },
+      ) => Promise<ExternalPluginReloadReport>)
+    | undefined;
 }
 
 /**
@@ -577,7 +586,10 @@ export async function setupPlugins(
   );
   let reloadGeneration = 0;
 
-  const reloadExternal = async (targetName?: string): Promise<ExternalPluginReloadReport> => {
+  const reloadExternal = async (
+    targetName?: string,
+    reloadOpts?: { force?: boolean | undefined },
+  ): Promise<ExternalPluginReloadReport> => {
     const trimmedTarget = normalizePluginReloadTarget(targetName);
     if (safeMode === true) {
       return { reloaded: [], unloaded: [], failed: [] };
@@ -591,6 +603,12 @@ export async function setupPlugins(
     const reloaded: string[] = [];
     const unloaded: string[] = [];
     const failedSet = new Set<string>();
+    const unloadActive = async (name: string): Promise<void> => {
+      if (typeof pluginHost.unloadPlugin === 'function' && (await pluginHost.unloadPlugin(name))) {
+        unloaded.push(name);
+      }
+      activeExternalNames.delete(name);
+    };
 
     if (liveConfig.features?.plugins === false) {
       const toUnload =
@@ -599,13 +617,7 @@ export async function setupPlugins(
             ? [trimmedTarget]
             : []
           : [...activeExternalNames];
-      for (const name of toUnload) {
-        if (typeof pluginHost.unloadPlugin === 'function') {
-          const didUnload = await pluginHost.unloadPlugin(name);
-          if (didUnload) unloaded.push(name);
-        }
-        activeExternalNames.delete(name);
-      }
+      for (const name of toUnload) await unloadActive(name);
       return { reloaded, unloaded, failed: [] };
     }
 
@@ -618,9 +630,11 @@ export async function setupPlugins(
         reservedNames: reservedExternalNames,
         reloadGeneration,
         onlyName: trimmedTarget,
-        onFailure: (label) => {
-          failedSet.add(label);
-        },
+        confirmTrustRepin: createInteractiveTrustRepinCallback(uiRegistry, [
+          ...(paths?.globalRoot ? [join(paths.globalRoot, 'plugins')] : []),
+          join(paths?.projectRoot ?? process.cwd(), '.wrongstack', 'plugins'),
+        ]),
+        onFailure: (label) => failedSet.add(label),
       },
       externalHooks,
     );
@@ -632,7 +646,7 @@ export async function setupPlugins(
       nextNames.add(nextPlugin.name);
       if (typeof pluginHost.reloadPlugin !== 'function') continue;
       try {
-        await pluginHost.reloadPlugin(nextPlugin);
+        await pluginHost.reloadPlugin(nextPlugin, reloadOpts);
         activeExternalNames.add(nextPlugin.name);
         reloaded.push(nextPlugin.name);
       } catch (err) {
@@ -643,30 +657,13 @@ export async function setupPlugins(
 
     if (trimmedTarget === undefined) {
       for (const prevName of [...activeExternalNames]) {
-        if (nextNames.has(prevName) || failedSet.has(prevName)) continue;
-        if (typeof pluginHost.unloadPlugin === 'function') {
-          const didUnload = await pluginHost.unloadPlugin(prevName);
-          if (didUnload) unloaded.push(prevName);
-        }
-        activeExternalNames.delete(prevName);
+        if (!nextNames.has(prevName) && !failedSet.has(prevName)) await unloadActive(prevName);
       }
-    } else if (
-      nextPlugins.length === 0 &&
-      failedSet.size === 0 &&
-      activeExternalNames.has(trimmedTarget)
-    ) {
-      if (typeof pluginHost.unloadPlugin === 'function') {
-        const didUnload = await pluginHost.unloadPlugin(trimmedTarget);
-        if (didUnload) unloaded.push(trimmedTarget);
-      }
-      activeExternalNames.delete(trimmedTarget);
+    } else if (!nextPlugins.length && !failedSet.size && activeExternalNames.has(trimmedTarget)) {
+      await unloadActive(trimmedTarget);
     }
 
-    return {
-      reloaded,
-      unloaded,
-      failed: [...failedSet],
-    };
+    return { reloaded, unloaded, failed: [...failedSet] };
   };
 
   if (pluginHost && typeof pluginHost === 'object' && Object.isExtensible(pluginHost)) {

@@ -19,7 +19,22 @@ export function buildTaskPrompt(task: TaskNode, phaseName: string, goal: string)
     .join('\n');
 }
 
-export function buildRepairPrompt(phaseName: string, failure: string, goal: string): string {
+export function buildRepairPrompt(
+  phaseName: string,
+  failure: string,
+  goal: string,
+  attempt?: number,
+): string {
+  const regressionNote =
+    typeof attempt === 'number' && attempt >= 2
+      ? [
+          '',
+          `NOTE: This is consecutive verification repair attempt #${attempt}. If an exploratory`,
+          `session branch is active via \`session_branch\` and this refactor approach is a dead end,`,
+          `prefer folding distilled failure findings back to the last passing checkpoint rather than`,
+          `compounding speculative edits.`,
+        ]
+      : [];
   return [
     `You are repairing a FAILED verification inside an autonomous, phase-based build.`,
     `Overall goal: ${goal}`,
@@ -30,6 +45,7 @@ export function buildRepairPrompt(phaseName: string, failure: string, goal: stri
     '```',
     failure.slice(0, 4000),
     '```',
+    ...regressionNote,
     '',
     `Fix the code in THIS working directory so verification passes. Use your tools`,
     `(read, edit, write, bash). Fix the root cause — do NOT delete code, weaken`,

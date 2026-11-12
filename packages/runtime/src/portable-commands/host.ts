@@ -3,6 +3,7 @@ import type { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   Config,
   ConfigStore,
+  MemoryStore,
   Message,
   PermissionPolicy,
   Provider,
@@ -21,6 +22,9 @@ import type { TuneupUpdateInfo } from './tuneup-types.js';
 export interface CommandSessionContext {
   session?: { id?: string | undefined } | undefined;
   messages?: Message[] | undefined;
+  provider?: Provider | undefined;
+  model?: string | undefined;
+  clearFileTracking?: (() => void) | undefined;
   state?:
     | {
         replaceMessages(messages: Message[]): void;
@@ -39,6 +43,10 @@ export interface SessionCommandHost {
   paths?: WstackPaths | undefined;
   events?: EventBus | undefined;
   extensionRegistry?: ExtensionRegistryPort | undefined;
+  configStore?: ConfigStore | undefined;
+  memoryStore?: MemoryStore | undefined;
+  llmProvider?: Provider | undefined;
+  llmModel?: string | undefined;
   treeCoordinator?: SessionTreeCoordinator | (() => SessionTreeCoordinator | undefined) | undefined;
   onTreeMessagesReplaced?:
     | ((messages: Message[], branch: SessionBranchDescriptor) => void)
@@ -198,7 +206,10 @@ export interface PluginManagementCommandHost {
   applyConfigPatch?: ((patch: Partial<Config>) => void) | undefined;
   /** Hot-reload external plugins in the running session without restarting. */
   reloadPlugins?:
-    | ((name?: string) => Promise<{ reloaded: string[]; unloaded: string[]; failed: string[] }>)
+    | ((
+        name?: string,
+        opts?: { force?: boolean | undefined },
+      ) => Promise<{ reloaded: string[]; unloaded: string[]; failed: string[] }>)
     | undefined;
   /** Declarative `api.ui` slot registry owned by the live plugin host (used by `/panel`). */
   pluginUiRegistry?: PluginUiRegistry | (() => PluginUiRegistry | undefined) | undefined;

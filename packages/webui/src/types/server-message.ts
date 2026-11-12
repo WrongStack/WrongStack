@@ -197,6 +197,37 @@ export interface WSCodeAssistResult {
 export type WSServerMessage =
   | { type: 'acp.config_options'; payload: Record<string, unknown> }
   | {
+      type: 'plugin.ui.updated';
+      payload: {
+        statusChips: Array<import('@wrongstack/project-surfaces/plugin-ui').PluginStatusChipItem>;
+        panelIds?: string[] | undefined;
+      };
+    }
+  | {
+      type: 'plugin.ui.notify';
+      payload: {
+        owner: string;
+        message: string;
+        tone: import('@wrongstack/contracts/types/plugin').PluginUiTone;
+      };
+    }
+  | {
+      type: 'plugin.ui.prompt';
+      payload: {
+        requestId: string;
+        promptId?: string | undefined;
+        owner: string;
+        kind: 'select' | 'confirm' | 'input';
+        title: string;
+        message?: string | undefined;
+        options?: Array<{ value: string; label: string; hint?: string | undefined }> | undefined;
+      };
+    }
+  | {
+      type: 'plugin.ui.prompt_resolved';
+      payload: { requestId: string; promptId?: string | undefined };
+    }
+  | {
       type: 'model.tier_proposed';
       payload: {
         sessionId?: string | undefined;

@@ -7,9 +7,15 @@ import { render } from 'ink-testing-library';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ImagePreviewModal } from '../src/components/image-preview-modal.js';
-import { PluginPanelOverlay, PluginStatusStrip } from '../src/components/plugin-panel-overlay.js';
+import {
+  layoutPluginStatusStrip,
+  PluginPanelOverlay,
+  PluginStatusStrip,
+} from '../src/components/plugin-panel-overlay.js';
 import { PluginPromptModal } from '../src/components/plugin-prompt-modal.js';
 import { ResumePicker } from '../src/components/resume-picker.js';
+import { StatusBar } from '../src/components/status-bar.js';
+import type { StatusBarClickMap } from '../src/components/status-bar-types.js';
 import { createPanelOpenDispatcher } from '../src/on-panel-open.js';
 import { standaloneModalStoreOf } from '../src/standalone-modal-store.js';
 
@@ -298,5 +304,49 @@ describe('PluginPanelOverlay, PluginStatusStrip, ImagePreviewModal, ResumePicker
     await new Promise((r) => setTimeout(r, 15));
     expect(resolvedInput).toHaveBeenCalledWith('v2.4.0');
     inputApp.unmount();
+  });
+
+  it('publishes clickable StatusBar spans for session:branch and plugin status chips', () => {
+    const chips = [
+      {
+        qualifiedId: 'session:branch',
+        owner: 'session',
+        id: 'branch',
+        icon: '⎇',
+        text: 'try-cas',
+        tone: 'accent' as const,
+        priority: 100,
+        command: '/tree',
+        updatedAt: 0,
+      },
+      {
+        qualifiedId: 'ops:health',
+        owner: 'ops',
+        id: 'health',
+        text: 'ok',
+        tone: 'success' as const,
+        command: '/panel ops:dash',
+        updatedAt: 1,
+      },
+    ];
+    const strip = layoutPluginStatusStrip(chips, 40);
+    expect(strip.items.map((item) => item.spanId)).toEqual([
+      'session:branch',
+      'plugin-panel:ops:dash',
+    ]);
+
+    const clickMapRef: { current: StatusBarClickMap | null } = { current: null };
+    const bar = render(
+      React.createElement(StatusBar, {
+        model: 'claude-sonnet-4-6',
+        state: 'idle',
+        pluginChips: chips,
+        maxWidth: 120,
+        clickMapRef,
+      }),
+    );
+    const pluginRow = clickMapRef.current?.lines.at(-1);
+    expect(pluginRow?.spans.map((s) => s.id)).toEqual(['session:branch', 'plugin-panel:ops:dash']);
+    bar.unmount();
   });
 });

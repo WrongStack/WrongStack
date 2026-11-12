@@ -428,7 +428,7 @@ const UNSWEPT: Record<string, UnsweptEntry> = {
   },
   'session-tree-overlay.tsx': {
     reason: 'drops the leak itself before the branch-name editor appends a keystroke',
-    guard: { line: 150, contains: 'isLeakedMouseInput' },
+    guard: { line: 157, contains: 'isLeakedMouseInput' },
   },
   'plugin-prompt-modal.tsx': {
     reason: 'drops the leak itself before the text-input kind appends a keystroke',

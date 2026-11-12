@@ -29,14 +29,76 @@ export interface CachedImagePreview {
   halfBlocks: HalfBlockCell[][] | null;
 }
 
+export type RuntimeGraphicsMode = 'auto' | 'kitty' | 'iterm2' | 'halfblock' | 'off';
+
 const previewCache = new Map<string, CachedImagePreview | null>();
+let lastPreviewedImagePath: string | null = null;
+let runtimeGraphicsOverride: RuntimeGraphicsMode = 'auto';
+const graphicsOverrideListeners = new Set<() => void>();
 
 export function clearImagePreviewCache(): void {
   previewCache.clear();
+  lastPreviewedImagePath = null;
+}
+
+export function getLastPreviewedImagePath(): string | null {
+  return lastPreviewedImagePath;
 }
 
 export function getImagePreviewCacheSize(): number {
   return previewCache.size;
+}
+
+export function getRuntimeGraphicsOverride(): RuntimeGraphicsMode {
+  return runtimeGraphicsOverride;
+}
+
+export function setRuntimeGraphicsOverride(mode: RuntimeGraphicsMode): void {
+  if (runtimeGraphicsOverride === mode) return;
+  runtimeGraphicsOverride = mode;
+  if (mode === 'off') {
+    clearImagePreviewCache();
+  }
+  for (const listener of graphicsOverrideListeners) {
+    try {
+      listener();
+    } catch {
+      // Never allow observer errors to disrupt settings updates.
+    }
+  }
+}
+
+export function subscribeRuntimeGraphicsOverride(listener: () => void): () => void {
+  graphicsOverrideListeners.add(listener);
+  return () => {
+    graphicsOverrideListeners.delete(listener);
+  };
+}
+
+export function parseRuntimeGraphicsMode(raw: string): RuntimeGraphicsMode | null {
+  const normalized = raw.trim().toLowerCase();
+  if (normalized === 'auto' || normalized === 'on' || normalized === 'default') return 'auto';
+  if (normalized === 'off' || normalized === 'none' || normalized === 'false' || normalized === '0')
+    return 'off';
+  if (normalized === 'kitty' || normalized === 'iterm2' || normalized === 'halfblock') {
+    return normalized;
+  }
+  return null;
+}
+
+export function resolveEffectiveGraphicsProtocol(
+  capabilityProtocol?: TerminalGraphicsProtocol | undefined,
+): TerminalGraphicsProtocol {
+  if (runtimeGraphicsOverride === 'off') return 'none';
+  if (runtimeGraphicsOverride !== 'auto') return runtimeGraphicsOverride;
+  const envVal = process.env.WRONGSTACK_TUI_GRAPHICS?.trim().toLowerCase();
+  if (envVal === 'off' || envVal === 'none' || envVal === '0' || envVal === 'false') {
+    return 'none';
+  }
+  if (envVal === 'kitty' || envVal === 'iterm2' || envVal === 'halfblock') {
+    return envVal;
+  }
+  return capabilityProtocol ?? 'halfblock';
 }
 
 function isImagePathCandidate(candidate: unknown): candidate is string {
@@ -134,7 +196,7 @@ export function loadCachedImagePreview(
     projectRoot?: string | undefined;
   } = {},
 ): CachedImagePreview | null {
-  if (isFrugalPerf()) return null;
+  if (isFrugalPerf() || resolveEffectiveGraphicsProtocol() === 'none') return null;
   const resolvedPath = resolveContainedImagePath(filePath, opts.projectRoot);
   if (!resolvedPath) return null;
   const maxCols = Math.max(8, Math.min(72, Math.floor(opts.maxCols ?? 44)));
@@ -157,6 +219,7 @@ export function loadCachedImagePreview(
     // Refresh LRU order
     previewCache.delete(cacheKey);
     previewCache.set(cacheKey, hit);
+    if (hit) lastPreviewedImagePath = hit.path;
     return hit;
   }
 
@@ -191,6 +254,7 @@ export function loadCachedImagePreview(
     if (oldestKey !== undefined) previewCache.delete(oldestKey);
   }
   previewCache.set(cacheKey, preview);
+  if (preview) lastPreviewedImagePath = preview.path;
   return preview;
 }
 

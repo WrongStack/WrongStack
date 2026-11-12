@@ -87,6 +87,7 @@ function LiveSessionTreeModal({
       tree={tree}
       maxRows={maxRows}
       busy={busy}
+      confirmFold
       statusMessage={statusMessage}
       onSwitch={(branch, opts) => {
         setBusy(true);
@@ -101,8 +102,11 @@ function LiveSessionTreeModal({
             dispatch({ type: 'replaceHistory', entries, nextId: entries.length + 1 });
             const reloaded = await refreshTree();
             if (reloaded) {
+              const staleCount = res.resumeValidation?.staleFiles.length ?? 0;
+              const staleNote =
+                staleCount > 0 ? ` · ${staleCount} stale observed file(s) — re-read` : '';
               setStatusMessage(
-                `Switched to ${res.toBranch.name}${res.workspaceRestored ? ' (workspace restored)' : ''}.`,
+                `Switched to ${res.toBranch.name}${res.workspaceRestored ? ' (workspace restored)' : ''}${staleNote}.`,
               );
             }
           })
@@ -111,11 +115,14 @@ function LiveSessionTreeModal({
           })
           .finally(() => setBusy(false));
       }}
-      onFold={(branch) => {
+      onFold={(branch, opts) => {
         setBusy(true);
         setStatusMessage(undefined);
         void coordinator
-          .foldBranch({ sourceBranch: branch.id })
+          .foldBranch({
+            sourceBranch: branch.id,
+            ...(opts?.keepOpen !== undefined ? { archiveSource: !opts.keepOpen } : {}),
+          })
           .then(async (res) => {
             const entries = replaySessionMessages(res.messages, [], 1);
             dispatch({ type: 'replaceHistory', entries, nextId: entries.length + 1 });

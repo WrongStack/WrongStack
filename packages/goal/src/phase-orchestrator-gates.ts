@@ -139,6 +139,68 @@ export async function runPhaseVerifyGate(
       return { ok: false, output: verdict.output };
     }
 
+    // After 2+ consecutive verification regressions (`attempt >= 1`), consult the
+    // Brain so it can advise folding the failed attempt back (`session_branch`)
+    // rather than spiraling deeper on broken edits.
+    if (attempt >= 1 && int.ctx.brain) {
+      const consecutiveFailures = attempt + 1;
+      const decision = await int.ctx.brain.decide({
+        id: `goal-verify-regression-${phase.id}-${attempt}`,
+        sessionId: int.ctx.sessionId,
+        source: 'goal',
+        question: `Phase "${phase.name}" hit ${consecutiveFailures} consecutive verification regressions. Fold failed attempt back via session_branch or continue repairing?`,
+        context: [
+          `Phase id: ${phase.id}`,
+          `Consecutive verification failures: ${consecutiveFailures}`,
+          `Latest verifier output:\n${(verdict.output ?? 'verification failed').slice(-1200)}`,
+        ].join('\n'),
+        risk: 'low',
+        fallback: 'continue',
+        options: [
+          {
+            id: 'continue_repair',
+            label: 'Continue in-place repair pass',
+            consequence: 'Runs another repair attempt on the current working tree.',
+            risk: 'low',
+            recommended: true,
+          },
+          {
+            id: 'fold_back',
+            label: 'Fold failed attempt back to last passing checkpoint',
+            consequence:
+              'Stops spiraling repair edits and folds failure insights back via session_branch.',
+            risk: 'medium',
+          },
+        ],
+      });
+
+      const foldAdvised =
+        decision.type === 'deny' ||
+        (decision.type === 'answer' && decision.optionId === 'fold_back');
+      phase.metadata = {
+        ...phase.metadata,
+        brainRegressionDecision: foldAdvised ? 'fold_back' : 'continue_repair',
+        brainRegressionDecisionAt: Date.now(),
+      };
+
+      if (foldAdvised) {
+        if (int.ctx.onFoldFailedAttempt) {
+          await int.ctx
+            .onFoldFailedAttempt(
+              phase,
+              verdict.output ?? 'verification failed',
+              consecutiveFailures,
+              env,
+            )
+            .catch(() => undefined);
+        }
+        return {
+          ok: false,
+          output: `Brain advised session_branch fold-back after ${consecutiveFailures} consecutive verification regressions${verdict.output ? `: ${verdict.output}` : ''}`,
+        };
+      }
+    }
+
     int.emit('phase.repairing', { phaseId: phase.id, name: phase.name, attempt: attempt + 1 });
     try {
       await int.ctx.repairPhase(phase, verdict.output ?? 'verification failed', attempt + 1, env);

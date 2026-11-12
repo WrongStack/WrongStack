@@ -427,6 +427,8 @@ export async function wireCliOrchestration(
     flags,
     onEvent: evOn,
     memoryCuratorLlm,
+    pluginHost,
+    globalRoot: wpaths.globalRoot,
   });
 
   const savedProviderCfg = state.config.providers?.[state.config.provider];

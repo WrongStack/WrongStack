@@ -83,12 +83,58 @@ During an interactive session you can reload external plugins in place without r
 ```bash
 /plugin reload <name>
 /plugin reload --all
+/plugin reload <name> --force
 /plugin trust <name>
 /plugin watch <name>
 /plugin watch off [name]
 ```
 
-Reload waits for any in-flight tool calls owned or wrapped by the plugin to quiesce, verifies the updated Merkle closure against `plugin-trust.json`, evaluates a fresh ESM module snapshot so updated local TypeScript modules bypass the module cache, swaps scoped registrations atomically, and rolls back to the previous plugin instance if the new `setup()` throws. Reloaded plugins emit `'plugin.reloaded'` on the kernel `EventBus`.
+Reload waits up to 5 s for any in-flight tool calls owned or wrapped by the plugin to quiesce (unless `--force` is passed), verifies the updated Merkle closure against `plugin-trust.json` (offering an interactive `[Re-pin / Inspect diff / Cancel]` prompt on TTY/WebUI/Desktop when source files changed), evaluates a fresh ESM module snapshot so updated local TypeScript modules bypass the module cache, swaps scoped registrations atomically, and rolls back to the previous plugin instance if the new `setup()` throws. Reloaded plugins emit `'plugin.reloaded'` on the kernel `EventBus`.
+
+Every `PluginAPI` instance also exposes `api.signal` (`AbortSignal`), which aborts automatically whenever the plugin unloads or hot-reloads—pass `{ signal: api.signal }` to `fetch()`, background intervals, or child processes so resources self-terminate across `/plugin reload` without manual teardown boilerplate.
+
+### Declarative UI Slots (`api.ui`) & Compaction Hooks (`beforeCompact`)
+
+External plugins can project host-neutral status telemetry, inspectable panels, toasts, and interactive prompts across Ink TUI, WebUI, and Desktop v2 without importing `react` or `ink` directly (declare `capabilities: { ui: true }`):
+
+```ts
+export default definePlugin(
+  {
+    name: 'deploy-guard',
+    version: '0.1.0',
+    apiVersion: '^0.1.0',
+    capabilities: { ui: true, extensions: true },
+  },
+  (api) => {
+    const chip = api.ui?.registerStatusChip({
+      id: 'canary',
+      text: 'canary: healthy',
+      tone: 'success',
+    });
+
+    api.ui?.registerPanel({
+      id: 'rollout',
+      title: 'Canary Rollout',
+      actions: [{ id: 'refresh', label: 'Refresh', shortcut: 'r' }],
+      render: () => ({
+        kind: 'kv',
+        items: [{ label: 'Region', value: 'eu-central-1', tone: 'info' }],
+      }),
+      onAction: async (actionId) => {
+        if (actionId === 'refresh') chip?.update({ text: 'canary: refreshed' });
+      },
+    });
+
+    // Customize /compact and /tree fold summaries (SecretScrubber still runs unconditionally):
+    api.extensions.registerCompactionHook({
+      id: 'preserve-deploy-state',
+      beforeCompact: () => ({
+        additionalInstructions: 'Always preserve active canary deployment IDs and rollback URLs.',
+      }),
+    });
+  },
+);
+```
 
 When editing a pinned external plugin mid-session, `/plugin trust <name>` re-pins the updated directory closure digest and immediately hot-reloads `<name>`. For rapid iteration on personal plugins, `/plugin watch <name>` starts a session-scoped file watcher strictly restricted to `~/.wrongstack/plugins/<name>` (never persisted to config and never permitted on `<projectRoot>/.wrongstack/plugins/`).
 

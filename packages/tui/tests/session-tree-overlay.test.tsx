@@ -172,4 +172,29 @@ describe('SessionTreeOverlay', () => {
     );
     app.unmount();
   });
+
+  it('opens an interactive fold preview modal with keep-open toggle when confirmFold is enabled', async () => {
+    const onFold = vi.fn();
+    const app = render(<SessionTreeOverlay tree={sampleTree()} confirmFold onFold={onFold} />);
+
+    // Press 'f' on active `try-redis`: opens preview instead of folding immediately.
+    app.stdin.write('f');
+    await new Promise((r) => setTimeout(r, 15));
+    expect(onFold).not.toHaveBeenCalled();
+    expect(app.lastFrame() ?? '').toContain('Fold preview: try-redis');
+    expect(app.lastFrame() ?? '').toContain('keep-open: off');
+
+    // Toggle 'k' to keep the source branch open after folding, then confirm with Enter.
+    app.stdin.write('k');
+    await new Promise((r) => setTimeout(r, 15));
+    expect(app.lastFrame() ?? '').toContain('keep-open: on');
+
+    app.stdin.write('\r');
+    await new Promise((r) => setTimeout(r, 15));
+    expect(onFold).toHaveBeenCalledTimes(1);
+    expect(onFold).toHaveBeenCalledWith(expect.objectContaining({ id: 'br_redis' }), {
+      keepOpen: true,
+    });
+    app.unmount();
+  });
 });

@@ -14,6 +14,7 @@ import {
 } from '@wrongstack/core/storage';
 import { color, toErrorMessage } from '@wrongstack/core/utils';
 import type { CommandSessionContext, TreeCommandHost } from './host.js';
+import { createHostTreeFoldHooks } from './tree-synthesis.js';
 
 export const TREE_COMMAND_DESCRIPTION =
   'Navigate, fork, switch, and fold in-session conversation branches.';
@@ -199,6 +200,13 @@ function resolveCoordinator(
         })
       : undefined;
 
+  const foldHooks = createHostTreeFoldHooks({
+    getConfig: () => host.configStore?.get?.(),
+    getProvider: () => targetCtx?.provider ?? host.llmProvider,
+    getModel: () => targetCtx?.model ?? host.llmModel,
+    memoryStore: host.memoryStore,
+  });
+
   return new SessionTreeCoordinator({
     sessionId,
     writer,
@@ -212,7 +220,9 @@ function resolveCoordinator(
     secretScrubber: new DefaultSecretScrubber(),
     events: host.events,
     extensionRegistry: host.extensionRegistry,
+    ...foldHooks,
     onMessagesReplaced: (messages: Message[], branch: SessionBranchDescriptor) => {
+      targetCtx?.clearFileTracking?.();
       if (targetCtx?.state) {
         targetCtx.state.replaceMessages(messages);
       } else if (Array.isArray(targetCtx?.messages)) {
@@ -325,8 +335,11 @@ export function buildTreeCommand(host: TreeCommandHost): SlashCommand {
             reactivateArchived,
           });
           const wsSuffix = switched.workspaceRestored ? ' (workspace restored from CAS)' : '';
+          const baseMsg = `Switched from ${switched.fromBranch.name} to ${color.cyan(switched.toBranch.name)} (${switched.messages.length} messages in context)${wsSuffix}.`;
           return {
-            message: `Switched from ${switched.fromBranch.name} to ${color.cyan(switched.toBranch.name)} (${switched.messages.length} messages in context)${wsSuffix}.`,
+            message: switched.staleFilesNotice
+              ? `${baseMsg}\n${switched.staleFilesNotice}`
+              : baseMsg,
           };
         }
 

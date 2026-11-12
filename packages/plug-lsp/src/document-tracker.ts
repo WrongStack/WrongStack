@@ -63,6 +63,48 @@ export class DocumentTracker {
   }
 
   /**
+   * Synchronize tracked documents and workspace file-watch state when a session
+   * branch switch materializes a CAS checkpoint onto disk.
+   */
+  async handleWorkspaceFilesMaterialized(
+    event: Pick<EventMap['workspace.files_materialized'], 'writtenFiles' | 'deletedFiles'> & {
+      targetRoot?: string | undefined;
+    },
+  ): Promise<void> {
+    const generation = this.generation;
+    const baseRoot = event.targetRoot ?? this.cwd;
+    const resolveTarget = (filePath: string): string =>
+      path.isAbsolute(filePath) ? path.normalize(filePath) : path.resolve(baseRoot, filePath);
+    const changes: Array<{ uri: string; type: 1 | 2 | 3 }> = [];
+    const seen = new Set<string>();
+
+    for (const deleted of event.deletedFiles) {
+      const absPath = resolveTarget(deleted);
+      if (seen.has(absPath)) continue;
+      seen.add(absPath);
+      this.evict(absPath);
+      changes.push({ uri: pathToUri(absPath), type: 3 });
+    }
+
+    for (const restored of event.writtenFiles) {
+      if (generation !== this.generation) return;
+      const absPath = resolveTarget(restored);
+      if (seen.has(absPath)) continue;
+      seen.add(absPath);
+      if (this.docs.has(absPath)) {
+        await this.fileWritten(absPath);
+      }
+      changes.push({ uri: pathToUri(absPath), type: 2 });
+    }
+
+    if (generation !== this.generation || changes.length === 0) return;
+    for (const server of this.registry().list()) {
+      if (server.state !== 'ready') continue;
+      server.notifyDidChangeWatchedFiles?.(changes);
+    }
+  }
+
+  /**
    * Read a file for tracking, refusing anything over {@link MAX_DOCUMENT_BYTES}.
    * The `stat` comes first so an oversized file is never materialized at all.
    */

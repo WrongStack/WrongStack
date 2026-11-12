@@ -81,12 +81,14 @@ interface SessionCommandHandlersInput {
         reloadExternal?:
           | ((
               targetName?: string,
+              opts?: { force?: boolean | undefined },
             ) => Promise<{ reloaded: string[]; unloaded: string[]; failed: string[] }>)
           | undefined;
       }
     | undefined;
   logger: { warn(message: string): void };
   projectRoot: string;
+  globalRoot?: string | undefined;
   flags: Record<string, string | boolean>;
   tokenCounter: TokenCounter;
   errorRing: ErrorRecord[];
@@ -107,8 +109,15 @@ export function createSessionCommandHandlers(
         if (!input.pluginHost?.reloadExternal) {
           return 'Live plugin reload is not available in this session.\nRestart WrongStack to load or unload plugin code in this session.';
         }
-        const targetName = normalizePluginReloadTarget(tokens[1]);
-        const report = await input.pluginHost.reloadExternal(targetName);
+        const force = tokens.includes('--force') || tokens.includes('-f');
+        const targetToken = tokens
+          .slice(1)
+          .find((tok) => tok !== '--force' && tok !== '-f' && !tok.startsWith('-'));
+        const targetName = normalizePluginReloadTarget(targetToken);
+        const report = await input.pluginHost.reloadExternal(
+          targetName,
+          force ? { force: true } : undefined,
+        );
         return formatPluginReloadReport(report, targetName);
       }
       if (tokens[0] === 'watch') {
@@ -117,6 +126,7 @@ export function createSessionCommandHandlers(
         }
         const reloadExternal = input.pluginHost.reloadExternal;
         return pluginWatch.handleCommand(tokens.slice(1), {
+          ...(input.globalRoot ? { globalRoot: input.globalRoot } : {}),
           projectRoot: input.projectRoot,
           onReload: reloadExternal,
           onError: (name, err) =>
@@ -129,6 +139,7 @@ export function createSessionCommandHandlers(
         config: input.getConfig(),
         configPath: input.profileConfigPath,
         projectRoot: input.projectRoot,
+        ...(input.globalRoot ? { globalRoot: input.globalRoot } : {}),
       });
       if (result.patch) {
         const configPatch = result.patch as never as Partial<Config>;

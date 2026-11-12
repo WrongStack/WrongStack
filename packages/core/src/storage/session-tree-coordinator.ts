@@ -4,6 +4,7 @@ import type { ExtensionRegistryPort } from '@wrongstack/contracts/types/extensio
 import type { Message } from '@wrongstack/contracts/types/messages';
 import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
 import type {
+  ResumeValidation,
   SessionBranchDescriptor,
   SessionBranchStatus,
   SessionEvent,
@@ -14,6 +15,10 @@ import type {
 } from '@wrongstack/contracts/types/session';
 import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
 import type { SessionCheckpointCas } from './session-checkpoint-cas.js';
+import {
+  formatResumeValidationNotice,
+  validateResumeFileObservations,
+} from './session-resume-validation.js';
 import {
   buildBranchLineageSegments,
   eventBelongsToLineage,
@@ -110,6 +115,8 @@ export interface SwitchBranchResult {
   messages: Message[];
   workspaceRestored: boolean;
   materialization?: WorkspaceMaterializationResult | undefined;
+  resumeValidation?: ResumeValidation | undefined;
+  staleFilesNotice?: string | undefined;
 }
 
 export interface FoldBranchOptions {
@@ -410,6 +417,27 @@ export class SessionTreeCoordinator {
     });
     toBranch = resolveBranch(reconstructed.tree, toBranch.id);
     const updatedFrom = resolveBranch(reconstructed.tree, fromBranch.id);
+
+    let resumeValidation: ResumeValidation | undefined;
+    let staleFilesNotice: string | undefined;
+    if (this.projectRoot) {
+      const segments = buildBranchLineageSegments(reconstructed.tree.branches, toBranch.id);
+      const targetLineageEvents: SessionEvent[] = [];
+      for (let i = 0; i < postSwitchEvents.length; i += 1) {
+        const ev = postSwitchEvents[i]!;
+        const seq = typeof ev.seq === 'number' ? ev.seq : i;
+        if (eventBelongsToLineage(ev, seq, segments)) {
+          targetLineageEvents.push(ev);
+        }
+      }
+      resumeValidation = await validateResumeFileObservations(
+        targetLineageEvents,
+        this.projectRoot,
+      );
+      staleFilesNotice =
+        formatResumeValidationNotice(resumeValidation, this.projectRoot) ?? undefined;
+    }
+
     this.onMessagesReplaced?.(reconstructed.messages, toBranch);
 
     if (materialization && targetCheckpoint && this.projectRoot) {
@@ -437,6 +465,8 @@ export class SessionTreeCoordinator {
       messages: reconstructed.messages,
       workspaceRestored,
       ...(materialization ? { materialization } : {}),
+      ...(resumeValidation ? { resumeValidation } : {}),
+      ...(staleFilesNotice ? { staleFilesNotice } : {}),
     };
   }
 

@@ -524,6 +524,13 @@ export function ProjectSessionHistory({
                 </small>
                 <span className="history-row-model">
                   {[item['provider'], item['model']].filter(Boolean).map(String).join(' / ')}
+                  {Number(item['branchCount'] ?? 0) > 1
+                    ? ` · ⎇ ${String(item['branchCount'])}${
+                        item['activeBranchName'] && item['activeBranchName'] !== 'main'
+                          ? ` (${String(item['activeBranchName'])})`
+                          : ''
+                      }`
+                    : ''}
                 </span>
                 {/* A session without a prompt (an opened, never used one) stays one line high
                     instead of repeating "no prompt" and "recorded" on every card. */}

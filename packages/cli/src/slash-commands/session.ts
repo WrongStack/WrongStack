@@ -349,6 +349,13 @@ export function buildLoadCommand(opts: SlashCommandContext): SlashCommand {
           parts.push(s.toolErrorCount ? color.yellow(toolStr) : color.cyan(toolStr));
         }
         if (s.iterationCount) parts.push(color.dim(`${s.iterationCount} iter`));
+        if ((s.branchCount ?? 0) > 1) {
+          parts.push(
+            color.magenta(
+              `⎇ ${s.branchCount} branches${s.activeBranchName ? ` · active: ${s.activeBranchName}` : ''}`,
+            ),
+          );
+        }
         if (s.outcome) {
           const badge =
             s.outcome === 'completed'

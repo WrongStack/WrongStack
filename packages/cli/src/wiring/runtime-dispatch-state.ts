@@ -35,6 +35,9 @@ interface RuntimeDispatchStateInput {
   onEvent: (event: string, handler: (payload: unknown) => void) => void;
   /** `memory-curator` model transport for SAGE consolidation and triage. */
   memoryCuratorLlm?: import('@wrongstack/sage').LlmCallFn | undefined;
+  /** Active plugin host for live hot-reloading external `.ts`/`.js` plugins from the TUI picker. */
+  pluginHost?: import('@wrongstack/runtime/plugin-host').ManagedPluginHostHandle | undefined;
+  globalRoot?: string | undefined;
 }
 
 export async function prepareRuntimeDispatch(input: RuntimeDispatchStateInput) {
@@ -85,9 +88,12 @@ export async function prepareRuntimeDispatch(input: RuntimeDispatchStateInput) {
   });
   process.once('exit', disposeIndexing);
 
-  const getPluginItems = (): PluginPickerItem[] =>
-    PLUGIN_AUDIT_ENTRIES.map((entry) => {
-      const configured = (input.getConfig().plugins ?? []).find((plugin) =>
+  const auditNameSet = new Set(PLUGIN_AUDIT_ENTRIES.map((e) => e.name));
+
+  const getPluginItems = (): PluginPickerItem[] => {
+    const configuredList = input.getConfig().plugins ?? [];
+    const builtins: PluginPickerItem[] = PLUGIN_AUDIT_ENTRIES.map((entry) => {
+      const configured = configuredList.find((plugin) =>
         typeof plugin === 'string' ? plugin === entry.name : plugin.name === entry.name,
       );
       return {
@@ -100,24 +106,51 @@ export async function prepareRuntimeDispatch(input: RuntimeDispatchStateInput) {
         lockable: entry.canDisable,
       };
     });
+    const externals: PluginPickerItem[] = [];
+    const seen = new Set(auditNameSet);
+    for (const item of configuredList) {
+      const name = typeof item === 'string' ? item : item.name;
+      if (!name || seen.has(name)) continue;
+      seen.add(name);
+      const loadedPlugin = input.pluginHost?.loaded.find((p) => p.name === name);
+      externals.push({
+        name,
+        enabled: !(typeof item === 'object' && item.enabled === false),
+        risk: 'medium',
+        summary:
+          loadedPlugin?.description ?? 'External TypeScript/JavaScript plugin (hot-reloadable)',
+        lockable: true,
+      });
+    }
+    return [...builtins, ...externals];
+  };
 
   const togglePlugin = async (name: string) => {
     const result = await runPluginManagementCommand(['toggle', name], {
       config: input.getConfig(),
       configPath: input.profileConfigPath,
+      projectRoot: input.projectRoot,
+      ...(input.globalRoot ? { globalRoot: input.globalRoot } : {}),
     });
     if (result.patch) {
       const configPatch = result.patch as never as Partial<Config>;
       input.setConfig(patchConfig(input.getConfig(), configPatch));
       input.configStore.update(configPatch);
     }
-    const restartHint =
-      result.restartRequired && result.code === 0
-        ? ' Restart WrongStack to load or unload plugin code in this session.'
-        : '';
+    let liveSuffix = '';
+    if (result.code === 0 && !auditNameSet.has(name) && input.pluginHost?.reloadExternal) {
+      const report = await input.pluginHost.reloadExternal(name);
+      if (report.reloaded.length > 0) {
+        liveSuffix = ` Hot-loaded: ${report.reloaded.join(', ')}.`;
+      } else if (report.unloaded.length > 0) {
+        liveSuffix = ` Hot-unloaded: ${report.unloaded.join(', ')}.`;
+      }
+    } else if (result.restartRequired && result.code === 0) {
+      liveSuffix = ' Restart WrongStack to load or unload built-in plugin code in this session.';
+    }
     return {
       items: getPluginItems(),
-      message: result.code === 0 ? `${result.message}${restartHint}` : undefined,
+      message: result.code === 0 ? `${result.message}${liveSuffix}` : undefined,
       error: result.code === 0 ? undefined : result.message,
     };
   };

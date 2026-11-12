@@ -493,9 +493,16 @@ export class DefaultPluginAPI implements PluginAPI {
     return dispose;
   }
 
+  /** Abort `api.signal` immediately (e.g. during `/plugin reload --force` before teardown). */
+  abortLifetime(reason?: unknown): void {
+    if (!this.lifetime.signal.aborted) {
+      this.lifetime.abort(reason ?? new Error(`Plugin "${this.ownerName}" unloaded`));
+    }
+  }
+
   /** Called by the plugin loader when uninstalling the plugin. */
   drainCleanup(): void {
-    this.lifetime.abort(new Error(`Plugin "${this.ownerName}" unloaded`));
+    this.abortLifetime();
     for (const fn of this.pluginCleanupFns.splice(0).reverse()) {
       try {
         fn();

@@ -276,6 +276,7 @@ export const TOOL_ICON_MAP: Record<string, ToolIconId> = {
   session_note: 'document',
   session_recap_status: 'logs',
   session_wakeup: 'plan',
+  session_branch: 'tree',
   session_rename: 'settings',
   skill: 'document',
   spawn_subagent: 'brain',

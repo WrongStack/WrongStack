@@ -192,6 +192,73 @@ export interface PluginStatusStripProps {
   maxColumns: number;
 }
 
+export interface PluginStatusStripLayoutItem {
+  chip: RegisteredPluginStatusChip;
+  formatted: string;
+  start: number;
+  len: number;
+  spanId: string;
+}
+
+export interface PluginStatusStripLayout {
+  items: PluginStatusStripLayoutItem[];
+  overflowCount: number;
+  used: number;
+}
+
+function resolveChipSpanId(chip: RegisteredPluginStatusChip): string {
+  const cmd = chip.command?.trim() ?? '';
+  if (chip.qualifiedId === 'session:branch' || cmd === '/tree') {
+    return 'session:branch';
+  }
+  if (cmd === '/panel') {
+    return 'plugin-panel:';
+  }
+  if (cmd.startsWith('/panel ')) {
+    return `plugin-panel:${cmd.slice('/panel '.length).trim()}`;
+  }
+  return `plugin-owner:${chip.owner}`;
+}
+
+export function layoutPluginStatusStrip(
+  chips: readonly RegisteredPluginStatusChip[],
+  maxColumns: number,
+): PluginStatusStripLayout {
+  if (chips.length === 0 || maxColumns < 8) {
+    return { items: [], overflowCount: 0, used: 0 };
+  }
+  const items: PluginStatusStripLayoutItem[] = [];
+  let usedCols = 0;
+
+  for (let i = 0; i < chips.length; i += 1) {
+    const chip = chips[i]!;
+    const rawLabel = `${chip.icon ? `${chip.icon} ` : ''}${chip.text}`;
+    const formatted = sanitizeTerminalText(rawLabel).slice(0, 28);
+    const sepCols = items.length > 0 ? 3 : 0;
+    const reserveOverflow = i < chips.length - 1 ? 6 : 0;
+    const itemCols = displayWidth(formatted);
+    if (items.length > 0 && usedCols + sepCols + itemCols + reserveOverflow > maxColumns) {
+      break;
+    }
+    const start = usedCols + sepCols;
+    items.push({
+      chip,
+      formatted,
+      start,
+      len: itemCols,
+      spanId: resolveChipSpanId(chip),
+    });
+    usedCols += sepCols + itemCols;
+  }
+
+  const overflowCount = chips.length - items.length;
+  return {
+    items,
+    overflowCount,
+    used: usedCols + (overflowCount > 0 ? displayWidth(` · +${overflowCount}`) : 0),
+  };
+}
+
 /**
  * Compact width-bounded status strip for plugin `api.ui.registerStatusChip` entries.
  */
@@ -199,30 +266,12 @@ export function PluginStatusStrip({
   chips,
   maxColumns,
 }: PluginStatusStripProps): React.ReactElement | null {
-  if (chips.length === 0 || maxColumns < 8) return null;
-
-  const visible: Array<{ chip: RegisteredPluginStatusChip; formatted: string }> = [];
-  let usedCols = 0;
-
-  for (let i = 0; i < chips.length; i += 1) {
-    const chip = chips[i]!;
-    const rawLabel = `${chip.icon ? `${chip.icon} ` : ''}${chip.text}`;
-    const formatted = sanitizeTerminalText(rawLabel).slice(0, 28);
-    const sepCols = visible.length > 0 ? 3 : 0;
-    const reserveOverflow = i < chips.length - 1 ? 6 : 0;
-    const itemCols = displayWidth(formatted);
-    if (visible.length > 0 && usedCols + sepCols + itemCols + reserveOverflow > maxColumns) {
-      break;
-    }
-    visible.push({ chip, formatted });
-    usedCols += sepCols + itemCols;
-  }
-
-  const overflowCount = chips.length - visible.length;
+  const layout = layoutPluginStatusStrip(chips, maxColumns);
+  if (layout.items.length === 0) return null;
 
   return (
     <Box flexDirection="row">
-      {visible.map(({ chip, formatted }, idx) => {
+      {layout.items.map(({ chip, formatted }, idx) => {
         const color = toneColor(chip.tone);
         return (
           <Text key={chip.qualifiedId} wrap="truncate-end">
@@ -233,7 +282,7 @@ export function PluginStatusStrip({
           </Text>
         );
       })}
-      {overflowCount > 0 ? <Text dimColor> · +{overflowCount}</Text> : null}
+      {layout.overflowCount > 0 ? <Text dimColor> · +{layout.overflowCount}</Text> : null}
     </Box>
   );
 }
@@ -273,7 +322,8 @@ export function PluginPanelOverlay({
   useEffect(() => {
     if (!initialPanelId || panels.length === 0) return;
     const idx = panels.findIndex(
-      (p) => p.qualifiedId === initialPanelId || p.id === initialPanelId,
+      (p) =>
+        p.qualifiedId === initialPanelId || p.id === initialPanelId || p.owner === initialPanelId,
     );
     if (idx >= 0) setSelectedIndex(idx);
   }, [initialPanelId, panels]);

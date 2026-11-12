@@ -11,6 +11,7 @@ import {
   SessionTreeCoordinator,
 } from '@wrongstack/core/storage';
 import { sessionScopedPath } from '@wrongstack/core/utils';
+import { createHostTreeFoldHooks } from '@wrongstack/runtime/commands';
 import type { createToolVisionAdapters } from '@wrongstack/runtime/vision';
 import { clearImagePreviewCache } from '@wrongstack/tui';
 import { confirmAcpLeaderThroughEvents } from './acp-leader/acp-leader-host.js';
@@ -577,6 +578,12 @@ export async function runExecutionTui(
                 projectRoot: state.projectRoot,
               })
             : undefined;
+        const foldHooks = createHostTreeFoldHooks({
+          getConfig: () => configStore.get?.() ?? config,
+          getProvider: () => agent.ctx.provider,
+          getModel: () => agent.ctx.model,
+          memoryStore,
+        });
         const coordinator = new SessionTreeCoordinator({
           sessionId: currentSessionId,
           writer,
@@ -590,7 +597,9 @@ export async function runExecutionTui(
           secretScrubber: new DefaultSecretScrubber(),
           events,
           extensionRegistry: agent.extensions,
+          ...foldHooks,
           onMessagesReplaced: (messages) => {
+            agent.ctx.clearFileTracking?.();
             if (agent.ctx.state) {
               agent.ctx.state.replaceMessages(messages);
             } else if (Array.isArray(agent.ctx.messages)) {

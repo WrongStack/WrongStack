@@ -27,6 +27,7 @@ import {
 import { measureElement } from '../ink.js';
 import type { KeyRouteContext } from '../key-handler-context.js';
 import { estimateSidebarMaxScroll } from '../reducers/workspace-panels.js';
+import { standaloneModalStoreOf } from '../standalone-modal-store.js';
 
 /**
  * Sidebar focus + scroll. Shift+Tab on an empty draft toggles keyboard focus
@@ -415,9 +416,30 @@ export async function routePointerEvents(
             openStatuslinePicker(STATUSLINE_ITEMS.indexOf(span.id));
             return true;
           }
-          default:
+          case 'session:branch': {
+            standaloneModalStoreOf(dispatch).set({ kind: 'tree' });
+            return true;
+          }
+          default: {
+            if (span.id.startsWith('plugin-panel:')) {
+              const target = span.id.slice('plugin-panel:'.length).trim();
+              standaloneModalStoreOf(dispatch).set({
+                kind: 'plugin-panel',
+                ...(target ? { panelId: target } : {}),
+              });
+              return true;
+            }
+            if (span.id.startsWith('plugin-owner:')) {
+              const owner = span.id.slice('plugin-owner:'.length).trim();
+              standaloneModalStoreOf(dispatch).set({
+                kind: 'plugin-panel',
+                ...(owner ? { panelId: owner } : {}),
+              });
+              return true;
+            }
             // Non-clickable chip — fall through to the handlers below.
             break;
+          }
         }
       }
     }

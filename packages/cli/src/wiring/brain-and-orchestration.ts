@@ -34,7 +34,9 @@ import { installedBridgeAgents, MultiAgentHost, wrongForgeDelegateEntry } from '
 import {
   createMcpControlTool,
   createMcpUseTool,
+  createSessionBranchTool,
   createSessionRenameTool,
+  SESSION_BRANCH_TOOL_NAME,
   SESSION_RENAME_TOOL_NAME,
 } from '@wrongstack/tools/management';
 import { subscribeBrainDecisionLog } from '../boot/brain-decision-log.js';
@@ -622,6 +624,19 @@ export function setupBrainAndOrchestration(deps: BrainOrchestrationDeps): BrainO
   );
   if (normalizeTokenSavingTier(config.features.tokenSavingMode) !== 'off') {
     toolRegistry.exposeToProvider(SESSION_RENAME_TOOL_NAME);
+  }
+
+  toolRegistry.register(
+    createSessionBranchTool({
+      getSessionStore: () => container.safeResolve(TOKENS.SessionStore),
+      getSessionsDir: () => wpaths?.projectSessions,
+      getConfig: () => (configStore.get?.() as Config | undefined) ?? config,
+      getMemoryStore: () => container.safeResolve(TOKENS.MemoryStore),
+      events,
+    }),
+  );
+  if (normalizeTokenSavingTier(config.features.tokenSavingMode) !== 'off') {
+    toolRegistry.exposeToProvider(SESSION_BRANCH_TOOL_NAME);
   }
 
   return {

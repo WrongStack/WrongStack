@@ -84,6 +84,7 @@ export function AppStatusRegion({
     tokenCounter,
     tokenSavingMode,
     pluginUiRegistry,
+    treeCoordinator,
   } = host;
   const [pluginChips, setPluginChips] = useState(() => pluginUiRegistry?.listStatusChips());
   useEffect(() => {
@@ -96,6 +97,52 @@ export function AppStatusRegion({
       setPluginChips(pluginUiRegistry.listStatusChips());
     });
   }, [pluginUiRegistry]);
+
+  const [activeSessionBranch, setActiveSessionBranch] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const coordinator = typeof treeCoordinator === 'function' ? treeCoordinator() : treeCoordinator;
+    if (coordinator) {
+      void coordinator
+        .getTree()
+        .then((tree) => {
+          if (cancelled) return;
+          const active = tree.branches[tree.activeBranchId];
+          if (active && (Object.keys(tree.branches).length > 1 || active.name !== 'main')) {
+            setActiveSessionBranch(active.name);
+          } else {
+            setActiveSessionBranch(null);
+          }
+        })
+        .catch(() => {});
+    } else {
+      setActiveSessionBranch(null);
+    }
+    const off = events.on('session.branch_switched', (payload) => {
+      if (payload.sessionId !== agent.ctx.session.id) return;
+      setActiveSessionBranch(payload.branchName);
+    });
+    return () => {
+      cancelled = true;
+      off();
+    };
+  }, [treeCoordinator, events, agent.ctx.session.id]);
+
+  const mergedStatusChips = useMemo(() => {
+    if (!activeSessionBranch) return pluginChips;
+    const branchChip = {
+      qualifiedId: 'session:branch',
+      owner: 'session',
+      id: 'branch',
+      icon: '⎇',
+      text: activeSessionBranch,
+      tone: 'accent' as const,
+      priority: 100,
+      command: '/tree',
+      updatedAt: 0,
+    };
+    return [branchChip, ...(pluginChips ?? [])];
+  }, [activeSessionBranch, pluginChips]);
   const {
     state,
     dispatch,
@@ -273,7 +320,7 @@ export function AppStatusRegion({
           tokenSavingMode={liveSettings?.featureTokenSaving ?? tokenSavingMode}
           toolCount={liveToolCount}
           sideEffectCount={agent.ctx.sideEffects?.length ?? 0}
-          pluginChips={pluginChips}
+          pluginChips={mergedStatusChips}
           maxWidth={mainColumnWidth}
           clickMapRef={statusBarClickMapRef}
         />

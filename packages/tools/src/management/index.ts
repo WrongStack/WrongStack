@@ -48,6 +48,13 @@ export {
   type PluginManagerMutationResult,
 } from './plugin-manager.js';
 export {
+  createSessionBranchTool,
+  SESSION_BRANCH_TOOL_NAME,
+  type SessionBranchToolAction,
+  type SessionBranchToolInput,
+  type SessionBranchToolOptions,
+} from './session-branch.js';
+export {
   createSessionRenameTool,
   SESSION_RENAME_TOOL_NAME,
   type SessionRenameToolOptions,

@@ -37,6 +37,7 @@ import type { GoalSnapshotRouteHandlers } from './goal-snapshot-routes.js';
 import type { HostRouteHandlers } from './host-routes.js';
 import { handleJevRoute } from './jev-routes.js';
 import { createModeRouteHandlers } from './mode-routes.js';
+import { createPluginUiWsBridge } from './plugin-ui-ws-bridge.js';
 import { portableCommandRoute } from './portable-command-route.js';
 import { createPrefsRouteHandlers } from './prefs-routes.js';
 import { authorizeWebUIAction } from './privileged-actions.js';
@@ -101,8 +102,14 @@ export function createEmbeddedMessageRouter(
       }),
   });
   autoHealer.start();
+  const pluginUiBridge = createPluginUiWsBridge({
+    registry: opts.pluginUiRegistry,
+    broadcast: deps.providerCtx.broadcast,
+    logger: deps.logger,
+  });
   if (deps.onDispose) {
     deps.onDispose(async () => {
+      pluginUiBridge.dispose();
       await autoHealer.dispose();
     });
   }
@@ -508,6 +515,7 @@ export function createEmbeddedMessageRouter(
       getContext: (sessionId) =>
         (sessionId ? deps.sessionCtx.getAgent?.(sessionId)?.ctx : undefined) ?? opts.agent.ctx,
       getConfigStore: () => deps.introspectionCtx.configStore,
+      getMemoryStore: () => opts.memoryStore,
       getPaths: () => resolveWstackPaths({ projectRoot: projectRoot() }),
       patchProfileConfig: deps.introspectionCtx.updateGlobalConfig
         ? (mutate) => deps.introspectionCtx.updateGlobalConfig!(mutate, 'gitid')
@@ -520,6 +528,7 @@ export function createEmbeddedMessageRouter(
       tuneup: opts.tuneupHooks,
       events: () => opts.agent.events,
       extensionRegistry: () => opts.agent.extensions,
+      pluginUiRegistry: opts.pluginUiRegistry,
       send,
     }),
     getKanbanContext: () => ({
@@ -547,6 +556,7 @@ export function createEmbeddedMessageRouter(
     },
   });
   return async (ws, _client, message) => {
+    if (pluginUiBridge.handleClientMessage(message)) return;
     if (
       await handleConnectionsHealthRoute(
         {

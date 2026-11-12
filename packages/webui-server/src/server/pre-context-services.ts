@@ -35,6 +35,7 @@ import {
   resolveTokenSavingTier,
   type SecretVault,
   type SessionStore,
+  type Tool,
 } from '@wrongstack/contracts/types';
 import type { AgentStatusTracker } from '@wrongstack/coordination';
 import {
@@ -91,7 +92,9 @@ import { configureDangerBypass, configureExecPolicy } from '@wrongstack/tools';
 import {
   createMcpControlTool,
   createMcpUseTool,
+  createSessionBranchTool,
   createSessionRenameTool,
+  SESSION_BRANCH_TOOL_NAME,
   SESSION_RENAME_TOOL_NAME,
 } from '@wrongstack/tools/management';
 import { attachSessionKanbanMirror, hydrateSessionKanban } from '@wrongstack/tools/session-kanban';
@@ -473,16 +476,23 @@ export async function createPreContextServices(
       .catch(() => undefined);
   }
   const sessionReader = new DefaultSessionReader({ store: sessionStore });
-  // The model titles the session it works in (each tab's own session).
-  if (!disabledTools.has(SESSION_RENAME_TOOL_NAME)) {
-    toolRegistry.registerDefault(
-      createSessionRenameTool({
-        rename: (sessionId, name) => sessionStore.rename(sessionId, name),
-        events,
-      }),
-    );
-    if (tokenSavingTier !== 'off') toolRegistry.exposeToProvider(SESSION_RENAME_TOOL_NAME);
-  }
+  const registerSessionTool = (name: string, build: () => Tool) => {
+    if (disabledTools.has(name)) return;
+    toolRegistry.registerDefault(build());
+    if (tokenSavingTier !== 'off') toolRegistry.exposeToProvider(name);
+  };
+  registerSessionTool(SESSION_RENAME_TOOL_NAME, () =>
+    createSessionRenameTool({ rename: (sid, name) => sessionStore.rename(sid, name), events }),
+  );
+  registerSessionTool(SESSION_BRANCH_TOOL_NAME, () =>
+    createSessionBranchTool({
+      getSessionStore: () => sessionStore,
+      getSessionsDir: () => wpaths.projectSessions,
+      getConfig: () => configStore.get(),
+      getMemoryStore: () => memoryStore,
+      events,
+    }),
+  );
   const annotationsStore = new AnnotationsStore({ dir: wpaths.projectSessions, events });
   const session = await sessionStore.create({
     id: '',

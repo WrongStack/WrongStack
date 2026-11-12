@@ -115,10 +115,15 @@ export const sessionsCmd: SubcommandHandler = async (args, deps) => {
     deps.renderer.write('No sessions found.\n');
     return 0;
   }
-  for (const s of list)
+  for (const s of list) {
+    const branchBadge =
+      (s.branchCount ?? 0) > 1
+        ? `  ${color.magenta(`⎇ ${s.branchCount} branches${s.activeBranchName ? ` · active: ${s.activeBranchName}` : ''}`)}`
+        : '';
     deps.renderer.write(
-      `  ${s.id}  ${color.dim(s.startedAt)}  ${color.dim(`${s.tokenTotal} tok`)}  ${s.name ? `${color.cyan(s.name)}  ${color.dim(s.title)}` : s.title}\n`,
+      `  ${s.id}  ${color.dim(s.startedAt)}  ${color.dim(`${s.tokenTotal} tok`)}${branchBadge}  ${s.name ? `${color.cyan(s.name)}  ${color.dim(s.title)}` : s.title}\n`,
     );
+  }
   return 0;
 };
 

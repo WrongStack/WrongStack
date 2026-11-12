@@ -373,6 +373,13 @@ export interface SessionLoggingConfig {
     autoArchive?: boolean | undefined;
     includeSubagents?: boolean | undefined;
   };
+
+  /**
+   * Maximum token budget for `/tree fold` branch fold-back summaries
+   * (default: `1200`). Enforced deterministically via `chars / 4` capping
+   * after `beforeCompact` hooks and secret scrubbing.
+   */
+  branchFoldMaxTokens?: number | undefined;
 }
 
 /**

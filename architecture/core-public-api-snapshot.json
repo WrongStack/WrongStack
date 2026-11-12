@@ -1081,7 +1081,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 82,
-      "sourceLines": 17337
+      "sourceLines": 17372
     },
     {
       "directory": "design",
@@ -1095,7 +1095,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 107,
-      "sourceLines": 28355
+      "sourceLines": 28520
     },
     {
       "directory": "extension",
@@ -1151,7 +1151,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 13,
-      "sourceLines": 3691
+      "sourceLines": 3709
     },
     {
       "directory": "prompts",
@@ -1221,7 +1221,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 122,
-      "sourceLines": 28498
+      "sourceLines": 28543
     },
     {
       "directory": "tasking",

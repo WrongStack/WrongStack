@@ -19,6 +19,32 @@ export function normalizePluginReloadTarget(raw?: string): string | undefined {
   return trimmed;
 }
 
+/**
+ * Parse `/plugin reload [name|--all|*] [--force|-f]` tokens so `--force` never
+ * collides with the positional plugin target name.
+ */
+export function parsePluginReloadArgs(tokens: readonly string[]): {
+  targetName: string | undefined;
+  force: boolean;
+} {
+  let force = false;
+  let positional: string | undefined;
+  for (const tok of tokens) {
+    if (tok === '--force' || tok === '-f') {
+      force = true;
+      continue;
+    }
+    if (tok === '--all' || tok === '*') {
+      positional = undefined;
+      continue;
+    }
+    if (!tok.startsWith('-') && positional === undefined) {
+      positional = tok;
+    }
+  }
+  return { targetName: normalizePluginReloadTarget(positional), force };
+}
+
 export interface PluginDevWatchOptions {
   globalRoot?: string | undefined;
   projectRoot?: string | undefined;

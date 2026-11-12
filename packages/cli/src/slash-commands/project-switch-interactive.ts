@@ -303,6 +303,11 @@ async function handlePrevSessions(
       color.dim(`${s.tokenTotal.toLocaleString()} tok`),
       s.toolCallCount ? color.cyan(`${s.toolCallCount} calls`) : '',
       s.iterationCount ? color.dim(`${s.iterationCount} iter`) : '',
+      (s.branchCount ?? 0) > 1
+        ? color.magenta(
+            `⎇ ${s.branchCount} branches${s.activeBranchName ? ` · active: ${s.activeBranchName}` : ''}`,
+          )
+        : '',
     ]
       .filter(Boolean)
       .join(' ');

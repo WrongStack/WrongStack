@@ -50,6 +50,7 @@ import { handleKanbanRoute } from './kanban-routes.js';
 import { createKanbanRunStart } from './kanban-run-start.js';
 import { createKanbanSupervisor } from './kanban-supervisor.js';
 import type { PendingConfirm } from './pending-confirms.js';
+import { createPluginUiWsBridge } from './plugin-ui-ws-bridge.js';
 import { broadcastBranchReplay, portableCommandRoute } from './portable-command-route.js';
 import { authorizeWebUIAction } from './privileged-actions.js';
 import {
@@ -66,7 +67,7 @@ import { collectDisplayedSessionIds } from './session-handlers.js';
 import type { ConnectedClient, WSClientMessage } from './types.js';
 import { createWorklistRouteHandlers } from './worklist-routes.js';
 import { createSessionAwareWorklistContext } from './worklist-session-context.js';
-import { broadcast, errMessage, send, sendResult } from './ws-utils.js';
+import { broadcast, broadcastAll, errMessage, send, sendResult } from './ws-utils.js';
 
 /**
  * Shared run-lock control. `user_message` acquires/releases it around
@@ -126,6 +127,7 @@ interface MessageDispatcherOptions {
   reloadPlugins?:
     | ((
         targetName?: string,
+        opts?: { force?: boolean | undefined },
       ) => Promise<{ reloaded: string[]; unloaded: string[]; failed: string[] }>)
     | undefined;
   sessionStartPayload?:
@@ -464,8 +466,14 @@ export function createMessageDispatcher(
       }),
   });
   autoHealer.start();
+  const pluginUiBridge = createPluginUiWsBridge({
+    registry: opts.pluginUiRegistry,
+    broadcast: (m) => broadcastAll(state.getClients(), m),
+    logger: deps.logger,
+  });
   if (opts.onDispose) {
     const dispose = async () => {
+      pluginUiBridge.dispose();
       kanbanSupervisor.dispose();
       await autoHealer.dispose();
     };
@@ -608,6 +616,7 @@ export function createMessageDispatcher(
       getProjectRoot: state.getProjectRoot,
       getContext: (sessionId) => deps.getAgent?.(sessionId)?.ctx ?? deps.context,
       getConfigStore: () => deps.configStore,
+      getMemoryStore: () => deps.memoryStore,
       getPaths: () => resolveWstackPaths({ projectRoot: state.getProjectRoot() }),
       skillLoader: deps.skillLoader,
       vault: deps.vault,
@@ -667,6 +676,7 @@ export function createMessageDispatcher(
   };
 
   return async (ws, _client, msg) => {
+    if (pluginUiBridge.handleClientMessage(msg)) return;
     if (await handleConnectionsHealthRoute(connCtx, ws, msg)) return;
     if (await handleConnectionsServiceAction(ws, msg, connCtx)) return;
     if (await handleCodebaseIndexServerControl(ws, msg, connCtx)) return;

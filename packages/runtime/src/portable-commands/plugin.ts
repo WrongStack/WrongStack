@@ -1,8 +1,8 @@
 import type { Config, SlashCommand } from '@wrongstack/contracts/types';
 import { runPluginManagementCommand } from '../plugin-management/management.js';
 import {
-  normalizePluginReloadTarget,
   PluginDevWatchController,
+  parsePluginReloadArgs,
 } from '../plugin-management/plugin-watch.js';
 import type { PluginManagementCommandHost } from './host.js';
 
@@ -18,7 +18,7 @@ export const PLUGIN_COMMAND_HELP = [
   '  /plugin menu                    Show curated on/off menu for safe plugin subset.',
   '  /plugin report                  Explain why plugins are active and which can be disabled.',
   '  /plugin official                List official bundled plugins and aliases.',
-  '  /plugin reload [name|--all]     Hot-reload external (.ts/.js) plugins without restarting.',
+  '  /plugin reload [name|--all] [--force] Hot-reload external (.ts/.js) plugins without restarting.',
   '  /plugin trust [name|--remove]   List or re-pin external plugin closure trust and hot-reload.',
   '  /plugin watch [name|off]        Auto-reload a user-global (~/.wrongstack/plugins/<name>) plugin on edit.',
   '  /plugin install <alias|package> Add and enable a plugin.',
@@ -109,8 +109,8 @@ export function buildPluginManagementCommand(host: PluginManagementCommandHost):
         if (!host.reloadPlugins) {
           return { message: `Live plugin reload is not wired in this host.\n${RESTART_NOTE}` };
         }
-        const targetName = normalizePluginReloadTarget(tokens[1]);
-        const report = await host.reloadPlugins(targetName);
+        const { targetName, force } = parsePluginReloadArgs(tokens.slice(1));
+        const report = await host.reloadPlugins(targetName, force ? { force: true } : undefined);
         return { message: formatPluginReloadReport(report, targetName) };
       }
       if (tokens[0] === 'watch') {

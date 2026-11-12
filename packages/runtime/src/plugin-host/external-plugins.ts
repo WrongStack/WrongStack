@@ -26,7 +26,8 @@
  * First-party/built-in plugins never enter this module.
  */
 
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { readdir, readFile, stat } from 'node:fs/promises';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { Config, Logger, Plugin } from '@wrongstack/contracts/types';
 import {
@@ -112,6 +113,20 @@ interface LoadExternalPluginsContext {
   onlyName?: string | undefined;
   /** Optional callback invoked when a candidate fails trust, import, or validation. */
   onFailure?: ((label: string, reason: string) => void) | undefined;
+  /**
+   * Optional interactive re-pin confirmation invoked ONLY during hot-reload
+   * (`reloadGeneration > 0`) when a pinned TOFU plugin's closure hash changed.
+   * Headless hosts omit this or return `false` to fail closed.
+   */
+  confirmTrustRepin?:
+    | ((info: {
+        label: string;
+        entryPath: string;
+        previousIntegrity: string;
+        nextIntegrity: string;
+        pinnedAt: string;
+      }) => Promise<boolean>)
+    | undefined;
 }
 
 type ExternalSource =
@@ -326,6 +341,7 @@ export async function loadExternalPlugins(
         mode: trustMode,
         log,
         discoveryRoots: discoveryRootDirs,
+        confirmRepin: reloadGen > 0 ? ctx.confirmTrustRepin : undefined,
       });
       if (!gate.ok) {
         ctx.onFailure?.(source.label, 'trust-gate');
@@ -408,8 +424,9 @@ async function gateExternalPluginTrust(args: {
   mode: ExternalPluginTrustMode;
   log: Logger;
   discoveryRoots?: readonly string[] | undefined;
+  confirmRepin?: LoadExternalPluginsContext['confirmTrustRepin'];
 }): Promise<TrustGateResult> {
-  const { spec, label, store, storePath, mode, log, discoveryRoots } = args;
+  const { spec, label, store, storePath, mode, log, discoveryRoots, confirmRepin } = args;
   // Pin keys are canonical forward-slash paths regardless of how the entry
   // was resolved (config path, discovery, module resolution).
   const entryPath = normalizeTrustKey(args.entryPath);
@@ -470,8 +487,145 @@ async function gateExternalPluginTrust(args: {
     );
     return { ok: true, pinned: false };
   }
+  if (mode === 'tofu' && typeof confirmRepin === 'function') {
+    let confirmed = false;
+    try {
+      confirmed = await confirmRepin({
+        label,
+        entryPath,
+        previousIntegrity: verification.expected,
+        nextIntegrity: integrity,
+        pinnedAt: verification.pinnedAt,
+      });
+    } catch {
+      confirmed = false;
+    }
+    if (confirmed) {
+      try {
+        const next = await pinPluginTrust(storePath, entryPath, entryPath, integrity, spec);
+        log.info(
+          `[plugins] external plugin "${label}" re-pinned interactively during reload (${integrity.slice(0, 19)}…)`,
+        );
+        return { ok: true, pinned: true, store: next };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        log.error(`[plugins] REFUSING external plugin "${label}" — re-pin failed (${message})`);
+        return { ok: false, pinned: false };
+      }
+    }
+  }
   log.error(`[plugins] REFUSING external plugin "${label}" — ${changedMessage}`);
   return { ok: false, pinned: false };
+}
+
+function shortIntegrityHex(integrity: string): string {
+  const idx = integrity.indexOf(':');
+  const raw = idx >= 0 ? integrity.slice(idx + 1) : integrity;
+  return raw.slice(0, 8);
+}
+
+async function summarizePluginSourceForDiff(
+  entryPath: string,
+  sharedDiscoveryRoots?: readonly string[],
+): Promise<string> {
+  try {
+    const parentDir = resolve(dirname(entryPath));
+    const isSharedRoot = (sharedDiscoveryRoots ?? []).some((r) => resolve(r) === parentDir);
+    if (isSharedRoot) {
+      const content = await readFile(entryPath, 'utf8');
+      const lines = content.split(/\r?\n/).length;
+      return `Single-file entry: ${entryPath} (${lines} lines, ${Buffer.byteLength(content)} B)`;
+    }
+    const entries = await readdir(parentDir, { withFileTypes: true });
+    const summaries: string[] = [];
+    let totalLines = 0;
+    for (const ent of entries) {
+      if (!ent.isFile() || !/\.(m?ts|c?ts|m?js|cjs|json)$/i.test(ent.name)) continue;
+      const filePath = join(parentDir, ent.name);
+      const info = await stat(filePath);
+      if (info.size > 512 * 1024) continue;
+      const text = await readFile(filePath, 'utf8');
+      const lineCount = text.split(/\r?\n/).length;
+      totalLines += lineCount;
+      if (summaries.length < 8) {
+        summaries.push(`${relative(parentDir, filePath)} (${lineCount}L)`);
+      }
+    }
+    return `Directory closure (${summaries.length} files, ${totalLines} total lines): ${summaries.join(', ')}`;
+  } catch {
+    return `Entry: ${entryPath}`;
+  }
+}
+
+/**
+ * Build an interactive TOFU re-pin confirmation callback backed by `PluginUiRegistry`.
+ * Supports `[y/N/diff]` ergonomics: operators can re-pin immediately, inspect a
+ * file/line summary of the modified closure (`diff`) before confirming, or cancel.
+ * When no UI prompt handler is attached (headless CLI / non-interactive execution),
+ * `uiRegistry.prompt` resolves immediately to `null` and the gate fails closed.
+ */
+export function createInteractiveTrustRepinCallback(
+  uiRegistry: {
+    prompt: (
+      owner: string,
+      opts:
+        | {
+            kind: 'select';
+            title: string;
+            message: string;
+            options: Array<{ value: string; label: string; hint?: string }>;
+            timeoutMs: number;
+          }
+        | { kind: 'confirm'; title: string; message: string; timeoutMs: number },
+      signal: AbortSignal,
+    ) => Promise<unknown>;
+    notify?: ((owner: string, message: string, tone?: 'info' | 'warning') => void) | undefined;
+  },
+  sharedDiscoveryRoots?: readonly string[],
+): NonNullable<LoadExternalPluginsContext['confirmTrustRepin']> {
+  return async ({ label, entryPath, previousIntegrity, nextIntegrity }) => {
+    const prevShort = shortIntegrityHex(previousIntegrity);
+    const nextShort = shortIntegrityHex(nextIntegrity);
+    const baseMessage = `Plugin "${label}" source changed (${prevShort}… → ${nextShort}…). Re-pin trust and reload?`;
+
+    const firstChoice = await uiRegistry.prompt(
+      'plugin-trust',
+      {
+        kind: 'select',
+        title: `Re-pin modified plugin "${label}"?`,
+        message: baseMessage,
+        options: [
+          { value: 'repin', label: 'Yes — re-pin trust and reload', hint: `${nextShort}…` },
+          { value: 'diff', label: 'Inspect changed closure summary (diff)' },
+          { value: 'cancel', label: 'No — keep previous pinned state' },
+        ],
+        timeoutMs: 60_000,
+      },
+      new AbortController().signal,
+    );
+
+    if (firstChoice === true || firstChoice === 'repin' || firstChoice === 'yes') {
+      return true;
+    }
+    if (firstChoice === 'diff') {
+      const diffSummary = await summarizePluginSourceForDiff(entryPath, sharedDiscoveryRoots);
+      uiRegistry.notify?.('plugin-trust', diffSummary, 'info');
+      const confirmAfterDiff = await uiRegistry.prompt(
+        'plugin-trust',
+        {
+          kind: 'confirm',
+          title: `Confirm re-pin for "${label}"`,
+          message: `${baseMessage}\n${diffSummary}`,
+          timeoutMs: 60_000,
+        },
+        new AbortController().signal,
+      );
+      return (
+        confirmAfterDiff === true || confirmAfterDiff === 'repin' || confirmAfterDiff === 'yes'
+      );
+    }
+    return false;
+  };
 }
 
 export function buildPluginOptions(

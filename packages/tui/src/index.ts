@@ -78,6 +78,7 @@ export {
   encodeNativeTerminalImage,
   extractToolImageArtifactPath,
   getImagePreviewCacheSize,
+  getLastPreviewedImagePath,
   loadCachedImagePreview,
   MAX_IMAGE_PREVIEW_CACHE_ENTRIES,
 } from './graphics/image-preview-cache.js';

@@ -44,6 +44,8 @@ export interface EmbeddedMessageRouterOptions {
   hostCommands?: (() => readonly import('@wrongstack/contracts/types').SlashCommand[]) | undefined;
   /** The hosting process's version check, config doctor and history for `/tuneup`. */
   tuneupHooks?: import('@wrongstack/runtime/commands').TuneupHooks | undefined;
+  /** Optional declarative plugin UI registry (`api.ui`) from the CLI/embedded host. */
+  pluginUiRegistry?: import('@wrongstack/core/plugin').PluginUiRegistry | undefined;
 }
 
 export interface EmbeddedMessageRouterDeps {

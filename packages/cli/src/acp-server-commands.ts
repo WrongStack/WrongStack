@@ -245,6 +245,9 @@ function hostFor(agent: Agent | undefined, deps: AcpServerCommandsDeps): Portabl
     get configStore() {
       return container?.safeResolve(TOKENS.ConfigStore);
     },
+    get memoryStore() {
+      return container?.safeResolve(TOKENS.MemoryStore);
+    },
     getFleetSupervisor: getActiveFleetSupervisor,
     get permissionPolicy() {
       return agent?.permission;

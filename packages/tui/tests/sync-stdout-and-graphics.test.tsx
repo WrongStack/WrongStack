@@ -20,8 +20,13 @@ import {
   encodeNativeTerminalImage,
   extractToolImageArtifactPath,
   getImagePreviewCacheSize,
+  getLastPreviewedImagePath,
+  getRuntimeGraphicsOverride,
   loadCachedImagePreview,
   MAX_IMAGE_PREVIEW_CACHE_ENTRIES,
+  parseRuntimeGraphicsMode,
+  resolveEffectiveGraphicsProtocol,
+  setRuntimeGraphicsOverride,
 } from '../src/graphics/image-preview-cache.js';
 import { createSynchronizedStdout, stripTerminalGraphicsResponses } from '../src/sync-stdout.js';
 import { SYNC_OUTPUT_OFF, SYNC_OUTPUT_ON } from '../src/terminal-modes.js';
@@ -137,6 +142,7 @@ describe('Inline terminal graphics codec & bounded ToolImagePreview', () => {
   const tempDirs: string[] = [];
 
   afterEach(() => {
+    setRuntimeGraphicsOverride('auto');
     clearImagePreviewCache();
     for (const dir of tempDirs.splice(0)) {
       rmSync(dir, { recursive: true, force: true });
@@ -285,9 +291,72 @@ describe('Inline terminal graphics codec & bounded ToolImagePreview', () => {
     const resolvedInside = loadCachedImagePreview('generated.png', { projectRoot: projDir });
     expect(resolvedInside).not.toBeNull();
     expect(resolvedInside?.header.width).toBe(12);
+    expect(getLastPreviewedImagePath()).toBe(join(projDir, 'generated.png'));
 
     // Path traversal escaping projectRoot MUST be rejected
     const escapedRel = join('..', outsideDir.split(/[\\/]/).pop()!, 'secret.png');
     expect(loadCachedImagePreview(escapedRel, { projectRoot: projDir })).toBeNull();
+    expect(getLastPreviewedImagePath()).toBe(join(projDir, 'generated.png'));
+
+    clearImagePreviewCache();
+    expect(getLastPreviewedImagePath()).toBeNull();
+  });
+
+  it('toggles graphics protocol at runtime (/settings graphics off|kitty|iterm2|halfblock|auto) without restart', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'wstack-tui-gfx-toggle-'));
+    tempDirs.push(dir);
+    const shotPath = join(dir, 'live.png');
+    writeFileSync(shotPath, createSolidRgbaPng(16, 8, [20, 180, 90, 255]));
+    const outputJson = JSON.stringify({ path: shotPath, mimeType: 'image/png' });
+
+    expect(parseRuntimeGraphicsMode('off')).toBe('off');
+    expect(parseRuntimeGraphicsMode('kitty')).toBe('kitty');
+    expect(parseRuntimeGraphicsMode('iterm2')).toBe('iterm2');
+    expect(parseRuntimeGraphicsMode('halfblock')).toBe('halfblock');
+    expect(parseRuntimeGraphicsMode('auto')).toBe('auto');
+    expect(parseRuntimeGraphicsMode('bogus')).toBeNull();
+
+    expect(getRuntimeGraphicsOverride()).toBe('auto');
+    expect(resolveEffectiveGraphicsProtocol('kitty')).toBe('kitty');
+
+    setRuntimeGraphicsOverride('iterm2');
+    expect(resolveEffectiveGraphicsProtocol('kitty')).toBe('iterm2');
+
+    setRuntimeGraphicsOverride('off');
+    expect(resolveEffectiveGraphicsProtocol('kitty')).toBe('none');
+    expect(getImagePreviewCacheSize()).toBe(0);
+    expect(loadCachedImagePreview(shotPath)).toBeNull();
+
+    const suppressed = render(
+      React.createElement(ToolImagePreview, {
+        toolName: 'browser_screenshot',
+        output: outputJson,
+        termWidth: 80,
+        useTruecolor: true,
+      }),
+    );
+    expect(suppressed.lastFrame() ?? '').toBe('');
+
+    setRuntimeGraphicsOverride('auto');
+    expect(resolveEffectiveGraphicsProtocol('halfblock')).toBe('halfblock');
+  });
+
+  it('bounds LRU entries and decoded preview memory across 40 consecutive high-resolution tool screenshots', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'wstack-tui-40-soak-'));
+    tempDirs.push(dir);
+    // 40 distinct 256×144 RGBA screenshots (~147 KiB raw RGBA each before compression)
+    for (let i = 0; i < 40; i++) {
+      const p = join(dir, `soak-${i}.png`);
+      writeFileSync(
+        p,
+        createSolidRgbaPng(256, 144, [(i * 37) & 0xff, (i * 73) & 0xff, (i * 19) & 0xff, 255]),
+      );
+      const preview = loadCachedImagePreview(p, { maxCols: 60, maxRows: 16 });
+      expect(preview).not.toBeNull();
+      expect(preview?.header.width).toBe(256);
+      expect(preview?.header.height).toBe(144);
+    }
+    // LRU hard cap keeps at most MAX_IMAGE_PREVIEW_CACHE_ENTRIES (8) thumbnails resident (< 2 MiB)
+    expect(getImagePreviewCacheSize()).toBe(MAX_IMAGE_PREVIEW_CACHE_ENTRIES);
   });
 });

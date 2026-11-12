@@ -10,6 +10,11 @@ import {
   settingsPickerJumpNames,
 } from '../components/settings-picker.js';
 import { STATUSLINE_ITEMS, type StatuslineItem } from '../components/statusline-picker.js';
+import {
+  getRuntimeGraphicsOverride,
+  parseRuntimeGraphicsMode,
+  setRuntimeGraphicsOverride,
+} from '../graphics/image-preview-cache.js';
 import type { SettingsPickerPatch } from '../settings-contracts.js';
 import { registerSlashCommandLifecycle } from '../slash-command-lifecycle.js';
 import { THEME_OPTIONS } from '../theme.js';
@@ -133,6 +138,10 @@ export function useSettingsSlashCommands(
                 settingsPickerJumpNames().join(', '),
             };
           }
+          if (subArg.toLowerCase() === 'graphics') {
+            setRuntimeGraphicsOverride('auto');
+            return { message: '↺ Terminal graphics reset to auto' };
+          }
           const field = settingsPickerJumpByName(subArg);
           if (field === undefined) {
             return {
@@ -158,6 +167,16 @@ export function useSettingsSlashCommands(
         if (spaceIdx > 0) {
           const rowName = query.slice(0, spaceIdx);
           const valueStr = query.slice(spaceIdx + 1).trim();
+          if (rowName.toLowerCase() === 'graphics') {
+            const parsed = parseRuntimeGraphicsMode(valueStr);
+            if (!parsed) {
+              return {
+                message: `Invalid graphics mode "${valueStr}". Expected: auto | kitty | iterm2 | halfblock | off`,
+              };
+            }
+            setRuntimeGraphicsOverride(parsed);
+            return { message: `✓ Terminal graphics → ${parsed}` };
+          }
           const field = settingsPickerJumpByName(rowName);
           if (field === undefined) {
             return {
@@ -213,6 +232,9 @@ export function useSettingsSlashCommands(
         }
 
         // Single token: navigation mode (open picker on that row).
+        if (query.toLowerCase() === 'graphics') {
+          return { message: `Terminal graphics: ${getRuntimeGraphicsOverride()}` };
+        }
         const field = settingsPickerJumpByName(query);
         if (field === undefined) {
           return {
@@ -301,6 +323,9 @@ export function useSettingsSlashCommands(
         if (query === '') {
           // No argument: show all settings as a compact grouped summary.
           return { message: formatAllSettingsSummary(state.settingsPicker) };
+        }
+        if (query.toLowerCase() === 'graphics') {
+          return { message: `Terminal graphics: ${getRuntimeGraphicsOverride()}` };
         }
         const field = settingsPickerJumpByName(query);
         if (field === undefined) {

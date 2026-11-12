@@ -70,6 +70,10 @@ export interface CompactOptions {
   aggressive?: boolean | undefined;
   /** Defaults to `auto` for observers when omitted. */
   trigger?: CompactionTrigger | undefined;
+  /** Explicit compaction reason forwarded to `beforeCompact` extension hooks. */
+  reason?: 'threshold' | 'manual' | undefined;
+  /** Optional target post-compaction token budget forwarded to `beforeCompact` hooks. */
+  targetTokens?: number | undefined;
 }
 
 /** Awaited around every compaction pass; a throwing observer never blocks it. */

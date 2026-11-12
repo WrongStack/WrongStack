@@ -11,7 +11,10 @@ import { wrapApiForCapabilityCheck } from './plugin-capability-wrap.js';
 interface PluginRegistration {
   plugin: Plugin;
   api: PluginAPI;
-  cleanupApi: PluginAPI & { drainCleanup?: (() => void) | undefined };
+  cleanupApi: PluginAPI & {
+    drainCleanup?: (() => void) | undefined;
+    abortLifetime?: ((reason?: unknown) => void) | undefined;
+  };
   cleanupDrained: boolean;
   disposed: boolean;
 }
@@ -45,7 +48,7 @@ export interface PluginHostHandle {
    * tearing down the previous instance, and rolls back to the previous
    * instance if `setup()` fails.
    */
-  reloadPlugin(plugin: Plugin): Promise<PluginReloadResult>;
+  reloadPlugin(plugin: Plugin, opts?: { force?: boolean | undefined }): Promise<PluginReloadResult>;
   /** Unload a single active plugin by name, draining all owned registrations. */
   unloadPlugin(name: string): Promise<boolean>;
   /** Dispose successfully loaded plugins in reverse dependency order. */
@@ -480,7 +483,10 @@ export async function loadPlugins(
     get disposed() {
       return disposed;
     },
-    async reloadPlugin(nextPlugin: Plugin): Promise<PluginReloadResult> {
+    async reloadPlugin(
+      nextPlugin: Plugin,
+      reloadOpts?: { force?: boolean | undefined },
+    ): Promise<PluginReloadResult> {
       const startedAt = Date.now();
       if (disposed) {
         throw new PluginError({
@@ -498,9 +504,14 @@ export async function loadPlugins(
       const previousReg = existingIdx >= 0 ? registrations[existingIdx] : undefined;
       const previousLoadedIdx = loaded.findIndex((p) => p.name === nextPlugin.name);
 
-      // Phase 2: Await optional quiescence gate, then drain old registration if active.
+      // Phase 2: Await optional quiescence gate (unless `--force` is set, which aborts
+      // plugin-owned background tasks immediately), then drain old registration.
       if (previousReg) {
-        if (typeof opts.waitForQuiescence === 'function') {
+        if (reloadOpts?.force === true) {
+          previousReg.cleanupApi.abortLifetime?.(
+            new Error(`Plugin "${nextPlugin.name}" force-reloaded`),
+          );
+        } else if (typeof opts.waitForQuiescence === 'function') {
           const quiesceMs = opts.quiescenceTimeoutMs ?? 5_000;
           await opts.waitForQuiescence(nextPlugin.name, quiesceMs);
         }

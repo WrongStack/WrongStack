@@ -139,6 +139,10 @@ export {
   TREE_COMMAND_HELP,
   tokenizeTreeArgs,
 } from './portable-commands/tree.js';
+export {
+  createHostTreeFoldHooks,
+  type HostTreeFoldHooksInput,
+} from './portable-commands/tree-synthesis.js';
 export { buildTuneupCommand } from './portable-commands/tuneup.js';
 export type { TuneupUpdateInfo } from './portable-commands/tuneup-types.js';
 

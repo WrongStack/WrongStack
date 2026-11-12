@@ -1,12 +1,19 @@
 import { isTextBlock } from '@wrongstack/contracts/types/blocks';
-import type { Compactor, CompactReport } from '@wrongstack/contracts/types/compactor';
+import type {
+  CompactOptions,
+  Compactor,
+  CompactReport,
+} from '@wrongstack/contracts/types/compactor';
+import type { ExtensionRegistryPort } from '@wrongstack/contracts/types/extension-points';
 import type { Logger } from '@wrongstack/contracts/types/logger';
 import type { Message } from '@wrongstack/contracts/types/messages';
 import type { Provider, Request } from '@wrongstack/contracts/types/provider';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
 import type { MessageSelector, SelectorResult } from '@wrongstack/contracts/types/selector';
-import type { Context } from '../core/context.js';
+import { type Context, getContextExtensions } from '../core/context.js';
 import { noOpLogger } from '../infrastructure/logger.js';
 import { LLMSelector } from '../models/llm-selector.js';
+import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
 import { buildCompactionPreview } from '../utils/compaction-preview.js';
 import {
   buildContextEvidenceDigest,
@@ -55,6 +62,33 @@ function mergeOverlappingCollapsed(ranges: readonly CollapsedRange[]): Collapsed
   return merged.sort((a, b) => b.from - a.from);
 }
 
+function splitRangesAroundPinned(
+  ranges: readonly CollapsedRange[],
+  pinned: ReadonlySet<number>,
+): CollapsedRange[] {
+  if (pinned.size === 0) return [...ranges];
+  const out: CollapsedRange[] = [];
+  for (const range of ranges) {
+    let cursor = range.from;
+    for (let idx = range.from; idx <= range.to; idx++) {
+      if (pinned.has(idx)) {
+        if (cursor <= idx - 1) {
+          out.push({ from: cursor, to: idx - 1 });
+        }
+        cursor = idx + 1;
+      }
+    }
+    if (cursor <= range.to) {
+      out.push({
+        from: cursor,
+        to: range.to,
+        summary: cursor === range.from ? range.summary : undefined,
+      });
+    }
+  }
+  return out;
+}
+
 /**
  * Options for SelectiveCompactor — the most configurable compactor.
  */
@@ -91,6 +125,10 @@ export interface SelectiveCompactorOptions {
   summarizerPrompt?: string | undefined;
   /** Shared cache for successful semantic summaries. */
   summaryCache?: CompactionSummaryCache | undefined;
+  /** Optional extension registry consulted for `beforeCompact` hooks. */
+  extensions?: ExtensionRegistryPort | undefined;
+  /** Scrubber applied to any plugin-contributed compaction summary or instructions. */
+  secretScrubber?: SecretScrubber | undefined;
 }
 
 /**
@@ -115,6 +153,8 @@ export class SelectiveCompactor implements Compactor {
   private readonly summarizerPrompt: string;
   private readonly summaryCache: CompactionSummaryCache;
   private readonly logger: Logger;
+  private readonly extensions: ExtensionRegistryPort | undefined;
+  private readonly secretScrubber: SecretScrubber;
 
   constructor(opts: SelectiveCompactorOptions) {
     this.provider = opts.provider;
@@ -138,6 +178,8 @@ export class SelectiveCompactor implements Compactor {
     this.summarizerModel = opts.summarizerModel ?? opts.selectorModel;
     this.summaryCache = opts.summaryCache ?? new CompactionSummaryCache();
     this.logger = opts.logger ?? noOpLogger;
+    this.extensions = opts.extensions;
+    this.secretScrubber = opts.secretScrubber ?? new DefaultSecretScrubber();
     // Wire the module-level compaction debug logger so instrumentation
     // in compaction-core.ts (emitCompactionMetrics, findPreserveStart,
     // eliseOldToolResults) uses structured logging when available.
@@ -151,13 +193,20 @@ export class SelectiveCompactor implements Compactor {
       opts.summarizerPrompt ?? readBundledInstructionText('llm/selective-compactor-summarizer.md');
   }
 
-  async compact(
-    ctx: Context,
-    opts: { aggressive?: boolean | undefined } = {},
-  ): Promise<CompactReport> {
+  async compact(ctx: Context, opts: CompactOptions = {}): Promise<CompactReport> {
     const beforeTokens = this.estimateTokens(ctx.messages);
     const beforeFull = this.estimateFullRequest(ctx);
     const reductions: CompactReport['reductions'] = [];
+    const extensions = this.extensions ?? getContextExtensions(ctx);
+    const reason = opts.reason ?? (opts.trigger === 'manual' ? 'manual' : 'threshold');
+    const hookDirective = extensions
+      ? await extensions.runBeforeCompact({
+          sessionId: ctx.session?.id,
+          messages: ctx.messages,
+          targetTokens: opts.targetTokens,
+          reason,
+        })
+      : undefined;
 
     // Use full request tokens for threshold decisions — messages alone are inaccurate.
     const load = this.maxContext > 0 ? beforeFull / this.maxContext : 0;
@@ -184,7 +233,7 @@ export class SelectiveCompactor implements Compactor {
     const targetBudget = this.computeTargetBudget(load, beforeFull);
 
     if (afterPhase1 > targetBudget) {
-      const selective = await this.runSelector(ctx, targetBudget);
+      const selective = await this.runSelector(ctx, targetBudget, hookDirective);
       if (selective.stale) {
         return markStaleCompactionReport(
           stampCompactionReport(
@@ -273,6 +322,13 @@ export class SelectiveCompactor implements Compactor {
   private async runSelector(
     ctx: Context,
     targetBudget: number,
+    hookDirective?:
+      | {
+          pinnedMessageIndices?: readonly number[] | undefined;
+          additionalInstructions?: string | undefined;
+          customSummary?: string | undefined;
+        }
+      | undefined,
   ): Promise<{ saved: number; stale?: boolean }> {
     const before = this.estimateTokens(ctx.messages);
     const historyVersion = contextHistoryVersion(ctx);
@@ -289,7 +345,7 @@ export class SelectiveCompactor implements Compactor {
       )
         return { saved: 0, stale: true };
       // Fallback to aggressive recency preservation
-      return { saved: this.aggressiveRecencyTrim(ctx) };
+      return { saved: this.aggressiveRecencyTrim(ctx, hookDirective) };
     }
 
     if (
@@ -300,7 +356,7 @@ export class SelectiveCompactor implements Compactor {
       return { saved: 0, stale: true };
 
     // Execute the selector's plan
-    if (!(await this.executePlan(ctx, result))) return { saved: 0, stale: true };
+    if (!(await this.executePlan(ctx, result, hookDirective))) return { saved: 0, stale: true };
 
     const after = this.estimateTokens(ctx.messages);
     return { saved: Math.max(0, before - after) };
@@ -310,7 +366,17 @@ export class SelectiveCompactor implements Compactor {
    * Execute a SelectorResult plan: collapse/remove ranges and
    * insert summaries where the selector provided them.
    */
-  private async executePlan(ctx: Context, plan: SelectorResult): Promise<boolean> {
+  private async executePlan(
+    ctx: Context,
+    plan: SelectorResult,
+    hookDirective?:
+      | {
+          pinnedMessageIndices?: readonly number[] | undefined;
+          additionalInstructions?: string | undefined;
+          customSummary?: string | undefined;
+        }
+      | undefined,
+  ): Promise<boolean> {
     if (ctx.messages.length === 0) return true;
     const historyVersion = contextHistoryVersion(ctx);
     const owner = ctx.session;
@@ -329,11 +395,23 @@ export class SelectiveCompactor implements Compactor {
       messages,
       findPreserveStart(messages, this.preserveK * 2),
     );
-    const sortedCollapsed = mergeOverlappingCollapsed(
+    const pinnedSet = new Set(
+      (hookDirective?.pinnedMessageIndices ?? []).filter((idx) => idx >= 0 && idx < preserveStart),
+    );
+    const scrubbedCustom = hookDirective?.customSummary
+      ? this.secretScrubber.scrub(hookDirective.customSummary).trim()
+      : '';
+    const scrubbedInstructions = hookDirective?.additionalInstructions
+      ? this.secretScrubber.scrub(hookDirective.additionalInstructions).trim()
+      : '';
+
+    const boundedCollapsed = splitRangesAroundPinned(
       plan.collapsed
         .map((range) => ({ ...range, to: Math.min(range.to, preserveStart - 1) }))
         .filter((range) => range.from >= 0 && range.from <= range.to),
+      pinnedSet,
     );
+    const sortedCollapsed = mergeOverlappingCollapsed(boundedCollapsed);
 
     if (sortedCollapsed.length === 0) return true;
 
@@ -341,21 +419,23 @@ export class SelectiveCompactor implements Compactor {
       if (range.from < 0 || range.to >= messages.length || range.from > range.to) continue;
 
       const toSummarize = messages.slice(range.from, range.to + 1);
-      let summary = range.summary;
+      let summary = scrubbedCustom || range.summary;
       if (!summary) {
-        summary = await this.summarizeRange(toSummarize, ctx);
+        summary = await this.summarizeRange(toSummarize, ctx, scrubbedInstructions);
         if (
           ctx.signal?.aborted ||
           contextHistoryVersion(ctx) !== historyVersion ||
           ctx.session !== owner
         )
           return false;
+      } else if (!scrubbedCustom && scrubbedInstructions) {
+        summary = `${summary}\n[plugin_compaction_notes] ${scrubbedInstructions}`;
       }
 
       // The selector works from a compact overview. Preserve deterministic
       // evidence from actual tool blocks so file paths and the first failure
       // are not lost even when its prose summary omits them.
-      const toolEvidence = this.toolEvidence(toSummarize);
+      const toolEvidence = scrubbedCustom ? '' : this.toolEvidence(toSummarize);
       if (toolEvidence) summary = `${summary}\n[tool evidence] ${toolEvidence}`;
 
       const summaryMsg: Message = {
@@ -372,8 +452,15 @@ export class SelectiveCompactor implements Compactor {
     return true;
   }
 
-  private async summarizeRange(messages: Message[], ctx: Context): Promise<string> {
-    const systemText = `${this.summarizerPrompt}\n\nSummarize the following message range:`;
+  private async summarizeRange(
+    messages: Message[],
+    ctx: Context,
+    additionalInstructions = '',
+  ): Promise<string> {
+    const extra = additionalInstructions
+      ? `\n\nAdditional compaction instructions:\n${additionalInstructions}`
+      : '';
+    const systemText = `${this.summarizerPrompt}${extra}\n\nSummarize the following message range:`;
     const body = messages.map((m, i) => `[${i}] ${m.role}: ${this.messagePreview(m)}`).join('\n');
     const model = this.summarizerModel ?? ctx.model;
     const key = compactionSummaryKey(model, systemText, messages);
@@ -428,7 +515,16 @@ export class SelectiveCompactor implements Compactor {
    * Fallback when selector fails: aggressively trim from the oldest end
    * until we hit targetBudget.
    */
-  private aggressiveRecencyTrim(ctx: Context): number {
+  private aggressiveRecencyTrim(
+    ctx: Context,
+    hookDirective?:
+      | {
+          pinnedMessageIndices?: readonly number[] | undefined;
+          additionalInstructions?: string | undefined;
+          customSummary?: string | undefined;
+        }
+      | undefined,
+  ): number {
     const messages = ctx.messages;
     const preserveIdx = widenTailCut(
       ctx,
@@ -449,15 +545,25 @@ export class SelectiveCompactor implements Compactor {
       }
     }
 
-    const removed = messages.slice(0, boundary);
+    const pinnedSet = new Set(
+      (hookDirective?.pinnedMessageIndices ?? []).filter((idx) => idx >= 0 && idx < boundary),
+    );
+    const pinnedMessages = messages.filter((_, idx) => pinnedSet.has(idx));
+    const removed = messages.slice(0, boundary).filter((_, idx) => !pinnedSet.has(idx));
+    if (removed.length === 0) return 0;
     const removedTokens = this.estimateTokens(removed);
 
+    const scrubbedCustom = hookDirective?.customSummary
+      ? this.secretScrubber.scrub(hookDirective.customSummary).trim()
+      : '';
     const summaryMsg: Message = {
       role: 'system',
-      content: `[${removed.length} earlier turns trimmed — see session log for details]`,
+      content: scrubbedCustom
+        ? `[prior_turns_trimmed: ${scrubbedCustom}]`
+        : `[${removed.length} earlier turns trimmed — see session log for details]`,
     };
     const tail = messages.slice(boundary);
-    ctx.state.replaceMessages([summaryMsg, ...tail]);
+    ctx.state.replaceMessages([summaryMsg, ...pinnedMessages, ...tail]);
 
     return Math.max(0, removedTokens - this.estimateTokens([summaryMsg]));
   }

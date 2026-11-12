@@ -10,7 +10,13 @@
     "noEmit": true,
     "paths": {
       "@wrongstack/project-surfaces/host": ["../../packages/project-surfaces/src/host.tsx"],
+      "@wrongstack/project-surfaces/plugin-ui": [
+        "../../packages/project-surfaces/src/plugin-ui/index.ts"
+      ],
       "@wrongstack/project-surfaces/sage": ["../../packages/project-surfaces/src/sage/index.ts"],
+      "@wrongstack/project-surfaces/session-tree": [
+        "../../packages/project-surfaces/src/session-tree/index.ts"
+      ],
       "@wrongstack/project-surfaces/*": ["../../packages/project-surfaces/src/*"]
     }
   },

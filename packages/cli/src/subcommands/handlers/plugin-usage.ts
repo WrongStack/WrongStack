@@ -7,10 +7,25 @@ export const pluginCmd: SubcommandHandler = async (args, deps) => {
   // `parseArgs` strips these before the dispatcher calls us — see restoreFlags.
   // Without them `plugin add X --disabled` wrote it ENABLED and printed
   // "(enabled)", and `plugin toggle` lost its own switches.
-  args = restoreFlags(args, deps, ['disabled', 'enable', 'e', 'json', 'all']);
+  args = restoreFlags(args, deps, [
+    'disabled',
+    'enable',
+    'e',
+    'json',
+    'all',
+    'list',
+    'remove',
+    'unpin',
+    'clear',
+    'install',
+    'run-scripts',
+    'pm',
+  ]);
   const result = await runPluginManagementCommand(args, {
     config: deps.config,
     configPath: activeProfileConfigPath(deps.paths, deps.config),
+    ...(deps.paths.projectRoot ? { projectRoot: deps.paths.projectRoot } : {}),
+    ...(deps.paths.globalRoot ? { globalRoot: deps.paths.globalRoot } : {}),
   });
   if (result.level === 'error') {
     deps.renderer.writeError(`${result.message}\n`);

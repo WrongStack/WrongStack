@@ -1,10 +1,14 @@
-import type { Compactor, CompactReport } from '@wrongstack/contracts/types/compactor';
+import type {
+  CompactOptions,
+  Compactor,
+  CompactReport,
+} from '@wrongstack/contracts/types/compactor';
 import type { ContextWindowPolicy } from '@wrongstack/contracts/types/context-window';
 import type { ExtensionRegistryPort } from '@wrongstack/contracts/types/extension-points';
 import type { Logger } from '@wrongstack/contracts/types/logger';
 import type { Message } from '@wrongstack/contracts/types/messages';
 import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
-import type { Context } from '../core/context.js';
+import { type Context, getContextExtensions } from '../core/context.js';
 import { noOpLogger } from '../infrastructure/logger.js';
 import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
 import {
@@ -84,26 +88,21 @@ export class HybridCompactor implements Compactor {
     setCompactionDebugLogger(this.logger);
   }
 
-  async compact(
-    ctx: Context,
-    opts: {
-      aggressive?: boolean | undefined;
-      reason?: 'threshold' | 'manual' | undefined;
-      targetTokens?: number | undefined;
-    } = {},
-  ): Promise<CompactReport> {
+  async compact(ctx: Context, opts: CompactOptions = {}): Promise<CompactReport> {
     const beforeTokens = estimateMessages(ctx.messages);
     const beforeFull = this.estimateFullRequest(ctx);
     const reductions: CompactReport['reductions'] = [];
     const policy = readContextWindowPolicy(ctx);
     const preserveK = policy?.preserveK ?? this.preserveK;
     const eliseThreshold = policy?.eliseThreshold ?? this.eliseThreshold;
-    const hookDirective = this.extensions
-      ? await this.extensions.runBeforeCompact({
+    const extensions = this.extensions ?? getContextExtensions(ctx);
+    const reason = opts.reason ?? (opts.trigger === 'manual' ? 'manual' : 'threshold');
+    const hookDirective = extensions
+      ? await extensions.runBeforeCompact({
           sessionId: ctx.session?.id,
           messages: ctx.messages,
           targetTokens: opts.targetTokens,
-          reason: opts.reason ?? 'threshold',
+          reason,
         })
       : undefined;
 

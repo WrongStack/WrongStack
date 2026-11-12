@@ -287,6 +287,19 @@ export interface PhaseExecutionContext {
       ) => Promise<void>)
     | undefined;
   /**
+   * Optional fold-back callback invoked when the Brain advises folding a
+   * speculative phase back to the last passing checkpoint (`session_branch`
+   * fold-back) after 2+ consecutive verification regressions.
+   */
+  onFoldFailedAttempt?:
+    | ((
+        phase: PhaseNode,
+        failure: string,
+        consecutiveFailures: number,
+        env?: { cwd?: string | undefined; branch?: string | undefined },
+      ) => Promise<void>)
+    | undefined;
+  /**
    * Optional merge-conflict resolver. Called when a phase worktree conflicts
    * during squash-merge into the base branch. `info.cwd` points to the base
    * working tree where conflict markers exist; the resolver should clean those

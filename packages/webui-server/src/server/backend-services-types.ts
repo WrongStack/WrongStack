@@ -159,6 +159,7 @@ export interface AgentServices {
   reloadPlugins?:
     | ((
         targetName?: string,
+        opts?: { force?: boolean | undefined },
       ) => Promise<{ reloaded: string[]; unloaded: string[]; failed: string[] }>)
     | undefined;
   permissionPolicy: PermissionPolicy;

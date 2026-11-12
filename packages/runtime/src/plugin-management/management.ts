@@ -401,17 +401,28 @@ async function togglePlugin(
     );
   }
 
+  const configuredExtras =
+    configured &&
+    typeof configured === 'object' &&
+    (configured.path !== undefined || configured.options !== undefined)
+      ? configured
+      : undefined;
   let nextPlugins: Array<string | PluginConfig>;
   let nextEnabled: boolean;
   if (enabled) {
     nextEnabled = false;
     nextPlugins = plugins.filter((p) => !pluginMatchesToggleSpec(p, spec));
-    if (auditEntry?.defaultState !== 'inactive') {
+    if (configuredExtras) {
+      nextPlugins.push({ ...configuredExtras, enabled: false });
+    } else if (auditEntry?.defaultState !== 'inactive') {
       nextPlugins.push({ name: spec, enabled: false });
     }
   } else {
     nextEnabled = true;
-    if (auditEntry?.defaultState === 'active') {
+    if (configuredExtras) {
+      nextPlugins = plugins.filter((p) => !pluginMatchesToggleSpec(p, spec));
+      nextPlugins.push({ ...configuredExtras, enabled: true });
+    } else if (auditEntry?.defaultState === 'active') {
       nextPlugins = plugins.filter((p) => !pluginMatchesToggleSpec(p, spec));
     } else {
       nextPlugins = plugins.filter((p) => !pluginMatchesToggleSpec(p, spec));

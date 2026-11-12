@@ -28,12 +28,15 @@ Running `/tree` with no subcommand inside the TUI opens `<SessionTreeOverlay>`:
 - `a`: Archive an inactive non-root branch
 - `Esc`: Close the overlay
 
-## Secret-scrubbed branch fold-back
+## Secret-scrubbed branch fold-back & SAGE promotion
 
-`/tree fold` collects the branch-exclusive transcript delta, runs `beforeCompact` extension hooks so active plugins can preserve critical structured invariants, passes the summary through `DefaultSecretScrubber` so raw API keys or credentials encountered during an exploratory spike never cross into the target branch, switches to `--into <target>` (defaulting to the parent branch), and appends a `branch_fold_injected` event plus a bounded handoff message.
+`/tree fold` collects the branch-exclusive transcript delta, runs `beforeCompact` extension hooks so active plugins can preserve critical structured invariants, synthesizes a concise technical handoff through the host's configured LLM provider (falling back deterministically when offline), passes the summary through `DefaultSecretScrubber` so raw API keys or credentials encountered during an exploratory spike never cross into the target branch, caps the summary to `session.branchFoldMaxTokens` (default `1200`), optionally promotes structured findings to SAGE project memory (`features.sageBranchInsights`, recording `sageMemoryIds` on `branch_folded`), switches to `--into <target>` (defaulting to the parent branch), and appends a bounded handoff message.
+
+Autonomous leader runs can also inspect, fork, switch, or fold branches programmatically via the permission-gated `session_branch` management tool (`packages/tools/src/management/session-branch.ts`).
 
 ## Cross-surface support
 
+- **TUI Status Bar:** Displays an accent `⎇ <branch>` status chip whenever a non-main branch is active or multiple branches exist in the session.
 - **WebUI:** The chat header displays a branch pill (`⎇ <branch>`) with one-click branch switching, new-branch creation, and parent fold-back, and historical user turns expose a **Branch from here** action.
 - **ACP & Headless JSON:** Passing `--json` returns `{ snapshot, activeBranchId, ... }`, and ACP clients receive `session/update` notifications when `/tree` switches or folds branches.
 - **Session Picker:** Saved sessions with multiple active branches show `⎇ N branches (<active>)` in `/resume` and the WebUI sidebar.

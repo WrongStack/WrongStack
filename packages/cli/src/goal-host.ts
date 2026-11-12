@@ -364,7 +364,7 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
               ? async (phase, failure, attempt, env) => {
                   log(`🔧 Repairing "${phase.name}" (attempt ${attempt}) after verify failure…`);
                   await runOnce(
-                    buildRepairPrompt(phase.name, failure, goal),
+                    buildRepairPrompt(phase.name, failure, goal, attempt),
                     `goal-repair-${phase.name}`.slice(0, 48),
                     abort.signal,
                     env?.cwd ?? runRoot,
@@ -544,7 +544,7 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
                       ') after verify failure...',
                   );
                   await runOnce(
-                    buildRepairPrompt(phase.name, failure, title),
+                    buildRepairPrompt(phase.name, failure, title, attempt),
                     'goal-repair-' + phase.name.slice(0, 48),
                     abort.signal,
                     env?.cwd ?? runRoot,

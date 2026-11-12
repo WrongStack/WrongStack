@@ -69,7 +69,12 @@ export interface StandalonePluginsInput {
 export interface StandalonePlugins {
   host: ManagedPluginHostHandle | undefined;
   uiRegistry: PluginUiRegistry | undefined;
-  reloadExternal: ((targetName?: string) => Promise<ExternalPluginReloadReport>) | undefined;
+  reloadExternal:
+    | ((
+        targetName?: string,
+        opts?: { force?: boolean | undefined },
+      ) => Promise<ExternalPluginReloadReport>)
+    | undefined;
   /** Plugin slash commands land here; like the CLI-hosted WebUI, no route lists them. */
   slashRegistry: SlashCommandRegistry;
   /** Gives a conversation's agent the plugins' agent extensions. */

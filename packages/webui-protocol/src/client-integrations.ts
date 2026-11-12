@@ -79,6 +79,7 @@ export const CLIENT_EXTENSION_MESSAGE_TYPES = [
   'mcp.tasks.cancel',
   'mcp.update',
   'mcp.wake',
+  'plugin.ui.prompt_response',
   'provider.audit.get',
   'prompts.content',
   'prompts.create',

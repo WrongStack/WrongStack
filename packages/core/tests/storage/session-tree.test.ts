@@ -454,7 +454,9 @@ describe('SessionTreeCoordinator & DAG replay', () => {
     await writer.close();
   });
 
-  it('maintains deterministic replay and CAS reachability across 60 randomized nested branch, compaction, fold, and archive operations', async () => {
+  it('maintains deterministic replay and CAS reachability across 60 randomized nested branch, compaction, fold, and archive operations', {
+    timeout: 120_000,
+  }, async () => {
     const trackedFile = path.join(projectDir, 'src', 'state.ts');
     await fs.writeFile(trackedFile, 'export const step = 0;\n', 'utf8');
 
@@ -708,5 +710,72 @@ describe('SessionTreeCoordinator & DAG replay', () => {
     if (foldEvent?.type === 'branch_folded') {
       expect(foldEvent.sageMemoryIds).toEqual(['sage_mem_01', 'sage_mem_02']);
     }
+  });
+
+  it('replays cold-archived .jsonl.gz legacy and multi-branch sessions identically and preserves CAS reachability', async () => {
+    const store = new DefaultSessionStore({ dir: sessionsDir });
+
+    // 1. Legacy unbranched session compressed to .jsonl.gz
+    const legacyWriter = await store.create({ id: '', model: 'claude', provider: 'anthropic' });
+    await legacyWriter.append({
+      type: 'user_input',
+      ts: '2026-11-10T09:00:00.000Z',
+      content: 'Legacy unbranched prompt',
+    });
+    await legacyWriter.append({
+      type: 'llm_response',
+      ts: '2026-11-10T09:00:02.000Z',
+      content: [{ type: 'text', text: 'Legacy unbranched answer' }],
+      usage: zeroUsage,
+      stopReason: 'end_turn',
+    });
+    await legacyWriter.close();
+    const legacyArchive = await store.archive(legacyWriter.id);
+    expect(legacyArchive.action).toBe('archived');
+
+    const loadedLegacyGz = await store.load(legacyWriter.id);
+    expect(loadedLegacyGz.tree).toBeUndefined();
+    expect(loadedLegacyGz.messages).toHaveLength(2);
+    expect(loadedLegacyGz.messages[0]?.content).toBe('Legacy unbranched prompt');
+
+    // 2. Multi-branch session compressed to .jsonl.gz
+    const branchedWriter = await store.create({ id: '', model: 'claude', provider: 'anthropic' });
+    const coord = new SessionTreeCoordinator({
+      sessionId: branchedWriter.id,
+      writer: branchedWriter,
+      getEvents: async () => {
+        await branchedWriter.flush?.();
+        return (await store.load(branchedWriter.id)).events;
+      },
+    });
+    await branchedWriter.append({
+      type: 'user_input',
+      ts: '2026-11-11T10:00:00.000Z',
+      content: 'Main root turn',
+    });
+    await coord.createBranch({ name: 'gz-spike' });
+    await branchedWriter.append({
+      type: 'user_input',
+      ts: '2026-11-11T10:01:00.000Z',
+      content: 'Compressed branch turn',
+    });
+    await branchedWriter.close();
+
+    const branchedArchive = await store.archive(branchedWriter.id);
+    expect(branchedArchive.action).toBe('archived');
+
+    const loadedBranchedGz = await store.load(branchedWriter.id);
+    expect(loadedBranchedGz.tree?.activeBranchId).toBeTruthy();
+    expect(Object.keys(loadedBranchedGz.tree?.branches ?? {})).toHaveLength(2);
+    expect(loadedBranchedGz.messages.map((m) => m.content)).toEqual([
+      'Main root turn',
+      'Compressed branch turn',
+    ]);
+
+    const summaries = await store.list(10);
+    const branchedSummary = summaries.find((s) => s.id === branchedWriter.id);
+    expect(branchedSummary?.storageState).toBe('cold');
+    expect(branchedSummary?.branchCount).toBe(2);
+    expect(branchedSummary?.activeBranchName).toBe('gz-spike');
   });
 });

@@ -8,6 +8,8 @@ export interface ImageCommandHost {
   projectRoot?: string | undefined;
   cwd?: string | undefined;
   onPanelOpen?: SessionCommandHost['onPanelOpen'];
+  /** Optional accessor returning the most recently rendered tool image path (e.g. screenshot). */
+  getLastImagePath?: (() => string | null | undefined) | undefined;
 }
 
 export interface LocalImageInspection {
@@ -22,10 +24,11 @@ export interface LocalImageInspection {
 export const IMAGE_COMMAND_DESCRIPTION =
   'Inspect or preview a workspace image inline in the terminal.';
 
-export const IMAGE_COMMAND_ARGS_HINT = '<path> [--info]';
+export const IMAGE_COMMAND_ARGS_HINT = '[<path>] [--info]';
 
 export const IMAGE_COMMAND_HELP = [
   'Usage:',
+  '  /image                Re-open the latest tool screenshot/image in the TUI preview modal',
   '  /image <path>         Open an interactive inline image preview modal in the TUI (or inspect metadata)',
   '  /image <path> --info  Print image format, pixel dimensions, and byte size without opening a modal',
 ].join('\n');
@@ -175,14 +178,17 @@ export function buildImageCommand(host: ImageCommandHost): SlashCommand {
     help: IMAGE_COMMAND_HELP,
     async run(rawArgs) {
       const trimmed = rawArgs.trim();
-      if (!trimmed || trimmed === 'help' || trimmed === '--help' || trimmed === '-h') {
+      if (trimmed === 'help' || trimmed === '--help' || trimmed === '-h') {
         return { message: IMAGE_COMMAND_HELP };
       }
 
-      const tokens = trimmed.split(/\s+/).filter(Boolean);
+      const tokens = trimmed ? trimmed.split(/\s+/).filter(Boolean) : [];
       const infoOnly = tokens.includes('--info');
       const pathArgs = tokens.filter((t) => t !== '--info');
-      const targetArg = pathArgs.join(' ');
+      const targetArg = pathArgs.join(' ') || host.getLastImagePath?.()?.trim() || '';
+      if (!targetArg) {
+        return { message: IMAGE_COMMAND_HELP };
+      }
       const projectRoot = host.projectRoot ?? host.cwd ?? process.cwd();
 
       try {

@@ -31,7 +31,7 @@ import {
   type RunResult,
   resolveLoopDetection,
 } from './agent-types.js';
-import type { Context, RunOptions } from './context.js';
+import { bindContextExtensions, type Context, type RunOptions } from './context.js';
 import { spanSessionAttributes } from './span-session.js';
 
 // Re-export types and utilities from agent-types.ts for backward compatibility
@@ -131,6 +131,7 @@ export class Agent {
     this.refreshSystemPrompt = init.refreshSystemPrompt ?? false;
     this.tracer = init.tracer;
     this.extensions = init.extensions ?? new ExtensionRegistry();
+    bindContextExtensions(this.ctx, this.extensions);
     // Create a child logger that auto-carries the session ID so every
     // log entry from provider calls, stream handling, and tool execution
     // is correlated to its session without any call-site plumbing.

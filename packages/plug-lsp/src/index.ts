@@ -187,6 +187,11 @@ const plugin: Plugin = {
           })
           .catch((err) => api.log.debug('LSP tracker failed to handle tool event', err));
       }),
+      api.events.on('workspace.files_materialized', (event) => {
+        void tracker
+          .handleWorkspaceFilesMaterialized(event)
+          .catch((err) => api.log.debug('LSP workspace materialization sync failed', err));
+      }),
       unregisterPrompt,
       unregisterFeedback,
       () => {

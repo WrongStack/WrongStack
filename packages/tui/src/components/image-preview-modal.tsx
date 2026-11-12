@@ -13,7 +13,12 @@ import {
   inspectImageHeader,
   MAX_TUI_IMAGE_INPUT_BYTES,
 } from '../graphics/image-codec.js';
-import { encodeNativeTerminalImage } from '../graphics/image-preview-cache.js';
+import {
+  encodeNativeTerminalImage,
+  getRuntimeGraphicsOverride,
+  resolveEffectiveGraphicsProtocol,
+  subscribeRuntimeGraphicsOverride,
+} from '../graphics/image-preview-cache.js';
 import { Box, Text, useInput, useStdout } from '../ink.js';
 import { sanitizeTerminalText } from '../terminal-width.js';
 import { fmtBytes } from './history/basic-format.js';
@@ -85,7 +90,18 @@ export function ImagePreviewModal({
     };
   }, [filePath]);
 
-  const protocol = capability?.graphicsProtocol ?? 'halfblock';
+  const [graphicsMode, setGraphicsMode] = useState(getRuntimeGraphicsOverride);
+  useEffect(() => {
+    setGraphicsMode(getRuntimeGraphicsOverride());
+    return subscribeRuntimeGraphicsOverride(() => {
+      setGraphicsMode(getRuntimeGraphicsOverride());
+    });
+  }, []);
+
+  const protocol = useMemo(
+    () => resolveEffectiveGraphicsProtocol(capability?.graphicsProtocol),
+    [capability?.graphicsProtocol, graphicsMode],
+  );
   const maxCols = Math.max(16, Math.min(64, size.columns - 6));
   const maxRows = Math.max(6, Math.min(20, Math.floor((size.rows || 24) * 0.6)));
   const fileName = path.basename(filePath);

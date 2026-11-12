@@ -86,6 +86,10 @@ The screen combines:
   durations and clickable markers. **Export SVG** saves the timeline.
 - A team constellation: dashed edges indicate session membership; solid edges
   indicate an explicitly recorded parent agent. Missing parents stay unknown.
+- Intra-session branch lanes (`branch:<branchId>`): when a session forks via
+  [`/tree`](slash/tree.md) or `session_branch`, `branch_created`,
+  `branch_switched`, and `branch_folded` journal records project dedicated
+  branch lanes alongside leader and worker lanes with parent-branch lineage.
 - Replay controls, actor/category filters, search, a paginated event stream,
   recorded metadata, actor assignments/models when available, and file footprint.
 

@@ -21,6 +21,8 @@ export interface GoalRunnerOptions extends GoalOptions {
   verifyPhase?: PhaseExecutionContext['verifyPhase'] | undefined;
   /** Optional repair pass after verification failure. */
   repairPhase?: PhaseExecutionContext['repairPhase'] | undefined;
+  /** Optional Brain-gated fold-back handler after consecutive verification regressions. */
+  onFoldFailedAttempt?: PhaseExecutionContext['onFoldFailedAttempt'] | undefined;
   /** Optional resolver for worktree merge conflicts. */
   resolveConflict?: PhaseExecutionContext['resolveConflict'] | undefined;
   /** Session that owns this Goal run's Brain decisions. */
@@ -128,6 +130,9 @@ export class GoalRunner {
     };
     if (this.opts.verifyPhase !== undefined) ctx.verifyPhase = this.opts.verifyPhase;
     if (this.opts.repairPhase !== undefined) ctx.repairPhase = this.opts.repairPhase;
+    if (this.opts.onFoldFailedAttempt !== undefined) {
+      ctx.onFoldFailedAttempt = this.opts.onFoldFailedAttempt;
+    }
     if (this.opts.resolveConflict !== undefined) ctx.resolveConflict = this.opts.resolveConflict;
 
     // Create and start the orchestrator.

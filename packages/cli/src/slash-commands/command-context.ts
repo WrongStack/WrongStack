@@ -94,6 +94,8 @@ export interface SlashCommandContext extends SlashFleetCommandContext, SlashSddG
   onPlugin?: ((args: string) => Promise<string>) | undefined;
   /** Declarative `api.ui` slot registry owned by the live plugin host (used by `/panel`). */
   pluginUiRegistry?: import('@wrongstack/core/plugin').PluginUiRegistry | undefined;
+  /** Latest tool image artifact path rendered in TUI history (used by bare `/image`). */
+  getLastImagePath?: (() => string | null | undefined) | undefined;
   /** Set/query the effective context window for this session. */
   onContextLimit?: ((tokens?: number) => number) | undefined;
   /** Toggle or query YOLO mode at runtime. Pass undefined to query, boolean to set. */

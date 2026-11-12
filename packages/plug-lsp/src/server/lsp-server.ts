@@ -521,6 +521,24 @@ export class LSPServer {
     this.notification('textDocument/didClose', { textDocument: { uri } });
   }
 
+  /**
+   * Notify a ready language server of batch workspace file changes (for example
+   * when `/tree switch` materializes or deletes files from a CAS checkpoint)
+   * and invalidate stale cached diagnostics for those URIs immediately.
+   */
+  notifyDidChangeWatchedFiles(changes: ReadonlyArray<{ uri: string; type: 1 | 2 | 3 }>): void {
+    if (changes.length === 0) return;
+    for (const change of changes) {
+      const key = uriKey(change.uri);
+      this.diagnosticsFresh.delete(key);
+      if (change.type === 3) {
+        this.diagnostics.delete(key);
+        this.wakeDiagnosticsWaiters(key);
+      }
+    }
+    this.notification('workspace/didChangeWatchedFiles', { changes });
+  }
+
   textDocumentIdentifier(filePath: string): { uri: string } {
     return { uri: pathToUri(filePath) };
   }

@@ -18,6 +18,7 @@ import type {
   TodoItem,
 } from '@wrongstack/contracts/types/context';
 import type { ContextEvidenceState } from '@wrongstack/contracts/types/context-evidence';
+import type { ExtensionRegistryPort } from '@wrongstack/contracts/types/extension-points';
 import type { Message } from '@wrongstack/contracts/types/messages';
 import type { Provider, Usage } from '@wrongstack/contracts/types/provider';
 import type { SessionEvent, SessionWriter } from '@wrongstack/contracts/types/session';
@@ -45,6 +46,28 @@ import { resolveAndValidateWorkingDir } from './context-working-dir.js';
  * that passes an `AgentContext` where a `Context` is expected stops compiling.
  */
 const allowOutsideProjectRootByContext = new WeakMap<object, boolean>();
+
+/**
+ * Side-table binding a conversation's `ExtensionRegistryPort` to its `Context`
+ * without introducing nominal/private members onto `Context` (preserving
+ * structural assignability with `AgentContext`).
+ */
+const extensionsByContext = new WeakMap<object, ExtensionRegistryPort>();
+
+export function bindContextExtensions(
+  ctx: object,
+  extensions: ExtensionRegistryPort | undefined,
+): void {
+  if (extensions) {
+    extensionsByContext.set(ctx, extensions);
+  } else {
+    extensionsByContext.delete(ctx);
+  }
+}
+
+export function getContextExtensions(ctx: object): ExtensionRegistryPort | undefined {
+  return extensionsByContext.get(ctx);
+}
 
 export type RunInputOrigin = 'user' | 'continuation' | 'runtime';
 

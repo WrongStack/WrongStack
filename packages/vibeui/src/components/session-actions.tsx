@@ -1,11 +1,12 @@
 'use client';
 
-import { Copy, Download, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Copy, Download, GitBranch, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { DropdownMenu } from 'radix-ui';
 import { useEffect, useRef, useState } from 'react';
 import type { SessionController } from '../lib/use-session';
 import { transcriptMarkdown } from '../lib/workspace-model';
 import { Modal } from './dialogs';
+import { SessionBranchDialog } from './session-branch-dialog';
 
 export function SessionActions({
   controller,
@@ -17,6 +18,7 @@ export function SessionActions({
   const { state, connection, notice } = controller;
   const [renaming, setRenaming] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [branching, setBranching] = useState(false);
   const [name, setName] = useState('');
   const download = useRef<{ url: string; timer: ReturnType<typeof setTimeout> } | null>(null);
   useEffect(
@@ -75,6 +77,10 @@ export function SessionActions({
             >
               <Pencil size={14} />
               Rename session
+            </DropdownMenu.Item>
+            <DropdownMenu.Item disabled={connection !== 'open'} onSelect={() => setBranching(true)}>
+              <GitBranch size={14} />
+              Session branches
             </DropdownMenu.Item>
             <DropdownMenu.Item disabled={!state.messages.length} onSelect={exportChat}>
               <Download size={14} />
@@ -165,6 +171,7 @@ export function SessionActions({
           </button>
         </div>
       </Modal>
+      <SessionBranchDialog open={branching} onOpenChange={setBranching} controller={controller} />
     </>
   );
 }

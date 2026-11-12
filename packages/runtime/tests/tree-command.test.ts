@@ -1,9 +1,10 @@
+import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Message } from '@wrongstack/contracts/types';
 import { DefaultSessionStore, SessionTreeCoordinator } from '@wrongstack/core/storage';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildTreeCommand, tokenizeTreeArgs } from '../src/commands.js';
 
 describe('/tree portable slash command', () => {
@@ -128,5 +129,162 @@ describe('/tree portable slash command', () => {
 
     await writerA.close();
     await writerB.close();
+  });
+
+  it('wires LLM fold synthesis, config.session.branchFoldMaxTokens, and SAGE onFoldInsight memory promotion', async () => {
+    const store = new DefaultSessionStore({ dir: tmpDir });
+    const writer = await store.create({ id: '', model: 'claude-sonnet', provider: 'anthropic' });
+    const liveMessages: Message[] = [];
+    const remembered: Array<{ text: string; scope?: string; metadata?: Record<string, unknown> }> =
+      [];
+    const llmPrompts: string[] = [];
+
+    await writer.append({
+      type: 'user_input',
+      ts: '2026-11-12T10:00:00.000Z',
+      content: 'Investigate lock contention',
+    });
+
+    const cmd = buildTreeCommand({
+      sessionStore: store,
+      sessionRef: { current: writer },
+      context: {
+        session: writer,
+        messages: liveMessages,
+      },
+      configStore: {
+        get: () => ({
+          version: 1,
+          provider: 'anthropic',
+          model: 'claude-sonnet',
+          session: { branchFoldMaxTokens: 25 },
+          features: {
+            mcp: false,
+            plugins: false,
+            memory: true,
+            sageBranchInsights: true,
+            modelsRegistry: false,
+            skills: false,
+          },
+        }),
+        update: () => {},
+        replace: () => {},
+        watch: () => () => {},
+      } as never,
+      llmProvider: {
+        id: 'anthropic',
+        capabilities: {} as never,
+        async *stream() {},
+        async complete(req) {
+          const userMsg = req.messages[0]?.content;
+          llmPrompts.push(JSON.stringify(userMsg));
+          return {
+            model: req.model,
+            stopReason: 'end_turn',
+            usage: { input: 10, output: 10 },
+            content: [
+              {
+                type: 'text',
+                text: `LLM-SYNTHESIZED INSIGHT: Redis Lua script eliminated lock contention across all worker queues. ${'extra padding '.repeat(30)}`,
+              },
+            ],
+          };
+        },
+      },
+      llmModel: 'claude-sonnet',
+      memoryStore: {
+        remember: async (text: string, scope?: string, metadata?: unknown) => {
+          remembered.push({
+            text,
+            ...(scope ? { scope } : {}),
+            ...(metadata ? { metadata: metadata as Record<string, unknown> } : {}),
+          });
+        },
+      } as never,
+    });
+
+    await cmd.run('branch spike-lua');
+    await writer.append({
+      type: 'user_input',
+      ts: '2026-11-12T10:01:00.000Z',
+      content: 'Test atomic evalsha script in packages/core/src/lock.ts',
+    });
+
+    const foldOut = await cmd.run(
+      'fold spike-lua --into main --focus "Lock contention root cause"',
+    );
+    expect(foldOut?.message).toContain('Folded branch');
+    expect(llmPrompts).toHaveLength(1);
+    expect(llmPrompts[0]).toContain('Lock contention root cause');
+
+    // Token cap (25 tokens ≈ 100 chars) enforced on LLM output
+    expect(remembered).toHaveLength(1);
+    expect(remembered[0]?.scope).toBe('project-memory');
+    expect(remembered[0]?.text).toContain('LLM-SYNTHESIZED INSIGHT');
+    expect(remembered[0]?.metadata?.['tags']).toEqual(
+      expect.arrayContaining(['branch-fold', 'spike-lua']),
+    );
+
+    await writer.flush?.();
+    const persisted = await store.load(writer.id);
+    const foldEvent = persisted.events.find((e) => e.type === 'branch_folded') as
+      | { sageMemoryIds?: readonly string[] }
+      | undefined;
+    expect(foldEvent?.sageMemoryIds?.[0]).toMatch(new RegExp(`^sage:${writer.id}:br_`));
+
+    await writer.close();
+  });
+
+  it('clears Context file-tracking on branch switch and surfaces ResumeValidation stale-file notice with --keep-files', async () => {
+    const projectRoot = path.join(tmpDir, 'proj');
+    const sessionsDir = path.join(tmpDir, 'sessions');
+    await fs.mkdir(path.join(projectRoot, 'src'), { recursive: true });
+    await fs.mkdir(sessionsDir, { recursive: true });
+
+    const observedPath = path.join(projectRoot, 'src', 'config.ts');
+    const v1Content = 'export const PORT = 3000;\n';
+    await fs.writeFile(observedPath, v1Content, 'utf8');
+    const v1Hash = createHash('sha256').update(v1Content, 'utf8').digest('hex');
+
+    const store = new DefaultSessionStore({ dir: sessionsDir });
+    const writer = await store.create({
+      id: 'sess_tree_stale_1',
+      provider: 'anthropic',
+      model: 'claude-sonnet',
+      checkout: projectRoot,
+    });
+    await writer.append({
+      type: 'file_observation',
+      ts: '2026-11-12T11:00:00.000Z',
+      path: 'src/config.ts',
+      source: 'user',
+      mtimeMs: 1_700_000_000_000,
+      hash: v1Hash,
+    });
+
+    const clearFileTracking = vi.fn();
+    const messages: Message[] = [];
+    const cmd = buildTreeCommand({
+      sessionStore: store,
+      sessionRef: { current: writer },
+      projectRoot,
+      context: {
+        session: { id: writer.id },
+        messages,
+        clearFileTracking,
+      },
+    });
+
+    await cmd.run('branch spike-port');
+    expect(clearFileTracking).toHaveBeenCalledTimes(1);
+
+    // Mutate src/config.ts on spike-port, then switch back to main with --keep-files so disk stays mutated
+    await fs.writeFile(observedPath, 'export const PORT = 9090;\n', 'utf8');
+    const switchOut = await cmd.run('switch main --keep-files');
+    expect(clearFileTracking).toHaveBeenCalledTimes(2);
+    expect(switchOut?.message).toContain('[SESSION RESUME FILE VALIDATION]');
+    expect(switchOut?.message).toMatch(/src[/\\]+config\.ts.*\[modified\]/);
+
+    await writer.close();
   });
 });

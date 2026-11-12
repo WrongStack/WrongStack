@@ -19,12 +19,16 @@ export interface SessionTreeOverlayProps {
   maxRows?: number | undefined;
   interactive?: boolean | undefined;
   busy?: boolean | undefined;
+  /** Require an inline fold preview confirmation (`Enter`/`y` confirm, `k` keep-open, `Esc` cancel). */
+  confirmFold?: boolean | undefined;
   statusMessage?: string | undefined;
   selectedIndex?: number | undefined;
   onSelectIndex?: ((index: number) => void) | undefined;
   onSwitch?: ((branch: SessionBranchDescriptor, opts: { keepFiles: boolean }) => void) | undefined;
   onCreateBranch?: ((name: string, fromBranch: SessionBranchDescriptor) => void) | undefined;
-  onFold?: ((branch: SessionBranchDescriptor) => void) | undefined;
+  onFold?:
+    | ((branch: SessionBranchDescriptor, opts?: { keepOpen?: boolean | undefined }) => void)
+    | undefined;
   onArchive?: ((branch: SessionBranchDescriptor) => void) | undefined;
   onClose?: (() => void) | undefined;
 }
@@ -109,6 +113,7 @@ export function SessionTreeOverlay({
   maxRows,
   interactive = true,
   busy = false,
+  confirmFold = false,
   statusMessage,
   selectedIndex,
   onSelectIndex,
@@ -128,6 +133,8 @@ export function SessionTreeOverlay({
   const [showDetails, setShowDetails] = useState<boolean>(false);
   const [creatingBranch, setCreatingBranch] = useState<boolean>(false);
   const [draftBranchName, setDraftBranchName] = useState<string>('');
+  const [foldPreviewBranch, setFoldPreviewBranch] = useState<SessionBranchDescriptor | null>(null);
+  const [foldKeepOpen, setFoldKeepOpen] = useState<boolean>(false);
 
   useEffect(() => {
     if (selectedIndex === undefined) {
@@ -148,6 +155,26 @@ export function SessionTreeOverlay({
   useInput(
     (input, key) => {
       if (input && isLeakedMouseInput(input)) return;
+      if (foldPreviewBranch) {
+        if (key.escape || input === 'n') {
+          setFoldPreviewBranch(null);
+          setFoldKeepOpen(false);
+          return;
+        }
+        if (input === 'k') {
+          setFoldKeepOpen((prev) => !prev);
+          return;
+        }
+        if (key.return || input === 'y') {
+          const target = foldPreviewBranch;
+          const keepOpen = foldKeepOpen;
+          setFoldPreviewBranch(null);
+          setFoldKeepOpen(false);
+          onFold?.(target, { keepOpen });
+        }
+        return;
+      }
+
       if (creatingBranch) {
         if (key.escape) {
           setCreatingBranch(false);
@@ -238,8 +265,13 @@ export function SessionTreeOverlay({
         setShowDetails((prev) => !prev);
         return;
       }
-      if (input === 'f' && selectedRow.branch.id !== 'main') {
-        onFold?.(selectedRow.branch);
+      if ((input === 'f' || input === 'F') && selectedRow.branch.id !== 'main') {
+        if (confirmFold || input === 'F') {
+          setFoldPreviewBranch(selectedRow.branch);
+          setFoldKeepOpen(false);
+        } else {
+          onFold?.(selectedRow.branch);
+        }
         return;
       }
       if (input === 'a' && selectedRow.branch.id !== 'main' && !selectedRow.isActive) {
@@ -326,6 +358,29 @@ export function SessionTreeOverlay({
           </Text>
           <Text>{draftBranchName}█</Text>
           <Text dimColor> (Enter create · Esc cancel)</Text>
+        </Box>
+      ) : null}
+
+      {foldPreviewBranch ? (
+        <Box
+          marginTop={1}
+          flexDirection="column"
+          borderStyle="single"
+          borderColor="magenta"
+          paddingX={1}
+        >
+          <Text color="magenta" bold>
+            Fold preview: {foldPreviewBranch.name} ({foldPreviewBranch.turnCount} turn
+            {foldPreviewBranch.turnCount === 1 ? '' : 's'}) →{' '}
+            {foldPreviewBranch.parentBranchId
+              ? (tree.branches[foldPreviewBranch.parentBranchId]?.name ??
+                foldPreviewBranch.parentBranchId)
+              : 'main'}
+          </Text>
+          <Text dimColor>
+            keep-open: {foldKeepOpen ? 'on' : 'off'} · Enter/y confirm fold · k toggle keep-open ·
+            Esc/n cancel
+          </Text>
         </Box>
       ) : null}
 

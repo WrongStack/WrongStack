@@ -85,6 +85,21 @@ export function validateConfigBehavior(cfg: PartialConfig, logWarn: LogWarn): vo
     }
   }
 
+  if (cfg.session?.branchFoldMaxTokens !== undefined) {
+    const k = cfg.session.branchFoldMaxTokens as unknown;
+    if (typeof k !== 'number' || !Number.isFinite(k) || k <= 0) {
+      logWarn(
+        `Ignoring session.branchFoldMaxTokens ${JSON.stringify(k)} — expected a positive token count`,
+        {
+          event: 'config.invalid_branch_fold_max_tokens',
+        },
+      );
+      delete cfg.session.branchFoldMaxTokens;
+    } else {
+      cfg.session.branchFoldMaxTokens = Math.floor(k);
+    }
+  }
+
   // A misspelled hook event ("PreCompacts", "sessionStart") used to register
   // silently and then never fire. Name it and drop it.
   if (cfg.hooks && typeof cfg.hooks === 'object') {

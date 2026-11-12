@@ -572,4 +572,120 @@ describe('Zero-build external TypeScript plugins, TOFU closure isolation, and li
     await waitPromise;
     expect(quiesced).toBe(true);
   });
+
+  it('prompts for interactive TOFU re-pin on /plugin reload and fails closed when headless or denied', async () => {
+    const discoveryRoot = join(globalRoot, 'plugins');
+    const pluginDir = join(discoveryRoot, 'repin-demo');
+    await mkdir(pluginDir, { recursive: true });
+    const entryPath = join(pluginDir, 'index.ts');
+
+    const writeVersion = async (tag: string) => {
+      await writeFile(
+        entryPath,
+        [
+          'export default {',
+          '  name: "repin-demo",',
+          '  version: "0.1.0",',
+          '  apiVersion: "^0.1",',
+          '  capabilities: { tools: true },',
+          '  setup(api: any) {',
+          '    api.tools.register({',
+          '      name: "repin_echo",',
+          '      description: "Echoes version tag",',
+          '      inputSchema: { type: "object", properties: {} },',
+          '      permission: "auto",',
+          '      mutating: false,',
+          `      execute: async () => "${tag}",`,
+          '    });',
+          '  },',
+          '};',
+        ].join('\n'),
+      );
+    };
+
+    await writeVersion('v1');
+
+    const { Container, EventBus } = await import('@wrongstack/contracts/kernel');
+    const { ProviderRegistry, SlashCommandRegistry, ToolRegistry } = await import(
+      '@wrongstack/core/registry'
+    );
+    const toolRegistry = new ToolRegistry();
+    const config: Config = {
+      version: 1,
+      provider: 'anthropic',
+      model: 'claude',
+      features: {
+        mcp: false,
+        plugins: true,
+        pluginsTrust: 'tofu',
+        memory: false,
+        modelsRegistry: false,
+        skills: false,
+      },
+    } as never as Config;
+
+    const handle = await setupPlugins({
+      config,
+      container: new Container(),
+      events: new EventBus(),
+      pipelines: {} as never,
+      toolRegistry,
+      providerRegistry: new ProviderRegistry(),
+      slashCommandRegistry: new SlashCommandRegistry(),
+      mcpRegistry: {} as never,
+      log: silentLogger(),
+      agent: {},
+      sessionWriter: { transcriptPath: join(rootDir, 's.jsonl'), append: vi.fn() } as never,
+      configStore: { get: () => config, update: vi.fn(), watch: () => () => {} } as never,
+      paths: {
+        globalRoot,
+        configDir: globalRoot,
+        globalConfig: join(globalRoot, 'config.json'),
+        globalSkills: join(globalRoot, 'skills'),
+        globalPrompts: join(globalRoot, 'prompts'),
+        globalMemory: join(globalRoot, 'memory.md'),
+        historyFile: join(globalRoot, 'history'),
+        syncConfig: join(globalRoot, 'sync.json'),
+        projectRoot,
+      },
+    });
+
+    const execEcho = () =>
+      toolRegistry.get('repin_echo')!.execute({}, {} as never, {
+        signal: new AbortController().signal,
+      });
+    expect(await execEcho()).toBe('v1');
+
+    // Modify plugin source on disk so closure hash changes
+    await writeVersion('v2');
+
+    // (a) Headless reload (no prompt handler attached on uiRegistry) MUST fail closed and keep v1
+    const headlessReport = await handle!.reloadExternal!('repin-demo');
+    expect(headlessReport.failed).toContain('repin-demo');
+    expect(await execEcho()).toBe('v1');
+
+    // (b) Interactive prompt returning `false` MUST fail closed and keep v1
+    const seenPrompts: Array<{ title: string; message?: string | undefined }> = [];
+    handle!.uiRegistry!.setHandlers({
+      onPrompt: async (_owner, opts) => {
+        seenPrompts.push({ title: opts.title, message: opts.message });
+        return false;
+      },
+    });
+    const deniedReport = await handle!.reloadExternal!('repin-demo');
+    expect(seenPrompts).toHaveLength(1);
+    expect(seenPrompts[0]?.message).toContain('repin-demo');
+    expect(seenPrompts[0]?.message).toContain('Re-pin trust and reload?');
+    expect(deniedReport.failed).toContain('repin-demo');
+    expect(await execEcho()).toBe('v1');
+
+    // (c) Interactive prompt returning `true` re-pins trust store and hot-reloads v2
+    handle!.uiRegistry!.setHandlers({
+      onPrompt: async () => true,
+    });
+    const acceptedReport = await handle!.reloadExternal!('repin-demo');
+    expect(acceptedReport.reloaded).toEqual(['repin-demo']);
+    expect(acceptedReport.failed).toEqual([]);
+    expect(await execEcho()).toBe('v2');
+  });
 });

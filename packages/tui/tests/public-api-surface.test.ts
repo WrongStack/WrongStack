@@ -39,6 +39,7 @@ describe('public API surface freeze (decomposition Phase 0.2)', () => {
       'extractToolImageArtifactPath',
       'flattenSessionTreeRows',
       'getImagePreviewCacheSize',
+      'getLastPreviewedImagePath',
       'inspectImageHeader',
       'loadCachedImagePreview',
       'parseInline',

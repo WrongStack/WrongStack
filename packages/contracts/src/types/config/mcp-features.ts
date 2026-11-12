@@ -192,6 +192,12 @@ export interface FeaturesConfig {
    * Enabled by default when `memory` is on; set to false to opt out.
    */
   memoryCurator?: boolean | undefined;
+  /**
+   * Automatically promote structured `/tree fold` branch insights into SAGE
+   * project memory and record `sageMemoryIds` on `branch_folded` events.
+   * Enabled by default when `memory` is on; set to false to opt out.
+   */
+  sageBranchInsights?: boolean | undefined;
   /** Fetch the models.dev catalog at startup. When false, the provider
    *  must declare its `family` explicitly in `providers[<id>]`. */
   modelsRegistry: boolean;

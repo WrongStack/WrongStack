@@ -46,6 +46,11 @@ export function HistorySelection({
         {t('historyView.selection.started', {
           time: recoveryDate(row['startedAt'], t('recovery.timeMissing')),
         })}
+        {Number(row['branchCount'] ?? 0) > 1
+          ? ` · ⎇ ${String(row['branchCount'])} branches${
+              row['activeBranchName'] ? ` (active: ${String(row['activeBranchName'])})` : ''
+            }`
+          : ''}
       </p>
       <div>
         <CopyButton text={selected} label={t('historyView.selection.copyId')} />

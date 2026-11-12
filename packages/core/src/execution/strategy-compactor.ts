@@ -5,7 +5,9 @@ import type {
   CompactReport,
 } from '@wrongstack/contracts/types/compactor';
 import type { ContextWindowPolicy } from '@wrongstack/contracts/types/context-window';
+import type { ExtensionRegistryPort } from '@wrongstack/contracts/types/extension-points';
 import type { Message } from '@wrongstack/contracts/types/messages';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
 import { keepsOwnContext } from '../core/agent-owned-context.js';
 import type { Context } from '../core/context.js';
 import { LLMSelector } from '../models/llm-selector.js';
@@ -62,6 +64,10 @@ export interface StrategyCompactorOptions {
    * decides exactly as before.
    */
   getSystemOneJudge?: (() => TypeSafeJudge | undefined) | undefined;
+  /** Optional explicit extension registry for `beforeCompact` hooks (falls back to `ctx`'s bound Agent extensions). */
+  extensions?: ExtensionRegistryPort | undefined;
+  /** Optional secret scrubber applied to plugin-contributed compaction summaries/instructions. */
+  secretScrubber?: SecretScrubber | undefined;
 }
 
 /**
@@ -91,6 +97,8 @@ export function createStrategyCompactor(opts: StrategyCompactorOptions = {}): Co
             preserveK: opts.preserveK,
             eliseThreshold: opts.eliseThreshold,
             smart: opts.smart,
+            extensions: opts.extensions,
+            secretScrubber: opts.secretScrubber,
           });
     built.set(strategy, inner);
     return inner;
@@ -240,10 +248,7 @@ class ProviderBackedCompactor implements Compactor {
     private readonly opts: StrategyCompactorOptions,
   ) {}
 
-  async compact(
-    ctx: Context,
-    compactOpts: { aggressive?: boolean | undefined } = {},
-  ): Promise<CompactReport> {
+  async compact(ctx: Context, compactOpts: CompactOptions = {}): Promise<CompactReport> {
     return this.resolveInner(ctx).compact(ctx, compactOpts);
   }
 
@@ -260,6 +265,8 @@ class ProviderBackedCompactor implements Compactor {
       return new HybridCompactor({
         preserveK: this.opts.preserveK,
         eliseThreshold: this.opts.eliseThreshold,
+        extensions: this.opts.extensions,
+        secretScrubber: this.opts.secretScrubber,
       });
     }
 
@@ -275,6 +282,8 @@ class ProviderBackedCompactor implements Compactor {
       maxContext,
       preserveK: this.opts.preserveK ?? policy?.preserveK,
       eliseThreshold: this.opts.eliseThreshold ?? policy?.eliseThreshold,
+      extensions: this.opts.extensions,
+      secretScrubber: this.opts.secretScrubber,
       ...(thresholds
         ? {
             warnThreshold: thresholds.warn,

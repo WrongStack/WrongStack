@@ -14,7 +14,7 @@ import { useTokenCounterRefresh } from '../hooks/use-token-counter-refresh.js';
 import { Box, Text, useAnimation } from '../ink.js';
 import { theme } from '../theme.js';
 import type { AnimationStyle } from './animation-style.js';
-import { PluginStatusStrip } from './plugin-panel-overlay.js';
+import { layoutPluginStatusStrip, PluginStatusStrip } from './plugin-panel-overlay.js';
 import { layoutRail, PowerlineRail } from './powerline-rail.js';
 import { ThinkingChip } from './status-bar-chips.js';
 import {
@@ -420,35 +420,75 @@ export const StatusBar = memo(function StatusBar({
   const rendersRail = (rail: DetailedRail, logical: number): boolean =>
     logical < 2 || rail.entries.length > 0 || rail.rightAnchor != null;
 
+  const pluginStripBudget = Math.max(12, Math.floor(railBudget * 0.3));
+  const pluginStripLayout =
+    pluginChips && pluginChips.length > 0
+      ? layoutPluginStatusStrip(pluginChips, pluginStripBudget)
+      : null;
+
   // Click-map: physical rows are the rails that publish left spans, top to
   // bottom — conditional rows shift up when an earlier rail is gated off.
   // Reserved tail chips carry no left spans, so a tail-only rail
   // publishes no row. `budget`/`droppedIds` let the /statusline picker show
   // real, measured fill per line instead of guessing chip widths.
   if (clickMapRef) {
+    const pluginSpans =
+      pluginStripLayout && pluginStripLayout.items.length > 0
+        ? pluginStripLayout.items.map(({ spanId, start, len }) => ({
+            id: spanId,
+            start: start + STATUSLINE_SIDE_INSET,
+            len,
+            level: 0,
+          }))
+        : [];
     const clickableRails = detailedRails
       .map((rail, index) => ({ rail, logical: (index + 1) as 1 | 2 | 3 | 4 }))
       .filter(({ rail, logical }) => logical <= 2 || rail.entries.length > 0);
+    const renderedRailCount = detailedRails.filter((rail, idx) => rendersRail(rail, idx)).length;
     clickMapRef.current =
       mode === 'minimum'
-        ? { lines: [] }
+        ? {
+            lines:
+              pluginSpans.length > 0
+                ? [
+                    {
+                      line: 1,
+                      spans: pluginSpans,
+                      budget: pluginStripBudget,
+                      used: pluginStripLayout?.used,
+                    },
+                  ]
+                : [],
+          }
         : {
-            lines: clickableRails.map(({ rail, logical }, physical) => {
-              const layout = layoutRail(rail.entries, railBudget, rail.rightAnchor);
-              return {
-                line: physical,
-                logical,
-                spans: layout.items.map(({ id, start, len, level }) => ({
-                  id,
-                  start: start + STATUSLINE_SIDE_INSET,
-                  len,
-                  level,
-                })),
-                budget: railBudget,
-                used: layout.used,
-                droppedIds: layout.droppedIds,
-              };
-            }),
+            lines: [
+              ...clickableRails.map(({ rail, logical }, physical) => {
+                const layout = layoutRail(rail.entries, railBudget, rail.rightAnchor);
+                return {
+                  line: physical,
+                  logical,
+                  spans: layout.items.map(({ id, start, len, level }) => ({
+                    id,
+                    start: start + STATUSLINE_SIDE_INSET,
+                    len,
+                    level,
+                  })),
+                  budget: railBudget,
+                  used: layout.used,
+                  droppedIds: layout.droppedIds,
+                };
+              }),
+              ...(pluginSpans.length > 0
+                ? [
+                    {
+                      line: renderedRailCount,
+                      spans: pluginSpans,
+                      budget: pluginStripBudget,
+                      used: pluginStripLayout?.used,
+                    },
+                  ]
+                : []),
+            ],
           };
   }
 

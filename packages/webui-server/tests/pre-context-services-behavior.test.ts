@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => {
     installCatalogModelOutputLimits: vi.fn(),
     createMcpControlTool: vi.fn(() => ({ name: 'mcp_control' })),
     createMcpUseTool: vi.fn(() => ({ name: 'mcp_use' })),
+    createSessionBranchTool: vi.fn(() => ({ name: 'session_branch' })),
     createSessionRenameTool: vi.fn(() => ({ name: 'session_rename' })),
     registerCanonicalHostTools: vi.fn(),
     resolveProviderModelMetadata: vi.fn(),
@@ -111,7 +112,9 @@ vi.mock('@wrongstack/core/skills', () => ({ SkillInstaller: class SkillInstaller
 vi.mock('@wrongstack/tools/management', () => ({
   createMcpControlTool: mocks.createMcpControlTool,
   createMcpUseTool: mocks.createMcpUseTool,
+  createSessionBranchTool: mocks.createSessionBranchTool,
   createSessionRenameTool: mocks.createSessionRenameTool,
+  SESSION_BRANCH_TOOL_NAME: 'session_branch',
   SESSION_RENAME_TOOL_NAME: 'session_rename',
 }));
 vi.mock('@wrongstack/core/storage', () => ({

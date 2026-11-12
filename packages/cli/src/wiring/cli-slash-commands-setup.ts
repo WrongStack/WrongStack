@@ -1,5 +1,6 @@
 import type { Container } from '@wrongstack/contracts/kernel';
 import { TOKENS } from '@wrongstack/contracts/kernel';
+import { getLastPreviewedImagePath } from '@wrongstack/tui';
 import { getSddRuntimeStateForCli } from '../cli-main-helpers.js';
 import { createCommandHostAdapters } from './command-host-adapters.js';
 import { createConceptSummarizer } from './concept-summarizer.js';
@@ -278,6 +279,7 @@ export function setupCliSlashCommands(params: {
     ...(agentMonitor ? { agentMonitor } : {}),
     onPanelOpen,
     ...(pluginHost?.uiRegistry ? { pluginUiRegistry: pluginHost.uiRegistry } : {}),
+    getLastImagePath: getLastPreviewedImagePath,
     ...(agent.extensions ? { extensionRegistry: agent.extensions } : {}),
     configStore,
     onActiveProfileChange: params.onActiveProfileChange,
@@ -323,6 +325,7 @@ export function setupCliSlashCommands(params: {
       pluginHost,
       logger,
       projectRoot,
+      globalRoot: wpaths?.globalRoot,
       flags,
       tokenCounter,
       errorRing,

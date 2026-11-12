@@ -3,6 +3,14 @@ import type { ContextEditorMessage, ContextEditorRemoval } from './runtime.js';
 import type { SageAnchor, SageScope, SageStatus, WSMemorySageForFileRequest } from './sage.js';
 import type { SageDoctorFixId } from './sage-doctor.js';
 export type ClientMessageServices =
+  | {
+      type: 'plugin.ui.prompt_response';
+      payload: {
+        requestId: string;
+        promptId?: string | undefined;
+        value: string | boolean | null;
+      };
+    }
   | { type: 'session.resume'; payload: { id: string } & SessionScopedPayload }
   | { type: 'session.inspect'; payload: { id: string } }
   | {

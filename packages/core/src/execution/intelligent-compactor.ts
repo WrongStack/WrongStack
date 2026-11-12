@@ -1,11 +1,18 @@
 import type { TextBlock } from '@wrongstack/contracts/types/blocks';
 import { isTextBlock } from '@wrongstack/contracts/types/blocks';
-import type { Compactor, CompactReport } from '@wrongstack/contracts/types/compactor';
+import type {
+  CompactOptions,
+  Compactor,
+  CompactReport,
+} from '@wrongstack/contracts/types/compactor';
+import type { ExtensionRegistryPort } from '@wrongstack/contracts/types/extension-points';
 import type { Logger } from '@wrongstack/contracts/types/logger';
 import type { Message } from '@wrongstack/contracts/types/messages';
 import type { Provider, Request } from '@wrongstack/contracts/types/provider';
-import type { Context } from '../core/context.js';
+import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
+import { type Context, getContextExtensions } from '../core/context.js';
 import { noOpLogger } from '../infrastructure/logger.js';
+import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
 import {
   buildContextEvidenceDigest,
   checkCompactionQuality,
@@ -77,6 +84,10 @@ export interface IntelligentCompactorOptions {
   summaryCache?: CompactionSummaryCache | undefined;
   /** Structured logger. Defaults to noOpLogger (silent). */
   logger?: Logger | undefined;
+  /** Optional extension registry consulted for `beforeCompact` hooks. */
+  extensions?: ExtensionRegistryPort | undefined;
+  /** Scrubber applied to any plugin-contributed compaction summary or instructions. */
+  secretScrubber?: SecretScrubber | undefined;
 }
 
 /**
@@ -105,6 +116,8 @@ export class IntelligentCompactor implements Compactor {
   private readonly oneShotOrchestrator?: OneShotOrchestrator | undefined;
   private readonly summaryCache: CompactionSummaryCache;
   private readonly logger: Logger;
+  private readonly extensions: ExtensionRegistryPort | undefined;
+  private readonly secretScrubber: SecretScrubber;
 
   constructor(opts: IntelligentCompactorOptions) {
     this.provider = opts.provider;
@@ -121,16 +134,25 @@ export class IntelligentCompactor implements Compactor {
     this.oneShotOrchestrator = opts.oneShotOrchestrator;
     this.summaryCache = opts.summaryCache ?? defaultCompactionSummaryCache;
     this.logger = opts.logger ?? noOpLogger;
+    this.extensions = opts.extensions;
+    this.secretScrubber = opts.secretScrubber ?? new DefaultSecretScrubber();
     setCompactionDebugLogger(this.logger);
   }
 
-  async compact(
-    ctx: Context,
-    opts: { aggressive?: boolean | undefined } = {},
-  ): Promise<CompactReport> {
+  async compact(ctx: Context, opts: CompactOptions = {}): Promise<CompactReport> {
     const beforeTokens = estimateMessages(ctx.messages);
     const beforeFull = this.estimateFullRequest(ctx);
     const reductions: CompactReport['reductions'] = [];
+    const extensions = this.extensions ?? getContextExtensions(ctx);
+    const reason = opts.reason ?? (opts.trigger === 'manual' ? 'manual' : 'threshold');
+    const hookDirective = extensions
+      ? await extensions.runBeforeCompact({
+          sessionId: ctx.session?.id,
+          messages: ctx.messages,
+          targetTokens: opts.targetTokens,
+          reason,
+        })
+      : undefined;
 
     // Use full request tokens for threshold decisions — messages alone are inaccurate.
     const load = this.maxContext > 0 ? beforeFull / this.maxContext : 0;
@@ -156,7 +178,7 @@ export class IntelligentCompactor implements Compactor {
     // Phase 2: LLM summarization of ancient turns
     let collapsedDigest: string | undefined;
     if (aggressive) {
-      const phase2 = await this.summarizeAncientTurns(ctx);
+      const phase2 = await this.summarizeAncientTurns(ctx, hookDirective);
       if (phase2.stale) {
         return markStaleCompactionReport(
           stampCompactionReport(
@@ -241,6 +263,13 @@ export class IntelligentCompactor implements Compactor {
 
   private async summarizeAncientTurns(
     ctx: Context,
+    hookDirective?:
+      | {
+          pinnedMessageIndices?: readonly number[] | undefined;
+          additionalInstructions?: string | undefined;
+          customSummary?: string | undefined;
+        }
+      | undefined,
   ): Promise<{ saved: number; digest?: string | undefined; stale?: boolean }> {
     const historyVersion = contextHistoryVersion(ctx);
     const owner = ctx.session;
@@ -252,30 +281,52 @@ export class IntelligentCompactor implements Compactor {
     const boundary = findSafeBoundary(messages, 0, cutoff);
     if (boundary <= 1) return { saved: 0 };
 
-    const toSummarize = messages.slice(0, boundary);
+    const pinnedSet = new Set(
+      (hookDirective?.pinnedMessageIndices ?? []).filter((idx) => idx >= 0 && idx < boundary),
+    );
+    const pinnedMessages = messages.filter((_, idx) => pinnedSet.has(idx));
+    const toSummarize = messages.slice(0, boundary).filter((_, idx) => !pinnedSet.has(idx));
+    if (toSummarize.length === 0) return { saved: 0 };
     const removedTokens = estimateMessages(toSummarize);
+
+    const scrubbedCustom = hookDirective?.customSummary
+      ? this.secretScrubber.scrub(hookDirective.customSummary).trim()
+      : '';
+    const scrubbedInstructions = hookDirective?.additionalInstructions
+      ? this.secretScrubber.scrub(hookDirective.additionalInstructions).trim()
+      : '';
 
     const summaryModel = this.summarizerModel ?? ctx.model;
     // Cache only the LLM request/result. The context-sensitive smart digest
     // below is rebuilt from this invocation's full messages on every hit, so
     // its deterministic evidence is never inherited from another session.
-    const summaryInput = this.messagesToSummary(toSummarize);
+    const rawSummaryInput = this.messagesToSummary(toSummarize);
+    const summaryInput = scrubbedInstructions
+      ? `${rawSummaryInput}\n\n[Additional Compaction Instructions]\n${scrubbedInstructions}`
+      : rawSummaryInput;
     let summaryText: string;
-    try {
-      // Empty/placeholder results bypass the cache so a later compaction can retry.
-      summaryText = await this.callSummarizer(ctx, summaryModel, summaryInput);
-    } catch (err) {
-      if (
-        ctx.signal?.aborted ||
-        contextHistoryVersion(ctx) !== historyVersion ||
-        ctx.session !== owner
-      )
-        return { saved: 0, stale: true };
-      this.logger.warn('Summarizer failed; falling back to lossless digest', { err });
-      // Fallback: lossless rule-based digest (text preserved, tool I/O dropped).
-      summaryText =
-        buildLosslessDigest(toSummarize) ||
-        `${toSummarize.length} earlier turns (semantic content preserved)`;
+    if (scrubbedCustom.length > 0) {
+      summaryText = scrubbedCustom;
+    } else {
+      try {
+        // Empty/placeholder results bypass the cache so a later compaction can retry.
+        summaryText = await this.callSummarizer(ctx, summaryModel, summaryInput);
+      } catch (err) {
+        if (
+          ctx.signal?.aborted ||
+          contextHistoryVersion(ctx) !== historyVersion ||
+          ctx.session !== owner
+        )
+          return { saved: 0, stale: true };
+        this.logger.warn('Summarizer failed; falling back to lossless digest', { err });
+        // Fallback: lossless rule-based digest (text preserved, tool I/O dropped).
+        const baseFallback =
+          buildLosslessDigest(toSummarize) ||
+          `${toSummarize.length} earlier turns (semantic content preserved)`;
+        summaryText = scrubbedInstructions
+          ? `${baseFallback}\n\n[plugin_compaction_notes]\n${scrubbedInstructions}`
+          : baseFallback;
+      }
     }
 
     // A summary of the previous prefix must never replace a rewind/edit or
@@ -291,7 +342,7 @@ export class IntelligentCompactor implements Compactor {
     // Run buildSmartDigest on the same messages to extract critical
     // content (score-5: decisions, errors, corrections) verbatim.
     // Merge it with the LLM summary so important facts survive compaction.
-    const smartDigest = buildSmartDigest(toSummarize);
+    const smartDigest = scrubbedCustom.length > 0 ? '' : buildSmartDigest(toSummarize);
     const enriched = smartDigest
       ? `[CRITICAL]\n${smartDigest}\n\n[SUMMARY]\n${summaryText}`
       : summaryText;
@@ -304,7 +355,7 @@ export class IntelligentCompactor implements Compactor {
 
     // L1-A: route through ConversationState so subscribers see the rewrite.
     const tail = ctx.messages.slice(boundary);
-    ctx.state.replaceMessages([summaryMsg, ...tail]);
+    ctx.state.replaceMessages([summaryMsg, ...pinnedMessages, ...tail]);
     return { saved: Math.max(0, removedTokens - summaryTokens), digest: summaryText };
   }
 

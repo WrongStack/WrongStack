@@ -2,6 +2,7 @@ import type { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   ConfigStore,
   Logger,
+  MemoryStore,
   Message,
   Provider,
   SessionBranchDescriptor,
@@ -56,6 +57,7 @@ export function portableCommandRoute(host: {
   /** The asking conversation's context; without an id, the engine's own conversation. */
   getContext: (sessionId?: string) => unknown;
   getConfigStore: () => ConfigStore | undefined;
+  getMemoryStore?: (() => MemoryStore | undefined) | undefined;
   /** Writes the active profile's config file, as the engine's other settings do. */
   patchProfileConfig?:
     | ((mutate: (config: Record<string, unknown>) => void) => Promise<unknown>)
@@ -131,6 +133,9 @@ export function portableCommandRoute(host: {
     },
     get configStore() {
       return host.getConfigStore();
+    },
+    get memoryStore() {
+      return host.getMemoryStore?.();
     },
     patchProfileConfig: host.patchProfileConfig,
     get onSpawn() {

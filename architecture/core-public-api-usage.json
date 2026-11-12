@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 526,
+      "files": 527,
       "typeOnly": 397,
-      "runtimeOrMixed": 161
+      "runtimeOrMixed": 162
     },
     "@wrongstack/core/boot": {
       "files": 6,
@@ -59,9 +59,9 @@
       "runtimeOrMixed": 17
     },
     "@wrongstack/core/infrastructure": {
-      "files": 69,
+      "files": 70,
       "typeOnly": 8,
-      "runtimeOrMixed": 64
+      "runtimeOrMixed": 65
     },
     "@wrongstack/core/kernel": {
       "files": 1,
@@ -89,9 +89,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/plugin": {
-      "files": 42,
-      "typeOnly": 18,
-      "runtimeOrMixed": 25
+      "files": 47,
+      "typeOnly": 19,
+      "runtimeOrMixed": 29
     },
     "@wrongstack/core/prompts": {
       "files": 11,
@@ -104,9 +104,9 @@
       "runtimeOrMixed": 58
     },
     "@wrongstack/core/registry": {
-      "files": 212,
+      "files": 213,
       "typeOnly": 84,
-      "runtimeOrMixed": 134
+      "runtimeOrMixed": 136
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -124,9 +124,9 @@
       "runtimeOrMixed": 18
     },
     "@wrongstack/core/security": {
-      "files": 269,
+      "files": 271,
       "typeOnly": 26,
-      "runtimeOrMixed": 245
+      "runtimeOrMixed": 247
     },
     "@wrongstack/core/session-catalog": {
       "files": 19,
@@ -149,9 +149,9 @@
       "runtimeOrMixed": 30
     },
     "@wrongstack/core/storage": {
-      "files": 204,
-      "typeOnly": 57,
-      "runtimeOrMixed": 184
+      "files": 207,
+      "typeOnly": 58,
+      "runtimeOrMixed": 186
     },
     "@wrongstack/core/tasking": {
       "files": 46,
@@ -2310,6 +2310,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/tests/management/one-shot-llm-tool.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/management/session-branch.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -4907,6 +4913,12 @@
     },
     {
       "specifier": "@wrongstack/core/infrastructure",
+      "file": "packages/tools/tests/management/session-branch.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/infrastructure",
       "file": "packages/tools/tests/management/session-rename.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -5459,6 +5471,12 @@
     },
     {
       "specifier": "@wrongstack/core/plugin",
+      "file": "packages/cli/tests/plugin-subcommand-flags.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
       "file": "packages/plug-lsp/src/config.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -5544,6 +5562,12 @@
     {
       "specifier": "@wrongstack/core/plugin",
       "file": "packages/runtime/tests/panel-and-image-commands.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/runtime/tests/plugin-reload-heap.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -5645,7 +5669,19 @@
     },
     {
       "specifier": "@wrongstack/core/plugin",
+      "file": "packages/webui-server/src/server/embedded-message-router-types.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
       "file": "packages/webui-server/src/server/message-dispatcher.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/webui-server/src/server/plugin-ui-ws-bridge.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -5672,6 +5708,12 @@
       "file": "packages/webui-server/src/server/standalone-plugins.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/webui-server/tests/plugin-ui-ws-bridge.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/prompts",
@@ -6889,7 +6931,7 @@
       "specifier": "@wrongstack/core/registry",
       "file": "packages/runtime/tests/external-ts-plugin-reload.test.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 4
     },
     {
       "specifier": "@wrongstack/core/registry",
@@ -6914,6 +6956,12 @@
       "file": "packages/runtime/tests/pack.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/runtime/tests/plugin-reload-heap.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/registry",
@@ -8651,6 +8699,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/tools/src/management/session-branch.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/tools/src/management/session-rename.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8676,6 +8730,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/tools/tests/management/mcp-use.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/tools/tests/management/session-branch.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -10325,6 +10385,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/runtime/src/portable-commands/tree-synthesis.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/runtime/src/portable-commands/tree.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -10368,6 +10434,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/tools/src/kanban-board-actions.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/tools/src/management/session-branch.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -10422,6 +10494,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/tools/tests/management/jev-tool.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/tools/tests/management/session-branch.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
