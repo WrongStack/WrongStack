@@ -382,6 +382,7 @@ export class SessionCatalogProjectClient {
       };
       socket.on('data', (chunk: string) => this.onData(socket, chunk));
       socket.on('error', (error) => {
+        if (socket !== this.socket) return;
         if (!this.info) this.connectReject?.(error);
       });
       socket.on('close', () => this.onClose(socket));
