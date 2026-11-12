@@ -15,7 +15,8 @@ export const changelog1x: ChangelogEntry[] = [
   {
     version: '1.6.0',
     date: '2026-11-12',
-    tagline: 'Session branches, plugin panels, Design Studio on the desktop, and a faster terminal UI',
+    tagline:
+      'Session branches, plugin panels, Design Studio on the desktop, and a faster terminal UI',
     latest: true,
     highlights: [
       '/tree forks, switches and folds conversation branches inside one session, each with its own workspace snapshot',
