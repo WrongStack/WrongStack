@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] — 2026-11-12
+
+Conversations branch: `/tree` forks, switches and folds branches inside one
+session, each with its own workspace snapshot. Plugins can draw panels and
+status chips (`/panel`), the terminal previews images (`/image`), and the
+context tools show where tokens and money go. The desktop app gets the Design
+Studio flow, and the terminal UI keeps up with you: a typed character echoes in
+about 15 ms instead of over 100 ms.
+
+### Added
+
+- **Session tree (`/tree`).** Branch a conversation from its head or from an
+  earlier prompt, switch between branches (each restores its own
+  content-addressed workspace snapshot unless you pass `--keep-files`), and
+  fold a branch back as a bounded, secret-scrubbed summary. Branches live in
+  the same session log and work in the CLI, TUI, ACP and WebUI.
+- **Plugin panels and status chips (`/panel`).** Plugins register declarative
+  panels and status-bar chips through `api.ui`; the TUI opens them in an
+  overlay and headless surfaces print them as text or JSON. TypeScript plugins
+  reload live, and an adversary-mode plugin is bundled.
+- **Inline image preview (`/image`).** A workspace PNG, JPEG, GIF or WebP opens
+  in the TUI through the terminal's graphics protocol; `--info` prints its
+  type, size and dimensions.
+- **Context X-Ray and price-aware compaction.** The context view breaks a
+  request down by what fills it, Chronicle records the token cost of a
+  session, and compaction can cap the context below a model's price cliff.
+- **Design DNA.** A multi-page crawler and a DESIGN.md engine, with a WebUI
+  launcher; on the desktop, Design Studio runs the flow end to end.
+- **Desktop.** Design Studio, recovery from a failed render, font settings and
+  a hardened host.
+- **Chimera review.** More claim kinds, token usage per subagent, and a
+  reviewer policy.
+- **WrongIndex** publishes index metadata, guards its owner lock, and passes
+  MCP `_meta` through.
+
+### Changed
+
+- **A faster terminal UI.** Measured on a 120x40 terminal with a 40-turn
+  history and a ~250 tok/s stream: key echo p50 went from 115 ms to 16 ms idle
+  and from 134 ms to 33 ms while streaming, the App re-rendered 27 times
+  instead of 203 during a 10 s stream, the stream paints at 20 fps instead of
+  10, and the bytes written fell from 1.08 MB to 164 KB. The live assistant
+  tail, the streaming tool tail and the activity counters left the root
+  reducer, so a stream flush redraws only what shows them. Ink's frame ceiling
+  rose from 10 to 30 fps (15 under the frugal profile), and on Windows a frame
+  writes only the rows that changed.
+- **Ink keeps its tokenization caches across frames.** Ink built a new cache
+  for every frame, so unchanged text (the sidebar, the status bar, the visible
+  history) was tokenized again on each one. A patch makes the caches
+  process-wide and bounded; CPU for the same streaming workload fell from
+  4344 ms to 3229 ms on average. A test fails if the patch stops applying, and
+  the row differ is checked against a real Windows pseudo console.
+- **ACP SDK 2.5.0.** The upgrade is additive: `systemPrompt` on session
+  new/load/resume and its capability types are now stable.
+- **Sharper system prompts** for the quick, lite, standard, pro and scout
+  variants.
+
 ### Fixed
 
 - **`grep -n` output is no longer flagged as a Telegram bot token.** The
@@ -15,6 +72,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   interrupting automated runs and prompting a needless token revocation
   (#443). It now takes the real shape: a 6–12 digit bot ID, a colon and
   exactly 35 secret characters.
+- **Hardening across packages:** truncation no longer splits a surrogate
+  pair, config writes are locked, and several permission checks and parsers
+  were tightened.
 
 ## [1.5.6] — 2026-11-10
 

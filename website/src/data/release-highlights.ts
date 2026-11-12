@@ -1,29 +1,29 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.5.6',
-  title: 'WrongStack’s slash commands in your editor over ACP.',
+  version: '1.6.0',
+  title: 'Branch your conversation, and a terminal UI that keeps up.',
   summary:
-    'An editor connected over ACP lists WrongStack’s slash commands in its / menu and runs them from a prompt; anything that does more than read asks first. An ACP or WrongForge leader now receives the conversation alone, without WrongStack’s prompt scaffolding on your message, and the session story charts the context it really holds.',
+    '/tree forks, switches and folds branches inside one session, each with its own workspace snapshot; plugins draw panels, the terminal previews images, and the desktop app runs Design Studio. A typed character now echoes in about 15 ms instead of over 100 ms, a streaming answer paints twice as often at the same CPU, and a frame writes a fraction of the bytes it did. The secret scanner also stops mistaking grep -n output for a Telegram bot token.',
   socialDescription:
-    'WrongStack 1.5.6: WrongStack’s slash commands in your editor over ACP, ACP leaders get only your conversation, the session story shows their real context, and slow MCP servers connect.',
+    'WrongStack 1.6.0: branch a conversation with /tree, plugin panels and inline images in the terminal, Context X-Ray, Design Studio on the desktop, and a terminal UI that echoes keystrokes in ~15 ms.',
   cards: [
     {
-      title: 'Slash commands over ACP',
-      body: 'wstack acp announces its commands to the editor, so /git, /tuneup, /permissions, the skill, prompt and hunt commands appear in its / menu. Read-only commands answer at once; a command that changes settings or files asks through the editor’s permission prompt, since a prompt can be written by a model.',
-      href: '/acp',
-      linkLabel: 'Explore ACP',
+      title: 'Keystrokes echo at once',
+      body: 'The stream no longer re-renders the whole terminal app on every flush: only the parts that show it redraw. With a higher frame ceiling, key echo fell from 115 ms to 16 ms idle and from 134 ms to 33 ms while an answer streams.',
+      href: '/getting-started',
+      linkLabel: 'Install WrongStack',
     },
     {
-      title: 'ACP leaders get only the conversation',
-      body: 'An agent leading the session runs its own system prompt and tools. WrongStack no longer attaches its plan, ledger, memory and other scaffolding to your message for it, and keeps only mail and the next-steps instruction.',
-      href: '/acp',
-      linkLabel: 'See how ACP works',
+      title: 'Less work in every frame',
+      body: 'Ink’s tokenization caches now live across frames, so the sidebar, status bar and visible history are not tokenized again on each repaint. The same streaming workload uses about a quarter less CPU.',
+      href: '/getting-started',
+      linkLabel: 'Try the terminal UI',
     },
     {
-      title: 'A session story that tells the truth',
-      body: 'For an ACP leader the context chart shows what the agent reports: its context fill and window, and the turn’s cache use, instead of a request WrongStack composed and never sent.',
-      href: '/fleet',
-      linkLabel: 'See the fleet',
+      title: 'Branch a conversation with /tree',
+      body: 'Fork a branch from the head or an earlier prompt, switch between branches with their own workspace snapshots, and fold one back as a short, secret-scrubbed summary — all inside one session.',
+      href: '/getting-started',
+      linkLabel: 'Get started',
     },
   ],
 } as const;

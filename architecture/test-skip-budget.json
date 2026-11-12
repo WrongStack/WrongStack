@@ -37,6 +37,11 @@
       "fingerprint": "9ffd9ab4ee25c955"
     },
     {
+      "file": "packages/chronicle/tests/counter-sink-token-cost.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "a36aa62f3e4b7460"
+    },
+    {
       "file": "packages/chronicle/tests/metrics-store-sqlite-source.test.ts",
       "kind": "skipIf",
       "fingerprint": "1b4c70186dfe382c"
@@ -880,6 +885,31 @@
       "file": "packages/tools/tests/wrongindex-adapter.test.ts",
       "kind": "runIf",
       "fingerprint": "d8d44d2e7e1e1025"
+    },
+    {
+      "file": "packages/tools/tests/wrongindex-client-lifecycle.test.ts",
+      "kind": "runIf",
+      "fingerprint": "330fdbd2db94828c"
+    },
+    {
+      "file": "packages/tools/tests/wrongindex-client-lifecycle.test.ts",
+      "kind": "runIf",
+      "fingerprint": "5468b9f77e670927"
+    },
+    {
+      "file": "packages/tools/tests/wrongindex-delegation.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "acd41b53f6722c20"
+    },
+    {
+      "file": "packages/tools/tests/wrongindex-wire-contract.test.ts",
+      "kind": "runIf",
+      "fingerprint": "8442f6dac443e756"
+    },
+    {
+      "file": "packages/tui/tests/frame-diff-conpty.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "e2a0991205ec5fe8"
     },
     {
       "file": "packages/tui/tests/git-info-large-output.test.ts",

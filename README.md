@@ -55,6 +55,24 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.6.0
+
+- **Branch your conversation with `/tree`:** fork, switch and fold branches in
+  one session, each with its own workspace snapshot.
+- **Plugin panels (`/panel`) and inline images (`/image`)** in the terminal.
+- **Context X-Ray** shows what fills a request, and compaction can stay under
+  a model's price cliff.
+- **Design Studio in the desktop app**, backed by the Design DNA crawler and
+  DESIGN.md engine.
+- **A terminal UI that keeps up:** a typed character echoes in ~15 ms instead
+  of over 100 ms, a streaming answer paints twice as often at the same CPU, and
+  on Windows a frame writes only the rows that changed.
+- **Less work per frame:** Ink's tokenization caches survive across frames, so
+  unchanged text is no longer tokenized again on every repaint.
+- **`grep -n` output is no longer flagged as a Telegram bot token** by the
+  secret scanner.
+- **ACP SDK 2.5.0**, where session `systemPrompt` is stable.
+
 ### What's new in 1.5.6
 
 - **Slash commands in your editor:** `wstack acp` offers WrongStack's slash

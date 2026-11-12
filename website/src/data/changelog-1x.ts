@@ -1,4 +1,4 @@
-// Changelog — 1.x era (1.5.6 → 1.0.0).
+// Changelog — 1.x era (1.6.0 → 1.0.0).
 // Historical entries mirror CHANGELOG.md release notes. The 1.0.37 entry was
 // written from committed runtime/source evidence (git history and packages), not
 // the root CHANGELOG, which had not been extended when it landed. 1.1.0 absorbs
@@ -13,10 +13,25 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.6.0',
+    date: '2026-11-12',
+    tagline: 'Session branches, plugin panels, Design Studio on the desktop, and a faster terminal UI',
+    latest: true,
+    highlights: [
+      '/tree forks, switches and folds conversation branches inside one session, each with its own workspace snapshot',
+      'Plugins draw panels and status chips (/panel), and /image previews images inline in the terminal',
+      'Context X-Ray shows what fills a request, and compaction can cap the context below a model’s price cliff',
+      'The desktop app gets the Design Studio flow, backed by the Design DNA crawler and DESIGN.md engine',
+      'A typed character echoes in about 15 ms instead of over 100 ms, and a streaming answer paints at 20 fps instead of 10 at the same CPU',
+      'A stream flush redraws only the parts that show the stream, and on Windows a frame writes only the rows that changed',
+      'Ink keeps its tokenization caches across frames, so unchanged text is not tokenized again on every repaint',
+      'The secret scanner no longer flags grep -n output as a Telegram bot token, and the ACP SDK moves to 2.5.0',
+    ],
+  },
+  {
     version: '1.5.6',
     date: '2026-11-10',
     tagline: 'Slash commands over ACP, and ACP leaders that get only your conversation',
-    latest: true,
     highlights: [
       'wstack acp offers WrongStack’s slash commands in the editor’s / menu; read-only commands run at once and every other one asks through the editor’s permission prompt',
       'An ACP or WrongForge leader receives the conversation alone, without WrongStack’s plan, ledger and memory scaffolding on your message',
