@@ -31,11 +31,24 @@ function satisfiesComparator(token: string, version: [number, number, number]): 
   const [vMaj, vMin, vPatch] = version;
   const cmp = compareSemver(version, [rMaj, rMin, rPatch]);
   switch (op) {
-    case '^':
-      if (rMaj === 0) return vMaj === 0 && vMin === rMin && vPatch >= rPatch;
-      return vMaj === rMaj && (vMin > rMin || (vMin === rMin && vPatch >= rPatch));
+    // Both branches bound the range by the axis npm uses, which is also what this
+    // repo already encodes in techstack/policy/resolver.ts (`caretUpper`,
+    // `tildeUpper`). Two things were missing here:
+    //  - an UNWRITTEN component is a wildcard, not a zero: `^0` is `<1.0.0` and
+    //    `~1` is `<2.0.0`, so they must not pin the minor (or the patch) to 0;
+    //  - for a caret on `0.0.x` the leftmost NON-ZERO written component is the
+    //    patch, so `^0.0.3` is `<0.0.4`, not `<0.1.0`.
+    // `specified` already counts the written components; the exact branch below
+    // used it while `^` and `~` ignored it.
+    case '^': {
+      if (vMaj !== rMaj || cmp < 0) return false;
+      if (rMaj > 0 || specified === 1) return true;
+      if (rMin > 0) return vMin === rMin;
+      return specified === 2 ? vMin === 0 : vMin === 0 && vPatch === rPatch;
+    }
     case '~':
-      return vMaj === rMaj && vMin === rMin && vPatch >= rPatch;
+      if (vMaj !== rMaj || cmp < 0) return false;
+      return specified === 1 || vMin === rMin;
     case '>=':
       return cmp >= 0;
     case '>':

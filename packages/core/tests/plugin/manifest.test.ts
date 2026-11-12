@@ -121,6 +121,69 @@ describe('Plugin manifest — semver range forms', () => {
     );
     expect(loaded.map((x) => x.name)).toEqual(['auth', 'ext']);
   });
+
+  // An UNWRITTEN component is a wildcard, not a zero. npm bounds `~1` by <2.0.0
+  // and `^0` by <1.0.0 — the same rule this repo implements in
+  // techstack/policy/resolver.ts (`tildeUpper`, `caretUpper`) and uses for
+  // manifests. The loader's own parser pinned the minor to 0 for both, so
+  // `apiVersion: '^0'` was refused against the 0.1.10 kernel and `~1` refused a
+  // 1.5.0 dependency, both with a hard error.
+  it.each(['~0', '^0', '~0.1'])('loads a plugin whose apiVersion is %s', async (apiVersion) => {
+    const { loaded, failed } = await loadPlugins([p({ name: 'precision', apiVersion })], {
+      apiFactory: () => fakeApi,
+      log,
+    });
+    expect(failed).toEqual([]);
+    expect(loaded.map((x) => x.name)).toEqual(['precision']);
+  });
+
+  it('loads a dependency satisfying a major-only tilde range', async () => {
+    const { loaded, failed } = await loadPlugins(
+      [
+        p({ name: 'auth', version: '1.5.0' }),
+        p({ name: 'ext', dependsOn: [{ name: 'auth', version: '~1' }] }),
+      ],
+      { apiFactory: () => fakeApi, log },
+    );
+    expect(failed).toEqual([]);
+    expect(loaded.map((x) => x.name)).toEqual(['auth', 'ext']);
+  });
+
+  // An unsatisfied `dependsOn` range rejects (see the `^1.0.0` case above), so
+  // the refusal assertions are `rejects`, not a `failed` entry.
+  it('still refuses a dependency past a major-only tilde range', async () => {
+    await expect(
+      loadPlugins(
+        [
+          p({ name: 'auth', version: '2.0.0' }),
+          p({ name: 'ext', dependsOn: [{ name: 'auth', version: '~1' }] }),
+        ],
+        { apiFactory: () => fakeApi, log },
+      ),
+    ).rejects.toThrow(/auth@~1/);
+  });
+
+  it('bounds a 0.0 caret at the patch, not the minor', async () => {
+    await expect(
+      loadPlugins(
+        [
+          p({ name: 'auth', version: '0.0.4' }),
+          p({ name: 'ext', dependsOn: [{ name: 'auth', version: '^0.0.3' }] }),
+        ],
+        { apiFactory: () => fakeApi, log },
+      ),
+    ).rejects.toThrow(/auth@\^0\.0\.3/);
+
+    const same = await loadPlugins(
+      [
+        p({ name: 'auth', version: '0.0.3' }),
+        p({ name: 'ext', dependsOn: [{ name: 'auth', version: '^0.0.3' }] }),
+      ],
+      { apiFactory: () => fakeApi, log },
+    );
+    expect(same.failed).toEqual([]);
+    expect(same.loaded.map((x) => x.name)).toEqual(['auth', 'ext']);
+  });
 });
 
 describe('Plugin manifest — configSchema validation', () => {

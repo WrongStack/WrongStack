@@ -63,7 +63,12 @@ const MAX_CONTINUE_WORDS = Math.max(
   ...Array.from(CONTINUE_PHRASES, (phrase) => phrase.split(' ').length),
 );
 
-const POLITENESS_SUFFIXES: readonly string[] = [
+/**
+ * Filler tokens that carry no instruction of their own. They are noise at
+ * either end of the phrase, so both positions are stripped (see
+ * {@link normalizeContinueInput}).
+ */
+const POLITENESS_TOKENS: readonly string[] = [
   'please',
   'pls',
   'plz',
@@ -94,11 +99,24 @@ function normalizeContinueInput(raw: string): string {
   normalized = normalized.replace(/^["'`]+/, '').replace(/["'`]+$/, '');
   normalized = normalized.replace(/^[\s.!?,;:…]+/, '').replace(/[\s.!?,;:…]+$/, '');
   normalized = normalized.replace(/\s+/g, ' ').trim();
-  for (const suffix of POLITENESS_SUFFIXES) {
-    if (normalized === suffix) break;
-    if (normalized.endsWith(` ${suffix}`)) {
-      normalized = normalized.slice(0, normalized.length - suffix.length - 1).trim();
-      break;
+  // Politeness is filler wherever it sits, so strip it from either end, then
+  // again, until nothing changes: `please continue thanks` has to collapse to
+  // the bare phrase `continue`. A token is only removed at a word boundary and
+  // never when it IS the whole input, so bare politeness (`please`) stays a
+  // non-match instead of becoming an empty string, and a substantive prompt
+  // (`please continue with the auth refactor`) survives stripping only to be
+  // rejected by the exact-phrase match below.
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const token of POLITENESS_TOKENS) {
+      if (normalized.endsWith(` ${token}`)) {
+        normalized = normalized.slice(0, -(token.length + 1)).trim();
+        changed = true;
+      } else if (normalized.startsWith(`${token} `)) {
+        normalized = normalized.slice(token.length + 1).trim();
+        changed = true;
+      }
     }
   }
   return normalized;

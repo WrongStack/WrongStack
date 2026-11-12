@@ -70,6 +70,38 @@ describe('detectContinueIntent', () => {
     expect(detectContinueIntent('proceed thanks')).toBe(true);
   });
 
+  it('strips a LEADING politeness token, not just a trailing one', () => {
+    // Same tokens as the trailing case above, opposite word order. Politeness
+    // is noise wherever it sits: the phrase set already accepts leading
+    // acknowledgements ('yes continue', 'ok continue', 'and continue'), so a
+    // leading 'please'/'pls'/'thanks' must not change the classification.
+    expect(detectContinueIntent('please continue')).toBe(true);
+    expect(detectContinueIntent('pls go on')).toBe(true);
+    expect(detectContinueIntent('thanks proceed')).toBe(true);
+    expect(detectContinueIntent('please keep going')).toBe(true);
+    // Turkish politeness token, with and without the folded diacritic.
+    expect(detectContinueIntent('lutfen devam et')).toBe(true);
+    expect(detectContinueIntent('lütfen devam et')).toBe(true);
+    // Politeness on both ends collapses to the bare phrase.
+    expect(detectContinueIntent('please continue thanks')).toBe(true);
+  });
+
+  it('keeps substantive prompts ordinary when a leading token is stripped', () => {
+    // Stripping politeness must not turn a real instruction into a nudge:
+    // exact matching still has to reject anything carrying extra substance.
+    for (const s of [
+      'please continue with the auth refactor',
+      'thanks can you continue the story about dragons',
+      'pls keep going until the build passes then stop',
+      'please next.js config',
+    ]) {
+      expect(detectContinueIntent(s), s).toBe(false);
+    }
+    // Bare politeness is still not a continue, in either position.
+    expect(detectContinueIntent('please')).toBe(false);
+    expect(detectContinueIntent('thanks')).toBe(false);
+  });
+
   it('strips wrapping quotes', () => {
     expect(detectContinueIntent('"continue"')).toBe(true);
     expect(detectContinueIntent('`devam et`')).toBe(true);

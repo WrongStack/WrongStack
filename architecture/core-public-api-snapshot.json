@@ -1151,7 +1151,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 13,
-      "sourceLines": 3709
+      "sourceLines": 3722
     },
     {
       "directory": "prompts",
@@ -1242,7 +1242,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 97,
-      "sourceLines": 15519
+      "sourceLines": 15537
     },
     {
       "directory": "vcs",
