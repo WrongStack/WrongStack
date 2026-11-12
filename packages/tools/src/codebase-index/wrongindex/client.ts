@@ -317,6 +317,13 @@ export class WrongIndexClient {
     };
     if (auth.status !== 'ok' || !auth.hello) {
       client.close();
+      // A service finishing its last job before it stops holds its endpoint
+      // but takes no new session: for this client it is not running (as a
+      // closed endpoint was before), so callers may use the local engine
+      // where the service does not hold the index.
+      if (auth.error?.code === 'SHUTTING_DOWN') {
+        throw new WrongIndexUnavailableError(auth.error.message);
+      }
       throw new WrongIndexRemoteError(
         auth.error ?? { code: 'PROTOCOL_UNSUPPORTED', message: 'unexpected handshake reply' },
       );

@@ -7,6 +7,7 @@ import {
   encodeFrame,
   FrameReader,
   WrongIndexClient,
+  WrongIndexUnavailableError,
 } from '../src/codebase-index/wrongindex/client.js';
 
 const bridge = process.env['WRONGINDEX_TEST_DAEMON'];
@@ -19,7 +20,7 @@ afterEach(async () => {
   for (const s of peers.splice(0)) s.destroy();
   await Promise.all(servers.splice(0).map((s) => new Promise<void>((r) => s.close(() => r()))));
 });
-async function fixture(answerHello: boolean) {
+async function fixture(answerHello: boolean | 'shutting-down') {
   let helloArrived!: () => void;
   const helloSeen = new Promise<void>((r) => {
     helloArrived = r;
@@ -42,7 +43,14 @@ async function fixture(answerHello: boolean) {
         received.push(frame);
         if (received.length === 1) helloArrived();
         if (received.length === 2) requestArrived();
-        if (received.length === 1 && answerHello)
+        if (received.length === 1 && answerHello === 'shutting-down')
+          socket.write(
+            encodeFrame({
+              status: 'error',
+              error: { code: 'SHUTTING_DOWN', message: 'the service is shutting down' },
+            }),
+          );
+        else if (received.length === 1 && answerHello)
           socket.write(
             encodeFrame({
               status: 'ok',
@@ -95,6 +103,15 @@ describe.runIf(process.platform !== 'win32' || Boolean(bridge))(
         expect(received).toEqual([]);
       },
     );
+    it('treats a service that is shutting down as not running', async () => {
+      // It still holds its endpoint while it finishes its last job, as the
+      // closed endpoint of a stopped service did: callers may use the local
+      // engine where the service does not hold the index.
+      const { home } = await fixture('shutting-down');
+      await expect(WrongIndexClient.connect({ dataRoot: home })).rejects.toBeInstanceOf(
+        WrongIndexUnavailableError,
+      );
+    });
     it('bounds a connected peer that never answers authentication', async () => {
       const { home, helloSeen } = await fixture(false);
       // Keep native process/stream scheduling real; only the deadline clock
