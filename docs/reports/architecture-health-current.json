@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-12T19:49:06.375Z",
+  "generatedAt": "2026-11-12T21:01:27.273Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 48,
     "sourceFiles": 6283,
     "testFiles": 5234,
-    "sourceLines": 1298782,
+    "sourceLines": 1298809,
     "workspaceEdges": 250,
     "moduleEdges": 18521,
     "nonCommandSlashImports": 0,
@@ -36228,7 +36228,7 @@
     },
     {
       "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 773,
+      "lines": 780,
       "relativeImports": 54
     },
     {
@@ -36434,14 +36434,14 @@
       "relativeImports": 4
     },
     {
+      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
+      "lines": 780,
+      "relativeImports": 54
+    },
+    {
       "file": "packages/webui-server/src/server/memory-handlers.ts",
       "lines": 777,
       "relativeImports": 5
-    },
-    {
-      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 773,
-      "relativeImports": 54
     },
     {
       "file": "packages/plugins/src/adversary-mode/index.ts",

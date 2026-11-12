@@ -18,6 +18,9 @@ import type { DesktopController } from './useDesktop';
 
 export function SessionWorkbench({ vm }: { vm: DesktopController }) {
   const { t } = useDesktopText();
+  // Where an agent conversation puts its view tabs (Chat, Files, Changes, Tools): on the
+  // session tab strip, so the conversation starts one bar lower instead of under two.
+  const [viewTabsSlot, setViewTabsSlot] = useState<HTMLDivElement | null>(null);
   const {
     snapshot,
     currentSession: session,
@@ -33,48 +36,51 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
   return (
     <section className="session-workbench" aria-label={t('workbench.label')}>
       <nav className="session-tabs" aria-label={t('workbench.tabs')}>
-        {openSessionIds
-          .map((id) => snapshot.sessions.find((s) => s.id === id))
-          .filter((s) => s !== undefined)
-          .map((s) => (
-            <div
-              className={`session-tab ${s.id === session.id ? 'active-session-tab' : ''}`}
-              key={s.id}
-            >
-              <button
-                type="button"
-                className="session-tab-label"
-                aria-current={s.id === session.id ? 'page' : undefined}
-                onClick={() => jumpToSession(s)}
+        <div className="session-tab-list">
+          {openSessionIds
+            .map((id) => snapshot.sessions.find((s) => s.id === id))
+            .filter((s) => s !== undefined)
+            .map((s) => (
+              <div
+                className={`session-tab ${s.id === session.id ? 'active-session-tab' : ''}`}
+                key={s.id}
               >
-                {s.kind === 'terminal' ? <Terminal size={13} /> : <Workflow size={13} />}
-                <span>
-                  {/* Only a session from another project names its project. */}
-                  {s.projectId !== session.projectId && (
-                    <small>{snapshot.projects.find((p) => p.id === s.projectId)?.name}</small>
-                  )}
-                  {s.title}
-                </span>
-              </button>
-              <button
-                type="button"
-                className="session-tab-close"
-                title={t('workbench.detach', { title: s.title })}
-                aria-label={t('workbench.detach', { title: s.title })}
-                onClick={() => closeSessionTab(s.id)}
-              >
-                <X size={12} />
-              </button>
-            </div>
-          ))}
-        <button
-          type="button"
-          className="icon-button new-session-tab"
-          aria-label={t('workbench.new')}
-          onClick={() => vm.newSession(session.projectId)}
-        >
-          <Plus size={15} />
-        </button>
+                <button
+                  type="button"
+                  className="session-tab-label"
+                  aria-current={s.id === session.id ? 'page' : undefined}
+                  onClick={() => jumpToSession(s)}
+                >
+                  {s.kind === 'terminal' ? <Terminal size={13} /> : <Workflow size={13} />}
+                  <span>
+                    {/* Only a session from another project names its project. */}
+                    {s.projectId !== session.projectId && (
+                      <small>{snapshot.projects.find((p) => p.id === s.projectId)?.name}</small>
+                    )}
+                    {s.title}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="session-tab-close"
+                  title={t('workbench.detach', { title: s.title })}
+                  aria-label={t('workbench.detach', { title: s.title })}
+                  onClick={() => closeSessionTab(s.id)}
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          <button
+            type="button"
+            className="icon-button new-session-tab"
+            aria-label={t('workbench.new')}
+            onClick={() => vm.newSession(session.projectId)}
+          >
+            <Plus size={15} />
+          </button>
+        </div>
+        {session.kind === 'agent' && <div className="session-view-slot" ref={setViewTabsSlot} />}
         {session.kind === 'agent' && isLive(session) && (
           <SandboxChip key={session.id} sessionId={session.id} />
         )}
@@ -152,6 +158,7 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
             onError={reportError}
             inputDrafts={vm.inputDrafts}
             onInputDraftChange={vm.setInputDraft}
+            viewTabsSlot={viewTabsSlot}
             onSettings={() => vm.openWrongStackSettings(session.id)}
             onOpen={(target) => {
               if ('page' in target)

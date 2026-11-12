@@ -499,3 +499,56 @@
     scroll-behavior: auto;
   }
 }
+
+/* One strip for the conversation: its session tabs on the left, its views (Chat, Files,
+   Changes, Tools) and Stop on the right. The views used to be a second bar under the tabs,
+   so a conversation started below three bars of chrome. The tabs scroll on their own when
+   there are many; the views keep their place. */
+.session-tabs:has(> .session-tab-list) {
+  overflow: visible;
+}
+.session-tab-list {
+  display: flex;
+  align-items: stretch;
+  gap: 5px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.session-view-slot {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-bottom: 6px;
+}
+.session-view-slot > .workspace-tabs {
+  flex-wrap: nowrap;
+  min-height: 0;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+}
+.session-view-slot ~ .sandbox-chip,
+.session-view-slot ~ .session-stop {
+  margin-left: 0;
+  padding-bottom: 6px;
+}
+/* Sharing the strip, tabs narrow (their titles end in an ellipsis) before the list scrolls, so
+   the new-session button stays in reach on a narrow window. */
+.session-tab-list > .session-tab {
+  flex-shrink: 1;
+  min-width: 90px;
+}
+.session-tab-list > .session-tab .session-tab-label {
+  min-width: 0;
+}
+.session-tab-list > .session-tab .session-tab-label > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.session-tab-list > .new-session-tab {
+  flex-shrink: 0;
+}

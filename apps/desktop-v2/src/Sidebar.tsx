@@ -36,6 +36,17 @@ const PINNED: Array<{ id: ProjectPage; Icon: typeof Brain }> = [
   { id: 'memory', Icon: Brain },
   { id: 'kanban', Icon: Columns3 },
 ];
+/** Views an open agent conversation already offers in its own tab bar. */
+const IN_CONVERSATION: ReadonlySet<ProjectPage> = new Set(['files', 'changes']);
+
+/**
+ * The pinned project views to list. An agent conversation shows Files and Changes in its own
+ * tab bar, so the sidebar listing them too put the same two places side by side; on project
+ * pages, where there is no conversation tab bar, they stay.
+ */
+function pinnedViews(conversationOpen: boolean): typeof PINNED {
+  return conversationOpen ? PINNED.filter(({ id }) => !IN_CONVERSATION.has(id)) : PINNED;
+}
 
 function ToolsLauncher({
   page,
@@ -243,17 +254,19 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
             className="project-views"
             aria-label={t('explorer.workspace', { name: currentProject.name })}
           >
-            {PINNED.map(({ id, Icon }) => (
-              <button
-                type="button"
-                key={id}
-                aria-current={page === id ? 'page' : undefined}
-                onClick={() => vm.openProjectPage(currentProject.id, id)}
-              >
-                <Icon size={15} />
-                <span>{t(`pages.${id}`)}</span>
-              </button>
-            ))}
+            {pinnedViews(section === 'fleet' && vm.currentSession?.kind === 'agent').map(
+              ({ id, Icon }) => (
+                <button
+                  type="button"
+                  key={id}
+                  aria-current={page === id ? 'page' : undefined}
+                  onClick={() => vm.openProjectPage(currentProject.id, id)}
+                >
+                  <Icon size={15} />
+                  <span>{t(`pages.${id}`)}</span>
+                </button>
+              ),
+            )}
             <ToolsLauncher page={page} onOpen={(id) => vm.openProjectPage(currentProject.id, id)} />
           </nav>
         )}

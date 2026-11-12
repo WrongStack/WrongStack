@@ -10,7 +10,8 @@ import {
   Square,
   X,
 } from 'lucide-react';
-import { lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAgentTabs } from './AgentTranscripts';
 import { ComposerFoldControls } from './ComposerFoldControls';
 import { ConversationNotices } from './ConversationNotices';
@@ -92,6 +93,7 @@ export function EngineWorkspace({
   inputDrafts,
   onInputDraftChange,
   onSettings,
+  viewTabsSlot,
   onOpen,
   scopeKey,
   projectId,
@@ -114,6 +116,8 @@ export function EngineWorkspace({
   inputDrafts: Record<string, InputDraft>;
   onInputDraftChange: (key: string, draft: InputDraft | null) => void;
   onSettings: () => void;
+  /** Where the view tabs go when the session strip has room for them; here when absent. */
+  viewTabsSlot?: HTMLElement | null | undefined;
   onOpen: (target: AppNavigation) => void;
   scopeKey: string;
   projectId: string;
@@ -321,65 +325,68 @@ export function EngineWorkspace({
       transcript.current?.scrollToMessage(index);
     },
   });
+  const placeTabs = (nav: ReactNode) => (viewTabsSlot ? createPortal(nav, viewTabsSlot) : nav);
   return (
     <div className="engine-workspace" data-engine-session={state.sessionId} ref={workspace}>
       {shortcuts}
-      <nav className="workspace-tabs" aria-label={t('workspace.views')}>
-        {(
-          [
-            { name: 'chat', label: t('workspace.chat'), Icon: MessageSquare },
-            { name: 'files', label: t('workspace.files'), Icon: FolderCode },
-            { name: 'changes', label: t('workspace.changes'), Icon: GitCompareArrows },
-          ] as const
-        ).map(({ name, label, Icon }) => (
+      {placeTabs(
+        <nav className="workspace-tabs" aria-label={t('workspace.views')}>
+          {(
+            [
+              { name: 'chat', label: t('workspace.chat'), Icon: MessageSquare },
+              { name: 'files', label: t('workspace.files'), Icon: FolderCode },
+              { name: 'changes', label: t('workspace.changes'), Icon: GitCompareArrows },
+            ] as const
+          ).map(({ name, label, Icon }) => (
+            <button
+              type="button"
+              key={name}
+              className={tab === name ? 'chosen-tab' : ''}
+              aria-current={tab === name ? 'page' : undefined}
+              onClick={() => setTab(name)}
+            >
+              <Icon size={14} />
+              {label}
+              {name === 'chat' && state.approvals.length + state.inputs.length > 0 && (
+                <span>{state.approvals.length + state.inputs.length}</span>
+              )}
+            </button>
+          ))}
           <button
             type="button"
-            key={name}
-            className={tab === name ? 'chosen-tab' : ''}
-            aria-current={tab === name ? 'page' : undefined}
-            onClick={() => setTab(name)}
+            className={
+              [
+                'activity',
+                'skills',
+                'history',
+                'mcp-tasks',
+                'processes',
+                'side-effects',
+                'usage',
+                'story',
+                'context',
+                'plan',
+              ].includes(tab)
+                ? 'chosen-tab project-tools-button'
+                : 'project-tools-button'
+            }
+            onClick={() => setToolsOpen(true)}
           >
-            <Icon size={14} />
-            {label}
-            {name === 'chat' && state.approvals.length + state.inputs.length > 0 && (
-              <span>{state.approvals.length + state.inputs.length}</span>
-            )}
+            <PanelsTopLeft size={14} />
+            {t('workspace.tools')}
+            <ChevronDown size={11} />
           </button>
-        ))}
-        <button
-          type="button"
-          className={
-            [
-              'activity',
-              'skills',
-              'history',
-              'mcp-tasks',
-              'processes',
-              'side-effects',
-              'usage',
-              'story',
-              'context',
-              'plan',
-            ].includes(tab)
-              ? 'chosen-tab project-tools-button'
-              : 'project-tools-button'
-          }
-          onClick={() => setToolsOpen(true)}
-        >
-          <PanelsTopLeft size={14} />
-          {t('workspace.tools')}
-          <ChevronDown size={11} />
-        </button>
-        <button
-          type="button"
-          className="icon-button project-tools-button"
-          aria-label={t('workspace.settings')}
-          title={t('workspace.settingsTitle')}
-          onClick={onSettings}
-        >
-          <Settings2 size={15} />
-        </button>
-      </nav>
+          <button
+            type="button"
+            className="icon-button project-tools-button"
+            aria-label={t('workspace.settings')}
+            title={t('workspace.settingsTitle')}
+            onClick={onSettings}
+          >
+            <Settings2 size={15} />
+          </button>
+        </nav>,
+      )}
       {toolsOpen && (
         <WorkspaceTools
           onClose={() => setToolsOpen(false)}
