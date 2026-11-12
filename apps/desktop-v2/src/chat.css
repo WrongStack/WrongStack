@@ -21,6 +21,13 @@
   line-height: 1.85;
   overflow-wrap: anywhere;
 }
+/* Emphasis in an answer is bold text at the answer's size. The workspace's label rule
+   (`.session-workspace strong`: 12 px, weight 500) also matched Markdown, so **bold** in a
+   reply came out smaller and lighter than the sentence around it. */
+.session-workspace .markdown-content :is(strong, b) {
+  font-size: inherit;
+  font-weight: 600;
+}
 .markdown-content :is(h1, h2, h3, h4, h5, h6) {
   font-weight: 550;
   line-height: 1.4;

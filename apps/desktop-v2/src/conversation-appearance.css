@@ -31,6 +31,35 @@
   font-size: 11px;
   padding: 4px 8px;
 }
+/* While the composer is open its fold control is a small tab on the composer's top edge
+   rather than a row of its own: the row cost a line of the conversation on a short window,
+   and its labelled button floated beside the composer. The label stays the accessible name;
+   collapsed, the row with the draft preview and Stop is unchanged. */
+.composer-fold-controls:has(+ .composer-host:not([hidden])) {
+  position: relative;
+  z-index: 2;
+  height: 0;
+  padding: 0;
+}
+.composer-fold-controls:has(+ .composer-host:not([hidden])) > .button {
+  position: absolute;
+  top: -11px;
+  /* At the composer's right corner: the centre is where "Jump to latest" appears. */
+  right: calc(var(--composer-inline) + 14px);
+  gap: 0;
+  padding: 3px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--raised);
+  color: var(--subtle);
+  font-size: 0;
+  line-height: 0;
+}
+.composer-fold-controls:has(+ .composer-host:not([hidden])) > .button:hover,
+.composer-fold-controls:has(+ .composer-host:not([hidden])) > .button:focus-visible {
+  color: var(--text);
+  border-color: var(--accent-border);
+}
 .composer-fold-draft {
   overflow: hidden;
   text-overflow: ellipsis;
