@@ -106,7 +106,7 @@
     "@wrongstack/core/registry": {
       "files": 213,
       "typeOnly": 84,
-      "runtimeOrMixed": 136
+      "runtimeOrMixed": 137
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -6931,7 +6931,7 @@
       "specifier": "@wrongstack/core/registry",
       "file": "packages/runtime/tests/external-ts-plugin-reload.test.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 4
+      "runtimeOrMixed": 5
     },
     {
       "specifier": "@wrongstack/core/registry",

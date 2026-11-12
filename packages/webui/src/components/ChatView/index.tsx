@@ -65,16 +65,25 @@ export function ChatView() {
     !focusedAgent || agentBelongsToSession(focusedAgent.sessionId, currentSessionId);
   const focusedAgentExists = Boolean(focusedAgent) && focusedAgentBelongsToCurrentSession;
 
-  const userPromptIndexByKey = useMemo(() => {
-    const map = new Map<string, number>();
+  const { userPromptIndexByKey, assistantAfterTargetByKey } = useMemo(() => {
+    const userMap = new Map<string, number>();
+    const assistantMap = new Map<string, { nextPromptIndex: number | 'head' }>();
+    const totalUserPrompts = state.rows.reduce(
+      (acc, row) => (row.kind === 'user' ? acc + 1 : acc),
+      0,
+    );
     let idx = 0;
     for (const row of state.rows) {
       if (row.kind === 'user') {
-        map.set(row.key, idx);
+        userMap.set(row.key, idx);
         idx += 1;
+      } else if (row.kind === 'agent') {
+        assistantMap.set(row.key, {
+          nextPromptIndex: idx < totalUserPrompts ? idx : 'head',
+        });
       }
     }
-    return map;
+    return { userPromptIndexByKey: userMap, assistantAfterTargetByKey: assistantMap };
   }, [state.rows]);
 
   const handleBranchFromPrompt = useCallback(
@@ -84,6 +93,24 @@ export function ChatView() {
       const suffix = Math.random().toString(36).slice(2, 6);
       const branchName = `fork-p${promptIndex}-${suffix}`;
       void invokePortableCommand('tree', `branch "${branchName}" --at ${promptIndex}`, {
+        sessionId: sid,
+      }).then(() => {
+        getWSClient().listSessions(50);
+      });
+    },
+    [state.sessionId],
+  );
+
+  const handleBranchAfterTurn = useCallback(
+    (target: number | 'head') => {
+      const sid = state.sessionId;
+      if (!sid) return;
+      const suffix = Math.random().toString(36).slice(2, 6);
+      const branchArgs =
+        target === 'head'
+          ? `branch "fork-head-${suffix}"`
+          : `branch "fork-p${target}-${suffix}" --at ${target}`;
+      void invokePortableCommand('tree', branchArgs, {
         sessionId: sid,
       }).then(() => {
         getWSClient().listSessions(50);
@@ -339,6 +366,10 @@ export function ChatView() {
                   sessionId={state.sessionId ?? DEFAULT_LANE_ID}
                   promptIndex={row.kind === 'user' ? userPromptIndexByKey.get(row.key) : undefined}
                   onBranchFromPrompt={state.sessionId ? handleBranchFromPrompt : undefined}
+                  branchAfterTurn={
+                    row.kind === 'agent' ? assistantAfterTargetByKey.get(row.key) : undefined
+                  }
+                  onBranchAfterTurn={state.sessionId ? handleBranchAfterTurn : undefined}
                 />
               ))}
 

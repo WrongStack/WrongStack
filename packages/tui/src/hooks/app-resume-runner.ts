@@ -3,6 +3,7 @@ import type { Dispatch, MutableRefObject } from 'react';
 import type { Action } from '../app-action-type.js';
 import type { AppProps } from '../app-props.js';
 import type { State } from '../app-state.js';
+import { clearImagePreviewCache } from '../graphics/image-preview-cache.js';
 import {
   RESUME_SPINNER_MS,
   RESUME_STREAM_FRAME_MS,
@@ -128,6 +129,7 @@ export function createResumeRunner({
       const entries = result.entries;
       // The queue belongs to the session: the one resumed brings its own.
       if (result.attached !== false) {
+        clearImagePreviewCache();
         if (switchQueueSession) switchQueueSession(result.sessionId);
         else dispatch({ type: 'queueClear' });
       }

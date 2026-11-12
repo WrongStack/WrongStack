@@ -66,15 +66,30 @@ describe('WebUI & project-surfaces Session Tree and Declarative Plugin UI compon
     fireEvent.click(trigger);
 
     // Switch back to main with keepFiles toggled on
-    const keepCheckbox = screen.getByRole('checkbox');
+    const keepCheckbox = screen.getByLabelText(/Keep files on switch/i);
     fireEvent.click(keepCheckbox);
     fireEvent.click(screen.getByText('main'));
     expect(onSwitchBranch).toHaveBeenCalledWith('main', { keepFiles: true });
 
-    // Re-open and fold try-sqlite
+    // Re-open and fold try-sqlite (default 1-arg fold)
     fireEvent.click(trigger);
     fireEvent.click(screen.getByTitle(/Fold "try-sqlite" summary into parent/i));
     expect(onFoldBranch).toHaveBeenCalledWith('br_exp');
+
+    // Re-open and fold active branch via "Fold insights into main" with note + keepOpen
+    fireEvent.click(trigger);
+    expect(screen.getByTestId('active-branch-fold-panel').textContent).toContain(
+      'Fold insights into main',
+    );
+    fireEvent.click(screen.getByLabelText(/Keep open/i));
+    fireEvent.change(screen.getByPlaceholderText('Optional fold note…'), {
+      target: { value: 'SQLite WAL contention findings' },
+    });
+    fireEvent.click(screen.getByTestId('fold-active-branch-into-parent'));
+    expect(onFoldBranch).toHaveBeenLastCalledWith('br_exp', {
+      note: 'SQLite WAL contention findings',
+      keepOpen: true,
+    });
 
     // Re-open and create a new branch
     fireEvent.click(trigger);
@@ -229,5 +244,40 @@ describe('WebUI & project-surfaces Session Tree and Declarative Plugin UI compon
     );
     fireEvent.click(screen.getByTestId('branch-from-prompt-1'));
     expect(onBranchFromPrompt).toHaveBeenCalledWith(1);
+
+    // Historical & completed assistant turn rows also render "Branch from here"
+    const onBranchAfterTurn = vi.fn();
+    render(
+      <ChatRowView
+        row={{
+          kind: 'agent',
+          key: 'a-1',
+          isLastTurn: false,
+          items: [
+            {
+              kind: 'msg',
+              key: 'a-1-msg',
+              isFirst: true,
+              isContinuation: false,
+              message: {
+                id: 'a-1-msg',
+                role: 'assistant',
+                content: 'Benchmarked Redis pipelining at 0.35ms p99.',
+                timestamp: 1_700_000_001_000,
+              },
+            },
+          ],
+        }}
+        isLoading={false}
+        compactMode={false}
+        isFirstRow={false}
+        groupToolCalls={true}
+        sessionId="sess-tab-1"
+        branchAfterTurn={{ nextPromptIndex: 2 }}
+        onBranchAfterTurn={onBranchAfterTurn}
+      />,
+    );
+    fireEvent.click(screen.getByTestId('branch-after-turn-2'));
+    expect(onBranchAfterTurn).toHaveBeenCalledWith(2);
   });
 });

@@ -1,11 +1,14 @@
 import type { TerminalLifecycle } from '@wrongstack/core/utils';
 import { getProcessRegistry } from '@wrongstack/tools';
-import { clearImagePreviewCache } from './graphics/image-preview-cache.js';
+import {
+  clearImagePreviewCache,
+  resolveEffectiveGraphicsProtocol,
+} from './graphics/image-preview-cache.js';
 import { ALT_SCREEN_OFF, MOUSE_OFF } from './mouse.js';
 import type { RunTuiOptions } from './run-tui-options.js';
 import { setupTuiSession } from './run-tui-session.js';
 import { createDurableTeardown } from './run-tui-teardown.js';
-import { BRACKETED_PASTE_OFF, SYNC_OUTPUT_OFF } from './terminal-modes.js';
+import { BRACKETED_PASTE_OFF, KITTY_DELETE_ALL_IMAGES, SYNC_OUTPUT_OFF } from './terminal-modes.js';
 import { unsilenceTerminal } from './terminal-silence.js';
 
 /** Everything runTui needs from the exit wiring after handing it over. */
@@ -44,6 +47,8 @@ export interface ExitOrchestratorDeps {
   restoreTrace: () => void;
   /** Flush and detach DECSET 2026 synchronized output wrapper before restoring modes. */
   disposeSyncStdout?: (() => void) | undefined;
+  /** Emit Kitty delete-all (`\x1b_Ga=d,d=a,q=2\x1b\\`) before exiting alternate screen. */
+  deleteKittyImagesOnExit?: boolean | undefined;
 }
 
 /**
@@ -59,7 +64,16 @@ export interface ExitOrchestratorDeps {
  * resolve (attachResolve from the run promise's executor).
  */
 export function createExitOrchestrator(deps: ExitOrchestratorDeps): ExitOrchestrator {
-  const { opts, stdout, inkStdin, lifecycle, stopTitle, restoreTrace, disposeSyncStdout } = deps;
+  const {
+    opts,
+    stdout,
+    inkStdin,
+    lifecycle,
+    stopTitle,
+    restoreTrace,
+    disposeSyncStdout,
+    deleteKittyImagesOnExit,
+  } = deps;
 
   // Take over EVERY keystroke. Raw mode (Ink turns this on when render
   // mounts) already disables ICANON/ECHO/ISIG/IXON on Linux+macOS, so
@@ -118,6 +132,9 @@ export function createExitOrchestrator(deps: ExitOrchestratorDeps): ExitOrchestr
       // idempotent (safe to call even if raw mode was never acquired).
       lifecycle.release();
       if (alternateScreenActive) {
+        if (deleteKittyImagesOnExit || resolveEffectiveGraphicsProtocol() === 'kitty') {
+          stdout.write(KITTY_DELETE_ALL_IMAGES);
+        }
         // Restore the saved normal buffer only after every TUI-owned mode is
         // off. No printable output may follow this write or it would leak into
         // the user's shell screen.

@@ -19,6 +19,8 @@ const ALLOWED_IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp']);
 
 /** Maximum cached decoded previews retained in TUI heap (`bench:tui-heap` guard). */
 export const MAX_IMAGE_PREVIEW_CACHE_ENTRIES = 8;
+/** Hard ceiling (2 MiB) on total estimated resident/wire bytes retained by the LRU image cache. */
+export const MAX_IMAGE_PREVIEW_CACHE_BYTES = 2 * 1024 * 1024;
 
 export interface CachedImagePreview {
   path: string;
@@ -31,13 +33,27 @@ export interface CachedImagePreview {
 
 export type RuntimeGraphicsMode = 'auto' | 'kitty' | 'iterm2' | 'halfblock' | 'off';
 
-const previewCache = new Map<string, CachedImagePreview | null>();
+interface PreviewCacheSlot {
+  preview: CachedImagePreview | null;
+  estimatedBytes: number;
+}
+
+const previewCache = new Map<string, PreviewCacheSlot>();
+let totalCachedPreviewBytes = 0;
 let lastPreviewedImagePath: string | null = null;
 let runtimeGraphicsOverride: RuntimeGraphicsMode = 'auto';
 const graphicsOverrideListeners = new Set<() => void>();
 
+function estimateCachedPreviewBytes(preview: CachedImagePreview | null): number {
+  if (!preview) return 64;
+  const pathBytes = (preview.path.length + preview.fileName.length) * 2 + 192;
+  const gridBytes = preview.halfBlocks ? preview.rows * preview.cols * 64 : 0;
+  return pathBytes + gridBytes;
+}
+
 export function clearImagePreviewCache(): void {
   previewCache.clear();
+  totalCachedPreviewBytes = 0;
   lastPreviewedImagePath = null;
 }
 
@@ -47,6 +63,10 @@ export function getLastPreviewedImagePath(): string | null {
 
 export function getImagePreviewCacheSize(): number {
   return previewCache.size;
+}
+
+export function getImagePreviewCacheBytes(): number {
+  return totalCachedPreviewBytes;
 }
 
 export function getRuntimeGraphicsOverride(): RuntimeGraphicsMode {
@@ -215,12 +235,12 @@ export function loadCachedImagePreview(
 
   const cacheKey = `${resolvedPath}|${mtimeMs}|${byteSize}|${maxCols}x${maxRows}`;
   if (previewCache.has(cacheKey)) {
-    const hit = previewCache.get(cacheKey) ?? null;
+    const slot = previewCache.get(cacheKey)!;
     // Refresh LRU order
     previewCache.delete(cacheKey);
-    previewCache.set(cacheKey, hit);
-    if (hit) lastPreviewedImagePath = hit.path;
-    return hit;
+    previewCache.set(cacheKey, slot);
+    if (slot.preview) lastPreviewedImagePath = slot.preview.path;
+    return slot.preview;
   }
 
   let preview: CachedImagePreview | null = null;
@@ -249,11 +269,24 @@ export function loadCachedImagePreview(
     preview = null;
   }
 
-  if (previewCache.size >= MAX_IMAGE_PREVIEW_CACHE_ENTRIES) {
+  const estimatedBytes = estimateCachedPreviewBytes(preview);
+  while (
+    previewCache.size >= MAX_IMAGE_PREVIEW_CACHE_ENTRIES ||
+    (previewCache.size > 0 &&
+      totalCachedPreviewBytes + estimatedBytes > MAX_IMAGE_PREVIEW_CACHE_BYTES)
+  ) {
     const oldestKey = previewCache.keys().next().value;
-    if (oldestKey !== undefined) previewCache.delete(oldestKey);
+    if (oldestKey === undefined) break;
+    const evicted = previewCache.get(oldestKey);
+    previewCache.delete(oldestKey);
+    if (evicted) {
+      totalCachedPreviewBytes = Math.max(0, totalCachedPreviewBytes - evicted.estimatedBytes);
+    }
   }
-  previewCache.set(cacheKey, preview);
+  if (estimatedBytes <= MAX_IMAGE_PREVIEW_CACHE_BYTES) {
+    previewCache.set(cacheKey, { preview, estimatedBytes });
+    totalCachedPreviewBytes += estimatedBytes;
+  }
   if (preview) lastPreviewedImagePath = preview.path;
   return preview;
 }

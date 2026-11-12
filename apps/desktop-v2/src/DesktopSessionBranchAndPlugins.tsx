@@ -41,6 +41,10 @@ interface PendingDesktopPluginPrompt {
   options?: Array<{ value: string; label: string; hint?: string | undefined }> | undefined;
 }
 
+function quoteTreeArg(value: string): string {
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
 function parseTreeSnapshot(raw: string): SessionTreeSnapshot | null {
   if (!raw) return null;
   try {
@@ -318,11 +322,17 @@ export function DesktopSessionBranchAndPlugins({
           tree={tree}
           busy={treeBusy || state.running}
           onRefresh={() => void refreshTree()}
-          onCreateBranch={(name) => runTreeMutation(`new ${name}`)}
+          onCreateBranch={(name) => runTreeMutation(`branch ${quoteTreeArg(name)}`)}
           onSwitchBranch={(branchId, opts) =>
-            runTreeMutation(`switch ${branchId}${opts?.keepFiles ? ' --keep-files' : ''}`)
+            runTreeMutation(
+              `switch ${quoteTreeArg(branchId)}${opts?.keepFiles ? ' --keep-files' : ''}`,
+            )
           }
-          onFoldBranch={(sourceBranchId) => runTreeMutation(`fold ${sourceBranchId}`)}
+          onFoldBranch={(sourceBranchId, opts) =>
+            runTreeMutation(
+              `fold ${quoteTreeArg(sourceBranchId)}${opts?.note ? ` --note ${quoteTreeArg(opts.note)}` : ''}${opts?.keepOpen ? ' --keep-open' : ''}`,
+            )
+          }
         />
       )}
 

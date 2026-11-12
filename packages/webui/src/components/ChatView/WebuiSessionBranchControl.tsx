@@ -132,8 +132,10 @@ export function WebuiSessionBranchControl({
           `switch ${quoteTreeArg(branchId)}${opts?.keepFiles ? ' --keep-files' : ''}`,
         );
       }}
-      onFoldBranch={async (sourceBranchId) => {
-        await runMutation(`fold ${quoteTreeArg(sourceBranchId)}`);
+      onFoldBranch={async (sourceBranchId, opts) => {
+        await runMutation(
+          `fold ${quoteTreeArg(sourceBranchId)}${opts?.note ? ` --note ${quoteTreeArg(opts.note)}` : ''}${opts?.keepOpen ? ' --keep-open' : ''}`,
+        );
       }}
     />
   );

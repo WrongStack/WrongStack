@@ -1,11 +1,17 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { Config, Logger } from '@wrongstack/contracts/types';
 import { defaultPluginTrustPath, normalizeTrustKey, pinPluginTrust } from '@wrongstack/core/plugin';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildPluginManagementCommand } from '../src/commands.js';
-import { hashPluginClosure, loadExternalPlugins, setupPlugins } from '../src/plugin-host.js';
+import {
+  hashPluginClosure,
+  importExternalPluginModule,
+  loadExternalPlugins,
+  setupPlugins,
+} from '../src/plugin-host.js';
 
 function silentLogger(): Logger {
   const log = {
@@ -687,5 +693,241 @@ describe('Zero-build external TypeScript plugins, TOFU closure isolation, and li
     expect(acceptedReport.reloaded).toEqual(['repin-demo']);
     expect(acceptedReport.failed).toEqual([]);
     expect(await execEcho()).toBe('v2');
+  });
+
+  it('transpiles non-erasable TS syntax via mode:transform fallback, resolves .js→.ts cycles, preserves sourceURL, and enforces <= 64 local file cap', async () => {
+    const pluginDir = join(globalRoot, 'plugins', 'node-fallback-demo');
+    await mkdir(pluginDir, { recursive: true });
+
+    const stripModesSeen: Array<'strip' | 'transform' | undefined> = [];
+    const mockNodeStripTypes = (code: string, opts?: { mode?: 'strip' | 'transform' }): string => {
+      stripModesSeen.push(opts?.mode);
+      if (opts?.mode === 'strip' && /\benum\s+/.test(code)) {
+        const err = new SyntaxError(
+          'TypeScript enum is not supported in strip-only mode',
+        ) as Error & {
+          code?: string;
+        };
+        err.code = 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX';
+        throw err;
+      }
+      return code
+        .replace(
+          /export\s+enum\s+Stage\s*\{\s*Ready\s*=\s*"ready"\s*,?\s*\}/g,
+          'export const Stage = { Ready: "ready" };',
+        )
+        .replace(/:\s*(?:string|number)/g, '');
+    };
+
+    const helperAPath = join(pluginDir, 'cycle-a.ts');
+    const helperBPath = join(pluginDir, 'cycle-b.ts');
+    const entryPath = join(pluginDir, 'index.ts');
+
+    await writeFile(
+      helperAPath,
+      [
+        'import { B_TAG } from "./cycle-b.js";',
+        'export enum Stage { Ready = "ready" }',
+        'export function formatStage(version: string): string {',
+        '  return `${Stage.Ready}:${B_TAG}:${version}`;',
+        '}',
+      ].join('\n'),
+    );
+    await writeFile(
+      helperBPath,
+      [
+        'import { Stage } from "./cycle-a.js";',
+        'export const B_TAG: string = "b1";',
+        'export function readStageFromB(): string { return Stage.Ready; }',
+        'export function captureStack(): string { return new Error("trace-probe").stack ?? ""; }',
+      ].join('\n'),
+    );
+    await writeFile(
+      entryPath,
+      [
+        'import { definePlugin } from "@wrongstack/plugin-sdk";',
+        'import { formatStage } from "./cycle-a.js";',
+        'import { captureStack } from "./cycle-b.js";',
+        'export const label: string = formatStage("g1");',
+        'export const stackSample: string = captureStack();',
+        'export default definePlugin({ name: "node-fallback-demo", apiVersion: "^0.1", setup() {} });',
+      ].join('\n'),
+    );
+
+    const modV1 = (await importExternalPluginModule(pathToFileURL(entryPath).href, {
+      reloadGeneration: 1,
+      stripTypeScriptTypes: mockNodeStripTypes,
+    })) as { label: string; stackSample: string; default: { name: string } };
+
+    expect(modV1.default.name).toBe('node-fallback-demo');
+    expect(modV1.label).toBe('ready:b1:g1');
+    // Confirm `mode: 'strip'` threw on `enum` and automatically fell back to `mode: 'transform'`
+    expect(stripModesSeen).toContain('strip');
+    expect(stripModesSeen).toContain('transform');
+    // Inline `//# sourceURL=` preserves `.ts` file identity in stack traces
+    expect(modV1.stackSample).toContain('cycle-b.ts');
+
+    // Hot-reload after editing nested helper `cycle-b.ts` -> fresh value returned on gen=2!
+    await writeFile(
+      helperBPath,
+      [
+        'import { Stage } from "./cycle-a.js";',
+        'export const B_TAG: string = "b2-reloaded";',
+        'export function readStageFromB(): string { return Stage.Ready; }',
+        'export function captureStack(): string { return new Error("trace-probe").stack ?? ""; }',
+      ].join('\n'),
+    );
+
+    const modV2 = (await importExternalPluginModule(pathToFileURL(entryPath).href, {
+      reloadGeneration: 2,
+      stripTypeScriptTypes: mockNodeStripTypes,
+    })) as { label: string };
+    expect(modV2.label).toBe('ready:b2-reloaded:g1');
+
+    // Exceeding MAX_PLUGIN_CLOSURE_FILES (64) rejects deterministically
+    const oversizedDir = join(globalRoot, 'plugins', 'oversized-closure');
+    await mkdir(oversizedDir, { recursive: true });
+    const totalFiles = 66;
+    for (let i = 0; i < totalFiles; i++) {
+      const nextImport =
+        i + 1 < totalFiles
+          ? `import { v as nextV } from "./f${i + 1}.ts";\n`
+          : 'const nextV = 0;\n';
+      await writeFile(
+        join(oversizedDir, `f${i}.ts`),
+        `${nextImport}export const v: number = ${i} + nextV;\n`,
+      );
+    }
+    await expect(
+      importExternalPluginModule(pathToFileURL(join(oversizedDir, 'f0.ts')).href, {
+        reloadGeneration: 1,
+        stripTypeScriptTypes: mockNodeStripTypes,
+      }),
+    ).rejects.toThrow('exceeds maximum of 64 local files');
+  });
+
+  it('refreshes tool_search catalog discovery immediately (< 50 ms) when tools are added or removed via /plugin reload', async () => {
+    const discoveryRoot = join(globalRoot, 'plugins');
+    const entryPath = join(discoveryRoot, 'live-search-plugin.ts');
+
+    await writeFile(
+      entryPath,
+      [
+        'export default {',
+        '  name: "live-search-plugin",',
+        '  version: "0.1.0",',
+        '  apiVersion: "^0.1",',
+        '  capabilities: { tools: true },',
+        '  setup(api: any) {',
+        '    api.tools.register({',
+        '      name: "zeta_v1_inspector",',
+        '      description: "Inspects zeta telemetry frames v1",',
+        '      inputSchema: { type: "object", properties: { target: { type: "string" } }, required: ["target"] },',
+        '      permission: "auto",',
+        '      mutating: false,',
+        '      execute: async () => "v1",',
+        '    });',
+        '  },',
+        '};',
+      ].join('\n'),
+    );
+
+    const { Container, EventBus } = await import('@wrongstack/contracts/kernel');
+    const { ProviderRegistry, SlashCommandRegistry, ToolRegistry } = await import(
+      '@wrongstack/core/registry'
+    );
+    const { toolSearchTool } = await import('@wrongstack/tools/tool-search');
+
+    const toolRegistry = new ToolRegistry();
+    const config: Config = {
+      version: 1,
+      provider: 'anthropic',
+      model: 'claude',
+      features: {
+        mcp: false,
+        plugins: true,
+        pluginsTrust: false,
+        memory: false,
+        modelsRegistry: false,
+        skills: false,
+      },
+    } as never as Config;
+
+    const handle = await setupPlugins({
+      config,
+      container: new Container(),
+      events: new EventBus(),
+      pipelines: {} as never,
+      toolRegistry,
+      providerRegistry: new ProviderRegistry(),
+      slashCommandRegistry: new SlashCommandRegistry(),
+      mcpRegistry: {} as never,
+      log: silentLogger(),
+      agent: {},
+      sessionWriter: { transcriptPath: join(rootDir, 's.jsonl'), append: vi.fn() } as never,
+      configStore: { get: () => config, update: vi.fn(), watch: () => () => {} } as never,
+      paths: {
+        globalRoot,
+        configDir: globalRoot,
+        globalConfig: join(globalRoot, 'config.json'),
+        globalSkills: join(globalRoot, 'skills'),
+        globalPrompts: join(globalRoot, 'prompts'),
+        globalMemory: join(globalRoot, 'memory.md'),
+        historyFile: join(globalRoot, 'history'),
+        syncConfig: join(globalRoot, 'sync.json'),
+        projectRoot,
+      },
+    });
+
+    const runSearch = (query: string) =>
+      toolSearchTool.execute(
+        { query },
+        {
+          tools: [],
+          catalogTools: toolRegistry.list(),
+        } as never,
+        { signal: new AbortController().signal },
+      );
+
+    const beforeReload = await runSearch('zeta_v1_inspector');
+    expect(beforeReload.tools.map((t) => t.name)).toContain('zeta_v1_inspector');
+
+    // Replace zeta_v1_inspector with omega_v2_profiler and hot-reload
+    await writeFile(
+      entryPath,
+      [
+        'export default {',
+        '  name: "live-search-plugin",',
+        '  version: "0.2.0",',
+        '  apiVersion: "^0.1",',
+        '  capabilities: { tools: true },',
+        '  setup(api: any) {',
+        '    api.tools.register({',
+        '      name: "omega_v2_profiler",',
+        '      description: "Profiles omega flamegraphs in real time",',
+        '      inputSchema: { type: "object", properties: { sampleHz: { type: "number" } }, required: ["sampleHz"] },',
+        '      permission: "auto",',
+        '      mutating: false,',
+        '      execute: async () => "v2",',
+        '    });',
+        '  },',
+        '};',
+      ].join('\n'),
+    );
+
+    const report = await handle!.reloadExternal!('live-search-plugin');
+    expect(report.reloaded).toEqual(['live-search-plugin']);
+
+    const t0 = performance.now();
+    const removedLookup = await runSearch('zeta_v1_inspector');
+    const addedLookup = await runSearch('omega_v2_profiler');
+    const searchElapsedMs = performance.now() - t0;
+
+    expect(searchElapsedMs).toBeLessThan(50);
+    expect(removedLookup.tools.map((t) => t.name)).not.toContain('zeta_v1_inspector');
+    expect(addedLookup.tools[0]?.name).toBe('omega_v2_profiler');
+    expect(addedLookup.tools[0]?.inputSchema).toMatchObject({
+      required: ['sampleHz'],
+    });
   });
 });

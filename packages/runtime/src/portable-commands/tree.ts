@@ -29,7 +29,7 @@ export const TREE_COMMAND_HELP = [
   '  /tree branch <name> [--at <N>] [--no-switch] [--from <branch>] [--label "<text>"]',
   '                                             Create a new branch from head or prompt checkpoint N',
   '  /tree switch <target> [--keep-files]       Switch active conversation branch (restores CAS files)',
-  '  /tree fold [source] [--into <target>] [--focus "<text>"] [--archive]',
+  '  /tree fold [source] [--into <target>] [--note|--focus "<text>"] [--keep-open|--archive]',
   '                                             Fold a scrubbed summary of source branch into target',
   '  /tree rename <target> <new-name>           Rename an existing non-root branch',
   '  /tree archive <target>                     Archive an inactive branch (releases exclusive CAS refs)',
@@ -348,12 +348,14 @@ export function buildTreeCommand(host: TreeCommandHost): SlashCommand {
           let targetBranch: string | undefined;
           let focusPrompt: string | undefined;
           let archiveSource = false;
+          let keepOpen = false;
           for (let i = 1; i < tokens.length; i += 1) {
             const tok = tokens[i]!;
             if (tok === '--archive') archiveSource = true;
+            else if (tok === '--keep-open') keepOpen = true;
             else if ((tok === '--into' || tok === '--to') && tokens[i + 1]) {
               targetBranch = tokens[++i];
-            } else if (tok === '--focus' && tokens[i + 1]) {
+            } else if ((tok === '--focus' || tok === '--note') && tokens[i + 1]) {
               focusPrompt = tokens[++i];
             } else if (!tok.startsWith('-') && !sourceBranch) {
               sourceBranch = tok;
@@ -365,9 +367,13 @@ export function buildTreeCommand(host: TreeCommandHost): SlashCommand {
             ...(focusPrompt ? { focusPrompt } : {}),
             archiveSource,
           });
+          if (keepOpen && !archiveSource) {
+            await coordinator.archiveBranch(folded.sourceBranch.id, 'active');
+          }
+          const statusSuffix = archiveSource ? ' (archived)' : keepOpen ? ' (kept open)' : '';
           return {
             message: [
-              `Folded branch ${color.cyan(folded.sourceBranch.name)} → ${color.green(folded.targetBranch.name)}${archiveSource ? ' (archived)' : ''}.`,
+              `Folded branch ${color.cyan(folded.sourceBranch.name)} → ${color.green(folded.targetBranch.name)}${statusSuffix}.`,
               folded.summary,
             ].join('\n'),
           };

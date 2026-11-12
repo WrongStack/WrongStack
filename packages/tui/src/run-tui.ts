@@ -6,7 +6,10 @@ import { TerminalLifecycle, writeErr } from '@wrongstack/core/utils';
 import React from 'react';
 import { App } from './app.js';
 import { AppErrorBoundary } from './components/app-error-boundary.js';
-import { clearImagePreviewCache } from './graphics/image-preview-cache.js';
+import {
+  clearImagePreviewCache,
+  resolveEffectiveGraphicsProtocol,
+} from './graphics/image-preview-cache.js';
 import { titleAnimationAllowed } from './motion.js';
 import { ALT_SCREEN_ON } from './mouse.js';
 import { createExitOrchestrator } from './run-tui-exits.js';
@@ -15,7 +18,7 @@ import { mountInkApp } from './run-tui-mount.js';
 import type { RunTuiOptions } from './run-tui-options.js';
 import { createRunTuiTitleController } from './run-tui-title-controller.js';
 import { createSynchronizedStdout, stripTerminalGraphicsResponses } from './sync-stdout.js';
-import { BRACKETED_PASTE_ON } from './terminal-modes.js';
+import { BRACKETED_PASTE_ON, KITTY_DELETE_ALL_IMAGES } from './terminal-modes.js';
 
 // Re-export autonomy stage types from core for backward compatibility
 export type { AutonomyStage } from '@wrongstack/contracts/types';
@@ -167,6 +170,7 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
       restoreStdinGraphicsFilter?.();
       syncStdout.dispose();
     },
+    deleteKittyImagesOnExit: capability.graphicsProtocol === 'kitty',
   });
 
   // ── Durable teardown, rapid-Ctrl+C force-exit, signal/exit handlers, the
@@ -204,7 +208,10 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
       // the rows it remembers as still on screen.
       mount?.invalidateFrame();
       try {
-        syncStdout.stream.write('\x1b[2J\x1b[3J');
+        const kittyActive =
+          capability.graphicsProtocol === 'kitty' ||
+          resolveEffectiveGraphicsProtocol(capability.graphicsProtocol) === 'kitty';
+        syncStdout.stream.write(`${kittyActive ? KITTY_DELETE_ALL_IMAGES : ''}\x1b[2J\x1b[3J`);
       } catch {
         // stdout may be closed mid-teardown — ignore.
       }

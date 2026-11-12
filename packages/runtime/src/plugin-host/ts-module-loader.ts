@@ -1,16 +1,31 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
+import { statSync } from 'node:fs';
+import { mkdir, readFile, rm, unlink, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { definePlugin, KERNEL_API_VERSION } from '@wrongstack/core/plugin';
 
+/** Maximum local relative files allowed in a single external plugin closure. */
+const MAX_PLUGIN_CLOSURE_FILES = 64;
+
 export interface ImportPluginModuleOptions {
   /** Monotonic generation counter (> 0 triggers ESM cache eviction & fresh closure load). */
   reloadGeneration?: number | undefined;
   /** Optional directory root owned solely by this plugin (for deep helper cache eviction). */
   pluginDirectory?: string | undefined;
+  /** Optional Node.js `stripTypeScriptTypes` override (forces the Node closure fallback path). */
+  stripTypeScriptTypes?:
+    | ((code: string, options?: { mode?: 'strip' | 'transform' }) => string)
+    | undefined;
+}
+
+interface NodeTypeStripFallbackOptions {
+  /** Optional custom TypeScript stripper/transformer (defaults to `node:module.stripTypeScriptTypes`). */
+  stripTypeScriptTypes?:
+    | ((code: string, options?: { mode?: 'strip' | 'transform' }) => string)
+    | undefined;
 }
 
 const HOST_SCOPED_PACKAGE_RE = /^@wrongstack\/(plugin-sdk|contracts|core)(\/|$)/;
@@ -156,40 +171,169 @@ export function evictRuntimeModuleCache(
   return evicted;
 }
 
-async function importTypeScriptViaNodeFallback(entryPath: string, gen: number): Promise<unknown> {
+function resolveLocalRelativeFile(fromDir: string, specifier: string): string | undefined {
+  const cleanSpec = specifier.split(/[?#]/)[0] ?? specifier;
+  const base = resolve(fromDir, cleanSpec);
+  const candidates: string[] = [];
+
+  if (cleanSpec.endsWith('.js')) {
+    const stem = base.slice(0, -3);
+    candidates.push(`${stem}.ts`, `${stem}.mts`, base);
+  } else if (cleanSpec.endsWith('.mjs')) {
+    const stem = base.slice(0, -4);
+    candidates.push(`${stem}.mts`, base);
+  } else if (cleanSpec.endsWith('.cjs')) {
+    const stem = base.slice(0, -4);
+    candidates.push(`${stem}.cts`, base);
+  } else if (/\.[a-z0-9]+$/i.test(cleanSpec)) {
+    candidates.push(base);
+  } else {
+    candidates.push(
+      `${base}.ts`,
+      `${base}.mts`,
+      `${base}.js`,
+      `${base}.mjs`,
+      join(base, 'index.ts'),
+      join(base, 'index.mts'),
+      join(base, 'index.js'),
+      join(base, 'index.mjs'),
+    );
+  }
+
+  for (const candidate of candidates) {
+    if (statSync(candidate, { throwIfNoEntry: false })?.isFile()) {
+      return candidate;
+    }
+  }
+  return undefined;
+}
+
+function transpileTypeScriptSource(
+  rawSource: string,
+  sourcePath: string,
+  stripFn: (code: string, options?: { mode?: 'strip' | 'transform' }) => string,
+): string {
+  if (!/\.(?:ts|mts|cts)$/i.test(sourcePath)) {
+    return rawSource;
+  }
+  try {
+    return stripFn(rawSource, { mode: 'strip' });
+  } catch {
+    // Non-erasable TypeScript syntax (`enum`, `namespace`, parameter properties) throws
+    // `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX` under `mode: 'strip'`; fall back to `mode: 'transform'`.
+    return stripFn(rawSource, { mode: 'transform' });
+  }
+}
+
+/**
+ * Node.js 22.7+ / 24 LTS / 26 fallback loader for zero-build `.ts`/`.mts` plugins.
+ * Walks the bounded local relative import graph (`<= 64` files), strips/transforms
+ * TypeScript types, preserves `.ts` stack trace locations via inline `//# sourceURL=`,
+ * and emits a per-reload transient `.mjs` closure so helper edits reload cleanly.
+ */
+async function importTypeScriptViaNodeFallback(
+  entryPath: string,
+  gen: number,
+  options: NodeTypeStripFallbackOptions = {},
+): Promise<unknown> {
   installGlobalSdkBridge();
   const nodeModule = (await import('node:module')) as {
     stripTypeScriptTypes?: (code: string, options?: { mode?: 'strip' | 'transform' }) => string;
   };
-  if (typeof nodeModule.stripTypeScriptTypes !== 'function') {
+  const stripFn = options.stripTypeScriptTypes ?? nodeModule.stripTypeScriptTypes;
+  if (typeof stripFn !== 'function') {
     const sep = pathToFileURL(entryPath).href.includes('?') ? '&' : '?';
     return import(`${pathToFileURL(entryPath).href}${gen > 0 ? `${sep}wstack_reload=${gen}` : ''}`);
   }
-  const rawTs = await readFile(entryPath, 'utf8');
-  let stripped = nodeModule.stripTypeScriptTypes(rawTs, { mode: 'strip' });
-  const entryDir = dirname(entryPath);
 
-  // Rewrite relative specifiers and `@wrongstack/*` specifiers so `data:text/javascript` works cleanly.
-  stripped = stripped.replace(
-    /(\bfrom\s+['"]|\bimport\s*\(\s*['"])([^'"]+)(['"])/g,
-    (_full, prefix: string, spec: string, suffix: string) => {
+  const normalizedEntry = resolve(entryPath);
+  const digest = createHash('sha256')
+    .update(normalizedEntry.replaceAll('\\', '/'))
+    .digest('hex')
+    .slice(0, 12);
+  const nonce = Math.random().toString(36).slice(2, 8);
+  const tempDir = join(
+    tmpdir(),
+    'wrongstack-plugin-cache',
+    `closure-${digest}-g${gen}-${process.pid}-${Date.now()}-${nonce}`,
+  );
+  await mkdir(tempDir, { recursive: true, mode: 0o700 });
+
+  const sdkPath = join(tempDir, 'sdk-bridge.mjs');
+  await writeFile(sdkPath, VIRTUAL_SDK_SOURCE, { encoding: 'utf8', mode: 0o600 });
+
+  const visited = new Map<string, string>();
+  const pendingWrites: Promise<void>[] = [];
+
+  const emitLocalModule = async (sourcePath: string): Promise<string> => {
+    const canonical = resolve(sourcePath);
+    const existing = visited.get(canonical);
+    if (existing) return existing;
+
+    if (visited.size >= MAX_PLUGIN_CLOSURE_FILES) {
+      throw new Error(
+        `Plugin relative import closure exceeds maximum of ${MAX_PLUGIN_CLOSURE_FILES} local files (${entryPath})`,
+      );
+    }
+
+    const outName = `./mod-${visited.size}.mjs`;
+    visited.set(canonical, outName);
+
+    const rawCode = await readFile(canonical, 'utf8');
+    const stripped = transpileTypeScriptSource(rawCode, canonical, stripFn);
+    const fromDir = dirname(canonical);
+
+    const specifierPattern = /(\b(?:from|import)\s+['"]|\bimport\s*\(\s*['"])([^'"]+)(['"])/g;
+    const discoveredSpecs = new Set<string>();
+    for (const match of stripped.matchAll(specifierPattern)) {
+      if (match[2]) discoveredSpecs.add(match[2]);
+    }
+
+    const rewriteTable = new Map<string, string>();
+    for (const spec of discoveredSpecs) {
       if (spec.startsWith('./') || spec.startsWith('../')) {
-        return `${prefix}${pathToFileURL(resolve(entryDir, spec)).href}${suffix}`;
+        const localTarget = resolveLocalRelativeFile(fromDir, spec);
+        if (localTarget) {
+          const childOut = await emitLocalModule(localTarget);
+          rewriteTable.set(spec, childOut);
+        } else {
+          const fallbackUrl = pathToFileURL(resolve(fromDir, spec)).href;
+          const sep = fallbackUrl.includes('?') ? '&' : '?';
+          rewriteTable.set(spec, `${fallbackUrl}${gen > 0 ? `${sep}wstack_reload=${gen}` : ''}`);
+        }
+        continue;
+      }
+      if (spec === '@wrongstack/plugin-sdk') {
+        rewriteTable.set(spec, './sdk-bridge.mjs');
+        continue;
       }
       const hostPkg = resolveHostPackageSpecifier(spec);
       if (hostPkg) {
-        return `${prefix}${pathToFileURL(hostPkg).href}${suffix}`;
+        rewriteTable.set(spec, pathToFileURL(hostPkg).href);
       }
-      if (spec === '@wrongstack/plugin-sdk') {
-        const inlineData = `data:text/javascript;base64,${Buffer.from(VIRTUAL_SDK_SOURCE, 'utf8').toString('base64')}`;
-        return `${prefix}${inlineData}${suffix}`;
-      }
-      return `${prefix}${spec}${suffix}`;
-    },
-  );
+    }
 
-  const encoded = Buffer.from(stripped, 'utf8').toString('base64');
-  return import(`data:text/javascript;base64,${encoded}#g=${gen}`);
+    const rewritten = stripped.replace(
+      specifierPattern,
+      (_full, prefix: string, spec: string, suffix: string) => {
+        const mapped = rewriteTable.get(spec);
+        return mapped ? `${prefix}${mapped}${suffix}` : `${prefix}${spec}${suffix}`;
+      },
+    );
+
+    const withSourceUrl = `${rewritten}\n//# sourceURL=${pathToFileURL(canonical).href}\n`;
+    const outAbsPath = resolve(tempDir, outName);
+    pendingWrites.push(writeFile(outAbsPath, withSourceUrl, { encoding: 'utf8', mode: 0o600 }));
+    return outName;
+  };
+
+  try {
+    const entryRelOut = await emitLocalModule(normalizedEntry);
+    await Promise.all(pendingWrites);
+    return await import(pathToFileURL(resolve(tempDir, entryRelOut)).href);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
+  }
 }
 
 async function bundleAndImportViaBun(
@@ -202,6 +346,7 @@ async function bundleAndImportViaBun(
     return import(`${pathToFileURL(entryPath).href}${gen > 0 ? `${sep}wstack_reload=${gen}` : ''}`);
   }
   const normalizedEntry = entryPath.replaceAll('\\', '/');
+  const localClosureFiles = new Set<string>([resolve(entryPath).replaceAll('\\', '/')]);
   const result = await bunGlobal.build({
     entrypoints: [entryPath],
     target: 'bun',
@@ -215,6 +360,18 @@ async function bundleAndImportViaBun(
           build.onResolve({ filter: /.*/ }, (args) => {
             const spec = args.path;
             if (spec.startsWith('./') || spec.startsWith('../')) {
+              const resolvedLocal = resolveLocalRelativeFile(
+                args.resolveDir || dirname(entryPath),
+                spec,
+              );
+              if (resolvedLocal) {
+                localClosureFiles.add(resolve(resolvedLocal).replaceAll('\\', '/'));
+                if (localClosureFiles.size > MAX_PLUGIN_CLOSURE_FILES) {
+                  throw new Error(
+                    `Plugin relative import closure exceeds maximum of ${MAX_PLUGIN_CLOSURE_FILES} local files (${entryPath})`,
+                  );
+                }
+              }
               return undefined;
             }
             if (
@@ -288,9 +445,11 @@ export async function importExternalPluginModule(
     const entryPath = fileURLToPath(cleanUrl);
     const isTsEntry = /\.(?:ts|mts)$/i.test(entryPath);
 
-    if (!bunGlobal && isTsEntry) {
+    if (isTsEntry && (!bunGlobal || typeof opts.stripTypeScriptTypes === 'function')) {
       if (gen > 0) evictRuntimeModuleCache(importTarget, opts.pluginDirectory);
-      return importTypeScriptViaNodeFallback(entryPath, gen);
+      return importTypeScriptViaNodeFallback(entryPath, gen, {
+        stripTypeScriptTypes: opts.stripTypeScriptTypes,
+      });
     }
 
     if (gen > 0) {

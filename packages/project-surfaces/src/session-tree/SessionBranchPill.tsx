@@ -56,6 +56,11 @@ export function flattenSessionBranchRows(tree: SessionTreeSnapshot): SessionBran
   return rows;
 }
 
+export interface SessionBranchFoldOptions {
+  note?: string | undefined;
+  keepOpen?: boolean | undefined;
+}
+
 export interface SessionBranchPillProps {
   tree: SessionTreeSnapshot | null;
   busy?: boolean | undefined;
@@ -64,7 +69,9 @@ export interface SessionBranchPillProps {
   onSwitchBranch?:
     | ((branchId: string, opts?: { keepFiles?: boolean }) => void | Promise<void>)
     | undefined;
-  onFoldBranch?: ((sourceBranchId: string) => void | Promise<void>) | undefined;
+  onFoldBranch?:
+    | ((sourceBranchId: string, opts?: SessionBranchFoldOptions) => void | Promise<void>)
+    | undefined;
 }
 
 export function SessionBranchPill({
@@ -78,13 +85,46 @@ export function SessionBranchPill({
   const [open, setOpen] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
   const [keepFiles, setKeepFiles] = useState(false);
+  const [foldNote, setFoldNote] = useState('');
+  const [keepOpenOnFold, setKeepOpenOnFold] = useState(false);
 
   const rows = useMemo(() => (tree ? flattenSessionBranchRows(tree) : []), [tree]);
   if (!tree) return null;
 
   const activeBranch = tree.branches[tree.activeBranchId];
   const activeName = activeBranch?.name ?? tree.activeBranchId ?? 'main';
+  const activeParentName =
+    activeBranch?.parentBranchId != null
+      ? (tree.branches[activeBranch.parentBranchId]?.name ?? activeBranch.parentBranchId)
+      : null;
+  const canFoldActiveIntoParent = Boolean(
+    activeBranch &&
+      activeBranch.parentBranchId !== null &&
+      activeBranch.status === 'active' &&
+      onFoldBranch,
+  );
   const branchCount = rows.length;
+
+  const buildFoldOpts = (): SessionBranchFoldOptions | undefined => {
+    const trimmedNote = foldNote.trim();
+    if (!trimmedNote && !keepOpenOnFold) return undefined;
+    return {
+      ...(trimmedNote ? { note: trimmedNote } : {}),
+      ...(keepOpenOnFold ? { keepOpen: true } : {}),
+    };
+  };
+
+  const triggerFold = (branchId: string) => {
+    if (!onFoldBranch) return;
+    const opts = buildFoldOpts();
+    setFoldNote('');
+    setOpen(false);
+    void Promise.resolve(opts ? onFoldBranch(branchId, opts) : onFoldBranch(branchId)).finally(
+      () => {
+        onRefresh?.();
+      },
+    );
+  };
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,12 +212,7 @@ export function SessionBranchPill({
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => {
-                      setOpen(false);
-                      void Promise.resolve(onFoldBranch(branch.id)).finally(() => {
-                        onRefresh?.();
-                      });
-                    }}
+                    onClick={() => triggerFold(branch.id)}
                     title={`Fold "${branch.name}" summary into parent`}
                     className="inline-flex items-center gap-0.5 rounded border border-border/70 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted"
                   >
@@ -188,6 +223,47 @@ export function SessionBranchPill({
               </div>
             ))}
           </div>
+
+          {canFoldActiveIntoParent && activeBranch ? (
+            <div
+              className="rounded border border-primary/25 bg-primary/5 p-1.5 space-y-1.5"
+              data-testid="active-branch-fold-panel"
+            >
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[10px] font-medium text-foreground/90 truncate">
+                  Fold insights into {activeParentName ?? 'parent'}
+                </span>
+                <label className="flex items-center gap-1 text-[10px] text-muted-foreground cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={keepOpenOnFold}
+                    onChange={(e) => setKeepOpenOnFold(e.target.checked)}
+                    className="h-3 w-3"
+                  />
+                  Keep open
+                </label>
+              </div>
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  value={foldNote}
+                  onChange={(e) => setFoldNote(e.target.value)}
+                  placeholder="Optional fold note…"
+                  className="h-6 flex-1 rounded border border-border/70 bg-background px-2 text-[11px] outline-none focus:border-primary"
+                />
+                <button
+                  type="button"
+                  disabled={busy}
+                  data-testid="fold-active-branch-into-parent"
+                  onClick={() => triggerFold(activeBranch.id)}
+                  className="inline-flex h-6 items-center gap-1 rounded border border-primary/40 bg-primary/15 px-2 text-[10px] font-medium text-primary hover:bg-primary/25 disabled:opacity-50"
+                >
+                  <GitMerge className="h-3 w-3" />
+                  Fold insights
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           {onCreateBranch ? (
             <form

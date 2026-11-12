@@ -77,9 +77,11 @@ export {
   clearImagePreviewCache,
   encodeNativeTerminalImage,
   extractToolImageArtifactPath,
+  getImagePreviewCacheBytes,
   getImagePreviewCacheSize,
   getLastPreviewedImagePath,
   loadCachedImagePreview,
+  MAX_IMAGE_PREVIEW_CACHE_BYTES,
   MAX_IMAGE_PREVIEW_CACHE_ENTRIES,
 } from './graphics/image-preview-cache.js';
 export { parseInline } from './markdown.js';

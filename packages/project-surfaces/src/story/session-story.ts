@@ -141,17 +141,26 @@ export function buildSessionStory(
   }
   const knownTraces = new Set<string>();
   const branchNames = new Map<string, string>([['main', 'main']]);
-  const ensureActor = (id: string, at: number) => {
+  const branchParents = new Map<string, string>();
+  const resolveBranchParentActor = (branchId: string): string => {
+    const parentBranchId = branchParents.get(branchId);
+    return parentBranchId && parentBranchId !== 'main' ? `branch:${parentBranchId}` : 'session';
+  };
+  const ensureActor = (id: string, at: number): StoryActor => {
     let actor = actors.get(id);
     if (!actor) {
       const branchId = id.startsWith('branch:') ? id.slice('branch:'.length) : undefined;
+      const parentActorId = branchId ? resolveBranchParentActor(branchId) : undefined;
+      if (parentActorId && parentActorId !== 'session' && parentActorId !== id) {
+        ensureActor(parentActorId, at);
+      }
       actor = {
         id,
         name: branchId
           ? `⎇ ${branchNames.get(branchId) ?? branchId}`
           : (names.get(id) ??
             (id === 'session' ? 'Session / unattributed' : `Agent ${id.slice(0, 12)}`)),
-        ...(branchId ? { parent: 'session' } : {}),
+        ...(parentActorId ? { parent: parentActorId } : {}),
         start: at,
         end: at,
         events: 0,
@@ -161,6 +170,11 @@ export function buildSessionStory(
       const branchId = id.slice('branch:'.length);
       const knownBranchName = branchNames.get(branchId);
       if (knownBranchName) actor.name = `⎇ ${knownBranchName}`;
+      const parentActorId = resolveBranchParentActor(branchId);
+      if (parentActorId !== id) {
+        if (parentActorId !== 'session') ensureActor(parentActorId, at);
+        actor.parent = parentActorId;
+      }
     }
     actor.start = Math.min(actor.start, at);
     actor.end = Math.max(actor.end, at);
@@ -180,6 +194,19 @@ export function buildSessionStory(
     const attrBranchName = string(attributes.branchName) ?? string(attributes.name);
     if (attrBranchId && attrBranchName) {
       branchNames.set(attrBranchId, attrBranchName);
+    }
+    if (record.eventType === 'branch_created') {
+      const createdId = string(attributes.branchId) ?? string(attributes.newBranchId);
+      const parentBranchId = string(attributes.parentBranchId);
+      if (createdId && parentBranchId && createdId !== parentBranchId) {
+        branchParents.set(createdId, parentBranchId);
+      }
+    }
+    if (record.eventType === 'branch_folded' && record.outcome !== 'failure') {
+      const foldedSourceId = string(attributes.sourceBranchId);
+      if (foldedSourceId && foldedSourceId !== 'main') {
+        ensureActor(`branch:${foldedSourceId}`, at).status = 'completed';
+      }
     }
     const spawnedId =
       record.eventType === 'subagent.spawned' ? string(attributes.subagentId) : undefined;

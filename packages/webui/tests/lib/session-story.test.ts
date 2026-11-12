@@ -243,7 +243,47 @@ describe('session story projection', () => {
     expect(branchLane).toBeDefined();
     expect(branchLane?.name).toBe('⎇ try-redis');
     expect(branchLane?.parent).toBe('session');
+    expect(branchLane?.status).toBe('completed');
     expect(story.events.find((e) => e.id === 'b-create')?.title).toContain('try-redis');
     expect(story.events.find((e) => e.id === 'b-fold')?.title).toBe('⎇ Folded try-redis → main');
+  });
+
+  it('preserves hierarchical parent-branch DAG lineage across nested exploratory branches', () => {
+    const story = buildSessionStory('tab-a', [
+      record('b1', 'branch_created', {
+        observedAt: new Date(base + 50).toISOString(),
+        scope: { sessionId: 'tab-a' },
+        attributes: {
+          parentBranchId: 'main',
+          branchId: 'br_l1',
+          name: 'exp-storage',
+        },
+      }),
+      record('b2', 'branch_created', {
+        observedAt: new Date(base + 100).toISOString(),
+        scope: { sessionId: 'tab-a' },
+        attributes: {
+          parentBranchId: 'br_l1',
+          branchId: 'br_l2',
+          name: 'exp-wal-tuning',
+        },
+      }),
+      record('b2-tool', 'tool.executed', {
+        observedAt: new Date(base + 150).toISOString(),
+        scope: { sessionId: 'tab-a' },
+        attributes: {
+          toolName: 'edit',
+          branchId: 'br_l2',
+          branchName: 'exp-wal-tuning',
+        },
+      }),
+    ]);
+
+    const l1 = story.actors.find((a) => a.id === 'branch:br_l1');
+    const l2 = story.actors.find((a) => a.id === 'branch:br_l2');
+    expect(l1?.parent).toBe('session');
+    expect(l1?.name).toBe('⎇ exp-storage');
+    expect(l2?.parent).toBe('branch:br_l1');
+    expect(l2?.name).toBe('⎇ exp-wal-tuning');
   });
 });

@@ -285,6 +285,31 @@ describe('/tree portable slash command', () => {
     expect(switchOut?.message).toContain('[SESSION RESUME FILE VALIDATION]');
     expect(switchOut?.message).toMatch(/src[/\\]+config\.ts.*\[modified\]/);
 
+    // Verify `/tree fold --note "<text>" --keep-open` folds summary into parent while keeping source active
+    await cmd.run('switch spike-port --keep-files');
+    await writer.append({
+      type: 'user_input',
+      ts: '2026-11-12T11:02:00.000Z',
+      content: 'Benchmark port 9090 throughput',
+      branchId: (await cmd.run('list --json').then((r) => JSON.parse(r?.message ?? '{}')))
+        .activeBranchId,
+    });
+
+    const foldKeepOpen = await cmd.run(
+      'fold spike-port --into main --note "Port 9090 benchmarked cleanly" --keep-open',
+    );
+    expect(foldKeepOpen?.message).toContain('Folded branch');
+    expect(foldKeepOpen?.message).toContain('(kept open)');
+    expect(foldKeepOpen?.message).toContain('Port 9090 benchmarked cleanly');
+
+    const treeAfterFold = JSON.parse((await cmd.run('list --json'))?.message ?? '{}') as {
+      activeBranchId: string;
+      branches: Record<string, { name: string; status: string }>;
+    };
+    expect(treeAfterFold.activeBranchId).toBe('main');
+    const spikeEntry = Object.values(treeAfterFold.branches).find((b) => b.name === 'spike-port');
+    expect(spikeEntry?.status).toBe('active');
+
     await writer.close();
   });
 });

@@ -19,17 +19,19 @@ import {
   clearImagePreviewCache,
   encodeNativeTerminalImage,
   extractToolImageArtifactPath,
+  getImagePreviewCacheBytes,
   getImagePreviewCacheSize,
   getLastPreviewedImagePath,
   getRuntimeGraphicsOverride,
   loadCachedImagePreview,
+  MAX_IMAGE_PREVIEW_CACHE_BYTES,
   MAX_IMAGE_PREVIEW_CACHE_ENTRIES,
   parseRuntimeGraphicsMode,
   resolveEffectiveGraphicsProtocol,
   setRuntimeGraphicsOverride,
 } from '../src/graphics/image-preview-cache.js';
 import { createSynchronizedStdout, stripTerminalGraphicsResponses } from '../src/sync-stdout.js';
-import { SYNC_OUTPUT_OFF, SYNC_OUTPUT_ON } from '../src/terminal-modes.js';
+import { KITTY_DELETE_ALL_IMAGES, SYNC_OUTPUT_OFF, SYNC_OUTPUT_ON } from '../src/terminal-modes.js';
 
 function makePngChunk(type: string, data: Uint8Array): Buffer {
   const len = Buffer.alloc(4);
@@ -358,5 +360,12 @@ describe('Inline terminal graphics codec & bounded ToolImagePreview', () => {
     }
     // LRU hard cap keeps at most MAX_IMAGE_PREVIEW_CACHE_ENTRIES (8) thumbnails resident (< 2 MiB)
     expect(getImagePreviewCacheSize()).toBe(MAX_IMAGE_PREVIEW_CACHE_ENTRIES);
+    expect(getImagePreviewCacheBytes()).toBeGreaterThan(0);
+    expect(getImagePreviewCacheBytes()).toBeLessThanOrEqual(MAX_IMAGE_PREVIEW_CACHE_BYTES);
+
+    clearImagePreviewCache();
+    expect(getImagePreviewCacheSize()).toBe(0);
+    expect(getImagePreviewCacheBytes()).toBe(0);
+    expect(KITTY_DELETE_ALL_IMAGES).toBe('\x1b_Ga=d,d=a,q=2\x1b\\');
   });
 });

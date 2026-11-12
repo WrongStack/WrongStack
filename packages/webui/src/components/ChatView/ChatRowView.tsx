@@ -19,6 +19,8 @@ export const ChatRowView = memo(function ChatRowView({
   readOnly = false,
   promptIndex,
   onBranchFromPrompt,
+  branchAfterTurn,
+  onBranchAfterTurn,
 }: {
   row: ChatRow;
   isLoading: boolean;
@@ -32,6 +34,9 @@ export const ChatRowView = memo(function ChatRowView({
   /** 0-based user prompt turn index for `/tree branch --at <N>`. */
   promptIndex?: number | undefined;
   onBranchFromPrompt?: ((promptIndex: number) => void) | undefined;
+  /** Post-assistant fork anchor (`nextPromptIndex` or `'head'` for latest completed turn). */
+  branchAfterTurn?: { nextPromptIndex: number | 'head' } | undefined;
+  onBranchAfterTurn?: ((target: number | 'head') => void) | undefined;
 }) {
   const { t } = useAppTranslation();
   const wrap = cn(
@@ -73,7 +78,7 @@ export const ChatRowView = memo(function ChatRowView({
     );
   }
   return (
-    <div className={wrap}>
+    <div className={cn(wrap, 'group/assistant-turn')}>
       <div className={cn('chat-turn', compactMode ? 'space-y-1' : 'space-y-1.5')}>
         {row.items.flatMap((it) => {
           if (it.kind === 'msg') {
@@ -121,6 +126,21 @@ export const ChatRowView = memo(function ChatRowView({
           ));
         })}
       </div>
+      {!readOnly && branchAfterTurn && onBranchAfterTurn && !(row.isLastTurn && isLoading) ? (
+        <div className="mt-1 flex justify-end opacity-0 transition-opacity focus-within:opacity-100 group-hover/assistant-turn:opacity-100">
+          <button
+            type="button"
+            disabled={isLoading}
+            data-testid={`branch-after-turn-${branchAfterTurn.nextPromptIndex}`}
+            title="Fork a new session branch after this assistant response"
+            onClick={() => onBranchAfterTurn(branchAfterTurn.nextPromptIndex)}
+            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted/70 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+          >
+            <GitBranch className="h-3 w-3" />
+            <span>{t('chat:branchFromHere', 'Branch from here')}</span>
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 });
