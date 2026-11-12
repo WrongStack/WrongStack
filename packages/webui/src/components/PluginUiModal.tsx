@@ -7,6 +7,7 @@ import {
 import { Blocks, RefreshCw, X } from 'lucide-react';
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
+import { useAppTranslation } from '@/i18n';
 import { invokePortableCommand } from '@/lib/portable-command-rpc';
 import { getWSClient } from '@/lib/ws-client';
 import { useConfigStore } from '@/stores';
@@ -46,6 +47,7 @@ export function openPluginUiModal(panelId?: string): boolean {
 }
 
 export function PluginUiBarAndModal(): React.ReactElement | null {
+  const { t } = useAppTranslation();
   const wsStatus = useConfigStore((s) => s.wsStatus);
   const [chips, setChips] = useState<PluginStatusChipItem[]>([]);
   const [panels, setPanels] = useState<PluginPanelSummary[]>([]);
@@ -224,7 +226,7 @@ export function PluginUiBarAndModal(): React.ReactElement | null {
           aria-label="Plugin Panels"
           data-testid="plugin-ui-modal"
         >
-          <div className="flex max-h-[82vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-xl">
+          <div className="flex max-h-[82vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-card ws-dialog">
             <div className="flex items-center justify-between border-b border-border/70 px-4 py-2.5">
               <div className="flex items-center gap-2">
                 <Blocks className="h-4 w-4 text-primary" />
@@ -245,7 +247,7 @@ export function PluginUiBarAndModal(): React.ReactElement | null {
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  aria-label="Close plugin panels"
+                  aria-label={t('common:pluginPanels.close')}
                   className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
                   <X className="h-4 w-4" />
@@ -317,7 +319,7 @@ export function PluginUiBarAndModal(): React.ReactElement | null {
                   <PluginViewNodeRenderer node={activePanel.view} />
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground">Loading panel view…</p>
+                <p className="text-xs text-muted-foreground">{t('common:pluginPanels.loading')}</p>
               )}
             </div>
           </div>

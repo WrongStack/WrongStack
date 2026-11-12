@@ -181,7 +181,7 @@ describe('context.debug Context X-Ray payload', () => {
     // One builtin + two `mcp__<server>__<tool>` definitions.
     expect(xray?.tools.mcp).toBeGreaterThan(0);
     expect(xray?.tools.builtin).toBeGreaterThan(0);
-    expect(xray?.tools.mcp).toBeLessThan(xray?.tools.total);
+    expect(xray?.tools.mcp).toBeLessThan(xray?.tools.total ?? 0);
     expect(Object.keys(xray?.tools.mcpByServer ?? {}).sort()).toEqual(['kanban', 'sage']);
 
     // The rows the viewer sells: tool arguments and tool_result file bodies

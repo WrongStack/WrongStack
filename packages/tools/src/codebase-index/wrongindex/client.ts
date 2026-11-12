@@ -15,6 +15,7 @@ import * as net from 'node:net';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { Duplex } from 'node:stream';
+import { buildChildEnv } from '../../_env.js';
 
 export const PROTOCOL_MAJOR = 1;
 export const PROTOCOL_MINOR = 0;
@@ -243,6 +244,7 @@ export class WrongIndexClient {
         });
       }
       const child = spawn(clientBridge, ['--ipc-bridge', '--data-root', root], {
+        env: buildChildEnv(),
         windowsHide: true,
         stdio: ['pipe', 'pipe', 'ignore'],
       });

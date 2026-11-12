@@ -21,7 +21,7 @@ function tool(overrides: Partial<ChatMessage> = {}): ChatMessage {
 
 describe('<ToolCallOverview />', () => {
   it('covers the complete static built-in catalog', () => {
-    expect(Object.keys(TOOL_OVERVIEW_REGISTRY)).toHaveLength(68);
+    expect(Object.keys(TOOL_OVERVIEW_REGISTRY)).toHaveLength(69);
     expect(
       render(
         <ToolCallOverview message={tool({ toolName: 'browser_click' })} />,

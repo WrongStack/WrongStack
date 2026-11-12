@@ -469,11 +469,8 @@ describe('SubagentBudget', () => {
   describe('prompt cache token tracking', () => {
     it('tracks cacheRead and cacheWrite separately from billable total tokens', () => {
       const b = new SubagentBudget({ maxTokens: 10_000 });
-      b.recordUsage(
-        { input: 400, output: 150, total: 550, cacheRead: 1800, cacheWrite: 200 },
-        0.002,
-      );
-      b.recordUsage({ input: 250, output: 100, total: 350, cacheRead: 1800, cacheWrite: 0 }, 0.001);
+      b.recordUsage({ input: 400, output: 150, cacheRead: 1800, cacheWrite: 200 }, 0.002);
+      b.recordUsage({ input: 250, output: 100, cacheRead: 1800, cacheWrite: 0 }, 0.001);
       const u = b.usage();
       expect(u.tokens.input).toBe(650);
       expect(u.tokens.output).toBe(250);
@@ -485,7 +482,7 @@ describe('SubagentBudget', () => {
 
     it('ignores non-positive cacheRead and cacheWrite values cleanly', () => {
       const b = new SubagentBudget({});
-      b.recordUsage({ input: 100, output: 50, total: 150, cacheRead: 0, cacheWrite: -10 }, 0.0005);
+      b.recordUsage({ input: 100, output: 50, cacheRead: 0, cacheWrite: -10 }, 0.0005);
       const u = b.usage();
       expect(u.tokens.cacheRead).toBeUndefined();
       expect(u.tokens.cacheWrite).toBeUndefined();

@@ -3,6 +3,7 @@ import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useWindowedPicker } from '../hooks/use-windowed-picker.js';
 import { Box, Text, useInput } from '../ink.js';
+import { isLeakedMouseInput } from '../mouse.js';
 
 export interface SessionTreeOverlayRow {
   branch: SessionBranchDescriptor;
@@ -146,6 +147,7 @@ export function SessionTreeOverlay({
 
   useInput(
     (input, key) => {
+      if (input && isLeakedMouseInput(input)) return;
       if (creatingBranch) {
         if (key.escape) {
           setCreatingBranch(false);

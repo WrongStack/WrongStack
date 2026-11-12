@@ -33,7 +33,7 @@ describe('/tree portable slash command', () => {
 
   it('executes list, branch, switch, rename, fold, and archive subcommands end-to-end', async () => {
     const store = new DefaultSessionStore({ dir: tmpDir });
-    const writer = await store.create({ model: 'gpt-5', provider: 'openai' });
+    const writer = await store.create({ id: '', model: 'gpt-5', provider: 'openai' });
     const liveMessages: Message[] = [];
 
     const coordinator = new SessionTreeCoordinator({
@@ -97,8 +97,8 @@ describe('/tree portable slash command', () => {
 
   it('resolves per-call callCtx session writer for multi-tab WebUI and multi-session ACP hosts', async () => {
     const store = new DefaultSessionStore({ dir: tmpDir });
-    const writerA = await store.create({ model: 'gpt-5', provider: 'openai' });
-    const writerB = await store.create({ model: 'gpt-5', provider: 'openai' });
+    const writerA = await store.create({ id: '', model: 'gpt-5', provider: 'openai' });
+    const writerB = await store.create({ id: '', model: 'gpt-5', provider: 'openai' });
 
     const cmd = buildTreeCommand({
       sessionStore: store,
@@ -108,15 +108,15 @@ describe('/tree portable slash command', () => {
     await cmd.run('branch tab-b-branch', {
       session: writerB,
       messages: [],
-    });
+    } as never);
 
     const listA = JSON.parse(
-      (await cmd.run('list --json', { session: writerA }))?.message ?? '{}',
+      (await cmd.run('list --json', { session: writerA } as never))?.message ?? '{}',
     ) as {
       branches: Record<string, { name: string }>;
     };
     const listB = JSON.parse(
-      (await cmd.run('list --json', { session: writerB }))?.message ?? '{}',
+      (await cmd.run('list --json', { session: writerB } as never))?.message ?? '{}',
     ) as {
       branches: Record<string, { name: string }>;
     };

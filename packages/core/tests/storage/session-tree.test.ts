@@ -18,7 +18,7 @@ import { SessionTreeCoordinator } from '../../src/storage/session-tree-coordinat
 import type { VcsRunResult } from '../../src/vcs/vcs-runner.js';
 
 const HEAD = 'b'.repeat(40);
-const zeroUsage = { input: 10, output: 10, total: 20 };
+const zeroUsage = { input: 10, output: 10 };
 
 describe('SessionTreeCoordinator & DAG replay', () => {
   let tmpDir: string;
@@ -59,7 +59,7 @@ describe('SessionTreeCoordinator & DAG replay', () => {
 
   it('keeps unbranched journals 100% backward-compatible without stamping branchId or tree', async () => {
     const store = new DefaultSessionStore({ dir: sessionsDir });
-    const writer = await store.create({ model: 'gpt-5', provider: 'openai' });
+    const writer = await store.create({ id: '', model: 'gpt-5', provider: 'openai' });
     await writer.append({
       type: 'user_input',
       ts: '2026-11-11T10:00:00.000Z',
@@ -70,6 +70,7 @@ describe('SessionTreeCoordinator & DAG replay', () => {
       ts: '2026-11-11T10:00:01.000Z',
       content: [{ type: 'text', text: 'hi there' }],
       usage: zeroUsage,
+      stopReason: 'end_turn',
     });
     await writer.close();
 
@@ -90,7 +91,11 @@ describe('SessionTreeCoordinator & DAG replay', () => {
 
   it('isolates multi-branch conversations, nested sub-branches, historical --at forks, and per-branch compaction', async () => {
     const store = new DefaultSessionStore({ dir: sessionsDir });
-    const writer = await store.create({ model: 'claude-sonnet-4-5', provider: 'anthropic' });
+    const writer = await store.create({
+      id: '',
+      model: 'claude-sonnet-4-5',
+      provider: 'anthropic',
+    });
     let liveMessages: Message[] = [];
     let activeDescriptor: SessionBranchDescriptor | undefined;
 
@@ -124,6 +129,7 @@ describe('SessionTreeCoordinator & DAG replay', () => {
       ts: '2026-11-11T10:00:02.000Z',
       content: [{ type: 'text', text: 'Answer 0 on main' }],
       usage: zeroUsage,
+      stopReason: 'end_turn',
     });
 
     // Turn 1 on main
@@ -143,6 +149,7 @@ describe('SessionTreeCoordinator & DAG replay', () => {
       ts: '2026-11-11T10:00:05.000Z',
       content: [{ type: 'text', text: 'Answer 1 on main' }],
       usage: zeroUsage,
+      stopReason: 'end_turn',
     });
 
     // Fork `try-redis` from current head of main (inherits 4 messages)
@@ -165,10 +172,12 @@ describe('SessionTreeCoordinator & DAG replay', () => {
       ts: '2026-11-11T10:01:01.000Z',
       content: [{ type: 'text', text: 'Redis streams configured' }],
       usage: zeroUsage,
+      stopReason: 'end_turn',
     });
     await writer.append({
       type: 'context_snapshot',
       ts: '2026-11-11T10:01:02.000Z',
+      reason: 'compaction',
       messages: [
         { role: 'user', content: '[Compacted try-redis summary]', ts: '2026-11-11T10:01:02.000Z' },
       ],
@@ -229,7 +238,7 @@ describe('SessionTreeCoordinator & DAG replay', () => {
     });
 
     const store = new DefaultSessionStore({ dir: sessionsDir });
-    const writer = await store.create({ model: 'gpt-5', provider: 'openai' });
+    const writer = await store.create({ id: '', model: 'gpt-5', provider: 'openai' });
     const coordinator = new SessionTreeCoordinator({
       sessionId: writer.id,
       writer,
@@ -248,6 +257,7 @@ describe('SessionTreeCoordinator & DAG replay', () => {
       type: 'checkpoint',
       ts: '2026-11-11T11:00:00.000Z',
       promptIndex: 0,
+      promptPreview: '',
       workspaceCheckpoint: mainBaseCp,
     });
 
@@ -309,7 +319,7 @@ describe('SessionTreeCoordinator & DAG replay', () => {
   it('scrubs secrets during foldBranch before synthesis and persists clean handoff on target branch', async () => {
     const scrubber = new DefaultSecretScrubber();
     const store = new DefaultSessionStore({ dir: sessionsDir, secretScrubber: scrubber });
-    const writer = await store.create({ model: 'gpt-5', provider: 'openai' });
+    const writer = await store.create({ id: '', model: 'gpt-5', provider: 'openai' });
     const synthesizeSpy = vi.fn(async (prompt: string) => `Synthesized handoff:\n${prompt}`);
 
     const coordinator = new SessionTreeCoordinator({
@@ -343,6 +353,7 @@ describe('SessionTreeCoordinator & DAG replay', () => {
         { type: 'text', text: `Endpoint rejected ${leakedSecret}; use OAuth PKCE instead.` },
       ],
       usage: zeroUsage,
+      stopReason: 'end_turn',
     });
 
     const folded = await coordinator.foldBranch({
@@ -399,7 +410,7 @@ describe('SessionTreeCoordinator & DAG replay', () => {
     events.on('workspace.files_materialized', (ev) => materializedEvents.push(ev));
 
     const store = new DefaultSessionStore({ dir: sessionsDir });
-    const writer = await store.create({ model: 'gpt-5', provider: 'openai' });
+    const writer = await store.create({ id: '', model: 'gpt-5', provider: 'openai' });
     const coordinator = new SessionTreeCoordinator({
       sessionId: writer.id,
       writer,
@@ -418,7 +429,7 @@ describe('SessionTreeCoordinator & DAG replay', () => {
       type: 'checkpoint',
       ts: '2026-11-11T13:00:00.000Z',
       promptIndex: 0,
-      messageCount: 0,
+      promptPreview: '',
       workspaceCheckpoint: cpMain,
     });
     await coordinator.createBranch({ name: 'exp-hook' });
@@ -453,7 +464,7 @@ describe('SessionTreeCoordinator & DAG replay', () => {
       vcs: mockGitRunner(() => ['src/state.ts']),
     });
     const store = new DefaultSessionStore({ dir: sessionsDir });
-    const writer = await store.create({ model: 'gpt-5', provider: 'openai' });
+    const writer = await store.create({ id: '', model: 'gpt-5', provider: 'openai' });
     const coordinator = new SessionTreeCoordinator({
       sessionId: writer.id,
       writer,
@@ -491,7 +502,7 @@ describe('SessionTreeCoordinator & DAG replay', () => {
       type: 'checkpoint',
       ts: new Date(1_700_000_000_000).toISOString(),
       promptIndex: 0,
-      messageCount: 0,
+      promptPreview: '',
       workspaceCheckpoint: cp0,
     });
     await writer.append({
@@ -505,7 +516,6 @@ describe('SessionTreeCoordinator & DAG replay', () => {
       content: [{ type: 'text', text: 'seed reply 0' }],
       usage: zeroUsage,
       stopReason: 'end_turn',
-      durationMs: 10,
     });
 
     let branchCounter = 0;
@@ -527,7 +537,7 @@ describe('SessionTreeCoordinator & DAG replay', () => {
           type: 'checkpoint',
           ts: new Date(1_700_000_000_000 + op * 1000).toISOString(),
           promptIndex: active.turnCount,
-          messageCount: active.turnCount * 2,
+          promptPreview: '',
           workspaceCheckpoint: cp,
         });
         await writer.append({
@@ -541,7 +551,6 @@ describe('SessionTreeCoordinator & DAG replay', () => {
           content: [{ type: 'text', text: `reply-${op} on ${active.name}` }],
           usage: zeroUsage,
           stopReason: 'end_turn',
-          durationMs: 10,
         });
       } else if (roll < 64) {
         // Create nested branch up to depth 5
@@ -568,11 +577,9 @@ describe('SessionTreeCoordinator & DAG replay', () => {
           await writer.append({
             type: 'compaction',
             ts: new Date(1_700_000_000_600 + op * 1000).toISOString(),
-            beforeCount: curMsgs.length,
-            afterCount: retained.length + 1,
-            strategy: 'summarize',
-            summary: `[Compacted ${curMsgs.length - 2} messages at op ${op}]`,
-            retainedMessages: retained,
+            before: curMsgs.length,
+            after: retained.length + 1,
+            digest: `[Compacted ${curMsgs.length - 2} messages at op ${op}]`,
           });
         }
       } else if (roll < 96) {
@@ -641,7 +648,7 @@ describe('SessionTreeCoordinator & DAG replay', () => {
 
   it('enforces branchFoldMaxTokens budget and records onFoldInsight sageMemoryIds on branch_folded', async () => {
     const store = new DefaultSessionStore({ dir: sessionsDir });
-    const writer = await store.create({ model: 'gpt-5', provider: 'openai' });
+    const writer = await store.create({ id: '', model: 'gpt-5', provider: 'openai' });
 
     const insightCalls: Array<{
       sourceBranchName: string;
@@ -681,7 +688,7 @@ describe('SessionTreeCoordinator & DAG replay', () => {
       type: 'file_snapshot',
       ts: '2026-11-11T15:00:05.000Z',
       promptIndex: 0,
-      files: [{ path: 'src/db/wal.ts', existedBefore: true, contentBefore: 'old' }],
+      files: [{ path: 'src/db/wal.ts', action: 'modified', before: 'old', after: 'new' }],
     });
 
     const folded = await coordinator.foldBranch({ archiveSource: true });

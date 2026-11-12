@@ -183,8 +183,8 @@ describe('project agent self-learning lifecycle', () => {
       },
       projectRoot,
     );
-    expect(roster.reviewer.maxTokens).toBeGreaterThanOrEqual(8_192);
-    expect(roster.reviewer.maxIterations).toBeGreaterThanOrEqual(20);
+    expect(roster.reviewer?.maxTokens).toBeGreaterThanOrEqual(8_192);
+    expect(roster.reviewer?.maxIterations).toBeGreaterThanOrEqual(20);
 
     // Control: a custom role may still deliberately opt into a narrow runtime.
     createProjectAgent(

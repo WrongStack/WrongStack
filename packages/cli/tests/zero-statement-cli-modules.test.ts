@@ -212,6 +212,7 @@ describe('formerly zero-statement CLI modules', () => {
     const register = vi.fn();
     setupCliSlashCommands({
       slashRegistry: { register },
+      agent: {},
       container: { resolve: vi.fn(() => ({})) },
       config: { model: 'model' },
       context: {},

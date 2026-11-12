@@ -127,5 +127,9 @@
     "down": "MCP server \"{{name}}\" is not connected ({{reason}}); its tools are unavailable. Retry with /mcp restart {{name}}.",
     "up": "MCP server \"{{name}}\" is connected again."
   },
-  "loadingNamed": "Loading {{name}}…"
+  "loadingNamed": "Loading {{name}}…",
+  "pluginPanels": {
+    "close": "Close plugin panels",
+    "loading": "Loading panel view…"
+  }
 }

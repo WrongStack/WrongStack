@@ -155,8 +155,8 @@ describe('PluginPanelOverlay, PluginStatusStrip, ImagePreviewModal, ResumePicker
       }),
     );
 
-    // Wait for async readFile + PNG thumbnail decode
-    await new Promise((r) => setTimeout(r, 40));
+    // Wait for async readFile + PNG thumbnail decode (a fixed sleep flakes under load)
+    await vi.waitFor(() => expect(app.lastFrame() ?? '').toContain('8×8 PNG'), { timeout: 5000 });
     const frame = app.lastFrame() ?? '';
     expect(frame).toContain('Image Preview');
     expect(frame).toContain('sample.png');

@@ -127,5 +127,9 @@
     "down": "\"{{name}}\" MCP sunucusu bağlı değil ({{reason}}); araçları kullanılamıyor. /mcp restart {{name}} ile yeniden deneyin.",
     "up": "\"{{name}}\" MCP sunucusu yeniden bağlandı."
   },
-  "loadingNamed": "{{name}} yükleniyor…"
+  "loadingNamed": "{{name}} yükleniyor…",
+  "pluginPanels": {
+    "close": "Eklenti panellerini kapat",
+    "loading": "Panel görünümü yükleniyor…"
+  }
 }

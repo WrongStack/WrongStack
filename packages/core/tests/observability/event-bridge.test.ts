@@ -182,7 +182,14 @@ describe('wireMetricsToEvents', () => {
     const bus = new EventBus();
     const { sink, counter, histogram } = makeSink();
     wireMetricsToEvents(bus, sink);
-    bus.emit('compaction.fired', { report: { before: 100_000, after: 40_000, reductions: [] } });
+    bus.emit('compaction.fired', {
+      level: 'soft',
+      tokens: 100_000,
+      load: 0.7,
+      maxContext: 200_000,
+      report: { before: 100_000, after: 40_000, reductions: [] },
+      aggressive: false,
+    });
     expect(counter).toHaveBeenCalledWith('compaction.fired.total');
     expect(histogram).toHaveBeenCalledWith('compaction.reduction_tokens', 60_000);
   });
@@ -217,7 +224,14 @@ describe('wireMetricsToEvents', () => {
     handle.dispose();
     bus.emit('session.started', { id: 's2' });
     bus.emit('iteration.completed', { ctx: {} as never, index: 1 });
-    bus.emit('compaction.fired', { before: 100, after: 50 });
+    bus.emit('compaction.fired', {
+      level: 'soft',
+      tokens: 100,
+      load: 0.7,
+      maxContext: 200_000,
+      report: { before: 100, after: 50, reductions: [] },
+      aggressive: false,
+    });
     expect(counter).not.toHaveBeenCalled();
   });
 

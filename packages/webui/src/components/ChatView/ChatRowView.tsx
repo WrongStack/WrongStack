@@ -1,5 +1,6 @@
 import { GitBranch } from 'lucide-react';
 import { memo } from 'react';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { MessageBubble } from '../MessageBubble';
 import { ToolGroup } from '../ToolGroup';
@@ -32,6 +33,7 @@ export const ChatRowView = memo(function ChatRowView({
   promptIndex?: number | undefined;
   onBranchFromPrompt?: ((promptIndex: number) => void) | undefined;
 }) {
+  const { t } = useAppTranslation();
   const wrap = cn(
     'mx-auto max-w-6xl w-full px-3 sm:px-5 lg:px-6',
     isFirstRow && 'pt-4',
@@ -63,7 +65,7 @@ export const ChatRowView = memo(function ChatRowView({
               className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted/70 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
             >
               <GitBranch className="h-3 w-3" />
-              <span>Branch from here</span>
+              <span>{t('chat:branchFromHere')}</span>
             </button>
           </div>
         ) : null}

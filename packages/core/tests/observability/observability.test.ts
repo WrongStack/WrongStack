@@ -293,7 +293,14 @@ describe('wireMetricsToEvents', () => {
       usage: { input: 1000, output: 500, cacheRead: 200, cacheWrite: 0 },
       stopReason: 'end_turn',
     });
-    bus.emit('compaction.fired', { before: 10000, after: 3000 });
+    bus.emit('compaction.fired', {
+      level: 'soft',
+      tokens: 10_000,
+      load: 0.7,
+      maxContext: 200_000,
+      report: { before: 10_000, after: 3_000, reductions: [] },
+      aggressive: false,
+    });
 
     const snap = sink.snapshot();
     const find = (name: string, labels: Record<string, string> = {}) =>

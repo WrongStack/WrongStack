@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-12T06:02:17.294Z",
+  "generatedAt": "2026-11-12T06:59:27.074Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,14 +14,14 @@
     "packages": 48,
     "sourceFiles": 6276,
     "testFiles": 5225,
-    "sourceLines": 1293074,
+    "sourceLines": 1293087,
     "workspaceEdges": 250,
-    "moduleEdges": 18485,
+    "moduleEdges": 18489,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 331,
-    "testsWithMultipleTypechecks": 0,
+    "testsWithMultipleTypechecks": 1,
     "testOnlyExports": 1048
   },
   "errors": [],
@@ -1206,6 +1206,11 @@
           "path": "packages/webui-server/tsconfig.json",
           "error": null,
           "testFiles": 0
+        },
+        {
+          "path": "packages/webui-server/tsconfig.scope-check.json",
+          "error": null,
+          "testFiles": 1
         },
         {
           "path": "packages/webui-server/tsconfig.test.json",
@@ -30788,6 +30793,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/session-tree-and-plugin-ui.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/session-watch-panel.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -32163,12 +32174,6 @@
       },
       {
         "file": "packages/webui/tests/server/worktree-ws-handler.test.ts",
-        "projects": [
-          "webui-jsdom"
-        ]
-      },
-      {
-        "file": "packages/webui/tests/session-tree-and-plugin-ui.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -34998,7 +35003,18 @@
         "typecheckProjects": []
       }
     ],
-    "multipleTypechecks": []
+    "multipleTypechecks": [
+      {
+        "file": "packages/webui-server/tests/max-context-updater-price-cliff.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": [
+          "packages/webui-server/tsconfig.scope-check.json",
+          "packages/webui-server/tsconfig.test.json"
+        ]
+      }
+    ]
   },
   "unresolvedRelativeImports": [
     {

@@ -113,5 +113,6 @@
     "tool": "Werkzeug",
     "outcome": "Ergebnis",
     "average": "Ø"
-  }
+  },
+  "branchFromHere": "Hier abzweigen"
 }

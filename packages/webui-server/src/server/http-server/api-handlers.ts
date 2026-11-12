@@ -14,6 +14,7 @@ import type {
   ApiSessionInterruptResponse,
   ApiSessionMessageResponse,
 } from '@wrongstack/webui-protocol';
+import { errMessage } from '../ws-utils.js';
 
 export { handleApiSessionEvents } from './api-session-events-handler.js';
 
@@ -610,7 +611,7 @@ export async function handleApiSessionTree(
     res.end(JSON.stringify({ sessionId, tree }));
   } catch (err) {
     const code = (err as NodeJS.ErrnoException | null)?.code;
-    const message = err instanceof Error ? err.message : String(err);
+    const message = errMessage(err);
     if (code === 'ENOENT' || /not found|enoent/i.test(message)) {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Session not found', sessionId }));

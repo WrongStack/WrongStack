@@ -123,17 +123,17 @@ describe('/panel and /image portable commands', () => {
 
     // `/panel list` prints panels + status chips
     const listRes = await cmd.run('list', undefined as never);
-    expect(listRes.message).toContain('demo:metrics');
-    expect(listRes.message).toContain('Demo Metrics');
-    expect(listRes.message).toContain('ok:1');
+    expect(listRes?.message).toContain('demo:metrics');
+    expect(listRes?.message).toContain('Demo Metrics');
+    expect(listRes?.message).toContain('ok:1');
 
     // `/panel action demo:metrics bump` triggers onAction and `/panel show` reflects updated state
     const actRes = await cmd.run('action demo:metrics bump', undefined as never);
-    expect(actRes.message).toContain('Executed action "bump"');
+    expect(actRes?.message).toContain('Executed action "bump"');
     const showRes = await cmd.run('show demo:metrics', undefined as never);
-    expect(showRes.message).toContain('Count:');
-    expect(showRes.message).toContain('2');
-    expect(showRes.message).toContain('20');
+    expect(showRes?.message).toContain('Count:');
+    expect(showRes?.message).toContain('2');
+    expect(showRes?.message).toContain('20');
 
     // Direct node formatter covers badges, progress, log, code, markdown
     const formatted = formatPluginViewNodeText({
@@ -155,7 +155,7 @@ describe('/panel and /image portable commands', () => {
 
     // `--json` output mode for WebUI & programmatic bridges
     const listJson = JSON.parse(
-      (await cmd.run('list --json', undefined as never)).message ?? '{}',
+      (await cmd.run('list --json', undefined as never))?.message ?? '{}',
     ) as {
       statusChips: Array<{ text: string }>;
       panels: Array<{ qualifiedId: string }>;
@@ -164,7 +164,7 @@ describe('/panel and /image portable commands', () => {
     expect(listJson.panels[0]?.qualifiedId).toBe('demo:metrics');
 
     const actJson = JSON.parse(
-      (await cmd.run('action demo:metrics bump --json', undefined as never)).message ?? '{}',
+      (await cmd.run('action demo:metrics bump --json', undefined as never))?.message ?? '{}',
     ) as {
       statusChips: Array<{ text: string }>;
       activePanel: { qualifiedId: string; view: { kind: string } };
@@ -196,8 +196,8 @@ describe('/panel and /image portable commands', () => {
 
     // `--info` prints dimensions without opening the TUI modal
     const infoRes = await cmd.run('artifacts/chart.png --info', undefined as never);
-    expect(infoRes.message).toContain('image/png');
-    expect(infoRes.message).toContain('8×4');
+    expect(infoRes?.message).toContain('image/png');
+    expect(infoRes?.message).toContain('8×4');
     expect(openedActions).toHaveLength(0);
 
     // Interactive `/image artifacts/chart.png` dispatches `image:<resolvedPath>` to TUI modal
@@ -209,6 +209,6 @@ describe('/panel and /image portable commands', () => {
 
     // Escaping projectRoot is strictly rejected
     const escapeRes = await cmd.run(outsideImg, undefined as never);
-    expect(escapeRes.message).toMatch(/outside|project root|denied/i);
+    expect(escapeRes?.message).toMatch(/outside|project root|denied/i);
   });
 });

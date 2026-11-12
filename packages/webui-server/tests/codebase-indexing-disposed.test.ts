@@ -41,7 +41,7 @@ it('drops editor and gated watcher activity after disposal', async () => {
       },
       context: { meta: {} } as never,
       projectRoot: process.cwd(),
-      events: { emit: fake.emit } as never,
+      events: { emit: fake.emit, on: () => () => {} } as never,
       logger: { debug: vi.fn() } as never,
     });
   const control = setup();

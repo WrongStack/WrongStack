@@ -105,7 +105,7 @@ describe('resolvePriceCliffTokens', () => {
 
   it('survives malformed catalog shapes', () => {
     expect(resolvePriceCliffTokens(undefined, 1_000_000)).toBeNull();
-    expect(resolvePriceCliffTokens(null, 1_000_000)).toBeNull();
+    expect(resolvePriceCliffTokens(null as never, 1_000_000)).toBeNull();
     expect(resolvePriceCliffTokens({ input: 3 }, 1_000_000)).toBeNull();
     expect(resolvePriceCliffTokens({ input: 3, tiers: 'nope' }, 1_000_000)).toBeNull();
     expect(

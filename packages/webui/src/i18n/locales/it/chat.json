@@ -113,5 +113,6 @@
     "tool": "Strumento",
     "outcome": "Esito",
     "average": "Media"
-  }
+  },
+  "branchFromHere": "Dirama da qui"
 }

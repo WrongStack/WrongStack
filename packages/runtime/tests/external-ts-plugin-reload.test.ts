@@ -228,7 +228,9 @@ describe('Zero-build external TypeScript plugins, TOFU closure isolation, and li
 
     expect(handle).toBeDefined();
     expect(toolRegistry.get('calc_double')).toBeDefined();
-    const v1Out = await toolRegistry.get('calc_double')!.execute({ value: 21 }, {} as never);
+    const v1Out = await toolRegistry.get('calc_double')!.execute({ value: 21 }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(v1Out).toBe('v1:42');
     expect(handle?.uiRegistry?.listStatusChips().some((c) => c.text === 'calc:v1')).toBe(true);
 
@@ -265,9 +267,11 @@ describe('Zero-build external TypeScript plugins, TOFU closure isolation, and li
       reloadPlugins: (name) => handle!.reloadExternal!(name),
     });
     const cmdRes = await pluginCmd.run('reload calc-ts', undefined as never);
-    expect(cmdRes.message).toContain('Reloaded: calc-ts');
+    expect(cmdRes?.message).toContain('Reloaded: calc-ts');
 
-    const v2Out = await toolRegistry.get('calc_double')!.execute({ value: 21 }, {} as never);
+    const v2Out = await toolRegistry.get('calc_double')!.execute({ value: 21 }, {} as never, {
+      signal: new AbortController().signal,
+    });
     expect(v2Out).toBe('v2:210');
     expect(handle?.uiRegistry?.listStatusChips().some((c) => c.text === 'calc:v2')).toBe(true);
     expect(handle?.uiRegistry?.listStatusChips().some((c) => c.text === 'calc:v1')).toBe(false);
@@ -302,7 +306,11 @@ describe('Zero-build external TypeScript plugins, TOFU closure isolation, and li
     );
 
     const events = new EventBus();
-    const reloadedPayloads: Array<{ name: string; version?: string; durationMs: number }> = [];
+    const reloadedPayloads: Array<{
+      name: string;
+      version?: string | undefined;
+      durationMs: number;
+    }> = [];
     events.on('plugin.reloaded', (payload) => {
       reloadedPayloads.push(payload);
     });

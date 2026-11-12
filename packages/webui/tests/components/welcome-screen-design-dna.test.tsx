@@ -42,7 +42,6 @@ beforeEach(() => {
     wsUrl: 'ws://test',
     provider: 'test-provider',
     model: 'test-model',
-    savedProviders: [{ provider: 'test-provider', hasKey: true }] as never,
   });
   useLocalPrefs.setState({
     subagentsAllowed: true,

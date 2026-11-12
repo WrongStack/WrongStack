@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { expandBraceAlternation } from '../src/_glob-braces.js';
 import { globTool } from '../src/glob.js';
-import { mkSandbox, type Sandbox } from './fixtures.js';
+import { mkSandbox, newSignal, type Sandbox } from './fixtures.js';
 
 // Only 34 leaves: nested expansion must not repeat `shared` 33 times and
 // spend the 64-pattern budget before reaching v32.
@@ -23,7 +23,9 @@ describe('nested brace alternation', () => {
       await fs.writeFile(path.join(sb.dir, name), '');
     }
     const names = async (pattern: string) =>
-      (await globTool.execute({ pattern }, sb.ctx)).files.map((f) => path.basename(f)).sort();
+      (await globTool.execute({ pattern }, sb.ctx, { signal: newSignal() })).files
+        .map((f) => path.basename(f))
+        .sort();
     expect(await names('*.{shared,v32}')).toEqual(['file.shared', 'file.v32']);
     expect(await names(`*.{shared,{${inner}}}`)).toEqual(['file.shared', 'file.v32']);
   });

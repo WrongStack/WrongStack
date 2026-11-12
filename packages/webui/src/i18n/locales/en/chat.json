@@ -113,5 +113,6 @@
     "tool": "Tool",
     "outcome": "Outcome",
     "average": "Avg."
-  }
+  },
+  "branchFromHere": "Branch from here"
 }

@@ -13,7 +13,11 @@ function ctxWith(cliff: { cliffTokens: number; multiplier?: number } | null): Co
   if (cliff) {
     writePriceCliffMeta(
       meta,
-      { cliffTokens: cliff.cliffTokens, multiplier: cliff.multiplier, field: 'input' },
+      {
+        cliffTokens: cliff.cliffTokens,
+        ...(cliff.multiplier !== undefined ? { multiplier: cliff.multiplier } : {}),
+        field: 'input',
+      },
       priceCliffRouteKey('anthropic', 'claude-x'),
     );
   }
@@ -77,8 +81,11 @@ describe('describePriceCliffForContext', () => {
     stale.model = 'other-model';
     expect(describePriceCliffForContext(stale, 150_000, ONE_M, BALANCED, 0.65)).toBeUndefined();
 
-    const noWindow = ctxWith({ cliffTokens: 200_000 });
-    noWindow.provider.capabilities = {};
+    const withWindow = ctxWith({ cliffTokens: 200_000 });
+    const noWindow = {
+      ...withWindow,
+      provider: { ...withWindow.provider, capabilities: {} },
+    } as never as Context;
     expect(describePriceCliffForContext(noWindow, 150_000, 0, BALANCED, 0.65)).toBeUndefined();
   });
 

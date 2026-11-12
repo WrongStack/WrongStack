@@ -2,6 +2,7 @@ import type { PluginPromptOptions } from '@wrongstack/contracts/types/plugin';
 import type React from 'react';
 import { useState } from 'react';
 import { Box, Text, useInput } from '../ink.js';
+import { isLeakedMouseInput } from '../mouse.js';
 import { sanitizeTerminalText } from '../terminal-width.js';
 
 export interface PluginPromptModalProps {
@@ -21,6 +22,9 @@ export function PluginPromptModal({
   const [textValue, setTextValue] = useState('');
 
   useInput((input, key) => {
+    // Ink hands an SGR mouse report to every handler as plain text; a click
+    // must not type it into the input field.
+    if (input && isLeakedMouseInput(input)) return;
     if (key.escape) {
       onResolve(null);
       return;

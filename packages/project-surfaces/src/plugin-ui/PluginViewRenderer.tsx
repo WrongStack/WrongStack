@@ -8,13 +8,13 @@ import type React from 'react';
 function toneTextClass(tone?: PluginUiTone): string {
   switch (tone) {
     case 'info':
-      return 'text-sky-600 dark:text-sky-400';
+      return 'text-info';
     case 'accent':
       return 'text-primary';
     case 'success':
-      return 'text-emerald-600 dark:text-emerald-400';
+      return 'text-success';
     case 'warning':
-      return 'text-amber-600 dark:text-amber-400';
+      return 'text-warning';
     case 'danger':
       return 'text-destructive';
     case 'neutral':
@@ -27,13 +27,13 @@ function toneTextClass(tone?: PluginUiTone): string {
 function toneBadgeClass(tone?: PluginUiTone): string {
   switch (tone) {
     case 'info':
-      return 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300';
+      return 'border-info/30 bg-info/10 text-info';
     case 'accent':
       return 'border-primary/30 bg-primary/10 text-primary';
     case 'success':
-      return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
+      return 'border-success/30 bg-success/10 text-success';
     case 'warning':
-      return 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300';
+      return 'border-warning/30 bg-warning/10 text-warning';
     case 'danger':
       return 'border-destructive/30 bg-destructive/10 text-destructive';
     default:

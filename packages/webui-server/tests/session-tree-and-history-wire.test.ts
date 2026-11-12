@@ -56,7 +56,12 @@ describe('GET /api/sessions/:id/tree and session-history branch metadata', () =>
   it('reconstructs and returns multi-branch session tree JSON and 404s on missing session', async () => {
     const paths = resolveWstackPaths({ projectRoot, globalRoot });
     const store = new DefaultSessionStore({ dir: paths.projectSessions, projectRoot });
-    const writer = await store.create({ model: 'gpt-5', provider: 'openai', title: 'Tree Demo' });
+    const writer = await store.create({
+      id: '',
+      model: 'gpt-5',
+      provider: 'openai',
+      title: 'Tree Demo',
+    });
     await writer.append({
       type: 'user_input',
       ts: '2026-11-11T10:00:00.000Z',
@@ -156,9 +161,7 @@ describe('GET /api/sessions/:id/tree and session-history branch metadata', () =>
     );
     events.emit('plugin.reloaded', {
       name: 'demo-ext',
-      generation: 1,
       durationMs: 3,
-      replacedPrevious: true,
     });
 
     const refreshedCommands = await route.getCommands();

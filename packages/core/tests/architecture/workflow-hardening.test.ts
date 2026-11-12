@@ -108,7 +108,7 @@ describe('release workflow (WS-040)', () => {
 
   it('is tag-triggered, not push-to-branch', () => {
     const text = release();
-    expect(text).toMatch(/tags:\s*\['v\*\.\*\.\*'\]/);
+    expect(text).toMatch(/tags:\s*\[\s*(['"])v\*\.\*\.\*\1\s*\]/);
     // A branch push must never be able to publish.
     expect(text).not.toMatch(/^\s*branches:\s*\[main\]/m);
   });

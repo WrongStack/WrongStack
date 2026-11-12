@@ -127,5 +127,9 @@
     "down": "O servidor MCP \"{{name}}\" não está conectado ({{reason}}); suas ferramentas estão indisponíveis. Tente novamente com /mcp restart {{name}}.",
     "up": "O servidor MCP \"{{name}}\" está conectado novamente."
   },
-  "loadingNamed": "Carregando {{name}}…"
+  "loadingNamed": "Carregando {{name}}…",
+  "pluginPanels": {
+    "close": "Fechar painéis de plugins",
+    "loading": "Carregando a visualização do painel…"
+  }
 }

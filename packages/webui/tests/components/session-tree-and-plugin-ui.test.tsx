@@ -9,15 +9,15 @@ import {
   SessionBranchPill,
 } from '@wrongstack/project-surfaces/session-tree';
 import { describe, expect, it, vi } from 'vitest';
-import { matchSlash } from '../src/components/ChatInput/slash-commands';
-import { runChatSlashCommand } from '../src/components/ChatInput/slash-routing';
-import { ChatRowView } from '../src/components/ChatView/ChatRowView';
-import { SessionRowStats } from '../src/components/SidePanel/SessionRowParts';
+import { matchSlash } from '../../src/components/ChatInput/slash-commands';
+import { runChatSlashCommand } from '../../src/components/ChatInput/slash-routing';
+import { ChatRowView } from '../../src/components/ChatView/ChatRowView';
+import { SessionRowStats } from '../../src/components/SidePanel/SessionRowParts';
 
 describe('WebUI & project-surfaces Session Tree and Declarative Plugin UI components', () => {
   const sampleTree: SessionTreeSnapshot = {
-    sessionId: '2026-11-11/sess_demo',
     activeBranchId: 'br_exp',
+    headSeq: 8,
     branches: {
       main: {
         id: 'main',

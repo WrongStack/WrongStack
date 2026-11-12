@@ -212,7 +212,7 @@ describe('design_reference extract crawl', () => {
       makeCtx(),
       { signal: new AbortController().signal },
     )) {
-      if (event.type === 'log') logs.push(event.text);
+      if (event.type === 'log' && event.text !== undefined) logs.push(event.text);
     }
     expect(logs.some((t) => t.includes('subpage skipped') && t.includes('subpage exploded'))).toBe(
       true,

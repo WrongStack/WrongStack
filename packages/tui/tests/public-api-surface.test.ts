@@ -17,11 +17,35 @@ import * as runTuiModule from '../src/run-tui.js';
 describe('public API surface freeze (decomposition Phase 0.2)', () => {
   it('barrel src/index.ts exports exactly these runtime values', () => {
     expect(Object.keys(barrel).sort()).toEqual([
+      'DEFAULT_SYNC_STDOUT_MAX_BATCH_BYTES',
+      'ImagePreviewModal',
+      'KITTY_BASE64_CHUNK_SIZE',
+      'MAX_IMAGE_PREVIEW_CACHE_ENTRIES',
+      'MAX_TUI_IMAGE_INPUT_BYTES',
+      'PluginPanelOverlay',
+      'PluginPromptModal',
+      'PluginStatusStrip',
+      'PluginViewNodeView',
+      'SessionTreeOverlay',
       'buildGoalPreamble',
+      'buildHalfBlockGrid',
+      'clearImagePreviewCache',
+      'computeImageCellBox',
+      'createSynchronizedStdout',
+      'decodePngToRgbaThumbnail',
+      'encodeIterm2Graphics',
+      'encodeKittyGraphics',
+      'encodeNativeTerminalImage',
+      'extractToolImageArtifactPath',
+      'flattenSessionTreeRows',
+      'getImagePreviewCacheSize',
+      'inspectImageHeader',
+      'loadCachedImagePreview',
       'parseInline',
       'parseNextSteps',
       'replaySessionMessages',
       'runTui',
+      'stripTerminalGraphicsResponses',
     ]);
   });
 

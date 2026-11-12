@@ -113,5 +113,6 @@
     "tool": "Outil",
     "outcome": "Résultat",
     "average": "Moy."
-  }
+  },
+  "branchFromHere": "Créer une branche ici"
 }

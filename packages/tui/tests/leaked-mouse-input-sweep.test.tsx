@@ -426,6 +426,21 @@ const UNSWEPT: Record<string, UnsweptEntry> = {
     reason:
       "closes only via F5/Esc, which the central esc-close-panels table owns; its one in-panel key ('s') triggers an async scope switch with no callback, so it needs the assertLive frame-change control plus a node:fs/promises mock for its plan file",
   },
+  'session-tree-overlay.tsx': {
+    reason: 'drops the leak itself before the branch-name editor appends a keystroke',
+    guard: { line: 150, contains: 'isLeakedMouseInput' },
+  },
+  'plugin-prompt-modal.tsx': {
+    reason: 'drops the leak itself before the text-input kind appends a keystroke',
+    guard: { line: 27, contains: 'isLeakedMouseInput' },
+  },
+  'plugin-panel-overlay.tsx': {
+    reason:
+      "matches only exact keys ('r', 'q') and single-char action shortcuts (input.length === 1); a 9-char SGR report matches none",
+  },
+  'image-preview-modal.tsx': {
+    reason: "closes only on Esc or an exact 'q'; an SGR report is never 'q'",
+  },
   'process-list.tsx': {
     reason:
       "no decision callback at all (it kills processes); its liveness control needs a registry killAll spy, but ProcessRegistry.stats()'s return shape is unverified, so the fake registry cannot be written blind",

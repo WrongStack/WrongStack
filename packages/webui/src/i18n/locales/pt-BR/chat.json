@@ -113,5 +113,6 @@
     "tool": "Ferramenta",
     "outcome": "Resultado",
     "average": "Média"
-  }
+  },
+  "branchFromHere": "Ramificar a partir daqui"
 }

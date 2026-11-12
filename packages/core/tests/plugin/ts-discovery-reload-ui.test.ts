@@ -5,6 +5,7 @@ import {
   Container,
   DefaultPluginAPI,
   EventBus,
+  type PluginAPIInit,
   ProviderRegistry,
   SlashCommandRegistry,
   ToolRegistry,
@@ -66,7 +67,7 @@ function makeHarness(uiRegistry = new PluginUiRegistry({ throttleMs: 0 })) {
   const slashCommandRegistry = new SlashCommandRegistry();
   const events = new EventBus();
   const container = new Container();
-  const pipelines = {} as Parameters<typeof DefaultPluginAPI>[0]['pipelines'];
+  const pipelines = {} as PluginAPIInit['pipelines'];
 
   const apiFactory = (plugin: Plugin) =>
     new DefaultPluginAPI({
@@ -175,7 +176,7 @@ describe('PluginHostHandle atomic reload, rollback, api.signal, and Declarative 
     expect(v1Signal?.aborted).toBe(true);
     expect(uiRegistry.listStatusChips().map((c) => c.text)).toEqual(['v2-live']);
     const tool = h.toolRegistry.get('greet');
-    const out = await tool!.execute({}, {} as never);
+    const out = await tool!.execute({}, {} as never, { signal: new AbortController().signal });
     expect(out).toBe('hello-v2');
 
     // Unload removes tools and UI chips cleanly.
@@ -193,7 +194,7 @@ describe('PluginHostHandle atomic reload, rollback, api.signal, and Declarative 
       name: 'resilient-plug',
       version: '1.0.0',
       apiVersion: '^0.1',
-      capabilities: { tools: true, teardown: true },
+      capabilities: { tools: true },
       setup(api) {
         api.tools.register({
           name: 'ping',
@@ -230,7 +231,7 @@ describe('PluginHostHandle atomic reload, rollback, api.signal, and Declarative 
       name: 'resilient-plug',
       version: '2.0.0',
       apiVersion: '^0.1',
-      capabilities: { tools: true, teardown: true },
+      capabilities: { tools: true },
       setup(api) {
         api.tools.register({
           name: 'half-registered',
@@ -246,7 +247,9 @@ describe('PluginHostHandle atomic reload, rollback, api.signal, and Declarative 
     await expect(host.reloadPlugin(brokenSetup)).rejects.toThrow('v2 crashed midway');
     expect(h.toolRegistry.get('half-registered')).toBeUndefined();
     expect(h.toolRegistry.get('ping')).toBeDefined();
-    const pong = await h.toolRegistry.get('ping')!.execute({}, {} as never);
+    const pong = await h.toolRegistry
+      .get('ping')!
+      .execute({}, {} as never, { signal: new AbortController().signal });
     expect(pong).toBe('pong-v1');
   });
 
@@ -340,7 +343,8 @@ describe('PluginHostHandle atomic reload, rollback, api.signal, and Declarative 
           name: 'live_probe',
           description: 'v1',
           inputSchema: { type: 'object', properties: {} },
-          permission: 'read',
+          permission: 'auto',
+          mutating: false,
           execute: async () => 'gen-0',
         });
         api.ui?.registerStatusChip({ id: 'gen', text: 'gen-0' });
@@ -372,7 +376,11 @@ describe('PluginHostHandle atomic reload, rollback, api.signal, and Declarative 
     await expect(host.reloadPlugin(brokenV2)).rejects.toThrow('simulated setup crash');
     expect(v1SignalAborted).toBe(true);
     expect(quiesceCalls).toEqual([{ name: 'live-worker', timeoutMs: 2_500 }]);
-    expect(await h.toolRegistry.get('live_probe')?.execute({}, {} as never)).toBe('gen-0');
+    expect(
+      await h.toolRegistry
+        .get('live_probe')
+        ?.execute({}, {} as never, { signal: new AbortController().signal }),
+    ).toBe('gen-0');
     expect(h.uiRegistry.listStatusChips().map((c) => c.id)).toEqual(['gen']);
 
     // 50 consecutive reload cycles — zero leaked tools, commands, or UI chips!
@@ -388,7 +396,8 @@ describe('PluginHostHandle atomic reload, rollback, api.signal, and Declarative 
             name: 'live_probe',
             description: `gen-${cycle}`,
             inputSchema: { type: 'object', properties: {} },
-            permission: 'read',
+            permission: 'auto',
+            mutating: false,
             execute: async () => `gen-${cycle}`,
           });
           api.slashCommands.register({
@@ -404,7 +413,11 @@ describe('PluginHostHandle atomic reload, rollback, api.signal, and Declarative 
     }
 
     expect(host.loaded).toHaveLength(1);
-    expect(await h.toolRegistry.get('live_probe')?.execute({}, {} as never)).toBe('gen-50');
+    expect(
+      await h.toolRegistry
+        .get('live_probe')
+        ?.execute({}, {} as never, { signal: new AbortController().signal }),
+    ).toBe('gen-50');
     expect(h.uiRegistry.listStatusChips()).toHaveLength(1);
     expect(h.uiRegistry.listStatusChips()[0]?.text).toBe('gen-50');
 
