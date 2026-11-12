@@ -32,6 +32,81 @@ describe('/tree portable slash command', () => {
     ]);
   });
 
+  it('round-trips the escaping produced by the WebUI/Desktop fold controls', () => {
+    // Mirrors quoteTreeArg() in packages/webui/src/components/ChatView/WebuiSessionBranchControl.tsx
+    // and apps/desktop-v2/src/DesktopSessionBranchAndPlugins.tsx, which escape `\` and `"` and wrap
+    // the value in double quotes.
+    const quoteTreeArg = (value: string) =>
+      `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+    const note = 'Folded from C:\\repo\\x.ts ("short")';
+
+    expect(tokenizeTreeArgs(`fold spike --note ${quoteTreeArg(note)} --keep-open`)).toEqual([
+      'fold',
+      'spike',
+      '--note',
+      note,
+      '--keep-open',
+    ]);
+  });
+
+  it('keeps trailing flags when a quoted value ends with a backslash', () => {
+    const quoteTreeArg = (value: string) =>
+      `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+
+    // The escaped closing sequence is `\\"`: a literal backslash then the real quote. Without
+    // unescaping `\\` the quote stays open and `--archive` is absorbed into the note value.
+    expect(tokenizeTreeArgs(`fold spike --note ${quoteTreeArg('ends here\\')} --archive`)).toEqual([
+      'fold',
+      'spike',
+      '--note',
+      'ends here\\',
+      '--archive',
+    ]);
+  });
+
+  it('persists a fold note verbatim and still honours --archive end-to-end', async () => {
+    const store = new DefaultSessionStore({ dir: tmpDir });
+    const writer = await store.create({ id: '', model: 'gpt-5', provider: 'openai' });
+    const coordinator = new SessionTreeCoordinator({
+      sessionId: writer.id,
+      writer,
+      getEvents: async () => {
+        await writer.flush?.();
+        return (await store.load(writer.id)).events;
+      },
+    });
+    const cmd = buildTreeCommand({ treeCoordinator: coordinator });
+
+    await writer.append({
+      type: 'user_input',
+      ts: '2026-11-11T12:00:00.000Z',
+      content: 'Design cache layer',
+    });
+    await cmd.run('branch win-paths');
+    await writer.append({
+      type: 'user_input',
+      ts: '2026-11-11T12:01:00.000Z',
+      content: 'Benchmark Redis Lua scripts',
+    });
+
+    const note = 'Folded C:\\repo\\x.ts';
+    const quoted = `"${note.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+    const folded = await cmd.run(`fold win-paths --into main --note ${quoted} --archive`);
+
+    expect(folded?.message).toContain('Focus: Folded C:\\repo\\x.ts');
+    expect(folded?.message).toContain('(archived)');
+
+    const jsonRes = await cmd.run('list --json');
+    const parsed = JSON.parse(jsonRes?.message ?? '{}') as {
+      branches: Record<string, { name: string; status: string }>;
+    };
+    expect(
+      Object.values(parsed.branches).some((b) => b.name === 'win-paths' && b.status === 'archived'),
+    ).toBe(true);
+
+    await writer.close();
+  });
+
   it('executes list, branch, switch, rename, fold, and archive subcommands end-to-end', async () => {
     const store = new DefaultSessionStore({ dir: tmpDir });
     const writer = await store.create({ id: '', model: 'gpt-5', provider: 'openai' });

@@ -46,8 +46,16 @@ export function tokenizeTreeArgs(raw: string): string[] {
   for (let i = 0; i < raw.length; i += 1) {
     const ch = raw[i]!;
     if (quote) {
-      if (ch === '\\' && i + 1 < raw.length && raw[i + 1] === quote) {
-        current += quote;
+      const next = i + 1 < raw.length ? raw[i + 1] : undefined;
+      // `quoteTreeArg` (WebUI / Desktop v2 fold controls) wraps values in double quotes and
+      // escapes both `"` and `\`, so `\"` and `\\` must unescape here. Without the `\\` case a
+      // trailing backslash swallows the closing quote and every flag that follows it.
+      if (
+        ch === '\\' &&
+        next !== undefined &&
+        (next === quote || (quote === '"' && next === '\\'))
+      ) {
+        current += next;
         i += 1;
       } else if (ch === quote) {
         quote = null;

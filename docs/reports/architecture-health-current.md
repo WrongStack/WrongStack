@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-12T22:51:14.715Z
+**Generated:** 2026-11-12T22:56:22.092Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6284 |
-| Production source lines | 1299681 |
+| Production source lines | 1299689 |
 | Test files | 5241 |
 | Workspace dependency edges | 250 |
 | Relative module edges | 18533 |
@@ -17,7 +17,7 @@
 | Runtime module cycles | 1 |
 | Type-inclusive module cycles | 2 |
 | Tests without TypeScript test-project coverage | 336 |
-| Tests in multiple TypeScript projects | 1 |
+| Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
 
@@ -151,6 +151,6 @@
 ## TypeScript test coverage debt
 
 - 336 test files are not included in a package TypeScript test project.
-- 1 test files are included in more than one package TypeScript project.
+- 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.
