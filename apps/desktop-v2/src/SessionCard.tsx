@@ -59,20 +59,21 @@ export function SessionCard({
         title={`${name} · ${s.workdir.replace(/^\\\\\?\\/, '')}`}
         onClick={onOpen}
       >
-        <div className="card-top">
-          <span className="card-kind">
-            {s.kind === 'agent' ? 'WrongStack' : t('fleetView.card.terminal')}
-          </span>
-          <span className={`status-pill ${s.status}`}>
-            <span className={`status-dot ${s.status}`} />
-            {t(`fleetView.status.${sessionStatus(s)}`)}
-          </span>
-        </div>
+        {/* One row: the kind's icon, the title and the state. A kind line above it said
+            "WrongStack" on every agent card and "Terminal" over a terminal titled Terminal; the
+            icon already tells them apart, and the words stay for assistive technology. */}
         <div className="session-card-title">
           <span className="session-icon">
             {s.kind === 'agent' ? <Workflow size={20} /> : <Terminal size={20} />}
           </span>
+          <span className="card-kind">
+            {s.kind === 'agent' ? 'WrongStack' : t('fleetView.card.terminal')}
+          </span>
           <h3>{s.title}</h3>
+          <span className={`status-pill ${s.status}`}>
+            <span className={`status-dot ${s.status}`} />
+            {t(`fleetView.status.${sessionStatus(s)}`)}
+          </span>
         </div>
       </button>
       <footer>

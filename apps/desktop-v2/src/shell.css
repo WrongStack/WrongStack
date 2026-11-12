@@ -514,16 +514,30 @@
   color: var(--text);
 }
 
-/* Session cards: kind, state, title and age; project and folder come from the group. */
+/* Session cards: icon, title and state on one row, then age; project and folder come from the
+   group. The kind is named for assistive technology only. */
 .session-card .card-kind {
-  color: var(--muted);
-  font-size: 12px;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .session-card .status-pill {
+  flex-shrink: 0;
+  margin-left: auto;
   font-size: 12px;
 }
 .session-card-title {
-  margin: 14px 0 12px;
+  position: relative;
+  margin: 2px 0 12px;
+}
+.session-card-title > h3 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .session-card > footer {
   font-size: 12px;
