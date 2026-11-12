@@ -64,6 +64,7 @@
     ],
     "apps/desktop-v2/src/engine-stream.ts": [
       "DORMANT_STREAM_LIMIT",
+      "RECENT_JOURNAL_BYTES",
       "REPLAY_NOTIFY_MS"
     ],
     "apps/desktop-v2/src/FallbackPicker.tsx": [
@@ -99,6 +100,10 @@
     "apps/desktop-v2/src/history-view-store.ts": [
       "defaultHistoryView",
       "parseHistoryView"
+    ],
+    "apps/desktop-v2/src/input-answer-draft.ts": [
+      "inputAnswerCodec",
+      "inputAnswerDraftKey"
     ],
     "apps/desktop-v2/src/input-form-model.ts": [
       "answerFor"
@@ -292,6 +297,9 @@
     "packages/bench/src/suites/polyglot.ts": [
       "installDependencies",
       "prepareExercise"
+    ],
+    "packages/builtin-plugins/src/auto-review-git.ts": [
+      "snapshotChangedFiles"
     ],
     "packages/builtin-plugins/src/perf-command.ts": [
       "buildPerfRunText",

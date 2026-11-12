@@ -75,13 +75,21 @@ impl HostState {
                 if p["tail"] == true {
                     return self.project_journal_end(field(p, "projectId")?);
                 }
-                self.project_events(field(p, "projectId")?, p["offset"].as_u64().unwrap_or(0))
+                self.project_events(
+                    field(p, "projectId")?,
+                    p["offset"].as_u64().unwrap_or(0),
+                    p["recent"].as_u64(),
+                )
             }
             "project.send" => self.project_send(field(p, "projectId")?, p["message"].clone()),
             "project.http" => self.project_http(field(p, "projectId")?, p),
             "profile.open" => self.open_profile_runtime(p["retry"].as_bool().unwrap_or(false)),
             "profile.status" => self.runtime_status("@profile"),
-            "profile.events" => self.project_events("@profile", p["offset"].as_u64().unwrap_or(0)),
+            "profile.events" => self.project_events(
+                "@profile",
+                p["offset"].as_u64().unwrap_or(0),
+                p["recent"].as_u64(),
+            ),
             "profile.send" => self.project_send("@profile", p["message"].clone()),
             "profile.http" => self.project_http("@profile", p),
             "session.open" => {
@@ -672,7 +680,7 @@ impl HostState {
         if !self.registry.lock().map_err(err)?.remove(id)? {
             return Err("Unknown session".into());
         }
-        for extension in ["bin", "jsonl", "events.jsonl"] {
+        for extension in ["bin", "jsonl", "events.jsonl", "events.jsonl.seed.json"] {
             // Best effort: a file still held open is left behind rather than failing the removal.
             let _ = std::fs::remove_file(
                 self.dir

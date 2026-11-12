@@ -19,6 +19,13 @@ const SERVICES_STARTING_GRACE_MS = 30_000;
 const SERVICES_STARTING = /Project services (have not started|are starting)/;
 /** How often views hear about a first read's progress before it reaches the journal's end. */
 export const REPLAY_NOTIFY_MS = 250;
+/**
+ * How much of a project or profile journal a first read replays. Those journals hold replies
+ * and broadcast snapshots, not a conversation, and grow to hundreds of megabytes; replaying
+ * one from its start page by page through the session host took minutes. A conversation
+ * journal is always read whole. A host that predates `recent` ignores it and reads from 0.
+ */
+export const RECENT_JOURNAL_BYTES = 32 * 1024 * 1024;
 /** Whether `error` is the host saying the project's services are not up yet. */
 function servicesStarting(error: unknown): boolean {
   return SERVICES_STARTING.test(error instanceof Error ? error.message : String(error));
@@ -111,7 +118,11 @@ export class BackendStream {
           events: unknown[];
           hasMore?: boolean;
           size?: number;
-        }>(`${this.scope}.events`, { ...this.target(), offset: this.offset });
+        }>(`${this.scope}.events`, {
+          ...this.target(),
+          offset: this.offset,
+          ...(this.offset === 0 && this.scope !== 'engine' ? { recent: RECENT_JOURNAL_BYTES } : {}),
+        });
         if (run !== this.run || this.stopped) return;
         // Hosts report `hasMore`; a host that predates it paged by 200 lines or 256 KiB.
         const hasMore =

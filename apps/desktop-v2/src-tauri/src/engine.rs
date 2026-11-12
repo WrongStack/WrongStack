@@ -3,7 +3,9 @@
 use crate::{err, now, Result};
 use serde_json::{json, Value};
 use std::{
+    collections::{hash_map::DefaultHasher, HashMap},
     fs::{File, OpenOptions},
+    hash::{Hash, Hasher},
     io::{BufRead, BufReader, Read, Seek, SeekFrom, Write},
     net::TcpStream,
     path::{Path, PathBuf},
@@ -13,7 +15,7 @@ use std::{
         Arc, Mutex,
     },
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 use tungstenite::{client, Message};
 
@@ -36,6 +38,198 @@ pub(crate) const PAGE_BYTES: u64 = 1024 * 1024;
 /// Whether an engine message is a live browser frame that bypasses the event log.
 pub(crate) fn is_live_frame(message: &Value) -> bool {
     message["type"] == "browser.live.frame"
+}
+
+/// How a snapshot broadcast the engine re-sends whole is journaled: at most one per `spacing`
+/// (a newer one waits and replaces the waiting one, so the latest is always written), and an
+/// unchanged one only after `refresh`. `None` for every other frame.
+///
+/// A project journal grew by ~35 MB an hour from these alone: the whole ~40 KB session
+/// registry (`sessions.status_update`) after every tool call of every live agent, and one
+/// supervisor status per Kanban board every five minutes (152 boards, unchanged apart from
+/// their audit times). Every window replays the journal, so it opened slower each day. Only
+/// the newest registry snapshot is ever read; five seconds keeps the office's 20 s heartbeat
+/// freshness. An unchanged board needs no frame: a view that wants it now asks.
+struct SnapshotPolicy {
+    spacing: Duration,
+    refresh: Duration,
+}
+
+fn snapshot_policy(kind: &str) -> Option<SnapshotPolicy> {
+    let policy = |spacing: u64, refresh: u64| SnapshotPolicy {
+        spacing: Duration::from_secs(spacing),
+        refresh: Duration::from_secs(refresh),
+    };
+    match kind {
+        "sessions.status_update" => Some(policy(5, 10)),
+        "goal.list" => Some(policy(0, 60)),
+        "kanban.supervisor.status" => Some(policy(0, 30 * 60)),
+        _ => None,
+    }
+}
+
+/// `value` without its time fields (`at`, `…At`, `timestamp`), so two snapshots that differ
+/// only in when they were taken compare equal.
+fn without_times(value: &Value) -> Value {
+    match value {
+        Value::Object(map) => Value::Object(
+            map.iter()
+                .filter(|(key, _)| !(*key == "at" || *key == "timestamp" || key.ends_with("At")))
+                .map(|(key, item)| (key.clone(), without_times(item)))
+                .collect(),
+        ),
+        Value::Array(items) => Value::Array(items.iter().map(without_times).collect()),
+        other => other.clone(),
+    }
+}
+
+/// The last journaled snapshot of one kind (and board): its fingerprint, when it was written,
+/// and a newer one waiting for the spacing to pass.
+struct SnapshotSlot {
+    print: u64,
+    written: Instant,
+    spacing: Duration,
+    waiting: Option<(u64, Value)>,
+}
+
+/// Keeps repeated snapshot broadcasts out of the journal. A reply to a request (it carries a
+/// `requestId`) is always written at once: a view waits for it.
+#[derive(Default)]
+struct SnapshotGate {
+    slots: HashMap<String, SnapshotSlot>,
+    /// Requests sent for a gated kind whose answer has not arrived yet. Some answers are plain
+    /// broadcasts without a `requestId` (`goal.list`); the one after a request is a reply a
+    /// view waits for, so it is written even when it repeats the last one.
+    asked: HashMap<String, u32>,
+}
+
+impl SnapshotGate {
+    /// Notes an outgoing message, so the answer to a request for a gated kind gets through.
+    fn sent(&mut self, message: &Value) {
+        let kind = message["type"].as_str().unwrap_or_default();
+        if snapshot_policy(kind).is_some() {
+            *self.asked.entry(kind.to_string()).or_default() += 1;
+        }
+    }
+    /// Whether `message` is written now. A snapshot that arrives inside its spacing waits,
+    /// replacing any older one, until [`SnapshotGate::due`] hands it back.
+    fn admit(&mut self, message: &Value, now: Instant) -> bool {
+        let kind = message["type"].as_str().unwrap_or_default();
+        let Some(policy) = snapshot_policy(kind) else {
+            return true;
+        };
+        let payload = &message["payload"];
+        if payload.get("requestId").is_some() {
+            return true;
+        }
+        let answer = match self.asked.get_mut(kind) {
+            Some(count) if *count > 0 => {
+                *count -= 1;
+                true
+            }
+            _ => false,
+        };
+        let key = match payload["data"]["boardId"]
+            .as_str()
+            .or_else(|| payload["boardId"].as_str())
+        {
+            Some(board) => format!("{kind}:{board}"),
+            None => kind.to_string(),
+        };
+        let mut hasher = DefaultHasher::new();
+        without_times(payload).to_string().hash(&mut hasher);
+        let print = hasher.finish();
+        if let Some(slot) = self.slots.get_mut(&key).filter(|_| !answer) {
+            let since = now.duration_since(slot.written);
+            if slot.print == print && since < policy.refresh {
+                // Back to what was written: an older waiting change is stale.
+                slot.waiting = None;
+                return false;
+            }
+            if since < policy.spacing {
+                slot.waiting = Some((print, message.clone()));
+                return false;
+            }
+        }
+        self.slots.insert(
+            key,
+            SnapshotSlot {
+                print,
+                written: now,
+                spacing: policy.spacing,
+                waiting: None,
+            },
+        );
+        true
+    }
+    /// Waiting snapshots whose spacing has passed (all of them when `all`), to write now.
+    fn due(&mut self, now: Instant, all: bool) -> Vec<Value> {
+        let mut ready = Vec::new();
+        for slot in self.slots.values_mut() {
+            if !all && now.duration_since(slot.written) < slot.spacing {
+                continue;
+            }
+            if let Some((print, message)) = slot.waiting.take() {
+                slot.print = print;
+                slot.written = now;
+                ready.push(message);
+            }
+        }
+        ready
+    }
+}
+
+/// Frames the engine sends once (at connect, or on a model change) whose state a reader needs
+/// however far back they were written: who the session is, its model, whether it is connected.
+const SEED_TYPES: [&str; 5] = [
+    "session.start",
+    "model.switch_result",
+    "provider.fallback",
+    "provider.primary_restored",
+    "desktop.disconnected",
+];
+
+/// The file beside a journal holding the newest frame of each [`SEED_TYPES`] kind, in the
+/// order they were written, so a reader that skips the journal's old part still starts from
+/// them.
+pub(crate) fn seed_path(path: &Path) -> PathBuf {
+    let mut name = path.as_os_str().to_owned();
+    name.push(".seed.json");
+    PathBuf::from(name)
+}
+
+/// The newest seed frames of one journal, oldest first.
+struct JournalSeeds {
+    path: PathBuf,
+    frames: Vec<Value>,
+}
+
+impl JournalSeeds {
+    fn load(journal: &Path) -> Self {
+        let path = seed_path(journal);
+        let frames = std::fs::read(&path)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<Vec<Value>>(&bytes).ok())
+            .unwrap_or_default();
+        Self { path, frames }
+    }
+    /// Keeps `message` when it is a seed kind; best effort, a failed write only means a later
+    /// reader replays the whole journal.
+    fn note(&mut self, message: &Value) {
+        let kind = message["type"].as_str().unwrap_or_default();
+        if !SEED_TYPES.contains(&kind) {
+            return;
+        }
+        self.frames.retain(|frame| frame["type"] != kind);
+        self.frames.push(message.clone());
+        let next = self.path.with_extension("json.tmp");
+        if serde_json::to_vec(&self.frames)
+            .ok()
+            .is_some_and(|bytes| std::fs::write(&next, bytes).is_ok())
+        {
+            let _ = std::fs::rename(&next, &self.path);
+        }
+    }
 }
 
 /// Records when the desktop received a frame, so the transcript can say when a message was
@@ -88,9 +282,13 @@ fn scope_message(message: &mut Value, identity: &Value, bind_session: bool) {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_live_frame, scope_message, stamp_frame, transient_io, Engine};
+    use super::{
+        is_live_frame, scope_message, seed_path, stamp_frame, transient_io, Engine, JournalSeeds,
+        SnapshotGate,
+    };
     use serde_json::json;
     use std::fs;
+    use std::time::Duration;
     use uuid::Uuid;
 
     #[test]
@@ -192,6 +390,151 @@ mod tests {
     }
 
     #[test]
+    fn snapshot_broadcasts_are_spaced_and_repeats_wait_for_their_refresh() {
+        let start = std::time::Instant::now();
+        let at = |secs: u64| start + Duration::from_secs(secs);
+        let mut filter = SnapshotGate::default();
+        let status = |beat: &str, agents: u64| {
+            json!({"type":"sessions.status_update","payload":{"sessions":[{
+                "id":"s1","lastHeartbeatAt":beat,"agentCount":agents,
+                "agents":[{"lastActivityAt":beat}]}]}})
+        };
+        assert!(
+            filter.admit(&status("t1", 1), start),
+            "the first snapshot is written"
+        );
+        assert!(
+            !filter.admit(&status("t2", 1), at(1)),
+            "a snapshot differing only in its times is a repeat"
+        );
+        assert!(filter.due(at(2), false).is_empty(), "a repeat never waits");
+        assert!(
+            !filter.admit(&status("t3", 2), at(2)),
+            "a change inside the spacing waits"
+        );
+        assert!(
+            !filter.admit(&status("t4", 3), at(3)),
+            "and a newer change replaces it"
+        );
+        assert!(
+            filter.due(at(4), false).is_empty(),
+            "not before the spacing"
+        );
+        let written = filter.due(at(5), false);
+        assert_eq!(written.len(), 1, "the latest waiting snapshot is written");
+        assert_eq!(written[0]["payload"]["sessions"][0]["agentCount"], 3);
+        assert!(filter.due(at(30), false).is_empty(), "only once");
+        assert!(
+            filter.admit(&status("t5", 4), at(16)),
+            "a change after the spacing is written at once"
+        );
+        assert!(
+            filter.admit(&status("t6", 4), at(27)),
+            "an unchanged snapshot is refreshed after its interval"
+        );
+        assert!(!filter.admit(&status("t7", 5), at(28)));
+        assert_eq!(
+            filter.due(at(29), true).len(),
+            1,
+            "a disconnect writes what waits"
+        );
+        let board = |id: &str, audit: &str| {
+            json!({"type":"kanban.supervisor.status","payload":{"data":{
+                "boardId":id,"lastAuditAt":audit,"nextAuditAt":audit,"status":"healthy"}}})
+        };
+        assert!(filter.admit(&board("b1", "a"), start));
+        assert!(
+            filter.admit(&board("b2", "a"), start),
+            "boards are keyed apart"
+        );
+        assert!(!filter.admit(&board("b1", "b"), at(300)));
+        let reply = json!({"type":"kanban.supervisor.status",
+            "payload":{"requestId":"r1","data":{"boardId":"b1","status":"healthy"}}});
+        assert!(
+            filter.admit(&reply, at(301)),
+            "a reply to a request is always written"
+        );
+        let goals = json!({"type":"goal.list","payload":{"graphs":[]}});
+        assert!(filter.admit(&goals, at(400)));
+        assert!(
+            !filter.admit(&goals, at(401)),
+            "an unasked repeat is dropped"
+        );
+        filter.sent(&json!({"type":"goal.list","payload":{}}));
+        assert!(
+            filter.admit(&goals, at(402)),
+            "the answer to a request is written even when it repeats"
+        );
+        assert!(!filter.admit(&goals, at(403)), "only that answer");
+        let message = json!({"type":"assistant_text_delta","payload":{"text":"x"}});
+        assert!(filter.admit(&message, start) && filter.admit(&message, start));
+    }
+
+    #[test]
+    fn a_recent_reader_starts_at_the_first_line_inside_its_window() {
+        let path = std::env::temp_dir().join(format!("desktop-recent-{}.jsonl", Uuid::new_v4()));
+        assert_eq!(
+            Engine::recent_start(&path, 10).unwrap(),
+            0,
+            "missing journal"
+        );
+        let line = "{\"type\":\"a\",\"payload\":{}}\n";
+        let n = line.len() as u64;
+        fs::write(&path, line.repeat(4)).unwrap();
+        assert_eq!(
+            Engine::recent_start(&path, 1000).unwrap(),
+            0,
+            "short journal"
+        );
+        assert_eq!(
+            Engine::recent_start(&path, n).unwrap(),
+            3 * n,
+            "a line beginning exactly at the window's start is included"
+        );
+        assert_eq!(Engine::recent_start(&path, n + 5).unwrap(), 3 * n);
+        assert_eq!(Engine::recent_start(&path, 2 * n).unwrap(), 2 * n);
+        let start = Engine::recent_start(&path, n + 5).unwrap();
+        let page = Engine::events(&path, start).unwrap();
+        assert_eq!(page["events"].as_array().unwrap().len(), 1);
+        assert_eq!(page["hasMore"], false);
+        fs::write(&path, "x".repeat(100)).unwrap();
+        assert_eq!(
+            Engine::recent_start(&path, 10).unwrap(),
+            100,
+            "no complete line in the window"
+        );
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn a_recent_read_is_led_by_the_seed_frames_written_long_before() {
+        let path = std::env::temp_dir().join(format!("desktop-seed-{}.jsonl", Uuid::new_v4()));
+        let filler = "{\"type\":\"mailbox.event\",\"payload\":{}}\n".repeat(200);
+        let start = json!({"type":"session.start","payload":{"sessionId":"s1"}});
+        fs::write(&path, format!("{start}\n{filler}")).unwrap();
+        let without = Engine::recent_events(&path, 100).unwrap();
+        assert_eq!(
+            without["events"][0]["type"], "session.start",
+            "a journal without seeds is read from its start"
+        );
+        let mut seeds = JournalSeeds::load(&path);
+        seeds.note(&json!({"type":"mailbox.event","payload":{}}));
+        seeds.note(&start);
+        seeds.note(&json!({"type":"model.switch_result","payload":{"model":"a"}}));
+        seeds.note(&json!({"type":"model.switch_result","payload":{"model":"b"}}));
+        let reloaded = JournalSeeds::load(&path);
+        assert_eq!(reloaded.frames.len(), 2, "one frame per seed kind");
+        let page = Engine::recent_events(&path, 100).unwrap();
+        let events = page["events"].as_array().unwrap();
+        assert_eq!(events[0]["payload"]["sessionId"], "s1");
+        assert_eq!(events[1]["payload"]["model"], "b", "the newest of a kind");
+        assert!(events.len() < 10, "only the window follows the seeds");
+        assert_eq!(events[2]["type"], "mailbox.event");
+        fs::remove_file(seed_path(&path)).unwrap();
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
     fn a_tail_reader_starts_after_the_last_complete_line() {
         let path = std::env::temp_dir().join(format!("desktop-tail-{}.jsonl", Uuid::new_v4()));
         assert_eq!(Engine::journal_end(&path).unwrap()["offset"], 0);
@@ -265,6 +608,7 @@ impl Engine {
             path: path.into(),
         });
         let owner = Arc::clone(&engine);
+        let mut seeds = JournalSeeds::load(path);
         thread::spawn(move || {
             // One write per frame: `to_writer` on a bare `File` makes a system call per JSON
             // token, and a busy engine sends many frames tens of kilobytes long.
@@ -273,11 +617,17 @@ impl Engine {
                 line.push(b'\n');
                 log.write_all(&line)
             };
+            let mut snapshots = SnapshotGate::default();
             let result = (|| -> Result<()> {
                 let mut unflushed = false;
                 loop {
                     if unflushed {
                         unflushed = !settle(socket.flush())?;
+                    }
+                    // The read below waits at most 20 ms, so a waiting snapshot is written
+                    // promptly once its spacing has passed.
+                    for message in snapshots.due(Instant::now(), false) {
+                        record(&mut log, &message).map_err(err)?;
                     }
                     while let Ok(mut message) = receiver.try_recv() {
                         let identity = owner.identity.lock().map_err(err)?;
@@ -286,6 +636,7 @@ impl Engine {
                         if !settle(socket.send(Message::Text(message.to_string().into())))? {
                             unflushed = true;
                         }
+                        snapshots.sent(&message);
                         if message["type"] == "user_message" {
                             record(&mut log,&json!({"type":"desktop.user_message","payload":message["payload"],"at":now()})).map_err(err)?;
                         }
@@ -302,8 +653,12 @@ impl Engine {
                                 let mut identity = owner.identity.lock().map_err(err)?;
                                 *identity = message["payload"].clone();
                             }
+                            // Stamped on arrival, so a snapshot that waits keeps its own time.
                             stamp_frame(&mut message, now());
-                            record(&mut log, &message).map_err(err)?;
+                            if snapshots.admit(&message, Instant::now()) {
+                                record(&mut log, &message).map_err(err)?;
+                                seeds.note(&message);
+                            }
                         }
                         Ok(Message::Ping(_)) => {
                             unflushed = !settle(socket.flush())?;
@@ -317,10 +672,12 @@ impl Engine {
                 Ok(())
             })();
             owner.connected.store(false, Ordering::Release);
-            let _ = record(
-                &mut log,
-                &json!({"type":"desktop.disconnected","payload":{"message":result.err().unwrap_or_else(||"Engine connection closed".into())}}),
-            );
+            for message in snapshots.due(Instant::now(), true) {
+                let _ = record(&mut log, &message);
+            }
+            let disconnected = json!({"type":"desktop.disconnected","payload":{"message":result.err().unwrap_or_else(||"Engine connection closed".into())}});
+            let _ = record(&mut log, &disconnected);
+            seeds.note(&disconnected);
         });
         Ok(engine)
     }
@@ -440,6 +797,55 @@ impl Engine {
         }
         let has_more = events.len() == PAGE_EVENTS || cursor - offset >= PAGE_BYTES;
         Ok(json!({"offset":cursor,"events":events,"hasMore":has_more,"size":size}))
+    }
+    /// Where a reader that wants only about the last `window` bytes of a journal starts: the
+    /// first line that begins at or after `size - window` (0 for a shorter journal).
+    ///
+    /// Project and profile journals are not a conversation: they hold replies and broadcast
+    /// snapshots, and only the newest of each matters. Replaying hundreds of megabytes of them
+    /// page by page through the session host made a project take minutes to open.
+    pub fn recent_start(path: &Path, window: u64) -> Result<u64> {
+        let file = match File::open(path) {
+            Ok(f) => f,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+            Err(e) => return Err(err(e)),
+        };
+        let size = file.metadata().map_err(err)?.len();
+        if size <= window {
+            return Ok(0);
+        }
+        // Read from the byte before the window: a line that begins exactly at its start is
+        // found by the newline that ends the previous one.
+        let from = size - window - 1;
+        let mut reader = BufReader::new(file);
+        reader.seek(SeekFrom::Start(from)).map_err(err)?;
+        let mut skipped = Vec::new();
+        let read = reader.read_until(b'\n', &mut skipped).map_err(err)?;
+        if skipped.last() != Some(&b'\n') {
+            // No complete line starts in the window: follow from the end.
+            return Ok(size);
+        }
+        Ok(from + read as u64)
+    }
+    /// A first read of only about the last `window` bytes, led by the journal's seed frames
+    /// (who the session is, its model, whether it is connected), which were written once and
+    /// usually long before. A journal without a seed file, written by an older host, is read
+    /// from its start as before.
+    pub fn recent_events(path: &Path, window: u64) -> Result<Value> {
+        let seeds = std::fs::read(seed_path(path))
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<Vec<Value>>(&bytes).ok());
+        let Some(seeds) = seeds else {
+            return Self::events(path, 0);
+        };
+        let start = Self::recent_start(path, window)?;
+        let mut page = Self::events(path, start)?;
+        if start > 0 {
+            if let Some(events) = page["events"].as_array_mut() {
+                events.splice(0..0, seeds);
+            }
+        }
+        Ok(page)
     }
     pub fn event_path(&self) -> &Path {
         &self.path

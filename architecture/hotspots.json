@@ -6,13 +6,17 @@
       "lines": 752,
       "relativeImports": 25
     },
+    "packages/builtin-plugins/src/auto-review-plugin.ts": {
+      "lines": 726,
+      "relativeImports": 7
+    },
     "packages/builtin-plugins/src/review-claim-registry.ts": {
-      "lines": 749,
-      "relativeImports": 3
+      "lines": 828,
+      "relativeImports": 4
     },
     "packages/builtin-plugins/src/review-context-builder.ts": {
-      "lines": 1061,
-      "relativeImports": 2
+      "lines": 1565,
+      "relativeImports": 3
     },
     "packages/chronicle/src/project-server-client.ts": {
       "lines": 719,
@@ -103,7 +107,7 @@
       "relativeImports": 17
     },
     "packages/runtime/src/chimera/execution-chimera-review.ts": {
-      "lines": 745,
+      "lines": 845,
       "relativeImports": 3
     },
     "packages/tools/src/codebase-index/ast-symbol-mutator.ts": {
@@ -167,7 +171,7 @@
       "relativeImports": 8
     },
     "packages/webui/src/components/ChimeraReviewsView.tsx": {
-      "lines": 920,
+      "lines": 1042,
       "relativeImports": 3
     },
     "packages/webui/src/components/ChronicleDashboard.tsx": {
@@ -199,8 +203,8 @@
       "relativeImports": 17
     },
     "apps/desktop-v2/src/EngineWorkspace.tsx": {
-      "lines": 773,
-      "relativeImports": 54
+      "lines": 850,
+      "relativeImports": 59
     },
     "apps/desktop-v2/src/FileWorkspace.tsx": {
       "lines": 2069,
@@ -215,7 +219,7 @@
       "relativeImports": 18
     },
     "apps/desktop-v2/src/ProjectChimera.tsx": {
-      "lines": 891,
+      "lines": 966,
       "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectChronicle.tsx": {

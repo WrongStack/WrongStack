@@ -109,15 +109,24 @@ impl HostState {
             .and_then(|live| live.engine.clone())
             .ok_or_else(|| "Project services are starting".into())
     }
-    pub(crate) fn project_events(&self, project_id: &str, offset: u64) -> Result<Value> {
+    /// A page of the project's journal from `offset`. A first read (`offset` 0) that asks for
+    /// `recent` bytes reads only them, led by the journal's seed frames
+    /// ([`Engine::recent_events`]).
+    pub(crate) fn project_events(
+        &self,
+        project_id: &str,
+        offset: u64,
+        recent: Option<u64>,
+    ) -> Result<Value> {
         let id = self.project_runtime_id(project_id)?;
-        Engine::events(
-            &self
-                .dir
-                .join("transcripts")
-                .join(format!("{id}.events.jsonl")),
-            offset,
-        )
+        let path = self
+            .dir
+            .join("transcripts")
+            .join(format!("{id}.events.jsonl"));
+        match recent {
+            Some(window) if offset == 0 => Engine::recent_events(&path, window),
+            _ => Engine::events(&path, offset),
+        }
     }
     pub(crate) fn project_journal_end(&self, project_id: &str) -> Result<Value> {
         let id = self.project_runtime_id(project_id)?;

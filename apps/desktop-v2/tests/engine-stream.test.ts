@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { backendStream, DORMANT_STREAM_LIMIT } from '../src/engine-stream';
+import { backendStream, DORMANT_STREAM_LIMIT, RECENT_JOURNAL_BYTES } from '../src/engine-stream';
 import { request } from '../src/platform';
 
 vi.mock('../src/platform', () => ({ request: vi.fn() }));
@@ -10,6 +10,38 @@ afterEach(() => {
   mocked.mockReset();
 });
 describe('shared backend journal reader', () => {
+  it('replays only the recent part of a project or profile journal, and a conversation whole', async () => {
+    vi.useFakeTimers();
+    const reads: Array<[string, Record<string, unknown>]> = [];
+    mocked.mockImplementation(async (command, args) => {
+      reads.push([command, args as Record<string, unknown>]);
+      const offset = (args as { offset: number }).offset;
+      // The host answers a `recent` first read from deep inside the journal.
+      return offset === 0
+        ? { offset: 900_000_000, events: [], hasMore: false, size: 900_000_000 }
+        : { offset, events: [], hasMore: false };
+    });
+    const stops = [
+      backendStream('project', 'recent-p').subscribe({ changed: () => {}, onError: () => {} }),
+      backendStream('profile', '').subscribe({ changed: () => {}, onError: () => {} }),
+      backendStream('engine', 'recent-e').subscribe({ changed: () => {}, onError: () => {} }),
+    ];
+    await vi.advanceTimersByTimeAsync(250);
+    const first = (command: string) => reads.find(([c]) => c === command)?.[1];
+    expect(first('project.events')).toEqual({
+      projectId: 'recent-p',
+      offset: 0,
+      recent: RECENT_JOURNAL_BYTES,
+    });
+    expect(first('profile.events')).toMatchObject({ offset: 0, recent: RECENT_JOURNAL_BYTES });
+    expect(first('engine.events')).toEqual({ id: 'recent-e', offset: 0 });
+    // Later polls continue from the position the host reported, without `recent`.
+    const later = reads.filter(([c]) => c === 'project.events').slice(1);
+    expect(later.length).toBeGreaterThan(0);
+    for (const [, args] of later)
+      expect(args).toEqual({ projectId: 'recent-p', offset: 900_000_000 });
+    for (const stop of stops) stop();
+  });
   it('waits quietly while the project services are still starting', async () => {
     vi.useFakeTimers();
     let ready = false;
