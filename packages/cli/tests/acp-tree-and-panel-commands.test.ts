@@ -83,9 +83,7 @@ describe('ACP server commands for /tree, /panel, and /image', () => {
     // Emitting `plugin.reloaded` invalidates cached per-session commands cleanly
     fakeAgent.events.emit('plugin.reloaded', {
       name: 'demo-ext',
-      generation: 1,
       durationMs: 2,
-      replacedPrevious: true,
     });
     const postReloadList = await acpCmds.run(
       fakeAgent as never,
