@@ -101,6 +101,10 @@
       "defaultHistoryView",
       "parseHistoryView"
     ],
+    "apps/desktop-v2/src/input-answer-draft.ts": [
+      "inputAnswerCodec",
+      "inputAnswerDraftKey"
+    ],
     "apps/desktop-v2/src/input-form-model.ts": [
       "answerFor"
     ],

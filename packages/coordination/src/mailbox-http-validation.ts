@@ -1,4 +1,9 @@
-import { MAILBOX_MAX_ACK_BATCH, MAILBOX_MAX_QUERY_LIMIT } from './mailbox-constants.js';
+import {
+  MAILBOX_MAX_ACK_BATCH,
+  MAILBOX_MAX_BODY_LENGTH,
+  MAILBOX_MAX_QUERY_LIMIT,
+  MAILBOX_MAX_SUBJECT_LENGTH,
+} from './mailbox-constants.js';
 import { resolveSendType } from './mailbox-message-codec.js';
 import type {
   AgentHeartbeatInput,
@@ -318,12 +323,38 @@ export function validateSend(
     throw validationError(`field "type" is invalid: ${(err as Error).message}`);
   }
 
+  // The two length ceilings from the "Request bounds (every untrusted boundary)"
+  // section apply here exactly as MAILBOX_MAX_QUERY_LIMIT / MAILBOX_MAX_ACK_BATCH
+  // do below. Without them this bridge was the only send boundary that persisted
+  // an over-ceiling row: the WebUI WS validator
+  // (webui-server/src/server/ws-mailbox-validation.ts:233-244) and the HQ send
+  // route (cli/src/hq-server/routes/mailbox-handlers.ts:228) both reject it, and
+  // the store does not clamp, so the only remaining bound was the 256 KiB
+  // transport cap - 8x the body ceiling and 1280x the subject one. Measured on a
+  // `to: "*"` send, one request fanned a 250 KB body out to every address.
+  // Checked on the RAW length, like the sibling HTTP boundary
+  // (cli/src/hq-server/routes/mailbox-handlers.ts:228, which also persists raw at
+  // :276-277), because this function forwards the value untrimmed and the store
+  // keeps it that way. A trim-only check would still let 200 characters plus
+  // padding be written, so it would not bound the row that is actually stored.
+  // Named `raw*` because `body` is this function's own parameter.
+  const rawSubject = requireString(object, 'subject');
+  if (rawSubject.length > MAILBOX_MAX_SUBJECT_LENGTH) {
+    throw validationError(
+      `field "subject" must be at most ${MAILBOX_MAX_SUBJECT_LENGTH} characters`,
+    );
+  }
+  const rawBody = requireString(object, 'body');
+  if (rawBody.length > MAILBOX_MAX_BODY_LENGTH) {
+    throw validationError(`field "body" must be at most ${MAILBOX_MAX_BODY_LENGTH} characters`);
+  }
+
   const result: MailboxSendInput = {
     from,
     to,
     type: type as MailboxSendInput['type'],
-    subject: requireString(object, 'subject'),
-    body: requireString(object, 'body'),
+    subject: rawSubject,
+    body: rawBody,
     priority: priority as MailboxSendInput['priority'],
     ...(audience !== undefined ? { audience: audience as MailboxSendInput['audience'] } : {}),
   };

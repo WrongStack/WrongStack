@@ -10,7 +10,11 @@ import {
   closeOpenedCredentialStores,
   openCredentialStore,
 } from '../../core/tests/helpers/sqlite-credential-store.js';
-import { MAILBOX_MAX_QUERY_LIMIT } from '../src/mailbox-constants.js';
+import {
+  MAILBOX_MAX_BODY_LENGTH,
+  MAILBOX_MAX_QUERY_LIMIT,
+  MAILBOX_MAX_SUBJECT_LENGTH,
+} from '../src/mailbox-constants.js';
 import { MailboxEventEmitter } from '../src/mailbox-events.js';
 import {
   authorizeMailboxBearerToken,
@@ -351,6 +355,42 @@ describe('mailbox HTTP router', () => {
         priority: 'urgent',
       },
       message: 'field "priority" must be one of',
+    },
+    {
+      name: `a subject past the ${MAILBOX_MAX_SUBJECT_LENGTH}-char ceiling`,
+      body: {
+        from: 'external',
+        to: 'x',
+        type: 'note',
+        subject: 'x'.repeat(MAILBOX_MAX_SUBJECT_LENGTH + 1),
+        body: 'b',
+      },
+      message: `field "subject" must be at most ${MAILBOX_MAX_SUBJECT_LENGTH} characters`,
+    },
+    {
+      name: `a body past the ${MAILBOX_MAX_BODY_LENGTH.toLocaleString()}-char ceiling`,
+      body: {
+        from: 'external',
+        to: 'x',
+        type: 'note',
+        subject: 's',
+        body: 'y'.repeat(MAILBOX_MAX_BODY_LENGTH + 1),
+      },
+      message: `field "body" must be at most ${MAILBOX_MAX_BODY_LENGTH} characters`,
+    },
+    {
+      // The ceiling is on the stored row, not on its trimmed rendering: padding is
+      // kept verbatim by the store, so it counts against the limit here (matching
+      // the HQ HTTP boundary), even though it would not at the WS boundary.
+      name: 'a ceiling-sized subject padded past the ceiling',
+      body: {
+        from: 'external',
+        to: 'x',
+        type: 'note',
+        subject: `${'x'.repeat(MAILBOX_MAX_SUBJECT_LENGTH)}${' '.repeat(8)}`,
+        body: 'b',
+      },
+      message: `field "subject" must be at most ${MAILBOX_MAX_SUBJECT_LENGTH} characters`,
     },
   ])('rejects $name before calling the mailbox', async ({ body, message: expected }) => {
     const stub = makeMailbox();

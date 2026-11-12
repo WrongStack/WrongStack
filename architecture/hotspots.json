@@ -127,7 +127,7 @@
       "relativeImports": 2
     },
     "packages/tools/src/design-reference.ts": {
-      "lines": 757,
+      "lines": 825,
       "relativeImports": 2
     },
     "packages/tools/src/process-registry.ts": {
@@ -207,11 +207,11 @@
       "relativeImports": 17
     },
     "apps/desktop-v2/src/EngineWorkspace.tsx": {
-      "lines": 780,
-      "relativeImports": 54
+      "lines": 863,
+      "relativeImports": 59
     },
     "apps/desktop-v2/src/FileWorkspace.tsx": {
-      "lines": 2069,
+      "lines": 2075,
       "relativeImports": 36
     },
     "apps/desktop-v2/src/ModelCatalogSettings.tsx": {
