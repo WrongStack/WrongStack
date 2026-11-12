@@ -1,5 +1,6 @@
 import type { TaskGraph, TaskPriority } from '@wrongstack/contracts/types/task-graph';
 import { DefaultTaskStore, type TaskStore, TaskTracker } from '@wrongstack/core/tasking';
+import { cutHead } from './phase-orchestrator-queries.js';
 import type { PhaseGraph, PhaseNode, PhaseTemplate } from './types.js';
 
 export interface PhaseGraphBuilderOptions {
@@ -270,7 +271,11 @@ export class PhaseGraphBuilder {
       const totalHours = group.reduce((sum, t) => sum + (t.estimateHours ?? 2), 0);
 
       return {
-        name: `Phase ${idx + 1}: ${group[0]?.title.slice(0, 30) ?? 'Tasks'}`,
+        // Capped through the shared surrogate-safe head cut: this name is
+        // persisted in the saved graph AND reused as the phase worktree's
+        // `ownerLabel`/branch slug, so a straddling astral char would put an
+        // unpaired surrogate into a git ref, not just into a label.
+        name: `Phase ${idx + 1}: ${group[0] ? cutHead(group[0].title, 30) : 'Tasks'}`,
         description: group.map((t) => t.title).join(', '),
         priority: hasCritical ? 'critical' : 'high',
         estimateHours: totalHours,

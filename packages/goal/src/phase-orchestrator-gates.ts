@@ -8,6 +8,7 @@ import {
   type IntegrationContext,
   worktreeEnv,
 } from './phase-orchestrator-integration.js';
+import { keepTail } from './phase-orchestrator-queries.js';
 import type { PhaseNode } from './types.js';
 
 /**
@@ -92,7 +93,7 @@ function recordVerification(
         // A skipped check passed only because nothing could be checked.
         ...(verdict.skipped ? { skipped: true } : {}),
         at: Date.now(),
-        ...(verdict.output ? { output: verdict.output.slice(-VERIFY_OUTPUT_LIMIT) } : {}),
+        ...(verdict.output ? { output: keepTail(verdict.output, VERIFY_OUTPUT_LIMIT) } : {}),
       },
     ].slice(-VERIFY_ATTEMPT_LIMIT),
   };

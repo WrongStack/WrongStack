@@ -174,7 +174,46 @@ export function setIntegrationMetadata(
   graph.updatedAt = Date.now();
 }
 
+/**
+ * Keep the LAST `max` code units of `text`, snapped forward so the kept suffix
+ * never opens on the low half of a split pair. The tail counterpart of
+ * {@link truncate}'s head rule, and the same convention as the canonical
+ * `truncate` in `@wrongstack/primitives/string`: a straddling code point is
+ * dropped whole rather than left as a lone surrogate.
+ */
+export function keepTail(text: string, max: number): string {
+  if (text.length <= max) return text;
+  let from = text.length - max;
+  const firstKept = text.charCodeAt(from);
+  if (firstKept >= 0xdc00 && firstKept <= 0xdfff) from += 1;
+  return text.slice(from);
+}
+
+/**
+ * Keep the first `max` code units of `text`, snapped back so the kept prefix
+ * never ends on the high half of a split pair. The head counterpart of
+ * {@link keepTail}, and the same convention as the canonical `truncate` in
+ * `@wrongstack/primitives/string`: a straddling code point is dropped whole.
+ *
+ * One home for the rule on purpose — Goal caps untrusted text in three places
+ * (the failure message, the persisted verification record, and a phase NAME,
+ * which also becomes the worktree `ownerLabel`/branch slug), and two of them
+ * shipped raw `slice()` caps until this fix.
+ */
+export function cutHead(text: string, max: number): string {
+  if (text.length <= max) return text;
+  let end = max;
+  const lastKept = text.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  return text.slice(0, end);
+}
+
 export function truncate(text: string, max = 500): string {
   const t = text.trim();
-  return t.length <= max ? t : `${t.slice(0, max)}… (+${t.length - max} chars)`;
+  if (t.length <= max) return t;
+  // Capped at a code-point boundary: this text is broadcast as
+  // `graph.verifyFailed` and persisted in the saved graph, and a lone
+  // surrogate is ill-formed UTF-16 that strict JSON parsers reject.
+  const kept = cutHead(t, max);
+  return `${kept}… (+${t.length - kept.length} chars)`;
 }
