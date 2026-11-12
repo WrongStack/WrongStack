@@ -329,10 +329,10 @@
   .composer-queue > summary small {
     display: none;
   }
-  .composer-toolbar .session-model-controls {
-    flex-basis: 100%;
-  }
 }
+/* The model controls used to take a whole toolbar row below a 1050 px window, whatever room
+   the composer had beside the sidebar, which pushed the composer to three rows of controls at
+   900 px. They now wrap like the other controls. */
 
 .refine-comparison-text {
   max-height: 30vh;
