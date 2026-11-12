@@ -65,6 +65,71 @@ describe('compaction cuts never split a surrogate pair', () => {
     expect(out).toContain('[truncated ~');
   });
 
+  it('emergency trim refuses a tool_use receipt that would grow the block', () => {
+    // Site 3: elideMessageToolIo (the budget path's writer of
+    // summarizeToolUseInputElision, floor EMERGENCY_MIN_TRIM_TOKENS = 120, far below
+    // the 500 elision threshold) rewrote the input unconditionally. The receipt
+    // copies every string <= 160 chars out of `fields` VERBATIM and only ADDS its
+    // wrapper, so this 136-token input became 166 - counted as a trim, i.e. the
+    // last-resort overflow path reporting relief while adding to the overflow.
+    // Driven through enforceHardBudget, the production caller, so nothing here is
+    // wired to an export only tests use.
+    const growable = {
+      a: `alpha ${'y'.repeat(144)}`,
+      b: `bravo ${'z'.repeat(144)}`,
+      c: `charlie ${'w'.repeat(143)}`,
+    };
+    const messages: Message[] = [
+      {
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'grow-e', name: 'clarify', input: growable }],
+      } as Message,
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'grow-e', content: 'answered' }],
+      } as Message,
+      { role: 'user', content: 'recent' } as Message,
+    ];
+
+    // A budget no receipt can reach: the only honest answer is "no relief here",
+    // never a rewrite that makes the prompt larger.
+    const result = enforceHardBudget(messages, 1, { preserveK: 1 });
+    const wire = JSON.stringify(result.messages);
+
+    expect(result.trimmedBlocks).toBe(0);
+    expect(wire).not.toContain('__elided_tool_input');
+    expect(result.droppedMessages).toBe(2);
+  });
+
+  it('emergency trim still shrinks a tool_use input that really does compress', () => {
+    // Control for the guard above: refusing a growing receipt must not disable the
+    // overflow path for inputs that actually compress.
+    const messages: Message[] = [
+      {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_use',
+            id: 'shrink-e',
+            name: 'write',
+            input: { path: 'src/generated.ts', content: 'export const value = 1;\n'.repeat(600) },
+          },
+        ],
+      } as Message,
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'shrink-e', content: 'ok' }],
+      } as Message,
+      { role: 'user', content: 'recent' } as Message,
+    ];
+
+    const result = enforceHardBudget(messages, 300, { preserveK: 1 });
+    const wire = JSON.stringify(result.messages);
+
+    expect(result.trimmedBlocks).toBeGreaterThan(0);
+    expect(wire).toContain('__elided_tool_input');
+  });
+
   it('enforceHardBudget emergency trim stays well-formed', () => {
     const result = enforceHardBudget(
       [

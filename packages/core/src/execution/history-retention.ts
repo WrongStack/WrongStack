@@ -5,7 +5,11 @@ import {
   RETENTION_CLASSES,
   type RetentionClass,
 } from '../utils/residency-labels.js';
-import { estimateMessageTokens, estimateToolResultTokens } from '../utils/token-estimate.js';
+import {
+  estimateMessageTokens,
+  estimateToolInputTokens,
+  estimateToolResultTokens,
+} from '../utils/token-estimate.js';
 import { findPreserveStart } from './compaction-elision.js';
 
 /**
@@ -61,18 +65,30 @@ function classify(
   if (message.role === 'system') return 'digest';
   if (index >= preserveStart) return 'protected';
   if (typeof message.content === 'string') return 'compactable';
+  // Oversize must be read exactly the way `eliseOldToolResults` reads it: it
+  // scans EVERY block of the turn and calls a block oversized at
+  // `tokensFor(b) >= eliseThreshold`, where `tokensFor` scores an existing
+  // receipt 0 (compaction-elision.ts:467-476 and :489-491). The three
+  // shortcuts here each hid a turn from the report while the engine still
+  // intended to replace it: bailing out on the first receipt skipped a second,
+  // still-oversized block in the same turn; `>` skipped a turn sitting exactly
+  // on the threshold; and never sizing `tool_use` inputs skipped a turn whose
+  // only oversized block is a large tool argument.
   let candidate = false;
+  let receipt = false;
   for (const block of message.content) {
     if (block.type === 'tool_result') {
-      if (typeof block.content === 'string' && isElidedResultContent(block.content)) {
-        return 'elided';
-      }
-      if (estimateToolResultTokens(block.content) > threshold) candidate = true;
-    } else if (block.type === 'tool_use' && isElidedToolInput(block.input)) {
-      return 'elided';
+      if (isElidedResultContent(block.content)) receipt = true;
+      else if (estimateToolResultTokens(block.content) >= threshold) candidate = true;
+    } else if (block.type === 'tool_use') {
+      if (isElidedToolInput(block.input)) receipt = true;
+      else if (estimateToolInputTokens(block.input) >= threshold) candidate = true;
     }
   }
-  return candidate ? 'elision-candidate' : 'compactable';
+  // A turn with work left is a candidate even when part of it is already a
+  // receipt; only a turn with nothing left to replace counts as elided.
+  if (candidate) return 'elision-candidate';
+  return receipt ? 'elided' : 'compactable';
 }
 
 export function getHistoryRetention(ctx: {

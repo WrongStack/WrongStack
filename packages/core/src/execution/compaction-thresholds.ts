@@ -5,6 +5,7 @@ import {
   type ContextWindowBudgetSnapshot,
   computeContextWindowBudget,
 } from '../utils/context-budget.js';
+import { repeatedReadPressure } from '../utils/context-evidence.js';
 import {
   adjustLadderForPriceCliff,
   priceCliffRouteForContext,
@@ -196,7 +197,15 @@ export function describePriceCliffForContext(
   if (!cliff) return undefined;
 
   const budget = contextWindowBudget(ctx, inputTokens, runtimeMax);
-  const rungs = sanitizeThresholds(thresholds ?? { warn: 0.55, soft: 0.7, hard: 0.85 });
+  // The middleware lowers warn/soft under repeated-read pressure BEFORE it
+  // folds the cliff in. Skipping that rung here made this report name a cap the
+  // ladder was not applying: with the adaptive soft at 0.66 a cliff sitting at
+  // ~0.68 of the budget is already beaten by the window-relative rung, while
+  // the un-adapted 0.70 still rendered it as a binding money cap.
+  const rungs = adaptThresholdsForSignals(
+    sanitizeThresholds(thresholds ?? { warn: 0.55, soft: 0.7, hard: 0.85 }),
+    { repeatedReadCount: repeatedReadPressure(ctx) },
+  );
   const target = normalizeTargetLoad(targetLoad, rungs);
   const adjusted = adjustLadderForPriceCliff(
     { ...rungs, targetLoad: target },

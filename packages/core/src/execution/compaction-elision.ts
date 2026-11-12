@@ -185,6 +185,15 @@ export function eliseAcknowledgedToolResults(
               tool: block.name,
             }
           : summarizeToolUseInputElision(block, before);
+        // The summarize receipt exists to shrink the block, so a receipt that is
+        // not strictly smaller must not be written - same rule as the tool_result
+        // branch below and as eliseOldToolResults. Without this check the growth
+        // was silently absorbed by the Math.max(0, ...) floor (measured: a 12-field
+        // clarify-style input 547 -> 578 tokens inside a reported 2,421 saving).
+        // The stale-read marker is exempt: it is written to correct the model's
+        // view of an invalidated read, not to save tokens, so its size is not the
+        // point and refusing it would keep misleading content in the prompt.
+        if (!stalePath && estimateToolInputTokens(input) >= before) continue;
         saved += Math.max(0, before - estimateToolInputTokens(input));
         content ??= message.content.slice();
         content[j] = { ...block, input };
@@ -526,7 +535,16 @@ export function eliseOldToolResults(
         const tokens = tokensFor(b);
         if (tokens < opts.eliseThreshold) continue;
         const elidedInput = summarizeToolUseInputElision(b, tokens);
-        saved += Math.max(0, tokens - estimateToolInputTokens(elidedInput));
+        const elidedTokens = estimateToolInputTokens(elidedInput);
+        // The same invariant the tool_result branch enforces below: the receipt
+        // must be strictly smaller. A tool input made of short, already
+        // single-spaced strings is copied out of `fields` VERBATIM
+        // (compaction-elision-summaries.ts:51-53) while the wrapper adds
+        // `__elided_tool_input`, `tool` and the nested map, so it can only grow -
+        // measured 552 -> 583 tokens. The old `Math.max(0, ...)` hid that as a
+        // zero saving and still returned changed: true.
+        if (elidedTokens >= tokens) continue;
+        saved += tokens - elidedTokens;
         newContent ??= original.slice();
         newContent[idx] = { ...b, input: elidedInput };
         continue;

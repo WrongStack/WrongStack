@@ -210,6 +210,67 @@ describe('eliseOldToolResults', () => {
     expect(res.messages).toBe(messages);
   });
 
+  it('does not rewrite a tool_use input into a larger summary', () => {
+    // The tool_result branch above refuses a non-shrinking receipt; the input
+    // branch used to assign one anyway while `Math.max(0, ...)` hid the loss as
+    // a zero saving. summarizeToolUseInputElision copies every string <= 160
+    // chars out of `fields` VERBATIM and only adds its own wrapper, so an input
+    // built from short single-spaced args (a 12-field clarify-style call) clears
+    // the threshold and can only grow: measured 552 -> 583 tokens.
+    const shortArg = (i: number): string => `q${i} ${'x'.repeat(146)}`;
+    const input: Record<string, unknown> = {};
+    for (let i = 0; i < 12; i++) input[`arg${i}`] = shortArg(i);
+
+    const messages: Message[] = [
+      {
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'grow-1', name: 'clarify', input }],
+      } as Message,
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'grow-1', content: 'answered' }],
+      } as Message,
+      text('user', 'recent'),
+    ];
+
+    const res = eliseOldToolResults(messages, { preserveK: 1, eliseThreshold: 500 });
+
+    expect(estimateMessages(res.messages)).toBeLessThanOrEqual(estimateMessages(messages));
+    expect(res.changed).toBe(false);
+    expect(res.saved).toBe(0);
+    expect(res.messages).toBe(messages);
+  });
+
+  it('still elides a shrinkable tool_use input with honest savings', () => {
+    // Control for the guard above: refusing growth must not disable elision.
+    const messages: Message[] = [
+      {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_use',
+            id: 'shrink-1',
+            name: 'write',
+            input: { path: 'src/generated.ts', content: 'export const value = 1;\n'.repeat(600) },
+          },
+        ],
+      } as Message,
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'shrink-1', content: 'ok' }],
+      } as Message,
+      text('user', 'recent'),
+    ];
+
+    const before = estimateMessages(messages);
+    const res = eliseOldToolResults(messages, { preserveK: 1, eliseThreshold: 500 });
+
+    expect(res.changed).toBe(true);
+    expect(res.saved).toBeGreaterThan(0);
+    expect(res.saved).toBe(before - estimateMessages(res.messages));
+    expect(JSON.stringify(res.messages)).toContain('__elided_tool_input');
+  });
+
   it('keeps semantic hints in elided tool result markers', () => {
     const messages: Message[] = [
       {
@@ -340,6 +401,40 @@ describe('eliseAcknowledgedToolResults', () => {
       content: [{ type: 'tool_result', tool_use_id: id, name, content: result }],
     } as Message,
   ];
+
+  it('elides the oversized result but refuses a tool_use input that would grow', () => {
+    // Same invariant as eliseOldToolResults: the summarize receipt only exists to
+    // shrink a block. A 12-field input of short single-spaced strings is copied
+    // out of `fields` VERBATIM, so wrapping it in `__elided_tool_input` grows it
+    // (measured 547 -> 578 tokens) and the old Math.max(0, ...) floor hid that loss
+    // inside a reported 2,421-token saving. The pair's real result must still be
+    // received, so refusing the input must not disable elision.
+    const shortArg = (i: number): string => `q${i} ${'x'.repeat(146)}`;
+    const input: Record<string, unknown> = {};
+    for (let i = 0; i < 12; i++) input[`arg${i}`] = shortArg(i);
+
+    const messages: Message[] = [
+      ...pair('grow-old', 'r'.repeat(9_000), input, 'clarify'),
+      { role: 'assistant', content: [{ type: 'text', text: 'old result consumed' }] } as Message,
+      ...pair('keep-new', 'fresh', { path: 'src/new.ts' }, 'clarify'),
+      { role: 'assistant', content: [{ type: 'text', text: 'new result consumed' }] } as Message,
+    ];
+
+    const before = estimateMessages(messages);
+    const res = eliseAcknowledgedToolResults(messages, { maxRetainedTokens: 100 });
+    const wire = JSON.stringify(res.messages);
+
+    expect(res.changed).toBe(true);
+    expect(res.elidedResults).toBe(1);
+    expect(wire).not.toContain('__stale_read');
+    // The growing receipt was refused: every short arg is still verbatim...
+    expect(wire).toContain(shortArg(0));
+    expect(wire).toContain(shortArg(11));
+    // ...while the oversized result it was paired with was still elided.
+    expect(wire).not.toContain('r'.repeat(1_000));
+    expect(estimateMessages(res.messages)).toBeLessThan(before);
+    expect(res.saved).toBeGreaterThan(0);
+  });
 
   it('never elides the trailing tool batch before a provider response acknowledges it', () => {
     const messages = pair('pending', 'x'.repeat(8_000), { path: 'src/pending.ts' });

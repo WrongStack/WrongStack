@@ -127,7 +127,7 @@
       "relativeImports": 2
     },
     "packages/tools/src/design-reference.ts": {
-      "lines": 825,
+      "lines": 757,
       "relativeImports": 2
     },
     "packages/tools/src/process-registry.ts": {

@@ -93,8 +93,16 @@ export function elideMessageToolIo(m: Message): { message: Message; trimmed: num
     } else if (b.type === 'tool_use' && !isElidedToolInput(b.input)) {
       const tokens = estimateToolInputTokens(b.input);
       if (tokens < EMERGENCY_MIN_TRIM_TOKENS) continue;
+      const summary = summarizeToolUseInputElision(b, tokens);
+      // Same rule as the tool_result branch above and both elision writers: the
+      // receipt must be strictly smaller. An input of short, already single-spaced
+      // strings is copied out of `fields` verbatim, so this path only adds its own
+      // wrapper - measured 136 -> 166 tokens at the 120-token floor. Counting that
+      // as `trimmed` made the last-resort overflow path report relief while adding
+      // to the overflow.
+      if (estimateToolInputTokens(summary) >= tokens) continue;
       newContent ??= m.content.slice();
-      newContent[j] = { ...b, input: summarizeToolUseInputElision(b, tokens) };
+      newContent[j] = { ...b, input: summary };
       trimmed++;
     }
   }
