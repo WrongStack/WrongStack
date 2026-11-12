@@ -97,7 +97,18 @@ function parseEntry(raw: unknown): HqKnownMachine | null {
       })
     : [];
   return {
-    key: clip(entry.key),
+    // The key is an IDENTITY, not a display string: it must survive the
+    // machines.json round trip byte-for-byte. `clip()` exists to bound the
+    // client-supplied text below, but `observe()` persists the key exactly as
+    // `hqMachineKey()` derived it and every consumer (the snapshot grouping,
+    // the notify label match, session history, hq-next's mirrored
+    // `machineKeyOf`) re-derives that same unbounded value. Clipping only here
+    // renamed any machine whose `host:<hostname>` crossed MAX_TEXT, so after a
+    // restart `observe()` missed its own previous entry, minted a duplicate,
+    // and the truncated one — never in `live` — was reported by `offline()`
+    // as a machine that is actually connected. The `host|mid` shape check above
+    // is what rejects malformed keys.
+    key: entry.key,
     ...(typeof entry.hostname === 'string' ? { hostname: clip(entry.hostname) } : {}),
     machineIds: machineIds.slice(0, MAX_IDS_PER_MACHINE),
     projects: projects.slice(0, MAX_PROJECTS_PER_MACHINE),

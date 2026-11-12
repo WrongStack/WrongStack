@@ -2,7 +2,11 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { HqMachineRoster, parseHqMachineLabels } from '../src/persistence/machine-roster.js';
+import {
+  HqMachineRoster,
+  hqMachineKey,
+  parseHqMachineLabels,
+} from '../src/persistence/machine-roster.js';
 import type { HqClientRecord, HqSnapshot } from '../src/protocol.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
@@ -150,6 +154,37 @@ describe('HqMachineRoster', () => {
     const second = new HqMachineRoster({ dataDir });
     await second.load(T0 + 5_000);
     expect(second.offline(T0 + 5_000).map((entry) => entry.key)).toEqual(['host:lab']);
+  });
+
+  // The machine key is an IDENTITY, not a display string. `parseEntry()` used to
+  // run it through the same MAX_TEXT (255) clip as the client-supplied fields,
+  // while `observe()` persisted whatever `hqMachineKey()` derived. A hostname
+  // long enough to push `host:<hostname>` past the bound (a legal 253-char FQDN
+  // does) therefore came back from machines.json RENAMED, and since every
+  // consumer re-derives the unbounded key — the snapshot grouping, the notify
+  // label match, session history, hq-next's `machineKeyOf` — the next
+  // observation missed its own previous entry and the truncated one, never in
+  // `live`, was reported as an offline machine that is actually connected.
+  it("keeps a long hostname's machine identity across a restart", async () => {
+    const host = 'lab-node-01.internal.example.com'.repeat(8).slice(0, 300).toLowerCase();
+    expect(`host:${host}`.length).toBeGreaterThan(255);
+    const key = hqMachineKey(host, 'm1');
+
+    const first = new HqMachineRoster({ dataDir });
+    first.observe(snapshot(T0, [client({ clientId: 'a', hostname: host })]), T0);
+    await first.drain();
+
+    const second = new HqMachineRoster({ dataDir });
+    await second.load(T0 + 5_000);
+    expect(second.offline(T0 + 5_000).map((entry) => entry.key)).toEqual([key]);
+
+    // The display bound the clip was written for still applies to that field.
+    expect(second.offline(T0 + 5_000)[0]?.hostname).toHaveLength(255);
+
+    // Same machine reporting again is live, not a second permanently-offline entry.
+    second.observe(snapshot(T0 + 10_000, [client({ clientId: 'a', hostname: host })]), T0 + 10_000);
+    expect(second.offline(T0 + 10_000)).toEqual([]);
+    expect(second.isLive(key)).toBe(true);
   });
 
   it('drops machines unseen past the retention window', () => {
