@@ -2,10 +2,48 @@
   display: inline-flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 2px;
+}
+/* Message actions are quiet icons, as in the WebUI: every message used to carry three to four
+   bordered, labelled buttons, which read as noise down the whole conversation. A label stays
+   the button's accessible name (and title); the icons appear on hover or keyboard focus, and
+   an action that is switched on (pinned, source shown) stays visible. */
+.message-actions > .copy-button {
+  position: relative;
+  padding: 4px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--subtle);
+  opacity: 0;
+  transition:
+    opacity 120ms ease,
+    color 120ms ease,
+    background-color 120ms ease;
+}
+.message-actions > .copy-button > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.chat-message:is(:hover, :focus-within) .message-actions > .copy-button,
+.message-actions > .copy-button[aria-pressed="true"] {
+  opacity: 1;
+}
+.message-actions > .copy-button:hover:not(:disabled),
+.message-actions > .copy-button:focus-visible {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+@media (hover: none) {
+  .message-actions > .copy-button {
+    opacity: 1;
+  }
 }
 .native-chat-messages .transcript-row > .chat-message {
-  padding-block: 20px;
+  padding-block: 14px;
 }
 .native-chat-messages .transcript-row > .chat-run-activity {
   max-width: 850px;
@@ -27,8 +65,7 @@
   opacity: 0.55;
 }
 .message-actions > .copy-button[aria-pressed="true"] {
-  color: var(--text);
-  border-color: var(--accent);
+  color: var(--accent);
 }
 .message-source {
   max-height: 40rem;
