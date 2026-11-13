@@ -530,4 +530,41 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       },
     ],
   },
+  architecture_decisions: {
+    longDescription:
+      'Read project Architecture Decision Records or propose a lasting architecture choice for user review. Proposals are inactive until the user accepts the exact revision in /adr. Identical proposals are deduplicated, including rejected ones. Never use a memory entry as ADR approval.',
+    params: [
+      {
+        name: 'action',
+        type: "'list' | 'get' | 'propose' | 'revise'",
+        required: true,
+        description: 'Read existing ADRs or propose/revise an inactive decision for user review.',
+      },
+      {
+        name: 'id',
+        type: 'string',
+        description: 'ADR id for get.',
+      },
+      {
+        name: 'revision',
+        type: 'integer',
+        description: 'Expected revision for revise.',
+      },
+      {
+        name: 'contentHash',
+        type: 'string',
+        description: 'Expected content hash for revise.',
+      },
+      {
+        name: 'proposal',
+        type: 'object',
+        description:
+          'Complete ADR content; optional checks are part of the content the user approves.',
+      },
+    ],
+    doNotUseWhen: [
+      'The information is a temporary observation, ordinary task status, or an unreviewed fact rather than a lasting architecture choice.',
+    ],
+    useInstead: ['remember'],
+  },
 };

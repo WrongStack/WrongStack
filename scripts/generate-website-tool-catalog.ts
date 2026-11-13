@@ -81,6 +81,7 @@ const newToolCategories: Readonly<Record<string, ToolCategory>> = {
   process_watch: 'Shell, Git & web',
   process_watch_control: 'Shell, Git & web',
   session_wakeup: 'Work & state',
+  architecture_decisions: 'Work & state',
 };
 const newEntries = builtinTools
   .filter((tool) => !websiteNames.has(tool.name) && Object.hasOwn(newToolCategories, tool.name))

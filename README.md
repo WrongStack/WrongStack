@@ -448,7 +448,7 @@ required**. Each row links to its full write-up in
 
 | Capability | What you get |
 |------------|--------------|
-| [Tools & code intelligence](docs/capabilities.md#tools--code-intelligence) | 81 built-in tools, a SQLite/FTS5 codebase index with call-graph navigation, dead-code cleanup with rollback, and [ToolFlow](docs/toolflow.md) for scripted tool batches |
+| [Tools & code intelligence](docs/capabilities.md#tools--code-intelligence) | 82 built-in tools, a SQLite/FTS5 codebase index with call-graph navigation, dead-code cleanup with rollback, and [ToolFlow](docs/toolflow.md) for scripted tool batches |
 | [Autonomy & goals](docs/capabilities.md#autonomy--goals) | Scheduled automation jobs, `/goal` loops governed by the Brain, project goal tracking, `/nextsteps`, YOLO/YOLO+ and `/solo` |
 | [Multi-agent fleet + Director](docs/capabilities.md#multi-agent-fleet--director) | A specialist roster under a Director; each subagent has its own budget and a replayable transcript |
 | [Self-improving roster agents](docs/capabilities.md#self-improving-roster-agents) | Roles learn project-specific practice per skill and load the useful parts on the next spawn |

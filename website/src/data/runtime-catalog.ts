@@ -659,6 +659,14 @@ export const toolCatalog = [
     mutating: false,
     category: 'Work & state',
   },
+  {
+    name: 'architecture_decisions',
+    summary:
+      'Read project Architecture Decision Records or propose a lasting architecture choice for user review. Proposals are inactive until the user accepts the exact revision in /adr. Identical proposals are deduplicated, including rejected ones. Never use a memory entry as ADR approval.',
+    permission: 'confirm',
+    mutating: true,
+    category: 'Work & state',
+  },
 ] as const;
 
 export const pluginSources = ['Core', 'Suite', 'Bridge'] as const;
@@ -1480,7 +1488,7 @@ export const PLUGIN_COUNT = pluginCatalog.length;
  */
 // generated:tool-tier-counts
 export const TOOL_TIER_COUNTS = {
-  off: 81,
+  off: 82,
   minimal: 30,
   light: 30,
   medium: 57,
