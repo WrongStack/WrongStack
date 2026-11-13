@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-13T19:46:20.316Z
+**Generated:** 2026-11-13T22:05:34.508Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 48 |
-| Production source files | 6331 |
-| Production source lines | 1307278 |
-| Test files | 5274 |
+| Production source files | 6333 |
+| Production source lines | 1308626 |
+| Test files | 5276 |
 | Workspace dependency edges | 250 |
-| Relative module edges | 18670 |
+| Relative module edges | 18676 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -37,7 +37,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/codebase-index-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
 | @wrongstack/contracts | 131 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 192 | 191 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/core | 659 | 719 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/core | 661 | 721 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop-v2 | 518 | 341 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 63 | 6 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 24 | 27 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
@@ -104,21 +104,22 @@ None.
 | 940 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
 | 903 | `packages/tools/src/codebase-index/infra-parser.ts` |
 | 898 | `apps/desktop-v2/src/SkillLibrary.tsx` |
-| 874 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
+| 878 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
 | 870 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
 | 869 | `packages/builtin-plugins/src/review-followup-briefing.ts` |
 | 869 | `packages/runtime/src/chimera/execution-chimera-review.ts` |
-| 854 | `packages/tools/src/design-reference.ts` |
 | 853 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
 | 853 | `packages/plugins/src/adversary-mode/evaluator.ts` |
+| 853 | `packages/tools/src/design-reference.ts` |
+| 848 | `packages/webui/src/components/DesignGalleryView.tsx` |
 | 832 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 831 | `packages/core/src/execution/design-draw.ts` |
 | 828 | `packages/builtin-plugins/src/review-claim-registry.ts` |
 | 800 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
 | 785 | `packages/client/src/client.ts` |
+| 780 | `packages/tools/src/design.ts` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
-| 773 | `packages/tools/src/design.ts` |
 | 763 | `packages/plugins/src/adversary-mode/index.ts` |
 | 762 | `packages/vibeui/src/lib/use-session.ts` |
 | 756 | `packages/fleet/src/host-skill-companion.ts` |
@@ -139,7 +140,6 @@ None.
 | 720 | `packages/tools/src/read.ts` |
 | 720 | `packages/webui-server/src/server/provider-routes.ts` |
 | 719 | `packages/chronicle/src/project-server-client.ts` |
-| 719 | `packages/mailbox-mcp/src/adapter.ts` |
 
 ## Exports only tests reference
 

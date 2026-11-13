@@ -440,6 +440,7 @@ export function ProjectDesignStudio({
                       'light',
                     )}
                     label={t('designStudio.light')}
+                    photo={typeof item['photo'] === 'string' ? item['photo'] : undefined}
                     compact
                   />
                   <DesignThemePreview
@@ -449,6 +450,7 @@ export function ProjectDesignStudio({
                       'dark',
                     )}
                     label={t('designStudio.dark')}
+                    photo={typeof item['photo'] === 'string' ? item['photo'] : undefined}
                     compact
                   />
                 </div>
@@ -504,10 +506,12 @@ export function ProjectDesignStudio({
                   <DesignThemePreview
                     tokens={designTheme(kit['light'], shownOverrides, 'light')}
                     label={t('designStudio.light')}
+                    photo={typeof kit['photo'] === 'string' ? kit['photo'] : undefined}
                   />
                   <DesignThemePreview
                     tokens={designTheme(kit['dark'], shownOverrides, 'dark')}
                     label={t('designStudio.dark')}
+                    photo={typeof kit['photo'] === 'string' ? kit['photo'] : undefined}
                   />
                 </div>
                 <div className="design-pin-controls">

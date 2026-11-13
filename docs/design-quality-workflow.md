@@ -6,10 +6,12 @@ that a model prompt or a palette score can guarantee original visual output.
 
 ## Existing foundation
 
-WrongStack ships 53 selectable kits plus `_foundations`. The loader resolves
-project, profile and bundled kits, merging shared scales under each kit's own
-tokens. The `design` tool, `/design` command and WebUI share materialization and
-verification. CLI and WebUI use the shared detection/request middleware.
+WrongStack ships 67 selectable kits (including 14 tactile Material kits with 3D
+`paper/display/accent` axes and `[data-slot]` photo treatments) plus `_foundations`.
+The loader resolves project, profile and bundled kits, merging shared scales under
+each kit's own tokens. The `design` tool, `/design` command and WebUI share
+materialization and verification. CLI and WebUI use the shared detection/request
+middleware.
 
 The existing building blocks were already substantial:
 
@@ -158,6 +160,15 @@ theme, or a component reference that stopped resolving; WARN marks removed
 tokens/components and font-family changes; color edits report their OKLab ΔE
 and say so when imperceptible (≤ 0.02). `PRODUCT.md` at the project root is
 injected (3000-character excerpt) ahead of `.design/brief.md` on UI turns.
+
+## Material kits, layout draws, Commons photos, and redesign guards (2026-11-13)
+
+- **3D Coordinate Deal & Material Kits (`design-material.ts`):** Bundled kits expand to 67 (adding `atelier`, `cobalt`, `riso`, `dusk`, `kiln`, `almanac`, `terrazzo`, `vellum`, `furrow`, `wayfind`, `werkstatt`, `formwork`, `darkroom`, `overprint`). `design deal` spreads its 3 dealt candidates across `axes` (`paper` × `display` × `accent`) and ranks `query` terms by IDF so domain nouns outweigh generic adjectives.
+- **Job-Native Page Anatomy (`design draw`):** `design {action:"draw", job, material}` deals a macrostructure, opening hero, navigation, section cadence, and footer tuned to `job` (`sell | subscribe | visit | try | read | hire | attend | compare`) and `material` (`photo | product | words`), rotating away from `.wrongstack/design-draws.json` and the active kit's `pictured` specimen.
+- **Copyright-Safe `[data-slot]` Photography (`design photos`):** `design {action:"photos", query, orient}` searches 306 curated open-licensed Wikimedia Commons photographs (`packages/core/design-kits/photos.json`), aligns tone/temperature with the active kit's `axes`, rotates via `.wrongstack/design-photos.json`, and emits `<figure data-slot="...">` + `srcset` + `<p data-credits>` attribution paired with materialized `[data-slot]` CSS treatments.
+- **Redesign Wiring Guard (`snapshot` / `kept`):** `design {action:"snapshot"}` captures routes, form inputs, `data-testid`s, and named handlers into `.design/before.json`; `design {action:"kept"}` verifies none were dropped during a restyle.
+- **Two-Stage Fold Inspection & Waiver Escalation:** `design_reference {action:"inspect", stage:"hero"}` elevates `layout.hero-fold` to `FAIL` when the primary CTA drops below an 800px desktop fold, while full-page `inspect` checks `layout.hero-dead-band`, `layout.heading-proximity`, `layout.unbounded-ultrawide`, and `density.words-per-viewport`. Source rules waived `>= 3` times via `design-ignore: <id> -- <reason>` surface `houseStyleSuggestions` for promotion to `.design/rules.md`.
+- **Evaluation Matrix (`design-eval.ts`):** Codifies 8 canonical benchmark briefs (including `b4-metric-temptation` zero-traction trap and `b7-same-kit-divergence`), a 6-axis + 5-gate 2-viewport vision judge rubric/parser, and `scoreDesignEvalCell`.
 
 ## Limits and follow-up evaluation
 

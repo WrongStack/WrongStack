@@ -33,6 +33,7 @@ import {
   documentAction,
   drawAction,
   keptAction,
+  photosAction,
   snapshotAction,
 } from './design-actions.js';
 
@@ -82,6 +83,7 @@ export interface DesignInput {
     | 'document'
     | 'deal'
     | 'draw'
+    | 'photos'
     | 'snapshot'
     | 'kept'
     | 'diff'
@@ -100,9 +102,11 @@ export interface DesignInput {
   files?: string | string[] | undefined;
   /** action "use": why a kit outside the session's deal fits (recorded). */
   reason?: string | undefined;
-  /** action "deal": words that narrow the pool (e.g. "editorial calm"). */
+  /** action "deal"/"photos": words narrowing the pool or concrete photo subjects. */
   query?: string | undefined;
-  /** action "deal"/"draw": reproduce a printed deal/draw. */
+  /** action "photos": orientation filter (landscape | portrait | square). */
+  orient?: string | undefined;
+  /** action "deal"/"draw"/"photos": reproduce a printed deal/draw/photo pick. */
   seed?: string | undefined;
   /** action "deal"/"draw": draw again instead of returning the session's deal/draw. */
   redeal?: boolean | undefined;
@@ -227,45 +231,36 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
           'document',
           'deal',
           'draw',
+          'photos',
           'snapshot',
           'kept',
           'diff',
         ],
         description:
-          'list = menu; use = load+pin a kit; foundations = baseline; set = override colors/tokens; ' +
-          'tune = high-level knobs (radius/density/font/motion); materialize = write tokens to a theme ' +
-          'file; verify = scan UI for token drift (pinned kit, or the project\u2019s captured tokens); ' +
-          'capture = snapshot the project\u2019s existing token source (DESIGN.md, theme CSS/TS/Dart) so ' +
-          'verify works without a kit; document = write the active kit or captured tokens as a ' +
-          'DESIGN.md (google design.md format) for other tools; deal = draw three axis-diverse kits for this ' +
-          'session, leaving recent choices out (a kit outside the deal needs reason); draw = deal a job-native ' +
-          'page anatomy (macrostructure, hero, nav, sections, footer) from job + material; snapshot = record ' +
-          'existing routes/inputs/testids/handlers into .design/before.json before a redesign; kept = verify ' +
-          'zero pre-redesign wiring was silently dropped; diff = token regressions between two DESIGN.md ' +
-          'files (files:[before, after]) or a DESIGN.md and the active system. Default: list.',
+          'list=menu; use=pin kit; foundations=baseline; set=token overrides; tune=knobs; ' +
+          'materialize=write theme file; verify=scan UI drift; capture=snapshot existing tokens; ' +
+          'document=write DESIGN.md; deal=3 axis-diverse kits; draw=job-native page anatomy; ' +
+          'photos=open-licensed Commons [data-slot] picks; snapshot/kept=redesign wiring guard; diff=DESIGN.md diff.',
       },
       kit: {
         type: 'string',
-        description: 'Kit id (required for "use"), e.g. "minimal-clarity", "neo-brutalist".',
+        description: 'Kit id for "use" (e.g. "minimal-clarity", "atelier").',
       },
       stack: {
         type: 'string',
         enum: ['web', 'react-native', 'flutter', 'swiftui', 'compose'],
-        description: 'Target stack — narrows guidance + materialize format. Default: web.',
+        description: 'Target stack (default: web).',
       },
       set: {
         type: 'object',
         description:
-          'Token overrides for "set"/"use": { "primary": "oklch(…)", "dark.bg": "#111" }. Bare key = ' +
-          'both themes; "light."/"dark." prefix = that theme only. Empty value clears an override.',
+          'Token overrides for set/use: {"primary":"oklch(…)","dark.bg":"#111"}. Empty clears.',
         additionalProperties: { type: 'string' },
       },
       tune: {
         type: 'object',
         description:
-          'High-level knobs for "tune": { "radius": "lg", "density": "compact", "font": "Space Grotesk", ' +
-          '"motion": "snappy" }. radius = none|sm|md|lg|xl|full or a base length; density = ' +
-          'compact|cozy|comfortable; motion = snappy|smooth|none. Resolved to concrete token overrides.',
+          'Knobs for tune: radius (none|sm|md|lg|xl|full), density (compact|cozy|comfortable), font, motion (snappy|smooth|none).',
         properties: {
           radius: { type: 'string' },
           density: { type: 'string' },
@@ -275,47 +270,45 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
       },
       out: {
         type: 'string',
-        description:
-          'Materialize output path (project-relative). Defaults to a per-stack convention.',
+        description: 'Project-relative output path for materialize/document.',
       },
       force: {
         type: 'boolean',
-        description:
-          'Materialize: overwrite an existing file (default false — refuses to clobber).',
+        description: 'Overwrite existing output file (default false).',
       },
       reason: {
         type: 'string',
-        description: 'Use: why a kit outside this session\u2019s deal fits the product (recorded).',
+        description: 'Use: rationale when picking a kit outside this session deal.',
       },
       query: {
         type: 'string',
-        description: 'Deal: words narrowing the pool, matched against kit name/aesthetic/best-for.',
+        description: 'Deal keywords or Photos subjects (separate multiple subjects with ";").',
       },
-      seed: { type: 'string', description: 'Deal/Draw: reproduce a printed deal or anatomy draw.' },
-      redeal: { type: 'boolean', description: 'Deal/Draw: draw again with a fresh seed.' },
+      orient: {
+        type: 'string',
+        enum: ['landscape', 'portrait', 'square'],
+        description: 'Photos: orientation filter.',
+      },
+      seed: { type: 'string', description: 'Deal/Draw/Photos: deterministic seed.' },
+      redeal: { type: 'boolean', description: 'Deal/Draw: draw fresh options.' },
       job: {
         type: 'string',
-        description: `Draw: primary visitor job (${DESIGN_JOBS.join(', ')}).`,
+        description: `Draw visitor job (${DESIGN_JOBS.join('|')}).`,
       },
       material: {
         type: 'string',
         enum: [...DESIGN_MATERIALS],
-        description:
-          'Draw: real visual material on hand (photo | product | words). Default: product.',
+        description: 'Draw visual material (default: product).',
       },
       drop: {
         type: 'array',
         items: { type: 'string' },
-        description:
-          'Kept: wiring items intentionally removed in this redesign (e.g. ["/legacy", "oldHandler"]).',
+        description: 'Kept: wiring contracts intentionally removed.',
       },
       files: {
         type: 'array',
         items: { type: 'string' },
-        description:
-          'Verify: explicit project-relative files to scan. Default: a bounded UI-file walk. ' +
-          'Capture: explicit token-source files (.css / theme .ts / .dart). Default: conventional ' +
-          'paths like src/index.css, src/theme/theme.ts, lib/theme/theme.dart.',
+        description: 'Project-relative files for verify, capture, snapshot, kept, or diff.',
       },
     },
     required: [],
@@ -336,6 +329,7 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
       'document',
       'deal',
       'draw',
+      'photos',
       'snapshot',
       'kept',
       'diff',
@@ -593,6 +587,14 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
       });
     }
 
+    if (action === 'photos') {
+      return photosAction(ctx, loader, {
+        query: input.query,
+        orient: input.orient,
+        seed: input.seed,
+      });
+    }
+
     if (action === 'snapshot' || action === 'kept') {
       const normalizedFiles = input.files
         ? (Array.isArray(input.files) ? input.files : String(input.files).split(','))
@@ -744,8 +746,13 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
         unchecked +
         (report.violations.length
           ? '\nFAIL marks a definite accessibility defect; fix or defend each WARN. Waive a ' +
-            'deliberate exception in the file with a `design-ignore: <id>` comment ' +
+            'deliberate exception in the file with a `design-ignore: <id> -- <reason>` comment ' +
             '(`design-ignore-next-line:` / `design-ignore-file:`).'
+          : '') +
+        (report.houseStyleSuggestions?.length
+          ? `\nHouse-style candidates (waived ≥3× — consider documenting in DESIGN.md): ${report.houseStyleSuggestions
+              .map((h) => `${h.id} (×${h.count})`)
+              .join(', ')}.`
           : '') +
         '\n\nSource heuristic only: the percentage describes detected color signals, not visual quality. ' +
         'No signals can also yield 100%. Layout, accessibility, interaction states and originality ' +

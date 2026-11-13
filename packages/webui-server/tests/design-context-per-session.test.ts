@@ -54,6 +54,10 @@ describe('design messages carry the tab that sent them', () => {
     'design.swap',
     'design.materialize',
     'design.verify',
+    'design.draw',
+    'design.photos',
+    'design.snapshot',
+    'design.kept',
   ])('%s resolves the asking session', async (type) => {
     const h = harness();
 

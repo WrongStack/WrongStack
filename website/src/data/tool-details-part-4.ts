@@ -336,6 +336,11 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
         description:
           'inspect: "page" (marketing/content, default) or "app" (dense product screen — smaller body and more type sizes allowed).',
       },
+      {
+        name: 'stage',
+        type: "'hero' | 'full'",
+        description: 'inspect: "hero" (1280×800 + 375 fold gate) or "full" (default).',
+      },
     ],
   },
   'codebase-diff-impact': {

@@ -427,69 +427,87 @@ export const toolDetailsPart3: Record<string, ToolDetail> = {
     params: [
       {
         name: 'action',
-        type: "'list' | 'use' | 'foundations' | 'set' | 'tune' | 'materialize' | 'verify' | 'capture' | 'document' | 'deal' | 'diff'",
+        type: "'list' | 'use' | 'foundations' | 'set' | 'tune' | 'materialize' | 'verify' | 'capture' | 'document' | 'deal' | 'draw' | 'photos' | 'snapshot' | 'kept' | 'diff'",
         description:
-          'list = menu; use = load+pin a kit; foundations = baseline; set = override colors/tokens; tune = high-level knobs (radius/density/font/motion); materialize = write tokens to a theme file; verify = scan UI for token drift (pinned kit, or the project’s captured tokens); capture = snapshot the project’s existing token source (DESIGN.md, theme CSS/TS/Dart) so verify works without a kit; document = write the active kit or captured tokens as a DESIGN.md (google design.md format) for other tools; deal = draw three kits for this session, leaving recent choices out (a kit outside the deal needs reason); diff = token regressions between two DESIGN.md files (files:[before, after]) or a DESIGN.md and the active system. Default: list.',
+          'list=menu; use=pin kit; foundations=baseline; set=token overrides; tune=knobs; materialize=write theme file; verify=scan UI drift; capture=snapshot existing tokens; document=write DESIGN.md; deal=3 axis-diverse kits; draw=job-native page anatomy; photos=open-licensed Commons [data-slot] picks; snapshot/kept=redesign wiring guard; diff=DESIGN.md diff.',
       },
       {
         name: 'kit',
         type: 'string',
-        description: 'Kit id (required for "use"), e.g. "minimal-clarity", "neo-brutalist".',
+        description: 'Kit id for "use" (e.g. "minimal-clarity", "atelier").',
       },
       {
         name: 'stack',
         type: "'web' | 'react-native' | 'flutter' | 'swiftui' | 'compose'",
-        description: 'Target stack — narrows guidance + materialize format. Default: web.',
+        description: 'Target stack (default: web).',
       },
       {
         name: 'set',
         type: 'object',
         description:
-          'Token overrides for "set"/"use": { "primary": "oklch(…)", "dark.bg": "#111" }. Bare key = both themes; "light."/"dark." prefix = that theme only. Empty value clears an override.',
+          'Token overrides for set/use: {"primary":"oklch(…)","dark.bg":"#111"}. Empty clears.',
       },
       {
         name: 'tune',
         type: 'object',
         description:
-          'High-level knobs for "tune": { "radius": "lg", "density": "compact", "font": "Space Grotesk", "motion": "snappy" }. radius = none|sm|md|lg|xl|full or a base length; density = compact|cozy|comfortable; motion = snappy|smooth|none. Resolved to concrete token overrides.',
+          'Knobs for tune: radius (none|sm|md|lg|xl|full), density (compact|cozy|comfortable), font, motion (snappy|smooth|none).',
       },
       {
         name: 'out',
         type: 'string',
-        description:
-          'Materialize output path (project-relative). Defaults to a per-stack convention.',
+        description: 'Project-relative output path for materialize/document.',
       },
       {
         name: 'force',
         type: 'boolean',
-        description:
-          'Materialize: overwrite an existing file (default false — refuses to clobber).',
+        description: 'Overwrite existing output file (default false).',
       },
       {
         name: 'reason',
         type: 'string',
-        description: 'Use: why a kit outside this session’s deal fits the product (recorded).',
+        description: 'Use: rationale when picking a kit outside this session deal.',
       },
       {
         name: 'query',
         type: 'string',
-        description: 'Deal: words narrowing the pool, matched against kit name/aesthetic/best-for.',
+        description: 'Deal keywords or Photos subjects (separate multiple subjects with ";").',
+      },
+      {
+        name: 'orient',
+        type: "'landscape' | 'portrait' | 'square'",
+        description: 'Photos: orientation filter.',
       },
       {
         name: 'seed',
         type: 'string',
-        description: 'Deal: reproduce a printed deal.',
+        description: 'Deal/Draw/Photos: deterministic seed.',
       },
       {
         name: 'redeal',
         type: 'boolean',
-        description: 'Deal: draw again with a fresh seed.',
+        description: 'Deal/Draw: draw fresh options.',
+      },
+      {
+        name: 'job',
+        type: 'string',
+        description:
+          'Draw visitor job (subscribe|book|visit|attend|buy|try|sign-up|hire|join|listen|dashboard).',
+      },
+      {
+        name: 'material',
+        type: "'photo' | 'product' | 'words'",
+        description: 'Draw visual material (default: product).',
+      },
+      {
+        name: 'drop',
+        type: 'string[]',
+        description: 'Kept: wiring contracts intentionally removed.',
       },
       {
         name: 'files',
         type: 'string[]',
-        description:
-          'Verify: explicit project-relative files to scan. Default: a bounded UI-file walk. Capture: explicit token-source files (.css / theme .ts / .dart). Default: conventional paths like src/index.css, src/theme/theme.ts, lib/theme/theme.dart.',
+        description: 'Project-relative files for verify, capture, snapshot, kept, or diff.',
       },
     ],
     notes: [

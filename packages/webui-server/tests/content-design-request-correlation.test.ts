@@ -14,6 +14,10 @@ it.each([
   'design.tune',
   'design.materialize',
   'design.verify',
+  'design.draw',
+  'design.photos',
+  'design.snapshot',
+  'design.kept',
 ])('correlates the real %s result and preserves session ownership', async (type) => {
   const base = resolve(tmpdir()),
     dir = mkdtempSync(join(base, 'content-design-correlation-'));
@@ -53,7 +57,9 @@ it.each([
     const result = frames.find((frame) => frame.type === type)?.payload;
     expect(result?.['requestId']).toBe(`request-${type}`);
     expect(result?.['sessionId']).toBe('native-project-service');
-    if (!['design.list', 'design.state'].includes(type)) expect(result?.['ok']).toBe(false);
+    if (!['design.list', 'design.state', 'design.draw', 'design.snapshot'].includes(type)) {
+      expect(result?.['ok']).toBe(false);
+    }
   } finally {
     expect(dir.startsWith(base + sep)).toBe(true);
     rmSync(dir, { recursive: true, force: true });

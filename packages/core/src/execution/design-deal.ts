@@ -19,8 +19,8 @@ import type {
   DesignKitLoader,
   DesignStack,
 } from '@wrongstack/contracts/types/design-kit';
-import { formatKitAxesTriple } from './design-material.js';
 import { resolveWstackPaths } from '../utils/wstack-paths.js';
+import { formatKitAxesTriple } from './design-material.js';
 
 export interface DesignDeal {
   seed: string;

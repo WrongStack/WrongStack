@@ -4,13 +4,16 @@ import { useDesktopText } from './desktop-i18n';
 export function DesignThemePreview({
   tokens,
   label,
+  photo,
   compact = false,
 }: {
   tokens: Record<string, string>;
   label: string;
+  photo?: string | undefined;
   compact?: boolean;
 }) {
   const { t } = useDesktopText();
+  const photoMode = photo?.trim().split(/\s+/)[0]?.toLowerCase();
   const style: CSSProperties = {
     backgroundColor: tokens['bg'] ?? '#ffffff',
     color: tokens['fg'] ?? '#18181b',
@@ -67,6 +70,14 @@ export function DesignThemePreview({
             <small>{t('designStudio.sample.explore')}</small>
           </div>
           <div className="design-preview-content">
+            {photoMode && (
+              <div
+                className="design-preview-photo-slot"
+                data-slot="hero"
+                data-photo-mode={photoMode}
+                aria-hidden="true"
+              />
+            )}
             <div className="design-preview-chart" aria-hidden="true">
               {[28, 45, 36, 65, 52, 84, 72, 100].map((height, i) => (
                 <i key={i} style={{ height: `${height}%` }} />

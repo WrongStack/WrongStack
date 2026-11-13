@@ -8,9 +8,13 @@ import {
 import { correlatedReply } from './correlated-reply.js';
 import {
   type DesignContext,
+  handleDesignDraw,
+  handleDesignKept,
   handleDesignList,
   handleDesignMaterialize,
+  handleDesignPhotos,
   handleDesignSet,
+  handleDesignSnapshot,
   handleDesignState,
   handleDesignSwap,
   handleDesignTune,
@@ -242,6 +246,18 @@ export async function handleContentRoute(
       return true;
     case 'design.verify':
       await handleDesignVerify(ws, designCtx());
+      return true;
+    case 'design.draw':
+      await handleDesignDraw(ws, designCtx(), message);
+      return true;
+    case 'design.photos':
+      await handleDesignPhotos(ws, designCtx(), message);
+      return true;
+    case 'design.snapshot':
+      await handleDesignSnapshot(ws, designCtx());
+      return true;
+    case 'design.kept':
+      await handleDesignKept(ws, designCtx(), message);
       return true;
     default:
       return false;

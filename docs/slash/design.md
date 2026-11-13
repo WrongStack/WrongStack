@@ -35,7 +35,12 @@ Design Studio activates automatically when the model is building a UI:
 /design swap <kit-id> [stack] Switch to a different kit, dropping old overrides
 /design materialize [stack] [path]   Write the active kit's tokens to a real theme file
 /design capture [files…]      Snapshot the project's own token source for kit-less verify
-/design verify                Scan UI files for off-palette colors
+/design verify                Scan UI files for off-palette colors and slop patterns
+/design draw [job] [material] [seed]  Deal a job-native page anatomy (macrostructure + hero + sections)
+/design photos <subject…>     Pick open-licensed Wikimedia Commons photos + [data-slot] HTML
+/design snapshot              Record routes, inputs, testids & handlers into .design/before.json
+/design kept                  Verify a redesign preserved every route, input, testid & handler
+/design eval [brief-id]       Inspect the 8 canonical evaluation briefs and 6-axis judge rubric
 ```
 
 Stacks: `web` · `react-native` · `flutter` · `swiftui` · `compose`.
@@ -121,9 +126,12 @@ warning is appended to that tool's result so the model self-corrects on the next
 
 ## Bundled kits
 
-**53 curated kits** ship bundled — run `/design` (or open the WebUI gallery) to
+**67 curated kits** ship bundled — run `/design` (or open the WebUI gallery) to
 browse them all. A sampling across the range:
 
+- **Tactile & Material (`axes` + `[data-slot]` photo treatments):** `atelier`,
+  `cobalt`, `riso`, `dusk`, `kiln`, `almanac`, `terrazzo`, `vellum`, `furrow`,
+  `wayfind`, `werkstatt`, `formwork`, `darkroom`, `overprint`.
 - **Product / UI:** `minimal-clarity`, `linear-dark`, `dark-pro`, `corporate-trust`,
   `bento-dashboard`, `notion-docs`, `soft-glass`.
 - **Expressive / playful:** `dopamine-pop`, `playful-rounded`, `aurora-gradient`,

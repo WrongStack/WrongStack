@@ -100,10 +100,10 @@ describe('design-material — axes, photo treatment, and mechanical kit validato
     expect(out.content).toContain('mix-blend-mode: lighten;');
   });
 
-  it('validates all 61 bundled kits (including the 8 Hallmark-adapted Material kits) with zero errors', async () => {
+  it('validates all 67 bundled kits (including all 14 Hallmark-adapted Material kits) with zero errors', async () => {
     const loader = bundledLoader();
     const entries = await loader.listEntries();
-    expect(entries.length).toBeGreaterThanOrEqual(61);
+    expect(entries.length).toBeGreaterThanOrEqual(67);
 
     const flagshipIds = [
       'atelier',
@@ -114,6 +114,12 @@ describe('design-material — axes, photo treatment, and mechanical kit validato
       'almanac',
       'terrazzo',
       'vellum',
+      'furrow',
+      'wayfind',
+      'werkstatt',
+      'formwork',
+      'darkroom',
+      'overprint',
     ];
     for (const id of flagshipIds) {
       const m = await loader.find(id);

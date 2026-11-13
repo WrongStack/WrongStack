@@ -75,8 +75,9 @@ export const DESIGN_INSPECT_EXTRACTOR = String.raw`(async () => {
     sizes: {}, families: {}, loaded: [], headings: [], contrast: [], contrastCount: 0, contrastChecked: 0,
     smallTargets: [], smallCount: 0, targetsChecked: 0, brokenImages: [], unsizedImages: 0, hiddenText: [], hiddenCount: 0,
     blankBands: [], bodySizes: {}, justified: 0, elements: 0,
-    heroFold: null, heroDeadBand: 0, headingProximity: [], unboundedCount: 0, unbounded: []
+    heroFold: null, heroDeadBand: 0, headingProximity: [], unboundedCount: 0, unbounded: [], wordsPerScreen: 0
   };
+  var totalWords = 0;
   // Viewport-height bands holding no visible text or media, plus 10px hero buckets (0..800px).
   var bands = Math.max(1, Math.ceil(out.docH / H)), inked = [], heroBuckets = [];
   var ink = function (y, h) {
@@ -124,8 +125,8 @@ export const DESIGN_INSPECT_EXTRACTOR = String.raw`(async () => {
         firstCtaBot = Math.round(top + r.height);
       }
     }
-    var own = 0;
-    for (var cn = e.firstChild; cn; cn = cn.nextSibling) if (cn.nodeType === 3) own += cn.data.trim().length;
+    var own = 0, ownWords = 0;
+    for (var cn = e.firstChild; cn; cn = cn.nextSibling) if (cn.nodeType === 3) { var td = cn.data.trim(); own += td.length; if (td) ownWords += td.split(/\s+/).length; }
     if (!own) continue;
     var hidden = c.visibility === 'hidden' || +c.opacity < 0.05;
     // Below the fold, hidden text is usually a scroll-triggered reveal that has
@@ -144,6 +145,7 @@ export const DESIGN_INSPECT_EXTRACTOR = String.raw`(async () => {
     var fam = c.fontFamily.split(',')[0].trim().replace(/^["']|["']$/g, '');
     out.families[fam] = (out.families[fam] || 0) + own;
     if (/^(p|li|dd|blockquote)$/.test(tag) && !inFooter) out.bodySizes[fs] = (out.bodySizes[fs] || 0) + own;
+    if (!inFooter && !e.closest('nav,code,pre,[data-credits]')) totalWords += ownWords;
     if (c.textAlign === 'justify' && own > 80) out.justified++;
     ink(top, r.height);
     if (((r.left >= 0 && r.left < 8) || (r.right <= W && r.right > W - 8)) && r.width < W - 4) { out.edgeCount++; push(out.edgeText, { sel: sel(e), left: Math.round(r.left), right: Math.round(W - r.right), t: txt(e) }); }
@@ -208,6 +210,7 @@ export const DESIGN_INSPECT_EXTRACTOR = String.raw`(async () => {
     var crowded = targets.some(function (o) { return o !== q && o.left < cxp + 12 && o.right > cxp - 12 && o.top < cyp + 12 && o.bottom > cyp - 12; });
     if (crowded) { out.smallCount++; push(out.smallTargets, { sel: sel(pair[0]), w: r1(q.width), h: r1(q.height), t: txt(pair[0]) }); }
   });
+  out.wordsPerScreen = Math.round(totalWords / Math.max(1, out.docH / Math.max(1, H)));
   try { D.fonts.forEach(function (f) { if (f.status === 'loaded') { var nm = f.family.replace(/^["']|["']$/g, ''); if (out.loaded.indexOf(nm) < 0) out.loaded.push(nm); } }); } catch (e) {}
   return out;
 })()`;

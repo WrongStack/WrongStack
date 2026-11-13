@@ -317,6 +317,26 @@ export type ClientMessageRuntime =
     }
   | { type: 'design.verify'; payload?: SessionScopedPayload }
   | {
+      type: 'design.draw';
+      payload?:
+        | ({
+            job?: string | undefined;
+            material?: string | undefined;
+            seed?: string | undefined;
+          } & SessionScopedPayload)
+        | undefined;
+    }
+  | {
+      type: 'design.photos';
+      payload: {
+        query: string;
+        orient?: string | undefined;
+        seed?: string | undefined;
+      } & SessionScopedPayload;
+    }
+  | { type: 'design.snapshot'; payload?: SessionScopedPayload }
+  | { type: 'design.kept'; payload?: SessionScopedPayload }
+  | {
       type: 'terminal.create';
       payload: { id: string; cols?: number | undefined; rows?: number | undefined };
     }

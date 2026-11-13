@@ -727,8 +727,7 @@ export const designReferenceTool: Tool<DesignReferenceInput, DesignReferenceOutp
       stage: {
         type: 'string',
         enum: ['hero', 'full'],
-        description:
-          'inspect: "hero" runs a fast 1280×800 + 375×800 fold gate before writing the rest of the page; "full" (default) runs all viewports.',
+        description: 'inspect: "hero" (1280×800 + 375 fold gate) or "full" (default).',
       },
     },
     required: ['action'],

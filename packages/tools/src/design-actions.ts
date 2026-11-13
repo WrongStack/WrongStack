@@ -7,10 +7,12 @@ import {
   DESIGN_MATERIALS,
   type DesignKitAxes,
   type DesignKitLoader,
+  type DesignPhotoOrientation,
   type DesignStack,
   diffDesignMd,
   ensureDesignDeal,
   ensureDesignDraw,
+  ensureDesignPhotos,
   getDesignDeal,
   loadActiveKit,
   normalizeDesignJob,
@@ -21,6 +23,7 @@ import {
   renderDesignDraw,
   renderDesignMd,
   renderDesignMdDiff,
+  renderDesignPhotos,
   renderKeptWiringReport,
   resolveVerifyTokens,
   runKeptWiringCheck,
@@ -192,6 +195,59 @@ export async function keptAction(
     path: '.design/before.json',
     violations: report.missing.length,
     output: renderKeptWiringReport(report),
+  };
+}
+
+/**
+ * `photos`: rank bundled open-licensed Wikimedia Commons photographs for one or
+ * more concrete subjects (`;` or `,` separated), aligned to the active kit's
+ * paper/accent axes, and emit `[data-slot]` markup + `data-credits` attribution.
+ */
+export async function photosAction(
+  ctx: ActionCtx,
+  loader: DesignKitLoader,
+  input: {
+    query?: string | undefined;
+    orient?: string | undefined;
+    seed?: string | undefined;
+  },
+): Promise<ActionResult> {
+  const queries = (input.query ?? '')
+    .split(/[;|,]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (queries.length === 0) {
+    throw new ToolValidationError({
+      message:
+        'design: "photos" requires `query` naming concrete subjects (e.g. "pottery studio; ceramic bowls").',
+      field: 'query',
+    });
+  }
+  if (
+    input.orient !== undefined &&
+    input.orient !== 'landscape' &&
+    input.orient !== 'portrait' &&
+    input.orient !== 'square'
+  ) {
+    throw new ToolValidationError({
+      message: 'design: "orient" must be "landscape", "portrait", or "square".',
+      field: 'orient',
+    });
+  }
+  const active = await loadActiveKit(ctx.projectRoot);
+  const manifest = active ? await loader.find(active.kit) : undefined;
+  const result = await ensureDesignPhotos(ctx.projectRoot, {
+    queries,
+    orientation: input.orient as DesignPhotoOrientation | undefined,
+    axes: manifest?.axes,
+    kitId: manifest?.id,
+    photoTreatment: manifest?.photo,
+    seed: input.seed,
+  });
+  return {
+    action: 'photos',
+    kit: manifest?.id,
+    output: renderDesignPhotos(result),
   };
 }
 

@@ -19,27 +19,39 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import {
   applyTokenOverrides,
+  captureProjectWiring,
   clearPersistedActiveKit,
   type DesignKitAxes,
   DesignOverridesChanged,
   type DesignOverridesExpectation,
+  type DesignPhotoOrientation,
   type DesignPosture,
   type DesignStack,
+  ensureDesignDraw,
+  ensureDesignPhotos,
   getDesignKitLoader,
   getDesignState,
   isDesignStack,
   type KitContrastIssue,
   kitContrastIssues,
   loadActiveKit,
+  loadBundledPhotoCatalog,
   materializeTokens,
+  normalizeDesignJob,
+  normalizeDesignMaterial,
   recordKitChoice,
   recordKitChoiceIfCurrent,
   recordOverrides,
+  renderDesignDraw,
+  renderDesignPhotos,
+  renderKeptWiringReport,
   resolveMaterializeTarget,
   resolveSemanticTune,
   resolveVerifyTokens,
   runDesignVerify,
+  runKeptWiringCheck,
   type SemanticTune,
+  searchDesignPhotos,
   setActiveKit,
   setDesignOverrides,
 } from '@wrongstack/core/design';
@@ -509,9 +521,183 @@ export async function handleDesignVerify(ws: WebSocket, ctx: DesignContext): Pro
         score: report.score,
         violations: report.violations.slice(0, 50),
         violationCount: report.violations.length,
+        waived: report.waived ?? [],
+        houseStyleSuggestions: report.houseStyleSuggestions ?? [],
       },
     });
   } catch (err) {
     reply(ws, ctx, { type: 'design.verify', payload: { ok: false, error: String(err) } });
+  }
+}
+
+/** Deal a job-native page anatomy (`design.draw`) for the active or requested job + material. */
+export async function handleDesignDraw(
+  ws: WebSocket,
+  ctx: DesignContext,
+  msg: { payload?: unknown },
+): Promise<void> {
+  const payload = (msg.payload ?? {}) as {
+    job?: unknown;
+    material?: unknown;
+    seed?: unknown;
+    redeal?: unknown;
+  };
+  try {
+    const job = normalizeDesignJob(typeof payload.job === 'string' ? payload.job : 'try');
+    if (!job) {
+      reply(ws, ctx, {
+        type: 'design.draw',
+        payload: { ok: false, error: `Unknown job "${String(payload.job ?? '')}"` },
+      });
+      return;
+    }
+    const material =
+      normalizeDesignMaterial(
+        typeof payload.material === 'string' ? payload.material : 'product',
+      ) ?? 'product';
+    const loader = getDesignKitLoader(ctx.projectRoot);
+    const active = await loadActiveKit(ctx.projectRoot);
+    const manifest = active ? await loader.find(active.kit) : undefined;
+    const actionCtx = {
+      projectRoot: ctx.projectRoot,
+      meta: (ctx.agentMeta as Record<string, unknown> | undefined) ?? {},
+    };
+    const draw = await ensureDesignDraw(actionCtx, {
+      job,
+      material,
+      seed: typeof payload.seed === 'string' ? payload.seed : undefined,
+      redeal: payload.redeal === true,
+      kitPictured: manifest?.pictured,
+    });
+    reply(ws, ctx, {
+      type: 'design.draw',
+      payload: {
+        ok: true,
+        kit: manifest?.id ?? null,
+        seed: draw.seed,
+        job: draw.job,
+        material: draw.material,
+        macrostructure: draw.macrostructure,
+        draw,
+        markdown: renderDesignDraw(draw),
+      },
+    });
+  } catch (err) {
+    reply(ws, ctx, { type: 'design.draw', payload: { ok: false, error: String(err) } });
+  }
+}
+
+/** Search bundled open-licensed Wikimedia Commons `[data-slot]` photography (`design.photos`). */
+export async function handleDesignPhotos(
+  ws: WebSocket,
+  ctx: DesignContext,
+  msg: { payload?: unknown },
+): Promise<void> {
+  const payload = (msg.payload ?? {}) as {
+    query?: unknown;
+    orient?: unknown;
+    seed?: unknown;
+    dryRun?: unknown;
+  };
+  try {
+    const queries = (typeof payload.query === 'string' ? payload.query : '')
+      .split(/[;|,]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (queries.length === 0) {
+      reply(ws, ctx, {
+        type: 'design.photos',
+        payload: { ok: false, error: 'Provide query with concrete subject nouns' },
+      });
+      return;
+    }
+    const orient =
+      payload.orient === 'landscape' || payload.orient === 'portrait' || payload.orient === 'square'
+        ? (payload.orient as DesignPhotoOrientation)
+        : undefined;
+    const loader = getDesignKitLoader(ctx.projectRoot);
+    const active = await loadActiveKit(ctx.projectRoot);
+    const manifest = active ? await loader.find(active.kit) : undefined;
+    const catalog = await loadBundledPhotoCatalog();
+    const commonOpts = {
+      queries,
+      catalog,
+      orientation: orient,
+      axes: manifest?.axes,
+      kitId: manifest?.id,
+      photoTreatment: manifest?.photo,
+      seed: typeof payload.seed === 'string' ? payload.seed : undefined,
+    };
+    const result =
+      payload.dryRun === true
+        ? searchDesignPhotos(commonOpts)
+        : await ensureDesignPhotos(ctx.projectRoot, commonOpts);
+    reply(ws, ctx, {
+      type: 'design.photos',
+      payload: {
+        ok: true,
+        totalCatalog: catalog.length,
+        ...result,
+        markdown: renderDesignPhotos(result),
+      },
+    });
+  } catch (err) {
+    reply(ws, ctx, { type: 'design.photos', payload: { ok: false, error: String(err) } });
+  }
+}
+
+/** Record pre-redesign routes, form inputs, `data-testid`s, and handlers into `.design/before.json`. */
+export async function handleDesignSnapshot(ws: WebSocket, ctx: DesignContext): Promise<void> {
+  try {
+    const { snapshot, relPath } = await captureProjectWiring(ctx.projectRoot);
+    reply(ws, ctx, {
+      type: 'design.snapshot',
+      payload: {
+        ok: true,
+        path: relPath,
+        filesScanned: snapshot.files.length,
+        routes: snapshot.links,
+        inputs: snapshot.formFields,
+        testIds: snapshot.testIds,
+        handlers: snapshot.handlers,
+        counts: {
+          files: snapshot.files.length,
+          routes: snapshot.links.length,
+          inputs: snapshot.formFields.length,
+          testIds: snapshot.testIds.length,
+          handlers: snapshot.handlers.length,
+        },
+      },
+    });
+  } catch (err) {
+    reply(ws, ctx, { type: 'design.snapshot', payload: { ok: false, error: String(err) } });
+  }
+}
+
+/** Verify pre-redesign wiring recorded in `.design/before.json` survived (`design.kept`). */
+export async function handleDesignKept(
+  ws: WebSocket,
+  ctx: DesignContext,
+  msg: { payload?: unknown },
+): Promise<void> {
+  const payload = (msg.payload ?? {}) as { drop?: unknown };
+  try {
+    const drop = Array.isArray(payload.drop)
+      ? payload.drop.filter((x): x is string => typeof x === 'string')
+      : undefined;
+    const report = await runKeptWiringCheck(ctx.projectRoot, { allowRemoved: drop });
+    reply(ws, ctx, {
+      type: 'design.kept',
+      payload: {
+        ok: true,
+        clean: report.ok,
+        missing: report.missing,
+        keptCount: report.keptCount,
+        totalBefore: report.totalBefore,
+        markdown: renderKeptWiringReport(report),
+      },
+    });
+  } catch (err) {
+    reply(ws, ctx, { type: 'design.kept', payload: { ok: false, error: String(err) } });
   }
 }

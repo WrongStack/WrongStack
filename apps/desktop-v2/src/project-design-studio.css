@@ -213,6 +213,7 @@
   color: var(--design-surface);
   padding: 8px;
   border-radius: var(--design-radius);
+  box-shadow: var(--design-shadow);
 }
 .design-preview-actions b {
   margin-left: 8px;
@@ -227,6 +228,28 @@
   padding: 14px;
   background: var(--design-surface);
   box-shadow: var(--design-shadow);
+}
+.design-preview-photo-slot {
+  height: 16px;
+  margin-bottom: 10px;
+  border-radius: var(--design-radius);
+  border: 1px solid var(--design-border);
+  background: linear-gradient(
+    125deg,
+    var(--design-primary) 0%,
+    var(--design-accent) 60%,
+    var(--design-surface) 100%
+  );
+  opacity: 0.88;
+}
+.design-preview-photo-slot[data-photo-mode="mono"] {
+  filter: grayscale(1) contrast(1.08);
+}
+.design-preview-photo-slot[data-photo-mode="warm"] {
+  filter: sepia(0.24) saturate(0.92);
+}
+.design-preview-photo-slot[data-photo-mode="duotone"] {
+  filter: grayscale(1) contrast(1.18);
 }
 .design-preview-chart {
   height: 55px;
@@ -291,6 +314,10 @@
 }
 .design-preview-compact .design-preview-content {
   padding: 10px;
+}
+.design-preview-compact .design-preview-photo-slot {
+  height: 12px;
+  margin-bottom: 8px;
 }
 .design-preview-compact .design-preview-chart {
   height: 35px;

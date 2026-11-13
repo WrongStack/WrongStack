@@ -6,17 +6,23 @@ import {
   captureProjectTokens,
   clearActiveKit,
   clearPersistedActiveKit,
+  DESIGN_EVAL_BRIEFS,
+  DESIGN_JUDGE_AXES,
+  DESIGN_JUDGE_GATES,
+  DESIGN_JUDGE_RUBRIC,
   getDesignKitLoader,
   getDesignState,
   isDesignStack,
   loadActiveKit,
   materializeTokens,
+  parseDesignJudgeVerdict,
   recordOverrides,
   resolveMaterializeTarget,
   resolveSemanticTune,
   resolveVerifyTokens,
   type SemanticTune,
   saveCapturedTokens,
+  scoreDesignEvalCell,
   setActiveKit,
   setDesignOverrides,
 } from '@wrongstack/core/design';
@@ -59,8 +65,10 @@ export function buildDesignCommand(opts: SlashCommandContext): SlashCommand {
       '  /design compare <ref> <url|file>       Compare an implementation against an extracted reference',
       '  /design inspect <url|file>             Inspect a rendered page for layout/contrast defects',
       '  /design draw <job> [photo|product|words]  Deal a job-native page anatomy before writing UI',
+      '  /design photos <subject…>  Pick open-licensed Wikimedia Commons [data-slot] photos',
       '  /design snapshot [files…]  Snapshot routes, form inputs & handlers before a redesign',
       '  /design kept [files…]      Verify pre-redesign wiring survived the redesign',
+      '  /design eval [brief-id] [verdict-json]  List canonical benchmark briefs + judge rubric or score a cell',
       '  /design document [out]     Write the active kit or captured tokens as DESIGN.md',
       '  /design off                Clear the active kit',
       '  /design foundations        Print the mandatory responsive/a11y/theming/motion baseline',
@@ -115,6 +123,44 @@ export function buildDesignCommand(opts: SlashCommandContext): SlashCommand {
         const files = tokens.slice(1).filter(Boolean);
         const payload = files.length > 0 ? { action: sub, files } : { action: sub };
         return { runText: `design ${JSON.stringify(payload)}` };
+      }
+
+      if (sub === 'photos') {
+        const query = tokens.slice(1).join(' ').trim();
+        if (!query) {
+          return {
+            message: 'Usage: /design photos <subject> (e.g. /design photos pottery studio)',
+          };
+        }
+        return { runText: `design ${JSON.stringify({ action: 'photos', query })}` };
+      }
+
+      if (sub === 'eval') {
+        const targetBrief = tokens[1];
+        const rawJson = tokens.slice(2).join(' ').trim();
+        if (targetBrief && rawJson.startsWith('{')) {
+          const verdict = parseDesignJudgeVerdict(rawJson);
+          const cell = scoreDesignEvalCell({ briefId: targetBrief, judgeVerdict: verdict });
+          return {
+            message:
+              `Scored ${cell.briefId}: composite=${cell.compositeScore}/100 ` +
+              `(axisMean=${cell.judgeAxisMean ?? 0}/5, gateFails=${cell.judgeGateFails ?? 0}, floorClean=${cell.floorClean})\n` +
+              `Rationale: ${verdict.rationale}`,
+          };
+        }
+        const selected = targetBrief
+          ? DESIGN_EVAL_BRIEFS.filter((b) => b.id === targetBrief || b.id.startsWith(targetBrief))
+          : DESIGN_EVAL_BRIEFS;
+        const rows = selected.map(
+          (b) => `  • ${b.id} (${b.scope}): ${b.brief}\n    Probe: ${b.probe}`,
+        );
+        return {
+          message: [
+            `Design Evaluation Matrix (${DESIGN_EVAL_BRIEFS.length} briefs · axes: ${DESIGN_JUDGE_AXES.join(', ')} · gates: ${DESIGN_JUDGE_GATES.join(', ')})`,
+            ...rows,
+            ...(targetBrief ? ['', 'Judge Rubric:', DESIGN_JUDGE_RUBRIC] : []),
+          ].join('\n'),
+        };
       }
 
       if (sub === 'document') {

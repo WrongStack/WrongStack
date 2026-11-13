@@ -10,7 +10,17 @@ import { PageMotif } from '@/components/PageMotif';
  * codebase's source of truth, not just a prompt hint.
  */
 
-import { Check, Download, Palette, Search, ShieldCheck, X } from 'lucide-react';
+import {
+  Camera,
+  Check,
+  Compass,
+  Download,
+  History,
+  Palette,
+  Search,
+  ShieldCheck,
+  X,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ContrastBadges, type ContrastIssue } from '@/components/ContrastBadges';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
@@ -85,6 +95,15 @@ function KitPreview({ t, label, photo }: { t: Tokens; label: string; photo?: str
   const trackingTight = t['tracking-tight'] ?? '-0.015em';
   const leadingTight = t['leading-tight'] ?? '1.15';
   const shadow = t['shadow-2'] ?? (t.shadow && t.shadow !== 'none' ? t.shadow : undefined);
+  const photoMode = photo?.trim().split(/\s+/)[0]?.toLowerCase();
+  const photoFilter =
+    photoMode === 'mono'
+      ? 'grayscale(1) contrast(1.08)'
+      : photoMode === 'warm'
+        ? 'sepia(0.22) saturate(0.92)'
+        : photoMode === 'duotone'
+          ? 'grayscale(1) contrast(1.18)'
+          : undefined;
 
   return (
     <div
@@ -115,6 +134,22 @@ function KitPreview({ t, label, photo }: { t: Tokens; label: string; photo?: str
         }}
         className="flex min-w-0 flex-col gap-2 p-3"
       >
+        {photo && (
+          <div
+            data-slot="hero"
+            style={{
+              borderRadius: radius,
+              border: `1px solid ${border}`,
+              filter: photoFilter,
+              background:
+                photoMode === 'duotone' || photoMode === 'tint'
+                  ? `linear-gradient(125deg, ${primary} 0%, ${accent} 58%, ${surface} 100%)`
+                  : `linear-gradient(125deg, ${fg} 0%, ${primary} 52%, ${accent} 100%)`,
+            }}
+            className="h-5 w-full opacity-85"
+            title={`[data-slot] ${photo}`}
+          />
+        )}
         <div
           style={{
             fontFamily: fontDisplay,
@@ -131,7 +166,7 @@ function KitPreview({ t, label, photo }: { t: Tokens; label: string; photo?: str
         </div>
         <div className="mt-1 flex min-w-0 items-center gap-1.5">
           <span
-            style={{ background: primary, color: bg, borderRadius: radius }}
+            style={{ background: primary, color: bg, borderRadius: radius, boxShadow: shadow }}
             className="shrink-0 px-2.5 py-1 text-[10px] font-semibold"
           >
             {tr('activity:designStudio.primary')}
@@ -300,6 +335,7 @@ export function DesignGalleryView({ className }: { className?: string }) {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<string | null>(null);
   const [contrastIssues, setContrastIssues] = useState<ContrastIssue[]>([]);
+  const [studioNote, setStudioNote] = useState<string | null>(null);
 
   useEffect(() => {
     if (!client) return;
@@ -429,22 +465,76 @@ export function DesignGalleryView({ className }: { className?: string }) {
           : i18n.t('activity:design.verifyClean', { files: p.filesScanned })) + basis,
       );
     };
-    client.on('design.list', onList);
-    client.on('design.use', onUse);
-    client.on('design.set', onSet);
-    client.on('design.tune', onTune);
-    client.on('design.swap', onSwap);
-    client.on('design.materialize', onMat);
-    client.on('design.verify', onVer);
+    const onDraw = (msg: unknown) => {
+      if (isForeign(msg)) return;
+      const p = (
+        msg as {
+          payload?: {
+            ok?: boolean;
+            seed?: string;
+            macrostructure?: { label?: string };
+            opening?: { label?: string };
+            markdown?: string;
+            error?: string;
+          };
+        }
+      ).payload;
+      if (!p?.ok) {
+        setStatus(`Draw failed: ${p?.error ?? 'error'}`);
+        return;
+      }
+      setStatus(`Drew ${p.macrostructure?.label ?? 'anatomy'} (${p.seed ?? 'seed'})`);
+      setStudioNote(p.markdown ?? null);
+    };
+    const onSnap = (msg: unknown) => {
+      if (isForeign(msg)) return;
+      const p = (
+        msg as {
+          payload?: {
+            ok?: boolean;
+            path?: string;
+            filesScanned?: number;
+            routes?: string[];
+            error?: string;
+          };
+        }
+      ).payload;
+      setStatus(
+        p?.ok
+          ? `Snapshot ${p.path ?? '.design/before.json'} (${p.filesScanned ?? 0} files, ${p.routes?.length ?? 0} routes)`
+          : `Snapshot failed: ${p?.error ?? 'error'}`,
+      );
+    };
+    const onKept = (msg: unknown) => {
+      if (isForeign(msg)) return;
+      const p = (
+        msg as {
+          payload?: { ok?: boolean; clean?: boolean; markdown?: string; error?: string };
+        }
+      ).payload;
+      if (!p?.ok) {
+        setStatus(`Kept check failed: ${p?.error ?? 'error'}`);
+        return;
+      }
+      setStatus(p.clean ? 'Kept: PASS (all wiring preserved)' : 'Kept: WARN (missing wiring)');
+      setStudioNote(p.markdown ?? null);
+    };
+    const bindings: Array<[string, (m: unknown) => void]> = [
+      ['design.list', onList],
+      ['design.use', onUse],
+      ['design.set', onSet],
+      ['design.tune', onTune],
+      ['design.swap', onSwap],
+      ['design.materialize', onMat],
+      ['design.verify', onVer],
+      ['design.draw', onDraw],
+      ['design.snapshot', onSnap],
+      ['design.kept', onKept],
+    ];
+    for (const [ev, fn] of bindings) client.on(ev, fn);
     client.send({ type: 'design.list', payload: client.withSession({}) });
     return () => {
-      client.off('design.list', onList);
-      client.off('design.use', onUse);
-      client.off('design.set', onSet);
-      client.off('design.tune', onTune);
-      client.off('design.swap', onSwap);
-      client.off('design.materialize', onMat);
-      client.off('design.verify', onVer);
+      for (const [ev, fn] of bindings) client.off(ev, fn);
     };
   }, [client, sessionId]);
 
@@ -481,6 +571,24 @@ export function DesignGalleryView({ className }: { className?: string }) {
   const verify = useCallback(() => {
     setStatus(i18n.t('activity:design.scanning'));
     client?.send({ type: 'design.verify', payload: client.withSession({}) });
+  }, [client]);
+
+  const drawAnatomy = useCallback(
+    (hasPhoto?: boolean) => {
+      client?.send({
+        type: 'design.draw',
+        payload: client.withSession({ material: hasPhoto ? 'photo' : 'product' }),
+      });
+    },
+    [client],
+  );
+
+  const snapshotWiring = useCallback(() => {
+    client?.send({ type: 'design.snapshot', payload: client.withSession({}) });
+  }, [client]);
+
+  const checkKept = useCallback(() => {
+    client?.send({ type: 'design.kept', payload: client.withSession({}) });
   }, [client]);
 
   const filtered = useMemo(() => {
@@ -653,30 +761,77 @@ export function DesignGalleryView({ className }: { className?: string }) {
                       >
                         {isActive ? t('activity:design.reapply') : t('activity:design.use')}
                       </button>
-                      {isActive && (
-                        <button
-                          type="button"
-                          onClick={materialize}
-                          className="inline-flex items-center gap-1 rounded-md border border-border/60 px-2 py-1 text-[11px] font-medium hover:bg-muted"
-                          title={t('activity:design.materializeTitle', { stack })}
-                        >
-                          <Download className="w-3 h-3" /> {t('activity:design.materialize')}
-                        </button>
-                      )}
-                      {isActive && (
-                        <button
-                          type="button"
-                          onClick={verify}
-                          className="inline-flex items-center gap-1 rounded-md border border-border/60 px-2 py-1 text-[11px] font-medium hover:bg-muted"
-                          title={t('activity:design.verifyTitle')}
-                        >
-                          <ShieldCheck className="w-3 h-3" /> {t('activity:design.verify')}
-                        </button>
-                      )}
+                      {isActive &&
+                        [
+                          {
+                            key: 'mat',
+                            onClick: materialize,
+                            title: t('activity:design.materializeTitle', { stack }),
+                            icon: Download,
+                            label: t('activity:design.materialize'),
+                          },
+                          {
+                            key: 'ver',
+                            onClick: verify,
+                            title: t('activity:design.verifyTitle'),
+                            icon: ShieldCheck,
+                            label: t('activity:design.verify'),
+                          },
+                          {
+                            key: 'draw',
+                            onClick: () => drawAnatomy(Boolean(kit.photo)),
+                            title: 'Draw job-native page anatomy (design.draw)',
+                            icon: Compass,
+                            label: 'Draw',
+                          },
+                          {
+                            key: 'snap',
+                            onClick: snapshotWiring,
+                            title: 'Snapshot interactive wiring before redesign (design.snapshot)',
+                            icon: Camera,
+                            label: 'Snapshot',
+                          },
+                          {
+                            key: 'kept',
+                            onClick: checkKept,
+                            title: 'Audit preserved wiring after redesign (design.kept)',
+                            icon: History,
+                            label: 'Kept',
+                          },
+                        ].map(({ key, onClick, title, icon: Icon, label }) => (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={onClick}
+                            className="inline-flex items-center gap-1 rounded-md border border-border/60 px-2 py-1 text-[11px] font-medium hover:bg-muted"
+                            title={title}
+                          >
+                            <Icon className="w-3 h-3" /> {label}
+                          </button>
+                        ))}
                       <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground">
                         {kit.bestFor}
                       </span>
                     </div>
+                    {isActive && studioNote && (
+                      <div className="mt-1 rounded-lg border border-border/60 bg-muted/30 p-2 text-[10px]">
+                        <div className="mb-1 flex items-center justify-between">
+                          <span className="font-mono font-semibold uppercase text-muted-foreground">
+                            Studio Output
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setStudioNote(null)}
+                            className="rounded px-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          >
+                            ×
+                          </button>
+                        </div>
+                        <pre className="max-h-36 overflow-auto whitespace-pre-wrap font-mono text-[10px] leading-relaxed text-foreground/90">
+                          {studioNote}
+                        </pre>
+                      </div>
+                    )}
                     {isActive && <ColorEditor kit={kit} overrides={ov} onSet={setOverride} />}
                     {isActive && <TuneEditor onTune={tuneKit} />}
                     {isActive && <ContrastBadges issues={contrastIssues} />}

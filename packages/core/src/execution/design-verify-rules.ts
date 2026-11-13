@@ -25,6 +25,8 @@ type RuleAxis = 'type' | 'motion' | 'composition';
 export interface RuleContext {
   /** The kit's own tokens include a gradient: decorative glow is its idiom. */
   gradientKit: boolean;
+  /** The kit's primary display or sans face IS monospace (e.g. Wayfind, Retro Terminal). */
+  monoKit?: boolean;
 }
 
 interface LineRule {
@@ -164,6 +166,34 @@ export const LINE_RULES: readonly LineRule[] = [
     severity: 'WARN',
     reason: 'justified text on the web leaves uneven word gaps (rivers) — use start alignment',
     match: (l) => /\btext-justify\b|text-align:\s*justify/.exec(l)?.[0] ?? null,
+  },
+  {
+    id: 'type.mono-costume',
+    axis: 'type',
+    severity: 'WARN',
+    reason:
+      'monospace uppercase prose label on a non-mono kit — reserve font-mono for code, IDs, or tabular figures instead of wearing it as a decorative badge costume',
+    match: (l, _n, ctx) => {
+      if (ctx.monoKit) return null;
+      const c = classOf(l);
+      if (!/\bfont-mono\b/.test(c) || !/\buppercase\b/.test(c)) return null;
+      const m =
+        /<(?:span|p|div|small|label)\b[^>]*>\s*([A-Za-z][A-Za-z\s&-]{3,42})\s*<\/(?:span|p|div|small|label)>/i.exec(
+          l,
+        );
+      return m ? m[0].replace(/\s+/g, ' ').slice(0, 80) : null;
+    },
+  },
+  {
+    id: 'type.middot-meta-chain',
+    axis: 'type',
+    severity: 'WARN',
+    reason:
+      'middle-dot metadata chain ("A · B · C") — a stock generated-copy cadence; set structured metadata as clean columns, tags, or plain prose',
+    match: (l) => {
+      const m = />([^<>{}]*(?:[A-Za-z0-9][^<>{}·]{0,28}\s+·\s+){2,}[A-Za-z0-9][^<>{}]*)</.exec(l);
+      return m?.[1]?.trim().slice(0, 80) ?? null;
+    },
   },
 ];
 
@@ -322,6 +352,34 @@ export const FILE_RULES: readonly FileRule[] = [
       return null;
     },
   },
+  {
+    id: 'composition.fake-svg-illustration',
+    axis: 'composition',
+    severity: 'WARN',
+    match: (code) => {
+      const joined = code.join('\n');
+      const svgRe = /<svg\b([^>]*)>([\s\S]{1,5000}?)<\/svg>/gi;
+      for (const m of joined.matchAll(svgRe)) {
+        const attrs = m[1] ?? '';
+        const body = m[2] ?? '';
+        if (/\bdata-(?:diagram|chart|logo|keep)\b/i.test(attrs) || /<text\b/i.test(body)) continue;
+        const vb = /viewBox=["']\s*[-\d.]+\s+[-\d.]+\s+([\d.]+)\s+([\d.]+)\s*["']/i.exec(attrs);
+        const w = vb ? Number(vb[1]) : 0;
+        const h = vb ? Number(vb[2]) : 0;
+        if (w <= 64 && h <= 64) continue;
+        const shapes = (body.match(/<(?:path|circle|ellipse|polygon|rect)\b/gi) ?? []).length;
+        if (shapes >= 8) {
+          return {
+            line: lineFromOffset(code, m.index ?? 0),
+            snippet: `<svg viewBox="${w} ${h}"> (${shapes} shapes)`,
+            reason:
+              'large multi-shape inline SVG scene without data labels — avoid invented vector illustrations; use real photography ([data-slot]), a real product view, or labeled data charts',
+          };
+        }
+      }
+      return null;
+    },
+  },
 ];
 
 /** Every rule id the engine can report, for `checked` lists and docs. */
@@ -353,7 +411,20 @@ const KNOWN_IDS: ReadonlySet<string> = new Set(DESIGN_RULE_IDS);
 
 export function ruleContext(tokens: DesignKitTokens): RuleContext {
   const values = [...Object.values(tokens.light ?? {}), ...Object.values(tokens.dark ?? {})];
-  return { gradientKit: values.some((v) => classifyTokenValue(v) === 'gradient') };
+  const primaryFaces = [
+    tokens.light?.['font-sans'],
+    tokens.light?.['font-display'],
+    tokens.dark?.['font-sans'],
+    tokens.dark?.['font-display'],
+  ]
+    .filter(Boolean)
+    .join(' ');
+  return {
+    gradientKit: values.some((v) => classifyTokenValue(v) === 'gradient'),
+    monoKit: /\b(?:mono|monospace|courier|consolas|jetbrains|fira\s*code|chivo\s*mono)\b/i.test(
+      primaryFaces,
+    ),
+  };
 }
 
 export interface WaiverRecord {

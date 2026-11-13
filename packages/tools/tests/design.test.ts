@@ -546,6 +546,16 @@ describe('designTool', () => {
       const css = await fs.readFile(path.join(tmp, mat.path!), 'utf8');
       expect(css).toContain('[data-slot] > img');
       expect(css).toContain('fonts.googleapis.com');
+
+      const photos = await designTool.execute(
+        { action: 'photos', query: 'sourdough bakery oven; espresso terrace', orient: 'landscape' },
+        ctx,
+        opts,
+      );
+      expect(photos.action).toBe('photos');
+      expect(photos.output).toContain('data-slot="hero"');
+      expect(photos.output).toContain('data-credits');
+      expect(photos.output).toContain('Wikimedia Commons');
     } finally {
       await fs.rm(tmp, { recursive: true, force: true });
     }

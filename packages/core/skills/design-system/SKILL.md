@@ -60,6 +60,7 @@ For a new kit or authorized migration:
 design {action:"deal", query:"editorial tactile"}
 design {action:"use", kit:"<actual-id>", stack:"web"}
 design {action:"draw", job:"subscribe", material:"words"}
+design {action:"photos", query:"sourdough bakery oven", orient:"landscape"}
 design {action:"tune", tune:{radius:"lg", density:"compact", motion:"snappy"}}
 design {action:"materialize"}
 ~~~
@@ -69,7 +70,9 @@ with a printed seed; kits chosen recently in any project are left out, and `quer
 narrows the pool by IDF-weighted domain terms. `draw` deals a job-native page
 anatomy (macrostructure, opening hero, nav, sections, footer) from `job` +
 `material` (`photo | product | words`) while avoiding recent layouts and the
-kit's own specimen (`pictured`). For web kits declaring `photo:` treatments or
+kit's own specimen (`pictured`). For photo-led pages without user media, `photos`
+ranks open-licensed Wikimedia Commons photographs into `<figure data-slot="...">`
+markup + `data-credits` attribution; for web kits declaring `photo:` treatments or
 `fontLinks`, `materialize` emits compiled `[data-slot]` photo treatment CSS and
 font import hints alongside semantic tokens.
 

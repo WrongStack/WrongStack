@@ -56,6 +56,12 @@ export interface DesignWaivedFinding {
   reason?: string | undefined;
 }
 
+export interface DesignHouseStyleSuggestion {
+  id: string;
+  count: number;
+  sampleReasons: string[];
+}
+
 export interface DesignVerifyReport {
   filesScanned: number;
   /** Normalized kit palette (hex). */
@@ -65,6 +71,8 @@ export interface DesignVerifyReport {
   violations: DesignViolation[];
   /** Findings suppressed via `design-ignore`, with optional `-- <reason>` rationale. */
   waived?: DesignWaivedFinding[];
+  /** Rules waived >= 3 times — candidates to promote into `DESIGN.md` house style. */
+  houseStyleSuggestions?: DesignHouseStyleSuggestion[];
   /** 0..1 — share of color signals that are on-palette. 1 when no signals. */
   score: number;
   ok: boolean;
@@ -636,12 +644,25 @@ export function verifyFiles(
 
   const total = onPalette + offPalette;
   const score = total === 0 ? 1 : onPalette / total;
+  const waiverBuckets = new Map<string, { count: number; reasons: Set<string> }>();
+  for (const w of waived) {
+    const entry = waiverBuckets.get(w.id) ?? { count: 0, reasons: new Set<string>() };
+    entry.count++;
+    if (w.reason) entry.reasons.add(w.reason);
+    waiverBuckets.set(w.id, entry);
+  }
+  const houseStyleSuggestions: DesignHouseStyleSuggestion[] = [...waiverBuckets.entries()]
+    .filter(([, v]) => v.count >= 3)
+    .sort((a, b) => b[1].count - a[1].count)
+    .map(([id, v]) => ({ id, count: v.count, sampleReasons: [...v.reasons].slice(0, 3) }));
+
   return {
     filesScanned: files.length,
     palette: [...hexes],
     tokenNames: names,
     violations,
     waived,
+    ...(houseStyleSuggestions.length ? { houseStyleSuggestions } : {}),
     score,
     ok: violations.length === 0,
     filesWithNoSignal,

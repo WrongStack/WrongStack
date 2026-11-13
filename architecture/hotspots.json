@@ -139,11 +139,11 @@
       "relativeImports": 2
     },
     "packages/tools/src/design-reference.ts": {
-      "lines": 854,
+      "lines": 853,
       "relativeImports": 2
     },
     "packages/tools/src/design.ts": {
-      "lines": 773,
+      "lines": 780,
       "relativeImports": 1
     },
     "packages/tools/src/process-registry.ts": {
@@ -190,9 +190,17 @@
       "lines": 705,
       "relativeImports": 5
     },
+    "packages/webui/src/components/DesignGalleryView.tsx": {
+      "lines": 848,
+      "relativeImports": 0
+    },
     "packages/webui-server/src/server/completion-handlers.ts": {
       "lines": 737,
       "relativeImports": 3
+    },
+    "packages/webui-server/src/server/design-handlers.ts": {
+      "lines": 704,
+      "relativeImports": 1
     },
     "packages/webui-server/src/server/memory-handlers.ts": {
       "lines": 777,
@@ -239,7 +247,7 @@
       "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectDesignStudio.tsx": {
-      "lines": 874,
+      "lines": 878,
       "relativeImports": 12
     },
     "apps/desktop-v2/src/ProjectGoals.tsx": {

@@ -8,13 +8,21 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["memory.read", "memory.write"],
+      "capabilities": [
+        "memory.read",
+        "memory.write"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
           "action": {
             "type": "string",
-            "enum": ["list", "get", "propose", "revise"],
+            "enum": [
+              "list",
+              "get",
+              "propose",
+              "revise"
+            ],
             "description": "Read existing ADRs or propose/revise an inactive decision for user review."
           },
           "id": {
@@ -100,7 +108,12 @@
                     },
                     "kind": {
                       "type": "string",
-                      "enum": ["file_exists", "contains_text", "excludes_text", "json_equals"]
+                      "enum": [
+                        "file_exists",
+                        "contains_text",
+                        "excludes_text",
+                        "json_equals"
+                      ]
                     },
                     "text": {
                       "type": "string",
@@ -128,7 +141,11 @@
                       ]
                     }
                   },
-                  "required": ["id", "path", "kind"],
+                  "required": [
+                    "id",
+                    "path",
+                    "kind"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -146,7 +163,9 @@
             "additionalProperties": false
           }
         },
-        "required": ["action"],
+        "required": [
+          "action"
+        ],
         "additionalProperties": false
       },
       "icon": "brain",
@@ -154,7 +173,9 @@
       "usageHint": "Use list/get before proposing. Provide the rationale, alternatives, consequences and scoped constraints. Revise only pending proposals using the observed revision/hash. Tell the user to review in /adr; never infer acceptance from silence or a tool permission grant.",
       "selection": {
         "doNotUseWhen": "The information is a temporary observation, ordinary task status, or an unreviewed fact rather than a lasting architecture choice.",
-        "useInstead": ["remember"]
+        "useInstead": [
+          "remember"
+        ]
       },
       "issues": [],
       "color": "#e879f9"
@@ -166,7 +187,9 @@
       "permission": "confirm",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["shell.restricted"],
+      "capabilities": [
+        "shell.restricted"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -176,7 +199,12 @@
           },
           "level": {
             "type": "string",
-            "enum": ["low", "moderate", "high", "critical"],
+            "enum": [
+              "low",
+              "moderate",
+              "high",
+              "critical"
+            ],
             "description": "Minimum severity level to report"
           },
           "fix": {
@@ -198,7 +226,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["shell.arbitrary"],
+      "capabilities": [
+        "shell.arbitrary"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -223,7 +253,9 @@
             "description": "Background: report the exit as a [RUNTIME NOTICE] (default true)."
           }
         },
-        "required": ["command"]
+        "required": [
+          "command"
+        ]
       },
       "icon": "terminal",
       "riskTier": "destructive",
@@ -231,7 +263,9 @@
       "usageHint": "SECURITY WARNING: This tool runs with the full privileges of the current user.\n\nBest practices for the model:\n- Strongly prefer `exec` for known safe commands (git, cargo, go, pytest, node, bun, npm, pnpm, tsc, etc.).\n- Use bash only when you genuinely need shell features (pipes, redirection, complex one-liners).\n- Prefer single focused commands over huge `&&` chains.\n- Use `background: true` only for long-running processes (dev servers, watchers). Its output goes to the `log_file` in the result. Its exit arrives on its own as a [RUNTIME NOTICE] (`notify_on_exit`, default true), so do not poll the log to see whether it finished; to react to specific output lines while it runs, use `process_watch`.\n- `timeout_ms: 0` removes the time limit for a long foreground job you must wait on (the user can still interrupt it).\n- `hermetic: true` skips shell startup files and runs with a minimal environment, for reproducible results.\n- The working directory is the session working dir (the user changes it with `/working_dir`), defaulting to the project root; use `cd` inside the command for a one-off directory.\n- Output may be truncated in the middle for very large results.",
       "selection": {
         "doNotUseWhen": "the command is allowlisted and does not require pipes, redirection, or shell expansion.",
-        "useInstead": ["exec"]
+        "useInstead": [
+          "exec"
+        ]
       },
       "estimatedDurationMs": 30000,
       "issues": [],
@@ -244,7 +278,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["net.outbound"],
+      "capabilities": [
+        "net.outbound"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -259,7 +295,10 @@
             "description": "Stable CSS or supported Playwright selector for the target element."
           }
         },
-        "required": ["sessionId", "selector"]
+        "required": [
+          "sessionId",
+          "selector"
+        ]
       },
       "icon": "web",
       "riskTier": "standard",
@@ -275,7 +314,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["net.outbound"],
+      "capabilities": [
+        "net.outbound"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -285,7 +326,9 @@
             "description": "Browser session id returned by browser_open."
           }
         },
-        "required": ["sessionId"]
+        "required": [
+          "sessionId"
+        ]
       },
       "icon": "web",
       "riskTier": "safe",
@@ -301,7 +344,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["net.outbound"],
+      "capabilities": [
+        "net.outbound"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -321,7 +366,11 @@
             "description": "Selector for the destination element."
           }
         },
-        "required": ["sessionId", "from", "to"]
+        "required": [
+          "sessionId",
+          "from",
+          "to"
+        ]
       },
       "icon": "web",
       "riskTier": "standard",
@@ -337,7 +386,10 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["net.outbound", "tool.mutate.any"],
+      "capabilities": [
+        "net.outbound",
+        "tool.mutate.any"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -353,7 +405,10 @@
             "description": "JavaScript expression evaluated in the page; treat page code as arbitrary."
           }
         },
-        "required": ["sessionId", "expression"]
+        "required": [
+          "sessionId",
+          "expression"
+        ]
       },
       "icon": "web",
       "riskTier": "destructive",
@@ -369,7 +424,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["net.outbound"],
+      "capabilities": [
+        "net.outbound"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -384,7 +441,10 @@
             "description": "Stable CSS or supported Playwright selector for the target element."
           }
         },
-        "required": ["sessionId", "selector"]
+        "required": [
+          "sessionId",
+          "selector"
+        ]
       },
       "icon": "web",
       "riskTier": "standard",
@@ -400,7 +460,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["net.outbound"],
+      "capabilities": [
+        "net.outbound"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {}
@@ -418,7 +480,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["net.outbound"],
+      "capabilities": [
+        "net.outbound"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -433,7 +497,10 @@
             "description": "Absolute HTTP(S) URL. Private and localhost origins require an allowlist."
           }
         },
-        "required": ["sessionId", "url"]
+        "required": [
+          "sessionId",
+          "url"
+        ]
       },
       "icon": "web",
       "riskTier": "standard",
@@ -449,7 +516,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["net.outbound"],
+      "capabilities": [
+        "net.outbound"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -489,7 +558,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["net.outbound"],
+      "capabilities": [
+        "net.outbound"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -504,7 +575,10 @@
             "description": "Keyboard key or shortcut to send, such as Enter or Control+A."
           }
         },
-        "required": ["sessionId", "key"]
+        "required": [
+          "sessionId",
+          "key"
+        ]
       },
       "icon": "web",
       "riskTier": "standard",
@@ -520,7 +594,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["net.outbound"],
+      "capabilities": [
+        "net.outbound"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -539,7 +615,9 @@
             "description": "Stable CSS or supported Playwright selector for the target element."
           }
         },
-        "required": ["sessionId"]
+        "required": [
+          "sessionId"
+        ]
       },
       "icon": "web",
       "riskTier": "safe",
@@ -555,7 +633,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["net.outbound"],
+      "capabilities": [
+        "net.outbound"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -574,7 +654,11 @@
             "description": "Option value to select from the target select control."
           }
         },
-        "required": ["sessionId", "selector", "value"]
+        "required": [
+          "sessionId",
+          "selector",
+          "value"
+        ]
       },
       "icon": "web",
       "riskTier": "standard",
@@ -590,7 +674,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["net.outbound"],
+      "capabilities": [
+        "net.outbound"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -600,7 +686,9 @@
             "description": "Browser session id returned by browser_open."
           }
         },
-        "required": ["sessionId"]
+        "required": [
+          "sessionId"
+        ]
       },
       "icon": "web",
       "riskTier": "safe",
@@ -616,7 +704,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["tool.meta"],
+      "capabilities": [
+        "tool.meta"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {}
@@ -634,7 +724,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["net.outbound"],
+      "capabilities": [
+        "net.outbound"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -658,7 +750,10 @@
             "description": "Host environment variable resolved only at execution time."
           }
         },
-        "required": ["sessionId", "selector"]
+        "required": [
+          "sessionId",
+          "selector"
+        ]
       },
       "icon": "web",
       "riskTier": "standard",
@@ -674,7 +769,10 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["net.outbound", "fs.read"],
+      "capabilities": [
+        "net.outbound",
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -699,7 +797,11 @@
             "description": "Project-local file paths to upload through the selected file input."
           }
         },
-        "required": ["sessionId", "selector", "files"]
+        "required": [
+          "sessionId",
+          "selector",
+          "files"
+        ]
       },
       "icon": "web",
       "riskTier": "destructive",
@@ -715,7 +817,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["net.outbound"],
+      "capabilities": [
+        "net.outbound"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -736,7 +840,9 @@
             "description": "Maximum wait time in milliseconds, capped at 30 seconds."
           }
         },
-        "required": ["sessionId"]
+        "required": [
+          "sessionId"
+        ]
       },
       "icon": "web",
       "riskTier": "safe",
@@ -779,7 +885,11 @@
           },
           "type": {
             "type": "string",
-            "enum": ["single_select", "multi_select", "text"],
+            "enum": [
+              "single_select",
+              "multi_select",
+              "text"
+            ],
             "description": "Input mode; defaults to single_select when options are present."
           },
           "options": {
@@ -805,7 +915,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["label"],
+                  "required": [
+                    "label"
+                  ],
                   "additionalProperties": false
                 }
               ]
@@ -872,7 +984,11 @@
                 },
                 "type": {
                   "type": "string",
-                  "enum": ["single_select", "multi_select", "text"],
+                  "enum": [
+                    "single_select",
+                    "multi_select",
+                    "text"
+                  ],
                   "description": "Input mode for this question."
                 },
                 "options": {
@@ -898,7 +1014,9 @@
                             "type": "string"
                           }
                         },
-                        "required": ["label"],
+                        "required": [
+                          "label"
+                        ],
                         "additionalProperties": false
                       }
                     ]
@@ -945,7 +1063,9 @@
                   "description": "Placeholder text for a text response."
                 }
               },
-              "required": ["question"],
+              "required": [
+                "question"
+              ],
               "additionalProperties": false
             },
             "description": "Legacy flat list of questions; prefer tabs for grouped decisions."
@@ -991,7 +1111,11 @@
                       },
                       "type": {
                         "type": "string",
-                        "enum": ["single_select", "multi_select", "text"],
+                        "enum": [
+                          "single_select",
+                          "multi_select",
+                          "text"
+                        ],
                         "description": "Input mode for this question."
                       },
                       "options": {
@@ -1017,7 +1141,9 @@
                                   "type": "string"
                                 }
                               },
-                              "required": ["label"],
+                              "required": [
+                                "label"
+                              ],
                               "additionalProperties": false
                             }
                           ]
@@ -1064,12 +1190,17 @@
                         "description": "Placeholder text for a text response."
                       }
                     },
-                    "required": ["question"],
+                    "required": [
+                      "question"
+                    ],
                     "additionalProperties": false
                   }
                 }
               },
-              "required": ["label", "questions"],
+              "required": [
+                "label",
+                "questions"
+              ],
               "additionalProperties": false
             }
           }
@@ -1089,7 +1220,10 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["fs.write", "fs.read"],
+      "capabilities": [
+        "fs.write",
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1107,7 +1241,10 @@
           },
           "target": {
             "type": "string",
-            "enum": ["body", "full"],
+            "enum": [
+              "body",
+              "full"
+            ],
             "description": "Whether to replace only the inner body ('body', default) or the entire symbol declaration ('full')."
           },
           "checkInvariants": {
@@ -1119,7 +1256,11 @@
             "description": "Explicitly allow breaking changes (e.g. adding mandatory parameter, removing export) if intentional."
           }
         },
-        "required": ["file", "symbol", "newBody"],
+        "required": [
+          "file",
+          "symbol",
+          "newBody"
+        ],
         "additionalProperties": false
       },
       "icon": "edit",
@@ -1135,13 +1276,21 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
           "mode": {
             "type": "string",
-            "enum": ["brief", "full", "communities", "freshness", "write"],
+            "enum": [
+              "brief",
+              "full",
+              "communities",
+              "freshness",
+              "write"
+            ],
             "description": "Operation mode: \"brief\" (default), \"full\", \"communities\", \"freshness\", or \"write\"."
           },
           "maxCommunities": {
@@ -1164,7 +1313,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1189,7 +1340,9 @@
             "description": "Restrict results to this project-relative path prefix."
           }
         },
-        "required": ["query"],
+        "required": [
+          "query"
+        ],
         "additionalProperties": false
       },
       "icon": "index",
@@ -1205,7 +1358,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1248,7 +1403,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1292,7 +1449,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1309,7 +1468,9 @@
             "description": "Whether to traverse transitive callers (callers of callers). Defaults to true."
           }
         },
-        "required": ["symbol"],
+        "required": [
+          "symbol"
+        ],
         "additionalProperties": false
       },
       "icon": "index",
@@ -1325,7 +1486,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1349,7 +1512,9 @@
             "default": false
           }
         },
-        "required": ["symbol"]
+        "required": [
+          "symbol"
+        ]
       },
       "icon": "index",
       "category": "Project",
@@ -1364,7 +1529,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["fs.write.outside-project"],
+      "capabilities": [
+        "fs.write.outside-project"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1431,7 +1598,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1452,7 +1621,9 @@
             "description": "Language hint (ts, py, go, rs, etc.). Inferred from file path if omitted."
           }
         },
-        "required": ["modifiedCode"],
+        "required": [
+          "modifiedCode"
+        ],
         "additionalProperties": false
       },
       "icon": "index",
@@ -1468,7 +1639,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1482,7 +1655,12 @@
           },
           "persona": {
             "type": "string",
-            "enum": ["junior", "experienced", "architect", "non-technical"],
+            "enum": [
+              "junior",
+              "experienced",
+              "architect",
+              "non-technical"
+            ],
             "description": "Target reader persona (default \"experienced\"). Adapts explanations and language pattern notes."
           }
         },
@@ -1501,7 +1679,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1525,7 +1705,9 @@
             "default": false
           }
         },
-        "required": ["symbol"]
+        "required": [
+          "symbol"
+        ]
       },
       "icon": "index",
       "category": "Project",
@@ -1540,7 +1722,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1558,11 +1742,17 @@
           },
           "target": {
             "type": "string",
-            "enum": ["full", "body"],
+            "enum": [
+              "full",
+              "body"
+            ],
             "description": "Whether to read the full declaration ('full', default) or only the inner block ('body')."
           }
         },
-        "required": ["file", "symbol"],
+        "required": [
+          "file",
+          "symbol"
+        ],
         "additionalProperties": false
       },
       "outputSchema": {
@@ -1594,7 +1784,15 @@
             "description": "Numbered lines in standard N→content format."
           }
         },
-        "required": ["file", "symbol", "kind", "startLine", "endLine", "totalLines", "text"]
+        "required": [
+          "file",
+          "symbol",
+          "kind",
+          "startLine",
+          "endLine",
+          "totalLines",
+          "text"
+        ]
       },
       "icon": "file",
       "category": "Filesystem",
@@ -1609,7 +1807,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1642,7 +1842,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1736,7 +1938,9 @@
             "description": "Deprecated compatibility hint. This built-in remains index-only; use codebase-lsp-search for live LSP results."
           }
         },
-        "required": ["query"]
+        "required": [
+          "query"
+        ]
       },
       "icon": "index",
       "category": "Project",
@@ -1751,7 +1955,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1784,7 +1990,9 @@
             "maximum": 200000
           }
         },
-        "required": ["path"],
+        "required": [
+          "path"
+        ],
         "additionalProperties": false
       },
       "icon": "index",
@@ -1800,7 +2008,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {},
@@ -1819,7 +2029,10 @@
       "permission": "confirm",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["shell.restricted", "fs.read"],
+      "capabilities": [
+        "shell.restricted",
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1854,13 +2067,19 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["fs.write"],
+      "capabilities": [
+        "fs.write"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
           "action": {
             "type": "string",
-            "enum": ["apply", "undo", "backups"],
+            "enum": [
+              "apply",
+              "undo",
+              "backups"
+            ],
             "description": "apply = remove the given finding ids; undo = restore a backup; backups = list them."
           },
           "ids": {
@@ -1872,7 +2091,10 @@
           },
           "verify": {
             "type": "string",
-            "enum": ["typecheck", "none"],
+            "enum": [
+              "typecheck",
+              "none"
+            ],
             "description": "Post-apply verification (default typecheck)."
           },
           "backupId": {
@@ -1884,7 +2106,9 @@
             "description": "Undo even over files edited after the fix."
           }
         },
-        "required": ["action"]
+        "required": [
+          "action"
+        ]
       },
       "icon": "edit",
       "category": "Transform",
@@ -1899,7 +2123,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1930,7 +2156,11 @@
           },
           "minConfidence": {
             "type": "string",
-            "enum": ["high", "medium", "low"],
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
             "description": "Lowest confidence to list (default low)."
           },
           "includePublicApi": {
@@ -1970,7 +2200,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["fs.write"],
+      "capabilities": [
+        "fs.write"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1987,29 +2219,39 @@
               "capture",
               "document",
               "deal",
+              "draw",
+              "photos",
+              "snapshot",
+              "kept",
               "diff"
             ],
-            "description": "list = menu; use = load+pin a kit; foundations = baseline; set = override colors/tokens; tune = high-level knobs (radius/density/font/motion); materialize = write tokens to a theme file; verify = scan UI for token drift (pinned kit, or the project’s captured tokens); capture = snapshot the project’s existing token source (DESIGN.md, theme CSS/TS/Dart) so verify works without a kit; document = write the active kit or captured tokens as a DESIGN.md (google design.md format) for other tools; deal = draw three kits for this session, leaving recent choices out (a kit outside the deal needs reason); diff = token regressions between two DESIGN.md files (files:[before, after]) or a DESIGN.md and the active system. Default: list."
+            "description": "list=menu; use=pin kit; foundations=baseline; set=token overrides; tune=knobs; materialize=write theme file; verify=scan UI drift; capture=snapshot existing tokens; document=write DESIGN.md; deal=3 axis-diverse kits; draw=job-native page anatomy; photos=open-licensed Commons [data-slot] picks; snapshot/kept=redesign wiring guard; diff=DESIGN.md diff."
           },
           "kit": {
             "type": "string",
-            "description": "Kit id (required for \"use\"), e.g. \"minimal-clarity\", \"neo-brutalist\"."
+            "description": "Kit id for \"use\" (e.g. \"minimal-clarity\", \"atelier\")."
           },
           "stack": {
             "type": "string",
-            "enum": ["web", "react-native", "flutter", "swiftui", "compose"],
-            "description": "Target stack — narrows guidance + materialize format. Default: web."
+            "enum": [
+              "web",
+              "react-native",
+              "flutter",
+              "swiftui",
+              "compose"
+            ],
+            "description": "Target stack (default: web)."
           },
           "set": {
             "type": "object",
-            "description": "Token overrides for \"set\"/\"use\": { \"primary\": \"oklch(…)\", \"dark.bg\": \"#111\" }. Bare key = both themes; \"light.\"/\"dark.\" prefix = that theme only. Empty value clears an override.",
+            "description": "Token overrides for set/use: {\"primary\":\"oklch(…)\",\"dark.bg\":\"#111\"}. Empty clears.",
             "additionalProperties": {
               "type": "string"
             }
           },
           "tune": {
             "type": "object",
-            "description": "High-level knobs for \"tune\": { \"radius\": \"lg\", \"density\": \"compact\", \"font\": \"Space Grotesk\", \"motion\": \"snappy\" }. radius = none|sm|md|lg|xl|full or a base length; density = compact|cozy|comfortable; motion = snappy|smooth|none. Resolved to concrete token overrides.",
+            "description": "Knobs for tune: radius (none|sm|md|lg|xl|full), density (compact|cozy|comfortable), font, motion (snappy|smooth|none).",
             "properties": {
               "radius": {
                 "type": "string"
@@ -2027,34 +2269,63 @@
           },
           "out": {
             "type": "string",
-            "description": "Materialize output path (project-relative). Defaults to a per-stack convention."
+            "description": "Project-relative output path for materialize/document."
           },
           "force": {
             "type": "boolean",
-            "description": "Materialize: overwrite an existing file (default false — refuses to clobber)."
+            "description": "Overwrite existing output file (default false)."
           },
           "reason": {
             "type": "string",
-            "description": "Use: why a kit outside this session’s deal fits the product (recorded)."
+            "description": "Use: rationale when picking a kit outside this session deal."
           },
           "query": {
             "type": "string",
-            "description": "Deal: words narrowing the pool, matched against kit name/aesthetic/best-for."
+            "description": "Deal keywords or Photos subjects (separate multiple subjects with \";\")."
+          },
+          "orient": {
+            "type": "string",
+            "enum": [
+              "landscape",
+              "portrait",
+              "square"
+            ],
+            "description": "Photos: orientation filter."
           },
           "seed": {
             "type": "string",
-            "description": "Deal: reproduce a printed deal."
+            "description": "Deal/Draw/Photos: deterministic seed."
           },
           "redeal": {
             "type": "boolean",
-            "description": "Deal: draw again with a fresh seed."
+            "description": "Deal/Draw: draw fresh options."
+          },
+          "job": {
+            "type": "string",
+            "description": "Draw visitor job (subscribe|book|visit|attend|buy|try|sign-up|hire|join|listen|dashboard)."
+          },
+          "material": {
+            "type": "string",
+            "enum": [
+              "photo",
+              "product",
+              "words"
+            ],
+            "description": "Draw visual material (default: product)."
+          },
+          "drop": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Kept: wiring contracts intentionally removed."
           },
           "files": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "Verify: explicit project-relative files to scan. Default: a bounded UI-file walk. Capture: explicit token-source files (.css / theme .ts / .dart). Default: conventional paths like src/index.css, src/theme/theme.ts, lib/theme/theme.dart."
+            "description": "Project-relative files for verify, capture, snapshot, kept, or diff."
           }
         },
         "required": []
@@ -2072,13 +2343,20 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["net.outbound", "fs.write"],
+      "capabilities": [
+        "net.outbound",
+        "fs.write"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
           "action": {
             "type": "string",
-            "enum": ["extract", "compare", "inspect"],
+            "enum": [
+              "extract",
+              "compare",
+              "inspect"
+            ],
             "description": "extract = measure url as a reference; compare = score url (or another reference via against) against reference; inspect = rendered quality gate for url."
           },
           "url": {
@@ -2125,11 +2403,24 @@
           },
           "surface": {
             "type": "string",
-            "enum": ["page", "app"],
+            "enum": [
+              "page",
+              "app"
+            ],
             "description": "inspect: \"page\" (marketing/content, default) or \"app\" (dense product screen — smaller body and more type sizes allowed)."
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "hero",
+              "full"
+            ],
+            "description": "inspect: \"hero\" (1280×800 + 375 fold gate) or \"full\" (default)."
           }
         },
-        "required": ["action"]
+        "required": [
+          "action"
+        ]
       },
       "riskTier": "standard",
       "category": "Design",
@@ -2145,7 +2436,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2171,7 +2464,11 @@
           },
           "mode": {
             "type": "string",
-            "enum": ["unified", "side-by-side", "stat"],
+            "enum": [
+              "unified",
+              "side-by-side",
+              "stat"
+            ],
             "description": "Output format for the git-diff path. \"unified\" is default; \"stat\" shows a summary only; \"side-by-side\" is not supported and falls back to unified. The `files`-only dump path ignores this."
           },
           "context": {
@@ -2194,7 +2491,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2204,7 +2503,11 @@
           },
           "framework": {
             "type": "string",
-            "enum": ["all", "playwright", "cypress"],
+            "enum": [
+              "all",
+              "playwright",
+              "cypress"
+            ],
             "description": "Optional framework filter; defaults to all."
           },
           "maxDepth": {
@@ -2233,7 +2536,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["fs.write"],
+      "capabilities": [
+        "fs.write"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2254,14 +2559,21 @@
             "description": "Replace every occurrence instead of requiring a unique match. Only allowed when `old_string` matches exactly (or up to trailing whitespace) — fuzzy matches stay single-target."
           }
         },
-        "required": ["path", "old_string", "new_string"]
+        "required": [
+          "path",
+          "old_string",
+          "new_string"
+        ]
       },
       "icon": "edit",
       "category": "Filesystem",
       "usageHint": "RECOMMENDED WORKFLOW:\n1. Prefer calling `read` on the target file first when planning an edit.\n2. Use a sufficiently unique `old_string` (include surrounding lines/context if needed).\n3. If the string appears multiple times and you want to change all of them, set `replace_all: true`.\n4. `new_string` must be the exact replacement text.\n\nIf no prior read is recorded, the tool auto-reads the current file and only applies the edit after the same ambiguity checks pass.\nIf `old_string` differs from the file only in whitespace (trailing spaces, indentation), a lower-confidence fallback match is applied and reported in `matched_by`/`note` — always verify the diff when this happens.\nAfter the edit, TS/JS/JSON files are syntax-checked; if `syntax_errors` is present in the output, fix those errors immediately with a follow-up edit.",
       "selection": {
         "doNotUseWhen": "creating a new file, replacing the whole file, or applying an existing unified diff.",
-        "useInstead": ["write", "patch"]
+        "useInstead": [
+          "write",
+          "patch"
+        ]
       },
       "issues": [],
       "color": "#fbbf24"
@@ -2273,7 +2585,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["shell.restricted"],
+      "capabilities": [
+        "shell.restricted"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2297,7 +2611,9 @@
             "description": "Per-command timeout in milliseconds (default 30000; prompt-mode max 600000). In YOLO/YOLO+, longer explicit timeouts are honored and 0 disables the command timer; parent cancellation still applies."
           }
         },
-        "required": ["command"]
+        "required": [
+          "command"
+        ]
       },
       "icon": "terminal",
       "riskTier": "standard",
@@ -2305,7 +2621,9 @@
       "usageHint": "PREFERRED SHELL TOOL for most cases.\n\nUse this instead of `bash` whenever possible.\n- Outside YOLO, `command` must be in the allowlist. Defaults cover common development toolchains; extend them with `tools.exec.allow`. YOLO/YOLO+ permit additional executables; explicit `tools.exec.deny` entries still refuse.\n- Supply only the executable in `command` (e.g. \"uv\") and put subcommands/options in `args` (e.g. [\"run\", \"pytest\"]). Windows executable suffixes and casing are normalized for policy checks; explicit paths require their own trusted allow entry.\n- Arguments are passed as a clean array (no shell interpretation).\n- In YOLO/YOLO+, Git global `-C <directory>` options follow the configured filesystem scope, and temporary color, line-ending, long-path and diff settings via `-c key=value` are accepted.\n- `cwd` is validated to stay inside the project.\n- If a command is not allowlisted, the error explains how to add it; for one-off arbitrary commands, fall back to `bash` (with strong justification).\nThe curated roster + confirm gating narrows the surface compared to full shell access, but this is not a sandbox — prefer least-privilege commands.",
       "selection": {
         "doNotUseWhen": "the operation requires pipes, redirection or shell expansion; outside YOLO, a non-allowlisted command also needs bash or an explicit config allowance.",
-        "useInstead": ["bash"]
+        "useInstead": [
+          "bash"
+        ]
       },
       "issues": [],
       "color": "#67e8f9"
@@ -2317,7 +2635,9 @@
       "permission": "confirm",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["net.outbound"],
+      "capabilities": [
+        "net.outbound"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2327,11 +2647,17 @@
           },
           "format": {
             "type": "string",
-            "enum": ["markdown", "text", "raw"],
+            "enum": [
+              "markdown",
+              "text",
+              "raw"
+            ],
             "description": "Output format. \"markdown\" (default for HTML) converts HTML to Markdown; \"text\" strips HTML to plain text; \"raw\" returns the body unmodified. JSON is pretty-printed except in raw."
           }
         },
-        "required": ["url"]
+        "required": [
+          "url"
+        ]
       },
       "icon": "web",
       "category": "Network",
@@ -2346,7 +2672,10 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["fs.write", "shell.restricted"],
+      "capabilities": [
+        "fs.write",
+        "shell.restricted"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2356,7 +2685,11 @@
           },
           "fixer": {
             "type": "string",
-            "enum": ["biome", "prettier", "auto"],
+            "enum": [
+              "biome",
+              "prettier",
+              "auto"
+            ],
             "description": "Formatter to use (default: auto-detect)"
           },
           "check": {
@@ -2382,7 +2715,10 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["fs.write", "shell.restricted"],
+      "capabilities": [
+        "fs.write",
+        "shell.restricted"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2418,7 +2754,12 @@
           },
           "format": {
             "type": "string",
-            "enum": ["short", "oneline", "stat", "graph"],
+            "enum": [
+              "short",
+              "oneline",
+              "stat",
+              "graph"
+            ],
             "description": "Log format (default: short)"
           },
           "limit": {
@@ -2431,7 +2772,12 @@
           },
           "worktreeAction": {
             "type": "string",
-            "enum": ["list", "add", "remove", "prune"],
+            "enum": [
+              "list",
+              "add",
+              "remove",
+              "prune"
+            ],
             "description": "Worktree action: list, add, remove, prune"
           },
           "worktreePath": {
@@ -2447,7 +2793,9 @@
             "description": "Force operation (e.g. worktree remove --force)"
           }
         },
-        "required": ["command"]
+        "required": [
+          "command"
+        ]
       },
       "icon": "git",
       "category": "Git",
@@ -2462,7 +2810,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2481,7 +2831,9 @@
             "description": "Maximum number of results to return (default 1000, max 5000). Results are sorted by mtime descending, so truncation keeps the most recently modified files."
           }
         },
-        "required": ["pattern"]
+        "required": [
+          "pattern"
+        ]
       },
       "outputSchema": {
         "type": "object",
@@ -2496,14 +2848,19 @@
             "type": "boolean"
           }
         },
-        "required": ["files", "truncated"]
+        "required": [
+          "files",
+          "truncated"
+        ]
       },
       "icon": "folder",
       "category": "Filesystem",
       "usageHint": "PATH DISCOVERY AND SEARCH SCOPING:\n\n- When `codebase-search` is live, use it first for code concepts; use `glob` for filenames, path patterns, and non-indexed files.\n- Combine with `path` and `limit`.\n- Default ignores common build/dependency directories.\n- Returned paths are relative to the project root.\nMuch more efficient than shell `find` for most use cases inside the agent.",
       "selection": {
         "doNotUseWhen": "you need to search inside file contents.",
-        "useInstead": ["grep"]
+        "useInstead": [
+          "grep"
+        ]
       },
       "issues": [],
       "color": "#38bdf8"
@@ -2515,7 +2872,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2533,7 +2892,11 @@
           },
           "output_mode": {
             "type": "string",
-            "enum": ["content", "files_with_matches", "count"],
+            "enum": [
+              "content",
+              "files_with_matches",
+              "count"
+            ],
             "description": "Return style: detailed matches, just file list, or count only."
           },
           "context_lines": {
@@ -2549,7 +2912,9 @@
             "description": "Maximum number of matches to return."
           }
         },
-        "required": ["pattern"]
+        "required": [
+          "pattern"
+        ]
       },
       "outputSchema": {
         "type": "object",
@@ -2569,17 +2934,27 @@
           },
           "used": {
             "type": "string",
-            "enum": ["rg", "native"]
+            "enum": [
+              "rg",
+              "native"
+            ]
           }
         },
-        "required": ["matches", "count", "truncated", "used"]
+        "required": [
+          "matches",
+          "count",
+          "truncated",
+          "used"
+        ]
       },
       "icon": "search",
       "category": "Search",
       "usageHint": "EXACT-TEXT AND REGEX SEARCH:\n\n- When `codebase-search` is live, use it first for symbols and concepts; use `grep` for exact text, regexes, unsupported content, and concrete usage sites.\n- `pattern` is a regular expression.\n- Use `output_mode: \"content\"` (default) to get matching lines with context.\n- Use `\"files_with_matches\"` when you only need the list of files.\n- Use `\"count\"` for quick statistics.\n- `glob` and `path` let you narrow the search scope significantly.\n- Always prefer this over `bash grep` when searching code.\n- Result paths are relative to the project root.",
       "selection": {
         "doNotUseWhen": "you only need to locate files by name or path pattern.",
-        "useInstead": ["glob"]
+        "useInstead": [
+          "glob"
+        ]
       },
       "issues": [],
       "color": "#a78bfa"
@@ -2591,7 +2966,10 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["package.install", "shell.restricted"],
+      "capabilities": [
+        "package.install",
+        "shell.restricted"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2601,7 +2979,11 @@
           },
           "save": {
             "type": "string",
-            "enum": ["dependency", "dev", "optional"],
+            "enum": [
+              "dependency",
+              "dev",
+              "optional"
+            ],
             "description": "Where to save the package(s): \"dependency\", \"devDependencies\", or \"optionalDependencies\"."
           },
           "cwd": {
@@ -2636,13 +3018,21 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
           "action": {
             "type": "string",
-            "enum": ["parse", "query", "validate", "transform", "merge"],
+            "enum": [
+              "parse",
+              "query",
+              "validate",
+              "transform",
+              "merge"
+            ],
             "description": "Operation (default: parse). parse=read/pretty-print, query=JMESPath, validate=schema, transform=chained queries, merge=deep merge."
           },
           "file": {
@@ -2655,7 +3045,11 @@
           },
           "format": {
             "type": "string",
-            "enum": ["json", "json5", "yaml"],
+            "enum": [
+              "json",
+              "json5",
+              "yaml"
+            ],
             "description": "Output format for parse/query/transform (default: json)"
           },
           "query": {
@@ -2681,7 +3075,10 @@
           },
           "conflictResolution": {
             "type": "string",
-            "enum": ["prefer-base", "prefer-patch"],
+            "enum": [
+              "prefer-base",
+              "prefer-patch"
+            ],
             "description": "Merge conflict resolution (default: prefer-patch)"
           },
           "validate": {
@@ -2703,7 +3100,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["fs.write"],
+      "capabilities": [
+        "fs.write"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2787,7 +3186,11 @@
           },
           "reviewDisposition": {
             "type": "string",
-            "enum": ["adequate", "enriched", "needs_leader"],
+            "enum": [
+              "adequate",
+              "enriched",
+              "needs_leader"
+            ],
             "description": "review_task: record the background manager assessment after inspecting this card; note supplies the reason. Does not complete product work."
           },
           "taskIds": {
@@ -2845,12 +3248,24 @@
           },
           "priority": {
             "type": "string",
-            "enum": ["critical", "high", "medium", "low"],
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ],
             "description": "Card priority used when creating or updating work."
           },
           "taskType": {
             "type": "string",
-            "enum": ["feature", "bugfix", "refactor", "docs", "test", "chore"],
+            "enum": [
+              "feature",
+              "bugfix",
+              "refactor",
+              "docs",
+              "test",
+              "chore"
+            ],
             "description": "Optional task type value for the selected Kanban action. Supply it only when that action requires it."
           },
           "status": {
@@ -2970,12 +3385,25 @@
           },
           "assignmentStatus": {
             "type": "string",
-            "enum": ["assigned", "queued", "running", "completed", "failed", "cancelled"],
+            "enum": [
+              "assigned",
+              "queued",
+              "running",
+              "completed",
+              "failed",
+              "cancelled"
+            ],
             "description": "Optional assignment status value for the selected Kanban action. Supply it only when that action requires it."
           },
           "lifecycleStage": {
             "type": "string",
-            "enum": ["backlog", "todo", "running", "review", "done"],
+            "enum": [
+              "backlog",
+              "todo",
+              "running",
+              "review",
+              "done"
+            ],
             "description": "Optional lifecycle stage value for the selected Kanban action. Supply it only when that action requires it."
           },
           "transitionAction": {
@@ -2997,11 +3425,18 @@
                 },
                 "checkStatus": {
                   "type": "string",
-                  "enum": ["passed", "failed", "skipped"],
+                  "enum": [
+                    "passed",
+                    "failed",
+                    "skipped"
+                  ],
                   "description": "Current outcome of an acceptance criterion."
                 }
               },
-              "required": ["checkId", "checkStatus"]
+              "required": [
+                "checkId",
+                "checkStatus"
+              ]
             },
             "description": "`transition_task` with lifecycleStage \"done\" only (rejected for any other stage): flip one or more manual criteria before the gate fires. Read ids from kanban get_task. Non-manual criteria are refused."
           },
@@ -3015,12 +3450,25 @@
           },
           "attachmentType": {
             "type": "string",
-            "enum": ["issue", "pr", "doc", "commit", "design", "file", "url", "other"],
+            "enum": [
+              "issue",
+              "pr",
+              "doc",
+              "commit",
+              "design",
+              "file",
+              "url",
+              "other"
+            ],
             "description": "Optional attachment type value for the selected Kanban action. Supply it only when that action requires it."
           },
           "releaseStatus": {
             "type": "string",
-            "enum": ["pending", "ready", "blocked"],
+            "enum": [
+              "pending",
+              "ready",
+              "blocked"
+            ],
             "description": "Optional release status value for the selected Kanban action. Supply it only when that action requires it."
           },
           "releaseReason": {
@@ -3033,7 +3481,12 @@
           },
           "recoveryMode": {
             "type": "string",
-            "enum": ["auto", "release", "retry", "fail"],
+            "enum": [
+              "auto",
+              "release",
+              "retry",
+              "fail"
+            ],
             "description": "Optional recovery mode value for the selected Kanban action. Supply it only when that action requires it."
           },
           "recoveryNow": {
@@ -3057,7 +3510,11 @@
           },
           "recoveryPolicyRetryPolicyOverride": {
             "type": "string",
-            "enum": ["off", "incremental", "exponential"],
+            "enum": [
+              "off",
+              "incremental",
+              "exponential"
+            ],
             "description": "Optional recovery policy retry policy override value for the selected Kanban action. Supply it only when that action requires it."
           },
           "assignee": {
@@ -3070,7 +3527,11 @@
           },
           "retryPolicy": {
             "type": "string",
-            "enum": ["off", "incremental", "exponential"],
+            "enum": [
+              "off",
+              "incremental",
+              "exponential"
+            ],
             "description": "Optional retry policy value for the selected Kanban action. Supply it only when that action requires it."
           },
           "lastFailureKind": {
@@ -3222,7 +3683,10 @@
           },
           "metricDirection": {
             "type": "string",
-            "enum": ["at_least", "at_most"],
+            "enum": [
+              "at_least",
+              "at_most"
+            ],
             "description": "Optional metric direction value for the selected Kanban action. Supply it only when that action requires it."
           },
           "metricUnit": {
@@ -3231,7 +3695,12 @@
           },
           "metricStatus": {
             "type": "string",
-            "enum": ["pending", "met", "missed", "waived"],
+            "enum": [
+              "pending",
+              "met",
+              "missed",
+              "waived"
+            ],
             "description": "Optional metric status value for the selected Kanban action. Supply it only when that action requires it."
           },
           "metricNotes": {
@@ -3248,7 +3717,12 @@
           },
           "checkStatus": {
             "type": "string",
-            "enum": ["pending", "passed", "failed", "skipped"],
+            "enum": [
+              "pending",
+              "passed",
+              "failed",
+              "skipped"
+            ],
             "description": "Current outcome of an acceptance criterion."
           },
           "checkType": {
@@ -3270,7 +3744,11 @@
           },
           "contractEnforcement": {
             "type": "string",
-            "enum": ["off", "advisory", "strict"],
+            "enum": [
+              "off",
+              "advisory",
+              "strict"
+            ],
             "description": "Board-level contract map enforcement. Default when first configured: advisory."
           },
           "contractNodeId": {
@@ -3279,7 +3757,14 @@
           },
           "contractNodeKind": {
             "type": "string",
-            "enum": ["objective", "guardrail", "risk", "component", "artifact", "verification"],
+            "enum": [
+              "objective",
+              "guardrail",
+              "risk",
+              "component",
+              "artifact",
+              "verification"
+            ],
             "description": "objective = what this card is for; guardrail = what must keep working; risk = what could go wrong; component/artifact = what it touches; verification = what settles it."
           },
           "contractNodeTitle": {
@@ -3292,12 +3777,23 @@
           },
           "contractNodeState": {
             "type": "string",
-            "enum": ["unknown", "active", "satisfied", "violated", "waived", "resolved"],
+            "enum": [
+              "unknown",
+              "active",
+              "satisfied",
+              "violated",
+              "waived",
+              "resolved"
+            ],
             "description": "Optional contract node state value for the selected Kanban action. Supply it only when that action requires it."
           },
           "contractNodeEnforcement": {
             "type": "string",
-            "enum": ["blocking", "advisory", "informational"],
+            "enum": [
+              "blocking",
+              "advisory",
+              "informational"
+            ],
             "description": "Optional contract node enforcement value for the selected Kanban action. Supply it only when that action requires it."
           },
           "contractCheckId": {
@@ -3349,11 +3845,23 @@
           "activityKind": {
             "type": "string",
             "description": "record_activity: what happened. The summary goes in `note`; `activityDetails` carries any longer body.",
-            "enum": ["decision", "attempt", "result", "blocker", "observation"]
+            "enum": [
+              "decision",
+              "attempt",
+              "result",
+              "blocker",
+              "observation"
+            ]
           },
           "activityOutcome": {
             "type": "string",
-            "enum": ["succeeded", "failed", "partial", "skipped", "unknown"],
+            "enum": [
+              "succeeded",
+              "failed",
+              "partial",
+              "skipped",
+              "unknown"
+            ],
             "description": "Optional activity outcome value for the selected Kanban action. Supply it only when that action requires it."
           },
           "activityDetails": {
@@ -3374,7 +3882,16 @@
           },
           "linkType": {
             "type": "string",
-            "enum": ["issue", "pr", "doc", "commit", "design", "file", "url", "other"],
+            "enum": [
+              "issue",
+              "pr",
+              "doc",
+              "commit",
+              "design",
+              "file",
+              "url",
+              "other"
+            ],
             "description": "Optional link type value for the selected Kanban action. Supply it only when that action requires it."
           },
           "context": {
@@ -3410,17 +3927,27 @@
           },
           "atomicityMode": {
             "type": "string",
-            "enum": ["off", "assess", "enforce"],
+            "enum": [
+              "off",
+              "assess",
+              "enforce"
+            ],
             "description": "Optional atomicity mode value for the selected Kanban action. Supply it only when that action requires it."
           },
           "atomicityDecomposition": {
             "type": "string",
-            "enum": ["auto", "propose"],
+            "enum": [
+              "auto",
+              "propose"
+            ],
             "description": "Optional atomicity decomposition value for the selected Kanban action. Supply it only when that action requires it."
           },
           "gateEnforcement": {
             "type": "string",
-            "enum": ["strict", "soft"],
+            "enum": [
+              "strict",
+              "soft"
+            ],
             "description": "Optional gate enforcement value for the selected Kanban action. Supply it only when that action requires it."
           },
           "proposalId": {
@@ -3456,12 +3983,16 @@
                   "description": "Optional depends on index value for the selected Kanban action. Supply it only when that action requires it."
                 }
               },
-              "required": ["title"]
+              "required": [
+                "title"
+              ]
             },
             "description": "Proposed child work for decomposition; each item must have a title."
           }
         },
-        "required": ["action"]
+        "required": [
+          "action"
+        ]
       },
       "icon": "task",
       "category": "Project",
@@ -3476,13 +4007,23 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["shell.restricted", "fs.write"],
+      "capabilities": [
+        "shell.restricted",
+        "fs.write"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
           "action": {
             "type": "string",
-            "enum": ["check", "lint", "format", "test", "build", "debug"],
+            "enum": [
+              "check",
+              "lint",
+              "format",
+              "test",
+              "build",
+              "debug"
+            ],
             "description": "Language operation to execute."
           },
           "cwd": {
@@ -3521,12 +4062,20 @@
           },
           "mode": {
             "type": "string",
-            "enum": ["fast", "standard", "thorough"],
+            "enum": [
+              "fast",
+              "standard",
+              "thorough"
+            ],
             "description": "Execution depth; thorough may run more checks."
           },
           "check": {
             "type": "string",
-            "enum": ["syntax", "semantic", "all"],
+            "enum": [
+              "syntax",
+              "semantic",
+              "all"
+            ],
             "description": "Check type when action=check."
           },
           "formatCheck": {
@@ -3547,11 +4096,18 @@
           },
           "debug": {
             "type": "string",
-            "enum": ["compile", "test", "runtime", "race"],
+            "enum": [
+              "compile",
+              "test",
+              "runtime",
+              "race"
+            ],
             "description": "Debug evidence mode when action=debug."
           }
         },
-        "required": ["action"],
+        "required": [
+          "action"
+        ],
         "additionalProperties": false
       },
       "icon": "code",
@@ -3560,7 +4116,12 @@
       "usageHint": "Use this instead of constructing compiler or test commands manually. The tool detects the workspace, builds an allowlisted argv plan, revalidates it, executes without a shell, and returns normalized diagnostics. Package and network operations are intentionally excluded.",
       "selection": {
         "doNotUseWhen": "You only need workspace detection/planning, or need to modify dependencies.",
-        "useInstead": ["language_info", "install", "audit", "outdated"]
+        "useInstead": [
+          "language_info",
+          "install",
+          "audit",
+          "outdated"
+        ]
       },
       "issues": [],
       "color": "#818cf8"
@@ -3572,13 +4133,19 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
           "action": {
             "type": "string",
-            "enum": ["detect", "plan", "capabilities"],
+            "enum": [
+              "detect",
+              "plan",
+              "capabilities"
+            ],
             "description": "Read-only action to perform."
           },
           "cwd": {
@@ -3642,7 +4209,11 @@
           },
           "mode": {
             "type": "string",
-            "enum": ["fast", "standard", "thorough"],
+            "enum": [
+              "fast",
+              "standard",
+              "thorough"
+            ],
             "description": "Planning mode."
           },
           "options": {
@@ -3674,7 +4245,11 @@
               },
               "packageScope": {
                 "type": "string",
-                "enum": ["runtime", "development", "optional"],
+                "enum": [
+                  "runtime",
+                  "development",
+                  "optional"
+                ],
                 "description": "Dependency scope for a package operation."
               },
               "allowScripts": {
@@ -3685,7 +4260,9 @@
             "additionalProperties": false
           }
         },
-        "required": ["action"],
+        "required": [
+          "action"
+        ],
         "additionalProperties": false
       },
       "icon": "code",
@@ -3694,7 +4271,14 @@
       "usageHint": "Use `detect` to find workspaces across all supported languages (TypeScript/JavaScript, Go, Rust, Python, Java/Kotlin, C#, C/C++, Ruby, PHP, Swift, Dart/Flutter, Elixir, Deno, Shell). Use `plan` to obtain an exact, validated argv plan before choosing an execution tool. This tool never spawns a process or modifies files.",
       "selection": {
         "doNotUseWhen": "You need to execute a compiler, test runner, formatter, or package manager.",
-        "useInstead": ["exec", "typecheck", "lint", "format", "test", "install"]
+        "useInstead": [
+          "exec",
+          "typecheck",
+          "lint",
+          "format",
+          "test",
+          "install"
+        ]
       },
       "issues": [],
       "color": "#818cf8"
@@ -3706,13 +4290,25 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["shell.restricted", "fs.write", "net.outbound", "package.install"],
+      "capabilities": [
+        "shell.restricted",
+        "fs.write",
+        "net.outbound",
+        "package.install"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
           "operation": {
             "type": "string",
-            "enum": ["install", "add", "remove", "update", "audit", "outdated"],
+            "enum": [
+              "install",
+              "add",
+              "remove",
+              "update",
+              "audit",
+              "outdated"
+            ],
             "description": "Package management operation to perform."
           },
           "cwd": {
@@ -3754,7 +4350,11 @@
           },
           "scope": {
             "type": "string",
-            "enum": ["runtime", "development", "optional"],
+            "enum": [
+              "runtime",
+              "development",
+              "optional"
+            ],
             "description": "Where to record the dependency (add/update)."
           },
           "dryRun": {
@@ -3766,7 +4366,9 @@
             "description": "Opt in to running package lifecycle scripts (preinstall/install/postinstall) for npm/pnpm/yarn/bun/Composer. Default false."
           }
         },
-        "required": ["operation"],
+        "required": [
+          "operation"
+        ],
         "additionalProperties": false
       },
       "icon": "package",
@@ -3775,7 +4377,13 @@
       "usageHint": "Use this instead of the legacy `install`/`audit`/`outdated` tools. The tool detects the workspace, builds an allowlisted argv plan with lifecycle scripts disabled (unless allowScripts), runs it, and records manifest/lockfile changes.",
       "selection": {
         "doNotUseWhen": "You only need to inspect or plan, or need to compile/test/lint without touching dependencies.",
-        "useInstead": ["language_info", "language", "install", "audit", "outdated"]
+        "useInstead": [
+          "language_info",
+          "language",
+          "install",
+          "audit",
+          "outdated"
+        ]
       },
       "issues": [],
       "color": "#f472b6"
@@ -3787,7 +4395,10 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["fs.write", "shell.restricted"],
+      "capabilities": [
+        "fs.write",
+        "shell.restricted"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -3801,7 +4412,12 @@
           },
           "linter": {
             "type": "string",
-            "enum": ["biome", "eslint", "tslint", "auto"],
+            "enum": [
+              "biome",
+              "eslint",
+              "tslint",
+              "auto"
+            ],
             "description": "Linter to use (default: auto-detect)"
           },
           "cwd": {
@@ -3823,7 +4439,9 @@
       "permission": "confirm",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["shell.restricted"],
+      "capabilities": [
+        "shell.restricted"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -3847,7 +4465,12 @@
           },
           "since": {
             "type": "string",
-            "enum": ["1h", "6h", "24h", "all"],
+            "enum": [
+              "1h",
+              "6h",
+              "24h",
+              "all"
+            ],
             "description": "Only show Docker logs since duration (ignored for files; \"all\" = no limit)"
           },
           "cwd": {
@@ -3869,7 +4492,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["net.outbound"],
+      "capabilities": [
+        "net.outbound"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -3892,7 +4517,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["fs.write"],
+      "capabilities": [
+        "fs.write"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -3913,14 +4540,18 @@
             "description": "Preview without applying"
           }
         },
-        "required": ["patch"]
+        "required": [
+          "patch"
+        ]
       },
       "icon": "edit",
       "category": "Filesystem",
       "usageHint": "Best used when you already have a diff (from generation, external source, or previous step).\n- Use `dry_run: true` to see what would happen without modifying files.\n- Applied with `--merge`: a conflicting hunk writes git-style conflict\n  markers (<<<<<<< / ======= / >>>>>>>) INTO the file and the call fails.\n  It does NOT create .rej/.orig files. The failure message lists every file\n  changed on disk anyway, so read those back before retrying.\n- A dry run that would conflict is reported (not thrown) with `rejected: 1`.\nOften cleaner than many small `edit` operations for larger changes.",
       "selection": {
         "doNotUseWhen": "you do not already have a unified diff or only need one precise replacement.",
-        "useInstead": ["edit"]
+        "useInstead": [
+          "edit"
+        ]
       },
       "issues": [],
       "color": "#fbbf24"
@@ -3932,7 +4563,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["fs.write"],
+      "capabilities": [
+        "fs.write"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -3966,7 +4599,11 @@
           },
           "status": {
             "type": "string",
-            "enum": ["open", "in_progress", "done"],
+            "enum": [
+              "open",
+              "in_progress",
+              "done"
+            ],
             "description": "Exact plan item status for action=status."
           },
           "subtasks": {
@@ -3982,11 +4619,16 @@
           },
           "scope": {
             "type": "string",
-            "enum": ["session", "project"],
+            "enum": [
+              "session",
+              "project"
+            ],
             "description": "Storage scope: \"session\" (default, isolated to this session) or \"project\" (shared across all sessions for this project)."
           }
         },
-        "required": ["action"]
+        "required": [
+          "action"
+        ]
       },
       "icon": "plan",
       "category": "Session",
@@ -4001,7 +4643,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -4039,7 +4683,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["shell.arbitrary"],
+      "capabilities": [
+        "shell.arbitrary"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4060,7 +4706,10 @@
             "description": "Lifetime in seconds (default 300, max 1800)."
           }
         },
-        "required": ["command", "description"]
+        "required": [
+          "command",
+          "description"
+        ]
       },
       "icon": "logs",
       "riskTier": "destructive",
@@ -4068,7 +4717,10 @@
       "usageHint": "- The command runs in the session shell like `bash`; every stdout/stderr line is an event. Lines within 200ms are batched into one notice.\n- Set `filter` (a regex) to the lines you would act on, failures included: matching only the success line leaves you blind to a crash. Too many notices (>30/min) stops the watch.\n- Never pipe through `head` or other commands that buffer; use `grep --line-buffered` if you filter in the shell. For a poll loop, emit one line per state change, not raw logs.\n- `timeout_s` defaults to 300 (max 1800). Stop it with process_watch_control once done.\n- For \"tell me when it finishes\" alone, a background bash/pwsh process already reports its exit; for a clock, use session_wakeup.",
       "selection": {
         "doNotUseWhen": "you only need to know when a background process exits, or you need a timer.",
-        "useInstead": ["bash", "session_wakeup"]
+        "useInstead": [
+          "bash",
+          "session_wakeup"
+        ]
       },
       "estimatedDurationMs": 1000,
       "issues": [],
@@ -4087,7 +4739,10 @@
         "properties": {
           "action": {
             "type": "string",
-            "enum": ["list", "stop"],
+            "enum": [
+              "list",
+              "stop"
+            ],
             "description": "list or stop."
           },
           "id": {
@@ -4095,7 +4750,9 @@
             "description": "Watch id, or \"all\"."
           }
         },
-        "required": ["action"]
+        "required": [
+          "action"
+        ]
       },
       "icon": "logs",
       "riskTier": "safe",
@@ -4110,14 +4767,21 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
           "action": {
             "type": "string",
-            "enum": ["list", "inspect", "history", "template"],
+            "enum": [
+              "list",
+              "inspect",
+              "history",
+              "template"
+            ],
             "description": "List/search, inspect one tool, read its history, or obtain a working authoring template."
           },
           "name": {
@@ -4136,7 +4800,9 @@
             "description": "History length, default 20."
           }
         },
-        "required": ["action"]
+        "required": [
+          "action"
+        ]
       },
       "icon": "package",
       "category": "Project Kit",
@@ -4151,14 +4817,21 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["shell.arbitrary", "fs.write", "net.outbound"],
+      "capabilities": [
+        "shell.arbitrary",
+        "fs.write",
+        "net.outbound"
+      ],
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
           "action": {
             "type": "string",
-            "enum": ["verify", "run"],
+            "enum": [
+              "verify",
+              "run"
+            ],
             "description": "Verify declared cases, or execute a previously verified revision."
           },
           "name": {
@@ -4175,7 +4848,11 @@
             "description": "Parameters matching the inspected inputSchema; used for run, omitted for verify."
           }
         },
-        "required": ["action", "name", "revision"]
+        "required": [
+          "action",
+          "name",
+          "revision"
+        ]
       },
       "icon": "terminal",
       "riskTier": "standard",
@@ -4191,7 +4868,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["shell.arbitrary"],
+      "capabilities": [
+        "shell.arbitrary"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4220,7 +4899,9 @@
             "description": "Background: report the exit as a [RUNTIME NOTICE] (default true)."
           }
         },
-        "required": ["command"]
+        "required": [
+          "command"
+        ]
       },
       "icon": "terminal",
       "riskTier": "destructive",
@@ -4228,7 +4909,9 @@
       "usageHint": "Best practices & sandbox protocol for pwsh:\n- **Stateless**: No cwd, variables, or functions persist between calls. Use `workdir` to set the directory.\n- **Paths & Environs**: Use native Windows paths (`C:\\...`) and read env vars via `$env:NAME`.\n- **Exit Codes**: Non-zero exits are reported as `[exit code: N]`. On Windows, a force-killed command settles as exit code 1 (interruption).\n- **Background**: Set `run_in_background: true` for long-running processes; the result carries the PID (stop it with `Stop-Process -Id <pid>`) and the `log_file` its output goes to. Its exit arrives on its own as a [RUNTIME NOTICE] (`notify_on_exit`, default true); do not poll for it. To react to output lines while it runs, use `process_watch`.\n- **Not a sandbox**: Commands run in `FullLanguage` mode with your user privileges. A call refused by permission policy is final — do not retry it with extra fields.",
       "selection": {
         "doNotUseWhen": "the command is an allowlisted single binary (git, cargo, go, pytest, node, bun, pnpm, tsc) needing no shell expansion or pipelines.",
-        "useInstead": ["exec"]
+        "useInstead": [
+          "exec"
+        ]
       },
       "estimatedDurationMs": 30000,
       "issues": [],
@@ -4241,7 +4924,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4261,7 +4946,10 @@
           },
           "mode": {
             "type": "string",
-            "enum": ["content", "summary"],
+            "enum": [
+              "content",
+              "summary"
+            ],
             "description": "Return full line-numbered content (default) or a compact file summary with imports/exports/symbols."
           },
           "includeSymbols": {
@@ -4273,7 +4961,9 @@
             "description": "PDF only: pages to read, e.g. \"3\" or \"1-5\" (at most 20 per call; default the first 20)."
           }
         },
-        "required": ["path"]
+        "required": [
+          "path"
+        ]
       },
       "outputSchema": {
         "type": "object",
@@ -4323,18 +5013,31 @@
                   "type": "string"
                 }
               },
-              "required": ["name", "kind", "line", "col", "signature"]
+              "required": [
+                "name",
+                "kind",
+                "line",
+                "col",
+                "signature"
+              ]
             }
           }
         },
-        "required": ["text", "total_lines", "encoding", "truncated"]
+        "required": [
+          "text",
+          "total_lines",
+          "encoding",
+          "truncated"
+        ]
       },
       "icon": "file",
       "category": "Filesystem",
       "usageHint": "FOUNDATIONAL TOOL — call this before almost any edit operation.\n\nBest practices:\n- Always read a file before using `edit`, `replace`, or `write` on it (the system often requires it for safety).\n- Use `offset` + `limit` for very large files instead of reading everything at once.\n- Default limit is generous (2000 lines) but can be increased.\n- The output format is designed to be directly usable as context for `edit` operations.\n- Set `includeSymbols: true` to also receive the codebase-index symbol listing for the file.\n- Enable advanced mode (`ctx.meta['tools.read.advancedMode'] = true`) to auto-inject symbols on every read.",
       "selection": {
         "doNotUseWhen": "you need to search many files for matching content.",
-        "useInstead": ["grep"]
+        "useInstead": [
+          "grep"
+        ]
       },
       "issues": [],
       "color": "#60a5fa"
@@ -4346,7 +5049,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["net.outbound"],
+      "capabilities": [
+        "net.outbound"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4380,7 +5085,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["fs.write"],
+      "capabilities": [
+        "fs.write"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4409,7 +5116,11 @@
             "description": "Preview changes without writing (default: true)"
           }
         },
-        "required": ["pattern", "replacement", "files"]
+        "required": [
+          "pattern",
+          "replacement",
+          "files"
+        ]
       },
       "icon": "edit",
       "category": "Transform",
@@ -4424,7 +5135,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["net.outbound"],
+      "capabilities": [
+        "net.outbound"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4440,7 +5153,11 @@
           },
           "source": {
             "type": "string",
-            "enum": ["duckduckgo", "google", "bing"],
+            "enum": [
+              "duckduckgo",
+              "google",
+              "bing"
+            ],
             "description": "Search engine to use (default: duckduckgo)"
           },
           "skip_cache": {
@@ -4448,7 +5165,9 @@
             "description": "Skip the in-memory cache and force a fresh search (default: false)"
           }
         },
-        "required": ["query"]
+        "required": [
+          "query"
+        ]
       },
       "icon": "search",
       "category": "Search",
@@ -4463,7 +5182,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4508,7 +5229,11 @@
         "properties": {
           "action": {
             "type": "string",
-            "enum": ["schedule", "list", "cancel"],
+            "enum": [
+              "schedule",
+              "list",
+              "cancel"
+            ],
             "description": "Default schedule."
           },
           "prompt": {
@@ -4543,13 +5268,22 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["fs.write"],
+      "capabilities": [
+        "fs.write"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
           "action": {
             "type": "string",
-            "enum": ["replace", "add", "status", "show", "promote", "planify"],
+            "enum": [
+              "replace",
+              "add",
+              "status",
+              "show",
+              "promote",
+              "planify"
+            ],
             "description": "replace = set full list, add = append, status = update task status, show = view only, promote = convert task to todos, planify = convert task to plan item."
           },
           "tasks": {
@@ -4571,15 +5305,34 @@
                 },
                 "type": {
                   "type": "string",
-                  "enum": ["feature", "bugfix", "refactor", "docs", "test", "chore"]
+                  "enum": [
+                    "feature",
+                    "bugfix",
+                    "refactor",
+                    "docs",
+                    "test",
+                    "chore"
+                  ]
                 },
                 "priority": {
                   "type": "string",
-                  "enum": ["critical", "high", "medium", "low"]
+                  "enum": [
+                    "critical",
+                    "high",
+                    "medium",
+                    "low"
+                  ]
                 },
                 "status": {
                   "type": "string",
-                  "enum": ["pending", "in_progress", "blocked", "failed", "review", "completed"]
+                  "enum": [
+                    "pending",
+                    "in_progress",
+                    "blocked",
+                    "failed",
+                    "review",
+                    "completed"
+                  ]
                 },
                 "dependsOn": {
                   "type": "array",
@@ -4610,7 +5363,13 @@
                   "type": "string"
                 }
               },
-              "required": ["id", "title", "type", "priority", "status"]
+              "required": [
+                "id",
+                "title",
+                "type",
+                "priority",
+                "status"
+              ]
             },
             "description": "Complete desired task list. Existing unfinished tasks may not be omitted; complete them first."
           },
@@ -4625,15 +5384,34 @@
               },
               "type": {
                 "type": "string",
-                "enum": ["feature", "bugfix", "refactor", "docs", "test", "chore"]
+                "enum": [
+                  "feature",
+                  "bugfix",
+                  "refactor",
+                  "docs",
+                  "test",
+                  "chore"
+                ]
               },
               "priority": {
                 "type": "string",
-                "enum": ["critical", "high", "medium", "low"]
+                "enum": [
+                  "critical",
+                  "high",
+                  "medium",
+                  "low"
+                ]
               },
               "status": {
                 "type": "string",
-                "enum": ["pending", "in_progress", "blocked", "failed", "review", "completed"]
+                "enum": [
+                  "pending",
+                  "in_progress",
+                  "blocked",
+                  "failed",
+                  "review",
+                  "completed"
+                ]
               },
               "dependsOn": {
                 "type": "array",
@@ -4654,7 +5432,11 @@
                 }
               }
             },
-            "required": ["title", "type", "priority"],
+            "required": [
+              "title",
+              "type",
+              "priority"
+            ],
             "description": "Single task to append (id/createdAt/updatedAt auto-generated)."
           },
           "id": {
@@ -4663,7 +5445,14 @@
           },
           "status": {
             "type": "string",
-            "enum": ["pending", "in_progress", "blocked", "failed", "review", "completed"],
+            "enum": [
+              "pending",
+              "in_progress",
+              "blocked",
+              "failed",
+              "review",
+              "completed"
+            ],
             "description": "New status for action=status."
           },
           "target": {
@@ -4679,11 +5468,16 @@
           },
           "scope": {
             "type": "string",
-            "enum": ["session", "project"],
+            "enum": [
+              "session",
+              "project"
+            ],
             "description": "Storage scope: \"session\" (default, isolated to this session) or \"project\" (shared across all sessions for this project)."
           }
         },
-        "required": ["action"]
+        "required": [
+          "action"
+        ]
       },
       "icon": "task",
       "category": "Session",
@@ -4698,7 +5492,9 @@
       "permission": "confirm",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["shell.restricted"],
+      "capabilities": [
+        "shell.restricted"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4708,7 +5504,12 @@
           },
           "runner": {
             "type": "string",
-            "enum": ["vitest", "jest", "mocha", "auto"],
+            "enum": [
+              "vitest",
+              "jest",
+              "mocha",
+              "auto"
+            ],
             "description": "Test runner (default: auto-detect)"
           },
           "coverage": {
@@ -4746,7 +5547,10 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["session.todo", "fs.write"],
+      "capabilities": [
+        "session.todo",
+        "fs.write"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4765,7 +5569,11 @@
                 },
                 "status": {
                   "type": "string",
-                  "enum": ["pending", "in_progress", "completed"],
+                  "enum": [
+                    "pending",
+                    "in_progress",
+                    "completed"
+                  ],
                   "description": "Current status. Only one item should be \"in_progress\" at a time."
                 },
                 "activeForm": {
@@ -4781,12 +5589,18 @@
                   "description": "Real Kanban task represented by this UI row."
                 }
               },
-              "required": ["id", "content", "status"]
+              "required": [
+                "id",
+                "content",
+                "status"
+              ]
             },
             "description": "The desired todo list. Supplied rows are replaced/reordered; unfinished omitted rows are retained."
           }
         },
-        "required": ["todos"]
+        "required": [
+          "todos"
+        ]
       },
       "icon": "todo",
       "category": "Session",
@@ -4801,7 +5615,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["tool.meta"],
+      "capabilities": [
+        "tool.meta"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4825,7 +5641,9 @@
             "description": "Most tool calls the script may make. No limit when unset."
           }
         },
-        "required": ["script"]
+        "required": [
+          "script"
+        ]
       },
       "icon": "meta",
       "category": "Meta",
@@ -4840,7 +5658,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["tool.meta"],
+      "capabilities": [
+        "tool.meta"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4857,7 +5677,11 @@
           },
           "permission": {
             "type": "string",
-            "enum": ["auto", "confirm", "deny"],
+            "enum": [
+              "auto",
+              "confirm",
+              "deny"
+            ],
             "description": "Filter by required permission level"
           },
           "mutating": {
@@ -4885,7 +5709,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["tool.mutate.any"],
+      "capabilities": [
+        "tool.mutate.any"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4898,7 +5724,9 @@
             "description": "The input object matching the target tool's inputSchema."
           }
         },
-        "required": ["tool"]
+        "required": [
+          "tool"
+        ]
       },
       "icon": "meta",
       "category": "Meta",
@@ -4913,7 +5741,9 @@
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["fs.read"],
+      "capabilities": [
+        "fs.read"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4971,7 +5801,9 @@
       "permission": "confirm",
       "mutating": false,
       "exposure": "direct",
-      "capabilities": ["shell.restricted"],
+      "capabilities": [
+        "shell.restricted"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -5006,7 +5838,9 @@
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
-      "capabilities": ["fs.write"],
+      "capabilities": [
+        "fs.write"
+      ],
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -5019,14 +5853,19 @@
             "description": "The complete new content of the file."
           }
         },
-        "required": ["path", "content"]
+        "required": [
+          "path",
+          "content"
+        ]
       },
       "icon": "file",
       "category": "Filesystem",
       "usageHint": "RULES FOR CORRECT USAGE:\n- Use `write` primarily for **new files** or when you want to replace the entire content.\n- For any existing file, strongly prefer `edit` (it requires a prior `read` in the same session and is more precise).\n- When overwriting an existing file, the tool reads the current content itself to compute the diff — but still `read` the file first before large rewrites so you know what you are replacing.\n- When overwriting an existing file, the content is normalized to the dominant line-ending style (CRLF/LF) of the existing file; new files are written verbatim.\n- The path is resolved relative to the project root and protected against escaping the workspace.",
       "selection": {
         "doNotUseWhen": "making a precise change to part of an existing file.",
-        "useInstead": ["edit"]
+        "useInstead": [
+          "edit"
+        ]
       },
       "issues": [],
       "color": "#60a5fa"
@@ -5044,8 +5883,8 @@
   "schemaMeasurements": {
     "off": {
       "count": 82,
-      "wireBytes": 103584,
-      "estimatedTokens": 28652
+      "wireBytes": 103280,
+      "estimatedTokens": 28568
     },
     "minimal": {
       "count": 30,
@@ -5059,8 +5898,8 @@
     },
     "medium": {
       "count": 57,
-      "wireBytes": 86843,
-      "estimatedTokens": 24148
+      "wireBytes": 86539,
+      "estimatedTokens": 24064
     },
     "aggressive": {
       "count": 30,

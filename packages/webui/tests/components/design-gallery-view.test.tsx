@@ -203,4 +203,32 @@ describe('DesignGalleryView', () => {
     expect(screen.getByText('photo: warm con=-6 vib=-10')).toBeTruthy();
     expect(screen.getByText(/limewash paper, deep umber ink/)).toBeTruthy();
   });
+
+  it('sends session-stamped design.draw, design.snapshot, and design.kept from the active kit card', () => {
+    render(<DesignGalleryView />);
+    emit('design.list', {
+      kits: [{ ...KIT, id: 'furrow', name: 'Furrow', photo: 'warm con=4 sat=-8' }],
+      activeKit: 'furrow',
+      overrides: {},
+    });
+    fireEvent.click(screen.getByText('Draw'));
+    expect(sends).toContainEqual({
+      type: 'design.draw',
+      payload: { material: 'photo', sessionId: 'tab-1' },
+    });
+    emit('design.draw', {
+      ok: true,
+      seed: 's1',
+      macrostructure: { label: 'Editorial Spine' },
+      markdown: '## Macrostructure: Editorial Spine',
+    });
+    expect(screen.getByText('Drew Editorial Spine (s1)')).toBeTruthy();
+    expect(screen.getByText('## Macrostructure: Editorial Spine')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Snapshot'));
+    expect(sends).toContainEqual({ type: 'design.snapshot', payload: { sessionId: 'tab-1' } });
+
+    fireEvent.click(screen.getByText('Kept'));
+    expect(sends).toContainEqual({ type: 'design.kept', payload: { sessionId: 'tab-1' } });
+  });
 });

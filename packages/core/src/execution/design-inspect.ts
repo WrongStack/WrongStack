@@ -61,6 +61,7 @@ export interface DesignInspectRaw {
   headingProximity?: InspectSample[] | undefined;
   unboundedCount?: number | undefined;
   unbounded?: InspectSample[] | undefined;
+  wordsPerScreen?: number | undefined;
 }
 
 /** Browser evidence the manager collected for the same session. */
@@ -100,6 +101,7 @@ const INSPECT_RULES = [
   'layout.hero-dead-band',
   'layout.heading-proximity',
   'layout.unbounded-ultrawide',
+  'density.words-per-viewport',
   'type.body-size',
   'type.line-length',
   'type.size-count',
@@ -239,6 +241,16 @@ function inspectViewport(
       measured: `${raw.unboundedCount} container(s) > 1640px`,
       threshold: '≤ 1640px max-width',
       samples: raw.unbounded ?? [],
+    });
+  }
+  if (surface === 'page' && !narrow && stage !== 'hero' && (raw.wordsPerScreen ?? 0) > 260) {
+    add({
+      id: 'density.words-per-viewport',
+      severity: 'WARN',
+      message:
+        'Visible copy packs too many words per viewport height — edit prose or break dense walls into scannable rhythm.',
+      measured: `${raw.wordsPerScreen} words / screen`,
+      threshold: '≤ 260 words / screen',
     });
   }
 

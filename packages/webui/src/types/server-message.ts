@@ -132,9 +132,13 @@ import type { WSFleetServerMessage } from './server-message-fleet.js';
 import type { WSMcpServerMessage } from './server-message-mcp.js';
 import type { WSSystemMiscServerMessage } from './server-message-system.js';
 import type {
+  WSDesignDraw,
+  WSDesignKept,
   WSDesignList,
   WSDesignMaterialize,
+  WSDesignPhotos,
   WSDesignSet,
+  WSDesignSnapshot,
   WSDesignState,
   WSDesignSwap,
   WSDesignTune,
@@ -327,13 +331,17 @@ export type WSServerMessage =
   | WSMemorySageForFile
   | WSSkillsList
   | WSSkillContent
+  | WSDesignDraw
+  | WSDesignKept
   | WSDesignList
   | WSDesignUse
   | WSDesignState
   | WSDesignSet
+  | WSDesignSnapshot
   | WSDesignTune
   | WSDesignSwap
   | WSDesignMaterialize
+  | WSDesignPhotos
   | WSDesignVerify
   | WSSkillsInstalled
   | WSSkillsUninstalled

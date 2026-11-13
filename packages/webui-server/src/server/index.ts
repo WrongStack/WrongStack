@@ -131,9 +131,13 @@ export {
 } from './custom-context-modes.js';
 export {
   type DesignContext,
+  handleDesignDraw,
+  handleDesignKept,
   handleDesignList,
   handleDesignMaterialize,
+  handleDesignPhotos,
   handleDesignSet,
+  handleDesignSnapshot,
   handleDesignState,
   handleDesignSwap,
   handleDesignTune,

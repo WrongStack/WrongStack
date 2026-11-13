@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-13T19:46:20.316Z",
+  "generatedAt": "2026-11-13T22:05:34.508Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6331,
-    "testFiles": 5274,
-    "sourceLines": 1307278,
+    "sourceFiles": 6333,
+    "testFiles": 5276,
+    "sourceLines": 1308626,
     "workspaceEdges": 250,
-    "moduleEdges": 18670,
+    "moduleEdges": 18676,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -361,8 +361,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 659,
-      "testFiles": 719,
+      "sourceFiles": 661,
+      "testFiles": 721,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -379,7 +379,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 719
+          "testFiles": 721
         }
       ]
     },
@@ -11396,6 +11396,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/execution/design-eval.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/execution/design-inspect.test.ts",
         "projects": [
           "root-node"
@@ -11439,6 +11445,12 @@
       },
       {
         "file": "packages/core/tests/execution/design-md.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/execution/design-photos.test.ts",
         "projects": [
           "root-node"
         ]
@@ -36431,12 +36443,12 @@
     },
     {
       "file": "packages/tools/src/design-reference.ts",
-      "lines": 854,
+      "lines": 853,
       "relativeImports": 2
     },
     {
       "file": "packages/tools/src/design.ts",
-      "lines": 773,
+      "lines": 780,
       "relativeImports": 1
     },
     {
@@ -36495,9 +36507,19 @@
       "relativeImports": 5
     },
     {
+      "file": "packages/webui/src/components/DesignGalleryView.tsx",
+      "lines": 848,
+      "relativeImports": 0
+    },
+    {
       "file": "packages/webui-server/src/server/completion-handlers.ts",
       "lines": 737,
       "relativeImports": 3
+    },
+    {
+      "file": "packages/webui-server/src/server/design-handlers.ts",
+      "lines": 704,
+      "relativeImports": 1
     },
     {
       "file": "packages/webui-server/src/server/memory-handlers.ts",
@@ -36556,7 +36578,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectDesignStudio.tsx",
-      "lines": 874,
+      "lines": 878,
       "relativeImports": 12
     },
     {
@@ -36673,7 +36695,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectDesignStudio.tsx",
-      "lines": 874,
+      "lines": 878,
       "relativeImports": 12
     },
     {
@@ -36692,11 +36714,6 @@
       "relativeImports": 3
     },
     {
-      "file": "packages/tools/src/design-reference.ts",
-      "lines": 854,
-      "relativeImports": 2
-    },
-    {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
       "lines": 853,
       "relativeImports": 17
@@ -36705,6 +36722,16 @@
       "file": "packages/plugins/src/adversary-mode/evaluator.ts",
       "lines": 853,
       "relativeImports": 2
+    },
+    {
+      "file": "packages/tools/src/design-reference.ts",
+      "lines": 853,
+      "relativeImports": 2
+    },
+    {
+      "file": "packages/webui/src/components/DesignGalleryView.tsx",
+      "lines": 848,
+      "relativeImports": 0
     },
     {
       "file": "apps/desktop-v2/src/ProjectMailbox.tsx",
@@ -36737,14 +36764,14 @@
       "relativeImports": 4
     },
     {
+      "file": "packages/tools/src/design.ts",
+      "lines": 780,
+      "relativeImports": 1
+    },
+    {
       "file": "packages/webui-server/src/server/memory-handlers.ts",
       "lines": 777,
       "relativeImports": 5
-    },
-    {
-      "file": "packages/tools/src/design.ts",
-      "lines": 773,
-      "relativeImports": 1
     },
     {
       "file": "packages/plugins/src/adversary-mode/index.ts",
@@ -36845,11 +36872,6 @@
       "file": "packages/chronicle/src/project-server-client.ts",
       "lines": 719,
       "relativeImports": 5
-    },
-    {
-      "file": "packages/mailbox-mcp/src/adapter.ts",
-      "lines": 719,
-      "relativeImports": 3
     }
   ],
   "testOnlyExports": [

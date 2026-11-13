@@ -1,6 +1,5 @@
 import * as vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
-import { DESIGN_INSPECT_EXTRACTOR } from '../../src/execution/design-inspect-extractor.js';
 import {
   type DesignInspectRaw,
   type InspectRuntimeEvidence,
@@ -8,6 +7,7 @@ import {
   inspectDesign,
   renderInspectMarkdown,
 } from '../../src/execution/design-inspect.js';
+import { DESIGN_INSPECT_EXTRACTOR } from '../../src/execution/design-inspect-extractor.js';
 
 /** One viewport through the public entry point. */
 const inspectViewport = (
@@ -180,6 +180,14 @@ describe('inspectViewport', () => {
         'page',
       ),
     ).toEqual(['WARN layout.unbounded-ultrawide']);
+
+    expect(ids(clean({ wordsPerScreen: 310 }), 'page')).toEqual([
+      'WARN density.words-per-viewport',
+    ]);
+    expect(ids(clean({ wordsPerScreen: 310 }), 'app')).toEqual([]);
+    expect(
+      inspectDesign([{ raw: clean({ wordsPerScreen: 310 }) }], 'page', { stage: 'hero' }).findings,
+    ).toEqual([]);
   });
 });
 
@@ -193,7 +201,7 @@ describe('inspectDesign', () => {
     expect(report.fails).toBe(2);
     expect(report.warns).toBe(0);
     // Every rule id that can fire is listed as checked.
-    expect(report.checked).toHaveLength(21);
+    expect(report.checked).toHaveLength(22);
     expect(report.checked).toEqual(
       expect.arrayContaining([
         'layout.horizontal-overflow',

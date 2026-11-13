@@ -140,6 +140,44 @@ describe('catalogue rules', () => {
       ),
     ).toEqual([]);
   });
+
+  it('flags monospace badge costume on non-mono kits, middle-dot meta chains, and multi-shape SVG scenes', () => {
+    expect(
+      ids('<span className="font-mono uppercase tracking-wider">Enterprise Ready</span>'),
+    ).toEqual(['WARN type.mono-costume']);
+    const monoKit: DesignKitTokens = {
+      light: { ...kit.light, 'font-sans': '"Chivo Mono", monospace' },
+      dark: { ...kit.dark, 'font-sans': '"Chivo Mono", monospace' },
+    };
+    expect(
+      ids('<span className="font-mono uppercase tracking-wider">Platform Two</span>', monoKit),
+    ).toEqual([]);
+    expect(ids('<code className="font-mono uppercase">SHA256</code>')).toEqual([
+      'WARN type.caps-tracking',
+    ]);
+
+    expect(ids('<p>6 min read · Design · Autumn 2026</p>')).toEqual([
+      'WARN type.middot-meta-chain',
+    ]);
+    expect(ids('<p>Glasgow · Live tonight</p>')).toEqual([]);
+
+    const fakeScene = [
+      '<svg viewBox="0 0 400 280">',
+      ...Array.from(
+        { length: 8 },
+        (_, i) => `  <rect x="${i * 20}" y="10" width="16" height="40" />`,
+      ),
+      '</svg>',
+    ].join('\n');
+    expect(ids(fakeScene)).toEqual(['WARN composition.fake-svg-illustration']);
+    // Small icons (<=64) and labeled data charts (<text>) pass cleanly.
+    expect(
+      ids(
+        `<svg viewBox="0 0 24 24">${Array.from({ length: 9 }, () => '<path d="M0 0h1" />').join('')}</svg>`,
+      ),
+    ).toEqual([]);
+    expect(ids(fakeScene.replace('</svg>', '<text x="10" y="20">Q4</text></svg>'))).toEqual([]);
+  });
 });
 
 describe('waivers', () => {
@@ -191,5 +229,29 @@ describe('waivers', () => {
     expect(ids(`${line} {/* design-ignore: */}`)).toHaveLength(2);
     // Nor does a misspelt one.
     expect(ids(`${line} {/* design-ignore: motion.transition-al */}`)).toHaveLength(2);
+  });
+
+  it('escalates rules waived >= 3 times into houseStyleSuggestions', () => {
+    const report = verifyFiles(kit, [
+      {
+        path: 'src/A.tsx',
+        text: [
+          '<div className="transition-all" /> {/* design-ignore: motion.transition-all -- panel A */}',
+          '<div className="transition-all" /> {/* design-ignore: motion.transition-all -- panel B */}',
+        ].join('\n'),
+      },
+      {
+        path: 'src/B.tsx',
+        text: '<div className="transition-all" /> {/* design-ignore: motion.transition-all -- panel C */}',
+      },
+    ]);
+    expect(report.violations).toEqual([]);
+    expect(report.houseStyleSuggestions).toEqual([
+      {
+        id: 'motion.transition-all',
+        count: 3,
+        sampleReasons: ['panel A', 'panel B', 'panel C'],
+      },
+    ]);
   });
 });
