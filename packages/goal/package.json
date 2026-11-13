@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/goal",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "private": true,
   "license": "MIT",
   "description": "WrongStack goal runner: autonomous phase-based workflow — planner, assessor, phase graph/store/orchestrator, checkpoints and project verification. Built on @wrongstack/core.",

@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/webui-protocol",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "private": true,
   "license": "MIT",
   "description": "Wire-protocol contracts shared between the @wrongstack/webui + @wrongstack/vibeui frontends and the @wrongstack/webui-server backend. Browser-safe: depends only on @wrongstack/core types (no ws, no node-only APIs). Extracted in 2026-08 to remove the webui -> webui-server transitive dependency (see docs/archive/reports/modularity-assessment-2026-08-22.md §2.2).",

@@ -1,4 +1,4 @@
-// Changelog — 1.x era (1.6.2 → 1.0.0).
+// Changelog — 1.x era (1.6.3 → 1.0.0).
 // Historical entries mirror CHANGELOG.md release notes. The 1.0.37 entry was
 // written from committed runtime/source evidence (git history and packages), not
 // the root CHANGELOG, which had not been extended when it landed. 1.1.0 absorbs
@@ -13,11 +13,24 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.6.3',
+    date: '2026-11-14',
+    tagline: 'Decisions your agents keep, fourteen new design kits and safer rewinds',
+    latest: true,
+    highlights: [
+      'Agents propose architecture decisions; only a user review makes a revision binding',
+      'Accepted decisions reach later sessions and ACP agents; /adr works in the TUI, WebUI and desktop',
+      'Fourteen new design kits with material, axes, posture and photo treatment',
+      'Designs pick credited, open-licensed Wikimedia Commons photographs',
+      'Session tree rewinds, redo and truncate respect branches',
+      'Plugin reload validates first, waits for running tools and rolls back on failure',
+    ],
+  },
+  {
     version: '1.6.2',
     date: '2026-11-13',
     tagline:
       'A desktop app that doesn’t keep you waiting: booted engines, graceful stops and a quick Chronicle',
-    latest: true,
     highlights: [
       'A conversation opens, resumes or forks on a spare engine the desktop booted for its working directory',
       'Stopping a conversation shuts its engine down gracefully, so every journal gets its session_end',

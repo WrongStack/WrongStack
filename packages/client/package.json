@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/client",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "private": true,
   "license": "MIT",
   "description": "Typed client for a running WrongStack WebUI server: open sessions, send prompts, stream the run and answer tool confirmations over the WebSocket protocol, and read live sessions over the HTTP API. No runtime dependencies; works in Node 22+ and the browser.",

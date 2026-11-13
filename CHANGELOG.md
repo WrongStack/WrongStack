@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.3] — 2026-11-14
+
+Projects keep their decisions. Agents can propose an architecture decision and
+only your review makes it binding, so later sessions and ACP agents work inside
+choices you already made. Design gains fourteen new kits with real material:
+font classes, photo treatment and an open-licensed photo library. Session tree
+rewinds respect branches, and plugin reload validates before it replaces
+anything.
+
+### Added
+
+- **Architecture decisions.** Each project keeps a revisioned registry of
+  decisions. Agents propose one with the `architecture_decisions` tool; you
+  accept, reject or retire the exact revision you read, with a reason, from the
+  ADRs panel in the WebUI workspace dock or with `/adr` in the TUI, WebUI and
+  desktop. Accepted decisions reach agents and ACP sessions as context, can
+  declare compliance checks, and export or import as JSON.
+- **Fourteen new design kits:** almanac, atelier, cobalt, darkroom, dusk,
+  formwork, furrow, kiln, overprint, riso, terrazzo, vellum, wayfind and
+  werkstatt. Every kit now records its material, axes, posture and photo
+  treatment.
+- **An open-licensed photo library for designs.** Design picks Wikimedia
+  Commons photographs (CC0, public domain, CC BY, CC BY-SA) that fit the brief
+  and the kit, and writes the credits into the page.
+- **Design evaluation.** Canonical briefs and a six-axis rubric combine the
+  token check, the rendered layout inspection and a two-viewport visual review
+  into one score.
+
+### Changed
+
+- Design verify and inspect rules cover the new kit material, and the design
+  tool, `/design`, the WebUI gallery and the desktop Design Studio show it.
+- The VibeUI frame reducer is split into one reducer per frame type.
+
+### Fixed
+
+- In a branched session, rewind, redo and truncate cut only the active branch,
+  refuse a cut that would remove other branches before any file is reverted,
+  and keep fork snapshots through the next compaction.
+- Plugin reload checks the new module first, waits for running tool calls and
+  restores the previous plugin if activation fails. Trust hashing includes
+  local dependencies reached through relative imports.
+- The code index client keeps its watch lease through refusals and outages and
+  polls at the interval the daemon asks for.
+- A repository `adversary.md` can only add watched tools and block rules, and
+  agents can no longer rewrite or delete it.
+- Chimera re-review carries the fresh fix diffs instead of stale pre-fix
+  context.
+- The mailbox client waits for a live but slow owner instead of starting a
+  rival server (EBUSY on Windows).
+- WebUI: newer keystrokes abort a stale completion, Git discard restores per
+  path, and leaving a tab no longer aborts the resume of another session.
+- Desktop: a replaced project runtime rewinds its stream, and file tree reads
+  never overwrite newer state.
+
 ## [1.6.2] — 2026-11-13
 
 The desktop app stops making you wait. A conversation opens or resumes on an

@@ -55,6 +55,15 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.6.3
+
+- **Architecture decisions:** agents propose, you review, and accepted
+  decisions follow every later session and ACP agent in the project.
+- **Fourteen new design kits** with font classes, photo treatment and an
+  open-licensed photo library that credits every image.
+- **Safer session trees and plugin reloads:** rewinds respect branches, and a
+  reload validates first and rolls back on failure.
+
 ### What's new in 1.6.2
 
 - **A desktop app that doesn't keep you waiting:** conversations open on an
@@ -512,7 +521,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.6.2**; versions follow semver
+- Release notes: **v1.6.3**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements
