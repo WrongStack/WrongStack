@@ -1935,6 +1935,7 @@
     "heading": "Analytics Dashboard",
     "autoRefresh": "Auto-refresh every 10 s",
     "liveSessions": "Live sessions",
+    "noLiveSessions": "No conversation is running in this project.",
     "agents": "Agents",
     "agentsActive": "{{count}} active",
     "totalEvents": "Total events",

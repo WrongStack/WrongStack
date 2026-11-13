@@ -1868,6 +1868,7 @@
     "heading": "Dashboard Analytics",
     "autoRefresh": "aggiornamento ogni 10 s",
     "liveSessions": "Sessioni live",
+    "noLiveSessions": "Nessuna conversazione è in corso in questo progetto.",
     "agents": "Agenti",
     "agentsActive": "{{count}} attivi",
     "totalEvents": "Eventi totali",

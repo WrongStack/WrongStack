@@ -1868,6 +1868,7 @@
     "heading": "Painel de analytics",
     "autoRefresh": "atualização a cada 10 s",
     "liveSessions": "Sessões ao vivo",
+    "noLiveSessions": "Nenhuma conversa está em andamento neste projeto.",
     "agents": "Agentes",
     "agentsActive": "{{count}} ativos",
     "totalEvents": "Eventos totais",

@@ -8,8 +8,10 @@ import { journalTail } from './journal-tail';
 import { SurfaceFrame, useSurfaceConfirm } from './SurfaceFrame';
 
 /**
- * The project engine's analytics, the WebUI's dashboard: sessions and their agents, tool calls
- * and iterations, the active conversation's tokens and cost, and the engine's event buffer.
+ * The project's live analytics, the WebUI's dashboard: the live sessions, their agents, tool
+ * calls and iterations. The project engine runs no conversation of its own and the desktop
+ * records no interface events, so the dashboard's own-session cost/usage and event sections
+ * (zero by construction) are left out; spend per provider and model is in Chronicle.
  */
 export function ProjectAnalytics({ projectId, http }: { projectId: string; http: EngineHttp }) {
   const { t } = useDesktopText();
@@ -28,7 +30,7 @@ export function ProjectAnalytics({ projectId, http }: { projectId: string; http:
   useEffect(() => attach(), [attach]);
   return (
     <SurfaceFrame host={host} confirm={confirm} fill>
-      <AnalyticsDashboard heading={t('pages.analytics')} uiEvents={false} />
+      <AnalyticsDashboard heading={t('pages.analytics')} uiEvents={false} hostSession={false} />
     </SurfaceFrame>
   );
 }

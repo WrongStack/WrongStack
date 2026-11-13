@@ -1930,6 +1930,7 @@
     "heading": "Analitik Panosu",
     "autoRefresh": "10 sn'de bir otomatik yenile",
     "liveSessions": "Canlı oturumlar",
+    "noLiveSessions": "Bu projede şu anda çalışan bir konuşma yok.",
     "agents": "Aracılar",
     "agentsActive": "{{count}} etkin",
     "totalEvents": "Toplam olay",
