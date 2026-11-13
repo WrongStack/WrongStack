@@ -23,7 +23,7 @@ export function DesignExtractForm({
   onPrepare: (prompt: string) => void | Promise<boolean>;
   disabled?: boolean | undefined;
   target?: ReactNode;
-  variant?: 'welcome' | 'dialog' | 'studio';
+  variant?: 'dialog' | 'studio';
 }) {
   const { t } = useDesktopText();
   const [source, setSource] = useState('https://stripe.com');
@@ -76,14 +76,6 @@ export function DesignExtractForm({
             <p>{t(review ? 'designReview.formBody' : 'chatView.designBody')}</p>
           </div>
         </div>
-      )}
-      {variant === 'welcome' && (
-        <ol className="conversation-welcome-design-stages">
-          <li>{t('chatView.designStageCrawl')}</li>
-          <li>{t('chatView.designStageSubpages')}</li>
-          <li>{t('chatView.designStageSynthesis')}</li>
-          <li>{t('chatView.designStageSpec')}</li>
-        </ol>
       )}
       <fieldset disabled={busy} className="design-flow-fields">
         {target}
@@ -149,12 +141,8 @@ export function DesignExtractForm({
             <option value="extract">{t('chatView.designWorkflowExtract')}</option>
             <option value="materialize-web">{t('chatView.designWorkflowMaterialize')}</option>
             <option value="materialize-rn">{t('designFlow.materializeNative')}</option>
-            {variant !== 'welcome' && (
-              <>
-                <option value="inspect">{t('designReview.inspect')}</option>
-                <option value="compare">{t('designReview.compare')}</option>
-              </>
-            )}
+            <option value="inspect">{t('designReview.inspect')}</option>
+            <option value="compare">{t('designReview.compare')}</option>
           </select>
         </div>
         <div className="conversation-welcome-design-footer">

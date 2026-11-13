@@ -582,8 +582,7 @@ export function EngineWorkspace({
                   model={state.model}
                   connected={state.connected}
                   onStart={(prompt) => void onDraftChange(prompt).then(focusComposer)}
-                  onPrepareDesign={prepareDesignDraft}
-                  designBlocked={draftConflict}
+                  onOpenDesign={() => setDesignOpen(true)}
                 />
               )}
               {state.synced && (!state.inputs.length || showConversation) && (

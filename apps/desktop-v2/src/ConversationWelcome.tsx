@@ -6,10 +6,18 @@
  * the composer — nothing is sent until the user does.
  */
 
-import { Bug, FlaskConical, GitPullRequest, LoaderCircle, Map as MapIcon } from 'lucide-react';
-import { DesignExtractForm } from './DesignExtractForm';
+import {
+  Bug,
+  FileCode2,
+  FlaskConical,
+  GitPullRequest,
+  LoaderCircle,
+  Map as MapIcon,
+} from 'lucide-react';
 import { useDesktopText } from './desktop-i18n';
 import './conversation-welcome.css';
+// The DESIGN.md callout shares Design Studio's look.
+import './project-design-studio.css';
 
 const STARTERS = [
   { id: 'Explain', Icon: MapIcon },
@@ -24,8 +32,7 @@ export function ConversationWelcome({
   model,
   connected,
   onStart,
-  onPrepareDesign,
-  designBlocked,
+  onOpenDesign,
 }: {
   projectRoot?: string | undefined;
   provider: string;
@@ -33,8 +40,12 @@ export function ConversationWelcome({
   connected: boolean;
   /** Puts a starting prompt into the composer. */
   onStart: (prompt: string) => void;
-  onPrepareDesign?: ((prompt: string) => Promise<boolean>) | undefined;
-  designBlocked?: boolean | undefined;
+  /**
+   * Opens the conversation's DESIGN.md reference dialog. The welcome offers it in one line, as
+   * Design Studio does: the whole form here pushed the starting points below the fold and the
+   * welcome's heading out of view.
+   */
+  onOpenDesign?: (() => void) | undefined;
 }) {
   const { t } = useDesktopText();
   const root = projectRoot?.replace(/^\\\\\?\\/, '');
@@ -66,11 +77,18 @@ export function ConversationWelcome({
           )}
         </dl>
       </section>
-      <DesignExtractForm
-        variant="welcome"
-        onPrepare={onPrepareDesign ?? onStart}
-        disabled={designBlocked}
-      />
+      {onOpenDesign && (
+        <div className="design-extract-callout">
+          <FileCode2 size={16} />
+          <div>
+            <strong>{t('chatView.designTitle')}</strong>
+            <span>{t('chatView.designBody')}</span>
+          </div>
+          <button type="button" className="button secondary small" onClick={onOpenDesign}>
+            {t('designFlow.launch')}
+          </button>
+        </div>
+      )}
       <div className="conversation-welcome-starters">
         {STARTERS.map(({ id, Icon }) => (
           <button

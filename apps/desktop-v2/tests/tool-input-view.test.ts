@@ -127,34 +127,31 @@ describe('ConversationWelcome Design DNA synthesis launcher', () => {
     await surfaceI18n.changeLanguage('en');
   });
 
-  it('renders the 4-stage DESIGN.md synthesis card in English and Turkish and builds prompts', async () => {
+  // 2026-11-13: the welcome offers the DESIGN.md flow in one line, as Design Studio does, and
+  // opens the conversation's reference dialog; the whole form there pushed the starting points
+  // below the fold and the welcome's heading out of view.
+  it('offers the DESIGN.md synthesis in one line in English and Turkish and builds prompts', async () => {
+    const welcome = (onOpenDesign?: () => void) =>
+      renderToStaticMarkup(
+        createElement(ConversationWelcome, {
+          projectRoot: '/workspace/demo',
+          provider: 'anthropic',
+          model: 'claude-sonnet',
+          connected: true,
+          onStart: () => undefined,
+          onOpenDesign,
+        }),
+      );
     await surfaceI18n.changeLanguage('en');
-    const enHtml = renderToStaticMarkup(
-      createElement(ConversationWelcome, {
-        projectRoot: '/workspace/demo',
-        provider: 'anthropic',
-        model: 'claude-sonnet',
-        connected: true,
-        onStart: () => undefined,
-      }),
-    );
+    const enHtml = welcome(() => undefined);
     expect(enHtml).toContain('Reference Site → DESIGN.md Synthesis');
-    expect(enHtml).toContain('5-Breakpoint Crawl');
-    expect(enHtml).toContain('10-Section DESIGN.md');
+    expect(enHtml).toContain('design-extract-callout');
+    expect(enHtml).not.toContain('5-Breakpoint Crawl');
+    expect(enHtml).not.toContain('<form');
+    expect(welcome()).not.toContain('design-extract-callout');
 
     await surfaceI18n.changeLanguage('tr');
-    const trHtml = renderToStaticMarkup(
-      createElement(ConversationWelcome, {
-        projectRoot: '/workspace/demo',
-        provider: 'anthropic',
-        model: 'claude-sonnet',
-        connected: true,
-        onStart: () => undefined,
-      }),
-    );
-    expect(trHtml).toContain('Kaynak Site → DESIGN.md Sentezi');
-    expect(trHtml).toContain('5 Kırılımlı Ölçüm');
-    expect(trHtml).toContain('10 Bölümlü DESIGN.md');
+    expect(welcome(() => undefined)).toContain('Kaynak Site → DESIGN.md Sentezi');
 
     const prompt = buildDesktopDesignPrompt({
       source: 'linear.app',
