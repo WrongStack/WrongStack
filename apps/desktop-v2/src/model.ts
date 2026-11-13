@@ -10,7 +10,7 @@ export interface Session {
   title: string;
   kind: 'agent' | 'terminal';
   workdir: string;
-  status: 'starting' | 'running' | 'stopped' | 'error' | 'interrupted';
+  status: 'starting' | 'running' | 'stopping' | 'stopped' | 'error' | 'interrupted';
   createdAt: number;
   updatedAt: number;
   exitCode: number | null;

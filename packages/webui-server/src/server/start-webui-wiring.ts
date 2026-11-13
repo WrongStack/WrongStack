@@ -315,6 +315,13 @@ export function wireStandaloneWebuiRuntime(
     disposeChronicle,
     flushSessionJournalsSync: agentServices.flushSessionJournalsSync,
     closeSessionJournals: agentServices.closeSessionJournals,
+    getRootSession: () =>
+      context.session
+        ? {
+            session: context.session,
+            usage: () => (context.tokenCounter ?? tokenCounter).total(),
+          }
+        : undefined,
     globalConfigPath,
   });
   return { switchProject: (projectRoot) => hostServices.switchProject(projectRoot) };

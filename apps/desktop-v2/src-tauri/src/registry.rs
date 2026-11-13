@@ -207,6 +207,13 @@ impl Registry {
     }
     pub fn recover(&self) -> Result<()> {
         self.db.execute("UPDATE sessions SET status='interrupted',error='Session host stopped. The transcript is kept; reconnect an agent conversation to continue it.' WHERE status IN ('running','starting')", []).map_err(err)?;
+        // A stop the user asked for that the previous host did not see finish is a stop.
+        self.db
+            .execute(
+                "UPDATE sessions SET status='stopped' WHERE status='stopping'",
+                [],
+            )
+            .map_err(err)?;
         Ok(())
     }
     pub fn setting(&self, key: &str) -> Result<Option<String>> {
@@ -1348,12 +1355,18 @@ mod tests {
         db.save_draft(&a.id, "").unwrap();
         assert_eq!(db.draft(&a.id).unwrap(), "");
         assert_eq!(db.draft(&b.id).unwrap(), "second project draft");
+        db.state(&b.id, "stopping", None, None).unwrap();
         db.recover().unwrap();
-        assert!(db
-            .sessions()
-            .unwrap()
+        let after = db.sessions().unwrap();
+        assert!(after
             .iter()
+            .filter(|s| s.id != b.id)
             .all(|s| s.status == "interrupted"));
+        assert_eq!(
+            after.iter().find(|s| s.id == b.id).unwrap().status,
+            "stopped",
+            "a stop the previous host did not see finish is a stop"
+        );
         drop(db);
         std::fs::remove_dir_all(dir).unwrap();
     }

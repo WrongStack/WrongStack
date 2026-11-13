@@ -57,6 +57,10 @@ await startWebUI({
     ? version
     : undefined,
 });
+const { stopGracefully, watchStopRequest } = await import('./stop-request');
+// The host asks for a graceful stop through this file before it ends the process tree.
+const stopFile = process.env['WRONGSTACK_DESKTOP_STOP_FILE'];
+if (stopFile) watchStopRequest(stopFile, stopGracefully);
 if (spareClaimFile && readyFile) {
   const { writeFile } = await import('node:fs/promises');
   const { spareMaxAge, waitForSpareClaim } = await import('./spare-claim');
@@ -65,8 +69,7 @@ if (spareClaimFile && readyFile) {
   // engines' ownerless-empty-session sweep removes; a hard exit would leave a 0-byte transcript
   // that sweep can never prove empty. The host removes its own files for the spare.
   const stopUnclaimed = (): Promise<never> => {
-    if (process.listenerCount('SIGTERM') > 0) process.emit('SIGTERM');
-    else process.exit(0);
+    stopGracefully();
     return new Promise<never>(() => undefined);
   };
   const waited = await waitForSpareClaim(spareClaimFile, {

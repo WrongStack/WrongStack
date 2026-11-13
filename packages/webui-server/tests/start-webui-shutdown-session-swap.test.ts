@@ -119,4 +119,39 @@ describe('setupWebuiShutdown — live session binding across a session swap', ()
     );
     expect(bootSession.close).toHaveBeenCalledTimes(1);
   });
+
+  // 2026-11-13: a resume hands the leader role to the resumed session's own agent while the
+  // root agent keeps the session it booted with. Nothing closed that one, so a desktop engine
+  // left its unused boot session as a 0-byte transcript the empty-session sweep never removes.
+  it('also ends + closes the root agent session a resume left behind', async () => {
+    const boot = { ...makeSession('boot'), id: 'boot' };
+    const resumed = { ...makeSession('resumed'), id: 'resumed' };
+    const usage = { input: 3, output: 4 };
+    setupWebuiShutdown({
+      ...minimalOptions(),
+      getSession: () => resumed,
+      getRootSession: () => ({ session: boot, usage: () => usage }),
+    } as never);
+    const flushSession = registry.shutdowns[0]?.flushSession as () => Promise<void>;
+    await flushSession();
+    expect(boot.append).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'session_end', usage }),
+    );
+    expect(boot.close).toHaveBeenCalledTimes(1);
+    expect(resumed.append).toHaveBeenCalledTimes(1);
+    expect(resumed.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not end the leader twice when the root agent holds it', async () => {
+    const leader = { ...makeSession('leader'), id: 'same' };
+    setupWebuiShutdown({
+      ...minimalOptions(),
+      getSession: () => leader,
+      getRootSession: () => ({ session: leader, usage: () => ({ input: 0, output: 0 }) }),
+    } as never);
+    const flushSession = registry.shutdowns[0]?.flushSession as () => Promise<void>;
+    await flushSession();
+    expect(leader.append).toHaveBeenCalledTimes(1);
+    expect(leader.close).toHaveBeenCalledTimes(1);
+  });
 });

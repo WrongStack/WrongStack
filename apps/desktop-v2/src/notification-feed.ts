@@ -17,7 +17,10 @@ export function sessionTransition(
   if (before === undefined || before === after) return null;
   if (after === 'error') return { key: 'failed', variant: 'error' };
   if (after === 'interrupted') return { key: 'interrupted', variant: 'warn' };
-  if (after === 'stopped' && (before === 'running' || before === 'starting'))
+  if (
+    after === 'stopped' &&
+    (before === 'running' || before === 'starting' || before === 'stopping')
+  )
     return { key: 'stopped', variant: 'success' };
   return null;
 }

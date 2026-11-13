@@ -67,6 +67,9 @@ const SPARE_CLAIM_MARGIN: Duration = Duration::from_secs(60);
 const SPARE_REFILL_DELAY: Duration = Duration::from_secs(30);
 /// How long a spare asked to stop may take for its graceful shutdown before it is stopped hard.
 const SPARE_STOP_GRACE: Duration = Duration::from_secs(30);
+/// How long an engine asked to stop may take for its graceful shutdown before it is stopped
+/// hard. Measured graceful stops of a resumed conversation took 4–6 s.
+const ENGINE_STOP_GRACE: Duration = Duration::from_secs(12);
 
 /// The claim a spare engine waits for: a new conversation, or a recorded one to resume.
 fn spare_claim(history: Option<(&str, bool)>) -> Value {
@@ -187,7 +190,7 @@ impl HostState {
                     .map_err(err)?;
                 Ok(Value::Null)
             }
-            "session.kill" => self.kill(field(p, "id")?),
+            "session.kill" => self.stop(field(p, "id")?),
             "session.remove" => self.remove(field(p, "id")?),
             "engine.send" => {
                 let live = self.live.lock().map_err(err)?;
@@ -655,6 +658,9 @@ impl HostState {
         let token = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
         let mut command = self.engine_command()?;
         let (claim_path, ready_path) = self.spare_files(runtime_id);
+        let stop_path = self.stop_file(runtime_id);
+        let _ = std::fs::remove_file(&stop_path);
+        command.env("WRONGSTACK_DESKTOP_STOP_FILE", &stop_path);
         let claimed = Arc::new(Mutex::new((!spare).then(std::time::Instant::now)));
         if spare {
             let _ = std::fs::remove_file(&ready_path);
@@ -876,8 +882,57 @@ impl HostState {
                     250
                 }));
             }
+            // A stop request the engine never read must not stop the next engine on this id.
+            let _ = std::fs::remove_file(host.stop_file(&id));
         });
         Ok(claimed)
+    }
+    /// The file an engine watches for a graceful stop request (`WRONGSTACK_DESKTOP_STOP_FILE`).
+    fn stop_file(&self, runtime_id: &str) -> PathBuf {
+        self.dir
+            .join("transcripts")
+            .join(format!("{runtime_id}.stop"))
+    }
+    /// Stops a session. An engine is asked first, through its stop file, so it runs its
+    /// graceful shutdown: every conversation journal it holds gets its `session_end` (a killed
+    /// one read as a crash on the next launch) and an unused boot session is closed as a
+    /// strictly empty journal the empty-session sweep can remove. One still running after
+    /// [`ENGINE_STOP_GRACE`] is stopped hard; terminals are stopped hard at once.
+    fn stop(self: &Arc<Self>, id: &str) -> Result<Value> {
+        let engine_pid = {
+            let live = self.live.lock().map_err(err)?;
+            let session = live.get(id).ok_or("Session is not running")?;
+            session.agent_pid.filter(|_| session.master.is_none())
+        };
+        let Some(pid) = engine_pid else {
+            return self.kill(id);
+        };
+        if std::fs::write(self.stop_file(id), b"").is_err() {
+            return self.kill(id);
+        }
+        // The shutdown takes seconds: the conversation shows as stopping (no longer live, not
+        // yet offered for reconnect) until its engine exits.
+        let _ = self.publish_runtime_state(id, "stopping", None, None);
+        let host = Arc::clone(self);
+        let id = id.to_owned();
+        thread::spawn(move || {
+            let deadline = std::time::Instant::now() + ENGINE_STOP_GRACE;
+            // Only this engine: a reconnect may start another one on the same id meanwhile.
+            let running = || {
+                host.live
+                    .lock()
+                    .map(|live| live.get(&id).and_then(|s| s.agent_pid) == Some(pid))
+                    .unwrap_or(false)
+            };
+            while running() {
+                if std::time::Instant::now() > deadline {
+                    let _ = host.kill(&id);
+                    return;
+                }
+                thread::sleep(Duration::from_millis(100));
+            }
+        });
+        Ok(Value::Null)
     }
     fn read(&self, id: &str, offset: Option<u64>) -> Result<Value> {
         if !self
@@ -910,12 +965,13 @@ impl HostState {
     }
     /// Forgets a session: a running one is stopped first, then its row, drafts and desktop
     /// transcript go. The WrongStack conversation an agent recorded stays in the project history.
-    fn remove(&self, id: &str) -> Result<Value> {
+    fn remove(self: &Arc<Self>, id: &str) -> Result<Value> {
         if self.live.lock().map_err(err)?.contains_key(id) {
-            self.kill(id)?;
+            self.stop(id)?;
             // The exit watcher drops the live entry and records the exit; waiting for it means
-            // nothing writes to the transcript after it is deleted.
-            let deadline = std::time::Instant::now() + Duration::from_secs(10);
+            // nothing writes to the transcript after it is deleted. A graceful stop may take up
+            // to its grace before the hard stop.
+            let deadline = std::time::Instant::now() + ENGINE_STOP_GRACE + Duration::from_secs(10);
             while self.live.lock().map_err(err)?.contains_key(id) {
                 if std::time::Instant::now() > deadline {
                     return Err("The session did not stop; try again".into());
@@ -1111,6 +1167,34 @@ mod history_tests {
         assert_eq!(spare_claim(None), json!({}));
         drop(host);
         // Best effort: the stop request's grace thread still holds the host (and its registry).
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn stopping_an_engine_asks_it_through_its_stop_file_first() {
+        let dir = std::env::temp_dir().join(format!("desktop-stop-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(dir.join("transcripts")).unwrap();
+        let host = HostState::new(&dir).unwrap();
+        assert!(host.stop("absent").is_err(), "nothing runs under that id");
+        host.live.lock().unwrap().insert(
+            "engine".into(),
+            LiveSession {
+                master: None,
+                writer: None,
+                killer: None,
+                // No such process: the hard-stop fallback must never be reached in this test.
+                agent_pid: Some(u32::MAX),
+                engine: None,
+            },
+        );
+        host.stop("engine").unwrap();
+        assert!(
+            host.stop_file("engine").exists(),
+            "the engine is asked to stop gracefully before any hard stop"
+        );
+        // The engine "exits": the grace thread sees it gone and does nothing more.
+        host.live.lock().unwrap().remove("engine");
+        drop(host);
         let _ = std::fs::remove_dir_all(dir);
     }
 

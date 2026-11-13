@@ -118,6 +118,12 @@ describe('what reaches the history', () => {
       variant: 'success',
     });
     expect(sessionTransition('error', 'stopped')).toBeNull();
+    // A graceful stop passes through "stopping"; the finished stop is told once, at the end.
+    expect(sessionTransition('running', 'stopping')).toBeNull();
+    expect(sessionTransition('stopping', 'stopped')).toEqual({
+      key: 'stopped',
+      variant: 'success',
+    });
     expect(sessionTransition('stopped', 'running')).toBeNull();
   });
 

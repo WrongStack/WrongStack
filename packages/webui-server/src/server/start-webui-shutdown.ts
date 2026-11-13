@@ -1,6 +1,6 @@
 import type * as http from 'node:http';
 import * as path from 'node:path';
-import type { Logger, MemoryPort } from '@wrongstack/contracts/types';
+import type { Logger, MemoryPort, Usage } from '@wrongstack/contracts/types';
 import type { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import type { DefaultSessionStore } from '@wrongstack/core/storage';
 import { addFatalSalvageHook, toErrorMessage } from '@wrongstack/core/utils';
@@ -71,6 +71,18 @@ export function setupWebuiShutdown(options: {
    * what a crash looks like — the next launch offered them all for recovery.
    */
   closeSessionJournals?: (() => Promise<void>) | undefined;
+  /**
+   * The root agent's own journal and its usage. A resume hands the leader role to another
+   * session's agent while the root keeps the session it booted with; neither the leader's
+   * close nor `closeSessionJournals` reaches it, so it stayed open to the end: no
+   * `session_end` (it read as a crash) and, when unused, a 0-byte transcript the empty-session
+   * sweep can never prove empty.
+   */
+  getRootSession?:
+    | (() =>
+        | { session: Pick<LeaderSession, 'id' | 'append' | 'close'>; usage: () => Usage }
+        | undefined)
+    | undefined;
   globalConfigPath: string;
 }): () => void {
   let unregister = (): void => {};
@@ -97,6 +109,14 @@ export function setupWebuiShutdown(options: {
       // Background tabs first: they are only reachable through the registry,
       // and the leader's close below is what ends the host.
       await options.closeSessionJournals?.().catch(() => undefined);
+      const root = options.getRootSession?.();
+      if (root && root.session.id !== options.getSession().id) {
+        // A writer another closer already ended ignores the append, and close is idempotent.
+        await root.session
+          .append({ type: 'session_end', ts: new Date().toISOString(), usage: root.usage() })
+          .catch(() => undefined);
+        await root.session.close().catch(() => undefined);
+      }
       await options.getSession().append({
         type: 'session_end',
         ts: new Date().toISOString(),
