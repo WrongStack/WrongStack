@@ -227,6 +227,92 @@ export class ChronicleSqliteQueryEngine {
   }
 
   /**
+   * One page of the unfiltered view (only `from`/`to`/`order`/`limit`/`cursor` set), read
+   * through the `occurred_at` index instead of decoding the whole table.
+   *
+   * {@link query} streams every matching event to build `total` and the summary. For the
+   * unfiltered view that is the entire journal: about 3 s per call on a 160 MB project, which
+   * every desktop Chronicle visit waited on. Here every filter is exact in SQL, `total` is a
+   * count, and the summary is left empty for the caller to fill (the project server serves it
+   * from the metrics store). The page order is still {@link compareEvents}: candidates come in
+   * `occurred_at` order, its first key, and every row tied with the last one needed is read,
+   * because ties are ordered by fields inside the payload.
+   */
+  defaultViewPage(query: ChronicleQuery = {}): ChronicleQueryResult {
+    const ascending = (query.order ?? 'desc') === 'asc';
+    const limit = Math.max(1, Math.min(query.limit ?? 100, MAX_LIMIT));
+    const cursor = decodeCursor(query.cursor);
+    const pushed = pushDown({
+      ...(query.from ? { from: query.from } : {}),
+      ...(query.to ? { to: query.to } : {}),
+    });
+    const total = (
+      this.db
+        .prepare(`SELECT COUNT(*) AS n FROM events WHERE ${pushed.clause}`)
+        .get(...pushed.params) as { n: number }
+    ).n;
+    const clauses = [pushed.clause];
+    const params = [...pushed.params];
+    if (cursor) {
+      clauses.push(ascending ? 'occurred_at >= ?' : 'occurred_at <= ?');
+      params.push(cursor.occurredAt);
+    }
+    const direction = ascending ? 'ASC' : 'DESC';
+    const statement = this.db.prepare(
+      `SELECT occurred_at AS at, payload FROM events WHERE ${clauses.join(' AND ')}` +
+        ` ORDER BY occurred_at ${direction} LIMIT ? OFFSET ?`,
+    );
+    const sign = ascending ? 1 : -1;
+    const batch = Math.max(limit + 1, 200);
+    const candidates: ChronicleEvent[] = [];
+    let boundary: string | undefined;
+    let invalidLines = 0;
+    let scannedEvents = 0;
+    let offset = 0;
+    read: for (;;) {
+      const rows = statement.all(...params, batch, offset) as Array<{
+        at: string;
+        payload: StoredChroniclePayload;
+      }>;
+      offset += rows.length;
+      for (const row of rows) {
+        // Past the rows tied with the last candidate needed: nothing further can enter.
+        if (boundary !== undefined && row.at !== boundary) break read;
+        let event: ChronicleEvent;
+        try {
+          event = JSON.parse(decodeChroniclePayload(row.payload)) as ChronicleEvent;
+        } catch {
+          invalidLines++;
+          continue;
+        }
+        if (!isChronicleEvent(event)) {
+          invalidLines++;
+          continue;
+        }
+        scannedEvents++;
+        if (cursor && compareEventToKey(event, cursor) * sign <= 0) continue;
+        candidates.push(event);
+        // One more than the page shows whether a next page exists.
+        if (candidates.length === limit + 1) boundary = row.at;
+      }
+      if (rows.length < batch) break;
+    }
+    candidates.sort((left, right) => compareEvents(left, right) * sign);
+    const page = candidates.slice(0, limit);
+    this.diagnostics.invalidLines = invalidLines;
+    const last = page.at(-1);
+    return {
+      events: page,
+      total,
+      scannedEvents,
+      sourceFiles: this.diagnostics.sourceFiles,
+      invalidLines,
+      summary: finalizeSummary(createSummaryAccumulator()),
+      ...(candidates.length > limit && last ? { nextCursor: encodeCursor(orderKey(last)) } : {}),
+    };
+  }
+
+  /**
    * Value counts per facet field.
    *
    * Not a SQL `GROUP BY`: `facetValue()` reads fields that live inside the

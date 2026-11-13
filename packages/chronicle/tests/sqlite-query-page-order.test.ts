@@ -101,6 +101,38 @@ describe('SQLite query page order', () => {
     },
   );
 
+  // 2026-11-13: the project server answers the unfiltered view from `defaultViewPage`, which
+  // reads the `occurred_at` index instead of decoding the whole journal (~3 s per desktop
+  // Chronicle visit on a 160 MB project). It must page exactly like `query`, including rows
+  // tied on `occurredAt` that the page order separates by `persistedAt`.
+  const TIED: Array<[string, ChronicleEventInput]> = [
+    ...LATE_PERSISTED,
+    ['2026-03-02T12:10:00.000Z', input('T1', '2026-03-02T09:00:00.000Z')],
+    ['2026-03-02T12:11:00.000Z', input('T2', '2026-03-02T09:00:00.000Z')],
+    ['2026-03-02T12:12:00.000Z', input('T3', '2026-03-02T09:00:00.000Z')],
+  ];
+  it.each([
+    ['desc', 1],
+    ['desc', 2],
+    ['desc', 4],
+    ['asc', 2],
+    ['asc', 3],
+  ] as const)(
+    'the unfiltered page walks every page like query (order %s, limit %i)',
+    async (order, limit) => {
+      const { sqlite } = await engines(TIED);
+      const fast = { query: async (q: ChronicleQuery) => sqlite.defaultViewPage(q) };
+      expect(await walk(fast, { order, limit })).toEqual(await walk(sqlite, { order, limit }));
+      const window = {
+        order,
+        limit,
+        from: '2026-03-02T08:00:00.000Z',
+        to: '2026-03-02T12:00:00.000Z',
+      };
+      expect(await walk(fast, window)).toEqual(await walk(sqlite, window));
+    },
+  );
+
   it('restarts at the first page for a cursor it did not issue', async () => {
     const { sqlite } = await engines(LATE_PERSISTED);
     const first = await sqlite.query({ limit: 2 });

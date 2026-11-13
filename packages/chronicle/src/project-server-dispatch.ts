@@ -51,7 +51,13 @@ export async function dispatchChronicle<O extends ChronicleServerOperationName>(
     }
     case 'query': {
       const args = rawArgs as ChronicleServerOperations['query']['args'];
-      const result = await (await host.queryEngine()).query(args.query);
+      const engine = await host.queryEngine();
+      // The unfiltered view reads only its page from SQLite; its summary comes from the
+      // metrics store below, so streaming the whole journal for one would be thrown away.
+      const result =
+        isDefaultView(args.query) && 'defaultViewPage' in engine
+          ? engine.defaultViewPage(args.query)
+          : await engine.query(args.query);
       // The default/unfiltered view (only from/to/limit/order/cursor set) is
       // servable from the incrementally-refreshed metrics store instead of
       // the summary the query engine just computed by scanning matched
