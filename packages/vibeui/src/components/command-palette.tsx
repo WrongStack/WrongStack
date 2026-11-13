@@ -2,16 +2,11 @@
 
 import { ArrowUpRight, Command, MessageSquare } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
+import type { WorkspaceCommand } from '../lib/workspace-commands';
 import { Modal } from './dialogs';
 import { SearchHighlight } from './search-highlight';
 
-export interface WorkspaceCommand {
-  id: string;
-  title: string;
-  detail: string;
-  disabled?: boolean;
-  run: () => void;
-}
+export type { WorkspaceCommand };
 export function CommandPalette({
   commands,
   onClose,

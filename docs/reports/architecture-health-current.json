@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-13T08:58:24.182Z",
+  "generatedAt": "2026-11-13T13:32:33.396Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6286,
-    "testFiles": 5244,
-    "sourceLines": 1299909,
+    "sourceFiles": 6326,
+    "testFiles": 5269,
+    "sourceLines": 1304288,
     "workspaceEdges": 250,
-    "moduleEdges": 18536,
+    "moduleEdges": 18656,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 337,
+    "testsWithoutTypecheck": 341,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1054
+    "testOnlyExports": 1062
   },
   "errors": [],
   "packageCycles": [],
@@ -336,7 +336,7 @@
       "name": "@wrongstack/coordination",
       "dir": "packages/coordination",
       "sourceFiles": 192,
-      "testFiles": 190,
+      "testFiles": 191,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -354,15 +354,15 @@
         {
           "path": "packages/coordination/tsconfig.test.json",
           "error": null,
-          "testFiles": 190
+          "testFiles": 191
         }
       ]
     },
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 649,
-      "testFiles": 710,
+      "sourceFiles": 656,
+      "testFiles": 716,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -379,15 +379,15 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 710
+          "testFiles": 716
         }
       ]
     },
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 517,
-      "testFiles": 337,
+      "sourceFiles": 518,
+      "testFiles": 341,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -408,8 +408,8 @@
     {
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
-      "sourceFiles": 62,
-      "testFiles": 4,
+      "sourceFiles": 63,
+      "testFiles": 6,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -430,7 +430,7 @@
         {
           "path": "packages/fleet/tsconfig.test.json",
           "error": null,
-          "testFiles": 4
+          "testFiles": 6
         }
       ]
     },
@@ -819,8 +819,8 @@
     {
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
-      "sourceFiles": 125,
-      "testFiles": 50,
+      "sourceFiles": 126,
+      "testFiles": 51,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -854,7 +854,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 50
+          "testFiles": 51
         }
       ]
     },
@@ -1008,8 +1008,8 @@
     {
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
-      "sourceFiles": 401,
-      "testFiles": 390,
+      "sourceFiles": 402,
+      "testFiles": 391,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -1028,7 +1028,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 390
+          "testFiles": 391
         }
       ]
     },
@@ -1096,8 +1096,8 @@
     {
       "name": "@wrongstack/vibeui",
       "dir": "packages/vibeui",
-      "sourceFiles": 73,
-      "testFiles": 27,
+      "sourceFiles": 99,
+      "testFiles": 32,
       "workspaceDependencies": [
         "@wrongstack/webui-protocol"
       ],
@@ -1110,15 +1110,15 @@
         {
           "path": "packages/vibeui/tsconfig.test.json",
           "error": null,
-          "testFiles": 27
+          "testFiles": 32
         }
       ]
     },
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 791,
-      "testFiles": 524,
+      "sourceFiles": 794,
+      "testFiles": 527,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1144,7 +1144,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 524
+          "testFiles": 527
         }
       ]
     },
@@ -1175,7 +1175,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 352,
-      "testFiles": 396,
+      "testFiles": 398,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1210,7 +1210,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 396
+          "testFiles": 398
         }
       ]
     },
@@ -1958,7 +1958,19 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/engine-spare-claim.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/engine-state.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/engine-stop-request.test.ts",
         "projects": [
           "root-node"
         ]
@@ -2073,6 +2085,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/file-tree-rows.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/file-workspace-filter-race.test.ts",
         "projects": [
           "root-node"
         ]
@@ -2919,6 +2937,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/run-sounds.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/runtime-warmup.test.ts",
         "projects": [
           "root-node"
         ]
@@ -9710,6 +9734,12 @@
         ]
       },
       {
+        "file": "packages/coordination/tests/mailbox-project-server-client-live-owner-spawn.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/coordination/tests/mailbox-project-server-client-respawn.test.ts",
         "projects": [
           "root-node"
@@ -10587,6 +10617,18 @@
       },
       {
         "file": "packages/core/tests/core/agent.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/core/architecture-decision-checks.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/core/architecture-decision-request.test.ts",
         "projects": [
           "root-node"
         ]
@@ -12920,6 +12962,24 @@
         ]
       },
       {
+        "file": "packages/core/tests/storage/architecture-decision-compliance.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/architecture-decision-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/architecture-decision-transfer.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/storage/attachment-store.test.ts",
         "projects": [
           "root-node"
@@ -13563,6 +13623,12 @@
       },
       {
         "file": "packages/core/tests/storage/session-transcript-archive.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/session-tree-replay-gc.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14355,6 +14421,18 @@
       },
       {
         "file": "packages/core/tests/wiring/proxy-rewrite.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/fleet/tests/architecture-decision-acp.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/fleet/tests/architecture-decision-context.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19268,6 +19346,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/adr-command.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/automation-cancel-handoff.test.ts",
         "projects": [
           "root-node"
@@ -21831,6 +21915,12 @@
       },
       {
         "file": "packages/tools/tests/acquire-lock-steal-race.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/architecture-decisions.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26990,6 +27080,12 @@
         ]
       },
       {
+        "file": "packages/vibeui/tests/frame-reducers.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/vibeui/tests/mascot.test.ts",
         "projects": [
           "root-node"
@@ -26997,6 +27093,12 @@
       },
       {
         "file": "packages/vibeui/tests/memory-view.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/vibeui/tests/reduce-frame-characterization.test.ts",
         "projects": [
           "root-node"
         ]
@@ -27075,6 +27177,24 @@
       },
       {
         "file": "packages/vibeui/tests/working-activity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/vibeui/tests/workspace-commands.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/vibeui/tests/workspace-derived.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/vibeui/tests/workspace-hooks.test.ts",
         "projects": [
           "root-node"
         ]
@@ -27183,6 +27303,12 @@
       },
       {
         "file": "packages/webui-server/tests/acp-runtime-settings.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/adr-command-route.test.ts",
         "projects": [
           "root-node"
         ]
@@ -28988,6 +29114,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/session-resume-orphan-cleanup.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/session-route-correlation.test.ts",
         "projects": [
           "root-node"
@@ -29691,6 +29823,12 @@
       },
       {
         "file": "packages/webui/tests/components/analytics-dashboard-loading.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/architecture-decisions-panel.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -31484,6 +31622,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/hooks/useArchitectureDecisionInbox.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/hooks/useViewport.test.ts",
         "projects": [
           "webui-jsdom"
@@ -31977,6 +32121,12 @@
       },
       {
         "file": "packages/webui/tests/lib/plugin-enablement.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/lib/portable-command-rpc.test.ts",
         "projects": [
           "webui-jsdom"
         ]
@@ -33530,7 +33680,21 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/engine-spare-claim.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/engine-state.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/engine-stop-request.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -33664,6 +33828,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/file-tree-rows.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/file-workspace-filter-race.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -34651,6 +34822,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/run-sounds.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/runtime-warmup.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -36092,6 +36270,11 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/coordination/src/mailbox-project-server-client.ts",
+      "lines": 725,
+      "relativeImports": 3
+    },
+    {
       "file": "packages/coordination/src/multi-agent-coordinator.ts",
       "lines": 726,
       "relativeImports": 13
@@ -36133,7 +36316,7 @@
     },
     {
       "file": "packages/core/src/storage/file-session-writer.ts",
-      "lines": 704,
+      "lines": 705,
       "relativeImports": 12
     },
     {
@@ -36247,16 +36430,6 @@
       "relativeImports": 12
     },
     {
-      "file": "packages/vibeui/src/components/workspace.tsx",
-      "lines": 1216,
-      "relativeImports": 35
-    },
-    {
-      "file": "packages/vibeui/src/lib/session.ts",
-      "lines": 822,
-      "relativeImports": 5
-    },
-    {
       "file": "packages/vibeui/src/lib/use-session.ts",
       "lines": 762,
       "relativeImports": 8
@@ -36303,7 +36476,7 @@
     },
     {
       "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 863,
+      "lines": 871,
       "relativeImports": 59
     },
     {
@@ -36399,11 +36572,6 @@
       "relativeImports": 2
     },
     {
-      "file": "packages/vibeui/src/components/workspace.tsx",
-      "lines": 1216,
-      "relativeImports": 35
-    },
-    {
       "file": "packages/core/src/execution/design-md.ts",
       "lines": 1162,
       "relativeImports": 2
@@ -36454,6 +36622,11 @@
       "relativeImports": 10
     },
     {
+      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
+      "lines": 871,
+      "relativeImports": 59
+    },
+    {
       "file": "packages/builtin-plugins/src/review-followup-briefing.ts",
       "lines": 869,
       "relativeImports": 5
@@ -36462,11 +36635,6 @@
       "file": "packages/runtime/src/chimera/execution-chimera-review.ts",
       "lines": 869,
       "relativeImports": 3
-    },
-    {
-      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 863,
-      "relativeImports": 59
     },
     {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
@@ -36497,11 +36665,6 @@
       "file": "packages/tools/src/design-reference.ts",
       "lines": 825,
       "relativeImports": 2
-    },
-    {
-      "file": "packages/vibeui/src/lib/session.ts",
-      "lines": 822,
-      "relativeImports": 5
     },
     {
       "file": "apps/desktop-v2/src/RosterRuntimeEditor.tsx",
@@ -36594,6 +36757,11 @@
       "relativeImports": 8
     },
     {
+      "file": "packages/coordination/src/mailbox-project-server-client.ts",
+      "lines": 725,
+      "relativeImports": 3
+    },
+    {
       "file": "packages/coordination/src/agent-monitor.ts",
       "lines": 724,
       "relativeImports": 1
@@ -36627,6 +36795,11 @@
       "file": "packages/project-surfaces/src/sage/useMemoryManagerState.ts",
       "lines": 718,
       "relativeImports": 14
+    },
+    {
+      "file": "packages/plugins/src/audit/index.ts",
+      "lines": 716,
+      "relativeImports": 0
     }
   ],
   "testOnlyExports": [
@@ -37979,6 +38152,14 @@
       "name": "DEFAULT_HIDDEN_ITEMS"
     },
     {
+      "file": "packages/core/src/storage/architecture-decision-context.ts",
+      "name": "rememberWarnedRoot"
+    },
+    {
+      "file": "packages/core/src/storage/architecture-decision-context.ts",
+      "name": "WARNED_PROJECT_ROOTS_CAP"
+    },
+    {
       "file": "packages/core/src/storage/cloud-config-sync/sanitize.ts",
       "name": "inboundContractFor"
     },
@@ -38321,10 +38502,6 @@
     {
       "file": "packages/hq-next/src/hq/domain/status-tone.ts",
       "name": "commandLifecycleTone"
-    },
-    {
-      "file": "packages/hq-next/src/hq/domain/transcript-store.ts",
-      "name": "entryKey"
     },
     {
       "file": "packages/hq-next/src/hq/domain/use-pending-approvals.ts",
@@ -40171,6 +40348,10 @@
       "name": "MASCOT_WIDTH"
     },
     {
+      "file": "packages/vibeui/src/lib/reducers/index.ts",
+      "name": "mergeFrameReducers"
+    },
+    {
       "file": "packages/vibeui/src/lib/session-branch-model.ts",
       "name": "quoteVibeTreeArg"
     },
@@ -40183,8 +40364,32 @@
       "name": "TOKEN_KEY"
     },
     {
+      "file": "packages/vibeui/src/lib/use-appearance.ts",
+      "name": "PALETTE_KEY"
+    },
+    {
+      "file": "packages/vibeui/src/lib/use-appearance.ts",
+      "name": "readAppearance"
+    },
+    {
+      "file": "packages/vibeui/src/lib/use-appearance.ts",
+      "name": "THEME_KEY"
+    },
+    {
+      "file": "packages/vibeui/src/lib/use-model-choice.ts",
+      "name": "modelChoiceAction"
+    },
+    {
       "file": "packages/vibeui/src/lib/use-panel-requests.ts",
       "name": "acceptsPanelReply"
+    },
+    {
+      "file": "packages/vibeui/src/lib/use-sticky-scroll.ts",
+      "name": "isNearBottom"
+    },
+    {
+      "file": "packages/vibeui/src/lib/workspace-shortcuts.ts",
+      "name": "shortcutFor"
     },
     {
       "file": "packages/webui-server/src/server/app-update-check.ts",

@@ -758,6 +758,10 @@
     "packages/core/src/statusline/index.ts": [
       "DEFAULT_HIDDEN_ITEMS"
     ],
+    "packages/core/src/storage/architecture-decision-context.ts": [
+      "rememberWarnedRoot",
+      "WARNED_PROJECT_ROOTS_CAP"
+    ],
     "packages/core/src/storage/cloud-config-sync/sanitize.ts": [
       "inboundContractFor"
     ],
@@ -925,9 +929,6 @@
     ],
     "packages/hq-next/src/hq/domain/status-tone.ts": [
       "commandLifecycleTone"
-    ],
-    "packages/hq-next/src/hq/domain/transcript-store.ts": [
-      "entryKey"
     ],
     "packages/hq-next/src/hq/domain/use-pending-approvals.ts": [
       "derivePendingApprovals"
@@ -1950,6 +1951,9 @@
       "MASCOT_HEIGHT",
       "MASCOT_WIDTH"
     ],
+    "packages/vibeui/src/lib/reducers/index.ts": [
+      "mergeFrameReducers"
+    ],
     "packages/vibeui/src/lib/session-branch-model.ts": [
       "quoteVibeTreeArg"
     ],
@@ -1957,8 +1961,22 @@
       "STABLE_CONNECTION_MS",
       "TOKEN_KEY"
     ],
+    "packages/vibeui/src/lib/use-appearance.ts": [
+      "PALETTE_KEY",
+      "readAppearance",
+      "THEME_KEY"
+    ],
+    "packages/vibeui/src/lib/use-model-choice.ts": [
+      "modelChoiceAction"
+    ],
     "packages/vibeui/src/lib/use-panel-requests.ts": [
       "acceptsPanelReply"
+    ],
+    "packages/vibeui/src/lib/use-sticky-scroll.ts": [
+      "isNearBottom"
+    ],
+    "packages/vibeui/src/lib/workspace-shortcuts.ts": [
+      "shortcutFor"
     ],
     "packages/webui-server/src/server/app-update-check.ts": [
       "isNewerVersion",
