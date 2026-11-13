@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Fashion, jewelry, hospitality, real estate, premium brands and portfolios.
 version: 1.0.0
+paper: light 97 90
+display: high-contrast-serif Didot
+accent: chromatic-yellow 85
+posture: restrained
+photo: natural
 ---
 
 # Luxury Serif

@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Portfolios, agencies, museums, design-led brands, documentation that values rigor and clarity.
 version: 1.0.0
+paper: light 99 0
+display: roman-serif Helvetica Now
+accent: warm 27
+posture: committed
+photo: mono con=10
 ---
 
 # Swiss Grid

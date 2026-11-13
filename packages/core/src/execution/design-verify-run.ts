@@ -48,15 +48,13 @@ async function walkUiFiles(root: string, max = 200): Promise<string[]> {
 }
 
 /**
- * Resolve + read UI files (explicit list, or a bounded walk) and verify them
- * against a kit's tokens. Shared by the `design` tool and the WebUI handler so
- * the file-collection rules stay identical.
+ * Resolve + read project UI files (explicit list, or a bounded walk).
+ * Shared by `runDesignVerify` and `design-keep` (`snapshot` / `kept`).
  */
-export async function runDesignVerify(
+export async function collectProjectUiFiles(
   projectRoot: string,
-  tokens: DesignKitTokens,
   explicitFiles?: string[] | undefined,
-): Promise<DesignVerifyReport> {
+): Promise<{ path: string; text: string }[]> {
   const { default: fs } = await import('node:fs/promises');
   const { default: nodePath } = await import('node:path');
   const abs =
@@ -66,10 +64,27 @@ export async function runDesignVerify(
   const files: { path: string; text: string }[] = [];
   for (const a of abs) {
     try {
-      files.push({ path: nodePath.relative(projectRoot, a), text: await fs.readFile(a, 'utf8') });
+      files.push({
+        path: nodePath.relative(projectRoot, a).replace(/\\/g, '/'),
+        text: await fs.readFile(a, 'utf8'),
+      });
     } catch {
       // unreadable — skip
     }
   }
+  return files;
+}
+
+/**
+ * Resolve + read UI files (explicit list, or a bounded walk) and verify them
+ * against a kit's tokens. Shared by the `design` tool and the WebUI handler so
+ * the file-collection rules stay identical.
+ */
+export async function runDesignVerify(
+  projectRoot: string,
+  tokens: DesignKitTokens,
+  explicitFiles?: string[] | undefined,
+): Promise<DesignVerifyReport> {
+  const files = await collectProjectUiFiles(projectRoot, explicitFiles);
   return verifyFiles(tokens, files);
 }

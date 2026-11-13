@@ -467,10 +467,20 @@ async function maybeReReviewCascade({
           maxCascadeDepth: evidenceBundle.maxCascadeDepth,
         });
 
-        // Spread evidenceBundle + enrichedReReview so both the cascade evidence
-        // fields AND the newly computed fix diffs/deltas ride into the re-review.
+        // Spread preservedMeta + enrichedReReview so both the cascade evidence
+        // fields AND the newly computed fix diffs/deltas ride into the re-review
+        // without inheriting stale pre-fix deletedFileReferences or callers.
+        const {
+          deletedFiles: _df,
+          deletedFileReferences: _dfr,
+          signatureCallers: _sc,
+          skippedFiles: _sf,
+          priorFindings: _pf,
+          headSha: _hs,
+          ...preservedMeta
+        } = evidenceBundle;
         const reReviewBundle: ChimeraReviewNeededPayload = {
-          ...evidenceBundle,
+          ...preservedMeta,
           ...enrichedReReview,
           evidenceStatus: evidenceBundle.evidenceStatus,
           evidenceChecks: evidenceBundle.evidenceChecks,

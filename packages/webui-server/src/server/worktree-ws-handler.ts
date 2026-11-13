@@ -8,8 +8,8 @@ import {
   type WorktreeTimelineEvent,
 } from '@wrongstack/contracts/types/worktree-timeline';
 import { toErrorMessage } from '@wrongstack/core/utils';
-import { WorktreeManager } from '@wrongstack/worktree';
 import { cleanupStaleSddWorktrees, sddRunLiveReason } from '@wrongstack/sdd';
+import { WorktreeManager } from '@wrongstack/worktree';
 import type { WebSocket } from 'ws';
 import type { WorktreeHandleView, WorktreeOrphanView, WSServerMessage } from './types.js';
 import { sendSerialized } from './ws-utils.js';
@@ -56,30 +56,17 @@ interface WorktreeManagementDeps {
  */
 export class WorktreeWebSocketHandler {
   private readonly clients = new Set<WebSocket>();
+  private readonly clientOffs = new Map<WebSocket, () => void>();
   private readonly handles = new Map<string, WorktreeHandleView>();
   private readonly timeline: WorktreeTimelineEvent[] = [];
   private baseBranch = '';
-  /**
-   * Change-detection pair for the 2s resync interval: every state mutation
-   * bumps `stateVersion`, every broadcast records it in `broadcastVersion`,
-   * so the interval only re-sends when something actually changed.
-   */
+  private disposed = false;
+  /** Every mutation bumps `stateVersion`; `broadcastVersion` suppresses no-op 2s resyncs. */
   private stateVersion = 0;
   private broadcastVersion = 0;
   private broadcastInterval: ReturnType<typeof setInterval> | null = null;
   private readonly offs: Array<() => void> = [];
-  /**
-   * Single-flight guard for orphan scans. Two concurrent `scanAndBroadcast()`
-   * calls would race: the first call reads `wt.listManaged()`, then the
-   * second call's mutation completes (e.g. `removeOne`), then the first call
-   * broadcasts a stale orphan list — the user sees a row persist and clicks
-   * Remove a second time, hitting "remove failed (not a managed worktree?)".
-   *
-   * We coalesce concurrent triggers: while a scan is in flight, additional
-   * callers are remembered as "need a re-scan" and exactly one follow-up
-   * scan runs after the in-flight one finishes. The re-scan picks up any
-   * mutations that landed during the previous scan's `listManaged()` window.
-   */
+  /** Coalesces concurrent orphan scans into at most one follow-up re-scan. */
   private scanInFlight: Promise<void> | null = null;
   private scanRescanNeeded = false;
 
@@ -92,17 +79,26 @@ export class WorktreeWebSocketHandler {
   }
 
   addClient(ws: WebSocket): void {
+    if (this.disposed) return;
     this.clients.add(ws);
-    ws.on('close', () => this.clients.delete(ws));
-    ws.on('error', () => this.clients.delete(ws));
+    const drop = () => {
+      this.clients.delete(ws);
+      this.clientOffs.delete(ws);
+    };
+    ws.on('close', drop);
+    ws.on('error', drop);
+    this.clientOffs.set(ws, () => {
+      ws.off?.('close', drop);
+      ws.off?.('error', drop);
+    });
     this.send(ws, this.stateMessage());
     this.send(ws, { type: 'worktree.timeline', payload: { events: [...this.timeline] } });
-    // Push the current orphan inventory to the freshly-connected client.
     void this.scanAndBroadcast();
   }
 
   /** Handle worktree-panel control messages (scan / clean / per-row ops). */
   async handleMessage(msg: { type: string; payload?: Record<string, unknown> }): Promise<boolean> {
+    const str = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined);
     if (msg.type === 'worktree.scan') {
       await this.scanAndBroadcast();
       return true;
@@ -112,21 +108,15 @@ export class WorktreeWebSocketHandler {
       return true;
     }
     if (msg.type === 'worktree.remove') {
-      await this.removeOne(
-        msg.payload?.['dir'] as string | undefined,
-        msg.payload?.['branch'] as string | undefined,
-      );
+      await this.removeOne(str(msg.payload?.['dir']), str(msg.payload?.['branch']));
       return true;
     }
     if (msg.type === 'worktree.merge') {
-      await this.mergeBranch(msg.payload?.['branch'] as string | undefined);
+      await this.mergeBranch(str(msg.payload?.['branch']));
       return true;
     }
     if (msg.type === 'worktree.diff') {
-      await this.diffOne(
-        msg.payload?.['dir'] as string | undefined,
-        msg.payload?.['baseBranch'] as string | undefined,
-      );
+      await this.diffOne(str(msg.payload?.['dir']), str(msg.payload?.['baseBranch']));
       return true;
     }
     return false;
@@ -136,6 +126,9 @@ export class WorktreeWebSocketHandler {
     for (const off of this.offs) off();
     this.offs.length = 0;
     this.stopBroadcast();
+    this.disposed = true;
+    for (const offWs of this.clientOffs.values()) offWs();
+    this.clientOffs.clear();
     this.clients.clear();
     this.handles.clear();
     this.timeline.length = 0;
@@ -182,14 +175,20 @@ export class WorktreeWebSocketHandler {
     return false;
   }
 
+  private hasActiveHandles(): boolean {
+    for (const h of this.handles.values()) {
+      if (ACTIVE_STATUSES.has(h.status)) return true;
+    }
+    return false;
+  }
+
   /**
    * Coalesced orphan scan entry point. Multiple concurrent callers share one
    * in-flight scan; if a caller arrives during a scan, a single follow-up
-   * scan is scheduled to pick up mutations that landed mid-scan. Returns the
-   * shared promise so `await this.scanAndBroadcast()` still works for callers
-   * that want to chain after the next broadcast.
+   * scan is scheduled to pick up mutations that landed mid-scan.
    */
   private scanAndBroadcast(): Promise<void> {
+    if (this.disposed) return Promise.resolve();
     if (this.scanInFlight) {
       this.scanRescanNeeded = true;
       return this.scanInFlight;
@@ -198,36 +197,20 @@ export class WorktreeWebSocketHandler {
     return this.scanInFlight;
   }
 
-  /**
-   * Run the actual scan, then drain a pending re-scan request if one came in
-   * during the scan. The re-scan is bounded (one follow-up) — additional
-   * requests that arrive during the follow-up coalesce into the next one.
-   */
   private async runScanAndMaybeRescan(): Promise<void> {
     try {
       await this.runScanOnce();
-      while (this.scanRescanNeeded) {
+      while (this.scanRescanNeeded && !this.disposed) {
         this.scanRescanNeeded = false;
         await this.runScanOnce();
       }
     } finally {
-      // Clear the in-flight slot. Any caller arriving after this point will
-      // start a fresh scan through `scanAndBroadcast`. The flag is already
-      // false here because the while-loop drained it; a new caller during
-      // the final `runScanOnce` await would have set it via `scanAndBroadcast`,
-      // which short-circuited to the in-flight promise rather than mutating
-      // the flag (the flag is only set by callers that arrived after the
-      // in-flight promise was published).
       this.scanInFlight = null;
     }
   }
 
-  /**
-   * Scan the disk for managed worktrees/branches NOT owned by a live in-session
-   * run and broadcast them as orphans, with whether it is safe to clean now.
-   * No-op (empty inventory) when management deps were not wired.
-   */
   private async runScanOnce(): Promise<void> {
+    if (this.disposed) return;
     if (!this.management) {
       this.broadcast({ type: 'worktree.orphans', payload: { orphans: [], canClean: false } });
       return;
@@ -235,23 +218,22 @@ export class WorktreeWebSocketHandler {
     try {
       const wt = new WorktreeManager({ projectRoot: this.management.projectRoot });
       const { worktrees, branches } = await wt.listManaged();
-      const live = this.liveActiveBranches();
+      if (this.disposed) return;
       const orphans: WorktreeOrphanView[] = [];
       const seenBranches = new Set<string>();
       for (const w of worktrees) {
-        if (w.branch && live.has(w.branch)) continue; // owned by a live run
-        if (w.branch) seenBranches.add(w.branch);
+        if ((w.branch && this.isLiveBranch(w.branch)) || this.isLiveDir(w.dir)) {
+          if (w.branch) seenBranches.add(foldCase(w.branch));
+          continue;
+        }
+        if (w.branch) seenBranches.add(foldCase(w.branch));
         orphans.push({ kind: 'worktree', dir: w.dir, branch: w.branch });
       }
-      // Branch-only orphans (no checkout) — skip those a live run owns or that a
-      // listed worktree already covers.
       for (const b of branches) {
-        if (live.has(b) || seenBranches.has(b)) continue;
+        if (this.isLiveBranch(b) || seenBranches.has(foldCase(b))) continue;
         orphans.push({ kind: 'branch', branch: b });
       }
-      // Safe to clean when no live in-session worktree exists. (The cross-process
-      // board guard is additionally enforced at cleanup time.)
-      const canClean = this.liveActiveBranches().size === 0;
+      const canClean = !this.hasActiveHandles();
       this.broadcast({
         type: 'worktree.orphans',
         payload: {
@@ -279,7 +261,7 @@ export class WorktreeWebSocketHandler {
       });
       return;
     }
-    if (this.liveActiveBranches().size > 0) {
+    if (this.hasActiveHandles()) {
       this.broadcast({
         type: 'worktree.cleanup_result',
         payload: { ok: false, removed: 0, reason: 'a run is live in this session — stop it first' },
@@ -291,6 +273,7 @@ export class WorktreeWebSocketHandler {
       boardsDir: this.management.boardsDir,
       stateTransport: 'kanban',
     });
+    if (this.disposed) return;
     if (res.skippedReason) {
       this.broadcast({
         type: 'worktree.cleanup_result',
@@ -364,6 +347,7 @@ export class WorktreeWebSocketHandler {
     // row can be the live checkout of a run in another process. Apply the
     // same cross-process board guard the bulk cleanup uses.
     const liveReason = await this.otherProcessLiveReason();
+    if (this.disposed) return;
     if (liveReason) {
       this.broadcast({
         type: 'worktree.cleanup_result',
@@ -371,20 +355,40 @@ export class WorktreeWebSocketHandler {
       });
       return;
     }
-    const wt = new WorktreeManager({ projectRoot: this.management.projectRoot });
-    // A branch-only orphan (no checkout) arrives with just its branch.
-    const { removed } = dir ? await wt.removeOne(dir, branch) : await wt.removeBranch(branch ?? '');
-    // Drop our handle for this branch/dir.
-    let removedMatching = 0;
-    for (const [id, h] of [...this.handles]) {
-      if ((branch && h.branch === branch) || (dir && h.handleId && dir.endsWith(h.handleId))) {
-        this.handles.delete(id);
-        removedMatching++;
-      }
+    if ((branch && this.isLiveBranch(branch)) || (dir && this.isLiveDir(dir))) {
+      this.broadcast({
+        type: 'worktree.cleanup_result',
+        payload: {
+          ok: false,
+          removed: 0,
+          reason: 'a run is live on this worktree — stop it first',
+        },
+      });
+      return;
     }
-    if (removedMatching > 0) this.stateVersion++;
-    // Handle-free removal emits nothing; a checkout dir's basename is its handle id.
+    const wt = new WorktreeManager({ projectRoot: this.management.projectRoot });
+    const { removed } = dir ? await wt.removeOne(dir, branch) : await wt.removeBranch(branch ?? '');
+    if (this.disposed) return;
     if (removed) {
+      const normDir = dir ? foldCase(resolve(dir)) : '';
+      const dirSlug = dir ? foldCase(basename(resolve(dir))) : '';
+      const normBranch = branch ? foldCase(branch) : '';
+      let removedMatching = 0;
+      for (const [id, h] of [...this.handles]) {
+        if (ACTIVE_STATUSES.has(h.status)) continue;
+        const branchMatch = Boolean(normBranch && h.branch && foldCase(h.branch) === normBranch);
+        const dirMatch = Boolean(
+          normDir &&
+            (h.dir
+              ? foldCase(resolve(h.dir)) === normDir
+              : h.handleId && foldCase(h.handleId) === dirSlug),
+        );
+        if (branchMatch || dirMatch) {
+          this.handles.delete(id);
+          removedMatching++;
+        }
+      }
+      if (removedMatching > 0) this.stateVersion++;
       this.recordTimeline('worktree.released', {
         handleId: dir ? basename(resolve(dir)) : (branch ?? '').replace(/^wstack\/ap\//, ''),
         ...(branch ? { branch } : {}),
@@ -427,6 +431,7 @@ export class WorktreeWebSocketHandler {
       return;
     }
     const liveReason = await this.otherProcessLiveReason();
+    if (this.disposed) return;
     if (liveReason) {
       this.broadcast({
         type: 'worktree.merge_result',
@@ -434,8 +439,16 @@ export class WorktreeWebSocketHandler {
       });
       return;
     }
+    if (this.isLiveBranch(branch)) {
+      this.broadcast({
+        type: 'worktree.merge_result',
+        payload: { ok: false, branch, reason: 'a run is live on this worktree — stop it first' },
+      });
+      return;
+    }
     const wt = new WorktreeManager({ projectRoot: this.management.projectRoot });
     const res = await wt.mergeBranch(branch);
+    if (this.disposed) return;
     // Handle-free merge emits nothing; the managed branch's slug is its handle id.
     if (res.ok) {
       this.recordTimeline('worktree.merged', {
@@ -652,6 +665,7 @@ export class WorktreeWebSocketHandler {
   }
 
   private broadcast(msg: WSServerMessage): void {
+    if (this.disposed) return;
     const data = JSON.stringify(msg);
     for (const ws of this.clients) {
       try {

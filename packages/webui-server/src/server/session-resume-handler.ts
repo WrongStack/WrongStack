@@ -166,7 +166,15 @@ export function createSessionResumeHandler(
           closeResumedWriter = () => resumed.writer.close();
           if (!ctx.hasSession) {
             await ctx.context.flushConversationJournal?.().catch(() => undefined);
-            await finalizeSession(current);
+            try {
+              await finalizeSession(current);
+            } catch {
+              // Best-effort orphan cleanup: finalizing the session this tab is
+              // leaving is cleanup, not part of the resume. A journal IO error
+              // (or a closed handle) here must not abort the resume — the
+              // resumed session is already on its way in, and failing the
+              // whole request would leave the tab without its session.start.
+            }
           }
           sendResumeProgress(ws, resumed.writer.id, 'read_sidecars', {
             loadedBytes: 1,

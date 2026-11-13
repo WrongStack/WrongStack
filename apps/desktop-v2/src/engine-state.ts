@@ -260,6 +260,11 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
     };
     if (p['reset'] === true || replaced) {
       next = { ...next, ...expireEngineInteractions(state) };
+      next.error = '';
+      next.activeTextMessageId = null;
+      next.runTimeline = [];
+      next.runStartTotals = null;
+      next.runStartAt = null;
       // A killed engine cannot emit a final tool result. Retain the observed process
       // boundary in presentation history, even after the original start frame is trimmed.
       next.activity = appendRunEvent(state.activity, {
@@ -269,13 +274,9 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
     }
     if (p['reset'] === true) {
       next.leadingActivity = [];
-      next.activeTextMessageId = null;
       next.nextSteps = [];
-      next.runTimeline = [];
       next.turnActivity = {};
       next.turnStats = {};
-      next.runStartTotals = null;
-      next.runStartAt = null;
       next.agents = {};
       next.memoryRuns = [];
       next.memoryContext = null;
@@ -512,6 +513,8 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
     if (request) {
       next.inputs = [...state.inputs.filter((item) => item.id !== request.id), request];
       next.archivedInputs = state.archivedInputs.filter((item) => item.id !== request.id);
+      if (next.results['user.input_resolved']?.['requestId'] === request.id)
+        delete next.results['user.input_resolved'];
     } else
       next.error = 'The engine sent an invalid question form. Stop the run or ask it to retry.';
   }
@@ -529,7 +532,7 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
     else next.archivedInputs = state.archivedInputs.filter((item) => item.id !== p['requestId']);
   }
   if (event.type === 'run.result') {
-    next.running = false;
+    next = { ...next, ...expireEngineInteractions(state) };
     next.activeTextMessageId = null;
     const answer = next.messages.findLast((message) => message.role === 'assistant');
     // Every tool call of the turn stays with its answer, not only those still in the
@@ -584,8 +587,7 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
   )
     next.error = String(p['message'] ?? p['description'] ?? 'Engine request failed');
   if (event.type === 'desktop.disconnected') {
-    next.connected = false;
-    next.running = false;
+    next = { ...next, ...expireEngineInteractions(state), connected: false };
     // Scheduled jobs live in the engine's memory; a new engine starts with none.
     delete next.results['cron.snapshot'];
     next.error = String(p['message'] ?? 'Engine disconnected');

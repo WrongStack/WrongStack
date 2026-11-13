@@ -297,6 +297,42 @@ describe('checkpoint CAS garbage collection', () => {
     expect(result.manifestsDeleted).toBe(1);
     expect(result.errors).toEqual([]);
   });
+
+  it('retains forked child session workspaceCheckpointHash manifests and blobs after parent deletion', async () => {
+    const forkedManifest = await writeCheckpoint('forked-base', ['forked workspace content']);
+    const orphanManifest = await writeCheckpoint('orphan', ['orphan content']);
+    await fs.writeFile(
+      path.join(store, 'child-forked.jsonl'),
+      `${JSON.stringify({
+        type: 'session_forked',
+        ts: '2020-01-01T00:05:00.000Z',
+        parentSessionId: 'deleted-parent',
+        forkedAtPromptIndex: 0,
+        workspaceCheckpointHash: forkedManifest,
+      })}\n`,
+    );
+    await age(store);
+
+    const reachable = await collectReachableManifestHashes(store);
+    expect(reachable.has(forkedManifest)).toBe(true);
+    expect(reachable.has(orphanManifest)).toBe(false);
+
+    const result = await sweepCheckpointCas({
+      casRoot: cas,
+      reachableManifestHashes: reachable,
+      keepNewerThanMs: floorNow(),
+    });
+
+    expect(result.manifestsDeleted).toBe(1);
+    expect(result.objectsDeleted).toBe(1);
+    const forkedBlob = sha('forked workspace content');
+    await expect(
+      fs.stat(path.join(cas, 'manifests', `${forkedManifest}.json`)),
+    ).resolves.toBeDefined();
+    await expect(
+      fs.stat(path.join(cas, 'objects', forkedBlob.slice(0, 2), forkedBlob.slice(2))),
+    ).resolves.toBeDefined();
+  });
 });
 
 vi.mock('node:fs/promises', async (importOriginal) => ({

@@ -34,9 +34,17 @@
       "lines": 785,
       "relativeImports": 4
     },
+    "packages/contracts/src/types/index.ts": {
+      "lines": 704,
+      "relativeImports": 75
+    },
     "packages/coordination/src/agent-monitor.ts": {
       "lines": 724,
       "relativeImports": 1
+    },
+    "packages/coordination/src/mailbox-project-server-client.ts": {
+      "lines": 725,
+      "relativeImports": 3
     },
     "packages/coordination/src/multi-agent-coordinator.ts": {
       "lines": 726,
@@ -66,12 +74,16 @@
       "lines": 1519,
       "relativeImports": 2
     },
+    "packages/core/src/execution/design-draw.ts": {
+      "lines": 831,
+      "relativeImports": 1
+    },
     "packages/core/src/execution/design-md.ts": {
       "lines": 1162,
       "relativeImports": 2
     },
     "packages/core/src/storage/file-session-writer.ts": {
-      "lines": 704,
+      "lines": 705,
       "relativeImports": 12
     },
     "packages/fleet/src/host-skill-companion.ts": {
@@ -127,8 +139,12 @@
       "relativeImports": 2
     },
     "packages/tools/src/design-reference.ts": {
-      "lines": 825,
+      "lines": 854,
       "relativeImports": 2
+    },
+    "packages/tools/src/design.ts": {
+      "lines": 773,
+      "relativeImports": 1
     },
     "packages/tools/src/process-registry.ts": {
       "lines": 744,
@@ -161,10 +177,6 @@
     "packages/vibeui/src/components/resource-hub.tsx": {
       "lines": 800,
       "relativeImports": 12
-    },
-    "packages/vibeui/src/lib/session.ts": {
-      "lines": 822,
-      "relativeImports": 5
     },
     "packages/vibeui/src/lib/use-session.ts": {
       "lines": 762,
@@ -227,7 +239,7 @@
       "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectDesignStudio.tsx": {
-      "lines": 853,
+      "lines": 874,
       "relativeImports": 12
     },
     "apps/desktop-v2/src/ProjectGoals.tsx": {

@@ -20,6 +20,7 @@ import {
   dnaToTokenOverrides,
   ensureDesignDir,
   type InspectRuntimeEvidence,
+  type InspectStage,
   type InspectSurface,
   inspectDesign,
   renderDesignDnaMarkdown,
@@ -159,6 +160,7 @@ async function measure<T extends { v: 1 }>(
   script: string = DESIGN_DNA_EXTRACTOR,
   onProgress?: ((event: ToolProgressEvent) => void) | undefined,
   stagePrefix = '',
+  viewportHeight: number = VIEWPORT_HEIGHT,
 ): Promise<Measured<T>> {
   const manager = managerFor(ctx);
   const ownerId = owner(ctx);
@@ -171,13 +173,13 @@ async function measure<T extends { v: 1 }>(
     signal.throwIfAborted();
     onProgress?.({
       type: 'log',
-      text: `${stagePrefix}Measuring ${url} @ ${width}×${VIEWPORT_HEIGHT}px (breakpoint ${idx + 1}/${viewports.length})…`,
+      text: `${stagePrefix}Measuring ${url} @ ${width}×${viewportHeight}px (breakpoint ${idx + 1}/${viewports.length})…`,
     });
     const session = await manager.open(
       ownerId,
       {
         url,
-        viewport: { width, height: VIEWPORT_HEIGHT },
+        viewport: { width, height: viewportHeight },
         trace: false,
         conversationId: ctx.session?.id,
       },
@@ -237,37 +239,37 @@ async function publishLatestReview(
 const rel = (projectRoot: string, file: string): string =>
   path.relative(projectRoot, file).replace(/\\/g, '/');
 
-/**
- * A discovered link may only be crawled when it stays on the measured page's
- * origin: the page content controls these URLs, so a cross-origin target
- * would smuggle another site's system into the reference DNA.
- */
 function isSameOriginHttp(candidate: string, base: string): boolean {
   try {
-    const target = new URL(candidate);
-    const origin = new URL(base);
-    if (target.protocol !== 'http:' && target.protocol !== 'https:') return false;
-    return target.origin === origin.origin;
+    const [target, origin] = [new URL(candidate), new URL(base)];
+    return /^https?:$/.test(target.protocol) && target.origin === origin.origin;
   } catch {
     return false;
   }
 }
 
-/**
- * Pick the subpages to measure: the explicitly requested ones plus
- * same-origin links discovered on the measured page, bounded by the
- * `maxPages` total budget (the measured page itself counts as one).
- */
+/** Select deduplicated subpages within the `maxPages` crawl budget. */
 export function selectReferenceSubpages(args: {
   url: string;
   extraPages: string[];
   discovered: string[];
   maxPages: number;
 }): string[] {
-  const budget = Math.max(0, args.maxPages - 1);
-  const sameOrigin = args.discovered.filter((u) => isSameOriginHttp(u, args.url));
-  const merged = [...new Set([...args.extraPages, ...sameOrigin])].filter((u) => u !== args.url);
-  return merged.slice(0, budget);
+  const canon = (raw: string): [string, string] => {
+    try {
+      const u = Object.assign(new URL(raw), { hash: '' });
+      return [u.toString(), `${u.origin}${u.pathname.replace(/\/+$/, '') || '/'}${u.search}`];
+    } catch {
+      return [raw.split('#')[0] ?? raw, (raw.split('#')[0] ?? raw).replace(/\/+$/, '')];
+    }
+  };
+  const seen = new Set([canon(args.url)[1]]);
+  return [...args.extraPages, ...args.discovered.filter((u) => isSameOriginHttp(u, args.url))]
+    .flatMap((raw) => {
+      const [clean, key] = canon(raw);
+      return seen.size < seen.add(key).size ? [clean] : [];
+    })
+    .slice(0, Math.max(0, args.maxPages - 1));
 }
 
 function normalizeMaxPages(maxPages: unknown, extraPageCount = 0): number {
@@ -512,7 +514,12 @@ async function compareReference(
  */
 async function inspectPage(
   ctx: Context,
-  input: { url?: string | undefined; viewports?: unknown; surface?: string | undefined },
+  input: {
+    url?: string | undefined;
+    viewports?: unknown;
+    surface?: string | undefined;
+    stage?: string | undefined;
+  },
   signal: AbortSignal,
   page?: PageLabel,
   onProgress?: ((event: ToolProgressEvent) => void) | undefined,
@@ -525,7 +532,19 @@ async function inspectPage(
   images: ImageBlock[];
 }> {
   const url = assertHttpUrl(input.url);
-  const viewports = normalizeViewports(input.viewports);
+  if (input.stage !== undefined && input.stage !== 'hero' && input.stage !== 'full') {
+    throw new ToolValidationError({
+      message:
+        'design_reference: "stage" is "hero" (1280×800 + 375 hero-first fold gate) or "full" (default).',
+      field: 'stage',
+    });
+  }
+  const stage: InspectStage = input.stage ?? 'full';
+  const viewports =
+    input.viewports === undefined && stage === 'hero'
+      ? [1280, 375]
+      : normalizeViewports(input.viewports);
+  const viewportHeight = stage === 'hero' ? 800 : VIEWPORT_HEIGHT;
   if (input.surface !== undefined && input.surface !== 'page' && input.surface !== 'app') {
     throw new ToolValidationError({
       message:
@@ -549,14 +568,16 @@ async function inspectPage(
     DESIGN_INSPECT_EXTRACTOR,
     onProgress,
     '[1/2] ',
+    viewportHeight,
   );
   onProgress?.({
     type: 'log',
-    text: `[2/2] Evaluating rendered layout, WCAG contrast & touch-target rules (${surface})…`,
+    text: `[2/2] Evaluating rendered layout, WCAG contrast & touch-target rules (${surface}, stage: ${stage})…`,
   });
   const report = inspectDesign(
     raws.map((raw, i) => ({ raw, runtime: runtime[i] })),
     surface,
+    { stage },
   );
   const markdown = renderInspectMarkdown(report);
   signal.throwIfAborted();
@@ -607,6 +628,8 @@ export interface DesignReferenceInput {
   against?: string | undefined;
   /** inspect: thresholds for a content "page" (default) or a dense "app" screen. */
   surface?: InspectSurface | undefined;
+  /** inspect: "hero" checks the opening fold fast at [1280, 375] × 800px; "full" (default) checks all breakpoints. */
+  stage?: InspectStage | undefined;
 }
 
 export interface DesignReferenceOutput {
@@ -700,6 +723,12 @@ export const designReferenceTool: Tool<DesignReferenceInput, DesignReferenceOutp
         enum: ['page', 'app'],
         description:
           'inspect: "page" (marketing/content, default) or "app" (dense product screen — smaller body and more type sizes allowed).',
+      },
+      stage: {
+        type: 'string',
+        enum: ['hero', 'full'],
+        description:
+          'inspect: "hero" runs a fast 1280×800 + 375×800 fold gate before writing the rest of the page; "full" (default) runs all viewports.',
       },
     },
     required: ['action'],

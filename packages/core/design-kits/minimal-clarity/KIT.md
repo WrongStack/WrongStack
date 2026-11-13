@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Developer tools, SaaS dashboards, docs, and B2B products that must feel precise and calm.
 version: 1.0.0
+paper: light 99 0
+display: roman-serif Inter
+accent: cool 264
+posture: restrained
+photo: natural
 ---
 
 # Minimal Clarity

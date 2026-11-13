@@ -109,10 +109,56 @@ describe('catalogue rules', () => {
     expect(ids('<div className="shadow-lg" />')).toEqual(['WARN composition.stock-elevation']);
     expect(ids('<div className="bg-blue-500" />')).toEqual(['WARN color.generic-utility']);
   });
+
+  it('flags single italicized or accent-colored words embedded inside h1/h2 headings', () => {
+    expect(ids('<h1>Build <em>beautiful</em> software</h1>')).toEqual([
+      'WARN type.roman-heading-italic-word',
+    ]);
+    expect(ids('<h1><em>Chapter One</em></h1>')).toEqual([]);
+    expect(ids('<h2>Ship <span className="text-primary">faster</span> today</h2>')).toEqual([
+      'WARN composition.heading-accent-span',
+    ]);
+    expect(ids('<h2 className="text-fg">Ship faster today</h2>')).toEqual([]);
+  });
+
+  it('flags fake OS/browser traffic-light window bars and fake submit handlers', () => {
+    const traffic = [
+      '<div className="flex gap-1.5">',
+      '  <span className="size-3 rounded-full bg-surface" style={{ background: "#ff5f56" }} />',
+      '  <span className="size-3 rounded-full bg-surface" style={{ background: "#ffbd2e" }} />',
+      '  <span className="size-3 rounded-full bg-surface" style={{ background: "#27c93f" }} />',
+      '</div>',
+    ].join('\n');
+    expect(ids(traffic)).toContain('WARN composition.fake-window-chrome');
+
+    expect(
+      ids('<form onSubmit={(e) => { e.preventDefault(); setSubmitted(true); }}>Go</form>'),
+    ).toEqual(['WARN composition.fake-submit-handler']);
+    expect(
+      ids(
+        '<form onSubmit={(e) => { e.preventDefault(); onSave(formData); setSubmitted(true); }}>Go</form>',
+      ),
+    ).toEqual([]);
+  });
 });
 
 describe('waivers', () => {
-  it('waives on the same line, the next line, or the whole file', () => {
+  it('waives on the same line, the next line, or the whole file, and records optional -- reasons', () => {
+    const report = verifyFiles(kit, [
+      {
+        path: 'src/App.tsx',
+        text: '<div className="transition-all" /> {/* design-ignore: motion.transition-all -- deliberate accordion height */}',
+      },
+    ]);
+    expect(report.violations).toEqual([]);
+    expect(report.waived).toEqual([
+      {
+        file: 'src/App.tsx',
+        line: 1,
+        id: 'motion.transition-all',
+        reason: 'deliberate accordion height',
+      },
+    ]);
     expect(
       ids('<div className="transition-all" /> {/* design-ignore: motion.transition-all */}'),
     ).toEqual([]);

@@ -41,6 +41,7 @@ export const TREE_COMMAND_HELP = [
 export function tokenizeTreeArgs(raw: string): string[] {
   const tokens: string[] = [];
   let current = '';
+  let hasToken = false;
   let quote: '"' | "'" | null = null;
 
   for (let i = 0; i < raw.length; i += 1) {
@@ -66,18 +67,21 @@ export function tokenizeTreeArgs(raw: string): string[] {
     }
     if (ch === '"' || ch === "'") {
       quote = ch;
+      hasToken = true;
       continue;
     }
     if (/\s/.test(ch)) {
-      if (current.length > 0) {
+      if (hasToken) {
         tokens.push(current);
         current = '';
+        hasToken = false;
       }
       continue;
     }
     current += ch;
+    hasToken = true;
   }
-  if (current.length > 0) tokens.push(current);
+  if (hasToken) tokens.push(current);
   return tokens;
 }
 
@@ -288,15 +292,19 @@ export function buildTreeCommand(host: TreeCommandHost): SlashCommand {
             const tok = tokens[i]!;
             if (tok === '--no-switch') {
               switchImmediately = false;
-            } else if (tok === '--from' && tokens[i + 1]) {
-              fromBranch = tokens[++i];
-            } else if (tok === '--at' && tokens[i + 1]) {
-              atPromptIndex = Number.parseInt(tokens[++i]!, 10);
-            } else if (tok === '--seq' && tokens[i + 1]) {
-              atSeq = Number.parseInt(tokens[++i]!, 10);
-            } else if (tok === '--label' && tokens[i + 1]) {
-              label = tokens[++i];
-            } else if (!tok.startsWith('-') && !name) {
+            } else if (tok === '--from' && tokens[i + 1] !== undefined) {
+              const val = tokens[++i]!;
+              if (val.length > 0) fromBranch = val;
+            } else if (tok === '--at' && tokens[i + 1] !== undefined) {
+              const val = tokens[++i]!;
+              if (val.length > 0) atPromptIndex = Number.parseInt(val, 10);
+            } else if (tok === '--seq' && tokens[i + 1] !== undefined) {
+              const val = tokens[++i]!;
+              if (val.length > 0) atSeq = Number.parseInt(val, 10);
+            } else if (tok === '--label' && tokens[i + 1] !== undefined) {
+              const val = tokens[++i]!;
+              if (val.length > 0) label = val;
+            } else if (tok.length > 0 && !tok.startsWith('-') && !name) {
               name = tok;
             }
           }
@@ -331,7 +339,7 @@ export function buildTreeCommand(host: TreeCommandHost): SlashCommand {
             const tok = tokens[i]!;
             if (tok === '--keep-files') keepFiles = true;
             else if (tok === '--reactivate') reactivateArchived = true;
-            else if (!tok.startsWith('-') && !target) target = tok;
+            else if (tok.length > 0 && !tok.startsWith('-') && !target) target = tok;
           }
           if (!target) {
             return {
@@ -361,11 +369,13 @@ export function buildTreeCommand(host: TreeCommandHost): SlashCommand {
             const tok = tokens[i]!;
             if (tok === '--archive') archiveSource = true;
             else if (tok === '--keep-open') keepOpen = true;
-            else if ((tok === '--into' || tok === '--to') && tokens[i + 1]) {
-              targetBranch = tokens[++i];
-            } else if ((tok === '--focus' || tok === '--note') && tokens[i + 1]) {
-              focusPrompt = tokens[++i];
-            } else if (!tok.startsWith('-') && !sourceBranch) {
+            else if ((tok === '--into' || tok === '--to') && tokens[i + 1] !== undefined) {
+              const val = tokens[++i]!;
+              if (val.length > 0) targetBranch = val;
+            } else if ((tok === '--focus' || tok === '--note') && tokens[i + 1] !== undefined) {
+              const val = tokens[++i]!;
+              if (val.length > 0) focusPrompt = val;
+            } else if (tok.length > 0 && !tok.startsWith('-') && !sourceBranch) {
               sourceBranch = tok;
             }
           }

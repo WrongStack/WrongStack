@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 527,
+      "files": 528,
       "typeOnly": 397,
-      "runtimeOrMixed": 162
+      "runtimeOrMixed": 163
     },
     "@wrongstack/core/boot": {
       "files": 6,
@@ -91,7 +91,7 @@
     "@wrongstack/core/plugin": {
       "files": 47,
       "typeOnly": 19,
-      "runtimeOrMixed": 29
+      "runtimeOrMixed": 30
     },
     "@wrongstack/core/prompts": {
       "files": 11,
@@ -106,7 +106,7 @@
     "@wrongstack/core/registry": {
       "files": 213,
       "typeOnly": 84,
-      "runtimeOrMixed": 137
+      "runtimeOrMixed": 138
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -149,9 +149,9 @@
       "runtimeOrMixed": 30
     },
     "@wrongstack/core/storage": {
-      "files": 207,
-      "typeOnly": 58,
-      "runtimeOrMixed": 186
+      "files": 220,
+      "typeOnly": 62,
+      "runtimeOrMixed": 195
     },
     "@wrongstack/core/tasking": {
       "files": 46,
@@ -1662,6 +1662,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/runtime/tests/container.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/tests/external-ts-plugin-reload.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -5557,7 +5563,7 @@
       "specifier": "@wrongstack/core/plugin",
       "file": "packages/runtime/tests/external-ts-plugin-reload.test.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/plugin",
@@ -6937,7 +6943,7 @@
       "specifier": "@wrongstack/core/registry",
       "file": "packages/runtime/tests/external-ts-plugin-reload.test.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 5
+      "runtimeOrMixed": 6
     },
     {
       "specifier": "@wrongstack/core/registry",
@@ -10337,6 +10343,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/fleet/src/architecture-decision-context.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/fleet/src/host-session-writer.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -10352,6 +10364,18 @@
       "file": "packages/fleet/src/host-subagent-session-audit.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/fleet/tests/architecture-decision-acp.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/fleet/tests/architecture-decision-context.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -10379,6 +10403,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/runtime/src/portable-commands/adr.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/runtime/src/portable-commands/host.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -10398,6 +10428,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/runtime/src/portable-commands/tree.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/runtime/tests/adr-command.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -10434,6 +10470,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/runtime/tests/wrongtrace-light-subagent-gate.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/tools/src/architecture-decisions.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -10482,6 +10524,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/tools/src/todo.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/tools/tests/architecture-decisions.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -10865,6 +10913,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui-server/tests/adr-command-route.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/webui-server/tests/fleet-control-endpoints.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
@@ -10964,6 +11018,36 @@
       "file": "packages/webui-server/tests/standalone-session-identity.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui/src/components/ArchitectureDecisionChecksEditor.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui/src/components/ArchitectureDecisionHistory.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui/src/components/ArchitectureDecisionsPanel.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui/tests/architecture-decisions-browser-smoke.mjs",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui/tests/components/architecture-decision-history.test.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/tasking",

@@ -14,6 +14,7 @@
  * the service owns (compatibility §6.2): the call fails instead.
  */
 
+import * as path from 'node:path';
 import { IndexTimeoutError } from '../circuit-breaker.js';
 import type { CallOpts } from '../index-inline.js';
 import type { IndexResult } from '../schema.js';
@@ -95,13 +96,20 @@ async function call<T>(
   method: string,
   projectId: string | null,
   params: unknown,
-  options?: { timeoutMs?: number | undefined; signal?: AbortSignal | undefined },
+  options?: {
+    timeoutMs?: number | undefined;
+    signal?: AbortSignal | undefined;
+    onDaemon?: ((daemonInstanceId: string) => void) | undefined;
+  },
 ): Promise<T> {
   // Two bounded read lanes cannot block heartbeats/admission on lane zero.
   const lane = method === 'index.query' ? 1 + (nextReadLane++ % 2) : 0;
+  const callOpts = options ? { timeoutMs: options.timeoutMs, signal: options.signal } : undefined;
   const c = await connection(lane);
   try {
-    return await c.call<T>(method, projectId, params, undefined, options);
+    const out = await c.call<T>(method, projectId, params, undefined, callOpts);
+    options?.onDaemon?.(c.hello.daemonInstanceId);
+    return out;
   } catch (err) {
     if (
       c.isClosed &&
@@ -115,7 +123,10 @@ async function call<T>(
         'job.list',
       ].includes(method)
     ) {
-      return (await connection(lane)).call<T>(method, projectId, params, undefined, options);
+      const retry = await connection(lane);
+      const out = await retry.call<T>(method, projectId, params, undefined, callOpts);
+      options?.onDaemon?.(retry.hello.daemonInstanceId);
+      return out;
     }
     throw err;
   }
@@ -127,6 +138,11 @@ interface ProjectState {
 }
 
 const projects = new Map<string, Promise<ProjectState>>();
+
+function canonicalProjectKey(projectRoot: string, indexDir: string): string {
+  const resolved = path.resolve(projectRoot, indexDir);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
 
 /** Hook run before this process claims an index (shut down local owners). */
 let beforeClaim: ((projectRoot: string, indexDir: string) => Promise<void>) | null = null;
@@ -158,8 +174,8 @@ async function registerAndClaim(projectRoot: string, indexDir: string): Promise<
 }
 
 async function project(projectRoot: string, indexDirOverride?: string): Promise<ProjectState> {
-  const indexDir = resolveIndexDir(projectRoot, indexDirOverride);
-  const key = process.platform === 'win32' ? indexDir.toLowerCase() : indexDir;
+  const indexDir = path.resolve(projectRoot, resolveIndexDir(projectRoot, indexDirOverride));
+  const key = canonicalProjectKey(projectRoot, indexDir);
   let p = projects.get(key);
   if (!p) {
     p = registerAndClaim(projectRoot, indexDir);
@@ -254,7 +270,7 @@ export async function callWrongIndex<O extends OpName>(
   } catch (error) {
     if (error instanceof WrongIndexRemoteError && error.code === 'OWNER_CONFLICT') {
       const indexDir = resolveIndexDir(args.projectRoot, args.indexDir);
-      projects.delete(process.platform === 'win32' ? indexDir.toLowerCase() : indexDir);
+      projects.delete(canonicalProjectKey(args.projectRoot, indexDir));
     }
     // A lost owner is visible to this caller; the next explicit operation
     // re-runs admission. Never silently replay a mutation here.
@@ -314,6 +330,8 @@ async function callWrongIndexOperation<O extends OpName>(
 // ─── Sessions (watch leases) ────────────────────────────────────────────────
 
 const sessions = new Map<string, { sessionId: string; timer: ReturnType<typeof setInterval> }>();
+const acquiringSessions = new Map<string, Promise<void>>();
+let sessionEpoch = 0;
 
 /**
  * Hold a watch session for this project while the host lives: the service
@@ -323,79 +341,135 @@ export async function acquireWrongIndexSession(
   projectRoot: string,
   indexDir?: string,
 ): Promise<void> {
+  const epoch = sessionEpoch;
   const { projectId } = await project(projectRoot, indexDir);
-  if (sessions.has(projectId)) return;
-  const lease = await call<{ sessionId: string; heartbeatMs: number }>(
-    'session.acquire',
-    projectId,
-    {},
-  );
-  let polling = false;
-  // Poll at the interval the daemon asked for, floored at 1s. Hardcoding 1s
-  // made 10x the requested traffic and each poll costs a lane-0 round trip.
-  const pollMs = Math.max(1_000, lease.heartbeatMs || 10_000);
-  const timer = setInterval(() => {
-    if (polling) return;
-    polling = true;
-    void call('session.heartbeat', null, { sessionId: lease.sessionId })
-      .then(async () => {
-        const status = await call<{
-          generation: number;
-          activity: string;
-          freshness: string;
-          lastError?: string | null;
-        }>('project.get', projectId, {});
-        if (!sessions.has(projectId)) return;
-        // A rejected synthetic publication is not a lost lease. The heartbeat
-        // only refreshes freshness metadata, so a daemon-side refusal
-        // (superseded generation, pending publication, damaged index) must not
-        // fall into the lease re-acquire path below: that would churn
-        // session.acquire/session.release once per poll and evict this host's
-        // own watch lease on the daemon.
-        try {
-          acceptWrongIndexQuery(
+  if (epoch !== sessionEpoch || sessions.has(projectId)) return;
+  const existingAcquire = acquiringSessions.get(projectId);
+  if (existingAcquire) {
+    await existingAcquire;
+    return;
+  }
+  const acquireTask = (async () => {
+    const lease = await call<{ sessionId: string; heartbeatMs: number }>(
+      'session.acquire',
+      projectId,
+      {},
+    );
+    if (epoch !== sessionEpoch || sessions.has(projectId)) {
+      await call('session.release', null, { sessionId: lease.sessionId }).catch(() => undefined);
+      return;
+    }
+    let activeProjectId = projectId;
+    let polling = false;
+    // Poll at the interval the daemon asked for, floored at 1s. Hardcoding 1s
+    // made 10x the requested traffic and each poll costs a lane-0 round trip.
+    const pollMs = Math.max(1_000, lease.heartbeatMs || 10_000);
+    const resolvedIndexDir = path.resolve(projectRoot, resolveIndexDir(projectRoot, indexDir));
+    const entry = {
+      sessionId: lease.sessionId,
+      timer: undefined as unknown as ReturnType<typeof setInterval>,
+    };
+    const timer = setInterval(() => {
+      if (polling || epoch !== sessionEpoch || sessions.get(activeProjectId) !== entry) return;
+      polling = true;
+      void call('session.heartbeat', null, { sessionId: entry.sessionId })
+        .then(async () => {
+          let daemonInstanceId = '';
+          const status = await call<{
+            generation: number;
+            activity: string;
+            freshness: string;
+            lastError?: string | null;
+          }>(
+            'project.get',
+            activeProjectId,
+            {},
             {
-              projectRoot,
-              indexDir: resolveIndexDir(projectRoot, indexDir),
-              projectId,
-              daemonInstanceId: (await connection()).hello.daemonInstanceId,
-              generation: status.generation,
-              observedAt: Date.now(),
-              indexing: status.activity === 'indexing',
-              freshness: status.freshness,
-              lastError: status.lastError,
-              result: null,
+              onDaemon: (id) => {
+                daemonInstanceId = id;
+              },
             },
-            projectRoot,
-            resolveIndexDir(projectRoot, indexDir),
           );
-        } catch (err) {
-          if (err instanceof WrongIndexRemoteError) return;
-          throw err;
-        }
-      })
-      .catch(async () => {
-        if (!sessions.has(projectId)) return;
-        // Keep the polling timer through an outage. A failed one-shot
-        // re-acquire must not silently abandon the host's watch lease.
-        try {
-          await project(projectRoot, indexDir);
-          const renewed = await call<{ sessionId: string }>('session.acquire', projectId, {});
-          const active = sessions.get(projectId);
-          if (active) {
-            lease.sessionId = renewed.sessionId;
-            active.sessionId = renewed.sessionId;
-          } else await call('session.release', null, { sessionId: renewed.sessionId });
-        } catch {
-          /* The next bounded poll retries while the host holds intent. */
-        }
-      })
-      .finally(() => {
-        polling = false;
-      });
-  }, pollMs);
-  timer.unref?.();
-  sessions.set(projectId, { sessionId: lease.sessionId, timer });
+          if (
+            epoch !== sessionEpoch ||
+            sessions.get(activeProjectId) !== entry ||
+            !daemonInstanceId
+          ) {
+            return;
+          }
+          // A rejected synthetic publication is not a lost lease. The heartbeat
+          // only refreshes freshness metadata, so a daemon-side refusal
+          // (superseded generation, pending publication, damaged index) must not
+          // fall into the lease re-acquire path below: that would churn
+          // session.acquire/session.release once per poll and evict this host's
+          // own watch lease on the daemon.
+          try {
+            acceptWrongIndexQuery(
+              {
+                projectRoot,
+                indexDir: resolvedIndexDir,
+                projectId: activeProjectId,
+                daemonInstanceId,
+                generation: status.generation,
+                observedAt: Date.now(),
+                indexing: status.activity === 'indexing',
+                freshness: status.freshness,
+                lastError: status.lastError,
+                result: null,
+              },
+              projectRoot,
+              resolvedIndexDir,
+            );
+          } catch (err) {
+            if (err instanceof WrongIndexRemoteError) return;
+            throw err;
+          }
+        })
+        .catch(async () => {
+          if (epoch !== sessionEpoch || sessions.get(activeProjectId) !== entry) return;
+          // Keep the polling timer through an outage. A failed one-shot
+          // re-acquire must not silently abandon the host's watch lease.
+          try {
+            const refreshed = await project(projectRoot, indexDir);
+            if (epoch !== sessionEpoch || sessions.get(activeProjectId) !== entry) return;
+            const renewed = await call<{ sessionId: string }>(
+              'session.acquire',
+              refreshed.projectId,
+              {},
+            );
+            if (epoch === sessionEpoch && sessions.get(activeProjectId) === entry) {
+              if (refreshed.projectId !== activeProjectId) {
+                sessions.delete(activeProjectId);
+                activeProjectId = refreshed.projectId;
+                sessions.set(activeProjectId, entry);
+              }
+              lease.sessionId = renewed.sessionId;
+              entry.sessionId = renewed.sessionId;
+            } else {
+              await call('session.release', null, { sessionId: renewed.sessionId }).catch(
+                () => undefined,
+              );
+            }
+          } catch {
+            /* The next bounded poll retries while the host holds intent. */
+          }
+        })
+        .finally(() => {
+          polling = false;
+        });
+    }, pollMs);
+    timer.unref?.();
+    entry.timer = timer;
+    sessions.set(activeProjectId, entry);
+  })();
+  acquiringSessions.set(projectId, acquireTask);
+  try {
+    await acquireTask;
+  } finally {
+    if (acquiringSessions.get(projectId) === acquireTask) {
+      acquiringSessions.delete(projectId);
+    }
+  }
 }
 
 /** Register (and in `wrongindex` mode claim) the project, without a lease. */
@@ -408,6 +482,8 @@ export async function registerWrongIndexProject(
 
 /** Release this process's leases only; the global daemon keeps running. */
 export async function releaseWrongIndexSessions(): Promise<void> {
+  sessionEpoch++;
+  acquiringSessions.clear();
   const all = [...sessions.values()];
   sessions.clear();
   for (const s of all) {
@@ -423,7 +499,9 @@ export async function wrongIndexHealth(): Promise<Record<string, unknown>> {
 /** Close the connection (tests, host shutdown). */
 export function resetWrongIndexConnection(): void {
   connectionEpoch++;
+  sessionEpoch++;
   connecting.clear();
+  acquiringSessions.clear();
   for (const session of sessions.values()) clearInterval(session.timer);
   sessions.clear();
   for (const client of clients.values()) client.close();

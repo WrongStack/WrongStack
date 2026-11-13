@@ -7,17 +7,44 @@ export interface SessionTruncatePlan {
   removedCount: number;
   /** Transcript paths referenced ONLY by the removed window — safe to delete. */
   removedSubagentTranscriptPaths: string[];
+  /**
+   * Removed events that belong to a session-tree branch other than the one
+   * being rewound, plus branch structure events. A byte-prefix cut cannot keep
+   * them, so a non-zero count means the rewind would destroy other branches.
+   */
+  foreignBranchEventCount: number;
 }
 
+const BRANCH_STRUCTURE_EVENTS = new Set([
+  'branch_created',
+  'branch_switched',
+  'branch_folded',
+  'branch_status_changed',
+]);
+
+/** Owning branch of a journal line; the writer leaves `main`'s lines unstamped. */
+function owningBranch(event: { branchId?: unknown }): string {
+  return typeof event.branchId === 'string' && event.branchId ? event.branchId : 'main';
+}
+
+/**
+ * Plan a rewind to `targetPromptIndex` on `branchId` (default `main`).
+ *
+ * A branched journal interleaves every branch and prompt indices restart per
+ * lineage, so only the rewinding branch's own checkpoints are cut points —
+ * the first matching checkpoint in the file may be another branch's.
+ */
 export async function findSessionCheckpointTruncatePlan(
   filePath: string,
   targetPromptIndex: number,
+  branchId = 'main',
 ): Promise<SessionTruncatePlan | null> {
   let fd: fsp.FileHandle | undefined;
   let fileOffset = 0;
   let pendingLine = Buffer.alloc(0);
   let checkpointByteOffset = -1;
   let removedCount = 0;
+  let foreignBranchEventCount = 0;
   const removedSubagentTranscriptPaths = new Set<string>();
   const retainedSubagentTranscriptPaths = new Set<string>();
 
@@ -44,6 +71,7 @@ export async function findSessionCheckpointTruncatePlan(
         const lineBytes = chunk.subarray(chunkPos, idx);
         if (checkpointByteOffset !== -1) {
           removedCount++;
+          if (isForeignBranchLine(lineBytes, branchId)) foreignBranchEventCount++;
           collectSubagentTranscriptPath(lineBytes, removedSubagentTranscriptPaths);
         } else {
           // eslint-disable-next-line no-sync
@@ -54,6 +82,7 @@ export async function findSessionCheckpointTruncatePlan(
                 type?: string;
                 promptIndex?: number;
                 transcriptPath?: unknown;
+                branchId?: unknown;
               };
               if (event.type === 'agent_session_linked') {
                 // Retained history may still reference a transcript that a
@@ -62,7 +91,7 @@ export async function findSessionCheckpointTruncatePlan(
                 if (typeof event.transcriptPath === 'string' && event.transcriptPath.trim()) {
                   retainedSubagentTranscriptPaths.add(event.transcriptPath);
                 }
-              } else if (event.type === 'checkpoint') {
+              } else if (event.type === 'checkpoint' && owningBranch(event) === branchId) {
                 if (event.promptIndex === targetPromptIndex) {
                   checkpointByteOffset = lineStartOffset;
                 } else if (
@@ -92,10 +121,24 @@ export async function findSessionCheckpointTruncatePlan(
   return {
     checkpointByteOffset,
     removedCount,
+    foreignBranchEventCount,
     removedSubagentTranscriptPaths: [...removedSubagentTranscriptPaths]
       .filter((transcriptPath) => !retainedSubagentTranscriptPaths.has(transcriptPath))
       .sort(),
   };
+}
+
+function isForeignBranchLine(lineBytes: Buffer, branchId: string): boolean {
+  // eslint-disable-next-line no-sync
+  const line = new TextDecoder('utf-8', { fatal: false }).decode(lineBytes);
+  if (!line.trim()) return false;
+  try {
+    const event = JSON.parse(line) as { type?: unknown; branchId?: unknown };
+    if (typeof event.type === 'string' && BRANCH_STRUCTURE_EVENTS.has(event.type)) return true;
+    return owningBranch(event) !== branchId;
+  } catch {
+    return false;
+  }
 }
 
 function collectSubagentTranscriptPath(lineBytes: Buffer, out: Set<string>): void {

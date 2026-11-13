@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Nostalgic 2000s revivals, eco-tech, wellness, playful-yet-clean consumer products.
 version: 1.0.0
+paper: light 95 230
+display: roman-serif Myriad Pro
+accent: chromatic-green 145
+posture: committed
+photo: natural
 ---
 
 # Frutiger Aero

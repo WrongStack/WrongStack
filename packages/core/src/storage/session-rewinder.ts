@@ -14,6 +14,14 @@ import { atomicWrite } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
 import { sessionScopedPath } from '../utils/session-scoped-path.js';
 
+/** Journal events that record the session tree itself rather than a branch's turn. */
+const BRANCH_STRUCTURE_EVENTS: ReadonlySet<string> = new Set([
+  'branch_created',
+  'branch_switched',
+  'branch_folded',
+  'branch_status_changed',
+]);
+
 /** The text of a recorded prompt; image and document blocks carry none. */
 function userInputText(content: Extract<SessionEvent, { type: 'user_input' }>['content']): string {
   if (typeof content === 'string') return content;
@@ -112,32 +120,54 @@ export class DefaultSessionRewinder implements SessionRewinder {
     }));
   }
 
+  /**
+   * The session-tree branch the journal leaves active: the target of its last
+   * `branch_switched`, `main` for an unbranched journal.
+   */
+  private async activeBranchOf(file: string): Promise<string> {
+    let active = 'main';
+    for await (const event of this.readEvents(file)) {
+      if (event.type === 'branch_switched' && event.toBranchId) active = event.toBranchId;
+    }
+    return active;
+  }
+
   async rewindToCheckpoint(
     sessionId: string,
     checkpointIndex: number,
   ): Promise<RewindResultExtended> {
     const file = this.sessionFile(sessionId);
+    // In a branched journal only the active branch's own checkpoints are cut
+    // points (prompt indices restart per lineage), and the writer refuses a
+    // cut that would also remove other branches' events. Apply the same rule
+    // here, before any file is reverted, so a refused rewind changes nothing.
+    const branchId = await this.activeBranchOf(file);
+    let foreignBranchEvents = 0;
     let foundTarget = false;
     let removedEvents = 0;
-    let lastInput: string | undefined;
-    let lastInputHasAttachments = false;
+    // Only the rewound branch's own input: with interleaved branches the
+    // journal line just before this branch's checkpoint can be another
+    // branch's prompt, which must never come back into this branch's composer.
+    let lastInput: { text: string; hasAttachments: boolean } | undefined;
     let promptText: string | undefined;
     let promptHasAttachments = false;
     const snapshotsToRevert: Array<{ promptIndex: number; files: FileSnapshot[] }> = [];
     for await (const event of this.readEvents(file)) {
-      if (event.type === 'user_input') {
-        lastInput = userInputText(event.content);
-        lastInputHasAttachments = userInputHasAttachments(event.content);
+      if (event.type === 'user_input' && (event.branchId ?? 'main') === branchId) {
+        lastInput = {
+          text: userInputText(event.content),
+          hasAttachments: userInputHasAttachments(event.content),
+        };
       }
-      if (event.type === 'checkpoint') {
+      if (event.type === 'checkpoint' && (event.branchId ?? 'main') === branchId) {
         const checkpointEvent = event as { promptIndex: number };
         if (checkpointEvent.promptIndex === checkpointIndex) {
           // After an earlier rewind to this index the journal holds it twice
           // (the kept one and the next prompt's). The cut is at the first,
           // which takes the later prompt back too, so that later prompt is
           // the one handed back.
-          promptText = lastInput;
-          promptHasAttachments = lastInputHasAttachments;
+          promptText = lastInput?.text;
+          promptHasAttachments = lastInput?.hasAttachments ?? false;
           if (!foundTarget) {
             foundTarget = true;
             continue;
@@ -146,6 +176,9 @@ export class DefaultSessionRewinder implements SessionRewinder {
       }
       if (!foundTarget) continue;
       removedEvents++;
+      if (BRANCH_STRUCTURE_EVENTS.has(event.type) || (event.branchId ?? 'main') !== branchId) {
+        foreignBranchEvents++;
+      }
       if (event.type === 'file_snapshot' && event.promptIndex >= checkpointIndex) {
         snapshotsToRevert.push({ promptIndex: event.promptIndex, files: event.files });
       }
@@ -156,6 +189,16 @@ export class DefaultSessionRewinder implements SessionRewinder {
         message: `Checkpoint ${checkpointIndex} not found`,
         code: ERROR_CODES.SESSION_NOT_FOUND,
         context: { checkpointIndex },
+      });
+    }
+    if (foreignBranchEvents > 0) {
+      throw new SessionError({
+        message:
+          `Cannot rewind to checkpoint ${checkpointIndex}: the session journal records ` +
+          `${foreignBranchEvents} event(s) from other session branches after it, and a rewind ` +
+          'would delete them. Fork from that prompt instead (/tree branch <name> --at <prompt>).',
+        code: ERROR_CODES.SESSION_WRITE_FAILED,
+        context: { checkpointIndex, branchId, foreignBranchEvents },
       });
     }
 
@@ -180,31 +223,46 @@ export class DefaultSessionRewinder implements SessionRewinder {
    * the agent recorded just before writing it, for the newest checkpoint with
    * that index (a rewind leaves an older one behind). Undefined when the
    * checkpoint or its input is not in the journal.
+   *
+   * In a branched journal the checkpoint and its input are the active
+   * branch's own (the branch `rewindToCheckpoint` would cut): prompt indices
+   * restart per lineage, and an interleaved branch's prompt is never handed
+   * back for this branch's checkpoint.
    */
   async promptAt(sessionId: string, checkpointIndex: number): Promise<string | undefined> {
-    let lastInput: string | undefined;
-    let promptText: string | undefined;
+    // One pass, per branch, resolved against the branch the journal leaves active.
+    let active = 'main';
+    const lastInput = new Map<string, string>();
+    const promptText = new Map<string, string | undefined>();
     for await (const event of this.readEvents(this.sessionFile(sessionId))) {
-      if (event.type === 'user_input') lastInput = userInputText(event.content);
+      const branch = event.branchId ?? 'main';
+      if (event.type === 'branch_switched' && event.toBranchId) active = event.toBranchId;
+      else if (event.type === 'user_input') lastInput.set(branch, userInputText(event.content));
       else if (event.type === 'checkpoint' && event.promptIndex === checkpointIndex) {
-        promptText = lastInput;
+        promptText.set(branch, lastInput.get(branch));
       }
     }
-    return promptText;
+    return promptText.get(active);
   }
 
   async rewindLastN(sessionId: string, n: number): Promise<RewindResultExtended> {
     const file = this.sessionFile(sessionId);
+    // Same branched-journal rule as rewindToCheckpoint: only the active
+    // branch's own checkpoints are cut points (prompt indices restart per
+    // lineage, so another branch's checkpoint shares the index), and a rewind
+    // the writer would refuse must revert nothing — the CLI pairs this method
+    // with truncateToCheckpoint(result.toPromptIndex) under --resume.
+    const branchId = await this.activeBranchOf(file);
 
     const checkpointMap = new Map<number, { promptIndex: number; ts: string }>();
     for await (const event of this.readEvents(file)) {
-      if (event.type === 'rewound') {
+      if (event.type === 'rewound' && (event.branchId ?? 'main') === branchId) {
         const to = (event as { toPromptIndex: number }).toPromptIndex;
         for (const key of checkpointMap.keys()) {
           if (key > to) checkpointMap.delete(key);
         }
       }
-      if (event.type === 'checkpoint') {
+      if (event.type === 'checkpoint' && (event.branchId ?? 'main') === branchId) {
         checkpointMap.set(event.promptIndex, { promptIndex: event.promptIndex, ts: event.ts });
       }
     }
@@ -230,17 +288,36 @@ export class DefaultSessionRewinder implements SessionRewinder {
     // made the same rewind report two different numbers depending on which
     // entry point the caller used.
     let removedEvents = 0;
+    let foreignBranchEvents = 0;
 
     for await (const event of this.readEvents(file)) {
-      if (event.type === 'checkpoint' && event.promptIndex === targetIndex) {
+      if (
+        event.type === 'checkpoint' &&
+        event.promptIndex === targetIndex &&
+        (event.branchId ?? 'main') === branchId
+      ) {
         shouldRevert = true;
         continue;
       }
       if (!shouldRevert) continue;
       removedEvents++;
+      if (BRANCH_STRUCTURE_EVENTS.has(event.type) || (event.branchId ?? 'main') !== branchId) {
+        foreignBranchEvents++;
+      }
       if (event.type === 'file_snapshot') {
         snapshotsToRevert.push({ promptIndex: event.promptIndex, files: event.files });
       }
+    }
+
+    if (foreignBranchEvents > 0) {
+      throw new SessionError({
+        message:
+          `Cannot rewind the last ${n} prompt(s) to checkpoint ${targetIndex}: the session journal ` +
+          `records ${foreignBranchEvents} event(s) from other session branches after it, and a rewind ` +
+          'would delete them. Fork from that prompt instead (/tree branch <name> --at <prompt>).',
+        code: ERROR_CODES.SESSION_WRITE_FAILED,
+        context: { checkpointIndex: targetIndex, branchId, foreignBranchEvents, lastN: n },
+      });
     }
 
     const result = await revertSnapshots(snapshotsToRevert, this.projectRoot);
@@ -249,12 +326,33 @@ export class DefaultSessionRewinder implements SessionRewinder {
 
   async rewindToStart(sessionId: string): Promise<RewindResultExtended> {
     const file = this.sessionFile(sessionId);
-
+    // Same rule as the checkpoint rewinds: a rewind to the start of a branched
+    // journal would revert files other branches still claim and cut their
+    // events (the writer refuses that cut), so refuse it before any file is
+    // touched. Every branch shares the prefix before its fork point, so on a
+    // branched journal no branch can be rewound to the start on its own.
+    const branchId = await this.activeBranchOf(file);
+    let foreignBranchEvents = 0;
     const allSnapshots: Array<{ promptIndex: number; files: FileSnapshot[] }> = [];
     for await (const event of this.readEvents(file)) {
+      if (BRANCH_STRUCTURE_EVENTS.has(event.type) || (event.branchId ?? 'main') !== branchId) {
+        foreignBranchEvents++;
+      }
       if (event.type === 'file_snapshot') {
         allSnapshots.push({ promptIndex: event.promptIndex, files: event.files });
       }
+    }
+
+    if (foreignBranchEvents > 0) {
+      throw new SessionError({
+        message:
+          'Cannot rewind to the session start: the session journal records ' +
+          `${foreignBranchEvents} event(s) from other session branches, and a rewind would revert ` +
+          'and delete them. Rewind to a checkpoint of this branch, or fork from a prompt instead ' +
+          '(/tree branch <name> --at <prompt>).',
+        code: ERROR_CODES.SESSION_WRITE_FAILED,
+        context: { branchId, foreignBranchEvents },
+      });
     }
 
     if (allSnapshots.length === 0) {

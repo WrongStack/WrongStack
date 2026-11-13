@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: News, journals, magazines, long-form publishing, editorial-heavy products.
 version: 1.0.0
+paper: light 96 90
+display: blackletter UnifrakturCook
+accent: warm 27
+posture: committed
+photo: mono con=14
 ---
 
 # Newspaper Print

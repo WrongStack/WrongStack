@@ -343,4 +343,50 @@ describe('session.delete — the runtime session', () => {
     const fail = h.sent.find((m) => m.type === 'key.operation_result');
     expect(fail?.payload['success']).toBe(false);
   });
+
+  it('does not hijack the runtime session onto fallback when another connection still displays the doomed session', async () => {
+    const h = makeHarness({ runtimeSessionId: 'sess_doomed' });
+    connect(h, 'sess_fb', ['sess_fb']);
+    connect(h, 'sess_doomed', ['sess_doomed']);
+    h.live.add('sess_fb');
+    h.agents.set('sess_fb', { ctx: { session: writer('sess_fb') } });
+
+    await h.routes.deleteSession(h.ws, {
+      type: 'session.delete',
+      payload: { id: 'sess_doomed', sessionId: 'sess_fb' },
+    } as never);
+
+    expect(h.current()).toBe('sess_doomed');
+    expect(h.onSessionSwapped).not.toHaveBeenCalled();
+    expect(h.store.delete).not.toHaveBeenCalled();
+    const fail = h.sent.find((m) => m.type === 'key.operation_result');
+    expect(fail?.payload['success']).toBe(false);
+  });
+
+  it('re-points a single-session socket to fallback and closes the doomed writer before store.delete', async () => {
+    const h = makeHarness({ runtimeSessionId: 'sess_doomed' });
+    const { clientWs, client } = connect(h, 'sess_doomed');
+    h.live.add('sess_fb');
+    const fbWriter = writer('sess_fb');
+    h.agents.set('sess_fb', { ctx: { session: fbWriter } });
+
+    let doomedClosedBeforeStoreDelete = false;
+    const doomedRef = (h.routes as unknown) && h.current();
+    expect(doomedRef).toBe('sess_doomed');
+    h.store.delete.mockImplementationOnce(async () => {
+      // setSession already swapped `active` to `fbWriter`, and finalizeSession closed the outgoing writer.
+      doomedClosedBeforeStoreDelete = h.current() === 'sess_fb';
+    });
+
+    await h.routes.deleteSession(clientWs, {
+      type: 'session.delete',
+      payload: { id: 'sess_doomed', sessionId: 'sess_fb' },
+    } as never);
+
+    expect(client.sessionId).toBe('sess_fb');
+    expect(doomedClosedBeforeStoreDelete).toBe(true);
+    expect(h.store.delete).toHaveBeenCalledWith('sess_doomed');
+    const ok = h.sent.find((m) => m.type === 'key.operation_result');
+    expect(ok?.payload['success']).toBe(true);
+  });
 });

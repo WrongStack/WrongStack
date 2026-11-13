@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Blogs, publications, agencies, brand storytelling, marketing sites where words lead.
 version: 1.0.0
+paper: light 98 85
+display: high-contrast-serif Fraunces
+accent: warm 25
+posture: restrained
+photo: warm con=4
 ---
 
 # Editorial

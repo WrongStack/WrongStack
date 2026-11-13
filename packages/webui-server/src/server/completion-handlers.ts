@@ -86,6 +86,9 @@ const MAX_CONTENT_CHARS = 500_000;
 const INDEX_LIMIT = 8;
 const LLM_LIMIT = 8;
 const DEFAULT_TIMEOUT_MS = 4_500;
+// Per-socket in-flight completion controller: newer keystrokes abort stale requests.
+// Keeps provider calls and stale result frames off sockets that already moved on.
+const inFlightBySocket = new WeakMap<WebSocket, AbortController>();
 
 const COMPLETION_SYSTEM_PROMPT = [
   'You are a code completion engine for an IDE.',
@@ -95,6 +98,26 @@ const COMPLETION_SYSTEM_PROMPT = [
   'Prefer project-local names, repository conventions, and type-safe APIs.',
   'Do not invent large code blocks; keep insertText small and directly insertable.',
 ].join('\n');
+
+const COMPLETION_ITEM_KINDS: readonly CompletionItemKind[] = [
+  'text',
+  'method',
+  'function',
+  'constructor',
+  'field',
+  'variable',
+  'class',
+  'interface',
+  'module',
+  'property',
+  'unit',
+  'value',
+  'enum',
+  'keyword',
+  'snippet',
+  'file',
+  'reference',
+];
 
 const COMPLETION_JSON_SCHEMA = {
   type: 'object',
@@ -109,28 +132,7 @@ const COMPLETION_JSON_SCHEMA = {
         properties: {
           label: { type: 'string' },
           insertText: { type: 'string' },
-          kind: {
-            type: 'string',
-            enum: [
-              'text',
-              'method',
-              'function',
-              'constructor',
-              'field',
-              'variable',
-              'class',
-              'interface',
-              'module',
-              'property',
-              'unit',
-              'value',
-              'enum',
-              'keyword',
-              'snippet',
-              'file',
-              'reference',
-            ],
-          },
+          kind: { type: 'string', enum: COMPLETION_ITEM_KINDS },
           detail: { type: 'string' },
           documentation: { type: 'string' },
           sortText: { type: 'string' },
@@ -162,24 +164,15 @@ export async function handleCompletionRequest(
   }
 
   const payload = parsed.payload;
-  const projectRoot = path.resolve(opts.projectRoot);
-  const resolved = path.resolve(projectRoot, payload.filePath);
-  if (!isPathInside(projectRoot, resolved)) {
-    send(ws, {
-      type: 'completion.result',
-      payload: {
-        requestId: payload.requestId,
-        filePath: payload.filePath,
-        items: [],
-        error: 'Forbidden',
-      },
-    });
-    return;
-  }
+  inFlightBySocket.get(ws)?.abort(new Error('completion superseded'));
+  const reqAbort = new AbortController();
+  inFlightBySocket.set(ws, reqAbort);
+  const isCancelled = () => reqAbort.signal.aborted || ws.readyState !== 1;
+
   try {
-    await resolveFileInsideProject(projectRoot, payload.filePath);
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+    const projectRoot = path.resolve(opts.projectRoot);
+    const resolved = path.resolve(projectRoot, payload.filePath);
+    if (!isPathInside(projectRoot, resolved)) {
       send(ws, {
         type: 'completion.result',
         payload: {
@@ -191,54 +184,80 @@ export async function handleCompletionRequest(
       });
       return;
     }
-  }
+    try {
+      await resolveFileInsideProject(projectRoot, payload.filePath);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+        if (!isCancelled()) {
+          send(ws, {
+            type: 'completion.result',
+            payload: {
+              requestId: payload.requestId,
+              filePath: payload.filePath,
+              items: [],
+              error: 'Forbidden',
+            },
+          });
+        }
+        return;
+      }
+    }
+    if (isCancelled()) return;
 
-  const prefix = tail(payload.prefix, MAX_PREFIX_CHARS);
-  const suffix = head(payload.suffix ?? '', MAX_SUFFIX_CHARS);
-  const linePrefix = currentLinePrefix(prefix);
-  const query = buildSearchQuery(linePrefix, payload.filePath);
+    const prefix = tail(payload.prefix, MAX_PREFIX_CHARS);
+    const suffix = head(payload.suffix ?? '', MAX_SUFFIX_CHARS);
+    const linePrefix = currentLinePrefix(prefix);
+    const query = buildSearchQuery(linePrefix, payload.filePath);
 
-  const [lspItems, indexItems] = await Promise.all([
-    loadLspSuggestions(opts.lspCompletion, payload, resolved).catch(
-      () => [] as CompletionSuggestion[],
-    ),
-    loadIndexSuggestions({
-      projectRoot,
-      indexDir: opts.indexDir,
-      query,
-    }).catch(() => [] as CompletionSuggestion[]),
-  ]);
-
-  const llmResult = shouldUseLlm(payload, linePrefix, query)
-    ? await loadLlmSuggestions({
-        provider: opts.provider,
-        model: opts.model,
-        payload,
-        prefix,
-        suffix,
-        linePrefix,
+    const [lspItems, indexItems] = await Promise.all([
+      loadLspSuggestions(opts.lspCompletion, payload, resolved, reqAbort.signal).catch(
+        () => [] as CompletionSuggestion[],
+      ),
+      loadIndexSuggestions({
+        projectRoot,
+        indexDir: opts.indexDir,
         query,
-        relatedSymbols: indexItems,
-        timeoutMs: opts.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-      }).catch((err) => ({ error: errMessage(err), items: [] as CompletionSuggestion[] }))
-    : ([] as CompletionSuggestion[]);
+      }).catch(() => [] as CompletionSuggestion[]),
+    ]);
+    if (isCancelled()) return;
 
-  const llmItems = Array.isArray(llmResult) ? llmResult : llmResult.items;
-  const error = Array.isArray(llmResult) ? undefined : llmResult.error;
-  const items = mergeSuggestions([...lspItems, ...llmItems, ...indexItems]).slice(
-    0,
-    LLM_LIMIT + INDEX_LIMIT,
-  );
+    const llmResult = shouldUseLlm(payload, linePrefix)
+      ? await loadLlmSuggestions({
+          provider: opts.provider,
+          model: opts.model,
+          payload,
+          prefix,
+          suffix,
+          linePrefix,
+          query,
+          relatedSymbols: indexItems,
+          timeoutMs: opts.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+          signal: reqAbort.signal,
+        }).catch((err) => ({ error: errMessage(err), items: [] as CompletionSuggestion[] }))
+      : ([] as CompletionSuggestion[]);
+    if (isCancelled()) return;
 
-  send(ws, {
-    type: 'completion.result',
-    payload: {
-      requestId: payload.requestId,
-      filePath: payload.filePath,
-      items,
-      error: items.length === 0 ? error : undefined,
-    },
-  });
+    const llmItems = Array.isArray(llmResult) ? llmResult : llmResult.items;
+    const error = Array.isArray(llmResult) ? undefined : llmResult.error;
+    const items = mergeSuggestions([...lspItems, ...llmItems, ...indexItems]).slice(
+      0,
+      LLM_LIMIT + INDEX_LIMIT,
+    );
+
+    send(ws, {
+      type: 'completion.result',
+      payload: {
+        requestId: payload.requestId,
+        filePath: payload.filePath,
+        items,
+        error: items.length === 0 ? error : undefined,
+      },
+    });
+  } finally {
+    if (inFlightBySocket.get(ws) === reqAbort) {
+      inFlightBySocket.delete(ws);
+    }
+  }
 }
 
 export function createToolLspCompletionSource(
@@ -313,15 +332,11 @@ function parsePayload(
   };
 }
 
-function shouldUseLlm(
-  payload: CompletionRequestPayload,
-  linePrefix: string,
-  query: string,
-): boolean {
+function shouldUseLlm(payload: CompletionRequestPayload, linePrefix: string): boolean {
   if (payload.allowLlm !== undefined) return payload.allowLlm;
   if (payload.triggerCharacter === '.') return true;
   if (payload.triggerCharacter) return false;
-  const token = linePrefix.match(/([A-Za-z_$][\w$]*)$/)?.[1] ?? query;
+  const token = linePrefix.match(/([A-Za-z_$][\w$]*)$/)?.[1] ?? '';
   return /^(findBy|findAllBy|create|update|delete|remove|get[A-Z_]|set[A-Z_]|use[A-Z_])/.test(
     token,
   );
@@ -351,6 +366,7 @@ async function loadLspSuggestions(
   source: LspCompletionSource | undefined,
   payload: CompletionRequestPayload,
   resolvedFilePath: string,
+  outerSignal: AbortSignal,
 ): Promise<CompletionSuggestion[]> {
   if (!source) return [];
   const timer = new AbortController();
@@ -363,7 +379,7 @@ async function loadLspSuggestions(
       column: payload.column,
       content: payload.content,
       triggerCharacter: payload.triggerCharacter,
-      signal: timer.signal,
+      signal: AbortSignal.any([outerSignal, timer.signal]),
     });
   } finally {
     timer.abort();
@@ -381,6 +397,7 @@ async function loadLlmSuggestions(opts: {
   query: string;
   relatedSymbols: CompletionSuggestion[];
   timeoutMs: number;
+  signal: AbortSignal;
 }): Promise<CompletionSuggestion[]> {
   if (!opts.provider || !opts.model) return [];
 
@@ -413,7 +430,9 @@ async function loadLlmSuggestions(opts: {
   const to = setTimeout(() => timer.abort(new Error('completion timeout')), opts.timeoutMs);
   to.unref?.();
   try {
-    const res = await opts.provider.complete(req, { signal: timer.signal });
+    const res = await opts.provider.complete(req, {
+      signal: AbortSignal.any([opts.signal, timer.signal]),
+    });
     const text = res.content
       .filter((block) => block.type === 'text')
       .map((block) => block.text)
@@ -556,102 +575,60 @@ function parseLspToolJson(output: string): CompletionSuggestion[] | null {
   }
 }
 
+const LSP_KIND_MAP = new Map<string, CompletionItemKind>([
+  ['method', 'method'],
+  ['function', 'function'],
+  ['constructor', 'constructor'],
+  ['field', 'field'],
+  ['variable', 'variable'],
+  ['constant', 'variable'],
+  ['class', 'class'],
+  ['struct', 'class'],
+  ['interface', 'interface'],
+  ['typeparameter', 'interface'],
+  ['module', 'module'],
+  ['property', 'property'],
+  ['unit', 'unit'],
+  ['value', 'value'],
+  ['enummember', 'value'],
+  ['enum', 'enum'],
+  ['keyword', 'keyword'],
+  ['snippet', 'snippet'],
+  ['file', 'file'],
+  ['reference', 'reference'],
+]);
+
 function mapLspKindName(kind: string | undefined): CompletionItemKind {
-  switch (kind?.toLowerCase()) {
-    case 'method':
-      return 'method';
-    case 'function':
-      return 'function';
-    case 'constructor':
-      return 'constructor';
-    case 'field':
-      return 'field';
-    case 'variable':
-    case 'constant':
-      return 'variable';
-    case 'class':
-    case 'struct':
-      return 'class';
-    case 'interface':
-    case 'typeparameter':
-      return 'interface';
-    case 'module':
-      return 'module';
-    case 'property':
-      return 'property';
-    case 'unit':
-      return 'unit';
-    case 'value':
-    case 'enummember':
-      return 'value';
-    case 'enum':
-      return 'enum';
-    case 'keyword':
-      return 'keyword';
-    case 'snippet':
-      return 'snippet';
-    case 'file':
-      return 'file';
-    case 'reference':
-      return 'reference';
-    default:
-      return 'text';
-  }
+  return (kind ? LSP_KIND_MAP.get(kind.toLowerCase()) : undefined) ?? 'text';
 }
 
+const INDEX_KIND_MAP: Partial<Record<SearchResult['kind'], CompletionItemKind>> = {
+  class: 'class',
+  struct: 'class',
+  interface: 'interface',
+  trait: 'interface',
+  type: 'interface',
+  enum: 'enum',
+  function: 'function',
+  method: 'method',
+  property: 'property',
+  parameter: 'property',
+  var: 'variable',
+  let: 'variable',
+  const: 'variable',
+  static: 'variable',
+  namespace: 'module',
+  mod: 'module',
+};
+
 function mapIndexKind(kind: SearchResult['kind']): CompletionItemKind {
-  switch (kind) {
-    case 'class':
-    case 'struct':
-      return 'class';
-    case 'interface':
-    case 'trait':
-    case 'type':
-      return 'interface';
-    case 'enum':
-      return 'enum';
-    case 'function':
-      return 'function';
-    case 'method':
-      return 'method';
-    case 'property':
-    case 'parameter':
-      return 'property';
-    case 'var':
-    case 'let':
-    case 'const':
-    case 'static':
-      return 'variable';
-    case 'namespace':
-    case 'mod':
-      return 'module';
-    default:
-      return 'reference';
-  }
+  return INDEX_KIND_MAP[kind] ?? 'reference';
 }
 
 function normalizeKind(value: unknown): CompletionItemKind | undefined {
-  if (typeof value !== 'string') return undefined;
-  const allowed: CompletionItemKind[] = [
-    'text',
-    'method',
-    'function',
-    'constructor',
-    'field',
-    'variable',
-    'class',
-    'interface',
-    'module',
-    'property',
-    'unit',
-    'value',
-    'enum',
-    'keyword',
-    'snippet',
-    'file',
-    'reference',
-  ];
-  return allowed.includes(value as CompletionItemKind) ? (value as CompletionItemKind) : undefined;
+  return typeof value === 'string' && COMPLETION_ITEM_KINDS.includes(value as CompletionItemKind)
+    ? (value as CompletionItemKind)
+    : undefined;
 }
 
 function mergeSuggestions(items: CompletionSuggestion[]): CompletionSuggestion[] {
@@ -682,11 +659,34 @@ function currentLinePrefix(prefix: string): string {
 
 function extractJson(text: string): string {
   const trimmed = text.trim();
-  if (trimmed.startsWith('{')) return trimmed;
   const start = trimmed.indexOf('{');
+  if (start === -1) return trimmed;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < trimmed.length; i++) {
+    const ch = trimmed[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\' && inString) {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === '{') depth += 1;
+    else if (ch === '}') {
+      depth -= 1;
+      if (depth === 0) return trimmed.slice(start, i + 1);
+    }
+  }
   const end = trimmed.lastIndexOf('}');
-  if (start !== -1 && end > start) return trimmed.slice(start, end + 1);
-  return trimmed;
+  return end > start ? trimmed.slice(start, end + 1) : trimmed;
 }
 
 function optionalString(value: unknown): string | undefined {

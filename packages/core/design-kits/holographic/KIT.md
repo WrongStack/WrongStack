@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [dark, light]
 bestFor: Beauty, fashion, music, web3/NFT, product launches, premium-yet-playful brands.
 version: 1.0.0
+paper: dark 20 280
+display: roman-serif Geist
+accent: cool 200
+posture: committed
+photo: natural con=4
 ---
 
 # Holographic

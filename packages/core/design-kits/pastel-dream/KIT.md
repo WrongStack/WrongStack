@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Lifestyle, journaling, self-care, fashion, gentle consumer and creative apps.
 version: 1.0.0
+paper: light 97 320
+display: roman-serif Quicksand
+accent: chromatic-green 160
+posture: committed
+photo: natural
 ---
 
 # Pastel Dream

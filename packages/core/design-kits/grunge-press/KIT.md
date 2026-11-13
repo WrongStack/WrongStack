@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Music, streetwear, zines, festivals and event sites — anything that should look printed and worn rather than rendered.
 version: 1.0.0
+paper: light 88 80
+display: display-condensed Oswald
+accent: warm 30
+posture: committed
+photo: duotone fg surface con=18
 ---
 
 # Grunge Press

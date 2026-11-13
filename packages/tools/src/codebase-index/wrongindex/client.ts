@@ -182,29 +182,47 @@ export class WrongIndexClient {
     return new Promise((resolve, reject) => this.waiters.push({ resolve, reject }));
   }
 
-  private async bounded<T>(work: Promise<T>, ms: number, signal?: AbortSignal): Promise<T> {
+  private async bounded<T>(
+    work: Promise<T>,
+    ms: number,
+    signal?: AbortSignal,
+    onSettleEarly?: (error: WrongIndexRemoteError) => void,
+  ): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let onAbort: (() => void) | undefined;
+    const settleEarly = (
+      error: WrongIndexRemoteError,
+      reject: (reason?: unknown) => void,
+    ): void => {
+      reject(error);
+      if (onSettleEarly) {
+        onSettleEarly(error);
+      } else {
+        this.fail(new WrongIndexUnavailableError(error.message));
+      }
+    };
     const timeout = new Promise<never>((_, reject) => {
       onAbort = () => {
-        // Replies are sequential on this stream. Invalidate it so an old
-        // reply cannot satisfy the next caller after this wait ends.
-        const error = new WrongIndexRemoteError({
-          code: 'CANCELED',
-          message: 'IPC wait was canceled',
-        });
-        this.fail(error);
-        reject(error);
+        // Replies are sequential on this stream. If already dispatched,
+        // invalidate the stream so a late reply cannot satisfy the next caller.
+        settleEarly(
+          new WrongIndexRemoteError({
+            code: 'CANCELED',
+            message: 'IPC wait was canceled',
+          }),
+          reject,
+        );
       };
       signal?.addEventListener('abort', onAbort, { once: true });
       if (signal?.aborted) onAbort();
       timer = setTimeout(() => {
-        const error = new WrongIndexRemoteError({
-          code: 'DEADLINE_EXCEEDED',
-          message: 'IPC operation timed out',
-        });
-        this.fail(error);
-        reject(error);
+        settleEarly(
+          new WrongIndexRemoteError({
+            code: 'DEADLINE_EXCEEDED',
+            message: 'IPC operation timed out',
+          }),
+          reject,
+        );
       }, ms);
       timer.unref?.();
     });
@@ -352,10 +370,14 @@ export class WrongIndexClient {
         new WrongIndexRemoteError({ code: 'QUEUE_SATURATED', message: 'IPC client queue is full' }),
       );
     this.pendingCalls++;
+    let dispatched = false;
+    let abortedBeforeDispatch: Error | null = null;
     const run = async (): Promise<T> => {
+      if (abortedBeforeDispatch) throw abortedBeforeDispatch;
       // The connection may have gone away while this request was queued.
       if (this.closed)
         throw this.closeReason ?? new WrongIndexUnavailableError('connection closed');
+      dispatched = true;
       const requestId = `r${this.nextId++}`;
       const reply = this.nextFrame();
       this.socket.write(
@@ -382,11 +404,20 @@ export class WrongIndexClient {
     };
     const next = this.chain.then(run, run);
     this.chain = next.catch(() => undefined);
-    return this.bounded(next, options.timeoutMs ?? this.requestTimeoutMs, options.signal).finally(
-      () => {
-        this.pendingCalls--;
+    return this.bounded(
+      next,
+      options.timeoutMs ?? this.requestTimeoutMs,
+      options.signal,
+      (error) => {
+        if (dispatched) {
+          this.fail(new WrongIndexUnavailableError(error.message));
+        } else {
+          abortedBeforeDispatch = error;
+        }
       },
-    );
+    ).finally(() => {
+      this.pendingCalls--;
+    });
   }
 
   close(): void {

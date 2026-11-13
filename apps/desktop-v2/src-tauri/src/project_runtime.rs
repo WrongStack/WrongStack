@@ -117,16 +117,23 @@ impl HostState {
         project_id: &str,
         offset: u64,
         recent: Option<u64>,
+        expected_runtime_id: Option<&str>,
     ) -> Result<Value> {
         let id = self.project_runtime_id(project_id)?;
         let path = self
             .dir
             .join("transcripts")
             .join(format!("{id}.events.jsonl"));
-        match recent {
-            Some(window) if offset == 0 => Engine::recent_events(&path, window),
-            _ => Engine::events(&path, offset),
-        }
+        let size = std::fs::metadata(&path).map_or(0, |meta| meta.len());
+        let rotated = expected_runtime_id.is_some_and(|prev| prev != id) || offset > size;
+        let effective_offset = if rotated { 0 } else { offset };
+        let mut page = match (rotated, recent) {
+            (true, _) => Engine::recent_events(&path, recent.unwrap_or(32 * 1024 * 1024))?,
+            (false, Some(window)) if effective_offset == 0 => Engine::recent_events(&path, window)?,
+            _ => Engine::events(&path, effective_offset)?,
+        };
+        page["runtimeId"] = json!(id);
+        Ok(page)
     }
     pub(crate) fn project_journal_end(&self, project_id: &str) -> Result<Value> {
         let id = self.project_runtime_id(project_id)?;
@@ -274,6 +281,88 @@ mod tests {
             .unwrap_err()
             .contains("project workspace"));
         assert!(host.registry.lock().unwrap().sessions().unwrap().is_empty());
+        drop(host);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn project_events_reports_runtime_id_and_rewinds_on_rotation_or_truncation() {
+        let dir = std::env::temp_dir().join(format!("desktop-project-events-{}", Uuid::new_v4()));
+        let work = dir.join("work");
+        std::fs::create_dir_all(&work).unwrap();
+        let host = HostState::new(&dir).unwrap();
+        let project = host
+            .registry
+            .lock()
+            .unwrap()
+            .register(&work.to_string_lossy())
+            .unwrap();
+        let transcripts = dir.join("transcripts");
+        let old_line = format!(
+            "{}\n",
+            json!({"type":"session.start","payload":{"sessionId":"s-old"}})
+        );
+        std::fs::write(
+            transcripts.join("project-rt-1.events.jsonl"),
+            old_line.repeat(4),
+        )
+        .unwrap();
+        host.project_runtimes.lock().unwrap().insert(
+            project.id.clone(),
+            ProjectRuntime {
+                runtime_id: "project-rt-1".into(),
+                status: "error".into(),
+                error: Some("exited".into()),
+            },
+        );
+        let page1 = host
+            .request(
+                "project.events",
+                &json!({"projectId": project.id, "offset": 0, "recent": 32_000_000}),
+            )
+            .unwrap();
+        let offset1 = page1["offset"].as_u64().unwrap();
+        assert_eq!(page1["runtimeId"], "project-rt-1");
+
+        // Rotate to project-rt-2 with a journal larger than offset1: runtimeId mismatch still rewinds.
+        let new_line = format!(
+            "{}\n",
+            json!({"type":"session.start","payload":{"sessionId":"s-new"}})
+        );
+        std::fs::write(
+            transcripts.join("project-rt-2.events.jsonl"),
+            new_line.repeat(6),
+        )
+        .unwrap();
+        host.project_runtimes.lock().unwrap().insert(
+            project.id.clone(),
+            ProjectRuntime {
+                runtime_id: "project-rt-2".into(),
+                status: "running".into(),
+                error: None,
+            },
+        );
+        let page2 = host
+            .request(
+                "project.events",
+                &json!({"projectId": project.id, "offset": offset1, "runtimeId": "project-rt-1"}),
+            )
+            .unwrap();
+        assert_eq!(page2["runtimeId"], "project-rt-2");
+        assert_eq!(page2["events"].as_array().unwrap().len(), 6);
+        let offset2 = page2["offset"].as_u64().unwrap();
+
+        // Truncated/smaller replacement without runtimeId also rewinds when offset > size.
+        std::fs::write(transcripts.join("project-rt-2.events.jsonl"), &new_line).unwrap();
+        let page3 = host
+            .request(
+                "project.events",
+                &json!({"projectId": project.id, "offset": offset2}),
+            )
+            .unwrap();
+        assert_eq!(page3["events"].as_array().unwrap().len(), 1);
+        assert_eq!(page3["events"][0]["payload"]["sessionId"], "s-new");
+
         drop(host);
         std::fs::remove_dir_all(dir).unwrap();
     }

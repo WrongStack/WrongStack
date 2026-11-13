@@ -813,10 +813,41 @@ try {
       minimum: Math.min(...report.contrasts.map((pair) => pair.ratio)),
     });
   };
-  const captureNarrowDialog = async (name) => {
+  // A screenshot of a conversation that follows its newest messages: wait until the
+  // transcript has stopped growing (several unchanged polls in a row), then pin it to the
+  // bottom through its own scroll handler. Without this the captured scroll offset depends
+  // on how layout, focus restoration and streaming interleave, and differs run to run.
+  const pinConversation = async () => {
+    const conversation = page.locator('main.conversation');
+    if ((await conversation.count()) === 0) return;
+    await page.evaluate(() => {
+      delete window.__pinHeight;
+      window.__pinStable = 0;
+    });
+    await page.waitForFunction(
+      () => {
+        const height = document.querySelector('main.conversation')?.scrollHeight ?? 0;
+        if (window.__pinHeight === height) window.__pinStable += 1;
+        else {
+          window.__pinHeight = height;
+          window.__pinStable = 0;
+        }
+        return window.__pinStable >= 4;
+      },
+      undefined,
+      { polling: 50 },
+    );
+    await conversation.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+      element.dispatchEvent(new Event('scroll'));
+    });
+    await expect(page.getByRole('button', { name: 'Latest', exact: true })).toHaveCount(0);
+  };
+  const captureNarrowDialog = async (name, { pin = false } = {}) => {
     const viewport = page.viewportSize();
     try {
       await page.setViewportSize({ width: 390, height: 844 });
+      if (pin) await pinConversation();
       const dialog = page.getByRole('dialog');
       const close = dialog.getByRole('button', { name: 'Close dialog', exact: true });
       const box = await close.boundingBox();
@@ -1384,6 +1415,18 @@ try {
       await cozy.getByRole('button', { name: 'Close dialog', exact: true }).click();
       await cozy.keyboard.press('Control+,');
       const cozySettings = cozy.getByRole('dialog', { name: 'Settings', exact: true });
+      // The toHaveCount(0) checks below also pass before the dialog opens; wait for it so
+      // the screenshot never catches the shortcut half-way.
+      await cozySettings.getByRole('textbox', { name: 'Search settings', exact: true }).waitFor();
+      // The Memory dialog closed just before; capture only once it is gone and the Settings
+      // surface has finished arriving.
+      await cozy.waitForFunction(
+        () =>
+          document.querySelectorAll('[role="dialog"]').length === 1 &&
+          document.getAnimations().every((animation) => animation.playState !== 'running'),
+        undefined,
+        { polling: 50 },
+      );
       await expect(
         cozySettings.getByRole('combobox', { name: 'Working mode', exact: true }),
       ).toHaveCount(0);
@@ -2068,6 +2111,7 @@ try {
   await page.getByRole('dialog').getByRole('button', { name: 'Close dialog', exact: true }).click();
   await page.getByRole('combobox', { name: 'Message delivery', exact: true }).selectOption('steer');
   await page.setViewportSize({ width: 390, height: 844 });
+  await pinConversation();
   await page.screenshot({
     path: join(output, 'mobile-queue.png'),
     fullPage: true,
@@ -2116,17 +2160,19 @@ try {
   await page.getByRole('tab', { name: /Changes/ }).click();
   await page.getByRole('button', { name: 'src/app.tsx', exact: false }).click();
   await page.getByText('export const greeting = "hello, world";', { exact: false }).waitFor();
+  await pinConversation();
   await page.screenshot({
     path: join(output, 'diff-modal.png'),
     fullPage: true,
     animations: 'disabled',
   });
-  await captureNarrowDialog('diff-modal');
+  await captureNarrowDialog('diff-modal', { pin: true });
   await page.getByRole('dialog').getByRole('button', { name: 'Close dialog', exact: true }).click();
   await page.getByRole('tab', { name: 'Tasks', exact: true }).click();
   await page.getByText('Build a focused workspace').waitFor();
   await page.getByRole('tab', { name: 'Activity', exact: true }).click();
   await page.getByText('read_file', { exact: true }).first().waitFor();
+  await pinConversation();
   await page.screenshot({
     path: join(output, 'workspace-redesign.png'),
     fullPage: true,
@@ -2148,12 +2194,13 @@ try {
   await toolDialog.locator('pre').filter({ hasText: 'src/app.tsx' }).waitFor();
   await toolDialog.getByRole('button', { name: 'Extended', exact: true }).click();
   await toolDialog.getByText(/Call ID · tool-/).waitFor();
+  await pinConversation();
   await page.screenshot({
     path: join(output, 'tool-inspector.png'),
     fullPage: true,
     animations: 'disabled',
   });
-  await captureNarrowDialog('tool-inspector');
+  await captureNarrowDialog('tool-inspector', { pin: true });
   await toolDialog.getByRole('button', { name: 'Simple', exact: true }).click();
   await toolDialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
 
@@ -2190,6 +2237,7 @@ try {
   await jsonTree.getByText('"a.ts"', { exact: true }).waitFor();
   await structuredDialog.getByRole('button', { name: 'Copy tool result', exact: true }).click();
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), structuredResult);
+  await pinConversation();
   await page.screenshot({
     path: join(output, 'json-tool-tree.png'),
     fullPage: true,
@@ -2211,7 +2259,7 @@ try {
     assert.equal(await structuredDialog.locator('pre').textContent(), structuredResult);
     await structuredDialog.getByRole('button', { name: 'Tree', exact: true }).click();
   }
-  await captureNarrowDialog('json-tool-tree');
+  await captureNarrowDialog('json-tool-tree', { pin: true });
   await page.setViewportSize({ width: 1512, height: 982 });
   const markdownResult =
     '# Inspection report\n\n**Ready** to review.\n\n| File | Status |\n| --- | --- |\n| app.tsx | Passed |\n\n```typescript\nconst ready: boolean = true;\n```';
@@ -2232,6 +2280,7 @@ try {
     (await page.evaluate(() => navigator.clipboard.readText())).replaceAll('\r\n', '\n'),
     markdownResult,
   );
+  await pinConversation();
   await page.screenshot({
     path: join(output, 'markdown-tool-result.png'),
     fullPage: true,
@@ -2243,7 +2292,7 @@ try {
     markdownResult,
   );
   await structuredDialog.getByRole('button', { name: 'Rendered', exact: true }).click();
-  await captureNarrowDialog('markdown-tool-result');
+  await captureNarrowDialog('markdown-tool-result', { pin: true });
   for (const client of clients)
     frame(client, 'tool.executed', {
       sessionId: 'session-one',
@@ -2293,7 +2342,8 @@ try {
   await page.getByRole('button', { name: /Idle worker/ }).waitFor();
   await page.getByRole('checkbox', { name: /^Show inactive/ }).uncheck();
   await page.getByRole('button', { name: /Reviewer.*Inspect the project/ }).click();
-  await page.getByRole('dialog').getByText('worker-model', { exact: true }).waitFor();
+  // The agent dialog shows the provider-qualified runtime label (agentRuntimeLabel).
+  await page.getByRole('dialog').getByText('fixture/worker-model', { exact: true }).waitFor();
   const agentDialogBox = await page.getByRole('dialog').boundingBox();
   assert.ok(
     agentDialogBox && agentDialogBox.width >= 1000,
@@ -2304,12 +2354,13 @@ try {
     .locator('.agent-latest')
     .getByText('Inspecting the runtime boundary.', { exact: true })
     .waitFor();
+  await pinConversation();
   await page.screenshot({
     path: join(output, 'agent-monitor.png'),
     fullPage: true,
     animations: 'disabled',
   });
-  await captureNarrowDialog('agent-monitor');
+  await captureNarrowDialog('agent-monitor', { pin: true });
   assert.equal(
     await page
       .getByRole('dialog')
@@ -2356,6 +2407,7 @@ try {
       .evaluate((element) => element.open),
     true,
   );
+  await pinConversation();
   await page.screenshot({
     path: join(output, 'agent-extended.png'),
     fullPage: true,
@@ -3365,6 +3417,7 @@ try {
   await page
     .getByRole('checkbox', { name: 'Select step 2: Second batch task', exact: true })
     .check();
+  await pinConversation();
   await page.screenshot({
     path: join(output, 'next-steps-selection.png'),
     fullPage: true,
@@ -3894,6 +3947,7 @@ try {
   await notes.getByText('Workspace grouping first note', { exact: true }).waitFor();
   assert.equal(await notes.evaluate((element) => element.open), true);
   await page.setViewportSize({ width: 1512, height: 982 });
+  await pinConversation();
   await page.screenshot({
     path: join(output, 'workspace-notes-desktop.png'),
     animations: 'disabled',

@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Consumer & social apps, events, music, youth brands, promos that need to feel alive.
 version: 1.0.0
+paper: light 98 320
+display: roman-serif Clash Display
+accent: cool 250
+posture: full-palette
+photo: natural
 ---
 
 # Dopamine Pop

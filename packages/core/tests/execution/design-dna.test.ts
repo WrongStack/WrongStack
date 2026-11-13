@@ -197,6 +197,19 @@ describe('summarizeDesignDna', () => {
     ]);
     expect(mono.color.roles.primary).toBe('#171717');
     expect(mono.color.roles.accent).toBe('#2563eb');
+
+    const monoRose = summarizeDesignDna([
+      raw({
+        samples: { points: 100, media: 0, gradient: 0, area: [['#ffffff', 95]] },
+        textColor: [
+          ['#111111', 850],
+          ['#e11d48', 40],
+        ],
+        buttons: [{ ...raw().buttons[0]!, bg: '#000000' }],
+      }),
+    ]);
+    expect(monoRose.color.roles.primary).toBe('#000000');
+    expect(monoRose.color.roles.accent).toBe('#e11d48');
   });
 
   it('picks the strongest-contrast color among near-equal text weights as fg', () => {

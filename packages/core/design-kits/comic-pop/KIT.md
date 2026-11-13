@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Entertainment, games, kids/teens, promos, playful bold marketing.
 version: 1.0.0
+paper: light 97 95
+display: display-condensed Bangers
+accent: cool 250
+posture: full-palette
+photo: natural
 ---
 
 # Comic Pop

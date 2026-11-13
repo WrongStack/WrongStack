@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Reading apps, blogs, documentation, note-taking, focus/distraction-free tools.
 version: 1.0.0
+paper: light 98 85
+display: roman-serif Newsreader
+accent: neutral 250
+posture: restrained
+photo: mono con=18
 ---
 
 # E-Ink

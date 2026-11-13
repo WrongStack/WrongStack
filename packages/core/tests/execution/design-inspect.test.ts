@@ -146,6 +146,41 @@ describe('inspectViewport', () => {
     }).map((f) => f.id);
     expect(found).toEqual(['runtime.console-error', 'runtime.failed-request']);
   });
+
+  it('checks rendered hero fold, hero dead bands, heading proximity, and ultrawide bounds', () => {
+    const belowFold = clean({
+      vw: 1280,
+      vh: 800,
+      scrollW: 1280,
+      heroFold: { h1Bottom: 420, ctaBottom: 880 },
+    });
+    expect(ids(belowFold, 'page')).toEqual(['WARN layout.hero-fold']);
+    expect(
+      inspectDesign([{ raw: belowFold }], 'page', { stage: 'hero' }).findings.map(
+        (f) => `${f.severity} ${f.id}`,
+      ),
+    ).toEqual(['FAIL layout.hero-fold']);
+
+    expect(ids(clean({ heroDeadBand: 210 }), 'page')).toEqual(['WARN layout.hero-dead-band']);
+    expect(
+      ids(
+        clean({
+          headingProximity: [{ sel: 'h2.sec', above: 12, below: 32, t: 'Pricing' }],
+        }),
+      ),
+    ).toEqual(['WARN layout.heading-proximity']);
+    expect(
+      ids(
+        clean({
+          vw: 1920,
+          scrollW: 1920,
+          unboundedCount: 1,
+          unbounded: [{ sel: 'section.prose', w: 1840 }],
+        }),
+        'page',
+      ),
+    ).toEqual(['WARN layout.unbounded-ultrawide']);
+  });
 });
 
 describe('inspectDesign', () => {
@@ -158,7 +193,7 @@ describe('inspectDesign', () => {
     expect(report.fails).toBe(2);
     expect(report.warns).toBe(0);
     // Every rule id that can fire is listed as checked.
-    expect(report.checked).toHaveLength(17);
+    expect(report.checked).toHaveLength(21);
     expect(report.checked).toEqual(
       expect.arrayContaining([
         'layout.horizontal-overflow',

@@ -425,4 +425,107 @@ describe('PluginHostHandle atomic reload, rollback, api.signal, and Declarative 
     expect(h.toolRegistry.get('live_probe')).toBeUndefined();
     expect(h.uiRegistry.listStatusChips()).toEqual([]);
   });
+
+  it('preserves sibling registrations across concurrent unloads and tears down reloads racing with dispose()', async () => {
+    const h1 = makeHarness();
+    let bEntered!: () => void;
+    let releaseB!: () => void;
+    const bGateIn = new Promise<void>((r) => {
+      bEntered = r;
+    });
+    const bGateOut = new Promise<void>((r) => {
+      releaseB = r;
+    });
+    let cTeardowns = 0;
+
+    const host1 = await loadPlugins(
+      [
+        { name: 'plug-a', version: '1.0.0', apiVersion: '^0.1', setup() {} },
+        {
+          name: 'plug-b',
+          version: '1.0.0',
+          apiVersion: '^0.1',
+          setup() {},
+          async teardown() {
+            bEntered();
+            await bGateOut;
+          },
+        },
+        {
+          name: 'plug-c',
+          version: '1.0.0',
+          apiVersion: '^0.1',
+          capabilities: { tools: true },
+          setup(api) {
+            api.tools.register({
+              name: 'plug_c_probe',
+              description: 'C probe',
+              inputSchema: { type: 'object', properties: {} },
+              permission: 'auto',
+              mutating: false,
+              execute: async () => 'ok',
+            });
+          },
+          teardown() {
+            cTeardowns++;
+          },
+        },
+      ],
+      { log: h1.log, apiFactory: h1.apiFactory },
+    );
+
+    const unloadB = host1.unloadPlugin('plug-b');
+    await bGateIn;
+    expect(await host1.unloadPlugin('plug-a')).toBe(true);
+    releaseB();
+    expect(await unloadB).toBe(true);
+    await host1.dispose();
+    expect(cTeardowns).toBe(1);
+    expect(h1.toolRegistry.get('plug_c_probe')).toBeUndefined();
+
+    // Concurrent reloadPlugin + dispose() must never leave v2 active after dispose resolves
+    const h2 = makeHarness();
+    let qIn!: () => void;
+    let qOut!: () => void;
+    const qEntered = new Promise<void>((r) => {
+      qIn = r;
+    });
+    const qRelease = new Promise<void>((r) => {
+      qOut = r;
+    });
+    const host2 = await loadPlugins(
+      [{ name: 'race-plug', version: '1.0.0', apiVersion: '^0.1', setup() {} }],
+      {
+        log: h2.log,
+        apiFactory: h2.apiFactory,
+        waitForQuiescence: async () => {
+          qIn();
+          await qRelease;
+        },
+      },
+    );
+
+    const reloadP = host2.reloadPlugin({
+      name: 'race-plug',
+      version: '2.0.0',
+      apiVersion: '^0.1',
+      capabilities: { tools: true },
+      setup(api) {
+        api.tools.register({
+          name: 'v2_orphan',
+          description: 'Must not survive dispose',
+          inputSchema: { type: 'object', properties: {} },
+          permission: 'auto',
+          mutating: false,
+          execute: async () => 'bad',
+        });
+      },
+    });
+    await qEntered;
+    const disposeP = host2.dispose();
+    qOut();
+    await expect(reloadP).rejects.toThrow(/after plugin host disposal/);
+    await disposeP;
+    expect(h2.toolRegistry.get('v2_orphan')).toBeUndefined();
+  });
 });

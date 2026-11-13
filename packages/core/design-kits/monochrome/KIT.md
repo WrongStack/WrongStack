@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Photography, portfolios, galleries, fashion lookbooks, bold minimal brands.
 version: 1.0.0
+paper: light 100 0
+display: high-contrast-serif Helvetica Now
+accent: warm 25
+posture: restrained
+photo: mono con=12
 ---
 
 # Monochrome

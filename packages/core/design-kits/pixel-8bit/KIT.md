@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Game UIs and game tooling, jam sites, indie communities, and anything that should feel like a cartridge rather than a website.
 version: 1.0.0
+paper: light 93 110
+display: pixel Press Start 2P
+accent: warm 30
+posture: committed
+photo: natural
 ---
 
 # Pixel 8-bit

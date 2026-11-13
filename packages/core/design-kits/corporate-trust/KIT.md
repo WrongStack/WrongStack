@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Fintech, healthcare, government, B2B SaaS, admin tools — anywhere trust & compliance lead.
 version: 1.0.0
+paper: light 98 250
+display: roman-serif Inter
+accent: cool 255
+posture: committed
+photo: natural
 ---
 
 # Corporate Trust

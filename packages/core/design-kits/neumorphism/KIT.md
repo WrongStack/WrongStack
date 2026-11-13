@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Calm dashboards, smart-home/IoT controls, music players, minimal utility apps.
 version: 1.0.0
+paper: light 92 250
+display: roman-serif Inter
+accent: cool 255
+posture: committed
+photo: natural
 ---
 
 # Neumorphism

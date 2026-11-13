@@ -20,8 +20,7 @@
  *    until `~/.wrongstack/adversary.md`, `~/.wrongstack/profiles/<name>/adversary.md`,
  *    `<project>/.wrongstack/adversary.md`, inline `rules`, or `alwaysOn: true`
  *    is present.
- *  - Repository `<project>/.wrongstack/adversary.md` is strictly ADDITIVE: it
- *    may add watched tools and extra BLOCK rules, never weaken operator rules.
+ *  - Repository `<project>/.wrongstack/adversary.md` is strictly ADDITIVE (adds watched tools and BLOCK rules only).
  *
  * @public
  */
@@ -303,6 +302,7 @@ const plugin: Plugin = {
     state.globalRootOverride = readGlobalRootOverride(rawExt);
 
     const resolveGlobalRoot = () => state.globalRootOverride ?? wstackGlobalRoot();
+    let rebindPre: (() => void) | undefined;
 
     state.unsubscribes.push(
       api.onConfigChange((next) => {
@@ -311,11 +311,11 @@ const plugin: Plugin = {
         state.globalRootOverride = readGlobalRootOverride(nextExt);
         state.policyLoader.clear();
         state.verdictCache.clear();
+        rebindPre?.();
       }),
     );
 
     if (typeof api.registerHook === 'function') {
-      // 1. Capture user's stated task & recent messages per session.
       state.unsubscribes.push(
         api.registerHook(
           'UserPromptSubmit',
@@ -334,7 +334,6 @@ const plugin: Plugin = {
         ),
       );
 
-      // 2. Track tool history and untrusted external data taint (web/MCP/injection signals).
       state.unsubscribes.push(
         api.registerHook(
           'PostToolUse',
@@ -355,9 +354,10 @@ const plugin: Plugin = {
         ),
       );
 
-      // 3. Pre-execution semantic policy & task-drift check.
-      state.unsubscribes.push(
-        api.registerHook(
+      let unsubPre = () => {};
+      rebindPre = () => {
+        unsubPre();
+        unsubPre = api.registerHook(
           'PreToolUse',
           '*',
           async (
@@ -369,9 +369,7 @@ const plugin: Plugin = {
             if (!toolName) return undefined;
 
             const globalRoot = resolveGlobalRoot();
-
-            // Defense-in-depth: never let an agent rewrite or delete adversary.md
-            // to silence future reviews, even before or during policy activation.
+            // Never let an agent rewrite or delete adversary.md to silence future reviews.
             const tamperReason = isAdversaryPolicyTamperAttempt(toolName, input.toolInput, {
               cwd: input.cwd,
               globalRoot,
@@ -518,8 +516,10 @@ const plugin: Plugin = {
             policy: true,
             timeoutMs: state.cfg.timeoutMs + 1_000,
           },
-        ),
-      );
+        );
+      };
+      rebindPre();
+      state.unsubscribes.push(() => unsubPre());
     }
 
     // ── adversary_mode_status diagnostic tool ──────────────────────────────

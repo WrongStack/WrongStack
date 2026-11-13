@@ -450,4 +450,83 @@ Buttons and cards.
     expect(parsed.issues).toEqual([]);
     expect(resolveDesignMdRef(parsed.doc!, '{typography.body-sm-2}')).toContain('sohne-var');
   });
+
+  it('preserves explicit themes.light and dark base colors when round-tripping dark-first DESIGN.md (F179)', () => {
+    const darkDna = summarizeDesignDna([
+      {
+        v: 1,
+        url: 'https://linear.example/',
+        title: 'Linear',
+        vw: 1440,
+        vh: 900,
+        docH: 1800,
+        screens: 2,
+        rootBg: '#08090a',
+        colorScheme: 'dark',
+        themeColor: '#5e6ad2',
+        generator: null,
+        samples: {
+          points: 1000,
+          media: 0,
+          gradient: 0,
+          area: [
+            ['#08090a', 700],
+            ['#141517', 250],
+            ['#5e6ad2', 50],
+          ],
+        },
+        text: [['16|400|24|0|Inter||p', 800]],
+        textColor: [
+          ['#f8f7ff', 600],
+          ['#8a8f98', 300],
+        ],
+        families: [['Inter', 900]],
+        fontsLoaded: ['Inter'],
+        padding: [['16', 10]],
+        gap: [['12', 6]],
+        vmargin: [['24', 6]],
+        radius: [['8', 8]],
+        shadow: [],
+        borderW: [['1', 6]],
+        borderColor: [['#2c2e33', 6]],
+        duration: [['150', 4]],
+        easing: [['ease-out', 4]],
+        gradients: [],
+        effects: {},
+        grids: [],
+        buttons: [
+          {
+            h: 40,
+            w: 120,
+            padX: 16,
+            r: 8,
+            bg: '#5e6ad2',
+            fg: '#ffffff',
+            border: null,
+            fw: '500',
+            fs: 14,
+            tt: 'none',
+            y: 200,
+          },
+        ],
+        inputs: [],
+        nav: null,
+        sections: [],
+        images: 0,
+        imgRatios: [],
+        icons: [],
+        vars: {},
+        elements: 60,
+      },
+    ]);
+
+    const parsed = parseDesignMd(renderDesignMdFromDna(darkDna));
+    const tokens = designMdToTokens(parsed.doc!);
+    expect(tokens.light?.bg).toBe('#F6F9FC');
+    expect(tokens.light?.surface).toBe('#E5EDF5');
+    expect(tokens.light?.fg).toBe('#000000');
+    expect(tokens.dark?.bg).toBe('#08090A');
+    expect(tokens.dark?.surface).toBe('#141517');
+    expect(tokens.dark?.fg).toBe('#F8F7FF');
+  });
 });

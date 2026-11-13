@@ -11,8 +11,8 @@ vi.mock('@wrongstack/sdd', () => ({
   sddRunLiveReason: vi.fn(async () => undefined),
 }));
 
-import { WorktreeManager } from '@wrongstack/worktree';
 import { cleanupStaleSddWorktrees, sddRunLiveReason } from '@wrongstack/sdd';
+import { WorktreeManager } from '@wrongstack/worktree';
 import { WorktreeWebSocketHandler } from '../src/server/worktree-ws-handler.js';
 
 const managerMock = WorktreeManager as unknown as { mockImplementation: (impl: unknown) => void };
@@ -636,6 +636,139 @@ describe('WorktreeWebSocketHandler — per-row operations', () => {
       resolve('/proj/.wrongstack/worktrees/a'),
       'wstack/ap/base',
     );
+    h.dispose();
+  });
+
+  it('re-checks in-session liveness after cross-process board await and avoids handle suffix collisions', async () => {
+    const liveMock = sddRunLiveReason as unknown as ReturnType<typeof vi.fn>;
+    let releaseRmGate!: () => void;
+    const rmEntered = new Promise<void>((r) => {
+      liveMock.mockImplementationOnce(
+        () =>
+          new Promise<string | undefined>((resolveLive) => {
+            r();
+            releaseRmGate = () => resolveLive(undefined);
+          }),
+      );
+    });
+
+    const removeOne = vi.fn(async () => ({ removed: true }));
+    const mergeBranch = vi.fn(async () => ({ ok: true }));
+    const raceDir = resolve('/proj/.wrongstack/worktrees/race');
+    const dir1 = resolve('/proj/.wrongstack/worktrees/1');
+    const dirTask1 = resolve('/proj/.wrongstack/worktrees/task-1');
+    const dirOld = resolve('/proj/.wrongstack/worktrees/old');
+    const detachedDir = resolve('/proj/.wrongstack/worktrees/detached');
+    const { h, ws } = handlerWith({
+      removeOne,
+      mergeBranch,
+      listManaged: async () => ({
+        worktrees: [{ dir: detachedDir }],
+        branches: [],
+      }),
+    });
+    const emit = (e: string, p: unknown) =>
+      (events as unknown as { emit: (ev: string, payload: unknown) => void }).emit(e, p);
+
+    // 1. TOCTOU across otherProcessLiveReason() in removeOne.
+    const pendingRemove = h.handleMessage({
+      type: 'worktree.remove',
+      payload: { dir: raceDir, branch: 'wstack/ap/race' },
+    });
+    await rmEntered;
+    emit('worktree.allocated', {
+      handleId: 'race',
+      ownerId: 'o-race',
+      ownerLabel: 'Race',
+      dir: raceDir,
+      branch: 'wstack/ap/race',
+      baseBranch: 'main',
+    });
+    releaseRmGate();
+    await pendingRemove;
+    expect(removeOne).not.toHaveBeenCalled();
+    expect(
+      ws.sent.filter((m) => m.type === 'worktree.cleanup_result').at(-1)?.payload,
+    ).toMatchObject({ ok: false, reason: 'a run is live on this worktree — stop it first' });
+
+    // 2. TOCTOU across otherProcessLiveReason() in mergeBranch.
+    let releaseMergeGate!: () => void;
+    const mergeEntered = new Promise<void>((r) => {
+      liveMock.mockImplementationOnce(
+        () =>
+          new Promise<string | undefined>((resolveLive) => {
+            r();
+            releaseMergeGate = () => resolveLive(undefined);
+          }),
+      );
+    });
+    const pendingMerge = h.handleMessage({
+      type: 'worktree.merge',
+      payload: { branch: 'wstack/ap/race-merge' },
+    });
+    await mergeEntered;
+    emit('worktree.allocated', {
+      handleId: 'race-merge',
+      ownerId: 'o-merge',
+      ownerLabel: 'Race Merge',
+      branch: 'wstack/ap/race-merge',
+      baseBranch: 'main',
+    });
+    releaseMergeGate();
+    await pendingMerge;
+    expect(mergeBranch).not.toHaveBeenCalled();
+    expect(ws.sent.filter((m) => m.type === 'worktree.merge_result').at(-1)?.payload).toMatchObject(
+      { ok: false, reason: 'a run is live on this worktree — stop it first' },
+    );
+
+    emit('worktree.released', { handleId: 'race', kept: false });
+    emit('worktree.released', { handleId: 'race-merge', kept: false });
+
+    // 3. Suffix handle ('1') is preserved when removing '.../task-1', while trailing-slash '.../old/' cleans 'old'.
+    emit('worktree.allocated', {
+      handleId: '1',
+      ownerId: 'o1',
+      ownerLabel: 'One',
+      dir: dir1,
+      branch: 'wstack/ap/1',
+      baseBranch: 'main',
+    });
+    emit('worktree.conflict', { handleId: '1', conflictFiles: ['x.ts'] });
+    emit('worktree.released', { handleId: '1', kept: true });
+
+    emit('worktree.allocated', {
+      handleId: 'old',
+      ownerId: 'o2',
+      ownerLabel: 'Old',
+      dir: dirOld,
+      branch: 'wstack/ap/old',
+      baseBranch: 'main',
+    });
+    emit('worktree.conflict', { handleId: 'old', conflictFiles: ['y.ts'] });
+    emit('worktree.released', { handleId: 'old', kept: true });
+
+    await h.handleMessage({ type: 'worktree.remove', payload: { dir: dirTask1 } });
+    await h.handleMessage({ type: 'worktree.remove', payload: { dir: `${dirOld}/` } });
+    const ids = (lastState(ws)['worktrees'] as Array<{ handleId: string }>).map((w) => w.handleId);
+    expect(ids).toContain('1');
+    expect(ids).not.toContain('old');
+
+    // 4. Detached-HEAD checkout owned by a live handle is never broadcast as an orphan.
+    emit('worktree.allocated', {
+      handleId: 'detached',
+      ownerId: 'o-det',
+      ownerLabel: 'Detached',
+      dir: detachedDir,
+      branch: 'wstack/ap/detached',
+      baseBranch: 'main',
+    });
+    await h.handleMessage({ type: 'worktree.scan' });
+    const orphanPayload = ws.sent.filter((m) => m.type === 'worktree.orphans').at(-1)?.payload as {
+      orphans: unknown[];
+      canClean: boolean;
+    };
+    expect(orphanPayload.orphans).toEqual([]);
+    expect(orphanPayload.canClean).toBe(false);
     h.dispose();
   });
 });

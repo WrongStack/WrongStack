@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [dark, light]
 bestFor: Tech/AI, automotive, audio gear, premium product launches, bold futuristic brands.
 version: 1.0.0
+paper: dark 20 250
+display: roman-serif Geist
+accent: neutral 240
+posture: committed
+photo: natural con=4
 ---
 
 # Liquid Metal

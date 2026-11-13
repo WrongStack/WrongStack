@@ -132,6 +132,7 @@ impl HostState {
                     field(p, "projectId")?,
                     p["offset"].as_u64().unwrap_or(0),
                     p["recent"].as_u64(),
+                    p["runtimeId"].as_str(),
                 )
             }
             "project.send" => self.project_send(field(p, "projectId")?, p["message"].clone()),
@@ -142,6 +143,7 @@ impl HostState {
                 "@profile",
                 p["offset"].as_u64().unwrap_or(0),
                 p["recent"].as_u64(),
+                p["runtimeId"].as_str(),
             ),
             "profile.send" => self.project_send("@profile", p["message"].clone()),
             "profile.http" => self.project_http("@profile", p),

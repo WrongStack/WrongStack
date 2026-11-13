@@ -26,7 +26,7 @@
 
 import { createHash } from 'node:crypto';
 import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { ERROR_CODES, FsError } from '@wrongstack/contracts/types/errors';
 import { withFileLock } from '../utils/atomic-write.js';
 
@@ -87,7 +87,7 @@ const LOCAL_RESOLVE_EXTENSIONS = ['', '.ts', '.tsx', '.mts', '.cts', '.js', '.js
  * never hashed — a changed helper would keep the old pin valid.
  */
 const JS_EXTENSION_TO_SOURCE: Record<string, readonly string[]> = {
-  '.js': ['.ts', '.tsx'],
+  '.js': ['.ts', '.tsx', '.mts'],
   '.jsx': ['.tsx'],
   '.mjs': ['.mts'],
   '.cjs': ['.cts'],
@@ -119,7 +119,9 @@ async function resolveLocalImport(
   fromFile: string,
   specifier: string,
 ): Promise<string | undefined> {
-  const base = resolve(dirname(fromFile), specifier);
+  const cleanSpec = specifier.split(/[?#]/)[0] ?? '';
+  if (!cleanSpec) return undefined;
+  const base = resolve(dirname(fromFile), cleanSpec);
   for (const ext of LOCAL_RESOLVE_EXTENSIONS) {
     const candidate = base + ext;
     const st = await stat(candidate).catch(() => undefined);
@@ -229,32 +231,23 @@ async function collectLocalImportClosure(entryPath: string): Promise<Map<string,
   return files;
 }
 
-/** True when `file` sits under `root` (or is `root` itself). */
-function isInside(root: string, file: string): boolean {
-  const rel = relative(root, file);
-  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
-}
-
 /**
- * Local dependencies that a plugin imports from OUTSIDE its own directory
- * (e.g. `foo/index.ts` importing `../shared/util.ts`).
- *
- * The directory manifest only covers files inside the plugin directory, so
- * these helpers are executed code that the pin must cover too — otherwise a
- * rewritten helper keeps the old pin valid.
+ * Local dependencies reachable via relative imports that were not already
+ * included in the directory walk (e.g. `../shared/util.ts` or imported
+ * modules inside dot-directories).
  */
-async function collectExternalLocalDependencies(
+async function collectUnwalkedLocalDependencies(
   entryPath: string,
-  dir: string,
+  hashedKeys: ReadonlySet<string>,
 ): Promise<Map<string, Buffer>> {
-  const external = new Map<string, Buffer>();
+  const unwalked = new Map<string, Buffer>();
   const files = await collectLocalImportClosure(entryPath);
   for (const [file, bytes] of files) {
-    if (isInside(dir, file)) continue;
+    if (hashedKeys.has(normalizeTrustKey(resolve(file)))) continue;
     if (file.split(/[\\/]/).includes('node_modules')) continue;
-    external.set(file, bytes);
+    unwalked.set(file, bytes);
   }
-  return external;
+  return unwalked;
 }
 
 /**
@@ -304,6 +297,7 @@ export async function hashPluginDirectoryClosure(
   await walk(dir);
   files.sort();
   const manifest: string[] = [];
+  const hashedKeys = new Set<string>();
   for (const full of files) {
     const rel = relative(dir, full).split(sep).join('/');
     let bytes: Buffer;
@@ -316,17 +310,17 @@ export async function hashPluginDirectoryClosure(
     }
     const sha = createHash('sha256').update(bytes).digest('hex');
     manifest.push(`${rel}\0${bytes.length}\0${sha}`);
+    hashedKeys.add(normalizeTrustKey(resolve(full)));
   }
-  if (!manifest.some((line) => line.startsWith(`${entryBase}\0`))) {
+  const entryKey = normalizeTrustKey(entryPath);
+  if (!hashedKeys.has(entryKey)) {
     const entryBytes = await readFile(entryPath);
     const entrySha = createHash('sha256').update(entryBytes).digest('hex');
     manifest.push(`${entryBase}\0${entryBytes.length}\0${entrySha}`);
+    hashedKeys.add(entryKey);
   }
-  // Local dependencies outside the plugin directory are part of the executed
-  // code — they belong in the digest, keyed by their path relative to the
-  // plugin directory so the manifest stays deterministic.
-  const external = await collectExternalLocalDependencies(entryPath, dir);
-  for (const [full, bytes] of external) {
+  const unwalked = await collectUnwalkedLocalDependencies(entryPath, hashedKeys);
+  for (const [full, bytes] of unwalked) {
     const rel = relative(dir, full).split(sep).join('/');
     const sha = createHash('sha256').update(bytes).digest('hex');
     manifest.push(`${rel}\0${bytes.length}\0${sha}`);

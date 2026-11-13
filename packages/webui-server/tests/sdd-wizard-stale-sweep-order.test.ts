@@ -47,7 +47,9 @@ it('finishes the stale-worktree sweep before starting a worktree run', async () 
       { sessionId: 'tab-1', worktrees: true },
       {} as never,
     );
-    await vi.waitFor(() => expect(order).toContain('sweep:start'));
+    // The sweep starts only after an async `git rev-parse` probe, which can
+    // exceed waitFor's 1s default on a loaded machine.
+    await vi.waitFor(() => expect(order).toContain('sweep:start'), { timeout: 15_000 });
     expect(order).not.toContain('run:start(worktrees)');
     sweep.release();
     await started;

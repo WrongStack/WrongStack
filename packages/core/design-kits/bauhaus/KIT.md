@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Design schools, museums, posters, editorial, bold functional brands.
 version: 1.0.0
+paper: light 99 0
+display: roman-serif Futura
+accent: cool 255
+posture: full-palette
+photo: natural
 ---
 
 # Bauhaus

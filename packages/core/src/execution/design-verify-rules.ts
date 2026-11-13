@@ -169,6 +169,23 @@ export const LINE_RULES: readonly LineRule[] = [
 
 const EM_DASH_LIMIT = 6;
 
+const HEADING_BLOCK_RE = /<h([12])\b[^>]*>([\s\S]{1,400}?)<\/h\1>/gi;
+const SINGLE_ITALIC_IN_HEADING_RE =
+  /<(?:em|i)\b[^>]*>\s*([A-Za-zÀ-ÖØ-öø-ÿ'-]{2,24})\s*<\/(?:em|i)>|<span\b[^>]*\bitalic\b[^>]*>\s*([A-Za-zÀ-ÖØ-öø-ÿ'-]{2,24})\s*<\/span>/i;
+const ACCENT_SPAN_IN_HEADING_RE =
+  /<span\b[^>]*\btext-(?:primary|accent)\b[^>]*>\s*([A-Za-z0-9À-ÖØ-öø-ÿ'-]+(?:\s+[A-Za-z0-9À-ÖØ-öø-ÿ'-]+)?)\s*<\/span>/i;
+const TRAFFIC_HEX_RE = /#ff5f5[67]\b[\s\S]{0,240}#ffbd2e\b[\s\S]{0,240}#2[78]c[89]3f\b/i;
+const INLINE_SUBMIT_RE = /onSubmit=\{\s*\(?[a-zA-Z_$][\w$]*\)?\s*=>\s*\{([\s\S]{1,320}?)\}\s*\}/g;
+
+function lineFromOffset(code: readonly string[], offset: number): number {
+  let acc = 0;
+  for (let i = 0; i < code.length; i++) {
+    acc += (code[i]?.length ?? 0) + 1;
+    if (acc > offset) return i + 1;
+  }
+  return 1;
+}
+
 export const FILE_RULES: readonly FileRule[] = [
   {
     id: 'copy.em-dash-density',
@@ -189,6 +206,120 @@ export const FILE_RULES: readonly FileRule[] = [
             reason: `${count} em-dashes in visible copy — a generated-prose tell; most can be a period or a comma`,
           }
         : null;
+    },
+  },
+  {
+    id: 'type.roman-heading-italic-word',
+    axis: 'type',
+    severity: 'WARN',
+    match: (code) => {
+      const joined = code.join('\n');
+      HEADING_BLOCK_RE.lastIndex = 0;
+      for (const m of joined.matchAll(HEADING_BLOCK_RE)) {
+        const inner = m[2] ?? '';
+        const hit = SINGLE_ITALIC_IN_HEADING_RE.exec(inner);
+        if (!hit) continue;
+        const rest = inner
+          .replace(hit[0], '')
+          .replace(/<[^>]+>/g, '')
+          .trim();
+        if (rest.length >= 3) {
+          return {
+            line: lineFromOffset(code, m.index ?? 0),
+            snippet: m[0].replace(/\s+/g, ' ').slice(0, 80),
+            reason:
+              'single italicized word inside a roman display heading — a pervasive generated-hero cliché; set the whole heading in one voice',
+          };
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: 'composition.heading-accent-span',
+    axis: 'composition',
+    severity: 'WARN',
+    match: (code) => {
+      const joined = code.join('\n');
+      HEADING_BLOCK_RE.lastIndex = 0;
+      for (const m of joined.matchAll(HEADING_BLOCK_RE)) {
+        const inner = m[2] ?? '';
+        const hit = ACCENT_SPAN_IN_HEADING_RE.exec(inner);
+        if (!hit) continue;
+        const rest = inner
+          .replace(hit[0], '')
+          .replace(/<[^>]+>/g, '')
+          .trim();
+        if (rest.length >= 3) {
+          return {
+            line: lineFromOffset(code, m.index ?? 0),
+            snippet: m[0].replace(/\s+/g, ' ').slice(0, 80),
+            reason:
+              'accent-colored word span inside a main heading — let display scale and copy carry emphasis instead of coloring one word',
+          };
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: 'composition.fake-window-chrome',
+    axis: 'composition',
+    severity: 'WARN',
+    match: (code) => {
+      const joined = code.join('\n');
+      const hexHit = TRAFFIC_HEX_RE.exec(joined);
+      if (hexHit) {
+        return {
+          line: lineFromOffset(code, hexHit.index),
+          snippet: hexHit[0].replace(/\s+/g, ' ').slice(0, 80),
+          reason:
+            'fake macOS traffic-light window header — frame product previews with a 1px hairline border instead of theatrical OS chrome',
+        };
+      }
+      for (let i = 0; i < code.length; i++) {
+        const windowSlice = code.slice(i, i + 6).join('\n');
+        if (
+          /\brounded-full\b/.test(code[i] ?? '') &&
+          /\bbg-(?:red|rose)-[45]00\b/.test(windowSlice) &&
+          /\bbg-(?:yellow|amber)-[45]00\b/.test(windowSlice) &&
+          /\bbg-(?:green|emerald)-[45]00\b/.test(windowSlice)
+        ) {
+          return {
+            line: i + 1,
+            snippet: (code[i] ?? '').trim().slice(0, 80),
+            reason:
+              'fake three-dot browser/OS window bar — frame product previews with a quiet 1px border instead of decorative traffic-light dots',
+          };
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: 'composition.fake-submit-handler',
+    axis: 'composition',
+    severity: 'WARN',
+    match: (code) => {
+      const joined = code.join('\n');
+      INLINE_SUBMIT_RE.lastIndex = 0;
+      for (const m of joined.matchAll(INLINE_SUBMIT_RE)) {
+        const body = m[1] ?? '';
+        if (!/\.preventDefault\s*\(\s*\)/.test(body)) continue;
+        const setsFakeOk =
+          /\b(?:set(?:Submitted|Sent|Success|Subscribed|Saved|Done)|alert)\s*\(/.test(body);
+        const doesWork =
+          /\b(?:await|fetch|axios|mutate|dispatch|submit\w*|action|on[A-Z]\w*)\b/.test(body);
+        if (setsFakeOk && !doesWork) {
+          return {
+            line: lineFromOffset(code, m.index ?? 0),
+            snippet: m[0].replace(/\s+/g, ' ').slice(0, 80),
+            reason:
+              'inline onSubmit prevents default and flips a success flag without calling a handler or request — wire a real submission or label the demo state honestly',
+          };
+        }
+      }
+      return null;
     },
   },
 ];
@@ -225,10 +356,19 @@ export function ruleContext(tokens: DesignKitTokens): RuleContext {
   return { gradientKit: values.some((v) => classifyTokenValue(v) === 'gradient') };
 }
 
+export interface WaiverRecord {
+  id: string;
+  scope: 'line' | 'next-line' | 'file';
+  line: number;
+  reason?: string | undefined;
+}
+
 export interface Waivers {
   file: Set<string>;
   /** 1-based line → waived ids on that line. */
   lines: Map<number, Set<string>>;
+  /** Parsed waiver entries with optional `-- <reason>` rationale. */
+  records: WaiverRecord[];
 }
 
 // The id list ends where the comment does: the `*` of a closing `*/` is not
@@ -236,24 +376,38 @@ export interface Waivers {
 const WAIVER_RE = /design-ignore(-next-line|-file)?:([^\n]*?)(?:\*\/|-->|$)/;
 
 export function parseWaivers(lines: readonly string[]): Waivers {
-  const out: Waivers = { file: new Set(), lines: new Map() };
+  const out: Waivers = { file: new Set(), lines: new Map(), records: [] };
   lines.forEach((text, i) => {
     const m = WAIVER_RE.exec(text);
     if (!m) return;
-    const ids = (m[2] ?? '')
+    const rawBody = m[2] ?? '';
+    const dashSplit = rawBody.split(/\s+--\s+/);
+    const idSegment = dashSplit[0] ?? '';
+    const reason = dashSplit.length > 1 ? dashSplit.slice(1).join(' -- ').trim() : undefined;
+    const ids = idSegment
       .split(/[\s,]+/)
       .map((s) => s.trim())
       // Only real rule ids: a misspelt waiver must not look like it worked.
       .filter((s) => s === '*' || KNOWN_IDS.has(s));
     if (ids.length === 0) return;
+    const scope: WaiverRecord['scope'] =
+      m[1] === '-file' ? 'file' : m[1] === '-next-line' ? 'next-line' : 'line';
+    const targetLine = m[1] === '-next-line' ? i + 2 : i + 1;
+    for (const id of ids) {
+      out.records.push({
+        id,
+        scope,
+        line: targetLine,
+        ...(reason ? { reason } : {}),
+      });
+    }
     if (m[1] === '-file') {
       for (const id of ids) out.file.add(id);
       return;
     }
-    const line = m[1] === '-next-line' ? i + 2 : i + 1;
-    const set = out.lines.get(line) ?? new Set<string>();
+    const set = out.lines.get(targetLine) ?? new Set<string>();
     for (const id of ids) set.add(id);
-    out.lines.set(line, set);
+    out.lines.set(targetLine, set);
   });
   return out;
 }

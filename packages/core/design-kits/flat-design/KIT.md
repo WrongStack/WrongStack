@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Dashboards, kiosks, enterprise tools, and any interface that must stay legible with no depth cues at all.
 version: 1.0.0
+paper: light 97 0
+display: roman-serif Inter
+accent: warm 40
+posture: committed
+photo: natural
 ---
 
 # Flat Design

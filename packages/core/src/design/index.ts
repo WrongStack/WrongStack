@@ -3,7 +3,17 @@
 // concerns independently addressable without exposing unrelated execution APIs.
 
 export {
+  DESIGN_DISPLAY_CLASSES,
+  DESIGN_PAPER_BANDS,
+  DESIGN_POSTURES,
+  type DesignAccentBand,
+  type DesignDisplayClass,
+  type DesignKitAxes,
+  type DesignKitEntry,
   type DesignKitLoader,
+  type DesignKitManifest,
+  type DesignPaperBand,
+  type DesignPosture,
   type DesignStack,
   isDesignStack,
   type SkippedKitInfo,
@@ -14,9 +24,12 @@ export * from '../execution/design-detect.js';
 export * from '../execution/design-dna.js';
 export * from '../execution/design-dna-compare.js';
 export * from '../execution/design-dna-extractor.js';
+export * from '../execution/design-draw.js';
 export * from '../execution/design-inspect.js';
 export * from '../execution/design-inspect-extractor.js';
+export * from '../execution/design-keep.js';
 export * from '../execution/design-kit-loader.js';
+export * from '../execution/design-material.js';
 export * from '../execution/design-materialize.js';
 export * from '../execution/design-md.js';
 export * from '../execution/design-md-diff.js';

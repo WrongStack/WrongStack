@@ -327,9 +327,8 @@ export function lintDesignMd(doc: DesignMdDoc): DesignMdIssue[] {
 }
 
 /**
- * DESIGN.md tokens → Design Studio tokens, for capture/verify. `dark-<role>`
- * colors and `themes.dark` overlay the light set in the dark theme; scales map
- * onto the kebab names materialize and verify already know.
+ * DESIGN.md tokens → Design Studio tokens (`dark-<role>` and `themes.dark`
+ * overlay `colors` in dark; `themes.light` overlays `colors` in light).
  */
 export function designMdToTokens(doc: DesignMdDoc): DesignKitTokens {
   const light: Record<string, string> = {};
@@ -342,17 +341,18 @@ export function designMdToTokens(doc: DesignMdDoc): DesignKitTokens {
   if (!light.bg && light.canvas) light.bg = light.canvas;
   if (!light.fg && light.ink) light.fg = light.ink;
   if (!light.muted && light.body) light.muted = light.body;
+  const baseColors = { ...light };
   if (doc.themes?.light) {
     const lt = doc.themes.light;
-    if (lt.bg && !light.bg) light.bg = lt.bg;
-    if (lt.surface && !light.surface) light.surface = lt.surface;
-    if (lt.surfaceRaised && !light.raised) light.raised = lt.surfaceRaised;
-    if (lt.text && !light.fg) light.fg = lt.text;
-    if (lt.textMuted && !light.muted) light.muted = lt.textMuted;
-    if (lt.border && !light.border) light.border = lt.border;
-    if (lt.accent && !light.primary) light.primary = lt.accent;
-    if (lt.accentFg && !light['on-primary']) light['on-primary'] = lt.accentFg;
-    if (lt.focusRing && !light.ring) light.ring = lt.focusRing;
+    if (lt.bg) light.bg = lt.bg;
+    if (lt.surface) light.surface = lt.surface;
+    if (lt.surfaceRaised) light.raised = lt.surfaceRaised;
+    if (lt.text) light.fg = lt.text;
+    if (lt.textMuted) light.muted = lt.textMuted;
+    if (lt.border) light.border = lt.border;
+    if (lt.accent) light.primary = lt.accent;
+    if (lt.accentFg) light['on-primary'] = lt.accentFg;
+    if (lt.focusRing) light.ring = lt.focusRing;
   }
   if (doc.themes?.dark) {
     const dt = doc.themes.dark;
@@ -407,7 +407,7 @@ export function designMdToTokens(doc: DesignMdDoc): DesignKitTokens {
     if (dispRole.lineHeight !== undefined && !light['leading-tight'])
       light['leading-tight'] = String(dispRole.lineHeight);
   }
-  return { light, dark: { ...light, ...dark } };
+  return { light, dark: { ...light, ...baseColors, ...dark } };
 }
 
 const ROLE_ORDER = ['primary', 'accent', 'bg', 'surface', 'fg', 'muted', 'border', 'ring'];

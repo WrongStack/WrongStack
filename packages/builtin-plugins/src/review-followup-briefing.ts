@@ -25,26 +25,21 @@ const HEX_REPORT_ID_RE =
 
 const FENCED_JSON_RE = /```json[ \t]*\r?\n([\s\S]*?)\r?\n[ \t]*```/gi;
 
-const WRITE_TOOL_NAMES = new Set([
-  'edit',
-  'edit_file',
-  'multi_edit',
-  'write',
-  'write_file',
-  'apply_patch',
-  'notebook_edit',
-  'str_replace_editor',
-]);
+const WRITE_TOOL_NAMES = new Set(
+  'edit,edit_file,multi_edit,write,write_file,patch,apply_patch,replace,codebase-ast-replace,dead-code-fix,notebook_edit,str_replace_editor'.split(
+    ',',
+  ),
+);
 
-const EXEC_TOOL_NAMES = new Set(['bash', 'exec', 'run_command', 'shell', 'terminal']);
+const EXEC_TOOL_NAMES = new Set('bash,pwsh,powershell,exec,run_command,shell,terminal'.split(','));
 
-const DIAGNOSTIC_VERIFY_TOOL_NAMES = new Set(['diagnostics', 'lsp_diagnostics']);
-
+const DIAGNOSTIC_VERIFY_TOOL_NAMES = new Set(
+  'diagnostics,lsp_diagnostics,test,typecheck,lint'.split(','),
+);
 const VERIFY_COMMAND_RE =
   /\b(?:typecheck|tsc|tsgo|lint|biome|eslint|oxlint|ruff|flake8|mypy|pyright|pytest|vitest|jest|mocha|ava|cargo\s+(?:check|clippy|test)|go\s+(?:vet|test)|bun\s+(?:--filter\s+\S+\s+)?(?:run\s+)?(?:typecheck|lint|test|check|build)|npm\s+(?:test|run\s+(?:typecheck|lint|test|check|build))|pnpm\s+(?:test|run\s+|typecheck|lint|check)|yarn\s+(?:test|typecheck|lint|check))\b/i;
-
 const NONZERO_EXIT_TEXT_RE =
-  /\b(?:exit(?:ed)?\s+(?:with\s+)?code\s*:?\s*[1-9]\d*|exitCode["']?\s*:\s*[1-9]\d*)\b/i;
+  /\b(?:exit(?:ed)?\s+(?:with\s+)?code\s*:?\s*(?:-[1-9]\d*|[1-9]\d*|null)|(?:exitCode|exit_code)["']?\s*:\s*(?:-[1-9]\d*|[1-9]\d*|null)|(?:timedOut|timed_out)["']?\s*:\s*true)\b/i;
 
 const CONTEXT_RADIUS_LINES = 8;
 const MAX_TOTAL_EXCERPT_CHARS = 12_000;
@@ -536,21 +531,16 @@ export async function reconcileChimeraFollowupOutcomes(
         rejectedUnverifiedCount++;
         continue;
       }
-      if (finding.location?.file && cwdReal) {
-        const baselineSha = opts.reviewedFileHashes?.[normalizeRepoPath(finding.location.file)];
-        if (baselineSha) {
-          const currentContent = await readContainedFileContent(cwdReal, finding.location.file);
-          if (currentContent !== null) {
-            const currentSha = createHash('sha256').update(currentContent).digest('hex');
-            if (currentSha === baselineSha) {
-              rejectedUnverifiedCount++;
-              continue;
-            }
-          }
-        } else if (!opts.editedInRun) {
-          rejectedUnverifiedCount++;
-          continue;
-        }
+      const f = finding.location?.file;
+      const baseSha = f ? opts.reviewedFileHashes?.[normalizeRepoPath(f)] : undefined;
+      const cur = f && cwdReal && baseSha ? await readContainedFileContent(cwdReal, f) : null;
+      const unedited =
+        cur !== null && baseSha
+          ? createHash('sha256').update(cur).digest('hex') === baseSha
+          : !opts.editedInRun;
+      if (unedited) {
+        rejectedUnverifiedCount++;
+        continue;
       }
     }
 
@@ -664,8 +654,12 @@ function findToolUseInputInMessages(
 
 function extractCommandString(input: Record<string, unknown> | undefined): string {
   if (!input) return '';
+  const args = Array.isArray(input['args'])
+    ? input['args'].filter((a) => typeof a === 'string').join(' ')
+    : '';
   for (const key of ['command', 'cmd', 'CommandLine', 'script']) {
-    if (typeof input[key] === 'string') return input[key] as string;
+    if (typeof input[key] === 'string')
+      return args ? `${input[key]} ${args}` : (input[key] as string);
   }
   return '';
 }
@@ -787,8 +781,14 @@ export function createChimeraFollowupExtension(opts: {
           continue;
         }
         if (DIAGNOSTIC_VERIFY_TOOL_NAMES.has(toolName)) {
-          state.seq++;
-          state.lastVerifySeq = state.seq;
+          const text = extractResultText(out.result);
+          if (/"fix_applied"\s*:\s*true/.test(text)) state.lastEditSeq = ++state.seq;
+          const bad =
+            NONZERO_EXIT_TEXT_RE.test(text) ||
+            (toolName === 'test' && /"status"\s*:\s*"(?!passed")/.test(text)) ||
+            ((toolName === 'typecheck' || toolName === 'lint') &&
+              /"errors"\s*:\s*[1-9]/.test(text));
+          if (!bad) state.lastVerifySeq = ++state.seq;
           continue;
         }
         if (EXEC_TOOL_NAMES.has(toolName)) {

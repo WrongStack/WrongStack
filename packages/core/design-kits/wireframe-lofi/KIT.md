@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Prototypes, design tools, internal demos, "draft mode", playful sketch-style sites.
 version: 1.0.0
+paper: light 98 90
+display: handwritten Excalifont
+accent: neutral 0
+posture: committed
+photo: natural
 ---
 
 # Wireframe Lo-Fi

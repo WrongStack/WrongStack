@@ -57,18 +57,26 @@ needs `@custom-variant dark (&:where(.dark, .dark *));`.
 For a new kit or authorized migration:
 
 ~~~
-design {action:"deal"}
+design {action:"deal", query:"editorial tactile"}
 design {action:"use", kit:"<actual-id>", stack:"web"}
+design {action:"draw", job:"subscribe", material:"words"}
 design {action:"tune", tune:{radius:"lg", density:"compact", motion:"snappy"}}
 design {action:"materialize"}
 ~~~
 
-The deal is three kits drawn for the session with a printed seed; kits chosen
-recently in any project are left out, so consecutive products do not converge
-on one look. Pick the dealt kit that fits the product and say why. A query
-field narrows the pool by kit wording, redeal:true draws again, and the list
-action shows everything. A kit outside the deal needs a reason field (the
-user's brand, an existing look); the reason is recorded with the choice.
+The deal draws three kits spread across the 3D coordinate space (`paper/display/accent`)
+with a printed seed; kits chosen recently in any project are left out, and `query`
+narrows the pool by IDF-weighted domain terms. `draw` deals a job-native page
+anatomy (macrostructure, opening hero, nav, sections, footer) from `job` +
+`material` (`photo | product | words`) while avoiding recent layouts and the
+kit's own specimen (`pictured`). For web kits declaring `photo:` treatments or
+`fontLinks`, `materialize` emits compiled `[data-slot]` photo treatment CSS and
+font import hints alongside semantic tokens.
+
+When restyling an existing codebase, run `design {action:"snapshot"}` BEFORE
+editing UI files to capture routes, form inputs, `data-testid`s, and named
+handlers into `.design/before.json`, then run `design {action:"kept"}` after the
+redesign to verify zero wiring was silently dropped.
 
 Tune only when needed; use set for explicit brand/semantic overrides.
 Supported stacks are web, react-native, flutter, swiftui and compose.

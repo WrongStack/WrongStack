@@ -433,9 +433,8 @@ function inferColor(
     (t) => t.hex !== roles.fg && t.contrast < (fg?.contrast ?? 21) && hexChroma(t.hex) < 0.06,
   )?.hex;
 
-  // The primary action color is what filled buttons use — chromatic first,
-  // but an achromatic filled button (black-on-white, white-on-black sites)
-  // still outranks a colored link; color in text alone is then the accent.
+  // Filled buttons set primary (chromatic first, then achromatic black/white);
+  // colored links or area swatches then supply the chromatic accent.
   const filled = buttons
     .map((b) => b.bg)
     .filter((c): c is string => isOpaque(c) && deltaE(c, bg) > 0.08);
@@ -445,11 +444,12 @@ function inferColor(
     mode(filled) ??
     readable.find((t) => hexChroma(t.hex) >= 0.08)?.hex ??
     area.find((c) => hexChroma(c.hex) >= 0.08 && c.share >= 0.002)?.hex;
-  const primaryLab = roles.primary ? hexToOklab(roles.primary) : null;
+  const primaryLab =
+    roles.primary && hexChroma(roles.primary) >= 0.06 ? hexToOklab(roles.primary) : null;
   const hue = (lab: OkLab | null): number => (lab ? (Math.atan2(lab.b, lab.a) * 180) / Math.PI : 0);
   roles.accent = [...area.map((c) => c.hex), ...readable.map((t) => t.hex)].find((hex) => {
     if (hex === roles.primary || hexChroma(hex) < 0.08) return false;
-    const diff = Math.abs(hue(hexToOklab(hex)) - hue(primaryLab));
+    const diff = primaryLab ? Math.abs(hue(hexToOklab(hex)) - hue(primaryLab)) : 180;
     return Math.min(diff, 360 - diff) > 30;
   });
   const border = raw.borderColor.find(

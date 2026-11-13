@@ -21,7 +21,11 @@ export function DesignThemePreview({
     '--design-accent': tokens['accent'] ?? tokens['primary'] ?? '#2563eb',
     '--design-border': tokens['border'] ?? '#dddddd',
     '--design-radius': tokens['radius-md'] ?? tokens['radius'] ?? '8px',
-    '--design-display': tokens['font-display'] ?? tokens['fontSans'] ?? 'inherit',
+    '--design-display':
+      tokens['font-display'] ?? tokens['fontDisplay'] ?? tokens['fontSans'] ?? 'inherit',
+    '--design-weight-bold': tokens['weight-bold'] ?? '700',
+    '--design-leading-tight': tokens['leading-tight'] ?? '1.1',
+    '--design-tracking-tight': tokens['tracking-tight'] ?? '-0.03em',
     '--design-space': tokens['space-4'] ?? '16px',
     '--design-shadow': tokens['shadow-2'] ?? tokens['shadow'] ?? 'none',
   } as CSSProperties;

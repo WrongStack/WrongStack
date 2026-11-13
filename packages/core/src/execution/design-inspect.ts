@@ -17,6 +17,7 @@
 
 export type InspectSeverity = 'FAIL' | 'WARN';
 export type InspectSurface = 'page' | 'app';
+export type InspectStage = 'hero' | 'full';
 
 export interface InspectSample {
   sel: string;
@@ -55,6 +56,11 @@ export interface DesignInspectRaw {
   bodySizes: Record<string, number>;
   justified: number;
   elements: number;
+  heroFold?: { h1Bottom: number; ctaBottom: number | null } | null | undefined;
+  heroDeadBand?: number | undefined;
+  headingProximity?: InspectSample[] | undefined;
+  unboundedCount?: number | undefined;
+  unbounded?: InspectSample[] | undefined;
 }
 
 /** Browser evidence the manager collected for the same session. */
@@ -76,6 +82,7 @@ export interface InspectFinding {
 export interface DesignInspectReport {
   url: string;
   surface: InspectSurface;
+  stage?: InspectStage | undefined;
   viewports: number[];
   findings: InspectFinding[];
   fails: number;
@@ -89,6 +96,10 @@ const INSPECT_RULES = [
   'layout.horizontal-overflow',
   'layout.text-at-edge',
   'layout.blank-band',
+  'layout.hero-fold',
+  'layout.hero-dead-band',
+  'layout.heading-proximity',
+  'layout.unbounded-ultrawide',
   'type.body-size',
   'type.line-length',
   'type.size-count',
@@ -142,6 +153,7 @@ function inspectViewport(
   raw: DesignInspectRaw,
   surface: InspectSurface = 'page',
   runtime?: InspectRuntimeEvidence,
+  stage: InspectStage = 'full',
 ): InspectFinding[] {
   const t = INSPECT_THRESHOLDS[surface];
   const vw = raw.vw;
@@ -184,6 +196,51 @@ function inspectViewport(
       measured: `band(s) ${blank.map((b) => `${b * raw.vh}–${(b + 1) * raw.vh}px`).join(', ')}`,
       threshold: '0',
     });
+
+  if (surface === 'page' && vw >= 1200 && raw.heroFold) {
+    const foldFloor = 800;
+    const h1Over = raw.heroFold.h1Bottom > foldFloor;
+    const ctaOver = raw.heroFold.ctaBottom !== null && raw.heroFold.ctaBottom > foldFloor;
+    if (h1Over || ctaOver) {
+      add({
+        id: 'layout.hero-fold',
+        severity: stage === 'hero' ? 'FAIL' : 'WARN',
+        message: 'Opening headline or primary CTA falls below the 800px desktop fold.',
+        measured: `heading bottom ${raw.heroFold.h1Bottom}px${raw.heroFold.ctaBottom !== null ? `, CTA bottom ${raw.heroFold.ctaBottom}px` : ''}`,
+        threshold: '≤ 800px at desktop width',
+      });
+    }
+  }
+  if (surface === 'page' && (raw.heroDeadBand ?? 0) > 160) {
+    add({
+      id: 'layout.hero-dead-band',
+      severity: 'WARN',
+      message: 'Opening hero has an empty vertical gap taller than 160px.',
+      measured: `${raw.heroDeadBand}px empty band inside 0–800px`,
+      threshold: '≤ 160px',
+    });
+  }
+  if ((raw.headingProximity?.length ?? 0) > 0) {
+    add({
+      id: 'layout.heading-proximity',
+      severity: 'WARN',
+      message:
+        'Subheadings sit closer to the preceding block than to the content they introduce (Gestalt proximity).',
+      measured: `${raw.headingProximity!.length} heading(s)`,
+      threshold: 'space above ≥ space below',
+      samples: raw.headingProximity!,
+    });
+  }
+  if (surface === 'page' && vw >= 1600 && (raw.unboundedCount ?? 0) > 0) {
+    add({
+      id: 'layout.unbounded-ultrawide',
+      severity: 'WARN',
+      message: 'Text-heavy container stretches uncapped across ultrawide viewports.',
+      measured: `${raw.unboundedCount} container(s) > 1640px`,
+      threshold: '≤ 1640px max-width',
+      samples: raw.unbounded ?? [],
+    });
+  }
 
   const body = dominant(raw.bodySizes);
   if (body !== null && body < t.bodyWarn)
@@ -324,12 +381,17 @@ function inspectViewport(
 export function inspectDesign(
   raws: Array<{ raw: DesignInspectRaw; runtime?: InspectRuntimeEvidence | undefined }>,
   surface: InspectSurface = 'page',
+  options?: { stage?: InspectStage | undefined },
 ): DesignInspectReport {
+  const stage: InspectStage = options?.stage ?? 'full';
   const ordered = [...raws].sort((a, b) => b.raw.vw - a.raw.vw);
-  const findings = ordered.flatMap(({ raw, runtime }) => inspectViewport(raw, surface, runtime));
+  const findings = ordered.flatMap(({ raw, runtime }) =>
+    inspectViewport(raw, surface, runtime, stage),
+  );
   return {
     url: ordered[0]?.raw.url ?? '',
     surface,
+    ...(options?.stage ? { stage } : {}),
     viewports: ordered.map(({ raw }) => raw.vw),
     findings,
     fails: findings.filter((f) => f.severity === 'FAIL').length,

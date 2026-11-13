@@ -285,4 +285,47 @@ describe('hashPluginDirectoryClosure — single-file plugins in a discovery root
     );
     expect(await hashPluginDirectoryClosure(entry, [root])).toBe(before);
   });
+
+  it('covers imported dot-directory helpers, NodeNext .js -> .mts, and ?query/#hash specifiers while ignoring unimported .git', async () => {
+    const root = await tempDir();
+    const pkgDir = join(root, 'dot-plug');
+    await mkdir(join(pkgDir, '.internal'), { recursive: true });
+    await mkdir(join(pkgDir, '.git'), { recursive: true });
+    const entry = join(pkgDir, 'index.ts');
+    const dotHelper = join(pkgDir, '.internal', 'helper.ts');
+    await writeFile(dotHelper, 'export const S = "v1";\n', 'utf8');
+    await writeFile(join(pkgDir, '.git', 'HEAD'), 'ref: refs/heads/main\n', 'utf8');
+    await writeFile(
+      entry,
+      'import { S } from "./.internal/helper.js";\nexport default { name: "dot-plug", setup() { return S; } };\n',
+      'utf8',
+    );
+
+    const h1 = await hashPluginDirectoryClosure(entry, [root]);
+    await writeFile(dotHelper, 'export const S = "tampered";\n', 'utf8');
+    const h2 = await hashPluginDirectoryClosure(entry, [root]);
+    expect(h2).not.toBe(h1);
+
+    // Unimported .git metadata inside the plugin folder must stay excluded
+    await writeFile(join(pkgDir, '.git', 'HEAD'), 'ref: refs/heads/other\n', 'utf8');
+    expect(await hashPluginDirectoryClosure(entry, [root])).toBe(h2);
+
+    // Single-file plugin importing .mts via .js and ?query/#hash specifiers
+    const soloEntry = join(root, 'solo.ts');
+    const mtsHelper = join(root, 'mod.mts');
+    const qHelper = join(root, 'q.ts');
+    await writeFile(mtsHelper, 'export const M = 1;\n', 'utf8');
+    await writeFile(qHelper, 'export const Q = 1;\n', 'utf8');
+    await writeFile(
+      soloEntry,
+      'import { M } from "./mod.js";\nimport { Q } from "./q.ts?v=1#top";\nexport default { name: "solo", setup() { return M + Q; } };\n',
+      'utf8',
+    );
+    const s1 = await hashPluginDirectoryClosure(soloEntry, [root]);
+    await writeFile(mtsHelper, 'export const M = 2;\n', 'utf8');
+    const s2 = await hashPluginDirectoryClosure(soloEntry, [root]);
+    expect(s2).not.toBe(s1);
+    await writeFile(qHelper, 'export const Q = 2;\n', 'utf8');
+    expect(await hashPluginDirectoryClosure(soloEntry, [root])).not.toBe(s2);
+  });
 });

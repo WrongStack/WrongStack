@@ -23,6 +23,13 @@ import { useActiveSessionId } from '@/stores/session-lanes';
 
 type Tokens = Record<string, string>;
 type ThemeName = 'light' | 'dark';
+interface KitAxes {
+  paper: string;
+  display: string;
+  accent: string;
+  displayFace?: string;
+}
+
 interface Kit {
   id: string;
   name: string;
@@ -30,6 +37,12 @@ interface Kit {
   bestFor: string;
   stacks: string[];
   tags: string[];
+  axes?: KitAxes;
+  posture?: string;
+  material?: string;
+  photo?: string;
+  fontLinks?: string[];
+  pictured?: string;
   light: Tokens;
   dark: Tokens;
 }
@@ -52,8 +65,8 @@ function applyOv(base: Tokens, overrides: Tokens, theme: ThemeName): Tokens {
   return out;
 }
 
-/** A small fake UI rendered purely from a kit's token set. */
-function KitPreview({ t, label }: { t: Tokens; label: string }) {
+/** A small specimen card rendered purely from a kit's token set + material metadata. */
+function KitPreview({ t, label, photo }: { t: Tokens; label: string; photo?: string | undefined }) {
   // `t` here is the kit's design-TOKEN set; alias the translator to `tr`.
   const { t: tr } = useAppTranslation();
   const bg = t.bg ?? '#fff';
@@ -68,6 +81,9 @@ function KitPreview({ t, label }: { t: Tokens; label: string }) {
   const radius = t['radius-md'] ?? t.radius ?? '0.5rem';
   const fontSans = t['font-sans'] ?? t.fontSans ?? 'system-ui, sans-serif';
   const fontDisplay = t['font-display'] ?? t.fontDisplay ?? fontSans;
+  const weightBold = t['weight-bold'] ?? '700';
+  const trackingTight = t['tracking-tight'] ?? '-0.015em';
+  const leadingTight = t['leading-tight'] ?? '1.15';
   const shadow = t['shadow-2'] ?? (t.shadow && t.shadow !== 'none' ? t.shadow : undefined);
 
   return (
@@ -75,8 +91,20 @@ function KitPreview({ t, label }: { t: Tokens; label: string }) {
       style={{ background: bg, color: fg, fontFamily: fontSans }}
       className="flex min-w-0 flex-col gap-2 overflow-hidden p-3"
     >
-      <div className="text-[9px] uppercase tracking-wide" style={{ color: muted }}>
-        {label}
+      <div
+        className="flex items-center justify-between gap-1 text-[10px] font-medium"
+        style={{ color: muted }}
+      >
+        <span>{label}</span>
+        {photo && photo !== 'natural' && (
+          <span
+            style={{ border: `1px solid ${border}`, borderRadius: radius }}
+            className="truncate px-1.5 py-0.5 font-mono text-[9px]"
+            title={`Photo treatment: ${photo}`}
+          >
+            {photo.split(/\s+/)[0]}
+          </span>
+        )}
       </div>
       <div
         style={{
@@ -87,7 +115,15 @@ function KitPreview({ t, label }: { t: Tokens; label: string }) {
         }}
         className="flex min-w-0 flex-col gap-2 p-3"
       >
-        <div style={{ fontFamily: fontDisplay }} className="text-base font-bold leading-tight">
+        <div
+          style={{
+            fontFamily: fontDisplay,
+            fontWeight: weightBold,
+            letterSpacing: trackingTight,
+            lineHeight: leadingTight,
+          }}
+          className="text-base"
+        >
           {tr('activity:designStudio.aaHeading')}
         </div>
         <div className="text-[11px] leading-snug" style={{ color: muted }}>
@@ -107,7 +143,7 @@ function KitPreview({ t, label }: { t: Tokens; label: string }) {
             {tr('activity:designStudio.ghost')}
           </span>
           <span
-            style={{ background: accent, color: bg, borderRadius: '999px' }}
+            style={{ background: accent, color: bg, borderRadius: radius }}
             className="ml-auto shrink-0 px-2 py-0.5 text-[9px] font-semibold"
           >
             {tr('activity:designStudio.badge')}
@@ -455,6 +491,11 @@ export function DesignGalleryView({ className }: { className?: string }) {
             k.id.includes(needle) ||
             k.name.toLowerCase().includes(needle) ||
             k.aesthetic.toLowerCase().includes(needle) ||
+            (k.material ?? '').toLowerCase().includes(needle) ||
+            (k.posture ?? '').toLowerCase().includes(needle) ||
+            (k.axes
+              ? `${k.axes.paper}/${k.axes.display}/${k.axes.accent}`.toLowerCase().includes(needle)
+              : false) ||
             k.tags.some((tag) => tag.includes(needle)),
         )
       : kits;
@@ -554,10 +595,12 @@ export function DesignGalleryView({ className }: { className?: string }) {
                     <KitPreview
                       t={applyOv(kit.light, ov, 'light')}
                       label={t('activity:designStudio.light')}
+                      photo={kit.photo}
                     />
                     <KitPreview
                       t={applyOv(kit.dark, ov, 'dark')}
                       label={t('activity:designStudio.dark')}
+                      photo={kit.photo}
                     />
                   </div>
                   <div className="flex min-w-0 flex-col gap-2 border-t border-border/60 bg-card p-3">
@@ -565,14 +608,38 @@ export function DesignGalleryView({ className }: { className?: string }) {
                       <h3 className="text-sm font-semibold truncate">{kit.name}</h3>
                       <code className="text-[10px] text-muted-foreground">{kit.id}</code>
                       {isActive && (
-                        <span className="inline-flex items-center gap-0.5 rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-foreground ml-auto">
+                        <span className="inline-flex items-center gap-0.5 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-foreground ml-auto">
                           <Check className="w-3 h-3 text-primary" /> {t('activity:design.active')}
                         </span>
                       )}
                     </div>
+                    {(kit.axes || kit.posture || kit.photo) && (
+                      <div className="flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground">
+                        {kit.axes && (
+                          <span className="rounded border border-border/60 bg-muted/40 px-1.5 py-0.5 font-mono">
+                            {kit.axes.paper}/{kit.axes.display}/{kit.axes.accent}
+                          </span>
+                        )}
+                        {kit.posture && (
+                          <span className="rounded border border-border/60 px-1.5 py-0.5">
+                            {kit.posture}
+                          </span>
+                        )}
+                        {kit.photo && (
+                          <span className="rounded border border-border/60 px-1.5 py-0.5 font-mono">
+                            photo: {kit.photo}
+                          </span>
+                        )}
+                      </div>
+                    )}
                     <p className="text-[11px] text-muted-foreground leading-snug">
                       {kit.aesthetic}
                     </p>
+                    {kit.material && (
+                      <p className="line-clamp-2 text-[10px] text-muted-foreground/85 leading-snug">
+                        {kit.material}
+                      </p>
+                    )}
                     <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
                       <button
                         type="button"

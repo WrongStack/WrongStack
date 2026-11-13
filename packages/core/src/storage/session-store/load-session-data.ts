@@ -155,6 +155,13 @@ export async function loadSessionDataFromFile(params: {
         events.push(ev);
         eventBytes.push(line.length);
         retainedBytes += line.length;
+        if (ev.type === 'branch_created') {
+          // A fork replays its parent's history up to `forkSeq`, and the tree
+          // coordinator rebuilds that lineage from these events. The snapshot a
+          // branch holds at the fork must therefore survive the branch's next
+          // compaction, or the fork replays the uncompacted history instead.
+          lastSnapshotByBranch.clear();
+        }
         if (isSnapshotEvent(ev)) {
           const snapBranch = ev.branchId ?? MAIN_BRANCH_ID;
           const prevSnap = lastSnapshotByBranch.get(snapBranch);

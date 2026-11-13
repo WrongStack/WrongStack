@@ -58,6 +58,9 @@ export function buildDesignCommand(opts: SlashCommandContext): SlashCommand {
       '  /design extract <url|file> [maxPages]  Extract DESIGN.md + design DNA across 5 breakpoints',
       '  /design compare <ref> <url|file>       Compare an implementation against an extracted reference',
       '  /design inspect <url|file>             Inspect a rendered page for layout/contrast defects',
+      '  /design draw <job> [photo|product|words]  Deal a job-native page anatomy before writing UI',
+      '  /design snapshot [files…]  Snapshot routes, form inputs & handlers before a redesign',
+      '  /design kept [files…]      Verify pre-redesign wiring survived the redesign',
       '  /design document [out]     Write the active kit or captured tokens as DESIGN.md',
       '  /design off                Clear the active kit',
       '  /design foundations        Print the mandatory responsive/a11y/theming/motion baseline',
@@ -108,6 +111,12 @@ export function buildDesignCommand(opts: SlashCommandContext): SlashCommand {
         return { runText: 'design verify' };
       }
 
+      if (sub === 'snapshot' || sub === 'kept') {
+        const files = tokens.slice(1).filter(Boolean);
+        const payload = files.length > 0 ? { action: sub, files } : { action: sub };
+        return { runText: `design ${JSON.stringify(payload)}` };
+      }
+
       if (sub === 'document') {
         const out = tokens[1];
         const payload = out ? { action: 'document', out, force: true } : { action: 'document' };
@@ -156,14 +165,36 @@ export function buildDesignCommand(opts: SlashCommandContext): SlashCommand {
       if (sub === 'inspect') {
         const target = tokens[1];
         if (!target) {
-          return { message: 'Usage: /design inspect <url-or-file>' };
+          return { message: 'Usage: /design inspect <url-or-file> [hero]' };
         }
+        const stageArg = tokens[2]?.toLowerCase();
         const isHttp = /^https?:\/\//i.test(target);
         const payload = {
           action: 'inspect',
           ...(isHttp ? { url: target } : { file: target }),
+          ...(stageArg === 'hero' || stageArg === 'full' ? { stage: stageArg } : {}),
         };
         return { runText: `design_reference ${JSON.stringify(payload)}` };
+      }
+
+      if (sub === 'draw') {
+        const job = tokens[1];
+        if (!job) {
+          return {
+            message:
+              'Usage: /design draw <subscribe|book|visit|attend|buy|try|sign-up|hire|join|listen|dashboard> [photo|product|words]',
+          };
+        }
+        const material = tokens[2];
+        const pairs = parseOverridePairs(tokens.slice(2));
+        const payload = {
+          action: 'draw',
+          job,
+          ...(material && !material.includes('=') ? { material } : {}),
+          ...(pairs['material'] ? { material: pairs['material'] } : {}),
+          ...(pairs['seed'] ? { seed: pairs['seed'] } : {}),
+        };
+        return { runText: `design ${JSON.stringify(payload)}` };
       }
 
       if (sub === 'set') {
@@ -258,11 +289,15 @@ export function buildDesignCommand(opts: SlashCommandContext): SlashCommand {
           merged = captured!.tokens;
           kitId = 'captured-design';
         }
+        const activeManifest = active ? await loader.find(active.kit) : undefined;
         const result = materializeTokens({
           tokens: merged,
           stack: matStack,
           kitId,
           outPath,
+          photo: activeManifest?.photo,
+          fontLinks: activeManifest?.fontLinks,
+          darkPaper: activeManifest?.axes?.paper === 'dark',
         });
         // WS-052: share the containment resolver with the tool and WS paths.
         let abs: string;

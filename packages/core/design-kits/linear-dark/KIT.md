@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [dark, light]
 bestFor: Modern SaaS apps, dev/product tools, startups wanting a polished dark-first product UI.
 version: 1.0.0
+paper: dark 16 270
+display: roman-serif Inter
+accent: cool 275
+posture: restrained
+photo: natural con=4
 ---
 
 # Linear Dark

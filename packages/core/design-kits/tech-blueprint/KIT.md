@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [dark, light]
 bestFor: Hardware, infra/devtools, robotics, scientific and engineering products.
 version: 1.0.0
+paper: dark 25 250
+display: roman-serif Inter
+accent: chromatic-yellow 80
+posture: committed
+photo: duotone fg bg con=10
 ---
 
 # Tech Blueprint

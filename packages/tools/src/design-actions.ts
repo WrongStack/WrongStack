@@ -2,17 +2,28 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { ToolValidationError } from '@wrongstack/contracts/types';
 import {
+  captureProjectWiring,
+  DESIGN_JOBS,
+  DESIGN_MATERIALS,
+  type DesignKitAxes,
   type DesignKitLoader,
   type DesignStack,
   diffDesignMd,
   ensureDesignDeal,
+  ensureDesignDraw,
   getDesignDeal,
+  loadActiveKit,
+  normalizeDesignJob,
+  normalizeDesignMaterial,
   parseDesignMd,
   recordDesignChoice,
   renderDesignDeal,
+  renderDesignDraw,
   renderDesignMd,
   renderDesignMdDiff,
+  renderKeptWiringReport,
   resolveVerifyTokens,
+  runKeptWiringCheck,
 } from '@wrongstack/core/design';
 import { atomicWrite } from '@wrongstack/core/utils';
 
@@ -64,6 +75,7 @@ export async function checkDealtChoice(
   ctx: ActionCtx,
   kitId: string,
   reason: string | undefined,
+  axes?: DesignKitAxes | undefined,
 ): Promise<string> {
   const deal = getDesignDeal(ctx);
   const dealt = deal ? deal.kits.includes(kitId) : false;
@@ -76,8 +88,111 @@ export async function checkDealtChoice(
       field: 'reason',
     });
   }
-  await recordDesignChoice(ctx.projectRoot, { kit: kitId, dealt, reason: why || undefined });
+  await recordDesignChoice(ctx.projectRoot, {
+    kit: kitId,
+    dealt,
+    axes,
+    reason: why || undefined,
+  });
   return deal && !dealt ? `\nChosen outside the deal: ${why}\n` : '';
+}
+
+/**
+ * `draw`: deal a job-native + material-native page anatomy (macrostructure,
+ * opening hero, nav, sections, footer, and 2 overused compositions to skip).
+ */
+export async function drawAction(
+  ctx: ActionCtx,
+  loader: DesignKitLoader,
+  input: {
+    job?: string | undefined;
+    material?: string | undefined;
+    seed?: string | undefined;
+    redeal?: boolean;
+  },
+): Promise<ActionResult> {
+  const job = normalizeDesignJob(input.job);
+  if (!job) {
+    throw new ToolValidationError({
+      message: `design: "draw" requires a valid job (${DESIGN_JOBS.join(', ')}). Got: ${JSON.stringify(input.job ?? '')}`,
+      field: 'job',
+    });
+  }
+  const material = normalizeDesignMaterial(input.material ?? 'product');
+  if (!material) {
+    throw new ToolValidationError({
+      message: `design: invalid material "${input.material}". Allowed materials: ${DESIGN_MATERIALS.join(', ')}`,
+      field: 'material',
+    });
+  }
+  const active = await loadActiveKit(ctx.projectRoot).catch(() => undefined);
+  const manifest = active?.kit ? await loader.find(active.kit) : undefined;
+  const drawn = await ensureDesignDraw(ctx, {
+    job,
+    material,
+    seed: input.seed,
+    redeal: input.redeal,
+    kitPictured: manifest?.pictured,
+  });
+  return {
+    action: 'draw',
+    kit: active?.kit,
+    output: renderDesignDraw(drawn),
+  };
+}
+
+/**
+ * `snapshot`: record existing routes, form field names, `data-testid`s, and named
+ * event handlers into `.design/before.json` before starting a redesign.
+ */
+export async function snapshotAction(
+  ctx: ActionCtx,
+  files: string[] | undefined,
+  assertProjectRelative: (files: string[], projectRoot: string, label: string) => Promise<void>,
+): Promise<ActionResult> {
+  if (files?.length) {
+    await assertProjectRelative(files, ctx.projectRoot, 'snapshot file');
+  }
+  const { snapshot, relPath } = await captureProjectWiring(ctx.projectRoot, files);
+  const total =
+    snapshot.links.length +
+    snapshot.formFields.length +
+    snapshot.testIds.length +
+    snapshot.handlers.length;
+  return {
+    action: 'snapshot',
+    path: relPath,
+    output:
+      `Saved pre-redesign wiring snapshot (${total} contract(s): ${snapshot.links.length} link(s), ` +
+      `${snapshot.formFields.length} form field(s), ${snapshot.testIds.length} testid(s), ` +
+      `${snapshot.handlers.length} handler(s) across ${snapshot.files.length} file(s)) → ${relPath}.\n` +
+      'Run `design {action:"kept"}` after the redesign to verify zero routes, inputs, or handlers were dropped.',
+  };
+}
+
+/**
+ * `kept`: verify all pre-redesign wiring recorded in `.design/before.json`
+ * survived the redesign unless explicitly listed in `drop`.
+ */
+export async function keptAction(
+  ctx: ActionCtx,
+  files: string[] | undefined,
+  drop: string[] | undefined,
+  assertProjectRelative: (files: string[], projectRoot: string, label: string) => Promise<void>,
+): Promise<ActionResult & { violations?: number | undefined }> {
+  if (files?.length) {
+    await assertProjectRelative(files, ctx.projectRoot, 'kept file');
+  }
+  const report = await runKeptWiringCheck(ctx.projectRoot, {
+    explicitFiles: files,
+    allowRemoved: drop,
+  });
+  return {
+    action: 'kept',
+    path: '.design/before.json',
+    violations: report.missing.length,
+    output: renderKeptWiringReport(report),
+  };
 }
 
 /** `document`: write the pinned kit or captured tokens as a linted DESIGN.md. */

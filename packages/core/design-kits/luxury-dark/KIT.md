@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [dark, light]
 bestFor: Premium dark-mode products, spirits, jewelry, hospitality, exclusive memberships.
 version: 1.0.0
+paper: dark 16 300
+display: high-contrast-serif Didot
+accent: chromatic-yellow 88
+posture: restrained
+photo: natural con=4
 ---
 
 # Luxury Dark

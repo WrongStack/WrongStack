@@ -49,6 +49,13 @@ export interface DesignViolation {
   severity?: DesignSeverity;
 }
 
+export interface DesignWaivedFinding {
+  file: string;
+  line: number;
+  id: string;
+  reason?: string | undefined;
+}
+
 export interface DesignVerifyReport {
   filesScanned: number;
   /** Normalized kit palette (hex). */
@@ -56,6 +63,8 @@ export interface DesignVerifyReport {
   /** Kit color token names (for var/utility matching). */
   tokenNames: string[];
   violations: DesignViolation[];
+  /** Findings suppressed via `design-ignore`, with optional `-- <reason>` rationale. */
+  waived?: DesignWaivedFinding[];
   /** 0..1 — share of color signals that are on-palette. 1 when no signals. */
   score: number;
   ok: boolean;
@@ -296,6 +305,7 @@ export function verifyFiles(
   const ruleCtx = ruleContext(tokens);
 
   const violations: DesignViolation[] = [];
+  const waived: DesignWaivedFinding[] = [];
   let onPalette = 0;
   let offPalette = 0;
 
@@ -315,7 +325,19 @@ export function verifyFiles(
       id: string,
       severity: DesignSeverity = 'WARN',
     ) => {
-      if (isWaived(waivers, id, lineNo)) return;
+      if (isWaived(waivers, id, lineNo)) {
+        const matchRec =
+          waivers.records.find(
+            (r) => (r.id === id || r.id === '*') && (r.scope === 'file' || r.line === lineNo),
+          ) ?? undefined;
+        waived.push({
+          file: path,
+          line: lineNo,
+          id,
+          ...(matchRec?.reason ? { reason: matchRec.reason } : {}),
+        });
+        return;
+      }
       violations.push({
         file: path,
         line: lineNo,
@@ -619,6 +641,7 @@ export function verifyFiles(
     palette: [...hexes],
     tokenNames: names,
     violations,
+    waived,
     score,
     ok: violations.length === 0,
     filesWithNoSignal,

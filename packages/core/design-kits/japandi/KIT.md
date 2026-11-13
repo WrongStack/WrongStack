@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Wellness, tea/ceramics, architecture, premium lifestyle, mindful productivity.
 version: 1.0.0
+paper: light 95 75
+display: roman-serif Inter
+accent: neutral 130
+posture: restrained
+photo: muted con=-4
 ---
 
 # Japandi

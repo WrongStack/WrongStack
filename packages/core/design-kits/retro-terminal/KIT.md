@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [dark, light]
 bestFor: Dev tools, CLIs-as-web, crypto/security products, hackathon/landing pages with an underground vibe.
 version: 1.0.0
+paper: dark 15 150
+display: pixel JetBrains Mono
+accent: chromatic-yellow 75
+posture: committed
+photo: tint accent con=16
 ---
 
 # Retro Terminal

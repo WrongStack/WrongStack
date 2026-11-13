@@ -250,7 +250,7 @@ const HUNK_HEADER_RE = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$/;
  * touched top-level symbol names.
  */
 export function annotateUnifiedDiffWithLineNumbers(rawDiff: string): AnnotatedDiffResult {
-  const lines = rawDiff.split('\n');
+  const lines = rawDiff.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
   const out: string[] = [];
   let inHunk = false;
   let seenChangeInHunk = false;
@@ -1451,9 +1451,9 @@ function isCommentOrWhitespaceOnlyDiff(filePath: string, diff: string): boolean 
     if (!inHunk) continue;
 
     let changedBody: string | null = null;
-    const annotatedAdded = /^\s*\d+\s*\|\s*\+(.*)$/.exec(line);
-    if (annotatedAdded) {
-      changedBody = annotatedAdded[1] ?? '';
+    const annotatedChanged = /^(?:\s*\d+\s*\|\s\+|\s*\|\s-)(.*)$/.exec(line);
+    if (annotatedChanged) {
+      changedBody = annotatedChanged[1] ?? '';
     } else if (/^\s*\d+\s*\|\s(?: |$)/.test(line)) {
       // Annotated context line — unchanged
       continue;

@@ -378,6 +378,24 @@ export async function loadPlugins(
   }
   let disposed = false;
   let disposePromise: Promise<void> | undefined;
+  const activeTransitions = new Map<string, Promise<unknown>>();
+
+  const runPluginTransition = async <T>(pluginName: string, task: () => Promise<T>): Promise<T> => {
+    const prev = activeTransitions.get(pluginName) ?? Promise.resolve();
+    const next = prev.catch(() => undefined).then(task);
+    const tracked = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    activeTransitions.set(pluginName, tracked);
+    try {
+      return await next;
+    } finally {
+      if (activeTransitions.get(pluginName) === tracked) {
+        activeTransitions.delete(pluginName);
+      }
+    }
+  };
 
   const activateSinglePlugin = async (plugin: Plugin): Promise<PluginRegistration> => {
     const resolution = resolvePluginManifestConfig(
@@ -487,116 +505,143 @@ export async function loadPlugins(
       nextPlugin: Plugin,
       reloadOpts?: { force?: boolean | undefined },
     ): Promise<PluginReloadResult> {
-      const startedAt = Date.now();
-      if (disposed) {
-        throw new PluginError({
-          message: `Cannot reload plugin "${nextPlugin.name}" after plugin host disposal`,
-          code: ERROR_CODES.PLUGIN_LOAD_FAILED,
-          pluginName: nextPlugin.name,
-        });
-      }
-      // Phase 1: Pre-flight validation BEFORE touching any running instance.
-      validateSinglePluginPreFlight(nextPlugin);
-
-      const existingIdx = registrations.findIndex(
-        (r) => !r.disposed && r.plugin.name === nextPlugin.name,
-      );
-      const previousReg = existingIdx >= 0 ? registrations[existingIdx] : undefined;
-      const previousLoadedIdx = loaded.findIndex((p) => p.name === nextPlugin.name);
-
-      // Phase 2: Await optional quiescence gate (unless `--force` is set, which aborts
-      // plugin-owned background tasks immediately), then drain old registration.
-      if (previousReg) {
-        if (reloadOpts?.force === true) {
-          previousReg.cleanupApi.abortLifetime?.(
-            new Error(`Plugin "${nextPlugin.name}" force-reloaded`),
-          );
-        } else if (typeof opts.waitForQuiescence === 'function') {
-          const quiesceMs = opts.quiescenceTimeoutMs ?? 5_000;
-          await opts.waitForQuiescence(nextPlugin.name, quiesceMs);
-        }
-        await disposeRegistration(previousReg, opts, 'reload');
-        registrations.splice(existingIdx, 1);
-        if (previousLoadedIdx >= 0) loaded.splice(previousLoadedIdx, 1);
-        loadedNames.delete(nextPlugin.name);
-      }
-
-      // Phase 3: Activate new plugin; roll back to previous plugin on failure.
-      try {
-        const nextReg = await activateSinglePlugin(nextPlugin);
-        if (existingIdx >= 0 && existingIdx <= registrations.length) {
-          registrations.splice(existingIdx, 0, nextReg);
-        } else {
-          registrations.push(nextReg);
-        }
-        registerLegacy(nextReg);
-        if (previousLoadedIdx >= 0 && previousLoadedIdx <= loaded.length) {
-          loaded.splice(previousLoadedIdx, 0, nextPlugin);
-        } else {
-          loaded.push(nextPlugin);
-        }
-        loadedNames.add(nextPlugin.name);
-        const durationMs = Math.max(0, Date.now() - startedAt);
-        opts.log.info(
-          `Plugin "${nextPlugin.name}" ${previousReg ? 'reloaded' : 'loaded dynamically'}`,
-        );
-        opts.events?.emit('plugin.reloaded', {
-          name: nextPlugin.name,
-          version: nextPlugin.version,
-          durationMs,
-        });
-        return {
-          status: previousReg ? 'reloaded' : 'loaded',
-          previousVersion: previousReg?.plugin.version,
-          version: nextPlugin.version,
+      return runPluginTransition(nextPlugin.name, async () => {
+        const startedAt = Date.now();
+        const throwDisposed = (): never => {
+          throw new PluginError({
+            message: `Cannot reload plugin "${nextPlugin.name}" after plugin host disposal`,
+            code: ERROR_CODES.PLUGIN_LOAD_FAILED,
+            pluginName: nextPlugin.name,
+          });
         };
-      } catch (setupErr) {
+        if (disposed) throwDisposed();
+
+        // Phase 1: Pre-flight validation BEFORE touching any running instance.
+        validateSinglePluginPreFlight(nextPlugin);
+
+        const previousReg = registrations.find(
+          (r) => !r.disposed && r.plugin.name === nextPlugin.name,
+        );
+        let removedRegIdx = -1;
+        let removedLoadedIdx = -1;
+
+        // Phase 2: Await optional quiescence gate (unless `--force` is set, which aborts
+        // plugin-owned background tasks immediately), then drain old registration.
         if (previousReg) {
-          try {
-            const restoredReg = await activateSinglePlugin(previousReg.plugin);
-            if (existingIdx >= 0 && existingIdx <= registrations.length) {
-              registrations.splice(existingIdx, 0, restoredReg);
-            } else {
-              registrations.push(restoredReg);
-            }
-            registerLegacy(restoredReg);
-            if (previousLoadedIdx >= 0 && previousLoadedIdx <= loaded.length) {
-              loaded.splice(previousLoadedIdx, 0, previousReg.plugin);
-            } else {
-              loaded.push(previousReg.plugin);
-            }
-            loadedNames.add(previousReg.plugin.name);
-            opts.log.warn(
-              `Plugin "${nextPlugin.name}" reload failed; rolled back to previous active instance`,
+          if (reloadOpts?.force === true) {
+            previousReg.cleanupApi.abortLifetime?.(
+              new Error(`Plugin "${nextPlugin.name}" force-reloaded`),
             );
-          } catch (rollbackErr) {
-            opts.log.error(
-              `Plugin "${nextPlugin.name}" rollback after reload failure also failed`,
-              {
-                rollbackErr,
-              },
-            );
+          } else if (typeof opts.waitForQuiescence === 'function') {
+            const quiesceMs = opts.quiescenceTimeoutMs ?? 5_000;
+            await opts.waitForQuiescence(nextPlugin.name, quiesceMs);
           }
+          await disposeRegistration(previousReg, opts, 'reload');
+          removedRegIdx = registrations.indexOf(previousReg);
+          if (removedRegIdx >= 0) registrations.splice(removedRegIdx, 1);
+          removedLoadedIdx = loaded.indexOf(previousReg.plugin);
+          if (removedLoadedIdx >= 0) loaded.splice(removedLoadedIdx, 1);
+          loadedNames.delete(nextPlugin.name);
         }
-        throw setupErr;
-      }
+
+        if (disposed) throwDisposed();
+
+        // Phase 3: Activate new plugin; roll back to previous plugin on failure.
+        try {
+          const nextReg = await activateSinglePlugin(nextPlugin);
+          if (disposed) {
+            await disposeRegistration(nextReg, opts, 'shutdown');
+            throwDisposed();
+          }
+          if (removedRegIdx >= 0 && removedRegIdx <= registrations.length) {
+            registrations.splice(removedRegIdx, 0, nextReg);
+          } else {
+            registrations.push(nextReg);
+          }
+          registerLegacy(nextReg);
+          if (removedLoadedIdx >= 0 && removedLoadedIdx <= loaded.length) {
+            loaded.splice(removedLoadedIdx, 0, nextPlugin);
+          } else {
+            loaded.push(nextPlugin);
+          }
+          loadedNames.add(nextPlugin.name);
+          const durationMs = Math.max(0, Date.now() - startedAt);
+          opts.log.info(
+            `Plugin "${nextPlugin.name}" ${previousReg ? 'reloaded' : 'loaded dynamically'}`,
+          );
+          opts.events?.emit('plugin.reloaded', {
+            name: nextPlugin.name,
+            version: nextPlugin.version,
+            durationMs,
+          });
+          return {
+            status: previousReg ? 'reloaded' : 'loaded',
+            previousVersion: previousReg?.plugin.version,
+            version: nextPlugin.version,
+          };
+        } catch (setupErr) {
+          if (previousReg && !disposed) {
+            try {
+              const restoredReg = await activateSinglePlugin(previousReg.plugin);
+              if (disposed) {
+                await disposeRegistration(restoredReg, opts, 'shutdown');
+              } else {
+                if (removedRegIdx >= 0 && removedRegIdx <= registrations.length) {
+                  registrations.splice(removedRegIdx, 0, restoredReg);
+                } else {
+                  registrations.push(restoredReg);
+                }
+                registerLegacy(restoredReg);
+                if (removedLoadedIdx >= 0 && removedLoadedIdx <= loaded.length) {
+                  loaded.splice(removedLoadedIdx, 0, previousReg.plugin);
+                } else {
+                  loaded.push(previousReg.plugin);
+                }
+                loadedNames.add(previousReg.plugin.name);
+                opts.log.warn(
+                  `Plugin "${nextPlugin.name}" reload failed; rolled back to previous active instance`,
+                );
+              }
+            } catch (rollbackErr) {
+              opts.log.error(
+                `Plugin "${nextPlugin.name}" rollback after reload failure also failed`,
+                {
+                  rollbackErr,
+                },
+              );
+            }
+          }
+          throw setupErr;
+        }
+      });
     },
     async unloadPlugin(name: string): Promise<boolean> {
-      if (disposed) return false;
-      const idx = registrations.findIndex((r) => !r.disposed && r.plugin.name === name);
-      if (idx < 0) return false;
-      const reg = registrations[idx]!;
-      await disposeRegistration(reg, opts, 'unload');
-      registrations.splice(idx, 1);
-      const loadedIdx = loaded.findIndex((p) => p.name === name);
-      if (loadedIdx >= 0) loaded.splice(loadedIdx, 1);
-      loadedNames.delete(name);
-      return true;
+      return runPluginTransition(name, async () => {
+        if (disposed) return false;
+        const reg = registrations.find((r) => !r.disposed && r.plugin.name === name);
+        if (!reg) return false;
+        await disposeRegistration(reg, opts, 'unload');
+        const regIdx = registrations.indexOf(reg);
+        if (regIdx >= 0) registrations.splice(regIdx, 1);
+        const loadedIdx = loaded.indexOf(reg.plugin);
+        if (loadedIdx >= 0) loaded.splice(loadedIdx, 1);
+        if (!registrations.some((r) => !r.disposed && r.plugin.name === name)) {
+          loadedNames.delete(name);
+        }
+        return true;
+      });
     },
     dispose() {
       if (!disposePromise) {
         disposed = true;
-        disposePromise = disposeRegistrations(registrations, opts);
+        const pendingTransitions = [...activeTransitions.values()];
+        disposePromise = (async () => {
+          await disposeRegistrations(registrations, opts);
+          if (pendingTransitions.length > 0) {
+            await Promise.allSettled(pendingTransitions);
+            await disposeRegistrations(registrations, opts);
+          }
+        })();
       }
       return disposePromise;
     },

@@ -1023,5 +1023,37 @@ describe('noise filtering, source priority, and pure diff helpers', () => {
         files: [{ path: 'README.md', status: 'modified', content: '# Manual check\n' }],
       }),
     ).toEqual({ eligible: false });
+
+    // Annotated code deletions MUST NOT pass the 0-token prescreen when paired with comments,
+    // and CRLF diffs must normalize `\r` before hunk annotation.
+    const { annotateUnifiedDiffWithLineNumbers } = await import('../src/review-context-builder.js');
+    const annotatedDeletion = annotateUnifiedDiffWithLineNumbers(
+      [
+        'diff --git a/src/service.ts b/src/service.ts',
+        '--- a/src/service.ts',
+        '+++ b/src/service.ts',
+        '@@ -1,4 +1,4 @@',
+        ' export function run(authed: boolean) {',
+        '-  if (!authed) throw new Error("unauthorized");',
+        '+  // removed guard',
+        '   return 1;',
+        ' }',
+      ].join('\r\n'),
+    );
+    expect(annotatedDeletion.hunkCount).toBe(1);
+    expect(annotatedDeletion.removedLines).toBe(1);
+    expect(annotatedDeletion.annotatedDiff).not.toContain('\r');
+    expect(
+      classifyZeroTokenReviewFastPath({
+        files: [
+          {
+            path: 'src/service.ts',
+            status: 'modified',
+            content: 'export function run(authed: boolean) {\n  // removed guard\n  return 1;\n}\n',
+            diff: annotatedDeletion.annotatedDiff,
+          },
+        ],
+      }),
+    ).toEqual({ eligible: false });
   });
 });

@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Crafts, food/bakery, weddings, gardening, slow-living and handmade brands.
 version: 1.0.0
+paper: light 96 90
+display: handwritten Caveat
+accent: warm 15
+posture: committed
+photo: warm con=-4 vib=6
 ---
 
 # Cottagecore

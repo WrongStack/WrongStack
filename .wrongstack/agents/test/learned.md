@@ -4,7 +4,7 @@
 
 ## What to do
 
-<!-- learned-stamp: category=convention; capturedAt=2026-10-20T14:46:47.430Z; skill=bug-hunter -->
+<!-- learned-stamp: category=convention; capturedAt=2026-10-20T14:46:47.430Z; skill=bug-hunter; skipped=1; skippedWins=1 -->
 - **When auditing glob/path-matching call sites that receive tool-input paths, always check which of `ctx.cwd` / `ctx.workingDir` is passed: file tools resolve relative paths against the mutable `workingDir` (reference: `path.resolve(ctx.workingDir, value)` in `packages/core/src/security/kanban-boundary.ts`; matcher contract in `packages/core/src/skills/skill-path-rules.ts`), so passing launch `ctx.cwd` silently misses nested matches. Match against the sibling caller of the same helper — disagreement between two halves of one feature is the fastest correctness signal.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `ctx.cwd`

@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Dashboards, analytics, admin panels, app home screens, marketing feature grids.
 version: 1.0.0
+paper: light 97 250
+display: roman-serif Inter
+accent: cool 255
+posture: committed
+photo: natural
 ---
 
 # Bento Dashboard

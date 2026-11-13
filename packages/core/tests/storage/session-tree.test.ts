@@ -9,6 +9,7 @@ import {
   collectReachableManifestHashes,
   sweepCheckpointCas,
 } from '../../src/storage/session-checkpoint-gc.js';
+import { DefaultSessionRewinder } from '../../src/storage/session-rewinder.js';
 import {
   getSessionTreeSnapshot,
   reconstructSessionTree,
@@ -314,6 +315,79 @@ describe('SessionTreeCoordinator & DAG replay', () => {
       keepNewerThanMs: Date.now(),
     });
     expect(gc.manifestsDeleted).toBe(1);
+  });
+
+  it('forks --at from the workspace manifest recorded in a deferred workspace_checkpoint event', async () => {
+    const dirtyFile = path.join(projectDir, 'src', 'config.ts');
+    const cas = new SessionCheckpointCas({
+      rootDir: casRoot,
+      projectRoot: projectDir,
+      vcs: mockGitRunner(() => ['src/config.ts']),
+    });
+    const store = new DefaultSessionStore({ dir: sessionsDir });
+    const writer = await store.create({ id: '', model: 'gpt-5', provider: 'openai' });
+    const coordinator = new SessionTreeCoordinator({
+      sessionId: writer.id,
+      writer,
+      getEvents: async () => {
+        await writer.flush?.();
+        return (await store.load(writer.id)).events;
+      },
+      checkpointCas: cas,
+      projectRoot: projectDir,
+    });
+
+    // The journal shape FileSessionWriter.writeCheckpoint produces: the marker
+    // carries no manifest; it follows in `workspace_checkpoint`, or never comes
+    // when the capture fails.
+    const turn = async (
+      promptIndex: number,
+      fileContent: string,
+      captured: boolean,
+    ): Promise<string | undefined> => {
+      await fs.writeFile(dirtyFile, fileContent, 'utf8');
+      const ts = `2026-11-11T13:0${promptIndex}:00.000Z`;
+      await writer.append({ type: 'user_input', ts, content: `Prompt ${promptIndex}` });
+      await writer.append({ type: 'checkpoint', ts, promptIndex, promptPreview: '' });
+      const cp = captured ? await cas.capture(writer.id, promptIndex) : undefined;
+      if (cp) {
+        await writer.append({
+          type: 'workspace_checkpoint',
+          ts,
+          promptIndex,
+          workspaceCheckpoint: cp,
+        });
+      }
+      await writer.append({
+        type: 'llm_response',
+        ts,
+        content: [{ type: 'text', text: `Answer ${promptIndex}` }],
+        usage: zeroUsage,
+        stopReason: 'end_turn',
+      });
+      return cp?.manifestHash;
+    };
+
+    await turn(0, 'v0\n', true);
+    const cp1Hash = await turn(1, 'v1\n', true);
+    await turn(2, 'v2\n', false);
+    const cp3Hash = await turn(3, 'v3\n', true);
+    expect(cp1Hash).toBeDefined();
+
+    const atP1 = await coordinator.createBranch({ name: 'alt-at-p1', atPromptIndex: 1 });
+    expect(atP1.branch.baseWorkspaceCheckpoint?.manifestHash).toBe(cp1Hash);
+    expect(await fs.readFile(dirtyFile, 'utf8')).toBe('v1\n');
+
+    // A failed capture stays absent; the next prompt's manifest is not borrowed.
+    const atP2 = await coordinator.createBranch({
+      name: 'alt-at-p2',
+      fromBranch: 'main',
+      atPromptIndex: 2,
+      switchImmediately: false,
+    });
+    expect(cp3Hash).toBeDefined();
+    expect(atP2.branch.baseWorkspaceCheckpoint).toBeUndefined();
+    await writer.close();
   });
 
   it('scrubs secrets during foldBranch before synthesis and persists clean handoff on target branch', async () => {
@@ -777,5 +851,176 @@ describe('SessionTreeCoordinator & DAG replay', () => {
     expect(branchedSummary?.storageState).toBe('cold');
     expect(branchedSummary?.branchCount).toBe(2);
     expect(branchedSummary?.activeBranchName).toBe('gz-spike');
+  });
+
+  it('keeps the compaction a branch was forked from after the parent compacts again', async () => {
+    const store = new DefaultSessionStore({ dir: sessionsDir });
+    const writer = await store.create({ id: '', model: 'gpt-5', provider: 'openai' });
+    const coordinator = new SessionTreeCoordinator({
+      sessionId: writer.id,
+      writer,
+      getEvents: async () => {
+        await writer.flush?.();
+        return (await store.load(writer.id)).events;
+      },
+    });
+    const appendMessage = (role: 'user' | 'assistant', content: string, ts: string) =>
+      writer.append({ type: 'message_appended', ts, version: 1, message: { role, content, ts } });
+    const compact = (content: string, ts: string) =>
+      writer.append({
+        type: 'messages_replaced',
+        ts,
+        version: 1,
+        messages: [{ role: 'user', content, ts }],
+      });
+
+    await appendMessage('user', 'p0 on main', '2026-11-13T10:00:00.000Z');
+    await appendMessage('assistant', 'a0 on main', '2026-11-13T10:00:01.000Z');
+    await compact('[main summary 1]', '2026-11-13T10:00:02.000Z');
+    const child = await coordinator.createBranch({ name: 'after-compaction' });
+    await appendMessage('user', 'p1 on child', '2026-11-13T10:01:00.000Z');
+
+    // A second compaction on main makes the loader strip the first snapshot's
+    // payload, which is the one the child's lineage starts from.
+    await coordinator.switchBranch('main');
+    await appendMessage('user', 'p1 on main', '2026-11-13T10:02:00.000Z');
+    await compact('[main summary 2]', '2026-11-13T10:02:01.000Z');
+
+    const switched = await coordinator.switchBranch(child.branch.id);
+    expect(switched.messages.map((m) => m.content)).toEqual(['[main summary 1]', 'p1 on child']);
+    const backOnMain = await coordinator.switchBranch('main');
+    expect(backOnMain.messages.map((m) => m.content)).toEqual(['[main summary 2]']);
+    await writer.close();
+  });
+
+  describe('/rewind in a branched session', () => {
+    async function branchedSession() {
+      const store = new DefaultSessionStore({ dir: sessionsDir });
+      const writer = await store.create({ id: '', model: 'gpt-5', provider: 'openai' });
+      const coordinator = new SessionTreeCoordinator({
+        sessionId: writer.id,
+        writer,
+        getEvents: async () => {
+          await writer.flush?.();
+          return (await store.load(writer.id)).events;
+        },
+      });
+      let t = Date.parse('2026-11-13T10:00:00.000Z');
+      const ts = () => {
+        t += 1000;
+        return new Date(t).toISOString();
+      };
+      const turn = async (promptIndex: number, text: string) => {
+        await writer.append({ type: 'user_input', ts: ts(), content: text });
+        await writer.append({ type: 'checkpoint', ts: ts(), promptIndex, promptPreview: text });
+        await writer.append({
+          type: 'llm_response',
+          ts: ts(),
+          content: [{ type: 'text', text: `answer to ${text}` }],
+          usage: zeroUsage,
+          stopReason: 'end_turn',
+        });
+      };
+      await turn(0, 'p0');
+      await turn(1, 'p1');
+      const child = await coordinator.createBranch({ name: 'child' });
+      await coordinator.switchBranch('main');
+      await turn(2, 'p2 on main');
+      await coordinator.switchBranch(child.branch.id);
+      await turn(2, 'p2 on child');
+      return { store, writer, coordinator, child };
+    }
+
+    const answers = (messages: readonly Message[]) =>
+      messages.filter((m) => m.role === 'assistant').map((m) => JSON.stringify(m.content));
+
+    it("cuts at the active branch's own checkpoint and keeps every other branch", async () => {
+      const { store, writer, child } = await branchedSession();
+
+      // Prompt indices restart per lineage: main also has a checkpoint 2, and it
+      // comes first in the journal.
+      const removed = await writer.truncateToCheckpoint(2);
+      expect(removed).toBe(1);
+      await writer.close();
+
+      const events = (await store.load(writer.id)).events;
+      const tree = reconstructSessionTree(events, { sessionId: writer.id });
+      expect(tree.tree.activeBranchId).toBe(child.branch.id);
+      const main = reconstructSessionTree(events, { sessionId: writer.id, targetBranchId: 'main' });
+      expect(answers(main.messages)).toContain(
+        JSON.stringify([{ type: 'text', text: 'answer to p2 on main' }]),
+      );
+    });
+
+    it('refuses a rewind whose cut would delete other branches, before touching files', async () => {
+      const { store, writer, coordinator } = await branchedSession();
+      await coordinator.switchBranch('main');
+      await writer.flush?.();
+      const file = (await fs.readdir(sessionsDir, { recursive: true }))
+        .map((p) => path.join(sessionsDir, String(p)))
+        .find((p) => p.endsWith(`${path.basename(writer.id)}.jsonl`));
+      if (!file) throw new Error('session journal not found');
+      const before = await fs.readFile(file, 'utf8');
+
+      const rewinder = new DefaultSessionRewinder(sessionsDir, projectDir);
+      await expect(rewinder.rewindToCheckpoint(writer.id, 2)).rejects.toThrow(
+        /other session branches/,
+      );
+      await expect(writer.truncateToCheckpoint(2)).rejects.toThrow(/other session branches/);
+      expect(await fs.readFile(file, 'utf8')).toBe(before);
+      await writer.close();
+
+      const loaded = await store.load(writer.id);
+      expect(Object.keys(loaded.tree?.branches ?? {})).toHaveLength(2);
+    });
+
+    it('drops the redo of a rewind once the session tree changed after it', async () => {
+      const { store, writer, coordinator, child } = await branchedSession();
+      // Rewind child's own turn 2, then leave the branch.
+      expect(await writer.truncateToCheckpoint(2)).toBe(1);
+      expect(await writer.peekRedo?.()).not.toBeNull();
+      await coordinator.switchBranch('main');
+
+      // A redo would rebuild the journal as kept part + stash and drop the
+      // switch record: the journal back on `child`, the writer still on main.
+      expect(await writer.peekRedo?.()).toBeNull();
+      expect(await writer.restoreRedo?.()).toBeNull();
+      await writer.close();
+
+      const { tree } = reconstructSessionTree((await store.load(writer.id)).events, {
+        sessionId: writer.id,
+      });
+      expect(tree.activeBranchId).toBe('main');
+      expect(writer.activeBranchId).toBe('main');
+      expect(tree.branches[child.branch.id]).toBeDefined();
+    });
+
+    it('folds only the turns of the source branch that survived its /rewind', async () => {
+      const { writer, coordinator } = await branchedSession();
+      // Undo child's turn 2 and ask something else instead.
+      expect(await writer.truncateToCheckpoint(2)).toBe(1);
+      const ts = new Date(Date.parse('2026-11-13T11:00:00.000Z')).toISOString();
+      await writer.append({ type: 'user_input', ts, content: 'p2 retry on child' });
+      await writer.append({
+        type: 'checkpoint',
+        ts,
+        promptIndex: 2,
+        promptPreview: 'p2 retry on child',
+      });
+      await writer.append({
+        type: 'llm_response',
+        ts,
+        content: [{ type: 'text', text: 'retry conclusion' }],
+        usage: zeroUsage,
+        stopReason: 'end_turn',
+      });
+
+      const folded = await coordinator.foldBranch();
+      expect(folded.summary).not.toContain('p2 on child');
+      expect(folded.summary).toContain('p2 retry on child');
+      expect(folded.summary).toContain('Explored 1 prompt(s)');
+      expect(folded.summary).toContain('Latest conclusion: retry conclusion');
+      await writer.close();
+    });
   });
 });

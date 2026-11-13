@@ -516,4 +516,38 @@ describe('designTool', () => {
       await fs.rm(other, { recursive: true, force: true });
     }
   });
+
+  it('draws job-native anatomy and materializes photo treatment CSS for Material kits', async () => {
+    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'ws-design-draw-mat-'));
+    try {
+      const ctx = { cwd: tmp, tools: [], projectRoot: tmp, meta: {} } as any;
+      const used = await designTool.execute(
+        { action: 'use', kit: 'atelier', stack: 'web' },
+        ctx,
+        opts,
+      );
+      expect(used.output).toContain('Axes: light/roman-serif/cool');
+      expect(used.output).toContain('Photo treatment:');
+
+      const drawn = await designTool.execute(
+        { action: 'draw', job: 'visit', material: 'photo', seed: 'bakery-1' },
+        ctx,
+        opts,
+      );
+      expect(drawn.action).toBe('draw');
+      expect(drawn.output).toContain('Macrostructure');
+      expect(drawn.output).toContain('[data-slot="hero"]');
+
+      const mat = await designTool.execute(
+        { action: 'materialize', stack: 'web', out: 'src/styles/atelier.css' },
+        ctx,
+        opts,
+      );
+      const css = await fs.readFile(path.join(tmp, mat.path!), 'utf8');
+      expect(css).toContain('[data-slot] > img');
+      expect(css).toContain('fonts.googleapis.com');
+    } finally {
+      await fs.rm(tmp, { recursive: true, force: true });
+    }
+  });
 });

@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [dark, light]
 bestFor: Trading, crypto, banking, analytics, real-time data and portfolio products.
 version: 1.0.0
+paper: dark 18 250
+display: roman-serif Inter
+accent: cool 255
+posture: committed
+photo: natural con=4
 ---
 
 # Fintech Dark

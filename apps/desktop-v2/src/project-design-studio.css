@@ -190,10 +190,11 @@
 }
 .design-theme-preview h3 {
   font-family: var(--design-display);
+  font-weight: var(--design-weight-bold, 700);
   font-size: 25px;
-  line-height: 1.1;
+  line-height: var(--design-leading-tight, 1.1);
   margin: 12px 0;
-  letter-spacing: -0.04em;
+  letter-spacing: var(--design-tracking-tight, -0.03em);
 }
 .design-theme-preview p {
   font-size: 11px;

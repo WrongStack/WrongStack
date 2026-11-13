@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Kids' apps, educational games, children's products, family/parenting, learning tools.
 version: 1.0.0
+paper: light 98 95
+display: roman-serif Fredoka
+accent: chromatic-green 150
+posture: full-palette
+photo: natural
 ---
 
 # Kids Bright

@@ -589,6 +589,162 @@ describe('completion WebSocket handler', { timeout: 30_000 }, () => {
     expect(prompt.includes('hello 😀 world')).toBe(true);
     expect(prompt.includes('const x = 1;')).toBe(true);
   });
+
+  it('aborts superseded in-flight requests on the same socket before calling the LLM provider', async () => {
+    const { handleCompletionRequest } = await import('@wrongstack/webui-server');
+    let r1Entered!: () => void;
+    const r1EnteredPromise = new Promise<void>((r) => {
+      r1Entered = r;
+    });
+    let releaseR1!: () => void;
+    const r1Gate = new Promise<void>((r) => {
+      releaseR1 = r;
+    });
+    let r1Signal: AbortSignal | undefined;
+    const complete = vi.fn(async () => ({
+      content: [{ type: 'text', text: '{"items":[{"label":"stale","insertText":"stale"}]}' }],
+      stopReason: 'end_turn',
+      usage: { input: 1, output: 1 },
+      model: 'test-model',
+    }));
+    const provider = {
+      id: 'mock',
+      capabilities: { structuredOutput: false, jsonMode: false },
+      complete,
+    } as never as Provider;
+    const ws = createMockWs();
+
+    const p1 = handleCompletionRequest(
+      ws,
+      {
+        type: 'completion.request',
+        payload: {
+          requestId: 'r1',
+          filePath: 'src/user-repository.ts',
+          language: 'typescript',
+          lineNumber: 1,
+          column: 7,
+          prefix: 'findBy',
+          allowLlm: true,
+        },
+      },
+      {
+        projectRoot: tempDir,
+        provider,
+        model: 'test-model',
+        lspCompletion: async ({ signal }) => {
+          r1Signal = signal;
+          r1Entered();
+          await r1Gate;
+          return [];
+        },
+      },
+    );
+
+    await r1EnteredPromise;
+
+    await handleCompletionRequest(
+      ws,
+      {
+        type: 'completion.request',
+        payload: {
+          requestId: 'r2',
+          filePath: 'src/user-repository.ts',
+          language: 'typescript',
+          lineNumber: 1,
+          column: 8,
+          prefix: 'findByE',
+          allowLlm: false,
+        },
+      },
+      {
+        projectRoot: tempDir,
+        provider,
+        model: 'test-model',
+        lspCompletion: async () => [
+          { label: 'findByEmail', insertText: 'findByEmail', source: 'lsp' },
+        ],
+      },
+    );
+
+    expect(r1Signal?.aborted).toBe(true);
+    releaseR1();
+    await p1;
+
+    expect(complete).not.toHaveBeenCalled();
+    expect(
+      (ws.sent as Array<{ payload: { requestId: string } }>).map((f) => f.payload.requestId),
+    ).toEqual(['r2']);
+  });
+
+  it('does not trigger LLM completions from filename stems on blank prefixes and parses JSON with trailing notes', async () => {
+    const { handleCompletionRequest } = await import('@wrongstack/webui-server');
+    const complete = vi.fn(async () => ({
+      content: [
+        {
+          type: 'text',
+          text: '{"items":[{"label":"useAuthState","insertText":"() => { return \\"{\\"; }","kind":"function"}]}\nNote: see {docs} above.',
+        },
+      ],
+      stopReason: 'end_turn',
+      usage: { input: 1, output: 1 },
+      model: 'test-model',
+    }));
+    const provider = {
+      id: 'mock',
+      capabilities: { structuredOutput: false, jsonMode: false },
+      complete,
+    } as never as Provider;
+
+    const wsBlank = createMockWs();
+    await handleCompletionRequest(
+      wsBlank,
+      {
+        type: 'completion.request',
+        payload: {
+          requestId: 'r-blank-hook-file',
+          filePath: 'src/useAuth.ts',
+          language: 'typescript',
+          lineNumber: 2,
+          column: 3,
+          prefix: 'export const x = 1;\n  ',
+        },
+      },
+      { projectRoot: tempDir, provider, model: 'test-model' },
+    );
+    expect(complete).not.toHaveBeenCalled();
+
+    const wsTrailing = createMockWs();
+    await handleCompletionRequest(
+      wsTrailing,
+      {
+        type: 'completion.request',
+        payload: {
+          requestId: 'r-trailing-json',
+          filePath: 'src/useAuth.ts',
+          language: 'typescript',
+          lineNumber: 2,
+          column: 8,
+          prefix: 'useAuth',
+        },
+      },
+      { projectRoot: tempDir, provider, model: 'test-model' },
+    );
+    expect(complete).toHaveBeenCalledOnce();
+    expect(wsTrailing.sent[0]).toMatchObject({
+      type: 'completion.result',
+      payload: {
+        requestId: 'r-trailing-json',
+        items: expect.arrayContaining([
+          expect.objectContaining({
+            label: 'useAuthState',
+            insertText: '() => { return "{"; }',
+            source: 'llm',
+          }),
+        ]),
+      },
+    });
+  });
 });
 
 function createMockWs() {

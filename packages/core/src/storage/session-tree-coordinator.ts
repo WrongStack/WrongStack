@@ -33,6 +33,7 @@ import {
   enforceFoldSummaryTokenCap,
   extractBranchTouchedFiles,
   resolveBranch,
+  survivingBranchEvents,
   validateBranchName,
 } from './session-tree-fold.js';
 
@@ -231,7 +232,8 @@ export class SessionTreeCoordinator {
         const forkSeq = cutIdx > 0 ? lineage[cutIdx - 1]!.seq : -1;
         return {
           forkSeq,
-          checkpoint: item.ev.workspaceCheckpoint,
+          checkpoint:
+            item.ev.workspaceCheckpoint ?? this.findDeferredWorkspaceCheckpoint(lineage, idx),
         };
       }
     }
@@ -273,6 +275,28 @@ export class SessionTreeCoordinator {
     throw new Error(
       `Prompt index ${atPromptIndex} not found on branch "${parentBranchId}" (saw ${seenPrompts} prompt(s)).`,
     );
+  }
+
+  /**
+   * Newer writers append the `checkpoint` marker without a manifest and record
+   * it later in a `workspace_checkpoint` event with the same prompt index. A
+   * writer finishes one capture before it writes the next marker, so the
+   * manifest, when present, lies before the following `checkpoint`.
+   */
+  private findDeferredWorkspaceCheckpoint(
+    lineage: ReadonlyArray<{ ev: SessionEvent; seq: number }>,
+    checkpointIdx: number,
+  ): WorkspaceCheckpointRef | undefined {
+    const marker = lineage[checkpointIdx]?.ev;
+    if (marker?.type !== 'checkpoint') return undefined;
+    for (let i = checkpointIdx + 1; i < lineage.length; i += 1) {
+      const ev = lineage[i]!.ev;
+      if (ev.type === 'checkpoint') break;
+      if (ev.type === 'workspace_checkpoint' && ev.promptIndex === marker.promptIndex) {
+        return ev.workspaceCheckpoint;
+      }
+    }
+    return undefined;
   }
 
   async createBranch(opts: CreateBranchOptions): Promise<CreateBranchResult> {
@@ -486,8 +510,11 @@ export class SessionTreeCoordinator {
       throw new Error('Cannot fold a branch into itself.');
     }
 
-    // Collect events authored exclusively on `sourceBranch` and scrub before synthesis.
-    const rawBranchEvents = events.filter((ev) => ev.branchId === sourceBranch.id);
+    // Collect events authored exclusively on `sourceBranch` that survived its
+    // rewinds, and scrub before synthesis.
+    const rawBranchEvents = survivingBranchEvents(
+      events.filter((ev) => ev.branchId === sourceBranch.id),
+    );
     const scrubbedBranchEvents = rawBranchEvents.map((ev) => this.secretScrubber.scrubObject(ev));
 
     const sourceLineage = reconstructSessionTree(events, {

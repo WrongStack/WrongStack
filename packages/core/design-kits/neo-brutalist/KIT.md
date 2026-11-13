@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Creative portfolios, subculture brands, dev tools with attitude, launch/landing pages that must stand out.
 version: 1.0.0
+paper: light 97 95
+display: roman-serif Space Grotesk
+accent: warm 25
+posture: committed
+photo: natural
 ---
 
 # Neo-Brutalist

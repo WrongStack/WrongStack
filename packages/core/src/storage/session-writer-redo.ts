@@ -7,7 +7,10 @@
  * A redo is only valid while the kept part is exactly what the rewind left:
  * the stash stores its SHA-256 and a redo checks it. Writing a new
  * checkpoint (the next prompt) or clearing the session drops the stack, as a
- * new edit drops an editor's redo history.
+ * new edit drops an editor's redo history. So does a session-tree change
+ * (`/tree branch`, `/tree switch`, …) recorded after the rewind: a redo
+ * rebuilds the journal as kept part + stash, which would drop those records
+ * and leave a vanished branch or a journal on another branch than the writer.
  *
  * Subagent transcripts that belonged only to the rewound turns are moved into
  * the stash instead of deleted, and moved back by a redo.
@@ -35,6 +38,35 @@ interface RedoEntry {
 }
 
 const CHUNK = 65_536;
+
+/** Journal events that change the session tree; recorded after a rewind, they end its redo. */
+const BRANCH_STRUCTURE_EVENTS: ReadonlySet<string> = new Set([
+  'branch_created',
+  'branch_switched',
+  'branch_folded',
+  'branch_status_changed',
+]);
+
+/** Whether the journal records a session-tree change after its first `from` bytes. */
+async function treeChangedAfter(
+  file: fsp.FileHandle,
+  from: number,
+  size: number,
+): Promise<boolean> {
+  if (size <= from) return false;
+  const buf = Buffer.alloc(size - from);
+  const { bytesRead } = await file.read(buf, 0, buf.length, from);
+  for (const line of buf.subarray(0, bytesRead).toString('utf8').split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const type = (JSON.parse(line) as { type?: unknown }).type;
+      if (typeof type === 'string' && BRANCH_STRUCTURE_EVENTS.has(type)) return true;
+    } catch {
+      // Malformed lines carry no tree change.
+    }
+  }
+  return false;
+}
 
 function redoStashDir(journalPath: string): string {
   return `${journalPath}.redo`;
@@ -188,13 +220,18 @@ async function validTop(journalPath: string): Promise<RedoEntry | undefined> {
   const handle = await fsp.open(journalPath, 'r');
   try {
     const { size } = await handle.stat();
-    if (size >= top.keptBytes && (await hashPrefix(handle, top.keptBytes)) === top.keptSha) {
+    if (
+      size >= top.keptBytes &&
+      (await hashPrefix(handle, top.keptBytes)) === top.keptSha &&
+      !(await treeChangedAfter(handle, top.keptBytes, size))
+    ) {
       return top;
     }
   } finally {
     await handle.close();
   }
-  // The kept part changed underneath the stash: nothing in it applies.
+  // The kept part changed underneath the stash, or the session tree changed
+  // after the rewind: nothing in it applies.
   await clearRedoStash(journalPath);
   return undefined;
 }

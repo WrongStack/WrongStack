@@ -1314,6 +1314,116 @@ export function startServer(cfg: Config): void {
       expect(res.type).toBe('files.skeleton_result');
       expect(res.payload.error).toBeDefined();
     });
+
+    it('rejects non-string payloads and directory targets across file read/tree/list/skeleton', async () => {
+      fsSync.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
+      fsSync.writeFileSync(path.join(tempDir, 'src', 'ok.ts'), 'export const ok = 1;\n', 'utf8');
+
+      const wsBadTree = createMockWs();
+      await handleFilesTree(
+        wsBadTree,
+        { type: 'files.tree', payload: { path: 123 as unknown as string } },
+        tempDir,
+      );
+      expect((wsBadTree.sent[0] as { payload: { error?: string } }).payload.error).toBe(
+        'Malformed request',
+      );
+
+      const wsBadRead = createMockWs();
+      await handleFilesRead(
+        wsBadRead,
+        {
+          type: 'files.read',
+          payload: { filePath: 123 as unknown as string, requestId: 'req-bad', sessionId: 's-1' },
+        },
+        tempDir,
+      );
+      expect(wsBadRead.sent[0]).toMatchObject({
+        type: 'files.read',
+        payload: {
+          filePath: '',
+          content: '',
+          error: 'Malformed request',
+          requestId: 'req-bad',
+          sessionId: 's-1',
+        },
+      });
+
+      const wsDirRead = createMockWs();
+      await handleFilesRead(
+        wsDirRead,
+        { type: 'files.read', payload: { filePath: 'src' } },
+        tempDir,
+      );
+      expect((wsDirRead.sent[0] as { payload: { error?: string } }).payload.error).toBe(
+        'Path is a directory',
+      );
+
+      const wsBadSkeleton = createMockWs();
+      await handleFilesSkeleton(
+        wsBadSkeleton,
+        {
+          type: 'files.skeleton',
+          payload: { filePath: 'src/ok.ts', content: 123 as unknown as string },
+        },
+        tempDir,
+      );
+      expect((wsBadSkeleton.sent[0] as { payload: { error?: string } }).payload.error).toBe(
+        'Malformed request',
+      );
+
+      const wsDirSkeleton = createMockWs();
+      await handleFilesSkeleton(
+        wsDirSkeleton,
+        { type: 'files.skeleton', payload: { filePath: 'src' } },
+        tempDir,
+      );
+      expect((wsDirSkeleton.sent[0] as { payload: { error?: string } }).payload.error).toBe(
+        'Path is a directory',
+      );
+
+      const wsBadList = createMockWs();
+      await handleFilesList(
+        wsBadList,
+        { type: 'files.list', payload: { query: 42 as unknown as string } },
+        tempDir,
+      );
+      expect((wsBadList.sent[0] as { payload: { files: unknown[] } }).payload.files).toEqual([]);
+    });
+
+    it('includes in-project symlinked directories while breaking ancestor symlink cycles', async () => {
+      fsSync.mkdirSync(path.join(tempDir, 'shared'), { recursive: true });
+      fsSync.writeFileSync(path.join(tempDir, 'shared', 'mod.ts'), 'export const m = 1;\n', 'utf8');
+      const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+      try {
+        fsSync.symlinkSync(path.join(tempDir, 'shared'), path.join(tempDir, 'linked'), linkType);
+        fsSync.symlinkSync(tempDir, path.join(tempDir, 'shared', 'loop'), linkType);
+      } catch (err) {
+        if (
+          (err as NodeJS.ErrnoException).code === 'EPERM' ||
+          (err as NodeJS.ErrnoException).code === 'ENOSYS'
+        ) {
+          return;
+        }
+        throw err;
+      }
+
+      const wsTree = createMockWs();
+      await handleFilesTree(wsTree, { type: 'files.tree', payload: {} }, tempDir);
+      const names = collectNames(
+        (wsTree.sent[0] as { payload: { tree: { name: string; children?: { name: string }[] }[] } })
+          .payload.tree,
+      );
+      expect(names).toContain('linked');
+      expect(names).toContain('mod.ts');
+      expect(names).not.toContain('loop');
+
+      const wsList = createMockWs();
+      await handleFilesList(wsList, { type: 'files.list', payload: {} }, tempDir);
+      const files = (wsList.sent[0] as { payload: { files: string[] } }).payload.files;
+      expect(files).toContain('linked/mod.ts');
+      expect(files.some((f) => f.includes('loop'))).toBe(false);
+    });
   });
 });
 

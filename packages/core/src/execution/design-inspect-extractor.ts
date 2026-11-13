@@ -74,11 +74,17 @@ export const DESIGN_INSPECT_EXTRACTOR = String.raw`(async () => {
     scrollW: de.scrollWidth, overflow: [], edgeText: [], edgeCount: 0, longLines: [], longCount: 0,
     sizes: {}, families: {}, loaded: [], headings: [], contrast: [], contrastCount: 0, contrastChecked: 0,
     smallTargets: [], smallCount: 0, targetsChecked: 0, brokenImages: [], unsizedImages: 0, hiddenText: [], hiddenCount: 0,
-    blankBands: [], bodySizes: {}, justified: 0, elements: 0
+    blankBands: [], bodySizes: {}, justified: 0, elements: 0,
+    heroFold: null, heroDeadBand: 0, headingProximity: [], unboundedCount: 0, unbounded: []
   };
-  // Viewport-height bands holding no visible text or media.
-  var bands = Math.max(1, Math.ceil(out.docH / H)), inked = [];
-  var ink = function (y, h) { for (var b = Math.floor(y / H); b <= Math.floor((y + h - 1) / H) && b < bands; b++) inked[b] = true; };
+  // Viewport-height bands holding no visible text or media, plus 10px hero buckets (0..800px).
+  var bands = Math.max(1, Math.ceil(out.docH / H)), inked = [], heroBuckets = [];
+  var ink = function (y, h) {
+    for (var b = Math.floor(y / H); b <= Math.floor((y + h - 1) / H) && b < bands; b++) inked[b] = true;
+    var hs = Math.max(0, Math.floor(y / 10)), he = Math.min(79, Math.floor((y + h - 1) / 10));
+    for (var hi = hs; hi <= he; hi++) heroBuckets[hi] = true;
+  };
+  var firstHeadTop = null, firstHeadBot = null, firstCtaBot = null;
   var meas = D.createElement('canvas').getContext('2d');
   var els = D.body ? D.body.getElementsByTagName('*') : [];
   var n = Math.min(els.length, MAX_EL); out.elements = els.length;
@@ -113,6 +119,10 @@ export const DESIGN_INSPECT_EXTRACTOR = String.raw`(async () => {
       targets.push(r);
       var inline = tag === 'a' && c.display === 'inline' && e.parentElement && /^(p|li|td|span|dd)$/i.test(e.parentElement.tagName);
       if (!inline && (r.width < 24 || r.height < 24)) small.push([e, r]);
+      var inChrome = !!e.closest('nav,header,footer,[role=navigation],[role=banner],[role=contentinfo]');
+      if (!inline && !inChrome && r.height >= 28 && r.width >= 48 && top < 1400 && firstCtaBot === null) {
+        firstCtaBot = Math.round(top + r.height);
+      }
     }
     var own = 0;
     for (var cn = e.firstChild; cn; cn = cn.nextSibling) if (cn.nodeType === 3) own += cn.data.trim().length;
@@ -145,7 +155,22 @@ export const DESIGN_INSPECT_EXTRACTOR = String.raw`(async () => {
     }
     if (/^h[1-6]$/.test(tag)) {
       var lh = c.lineHeight === 'normal' ? fs * 1.2 : px(c.lineHeight);
-      if (out.headings.length < 60) out.headings.push({ l: +tag[1], lines: Math.max(1, Math.round(r.height / lh)), fs: fs, t: txt(e), y: Math.round(top) });
+      var lvl = +tag[1];
+      if (out.headings.length < 60) out.headings.push({ l: lvl, lines: Math.max(1, Math.round(r.height / lh)), fs: fs, t: txt(e), y: Math.round(top) });
+      if (lvl <= 2 && top < 1200 && (firstHeadTop === null || (lvl === 1 && firstHeadTop > top))) {
+        firstHeadTop = Math.round(top);
+        firstHeadBot = Math.round(top + r.height);
+      }
+      if (lvl >= 2 && lvl <= 4 && (c.position === 'static' || c.position === 'relative')) {
+        var pv = e.previousElementSibling, nx = e.nextElementSibling;
+        if (pv && nx) {
+          var pr = pv.getBoundingClientRect(), nr = nx.getBoundingClientRect();
+          if (pr.height > 2 && nr.height > 2) {
+            var ab = r.top - pr.bottom, bl = nr.top - r.bottom;
+            if (ab >= 4 && bl > 14 && bl > ab * 1.4) push(out.headingProximity, { sel: sel(e), above: Math.round(ab), below: Math.round(bl), t: txt(e) });
+          }
+        }
+      }
     }
     var fg = rgba(c.color);
     // Gradient-clipped or transparent text has no single color to measure.
@@ -159,6 +184,23 @@ export const DESIGN_INSPECT_EXTRACTOR = String.raw`(async () => {
     }
   }
   for (var bi = 0; bi < bands && out.blankBands.length < 20; bi++) if (!inked[bi]) out.blankBands.push(bi);
+  if (firstHeadBot !== null) out.heroFold = { h1Bottom: firstHeadBot, ctaBottom: firstCtaBot };
+  var hbLimit = Math.min(80, Math.floor(Math.min(800, out.docH) / 10)), firstHb = -1, lastHb = -1;
+  for (var hbi = 0; hbi < hbLimit; hbi++) { if (heroBuckets[hbi]) { if (firstHb < 0) firstHb = hbi; lastHb = hbi; } }
+  if (firstHb >= 0 && lastHb > firstHb) {
+    var gapRun = 0, maxGap = 0;
+    for (var hbj = firstHb; hbj <= lastHb; hbj++) { if (!heroBuckets[hbj]) { gapRun += 10; if (gapRun > maxGap) maxGap = gapRun; } else gapRun = 0; }
+    out.heroDeadBand = maxGap;
+  }
+  if (W >= 1600) {
+    var containers = D.querySelectorAll('main > *, body > section, article');
+    for (var ci = 0; ci < containers.length; ci++) {
+      var ce = containers[ci], cr2 = ce.getBoundingClientRect();
+      if (cr2.width > 1640 && (ce.textContent || '').trim().length > 140 && !ce.querySelector('img,video,canvas')) {
+        out.unboundedCount++; push(out.unbounded, { sel: sel(ce), w: Math.round(cr2.width) });
+      }
+    }
+  }
   // WCAG 2.5.8 spacing exception: an undersized target passes when a 24px
   // square centred on it meets no other target.
   small.forEach(function (pair) {

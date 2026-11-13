@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Healthcare, telemedicine, mental health, pharmacy, patient apps, insurance.
 version: 1.0.0
+paper: light 98 180
+display: roman-serif Inter
+accent: chromatic-green 150
+posture: committed
+photo: natural
 ---
 
 # Health Calm

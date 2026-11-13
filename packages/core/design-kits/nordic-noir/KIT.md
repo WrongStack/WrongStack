@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [dark, light]
 bestFor: Film/TV, true-crime, premium editorial, atmospheric brands, moody portfolios.
 version: 1.0.0
+paper: dark 18 240
+display: roman-serif Inter
+accent: cool 220
+posture: committed
+photo: muted con=8
 ---
 
 # Nordic Noir

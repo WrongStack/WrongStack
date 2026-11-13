@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: SaaS marketing, fintech onboarding, blogs, explainer pages, approachable B2C.
 version: 1.0.0
+paper: light 98 250
+display: roman-serif Poppins
+accent: warm 35
+posture: committed
+photo: natural
 ---
 
 # Corporate Memphis

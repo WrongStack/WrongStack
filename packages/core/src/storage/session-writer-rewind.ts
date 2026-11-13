@@ -89,6 +89,8 @@ export interface SessionTruncateContext {
   sessionId: string;
   filePath: string;
   targetPromptIndex: number;
+  /** Session-tree branch being rewound; its own checkpoints are the cut points. */
+  branchId?: string | undefined;
   revertedFiles?: readonly string[] | undefined;
   closed: boolean;
   buffer: SessionWriteBuffer;
@@ -121,18 +123,32 @@ export async function executeSessionTruncate(ctx: SessionTruncateContext): Promi
   ctx.cancelMetadataTimer();
   await ctx.metadataCheckpointInFlight?.catch(() => undefined);
 
-  const plan = await findSessionCheckpointTruncatePlan(ctx.filePath, ctx.targetPromptIndex).catch(
-    (err) => {
-      // Lookup failed: re-arm live checkpointing so dirty metadata is not
-      // stranded until the next unrelated event.
-      ctx.scheduleMetadataCheckpoint();
-      throw err;
-    },
-  );
+  const plan = await findSessionCheckpointTruncatePlan(
+    ctx.filePath,
+    ctx.targetPromptIndex,
+    ctx.branchId,
+  ).catch((err) => {
+    // Lookup failed: re-arm live checkpointing so dirty metadata is not
+    // stranded until the next unrelated event.
+    ctx.scheduleMetadataCheckpoint();
+    throw err;
+  });
   if (!plan) {
     // No matching checkpoint: same re-arm obligation as the error path.
     ctx.scheduleMetadataCheckpoint();
     return 0;
+  }
+  if (plan.foreignBranchEventCount > 0) {
+    // The rewrite keeps a byte prefix of the journal. In a branched session
+    // the cut also holds other branches' turns and the branch records
+    // themselves, so truncating would delete history that is not this
+    // branch's. Refuse before touching the file.
+    ctx.scheduleMetadataCheckpoint();
+    throw new Error(
+      `Cannot rewind to checkpoint ${ctx.targetPromptIndex}: the session journal records ` +
+        `${plan.foreignBranchEventCount} event(s) from other session branches after it, ` +
+        'and a rewind would delete them. Fork from that prompt instead (/tree branch <name> --at <prompt>).',
+    );
   }
 
   // Windows EPERM fix: close the append-mode handle before replacing the

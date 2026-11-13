@@ -7,6 +7,7 @@ import { type ChildProcess, spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { Duplex } from 'node:stream';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -26,6 +27,8 @@ import {
   OWNER_LOCK_FILE,
 } from '../src/codebase-index/wrongindex/owner-lock.js';
 import {
+  acquireWrongIndexSession,
+  registerWrongIndexProject,
   releaseWrongIndexSessions,
   resetWrongIndexConnection,
   resolveIndexRoute,
@@ -398,3 +401,180 @@ describe.runIf(Boolean(daemonExe) && process.platform === 'win32')(
     }, 180_000);
   },
 );
+
+describe('WrongIndex session lease concurrency and path canonicalization (F168, F169)', () => {
+  it('deduplicates concurrent acquireWrongIndexSession calls and fences in-flight releaseWrongIndexSessions', async () => {
+    let seq = 0;
+    const acquired: string[] = [];
+    const released: string[] = [];
+    let releaseGate: (() => void) | null = null;
+    let gatePromise: Promise<void> | null = null;
+    let notifySeen: (() => void) | null = null;
+
+    const connectSpy = vi.spyOn(WrongIndexClient, 'connect').mockImplementation(async () => {
+      let clientSide!: Duplex;
+      let serverSide!: Duplex;
+      clientSide = new Duplex({
+        read() {},
+        write(chunk, _enc, cb) {
+          serverSide.push(chunk);
+          cb();
+        },
+        destroy(err, cb) {
+          serverSide.push(null);
+          cb(err);
+        },
+      });
+      serverSide = new Duplex({
+        read() {},
+        write(chunk, _enc, cb) {
+          clientSide.push(chunk);
+          cb();
+        },
+        destroy(err, cb) {
+          clientSide.push(null);
+          cb(err);
+        },
+      });
+      const reader = new FrameReader();
+      serverSide.on('data', (chunk: Buffer) => {
+        for (const frame of reader.push(chunk) as Array<{
+          requestId: string;
+          method: string;
+          params?: Record<string, unknown>;
+        }>) {
+          void (async () => {
+            if (frame.method === 'project.register') {
+              return { project: { projectId: `proj:${String(frame.params?.['indexDir'])}` } };
+            }
+            if (frame.method === 'session.acquire') {
+              notifySeen?.();
+              if (gatePromise) await gatePromise;
+              const id = `lease-${++seq}`;
+              acquired.push(id);
+              return { sessionId: id, heartbeatMs: 60_000 };
+            }
+            if (frame.method === 'session.release') {
+              released.push(String(frame.params?.['sessionId'] ?? ''));
+              return {};
+            }
+            return {};
+          })().then((result) => {
+            if (!serverSide.destroyed) {
+              serverSide.write(encodeFrame({ requestId: frame.requestId, result }));
+            }
+          });
+        }
+      });
+      const client = Reflect.construct(WrongIndexClient, [
+        clientSide,
+        () => {},
+        30_000,
+      ]) as WrongIndexClient;
+      client.hello = {
+        protocolMajor: 1,
+        protocolMinor: 0,
+        daemonInstanceId: 'daemon-f168',
+        daemonVersion: '1.0.0',
+        capabilities: [],
+      };
+      return client;
+    });
+
+    try {
+      setIndexServiceMode('wrongindex', { dataRoot: '/synthetic-f168-test' });
+      const root = path.resolve('/repo-f168');
+      const idx = path.join(root, '.idx');
+
+      await Promise.all([
+        acquireWrongIndexSession(root, idx),
+        acquireWrongIndexSession(root, `${idx}${path.sep}`),
+        acquireWrongIndexSession(root, '.idx'),
+      ]);
+      expect(acquired).toHaveLength(1);
+      await releaseWrongIndexSessions();
+      expect(released).toEqual(acquired);
+
+      acquired.length = 0;
+      released.length = 0;
+      gatePromise = new Promise<void>((r) => {
+        releaseGate = r;
+      });
+      const seen = new Promise<void>((r) => {
+        notifySeen = r;
+      });
+      const inflight = acquireWrongIndexSession(root, '.idx');
+      await seen;
+      await releaseWrongIndexSessions();
+      releaseGate!();
+      await inflight;
+      expect(acquired).toHaveLength(1);
+      expect(released).toEqual(acquired);
+
+      // Equivalent indexDir spellings reuse cached project registration
+      let registers = 0;
+      connectSpy.mockRestore();
+      vi.spyOn(WrongIndexClient, 'connect').mockImplementation(async () => {
+        let clientSide!: Duplex;
+        let serverSide!: Duplex;
+        clientSide = new Duplex({
+          read() {},
+          write(chunk, _enc, cb) {
+            serverSide.push(chunk);
+            cb();
+          },
+          destroy(err, cb) {
+            serverSide.push(null);
+            cb(err);
+          },
+        });
+        serverSide = new Duplex({
+          read() {},
+          write(chunk, _enc, cb) {
+            clientSide.push(chunk);
+            cb();
+          },
+          destroy(err, cb) {
+            clientSide.push(null);
+            cb(err);
+          },
+        });
+        const reader = new FrameReader();
+        serverSide.on('data', (chunk: Buffer) => {
+          for (const frame of reader.push(chunk) as Array<{ requestId: string; method: string }>) {
+            if (frame.method === 'project.register') {
+              registers++;
+              serverSide.write(
+                encodeFrame({
+                  requestId: frame.requestId,
+                  result: { project: { projectId: 'proj-same' } },
+                }),
+              );
+            } else {
+              serverSide.write(encodeFrame({ requestId: frame.requestId, result: {} }));
+            }
+          }
+        });
+        const client = Reflect.construct(WrongIndexClient, [
+          clientSide,
+          () => {},
+          30_000,
+        ]) as WrongIndexClient;
+        client.hello = {
+          protocolMajor: 1,
+          protocolMinor: 0,
+          daemonInstanceId: 'daemon-f169',
+          daemonVersion: '1.0.0',
+          capabilities: [],
+        };
+        return client;
+      });
+      resetWrongIndexConnection();
+      await registerWrongIndexProject(root, `${idx}${path.sep}`);
+      await registerWrongIndexProject(root, '.idx');
+      expect(registers).toBe(1);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+});

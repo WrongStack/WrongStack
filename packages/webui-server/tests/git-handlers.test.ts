@@ -792,6 +792,58 @@ describe('git change-set handlers', () => {
       expect(res).toMatchObject({ action: 'discard', ok: true });
       expect(fsSync.existsSync(path.join(repo, 'untracked.txt'))).toBe(false);
     });
+
+    it('discards staged modifications, staged deletions, and staged new files back to HEAD', async () => {
+      fsSync.writeFileSync(path.join(repo, 'keep.txt'), 'staged modification\n');
+      git(repo, ['add', 'keep.txt']);
+      git(repo, ['rm', '-q', 'gone.txt']);
+      fsSync.writeFileSync(path.join(repo, 'staged-new.txt'), 'staged brand new\n');
+      git(repo, ['add', 'staged-new.txt']);
+
+      const ws = createMockWs();
+      await handleGitDiscard(ws, repo, ['keep.txt', 'gone.txt', 'staged-new.txt']);
+      const res = ws.sent.find((m) => m.type === 'git.action_result')?.payload;
+      expect(res).toMatchObject({ action: 'discard', ok: true });
+      expect(fsSync.readFileSync(path.join(repo, 'keep.txt'), 'utf8').replace(/\r\n/g, '\n')).toBe(
+        'line1\nline2\nline3\n',
+      );
+      expect(fsSync.readFileSync(path.join(repo, 'gone.txt'), 'utf8').replace(/\r\n/g, '\n')).toBe(
+        'remove me\n',
+      );
+      expect(fsSync.existsSync(path.join(repo, 'staged-new.txt'))).toBe(false);
+      const porcelain = execFileSync('git', ['status', '--porcelain'], {
+        cwd: repo,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).toString();
+      expect(porcelain.trim()).toBe('');
+    });
+
+    it('rejects directory targets in handleGitDiff and non-array path payloads', async () => {
+      fsSync.mkdirSync(path.join(repo, 'dir-target'), { recursive: true });
+      fsSync.writeFileSync(path.join(repo, 'dir-target', 'inside.txt'), 'hello\n');
+      git(repo, ['add', 'dir-target/inside.txt']);
+      git(repo, ['commit', '-q', '-m', 'add dir-target']);
+
+      const wsLiveDir = createMockWs();
+      await handleGitDiff(wsLiveDir, repo, 'dir-target');
+      expect((wsLiveDir.sent[0]?.payload as { error?: string } | undefined)?.error).toBe(
+        'path is a directory',
+      );
+
+      fsSync.rmSync(path.join(repo, 'dir-target'), { recursive: true, force: true });
+      const wsDeletedDir = createMockWs();
+      await handleGitDiff(wsDeletedDir, repo, 'dir-target');
+      expect((wsDeletedDir.sent[0]?.payload as { error?: string } | undefined)?.error).toBe(
+        'path is a directory',
+      );
+
+      const wsNullPaths = createMockWs();
+      await handleGitStage(wsNullPaths, repo, null as unknown as string[]);
+      expect(wsNullPaths.sent.find((m) => m.type === 'git.action_result')?.payload).toMatchObject({
+        action: 'stage',
+        ok: false,
+      });
+    });
   });
 
   describe('handleGitCommit', () => {

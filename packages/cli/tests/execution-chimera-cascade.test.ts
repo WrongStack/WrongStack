@@ -432,4 +432,80 @@ describe('installChimeraCascadeHandler', () => {
       're-reviewing 1 file(s) after fixes',
     );
   });
+
+  it('clears stale deletedFiles, deletedFileReferences, and signatureCallers from re-review bundles after fixes', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'chimera-cascade-stale-'));
+    roots.push(cwd);
+    const beforeFix = 'import { x } from "./gone.js";\nexport const y = x;\n';
+    await writeFile(join(cwd, 'app.ts'), beforeFix);
+
+    const director = {
+      spawn: vi.fn().mockResolvedValue('fixer-1'),
+      assign: vi.fn(async () => {
+        await writeFile(join(cwd, 'app.ts'), 'export const y = 1;\n');
+      }),
+      awaitTasks: vi.fn().mockResolvedValue([
+        {
+          status: 'success',
+          result:
+            '```json\n{"verification_evidence":{"typecheck":{"command":"bun run typecheck","exitCode":0}}}\n```',
+        },
+      ]),
+      terminate: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const h = harness(director, {
+      verifyEvidence: vi.fn().mockResolvedValue({
+        status: 'verified',
+        checks: [
+          {
+            name: 'typecheck',
+            command: 'bun run typecheck',
+            claimedExitCode: 0,
+            actualExitCode: 0,
+            ok: true,
+          },
+        ],
+      }),
+    });
+
+    h.emit({
+      agents: ['bug-hunter'],
+      reportId: 'rep-stale-1',
+      reviewText: '## Review',
+      severities: { critical: 0, high: 1, medium: 0 },
+      verifiedFindings: [],
+      bundle: {
+        config: {
+          enabled: true,
+          provider: 'test',
+          model: 'test-model',
+          maxFiles: 10,
+          autoFix: 'off',
+          cascadeOn: 'high',
+          maxCascadeDepth: 2,
+          fallbackModels: [],
+        },
+        cwd,
+        files: [{ path: 'app.ts', status: 'modified', content: beforeFix }],
+        deletedFiles: ['gone.ts'],
+        deletedFileReferences: [{ deletedPath: 'gone.ts', referencedBy: ['app.ts'] }],
+        signatureCallers: [{ symbol: 'oldExport', file: 'app.ts', callers: ['other.ts:2'] }],
+        sessionIntent: 'Keep session intent',
+        cascadeDepth: 0,
+        maxCascadeDepth: 2,
+      },
+    });
+    await h.wait();
+
+    const reReviewCall = h.events.emitCustom.mock.calls.find(
+      (call) => call[0] === 'chimera.review_needed',
+    );
+    expect(reReviewCall).toBeDefined();
+    const reReviewBundle = reReviewCall![1] as Record<string, unknown>;
+    expect(reReviewBundle['deletedFiles']).toBeUndefined();
+    expect(reReviewBundle['deletedFileReferences']).toBeUndefined();
+    expect(reReviewBundle['signatureCallers']).toBeUndefined();
+    expect(reReviewBundle['sessionIntent']).toBe('Keep session intent');
+  });
 });

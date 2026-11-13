@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Premium consumer apps, dashboards over imagery, OS-like surfaces, Apple-adjacent products.
 version: 1.0.0
+paper: light 96 280
+display: roman-serif SF Pro
+accent: cool 220
+posture: committed
+photo: natural
 ---
 
 # Soft Glass

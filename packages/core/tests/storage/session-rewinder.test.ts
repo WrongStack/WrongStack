@@ -433,6 +433,203 @@ describe('DefaultSessionRewinder', () => {
     });
   });
 
+  describe('rewindLastN on a branched journal', () => {
+    // Writer-realistic stamping (session-writer-append.ts stampBranchAndSeq):
+    // main's lines stay unstamped, every event of another branch carries its
+    // branchId, and prompt indices restart per lineage.
+    const branchCreated = (branchId: string) => ({
+      type: 'branch_created',
+      ts: new Date().toISOString(),
+      newBranchId: branchId,
+      name: branchId.replace(/^br-/, ''),
+      parentBranchId: 'main',
+      forkSeq: 6,
+    });
+    const branchSwitched = (from: string, to: string) => ({
+      type: 'branch_switched',
+      ts: new Date().toISOString(),
+      fromBranchId: from,
+      toBranchId: to,
+    });
+    const branchSnapshot = (
+      branchId: string,
+      promptIndex: number,
+      files: Array<{ path: string; action: string; before: string | null; after: string | null }>,
+    ) => ({ type: 'file_snapshot', ts: new Date().toISOString(), promptIndex, files, branchId });
+    const branchCheckpoint = (branchId: string, promptIndex: number, preview: string) => ({
+      type: 'checkpoint',
+      ts: new Date().toISOString(),
+      promptIndex,
+      promptPreview: preview,
+      branchId,
+    });
+
+    it('reverts only the active branch’s newest prompt when indices collide across branches', async () => {
+      // main: prompt0 edits a.txt, prompt1 edits b.txt; then fork to br-explore
+      // (active at journal end) whose prompt0 edits c.txt. `--last 1` must undo
+      // br-explore's prompt only — before the branch scoping, the shared
+      // promptIndex 0 collapsed main's checkpoint out of the selection map and
+      // the revert spanned both branches.
+      const aTxt = path.join(tmp, 'branch-a.txt');
+      const bTxt = path.join(tmp, 'branch-b.txt');
+      const cTxt = path.join(tmp, 'branch-c.txt');
+      await fs.writeFile(aTxt, 'a1', 'utf8');
+      await fs.writeFile(bTxt, 'b1', 'utf8');
+      await fs.writeFile(cTxt, 'c1', 'utf8');
+
+      const id = await writeSession([
+        makeCheckpoint(0, 'p0'),
+        makeFileSnapshot(0, [{ path: aTxt, action: 'modified', before: 'a0', after: 'a1' }]),
+        makeCheckpoint(1, 'p1'),
+        makeFileSnapshot(1, [{ path: bTxt, action: 'modified', before: 'b0', after: 'b1' }]),
+        branchCreated('br-explore'),
+        branchSwitched('main', 'br-explore'),
+        branchCheckpoint('br-explore', 0, 'explore prompt'),
+        branchSnapshot('br-explore', 0, [
+          { path: cTxt, action: 'modified', before: 'c0', after: 'c1' },
+        ]),
+      ]);
+
+      const rewind = new DefaultSessionRewinder(tmp, tmp);
+      const result = await rewind.rewindLastN(id, 1);
+
+      expect(result.toPromptIndex).toBe(0);
+      expect(result.revertedFiles).toEqual([cTxt]);
+      expect(await fs.readFile(aTxt, 'utf8')).toBe('a1');
+      expect(await fs.readFile(bTxt, 'utf8')).toBe('b1');
+      expect(await fs.readFile(cTxt, 'utf8')).toBe('c0');
+    });
+
+    it('refuses and changes nothing when other branches’ events follow the target checkpoint', async () => {
+      // Active branch is main again after the switch-back; rewinding its last
+      // two prompts would also cut br-x's turn, so the rewind must throw
+      // BEFORE any file is reverted (same rule as rewindToCheckpoint).
+      const aTxt = path.join(tmp, 'guard-a.txt');
+      const bTxt = path.join(tmp, 'guard-b.txt');
+      const cTxt = path.join(tmp, 'guard-c.txt');
+      const dTxt = path.join(tmp, 'guard-d.txt');
+      for (const [file, value] of [
+        [aTxt, 'a1'],
+        [bTxt, 'b1'],
+        [cTxt, 'c1'],
+        [dTxt, 'd1'],
+      ] as const) {
+        await fs.writeFile(file, value, 'utf8');
+      }
+
+      const id = await writeSession([
+        makeCheckpoint(0, 'p0'),
+        makeFileSnapshot(0, [{ path: aTxt, action: 'modified', before: 'a0', after: 'a1' }]),
+        makeCheckpoint(1, 'p1'),
+        makeFileSnapshot(1, [{ path: bTxt, action: 'modified', before: 'b0', after: 'b1' }]),
+        branchCreated('br-x'),
+        branchSwitched('main', 'br-x'),
+        branchCheckpoint('br-x', 0, 'x prompt'),
+        branchSnapshot('br-x', 0, [{ path: cTxt, action: 'modified', before: 'c0', after: 'c1' }]),
+        branchSwitched('br-x', 'main'),
+        makeCheckpoint(2, 'p2'),
+        makeFileSnapshot(2, [{ path: dTxt, action: 'modified', before: 'd0', after: 'd1' }]),
+      ]);
+
+      const rewind = new DefaultSessionRewinder(tmp, tmp);
+      await expect(rewind.rewindLastN(id, 2)).rejects.toThrow(/other session branches/);
+
+      // The refused rewind changed nothing on disk.
+      expect(await fs.readFile(aTxt, 'utf8')).toBe('a1');
+      expect(await fs.readFile(bTxt, 'utf8')).toBe('b1');
+      expect(await fs.readFile(cTxt, 'utf8')).toBe('c1');
+      expect(await fs.readFile(dTxt, 'utf8')).toBe('d1');
+    });
+
+    const branchInput = (branchId: string | undefined, text: string) => ({
+      type: 'user_input',
+      ts: new Date().toISOString(),
+      content: [
+        { type: 'text', text },
+        ...(branchId === 'main'
+          ? [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'aGk=' } }]
+          : []),
+      ],
+      ...(branchId && branchId !== 'main' ? { branchId } : {}),
+    });
+
+    it('hands back only the rewound branch’s own prompt when branches interleave', async () => {
+      // br-explore prompt 0, back to main for a prompt (with an image), then
+      // br-explore again: the line just before br-explore's checkpoint 1 is
+      // main's prompt. Rewinding br-explore to 1 (and promptAt) must return
+      // br-explore's own prompt and its attachment flag, never main's.
+      const id = await writeSession([
+        makeCheckpoint(0, 'p0'),
+        branchCreated('br-explore'),
+        branchSwitched('main', 'br-explore'),
+        branchInput('br-explore', 'explore prompt 0'),
+        branchCheckpoint('br-explore', 0, 'explore prompt 0'),
+        branchSwitched('br-explore', 'main'),
+        branchInput('main', 'main prompt 1'),
+        makeCheckpoint(1, 'main prompt 1'),
+        branchSwitched('main', 'br-explore'),
+        branchInput('br-explore', 'explore prompt 1'),
+        branchInput('main', 'late main line'),
+        branchCheckpoint('br-explore', 1, 'explore prompt 1'),
+      ]);
+      const rewind = new DefaultSessionRewinder(tmp, tmp);
+
+      expect(await rewind.promptAt(id, 1)).toBe('explore prompt 1');
+      expect(await rewind.promptAt(id, 0)).toBe('explore prompt 0');
+      const result = await rewind.rewindToCheckpoint(id, 1);
+      expect(result.promptText).toBe('explore prompt 1');
+      expect(result.promptHasAttachments).toBe(false);
+    });
+
+    it('never borrows another branch’s prompt when the rewound checkpoint has no input of its own', async () => {
+      const id = await writeSession([
+        makeCheckpoint(0, 'p0'),
+        branchCreated('br-explore'),
+        branchSwitched('main', 'br-explore'),
+        branchSwitched('br-explore', 'main'),
+        branchInput('main', 'main prompt 1'),
+        makeCheckpoint(1, 'main prompt 1'),
+        branchSwitched('main', 'br-explore'),
+        // Legacy-style checkpoint without a recorded input on br-explore.
+        branchCheckpoint('br-explore', 0, 'explore prompt 0'),
+      ]);
+      const rewind = new DefaultSessionRewinder(tmp, tmp);
+
+      expect(await rewind.promptAt(id, 0)).toBeUndefined();
+      const result = await rewind.rewindToCheckpoint(id, 0);
+      expect(result.promptText).toBeUndefined();
+      expect(result.promptHasAttachments).toBeUndefined();
+    });
+
+    it('refuses a rewind to the session start and reverts no file of any branch', async () => {
+      // main edits a.txt, br-x edits b.txt, and the journal ends back on main.
+      // `/rewind --all` would restore br-x's b.txt and cut br-x's events
+      // (which the writer then refuses), so it must throw before any revert.
+      const aTxt = path.join(tmp, 'start-a.txt');
+      const bTxt = path.join(tmp, 'start-b.txt');
+      await fs.writeFile(aTxt, 'a1', 'utf8');
+      await fs.writeFile(bTxt, 'b1', 'utf8');
+
+      const id = await writeSession([
+        makeCheckpoint(0, 'p0'),
+        makeFileSnapshot(0, [{ path: aTxt, action: 'modified', before: 'a0', after: 'a1' }]),
+        branchCreated('br-x'),
+        branchSwitched('main', 'br-x'),
+        branchCheckpoint('br-x', 0, 'x prompt'),
+        branchSnapshot('br-x', 0, [{ path: bTxt, action: 'modified', before: 'b0', after: 'b1' }]),
+        branchSwitched('br-x', 'main'),
+      ]);
+
+      const rewind = new DefaultSessionRewinder(tmp, tmp);
+      await expect(rewind.rewindToStart(id)).rejects.toMatchObject({
+        code: 'SESSION_WRITE_FAILED',
+        message: expect.stringMatching(/other session branches/),
+      });
+      expect(await fs.readFile(aTxt, 'utf8')).toBe('a1');
+      expect(await fs.readFile(bTxt, 'utf8')).toBe('b1');
+    });
+  });
+
   describe('rewindToStart', () => {
     it('reverts all changes to session start', async () => {
       const testFile = path.join(tmp, 'test.txt');

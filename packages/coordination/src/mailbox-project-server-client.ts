@@ -54,6 +54,16 @@ const AUTH_RETRY_MAX_ATTEMPTS = 13;
  * its cwd then holds the project directory open and test cleanup fails EBUSY.
  */
 const SPAWN_RETRY_CADENCE_MS = 750;
+/**
+ * How long `connectWithElection` holds off spawning while the metadata file
+ * names a live owner on this endpoint. The daemon writes that file before it
+ * greets (on Windows an `icacls` spawn restricts the file first), so a
+ * handshake that times out in that window is a slow owner, not a missing one.
+ * A contender spawned then can bind after the owner shuts down and keep the
+ * project's SQLite files open (EBUSY on Windows teardown). Bounded, because a
+ * crashed daemon's leftover file can name a pid the OS has since reused.
+ */
+const LIVE_OWNER_SPAWN_GRACE_MS = 5_000;
 
 interface PendingRequest {
   resolve(value: unknown): void;
@@ -337,6 +347,7 @@ export class MailboxProjectServerConnection {
     let lastSpawnAt = 0;
     let lastError: unknown = new Error('Mailbox project server unavailable');
     const generation = this.closeGeneration;
+    const liveOwnerGraceUntil = Date.now() + LIVE_OWNER_SPAWN_GRACE_MS;
     while (Date.now() < deadline && generation === this.closeGeneration) {
       try {
         await this.connectOnce();
@@ -352,7 +363,11 @@ export class MailboxProjectServerConnection {
       // SERVER_START_TIMEOUT_MS (observed under full-suite load). The first
       // spawn still fires immediately because lastSpawnAt starts at 0.
       const now = Date.now();
-      if (now - lastSpawnAt >= SPAWN_RETRY_CADENCE_MS && !isPidAlive(this.spawnedPid ?? 0)) {
+      if (
+        now - lastSpawnAt >= SPAWN_RETRY_CADENCE_MS &&
+        !isPidAlive(this.spawnedPid ?? 0) &&
+        !(now < liveOwnerGraceUntil && this.metadataOwnerIsAlive())
+      ) {
         // A synchronous throw from the spawn path — the resolver transiently
         // failing to stat the dist entrypoint under load — must not unwind
         // the whole retry window (observed 2026-09-15: one miss surfaced
@@ -369,6 +384,27 @@ export class MailboxProjectServerConnection {
       await delay(75);
     }
     throw lastError;
+  }
+
+  /**
+   * True while `.mailbox-server.json` names a live process serving THIS
+   * endpoint. Failure-closed: any read or parse problem answers "no owner", so
+   * a missing daemon is still spawned at once. The endpoint must match because
+   * it embeds the protocol version: a live daemon of another version never
+   * answers here, so it must not hold off our spawn.
+   */
+  private metadataOwnerIsAlive(): boolean {
+    try {
+      const raw = fs.readFileSync(mailboxProjectServerMetadataPath(this.projectDir), 'utf8');
+      const parsed = JSON.parse(raw) as { pid?: unknown; endpoint?: unknown };
+      return (
+        parsed.endpoint === this.endpoint &&
+        typeof parsed.pid === 'number' &&
+        isPidAlive(parsed.pid)
+      );
+    } catch {
+      return false;
+    }
   }
 
   private connectOnce(): Promise<void> {

@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Music/audio apps, games, novelty/retro products, anything that benefits from physical metaphor.
 version: 1.0.0
+paper: mid 82 250
+display: roman-serif Avenir
+accent: chromatic-green 150
+posture: committed
+photo: natural
 ---
 
 # Skeuomorphic

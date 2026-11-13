@@ -119,4 +119,58 @@ describe('engine interaction lifecycle', () => {
     expect(live.inputs).toEqual([request]);
     expect(live.archivedInputs).toEqual([]);
   });
+  it('expires orphaned interactions on run.result and desktop.disconnected, clears turn state on epoch replacement, and drops stale user.input_resolved on reissue (F173)', () => {
+    const afterRun = reduceEngine(waiting(), {
+      type: 'run.result',
+      payload: { sessionId: 'core-a', status: 'failed', error: { message: 'aborted' } },
+    });
+    expect(afterRun.inputs).toEqual([]);
+    expect(afterRun.approvals).toEqual([]);
+    expect(afterRun.archivedInputs).toEqual([request]);
+
+    const afterDisconnect = reduceEngine(waiting(), {
+      type: 'desktop.disconnected',
+      payload: { message: 'socket closed' },
+    });
+    expect(afterDisconnect.inputs).toEqual([]);
+    expect(afterDisconnect.approvals).toEqual([]);
+    expect(afterDisconnect.archivedInputs).toEqual([request]);
+
+    const withTimeline = reduceEngine(afterDisconnect, {
+      type: 'tool.started',
+      payload: { sessionId: 'core-a', id: 'tool-1', name: 'read_file' },
+    });
+    const replaced = reduceEngine(withTimeline, {
+      type: 'session.start',
+      payload: { sessionId: 'core-a', eventEpoch: 'engine-b', provider: 'local', model: 'fixture' },
+    });
+    expect(replaced.error).toBe('');
+    expect(replaced.runTimeline).toEqual([]);
+
+    const resolved = reduceEngine(waiting(), {
+      type: 'user.input_resolved',
+      payload: { sessionId: 'core-a', requestId: request.id, source: 'user' },
+    });
+    const reissued = reduceEngine(resolved, {
+      type: 'user.input_requested',
+      payload: { sessionId: 'core-a', request },
+    });
+    expect(reissued.results['user.input_resolved']).toBeUndefined();
+  });
+  it('ignores Object.prototype keys in savedInputText when unanswered (F174)', () => {
+    const protoForm = {
+      ...request,
+      tabs: [
+        {
+          id: 'proto',
+          label: 'Proto',
+          questions: [
+            { id: 'constructor', prompt: 'Constructor?', kind: 'text' as const },
+            { id: 'toString', prompt: 'ToString?', kind: 'text' as const },
+          ],
+        },
+      ],
+    };
+    expect(savedInputText(protoForm, {}, 'Delegate')).toBe('');
+  });
 });

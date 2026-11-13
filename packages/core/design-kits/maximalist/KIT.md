@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Fashion, art, culture, bold editorial, statement brands unafraid of abundance.
 version: 1.0.0
+paper: light 96 85
+display: high-contrast-serif Playfair Display
+accent: chromatic-teal 195
+posture: drenched
+photo: natural
 ---
 
 # Maximalist

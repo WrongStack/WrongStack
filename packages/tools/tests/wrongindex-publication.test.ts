@@ -110,4 +110,24 @@ describe('WrongIndex publication boundary', () => {
       acceptWrongIndexQuery({ ...reply, indexCorrupt: 'fixture' }, '/', '/corrupt-test'),
     ).toThrow(/damaged index/);
   });
+
+  it('normalizes trailing separators, mixed slashes, and relative indexDir overrides (F169)', () => {
+    const root = '/f169-publication-root';
+    const reply = {
+      projectRoot: root,
+      indexDir: `${root}/.idx/`,
+      projectId: 'proj-1',
+      daemonInstanceId: 'daemon-1',
+      generation: 6,
+      observedAt: 1,
+      result: {},
+    };
+    acceptWrongIndexQuery(reply, root, `${root}/.idx/`);
+    expect(() => acceptWrongIndexQuery({ ...reply, generation: 3 }, root, `${root}/.idx`)).toThrow(
+      /superseded/,
+    );
+    expect(() => acceptWrongIndexQuery({ ...reply, generation: 3 }, root, '.idx')).toThrow(
+      /superseded/,
+    );
+  });
 });

@@ -121,11 +121,18 @@ export function ProjectDesignStudio({
   const tuneDirty = Object.values(tune).some((value) => value.trim());
   const shownOverrides = isActive ? { ...overrides, ...colors } : {};
   const validColors = Object.values(colors).every(designColorValue);
-  const filtered = kits.filter((item) =>
-    `${item['name']} ${item['id']} ${item['aesthetic']} ${Array.isArray(item['tags']) ? item['tags'].join(' ') : ''}`
+  const filtered = kits.filter((item) => {
+    const axesObj =
+      item['axes'] && typeof item['axes'] === 'object'
+        ? (item['axes'] as Record<string, unknown>)
+        : undefined;
+    const axesText = axesObj
+      ? `${axesObj['paper'] ?? ''}/${axesObj['display'] ?? ''}/${axesObj['accent'] ?? ''}`
+      : '';
+    return `${item['name']} ${item['id']} ${item['aesthetic']} ${item['material'] ?? ''} ${item['posture'] ?? ''} ${axesText} ${Array.isArray(item['tags']) ? item['tags'].join(' ') : ''}`
       .toLowerCase()
-      .includes(query.trim().toLowerCase()),
-  );
+      .includes(query.trim().toLowerCase());
+  });
   const run = async (operation: () => Promise<void>) => {
     if (locked.current) return;
     const own = generation.current;
@@ -472,8 +479,22 @@ export function ProjectDesignStudio({
                   </span>
                   <h2>{String(kit['name'])}</h2>
                   <p>{String(kit['aesthetic'])}</p>
+                  {typeof kit['material'] === 'string' && kit['material'].length > 0 && (
+                    <p>{kit['material']}</p>
+                  )}
                   <small>{String(kit['bestFor'])}</small>
                   <div className="design-kit-tags">
+                    {Boolean(kit['axes']) && typeof kit['axes'] === 'object' && (
+                      <span>
+                        {`${String((kit['axes'] as Record<string, unknown>)['paper'] ?? '')}/${String((kit['axes'] as Record<string, unknown>)['display'] ?? '')}/${String((kit['axes'] as Record<string, unknown>)['accent'] ?? '')}`}
+                      </span>
+                    )}
+                    {typeof kit['posture'] === 'string' && kit['posture'].length > 0 && (
+                      <span>{kit['posture']}</span>
+                    )}
+                    {typeof kit['photo'] === 'string' && kit['photo'].length > 0 && (
+                      <span>{`photo: ${kit['photo']}`}</span>
+                    )}
                     {(Array.isArray(kit['tags']) ? kit['tags'] : []).map((tag, i) => (
                       <span key={i}>{String(tag)}</span>
                     ))}

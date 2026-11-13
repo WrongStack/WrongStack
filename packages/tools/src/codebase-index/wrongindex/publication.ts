@@ -1,5 +1,11 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import * as path from 'node:path';
 import { WrongIndexRemoteError } from './client.js';
+
+function canonicalPublicationKey(projectRoot: string, indexDir: string): string {
+  const resolved = path.resolve(projectRoot, indexDir);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
 
 export interface WrongIndexPublication {
   projectRoot: string;
@@ -69,7 +75,7 @@ export function acceptWrongIndexQuery<T>(
       code: 'INDEX_DEGRADED',
       message: 'Index publication is pending; retry after the committed generation is recorded',
     });
-  const key = process.platform === 'win32' ? indexDir.toLowerCase() : indexDir;
+  const key = canonicalPublicationKey(projectRoot, indexDir);
   const previous = latest.get(key);
   const lineage = (p: WrongIndexPublication) => JSON.stringify([p.daemonInstanceId, p.projectId]);
   if (

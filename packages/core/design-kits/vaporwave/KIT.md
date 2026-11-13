@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [dark, light]
 bestFor: Music, art, NFT/web3, retro-themed events, playful nostalgic brands.
 version: 1.0.0
+paper: dark 22 300
+display: roman-serif Monument Extended
+accent: cool 200
+posture: drenched
+photo: natural con=4
 ---
 
 # Vaporwave

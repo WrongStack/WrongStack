@@ -3,10 +3,12 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import {
   DESIGN_STACKS,
+  type DesignKitAxes,
   type DesignKitEntry,
   type DesignKitLoader,
   type DesignKitManifest,
   type DesignKitTokens,
+  type DesignPosture,
   type DesignStack,
   isDesignStack,
   type SkippedKitInfo,
@@ -15,10 +17,17 @@ import { moduleDirFor } from '@wrongstack/persistence';
 import { stripFrontmatter } from '../skills/frontmatter.js';
 import { toErrorMessage } from '../utils/error.js';
 import { resolveWstackPaths } from '../utils/wstack-paths.js';
+import {
+  inferKitAxesFromTokens,
+  isDesignPosture,
+  parseKitAxesFrontmatter,
+} from './design-material.js';
 
 const KIT_FILE = 'KIT.md';
 const TOKENS_FILE = 'tokens.json';
 const FOUNDATIONS_ID = '_foundations';
+
+type ListFieldKey = 'tags' | 'stacks' | 'themes' | 'fontLinks';
 
 interface KitFrontmatter {
   id?: string;
@@ -26,9 +35,18 @@ interface KitFrontmatter {
   aesthetic?: string;
   bestFor?: string;
   version?: string;
+  axes?: string;
+  paper?: string;
+  display?: string;
+  accent?: string;
+  posture?: DesignPosture;
+  material?: string;
+  photo?: string;
+  pictured?: string;
   tags: string[];
   stacks: DesignStack[];
   themes: string[];
+  fontLinks: string[];
   /**
    * True when a `stacks:` key was seen at all (inline or block list). This
    * distinguishes "omitted" (the all-stacks default applies) from "declared
@@ -54,7 +72,7 @@ function parseList(value: string): string[] {
  * rather than pulling in a full YAML dependency.
  */
 function parseKitFrontmatter(source: string): KitFrontmatter {
-  const out: KitFrontmatter = { tags: [], stacks: [], themes: [] };
+  const out: KitFrontmatter = { tags: [], stacks: [], themes: [], fontLinks: [] };
   // Read the file the way `stripFrontmatter` reads its body: a CRLF or
   // BOM-prefixed KIT.md (a Windows editor, core.autocrlf) left `\r` before
   // every `$`, so no key matched and the kit was dropped as nameless.
@@ -64,7 +82,7 @@ function parseKitFrontmatter(source: string): KitFrontmatter {
   if (end === -1) return out;
   const block = raw.slice(4, end);
   const lines = block.split('\n');
-  let listKey: 'tags' | 'stacks' | 'themes' | null = null;
+  let listKey: ListFieldKey | null = null;
   const setScalar = (key: string, value: string) => {
     const v = value.trim().replace(/^["']|["']$/g, '');
     if (key === 'id') out.id = v;
@@ -72,8 +90,16 @@ function parseKitFrontmatter(source: string): KitFrontmatter {
     else if (key === 'aesthetic') out.aesthetic = v;
     else if (key === 'bestFor') out.bestFor = v;
     else if (key === 'version') out.version = v;
+    else if (key === 'axes') out.axes = v;
+    else if (key === 'paper') out.paper = v;
+    else if (key === 'display') out.display = v;
+    else if (key === 'accent') out.accent = v;
+    else if (key === 'posture' && isDesignPosture(v)) out.posture = v;
+    else if (key === 'material') out.material = v;
+    else if (key === 'photo') out.photo = v;
+    else if (key === 'pictured') out.pictured = v;
   };
-  const setList = (key: 'tags' | 'stacks' | 'themes', items: string[]) => {
+  const setList = (key: ListFieldKey, items: string[]) => {
     if (key === 'stacks') {
       out.stacksDeclared = true;
       out.stacks = items.filter(isDesignStack);
@@ -85,7 +111,11 @@ function parseKitFrontmatter(source: string): KitFrontmatter {
     // Block-list item under an open list key.
     const bulletMatch = /^\s*-\s+(.*)$/.exec(line);
     if (listKey && bulletMatch) {
-      const parsed = parseList(bulletMatch[1] ?? '');
+      // Font links can contain commas (`?family=A:wght@400;600&...` or Fontshare),
+      // so keep each bullet intact instead of splitting on `,`.
+      const rawItem = (bulletMatch[1] ?? '').trim().replace(/^["']|["']$/g, '');
+      const parsed =
+        listKey === 'fontLinks' ? (rawItem ? [rawItem] : []) : parseList(bulletMatch[1] ?? '');
       if (listKey === 'stacks') {
         out.stacksDeclared = true;
         out.stacks.push(...parsed.filter(isDesignStack));
@@ -98,9 +128,20 @@ function parseKitFrontmatter(source: string): KitFrontmatter {
     if (!kvMatch) continue;
     const key = kvMatch[1] ?? '';
     const rest = (kvMatch[2] ?? '').trim();
-    if (key === 'tags' || key === 'stacks' || key === 'themes') {
+    if (key === 'tags' || key === 'stacks' || key === 'themes' || key === 'fontLinks') {
       if (rest) {
-        setList(key, parseList(rest));
+        if (key === 'fontLinks') {
+          const inner =
+            rest.startsWith('[') && rest.endsWith(']') ? rest.slice(1, -1).trim() : rest;
+          // Split only on whitespace-delimited `, ` or quoted items so URL query commas survive.
+          const urls = inner
+            .split(/["']\s*,\s*["']|,\s+(?=https?:\/\/)/)
+            .map((s) => s.trim().replace(/^["']|["']$/g, ''))
+            .filter(Boolean);
+          setList('fontLinks', urls);
+        } else {
+          setList(key, parseList(rest));
+        }
         listKey = null;
       } else {
         listKey = key;
@@ -219,15 +260,35 @@ export class DefaultDesignKitLoader implements DesignKitLoader {
           const normalizedId = id.toLowerCase();
           if (seen.has(normalizedId)) continue;
           seen.add(normalizedId);
+
+          const themes = fm.themes.length > 0 ? fm.themes : ['light', 'dark'];
+          let axes: DesignKitAxes | undefined = parseKitAxesFrontmatter(fm);
+          if (!axes && id !== FOUNDATIONS_ID) {
+            try {
+              const rawTok = await fs.readFile(path.join(dir, e.name, TOKENS_FILE), 'utf8');
+              const parsedTok = JSON.parse(rawTok) as DesignKitTokens;
+              this.rawTokenCache.set(normalizedId, parsedTok);
+              axes = inferKitAxesFromTokens(parsedTok, themes);
+            } catch {
+              // Optional tokens.json (e.g., minimal custom project kit)
+            }
+          }
+
           found.push({
             id,
             name: fm.name,
             aesthetic: fm.aesthetic ?? '',
             tags: fm.tags,
             stacks: fm.stacks.length > 0 ? fm.stacks : [...DESIGN_STACKS],
-            themes: fm.themes.length > 0 ? fm.themes : ['light', 'dark'],
+            themes,
             bestFor: fm.bestFor ?? '',
             version: fm.version,
+            ...(axes ? { axes } : {}),
+            ...(fm.posture ? { posture: fm.posture } : {}),
+            ...(fm.material ? { material: fm.material } : {}),
+            ...(fm.photo ? { photo: fm.photo } : {}),
+            ...(fm.fontLinks.length > 0 ? { fontLinks: fm.fontLinks } : {}),
+            ...(fm.pictured ? { pictured: fm.pictured } : {}),
             path: kitFile,
             source,
           });
@@ -264,6 +325,13 @@ export class DefaultDesignKitLoader implements DesignKitLoader {
       bestFor: k.bestFor,
       stacks: k.stacks,
       source: k.source,
+      ...(k.tags.length > 0 ? { tags: k.tags } : {}),
+      ...(k.axes ? { axes: k.axes } : {}),
+      ...(k.posture ? { posture: k.posture } : {}),
+      ...(k.material ? { material: k.material } : {}),
+      ...(k.photo ? { photo: k.photo } : {}),
+      ...(k.fontLinks ? { fontLinks: k.fontLinks } : {}),
+      ...(k.pictured ? { pictured: k.pictured } : {}),
     }));
   }
 

@@ -97,4 +97,58 @@ describe('ensureDesignDeal', () => {
     for (const id of deal.kits) expect(text).toContain(`**${id}**`);
     expect(text).toContain('reason');
   });
+
+  it('spreads dealt kits across paper and display axes when entries declare axes', async () => {
+    const axisKits: DesignKitEntry[] = [
+      {
+        ...entry('k1', 'Warm editorial one.'),
+        axes: { paper: 'light', display: 'roman-serif', accent: 'warm' },
+      },
+      {
+        ...entry('k2', 'Warm editorial two.'),
+        axes: { paper: 'light', display: 'roman-serif', accent: 'warm' },
+      },
+      {
+        ...entry('k3', 'Warm editorial three.'),
+        axes: { paper: 'light', display: 'roman-serif', accent: 'cool' },
+      },
+      {
+        ...entry('k4', 'Mid-tone grotesk sheet.'),
+        axes: { paper: 'mid', display: 'grotesk-sans', accent: 'cool' },
+      },
+      {
+        ...entry('k5', 'Nocturnal mono terminal.'),
+        axes: { paper: 'dark', display: 'mono', accent: 'chromatic-green' },
+      },
+    ];
+    const axisLoader = { listEntries: async () => axisKits } as unknown as DesignKitLoader;
+    for (let i = 0; i < 8; i++) {
+      const { entries } = await ensureDesignDeal(ctx(), axisLoader, {
+        seed: `ax-${i}`,
+        stack: 'web',
+      });
+      const papers = new Set(entries.map((e) => e.axes?.paper));
+      const displays = new Set(entries.map((e) => e.axes?.display));
+      expect(papers.size).toBe(3);
+      expect(displays.size).toBe(3);
+    }
+  });
+
+  it('weights rare IDF query terms higher than ubiquitous filler words', async () => {
+    const idfKits: DesignKitEntry[] = [
+      entry('c1', 'Modern apps interface.'),
+      entry('c2', 'Modern apps dashboard.'),
+      entry('c3', 'Modern apps workspace.'),
+      entry('c4', 'Modern apps panel.'),
+      entry('r1', 'Modern risograph zine.'),
+      entry('r2', 'Tactile risograph poster.'),
+      entry('r3', 'Archival risograph broadsheet.'),
+    ];
+    const idfLoader = { listEntries: async () => idfKits } as unknown as DesignKitLoader;
+    const { deal } = await ensureDesignDeal(ctx(), idfLoader, {
+      seed: 'idf-1',
+      query: 'modern apps risograph',
+    });
+    expect(deal.kits.sort()).toEqual(['r1', 'r2', 'r3']);
+  });
 });

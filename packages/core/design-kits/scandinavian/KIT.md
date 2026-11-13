@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Furniture/home, lifestyle, wellness, slow-commerce, calm productivity apps.
 version: 1.0.0
+paper: light 96 80
+display: roman-serif General Sans
+accent: warm 45
+posture: committed
+photo: natural con=-2
 ---
 
 # Scandinavian

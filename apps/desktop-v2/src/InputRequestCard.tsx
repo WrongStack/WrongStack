@@ -40,7 +40,11 @@ export function InputRequestCard({
     void persistence?.load();
   }, [persistence]);
   const ready = !persistence || !!saved?.ready;
-  const answers = persistence ? (saved?.value ?? recommended) : (draft ?? recommended);
+  const rawAnswers = persistence ? saved?.value : draft;
+  const answers = useMemo(
+    () => (rawAnswers ? { ...recommended, ...rawAnswers } : recommended),
+    [recommended, rawAnswers],
+  );
   const [active, setActive] = useState(0);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
@@ -48,9 +52,7 @@ export function InputRequestCard({
   useEffect(() => {
     if (readOnly) setPending(false);
   }, [readOnly]);
-  const copyText = (persistence ? saved?.value : draft)
-    ? savedInputText(request, answers, t('input.delegate'))
-    : '';
+  const copyText = rawAnswers ? savedInputText(request, answers, t('input.delegate')) : '';
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(copyText);

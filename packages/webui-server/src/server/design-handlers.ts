@@ -20,8 +20,10 @@ import * as path from 'node:path';
 import {
   applyTokenOverrides,
   clearPersistedActiveKit,
+  type DesignKitAxes,
   DesignOverridesChanged,
   type DesignOverridesExpectation,
+  type DesignPosture,
   type DesignStack,
   getDesignKitLoader,
   getDesignState,
@@ -118,6 +120,12 @@ async function buildListPayload(ctx: DesignContext): Promise<{
     bestFor: string;
     stacks: string[];
     tags: string[];
+    axes?: DesignKitAxes | undefined;
+    posture?: DesignPosture | undefined;
+    material?: string | undefined;
+    photo?: string | undefined;
+    fontLinks?: string[] | undefined;
+    pictured?: string | undefined;
     light: Record<string, string>;
     dark: Record<string, string>;
   }>;
@@ -137,6 +145,12 @@ async function buildListPayload(ctx: DesignContext): Promise<{
       bestFor: m.bestFor,
       stacks: m.stacks,
       tags: m.tags,
+      ...(m.axes ? { axes: m.axes } : {}),
+      ...(m.posture ? { posture: m.posture } : {}),
+      ...(m.material ? { material: m.material } : {}),
+      ...(m.photo ? { photo: m.photo } : {}),
+      ...(m.fontLinks?.length ? { fontLinks: m.fontLinks } : {}),
+      ...(m.pictured ? { pictured: m.pictured } : {}),
       light: tokens?.light ?? {},
       dark: tokens?.dark ?? {},
     });
@@ -438,6 +452,7 @@ export async function handleDesignMaterialize(
       });
       return;
     }
+    const manifest = await loader.find(active.kit);
     const tokens = applyTokenOverrides(raw, active.overrides);
     // Same gate as the tool's materialize: warn in the payload, never block —
     // the theme file is still written below.
@@ -447,6 +462,9 @@ export async function handleDesignMaterialize(
       stack,
       kitId: active.kit,
       outPath: typeof payload.out === 'string' ? payload.out : undefined,
+      photo: manifest?.photo,
+      fontLinks: manifest?.fontLinks,
+      darkPaper: manifest?.axes?.paper === 'dark',
     });
     // WS-021: `payload.out` reached this join verbatim, so a WebSocket frame
     // could write anywhere on disk — `.git/hooks/pre-commit` turns an arbitrary

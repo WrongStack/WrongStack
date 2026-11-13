@@ -20,7 +20,7 @@ export function savedInputText(
 ): string {
   const blocks: string[] = [];
   for (const question of request.tabs.flatMap((tab) => tab.questions)) {
-    const answer = answers[question.id];
+    const answer = Object.hasOwn(answers, question.id) ? answers[question.id] : undefined;
     if (!answer) continue;
     const parts = answer.delegated
       ? [delegatedLabel]

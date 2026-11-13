@@ -20,12 +20,55 @@ export function isDesignStack(v: string): v is DesignStack {
   return (DESIGN_STACKS as readonly string[]).includes(v);
 }
 
+/** Primary paper lightness band of a kit (`light` > 85% L, `mid` 30..85%, `dark` < 30% L). */
+export const DESIGN_PAPER_BANDS = ['light', 'mid', 'dark'] as const;
+export type DesignPaperBand = (typeof DESIGN_PAPER_BANDS)[number];
+
+/** Structural classification of a kit's display typeface. */
+export const DESIGN_DISPLAY_CLASSES = [
+  'roman-serif',
+  'high-contrast-serif',
+  'slab-serif',
+  'grotesk-sans',
+  'grotesk-heavy',
+  'geometric-sans',
+  'rounded-sans',
+  'display-condensed',
+  'display-heavy',
+  'mono',
+  'pixel',
+  'handwritten',
+  'blackletter',
+] as const;
+export type DesignDisplayClass = (typeof DESIGN_DISPLAY_CLASSES)[number];
+
+/** Chromatic band of a kit's accent signal (`warm`, `cool`, `neutral`, or `chromatic-<hue>`). */
+export type DesignAccentBand = 'warm' | 'cool' | 'neutral' | `chromatic-${string}`;
+
+/** How much surface area chromatic tokens occupy on screen. */
+export const DESIGN_POSTURES = ['restrained', 'committed', 'full-palette', 'drenched'] as const;
+export type DesignPosture = (typeof DESIGN_POSTURES)[number];
+
+/**
+ * 3D coordinate triple (`paper/display/accent`) used by `design deal` to ensure
+ * consecutive builds and dealt hands stay separated across visual space.
+ */
+export interface DesignKitAxes {
+  paper: DesignPaperBand;
+  display: DesignDisplayClass;
+  accent: DesignAccentBand;
+  paperL?: number | undefined;
+  paperHue?: number | undefined;
+  displayFace?: string | undefined;
+  accentHue?: number | undefined;
+}
+
 export interface DesignKitManifest {
   id: string;
   name: string;
   /** One-line vibe shown in the menu, e.g. "Restrained, Linear-style minimalism". */
   aesthetic: string;
-  /** Free-form tags for filtering. */
+  /** Free-form tags / domain keywords for IDF deal scoring and filtering. */
   tags: string[];
   /** Stacks this kit provides guidance for. */
   stacks: DesignStack[];
@@ -34,6 +77,18 @@ export interface DesignKitManifest {
   /** "Best for…" one-liner used in menu + pickers. */
   bestFor: string;
   version?: string | undefined;
+  /** 3D visual coordinate triple (`paper/display/accent`) — declared or inferred from tokens. */
+  axes?: DesignKitAxes | undefined;
+  /** Chromatic area posture (`restrained` < 5%, `committed`, `full-palette`, `drenched`). */
+  posture?: DesignPosture | undefined;
+  /** Tactile material summary (paper stock, ink, faces, surface physics, signal). */
+  material?: string | undefined;
+  /** Photo treatment DSL (`natural`, `warm`, `muted`, `mono`, `duotone fg bg`, `tint accent`, `con=`, `vib=`). */
+  photo?: string | undefined;
+  /** Concrete web font stylesheet URLs (Google Fonts / Fontshare). */
+  fontLinks?: string[] | undefined;
+  /** Specimen macrostructure + hero posture to avoid cloning in `design draw`. */
+  pictured?: string | undefined;
   path: string;
   source: 'project' | 'user' | 'bundled';
 }
@@ -120,6 +175,13 @@ export interface DesignKitEntry {
   bestFor: string;
   stacks: DesignStack[];
   source: DesignKitManifest['source'];
+  tags?: string[] | undefined;
+  axes?: DesignKitAxes | undefined;
+  posture?: DesignPosture | undefined;
+  material?: string | undefined;
+  photo?: string | undefined;
+  fontLinks?: string[] | undefined;
+  pictured?: string | undefined;
 }
 
 /**

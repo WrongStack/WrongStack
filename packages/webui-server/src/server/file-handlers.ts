@@ -17,7 +17,6 @@ import { enqueueReindex, extractFileSkeleton, type SkeletonOptions } from '@wron
 import { loadGitignoreMatcher } from '@wrongstack/tools/codebase-index';
 import type { WebSocket } from 'ws';
 import {
-  isEntryDirectory,
   resolveFileInsideProject,
   validatedPayload,
   withSessionEcho,
@@ -49,13 +48,16 @@ interface FilesWritePayload {
 }
 
 const sha256 = (bytes: Buffer | string) => createHash('sha256').update(bytes).digest('hex');
+const pathKey = (p: string) => (process.platform === 'win32' ? p.toLowerCase() : p);
+const safeSessionId = (msg: unknown) =>
+  messageSessionId(msg != null && typeof msg === 'object' ? (msg as { payload?: unknown }) : {});
 /**
  * One in-flight write per resolved path inside this process, so a verify-then-rename
  * from one window cannot interleave with another window's save of the same file.
  */
 const writeQueues = new Map<string, Promise<void>>();
 async function serializedWrite<T>(target: string, fn: () => Promise<T>): Promise<T> {
-  const key = process.platform === 'win32' ? target.toLowerCase() : target;
+  const key = pathKey(target);
   const run = (writeQueues.get(key) ?? Promise.resolve()).then(fn);
   const tail = run.then(
     () => undefined,
@@ -108,17 +110,44 @@ export async function handleFilesTree(
 
   // Use the optional `path` from the message payload as the tree root.
   // When absent, empty, or ".", fall back to projectRoot (backward compatible).
-  const sessionId = messageSessionId(msg as { payload?: unknown });
-  const payload = (msg as { payload?: { path?: string | undefined; includeIgnored?: boolean } })
-    .payload;
-  const rawPath = payload?.path?.trim();
-  const includeIgnored = payload?.includeIgnored === true;
+  const sessionId = safeSessionId(msg);
+  const rawPayload =
+    msg != null && typeof msg === 'object' && !Array.isArray(msg)
+      ? (msg as { payload?: unknown }).payload
+      : undefined;
+  if (
+    rawPayload !== undefined &&
+    (typeof rawPayload !== 'object' || rawPayload === null || Array.isArray(rawPayload))
+  ) {
+    send(ws, {
+      type: 'files.tree',
+      payload: withSessionEcho(
+        { root: projectRoot, tree: [], error: 'Malformed request' },
+        sessionId,
+      ),
+    });
+    return;
+  }
+  const payload = (rawPayload ?? {}) as { path?: unknown; includeIgnored?: unknown };
+  if (payload.path !== undefined && typeof payload.path !== 'string') {
+    send(ws, {
+      type: 'files.tree',
+      payload: withSessionEcho(
+        { root: projectRoot, tree: [], error: 'Malformed request' },
+        sessionId,
+      ),
+    });
+    return;
+  }
+  const rawPath = payload.path?.trim();
+  const includeIgnored = payload.includeIgnored === true;
 
   // Guard: the requested tree root must be both lexically AND via
   // realpath() inside the project root. A symlinked subdirectory that
   // points outside the project would otherwise expose arbitrary
   // directory structure to a connected client.
   let treeRoot: string;
+  let realTreeRoot: string;
   let realProjectRoot: string;
   try {
     if (rawPath && rawPath !== '.') {
@@ -127,6 +156,7 @@ export async function handleFilesTree(
       treeRoot = projectRoot;
     }
     realProjectRoot = await fs.realpath(projectRoot);
+    realTreeRoot = await fs.realpath(treeRoot);
   } catch {
     send(ws, {
       type: 'files.tree',
@@ -155,24 +185,15 @@ export async function handleFilesTree(
   const isGitignored = await loadGitignoreMatcher(projectRoot);
 
   /**
-   * Walk one directory level into `TreeNode`s.
-   *
-   * Two things this deliberately does NOT do, because the whole project is
-   * walked eagerly on every `files.tree` and the explorer was visibly late:
-   *
-   *  - It does not `stat()` directories. The only field that stat produced for
-   *    a directory was `lastModified`, which no client reads (the explorer
-   *    sorts by `size`, a file-only field). `realpath` stays — that is the
-   *    symlink-escape guard, not a metadata read.
-   *  - It does not await entries one at a time. The per-entry `realpath`/`stat`
-   *    are independent, so they go through libuv's threadpool together instead
-   *    of queueing behind each other. `Promise.all` preserves array order, and
-   *    `entries` is sorted first, so the emitted order is unchanged.
-   *
-   * Measured on this repo (8074 files / 672 dirs): ~500ms -> ~65ms, and the
-   * payload drops from 1.23MB to 0.95MB.
+   * Walk one directory level concurrently (`Promise.all`) without `stat()`ing
+   * regular directories (`realpath` guards containment; `size` is file-only).
    */
-  async function buildTree(dir: string, rel: string, depth: number): Promise<TreeNode[]> {
+  async function buildTree(
+    dir: string,
+    rel: string,
+    depth: number,
+    ancestors: ReadonlySet<string>,
+  ): Promise<TreeNode[]> {
     if (depth > 10) return [];
     let entries: import('node:fs').Dirent[] = [];
     try {
@@ -180,57 +201,46 @@ export async function handleFilesTree(
     } catch {
       return [];
     }
-    entries.sort((a, b) => {
-      if (a.isDirectory() !== b.isDirectory()) return a.isDirectory() ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
     const nodes = await Promise.all(
       entries.map(async (e): Promise<TreeNode | null> => {
         if (isHiddenEntry(e.name)) return null;
         const childRel = rel ? `${rel}/${e.name}` : e.name;
         const childAbs = path.join(dir, e.name);
-        // Prepend the workingDir prefix so the path is projectRoot-relative
         const childPath = pathPrefix + childRel;
-        // Project-root .gitignore (loaded once per request above). Skip the
-        // entry entirely when it matches — keeping it would force every
-        // downstream consumer (file explorer, picker, Bug Hunter scope list)
-        // to re-derive the same rule. The path passed to the matcher is
-        // projectRoot-relative; we pass `isEntryDirectory(e)` so a trailing-slash
-        // rule like `dist/` prunes a directory by its own name, including
-        // when it is a symlink to a directory (readdir reports
-        // isDirectory() === false for symlinks, which would otherwise let a
-        // `node_modules/` rule miss a symlinked node_modules).
-        const ignored = isGitignored(childPath, await isEntryDirectory(dir, e));
-        if (ignored && !includeIgnored) return null;
-        if (e.isDirectory()) {
-          if (SKIP_DIRS.has(e.name)) return null;
-          // Reject symlinked directories whose real path escapes the
-          // real project root. A symlink to an in-project directory is
-          // fine and recursed into normally.
-          let realChild: string;
+        let realChild: string | undefined;
+        let linkStat: import('node:fs').Stats | undefined;
+        if (e.isSymbolicLink()) {
           try {
             realChild = await fs.realpath(childAbs);
+            if (!isPathInside(realProjectRoot, realChild)) return null;
+            linkStat = await fs.stat(realChild);
           } catch {
             return null;
           }
-          if (!isPathInside(realProjectRoot, realChild)) {
-            return null;
-          }
+        }
+        const isDir = linkStat ? linkStat.isDirectory() : e.isDirectory();
+        const isFile = linkStat ? linkStat.isFile() : e.isFile();
+        const ignored = isGitignored(childPath, isDir);
+        if (ignored && !includeIgnored) return null;
+        if (isDir) {
+          if (SKIP_DIRS.has(e.name)) return null;
+          const realDir = realChild ?? (await fs.realpath(childAbs).catch(() => null));
+          if (!realDir || !isPathInside(realProjectRoot, realDir)) return null;
+          const key = pathKey(realDir);
+          if (ancestors.has(key)) return null;
+          const nextAncestors = new Set(ancestors);
+          nextAncestors.add(key);
           return {
             name: e.name,
             path: childPath,
             type: 'directory',
             ...(ignored ? { ignored: true } : {}),
-            children: await buildTree(realChild, childRel, depth + 1),
+            children: await buildTree(realDir, childRel, depth + 1, nextAncestors),
           };
         }
-        if (!e.isFile()) return null;
-        let fileStat: import('node:fs').Stats;
-        try {
-          fileStat = await fs.stat(childAbs);
-        } catch {
-          return null;
-        }
+        if (!isFile) return null;
+        const fileStat = linkStat ?? (await fs.stat(childAbs).catch(() => null));
+        if (!fileStat) return null;
         return {
           name: e.name,
           path: childPath,
@@ -240,11 +250,15 @@ export async function handleFilesTree(
         };
       }),
     );
-    return nodes.filter((n): n is TreeNode => n !== null);
+    return nodes
+      .filter((n): n is TreeNode => n !== null)
+      .sort((a, b) =>
+        a.type !== b.type ? (a.type === 'directory' ? -1 : 1) : a.name.localeCompare(b.name),
+      );
   }
 
   try {
-    const tree = await buildTree(treeRoot, '', 0);
+    const tree = await buildTree(treeRoot, '', 0, new Set([pathKey(realTreeRoot)]));
     const rootLabel =
       treeRoot === projectRoot ? projectRoot : path.relative(projectRoot, treeRoot) || '.';
     send(ws, {
@@ -282,7 +296,7 @@ export async function handleFilesRead(
   msg: unknown,
   projectRoot: string,
 ): Promise<void> {
-  const sessionId = messageSessionId(msg as { payload?: unknown });
+  const sessionId = safeSessionId(msg);
   const rawRequestId = (msg as { payload?: { requestId?: unknown } })?.payload?.requestId;
   const requestId =
     typeof rawRequestId === 'string' && /^[\w:.-]{1,128}$/.test(rawRequestId)
@@ -293,6 +307,9 @@ export async function handleFilesRead(
   let filePath: string;
   try {
     ({ filePath } = validatedPayload<FilesReadPayload>(msg, 'files.read'));
+    if (typeof filePath !== 'string' || filePath.trim().length === 0) {
+      throw new TypeError('Malformed files.read payload');
+    }
   } catch {
     send(ws, {
       type: 'files.read',
@@ -319,6 +336,13 @@ export async function handleFilesRead(
   try {
     // stat first: an oversized file is never read into memory at all.
     const stat = await fs.stat(realResolved);
+    if (stat.isDirectory()) {
+      send(ws, {
+        type: 'files.read',
+        payload: echo({ filePath, content: '', error: 'Path is a directory' }),
+      });
+      return;
+    }
     if (stat.size > MAX_READ_BYTES) {
       send(ws, {
         type: 'files.read',
@@ -368,6 +392,17 @@ export async function handleFilesSkeleton(
   let options: SkeletonOptions | undefined;
   try {
     const payload = validatedPayload<FilesSkeletonPayload>(msg, 'files.skeleton');
+    if (
+      typeof payload.filePath !== 'string' ||
+      payload.filePath.trim().length === 0 ||
+      (payload.content !== undefined && typeof payload.content !== 'string') ||
+      (payload.options !== undefined &&
+        (typeof payload.options !== 'object' ||
+          payload.options === null ||
+          Array.isArray(payload.options)))
+    ) {
+      throw new TypeError('Malformed files.skeleton payload');
+    }
     filePath = payload.filePath;
     content = payload.content;
     options = payload.options;
@@ -391,6 +426,13 @@ export async function handleFilesSkeleton(
   }
 
   try {
+    if (content === undefined && (await fs.stat(realResolved)).isDirectory()) {
+      send(ws, {
+        type: 'files.skeleton_result',
+        payload: { filePath, skeleton: '', error: 'Path is a directory' },
+      });
+      return;
+    }
     const fileContent = content !== undefined ? content : await fs.readFile(realResolved, 'utf8');
     const result = await extractFileSkeleton({
       file: realResolved,
@@ -431,7 +473,7 @@ export async function handleFilesWrite(
   projectRoot: string,
   opts: FilesWriteOptions = {},
 ): Promise<void> {
-  const sessionId = messageSessionId(msg as { payload?: unknown });
+  const sessionId = safeSessionId(msg);
   let filePath: string;
   let content: string;
   let expectedSha256: string | undefined;
@@ -542,27 +584,39 @@ export async function handleFilesList(
   msg: unknown,
   projectRoot: string,
 ): Promise<void> {
-  const payload = (msg as { payload?: FilesListPayload }).payload ?? {};
-  // `payload.limit` is model-controlled (a browser frame) and is forwarded to
-  // `rankFiles`, which ends in `scored.slice(0, limit)`. A NEGATIVE limit there
-  // does not mean "nothing" — `slice(0, -1)` means "every element except the
-  // last", so `files.list` answered a request for a small page with the whole
-  // tree. Clamp before the picker, matching the mailbox route's convention.
+  const rawPayload =
+    msg != null && typeof msg === 'object' && !Array.isArray(msg)
+      ? (msg as { payload?: unknown }).payload
+      : undefined;
+  if (
+    rawPayload !== undefined &&
+    (typeof rawPayload !== 'object' || rawPayload === null || Array.isArray(rawPayload))
+  ) {
+    send(ws, { type: 'files.list', payload: { files: [] } });
+    return;
+  }
+  const payload = (rawPayload ?? {}) as FilesListPayload;
+  if (
+    (payload.path !== undefined && typeof payload.path !== 'string') ||
+    (payload.query !== undefined && typeof payload.query !== 'string')
+  ) {
+    send(ws, { type: 'files.list', payload: { files: [] } });
+    return;
+  }
   const limit = clampLimit(payload.limit, 50, 600);
 
-  // Guard: the requested list root must be both lexically AND via
-  // realpath() inside the project root. A symlinked subdirectory that
-  // points outside the project would otherwise expose arbitrary
-  // filenames to a connected client.
   let listRoot: string;
+  let realListRoot: string;
   let realProjectRoot: string;
   try {
-    if (payload.path) {
-      listRoot = await resolveWorkingDirInsideProject(projectRoot, payload.path);
+    const rawPath = payload.path?.trim();
+    if (rawPath && rawPath !== '.') {
+      listRoot = await resolveWorkingDirInsideProject(projectRoot, rawPath);
     } else {
       listRoot = projectRoot;
     }
     realProjectRoot = await fs.realpath(projectRoot);
+    realListRoot = await fs.realpath(listRoot);
   } catch {
     send(ws, { type: 'files.list', payload: { files: [] } });
     return;
@@ -574,12 +628,14 @@ export async function handleFilesList(
       : (path.relative(projectRoot, listRoot) + '/').replace(/\\/g, '/');
 
   const results: string[] = [];
-
-  // Same project-root `.gitignore` rule as the file tree — see
-  // handleFilesTree above for the rationale.
   const isGitignored = await loadGitignoreMatcher(projectRoot);
 
-  async function walk(dir: string, rel: string, depth: number): Promise<void> {
+  async function walk(
+    dir: string,
+    rel: string,
+    depth: number,
+    ancestors: ReadonlySet<string>,
+  ): Promise<void> {
     if (depth > 8 || results.length >= 600) return;
     let entries: import('node:fs').Dirent[] = [];
     try {
@@ -591,34 +647,38 @@ export async function handleFilesList(
       if (results.length >= 600) return;
       if (isHiddenEntry(e.name)) continue;
       const childRel = rel ? `${rel}/${e.name}` : e.name;
+      const childAbs = path.join(dir, e.name);
       const childPath = pathPrefix + childRel;
-      // Same projectRoot .gitignore rule — pass isEntryDirectory() so a
-      // trailing-slash rule like `node_modules/` prunes a directory by its
-      // own name, including when it is a symlink to a directory. See
-      // handleFilesTree above for the full rationale.
-      if (isGitignored(childPath, await isEntryDirectory(dir, e))) continue;
-      if (e.isDirectory()) {
-        if (SKIP_DIRS.has(e.name)) continue;
-        // Reject symlinked directories whose real path escapes the
-        // real project root. A symlink to an in-project directory is
-        // fine and recursed into normally.
-        let realChild: string;
+      let realChild: string | undefined;
+      let linkStat: import('node:fs').Stats | undefined;
+      if (e.isSymbolicLink()) {
         try {
-          realChild = await fs.realpath(path.join(dir, e.name));
+          realChild = await fs.realpath(childAbs);
+          if (!isPathInside(realProjectRoot, realChild)) continue;
+          linkStat = await fs.stat(realChild);
         } catch {
           continue;
         }
-        if (!isPathInside(realProjectRoot, realChild)) {
-          continue;
-        }
-        await walk(realChild, childRel, depth + 1);
-      } else if (e.isFile()) {
+      }
+      const isDir = linkStat ? linkStat.isDirectory() : e.isDirectory();
+      const isFile = linkStat ? linkStat.isFile() : e.isFile();
+      if (isGitignored(childPath, isDir)) continue;
+      if (isDir) {
+        if (SKIP_DIRS.has(e.name)) continue;
+        const realDir = realChild ?? (await fs.realpath(childAbs).catch(() => null));
+        if (!realDir || !isPathInside(realProjectRoot, realDir)) continue;
+        const key = pathKey(realDir);
+        if (ancestors.has(key)) continue;
+        const nextAncestors = new Set(ancestors);
+        nextAncestors.add(key);
+        await walk(realDir, childRel, depth + 1, nextAncestors);
+      } else if (isFile) {
         results.push(childPath);
       }
     }
   }
 
-  await walk(listRoot, '', 0);
+  await walk(listRoot, '', 0, new Set([pathKey(realListRoot)]));
   send(ws, {
     type: 'files.list',
     payload: { files: rankFiles(results, payload.query ?? '', limit) },

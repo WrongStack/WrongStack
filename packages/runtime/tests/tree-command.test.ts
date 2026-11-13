@@ -77,6 +77,57 @@ describe('/tree portable slash command', () => {
     expect(tokenizeTreeArgs('new "ends\\\\"')).toEqual(['new', 'ends\\']);
   });
 
+  it('preserves empty quoted strings so optional value flags never swallow subsequent flags', async () => {
+    expect(tokenizeTreeArgs('fold feat --note "" --archive')).toEqual([
+      'fold',
+      'feat',
+      '--note',
+      '',
+      '--archive',
+    ]);
+    expect(tokenizeTreeArgs("branch exp --label '' --no-switch")).toEqual([
+      'branch',
+      'exp',
+      '--label',
+      '',
+      '--no-switch',
+    ]);
+
+    const foldCalls: Array<Record<string, unknown>> = [];
+    const branchCalls: Array<Record<string, unknown>> = [];
+    const cmd = buildTreeCommand({
+      treeCoordinator: {
+        async foldBranch(opts: Record<string, unknown>) {
+          foldCalls.push(opts);
+          return {
+            sourceBranch: { id: 'br-feat', name: String(opts['sourceBranch'] ?? 'feat') },
+            targetBranch: { id: 'main', name: 'main' },
+            summary: 'ok',
+          };
+        },
+        async createBranch(opts: Record<string, unknown>) {
+          branchCalls.push(opts);
+          return {
+            switched: Boolean(opts['switchImmediately']),
+            branch: { id: 'br-exp', name: String(opts['name']), parentBranchId: 'main' },
+          };
+        },
+      } as never,
+    });
+
+    await cmd.run('fold feat --note "" --archive', {} as never);
+    await cmd.run('branch exp --label "" --no-switch', {} as never);
+
+    expect(foldCalls[0]).toEqual({
+      sourceBranch: 'feat',
+      archiveSource: true,
+    });
+    expect(branchCalls[0]).toEqual({
+      name: 'exp',
+      switchImmediately: false,
+    });
+  });
+
   it('persists a fold note verbatim and still honours --archive end-to-end', async () => {
     const store = new DefaultSessionStore({ dir: tmpDir });
     const writer = await store.create({ id: '', model: 'gpt-5', provider: 'openai' });

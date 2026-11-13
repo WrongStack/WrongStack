@@ -219,19 +219,20 @@ export function scrubTextForEvaluator(api: Pick<PluginAPI, 'container'>, text: s
     .replace(/\b(Bearer)\s+[A-Za-z0-9._~+/-]{12,}/gi, '$1 [REDACTED]');
 }
 
+function scrubSerializedToolInput(api: Pick<PluginAPI, 'container'>, toolInput: unknown): string {
+  try {
+    const s = typeof toolInput === 'string' ? toolInput : JSON.stringify(toolInput ?? {}, null, 2);
+    return scrubTextForEvaluator(api, s);
+  } catch {
+    return scrubTextForEvaluator(api, String(toolInput));
+  }
+}
+
 export function serializeAndScrubToolInput(
   api: Pick<PluginAPI, 'container'>,
   toolInput: unknown,
 ): string {
-  let serialized: string;
-  try {
-    serialized =
-      typeof toolInput === 'string' ? toolInput : JSON.stringify(toolInput ?? {}, null, 2);
-  } catch {
-    serialized = String(toolInput);
-  }
-  const scrubbed = scrubTextForEvaluator(api, serialized);
-  return truncateText(scrubbed, MAX_TOOL_INPUT_CHARS);
+  return truncateText(scrubSerializedToolInput(api, toolInput), MAX_TOOL_INPUT_CHARS);
 }
 
 export type AdversaryDecisionTier =
@@ -520,8 +521,7 @@ async function evaluateViaBrain(opts: {
         reason: decision.rationale ?? (decision.text || 'Allowed by Brain adversary review.'),
       };
     }
-    // `optionId === undefined` is DefaultBrainArbiter's provisional `fallback: 'continue'`
-    // when no autonomous Brain tier settled the choice — treat as unsettled.
+    // `optionId === undefined` is provisional `fallback: 'continue'` — treat as unsettled.
     const parsedText = decision.text ? parseAdversaryVerdictText(decision.text) : null;
     if (parsedText) return parsedText;
   }
@@ -677,7 +677,8 @@ export async function evaluateToolCall(opts: {
   const startedAt = Date.now();
   const { api, cfg, policy, session, cache, toolName, toolInput, toolCapabilities, signal } = opts;
 
-  const scrubbedToolInput = serializeAndScrubToolInput(api, toolInput);
+  const fullScrubbedInput = scrubSerializedToolInput(api, toolInput);
+  const scrubbedToolInput = truncateText(fullScrubbedInput, MAX_TOOL_INPUT_CHARS);
   const cacheKey = createHash('sha256')
     .update(
       JSON.stringify({
@@ -687,7 +688,7 @@ export async function evaluateToolCall(opts: {
         tainted: session.tainted,
         taintSources: session.taintSources,
         toolName,
-        scrubbedToolInput,
+        scrubbedToolInput: fullScrubbedInput,
       }),
     )
     .digest('hex');
@@ -722,6 +723,9 @@ export async function evaluateToolCall(opts: {
     run: () => Promise<AdversaryVerdict | null>;
   };
 
+  const deadlineAt = startedAt + cfg.timeoutMs;
+  const remMs = () => Math.max(0, deadlineAt - Date.now());
+
   const brainRunner: TierRunner = {
     tier: 'brain',
     run: async () => {
@@ -732,7 +736,7 @@ export async function evaluateToolCall(opts: {
         context,
         toolName,
         session,
-        timeoutMs: cfg.timeoutMs,
+        timeoutMs: remMs(),
         signal,
       });
     },
@@ -747,7 +751,7 @@ export async function evaluateToolCall(opts: {
         session,
         toolName,
         scrubbedToolInput,
-        timeoutMs: cfg.timeoutMs,
+        timeoutMs: remMs(),
         signal,
       }),
   };
@@ -759,20 +763,14 @@ export async function evaluateToolCall(opts: {
         api,
         context,
         toolName,
-        timeoutMs: cfg.timeoutMs,
+        timeoutMs: remMs(),
         signal,
       }),
   };
 
   const llmRunner: TierRunner = {
     tier: 'llm',
-    run: () =>
-      evaluateViaOneShotLlm({
-        api,
-        context,
-        timeoutMs: cfg.timeoutMs,
-        signal,
-      }),
+    run: () => evaluateViaOneShotLlm({ api, context, timeoutMs: remMs(), signal }),
   };
 
   let ladder: TierRunner[];
@@ -790,8 +788,6 @@ export async function evaluateToolCall(opts: {
       ladder = [llmRunner];
       break;
     case 'auto':
-      // If the operator explicitly pinned `config.extensions["adversary-mode"].llm`,
-      // honor that dedicated fast reviewer model first before falling back to Brain/Jev.
       ladder = dedicatedPluginLlm
         ? [llmRunner, brainRunner, jevRunner]
         : session.tainted
@@ -804,6 +800,10 @@ export async function evaluateToolCall(opts: {
   for (const step of ladder) {
     if (signal?.aborted) {
       lastError = 'cancelled';
+      break;
+    }
+    if (remMs() <= 0) {
+      lastError = `Adversary evaluation timed out after ${cfg.timeoutMs}ms`;
       break;
     }
     try {

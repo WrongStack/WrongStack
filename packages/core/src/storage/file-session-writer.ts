@@ -617,6 +617,7 @@ export class FileSessionWriter implements SessionWriter {
     return executeSessionTruncate({
       ...this.journalRewriteContext(),
       targetPromptIndex,
+      branchId: this._activeBranchId,
       revertedFiles,
       append: (ev) => this.append(ev),
       getActivePromptIndex: () => this.activePromptIndex,

@@ -47,6 +47,7 @@ export class BackendStream {
   private stopped = true;
   private run = 0;
   private offset = 0;
+  private runtimeId: string | undefined;
   private read = false;
   private startedAt = 0;
   private notifiedAt = 0;
@@ -107,6 +108,7 @@ export class BackendStream {
     this.startedAt = Date.now();
     if (!this.read) {
       this.offset = 0;
+      this.runtimeId = undefined;
       this.state = { ...emptyEngineState, hydrating: true, synced: false };
       this.read = true;
     }
@@ -118,12 +120,26 @@ export class BackendStream {
           events: unknown[];
           hasMore?: boolean;
           size?: number;
+          runtimeId?: string;
         }>(`${this.scope}.events`, {
           ...this.target(),
           offset: this.offset,
+          ...(this.runtimeId ? { runtimeId: this.runtimeId } : {}),
           ...(this.offset === 0 && this.scope !== 'engine' ? { recent: RECENT_JOURNAL_BYTES } : {}),
         });
         if (run !== this.run || this.stopped) return;
+        const nextRuntimeId =
+          typeof result.runtimeId === 'string' && result.runtimeId ? result.runtimeId : undefined;
+        const rotated =
+          nextRuntimeId !== undefined &&
+          this.runtimeId !== undefined &&
+          nextRuntimeId !== this.runtimeId;
+        if (nextRuntimeId !== undefined) this.runtimeId = nextRuntimeId;
+        if (rotated) {
+          this.offset = 0;
+          this.state = { ...emptyEngineState, hydrating: true, synced: false };
+          this.operations.replaying();
+        }
         // Hosts report `hasMore`; a host that predates it paged by 200 lines or 256 KiB.
         const hasMore =
           result.hasMore ?? (result.events.length === 200 || result.offset - this.offset >= 262144);
@@ -137,7 +153,7 @@ export class BackendStream {
         if (this.scope === 'engine' && events.some((event) => event.type === 'run.result'))
           void this.send('stats.get').catch((error) => this.error(error));
         // An idle poll changes nothing, so it does not re-render every view ten times a second.
-        if (events.length || this.state.hydrating !== hasMore) {
+        if (rotated || events.length || this.state.hydrating !== hasMore) {
           this.state = replayEngineBatch(this.state, events, hasMore, {
             read: result.offset,
             total: result.size ?? 0,
@@ -160,6 +176,7 @@ export class BackendStream {
           const starting =
             servicesStarting(error) && Date.now() - this.startedAt < SERVICES_STARTING_GRACE_MS;
           if (!starting) this.error(error);
+          if (run !== this.run || this.stopped) return;
           this.timer = setTimeout(poll, starting ? 250 : 1000);
         }
       }

@@ -7,6 +7,11 @@ stacks: [compose, flutter, web, react-native]
 themes: [light, dark]
 bestFor: Android apps and cross-platform products that want Google's expressive, adaptive system.
 version: 1.0.0
+paper: light 98 300
+display: roman-serif Roboto
+accent: cool 200
+posture: committed
+photo: natural
 ---
 
 # Material 3 Expressive

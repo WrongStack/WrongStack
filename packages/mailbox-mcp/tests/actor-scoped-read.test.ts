@@ -51,6 +51,31 @@ async function waitForServer(metadataPath: string, child: ChildProcess, stderr: 
   throw new Error(`Mailbox project server readiness timed out: ${stderr()}`);
 }
 
+// The metadata file is visible before the daemon greets: it still restricts the
+// file's ACL (an `icacls` spawn on Windows) first. A mailbox client whose first
+// 750 ms handshake lands in that window spawns a contender daemon, which can
+// bind after this test shuts the real one down and keep `_mailbox.sqlite*`
+// open, failing teardown with EBUSY. Wait for a real handshake through a probe
+// that never spawns, so the mailbox client below connects on its first try.
+async function waitForHandshake(projectDir: string, child: ChildProcess, stderr: () => string) {
+  const deadline = Date.now() + 15_000;
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null) {
+      throw new Error(
+        `Mailbox project server exited before greeting (${child.exitCode}): ${stderr()}`,
+      );
+    }
+    const probe = new MailboxProjectServerConnection(projectDir);
+    try {
+      if ((await probe.probeStatus())?.pid === child.pid) return;
+    } finally {
+      probe.close();
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`Mailbox project server handshake timed out: ${stderr()}`);
+}
+
 describe('Mailbox MCP actor-scoped reads', () => {
   let projectDir = '';
   let serverProcess: ChildProcess | undefined;
@@ -74,6 +99,7 @@ describe('Mailbox MCP actor-scoped reads', () => {
       stderr += chunk.toString('utf8');
     });
     await waitForServer(join(projectDir, '.mailbox-server.json'), serverProcess, () => stderr);
+    await waitForHandshake(projectDir, serverProcess, () => stderr);
 
     emitter = new MailboxEventEmitter();
     mailbox = createProjectMailbox({ projectDir, eventEmitter: emitter, isolatedConnection: true });

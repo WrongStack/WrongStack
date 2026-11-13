@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Friendly consumer apps, kids/education, onboarding, fun dashboards, app store-style marketing.
 version: 1.0.0
+paper: light 95 280
+display: roman-serif Quicksand
+accent: cool 200
+posture: committed
+photo: natural
 ---
 
 # Claymorphism

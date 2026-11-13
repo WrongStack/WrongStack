@@ -7,6 +7,11 @@ stacks: [swiftui, react-native, web, flutter]
 themes: [light, dark]
 bestFor: iOS apps that should feel truly native, plus web/RN that wants an Apple-grade feel.
 version: 1.0.0
+paper: light 98 250
+display: roman-serif -apple-system
+accent: cool 255
+posture: committed
+photo: natural
 ---
 
 # iOS Native (HIG)

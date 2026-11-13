@@ -2,11 +2,13 @@ import * as fs from 'node:fs';
 import * as net from 'node:net';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { Duplex } from 'node:stream';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   encodeFrame,
   FrameReader,
   WrongIndexClient,
+  WrongIndexRemoteError,
   WrongIndexUnavailableError,
 } from '../src/codebase-index/wrongindex/client.js';
 
@@ -166,3 +168,99 @@ describe.runIf(process.platform !== 'win32' || Boolean(bridge))(
     }, 5_000);
   },
 );
+
+describe('WrongIndexClient queued cancellation and bystander isolation (F167)', () => {
+  function pairedDuplexClient() {
+    let clientSide!: Duplex;
+    let serverSide!: Duplex;
+    clientSide = new Duplex({
+      read() {},
+      write(chunk, _enc, cb) {
+        serverSide.push(chunk);
+        cb();
+      },
+      destroy(err, cb) {
+        serverSide.push(null);
+        cb(err);
+      },
+    });
+    serverSide = new Duplex({
+      read() {},
+      write(chunk, _enc, cb) {
+        clientSide.push(chunk);
+        cb();
+      },
+      destroy(err, cb) {
+        clientSide.push(null);
+        cb(err);
+      },
+    });
+    const client = Reflect.construct(WrongIndexClient, [
+      clientSide,
+      () => {},
+      30_000,
+    ]) as WrongIndexClient;
+    clients.push(client);
+    return { client, serverSide };
+  }
+
+  it('canceling a queued undispatched call preserves the lane and active calls', async () => {
+    const { client, serverSide } = pairedDuplexClient();
+    const reader = new FrameReader();
+    let resolveFirst!: (frame: { requestId: string }) => void;
+    const firstDispatched = new Promise<{ requestId: string }>((r) => {
+      resolveFirst = r;
+    });
+    let seen = 0;
+    serverSide.on('data', (chunk: Buffer) => {
+      for (const frame of reader.push(chunk) as Array<{ requestId: string }>) {
+        seen++;
+        if (seen === 1) resolveFirst(frame);
+        else serverSide.write(encodeFrame({ requestId: frame.requestId, result: { slot: 3 } }));
+      }
+    });
+
+    const call1 = client.call<{ slot: number }>('index.query', 'proj', { slot: 1 });
+    const f1 = await firstDispatched;
+
+    const ac2 = new AbortController();
+    const call2 = client.call('index.query', 'proj', { slot: 2 }, undefined, {
+      signal: ac2.signal,
+    });
+    const call3 = client.call<{ slot: number }>('index.query', 'proj', { slot: 3 });
+
+    ac2.abort();
+    await expect(call2).rejects.toMatchObject({ code: 'CANCELED' });
+
+    serverSide.write(encodeFrame({ requestId: f1.requestId, result: { slot: 1 } }));
+    await expect(call1).resolves.toEqual({ slot: 1 });
+    await expect(call3).resolves.toEqual({ slot: 3 });
+    expect(client.isClosed).toBe(false);
+    expect(seen).toBe(2);
+  });
+
+  it('surfaces WrongIndexUnavailableError to queued bystanders when a dispatched call aborts', async () => {
+    const { client, serverSide } = pairedDuplexClient();
+    const reader = new FrameReader();
+    let resolveDispatched!: () => void;
+    const dispatched = new Promise<void>((r) => {
+      resolveDispatched = r;
+    });
+    serverSide.on('data', (chunk: Buffer) => {
+      if (reader.push(chunk).length > 0) resolveDispatched();
+    });
+
+    const ac = new AbortController();
+    const stalled = client.call('index.query', 'proj', { q: 'stalled' }, undefined, {
+      signal: ac.signal,
+    });
+    await dispatched;
+    const bystander = client.call('index.query', 'proj', { q: 'bystander' });
+
+    ac.abort();
+    await expect(stalled).rejects.toBeInstanceOf(WrongIndexRemoteError);
+    const bystanderErr = await bystander.catch((err: unknown) => err);
+    expect(bystanderErr).toBeInstanceOf(WrongIndexUnavailableError);
+    expect(bystanderErr).not.toBeInstanceOf(WrongIndexRemoteError);
+  });
+});

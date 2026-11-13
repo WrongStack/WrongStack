@@ -144,4 +144,76 @@ describe('shared backend journal reader', () => {
     expect(reads - settled).toBeLessThanOrEqual(11);
     stop();
   });
+  it('resets stale session state when a retried project runtime rotates runtimeId', async () => {
+    vi.useFakeTimers();
+    const calls: Array<Record<string, unknown>> = [];
+    let poll = 0;
+    mocked.mockImplementation(async (_command, args) => {
+      calls.push(args as Record<string, unknown>);
+      poll += 1;
+      if (poll === 1) {
+        return {
+          runtimeId: 'project-rt-1',
+          offset: 480,
+          events: [
+            {
+              type: 'session.start',
+              payload: { sessionId: 'sess-dead', provider: 'openai', model: 'gpt-5' },
+            },
+            { type: 'desktop.disconnected', payload: { message: 'runtime crashed' } },
+          ],
+          hasMore: false,
+          size: 480,
+        };
+      }
+      return {
+        runtimeId: 'project-rt-2',
+        offset: 96,
+        events: [
+          {
+            type: 'session.start',
+            payload: { sessionId: 'sess-fresh', provider: 'openai', model: 'gpt-5' },
+          },
+        ],
+        hasMore: false,
+        size: 96,
+      };
+    });
+    const stream = backendStream('project', 'rotated-proj');
+    const stop = stream.subscribe({ changed: () => {}, onError: () => {} });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(stream.state.sessionId).toBe('sess-dead');
+    expect(stream.state.connected).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(110);
+    expect(calls[1]).toEqual({
+      projectId: 'rotated-proj',
+      offset: 480,
+      runtimeId: 'project-rt-1',
+    });
+    expect(stream.state.sessionId).toBe('sess-fresh');
+    expect(stream.state.connected).toBe(true);
+    expect(stream.state.error).toBeFalsy();
+    stop();
+  });
+  it('does not arm a polling timer when onError unsubscribes the last view', async () => {
+    vi.useFakeTimers();
+    let reads = 0;
+    mocked.mockImplementation(async () => {
+      reads += 1;
+      throw new Error('Fatal host error');
+    });
+    const stream = backendStream('project', 'fatal-proj');
+    let stop!: () => void;
+    stop = stream.subscribe({
+      changed: () => {},
+      onError: () => {
+        stop();
+      },
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(reads).toBe(1);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(reads).toBe(1);
+  });
 });

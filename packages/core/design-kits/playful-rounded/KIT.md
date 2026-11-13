@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Consumer mobile apps, onboarding, education, wellness, communities — anything that should feel kind.
 version: 1.0.0
+paper: light 98 80
+display: roman-serif Nunito
+accent: chromatic-green 160
+posture: committed
+photo: natural
 ---
 
 # Playful Rounded

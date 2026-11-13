@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Sustainability, climate-tech, community, energy, hopeful future-facing brands.
 version: 1.0.0
+paper: light 97 130
+display: roman-serif Fraunces
+accent: chromatic-yellow 90
+posture: committed
+photo: natural
 ---
 
 # Solarpunk

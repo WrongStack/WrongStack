@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Music, food/coffee, lifestyle, vintage brands, warm nostalgic marketing.
 version: 1.0.0
+paper: light 94 85
+display: handwritten Cooper BT
+accent: chromatic-yellow 85
+posture: committed
+photo: warm sepia=22 sat=10
 ---
 
 # Retro 70s

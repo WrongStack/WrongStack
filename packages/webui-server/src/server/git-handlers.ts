@@ -293,10 +293,15 @@ export async function handleGitDiff(
     reply({ oldText: '', newText: '', error: 'invalid path' });
     return;
   }
+  const normPath = normalizePathspec(path);
+  if (normPath === '.' || path.endsWith('/') || path.endsWith('\\')) {
+    reply({ oldText: '', newText: '', error: 'path is a directory' });
+    return;
+  }
 
   try {
     const git = makeGit(cwd);
-    const { readFile } = await import('node:fs/promises');
+    const { readFile, stat } = await import('node:fs/promises');
     const { join } = await import('node:path');
 
     // The client sends REPO-relative paths (the git.changes shape). The
@@ -306,14 +311,19 @@ export async function handleGitDiff(
     // subdirectory project (`<project>/packages/webui/packages/webui/…`),
     // making every file read as deleted. Translate ONLY the read side.
     const prefix = await currentRepoPrefix(projectRoot);
-    if (prefix && !path.startsWith(prefix)) {
-      reply({ oldText: '', newText: '', error: 'path outside project root' });
+    if (prefix && !normPath.startsWith(prefix)) {
+      reply({
+        oldText: '',
+        newText: '',
+        error:
+          normPath === prefix.slice(0, -1) ? 'path is a directory' : 'path outside project root',
+      });
       return;
     }
-    const treePath = prefix ? path.slice(prefix.length) : path;
+    const treePath = prefix ? normPath.slice(prefix.length) : normPath;
 
     // HEAD version. `git show` writes nothing for a path absent at HEAD.
-    const oldText = await git(['show', `HEAD:${path}`]);
+    const oldText = await git(['show', `HEAD:${normPath}`]);
 
     // Working-tree version (absent → deleted file → empty).
     let newText = '';
@@ -346,9 +356,19 @@ export async function handleGitDiff(
           return;
         }
       }
+      if (readPath && (await stat(readPath)).isDirectory()) {
+        reply({ oldText: '', newText: '', error: 'path is a directory' });
+        return;
+      }
+      if (!readPath && oldText.startsWith(`tree HEAD:${normPath}\n`)) {
+        if ((await git(['cat-file', '-t', `HEAD:${normPath}`])).trim() === 'tree') {
+          reply({ oldText: '', newText: '', error: 'path is a directory' });
+          return;
+        }
+      }
       // A changed image: send both versions to look at instead of "binary".
-      if (looksLikeImagePath(path)) {
-        reply(await imageDiffPayload(cwd, path, readPath));
+      if (looksLikeImagePath(normPath)) {
+        reply(await imageDiffPayload(cwd, normPath, readPath));
         return;
       }
       if (readPath) {
@@ -367,7 +387,7 @@ export async function handleGitDiff(
       newText = '';
     }
 
-    if ((oldText.length || 0) > MAX_DIFF_BYTES) {
+    if (Buffer.byteLength(oldText, 'utf8') > MAX_DIFF_BYTES) {
       reply({ oldText: '', newText: '', tooLarge: true });
       return;
     }
@@ -427,6 +447,9 @@ async function translateRepoPathspecs(
   projectRoot: string,
   paths: string[],
 ): Promise<{ safe: string[]; originals: string[]; error?: string }> {
+  if (!Array.isArray(paths)) {
+    return { safe: [], originals: [], error: 'Invalid paths payload' };
+  }
   for (const p of paths) {
     if (isUnsafeRelativePath(p)) {
       return { safe: [], originals: [], error: `Invalid or unsafe path: ${p}` };
@@ -526,7 +549,7 @@ export async function handleGitDiscard(
   paths: string[],
 ): Promise<void> {
   const cwd = projectRoot || undefined;
-  if (!paths || paths.length === 0) {
+  if (!Array.isArray(paths) || paths.length === 0) {
     send(ws, {
       type: 'git.action_result',
       payload: { action: 'discard', ok: false, error: 'Explicit path required for discard' },
@@ -539,31 +562,44 @@ export async function handleGitDiscard(
     return;
   }
 
-  // Restore modified/deleted tracked files, then clean untracked ones.
-  // Results are checked: reporting ok:true while the repo is locked (or a
-  // pathspec is invalid) leaves the UI claiming a discard that never
-  // happened. "did not match" is EXPECTED in both directions — restore
-  // says it for an untracked path (clean handles those), clean says it for
-  // a tracked-only pathspec.
-  // Restore runs PER PATH, not batched: with a mixed batch (one tracked +
-  // one untracked pathspec) a single `git restore` invocation fails
-  // wholesale on the untracked name and the TRACKED sibling never gets
-  // restored — while the handler still reported ok:true. Per-path calls
-  // make each file's outcome independent. Discard is an explicit user
-  // action on a small path set, so the extra invocations are fine.
+  // Restore tracked changes (both staged index AND worktree) back to HEAD per
+  // path, unstage any staged-new (`A `) entries absent from HEAD, then clean
+  // untracked files. Per-path execution prevents an untracked sibling from
+  // aborting a tracked sibling's restore while still failing closed on locks.
   const benign = /not removing|no such file or directory|did not match/i;
+  const missingInHead = /did not match|could not resolve HEAD|invalid reference:\s*HEAD/i;
   for (const p of safe) {
-    const r = await execGit(cwd, ['restore', '--', p], { literalPathspecs: true });
-    if (!r.ok && !benign.test(r.stderr)) {
-      send(ws, {
-        type: 'git.action_result',
-        payload: {
-          action: 'discard',
-          ok: false,
-          error: `${p}: ${r.stderr || r.error || 'git restore failed'}`,
-        },
-      });
-      return;
+    const r = await execGit(cwd, ['restore', '--source=HEAD', '--staged', '--worktree', '--', p], {
+      literalPathspecs: true,
+    });
+    if (!r.ok) {
+      if (!missingInHead.test(r.stderr)) {
+        send(ws, {
+          type: 'git.action_result',
+          payload: {
+            action: 'discard',
+            ok: false,
+            error: `${p}: ${r.stderr || r.error || 'git restore failed'}`,
+          },
+        });
+        return;
+      }
+      const unstageAdded = await execGit(
+        cwd,
+        ['rm', '-rf', '--cached', '--ignore-unmatch', '--', p],
+        { literalPathspecs: true },
+      );
+      if (!unstageAdded.ok) {
+        send(ws, {
+          type: 'git.action_result',
+          payload: {
+            action: 'discard',
+            ok: false,
+            error: `${p}: ${unstageAdded.stderr || unstageAdded.error || 'git rm --cached failed'}`,
+          },
+        });
+        return;
+      }
     }
   }
   const cleanRes = await execGit(cwd, ['clean', '-fd', '--', ...safe], { literalPathspecs: true });
@@ -592,7 +628,7 @@ export async function handleGitCommit(
   message: string,
 ): Promise<void> {
   const cwd = projectRoot || undefined;
-  const trimmed = message?.trim();
+  const trimmed = typeof message === 'string' ? message.trim() : '';
   if (!trimmed) {
     send(ws, {
       type: 'git.action_result',

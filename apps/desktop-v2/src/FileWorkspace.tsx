@@ -70,7 +70,7 @@ import {
 } from './file-model';
 import { fileRefreshQueue } from './file-refresh';
 import { selectionReference } from './file-selection-reference';
-import { currentTreeListing, rememberTreeListing, treeListingKey } from './file-tree-cache';
+import * as treeCache from './file-tree-cache';
 import { GitHistory } from './GitHistory';
 import { GitHunkReview } from './GitHunkReview';
 import { MergeConflictReview } from './MergeConflictReview';
@@ -235,53 +235,53 @@ export function FileWorkspace({
   const asGitPath = useCallback((path: string) => `${prefix}${path}`, [prefix]);
   const fromGitPath = (path: string) =>
     prefix && path.startsWith(prefix) ? path.slice(prefix.length) : path;
-  // The change event current now, so a listing read now is known to be current at it.
-  const treeChanged = useRef<unknown>(state.results['files.tree.changed']);
-  treeChanged.current = state.results['files.tree.changed'];
-  const listingKey = treeListingKey(projectId, scopeKey, includeIgnored);
-  const applyGit = useCallback((result: PromiseSettledResult<Record<string, unknown>>) => {
-    if (result.status === 'fulfilled') setGit(result.value);
-    else
-      setGit({
-        error: result.reason instanceof Error ? result.reason.message : String(result.reason),
-      });
+  // Current change marker and filter key, so superseded reads never overwrite newer state.
+  const listingKey = treeCache.treeListingKey(projectId, scopeKey, includeIgnored);
+  const live = useRef({ changed: state.results['files.tree.changed'], key: listingKey });
+  live.current = { changed: state.results['files.tree.changed'], key: listingKey };
+  const applyGit = useCallback((r: PromiseSettledResult<Record<string, unknown>>) => {
+    setGit(r.status === 'fulfilled' ? r.value : { error: String(r.reason?.message ?? r.reason) });
   }, []);
   const refresh = useMemo(
     () =>
       fileRefreshQueue(async () => {
-        const marker = treeChanged.current;
+        const marker = live.current.changed;
         const results = await Promise.allSettled([
           command('files.tree', { includeIgnored }, ['files.tree']),
           command('git.changes', {}, ['git.changes']),
         ]);
-        if (results[0].status === 'fulfilled') {
-          rememberTreeListing(listingKey, results[0].value['tree'], marker);
-          setTree(fileTree(results[0].value['tree']));
-          setTreeReady(true);
-          setTreeFilter(includeIgnored);
-        } else throw results[0].reason;
+        if (results[0].status !== 'fulfilled') throw results[0].reason;
+        treeCache.rememberTreeListing(listingKey, results[0].value['tree'], marker);
+        if (live.current.key !== listingKey) return;
+        setTree(fileTree(results[0].value['tree']));
+        setTreeReady(true);
+        setTreeFilter(includeIgnored);
         applyGit(results[1]);
       }),
     [command, includeIgnored, listingKey, applyGit],
   );
+  const reload = () => {
+    treeCache.clearProjectTreeListings(projectId);
+    return refresh();
+  };
   useEffect(() => () => refresh.clear(), [refresh]);
   useEffect(() => {
-    // Opening Files again with nothing changed since the last listing shows that listing; only
-    // the (small) Git status is read.
-    const listing = currentTreeListing(listingKey, treeChanged.current);
+    const listing = treeCache.currentTreeListing(listingKey, live.current.changed);
     if (listing !== undefined) {
       setTree(fileTree(listing));
       setTreeReady(true);
       setTreeFilter(includeIgnored);
-      void Promise.allSettled([command('git.changes', {}, ['git.changes'])]).then(([result]) =>
-        applyGit(result),
+      void Promise.allSettled([command('git.changes', {}, ['git.changes'])]).then(
+        ([r]) => live.current.key === listingKey && applyGit(r),
       );
       return;
     }
     setTreeLoading(true);
+    const onFail = (e: unknown) =>
+      live.current.key === listingKey && setError(e instanceof Error ? e.message : String(e));
     void refresh()
-      .catch((e: unknown) => setError(String(e instanceof Error ? e.message : e)))
-      .finally(() => setTreeLoading(false));
+      .catch(onFail)
+      .finally(() => live.current.key === listingKey && setTreeLoading(false));
   }, [refresh]);
   useTreeChanges(state.results['files.tree.changed'], refresh, setError);
   const openFile = useCallback(
@@ -479,7 +479,7 @@ export function FileWorkspace({
     }
     updateDocument(path, { saved: document.content });
     setNotice(t('fileView.saved', { name: fileName(path) }));
-    await refresh();
+    await reload();
     refreshDiff();
   };
   const close = (path: string, discard = false) => {
@@ -702,7 +702,7 @@ export function FileWorkspace({
           ...notes,
           { path, line: action.line ?? 1, text: value.trim() },
         ]);
-      await refresh();
+      await (action.kind === 'comment' ? refresh() : reload());
       setAction(null);
     });
   // `null` is the whole group: the engine reads no paths as "all" (`git add -A -- .`), so a
@@ -711,7 +711,7 @@ export function FileWorkspace({
     run(async () => {
       const paths = path === null ? [] : [asGitPath(path)];
       await command(staged ? 'git.unstage' : 'git.stage', { paths }, ['git.action_result']);
-      await refresh();
+      await reload();
       refreshDiff();
     });
   const document = documents[active];
@@ -921,7 +921,7 @@ export function FileWorkspace({
           className="icon-button"
           aria-label={t('fileView.refresh')}
           disabled={busy}
-          onClick={() => void run(refresh)}
+          onClick={() => void run(reload)}
         >
           <RefreshCw size={15} />
         </button>
@@ -1000,7 +1000,7 @@ export function FileWorkspace({
             setBulk(null);
             setPicked((current) => current.filter((path) => !changed.includes(path)));
             setNotice(summary);
-            void refresh();
+            void reload();
           }}
         />
       )}
@@ -1457,7 +1457,7 @@ export function FileWorkspace({
                                 command,
                                 // Reloading may outlive the workspace (detached); say why, never throw.
                                 onApplied: () =>
-                                  void refresh()
+                                  void reload()
                                     .then(refreshDiff)
                                     .catch((e: unknown) =>
                                       setError(String(e instanceof Error ? e.message : e)),
@@ -1811,7 +1811,7 @@ export function FileWorkspace({
           command={command}
           onClose={() => setHunkReview(false)}
           onApplied={() => {
-            void refresh();
+            void reload();
             refreshDiff();
           }}
         />
@@ -1822,7 +1822,7 @@ export function FileWorkspace({
           command={command}
           onClose={() => setMergeReview(false)}
           onResolved={() => {
-            void refresh();
+            void reload();
             refreshDiff();
           }}
         />

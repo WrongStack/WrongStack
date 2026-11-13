@@ -6,6 +6,9 @@ import type { DesignStack } from '@wrongstack/core/design';
 import {
   applyTokenOverrides,
   captureProjectTokens,
+  DESIGN_JOBS,
+  DESIGN_MATERIALS,
+  formatKitAxesTriple,
   getDesignKitLoader,
   isDesignStack,
   type KitContrastIssue,
@@ -23,7 +26,15 @@ import {
   setDesignOverrides,
 } from '@wrongstack/core/design';
 import { atomicWrite } from '@wrongstack/core/utils';
-import { checkDealtChoice, dealAction, diffAction, documentAction } from './design-actions.js';
+import {
+  checkDealtChoice,
+  dealAction,
+  diffAction,
+  documentAction,
+  drawAction,
+  keptAction,
+  snapshotAction,
+} from './design-actions.js';
 
 type Overrides = Record<string, string>;
 
@@ -70,6 +81,9 @@ export interface DesignInput {
     | 'capture'
     | 'document'
     | 'deal'
+    | 'draw'
+    | 'snapshot'
+    | 'kept'
     | 'diff'
     | undefined;
   kit?: string | undefined;
@@ -88,10 +102,16 @@ export interface DesignInput {
   reason?: string | undefined;
   /** action "deal": words that narrow the pool (e.g. "editorial calm"). */
   query?: string | undefined;
-  /** action "deal": reproduce a printed deal. */
+  /** action "deal"/"draw": reproduce a printed deal/draw. */
   seed?: string | undefined;
-  /** action "deal": draw again instead of returning the session's deal. */
+  /** action "deal"/"draw": draw again instead of returning the session's deal/draw. */
   redeal?: boolean | undefined;
+  /** action "draw": primary visitor job (subscribe, book, visit, attend, buy, try, sign-up, hire, join, listen, dashboard). */
+  job?: string | undefined;
+  /** action "draw": real visual material available (photo | product | words). */
+  material?: string | undefined;
+  /** action "kept": wiring contracts intentionally removed during a redesign (e.g. ["/old-route", "legacyField"]). */
+  drop?: string | string[] | undefined;
 }
 
 export interface DesignOutput {
@@ -206,6 +226,9 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
           'capture',
           'document',
           'deal',
+          'draw',
+          'snapshot',
+          'kept',
           'diff',
         ],
         description:
@@ -214,8 +237,11 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
           'file; verify = scan UI for token drift (pinned kit, or the project\u2019s captured tokens); ' +
           'capture = snapshot the project\u2019s existing token source (DESIGN.md, theme CSS/TS/Dart) so ' +
           'verify works without a kit; document = write the active kit or captured tokens as a ' +
-          'DESIGN.md (google design.md format) for other tools; deal = draw three kits for this ' +
-          'session, leaving recent choices out (a kit outside the deal needs reason); diff = token regressions between two DESIGN.md ' +
+          'DESIGN.md (google design.md format) for other tools; deal = draw three axis-diverse kits for this ' +
+          'session, leaving recent choices out (a kit outside the deal needs reason); draw = deal a job-native ' +
+          'page anatomy (macrostructure, hero, nav, sections, footer) from job + material; snapshot = record ' +
+          'existing routes/inputs/testids/handlers into .design/before.json before a redesign; kept = verify ' +
+          'zero pre-redesign wiring was silently dropped; diff = token regressions between two DESIGN.md ' +
           'files (files:[before, after]) or a DESIGN.md and the active system. Default: list.',
       },
       kit: {
@@ -265,8 +291,24 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
         type: 'string',
         description: 'Deal: words narrowing the pool, matched against kit name/aesthetic/best-for.',
       },
-      seed: { type: 'string', description: 'Deal: reproduce a printed deal.' },
-      redeal: { type: 'boolean', description: 'Deal: draw again with a fresh seed.' },
+      seed: { type: 'string', description: 'Deal/Draw: reproduce a printed deal or anatomy draw.' },
+      redeal: { type: 'boolean', description: 'Deal/Draw: draw again with a fresh seed.' },
+      job: {
+        type: 'string',
+        description: `Draw: primary visitor job (${DESIGN_JOBS.join(', ')}).`,
+      },
+      material: {
+        type: 'string',
+        enum: [...DESIGN_MATERIALS],
+        description:
+          'Draw: real visual material on hand (photo | product | words). Default: product.',
+      },
+      drop: {
+        type: 'array',
+        items: { type: 'string' },
+        description:
+          'Kept: wiring items intentionally removed in this redesign (e.g. ["/legacy", "oldHandler"]).',
+      },
       files: {
         type: 'array',
         items: { type: 'string' },
@@ -293,6 +335,9 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
       'capture',
       'document',
       'deal',
+      'draw',
+      'snapshot',
+      'kept',
       'diff',
     ]);
     if (input.action !== undefined && !VALID_ACTIONS.has(input.action)) {
@@ -353,7 +398,7 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
       const tokens = rawTokens ? applyTokenOverrides(rawTokens, overrides) : rawTokens;
       const contrastWarn = tokens ? contrastWarning(kitContrastIssues(tokens)) : '';
 
-      const dealNote = await checkDealtChoice(ctx, manifest.id, input.reason);
+      const dealNote = await checkDealtChoice(ctx, manifest.id, input.reason, manifest.axes);
       setActiveKit(ctx, manifest.id, resolvedStack, overrides);
       await recordKitChoice(
         ctx.projectRoot,
@@ -369,9 +414,18 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
             .map(([k, v]) => `${k}=${v}`)
             .join(', ')}\n`
         : '';
+      const metaLines = [
+        manifest.axes
+          ? `Axes: ${formatKitAxesTriple(manifest.axes)}${manifest.posture ? ` · Posture: ${manifest.posture}` : ''}`
+          : '',
+        manifest.material ? `Material: ${manifest.material}` : '',
+        manifest.photo ? `Photo treatment: ${manifest.photo}` : '',
+        manifest.fontLinks?.length ? `Font links: ${manifest.fontLinks.join(', ')}` : '',
+      ].filter(Boolean);
+      const metaBlock = metaLines.length ? `${metaLines.join('\n')}\n` : '';
       const header =
         `# Active design kit: ${manifest.name} (${manifest.id}) — stack: ${resolvedStack}\n` +
-        `${manifest.aesthetic}\n${ovLine}${dealNote}\n` +
+        `${manifest.aesthetic}\n${metaBlock}${ovLine}${dealNote}\n` +
         'Implement the UI faithfully to this spec. Keep light/dark, responsive, and WCAG AA.\n';
       const tokenBlock = tokens
         ? `\n## Token snapshot (overrides applied)\n\`\`\`json\n${JSON.stringify(tokens, null, 2)}\n\`\`\`\n` +
@@ -445,12 +499,16 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
         tokens = source!.tokens;
         kitId = 'captured-design';
       }
+      const activeManifest = active ? await loader.find(active.kit) : undefined;
       const contrastWarn = contrastWarning(kitContrastIssues(tokens));
       const result = materializeTokens({
         tokens,
         stack: resolvedStack,
         kitId,
         outPath: input.out,
+        photo: activeManifest?.photo,
+        fontLinks: activeManifest?.fontLinks,
+        darkPaper: activeManifest?.axes?.paper === 'dark',
       });
       // Containment: result.path derives from caller-supplied input.out and
       // may be either relative (joined under projectRoot) or absolute
@@ -524,6 +582,32 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
         seed: input.seed,
         redeal: input.redeal === true,
       });
+    }
+
+    if (action === 'draw') {
+      return drawAction(ctx, loader, {
+        job: input.job,
+        material: input.material,
+        seed: input.seed,
+        redeal: input.redeal === true,
+      });
+    }
+
+    if (action === 'snapshot' || action === 'kept') {
+      const normalizedFiles = input.files
+        ? (Array.isArray(input.files) ? input.files : String(input.files).split(','))
+            .map((f) => String(f).trim().replace(/\\/g, '/'))
+            .filter(Boolean)
+        : undefined;
+      if (action === 'snapshot') {
+        return snapshotAction(ctx, normalizedFiles, assertProjectRelative);
+      }
+      const dropList = input.drop
+        ? (Array.isArray(input.drop) ? input.drop : String(input.drop).split(','))
+            .map((d) => String(d).trim())
+            .filter(Boolean)
+        : undefined;
+      return keptAction(ctx, normalizedFiles, dropList, assertProjectRelative);
     }
 
     if (action === 'diff') {

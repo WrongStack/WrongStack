@@ -179,7 +179,10 @@ export async function handleSageListPage(
         : undefined,
       kind: typeof payload['kind'] === 'string' ? (payload['kind'] as string) : undefined,
       query: typeof payload['query'] === 'string' ? (payload['query'] as string) : undefined,
-      limit: typeof payload['limit'] === 'number' ? (payload['limit'] as number) : undefined,
+      limit:
+        typeof payload['limit'] === 'number' && Number.isFinite(payload['limit'])
+          ? (payload['limit'] as number)
+          : undefined,
       cursor: typeof payload['cursor'] === 'string' ? (payload['cursor'] as string) : undefined,
     };
     const includeStats = payload['includeStats'] !== false;
@@ -282,7 +285,10 @@ export async function handleSageSearchBreakdown(
       });
       return;
     }
-    const limit = typeof payload['limit'] === 'number' ? payload['limit'] : 20;
+    const limit =
+      typeof payload['limit'] === 'number' && Number.isFinite(payload['limit'])
+        ? Math.max(1, Math.floor(payload['limit']))
+        : 20;
     const includeStale = payload['includeStale'] === true;
     const includeStatuses: SageStatus[] = includeStale ? ['active', 'stale'] : ['active'];
     const options = { limit, includeStatuses };
@@ -419,11 +425,11 @@ export async function handleSageGraph(
     return;
   }
   const maxDepth =
-    typeof payload['maxDepth'] === 'number'
+    typeof payload['maxDepth'] === 'number' && Number.isFinite(payload['maxDepth'])
       ? Math.max(1, Math.min(3, Math.floor(payload['maxDepth'])))
       : 1;
   const limit =
-    typeof payload['limit'] === 'number'
+    typeof payload['limit'] === 'number' && Number.isFinite(payload['limit'])
       ? Math.max(1, Math.min(250, Math.floor(payload['limit'])))
       : 100;
   try {
@@ -490,9 +496,9 @@ export async function handleSageUpdate(
     });
     return;
   }
-  const payload = (msg as { payload: Record<string, unknown> }).payload;
-  const id = payload['id'] as string | undefined;
-  if (!id) {
+  const payload = (msg as { payload?: Record<string, unknown> })?.payload ?? {};
+  const id = typeof payload['id'] === 'string' ? payload['id'] : '';
+  if (!id.trim()) {
     send(ws, {
       type: 'memory.sage.update',
       payload: withRequestId(msg, { error: 'id is required' }),
@@ -543,9 +549,9 @@ export async function handleSageRemember(
     });
     return;
   }
-  const payload = (msg as { payload: Record<string, unknown> }).payload;
-  const text = payload['text'] as string | undefined;
-  if (!text?.trim()) {
+  const payload = (msg as { payload?: Record<string, unknown> })?.payload ?? {};
+  const text = typeof payload['text'] === 'string' ? payload['text'] : '';
+  if (!text.trim()) {
     send(ws, {
       type: 'memory.sage.remember',
       payload: withRequestId(msg, { error: 'text is required' }),
@@ -588,17 +594,12 @@ export async function handleSageRemember(
  * Request:  { type: 'memory.sage.delete', payload: { id, reason?, force?, neverInject? } }
  * Response: { type: 'memory.sage.delete', payload: { success, message, requestId? } }
  *
- * `force` defaults to `false`. The caller must explicitly pass `force: true`
- * to authorize deletion. The permanent-memory guard in `deleteSage` is
- * always respected when force is not set.
+ * `force` defaults to `false` (respects the permanent-memory guard unless set).
+ * `neverInject` (default `false`) prevents context injection for factually wrong
+ * records rather than merely superseded ones.
  *
- * `neverInject` (default false) marks the memory so context injection
- * never loads it — used when a memory is factually wrong, not just
- * superseded.
- *
- * Uses an operation-specific response type (not the generic
- * `key.operation_result`) so the client can correlate the response
- * to this specific action without matching unrelated broadcast events.
+ * Uses an operation-specific response type (not `key.operation_result`) so the client
+ * correlates this specific action without matching unrelated broadcast events.
  */
 export async function handleSageDelete(
   ws: WebSocket,
@@ -613,17 +614,12 @@ export async function handleSageDelete(
     });
     return;
   }
-  const { id, reason, neverInject, force } = (
-    msg as {
-      payload: {
-        id: string;
-        reason?: string | undefined;
-        neverInject?: boolean | undefined;
-        force?: boolean | undefined;
-      };
-    }
-  ).payload;
-  if (!id) {
+  const payload = (msg as { payload?: Record<string, unknown> })?.payload ?? {};
+  const id = typeof payload['id'] === 'string' ? payload['id'] : '';
+  const reason = typeof payload['reason'] === 'string' ? payload['reason'] : undefined;
+  const neverInject = payload['neverInject'] === true;
+  const force = payload['force'] === true;
+  if (!id.trim()) {
     send(ws, {
       type: 'memory.sage.delete',
       payload: withRequestId(msg, { success: false, message: 'id is required' }),
@@ -669,16 +665,16 @@ export async function handleSageRecover(
     });
     return;
   }
-  const payload = (msg as { payload: Record<string, unknown> }).payload;
-  const id = payload['id'] as string | undefined;
-  if (!id) {
+  const payload = (msg as { payload?: Record<string, unknown> })?.payload ?? {};
+  const id = typeof payload['id'] === 'string' ? payload['id'] : '';
+  if (!id.trim()) {
     send(ws, {
       type: 'memory.sage.recover',
       payload: withRequestId(msg, { error: 'id is required' }),
     });
     return;
   }
-  const reason = payload['reason'] as string | undefined;
+  const reason = typeof payload['reason'] === 'string' ? payload['reason'] : undefined;
   try {
     const preExisting = await Sage.getSage(id);
     if (!preExisting) {
@@ -731,9 +727,9 @@ export async function handleSageForFile(
     });
     return;
   }
-  const payload = (msg as { payload: Record<string, unknown> }).payload ?? {};
-  const filePath = payload['filePath'] as string | undefined;
-  if (!filePath) {
+  const payload = (msg as { payload?: Record<string, unknown> })?.payload ?? {};
+  const filePath = typeof payload['filePath'] === 'string' ? payload['filePath'] : '';
+  if (!filePath.trim()) {
     send(ws, {
       type: 'memory.sage.forFile',
       payload: withRequestId(msg, { error: 'filePath is required' }),
@@ -754,11 +750,15 @@ export async function handleSageForFile(
   const includeDeleted = payload['showDeleted'] === true || payload['includeDeleted'] === true;
   try {
     const response = await Sage.findMemoriesForFile(filePath, {
-      ...(typeof payload['lineStart'] === 'number'
+      ...(typeof payload['lineStart'] === 'number' && Number.isFinite(payload['lineStart'])
         ? { lineStart: payload['lineStart'] as number }
         : {}),
-      ...(typeof payload['lineEnd'] === 'number' ? { lineEnd: payload['lineEnd'] as number } : {}),
-      ...(typeof payload['limit'] === 'number' ? { limit: payload['limit'] as number } : {}),
+      ...(typeof payload['lineEnd'] === 'number' && Number.isFinite(payload['lineEnd'])
+        ? { lineEnd: payload['lineEnd'] as number }
+        : {}),
+      ...(typeof payload['limit'] === 'number' && Number.isFinite(payload['limit'])
+        ? { limit: payload['limit'] as number }
+        : {}),
       ...(includeSuperseded !== undefined ? { includeSuperseded } : {}),
       ...(includeDeleted ? { includeDeleted: true } : {}),
     });

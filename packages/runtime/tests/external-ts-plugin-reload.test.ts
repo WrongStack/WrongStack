@@ -930,4 +930,109 @@ describe('Zero-build external TypeScript plugins, TOFU closure isolation, and li
       required: ['sampleHz'],
     });
   });
+
+  it('holds non-forced reloadPlugin until active tool.execute settles without aborting v1 signal mid-call', async () => {
+    const { installPluginToolQuiescence } = await import('../src/plugin-host.js');
+    const { Container, EventBus } = await import('@wrongstack/contracts/kernel');
+    const { createDefaultPipelines } = await import('@wrongstack/core/agent');
+    const { DefaultPluginAPI, loadPlugins, PluginUiRegistry } = await import(
+      '@wrongstack/core/plugin'
+    );
+    const { ProviderRegistry, SlashCommandRegistry, ToolRegistry } = await import(
+      '@wrongstack/core/registry'
+    );
+
+    const pipelines = createDefaultPipelines();
+    const toolRegistry = new ToolRegistry();
+    const uiRegistry = new PluginUiRegistry({ throttleMs: 0 });
+    const waitForQuiescence = installPluginToolQuiescence(pipelines, toolRegistry);
+    const noopLog = {
+      trace() {},
+      debug() {},
+      info() {},
+      warn() {},
+      error() {},
+      child() {
+        return noopLog;
+      },
+      setLevel() {},
+    };
+    const container = new Container();
+    const events = new EventBus();
+    const providerRegistry = new ProviderRegistry();
+    const slashCommandRegistry = new SlashCommandRegistry();
+
+    let markEntered!: () => void;
+    let releaseExec!: () => void;
+    const entered = new Promise<void>((r) => {
+      markEntered = r;
+    });
+    const gate = new Promise<void>((r) => {
+      releaseExec = r;
+    });
+    let signalAbortedMidCall = false;
+    let finished = false;
+
+    const v1 = {
+      name: 'quiesce-live',
+      version: '1.0.0',
+      apiVersion: '^0.1',
+      capabilities: { tools: true },
+      setup(api: any) {
+        api.tools.register({
+          name: 'gated_op',
+          description: 'Gated op',
+          inputSchema: { type: 'object', properties: {} },
+          permission: 'auto',
+          mutating: false,
+          async execute() {
+            markEntered();
+            await gate;
+            signalAbortedMidCall = Boolean(api.signal?.aborted);
+            finished = true;
+            return 'v1-done';
+          },
+        });
+      },
+    };
+    const v2 = { ...v1, version: '2.0.0', setup() {} };
+
+    const host = await loadPlugins([v1], {
+      log: noopLog as never,
+      waitForQuiescence,
+      quiescenceTimeoutMs: 5_000,
+      apiFactory: (plugin) =>
+        new DefaultPluginAPI({
+          ownerName: plugin.name,
+          capabilities: plugin.capabilities,
+          container,
+          events,
+          pipelines: pipelines as never,
+          toolRegistry,
+          providerRegistry,
+          slashCommandRegistry,
+          config: { version: 1, provider: 'anthropic', model: 'claude', features: {} } as never,
+          log: noopLog as never,
+          uiRegistry,
+        }),
+    });
+
+    const execP = toolRegistry
+      .get('gated_op')!
+      .execute({}, {} as never, { signal: new AbortController().signal });
+    await entered;
+
+    let reloadedBeforeGate = false;
+    const reloadP = host.reloadPlugin(v2).then(() => {
+      if (!finished) reloadedBeforeGate = true;
+    });
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+    expect(reloadedBeforeGate).toBe(false);
+
+    releaseExec();
+    await execP;
+    await reloadP;
+    expect(signalAbortedMidCall).toBe(false);
+    await host.dispose();
+  });
 });

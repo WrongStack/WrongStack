@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [dark, light]
 bestFor: Gaming, crypto/web3, music/streaming, esports, bold tech product launches.
 version: 1.0.0
+paper: dark 16 280
+display: roman-serif Orbitron
+accent: cool 200
+posture: drenched
+photo: natural con=4
 ---
 
 # Cyberpunk Neon

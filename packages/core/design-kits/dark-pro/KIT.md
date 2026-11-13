@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [dark, light]
 bestFor: Developer tools, IDEs, terminals, crypto/trading, technical dashboards, power-user apps.
 version: 1.0.0
+paper: dark 17 265
+display: roman-serif Inter
+accent: chromatic-green 145
+posture: committed
+photo: natural con=4
 ---
 
 # Dark Pro

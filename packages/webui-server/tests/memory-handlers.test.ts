@@ -903,4 +903,106 @@ describe('memory-handlers', () => {
       expect(sent.payload.hits[0].vectorScore).toBeNull();
     });
   });
+
+  describe('payload-less frames and non-finite numeric bounds', () => {
+    it('answers payload-less and non-string SAGE mutation/file frames with structured errors instead of throwing', async () => {
+      const sage = makeSage({
+        recoverSage: vi.fn(async (id: string) => ({
+          id,
+          kind: 'fact',
+          status: 'active',
+          text: 'recovered',
+          tags: [],
+        })),
+      });
+      mockGetSageSurface.mockReturnValue(sage);
+
+      const wsUpdate = mockWs();
+      await expect(
+        handleSageUpdate(wsUpdate, { type: 'memory.sage.update' } as any, {} as any),
+      ).resolves.toBeUndefined();
+      expect(JSON.parse(wsUpdate.send.mock.calls[0]![0] as string).payload.error).toBe(
+        'id is required',
+      );
+
+      const wsRemember = mockWs();
+      await expect(
+        handleSageRemember(wsRemember, { type: 'memory.sage.remember' } as any, {} as any),
+      ).resolves.toBeUndefined();
+      await expect(
+        handleSageRemember(
+          wsRemember,
+          msg({ text: 12345 as unknown as string, requestId: 'req-rem' }),
+          {} as any,
+        ),
+      ).resolves.toBeUndefined();
+      expect(JSON.parse(wsRemember.send.mock.calls[0]![0] as string).payload.error).toBe(
+        'text is required',
+      );
+      expect(JSON.parse(wsRemember.send.mock.calls[1]![0] as string).payload).toMatchObject({
+        error: 'text is required',
+        requestId: 'req-rem',
+      });
+
+      const wsDelete = mockWs();
+      await expect(
+        handleSageDelete(wsDelete, { type: 'memory.sage.delete' } as any, {} as any),
+      ).resolves.toBeUndefined();
+      expect(JSON.parse(wsDelete.send.mock.calls[0]![0] as string).payload).toMatchObject({
+        success: false,
+        message: 'id is required',
+      });
+
+      const wsRecover = mockWs();
+      await expect(
+        handleSageRecover(wsRecover, { type: 'memory.sage.recover' } as any, {} as any),
+      ).resolves.toBeUndefined();
+      expect(JSON.parse(wsRecover.send.mock.calls[0]![0] as string).payload.error).toBe(
+        'id is required',
+      );
+
+      const wsForFile = mockWs();
+      await expect(
+        handleSageForFile(wsForFile, { type: 'memory.sage.forFile' } as any, {} as any),
+      ).resolves.toBeUndefined();
+      expect(JSON.parse(wsForFile.send.mock.calls[0]![0] as string).payload.error).toBe(
+        'filePath is required',
+      );
+    });
+
+    it('falls back to finite defaults when NaN or Infinity bounds reach listPage, graph, and searchBreakdown', async () => {
+      const sage = makeSage({
+        graphFor: vi.fn(async () => []),
+        searchSage: vi.fn(async () => []),
+      });
+      mockGetSageSurface.mockReturnValue(sage);
+
+      const wsPage = mockWs();
+      await handleSageListPage(wsPage, msg({ limit: Number.NaN, includeStats: false }), {} as any);
+      expect(JSON.parse(wsPage.send.mock.calls[0]![0] as string).payload.memories).toHaveLength(2);
+
+      const wsGraph = mockWs();
+      await handleSageGraph(
+        wsGraph,
+        msg({
+          query: 'mem:001',
+          maxDepth: Number.NaN,
+          limit: Number.POSITIVE_INFINITY,
+        }),
+        {} as any,
+      );
+      expect(sage.graphFor).toHaveBeenCalledWith('mem:001', 1, 100);
+
+      const wsSearch = mockWs();
+      await handleSageSearchBreakdown(
+        wsSearch,
+        msg({ query: 'hello', limit: Number.NaN }),
+        {} as any,
+      );
+      expect(sage.searchSage).toHaveBeenCalledWith('hello', {
+        limit: 20,
+        includeStatuses: ['active'],
+      });
+    });
+  });
 });

@@ -513,9 +513,12 @@
         "export * from '../execution/design-dna-compare.js';",
         "export * from '../execution/design-dna-extractor.js';",
         "export * from '../execution/design-dna.js';",
+        "export * from '../execution/design-draw.js';",
         "export * from '../execution/design-inspect-extractor.js';",
         "export * from '../execution/design-inspect.js';",
+        "export * from '../execution/design-keep.js';",
         "export * from '../execution/design-kit-loader.js';",
+        "export * from '../execution/design-material.js';",
         "export * from '../execution/design-materialize.js';",
         "export * from '../execution/design-md-diff.js';",
         "export * from '../execution/design-md.js';",
@@ -524,7 +527,7 @@
         "export * from '../execution/design-turn-gate.js';",
         "export * from '../execution/design-verify-run.js';",
         "export * from '../execution/design-verify.js';",
-        "export { type DesignKitLoader, type DesignStack, isDesignStack, type SkippedKitInfo, } from '@wrongstack/contracts/types/design-kit';"
+        "export { DESIGN_DISPLAY_CLASSES, DESIGN_PAPER_BANDS, DESIGN_POSTURES, type DesignAccentBand, type DesignDisplayClass, type DesignKitAxes, type DesignKitEntry, type DesignKitLoader, type DesignKitManifest, type DesignPaperBand, type DesignPosture, type DesignStack, isDesignStack, type SkippedKitInfo, } from '@wrongstack/contracts/types/design-kit';"
       ]
     },
     {
@@ -580,12 +583,14 @@
       },
       "source": "packages/core/src/storage/index.ts",
       "declarations": [
+        "export * from './architecture-decision.js';",
         "export type { AgentEntry, AgentLiveStatus, SessionLiveStatus, SessionRegistryEntry, } from '../session-catalog/session-registry.js';",
         "export type { DefaultSessionReaderOptions, SessionReader, } from '@wrongstack/contracts/types/session-reader';",
         "export type { SyncCategory, SyncConfig } from '@wrongstack/contracts/types/config';",
         "export type { VcsAdapter, VcsKind, VcsOptions } from '../vcs/vcs-adapter.js';",
         "export type { VcsRunner, VcsRunResult } from '../vcs/vcs-runner.js';",
         "export { ALL_SYNC_CATEGORIES, CloudSync, type SyncResult, } from './cloud-sync.js';",
+        "export { ArchitectureDecisionStore } from './architecture-decision-store.js';",
         "export { BRANCH_NAME_PATTERN, type BranchFoldInsightContext, type CreateBranchOptions, type CreateBranchResult, type FoldBranchOptions, type FoldBranchResult, SessionTreeCoordinator, type SessionTreeCoordinatorOptions, type SwitchBranchOptions, type SwitchBranchResult, } from './session-tree-coordinator.js';",
         "export { CONFIG_BEHAVIOR_DEFAULTS, type ConfigDefaultRepair, type ConfigDefaultRepairReport, type ConfigLoaderOptions, type ConfigSource, DefaultConfigLoader, listInProjectDeniedPaths, repairConfigDefaults, } from './config-loader.js';",
         "export { DefaultConfigStore } from './config-store.js';",
@@ -606,11 +611,13 @@
         "export { applyNamespacePayload, buildNamespacePayloads, CLOUD_SYNC_CONTRACT, CLOUD_SYNC_NAMESPACES, CloudConfigSync, type CloudConfigSyncDeps, type CloudConfigSyncSettings, type CloudSyncPassSummary, LOCAL_ONLY_TOP_LEVEL, NAMESPACE_SCHEMA_VERSIONS, stripSecretMaterial, } from './cloud-config-sync.js';",
         "export { attachScoutToolLearning, seedScoutLearnedTools } from './scout-tool-learning.js';",
         "export { attachTodosCheckpoint, loadTodosCheckpoint, saveTodosCheckpoint, type TodosCheckpointFile, } from './todos-checkpoint.js';",
+        "export { buildArchitectureDecisionBlock } from './architecture-decision-context.js';",
         "export { cleanOrphanLocks, type OrphanLockCleanResult, } from './orphan-lock-cleaner.js';",
         "export { createGoalKanbanBoard, deleteGoalKanbanBoard, findGoalBoardByTag, findGoalKanbanBoard, formatGoalAutonomyChoice, formatGoalEvent, formatGoalKanbanPreview, type GoalFileWithKanban, parseAutonomyChoice, } from './goal-kanban.js';",
         "export { deriveSessionAgents, type SessionAgentRecord, type SessionAgentStatus, } from '../session-catalog/session-agents.js';",
         "export { emptyTaskFile, loadTasks, mutateTasks, saveTasks, type TaskFile, } from './task-store.js';",
         "export { extractInterruptedTools, type InterruptedToolDetail, type RecoveryPlan, SessionRecovery, type StaleSession, type UnclosedSession, } from './session-recovery.js';",
+        "export { formatArchitectureDecisionTransfer, MAX_ADR_TRANSFER_BYTES, MAX_ADR_TRANSFER_CHARACTERS, parseArchitectureDecisionTransfer, } from './architecture-decision-transfer.js';",
         "export { formatPlanTemplates, getPlanTemplate, listPlanTemplates, type PlanTemplate, } from './plan-templates.js';",
         "export { generateSessionId, sanitizeModel } from './session-id.js';",
         "export { getProjectSessionRegistry as getSessionRegistry, hasProjectSessionRegistry as hasSessionRegistry, ProjectSessionRegistry as SessionRegistry, } from '../session-catalog/registry.js';",
@@ -622,6 +629,7 @@
         "export { type AbandonedSession, RecoveryLock, type RecoveryLockOptions, } from './recovery-lock.js';",
         "export { type Annotation, AnnotationsStore, type AnnotationsStoreOptions, } from './annotations-store.js';",
         "export { type ApplyRewindOptions, type ApplyRewindResult, applyRewindToConversation, type RedoRewindResult, type RewindableConversation, type RewoundConversation, redoLastRewind, } from './session-rewind-apply.js';",
+        "export { type ArchitectureDecisionCheckResult, type ArchitectureDecisionCompliance, architectureDecisionReadAuthorizer, checkArchitectureDecisions, } from './architecture-decision-compliance.js';",
         "export { type AttachmentStoreOptions, DefaultAttachmentStore, } from './attachment-store.js';",
         "export { type AuditEntry, ToolAuditLog, type ToolAuditLogOptions, type VerifyResult, } from './tool-audit-log.js';",
         "export { type AuditLevel, CORE_RECONSTRUCT_EVENTS, createSessionEventBridge, resolveAuditLevel, resolveSessionLoggingConfig, type SessionEventBridge, type SessionEventBridgeOptions, type SessionSamplingOptions, STANDARD_AUDIT_EVENTS, type ToolProgressSamplingOptions, } from './session-event-bridge.js';",
@@ -1080,22 +1088,22 @@
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
-      "sourceFiles": 82,
-      "sourceLines": 17372
+      "sourceFiles": 83,
+      "sourceLines": 17458
     },
     {
       "directory": "design",
       "classification": "product feature",
       "intendedOwner": "feature/plugin owner behind a focused public facade",
       "sourceFiles": 1,
-      "sourceLines": 28
+      "sourceLines": 41
     },
     {
       "directory": "execution",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
-      "sourceFiles": 107,
-      "sourceLines": 28571
+      "sourceFiles": 110,
+      "sourceLines": 30642
     },
     {
       "directory": "extension",
@@ -1151,7 +1159,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 13,
-      "sourceLines": 3722
+      "sourceLines": 3761
     },
     {
       "directory": "prompts",
@@ -1193,7 +1201,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 40,
-      "sourceLines": 10106
+      "sourceLines": 10107
     },
     {
       "directory": "session-catalog",
@@ -1220,8 +1228,8 @@
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
-      "sourceFiles": 122,
-      "sourceLines": 28543
+      "sourceFiles": 128,
+      "sourceLines": 29745
     },
     {
       "directory": "tasking",

@@ -226,17 +226,26 @@ export {
   DEFAULT_TOOLS_CONFIG,
 } from './default-config.js';
 export type {
+  DesignAccentBand,
+  DesignDisplayClass,
+  DesignKitAxes,
   DesignKitEntry,
   DesignKitLoader,
   DesignKitManifest,
   DesignKitTokens,
+  DesignPaperBand,
+  DesignPosture,
   DesignStack,
   DesignStudioState,
   DesignTokenSet,
+  SkippedKitInfo,
   TokenValueKind,
 } from './design-kit.js';
-// ── design-kit (12 symbols) ──
+// ── design-kit (21 symbols) ──
 export {
+  DESIGN_DISPLAY_CLASSES,
+  DESIGN_PAPER_BANDS,
+  DESIGN_POSTURES,
   DESIGN_STACKS,
   isDesignStack,
   KNOWN_TOKEN_GROUPS,

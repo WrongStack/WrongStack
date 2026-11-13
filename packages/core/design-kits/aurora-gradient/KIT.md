@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: SaaS/AI landing pages, product marketing, hero sections, sign-in screens.
 version: 1.0.0
+paper: light 99 270
+display: roman-serif Geist
+accent: cool 250
+posture: committed
+photo: natural
 ---
 
 # Aurora Gradient

@@ -15,8 +15,8 @@ paths: [".design/brief.md"]
 
 ## Selection card
 - Task: Build or restyle a concrete product interface.
-- Start: Read `.design/brief.md`, the token source (`design {action:"list"}` for a pinned kit, or the project's theme file) and the screens being changed; write the user's primary task in one line.
-- Finish: the served surface passes `design_reference {action:"inspect"}` with 0 FAIL at 1440/768/390, each WARN is fixed or defended in `.design/review.md`, and the brief's acceptance lines were observed in the rendered UI.
+- Start: Read `.design/brief.md`, the token source (`design {action:"list"}` for a pinned kit, or the project's theme file) and the screens being changed; write the user's primary task in one line. For greenfield pages, run `design {action:"draw", job:"<verb>", material:"photo|product|words"}` to deal a job-native skeleton; for redesigns of existing screens, run `design {action:"snapshot"}` first so `design {action:"kept"}` can verify preserved routes, inputs, and handlers afterward.
+- Finish: the opening fold clears `design_reference {action:"inspect", stage:"hero"}` (`1280×800` + `375×800`), the full served surface passes `design_reference {action:"inspect"}` with 0 FAIL at 1440/768/390, `design {action:"verify"}` (and `design {action:"kept"}` on redesigns) passes, and each WARN is fixed or defended with `design-ignore: <id> -- <reason>` or in `.design/review.md`.
 
 ## Overview
 

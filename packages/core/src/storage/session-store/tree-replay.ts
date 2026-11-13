@@ -532,7 +532,7 @@ export function eventBelongsToLineage(
 }
 
 function extractWorkspaceCheckpoint(ev: SessionEvent): WorkspaceCheckpointRef | undefined {
-  if (ev.type === 'checkpoint') {
+  if (ev.type === 'checkpoint' || ev.type === 'workspace_checkpoint') {
     return ev.workspaceCheckpoint;
   }
   return undefined;

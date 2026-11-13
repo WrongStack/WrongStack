@@ -586,4 +586,157 @@ describe('resolveChimeraFollowupBriefing & createChimeraFollowupExtension', () =
     expect(resUnverified.rejectedUnverifiedCount).toBe(1);
     expect((await findingStore.get(finding.id))?.status).toBe('active');
   });
+
+  it('rejects snake_case bash exit_code failures, tracks patch + exec args, and blocks zero-edit fileless fixed claims', async () => {
+    const initial = 'export const token = "broken";\n';
+    await fsp.writeFile(path.join(cwdDir, 'src', 'broken.ts'), initial, 'utf8');
+    const baselineSha = createHash('sha256').update(initial).digest('hex');
+
+    const reportId = '88888888-8888-4888-8888-888888888888';
+    const reportStore = new JsonlReportStore(projectDir);
+    await reportStore.persist({
+      id: reportId,
+      sessionId: 'sess-gate',
+      agentId: 'chimera-review',
+      reviewerModel: 'anthropic/claude-sonnet-4-6',
+      source: 'chimera',
+      reviewStatus: 'success',
+      files: [{ path: 'src/broken.ts', status: 'modified' }],
+      counts: { critical: 0, high: 1, medium: 0, low: 0 },
+      totalFindings: 1,
+      unparseableCount: 0,
+      rawText: '## 🦂 Chimera Review',
+      scopeManifest: {
+        files: [{ path: 'src/broken.ts', status: 'modified', sha256: baselineSha }],
+      },
+    });
+
+    const parsed = parseChimeraReviewReport(
+      JSON.stringify({
+        findings: [
+          {
+            severity: 'high',
+            category: 'bug',
+            file: 'src/broken.ts',
+            line: 1,
+            title: 'Broken token',
+            description: 'Must pass tests.',
+          },
+          {
+            severity: 'high',
+            category: 'architecture',
+            title: 'Cross-cutting invariant',
+            description: 'No single file attached.',
+          },
+        ],
+      }),
+      {
+        sessionId: 'sess-gate',
+        agentId: 'chimera-review',
+        reviewerModel: 'anthropic/claude-sonnet-4-6',
+        reviewType: 'chimera-session',
+        reportId,
+      },
+    );
+    const [fileFinding, filelessFinding] = parsed.findings;
+    const findingStore = new JsonlFindingStore(projectDir);
+    await findingStore.upsert(parsed.findings, {
+      sessionId: 'sess-gate',
+      reportId,
+      agentId: 'chimera-review',
+      model: 'anthropic/claude-sonnet-4-6',
+    });
+
+    // Zero-edit `fixed` claim on a file-less finding must be rejected
+    const zeroEditFileless = await reconcileChimeraFollowupOutcomes({
+      reportId,
+      projectDir,
+      cwd: cwdDir,
+      outcomes: [{ id: filelessFinding!.id, outcome: 'fixed', reason: 'No edits made' }],
+      reviewedFileHashes: { 'src/broken.ts': baselineSha },
+      editedInRun: false,
+      verifiedAfterEdit: true,
+    });
+    expect(zeroEditFileless.rejectedUnverifiedCount).toBe(1);
+    expect((await findingStore.get(filelessFinding!.id))?.status).toBe('active');
+
+    // Extension tracks `patch`, rejects failing snake_case `exit_code: 1`, then accepts `exec` with `args`
+    const ext = createChimeraFollowupExtension({
+      getCwd: () => cwdDir,
+      getProjectDir: () => projectDir,
+    });
+    const messages: Array<Record<string, unknown>> = [];
+    const ctx = {
+      cwd: cwdDir,
+      projectRoot: cwdDir,
+      meta: {},
+      tools: [{ name: 'patch' }, { name: 'bash' }, { name: 'exec' }],
+      messages,
+      writtenFiles: new Set<string>(),
+      state: { appendBlockToLastUserMessage: () => true },
+    } as never;
+
+    await ext.beforeRun?.(ctx, {
+      text: `Fix Chimera report (${reportId})`,
+      content: [],
+      ctx,
+    });
+    await fsp.writeFile(path.join(cwdDir, 'src', 'broken.ts'), 'export const token = "ok";\n');
+    await ext.afterToolExecution?.(ctx, [
+      {
+        tool: { name: 'patch' } as never,
+        settlement: 'completed',
+        result: { tool_use_id: 'p-1', content: 'patched' },
+      } as never,
+    ]);
+    messages.push({
+      role: 'assistant',
+      content: [{ type: 'tool_use', id: 'b-1', name: 'bash', input: { command: 'bun run test' } }],
+    });
+    await ext.afterToolExecution?.(ctx, [
+      {
+        tool: { name: 'bash' } as never,
+        settlement: 'completed',
+        result: {
+          tool_use_id: 'b-1',
+          content: JSON.stringify({ output: 'FAIL', exit_code: 1, timed_out: false }),
+        },
+      } as never,
+    ]);
+    const finalOutcomes = `\`\`\`json\n${JSON.stringify({
+      chimera_outcomes: [
+        { id: fileFinding!.id, outcome: 'fixed', reason: 'verified' },
+        { id: filelessFinding!.id, outcome: 'fixed', reason: 'verified' },
+      ],
+    })}\n\`\`\``;
+    messages.push({ role: 'assistant', content: finalOutcomes });
+    expect(await ext.beforeTurnEnd?.(ctx, 0)).toContain('have not run verification checks');
+
+    messages.push({
+      role: 'assistant',
+      content: [
+        {
+          type: 'tool_use',
+          id: 'e-1',
+          name: 'exec',
+          input: { command: 'bun', args: ['run', 'test'] },
+        },
+      ],
+    });
+    await ext.afterToolExecution?.(ctx, [
+      {
+        tool: { name: 'exec' } as never,
+        settlement: 'completed',
+        result: {
+          tool_use_id: 'e-1',
+          content: JSON.stringify({ stdout: 'PASS', exitCode: 0, timedOut: false }),
+        },
+      } as never,
+    ]);
+    messages.push({ role: 'assistant', content: finalOutcomes });
+    expect(await ext.beforeTurnEnd?.(ctx, 1)).toBeUndefined();
+    await ext.afterRun?.(ctx, { status: 'done', finalText: finalOutcomes } as never);
+    expect((await findingStore.get(fileFinding!.id))?.status).toBe('resolved');
+    expect((await findingStore.get(filelessFinding!.id))?.status).toBe('resolved');
+  });
 });

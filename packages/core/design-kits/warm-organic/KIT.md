@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Wellness, food, sustainability, lifestyle, skincare, slow-living brands.
 version: 1.0.0
+paper: light 96 85
+display: roman-serif Fraunces
+accent: chromatic-green 145
+posture: committed
+photo: natural
 ---
 
 # Warm Organic

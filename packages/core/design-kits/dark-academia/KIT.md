@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [dark, light]
 bestFor: Literary brands, education, journals, museums, bookish/intellectual products.
 version: 1.0.0
+paper: dark 24 60
+display: high-contrast-serif Cormorant
+accent: chromatic-yellow 85
+posture: committed
+photo: warm sepia=18 con=6
 ---
 
 # Dark Academia

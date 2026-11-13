@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Events, festivals, youth brands, creative agencies, bold playful marketing.
 version: 1.0.0
+paper: light 98 90
+display: display-heavy Archivo Black
+accent: cool 250
+posture: full-palette
+photo: natural
 ---
 
 # Memphis 80s

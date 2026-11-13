@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { shellCommandLinesFromInput } from '@wrongstack/core/security';
-import { safeProfileName, wstackGlobalRoot } from '@wrongstack/core/utils';
+import { compilePathGlob, safeProfileName, wstackGlobalRoot } from '@wrongstack/core/utils';
 
 export type AdversaryEngine = 'auto' | 'brain' | 'jev' | 'council' | 'llm';
 export type AdversaryActionMode = 'block' | 'warn';
@@ -63,12 +63,8 @@ export interface ParsedAdversaryDocument {
 }
 
 function expandToolAliases(tool: string): string[] {
-  // Goose's `adversary.md` uses `tools: shell`; map it transparently onto
-  // WrongStack's shell tool family while keeping literal `shell` for custom/MCP tools.
-  if (tool === 'shell') {
-    return ['bash', 'exec', 'pwsh', 'shell'];
-  }
-  return [tool];
+  // Goose `adversary.md` uses `tools: shell`; map it onto WrongStack's shell tool family.
+  return tool === 'shell' ? ['bash', 'exec', 'pwsh', 'shell'] : [tool];
 }
 
 function parseToolList(raw: string): string[] {
@@ -180,6 +176,7 @@ export interface AdversaryModeConfig {
   expandToolsAfterExternalData: boolean;
   timeoutMs: number;
   cacheVerdicts: boolean;
+  explicit?: { mode?: boolean; engine?: boolean; onlyAfterExternal?: boolean } | undefined;
 }
 
 export const DEFAULT_CONFIG: AdversaryModeConfig = {
@@ -202,9 +199,16 @@ export function readAdversaryConfig(raw: unknown): AdversaryModeConfig {
   const r = raw as Record<string, unknown>;
 
   const rawMode = typeof r['mode'] === 'string' ? r['mode'].trim().toLowerCase() : undefined;
+  const hasExplicitMode = rawMode === 'warn' || rawMode === 'block';
   const mode: AdversaryActionMode = rawMode === 'warn' ? 'warn' : 'block';
 
   const rawEngine = typeof r['engine'] === 'string' ? r['engine'].trim().toLowerCase() : undefined;
+  const hasExplicitEngine =
+    rawEngine === 'auto' ||
+    rawEngine === 'brain' ||
+    rawEngine === 'jev' ||
+    rawEngine === 'council' ||
+    rawEngine === 'llm';
   const engine: AdversaryEngine =
     rawEngine === 'brain' || rawEngine === 'jev' || rawEngine === 'council' || rawEngine === 'llm'
       ? rawEngine
@@ -249,6 +253,7 @@ export function readAdversaryConfig(raw: unknown): AdversaryModeConfig {
       ? Math.min(Math.max(Math.trunc(rawTimeout), 500), 60_000)
       : DEFAULT_CONFIG.timeoutMs;
 
+  const rawOnlyExt = r['onlyAfterExternal'] ?? r['only_after_external'];
   return {
     enabled: r['enabled'] !== false,
     alwaysOn: (r['alwaysOn'] ?? r['always_on']) === true,
@@ -258,11 +263,16 @@ export function readAdversaryConfig(raw: unknown): AdversaryModeConfig {
     projectPolicy,
     tools,
     rules: rawRules,
-    onlyAfterExternal: (r['onlyAfterExternal'] ?? r['only_after_external']) === true,
+    onlyAfterExternal: rawOnlyExt === true,
     expandToolsAfterExternalData:
       (r['expandToolsAfterExternalData'] ?? r['expand_tools_after_external_data']) !== false,
     timeoutMs,
     cacheVerdicts: (r['cacheVerdicts'] ?? r['cache_verdicts']) !== false,
+    explicit: {
+      mode: hasExplicitMode,
+      engine: hasExplicitEngine,
+      onlyAfterExternal: typeof rawOnlyExt === 'boolean',
+    },
   };
 }
 
@@ -450,12 +460,15 @@ export class AdversaryPolicyLoader {
 
     // Operator frontmatter overrides apply only when not explicitly set in config;
     // project frontmatter NEVER weakens mode, engine, or onlyAfterExternal.
-    const mode = profileDoc?.mode ?? globalDoc?.mode ?? cfg.mode;
-    const engine = profileDoc?.engine ?? globalDoc?.engine ?? cfg.engine;
-    const onlyAfterExternal =
-      cfg.onlyAfterExternal ||
-      profileDoc?.onlyAfterExternal === true ||
-      globalDoc?.onlyAfterExternal === true;
+    const mode = cfg.explicit?.mode ? cfg.mode : (profileDoc?.mode ?? globalDoc?.mode ?? cfg.mode);
+    const engine = cfg.explicit?.engine
+      ? cfg.engine
+      : (profileDoc?.engine ?? globalDoc?.engine ?? cfg.engine);
+    const onlyAfterExternal = cfg.explicit?.onlyAfterExternal
+      ? cfg.onlyAfterExternal
+      : cfg.onlyAfterExternal ||
+        profileDoc?.onlyAfterExternal === true ||
+        globalDoc?.onlyAfterExternal === true;
 
     const digest = createHash('sha256')
       .update(
@@ -576,16 +589,65 @@ export function isAdversaryPolicyTamperAttempt(
         return `Refused to modify "${val}" — agents cannot edit adversary.md policy files.`;
       }
     }
+    const rawFiles = obj['files'];
+    if (typeof rawFiles === 'string' || Array.isArray(rawFiles)) {
+      const entries = (Array.isArray(rawFiles) ? rawFiles : rawFiles.split(/,(?![^{]*\})/))
+        .filter((v): v is string => typeof v === 'string')
+        .map((v) => v.trim());
+      const baseCwd = resolve(opts?.cwd ?? process.cwd());
+      const rootNorm = normalizePosixLower(resolve(opts?.globalRoot ?? wstackGlobalRoot()));
+      const extraStr = typeof obj['glob'] === 'string' ? obj['glob'].trim() : '';
+      const extraRe = extraStr ? compilePathGlob(extraStr) : null;
+      const extraOk =
+        !extraRe || extraRe.test('adversary.md') || extraRe.test('.wrongstack/adversary.md');
+      const liveRel: string[] = [];
+      if (existsSync(join(baseCwd, '.wrongstack', 'adversary.md')))
+        liveRel.push('.wrongstack/adversary.md');
+      if (existsSync(join(rootNorm, 'adversary.md'))) liveRel.push(`${rootNorm}/adversary.md`);
+      const allProbes = [
+        '.wrongstack/adversary.md',
+        '.wrongstack/profiles/default/adversary.md',
+        `${rootNorm}/adversary.md`,
+        `${rootNorm}/profiles/default/adversary.md`,
+      ];
+      for (const entry of entries) {
+        if (!entry) continue;
+        if (!/[*?{]/.test(entry)) {
+          if (looksLikeAdversaryPolicyPath(entry, opts)) {
+            return `Refused to modify "${entry}" — agents cannot edit adversary.md policy files.`;
+          }
+          continue;
+        }
+        if (!extraOk) continue;
+        const normPat = entry.replace(/\\/g, '/').replace(/^\.\//, '');
+        const re = compilePathGlob(normPat);
+        const explicit =
+          /\.wrongstack|adversary/i.test(normPat) || normPat.toLowerCase().includes(rootNorm);
+        if ((explicit ? allProbes : liveRel).some((p) => re.test(p))) {
+          return `Refused to modify "${entry}" — agents cannot edit adversary.md policy files.`;
+        }
+      }
+    }
     if (typeof obj['patch'] === 'string') {
-      const patchHeaderMatches = obj['patch'].matchAll(
-        /(?:^|\n)[+-]{3}\s+(?:[ab]\/)?([^\r\n\t]+)/g,
-      );
-      for (const m of patchHeaderMatches) {
-        const patchedPath = m[1]?.trim();
+      const baseCwd = resolve(opts?.cwd ?? process.cwd());
+      const dirOpt = typeof obj['directory'] === 'string' ? obj['directory'].trim() : '';
+      const patchOpts: TamperCheckOptions = {
+        ...opts,
+        cwd: dirOpt ? resolve(baseCwd, dirOpt) : baseCwd,
+      };
+      const strip =
+        typeof obj['strip'] === 'number' && obj['strip'] >= 0 ? Math.floor(obj['strip']) : 1;
+      for (const m of obj['patch'].matchAll(/(?:^|\n)[+-]{3}\s+([^\r\n]+)/g)) {
+        const hdr = m[1]?.split('\t')[0]?.trim() ?? '';
+        const p =
+          hdr.startsWith('"') && hdr.endsWith('"')
+            ? hdr.slice(1, -1).replace(/\\(["\\])/g, '$1')
+            : hdr;
+        if (!p || p === '/dev/null') continue;
+        const stripped = p.replace(/^\/+/, '').split('/').slice(strip).join('/');
         if (
-          patchedPath &&
-          patchedPath !== '/dev/null' &&
-          looksLikeAdversaryPolicyPath(patchedPath, opts)
+          (stripped && looksLikeAdversaryPolicyPath(stripped, patchOpts)) ||
+          looksLikeAdversaryPolicyPath(p.replace(/^[ab]\//, ''), patchOpts)
         ) {
           return 'Refused patch touching adversary.md — agents cannot edit adversary.md policy files.';
         }

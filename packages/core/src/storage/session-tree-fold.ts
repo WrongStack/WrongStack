@@ -34,6 +34,34 @@ export function enforceFoldSummaryTokenCap(
   return `${slice.slice(0, cutIndex).trimEnd()}${FOLD_TRUNCATION_MARKER}`;
 }
 
+/**
+ * A branch's own events minus the prompts a `/rewind` undid. The rewind cuts
+ * the journal after the target checkpoint, so that prompt's `user_input` (written
+ * before its checkpoint) stays on disk; replay drops it on the `rewound` marker
+ * (see `applyEventToBranchState`), and a fold summary must drop it the same way.
+ */
+export function survivingBranchEvents(branchEvents: readonly SessionEvent[]): SessionEvent[] {
+  const kept: SessionEvent[] = [];
+  let promptStart: number | null = null;
+  for (const ev of branchEvents) {
+    if (ev.type === 'user_input') {
+      promptStart = kept.length;
+    } else if (
+      ev.type === 'messages_replaced' ||
+      ev.type === 'context_snapshot' ||
+      ev.type === 'messages_dropped'
+    ) {
+      promptStart = null;
+    } else if (ev.type === 'rewound') {
+      if (promptStart !== null) kept.length = promptStart;
+      promptStart = null;
+      continue;
+    }
+    kept.push(ev);
+  }
+  return kept;
+}
+
 export function extractBranchTouchedFiles(branchEvents: readonly SessionEvent[]): string[] {
   const touched = new Set<string>();
   for (const ev of branchEvents) {

@@ -40,3 +40,9 @@ export function currentTreeListing(key: string, marker: unknown, now = Date.now(
     return undefined;
   return listing.tree;
 }
+
+/** Drops every cached listing for `projectId` after a local file or Git mutation. */
+export function clearProjectTreeListings(projectId: string) {
+  const prefix = `${projectId}\0`;
+  for (const key of [...listings.keys()]) if (key.startsWith(prefix)) listings.delete(key);
+}

@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [dark, light]
 bestFor: Luxury, hospitality, events, spirits/cocktails, premium invites and brands.
 version: 1.0.0
+paper: dark 22 165
+display: high-contrast-serif Poiret One
+accent: chromatic-yellow 85
+posture: committed
+photo: natural con=4
 ---
 
 # Art Deco

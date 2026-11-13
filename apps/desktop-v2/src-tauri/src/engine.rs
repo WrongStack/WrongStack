@@ -74,7 +74,12 @@ fn without_times(value: &Value) -> Value {
     match value {
         Value::Object(map) => Value::Object(
             map.iter()
-                .filter(|(key, _)| !(*key == "at" || *key == "timestamp" || key.ends_with("At")))
+                .filter(|(key, _)| {
+                    !(*key == "at"
+                        || *key == "timestamp"
+                        || *key == "requestId"
+                        || key.ends_with("At"))
+                })
                 .map(|(key, item)| (key.clone(), without_times(item)))
                 .collect(),
         ),
@@ -107,7 +112,10 @@ impl SnapshotGate {
     /// Notes an outgoing message, so the answer to a request for a gated kind gets through.
     fn sent(&mut self, message: &Value) {
         let kind = message["type"].as_str().unwrap_or_default();
-        if snapshot_policy(kind).is_some() {
+        let requested = message["payload"]
+            .get("requestId")
+            .is_some_and(|v| !v.is_null());
+        if !requested && snapshot_policy(kind).is_some() {
             *self.asked.entry(kind.to_string()).or_default() += 1;
         }
     }
@@ -119,16 +127,15 @@ impl SnapshotGate {
             return true;
         };
         let payload = &message["payload"];
-        if payload.get("requestId").is_some() {
-            return true;
-        }
-        let answer = match self.asked.get_mut(kind) {
-            Some(count) if *count > 0 => {
-                *count -= 1;
-                true
-            }
-            _ => false,
-        };
+        let requested = payload.get("requestId").is_some_and(|v| !v.is_null());
+        let answer = !requested
+            && match self.asked.get_mut(kind) {
+                Some(count) if *count > 0 => {
+                    *count -= 1;
+                    true
+                }
+                _ => false,
+            };
         let key = match payload["data"]["boardId"]
             .as_str()
             .or_else(|| payload["boardId"].as_str())
@@ -139,7 +146,7 @@ impl SnapshotGate {
         let mut hasher = DefaultHasher::new();
         without_times(payload).to_string().hash(&mut hasher);
         let print = hasher.finish();
-        if let Some(slot) = self.slots.get_mut(&key).filter(|_| !answer) {
+        if let Some(slot) = self.slots.get_mut(&key).filter(|_| !(requested || answer)) {
             let since = now.duration_since(slot.written);
             if slot.print == print && since < policy.refresh {
                 // Back to what was written: an older waiting change is stale.
@@ -782,15 +789,15 @@ impl Engine {
         reader.seek(SeekFrom::Start(offset)).map_err(err)?;
         let mut events = Vec::new();
         let mut cursor = offset;
-        let mut line = String::new();
+        let mut line = Vec::new();
         for _ in 0..PAGE_EVENTS {
             line.clear();
-            let read = reader.read_line(&mut line).map_err(err)?;
-            if read == 0 || !line.ends_with('\n') {
+            let read = reader.read_until(b'\n', &mut line).map_err(err)?;
+            if read == 0 || line.last() != Some(&b'\n') {
                 break;
             }
             cursor += read as u64;
-            events.push(serde_json::from_str::<Value>(&line).map_err(err)?);
+            events.push(serde_json::from_slice::<Value>(&line).map_err(err)?);
             if cursor - offset >= PAGE_BYTES {
                 break;
             }
@@ -849,5 +856,81 @@ impl Engine {
     }
     pub fn event_path(&self) -> &Path {
         &self.path
+    }
+}
+
+#[cfg(test)]
+mod regression_tests {
+    use super::*;
+    use std::fs::OpenOptions;
+
+    #[test]
+    fn snapshot_gate_request_id_replies_update_slot_and_do_not_leak_asked() {
+        let mut gate = SnapshotGate::default();
+        let t0 = Instant::now();
+
+        assert!(gate.admit(
+            &json!({"type":"sessions.status_update","payload":{"sessions":[{"id":"s1","agentCount":1}]}}),
+            t0
+        ));
+        assert!(!gate.admit(
+            &json!({"type":"sessions.status_update","payload":{"sessions":[{"id":"s1","agentCount":2}]}}),
+            t0 + Duration::from_secs(1)
+        ));
+        // Direct reply inside spacing must write immediately AND clear older waiting snapshot.
+        assert!(gate.admit(
+            &json!({"type":"sessions.status_update","payload":{"requestId":"r-1","sessions":[{"id":"s1","agentCount":3}]}}),
+            t0 + Duration::from_secs(2)
+        ));
+        assert!(gate.due(t0 + Duration::from_secs(10), true).is_empty());
+
+        // Outgoing request carrying `requestId` must not leak an `asked` ticket, and the
+        // `requestId` reply must update `slot.print` so recovery back to healthy is admitted.
+        assert!(gate.admit(
+            &json!({"type":"kanban.supervisor.status","payload":{"data":{"boardId":"b1","status":"healthy"}}}),
+            t0
+        ));
+        gate.sent(&json!({"type":"kanban.supervisor.status","payload":{"requestId":"r-sup"}}));
+        assert!(gate.admit(
+            &json!({"type":"kanban.supervisor.status","payload":{"requestId":"r-sup","data":{"boardId":"b1","status":"degraded"}}}),
+            t0 + Duration::from_secs(1)
+        ));
+        assert!(!gate.admit(
+            &json!({"type":"kanban.supervisor.status","payload":{"data":{"boardId":"b1","status":"degraded"}}}),
+            t0 + Duration::from_secs(2)
+        ));
+        assert!(gate.admit(
+            &json!({"type":"kanban.supervisor.status","payload":{"data":{"boardId":"b1","status":"healthy"}}}),
+            t0 + Duration::from_secs(3)
+        ));
+    }
+
+    #[test]
+    fn events_leaves_incomplete_multibyte_utf8_tail_for_next_read() {
+        let path = std::env::temp_dir().join(format!(
+            "desktop-engine-utf8-tail-{}.events.jsonl",
+            uuid::Uuid::new_v4()
+        ));
+        let line1 = b"{\"type\":\"session.title\",\"payload\":{\"title\":\"Caf\xc3\xa9\"}}\n";
+        let part1 = b"{\"type\":\"text.delta\",\"payload\":{\"content\":\"\xf0\x9f";
+        let part2 = b"\xa6\x80\"}}\n";
+        {
+            let mut file = File::create(&path).unwrap();
+            file.write_all(line1).unwrap();
+            file.write_all(part1).unwrap();
+        }
+        let first = Engine::events(&path, 0).unwrap();
+        assert_eq!(first["events"].as_array().unwrap().len(), 1);
+        let offset = first["offset"].as_u64().unwrap();
+        assert_eq!(offset, line1.len() as u64);
+
+        {
+            let mut file = OpenOptions::new().append(true).open(&path).unwrap();
+            file.write_all(part2).unwrap();
+        }
+        let second = Engine::events(&path, offset).unwrap();
+        let _ = std::fs::remove_file(&path);
+        assert_eq!(second["events"].as_array().unwrap().len(), 1);
+        assert_eq!(second["events"][0]["payload"]["content"], "🦀");
     }
 }

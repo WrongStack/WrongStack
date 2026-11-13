@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Docs, wikis, knowledge bases, note-taking, internal tools, productivity apps.
 version: 1.0.0
+paper: light 99 90
+display: roman-serif Inter
+accent: cool 250
+posture: restrained
+photo: natural
 ---
 
 # Notion Docs

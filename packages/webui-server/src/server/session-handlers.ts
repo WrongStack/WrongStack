@@ -372,6 +372,23 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
           // `session.resume` performs for an already-live session. Without a
           // live fallback named, the active-session guard below still refuses.
           const fallback = requestedSessionId(msg);
+          const askingClient = ctx.clients?.get(ws);
+          const prevClientSessionId = askingClient?.sessionId;
+          const repointedAskingClient =
+            Boolean(askingClient) &&
+            (!askingClient!.sessionIds || askingClient!.sessionIds.size === 0) &&
+            askingClient!.sessionId === id &&
+            Boolean(fallback && fallback !== id && ctx.isSessionLive?.(fallback));
+          if (repointedAskingClient && askingClient && fallback) {
+            askingClient.sessionId = fallback;
+          }
+          if (ctx.clients && displayedByAnyClient(ctx, id)) {
+            if (repointedAskingClient && askingClient) {
+              askingClient.sessionId = prevClientSessionId ?? null;
+            }
+            result(ws, false, `Cannot delete active session ${id}`);
+            return;
+          }
           if (
             ctx.getSession().id === id &&
             fallback &&
@@ -380,8 +397,13 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
           ) {
             const liveWriter = peekForRead(fallback)?.ctx?.session;
             if (liveWriter && liveWriter.id === fallback) {
+              const doomedWriter = ctx.getSession();
               ctx.setSession(liveWriter);
+              if (ctx.context.session?.id === id) {
+                ctx.context.session = liveWriter;
+              }
               await ctx.onSessionSwapped?.(fallback);
+              await finalizeSession(doomedWriter);
             }
           }
           await deleteWebUISession(

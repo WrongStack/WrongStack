@@ -21,7 +21,7 @@ import { toErrorMessage } from '../utils/index.js';
  */
 
 /** A hash as written by the CAS: lowercase sha-256. */
-const MANIFEST_HASH_IN_TRANSCRIPT = /"manifestHash":"([a-f\d]{64})"/g;
+const MANIFEST_HASH_IN_TRANSCRIPT = /"(?:manifestHash|workspaceCheckpointHash)":"([a-f\d]{64})"/g;
 const HASH_RE = /^[a-f\d]{64}$/;
 
 /** Directories under the session store that never hold transcripts. */
@@ -82,7 +82,8 @@ export async function collectReachableManifestHashes(storeDir: string): Promise<
       };
       try {
         for await (const line of lines) {
-          const hasManifestHash = line.includes('manifestHash');
+          const hasManifestHash =
+            line.includes('manifestHash') || line.includes('workspaceCheckpointHash');
           const hasBranchLifecycle = line.includes('"branch_');
           // Cheap reject first: the substring tests skip JSON/regex work for the
           // overwhelming majority of lines, which carry neither checkpoints nor branch state.
@@ -100,6 +101,13 @@ export async function collectReachableManifestHashes(storeDir: string): Promise<
 
           if (parsed) {
             const eventType = parsed.type;
+            if (
+              eventType === 'session_forked' &&
+              typeof parsed.workspaceCheckpointHash === 'string'
+            ) {
+              addBranchHash('main', parsed.workspaceCheckpointHash);
+              continue;
+            }
             if (eventType === 'branch_created' && typeof parsed.newBranchId === 'string') {
               branchStatuses.set(parsed.newBranchId, 'active');
               const baseCp = parsed.baseWorkspaceCheckpoint as

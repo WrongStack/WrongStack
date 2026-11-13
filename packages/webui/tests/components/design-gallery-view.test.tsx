@@ -180,4 +180,27 @@ describe('DesignGalleryView', () => {
 
     act(() => setActiveSessionLane(null));
   });
+
+  it('renders Material 3D axes, posture, photo treatment, and material summary when supplied', () => {
+    render(<DesignGalleryView />);
+    emit('design.list', {
+      kits: [
+        {
+          ...KIT,
+          id: 'atelier',
+          name: 'Atelier',
+          axes: { paper: 'light', display: 'roman-serif', accent: 'cool' },
+          posture: 'restrained',
+          photo: 'warm con=-6 vib=-10',
+          material: 'limewash paper, deep umber ink, Sentient 300 over Hanken Grotesk',
+        },
+      ],
+      activeKit: null,
+      overrides: {},
+    });
+    expect(screen.getByText('light/roman-serif/cool')).toBeTruthy();
+    expect(screen.getByText('restrained')).toBeTruthy();
+    expect(screen.getByText('photo: warm con=-6 vib=-10')).toBeTruthy();
+    expect(screen.getByText(/limewash paper, deep umber ink/)).toBeTruthy();
+  });
 });

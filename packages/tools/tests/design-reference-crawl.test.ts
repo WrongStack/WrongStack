@@ -165,6 +165,24 @@ describe('design_reference subpage selection', () => {
     });
     expect(subpages).toEqual([]);
   });
+
+  it('deduplicates hash fragments and trailing-slash variants against url and subpages (F181)', () => {
+    const subpages = selectReferenceSubpages({
+      url: 'https://example.com/',
+      extraPages: [
+        'https://example.com',
+        'https://example.com/#hero',
+        'https://example.com/pricing/#tiers',
+      ],
+      discovered: [
+        'https://example.com/#faq',
+        'https://example.com/pricing',
+        'https://example.com/docs/',
+      ],
+      maxPages: 3,
+    });
+    expect(subpages).toEqual(['https://example.com/pricing/', 'https://example.com/docs/']);
+  });
 });
 
 describe('design_reference extract crawl', () => {

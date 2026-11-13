@@ -7,6 +7,11 @@ stacks: [web, react-native, flutter, swiftui, compose]
 themes: [light, dark]
 bestFor: Landing pages, campaigns, events, launches, agency and portfolio hero sections.
 version: 1.0.0
+paper: light 98 90
+display: display-condensed Anton
+accent: warm 25
+posture: committed
+photo: natural
 ---
 
 # Grid Poster

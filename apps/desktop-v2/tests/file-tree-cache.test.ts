@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { currentTreeListing, rememberTreeListing, treeListingKey } from '../src/file-tree-cache';
+import {
+  clearProjectTreeListings,
+  currentTreeListing,
+  rememberTreeListing,
+  treeListingKey,
+} from '../src/file-tree-cache';
 
 describe('window file tree listing', () => {
   it('stands in for a read until a change event, its age or another filter says otherwise', () => {
@@ -28,5 +33,19 @@ describe('window file tree listing', () => {
       rememberTreeListing(treeListingKey(`lru${i}`, 'r', false), i, null, 0);
     expect(currentTreeListing(treeListingKey('lru0', 'r', false), null, 1)).toBeUndefined();
     expect(currentTreeListing(treeListingKey('lru7', 'r', false), null, 1)).toBe(7);
+  });
+
+  it('clears all cached scopes and filters of one project without evicting peers (F175)', () => {
+    const marker = { rev: 1 };
+    const vis = treeListingKey('proj-clear', 'D:/repo', false);
+    const all = treeListingKey('proj-clear', 'D:/repo', true);
+    const peer = treeListingKey('proj-clear-2', 'D:/repo2', false);
+    rememberTreeListing(vis, ['vis'], marker, 10);
+    rememberTreeListing(all, ['all'], marker, 10);
+    rememberTreeListing(peer, ['peer'], marker, 10);
+    clearProjectTreeListings('proj-clear');
+    expect(currentTreeListing(vis, marker, 20)).toBeUndefined();
+    expect(currentTreeListing(all, marker, 20)).toBeUndefined();
+    expect(currentTreeListing(peer, marker, 20)).toEqual(['peer']);
   });
 });
