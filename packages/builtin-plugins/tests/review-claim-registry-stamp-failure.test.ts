@@ -20,6 +20,11 @@ vi.mock('node:fs/promises', async (importOriginal) => {
         const handle = await actual.open(filePath, flags);
         const fake = Object.create(handle) as typeof handle;
         fake.writeFile = vi.fn().mockRejectedValue(new Error('injected EPERM'));
+        // Close through the real handle. Under Bun, close() inherited through the
+        // prototype closes the fd but records it on the fake, so the real FileHandle
+        // still looks open and GC closes it again: an uncaught ERR_INVALID_STATE that
+        // failed the Linux CI coverage gate for 1.6.0 and 1.6.1.
+        fake.close = () => handle.close();
         return fake;
       }
       return actual.open(filePath, flags as string);
