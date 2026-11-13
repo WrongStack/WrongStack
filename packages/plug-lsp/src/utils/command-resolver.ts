@@ -274,6 +274,7 @@ export const commandResolverCoverage = {
   commandCandidates,
   commandProbe,
   windowsPathHits,
+  readDirCached,
   fileExists,
   pickProbeHit,
   shellQuote,

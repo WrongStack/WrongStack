@@ -163,6 +163,31 @@ describe('command resolver completion coverage', () => {
     ]);
   });
 
+  // 2026-11-13: the directory listing behind the Windows PATH scan was only exercised by the
+  // win32-only where.exe comparison, so Linux CI fell under plug-lsp's 100% coverage
+  // threshold. It reads any directory, so it is tested on every platform.
+  it('lists a directory once per TTL, files only, and an unreadable one as empty', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'plug-lsp-listing-'));
+    directories.push(root);
+    await fs.writeFile(path.join(root, 'Tsls.CMD'), '');
+    await fs.mkdir(path.join(root, 'sub'));
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    try {
+      const first = commandResolverCoverage.readDirCached(root);
+      expect([...(await first)]).toEqual([['tsls.cmd', 'Tsls.CMD']]);
+      expect(commandResolverCoverage.readDirCached(root.toUpperCase())).toBe(first);
+      now.mockReturnValue(1_000_000 + 60_000);
+      const later = commandResolverCoverage.readDirCached(root);
+      expect(later).not.toBe(first);
+      expect([...(await later)]).toEqual([['tsls.cmd', 'Tsls.CMD']]);
+      expect(await commandResolverCoverage.readDirCached(path.join(root, 'missing'))).toEqual(
+        new Map(),
+      );
+    } finally {
+      now.mockRestore();
+    }
+  });
+
   it.runIf(process.platform === 'win32')('agrees with where.exe on this machine', async () => {
     const { execFileSync } = await import('node:child_process');
     const where = (command: string) => {
