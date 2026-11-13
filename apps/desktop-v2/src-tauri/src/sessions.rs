@@ -35,6 +35,55 @@ pub struct HostState {
     pub dir: PathBuf,
     /// The engine a later launch handed over when this host was started without one.
     adopted_engine: Mutex<Option<PathBuf>>,
+    /// Booted engines waiting to become a conversation, newest last.
+    spares: Mutex<Vec<SpareEngine>>,
+}
+
+/// An engine started ahead of need for one working directory. An engine boot takes seconds
+/// (every service, plugin and index client starts), and a conversation used to wait for all of
+/// it each time one was opened or resumed. A spare has booted already: claiming it only tells
+/// it which conversation it is, and the host connects once it answers.
+pub(crate) struct SpareEngine {
+    runtime_id: String,
+    workdir: String,
+    /// The engine command it was started from; a spare from another engine is not used.
+    engine: String,
+    claimed: Arc<Mutex<Option<std::time::Instant>>>,
+    /// When it was started: an old spare carries stale boot-time state and is about to stop.
+    started: std::time::Instant,
+}
+
+/// Spare engines kept at most, across all working directories. An idle engine holds about a
+/// gigabyte, so only the most recently used working directory keeps one.
+const SPARE_LIMIT: usize = 1;
+/// How long an unclaimed spare waits before it stops itself (the engine enforces it, so a
+/// spare left behind by a crashed host still ends). Its boot-time config, plugins and project
+/// instructions are this old at most.
+const SPARE_MAX_AGE: Duration = Duration::from_secs(20 * 60);
+/// A spare this close to its own stop is not handed out: it could exit before it answers.
+const SPARE_CLAIM_MARGIN: Duration = Duration::from_secs(60);
+/// A refill waits this long after a conversation opens, so the new engine boot does not
+/// compete with the conversation the user is looking at.
+const SPARE_REFILL_DELAY: Duration = Duration::from_secs(30);
+/// How long a spare asked to stop may take for its graceful shutdown before it is stopped hard.
+const SPARE_STOP_GRACE: Duration = Duration::from_secs(30);
+
+/// The claim a spare engine waits for: a new conversation, or a recorded one to resume.
+fn spare_claim(history: Option<(&str, bool)>) -> Value {
+    match history {
+        Some((source, fork)) => json!({"resume": source, "fork": fork}),
+        None => json!({}),
+    }
+}
+
+/// A command's program and arguments, to tell engines started from different builds apart.
+fn command_identity(command: &Command) -> String {
+    let mut identity = command.get_program().to_string_lossy().into_owned();
+    for arg in command.get_args() {
+        identity.push('\0');
+        identity.push_str(&arg.to_string_lossy());
+    }
+    identity
 }
 impl HostState {
     pub fn new(dir: &Path) -> Result<Arc<Self>> {
@@ -47,6 +96,7 @@ impl HostState {
             live: Mutex::new(HashMap::new()),
             dir: dir.into(),
             adopted_engine: Mutex::new(None),
+            spares: Mutex::new(Vec::new()),
         }))
     }
     pub fn request(self: &Arc<Self>, method: &str, p: &Value) -> Result<Value> {
@@ -233,8 +283,19 @@ impl HostState {
         if title.is_empty() || title.len() > 200 {
             return Err("Title must contain 1–200 bytes".into());
         }
+        let workdir_text = workdir.to_string_lossy().into_owned();
+        let spare = if kind == "agent" {
+            self.take_spare(&workdir_text)
+        } else {
+            None
+        };
         let s = Session {
-            id: Uuid::new_v4().to_string(),
+            // A claimed spare's runtime id becomes the conversation's: its process, journal,
+            // transcript and readiness files are already keyed by it.
+            id: spare.as_ref().map_or_else(
+                || Uuid::new_v4().to_string(),
+                |spare| spare.runtime_id.clone(),
+            ),
             project_id: project_id.into(),
             title: title.into(),
             kind: kind.into(),
@@ -248,6 +309,12 @@ impl HostState {
         self.registry.lock().map_err(err)?.insert(&s)?;
         let result = if kind == "terminal" {
             self.open_terminal(&s)
+        } else if let Some(spare) = &spare {
+            // The record exists before the claim: the engine may answer at once, and its
+            // "running" state must find the conversation to update.
+            self.claim_spare(spare, history).inspect_err(|_| {
+                let _ = self.kill(&spare.runtime_id);
+            })
         } else {
             self.start_engine_with_history(&s.id, &s.workdir, true, history)
         };
@@ -258,7 +325,126 @@ impl HostState {
                 .state(&s.id, "error", None, Some(&e))?;
             return Err(e);
         }
+        if kind == "agent" {
+            self.refill_spare(s.workdir.clone());
+        }
         Ok(json!(s))
+    }
+    /// The paths a spare engine is told its conversation by, and answers through.
+    fn spare_files(&self, runtime_id: &str) -> (PathBuf, PathBuf) {
+        let transcripts = self.dir.join("transcripts");
+        (
+            transcripts.join(format!("{runtime_id}.claim.json")),
+            transcripts.join(format!("{runtime_id}.restore.json")),
+        )
+    }
+    /// A running spare for `workdir` from the current engine, removed from the pool. Spares
+    /// from another engine build are stopped instead.
+    fn take_spare(self: &Arc<Self>, workdir: &str) -> Option<SpareEngine> {
+        let current = self.engine_command().ok().map(|c| command_identity(&c))?;
+        let mut spares = self.spares.lock().ok()?;
+        let stale: Vec<String> = spares
+            .iter()
+            .filter(|spare| spare.engine != current)
+            .map(|spare| spare.runtime_id.clone())
+            .collect();
+        spares.retain(|spare| spare.engine == current);
+        let live = self.live.lock().ok()?;
+        // A spare about to stop by itself is left alone: it leaves the pool when it exits.
+        let index = spares.iter().position(|spare| {
+            spare.workdir == workdir
+                && live.contains_key(&spare.runtime_id)
+                && spare.started.elapsed() < SPARE_MAX_AGE.saturating_sub(SPARE_CLAIM_MARGIN)
+        });
+        drop(live);
+        let taken = index.map(|index| spares.remove(index));
+        drop(spares);
+        for id in stale {
+            self.stop_spare(id);
+        }
+        taken
+    }
+    /// Asks a spare the host no longer wants to stop through its claim file, so it shuts down
+    /// gracefully and closes its boot session (a hard kill would leave a 0-byte transcript).
+    /// One that is still running after [`SPARE_STOP_GRACE`] is stopped hard.
+    fn stop_spare(self: &Arc<Self>, runtime_id: String) {
+        let (claim, _) = self.spare_files(&runtime_id);
+        let next = claim.with_extension("json.tmp");
+        let asked = std::fs::write(&next, br#"{"stop":true}"#)
+            .and_then(|()| std::fs::rename(&next, &claim))
+            .is_ok();
+        let host = Arc::clone(self);
+        thread::spawn(move || {
+            if asked {
+                thread::sleep(SPARE_STOP_GRACE);
+            }
+            let running = host
+                .live
+                .lock()
+                .map(|live| live.contains_key(&runtime_id))
+                .unwrap_or(false);
+            if running {
+                let _ = host.kill(&runtime_id);
+            }
+        });
+    }
+    /// Tells a spare which conversation it is; from now on its start has the usual deadline.
+    fn claim_spare(&self, spare: &SpareEngine, history: Option<(&str, bool)>) -> Result<()> {
+        let (claim, _) = self.spare_files(&spare.runtime_id);
+        let next = claim.with_extension("json.tmp");
+        std::fs::write(
+            &next,
+            serde_json::to_vec(&spare_claim(history)).map_err(err)?,
+        )
+        .map_err(err)?;
+        *spare.claimed.lock().map_err(err)? = Some(std::time::Instant::now());
+        std::fs::rename(&next, &claim).map_err(err)
+    }
+    /// Starts a spare for `workdir` in the background, after [`SPARE_REFILL_DELAY`], unless one
+    /// is waiting there, stopping the oldest spares beyond [`SPARE_LIMIT`].
+    fn refill_spare(self: &Arc<Self>, workdir: String) {
+        let host = Arc::clone(self);
+        thread::spawn(move || {
+            thread::sleep(SPARE_REFILL_DELAY);
+            let Ok(engine) = host.engine_command().map(|c| command_identity(&c)) else {
+                return;
+            };
+            {
+                let Ok(spares) = host.spares.lock() else {
+                    return;
+                };
+                if spares
+                    .iter()
+                    .any(|spare| spare.workdir == workdir && spare.engine == engine)
+                {
+                    return;
+                }
+            }
+            let runtime_id = Uuid::new_v4().to_string();
+            let Ok(claimed) = host.spawn_engine(&runtime_id, &workdir, true, None, true) else {
+                return;
+            };
+            let overflow: Vec<String> = {
+                let Ok(mut spares) = host.spares.lock() else {
+                    return;
+                };
+                spares.push(SpareEngine {
+                    runtime_id,
+                    workdir,
+                    engine,
+                    claimed,
+                    started: std::time::Instant::now(),
+                });
+                let excess = spares.len().saturating_sub(SPARE_LIMIT);
+                spares
+                    .drain(..excess)
+                    .map(|spare| spare.runtime_id)
+                    .collect()
+            };
+            for id in overflow {
+                host.stop_spare(id);
+            }
+        });
     }
     /// Starts a stopped agent conversation's engine again on its own record and journal,
     /// resuming the WrongStack session it recorded: the conversation keeps its id, its tab and
@@ -450,14 +636,36 @@ impl HostState {
         bind_session: bool,
         history: Option<(&str, bool)>,
     ) -> Result<()> {
+        self.spawn_engine(runtime_id, workdir, bind_session, history, false)
+            .map(|_| ())
+    }
+    /// Starts an engine. A `spare` one boots and waits for its claim
+    /// ([`HostState::claim_spare`]) with no deadline; the host connects to it only after it
+    /// answers. Returns when the start was claimed (now, for any other engine).
+    fn spawn_engine(
+        self: &Arc<Self>,
+        runtime_id: &str,
+        workdir: &str,
+        bind_session: bool,
+        history: Option<(&str, bool)>,
+        spare: bool,
+    ) -> Result<Arc<Mutex<Option<std::time::Instant>>>> {
         let reservation = TcpListener::bind("127.0.0.1:0").map_err(err)?;
         let port = reservation.local_addr().map_err(err)?.port();
         let token = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
         let mut command = self.engine_command()?;
-        let ready_path = self
-            .dir
-            .join("transcripts")
-            .join(format!("{runtime_id}.restore.json"));
+        let (claim_path, ready_path) = self.spare_files(runtime_id);
+        let claimed = Arc::new(Mutex::new((!spare).then(std::time::Instant::now)));
+        if spare {
+            let _ = std::fs::remove_file(&ready_path);
+            let _ = std::fs::remove_file(&claim_path);
+            command.env("WRONGSTACK_DESKTOP_SPARE_CLAIM", &claim_path);
+            command.env(
+                "WRONGSTACK_DESKTOP_SPARE_MAX_AGE_MS",
+                SPARE_MAX_AGE.as_millis().to_string(),
+            );
+            command.env("WRONGSTACK_DESKTOP_RESTORE_READY", &ready_path);
+        }
         if let Some((id, fork)) = history {
             // A reconnected conversation reuses its runtime id: an earlier restore's answer
             // must not read as this start being ready.
@@ -527,12 +735,41 @@ impl HostState {
         );
         let host = Arc::clone(self);
         let id = runtime_id.to_owned();
-        let restoring = history.is_some();
+        // A spare answers through the readiness file too, once it is claimed.
+        let restoring = history.is_some() || spare;
+        let watched = Arc::clone(&claimed);
         thread::spawn(move || {
-            let deadline = std::time::Instant::now() + Duration::from_secs(90);
+            // The 90 s start deadline runs from the claim: a spare waits unclaimed for as long
+            // as it is not needed.
+            let expired = || {
+                watched
+                    .lock()
+                    .ok()
+                    .and_then(|at| *at)
+                    .is_some_and(|at| at.elapsed() > Duration::from_secs(90))
+            };
             let mut ready = false;
             loop {
                 match child.try_wait() {
+                    Ok(Some(_)) if watched.lock().map(|at| at.is_none()).unwrap_or(false) => {
+                        // An unclaimed spare stopped (replaced, or the engine exited): it was
+                        // never a conversation, so it leaves nothing behind.
+                        host.live.lock().unwrap().remove(&id);
+                        if let Ok(mut spares) = host.spares.lock() {
+                            spares.retain(|spare| spare.runtime_id != id);
+                        }
+                        let (claim, ready_file) = host.spare_files(&id);
+                        let transcripts = host.dir.join("transcripts");
+                        for path in [
+                            claim,
+                            ready_file,
+                            transcripts.join(format!("{id}.bin")),
+                            transcripts.join(format!("{id}.jsonl")),
+                        ] {
+                            let _ = std::fs::remove_file(path);
+                        }
+                        break;
+                    }
                     Ok(Some(code)) => {
                         host.live.lock().unwrap().remove(&id);
                         let restore_error = if restoring {
@@ -585,7 +822,7 @@ impl HostState {
                             .and_then(|value| value["sessionId"].as_str())
                             .is_none()
                         {
-                            if std::time::Instant::now() > deadline {
+                            if expired() {
                                 let _ = child.kill();
                                 let _ = child.wait();
                                 host.live.lock().unwrap().remove(&id);
@@ -597,7 +834,10 @@ impl HostState {
                                 );
                                 break;
                             }
-                            thread::sleep(Duration::from_millis(250));
+                            // A claimed spare answers within moments; check it often.
+                            let quick =
+                                spare && watched.lock().map(|at| at.is_some()).unwrap_or(false);
+                            thread::sleep(Duration::from_millis(if quick { 25 } else { 250 }));
                             continue;
                         }
                     }
@@ -615,7 +855,7 @@ impl HostState {
                         }
                         ready = true;
                         let _ = host.publish_runtime_state(&id, "running", None, None);
-                    } else if std::time::Instant::now() > deadline {
+                    } else if expired() {
                         let _ = child.kill();
                         let _ = child.wait();
                         host.live.lock().unwrap().remove(&id);
@@ -628,10 +868,16 @@ impl HostState {
                         break;
                     }
                 }
-                thread::sleep(Duration::from_millis(250));
+                // A claimed spare is polled quickly: its readiness answer is the whole wait.
+                let claimed_spare = spare && watched.lock().map(|at| at.is_some()).unwrap_or(false);
+                thread::sleep(Duration::from_millis(if !ready && claimed_spare {
+                    25
+                } else {
+                    250
+                }));
             }
         });
-        Ok(())
+        Ok(claimed)
     }
     fn read(&self, id: &str, offset: Option<u64>) -> Result<Value> {
         if !self
@@ -783,6 +1029,89 @@ mod history_tests {
         );
         drop(host);
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn a_conversation_takes_a_running_spare_of_its_workdir_and_engine_and_tells_it_who_it_is() {
+        if std::env::var_os("WRONGSTACK_DESKTOP_ENGINE").is_some()
+            || std::env::var_os("WRONGSTACK_DESKTOP_ENTRY").is_some()
+        {
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!("desktop-spare-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let host = HostState::new(&dir).unwrap();
+        std::fs::create_dir_all(dir.join("transcripts")).unwrap();
+        assert!(host.take_spare("w1").is_none(), "no engine, no spare");
+        let engine = dir.join("wrongstack-engine.exe");
+        std::fs::write(&engine, b"").unwrap();
+        host.request("engine.adopt", &json!({"path": engine.to_string_lossy()}))
+            .unwrap();
+        let current = command_identity(&host.engine_command().unwrap());
+        let spare = |id: &str, workdir: &str, engine: &str| SpareEngine {
+            runtime_id: id.into(),
+            workdir: workdir.into(),
+            engine: engine.into(),
+            claimed: Arc::new(Mutex::new(None)),
+            started: std::time::Instant::now(),
+        };
+        let idle = || LiveSession {
+            master: None,
+            writer: None,
+            killer: None,
+            agent_pid: None,
+            engine: None,
+        };
+        {
+            let mut spares = host.spares.lock().unwrap();
+            spares.push(spare("gone", "w1", &current));
+            spares.push(spare("old", "w1", "older engine"));
+            spares.push(spare("other", "w2", &current));
+            let mut aged = spare("aged", "w1", &current);
+            aged.started = std::time::Instant::now() - (SPARE_MAX_AGE - SPARE_CLAIM_MARGIN);
+            spares.push(aged);
+            spares.push(spare("ready", "w1", &current));
+            let mut live = host.live.lock().unwrap();
+            for id in ["old", "other", "aged", "ready"] {
+                live.insert(id.into(), idle());
+            }
+        }
+        let taken = host.take_spare("w1").expect("the running spare of w1");
+        assert_eq!(taken.runtime_id, "ready");
+        let left: Vec<String> = host
+            .spares
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|spare| spare.runtime_id.clone())
+            .collect();
+        assert_eq!(
+            left,
+            ["gone", "other", "aged"],
+            "another engine's spare is dropped; a stopped one and one near its own stop are skipped"
+        );
+        let (old_claim, _) = host.spare_files("old");
+        let stop: Value = serde_json::from_slice(&std::fs::read(&old_claim).unwrap()).unwrap();
+        assert_eq!(
+            stop,
+            json!({"stop": true}),
+            "another engine's spare is asked to stop gracefully, not killed"
+        );
+        assert!(host.take_spare("w1").is_none());
+
+        host.claim_spare(&taken, Some(("2026-11-12/sess_1", true)))
+            .unwrap();
+        assert!(
+            taken.claimed.lock().unwrap().is_some(),
+            "the deadline starts"
+        );
+        let (claim, _) = host.spare_files("ready");
+        let written: Value = serde_json::from_slice(&std::fs::read(&claim).unwrap()).unwrap();
+        assert_eq!(written, json!({"resume":"2026-11-12/sess_1","fork":true}));
+        assert_eq!(spare_claim(None), json!({}));
+        drop(host);
+        // Best effort: the stop request's grace thread still holds the host (and its registry).
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]
