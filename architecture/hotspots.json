@@ -38,10 +38,6 @@
       "lines": 724,
       "relativeImports": 1
     },
-    "packages/coordination/src/mailbox-project-server-client.ts": {
-      "lines": 725,
-      "relativeImports": 3
-    },
     "packages/coordination/src/multi-agent-coordinator.ts": {
       "lines": 726,
       "relativeImports": 13
@@ -75,7 +71,7 @@
       "relativeImports": 2
     },
     "packages/core/src/storage/file-session-writer.ts": {
-      "lines": 705,
+      "lines": 704,
       "relativeImports": 12
     },
     "packages/fleet/src/host-skill-companion.ts": {
@@ -166,6 +162,10 @@
       "lines": 800,
       "relativeImports": 12
     },
+    "packages/vibeui/src/lib/session.ts": {
+      "lines": 822,
+      "relativeImports": 5
+    },
     "packages/vibeui/src/lib/use-session.ts": {
       "lines": 762,
       "relativeImports": 8
@@ -203,7 +203,7 @@
       "relativeImports": 17
     },
     "apps/desktop-v2/src/EngineWorkspace.tsx": {
-      "lines": 871,
+      "lines": 870,
       "relativeImports": 59
     },
     "apps/desktop-v2/src/FileWorkspace.tsx": {

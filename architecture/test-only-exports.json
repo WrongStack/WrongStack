@@ -758,10 +758,6 @@
     "packages/core/src/statusline/index.ts": [
       "DEFAULT_HIDDEN_ITEMS"
     ],
-    "packages/core/src/storage/architecture-decision-context.ts": [
-      "rememberWarnedRoot",
-      "WARNED_PROJECT_ROOTS_CAP"
-    ],
     "packages/core/src/storage/cloud-config-sync/sanitize.ts": [
       "inboundContractFor"
     ],
@@ -929,6 +925,9 @@
     ],
     "packages/hq-next/src/hq/domain/status-tone.ts": [
       "commandLifecycleTone"
+    ],
+    "packages/hq-next/src/hq/domain/transcript-store.ts": [
+      "entryKey"
     ],
     "packages/hq-next/src/hq/domain/use-pending-approvals.ts": [
       "derivePendingApprovals"
@@ -1950,9 +1949,6 @@
     "packages/vibeui/src/lib/mascot.ts": [
       "MASCOT_HEIGHT",
       "MASCOT_WIDTH"
-    ],
-    "packages/vibeui/src/lib/reducers/index.ts": [
-      "mergeFrameReducers"
     ],
     "packages/vibeui/src/lib/session-branch-model.ts": [
       "quoteVibeTreeArg"

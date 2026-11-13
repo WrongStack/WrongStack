@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.2] — 2026-11-13
+
+The desktop app stops making you wait. A conversation opens or resumes on an
+engine that has already booted, settings and the last project start while the
+window comes up, and stopping a conversation closes its journals instead of
+killing the engine. Chronicle opens without reading its whole journal, and a
+round of screen fixes brings the desktop closer to the WebUI.
+
+### Changed
+
+- **Conversations open on a booted engine.** Thirty seconds after a
+  conversation opens, the desktop session host boots one spare engine for that
+  working directory. The next conversation there — new, resumed or forked —
+  takes it instead of waiting for a whole engine boot. An unclaimed spare stops
+  by itself after 20 minutes, and a spare the host no longer needs is asked to
+  stop gracefully.
+- **Stopping a conversation ends its journals.** The host asks the engine to
+  shut down through a stop file and stops it hard only if it is still running
+  after 12 seconds. Every journal gets its `session_end`, so a stopped
+  conversation no longer looks crashed on the next launch. Meanwhile the
+  conversation shows as stopping.
+- **Settings and the last project are ready sooner.** At launch the project the
+  saved layout returns to and the settings engine start in the background, and
+  a starting page appears as soon as its engine is ready.
+- **Chronicle opens without reading its whole journal.** The unfiltered view
+  reads its page through the `occurred_at` index and counts the rest instead of
+  decoding every event.
+- **Analytics in the desktop** shows the project's live sessions and their
+  agents instead of the project engine's own, always empty, usage and event
+  sections.
+- **An empty conversation opens at its top**, and offers DESIGN.md synthesis in
+  one line, as Design Studio does.
+
+### Fixed
+
+- The shared shutdown also closes the session the root agent booted with after
+  a resume moved the leader role to another session.
+- Session history lists hide journals that were never written.
+- Plan quota is named and marked in the rail while its settings engine starts.
+- VibeUI quotes `/tree` branch names and ids so names with spaces survive the
+  command tokenizer.
+
 ## [1.6.1] — 2026-11-13
 
 The desktop app catches up with the WebUI. A project journal stops growing by

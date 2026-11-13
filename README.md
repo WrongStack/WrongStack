@@ -55,6 +55,18 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.6.2
+
+- **A desktop app that doesn't keep you waiting:** conversations open on an
+  engine that has already booted, and settings and the last project start
+  while the window comes up.
+- **Stopping a conversation ends its journals** instead of killing the
+  engine, so nothing looks crashed on the next launch.
+- **Chronicle opens at once:** its unfiltered view no longer reads the whole
+  journal.
+- **Desktop screens closer to the WebUI:** an empty conversation opens at its
+  top, Analytics shows the live agents, and empty journals stay out of history.
+
 ### What's new in 1.6.1
 
 - **A faster desktop app:** project journals stop growing by gigabytes, a
@@ -500,7 +512,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.6.1**; versions follow semver
+- Release notes: **v1.6.2**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements

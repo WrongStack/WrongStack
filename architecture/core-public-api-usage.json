@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 999,
+      "files": 1000,
       "typeOnly": 76,
-      "runtimeOrMixed": 959
+      "runtimeOrMixed": 960
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -17094,6 +17094,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/session-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/session-history-content.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

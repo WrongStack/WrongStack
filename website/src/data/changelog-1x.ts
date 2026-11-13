@@ -1,4 +1,4 @@
-// Changelog — 1.x era (1.6.1 → 1.0.0).
+// Changelog — 1.x era (1.6.2 → 1.0.0).
 // Historical entries mirror CHANGELOG.md release notes. The 1.0.37 entry was
 // written from committed runtime/source evidence (git history and packages), not
 // the root CHANGELOG, which had not been extended when it landed. 1.1.0 absorbs
@@ -13,11 +13,25 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.6.2',
+    date: '2026-11-13',
+    tagline:
+      'A desktop app that doesn’t keep you waiting: booted engines, graceful stops and a quick Chronicle',
+    latest: true,
+    highlights: [
+      'A conversation opens, resumes or forks on a spare engine the desktop booted for its working directory',
+      'Stopping a conversation shuts its engine down gracefully, so every journal gets its session_end',
+      'Settings and the last project start in the background at launch',
+      'Chronicle’s unfiltered view reads its page through the index instead of the whole journal',
+      'Analytics shows the live agents; an empty conversation opens at its top; never-written journals stay out of history',
+      'VibeUI quotes /tree branch names with spaces',
+    ],
+  },
+  {
     version: '1.6.1',
     date: '2026-11-13',
     tagline:
       'A desktop app that keeps up: small journals, quicker boot and a calmer conversation screen',
-    latest: true,
     highlights: [
       'Desktop project journals throttle and deduplicate status and supervisor snapshots, and a project opens from the last 32 MiB of its journal',
       'An engine boots without starting a process per language server or linter; on the maintainer’s Windows machine, 6.5–10 s instead of 14–44 s',
