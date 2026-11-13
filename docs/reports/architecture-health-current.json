@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-13T00:13:15.283Z",
+  "generatedAt": "2026-11-13T01:30:43.446Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,21 +12,19 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6285,
+    "sourceFiles": 6286,
     "testFiles": 5242,
-    "sourceLines": 1299865,
+    "sourceLines": 1299869,
     "workspaceEdges": 250,
-    "moduleEdges": 18534,
+    "moduleEdges": 18536,
     "nonCommandSlashImports": 0,
-    "runtimeModuleCycles": 1,
-    "typeModuleCycles": 2,
+    "runtimeModuleCycles": 0,
+    "typeModuleCycles": 1,
     "testsWithoutTypecheck": 337,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1053
   },
-  "errors": [
-    "2 unexcepted module cycle(s)"
-  ],
+  "errors": [],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -162,7 +160,7 @@
     {
       "name": "@wrongstack/builtin-plugins",
       "dir": "packages/builtin-plugins",
-      "sourceFiles": 34,
+      "sourceFiles": 35,
       "testFiles": 29,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1304,23 +1302,8 @@
     }
   ],
   "cycles": {
-    "runtime": [
-      {
-        "kind": "runtime-module-cycle",
-        "members": [
-          "packages/builtin-plugins/src/auto-review-git.ts",
-          "packages/builtin-plugins/src/review-context-builder.ts"
-        ]
-      }
-    ],
+    "runtime": [],
     "type": [
-      {
-        "kind": "type-module-cycle",
-        "members": [
-          "packages/builtin-plugins/src/auto-review-git.ts",
-          "packages/builtin-plugins/src/review-context-builder.ts"
-        ]
-      },
       {
         "kind": "type-module-cycle",
         "members": [
@@ -1340,22 +1323,7 @@
     "matchedExceptions": [
       "ARCH-CYCLE-TYPE-12"
     ],
-    "unexcepted": [
-      {
-        "kind": "runtime-module-cycle",
-        "members": [
-          "packages/builtin-plugins/src/auto-review-git.ts",
-          "packages/builtin-plugins/src/review-context-builder.ts"
-        ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
-          "packages/builtin-plugins/src/auto-review-git.ts",
-          "packages/builtin-plugins/src/review-context-builder.ts"
-        ]
-      }
-    ]
+    "unexcepted": []
   },
   "testOwnership": {
     "runtimeAssignments": [
@@ -36083,8 +36051,8 @@
     },
     {
       "file": "packages/builtin-plugins/src/review-context-builder.ts",
-      "lines": 1565,
-      "relativeImports": 3
+      "lines": 1532,
+      "relativeImports": 5
     },
     {
       "file": "packages/builtin-plugins/src/review-followup-briefing.ts",
@@ -36410,8 +36378,8 @@
     },
     {
       "file": "packages/builtin-plugins/src/review-context-builder.ts",
-      "lines": 1565,
-      "relativeImports": 3
+      "lines": 1532,
+      "relativeImports": 5
     },
     {
       "file": "packages/core/src/execution/design-dna.ts",

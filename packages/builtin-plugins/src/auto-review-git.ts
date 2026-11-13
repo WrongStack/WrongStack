@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import { gitIsolationEnv } from '@wrongstack/primitives';
-import { statusUnderPrefix } from './review-context-builder.js';
+import { statusUnderPrefix } from './git-porcelain.js';
 
 export interface ChangedFile {
   path: string;

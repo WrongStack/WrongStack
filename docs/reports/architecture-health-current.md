@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-13T00:13:15.283Z
+**Generated:** 2026-11-13T01:30:43.446Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,20 +8,20 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 48 |
-| Production source files | 6285 |
-| Production source lines | 1299865 |
+| Production source files | 6286 |
+| Production source lines | 1299869 |
 | Test files | 5242 |
 | Workspace dependency edges | 250 |
-| Relative module edges | 18534 |
+| Relative module edges | 18536 |
 | Non-command slash imports | 0 |
-| Runtime module cycles | 1 |
-| Type-inclusive module cycles | 2 |
+| Runtime module cycles | 0 |
+| Type-inclusive module cycles | 1 |
 | Tests without TypeScript test-project coverage | 337 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
 
-- 2 unexcepted module cycle(s)
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 
@@ -30,7 +30,7 @@
 | @wrongstack/acp | 57 | 67 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/agent-catalog | 44 | 13 | @wrongstack/contracts, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/bench | 32 | 65 | @wrongstack/core |
-| @wrongstack/builtin-plugins | 34 | 29 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives |
+| @wrongstack/builtin-plugins | 35 | 29 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/chronicle | 53 | 45 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/cli | 637 | 701 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/bench, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/codebase-index-mcp, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/hq-next, @wrongstack/kanban, @wrongstack/kanban-mcp, @wrongstack/mailbox-mcp, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/requirement-intake-mcp, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sage-mcp, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/vibeui, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/worktree, @wrongstack/wrongtrace |
 | @wrongstack/client | 7 | 4 | @wrongstack/webui-protocol |
@@ -80,11 +80,10 @@
 
 ### Runtime
 
-- packages/builtin-plugins/src/auto-review-git.ts ↔ packages/builtin-plugins/src/review-context-builder.ts
+None.
 
 ### Type-inclusive
 
-- packages/builtin-plugins/src/auto-review-git.ts ↔ packages/builtin-plugins/src/review-context-builder.ts
 - packages/contracts/src/types/blocks.ts ↔ packages/contracts/src/types/context.ts ↔ packages/contracts/src/types/conversation-state.ts ↔ packages/contracts/src/types/messages.ts ↔ packages/contracts/src/types/provider.ts ↔ packages/contracts/src/types/run-env.ts ↔ packages/contracts/src/types/session-events.ts ↔ packages/contracts/src/types/session-storage.ts ↔ packages/contracts/src/types/session.ts ↔ packages/contracts/src/types/tool.ts
 
 ## Largest production files
@@ -93,7 +92,7 @@
 |---:|---|
 | 2094 | `apps/desktop-v2/src/FileWorkspace.tsx` |
 | 1589 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
-| 1565 | `packages/builtin-plugins/src/review-context-builder.ts` |
+| 1532 | `packages/builtin-plugins/src/review-context-builder.ts` |
 | 1519 | `packages/core/src/execution/design-dna.ts` |
 | 1216 | `packages/vibeui/src/components/workspace.tsx` |
 | 1162 | `packages/core/src/execution/design-md.ts` |

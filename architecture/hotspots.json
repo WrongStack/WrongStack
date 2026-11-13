@@ -15,8 +15,8 @@
       "relativeImports": 4
     },
     "packages/builtin-plugins/src/review-context-builder.ts": {
-      "lines": 1565,
-      "relativeImports": 3
+      "lines": 1532,
+      "relativeImports": 5
     },
     "packages/builtin-plugins/src/review-followup-briefing.ts": {
       "lines": 869,
