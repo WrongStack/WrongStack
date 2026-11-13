@@ -9,6 +9,7 @@ import type { InputDraft } from './input-form-model';
 import { initialSnapshot, isLive, type Session, type Snapshot, visibleSessions } from './model';
 import { acknowledgePendingLayout, pendingLayoutValue, stagePendingLayout } from './pending-layout';
 import { getSnapshot, layoutKey, native, request } from './platform';
+import { warmRuntimes } from './runtime-warmup';
 import { type DraftRevisions, type SavedDraft, validateSavedDraft } from './saved-draft';
 import { nextSessionAfterDetach, restoreSessionTabs } from './session-layout';
 import { useAppearance } from './useAppearance';
@@ -271,6 +272,7 @@ export function useDesktop() {
         } catch {
           /* Invalid saved UI layout never prevents registry recovery. */
         }
+        if (native) warmRuntimes(next, pendingLayoutValue(layoutKey) ?? next.layout, request);
         setRestored(true);
       }
     } catch (e) {

@@ -207,6 +207,11 @@ export function EngineWorkspace({
   const transcript = useRef<TranscriptHandle>(null);
   const pins = useMessagePins(`${projectId}:${id}`, onError);
   const following = useRef(true);
+  // The empty conversation's welcome is read from its top: following the end there scrolled
+  // its heading out of view as soon as the welcome was taller than the pane.
+  const welcome = state.synced && !state.messages.length && !state.inputs.length;
+  const welcomeShown = useRef(welcome);
+  welcomeShown.current = welcome;
   const [showLatest, setShowLatest] = useState(false);
   // Messages there were when the reader scrolled away from the end, to count what arrived since.
   const leftAt = useRef(0);
@@ -241,9 +246,11 @@ export function EngineWorkspace({
     return () => cancelAnimationFrame(frame);
   }, [chatActive, state.inputs.length, showConversation]);
   useEffect(() => {
-    if (chatActive && !state.inputs.length && following.current)
+    if (!chatActive) return;
+    if (welcome) chatPane.current?.scrollTo({ top: 0 });
+    else if (!state.inputs.length && following.current)
       end.current?.scrollIntoView({ block: 'nearest' });
-  }, [chatActive, state.messages, state.inputs, state.approvals]);
+  }, [chatActive, welcome, state.messages, state.inputs, state.approvals]);
   // A panel opening under the conversation shrinks it, and a card can grow after it renders;
   // while following, keep the newest content in view through those changes too.
   useEffect(() => {
@@ -256,7 +263,8 @@ export function EngineWorkspace({
     )
       return;
     const keep = () => {
-      if (following.current) end.current?.scrollIntoView({ block: 'nearest' });
+      if (following.current && !welcomeShown.current)
+        end.current?.scrollIntoView({ block: 'nearest' });
     };
     const resize = new ResizeObserver(keep);
     resize.observe(pane);

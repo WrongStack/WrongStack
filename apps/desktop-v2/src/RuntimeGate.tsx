@@ -33,8 +33,10 @@ export function RuntimeGate({
         if (stopped) return;
         setStatus(result.status);
         setError(result.error ?? '');
-        if (result.status === 'starting' || result.status === 'running')
-          timer = setTimeout(poll, 1000);
+        // A starting engine is checked often: the page appears as soon as it is ready instead
+        // of up to a second later. A running one is only watched for a stop.
+        if (result.status === 'starting') timer = setTimeout(poll, 250);
+        else if (result.status === 'running') timer = setTimeout(poll, 1000);
       } catch (error) {
         if (!stopped) {
           setError(error instanceof Error ? error.message : String(error));
