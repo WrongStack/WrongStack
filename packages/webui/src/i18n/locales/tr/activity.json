@@ -5796,5 +5796,103 @@
     "cost": "maliyet",
     "ctx": "bağlam",
     "providerModel": "Sağlayıcı / Model"
+  },
+  "adr": {
+    "replace": "Yerine yeni karar öner",
+    "replacementHint": "Mevcut karar, bu yeni öneriyi ayrıca kabul edene kadar etkin kalır.",
+    "history": {
+      "title": "Sürüm geçmişi",
+      "refresh": "Geçmişi yenile",
+      "loading": "Sürümler yükleniyor…",
+      "revision": "Sürüm {{revision}}",
+      "more": "Daha eski sürümler",
+      "snapshot": "Geçmiş sürüm",
+      "readonly": "Salt okunur geçmiş kaydı. Ajanlar güncel kabul edilmiş kararları kullanır.",
+      "mismatch": "Geçmiş başka bir karara veya projeye ait. Güncel kararı yeniden açın.",
+      "proposedBy": "Öneren"
+    },
+    "import": "JSON önerisi aktar",
+    "importFile": "ADR önerisi JSON dosyası",
+    "importTooLarge": "ADR aktarım dosyası en fazla 128 KiB olabilir.",
+    "importPreview": "İçerik taslak olarak açıldı. Kontrol edip öneri olarak kaydedin; kabul için ayrı bir inceleme gerekir.",
+    "exportJson": "Öneri JSON dosyasını indir",
+    "pendingCount": "Onay bekleyen: {{count}}",
+    "inboxUnavailable": "ADR önerileri şu anda okunamıyor",
+    "staleReview": "Bu karar değişti. İncelemeden önce güncel sürümü açın.",
+    "reloadDecision": "Güncel sürümü aç",
+    "title": "Mimari kararlar",
+    "shortTitle": "ADR",
+    "description": "Proje için kalıcı kararlar önerin. Yalnızca açıkça kabul ettiğiniz kararlar ajanlara ve alt ajanlara aktarılır.",
+    "refresh": "Yenile",
+    "new": "Yeni öneri",
+    "count": "{{count}} kayıt",
+    "loading": "Kararlar yükleniyor…",
+    "empty": "Henüz mimari karar yok.",
+    "more": "Daha fazla yükle",
+    "saved": "İnceleme kaydedildi. Ajanlar sonraki isteklerinde güncel kararları alacak.",
+    "proposed": "Kaydedildi. Yeni öneriler siz kabul edene kadar etkinleşmez.",
+    "notVerification": "Kabul, kararınızı kaydeder; kodun bu kararı uyguladığını doğrulamaz.",
+    "supersededBy": "Yerine geçen karar",
+    "reviewedBy": "İnceleyen",
+    "export": "Markdown indir",
+    "edit": "Öneriyi düzenle",
+    "reason": "İnceleme gerekçesi (zorunlu)",
+    "accept": "Bu sürümü kabul et",
+    "reject": "Öneriyi reddet",
+    "deprecate": "Kararı yürürlükten kaldır",
+    "linesHint": "Alternatifler, sonuçlar, kısıtlar ve kapsam için her satıra bir madde yazın. Boş kapsam tüm projeyi kapsar.",
+    "saveProposal": "Öneriyi kaydet",
+    "cancel": "İptal",
+    "status": {
+      "proposed": "Önerildi",
+      "accepted": "Kabul edildi",
+      "rejected": "Reddedildi",
+      "superseded": "Yerine yenisi geçti",
+      "deprecated": "Yürürlükten kaldırıldı"
+    },
+    "fields": {
+      "title": "Başlık",
+      "context": "Bağlam",
+      "decision": "Karar",
+      "alternatives": "Alternatifler",
+      "consequences": "Sonuçlar",
+      "constraints": "Uyulması gereken kısıtlar",
+      "scope": "Proje yolları",
+      "revisitWhen": "Yeniden değerlendirme koşulu",
+      "supersedes": "Yerine geçeceği ADR kimliği (isteğe bağlı)"
+    },
+    "checks": {
+      "title": "Uygunluk kontrolleri",
+      "help": "Salt okunur dosya kontrolleri bu ADR kabul edilince etkinleşir. Komut veya script çalıştırılmaz. Mevcut okuma izinleri korunur.",
+      "name": "Kontrol adı",
+      "path": "Projeye göre dosya yolu",
+      "kind": "Koşul",
+      "text": "Aranacak metin",
+      "pointer": "JSON yolu",
+      "valueType": "Beklenen değer türü",
+      "value": "Beklenen değer",
+      "add": "Kontrol ekle",
+      "remove": "Kontrolü kaldır",
+      "run": "Kontrolleri çalıştır",
+      "result": "Kontrol sonucu",
+      "kinds": {
+        "file_exists": "Dosya mevcut",
+        "contains_text": "Metni içerir",
+        "excludes_text": "Metni içermez",
+        "json_equals": "JSON değeri eşittir"
+      },
+      "types": {
+        "string": "Metin",
+        "number": "Sayı",
+        "boolean": "Mantıksal değer",
+        "null": "Null"
+      },
+      "status": {
+        "pass": "Başarılı",
+        "fail": "Başarısız",
+        "blocked": "Engellendi",
+        "not_configured": "Kontrol tanımlanmamış"
+      }
+    }
   }
 }

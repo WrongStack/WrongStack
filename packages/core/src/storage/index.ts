@@ -44,6 +44,21 @@ export {
   AnnotationsStore,
   type AnnotationsStoreOptions,
 } from './annotations-store.js';
+export * from './architecture-decision.js';
+export {
+  type ArchitectureDecisionCheckResult,
+  type ArchitectureDecisionCompliance,
+  architectureDecisionReadAuthorizer,
+  checkArchitectureDecisions,
+} from './architecture-decision-compliance.js';
+export { buildArchitectureDecisionBlock } from './architecture-decision-context.js';
+export { ArchitectureDecisionStore } from './architecture-decision-store.js';
+export {
+  formatArchitectureDecisionTransfer,
+  MAX_ADR_TRANSFER_BYTES,
+  MAX_ADR_TRANSFER_CHARACTERS,
+  parseArchitectureDecisionTransfer,
+} from './architecture-decision-transfer.js';
 export {
   type AttachmentStoreOptions,
   DefaultAttachmentStore,

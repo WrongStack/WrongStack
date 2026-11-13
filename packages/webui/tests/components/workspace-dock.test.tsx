@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkspaceDock } from '../../src/components/WorkspaceDock';
 import { useFleetStore, useSessionStore, useUIStore } from '../../src/stores';
@@ -21,6 +21,8 @@ vi.mock('../../src/i18n', () => ({
 }));
 
 const gitInfo = vi.hoisted(() => ({ current: null as unknown }));
+const rpc = vi.hoisted(() => vi.fn());
+vi.mock('../../src/lib/portable-command-rpc', () => ({ invokePortableCommand: rpc }));
 vi.mock('../../src/hooks/useGitInfo', () => ({
   useGitInfo: () => gitInfo.current,
 }));
@@ -45,6 +47,9 @@ function agent(id: string, sessionId: string, status: SubagentView['status']): S
 }
 
 beforeEach(() => {
+  rpc.mockResolvedValue({
+    message: JSON.stringify({ projectId: 'p', pending: 0, total: 0, version: 'a'.repeat(64) }),
+  });
   useChatLanes.setState({ lanes: {}, activeSessionId: DEFAULT_LANE_ID });
   useSessionLanes.setState({ lanes: {}, activeSessionId: SESSION_DEFAULT_LANE_ID });
   useUIStore.setState({ dockSection: null, hiddenChips: [], dockCustomizeOpen: false });
@@ -56,6 +61,17 @@ beforeEach(() => {
 });
 
 describe('WorkspaceDock', () => {
+  it('shows pending ADRs while the panel is closed and opens the review inbox', async () => {
+    setActiveSessionLane('sess-a');
+    rpc.mockResolvedValue({
+      message: JSON.stringify({ projectId: 'p', pending: 3, total: 5, version: 'b'.repeat(64) }),
+    });
+    render(<WorkspaceDock />);
+    const chip = screen.getByRole('button', { name: /shortTitle/ });
+    await waitFor(() => expect(chip.textContent).toContain('3'));
+    fireEvent.click(chip);
+    expect(useUIStore.getState().dockSection).toBe('adr');
+  });
   it('counts only the active session fleet in the Fleet chip', () => {
     setActiveSessionLane('sess-a');
     useFleetStore.setState({

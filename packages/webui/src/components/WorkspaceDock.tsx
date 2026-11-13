@@ -10,6 +10,7 @@
  */
 
 import {
+  BookOpen,
   Bot,
   GitBranch,
   Globe,
@@ -23,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useLiveBrowserSessions } from '@/hooks/use-live-browser';
+import { useArchitectureDecisionInbox } from '@/hooks/useArchitectureDecisionInbox';
 import { useIsFullChrome } from '@/hooks/useChromeLevel';
 import { useGitInfo } from '@/hooks/useGitInfo';
 import { useAppTranslation } from '@/i18n';
@@ -39,6 +41,7 @@ import {
   useWorktreeStore,
 } from '@/stores';
 import type { DockSection } from '@/stores/ui-store';
+import { ArchitectureDecisionsPanel } from './ArchitectureDecisionsPanel';
 import { BrowserLivePane } from './BrowserLivePane';
 import { CollabPanel } from './CollabPanel';
 import { FleetPanel } from './FleetPanel';
@@ -65,6 +68,10 @@ import {
 // ── Chip ──────────────────────────────────────────────────────────────
 
 const CHIP_TONES: Record<DockSection, { active: string; idle: string }> = {
+  adr: {
+    active: 'bg-primary/12 border-primary/40 text-foreground shadow-sm',
+    idle: 'text-muted-foreground hover:bg-primary/10 hover:text-foreground',
+  },
   goal: {
     active: 'bg-primary/12 border-primary/40 text-foreground shadow-sm',
     idle: 'text-muted-foreground hover:bg-primary/10 hover:text-foreground',
@@ -97,6 +104,7 @@ const CHIP_TONES: Record<DockSection, { active: string; idle: string }> = {
 
 /** Human labels for the chip customization menu. */
 const CHIP_LABELS: Record<DockSection, string> = {
+  adr: 'Architecture decisions',
   goal: 'Goal',
   'goal-state': 'Goal State',
   fleet: 'Fleet',
@@ -106,6 +114,7 @@ const CHIP_LABELS: Record<DockSection, string> = {
   browser: 'Browser',
 };
 const CHIP_ORDER: DockSection[] = [
+  'adr',
   'goal',
   'goal-state',
   'fleet',
@@ -130,6 +139,7 @@ function DockChip({
   icon,
   label,
   value,
+  valueLabel,
   active,
   pulse,
   onClick,
@@ -138,6 +148,7 @@ function DockChip({
   icon: React.ReactNode;
   label: string;
   value?: string | undefined;
+  valueLabel?: string | undefined;
   active: boolean;
   pulse?: boolean | undefined;
   onClick: () => void;
@@ -164,7 +175,12 @@ function DockChip({
     >
       <span className={cn(pulse && 'animate-pulse')}>{icon}</span>
       {label}
-      {value && <span className="tabular-nums opacity-80">{value}</span>}
+      {value && (
+        <span title={valueLabel} className="tabular-nums opacity-80">
+          <span aria-hidden={!!valueLabel}>{value}</span>
+          {valueLabel && <span className="sr-only">{valueLabel}</span>}
+        </span>
+      )}
     </button>
   );
 }
@@ -181,6 +197,7 @@ export function WorkspaceDock() {
   const dockCustomizeOpen = useUIStore((s) => s.dockCustomizeOpen);
   const setDockCustomizeOpen = useUIStore((s) => s.setDockCustomizeOpen);
   const activeSessionId = useActiveSessionId();
+  const adrInbox = useArchitectureDecisionInbox(activeSessionId, !hiddenChips.includes('adr'));
 
   const goalState = useGoalStateStore((s) => s.goal);
   // Narrow selectors for each field the dock reads — subscribing to the
@@ -220,6 +237,7 @@ export function WorkspaceDock() {
   // A chip the user hid via the customization menu is always suppressed.
   const hidden = useMemo(() => new Set(hiddenChips), [hiddenChips]);
   const hasData: Record<DockSection, boolean> = {
+    adr: true,
     goal: phasesActive,
     'goal-state': goalState !== null,
     fleet: fleetTotal > 0,
@@ -229,6 +247,7 @@ export function WorkspaceDock() {
     browser: browserSessions.length > 0,
   };
   const visible: Record<DockSection, boolean> = {
+    adr: !hidden.has('adr'),
     goal: (hasData.goal || dockSection === 'goal') && !hidden.has('goal'),
     'goal-state':
       (hasData['goal-state'] || dockSection === 'goal-state') && !hidden.has('goal-state'),
@@ -377,6 +396,27 @@ export function WorkspaceDock() {
         />
 
         {/* Chip customization menu — TUI F12 status-line picker parity. */}
+        {visible.adr && (
+          <DockChip
+            section="adr"
+            icon={<BookOpen className="h-3 w-3" />}
+            label={t('activity:adr.shortTitle')}
+            value={
+              adrInbox.unavailable
+                ? '?'
+                : adrInbox.summary?.pending
+                  ? String(adrInbox.summary.pending)
+                  : undefined
+            }
+            valueLabel={
+              adrInbox.unavailable
+                ? t('activity:adr.inboxUnavailable')
+                : t('activity:adr.pendingCount', { count: adrInbox.summary?.pending ?? 0 })
+            }
+            active={open === 'adr'}
+            onClick={() => toggleDockSection('adr')}
+          />
+        )}
         <DropdownMenu open={dockCustomizeOpen} onOpenChange={setDockCustomizeOpen}>
           <DropdownMenuTrigger asChild>
             <button
@@ -412,6 +452,7 @@ const DOCK_INSPECTOR_META: Record<
   Exclude<DockSection, 'goal'>,
   { titleKey: string; detailKey: string }
 > = {
+  adr: { titleKey: 'activity:adr.title', detailKey: 'activity:adr.description' },
   'goal-state': {
     titleKey: 'activity:dock.goalState',
     detailKey: 'activity:dock.goalStateDetail',
@@ -515,6 +556,7 @@ export function WorkspaceDockInspector({ sessionId }: { sessionId: string }): Re
           ))}
         {section === 'fleet' && <FleetPanel />}
         {section === 'browser' && <BrowserLivePane />}
+        {section === 'adr' && <ArchitectureDecisionsPanel sessionId={sessionId} />}
         {section === 'worktrees' && (
           <div className="space-y-3">
             <WorktreeViewSwitch value={worktreeView} onChange={setWorktreeView} />

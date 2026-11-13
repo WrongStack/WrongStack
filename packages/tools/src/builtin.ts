@@ -1,5 +1,6 @@
 import type { Tool } from '@wrongstack/contracts/types';
 import { createSandboxBrowserTierGate, createSandboxExecWrapper } from '@wrongstack/core/sandbox';
+import { architectureDecisionsTool } from './architecture-decisions.js';
 import { auditTool } from './audit.js';
 import { bashTool } from './bash.js';
 import { browserTools } from './browser/tools.js';
@@ -93,6 +94,7 @@ const sandboxedProcessWatchTool = sandboxWrap(processWatchTool);
  * guidance as directly exposed tools.
  */
 export const BUILTIN_TOOL_DESCRIPTIONS: Readonly<Record<string, string>> = {
+  architecture_decisions: architectureDecisionsTool.description,
   present_artifact: presentArtifactTool.description,
   project_kit: projectKitTool.description,
   project_kit_run: projectKitRunTool.description,
@@ -372,6 +374,7 @@ export const TIER2_TOOLS: Tool[] = [
  * / `tool_use` — which is why that pair lives in TIER1 rather than here.
  */
 export const TIER3_TOOLS: Tool[] = [
+  architectureDecisionsTool,
   outdatedTool,
   logsTool,
   deadCodeScanTool,
@@ -382,6 +385,7 @@ export const TIER3_TOOLS: Tool[] = [
 ];
 
 const rawBuiltinTools: Tool[] = [
+  architectureDecisionsTool,
   presentArtifactTool,
   projectKitTool,
   projectKitRunTool,

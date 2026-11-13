@@ -22,6 +22,7 @@ This is the on-ramp to the WrongStack documentation. If you're new to the projec
 | Understand a specific slash command | [Slash Command Reference](#slash-command-reference) |
 | Configure MCP servers (browser, SSH, GitHub, …) | [subcommands/mcp.md](subcommands/mcp.md) → `mcpServers` in [configuration.md](configuration.md) |
 | Read the architectural decision history | [ADRs](#architecture-decision-records-adrs) |
+| Manage persistent project decisions and user reviews | [Project architecture decisions](architecture-decisions.md) |
 | Configure runtime behavior | [configuration.md](configuration.md) |
 | Compare all official plugins at a glance | [feature-matrix.md](feature-matrix.md) |
 | Understand the release gates (`release:check`; npm publishing is retired) | [release-process.md](release-process.md) |

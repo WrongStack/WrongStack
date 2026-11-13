@@ -38,6 +38,8 @@ describe('isSensitiveAgentStateRelPath', () => {
     'updates/pending.json',
     'automation/jobs.json',
     'projects/abc/sessions/2026-10-05/s1.jsonl',
+    'projects/abc/decisions/decisions.sqlite',
+    'projects/abc/decisions/decisions.sqlite-wal',
     'profiles/default/instructions/system.md',
     'profiles/default/skills/x/SKILL.md',
     'profiles/default/memory.md',

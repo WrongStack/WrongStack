@@ -17,8 +17,11 @@ export function invokePortableCommand(
   opts?: {
     sessionId?: string | null | undefined;
     timeoutMs?: number | undefined;
+    queueIfDisconnected?: boolean | undefined;
+    signal?: AbortSignal | undefined;
   },
 ): Promise<PortableCommandRpcResult> {
+  if (opts?.signal?.aborted) return Promise.resolve({ error: 'Command request cancelled.' });
   const client = getWSClient();
   const requestId = safeId();
   const timeoutMs = opts?.timeoutMs ?? 8_000;
@@ -30,6 +33,7 @@ export function invokePortableCommand(
       settled = true;
       clearTimeout(timer);
       off();
+      opts?.signal?.removeEventListener('abort', cancel);
       resolve(res);
     };
 
@@ -45,15 +49,25 @@ export function invokePortableCommand(
     const timer = setTimeout(() => {
       finish({ error: `Timed out waiting for /${name} response.` });
     }, timeoutMs);
+    const cancel = () => finish({ error: 'Command request cancelled.' });
+    opts?.signal?.addEventListener('abort', cancel, { once: true });
+    if (opts?.signal?.aborted) {
+      cancel();
+      return;
+    }
 
     const basePayload = { name, args, requestId };
     const payload = opts?.sessionId
       ? { ...basePayload, sessionId: opts.sessionId }
       : client.withSession(basePayload);
 
-    client.send({
-      type: 'command.run',
-      payload,
-    });
+    const sent = client.send(
+      {
+        type: 'command.run',
+        payload,
+      },
+      { queueIfDisconnected: opts?.queueIfDisconnected },
+    );
+    if (!sent && opts?.queueIfDisconnected === false) finish({ error: 'WebSocket not connected.' });
   });
 }

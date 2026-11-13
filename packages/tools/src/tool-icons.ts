@@ -152,6 +152,7 @@ export const TOOL_ICON_MAP: Record<string, ToolIconId> = {
   batch_tool_use: 'meta',
   tool_help: 'meta',
   // ── memory ──
+  architecture_decisions: 'brain',
   remember: 'brain',
   forget: 'brain',
   search_memory: 'brain',

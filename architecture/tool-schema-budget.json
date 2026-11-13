@@ -4,9 +4,9 @@
   "estimator": "runtime heuristic, not billed tokens",
   "profiles": {
     "off": {
-      "count": 81,
-      "wireBytes": 101239,
-      "estimatedTokens": 27993
+      "count": 82,
+      "wireBytes": 103584,
+      "estimatedTokens": 28652
     },
     "minimal": {
       "count": 30,

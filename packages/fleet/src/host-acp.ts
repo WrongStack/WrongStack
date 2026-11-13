@@ -26,6 +26,10 @@ import { registerAcpSteerInbox } from './acp-live-steer.js';
 import { startAcpTurnReminders } from './acp-turn-reminders.js';
 import { DEFAULT_BRIDGE_SERVERS, wrongstackBridgeSetup } from './acp-wrongstack-bridge.js';
 import {
+  startArchitectureDecisionRefresh,
+  withArchitectureDecisions,
+} from './architecture-decision-context.js';
+import {
   makeWrongForgeRunner,
   WRONGFORGE_AGENT_ID,
   type WrongForgeGatewaySpec,
@@ -76,15 +80,19 @@ export function buildAcpSubagentRunner(
   subagentId: string,
   options?: BuildAcpSubagentRunnerOptions,
 ): Promise<SubagentRunner> {
+  const decisionProjectRoot = options?.projectRoot ?? process.cwd();
   // WrongForge is an HTTP worker (its own server, task API), not an ACP child
   // process; it shares the external-agent route so `provider: "acp"` reaches it.
   if (subagentId === WRONGFORGE_AGENT_ID && !options?.overrides?.[WRONGFORGE_AGENT_ID]) {
     return Promise.resolve(
-      makeWrongForgeRunner({
-        projectRoot: options?.projectRoot ?? process.cwd(),
-        ...(options?.wrongforgeGateway ? { gateway: options.wrongforgeGateway } : {}),
-        ...(options?.publishLive ? { publishLive: options.publishLive } : {}),
-      }),
+      withArchitectureDecisions(
+        makeWrongForgeRunner({
+          projectRoot: options?.projectRoot ?? process.cwd(),
+          ...(options?.wrongforgeGateway ? { gateway: options.wrongforgeGateway } : {}),
+          ...(options?.publishLive ? { publishLive: options.publishLive } : {}),
+        }),
+        decisionProjectRoot,
+      ),
     );
   }
   const cmd = resolveAcpAgentCommand(subagentId, options?.overrides, options?.live);
@@ -130,6 +138,12 @@ export function buildAcpSubagentRunner(
     ...(sessionSetup ? { sessionSetup } : {}),
     // The leader's `session_note` to a running worker joins its turn.
     onTurnLive: (ctx, task, steer) => {
+      const stopDecisions = startArchitectureDecisionRefresh({
+        projectRoot: decisionProjectRoot,
+        task,
+        signal: ctx.signal,
+        steer,
+      });
       const stopNotes = registerAcpSteerInbox(ctx, task, steer);
       const stopMail =
         mailboxEnabled && mailboxProjectRoot
@@ -153,9 +167,10 @@ export function buildAcpSubagentRunner(
             })
           : undefined;
       return () => {
+        stopDecisions();
         stopNotes?.();
         stopMail?.();
       };
     },
-  });
+  }).then((runner) => withArchitectureDecisions(runner, decisionProjectRoot));
 }

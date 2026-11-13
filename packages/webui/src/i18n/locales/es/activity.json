@@ -5796,5 +5796,103 @@
     "cost": "coste",
     "ctx": "ctx",
     "providerModel": "Proveedor / Modelo"
+  },
+  "adr": {
+    "replace": "Propose replacement",
+    "replacementHint": "The current decision stays active until you separately accept this replacement.",
+    "history": {
+      "title": "Revision history",
+      "refresh": "Reload history",
+      "loading": "Loading revisions…",
+      "revision": "Revision {{revision}}",
+      "more": "Older revisions",
+      "snapshot": "Historical revision",
+      "readonly": "Read-only historical snapshot. Agent guidance uses the current accepted decisions.",
+      "mismatch": "History belongs to a different decision or project. Reload the current decision.",
+      "proposedBy": "Proposed by"
+    },
+    "import": "Import proposal JSON",
+    "importFile": "ADR proposal JSON file",
+    "importTooLarge": "ADR transfer files must be at most 128 KiB.",
+    "importPreview": "Content opened as a draft. Review and save it as a proposal; acceptance requires a separate review.",
+    "exportJson": "Download proposal JSON",
+    "pendingCount": "Pending review: {{count}}",
+    "inboxUnavailable": "ADR proposals are currently unavailable",
+    "staleReview": "This decision changed. Open the current revision before reviewing it.",
+    "reloadDecision": "Open current revision",
+    "title": "Architecture decisions",
+    "shortTitle": "ADRs",
+    "description": "Propose lasting project decisions. Only decisions you explicitly accept guide agents and subagents.",
+    "refresh": "Refresh",
+    "new": "New proposal",
+    "count": "{{count}} records",
+    "loading": "Loading decisions…",
+    "empty": "No architecture decisions yet.",
+    "more": "Load more",
+    "saved": "Review saved. Agents receive the updated decisions on their next request.",
+    "proposed": "Saved. New proposals stay inactive until you accept them.",
+    "notVerification": "Acceptance records your decision; it does not certify that the code implements it.",
+    "supersededBy": "Replaced by",
+    "reviewedBy": "Reviewed by",
+    "export": "Download Markdown",
+    "edit": "Edit proposal",
+    "reason": "Review reason (required)",
+    "accept": "Accept this revision",
+    "reject": "Reject proposal",
+    "deprecate": "Retire decision",
+    "linesHint": "Use one entry per line for alternatives, consequences, constraints and scope. Empty scope applies to the entire project.",
+    "saveProposal": "Save proposal",
+    "cancel": "Cancel",
+    "status": {
+      "proposed": "Proposed",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "superseded": "Superseded",
+      "deprecated": "Deprecated"
+    },
+    "fields": {
+      "title": "Title",
+      "context": "Context",
+      "decision": "Decision",
+      "alternatives": "Alternatives",
+      "consequences": "Consequences",
+      "constraints": "Required constraints",
+      "scope": "Project paths",
+      "revisitWhen": "Revisit when",
+      "supersedes": "Replaces ADR id (optional)"
+    },
+    "checks": {
+      "title": "Compliance checks",
+      "help": "Read-only file checks become active with this ADR. No commands or scripts run. Checks follow the host read permissions.",
+      "name": "Check name",
+      "path": "Project-relative file",
+      "kind": "Condition",
+      "text": "Literal text",
+      "pointer": "JSON pointer",
+      "valueType": "Expected value type",
+      "value": "Expected value",
+      "add": "Add check",
+      "remove": "Remove check",
+      "run": "Run checks",
+      "result": "Check result",
+      "kinds": {
+        "file_exists": "File exists",
+        "contains_text": "Contains literal text",
+        "excludes_text": "Excludes literal text",
+        "json_equals": "JSON value equals"
+      },
+      "types": {
+        "string": "Text",
+        "number": "Number",
+        "boolean": "Boolean",
+        "null": "Null"
+      },
+      "status": {
+        "pass": "Passed",
+        "fail": "Failed",
+        "blocked": "Blocked",
+        "not_configured": "No checks configured"
+      }
+    }
   }
 }

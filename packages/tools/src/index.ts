@@ -24,6 +24,7 @@ export {
   checkSyntax,
   type SyntaxCheckResult,
 } from './_syntax-check.js';
+export { architectureDecisionsTool } from './architecture-decisions.js';
 export {
   type AuditContext,
   type AuditInput,

@@ -13,6 +13,7 @@ import {
 import { LIVE_CONTEXT_MARKER } from '@wrongstack/contracts/types/live-context';
 import type { Message } from '@wrongstack/contracts/types/messages';
 import type { Provider, Request, Response } from '@wrongstack/contracts/types/provider';
+import { buildArchitectureDecisionBlock } from '../storage/architecture-decision-context.js';
 import { deriveCachePrefixKey } from '../utils/cache-key.js';
 import {
   buildCompletedWorkLedgerBlock,
@@ -30,6 +31,7 @@ import type { AgentInternals } from './agent-internals.js';
 import { keepsOwnContext, recordAgentContext } from './agent-owned-context.js';
 import { buildAgentOwnedRequest } from './agent-owned-request.js';
 import { refreshAgentToolSurface } from './agent-tool-surface.js';
+import { buildArchitectureDecisionChecksBlock } from './architecture-decision-checks.js';
 import { type RunOptions, resolveEventSessionId } from './context.js';
 import { bindRequestPromptBasis, captureRequestPromptBasis } from './context-usage-anchor.js';
 import { type ContinueDirective, parseContinueDirective } from './continue-to-next-iteration.js';
@@ -337,10 +339,22 @@ export function createAgentResponseHandler(
     }
     const historyVersion = contextHistoryVersion(a.ctx);
     const promptBasis = captureRequestPromptBasis(a.ctx);
+    const decisionChecks = await buildArchitectureDecisionChecksBlock(
+      a.ctx,
+      a.permission,
+      a.tools.get?.('read'),
+    );
     // An agent keeping its own context gets the conversation, not a composed prompt.
     if (keepsOwnContext(provider)) {
       return {
-        request: buildAgentOwnedRequest(a, provider, model, historyVersion, promptBasis),
+        request: buildAgentOwnedRequest(
+          a,
+          provider,
+          model,
+          historyVersion,
+          promptBasis,
+          decisionChecks,
+        ),
         provider,
       };
     }
@@ -372,6 +386,15 @@ export function createAgentResponseHandler(
       nextsteps: liveNextStepsGate,
       memoryEvidence: buildMemoryEvidenceBlocks(a.ctx),
     });
+    const architectureDecisions = buildArchitectureDecisionBlock(
+      a.ctx.projectRoot,
+      a.ctx.meta,
+      a.logger,
+    );
+    if (architectureDecisions)
+      liveTailEntries.push({ source: 'architecture-decisions', block: architectureDecisions });
+    if (decisionChecks)
+      liveTailEntries.push({ source: 'architecture-checks', block: decisionChecks });
     const liveContextTail = liveTailEntries.map((entry) => entry.block);
     // Request-scoped blocks (raw mail) ride behind every cache boundary and are
     // never replayed: sent once, then gone without rewriting anything.

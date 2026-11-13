@@ -41,6 +41,7 @@ const SENSITIVE_SUBTREES: readonly RegExp[] = [
   /^automation(?:\/|$)/i,
   /^config-history(?:\/|$)/i,
   /^projects\/[^/]+\/sessions(?:\/|$)/i,
+  /^projects\/[^/]+\/decisions(?:\/|$)/i,
   /^profiles\/[^/]+\/(?:instructions|skills)(?:\/|$)/i,
   /^(?:profiles\/[^/]+\/)?memory\.md$/i,
   /^agents\.md$/i,

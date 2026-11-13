@@ -9,15 +9,16 @@
  * either never reaches it or, riding the user message, reaches it as if the
  * user had typed it.
  *
- * The request carries the conversation and only two deliberate additions on
- * its trailing user message: raw mail delivered to the leader (request-scoped,
- * the only route mail has) and the next-steps gate, which is what makes the
+ * The request carries the conversation plus deliberate host additions on its
+ * trailing user message: request-scoped mail, the current reviewed project
+ * decisions and their declared check evidence, and the next-steps gate, which makes the
  * agent offer the suggestions the TUI and WebUI show. Nothing is measured for
  * the residency report; the turn's point is the agent's own report.
  */
 import type { ContentBlock, TextBlock } from '@wrongstack/contracts/types/blocks';
 import type { Message } from '@wrongstack/contracts/types/messages';
 import type { Provider, Request } from '@wrongstack/contracts/types/provider';
+import { buildArchitectureDecisionBlock } from '../storage/architecture-decision-context.js';
 import { bindRequestHistoryVersion } from '../utils/context-history-version.js';
 import { forgetRequestLayout } from '../utils/request-layout.js';
 import type { AgentInternals } from './agent-internals.js';
@@ -36,11 +37,15 @@ export function buildAgentOwnedRequest(
   model: string,
   historyVersion: number,
   promptBasis: RequestPromptBasis,
+  decisionChecks?: TextBlock,
 ): Request {
   const ctx = a.ctx;
   // The previous route's measurement would otherwise stand in for this one.
   forgetRequestLayout(ctx);
   const additions: TextBlock[] = requestScopedEntries(ctx).map((entry) => entry.block);
+  if (decisionChecks) additions.push(decisionChecks);
+  const architectureDecisions = buildArchitectureDecisionBlock(ctx.projectRoot, ctx.meta, a.logger);
+  if (architectureDecisions) additions.push(architectureDecisions);
   // The agent never sees WrongStack's system prompt, so the gate carries the
   // whole policy, and it cannot call WrongStack's `nextsteps` tool directly.
   const gate = buildLiveNextStepsGateBlock(

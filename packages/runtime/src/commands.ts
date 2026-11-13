@@ -5,6 +5,7 @@
  */
 import type { SlashCommand } from '@wrongstack/contracts/types';
 import { buildAcpCommand } from './portable-commands/acp.js';
+import { buildAdrCommand } from './portable-commands/adr.js';
 import { buildDelegateCommand } from './portable-commands/delegate.js';
 import { buildEnsembleCommand } from './portable-commands/ensemble.js';
 import {
@@ -149,6 +150,7 @@ export type { TuneupUpdateInfo } from './portable-commands/tuneup-types.js';
 /** Every portable command, built for one host. */
 export function buildPortableCommands(host: PortableCommandHost): SlashCommand[] {
   return [
+    buildAdrCommand(host),
     buildSandboxCommand(host),
     buildPruneCommand(host),
     buildScoutStatsCommand(host),

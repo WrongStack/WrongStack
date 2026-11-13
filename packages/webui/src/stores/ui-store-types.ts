@@ -92,6 +92,7 @@ export function coerceView(value: unknown): View {
 }
 
 export const DOCK_SECTIONS = [
+  'adr',
   'goal',
   'goal-state',
   'fleet',
@@ -139,6 +140,7 @@ export const SIDEBAR_DEFAULT_WIDTH = 304;
 
 /** Sections of the WorkspaceDock in the Session side panel. */
 export type DockSection =
+  | 'adr'
   | 'goal'
   | 'goal-state'
   | 'fleet'
