@@ -64,6 +64,19 @@ describe('/tree portable slash command', () => {
     ]);
   });
 
+  it('reads back the strings VibeUI builds for spaced and quoted branch names', () => {
+    // Exact outputs of buildVibeTreeCommandArgs() in packages/vibeui/src/lib/session-branch-model.ts.
+    expect(tokenizeTreeArgs('new "my spike"')).toEqual(['new', 'my spike']);
+    expect(tokenizeTreeArgs('switch "a b" --keep-files')).toEqual([
+      'switch',
+      'a b',
+      '--keep-files',
+    ]);
+    expect(tokenizeTreeArgs(`fold "it's"`)).toEqual(['fold', "it's"]);
+    expect(tokenizeTreeArgs('new "say \\"hi\\""')).toEqual(['new', 'say "hi"']);
+    expect(tokenizeTreeArgs('new "ends\\\\"')).toEqual(['new', 'ends\\']);
+  });
+
   it('persists a fold note verbatim and still honours --archive end-to-end', async () => {
     const store = new DefaultSessionStore({ dir: tmpDir });
     const writer = await store.create({ id: '', model: 'gpt-5', provider: 'openai' });

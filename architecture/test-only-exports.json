@@ -1950,6 +1950,9 @@
       "MASCOT_HEIGHT",
       "MASCOT_WIDTH"
     ],
+    "packages/vibeui/src/lib/session-branch-model.ts": [
+      "quoteVibeTreeArg"
+    ],
     "packages/vibeui/src/lib/transport.ts": [
       "STABLE_CONNECTION_MS",
       "TOKEN_KEY"

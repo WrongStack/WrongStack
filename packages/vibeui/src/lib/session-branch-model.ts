@@ -87,6 +87,16 @@ export function flattenVibeBranchRows(tree: VibeSessionTreeSnapshot): VibeBranch
   return rows;
 }
 
+/**
+ * Quotes a `/tree` argument the way the runtime tokenizer (`tokenizeTreeArgs`) reads it back:
+ * double quotes with `\` and `"` escaped, as WebUI's `quoteTreeArg` does. Plain tokens stay
+ * bare so the common case reads naturally; without quoting, `my spike` became the name `my`.
+ */
+export function quoteVibeTreeArg(value: string): string {
+  if (value.length > 0 && !/[\s"'\\]/.test(value)) return value;
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
 export function buildVibeTreeCommandArgs(
   action:
     | { kind: 'list' }
@@ -98,10 +108,10 @@ export function buildVibeTreeCommandArgs(
     case 'list':
       return 'list --json';
     case 'new':
-      return `new ${action.name.trim()}`;
+      return `new ${quoteVibeTreeArg(action.name.trim())}`;
     case 'switch':
-      return `switch ${action.branchId}${action.keepFiles ? ' --keep-files' : ''}`;
+      return `switch ${quoteVibeTreeArg(action.branchId)}${action.keepFiles ? ' --keep-files' : ''}`;
     case 'fold':
-      return `fold ${action.branchId}`;
+      return `fold ${quoteVibeTreeArg(action.branchId)}`;
   }
 }

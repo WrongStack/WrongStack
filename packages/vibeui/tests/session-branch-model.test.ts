@@ -3,6 +3,7 @@ import {
   buildVibeTreeCommandArgs,
   flattenVibeBranchRows,
   parseVibeSessionTree,
+  quoteVibeTreeArg,
 } from '../src/lib/session-branch-model';
 
 describe('VibeUI session-branch-model', () => {
@@ -56,5 +57,18 @@ describe('VibeUI session-branch-model', () => {
     expect(buildVibeTreeCommandArgs({ kind: 'fold', branchId: 'exp-cache' })).toBe(
       'fold exp-cache',
     );
+  });
+
+  it('quotes names and ids that the /tree tokenizer would otherwise split', () => {
+    // Regression: `new my spike` created a branch named `my`.
+    expect(buildVibeTreeCommandArgs({ kind: 'new', name: ' my spike ' })).toBe('new "my spike"');
+    expect(buildVibeTreeCommandArgs({ kind: 'switch', branchId: 'a b', keepFiles: true })).toBe(
+      'switch "a b" --keep-files',
+    );
+    expect(buildVibeTreeCommandArgs({ kind: 'fold', branchId: `it's` })).toBe(`fold "it's"`);
+    expect(quoteVibeTreeArg('say "hi"')).toBe('"say \\"hi\\""');
+    expect(quoteVibeTreeArg('ends\\')).toBe('"ends\\\\"');
+    expect(quoteVibeTreeArg('')).toBe('""');
+    expect(quoteVibeTreeArg('plain-id_1')).toBe('plain-id_1');
   });
 });
