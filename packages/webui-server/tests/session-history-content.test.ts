@@ -55,3 +55,31 @@ it('annotates actual journal content independently of summary counters, without 
     await removeFixture(root);
   }
 });
+
+// 2026-11-13: a journal that was never written (0 bytes, no lifecycle line — an engine's boot
+// session a resume left open) failed the strict check and showed in every history list even
+// with empty journals hidden. Summary counters cannot decide it, so the file size does.
+it('treats a never-written journal as empty, and a counter-less journal with content as not', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'wrongstack-history-content-'));
+  const store = new DefaultSessionStore({ dir: root });
+  const unwritten = await store.create({ id: 'unwritten', title: '', provider: 't', model: 't' });
+  const filled = await store.create({ id: 'filled', title: '', provider: 't', model: 't' });
+  try {
+    await filled.append({
+      type: 'message_appended',
+      ts: new Date().toISOString(),
+      version: 1,
+      message: { role: 'user', content: 'Actual retained text' },
+    });
+    await filled.flush();
+    const rows = toSessionHistoryEntries(await store.list(100), 'carrier');
+    const result = await withSessionContentState(rows, store);
+    expect(result.find((row) => row.id === 'unwritten')?.isEmpty).toBe(true);
+    expect(result.find((row) => row.id === 'filled')?.isEmpty).toBe(false);
+    expect(await store.isEmpty('unwritten'), 'the sweep still keeps it').toBe(false);
+  } finally {
+    await unwritten.close();
+    await filled.close();
+    await removeFixture(root);
+  }
+});
