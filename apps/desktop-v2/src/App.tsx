@@ -10,6 +10,7 @@ import { native, openProjectWindow } from './platform';
 import { RenderErrorBoundary } from './RenderErrorBoundary';
 import { Sidebar } from './Sidebar';
 import { SurfaceLanguageSync } from './SurfaceLanguageSync';
+import { useShownSettingsSection } from './settings-section-request';
 import { cachedLanguage, surfaceI18n } from './surface-i18n';
 import { useDesktop } from './useDesktop';
 import { WorkspaceDialogs } from './WorkspaceDialogs';
@@ -26,6 +27,8 @@ const WrongStackSettings = lazy(() =>
 export function App() {
   const vm = useDesktop();
   const { t } = useDesktopText();
+  // Plan quota is a settings section with its own rail button: the title names it too.
+  const settingsTitle = t(useShownSettingsSection() === 'quota' ? 'rail.quota' : 'rail.settings');
   // The display language is read from the profile once; afterwards the remembered one opens.
   const [readLanguage, setReadLanguage] = useState(() => native && cachedLanguage() === null);
   const {
@@ -62,7 +65,7 @@ export function App() {
                 <span className="breadcrumb-session">{currentSession.title}</span>
               </>
             ) : section === 'wrongstack' ? (
-              t('rail.settings')
+              settingsTitle
             ) : section === 'project' && currentProject ? (
               currentProject.name
             ) : (

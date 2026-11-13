@@ -14,7 +14,12 @@ const watchers = new Set<() => void>();
  */
 export function requestSettingsSection(section: SettingsTarget): void {
   if (mounted) mounted(section);
-  else pending = section;
+  else {
+    pending = section;
+    // While the settings engine is still starting the page cannot report the section yet;
+    // the rail and the title already name the one that was asked for.
+    setShown(section);
+  }
 }
 
 /**

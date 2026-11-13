@@ -44,7 +44,10 @@ describe('opening a settings section from outside the page', () => {
   it('takes a request made before the page opens, once', async () => {
     await mount(createElement(Rail));
     expect(text('rail')).toBe('closed');
-    requestSettingsSection('quota');
+    await act(async () => requestSettingsSection('quota'));
+    // 2026-11-13: the settings page waits for its engine before it mounts; meanwhile the rail
+    // and the title already name the requested section, not the settings home.
+    expect(text('rail')).toBe('quota');
     const settings = await mount(createElement(Settings));
     expect(text('settings')).toBe('quota');
     expect(text('rail')).toBe('quota');
