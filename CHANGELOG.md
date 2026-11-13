@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] — 2026-11-13
+
+The desktop app catches up with the WebUI. A project journal stops growing by
+gigabytes, a project opens without replaying its whole history, and an engine
+boots without starting a process for every language server and linter. The
+conversation screen gets the WebUI's quieter message actions, one tab strip and
+a tidier composer.
+
+### Changed
+
+- **Desktop journals stay small.** Repeated `sessions.status_update` and Kanban
+  supervisor snapshots are throttled and deduplicated before they reach the
+  journal. A project or profile journal is read from its last 32 MiB, with a
+  small seed file keeping the session start, model and provider state that a
+  windowed read would otherwise lose.
+- **Faster engine boot.** On Windows a language server or linter command is
+  found by scanning `PATH` instead of starting `where.exe` for each one, and
+  the lint gate probes its linter only when it first runs. On the
+  maintainer's machine an engine became ready in 6.5–10 s instead of 14–44 s.
+- **Files opens from the last listing.** While no file change has been seen,
+  opening Files again reuses the project tree it read last and only refreshes
+  the Git status.
+- **Desktop conversation screen.** Message actions are quiet icons that appear
+  on hover, bold text keeps its size, the composer fold is a corner tab,
+  conversation and view tabs share one strip, Files and Changes are listed
+  once, the composer's controls keep one row while there is room, and a Mission
+  Control card is one row.
+- **Desktop recovery.** A pending answer is recovered after a restart,
+  interrupted runs are marked as such, and report navigation is retained.
+- **Session tree.** `/tree fold` takes `--note` and `--keep-open`, a non-root
+  branch offers "Fold insights into <parent>", and the WebUI offers "Branch
+  from here" on finished answers as well as prompts.
+- **Chimera review.** Docs- and comment-only auto-reviews are pre-screened
+  without model tokens, review snapshots survive restarts, and review bundles
+  carry line diffs, callers of changed exports and paired test status.
+- **TypeScript plugins** fall back to loading their local module closure under
+  Node, and the TUI clears Kitty graphics on `/clear` and on exit.
+- **Design tools** keep each run's inspect and compare snapshots.
+
+### Fixed
+
+- PDF page ranges are clamped to the page count before the per-read cap is
+  checked.
+- Quoted `/tree` arguments unescape double backslashes.
+- HQ keeps full machine identity keys when the roster is saved.
+- Goal phase names and verify output no longer split UTF-16 surrogate pairs.
+- The session catalog handshake ignores errors from a stale socket.
+- Plugin semver ranges accept wildcards and `0.0.x`.
+- Tool-input elision never grows the input it is shortening.
+- A WrongIndex service that is shutting down counts as unavailable.
+- The HTTP mailbox enforces its subject and body length limits on raw input.
+
 ## [1.6.0] — 2026-11-12
 
 Conversations branch: `/tree` forks, switches and folds branches inside one

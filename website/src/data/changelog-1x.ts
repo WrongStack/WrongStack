@@ -1,4 +1,4 @@
-// Changelog — 1.x era (1.6.0 → 1.0.0).
+// Changelog — 1.x era (1.6.1 → 1.0.0).
 // Historical entries mirror CHANGELOG.md release notes. The 1.0.37 entry was
 // written from committed runtime/source evidence (git history and packages), not
 // the root CHANGELOG, which had not been extended when it landed. 1.1.0 absorbs
@@ -13,11 +13,26 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.6.1',
+    date: '2026-11-13',
+    tagline:
+      'A desktop app that keeps up: small journals, quicker boot and a calmer conversation screen',
+    latest: true,
+    highlights: [
+      'Desktop project journals throttle and deduplicate status and supervisor snapshots, and a project opens from the last 32 MiB of its journal',
+      'An engine boots without starting a process per language server or linter; on the maintainer’s Windows machine, 6.5–10 s instead of 14–44 s',
+      'Opening Files again reuses the last project tree while nothing has changed',
+      'Message actions appear on hover, conversation and view tabs share one strip, and the composer keeps one row',
+      '/tree fold takes --note and --keep-open, and the WebUI offers Branch from here on finished answers',
+      'Chimera pre-screens docs- and comment-only auto-reviews without model tokens',
+      'Fixes in PDF page ranges, HQ roster keys, goal phase names, plugin semver ranges and the HTTP mailbox',
+    ],
+  },
+  {
     version: '1.6.0',
     date: '2026-11-12',
     tagline:
       'Session branches, plugin panels, Design Studio on the desktop, and a faster terminal UI',
-    latest: true,
     highlights: [
       '/tree forks, switches and folds conversation branches inside one session, each with its own workspace snapshot',
       'Plugins draw panels and status chips (/panel), and /image previews images inline in the terminal',

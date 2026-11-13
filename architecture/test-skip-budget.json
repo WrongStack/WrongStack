@@ -402,6 +402,11 @@
       "fingerprint": "31cfbc566a723022"
     },
     {
+      "file": "packages/plug-lsp/tests/unit/command-resolver-coverage.test.ts",
+      "kind": "runIf",
+      "fingerprint": "63b1b8946761c933"
+    },
+    {
       "file": "packages/plugin-sdk/tests/runtime-exec-process-tree.test.ts",
       "kind": "skipIf",
       "fingerprint": "9110b9520598d838"

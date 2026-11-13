@@ -55,6 +55,18 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.6.1
+
+- **A faster desktop app:** project journals stop growing by gigabytes, a
+  project opens without replaying its whole history, and an engine boots
+  without starting a process per language server or linter.
+- **A desktop conversation screen closer to the WebUI:** quiet hover actions,
+  one tab strip, and a composer that keeps its controls on one row.
+- **`/tree fold --note/--keep-open`**, and "Branch from here" on finished
+  answers in the WebUI.
+- **Chimera skips model tokens** on docs- and comment-only auto-reviews.
+- Smaller fixes in PDF reading, HQ, goals, plugins and the mailbox.
+
 ### What's new in 1.6.0
 
 - **Branch your conversation with `/tree`:** fork, switch and fold branches in
@@ -488,7 +500,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.5.5**; versions follow semver
+- Release notes: **v1.6.1**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements
