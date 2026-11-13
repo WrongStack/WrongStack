@@ -39,12 +39,15 @@ export function parsePdfPageRange(spec: string | undefined, total: number): PdfP
   const last = match[2] ? (match[3] ? Number(match[3]) : total) : first;
   if (first < 1 || last < first) throw new Error(`pages "${spec}" is not a valid range`);
   if (first > total) throw new Error(`pages "${spec}" starts past the last page (${total})`);
-  if (last - first + 1 > PDF_MAX_PAGES_PER_READ) {
+  // Clamp BEFORE the cap: a range running past the end only reads the pages
+  // that exist, so "1-25" on a 10-page PDF is 10 pages, not 25.
+  const end = Math.min(last, total);
+  if (end - first + 1 > PDF_MAX_PAGES_PER_READ) {
     throw new Error(
-      `pages "${spec}" spans ${last - first + 1} pages; read at most ${PDF_MAX_PAGES_PER_READ} per call`,
+      `pages "${spec}" spans ${end - first + 1} pages; read at most ${PDF_MAX_PAGES_PER_READ} per call`,
     );
   }
-  return { first, last: Math.min(last, total) };
+  return { first, last: end };
 }
 
 export interface PdfText {

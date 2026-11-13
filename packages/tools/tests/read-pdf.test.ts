@@ -74,4 +74,14 @@ describe('parsePdfPageRange', () => {
     expect(() => parsePdfPageRange('1-21', 50)).toThrow(/at most 20/);
     expect(() => parsePdfPageRange('4-2', 50)).toThrow(/not a valid range/);
   });
+
+  it('measures the per-call cap against pages that exist, not the requested end', () => {
+    // A range past the last page is clamped (see '2-9' on 5 pages above), so the
+    // 20-page cap must apply to the clamped span: '1-25' on a 10-page PDF reads
+    // 10 pages and must not be rejected as "spans 25 pages".
+    expect(parsePdfPageRange('1-25', 10)).toEqual({ first: 1, last: 10 });
+    expect(parsePdfPageRange('5-100', 8)).toEqual({ first: 5, last: 8 });
+    // The cap still applies when the clamped span really exceeds it.
+    expect(() => parsePdfPageRange('1-100', 50)).toThrow(/spans 50 pages/);
+  });
 });
