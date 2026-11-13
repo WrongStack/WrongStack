@@ -8,6 +8,7 @@
  * already pinned for the planner's repair source (`goal-planner.test.ts`,
  * "never splits a surrogate pair when capping the repair source").
  */
+import type { TaskGraph } from '@wrongstack/contracts/types/task-graph';
 import { describe, expect, it } from 'vitest';
 import { PhaseGraphBuilder } from '../src/phase-graph-builder.js';
 import { runPhaseVerifyGate } from '../src/phase-orchestrator-gates.js';
@@ -59,11 +60,22 @@ describe('runPhaseVerifyGate() — surrogate-safe tail cut', () => {
     name: 'Verify',
     description: '',
     dependsOn: [],
+    nextPhases: [],
     priority: 'medium',
     parallelizable: false,
-    estimatedHours: 1,
+    estimateHours: 1,
+    assignedAgents: [],
     status: 'running',
-    taskGraph: { nodes: new Map(), edges: [] },
+    taskGraph: {
+      id: 'tg-p1',
+      specId: 'spec',
+      title: 'Verify',
+      nodes: new Map(),
+      edges: [],
+      rootNodes: [],
+      createdAt: 1,
+      updatedAt: 1,
+    },
     metadata: {},
     createdAt: 1,
     updatedAt: 1,
@@ -123,7 +135,7 @@ describe('runPhaseVerifyGate() — surrogate-safe tail cut', () => {
  * worktree `ownerLabel`/branch slug, so an unpaired surrogate would reach git.
  */
 describe('PhaseGraphBuilder phase-name cap — surrogate-safe', () => {
-  const graphWith = (title: string) => ({
+  const graphWith = (title: string): TaskGraph => ({
     id: 'dag',
     specId: 'spec',
     title: 'Titles',
@@ -149,7 +161,7 @@ describe('PhaseGraphBuilder phase-name cap — surrogate-safe', () => {
   });
 
   const firstPhaseName = async (title: string): Promise<string> => {
-    const graph = await PhaseGraphBuilder.fromTaskGraph(graphWith(title) as never, {
+    const graph = await PhaseGraphBuilder.fromTaskGraph(graphWith(title), {
       title: 'Truncation',
       tasksPerPhase: 5,
     });

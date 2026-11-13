@@ -114,5 +114,6 @@
     "outcome": "Ergebnis",
     "average": "Ø"
   },
-  "branchFromHere": "Hier abzweigen"
+  "branchFromHere": "Hier abzweigen",
+  "branchFromHereTitle": "Nach dieser Assistentenantwort einen neuen Sitzungszweig abzweigen"
 }

@@ -130,6 +130,7 @@
   "loadingNamed": "Chargement de {{name}}…",
   "pluginPanels": {
     "close": "Fermer les panneaux de plugins",
-    "loading": "Chargement de la vue du panneau…"
+    "loading": "Chargement de la vue du panneau…",
+    "cancelPrompt": "Annuler la demande du plugin"
   }
 }

@@ -132,7 +132,10 @@ export const ChatRowView = memo(function ChatRowView({
             type="button"
             disabled={isLoading}
             data-testid={`branch-after-turn-${branchAfterTurn.nextPromptIndex}`}
-            title="Fork a new session branch after this assistant response"
+            title={t(
+              'chat:branchFromHereTitle',
+              'Fork a new session branch after this assistant response',
+            )}
             onClick={() => onBranchAfterTurn(branchAfterTurn.nextPromptIndex)}
             className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted/70 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
           >

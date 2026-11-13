@@ -202,7 +202,8 @@ describe('prepareRuntimeDispatch', () => {
         expect.objectContaining({ name: 'beta', enabled: false }),
         expect.objectContaining({ name: 'gamma', enabled: true }),
       ],
-      message: 'Alpha toggled Restart WrongStack to load or unload plugin code in this session.',
+      message:
+        'Alpha toggled Restart WrongStack to load or unload built-in plugin code in this session.',
       error: undefined,
     });
     expect(state.configStore.update).toHaveBeenCalledWith({ plugins: ['gamma'] });

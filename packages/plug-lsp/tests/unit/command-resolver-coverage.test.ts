@@ -156,6 +156,11 @@ describe('command resolver completion coverage', () => {
     expect(await commandResolverCoverage.windowsPathHits('a\\b', env, 'C:\\proj', readDir)).toEqual(
       [],
     );
+    // No PATH and no PATHEXT: only the current directory is searched, with the
+    // default PATHEXT list (which includes .EXE but not .PS1).
+    expect(await commandResolverCoverage.windowsPathHits('tsls', {}, 'C:\\more', readDir)).toEqual([
+      path.join('C:\\more', 'tsls.exe'),
+    ]);
   });
 
   it.runIf(process.platform === 'win32')('agrees with where.exe on this machine', async () => {

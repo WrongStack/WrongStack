@@ -130,6 +130,7 @@
   "loadingNamed": "{{name}} wird geladen…",
   "pluginPanels": {
     "close": "Plugin-Panels schließen",
-    "loading": "Panel-Ansicht wird geladen…"
+    "loading": "Panel-Ansicht wird geladen…",
+    "cancelPrompt": "Plugin-Abfrage abbrechen"
   }
 }

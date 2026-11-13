@@ -130,6 +130,7 @@
   "loadingNamed": "{{name}} yükleniyor…",
   "pluginPanels": {
     "close": "Eklenti panellerini kapat",
-    "loading": "Panel görünümü yükleniyor…"
+    "loading": "Panel görünümü yükleniyor…",
+    "cancelPrompt": "Eklenti istemini iptal et"
   }
 }

@@ -51,7 +51,8 @@ describe('surface protocol contract', () => {
     // +2: mcp.tools / mcp.tool.call (explicit MCP tool use in a conversation).
     // +2: command.list / command.run (the engine's slash commands).
     // +1: acp.config_options (an ACP agent's runtime settings).
-    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(314);
+    // +1: plugin.ui.prompt_response (answer to a plugin api.ui.prompt modal).
+    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(315);
     expect(CLIENT_MESSAGE_TYPES).toContain('acp.config_options');
     expect(CLIENT_MESSAGE_TYPES).toEqual(expect.arrayContaining(['mcp.tools', 'mcp.tool.call']));
     expect(CLIENT_MESSAGE_TYPES).toEqual(
@@ -86,7 +87,9 @@ describe('surface protocol contract', () => {
     // +2: mcp.tools / mcp.tool.result (their replies).
     // +2: command.catalog / command.result (the engine's slash commands).
     // +1: acp.config_options (its reply).
-    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(324);
+    // +4: plugin.ui.updated / plugin.ui.notify / plugin.ui.prompt / plugin.ui.prompt_resolved
+    //     (plugin api.ui chips, toasts and prompt modals).
+    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(328);
     expect(SERVER_MESSAGE_TYPES).toContain('acp.config_options');
     expect(SERVER_MESSAGE_TYPES).toEqual(expect.arrayContaining(['mcp.tools', 'mcp.tool.result']));
     expect(SERVER_MESSAGE_TYPES).toContain('provider.primary_restored');
@@ -232,6 +235,12 @@ describe('protocol registry ↔ route-family dispatcher parity', () => {
   //    ("Unknown message type") — a known decoder-accepts/dispatcher-rejects
   //    drift that this list keeps visible. Removing the drift (wiring it into
   //    the standalone pre-chain or a route family) requires removing it here.
+  //  - `plugin.ui.prompt_response` is consumed before the route chain by the
+  //    per-host plugin UI bridge (`pluginUiBridge.handleClientMessage`,
+  //    plugin-ui-ws-bridge.ts) in BOTH the standalone dispatcher
+  //    (message-dispatcher.ts) and the CLI-embedded router
+  //    (embedded-message-router.ts); the bridge owns the pending
+  //    `api.ui.prompt` promises, so the response cannot live in a route family.
   // Keeping this list explicit makes these outside-chain hooks load-bearing
   // in this test: moving one of these into a route family fails the parity
   // assertion below until this set is updated.
@@ -239,6 +248,7 @@ describe('protocol registry ↔ route-family dispatcher parity', () => {
     'connections.health',
     'connections.service_action',
     'codebase.index.server.shutdown',
+    'plugin.ui.prompt_response',
   ]);
 
   it('dispatches every registered client type without "Unknown message type"', async () => {

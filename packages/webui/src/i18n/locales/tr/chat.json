@@ -114,5 +114,6 @@
     "outcome": "Sonuç",
     "average": "Ort."
   },
-  "branchFromHere": "Buradan dallan"
+  "branchFromHere": "Buradan dallan",
+  "branchFromHereTitle": "Bu asistan yanıtından sonra yeni bir oturum dalı oluştur"
 }

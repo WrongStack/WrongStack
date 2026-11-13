@@ -6,7 +6,7 @@ import {
 } from '@wrongstack/project-surfaces/plugin-ui';
 import { Blocks, RefreshCw, X } from 'lucide-react';
 import type React from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { invokePortableCommand } from '@/lib/portable-command-rpc';
 import { getWSClient } from '@/lib/ws-client';
@@ -68,6 +68,7 @@ export function PluginUiBarAndModal(): React.ReactElement | null {
   const [error, setError] = useState<string | null>(null);
   const [pendingPrompt, setPendingPrompt] = useState<PendingPluginPrompt | null>(null);
   const [promptInput, setPromptInput] = useState('');
+  const promptTitleId = useId();
 
   const loadCatalog = useCallback(async () => {
     if (wsStatus.state !== 'open') return;
@@ -386,7 +387,7 @@ export function PluginUiBarAndModal(): React.ReactElement | null {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-[1px]"
           role="dialog"
           aria-modal="true"
-          aria-label={pendingPrompt.title}
+          aria-labelledby={promptTitleId}
           data-testid="plugin-ui-prompt-modal"
         >
           <div className="w-full max-w-md rounded-lg border border-border bg-card p-4 space-y-3 ws-dialog">
@@ -395,11 +396,13 @@ export function PluginUiBarAndModal(): React.ReactElement | null {
                 <div className="text-xs font-mono text-muted-foreground">
                   plugin:{pendingPrompt.owner}
                 </div>
-                <h3 className="text-sm font-semibold">{pendingPrompt.title}</h3>
+                <h3 id={promptTitleId} className="text-sm font-semibold">
+                  {pendingPrompt.title}
+                </h3>
               </div>
               <button
                 type="button"
-                aria-label="Cancel plugin prompt"
+                aria-label={t('common:pluginPanels.cancelPrompt')}
                 onClick={() => submitPromptResponse(pendingPrompt.requestId, null)}
                 className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               >
@@ -454,6 +457,7 @@ export function PluginUiBarAndModal(): React.ReactElement | null {
               >
                 <input
                   type="text"
+                  aria-labelledby={promptTitleId}
                   value={promptInput}
                   onChange={(e) => setPromptInput(e.target.value)}
                   className="w-full rounded border border-border bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"

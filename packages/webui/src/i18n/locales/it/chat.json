@@ -114,5 +114,6 @@
     "outcome": "Esito",
     "average": "Media"
   },
-  "branchFromHere": "Dirama da qui"
+  "branchFromHere": "Dirama da qui",
+  "branchFromHereTitle": "Crea un nuovo ramo di sessione dopo questa risposta dell'assistente"
 }

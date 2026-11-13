@@ -97,6 +97,135 @@ describe('DocumentTracker & LSPServer workspace.files_materialized sync', () => 
     ]);
   });
 
+  function makeServer(name: string, state: 'ready' | 'starting', watch = true) {
+    return {
+      name,
+      state,
+      config: { command: name, languages: ['typescript'] },
+      hasOpenDocument: vi.fn(() => true),
+      notifyDidOpen: vi.fn(),
+      notifyDidChange: vi.fn(),
+      notifyDidClose: vi.fn(),
+      ...(watch ? { notifyDidChangeWatchedFiles: vi.fn() } : {}),
+    } as unknown as LSPServer & {
+      notifyDidChangeWatchedFiles?: ReturnType<typeof vi.fn>;
+    };
+  }
+
+  function makeTracker(servers: LSPServer[], root = cwd) {
+    return new DocumentTracker(
+      () => ({ list: () => servers }),
+      { debug: vi.fn() } as unknown as Logger,
+      root,
+    );
+  }
+
+  it('resolves paths against the tracker cwd by default, keeps absolute paths, and reports each path once', async () => {
+    const ready = makeServer('ready', 'ready');
+    const starting = makeServer('starting', 'starting');
+    // A ready server from an older registry shape without watched-file support.
+    const legacy = makeServer('legacy', 'ready', false);
+    const tracker = makeTracker([ready, starting, legacy]);
+    const deletedAbs = path.resolve(cwd, 'src/gone.ts');
+    const writtenAbs = path.resolve(cwd, 'src/back.ts');
+
+    await tracker.handleWorkspaceFilesMaterialized({
+      // Duplicates, and a path both deleted and written, must collapse to the
+      // first classification so a server never sees contradictory events.
+      deletedFiles: ['src/gone.ts', deletedAbs],
+      writtenFiles: [writtenAbs, 'src/back.ts', 'src/gone.ts'],
+    });
+
+    expect(ready.notifyDidChangeWatchedFiles).toHaveBeenCalledTimes(1);
+    expect(ready.notifyDidChangeWatchedFiles).toHaveBeenCalledWith([
+      { uri: pathToUri(deletedAbs), type: 3 },
+      { uri: pathToUri(writtenAbs), type: 2 },
+    ]);
+    expect(starting.notifyDidChangeWatchedFiles).not.toHaveBeenCalled();
+    // Untracked paths are reported without being read into memory.
+    expect(files.readFile).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing when the materialization carried no file changes', async () => {
+    const ready = makeServer('ready', 'ready');
+    const tracker = makeTracker([ready]);
+
+    await tracker.handleWorkspaceFilesMaterialized({ writtenFiles: [], deletedFiles: [] });
+
+    expect(ready.notifyDidChangeWatchedFiles).not.toHaveBeenCalled();
+  });
+
+  it('abandons the batch when the tracker is reset while a restored document is being re-read', async () => {
+    const firstAbs = path.resolve(cwd, 'src/first.ts');
+    const secondAbs = path.resolve(cwd, 'src/second.ts');
+    fileContents.set(firstAbs, 'export const a = 1;\n');
+    fileContents.set(secondAbs, 'export const b = 1;\n');
+    const ready = makeServer('ready', 'ready');
+    const tracker = makeTracker([ready]);
+    expect(await tracker.open(firstAbs)).toBe(true);
+    expect(await tracker.open(secondAbs)).toBe(true);
+
+    // The re-read of first.ts triggers a forceCloseAll (session reset) before
+    // it resolves; the remaining restored files must not be processed.
+    files.readFile.mockImplementationOnce(async () => {
+      await tracker.forceCloseAll();
+      return 'export const a = 2;\n';
+    });
+    await tracker.handleWorkspaceFilesMaterialized({
+      writtenFiles: [firstAbs, secondAbs],
+      deletedFiles: [],
+    });
+
+    expect(ready.notifyDidChange).not.toHaveBeenCalled();
+    expect(ready.notifyDidChangeWatchedFiles).not.toHaveBeenCalled();
+    expect(tracker.list()).toEqual([]);
+  });
+
+  it('drops the watched-files broadcast when a reset lands during the last re-read', async () => {
+    const onlyAbs = path.resolve(cwd, 'src/only.ts');
+    fileContents.set(onlyAbs, 'export const a = 1;\n');
+    const ready = makeServer('ready', 'ready');
+    const tracker = makeTracker([ready]);
+    expect(await tracker.open(onlyAbs)).toBe(true);
+
+    files.readFile.mockImplementationOnce(async () => {
+      await tracker.forceCloseAll();
+      return 'export const a = 2;\n';
+    });
+    await tracker.handleWorkspaceFilesMaterialized({
+      writtenFiles: [onlyAbs],
+      deletedFiles: [],
+    });
+
+    expect(ready.notifyDidChange).not.toHaveBeenCalled();
+    expect(ready.notifyDidChangeWatchedFiles).not.toHaveBeenCalled();
+  });
+
+  it('LSPServer.notifyDidChangeWatchedFiles sends nothing for an empty batch', () => {
+    const server = new LSPServer(
+      'ts',
+      { command: 'tsserver', languages: ['typescript'] },
+      {
+        cwd,
+        rootPath: cwd,
+        log: { debug: vi.fn(), warn: vi.fn(), info: vi.fn(), error: vi.fn() } as unknown as Logger,
+        events: { emit: vi.fn() } as unknown as EventBus,
+      },
+    );
+    const sendNotification = vi.fn();
+    (server as unknown as { state: string }).state = 'ready';
+    (
+      server as unknown as { connection: { sendNotification: typeof sendNotification } }
+    ).connection = { sendNotification };
+    const uri = pathToUri(path.resolve(cwd, 'src/a.ts'));
+    server.diagnostics.set(uriKey(uri), [{ message: 'kept' } as never]);
+
+    server.notifyDidChangeWatchedFiles([]);
+
+    expect(sendNotification).not.toHaveBeenCalled();
+    expect(server.diagnostics.get(uriKey(uri))).toEqual([{ message: 'kept' }]);
+  });
+
   it('invalidates cached diagnostics on LSPServer.notifyDidChangeWatchedFiles and drops deleted file entries', () => {
     const server = new LSPServer(
       'ts',

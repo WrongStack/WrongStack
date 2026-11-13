@@ -114,5 +114,6 @@
     "outcome": "Resultado",
     "average": "Prom."
   },
-  "branchFromHere": "Ramificar desde aquí"
+  "branchFromHere": "Ramificar desde aquí",
+  "branchFromHereTitle": "Crear una nueva rama de sesión después de esta respuesta del asistente"
 }

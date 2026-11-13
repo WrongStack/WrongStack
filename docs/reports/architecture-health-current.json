@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-13T01:30:43.446Z",
+  "generatedAt": "2026-11-13T03:35:57.129Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6286,
-    "testFiles": 5242,
-    "sourceLines": 1299869,
+    "testFiles": 5244,
+    "sourceLines": 1299876,
     "workspaceEdges": 250,
     "moduleEdges": 18536,
     "nonCommandSlashImports": 0,
@@ -643,7 +643,7 @@
       "name": "@wrongstack/plug-lsp",
       "dir": "packages/plug-lsp",
       "sourceFiles": 52,
-      "testFiles": 59,
+      "testFiles": 60,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -658,7 +658,7 @@
         {
           "path": "packages/plug-lsp/tsconfig.test.json",
           "error": null,
-          "testFiles": 59
+          "testFiles": 60
         }
       ]
     },
@@ -1097,7 +1097,7 @@
       "name": "@wrongstack/vibeui",
       "dir": "packages/vibeui",
       "sourceFiles": 73,
-      "testFiles": 26,
+      "testFiles": 27,
       "workspaceDependencies": [
         "@wrongstack/webui-protocol"
       ],
@@ -1110,7 +1110,7 @@
         {
           "path": "packages/vibeui/tsconfig.test.json",
           "error": null,
-          "testFiles": 26
+          "testFiles": 27
         }
       ]
     },
@@ -16988,6 +16988,12 @@
         ]
       },
       {
+        "file": "packages/plug-lsp/tests/unit/command-resolver-platform.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plug-lsp/tests/unit/completion-coverage.test.ts",
         "projects": [
           "root-node"
@@ -27015,6 +27021,12 @@
       },
       {
         "file": "packages/vibeui/tests/search-highlight.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/vibeui/tests/session-branch-dialog.test.ts",
         "projects": [
           "root-node"
         ]

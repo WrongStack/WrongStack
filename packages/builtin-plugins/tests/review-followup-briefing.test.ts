@@ -80,7 +80,7 @@ describe('resolveChimeraFollowupBriefing & createChimeraFollowupExtension', () =
       sessionId: 'sess-1',
       agentId: 'chimera-review',
       reviewerModel: 'anthropic/claude-sonnet-4-6',
-      source: 'chimera-session',
+      source: 'chimera',
       reviewStatus: 'success',
       files: [{ path: 'src/auth.ts', status: 'modified' }],
       counts: { critical: 0, high: 2, medium: 0, low: 0 },
@@ -123,7 +123,11 @@ describe('resolveChimeraFollowupBriefing & createChimeraFollowupExtension', () =
         reportId,
       },
     );
-    parsed.findings[0]!.verification = { status: 'verified', matchedLine: 3 };
+    parsed.findings[0]!.verification = {
+      status: 'verified',
+      reason: 'anchor_found',
+      evidence: 'return token === "hardcoded-dev-token";',
+    };
 
     const findingStore = new JsonlFindingStore(projectDir);
     await findingStore.upsert(parsed.findings, {
@@ -176,7 +180,7 @@ describe('resolveChimeraFollowupBriefing & createChimeraFollowupExtension', () =
       sessionId: 'sess-2',
       agentId: 'chimera-review',
       reviewerModel: 'anthropic/claude-sonnet-4-6',
-      source: 'chimera-session',
+      source: 'chimera',
       reviewStatus: 'success',
       files: [],
       counts: { critical: 0, high: 0, medium: 0, low: 0 },
@@ -272,7 +276,7 @@ describe('resolveChimeraFollowupBriefing & createChimeraFollowupExtension', () =
       sessionId: 'sess-followup',
       agentId: 'chimera-review',
       reviewerModel: 'anthropic/claude-sonnet-4-6',
-      source: 'chimera-session',
+      source: 'chimera',
       reviewStatus: 'success',
       files: [{ path: 'src/auth.ts', status: 'modified' }],
       counts: { critical: 0, high: 1, medium: 1, low: 0 },
@@ -384,7 +388,7 @@ describe('resolveChimeraFollowupBriefing & createChimeraFollowupExtension', () =
     messages.push({ role: 'assistant', content: 'Done fixing!' });
 
     // 1st beforeTurnEnd: steers to run real verification checks
-    const steer1 = await ext.beforeTurnEnd?.(ctx);
+    const steer1 = await ext.beforeTurnEnd?.(ctx, 0);
     expect(steer1).toContain('have not run verification checks since the last edit');
 
     // Simulate passing test run, still omitting chimera_outcomes JSON
@@ -404,11 +408,11 @@ describe('resolveChimeraFollowupBriefing & createChimeraFollowupExtension', () =
     messages.push({ role: 'assistant', content: 'All tests pass now!' });
 
     // 2nd beforeTurnEnd: steers once for missing chimera_outcomes JSON
-    const steer2 = await ext.beforeTurnEnd?.(ctx);
+    const steer2 = await ext.beforeTurnEnd?.(ctx, 1);
     expect(steer2).toContain('chimera_outcomes');
 
     // Never loops infinitely if model still omits JSON on the retry
-    const steer3 = await ext.beforeTurnEnd?.(ctx);
+    const steer3 = await ext.beforeTurnEnd?.(ctx, 2);
     expect(steer3).toBeUndefined();
 
     // Final response includes chimera_outcomes -> afterRun reconciles store + completes report
@@ -487,7 +491,7 @@ describe('resolveChimeraFollowupBriefing & createChimeraFollowupExtension', () =
     await findingStore.transition(
       fOp.id,
       'resolved',
-      { id: 'operator', kind: 'user' },
+      { id: 'operator', kind: 'operator' },
       { outcome: 'false_positive', reason: 'Confirmed by human' },
     );
     const suppressedByOperator = await filterOperatorSuppressedFindings([fOp], projectDir);
@@ -507,7 +511,7 @@ describe('resolveChimeraFollowupBriefing & createChimeraFollowupExtension', () =
       sessionId: 'sess-honesty',
       agentId: 'chimera-review',
       reviewerModel: 'anthropic/claude-sonnet-4-6',
-      source: 'chimera-session',
+      source: 'chimera',
       reviewStatus: 'success',
       files: [{ path: 'src/broken.ts', status: 'modified' }],
       counts: { critical: 0, high: 1, medium: 0, low: 0 },

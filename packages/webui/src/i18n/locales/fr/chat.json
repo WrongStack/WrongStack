@@ -114,5 +114,6 @@
     "outcome": "Résultat",
     "average": "Moy."
   },
-  "branchFromHere": "Créer une branche ici"
+  "branchFromHere": "Créer une branche ici",
+  "branchFromHereTitle": "Créer une nouvelle branche de session après cette réponse de l'assistant"
 }

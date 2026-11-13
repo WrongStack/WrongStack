@@ -114,5 +114,6 @@
     "outcome": "Outcome",
     "average": "Avg."
   },
-  "branchFromHere": "Branch from here"
+  "branchFromHere": "Branch from here",
+  "branchFromHereTitle": "Fork a new session branch after this assistant response"
 }

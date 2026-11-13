@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-13T01:30:43.446Z
+**Generated:** 2026-11-13T03:35:57.129Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6286 |
-| Production source lines | 1299869 |
-| Test files | 5242 |
+| Production source lines | 1299876 |
+| Test files | 5244 |
 | Workspace dependency edges | 250 |
 | Relative module edges | 18536 |
 | Non-command slash imports | 0 |
@@ -49,7 +49,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/mailbox-mcp | 7 | 11 | @wrongstack/coordination, @wrongstack/core, @wrongstack/mcp |
 | @wrongstack/mcp | 74 | 100 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/persistence | 10 | 23 | — |
-| @wrongstack/plug-lsp | 52 | 59 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
+| @wrongstack/plug-lsp | 52 | 60 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugin-sdk | 12 | 10 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugins | 154 | 131 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 25 | 39 | — |
@@ -67,7 +67,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/tools | 401 | 390 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 510 | 441 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 18 | 29 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
-| @wrongstack/vibeui | 73 | 26 | @wrongstack/webui-protocol |
+| @wrongstack/vibeui | 73 | 27 | @wrongstack/webui-protocol |
 | @wrongstack/webui | 791 | 524 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-protocol | 29 | 15 | @wrongstack/contracts, @wrongstack/core, @wrongstack/hq |
 | @wrongstack/webui-server | 352 | 396 | @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/worktree, @wrongstack/wrongtrace |
