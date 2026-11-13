@@ -68,6 +68,8 @@ describe('design-eval (canonical briefs, judge parser & composite scorer)', () =
         waived: [],
       },
       inspectReport: {
+        url: 'index.html',
+        surface: 'page',
         viewports: [1440, 375],
         fails: 0,
         warns: 0,
@@ -111,7 +113,7 @@ describe('design-eval (canonical briefs, judge parser & composite scorer)', () =
           {
             id: 'a11y.icon-button-unlabeled',
             severity: 'FAIL',
-            axis: 'a11y',
+            axis: 'composition',
             file: 'index.html',
             line: 12,
             snippet: '<button><svg/></button>',

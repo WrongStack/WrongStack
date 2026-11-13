@@ -999,7 +999,7 @@ describe('memory-handlers', () => {
         msg({ query: 'hello', limit: Number.NaN }),
         {} as any,
       );
-      expect(sage.searchSage).toHaveBeenCalledWith('hello', {
+      expect((sage as { searchSage?: unknown }).searchSage).toHaveBeenCalledWith('hello', {
         limit: 20,
         includeStatuses: ['active'],
       });

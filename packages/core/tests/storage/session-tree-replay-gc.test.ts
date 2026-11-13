@@ -1,15 +1,26 @@
-import type { SessionEvent } from '@wrongstack/contracts';
+import type { SessionEvent, WorkspaceCheckpointRef } from '@wrongstack/contracts/types/session';
 import { describe, expect, it } from 'vitest';
 import {
   getSessionTreeSnapshot,
   reconstructSessionTree,
 } from '../../src/storage/session-store/tree-replay.js';
 
+function checkpointRef(digit: string): WorkspaceCheckpointRef {
+  return {
+    manifestHash: digit.repeat(64),
+    baseHead: 'a'.repeat(40),
+    entryCount: 1,
+    unresolvedCount: 0,
+    capturedAt: '2026-11-14T00:00:00.000Z',
+    coverage: 'git-head-plus-dirty',
+  };
+}
+
 describe('SessionTreeTracker workspace_checkpoint replay', () => {
   it('populates main baseWorkspaceCheckpoint and per-branch latestWorkspaceCheckpoint from workspace_checkpoint events', () => {
-    const m0 = { manifestHash: '1'.repeat(64), dirtyCount: 1, untrackedCount: 0 };
-    const m1 = { manifestHash: '2'.repeat(64), dirtyCount: 2, untrackedCount: 1 };
-    const f1 = { manifestHash: '3'.repeat(64), dirtyCount: 0, untrackedCount: 3 };
+    const m0 = checkpointRef('1');
+    const m1 = checkpointRef('2');
+    const f1 = checkpointRef('3');
 
     const events: SessionEvent[] = [
       {
@@ -48,7 +59,6 @@ describe('SessionTreeTracker workspace_checkpoint replay', () => {
         parentBranchId: 'main',
         forkSeq: 3,
         baseWorkspaceCheckpoint: m1,
-        switched: true,
         seq: 4,
       },
       {

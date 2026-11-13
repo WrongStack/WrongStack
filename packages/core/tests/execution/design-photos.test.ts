@@ -33,7 +33,7 @@ describe('design-photos (Wikimedia Commons [data-slot] engine)', () => {
       catalog,
       countPerQuery: 2,
       orientation: 'landscape',
-      axes: { paper: 'warm', display: 'roman-serif', accent: 'warm' },
+      axes: { paper: 'light', display: 'roman-serif', accent: 'warm' },
       kitId: 'furrow',
       photoTreatment: 'warm con=4 sat=-8',
       seed: 'test-seed-1',
