@@ -1,0 +1,111 @@
+.quota-summary :where(span) {
+  flex: 1;
+  min-width: 0;
+}
+
+.quota-summary :where(small) {
+  display: block;
+  font-size: var(--type-2xs);
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quota-summary :where(strong) {
+  font-size: var(--type-sm);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.quota-card :where(header) {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: var(--type-md);
+}
+
+.quota-card :where(small) {
+  color: var(--muted);
+  font-size: var(--type-2xs);
+}
+
+.quota-window :where(div) {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.quota-window :where(progress) {
+  width: 100%;
+  height: 6px;
+  accent-color: var(--accent);
+  border-radius: var(--corner-md);
+}
+
+.file-picker.skill-picker :where([role="option"]) {
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.memory-graph :where(.react-flow__controls-button) {
+  background: var(--raised);
+  color: var(--text);
+  fill: var(--text);
+  border-color: var(--border);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .agent-card:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in oklch, var(--accent) 35%, var(--border));
+  }
+}
+
+.memory-graph :where(.react-flow__controls-button:hover) {
+  background: var(--hover);
+}
+
+.memory-graph :where(.react-flow__attribution) {
+  background: var(--base);
+  color: var(--muted);
+}
+
+.quota-window :where(progress) {
+  appearance: none;
+  overflow: hidden;
+  background: var(--hover);
+  border: 0;
+}
+
+/* Execution identity stays visible independently of run/status colors. */
+.acp-runtime-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 2px 5px;
+  color: var(--accent, oklch(0.72 0.12 190));
+  font-size: 10px;
+  line-height: 1.3;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.acp-runtime-controls {
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.acp-runtime-controls label,
+.acp-runtime-controls small,
+.acp-runtime-controls [role="status"] {
+  display: block;
+  margin: 8px 0;
+}

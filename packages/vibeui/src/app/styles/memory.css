@@ -1,0 +1,124 @@
+.memory-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding-top: 16px;
+}
+
+.memory-toolbar :where(.file-search) {
+  flex: 1 1 200px;
+  margin: 0;
+}
+
+.memory-record-details {
+  margin-top: 20px;
+  color: var(--muted);
+  font-size: var(--type-xs);
+}
+
+.memory-facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px 16px;
+}
+
+.memory-relations-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: var(--type-sm);
+}
+
+.memory-relations {
+  margin: 16px 0;
+}
+
+.memory-layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  height: 51dvh;
+  min-height: 350px;
+  gap: 20px;
+  margin-top: 16px;
+}
+
+.memory-records {
+  overflow: auto;
+  border-right: 1px solid var(--border);
+  padding-right: 12px;
+}
+
+.memory-detail {
+  min-width: 0;
+  overflow: auto;
+  padding-right: 6px;
+}
+
+.memory-detail :where(.file-empty) {
+  height: 100%;
+}
+
+.memory-detail-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--base);
+  padding: 8px 0 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  font-size: var(--type-sm);
+}
+
+.memory-detail-toolbar :where(.detail-switch) {
+  margin: 0;
+}
+
+.memory-graph {
+  height: 350px;
+  border: 1px solid var(--border);
+  border-radius: var(--corner-lg);
+  overflow: hidden;
+  --xy-background-color: var(--base);
+  --xy-node-background-color-default: var(--raised);
+  --xy-node-color-default: var(--text);
+  --xy-node-border-default: 1px solid var(--border);
+  --xy-edge-stroke-default: var(--muted);
+  --xy-edge-label-color-default: var(--text);
+  --xy-edge-label-background-color-default: var(--base);
+  --xy-controls-button-background-color-default: var(--raised);
+  --xy-controls-button-color-default: var(--text);
+  --xy-controls-button-background-color-hover-default: var(--hover);
+}
+
+@media (max-width: 650px) {
+  .memory-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+  .memory-layout:where([data-selected="true"]) :where(.memory-records) {
+    display: none;
+  }
+  .memory-layout {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+  .memory-records {
+    max-height: 24dvh;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 0 0 12px;
+  }
+  .memory-detail {
+    min-height: 240px;
+    overflow: visible;
+  }
+  .memory-graph {
+    height: 320px;
+  }
+}

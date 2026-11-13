@@ -1,0 +1,73 @@
+@theme {
+  --font-sans: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+}
+
+:root {
+  color-scheme: dark;
+  --base: oklch(0.285 0.008 255);
+  --sidebar: oklch(0.26 0.008 255);
+  --raised: oklch(0.32 0.009 255);
+  --hover: oklch(0.36 0.011 255);
+  --border: oklch(0.405 0.01 255);
+  --text: oklch(0.935 0.006 255);
+  --muted: oklch(0.8 0.009 255);
+  --faint: oklch(0.755 0.009 255);
+  --accent: oklch(0.8 0.105 155);
+  --accent-text: oklch(0.235 0.015 155);
+  --danger: oklch(0.79 0.12 28);
+  --overlay: oklch(0.17 0.008 255 / 0.42);
+  --shadow: 0 18px 60px oklch(0.12 0.008 255 / 0.24);
+  --code-surface: oklch(0.265 0.008 255);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --base: oklch(0.985 0.004 85);
+  --sidebar: oklch(0.962 0.006 85);
+  --raised: oklch(1 0 0);
+  --hover: oklch(0.94 0.008 85);
+  --border: oklch(0.865 0.008 85);
+  --text: oklch(0.29 0.012 255);
+  --muted: oklch(0.475 0.012 255);
+  --faint: oklch(0.515 0.01 255);
+  --accent: oklch(0.43 0.08 155);
+  --accent-text: oklch(0.99 0.004 155);
+  --danger: oklch(0.5 0.16 28);
+  --overlay: oklch(0.3 0.012 255 / 0.18);
+  --shadow: 0 18px 60px oklch(0.25 0.008 255 / 0.12);
+  --code-surface: oklch(0.955 0.005 85);
+}
+
+:root[data-palette="ocean"],
+[data-palette="ocean"] {
+  --accent: oklch(0.8 0.09 235);
+  --accent-text: oklch(0.235 0.015 235);
+}
+
+:root[data-palette="amber"],
+[data-palette="amber"] {
+  --accent: oklch(0.82 0.105 80);
+  --accent-text: oklch(0.235 0.015 80);
+}
+
+:root[data-palette="violet"],
+[data-palette="violet"] {
+  --accent: oklch(0.8 0.09 295);
+  --accent-text: oklch(0.235 0.015 295);
+}
+
+:root[data-theme="light"][data-palette="ocean"] {
+  --accent: oklch(0.43 0.08 235);
+  --accent-text: oklch(0.99 0.004 235);
+}
+
+:root[data-theme="light"][data-palette="amber"] {
+  --accent: oklch(0.43 0.08 70);
+  --accent-text: oklch(0.99 0.004 70);
+}
+
+:root[data-theme="light"][data-palette="violet"] {
+  --accent: oklch(0.43 0.08 295);
+  --accent-text: oklch(0.99 0.004 295);
+}

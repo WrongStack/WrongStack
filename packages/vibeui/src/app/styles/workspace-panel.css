@@ -1,0 +1,156 @@
+.workspace-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--corner-xl);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--sidebar);
+}
+
+.workspace-panel > header {
+  height: 65px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 19px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.workspace-panel > header > div {
+  display: flex;
+  gap: 3px;
+}
+
+.workspace-panel > footer {
+  border-top: 1px solid var(--border);
+  padding: 16px 19px;
+  font-size: var(--type-2xs);
+  color: var(--faint);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.tab-list button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 17px 0 14px;
+  border-bottom: 1px solid transparent;
+  font-size: var(--type-xs);
+  color: var(--faint);
+}
+
+.tab-list button[data-state="active"] {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.tab-list :where(button) > span {
+  padding: 1px 5px;
+  border-radius: var(--corner-sm);
+  font-size: var(--type-2xs);
+  background: var(--hover);
+}
+
+.panel-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.panel-section-heading h2,
+.task-section h2 {
+  margin: 0;
+  font-size: var(--type-sm);
+  font-weight: 550;
+}
+
+.panel-section-heading > span {
+  color: var(--faint);
+  font-size: var(--type-2xs);
+}
+
+.panel-section-heading h3 {
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.panel-hint {
+  color: var(--faint);
+  font-size: var(--type-xs);
+  line-height: 1.7;
+  margin: 0 0 20px;
+}
+
+.panel-empty {
+  padding: 65px 20px;
+  text-align: center;
+  color: var(--faint);
+}
+
+.panel-empty > svg {
+  margin: 0 auto 14px;
+}
+
+.panel-empty .empty-artwork {
+  width: 128px;
+  height: 96px;
+  margin: 0 auto 12px;
+}
+
+.panel-empty h3 {
+  font-size: var(--type-md);
+  font-weight: 500;
+  color: var(--muted);
+  margin: 0 0 9px;
+}
+
+.panel-empty p {
+  font-size: var(--type-xs);
+  line-height: 1.8;
+  max-width: 195px;
+  margin: 0 auto;
+}
+
+@media (max-width: 1250px) {
+  .panel-open .workspace-panel {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: 350px;
+    z-index: 20;
+    box-shadow: var(--shadow);
+  }
+}
+
+@media (max-width: 760px) {
+  .panel-open .workspace-panel {
+    width: min(390px, 100vw);
+  }
+}
+
+.tab-list button > svg {
+  width: 12px;
+  height: 12px;
+}
+
+@media (max-width: 1250px) {
+  .panel-open .workspace-panel {
+    width: 390px;
+  }
+}
+
+@media (max-width: 760px) {
+  .panel-open .workspace-panel {
+    width: min(390px, 100vw);
+  }
+}

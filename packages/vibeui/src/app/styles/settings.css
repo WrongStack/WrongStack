@@ -1,0 +1,90 @@
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+
+.settings-row > span:first-child {
+  min-width: 0;
+}
+
+.settings-row strong {
+  font-size: var(--type-md);
+  font-weight: 500;
+}
+
+.input-question legend {
+  font-size: var(--type-md);
+  margin-bottom: 13px;
+  line-height: 1.7;
+}
+
+.input-question label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  font-size: var(--type-sm);
+}
+
+.input-question textarea {
+  width: 100%;
+  min-height: 70px;
+  padding: 10px;
+  margin-top: 10px;
+  font-size: var(--type-md);
+}
+
+.palette-options {
+  border: 0;
+  margin: 0;
+  padding: 0 0 22px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 22px;
+}
+
+.palette-options :where(button[data-palette="sage"]) {
+  --accent: oklch(0.8 0.105 155);
+}
+
+.palette-options button[aria-pressed="true"] {
+  border-color: var(--accent);
+}
+
+.settings-group {
+  margin: 14px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--corner-lg);
+  padding: 0 12px;
+}
+
+.settings-group[open] {
+  background: var(--raised);
+}
+
+.preference-number {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.instructions-form {
+  display: grid;
+  gap: 12px;
+  font-size: var(--type-sm);
+}
+
+@media (max-width: 650px) {
+  .settings-row {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .settings-row > :where(span:first-child) {
+    flex: 1 1 150px;
+  }
+}

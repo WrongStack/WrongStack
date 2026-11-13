@@ -1,0 +1,239 @@
+.skill-picker :where(:where(button[role="option"])) {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  word-break: normal;
+}
+
+.skill-picker :where(:where(button[aria-selected="true"])) {
+  background: var(--hover);
+}
+
+.skill-picker :where(strong) {
+  font-weight: 500;
+}
+
+.skill-picker :where(small) {
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: var(--type-xs);
+  line-height: 1.5;
+}
+
+.composer-area {
+  padding: 16px 34px 18px;
+  width: 100%;
+  max-width: 848px;
+  align-self: center;
+}
+
+.composer {
+  border: 1px solid var(--border);
+  background: var(--raised);
+  border-radius: var(--corner-xl);
+  padding: 17px 18px 12px;
+  position: relative;
+  box-shadow: 0 8px 28px oklch(0.1 0.01 255 / 0.09);
+}
+
+.composer:focus-within {
+  border-color: color-mix(in oklch, var(--accent) 65%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 8%, transparent);
+}
+
+.composer textarea {
+  width: 100%;
+  min-height: 58px;
+  max-height: 230px;
+  border: 0;
+  background: none;
+  padding: 0;
+  resize: none;
+  outline: none;
+  font-size: var(--type-md);
+  line-height: 1.7;
+}
+
+.composer textarea::placeholder {
+  color: var(--faint);
+}
+
+.composer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 7px;
+  gap: 10px;
+}
+
+.composer-tools,
+.composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.composer-tools > span {
+  font-size: var(--type-2xs);
+  color: var(--faint);
+}
+
+.send-button {
+  width: 36px;
+  height: 36px;
+  background: var(--accent);
+  color: var(--accent-text);
+  border-radius: var(--corner-lg);
+  display: grid;
+  place-items: center;
+}
+
+.send-button:disabled {
+  background: var(--hover);
+  color: var(--faint);
+  opacity: 1;
+}
+
+.composer-footnote {
+  text-align: center;
+  color: var(--faint);
+  font-size: var(--type-2xs);
+  margin: 11px 0 0;
+  letter-spacing: 0.1px;
+}
+
+.composer-guidance {
+  opacity: 0;
+}
+
+.composer-area:focus-within .composer-guidance {
+  opacity: 1;
+}
+
+.attachment-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.attachment {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  max-width: 230px;
+  color: var(--muted);
+  background: var(--hover);
+  padding: 5px 7px;
+  font-size: var(--type-xs);
+  border-radius: var(--corner-sm);
+}
+
+.attachment > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment button {
+  padding: 2px;
+  display: flex;
+}
+
+.file-picker {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 0;
+  right: 0;
+  padding: 6px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--corner-lg);
+  box-shadow: var(--shadow);
+  max-height: 250px;
+  overflow: auto;
+  z-index: 4;
+}
+
+.file-picker button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  word-break: break-all;
+}
+
+.file-picker button:hover {
+  background: var(--hover);
+}
+
+.file-picker p {
+  color: var(--muted);
+  font-size: var(--type-sm);
+  padding: 6px;
+}
+
+.skill-picker {
+  max-height: min(480px, 55dvh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+.skill-picker :where([role="option"] small) {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (max-width: 760px) {
+  .composer-area {
+    padding: 10px 14px max(12px, env(safe-area-inset-bottom));
+  }
+  .composer {
+    padding: 12px 13px 8px;
+  }
+  .composer-footnote {
+    font-size: var(--type-2xs);
+  }
+  .send-button {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+@media (max-width: 480px) {
+  .composer:has(.delivery-mode) .composer-tools > span {
+    display: none;
+  }
+}
+
+.refiner-original {
+  font-size: var(--type-xs);
+  color: var(--muted);
+}
+
+.refiner-versions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+
+@media (max-width: 650px) {
+  .refiner-versions {
+    grid-template-columns: 1fr;
+  }
+  .composer-tools {
+    gap: 2px;
+  }
+  .composer-tools > span {
+    display: none;
+  }
+}

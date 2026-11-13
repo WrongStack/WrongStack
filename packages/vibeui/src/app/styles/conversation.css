@@ -1,0 +1,469 @@
+.conversation {
+  overflow-y: auto;
+  flex: 1;
+  padding: 0 34px;
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+
+.welcome {
+  max-width: 780px;
+  position: relative;
+  margin: 0 auto;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 45px 0 65px;
+}
+
+.welcome-symbol {
+  color: var(--accent);
+  margin-bottom: 26px;
+  width: 52px;
+  height: 52px;
+  border: 1px solid var(--border);
+  border-radius: var(--corner-xl);
+  display: grid;
+  place-items: center;
+  background: var(--raised);
+  transform: none;
+}
+
+.welcome h1 {
+  font-size: clamp(32px, 3vw, 48px);
+  letter-spacing: -1.6px;
+  line-height: 1.2;
+  font-weight: 560;
+  margin: 16px 0 18px;
+  max-width: 480px;
+}
+
+.welcome :where(h1) > span {
+  color: var(--muted);
+}
+
+.welcome > p {
+  font-size: var(--type-md);
+  color: var(--muted);
+  line-height: 1.9;
+  margin: 0;
+}
+
+.starter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 38px;
+  position: relative;
+}
+
+.starter-grid button {
+  text-align: left;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--corner-lg);
+  background: color-mix(in oklch, var(--raised) 60%, var(--base));
+  transition:
+    background 150ms,
+    border-color 150ms;
+}
+
+.starter-grid button:hover:not(:disabled) {
+  background: var(--raised);
+  border-color: var(--faint);
+}
+
+.starter-grid :where(button) > span {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--type-sm);
+  font-weight: 500;
+}
+
+.starter-grid svg {
+  color: var(--faint);
+}
+
+.starter-grid small {
+  display: block;
+  color: var(--faint);
+  font-size: var(--type-2xs);
+  line-height: 1.6;
+  margin-top: 9px;
+}
+
+.welcome-project {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--faint);
+  font-size: var(--type-xs);
+  margin-top: 23px;
+}
+
+.message-queue > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: var(--type-xs);
+}
+
+.message-queue b {
+  color: var(--accent);
+  margin-right: 6px;
+}
+
+.workspace-notes {
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--type-xs);
+}
+
+.workspace-notes > :where(summary) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.workspace-notes :where(summary)::-webkit-details-marker {
+  display: none;
+}
+
+.workspace-notes :where(summary > svg) {
+  flex-shrink: 0;
+}
+
+.workspace-notes :where(summary > small) {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border-radius: var(--corner-sm);
+  background: var(--hover);
+  font-size: var(--type-2xs);
+}
+
+.workspace-notes-preview {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--faint);
+}
+
+.workspace-notes[open] .workspace-notes-chevron {
+  transform: rotate(90deg);
+}
+
+.workspace-notes[open] .workspace-notes-preview {
+  display: none;
+}
+
+.workspace-notes-body {
+  display: grid;
+  gap: 14px;
+  margin: 6px 0 0 6px;
+  padding: 4px 0 4px 20px;
+  border-left: 1px solid var(--border);
+}
+
+.workspace-notes-body > :where(article) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.streaming-label {
+  color: var(--faint);
+  font-size: var(--type-2xs);
+}
+
+.thinking-block {
+  font-size: var(--type-sm);
+  color: var(--muted);
+}
+
+.runtime-context {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: var(--type-xs);
+}
+
+.runtime-context :where(summary) {
+  cursor: pointer;
+  padding: 8px 0;
+}
+
+.thinking-block summary {
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+.thinking-block > .markdown {
+  font-size: var(--type-sm);
+}
+
+.working-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: var(--type-sm);
+}
+
+.working-line button {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  color: var(--faint);
+  font-size: var(--type-xs);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.working-activity {
+  min-width: 0;
+}
+
+.working-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.working-dots {
+  display: flex;
+  gap: 3px;
+}
+
+.working-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.working-dots i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.working-dots i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+.notice {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  margin: 0 28px 10px;
+  padding: 7px 11px;
+  border-radius: var(--corner-md);
+  color: var(--muted);
+  font-size: var(--type-sm);
+}
+
+.welcome-symbol .vibe-mark {
+  width: 36px;
+  height: 36px;
+}
+
+.workspace-artwork {
+  width: 245px;
+  height: auto;
+  position: absolute;
+  top: 50%;
+  right: -16px;
+  transform: translateY(-100%);
+  pointer-events: none;
+  color: var(--border);
+}
+
+.art-guide {
+  opacity: 0.5;
+}
+
+.art-route {
+  opacity: 0.55;
+}
+
+.starter-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.starter-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--corner-lg);
+  color: var(--accent);
+}
+
+.starter-icon :where(svg) {
+  color: inherit;
+}
+
+.starter-number {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: var(--type-2xs);
+}
+
+.starter-grid :where(strong) {
+  font-size: var(--type-md);
+  font-weight: 550;
+  letter-spacing: -0.2px;
+}
+
+.starter-description {
+  gap: 8px;
+  align-items: flex-end;
+  margin-top: 6px;
+}
+
+.starter-description :where(small) {
+  margin-top: 0;
+}
+
+.starter-description :where(svg) {
+  flex-shrink: 0;
+}
+
+@media (min-width: 761px) {
+  .welcome > :where(.eyebrow, h1, p, .welcome-project) {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+@media (max-width: 1450px) {
+  .workspace-artwork {
+    width: 175px;
+    right: -8px;
+    opacity: 0.6;
+  }
+}
+
+@media (max-width: 760px) {
+  .workspace-artwork {
+    width: 116px;
+    top: 28px;
+    right: 0;
+    transform: none;
+    opacity: 0.65;
+  }
+  .starter-card-heading {
+    margin-bottom: 10px;
+  }
+  .starter-grid :where(button) {
+    border-radius: var(--corner-lg);
+  }
+}
+
+@media (max-width: 1250px) {
+  .workspace-artwork {
+    width: 140px;
+    top: 38px;
+    right: 0;
+    transform: none;
+  }
+  .starter-grid {
+    grid-template-columns: 1fr;
+  }
+  .starter-grid button {
+    padding: 12px 14px;
+  }
+  .starter-grid small {
+    margin-top: 4px;
+  }
+  .welcome {
+    max-width: 500px;
+  }
+}
+
+@media (max-width: 760px) {
+  .conversation {
+    padding: 0 23px;
+  }
+  .welcome {
+    padding: 35px 0;
+  }
+  .welcome h1 {
+    font-size: 33px;
+    letter-spacing: -1px;
+    max-width: 330px;
+  }
+  .welcome-symbol {
+    width: 44px;
+    height: 44px;
+    margin-bottom: 22px;
+  }
+  .workspace-artwork {
+    width: 112px;
+    top: 18px;
+    right: 0;
+    opacity: 0.65;
+    transform: none;
+  }
+  .starter-grid {
+    margin-top: 25px;
+    gap: 8px;
+  }
+  .starter-grid :where(button) {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    column-gap: 12px;
+    padding: 14px;
+  }
+  .starter-card-heading {
+    grid-row: 1 / 3;
+    margin-bottom: 0;
+  }
+  .starter-number {
+    display: none;
+  }
+  .starter-grid :where(strong, .starter-description) {
+    grid-column: 2;
+  }
+  .welcome-project {
+    margin-top: 18px;
+  }
+  .notice {
+    margin: 0 15px 10px;
+  }
+}
+
+.queue-item-actions .icon-button {
+  width: 23px;
+  height: 23px;
+}
+
+.delivery-mode {
+  padding: 7px;
+  font-size: var(--type-2xs);
+  max-width: 75px;
+}
+
+.thinking-block :where(summary)::after {
+  content: "+";
+  margin-left: auto;
+  color: var(--faint);
+}
+
+.thinking-block[open] :where(summary)::after {
+  content: "−";
+}

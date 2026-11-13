@@ -1,0 +1,128 @@
+.hub-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hub-toolbar :where(.diff-tabs button) {
+  flex-shrink: 0;
+}
+
+.hub-layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 22px;
+  height: 49dvh;
+  min-height: 320px;
+}
+
+.hub-list {
+  overflow: auto;
+  padding-right: 14px;
+  border-right: 1px solid var(--border);
+}
+
+.hub-row:hover,
+.hub-row[aria-current="true"] {
+  background: var(--hover);
+}
+
+.hub-row[aria-current="true"] {
+  box-shadow: inset 2px 0 var(--accent);
+  color: var(--accent);
+}
+
+.hub-detail {
+  min-width: 0;
+  overflow: auto;
+  padding-right: 6px;
+}
+
+.hub-detail .file-empty {
+  min-height: 250px;
+}
+
+.hub-technical {
+  margin: 20px 0;
+  color: var(--muted);
+  font-size: var(--type-xs);
+}
+
+.hub-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+
+.hub-memory {
+  max-height: 55dvh;
+  overflow: auto;
+  padding-right: 10px;
+}
+
+.command-results {
+  display: grid;
+  gap: 4px;
+  max-height: 50dvh;
+  overflow: auto;
+}
+
+.command-results :where(button[aria-disabled="true"]) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.search-title-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.search-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 18px;
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: var(--type-2xs);
+  color: var(--muted);
+}
+
+.conversation-results :where(button[data-author="user"] > strong) {
+  color: var(--accent);
+}
+
+@media (max-width: 650px) {
+  .hub-layout {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    max-height: 62dvh;
+    overflow: auto;
+    gap: 16px;
+  }
+  .hub-list {
+    max-height: 23dvh;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 0 0 10px;
+  }
+  .hub-detail {
+    min-height: 220px;
+  }
+  .hub-layout:where([data-selected="false"]) :where(.hub-list) {
+    max-height: none;
+    border: 0;
+  }
+  .hub-list {
+    flex-shrink: 0;
+  }
+  .hub-layout {
+    max-height: none;
+    overflow: visible;
+  }
+  .hub-detail {
+    overflow: visible;
+  }
+}

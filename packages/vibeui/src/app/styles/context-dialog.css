@@ -1,0 +1,169 @@
+.context-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.context-capacity {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  padding: 20px 0 4px;
+  font-size: var(--type-sm);
+  color: var(--muted);
+}
+
+.context-capacity :where(progress) {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border: 0;
+  border-radius: var(--corner-md);
+  overflow: hidden;
+  background: var(--hover);
+  accent-color: var(--accent);
+}
+
+.context-capacity :where(progress)::-webkit-progress-bar {
+  background: var(--hover);
+}
+
+.context-capacity :where(progress)::-webkit-progress-value {
+  background: var(--accent);
+  border-radius: var(--corner-md);
+}
+
+.context-capacity :where(progress)::-moz-progress-bar {
+  background: var(--accent);
+}
+
+.context-metrics > :where(div) {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--corner-lg);
+  background: transparent;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.context-metrics :where(small) {
+  font-size: var(--type-2xs);
+  color: var(--muted);
+}
+
+.context-metrics :where(strong) {
+  font-size: clamp(18px, 2vw, 24px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.7px;
+}
+
+:where(#context-simple-panel) .context-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.context-search {
+  width: 100%;
+  margin: 16px 0;
+  padding: 10px;
+  background: var(--raised);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--corner-md);
+}
+
+.context-messages {
+  max-height: 40dvh;
+  overflow: auto;
+}
+
+.context-messages :where(details) {
+  border-bottom: 1px solid var(--border);
+}
+
+.context-messages :where(summary) {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  cursor: pointer;
+  font-size: var(--type-xs);
+}
+
+.context-messages :where(summary span) {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--muted);
+}
+
+.context-messages :where(pre),
+.agent-transcript :where(pre) {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--type-xs);
+  line-height: 1.65;
+  padding: 12px;
+  background: var(--raised);
+  border-radius: var(--corner-md);
+}
+
+.context-tools {
+  font-size: var(--type-xs);
+  color: var(--muted);
+}
+
+.context-tools :where(summary) {
+  cursor: pointer;
+}
+
+.context-tools :where(div) {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.compact-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.compact-section :where(strong) {
+  font-size: var(--type-sm);
+  font-weight: 500;
+}
+
+.compact-section :where(p) {
+  font-size: var(--type-xs);
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.compact-section :where(button) {
+  white-space: nowrap;
+}
+
+.cache-details {
+  margin-top: 20px;
+}
+
+.cache-details .context-metrics {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+@media (max-width: 650px) {
+  .context-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -1,0 +1,47 @@
+.quota-summary:hover {
+  color: var(--text);
+}
+
+.quota-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 16px;
+}
+
+.quota-card {
+  border: 1px solid var(--border);
+  border-radius: var(--corner-lg);
+  padding: 18px;
+  min-width: 0;
+}
+
+.quota-meter {
+  padding-top: 14px;
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: var(--type-sm);
+}
+
+.quota-window {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+  font-size: var(--type-xs);
+}
+
+.quota-cards {
+  align-items: start;
+}
+
+.quota-window :where(progress)::-webkit-progress-bar {
+  background: var(--hover);
+}
+
+.quota-window :where(progress)::-webkit-progress-value {
+  background: var(--accent);
+  border-radius: var(--corner-md);
+}
+
+.quota-window :where(progress)::-moz-progress-bar {
+  background: var(--accent);
+}

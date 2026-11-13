@@ -1,0 +1,211 @@
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  a,
+  input,
+  textarea,
+  select,
+  summary {
+    transition: none;
+  }
+  .status-dot.busy,
+  .working-dots i {
+    animation: none;
+  }
+  .session-sidebar,
+  .starter-grid button {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .panel-empty:hover .empty-signal,
+  .message-avatar.is-writing .vibe-mark-dot {
+    animation: node-glow 1.5s ease-in-out 4 alternate;
+  }
+  .next-steps:hover .step-route {
+    stroke-dasharray: 30;
+    animation: mark-trace 700ms ease both;
+  }
+  .agent-card {
+    transition:
+      background-color 160ms ease,
+      border-color 160ms ease,
+      transform 160ms ease;
+  }
+  .welcome {
+    animation: content-arrive 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .starter-grid :where(button) {
+    animation: content-arrive 360ms ease both;
+    transition:
+      transform 180ms ease,
+      background-color 180ms ease,
+      border-color 180ms ease;
+  }
+  .starter-grid :where(button:nth-child(2)) {
+    animation-delay: 60ms;
+  }
+  .starter-grid :where(button:nth-child(3)) {
+    animation-delay: 120ms;
+  }
+  .starter-grid :where(button:hover:not(:disabled)) {
+    transform: translateY(-3px);
+  }
+  .brand:hover .vibe-mark-stroke {
+    stroke-dasharray: 30;
+    animation: mark-trace 650ms ease both;
+  }
+  .art-main-panel {
+    animation: panel-float 5s ease-in-out 2;
+  }
+  .art-check {
+    animation: panel-float 4s ease-in-out 3 reverse;
+  }
+  .art-route {
+    stroke-dasharray: 7 6;
+    animation: route-flow 6s linear 2;
+  }
+  .art-node {
+    animation: node-glow 2s ease-in-out 4 alternate;
+  }
+  .art-node-two {
+    animation-delay: 600ms;
+  }
+  .run-signal :where(path) {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: signal-wave 1.1s ease-in-out infinite;
+  }
+  .send-button {
+    transition:
+      transform 160ms ease,
+      background-color 160ms ease;
+  }
+  .send-button:hover:not(:disabled) :where(svg) {
+    animation: send-lift 400ms ease both;
+  }
+  .new-session:hover:not(:disabled) > :where(svg) {
+    transform: rotate(90deg);
+    transition: transform 220ms ease;
+  }
+  .modal-overlay[data-state="open"] {
+    animation: overlay-arrive 150ms ease both;
+  }
+  .modal-content[data-state="open"] {
+    animation: surface-arrive 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .modal-content.modal-drawer[data-state="open"] {
+    animation-name: drawer-arrive;
+  }
+}
+
+@keyframes content-arrive {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes panel-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes route-flow {
+  from {
+    stroke-dashoffset: 26;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes mark-trace {
+  from {
+    stroke-dashoffset: 30;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes node-glow {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes signal-wave {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes send-lift {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes overlay-arrive {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes surface-arrive {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+    scale: 0.985;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+@keyframes drawer-arrive {
+  from {
+    opacity: 0;
+    translate: 16px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}

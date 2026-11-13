@@ -1,0 +1,124 @@
+/* Suggestions are actions, grouped apart from the answer. */
+.next-steps {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  margin-top: 24px;
+  border: 1px solid color-mix(in oklch, var(--accent) 35%, var(--border));
+  border-radius: var(--corner-lg);
+  background: color-mix(in oklch, var(--accent) 4%, var(--base));
+}
+
+.next-steps :where(header) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid color-mix(in oklch, var(--accent) 15%, var(--border));
+}
+
+.next-steps :where(header small) {
+  display: block;
+  margin-top: 5px;
+  line-height: 1.5;
+}
+
+.next-step-emblem {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  color: var(--accent);
+  background: color-mix(in oklch, var(--accent) 9%, var(--base));
+  border-radius: var(--corner-lg);
+}
+
+.next-step-mark {
+  width: 30px;
+  height: 30px;
+}
+
+.next-step-total {
+  margin-left: auto;
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+}
+
+.next-steps :where(header strong) {
+  font-size: var(--type-body);
+  font-weight: 600;
+}
+
+.next-steps :where(small, footer) {
+  color: var(--muted);
+  font-size: var(--type-xs);
+}
+
+.next-step-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 5px 0;
+}
+
+.next-step-row :where(input) {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.next-step-submit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  font-size: var(--type-sm);
+  line-height: 1.6;
+  flex: 1;
+  min-width: 0;
+  padding: 10px 4px;
+  overflow-wrap: anywhere;
+}
+
+.next-step-submit:hover {
+  color: var(--accent);
+}
+
+.next-step-submit :where(span) {
+  color: var(--faint);
+  font-family: var(--font-mono);
+}
+
+.next-step-submit :where(svg) {
+  margin-left: auto;
+}
+
+.next-steps :where(footer) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.next-step-countdown {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--accent);
+  font-size: var(--type-xs);
+}
+
+.next-step-countdown :where(button) {
+  margin-left: auto;
+  text-decoration: underline;
+  padding: 6px;
+}

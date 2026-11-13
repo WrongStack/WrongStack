@@ -1,0 +1,131 @@
+.provider-setup {
+  padding-top: 20px;
+  margin-top: 7px;
+  border-top: 1px solid var(--border);
+}
+
+.provider-setup h3 {
+  font-size: var(--type-md);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.provider-setup p {
+  font-size: var(--type-sm);
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.provider-setup form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 17px;
+}
+
+.provider-setup label {
+  font-size: var(--type-xs);
+  color: var(--muted);
+  margin-top: 5px;
+}
+
+.provider-setup input,
+.provider-setup select {
+  padding: 10px;
+  width: 100%;
+  font-size: var(--type-md);
+}
+
+.provider-setup .primary-button {
+  margin-top: 9px;
+  align-self: flex-start;
+}
+
+.provider-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  align-items: center;
+  color: var(--muted);
+  font-size: var(--type-xs);
+  margin-bottom: 18px;
+}
+
+.provider-tabs :where(.diff-tabs button) {
+  flex-shrink: 0;
+}
+
+.provider-cards {
+  display: grid;
+  gap: 12px;
+  max-height: 52dvh;
+  overflow: auto;
+}
+
+.provider-cards > article {
+  border: 1px solid var(--border);
+  padding: 18px;
+  border-radius: var(--corner-lg);
+  background: var(--raised);
+}
+
+.provider-avatar {
+  width: 38px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: var(--base);
+  border: 1px solid var(--border);
+  border-radius: var(--corner-lg);
+  font-size: var(--type-xs);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.provider-empty :where(.empty-artwork) {
+  width: 128px;
+  height: 96px;
+  margin: 0 auto 15px;
+}
+
+.provider-endpoint {
+  overflow-wrap: anywhere;
+}
+
+.provider-key {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.provider-form {
+  display: grid;
+  gap: 14px;
+  margin: 20px 0;
+  max-width: 580px;
+}
+
+.oauth-progress {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--corner-lg);
+  margin-bottom: 20px;
+  font-size: var(--type-sm);
+}
+
+@media (max-width: 650px) {
+  .provider-account header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .provider-key {
+    flex-wrap: wrap;
+  }
+}

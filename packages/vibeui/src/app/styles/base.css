@@ -1,0 +1,195 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--base);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--type-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+::selection {
+  background: color-mix(in oklch, var(--accent) 28%, transparent);
+}
+
+button,
+a,
+input,
+textarea,
+select,
+summary {
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  color: inherit;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+button,
+a,
+input,
+textarea,
+select,
+summary {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  border: 0;
+  background: none;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+a {
+  touch-action: manipulation;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+input,
+textarea,
+select {
+  color: var(--text);
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--corner-md);
+}
+
+textarea {
+  resize: vertical;
+}
+
+button svg,
+span svg {
+  flex-shrink: 0;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--corner-sm);
+}
+
+.status-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.status-dot.busy {
+  background: oklch(0.78 0.12 85);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+.status-dot.error {
+  background: var(--danger);
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: var(--corner-md);
+  color: var(--muted);
+  padding: 4px;
+}
+
+.icon-button:hover,
+.icon-button.is-active {
+  color: var(--text);
+  background: var(--hover);
+}
+
+.eyebrow {
+  font-size: var(--type-2xs);
+  font-weight: 550;
+  letter-spacing: 1.6px;
+  color: var(--faint);
+}
+
+kbd {
+  font-family: inherit;
+}
+
+.separator {
+  margin: 0 7px;
+  opacity: 0.5;
+}
+
+.secondary-button:disabled,
+.primary-button:disabled {
+  opacity: 0.5;
+}
+
+.permission-input {
+  font-family: var(--font-mono);
+  font-size: var(--type-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 270px;
+  overflow: auto;
+  padding: 15px;
+  background: var(--sidebar);
+  border: 1px solid var(--border);
+  border-radius: var(--corner-md);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 23px;
+}
+
+.form-label {
+  display: block;
+  color: var(--muted);
+  margin-bottom: 9px;
+  font-size: var(--type-xs);
+}

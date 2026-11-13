@@ -1,0 +1,9 @@
+.acp-runtime-controls summary {
+  cursor: pointer;
+}
+
+.acp-runtime-controls select {
+  max-width: 100%;
+  color: inherit;
+  background: var(--background);
+}
