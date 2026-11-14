@@ -516,7 +516,7 @@ The previous server startupReady idle-shutdown repair is present and untouched. 
 
 The browser fixtures render production components with controlled data. Their 264 px reserved left gutter tests a constrained work area; it is not a complete native-window layout simulation. Design Studio's native-storage warning in this fixture is expected because the fixture has no Tauri host. It is not reported as a product failure. The renderer fault test uses the actual browser-preview `App`, with one lazy module request deliberately rejected.
 
-Evidence and rerunnable scripts: [review artifacts](../.temp_files/desktop-v2-review-2026-11-10/). In that directory, `browser-review.json`, `assert-review.log`, `desktop-tests.log` and `desktop-types.log` contain the observations. Run from the repository root:
+Local evidence and rerunnable scripts were recorded under `.temp_files/desktop-v2-review-2026-11-10/`. These artifacts are untracked and may be absent from a checkout. Where retained, `browser-review.json`, `assert-review.log`, `desktop-tests.log` and `desktop-types.log` contain the observations. Run the retained scripts from the repository root:
 
 ```powershell
 bun .temp_files/desktop-v2-review-2026-11-10/browser-review.mjs

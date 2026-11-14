@@ -41,6 +41,21 @@ With the WrongStack CLI installed, `wstack desktop` does the same from a termina
 
 See [`docs/subcommands/desktop.md`](../../docs/subcommands/desktop.md).
 
+### Update notices in the application
+
+Packaged builds check for a newer stable release at launch and every six hours.
+Appearance settings let you turn checks off or choose **Check now**. **Later**
+dismisses that version; a newer version can still be offered. Development builds
+skip release checks, and network failures do not interrupt your work.
+
+The current configuration opens the release page for downloading an update.
+Windows and macOS can offer **Install & restart** through the Tauri updater after
+`plugins.updater.pubkey` contains the release public key and the release publishes
+signed updater metadata at the configured `latest.json` endpoint. That signing
+and publication setup is still pending. Linux `.deb` and `.rpm` builds continue
+to link to the release page. Restarting the application keeps the separate
+session host and its conversations running.
+
 ## Build the installer
 
 `bun run desktop:v2:build` compiles the engine for this machine's Rust target, bundles it as the

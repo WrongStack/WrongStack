@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Desktop update notices.** Packaged desktop builds check for a newer stable
+  release at launch and every six hours. Appearance settings can disable checks
+  or run one manually, and Later dismisses the offered version. The notice
+  links to the release download; Windows and macOS can offer Install & restart
+  once a release public key and signed updater metadata are configured.
+  Restarting the application leaves the session host and conversations running.
+
 ## [1.7.0] — 2026-11-14
 
 Conversations are easier to find and workspaces handle larger projects. Desktop
