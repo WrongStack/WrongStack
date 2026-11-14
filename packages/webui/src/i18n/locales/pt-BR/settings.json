@@ -832,7 +832,18 @@
     "includeGlobalAgentsLabel": "Incluir AGENTS.md global",
     "includeGlobalAgentsHint": "Carregar ~/.wrongstack/AGENTS.md no prompt do sistema. Desligado: excluído de todos os projetos; o arquivo é mantido.",
     "includeProjectAgentsLabel": "Incluir AGENTS.md do projeto",
-    "includeProjectAgentsHint": "Carrega o AGENTS.md da raiz do projeto no prompt do sistema. Desligado, fica de fora de todas as sessões; o arquivo é mantido."
+    "includeProjectAgentsHint": "Carrega o AGENTS.md da raiz do projeto no prompt do sistema. Desligado, fica de fora de todas as sessões; o arquivo é mantido.",
+    "pluginInstaller": {
+      "title": "Adicionar ou remover plugins",
+      "intro": "Registre um plugin neste perfil pelo alias oficial ou pelo nome do pacote. A alteração é gravada na configuração do perfil e aplicada na hora; o código do plugin é carregado na próxima vez que o motor iniciar. Instalar por nome nunca executa um gerenciador de pacotes.",
+      "placeholder": "Alias ou nome do pacote",
+      "install": "Instalar",
+      "remove": "Remover",
+      "showConfigured": "Plugins configurados",
+      "showOfficial": "Plugins oficiais",
+      "specInvalid": "Informe um alias ou nome de pacote, sem espaços nem opções.",
+      "working": "Trabalhando…"
+    }
   },
   "logs": {
     "logLevelLabel": "Nível de log",

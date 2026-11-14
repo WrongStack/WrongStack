@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-14T10:45:52.857Z",
+  "generatedAt": "2026-11-14T10:56:59.437Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6334,
-    "testFiles": 5276,
-    "sourceLines": 1308838,
+    "sourceFiles": 6335,
+    "testFiles": 5277,
+    "sourceLines": 1308955,
     "workspaceEdges": 250,
-    "moduleEdges": 18681,
+    "moduleEdges": 18682,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -1117,8 +1117,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 795,
-      "testFiles": 529,
+      "sourceFiles": 796,
+      "testFiles": 530,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1144,7 +1144,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 529
+          "testFiles": 530
         }
       ]
     },
@@ -30789,6 +30789,12 @@
       },
       {
         "file": "packages/webui/tests/components/plan-panel-session-isolation.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/plugin-installer.test.tsx",
         "projects": [
           "webui-jsdom"
         ]

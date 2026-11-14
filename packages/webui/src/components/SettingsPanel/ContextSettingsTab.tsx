@@ -2,6 +2,7 @@ import { FileText } from 'lucide-react';
 import { useAppTranslation } from '@/i18n';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { LimitsSection } from './LimitsSection';
+import { PluginInstaller } from './PluginInstaller';
 import { PluginToggleList } from './PluginToggleList';
 import { PreferenceSelect } from './PreferenceControls';
 import { PreferenceToggle } from './PreferenceToggle';
@@ -153,6 +154,9 @@ export function ContextSettingsTab({
 
       {/* Per-Plugin Toggle List */}
       <PluginToggleList syncPref={syncPref} />
+
+      {/* Add or remove plugins in the profile (the engine's /plugin command) */}
+      <PluginInstaller />
     </div>
   );
 }

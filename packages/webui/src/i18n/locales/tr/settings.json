@@ -832,7 +832,18 @@
     "includeGlobalAgentsLabel": "Global AGENTS.md dahil et",
     "includeGlobalAgentsHint": "~/.wrongstack/AGENTS.md dosyasını sistem istemine yükle. Kapalıyken hiçbir projeye eklenmez; dosya korunur.",
     "includeProjectAgentsLabel": "Proje AGENTS.md dahil et",
-    "includeProjectAgentsHint": "Projenin kök AGENTS.md dosyasını sistem istemine yükle. Kapalıyken hiçbir oturuma eklenmez; dosya korunur."
+    "includeProjectAgentsHint": "Projenin kök AGENTS.md dosyasını sistem istemine yükle. Kapalıyken hiçbir oturuma eklenmez; dosya korunur.",
+    "pluginInstaller": {
+      "title": "Eklenti ekle veya kaldır",
+      "intro": "Bir eklentiyi resmî takma adıyla veya paket adıyla bu profile kaydedin. Değişiklik profil yapılandırmasına yazılır ve hemen uygulanır; eklenti kodu motor bir sonraki başlayışında yüklenir. Ada göre kurulum hiçbir zaman paket yöneticisi çalıştırmaz.",
+      "placeholder": "Takma ad veya paket adı",
+      "install": "Kur",
+      "remove": "Kaldır",
+      "showConfigured": "Yapılandırılmış eklentiler",
+      "showOfficial": "Resmî eklentiler",
+      "specInvalid": "Boşluk veya seçenek içermeyen bir takma ad ya da paket adı girin.",
+      "working": "Çalışıyor…"
+    }
   },
   "logs": {
     "logLevelLabel": "Günlük seviyesi",

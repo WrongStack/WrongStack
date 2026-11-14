@@ -832,7 +832,18 @@
     "includeGlobalAgentsLabel": "Globale AGENTS.md einbeziehen",
     "includeGlobalAgentsHint": "~/.wrongstack/AGENTS.md in den Systemprompt laden. Aus: in keinem Projekt enthalten; die Datei bleibt erhalten.",
     "includeProjectAgentsLabel": "Projekt-AGENTS.md einbeziehen",
-    "includeProjectAgentsHint": "Die AGENTS.md im Projektstamm in den System-Prompt laden. Aus: wird in keiner Sitzung geladen; die Datei bleibt erhalten."
+    "includeProjectAgentsHint": "Die AGENTS.md im Projektstamm in den System-Prompt laden. Aus: wird in keiner Sitzung geladen; die Datei bleibt erhalten.",
+    "pluginInstaller": {
+      "title": "Plugins hinzufügen oder entfernen",
+      "intro": "Registriere ein Plugin in diesem Profil über seinen offiziellen Alias oder Paketnamen. Die Änderung wird in die Profilkonfiguration geschrieben und sofort angewendet; Plugin-Code wird beim nächsten Start der Engine geladen. Eine Installation über den Namen startet nie einen Paketmanager.",
+      "placeholder": "Alias oder Paketname",
+      "install": "Installieren",
+      "remove": "Entfernen",
+      "showConfigured": "Konfigurierte Plugins",
+      "showOfficial": "Offizielle Plugins",
+      "specInvalid": "Gib einen Alias oder Paketnamen ohne Leerzeichen und Optionen ein.",
+      "working": "Wird ausgeführt…"
+    }
   },
   "logs": {
     "logLevelLabel": "Log-Level",

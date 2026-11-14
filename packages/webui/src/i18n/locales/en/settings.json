@@ -832,7 +832,18 @@
     "includeGlobalAgentsLabel": "Include global AGENTS.md",
     "includeGlobalAgentsHint": "Load ~/.wrongstack/AGENTS.md into the system prompt. Off leaves it out of every project; the file itself is kept.",
     "includeProjectAgentsLabel": "Include project AGENTS.md",
-    "includeProjectAgentsHint": "Load this project's root AGENTS.md into the system prompt. Off leaves it out of every session; the file itself is kept."
+    "includeProjectAgentsHint": "Load this project's root AGENTS.md into the system prompt. Off leaves it out of every session; the file itself is kept.",
+    "pluginInstaller": {
+      "title": "Add or remove plugins",
+      "intro": "Register a plugin in this profile by its official alias or package name. The change is saved to the profile config and applied right away; plugin code loads the next time the engine starts. Installing by name never runs a package manager.",
+      "placeholder": "Alias or package name",
+      "install": "Install",
+      "remove": "Remove",
+      "showConfigured": "Configured plugins",
+      "showOfficial": "Official plugins",
+      "specInvalid": "Enter an alias or a package name, without spaces or options.",
+      "working": "Working…"
+    }
   },
   "logs": {
     "heading": "Logs & Debug",
