@@ -39,6 +39,8 @@ jobs:
         run: bun run setup:native
       - name: Install browser for live plugin journeys
         run: bun x --bun playwright install --with-deps chromium
+      - name: Check fixture types before the full matrix
+        run: bun run release:check --only build,test-types --no-cache
       - name: Full uncached release matrix
         run: bun run release:check --no-cache
       - name: Retain gate evidence

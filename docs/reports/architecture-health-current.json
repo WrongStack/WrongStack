@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-14T18:32:14.507Z",
+  "generatedAt": "2026-11-14T18:33:06.291Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6341,
-    "testFiles": 5295,
-    "sourceLines": 1310190,
+    "sourceFiles": 6340,
+    "testFiles": 5293,
+    "sourceLines": 1309983,
     "workspaceEdges": 250,
-    "moduleEdges": 18696,
+    "moduleEdges": 18695,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -409,7 +409,7 @@
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
       "sourceFiles": 63,
-      "testFiles": 8,
+      "testFiles": 7,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -430,7 +430,7 @@
         {
           "path": "packages/fleet/tsconfig.test.json",
           "error": null,
-          "testFiles": 8
+          "testFiles": 7
         }
       ]
     },
@@ -643,7 +643,7 @@
       "name": "@wrongstack/plug-lsp",
       "dir": "packages/plug-lsp",
       "sourceFiles": 52,
-      "testFiles": 61,
+      "testFiles": 60,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -658,7 +658,7 @@
         {
           "path": "packages/plug-lsp/tsconfig.test.json",
           "error": null,
-          "testFiles": 61
+          "testFiles": 60
         }
       ]
     },
@@ -1035,7 +1035,7 @@
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 511,
+      "sourceFiles": 510,
       "testFiles": 441,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
@@ -14492,12 +14492,6 @@
         ]
       },
       {
-        "file": "packages/fleet/tests/acp-hardening.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/fleet/tests/architecture-decision-acp.test.ts",
         "projects": [
           "root-node"
@@ -17151,12 +17145,6 @@
       },
       {
         "file": "packages/plug-lsp/tests/unit/completion-coverage.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/plug-lsp/tests/unit/completion-limit.test.ts",
         "projects": [
           "root-node"
         ]
