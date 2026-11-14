@@ -1015,8 +1015,11 @@ describe('Brain architecture regressions', () => {
     const queue = new BrainDecisionQueue(events, {
       onTimeout: (req) => terminalPolicyDecision(req, 'deny-all'),
       userInputAwaiter: async () => ({
+        requestId: 'delegated-deny-all',
         status: 'submitted',
-        answers: [{ questionId: 'decision', selectedOptionIds: [], delegated: true }],
+        answers: [
+          { questionId: 'decision', selectedOptionIds: [], delegated: true, usedRecommendation: false },
+        ],
       }),
     });
     const decision = await queue.requestHumanDecision(

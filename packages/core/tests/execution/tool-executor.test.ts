@@ -167,7 +167,10 @@ describe('ToolExecutor — executeBatch', () => {
     );
 
     expect(executeSpy).not.toHaveBeenCalled();
-    expect(result.outputs[0]?.result.content).toContain('Subagents are disabled for this session');
+    const blocked = result.outputs[0]?.result;
+    expect(blocked?.type).toBe('tool_result');
+    if (blocked?.type !== 'tool_result') throw new Error('Expected tool_result');
+    expect(blocked.content).toContain('Subagents are disabled for this session');
   });
 
   it('handles empty input without error', async () => {
@@ -462,7 +465,7 @@ describe('ToolExecutor scoped inline approval', () => {
 
   it('denies SUBAGENT_SPAWN tools invoked through the tool_use gateway when subagents are disabled', async () => {
     let spawnCalls = 0;
-    const spawnTool = {
+    const spawnTool: Tool = {
       ...createMockTool({ name: 'agent_spawn' }),
       capabilities: [ToolCapabilities.SUBAGENT_SPAWN],
       execute: async () => {

@@ -99,13 +99,13 @@ describe('BrowserSessionManager.open() failure-path cleanup', () => {
     const fakes = makeFakes();
     const origNewPage = fakes.context.newPage;
     const newPageEntered = new Promise<void>((r) => {
-      fakes.context.newPage = async () => {
+      fakes.context.newPage.mockImplementationOnce(async () => {
         r();
         await new Promise<void>((res) => {
           releaseNewPage = res;
         });
         return origNewPage();
-      };
+      });
     });
     const manager = makeManager(fakes);
     try {
