@@ -55,6 +55,18 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.7.2
+
+- **Engine restart after updates:** when conversations still run on the engine
+  of an earlier desktop, a notice offers to restart it. Conversations stop
+  gracefully and resume through Reconnect.
+- **First in-place desktop update:** 1.7.1 desktops can install 1.7.2 from the
+  update notice on Windows and macOS.
+- **Terminals that fit:** browser and webview terminals get portable glyphs, and
+  help and command pickers adapt to small panes.
+- **Safer concurrency and paths:** fleet spawn admission, OAuth retries, ACP
+  model switches and patch containment checks are tightened.
+
 ### What's new in 1.7.1
 
 - **Desktop update notices:** check at launch or from Appearance, dismiss a
@@ -552,7 +564,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.7.1**; versions follow semver
+- Release notes: **v1.7.2**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements

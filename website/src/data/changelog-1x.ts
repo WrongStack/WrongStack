@@ -1,4 +1,4 @@
-// Changelog — 1.x era (1.7.1 → 1.0.0).
+// Changelog — 1.x era (1.7.2 → 1.0.0).
 // Historical entries mirror CHANGELOG.md release notes. The 1.0.37 entry was
 // written from committed runtime/source evidence (git history and packages), not
 // the root CHANGELOG, which had not been extended when it landed. 1.1.0 absorbs
@@ -13,10 +13,23 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.2',
+    date: '2026-11-14',
+    tagline: 'An engine restart after updates, terminal-friendly pickers and safer concurrency',
+    latest: true,
+    highlights: [
+      'When conversations still run on an earlier desktop engine, a confirmed restart moves them onto the new one; they resume through Reconnect',
+      'The engine release notice points at the restart when the application is already current',
+      'The first release 1.7.1 desktops can install in place on Windows and macOS',
+      'Browser and webview terminals get portable glyphs; help and command pickers fit small panes',
+      'Fleet spawn admission, budget extensions and same-file writes are serialized; OAuth retries cancel on abort',
+      'Patch containment survives zero-line hunks, globstar patterns are bounded and ACP paths are shell-quoted',
+    ],
+  },
+  {
     version: '1.7.1',
     date: '2026-11-14',
     tagline: 'Signed desktop updates, safer session replay and recovery that preserves your work',
-    latest: true,
     highlights: [
       'The desktop checks for updates at launch and every six hours, with Check now and Later controls',
       'Windows/macOS updater packages authenticate both bytes and version; publication verifies all four targets before exposing latest.json',

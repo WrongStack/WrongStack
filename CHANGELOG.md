@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.2] — 2026-11-14
+
+After an update, conversations no longer stay on the previous engine without
+saying so: the desktop offers to restart the engine and move them onto the new
+version. Terminal and browser-hosted TUIs pick portable glyphs, command pickers
+fit small panes, and fleet, OAuth, ACP, timer and path-safety fixes close
+races and containment gaps. This is the first release that 1.7.1 desktops can
+install from the application.
+
 ### Added
 
 - **Desktop engine restart.** When an updated application still uses a session
