@@ -52,6 +52,37 @@ import type { ChronicleEvent } from './types.js';
 /** Hard ceiling mirroring `ChronicleQueryEngine.query`. */
 const MAX_LIMIT = 10_000;
 
+/** Position of a journal row: its `(day, sequence)` primary key. */
+interface RowKey {
+  day: string;
+  sequence: number;
+}
+
+/**
+ * Facet counts already taken for one query over the rows up to `last`, kept per
+ * database across the engines a long-lived journal hands out. The journal only
+ * appends and only ever deletes a prefix (retention and compaction), so while
+ * its oldest row is still `first` nothing counted is gone and only rows after
+ * `last` (by rowid) need decoding — every payload is deflated JSON, and inflating a whole
+ * journal for each facet request cost about 1.5 s per 100k events.
+ */
+interface FacetCacheEntry {
+  first: RowKey | undefined;
+  /** The highest rowid counted; rows only ever get higher ones. */
+  last: number;
+  counts: Map<ChronicleFacet, Map<string, number>>;
+}
+
+/** Distinct queries kept per database; the least recently used goes first. */
+const FACET_CACHE_ENTRIES = 16;
+const facetCaches = new WeakMap<DatabaseSync, Map<string, FacetCacheEntry>>();
+
+function facetCacheKey(fields: readonly ChronicleFacet[], query: ChronicleQuery): string {
+  // Paging and ordering do not change which events are counted.
+  const { cursor: _cursor, limit: _limit, order: _order, ...matching } = query;
+  return JSON.stringify([fields, matching]);
+}
+
 /**
  * Position in the `compareEvents` order: the last event of the previous page.
  *
@@ -326,18 +357,9 @@ export class ChronicleSqliteQueryEngine {
     query: ChronicleQuery = {},
     limit = 100,
   ): Promise<ChronicleFacetResults> {
-    const uniqueFields = [...new Set(fields)];
+    const uniqueFields = [...new Set(fields)].sort();
     if (uniqueFields.length === 0) return {};
-    const counts = new Map(uniqueFields.map((field) => [field, new Map<string, number>()]));
-
-    for (const event of this.eachMatch(query)) {
-      for (const field of uniqueFields) {
-        const value = facetValue(event, field);
-        if (value === undefined) continue;
-        const fieldCounts = counts.get(field);
-        fieldCounts?.set(value, (fieldCounts.get(value) ?? 0) + 1);
-      }
-    }
+    const counts = this.facetCounts(uniqueFields, query);
 
     const result: ChronicleFacetResults = {};
     for (const field of uniqueFields) {
@@ -349,6 +371,52 @@ export class ChronicleSqliteQueryEngine {
         .slice(0, Math.max(0, limit));
     }
     return result;
+  }
+
+  /** Counts per field over every matching row, reusing what an earlier request counted. */
+  private facetCounts(
+    fields: readonly ChronicleFacet[],
+    query: ChronicleQuery,
+  ): Map<ChronicleFacet, Map<string, number>> {
+    const first = this.db
+      .prepare('SELECT day, sequence FROM events ORDER BY day, sequence LIMIT 1')
+      .get() as RowKey | undefined;
+    const last =
+      (this.db.prepare('SELECT max(rowid) AS last FROM events').get() as { last: number | null })
+        .last ?? 0;
+    let cache = facetCaches.get(this.db);
+    if (!cache) {
+      cache = new Map();
+      facetCaches.set(this.db, cache);
+    }
+    const key = facetCacheKey(fields, query);
+    let entry = cache.get(key);
+    cache.delete(key);
+    if (!entry || !sameRow(entry.first, first)) {
+      entry = {
+        first,
+        last: 0,
+        counts: new Map(fields.map((field) => [field, new Map<string, number>()])),
+      };
+    }
+    if (last > entry.last) {
+      for (const event of this.eachMatchByRowid(query, entry.last, last)) {
+        for (const field of fields) {
+          const value = facetValue(event, field);
+          if (value === undefined) continue;
+          const fieldCounts = entry.counts.get(field);
+          fieldCounts?.set(value, (fieldCounts.get(value) ?? 0) + 1);
+        }
+      }
+      entry.last = last;
+    }
+    cache.set(key, entry);
+    while (cache.size > FACET_CACHE_ENTRIES) {
+      const oldest = cache.keys().next().value;
+      if (oldest === undefined) break;
+      cache.delete(oldest);
+    }
+    return entry.counts;
   }
 
   async facet(
@@ -450,20 +518,62 @@ export class ChronicleSqliteQueryEngine {
     };
   }
 
-  /** Every event satisfying `query`, pulled in batches so a wide scan stays bounded. */
+  /**
+   * Every event satisfying `query`, in journal order, pulled in batches so a wide scan stays
+   * bounded. A batch continues from the previous one's last key: an OFFSET re-read every
+   * earlier row for each batch.
+   */
   private *eachMatch(query: ChronicleQuery): Generator<ChronicleEvent> {
-    this.diagnostics.invalidLines = 0;
     const pushed = pushDown(query);
-    const sql =
-      `SELECT payload FROM events WHERE ${pushed.clause}` +
-      ' ORDER BY day, sequence LIMIT ? OFFSET ?';
-    let offset = 0;
+    yield* this.decodeMatches(
+      query,
+      `SELECT day, sequence, payload FROM events WHERE (${pushed.clause})` +
+        ' AND (day > ? OR (day = ? AND sequence > ?)) ORDER BY day, sequence LIMIT ?',
+      (from: RowKey | undefined) => [
+        ...pushed.params,
+        from?.day ?? '',
+        from?.day ?? '',
+        from?.sequence ?? Number.MIN_SAFE_INTEGER,
+      ],
+      (row) => ({ day: String(row['day']), sequence: Number(row['sequence']) }),
+    );
+  }
+
+  /**
+   * Matching events inserted after row `after` and up to row `upTo`, in insertion order. The
+   * rowid only grows, whatever day a row was filed under (a clock moved back, an import).
+   */
+  private *eachMatchByRowid(
+    query: ChronicleQuery,
+    after: number,
+    upTo: number,
+  ): Generator<ChronicleEvent> {
+    const pushed = pushDown(query);
+    yield* this.decodeMatches(
+      query,
+      `SELECT rowid, payload FROM events WHERE (${pushed.clause})` +
+        ' AND rowid > ? AND rowid <= ? ORDER BY rowid LIMIT ?',
+      (from: number | undefined) => [...pushed.params, from ?? after, upTo],
+      (row) => Number(row['rowid']),
+    );
+  }
+
+  private *decodeMatches<K>(
+    query: ChronicleQuery,
+    sql: string,
+    params: (from: K | undefined) => (string | number)[],
+    keyOf: (row: Record<string, unknown>) => K,
+  ): Generator<ChronicleEvent> {
+    this.diagnostics.invalidLines = 0;
+    const statement = this.db.prepare(sql);
+    let from: K | undefined;
     for (;;) {
-      const rows = this.db.prepare(sql).all(...pushed.params, this.batchSize, offset) as Array<{
-        payload: StoredChroniclePayload;
-      }>;
+      const rows = statement.all(...params(from), this.batchSize) as Array<
+        Record<string, unknown> & { payload: StoredChroniclePayload }
+      >;
       if (rows.length === 0) return;
-      offset += rows.length;
+      const tail = rows.at(-1);
+      if (tail) from = keyOf(tail);
       for (const row of rows) {
         let event: ChronicleEvent;
         try {
@@ -481,4 +591,8 @@ export class ChronicleSqliteQueryEngine {
       if (rows.length < this.batchSize) return;
     }
   }
+}
+
+function sameRow(left: RowKey | undefined, right: RowKey | undefined): boolean {
+  return left?.day === right?.day && left?.sequence === right?.sequence;
 }

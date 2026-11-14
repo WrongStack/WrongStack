@@ -410,3 +410,72 @@ describe('SQLite query parity with the JSONL engine', () => {
     }
   });
 });
+
+// 2026-11-14: facets inflated every payload of the journal on each request (~1.5 s per 100k
+// events). Counts are now kept per database and query, and only rows inserted since are read.
+describe('SQLite facet counts across requests', () => {
+  const fields = ['eventType', 'outcome', 'providerId', 'modelId'] as const;
+  const total = (values: { count: number }[] | undefined) =>
+    (values ?? []).reduce((sum, value) => sum + value.count, 0);
+  /** Copies the newest row under a new id and the given day, as a later append would. */
+  const appendCopy = (id: string, day: string) =>
+    db
+      .prepare(
+        `INSERT INTO events (day, sequence, event_id, hash, previous_hash, occurred_at, event_type,
+           outcome, project_id, session_id, agent_id, task_id, trace_id, logical_request_id,
+           prompt_manifest_id, resource_kind, resource_id, resource_path, duration_ns, payload)
+         SELECT ?, 1000000 + rowid, ?, hash, previous_hash, occurred_at, event_type, outcome,
+           project_id, session_id, agent_id, task_id, trace_id, logical_request_id,
+           prompt_manifest_id, resource_kind, resource_id, resource_path, duration_ns, payload
+         FROM events ORDER BY rowid DESC LIMIT 1`,
+      )
+      .run(day, id);
+  const fresh = async () => {
+    const legacy = await (await ChronicleQueryEngine.fromDirectory(dir)).facets([...fields], {});
+    return legacy;
+  };
+
+  it('counts rows appended after an earlier request, whatever day they are filed under', async () => {
+    const before = await new ChronicleSqliteQueryEngine(db).facets([...fields], {});
+    expect(total(before.eventType)).toBe(9);
+    appendCopy('later', '2026-03-05');
+    // Filed under an earlier day than the newest row: still a new insert.
+    appendCopy('back-dated', '2026-03-01');
+    const after = await new ChronicleSqliteQueryEngine(db).facets([...fields], {});
+    expect(total(after.eventType)).toBe(11);
+    // A query with another key matching every row counts without any cached state.
+    const uncached = await new ChronicleSqliteQueryEngine(db).facets([...fields], {
+      from: '2000-01-01T00:00:00.000Z',
+    });
+    expect(after).toEqual(uncached);
+  });
+
+  it('recounts from scratch after a prefix of the journal is deleted', async () => {
+    const first = await new ChronicleSqliteQueryEngine(db).facets([...fields], {});
+    expect(first).toEqual(await fresh());
+    db.prepare("DELETE FROM events WHERE day < '2026-03-03'").run();
+    const after = await new ChronicleSqliteQueryEngine(db).facets([...fields], {});
+    expect(total(after.eventType)).toBe(4);
+    expect(after.providerId).toEqual([{ value: 'anthropic', count: 2 }]);
+  });
+
+  it('keeps a filtered and an unfiltered request apart', async () => {
+    const all = await new ChronicleSqliteQueryEngine(db).facets([...fields], {});
+    const failures = await new ChronicleSqliteQueryEngine(db).facets([...fields], {
+      outcomes: ['failure'],
+    });
+    expect(total(all.eventType)).toBe(9);
+    expect(total(failures.eventType)).toBe(2);
+    expect(await new ChronicleSqliteQueryEngine(db).facets([...fields], {})).toEqual(all);
+  });
+
+  it('pages a wide scan in small batches to the same counts', async () => {
+    const batched = await new ChronicleSqliteQueryEngine(db, { batchSize: 2 }).facets([...fields], {
+      sessionId: 'sess-a',
+    });
+    const legacy = await (await ChronicleQueryEngine.fromDirectory(dir)).facets([...fields], {
+      sessionId: 'sess-a',
+    });
+    expect(batched).toEqual(legacy);
+  });
+});
