@@ -53,4 +53,21 @@ describe('Gemini schema sanitizer', () => {
     });
     expect(properties['v']).toEqual({ anyOf: [{ type: 'boolean' }] });
   });
+
+  it('handles cyclic schemas without throwing RangeError (F292)', () => {
+    const schema: Record<string, unknown> = {
+      type: 'object',
+      properties: { label: { type: 'string' } },
+    };
+    (schema['properties'] as Record<string, unknown>)['self'] = schema;
+    const out = toolsToGemini([
+      {
+        name: 'tree',
+        description: 't',
+        inputSchema: schema,
+        execute: async () => ({}),
+      } as never,
+    ]);
+    expect(out.length).toBeGreaterThan(0);
+  });
 });

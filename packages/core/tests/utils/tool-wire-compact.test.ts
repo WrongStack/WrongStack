@@ -456,4 +456,14 @@ describe('normalizeTopLevelToolSchema', () => {
     // The resulting schema must be a valid JSON Schema object for Anthropic
     expect(Object.keys(result)).toEqual(expect.arrayContaining(['type', 'properties']));
   });
+
+  it('compactSchemaDescriptions handles cyclic schemas without stack overflow (F292)', () => {
+    const schema: Record<string, unknown> = {
+      type: 'object',
+      properties: { label: { type: 'string' } },
+    };
+    (schema['properties'] as Record<string, unknown>)['self'] = schema;
+    const out = compactSchemaDescriptions(schema);
+    expect(out['type']).toBe('object');
+  });
 });

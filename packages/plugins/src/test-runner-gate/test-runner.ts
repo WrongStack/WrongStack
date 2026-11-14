@@ -120,9 +120,9 @@ export function resolveTestFiles(sourcePath: string, patterns: string[]): string
   const candidates: string[] = [];
   for (const pattern of patterns) {
     const candidate = pattern
-      .replace(/\{name\}/g, name)
-      .replace(/\{path\}/g, pathNoExt)
-      .replace(/\{dir\}/g, dir);
+      .replace(/\{name\}/g, () => name)
+      .replace(/\{path\}/g, () => pathNoExt)
+      .replace(/\{dir\}/g, () => dir);
     // If the pattern starts with a relative prefix (not absolute),
     // resolve relative to the source file's directory so co-located
     // patterns like "tests/{name}.test.ts" work from the package root.

@@ -210,5 +210,11 @@ describe('/panel and /image portable commands', () => {
     // Escaping projectRoot is strictly rejected
     const escapeRes = await cmd.run(outsideImg, undefined as never);
     expect(escapeRes?.message).toMatch(/outside|project root|denied/i);
+
+    // In-root filenames starting with `..` (e.g. `..logo.png`) are allowed (F296)
+    await writeFile(join(rootDir, '..logo.png'), makeSolidPng(2, 2));
+    const dotdotRes = await cmd.run('..logo.png --info', undefined as never);
+    expect(dotdotRes?.message).toContain('image/png');
+    expect(dotdotRes?.message).toContain('2×2');
   });
 });

@@ -8,8 +8,8 @@
  * @module notify-hub
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NotificationMessage } from '@wrongstack/core/notifications';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebhookNotificationChannel } from '../src/notify-hub/webhook-channel.js';
 
 // ---------------------------------------------------------------------------
@@ -409,5 +409,22 @@ describe('ping', () => {
     fetchMock.mockRejectedValue(new TypeError('unexpected redirect'));
     const result = await ch.deliver(SAMPLE_MSG);
     expect(result.ok).toBe(false);
+  });
+
+  it('chunks timeoutMs > 2^31-1 ms instead of overflowing setTimeout (F299)', async () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+    try {
+      const ch = new WebhookNotificationChannel({
+        webhookUrl: WEBHOOK_URL,
+        timeoutMs: 2_147_483_648,
+      });
+      const result = await ch.deliver(SAMPLE_MSG);
+      expect(result.ok).toBe(true);
+      const delays = setTimeoutSpy.mock.calls.map((c) => Number(c[1] ?? 0));
+      expect(delays.length).toBeGreaterThan(0);
+      expect(delays.every((d) => d >= 0 && d <= 2_147_483_647)).toBe(true);
+    } finally {
+      setTimeoutSpy.mockRestore();
+    }
   });
 });

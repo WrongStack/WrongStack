@@ -62,4 +62,12 @@ describe('formatOutput yaml — non-finite numbers', () => {
     });
     expect(result.formatted).toBe('big: .inf\n');
   });
+
+  it('breaks cyclic object references in YAML output instead of overflowing the stack (F301)', () => {
+    const a: Record<string, unknown> = { ok: 1 };
+    a['self'] = a;
+    const yaml = formatOutput(a, 'yaml');
+    expect(yaml).toContain('ok: 1');
+    expect(yaml).toContain('[Circular]');
+  });
 });

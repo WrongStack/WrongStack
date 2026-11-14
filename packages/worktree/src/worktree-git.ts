@@ -148,7 +148,8 @@ export function assertSafePath(dir: string, projectRoot: string): void {
     process.platform === 'win32' ? resolve(p).toLowerCase() : resolve(p);
   const root = norm(projectRoot);
   const abs = norm(dir);
-  if (abs !== root && !abs.startsWith(root + sep)) {
+  const prefix = root.endsWith(sep) ? root : root + sep;
+  if (abs !== root && !abs.startsWith(prefix)) {
     throw new Error(`worktree path escapes project root: ${dir}`);
   }
 }

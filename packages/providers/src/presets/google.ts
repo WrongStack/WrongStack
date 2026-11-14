@@ -436,43 +436,52 @@ const GEMINI_ALLOWED_KEYS = new Set([
   'title',
 ]);
 
-function sanitizeSchemaForGemini(node: unknown): Record<string, unknown> | undefined {
+function sanitizeSchemaForGemini(
+  node: unknown,
+  seen = new WeakSet<object>(),
+): Record<string, unknown> | undefined {
   if (node === null || node === undefined) return undefined;
   if (Array.isArray(node)) return undefined;
   if (typeof node !== 'object') return undefined;
-  const src = node as Record<string, unknown>;
-  const out: Record<string, unknown> = {};
-  for (const [rawKey, v] of Object.entries(src)) {
-    // Gemini accepts `anyOf` but not `oneOf`. Dropping `oneOf` left a property
-    // such as telegram's `chat_id` (string | integer) with no type at all on
-    // the wire. The alternatives in tool schemas are disjoint, so `anyOf`
-    // carries the same shape; runtime validation still enforces `oneOf`.
-    const k = rawKey === 'oneOf' && !('anyOf' in src) ? 'anyOf' : rawKey;
-    if (!GEMINI_ALLOWED_KEYS.has(k)) continue;
-    if (k === 'properties' && v && typeof v === 'object') {
-      const props: Record<string, unknown> = {};
-      for (const [pname, pschema] of Object.entries(v as Record<string, unknown>)) {
-        const cleaned = sanitizeSchemaForGemini(pschema);
-        if (cleaned) props[pname] = cleaned;
+  if (seen.has(node)) return undefined;
+  seen.add(node);
+  try {
+    const src = node as Record<string, unknown>;
+    const out: Record<string, unknown> = {};
+    for (const [rawKey, v] of Object.entries(src)) {
+      // Gemini accepts `anyOf` but not `oneOf`. Dropping `oneOf` left a property
+      // such as telegram's `chat_id` (string | integer) with no type at all on
+      // the wire. The alternatives in tool schemas are disjoint, so `anyOf`
+      // carries the same shape; runtime validation still enforces `oneOf`.
+      const k = rawKey === 'oneOf' && !('anyOf' in src) ? 'anyOf' : rawKey;
+      if (!GEMINI_ALLOWED_KEYS.has(k)) continue;
+      if (k === 'properties' && v && typeof v === 'object') {
+        const props: Record<string, unknown> = {};
+        for (const [pname, pschema] of Object.entries(v as Record<string, unknown>)) {
+          const cleaned = sanitizeSchemaForGemini(pschema, seen);
+          if (cleaned) props[pname] = cleaned;
+        }
+        out['properties'] = props;
+      } else if (k === 'items') {
+        const cleaned = sanitizeSchemaForGemini(v, seen);
+        if (cleaned) out['items'] = cleaned;
+      } else if (k === 'anyOf' && Array.isArray(v)) {
+        const cleaned = v
+          .map((s) => sanitizeSchemaForGemini(s, seen))
+          .filter((s): s is Record<string, unknown> => s !== undefined);
+        if (cleaned.length > 0) out['anyOf'] = cleaned;
+      } else if (k === 'required' && Array.isArray(v)) {
+        out['required'] = v.filter((s) => typeof s === 'string');
+      } else if (k === 'enum' && Array.isArray(v)) {
+        out['enum'] = v;
+      } else {
+        out[k] = v;
       }
-      out['properties'] = props;
-    } else if (k === 'items') {
-      const cleaned = sanitizeSchemaForGemini(v);
-      if (cleaned) out['items'] = cleaned;
-    } else if (k === 'anyOf' && Array.isArray(v)) {
-      const cleaned = v
-        .map((s) => sanitizeSchemaForGemini(s))
-        .filter((s): s is Record<string, unknown> => s !== undefined);
-      if (cleaned.length > 0) out['anyOf'] = cleaned;
-    } else if (k === 'required' && Array.isArray(v)) {
-      out['required'] = v.filter((s) => typeof s === 'string');
-    } else if (k === 'enum' && Array.isArray(v)) {
-      out['enum'] = v;
-    } else {
-      out[k] = v;
     }
+    return out;
+  } finally {
+    seen.delete(node);
   }
-  return out;
 }
 
 function messagesToGemini(

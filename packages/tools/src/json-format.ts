@@ -123,7 +123,7 @@ function toYamlNumber(value: number): string {
   return String(value);
 }
 
-function toYaml(data: unknown, indent = 0): string {
+function toYaml(data: unknown, indent = 0, seen = new WeakSet<object>()): string {
   if (data === null) return 'null\n';
   /* v8 ignore next -- parsed JSON never contains `undefined`; defensive for recursive calls. */
   if (data === undefined) return '';
@@ -143,44 +143,44 @@ function toYaml(data: unknown, indent = 0): string {
     }
     return data + '\n';
   }
-  if (Array.isArray(data)) {
-    if (data.length === 0) return '[]\n';
-    const prefix = '  '.repeat(indent);
-    return data
-      .map((item) => {
-        if (typeof item === 'object' && item !== null && !Array.isArray(item)) {
-          if (Object.keys(item).length === 0) return `${prefix}- {}\n`;
-          // Render the item as a mapping one level deeper and put the dash
-          // where its first line's indentation was, so a nested object/array
-          // value keeps the mapping branch's `key:` + indented-block layout.
-          // Building `- key: <value>` by hand put a nested block on the key's
-          // line (`- first: a: 1`, `second:       - 1`) — invalid YAML.
-          return `${prefix}- ${toYaml(item, indent + 1).slice(prefix.length + 2)}`;
-        }
-        // Strip the nested block's own indentation only: `trimStart()` also
-        // removed leading Unicode spaces of the VALUE (NBSP, U+2028, U+3000),
-        // silently changing it — a lone U+2028 item became `null`.
-        return `${prefix}- ${toYaml(item, indent + 1).replace(/^ +/, '')}`;
-      })
-      .join('');
-  }
   if (typeof data === 'object') {
-    const prefix = '  '.repeat(indent);
-    const entries = Object.entries(data as Record<string, unknown>);
-    if (entries.length === 0) return '{}\n';
-    return entries
-      .map(([k, v]) => {
-        const safeKey = safeYamlKey(k);
-        if (
-          typeof v === 'object' &&
-          v !== null &&
-          (Array.isArray(v) ? v.length > 0 : Object.keys(v).length > 0)
-        ) {
-          return `${prefix}${safeKey}:\n${toYaml(v, indent + 1)}`;
-        }
-        return `${prefix}${safeKey}: ${toYaml(v, indent + 1)}`;
-      })
-      .join('');
+    if (seen.has(data)) return '"[Circular]"\n';
+    seen.add(data);
+    try {
+      if (Array.isArray(data)) {
+        if (data.length === 0) return '[]\n';
+        const prefix = '  '.repeat(indent);
+        return data
+          .map((item) => {
+            if (typeof item === 'object' && item !== null && !Array.isArray(item)) {
+              if (Object.keys(item).length === 0) return `${prefix}- {}\n`;
+              if (seen.has(item)) return `${prefix}- "[Circular]"\n`;
+              return `${prefix}- ${toYaml(item, indent + 1, seen).slice(prefix.length + 2)}`;
+            }
+            return `${prefix}- ${toYaml(item, indent + 1, seen).replace(/^ +/, '')}`;
+          })
+          .join('');
+      }
+      const prefix = '  '.repeat(indent);
+      const entries = Object.entries(data as Record<string, unknown>);
+      if (entries.length === 0) return '{}\n';
+      return entries
+        .map(([k, v]) => {
+          const safeKey = safeYamlKey(k);
+          if (
+            typeof v === 'object' &&
+            v !== null &&
+            !seen.has(v) &&
+            (Array.isArray(v) ? v.length > 0 : Object.keys(v).length > 0)
+          ) {
+            return `${prefix}${safeKey}:\n${toYaml(v, indent + 1, seen)}`;
+          }
+          return `${prefix}${safeKey}: ${toYaml(v, indent + 1, seen)}`;
+        })
+        .join('');
+    } finally {
+      seen.delete(data);
+    }
   }
   /* v8 ignore next -- JSON.parse only yields null/bool/number/string/array/object; this fallback is defensive. */
   return String(data) + '\n';

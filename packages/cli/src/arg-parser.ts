@@ -172,7 +172,7 @@ export interface ParsedArgs {
 
 /** Parse top-level `wstack` CLI args. */
 export function parseArgs(argv: string[]): ParsedArgs {
-  const flags: Record<string, string | boolean> = {};
+  const flags = Object.create(null) as Record<string, string | boolean>;
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];

@@ -12,6 +12,36 @@ export interface CommandResult {
   rejected?: boolean | undefined;
 }
 
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
+function armCappedTimeout(delayMs: number, onExpire: () => void): () => void {
+  const safeDelay = Number.isFinite(delayMs) && delayMs > 0 ? delayMs : 0;
+  const deadline = Date.now() + safeDelay;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let cancelled = false;
+  const arm = (remaining: number): void => {
+    if (cancelled) return;
+    if (timer) clearTimeout(timer);
+    const chunk = Math.min(Math.max(0, remaining), MAX_TIMEOUT_MS);
+    timer = setTimeout(() => {
+      if (cancelled) return;
+      const left = deadline - Date.now();
+      if (left > 0) {
+        arm(left);
+        return;
+      }
+      onExpire();
+    }, chunk);
+    timer.unref?.();
+  };
+  arm(safeDelay);
+  return () => {
+    cancelled = true;
+    if (timer) clearTimeout(timer);
+    timer = undefined;
+  };
+}
+
 /** cmd.exe metacharacters — same set as core's `buildWin32CmdShimInvocation`. */
 const WIN32_CMD_META = /[&|<>"%^\r\n\0]/;
 
@@ -117,22 +147,22 @@ export class VerificationProcessRunner {
         stderr.append(chunk);
       });
 
-      const timer = setTimeout(() => {
+      const cancelTimer = armCappedTimeout(timeoutMs, () => {
         if (settled) return;
         settled = true;
         this.terminateProcessTree(child, detachedProcessGroup);
         reject(new Error(`git ${args.join(' ')} timed out after ${timeoutMs}ms`));
-      }, timeoutMs);
+      });
 
       child.on('close', (code) => {
-        clearTimeout(timer);
+        cancelTimer();
         if (settled) return;
         settled = true;
         if (code === 0) resolve({ stdout: stdout.toString(), stderr: stderr.toString() });
         else reject(new Error(`git ${args.join(' ')} failed: ${stderr.toString().slice(0, 500)}`));
       });
       child.on('error', (err) => {
-        clearTimeout(timer);
+        cancelTimer();
         if (settled) return;
         settled = true;
         reject(err);
@@ -183,11 +213,11 @@ export class VerificationProcessRunner {
         stderr.append(chunk);
       });
 
-      let timer: NodeJS.Timeout | undefined;
+      let cancelTimer: (() => void) | undefined;
       const finish = (exitCode: number, suffix = ''): void => {
         if (settled) return;
         settled = true;
-        if (timer) clearTimeout(timer);
+        cancelTimer?.();
         resolve({
           command: displayCommand,
           exitCode,
@@ -197,11 +227,11 @@ export class VerificationProcessRunner {
         });
       };
 
-      timer = setTimeout(() => {
+      cancelTimer = armCappedTimeout(opts.timeoutMs, () => {
         timedOut = true;
         this.terminateProcessTree(child, detachedProcessGroup);
         finish(-1, `\n--- timed out after ${opts.timeoutMs}ms ---`);
-      }, opts.timeoutMs);
+      });
 
       child.on('close', (code) => {
         finish(

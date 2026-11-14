@@ -30,7 +30,7 @@ const FAMILY_BY_CATALOG_NPM: Readonly<Record<CatalogWireNpm, WireFamily>> = {
 };
 
 export function isCatalogWireNpm(value: string | undefined): value is CatalogWireNpm {
-  return value !== undefined && value in FAMILY_BY_CATALOG_NPM;
+  return value !== undefined && Object.hasOwn(FAMILY_BY_CATALOG_NPM, value);
 }
 
 export interface CatalogRoutedProviderOptions {

@@ -90,7 +90,7 @@ export function encodeBinaryFrame(message: unknown): Buffer {
   return frame;
 }
 
-function normalizeUndefined(value: unknown): unknown {
+function normalizeUndefined(value: unknown, seen = new WeakSet<object>()): unknown {
   // Well-known class instances convert to the shapes clients expect instead
   // of MessagePack's native encodings, which shape-shift against JSON
   // framing: Date arrives as an ext-timestamp object (JSON delivers an ISO
@@ -113,26 +113,38 @@ function normalizeUndefined(value: unknown): unknown {
     const time = value.getTime();
     return Number.isNaN(time) ? null : value.toISOString();
   }
-  if (value instanceof Map) return normalizeUndefined(Object.fromEntries(value));
-  if (value instanceof Set) return normalizeUndefined([...value]);
-  if (value instanceof Error) {
-    return normalizeUndefined({ name: value.name, message: value.message, stack: value.stack });
-  }
   if (value instanceof RegExp) return String(value);
   if (value instanceof URL) return value.toJSON();
   if (Buffer.isBuffer(value)) return { type: 'Buffer', data: [...value] };
-  // Arrays of plain objects are the standard response shape (`SearchResult[]`
-  // carries `lspKind: undefined`) — recurse element-wise, preserving the array.
-  if (Array.isArray(value)) {
-    return value.map((entry) => (entry === undefined ? null : normalizeUndefined(entry)));
+  if (value !== null && typeof value === 'object') {
+    if (seen.has(value)) return '[Circular]';
+    seen.add(value);
+    try {
+      if (value instanceof Map) return normalizeUndefined(Object.fromEntries(value), seen);
+      if (value instanceof Set) return normalizeUndefined([...value], seen);
+      if (value instanceof Error) {
+        return normalizeUndefined(
+          { name: value.name, message: value.message, stack: value.stack },
+          seen,
+        );
+      }
+      // Arrays of plain objects are the standard response shape (`SearchResult[]`
+      // carries `lspKind: undefined`) — recurse element-wise, preserving the array.
+      if (Array.isArray(value)) {
+        return value.map((entry) => (entry === undefined ? null : normalizeUndefined(entry, seen)));
+      }
+      if (!isPlainObject(value)) return value;
+      const out: Record<string, unknown> = {};
+      for (const [key, entry] of Object.entries(value)) {
+        if (entry === undefined) continue;
+        out[key] = normalizeUndefined(entry, seen);
+      }
+      return out;
+    } finally {
+      seen.delete(value);
+    }
   }
-  if (!isPlainObject(value)) return value;
-  const out: Record<string, unknown> = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (entry === undefined) continue;
-    out[key] = normalizeUndefined(entry);
-  }
-  return out;
+  return value;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

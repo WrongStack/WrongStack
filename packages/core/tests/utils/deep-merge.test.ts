@@ -352,4 +352,11 @@ describe('deepMerge — onNonPrimitiveArrayReplace callback', () => {
     });
     expect(JSON.parse(JSON.stringify(result))).toEqual({ a: 1, valueOf: 2, toString: 'x' });
   });
+
+  it('breaks cyclic object references instead of overflowing the stack (F302)', () => {
+    const a: Record<string, unknown> = { x: 1 };
+    a['self'] = a;
+    const result = deepMerge(a, a) as Record<string, unknown>;
+    expect(result['x']).toBe(1);
+  });
 });

@@ -51,19 +51,41 @@ export function requestLimitExtension(opts: RequestLimitExtensionOptions): Promi
         resolve(0);
       }
     };
-    const timer = setTimeout(timerFired, timeoutMs);
-    timer.unref(); // Don't keep event loop alive past timeout
+    const safeTimeoutMs = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 0;
+    const deadline = Date.now() + safeTimeoutMs;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const clearPendingTimer = () => {
+      if (timer) {
+        clearTimeout(timer);
+        timer = undefined;
+      }
+    };
+    const armTimer = (delayMs: number) => {
+      clearPendingTimer();
+      const chunk = Math.min(Math.max(0, delayMs), 2_147_483_647);
+      timer = setTimeout(() => {
+        if (resolved) return;
+        const remaining = deadline - Date.now();
+        if (remaining > 0) {
+          armTimer(remaining);
+          return;
+        }
+        timerFired();
+      }, chunk);
+      timer.unref(); // Don't keep event loop alive past timeout
+    };
+    armTimer(safeTimeoutMs);
     const deny = () => {
       if (!resolved) {
         resolved = true;
-        clearTimeout(timer);
+        clearPendingTimer();
         resolve(0);
       }
     };
     const grant = (extra: number) => {
       if (!resolved) {
         resolved = true;
-        clearTimeout(timer);
+        clearPendingTimer();
         resolve(Math.max(0, extra));
       }
     };
@@ -81,7 +103,7 @@ export function requestLimitExtension(opts: RequestLimitExtensionOptions): Promi
         // when the timeout resolved before this tick.
         if (!resolved) {
           resolved = true;
-          clearTimeout(timer);
+          clearPendingTimer();
           resolve(100);
         }
       });

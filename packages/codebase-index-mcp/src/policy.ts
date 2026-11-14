@@ -63,7 +63,10 @@ export function codebaseIndexMcpWriteVariant(
   name: CodebaseIndexMcpToolName,
   args: Record<string, unknown>,
 ): string | null {
-  const variant = READ_TOOL_WRITE_VARIANTS[name as CodebaseIndexMcpReadToolName]?.(args);
+  const fn = Object.hasOwn(READ_TOOL_WRITE_VARIANTS, name)
+    ? READ_TOOL_WRITE_VARIANTS[name as CodebaseIndexMcpReadToolName]
+    : undefined;
+  const variant = fn?.(args);
   return variant ? `${name} ${variant} writes files; start the server with --writable` : null;
 }
 

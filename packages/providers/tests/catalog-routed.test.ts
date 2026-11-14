@@ -1,6 +1,6 @@
 import type { Request } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
-import { CatalogRoutedProvider } from '../src/catalog-routed.js';
+import { CatalogRoutedProvider, isCatalogWireNpm } from '../src/catalog-routed.js';
 
 const baseRequest: Request = {
   model: 'chat-model',
@@ -153,5 +153,11 @@ describe('CatalogRoutedProvider', () => {
         { signal: new AbortController().signal },
       ),
     ).toThrow(/unsupported wire SDK.*@ai-sdk\/future-native/);
+  });
+
+  it('isCatalogWireNpm ignores Object.prototype property names (F291)', () => {
+    expect(isCatalogWireNpm('toString')).toBe(false);
+    expect(isCatalogWireNpm('constructor')).toBe(false);
+    expect(isCatalogWireNpm('@ai-sdk/openai')).toBe(true);
   });
 });

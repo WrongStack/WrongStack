@@ -116,7 +116,7 @@ function parseHeaderDimensions(buf: Buffer): {
 
 function isWithinRoot(candidate: string, root: string): boolean {
   const rel = path.relative(root, candidate);
-  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+  return rel === '' || (rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel));
 }
 
 export async function inspectLocalImageFile(

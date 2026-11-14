@@ -1092,7 +1092,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 82,
-      "sourceLines": 17430
+      "sourceLines": 17452
     },
     {
       "directory": "design",
@@ -1253,7 +1253,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 97,
-      "sourceLines": 15710
+      "sourceLines": 15749
     },
     {
       "directory": "vcs",

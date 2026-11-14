@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CODEBASE_INDEX_READ_TOOLS,
   CODEBASE_INDEX_WRITE_TOOLS,
+  codebaseIndexMcpWriteVariant,
   mcpToolNote,
   selectCodebaseIndexMcpTools,
 } from '../src/policy.js';
@@ -36,5 +37,13 @@ describe('Codebase Index MCP policy', () => {
     );
     // Not an MCP tool: left as written.
     expect(mcpToolNote('see codebase-lsp-search')).toBe('see codebase-lsp-search');
+  });
+
+  it('codebaseIndexMcpWriteVariant ignores Object.prototype keys (F298)', () => {
+    expect(codebaseIndexMcpWriteVariant('toString' as never, {})).toBeNull();
+    expect(codebaseIndexMcpWriteVariant('constructor' as never, {})).toBeNull();
+    expect(codebaseIndexMcpWriteVariant('codebase_atlas', { mode: 'write' })).toContain(
+      '--writable',
+    );
   });
 });

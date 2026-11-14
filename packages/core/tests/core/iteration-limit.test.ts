@@ -95,4 +95,33 @@ describe('requestLimitExtension', () => {
     // Late call should not throw or change the result.
     expect(() => lateGrant!(100)).not.toThrow();
   });
+
+  it('chunks timeoutMs > 2^31-1 ms instead of overflowing setTimeout (F295)', async () => {
+    const origSetTimeout = globalThis.setTimeout;
+    const recordedDelays: number[] = [];
+    (globalThis as unknown as { setTimeout: typeof setTimeout }).setTimeout = ((
+      _fn: TimerHandler,
+      delay?: number,
+    ) => {
+      recordedDelays.push(Number(delay ?? 0));
+      return { unref() {} } as unknown as ReturnType<typeof setTimeout>;
+    }) as typeof setTimeout;
+
+    try {
+      const events = new EventBus();
+      events.on('iteration.limit_reached', (e) => e.grant(5));
+      const extra = await requestLimitExtension({
+        events,
+        currentIterations: 10,
+        currentLimit: 10,
+        autoExtend: false,
+        timeoutMs: 2_147_483_648,
+      });
+      expect(extra).toBe(5);
+      expect(recordedDelays.length).toBeGreaterThan(0);
+      expect(recordedDelays.every((d) => d >= 0 && d <= 2_147_483_647)).toBe(true);
+    } finally {
+      (globalThis as unknown as { setTimeout: typeof setTimeout }).setTimeout = origSetTimeout;
+    }
+  });
 });

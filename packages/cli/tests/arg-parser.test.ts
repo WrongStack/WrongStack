@@ -436,4 +436,10 @@ describe('parseArgs — inline boolean values', () => {
     expect(flags['dry-run']).toBe(false);
     expect(flags['model']).toBe('true');
   });
+
+  it('uses a null-prototype flags map so __proto__ and toString are safe (F294)', () => {
+    const { flags } = parseArgs(['--__proto__', 'evil']);
+    expect(Object.getOwnPropertyDescriptor(flags, '__proto__')?.value).toBe('evil');
+    expect(flags['toString']).toBeUndefined();
+  });
 });

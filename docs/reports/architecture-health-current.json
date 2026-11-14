@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-14T21:57:06.467Z",
+  "generatedAt": "2026-11-14T22:28:34.743Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6345,
-    "testFiles": 5302,
-    "sourceLines": 1310937,
+    "testFiles": 5307,
+    "sourceLines": 1311074,
     "workspaceEdges": 250,
     "moduleEdges": 18722,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 347,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1068
+    "testOnlyExports": 1069
   },
   "errors": [],
   "packageCycles": [],
@@ -531,7 +531,7 @@
       "name": "@wrongstack/kanban",
       "dir": "packages/kanban",
       "sourceFiles": 108,
-      "testFiles": 100,
+      "testFiles": 102,
       "workspaceDependencies": [
         "@wrongstack/persistence",
         "@wrongstack/primitives"
@@ -545,7 +545,7 @@
         {
           "path": "packages/kanban/tsconfig.test.json",
           "error": null,
-          "testFiles": 100
+          "testFiles": 102
         }
       ]
     },
@@ -689,7 +689,7 @@
       "name": "@wrongstack/plugins",
       "dir": "packages/plugins",
       "sourceFiles": 154,
-      "testFiles": 131,
+      "testFiles": 132,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -707,7 +707,7 @@
         {
           "path": "packages/plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 131
+          "testFiles": 132
         }
       ]
     },
@@ -1009,7 +1009,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 402,
-      "testFiles": 392,
+      "testFiles": 393,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -1028,7 +1028,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 392
+          "testFiles": 393
         }
       ]
     },
@@ -1218,7 +1218,7 @@
       "name": "@wrongstack/worktree",
       "dir": "packages/worktree",
       "sourceFiles": 10,
-      "testFiles": 4,
+      "testFiles": 5,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -1232,7 +1232,7 @@
         {
           "path": "packages/worktree/tsconfig.test.json",
           "error": null,
-          "testFiles": 4
+          "testFiles": 5
         }
       ]
     },
@@ -16082,6 +16082,12 @@
         ]
       },
       {
+        "file": "packages/kanban/tests/server/protocol-nonfinite-roundtrip.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/session-enrichment-sync.test.ts",
         "projects": [
           "root-node"
@@ -16251,6 +16257,12 @@
       },
       {
         "file": "packages/kanban/tests/verification/verification-integrity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/verification/verification-process-timeout-overflow.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18231,6 +18243,12 @@
       },
       {
         "file": "packages/plugins/tests/test-runner-gate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugins/tests/test-runner-resolve-dollar.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22731,6 +22749,12 @@
       },
       {
         "file": "packages/tools/tests/codebase-index.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/codebase-index/binary-frame-cycle.test.ts",
         "projects": [
           "root-node"
         ]
@@ -33056,6 +33080,12 @@
         ]
       },
       {
+        "file": "packages/worktree/tests/worktree-git-fsroot.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/worktree/tests/worktree-hold.test.ts",
         "projects": [
           "root-node"
@@ -39310,6 +39340,10 @@
     {
       "file": "packages/plugins/src/prompt-firewall/index.ts",
       "name": "detectSecrets"
+    },
+    {
+      "file": "packages/plugins/src/test-runner-gate/test-runner.ts",
+      "name": "resolveTestFiles"
     },
     {
       "file": "packages/plugins/src/token-throttle/index.ts",

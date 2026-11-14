@@ -100,7 +100,7 @@ export function decodeKanbanDomainValue(value: unknown): unknown {
       if (typeof payload === 'string') {
         const number = Number(payload);
         const canonical = Object.is(number, -0) ? '-0' : String(number);
-        if (Number.isFinite(number) && canonical === payload) return number;
+        if (canonical === payload) return number;
       }
       break;
     case 'string':

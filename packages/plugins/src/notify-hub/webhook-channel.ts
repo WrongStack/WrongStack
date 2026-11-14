@@ -125,7 +125,27 @@ export class WebhookNotificationChannel implements NotificationChannel {
 
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), this.#timeoutMs);
+      const MAX_TIMEOUT_MS = 2_147_483_647;
+      const safeTimeoutMs =
+        Number.isFinite(this.#timeoutMs) && this.#timeoutMs > 0 ? this.#timeoutMs : 0;
+      const deadline = Date.now() + safeTimeoutMs;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let aborted = false;
+      const armTimer = (delayMs: number): void => {
+        if (timer) clearTimeout(timer);
+        const chunk = Math.min(Math.max(0, delayMs), MAX_TIMEOUT_MS);
+        timer = setTimeout(() => {
+          if (aborted) return;
+          const remaining = deadline - Date.now();
+          if (remaining > 0) {
+            armTimer(remaining);
+            return;
+          }
+          controller.abort();
+        }, chunk);
+        timer.unref?.();
+      };
+      armTimer(safeTimeoutMs);
       try {
         const res = await fetch(this.#url, {
           method: 'POST',
@@ -152,7 +172,8 @@ export class WebhookNotificationChannel implements NotificationChannel {
         }
         if (!res.ok) throw new Error(`webhook responded ${res.status}`);
       } finally {
-        clearTimeout(timer);
+        aborted = true;
+        if (timer) clearTimeout(timer);
       }
 
       // Success — reset circuit breaker.

@@ -138,25 +138,40 @@ export function compactSchemaDescriptions(
   return isRecord(compact) ? compact : { type: 'object', properties: {} };
 }
 
-function compactSchemaNode(node: unknown, maxDescriptionChars: number): unknown {
+function compactSchemaNode(
+  node: unknown,
+  maxDescriptionChars: number,
+  seen = new WeakSet<object>(),
+): unknown {
   if (Array.isArray(node)) {
-    return node.map((item) => compactSchemaNode(item, maxDescriptionChars));
+    if (seen.has(node)) return [];
+    seen.add(node);
+    try {
+      return node.map((item) => compactSchemaNode(item, maxDescriptionChars, seen));
+    } finally {
+      seen.delete(node);
+    }
   }
   if (!isRecord(node)) return node;
-
-  const out: JSONSchema = {};
-  for (const [key, value] of Object.entries(node)) {
-    Object.defineProperty(out, key, {
-      value:
-        key === 'description' && typeof value === 'string'
-          ? compactDescription(value, maxDescriptionChars)
-          : compactSchemaNode(value, maxDescriptionChars),
-      enumerable: true,
-      configurable: true,
-      writable: true,
-    });
+  if (seen.has(node)) return {};
+  seen.add(node);
+  try {
+    const out: JSONSchema = {};
+    for (const [key, value] of Object.entries(node)) {
+      Object.defineProperty(out, key, {
+        value:
+          key === 'description' && typeof value === 'string'
+            ? compactDescription(value, maxDescriptionChars)
+            : compactSchemaNode(value, maxDescriptionChars, seen),
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
+    }
+    return out;
+  } finally {
+    seen.delete(node);
   }
-  return out;
 }
 
 export function compactDescription(text: string, maxChars: number): string {

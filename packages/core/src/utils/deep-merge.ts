@@ -101,6 +101,15 @@ export function deepMerge<T extends Record<string, unknown>>(
 export function deepMerge(base: unknown, patch: unknown, options?: DeepMergeOptions): unknown;
 
 export function deepMerge(base: unknown, patch: unknown, options: DeepMergeOptions = {}): unknown {
+  return deepMergeInternal(base, patch, options, new WeakMap());
+}
+
+function deepMergeInternal(
+  base: unknown,
+  patch: unknown,
+  options: DeepMergeOptions,
+  seen: WeakMap<object, WeakSet<object>>,
+): unknown {
   const {
     conflictResolution = 'prefer-patch',
     arrayMode = 'replace',
@@ -133,48 +142,63 @@ export function deepMerge(base: unknown, patch: unknown, options: DeepMergeOptio
   // Plain object merge.
   const baseObj = base as Record<string, unknown>;
   const patchObj = patch as Record<string, unknown>;
-  const out: Record<string, unknown> = { ...baseObj };
 
-  for (const [k, v] of Object.entries(patchObj)) {
-    if (protectProto && FORBIDDEN_PROTO_KEYS.has(k)) continue;
-
-    const existing = out[k];
-    if (
-      v !== null &&
-      typeof v === 'object' &&
-      !Array.isArray(v) &&
-      existing !== null &&
-      typeof existing === 'object' &&
-      !Array.isArray(existing)
-    ) {
-      // Recursive merge for nested plain objects.
-      out[k] = deepMerge(existing, v, options);
-    } else if (Array.isArray(v) && Array.isArray(existing)) {
-      // Delegate to top-level array handling so arrayMode
-      // (e.g. 'concat-primitives') applies to nested arrays too.
-      // Fire debug hook when a non-primitive array replaces an existing
-      // array (for non-primitive arrays, concat-primitives is a no-op and
-      // the result is always a wholesale replacement).
-      if (onNonPrimitiveArrayReplace && !isPrimitiveArray(v)) {
-        onNonPrimitiveArrayReplace(k, existing.length, v.length);
-      }
-      out[k] = deepMerge(existing, v, options);
-    } else if (v !== undefined) {
-      // Fire debug hook when a non-primitive (object) array replaces an
-      // existing value in concat-primitives mode.
-      if (onNonPrimitiveArrayReplace && Array.isArray(v) && !isPrimitiveArray(v)) {
-        const existingLen = Array.isArray(existing) ? existing.length : 0;
-        onNonPrimitiveArrayReplace(k, existingLen, v.length);
-      }
-      // Own keys only: `in` also sees Object.prototype, so a patch key named
-      // `valueOf`/`toString` absent from base kept the inherited FUNCTION,
-      // which JSON then dropped — the patch value was silently lost.
-      out[k] = conflictResolution === 'prefer-base' && Object.hasOwn(baseObj, k) ? existing : v;
-    }
-    // When v === undefined, leave the existing value untouched
-    // (this matches config-loader's behaviour: undefined in patch
-    // means "don't change this key").
+  let seenPatches = seen.get(baseObj);
+  if (seenPatches?.has(patchObj)) {
+    return conflictResolution === 'prefer-patch' ? patchObj : baseObj;
   }
+  if (!seenPatches) {
+    seenPatches = new WeakSet<object>();
+    seen.set(baseObj, seenPatches);
+  }
+  seenPatches.add(patchObj);
 
-  return out;
+  try {
+    const out: Record<string, unknown> = { ...baseObj };
+
+    for (const [k, v] of Object.entries(patchObj)) {
+      if (protectProto && FORBIDDEN_PROTO_KEYS.has(k)) continue;
+
+      const existing = out[k];
+      if (
+        v !== null &&
+        typeof v === 'object' &&
+        !Array.isArray(v) &&
+        existing !== null &&
+        typeof existing === 'object' &&
+        !Array.isArray(existing)
+      ) {
+        // Recursive merge for nested plain objects.
+        out[k] = deepMergeInternal(existing, v, options, seen);
+      } else if (Array.isArray(v) && Array.isArray(existing)) {
+        // Delegate to top-level array handling so arrayMode
+        // (e.g. 'concat-primitives') applies to nested arrays too.
+        // Fire debug hook when a non-primitive array replaces an existing
+        // array (for non-primitive arrays, concat-primitives is a no-op and
+        // the result is always a wholesale replacement).
+        if (onNonPrimitiveArrayReplace && !isPrimitiveArray(v)) {
+          onNonPrimitiveArrayReplace(k, existing.length, v.length);
+        }
+        out[k] = deepMergeInternal(existing, v, options, seen);
+      } else if (v !== undefined) {
+        // Fire debug hook when a non-primitive (object) array replaces an
+        // existing value in concat-primitives mode.
+        if (onNonPrimitiveArrayReplace && Array.isArray(v) && !isPrimitiveArray(v)) {
+          const existingLen = Array.isArray(existing) ? existing.length : 0;
+          onNonPrimitiveArrayReplace(k, existingLen, v.length);
+        }
+        // Own keys only: `in` also sees Object.prototype, so a patch key named
+        // `valueOf`/`toString` absent from base kept the inherited FUNCTION,
+        // which JSON then dropped — the patch value was silently lost.
+        out[k] = conflictResolution === 'prefer-base' && Object.hasOwn(baseObj, k) ? existing : v;
+      }
+      // When v === undefined, leave the existing value untouched
+      // (this matches config-loader's behaviour: undefined in patch
+      // means "don't change this key").
+    }
+
+    return out;
+  } finally {
+    seenPatches.delete(patchObj);
+  }
 }
