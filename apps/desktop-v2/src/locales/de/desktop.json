@@ -992,7 +992,9 @@
     "projectedSaving": "Erwartete Ersparnis etwa ${{amount}}.",
     "switchTier": "Zu {{tier}} wechseln",
     "autoWakeOneNotice": "eine angeforderte Timer-/Watch-Meldung",
-    "autoWakeNotices": "angeforderte Timer-/Watch-Meldungen"
+    "autoWakeNotices": "angeforderte Timer-/Watch-Meldungen",
+    "engineBehindApp": "Diese Unterhaltung läuft auf Engine {{current}}; diese App ist {{app}}.",
+    "engineBehindAppHint": "Verwenden Sie „Engine neu starten“ im Hinweis oben, um Unterhaltungen auf diese Version zu bringen."
   },
   "message": {
     "you": "Du",
@@ -9791,7 +9793,7 @@
   },
   "updates": {
     "available": "WrongStack Desktop {{version}} ist verfügbar",
-    "keepsRunning": "Ihre Unterhaltungen laufen weiter, während die App neu startet.",
+    "keepsRunning": "Ihre Unterhaltungen laufen weiter, während die App neu startet; starten Sie danach die Engine neu, um sie auf die neue Version zu bringen.",
     "install": "Installieren und neu starten",
     "installing": "Wird installiert…",
     "download": "Herunterladen",
@@ -9809,5 +9811,15 @@
       "found": "Version {{version}} ist verfügbar.",
       "upToDate": "Sie haben die neueste Version ({{version}})."
     }
+  },
+  "hostBuild": {
+    "stale": "Ihre Unterhaltungen laufen noch auf der Engine einer früheren WrongStack-Desktop-Version.",
+    "explain": "Starten Sie die Engine neu, um sie auf diese Version zu bringen.",
+    "confirm": "Laufende Unterhaltungen werden geordnet beendet; verbinden Sie sie danach erneut, um fortzufahren.",
+    "restart": "Engine neu starten",
+    "restartNow": "Jetzt neu starten",
+    "restarting": "Wird neu gestartet…",
+    "cancel": "Abbrechen",
+    "failed": "Die Engine konnte nicht neu gestartet werden: {{error}}"
   }
 }

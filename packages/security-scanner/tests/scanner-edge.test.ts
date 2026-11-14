@@ -451,4 +451,14 @@ describe('SecurityScanner - edge coverage', () => {
     expect(result.findings[0]!.category).toBe('secrets');
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
+
+  it('handles repeated **/ wildcards in shouldExcludeFile without ReDoS (F238)', async () => {
+    const { shouldExcludeFile } = await import('../src/file-gathering.js');
+    const pattern = `${'**/'.repeat(24)}target.ts`;
+    const candidate = `${'a/'.repeat(24)}miss.ts`;
+    const t0 = performance.now();
+    expect(shouldExcludeFile('miss.ts', candidate, [pattern])).toBe(false);
+    expect(performance.now() - t0).toBeLessThan(100);
+    expect(shouldExcludeFile('target.ts', 'a/b/c/target.ts', [pattern])).toBe(true);
+  });
 });

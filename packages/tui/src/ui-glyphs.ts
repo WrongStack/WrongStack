@@ -3,8 +3,9 @@
 import { readdirSync } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { detectTerminalHost } from '@wrongstack/core/utils';
 
-export type IconStyle = 'unicode' | 'nerd' | 'ascii';
+export type IconStyle = 'unicode' | 'nerd' | 'ascii' | 'browser';
 
 interface UiGlyphs {
   brand: string;
@@ -463,6 +464,107 @@ const ASCII: UiGlyphs = Object.freeze({
   treeThrough: '| ',
 });
 
+/**
+ * Code-point ranges a browser terminal can be relied on to render: the blocks
+ * that monospace fonts must ship for terminal UIs. Anything outside them risks a
+ * fallback font whose cell width disagrees with `string-width`, which reflows
+ * rows and tears the frame apart — the failure mode this profile exists to stop.
+ *
+ * Claimed coverage: ASCII + Latin-1, dashes/ellipsis/bullet, arrows, `√`, box
+ * drawing, block elements, geometric shapes, and `✓`/`✗` — present in Menlo,
+ * Consolas, Cascadia Mono, DejaVu Sans Mono, Liberation Mono and JetBrains Mono,
+ * the fonts xterm.js surfaces default to or fall back on.
+ */
+export const BROWSER_SAFE_CODE_POINTS: ReadonlyArray<readonly [number, number]> = Object.freeze([
+  [0x0020, 0x007e], // ASCII printable
+  [0x00a0, 0x00ff], // Latin-1 (×, ·, », ±)
+  [0x2013, 0x2014], // – —
+  [0x2016, 0x2016], // ‖
+  [0x2022, 0x2022], // •
+  [0x2026, 0x2026], // …
+  [0x2190, 0x2195], // arrows
+  [0x221a, 0x221a], // √
+  [0x2500, 0x257f], // box drawing
+  [0x2580, 0x259f], // block elements
+  [0x25a0, 0x25ff], // geometric shapes
+  [0x2713, 0x2713], // ✓
+  [0x2717, 0x2717], // ✗
+] as const);
+
+function isBrowserSafeCodePoint(codePoint: number): boolean {
+  return BROWSER_SAFE_CODE_POINTS.some(([low, high]) => codePoint >= low && codePoint <= high);
+}
+
+/** True when every code point of `glyph` sits in a browser-safe range. */
+export function isBrowserSafeGlyph(glyph: string): boolean {
+  if (glyph.length === 0) return false;
+  for (const char of glyph) {
+    const codePoint = char.codePointAt(0);
+    if (codePoint === undefined || !isBrowserSafeCodePoint(codePoint)) return false;
+  }
+  return true;
+}
+
+/**
+ * Width-unstable base symbols replaced for browser hosts.
+ *
+ * Each entry is a symbol that either has no glyph in common monospace fonts
+ * (⎇, ⌕, ⚿, ⚷, ⎗, ⎘, ⛨, ⌘, ❯, …) or has an emoji presentation whose cell
+ * width differs between fonts and `string-width` (⚡, 🎨, ⚙, ✉). The substitutes
+ * are deliberately plain; colour and placement carry the meaning instead.
+ */
+const BROWSER_REMAP: Partial<Record<keyof UiGlyphs, string>> = Object.freeze({
+  prompt: '>',
+  pause: '‖',
+  workingDirectory: '/',
+  gitBranch: '╋',
+  sessions: '▥',
+  peers: '▥',
+  tools: '*',
+  plan: '=',
+  mail: '@',
+  terminal: '$',
+  index: '+',
+  process: '!',
+  brain: '*',
+  palette: '◑',
+  pillLeft: '[',
+  pillRight: ']',
+  dividerWave: '~',
+  lock: 'L',
+  unlock: 'l',
+  link: '$',
+  zap: '!',
+  filter: 'F',
+  search: '?',
+  flame: '*',
+  sparkle: '*',
+  pin: 'P',
+  bookmark: 'B',
+  flag: 'F',
+  shield: 'S',
+  spike: '*',
+  star4: '*',
+  star8: '*',
+});
+
+function buildBrowserGlyphs(): UiGlyphs {
+  const entries = Object.entries(UNICODE).map(([key, value]): [string, string] => {
+    const substitute = BROWSER_REMAP[key as keyof UiGlyphs];
+    if (substitute !== undefined) return [key, substitute];
+    // Completeness is enforced by ui-glyphs.test.ts; '·' keeps an unmapped
+    // newcomer narrow and visible instead of painting tofu.
+    return [key, isBrowserSafeGlyph(value) ? value : '·'];
+  });
+  return Object.fromEntries(entries) as unknown as UiGlyphs;
+}
+
+/**
+ * Browser profile: UNICODE with every width-unstable symbol replaced by a
+ * single-cell glyph from a range common monospace fonts actually cover.
+ */
+const BROWSER: UiGlyphs = Object.freeze(buildBrowserGlyphs());
+
 interface FontDirectoryEntry {
   name: string;
   isDirectory: boolean;
@@ -583,12 +685,22 @@ export function resolveIconStyle(
   if (raw === 'nerd' || raw === 'nerd-font' || raw === 'nerdfont') return 'nerd';
   if (raw === 'ascii' || raw === 'plain') return 'ascii';
   if (raw) return 'unicode';
+  // Browser-hosted terminals (VS Code webview and its Remote-SSH/Containers
+  // variants, code-server, Codespaces, Gitpod, Theia, Jupyter, Cloud Shell,
+  // Replit, Hyper, Tabby, self-hosted ttyd/gotty) paint with a CSS font stack
+  // chosen by the page, not a font this process can observe. Private-use Nerd
+  // glyphs then render as tofu boxes whose width disagrees with what we
+  // measured, breaking the chrome's alignment. Every browser host therefore
+  // uses the width-stable `browser` profile; a user who configured a Nerd Font
+  // in their editor opts back in with WRONGSTACK_TUI_ICON_STYLE=nerd.
+  if (detectTerminalHost(env).host === 'browser') return 'browser';
   return detectNerdFont(env) ? 'nerd' : 'unicode';
 }
 
 export function glyphSet(style: IconStyle = resolveIconStyle()): UiGlyphs {
   if (style === 'nerd') return NERD;
   if (style === 'ascii') return ASCII;
+  if (style === 'browser') return BROWSER;
   return UNICODE;
 }
 

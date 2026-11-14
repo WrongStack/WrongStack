@@ -99,7 +99,9 @@ describe('dead-code endpoints', () => {
     expect(
       (await post(`${baseUrl}/api/deadcode/apply`, { ids: ['x'], expectedRevision: 1 })).status,
     ).toBe(400);
-    expect((await post(`${baseUrl}/api/deadcode/undo`, { backupId: '../x' })).status).toBe(400);
+    for (const backupId of ['../x', '.', '..']) {
+      expect((await post(`${baseUrl}/api/deadcode/undo`, { backupId })).status, backupId).toBe(400);
+    }
   });
 
   it('scans, previews without writing, applies, and undoes', async () => {

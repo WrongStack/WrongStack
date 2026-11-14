@@ -144,7 +144,12 @@ export async function handleDeadCodeRequest(
       }
       case 'undo': {
         const body = await readJsonBody(req);
-        if (typeof body.backupId !== 'string' || !/^[\w.-]+$/.test(body.backupId)) {
+        if (
+          typeof body.backupId !== 'string' ||
+          !/^[\w.-]+$/.test(body.backupId) ||
+          body.backupId === '.' ||
+          body.backupId === '..'
+        ) {
           throw new BadRequest('backupId is required');
         }
         send(

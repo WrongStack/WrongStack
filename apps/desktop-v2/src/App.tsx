@@ -3,6 +3,7 @@ import { lazy, Suspense, useState } from 'react';
 import { Trans } from 'react-i18next';
 import { useDesktopText } from './desktop-i18n';
 import { FleetPanel } from './FleetPanel';
+import { HostBuildNotice } from './HostBuildNotice';
 import { sessionTitle } from './model';
 import { NotificationMenu } from './NotificationMenu';
 import { useNotificationFeed } from './notification-feed';
@@ -144,6 +145,7 @@ export function App() {
             </button>
           </div>
         )}
+        <HostBuildNotice />
         <UpdateNotice />
         {!native && (
           <div className="preview-banner">

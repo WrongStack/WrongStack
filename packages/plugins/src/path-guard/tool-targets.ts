@@ -303,11 +303,11 @@ export function pathsFromToolInput(
     const base = normalizePath(cwd).replace(/\/$/, '');
     const name = typeof toolInput['name'] === 'string' ? toolInput['name'] : '';
     const template = toolInput['template'];
-    const filesByTemplate: Record<string, string[]> = {
+    const filesByTemplate: Record<string, string[]> = Object.assign(Object.create(null), {
       'npm-package': ['package.json', 'tsconfig.json', 'src/index.ts', 'src/index.test.ts'],
       'cli-tool': ['package.json', 'src/index.ts'],
       'react-component': name ? [`${name}.tsx`, `${name}.test.tsx`] : [],
-    };
+    });
     for (const file of typeof template === 'string' ? (filesByTemplate[template] ?? []) : []) {
       targets.push({ path: `${base}/${file}`, kind: 'file' });
     }

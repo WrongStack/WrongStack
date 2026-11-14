@@ -42,6 +42,7 @@ export class DirectorBudgetPolicy {
    * `removeSubagent`.
    */
   private readonly extendCounts = new Map<string, number>();
+  private readonly pendingCostCounts = new Map<string, number>();
   /**
    * Running tool-call count per subagent — the heartbeat signal for timeout
    * extension gating. Incremented on every `tool.executed` event. Promoted
@@ -89,7 +90,8 @@ export class DirectorBudgetPolicy {
 
         const guardKey = `${event.subagentId}:${payload.kind}`;
         const prior = this.extendCounts.get(guardKey) ?? 0;
-        if (prior >= this.deps.maxBudgetExtensions) {
+        const pending = this.pendingCostCounts.get(guardKey) ?? 0;
+        if (prior + pending >= this.deps.maxBudgetExtensions) {
           // Deny, but KEEP the counter. Deleting it reset the ceiling to zero,
           // so the very next threshold event for this kind started a fresh
           // allowance of `maxBudgetExtensions` grants — the cap could never
@@ -106,19 +108,37 @@ export class DirectorBudgetPolicy {
           }
         }
 
-        const grant = () =>
-          this.grantBoundedExtension(event.subagentId, event.taskId, payload, guardKey, prior);
+        const grant = () => {
+          if (!this.started) {
+            payload.deny();
+            return;
+          }
+          const latestPrior = this.extendCounts.get(guardKey) ?? 0;
+          if (latestPrior >= this.deps.maxBudgetExtensions) {
+            payload.deny();
+            return;
+          }
+          this.grantBoundedExtension(
+            event.subagentId,
+            event.taskId,
+            payload,
+            guardKey,
+            latestPrior,
+          );
+        };
         if (payload.kind !== 'cost' || !this.deps.brain) {
           grant();
           return;
         }
-        this.requestCostDecision(event.subagentId, event.taskId, payload, prior, grant);
+        this.pendingCostCounts.set(guardKey, pending + 1);
+        this.requestCostDecision(event.subagentId, event.taskId, payload, prior, guardKey, grant);
       }),
     );
   }
 
   dispose(): void {
     for (const dispose of this.disposers.splice(0)) dispose();
+    this.pendingCostCounts.clear();
     this.started = false;
   }
 
@@ -180,6 +200,7 @@ export class DirectorBudgetPolicy {
     guardKey: string,
     prior: number,
   ): void {
+    this.extendCounts.set(guardKey, prior + 1);
     setImmediate(() => {
       const extra: Record<string, unknown> = {};
       const base = Math.max(payload.limit, payload.used);
@@ -203,10 +224,15 @@ export class DirectorBudgetPolicy {
           extra.maxCostUsd = newLimit;
           break;
       }
-      this.extendCounts.set(guardKey, prior + 1);
       this.recordExtension(subagentId, taskId, payload.kind, newLimit);
       payload.extend(extra);
     });
+  }
+
+  private releasePendingCost(guardKey: string): void {
+    const cur = this.pendingCostCounts.get(guardKey) ?? 0;
+    if (cur <= 1) this.pendingCostCounts.delete(guardKey);
+    else this.pendingCostCounts.set(guardKey, cur - 1);
   }
 
   private requestCostDecision(
@@ -214,6 +240,7 @@ export class DirectorBudgetPolicy {
     taskId: string | undefined,
     payload: BudgetThresholdPayload,
     prior: number,
+    guardKey: string,
     grant: () => void,
   ): void {
     void this.deps.brain
@@ -262,6 +289,7 @@ export class DirectorBudgetPolicy {
         ],
       })
       .then((decision) => {
+        this.releasePendingCost(guardKey);
         if (
           decision.type === 'deny' ||
           decision.type === 'ask_human' ||
@@ -272,7 +300,10 @@ export class DirectorBudgetPolicy {
         }
         grant();
       })
-      .catch(() => payload.deny());
+      .catch(() => {
+        this.releasePendingCost(guardKey);
+        payload.deny();
+      });
   }
 
   private recordExtension(

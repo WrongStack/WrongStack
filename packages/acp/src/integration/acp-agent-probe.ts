@@ -105,7 +105,7 @@ export function resolveAcpAgentCommand(
   overrides?: AcpAgentCommandOverrides,
   live?: AcpLiveCatalog,
 ): ACPSubagentRunnerOptions | null {
-  const ov = overrides?.[id];
+  const ov = overrides && Object.hasOwn(overrides, id) ? overrides[id] : undefined;
   if (ov && typeof ov.command === 'string' && ov.command.length > 0) {
     const out: ACPSubagentRunnerOptions = {
       command: ov.command,
@@ -125,7 +125,10 @@ export function resolveAcpAgentCommand(
     if (desc.acp.env) out.env = desc.acp.env;
     return out;
   }
-  const liveEntry = live?.[id] ?? live?.[REGISTRY_ID_ALIASES[id] ?? ''];
+  const alias = Object.hasOwn(REGISTRY_ID_ALIASES, id) ? REGISTRY_ID_ALIASES[id] : undefined;
+  const liveEntry =
+    (live && Object.hasOwn(live, id) ? live[id] : undefined) ??
+    (live && alias && Object.hasOwn(live, alias) ? live[alias] : undefined);
   if (liveEntry && typeof liveEntry.command === 'string' && liveEntry.command.length > 0) {
     const out: ACPSubagentRunnerOptions = {
       command: liveEntry.command,
@@ -135,7 +138,7 @@ export function resolveAcpAgentCommand(
     if (liveEntry.env) out.env = liveEntry.env;
     return out;
   }
-  const fromMap = ACP_AGENT_COMMANDS[id];
+  const fromMap = Object.hasOwn(ACP_AGENT_COMMANDS, id) ? ACP_AGENT_COMMANDS[id] : undefined;
   if (fromMap) return fromMap;
   return null;
 }

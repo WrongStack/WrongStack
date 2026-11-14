@@ -286,8 +286,13 @@ export class CollabSession extends EventEmitter {
     }
 
     // If we are here, Promise.race resolved (not rejected) — results were assigned.
-    // Guard with non-null assertion since TypeScript doesn't know the try/catch
-    // guarantees this when we reach this line.
+    // Disarm the session timeout immediately before async post-processing so it
+    // cannot fire cancel() on an already-settled session.
+    this._raceResolved = true;
+    if (this._timeoutTimer) {
+      clearTimeout(this._timeoutTimer);
+      this._timeoutTimer = undefined;
+    }
     for (const result of results?.flat() ?? []) {
       await this.parseAndEmit(result);
     }

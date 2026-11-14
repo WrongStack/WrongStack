@@ -50,6 +50,7 @@ export function AppViewPickers({
       <Box flexDirection="column" display={pickerInputEnabled ? 'flex' : 'none'}>
         {state.picker.open ? (
           <FilePicker
+            columns={mainColumnWidth}
             query={state.picker.query}
             matches={state.picker.matches}
             selected={state.picker.selected}
@@ -58,6 +59,7 @@ export function AppViewPickers({
         ) : null}
         {state.slashPicker.open ? (
           <SlashMenu
+            columns={mainColumnWidth}
             query={state.slashPicker.query}
             matches={state.slashPicker.matches}
             selected={state.slashPicker.selected}
@@ -302,6 +304,7 @@ export function AppViewPickers({
         ) : null}
         {state.helpPanel.open ? (
           <HelpPanel
+            columns={mainColumnWidth}
             entries={state.helpPanel.entries}
             filter={state.helpPanel.filter}
             selected={state.helpPanel.selected}

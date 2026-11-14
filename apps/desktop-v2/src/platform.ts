@@ -112,6 +112,10 @@ export const checkForUpdate = (force = false): Promise<UpdateStatus> =>
   invoke<UpdateStatus>('update_check', { force });
 /** Installs the update the last check found and restarts the application. */
 export const installUpdate = (): Promise<void> => invoke('update_install');
+/** This application's version, and whether the session host runs another engine build. */
+export const hostInfo = (): Promise<{ appVersion: string; stale: boolean }> => invoke('host_info');
+/** Stops the conversations, replaces the session host with one of this build, reloads windows. */
+export const restartHost = (): Promise<void> => invoke('host_restart');
 export function streamTerminal(
   id: string,
   onData: (data: Uint8Array, acknowledge: () => void) => void,

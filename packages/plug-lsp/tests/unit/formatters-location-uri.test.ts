@@ -40,4 +40,16 @@ describe('formatLocations with non-file URIs', () => {
     expect(file).toContain('demo.ts:5:3');
     expect(formatLocations(null, cwd)).toBe('No locations found.');
   });
+
+  it('clamps negative and NaN limits instead of reporting inflated truncation (F246)', () => {
+    const locs = [
+      { uri: 'file:///tmp/a.ts', range: range(0, 0) },
+      { uri: 'file:///tmp/b.ts', range: range(1, 0) },
+      { uri: 'file:///tmp/c.ts', range: range(2, 0) },
+    ] as never;
+    expect(formatLocations(locs, '/tmp', -1)).toBe('... truncated 3 more');
+    const nanOut = formatLocations(locs, '/tmp', Number.NaN);
+    expect(nanOut).toContain('a.ts:1:1');
+    expect(nanOut).toContain('c.ts:3:1');
+  });
 });

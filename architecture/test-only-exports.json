@@ -1942,7 +1942,8 @@
       "TOKEN_PREVIEWS_MAX_ENTRIES"
     ],
     "packages/tui/src/tool-glyph.ts": [
-      "TOOL_GLYPHS"
+      "TOOL_GLYPHS",
+      "toolGlyphSet"
     ],
     "packages/tui/src/tui-memory-counters.ts": [
       "resetTuiMemoryCounters"

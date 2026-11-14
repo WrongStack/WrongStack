@@ -415,4 +415,28 @@ describe('ReportGenerator derives content and extension from one validated value
     expect(entries.filter((e) => e === 'escape.md')).toEqual([]);
     expect(entries.sort()).toEqual(['stray-check']);
   });
+
+  it('groups Object.prototype category names safely when groupBySeverity is false (F239)', async () => {
+    const outDir = path.join(tmp, 'proto-category');
+    const gen = new ReportGenerator({
+      outputDir: outDir,
+      format: 'markdown',
+      groupBySeverity: false,
+    });
+    const scanResult = mkScanResult({
+      findings: [
+        mkFinding({
+          title: 'Prototype category finding',
+          severity: 'low',
+          category: 'constructor' as never,
+          file: 'a.ts',
+          line: 1,
+        }),
+      ],
+      summary: { total: 1, critical: 0, high: 0, medium: 0, low: 1 },
+    });
+    const file = await gen.generate(scanResult);
+    const content = await fs.readFile(file, 'utf8');
+    expect(content).toContain('CONSTRUCTOR (1)');
+  });
 });

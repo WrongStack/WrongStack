@@ -20,6 +20,8 @@ import type { PermissionDecision, Tool } from '@wrongstack/contracts/types';
 import { ToolCapabilities } from '@wrongstack/core/security';
 import { toErrorMessage } from '@wrongstack/core/utils';
 
+const shellQuote = (value: string): string => `'${value.replace(/'/g, "'\\''")}'`;
+
 /** The WrongStack tool call an ACP permission request stands for. */
 export interface WrongStackCall {
   tool: string;
@@ -88,7 +90,7 @@ function translate(req: Pick<AcpPermissionRequest, 'toolCall'>): Translation {
           };
     case 'delete':
       return path
-        ? { call: { tool: 'bash', input: { command: `rm ${JSON.stringify(path)}` } } }
+        ? { call: { tool: 'bash', input: { command: `rm ${shellQuote(path)}` } } }
         : refuse('a delete that names no file');
     case 'move': {
       const to = str(raw.destination) ?? str(raw.new_path) ?? call.locations?.[1]?.path;
@@ -96,7 +98,7 @@ function translate(req: Pick<AcpPermissionRequest, 'toolCall'>): Translation {
         ? {
             call: {
               tool: 'bash',
-              input: { command: `mv ${JSON.stringify(path)} ${JSON.stringify(to)}` },
+              input: { command: `mv ${shellQuote(path)} ${shellQuote(to)}` },
             },
           }
         : refuse('a move that names no source or destination');

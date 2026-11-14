@@ -326,7 +326,14 @@ export async function refreshMcpAccessToken(options: MCPTokenRefreshOptions): Pr
   return { ...parsed, refreshToken: parsed.refreshToken ?? previousRefreshToken };
 }
 
-function validateRedirectUri(value: string): string {
+/**
+ * Normalize a redirect URI to the exact spelling the authorization request and
+ * the token exchange send. Callers that also hand the URI to another party
+ * (dynamic client registration) MUST use this form for both: OAuth compares
+ * redirect URIs as exact strings, and `new URL()` canonicalizes (adds the "/"
+ * path, lowercases the host, drops a default port).
+ */
+export function validateRedirectUri(value: string): string {
   let url: URL;
   try {
     url = new URL(value);

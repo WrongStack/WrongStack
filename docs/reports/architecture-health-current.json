@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-14T19:43:31.584Z",
+  "generatedAt": "2026-11-14T20:42:28.284Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6340,
-    "testFiles": 5293,
-    "sourceLines": 1309983,
+    "sourceFiles": 6345,
+    "testFiles": 5298,
+    "sourceLines": 1310711,
     "workspaceEdges": 250,
-    "moduleEdges": 18695,
+    "moduleEdges": 18722,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 344,
+    "testsWithoutTypecheck": 345,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1067
+    "testOnlyExports": 1068
   },
   "errors": [],
   "packageCycles": [],
@@ -386,8 +386,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 521,
-      "testFiles": 344,
+      "sourceFiles": 523,
+      "testFiles": 345,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -409,7 +409,7 @@
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
       "sourceFiles": 63,
-      "testFiles": 7,
+      "testFiles": 8,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -430,7 +430,7 @@
         {
           "path": "packages/fleet/tsconfig.test.json",
           "error": null,
-          "testFiles": 7
+          "testFiles": 8
         }
       ]
     },
@@ -643,7 +643,7 @@
       "name": "@wrongstack/plug-lsp",
       "dir": "packages/plug-lsp",
       "sourceFiles": 52,
-      "testFiles": 60,
+      "testFiles": 61,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -658,7 +658,7 @@
         {
           "path": "packages/plug-lsp/tsconfig.test.json",
           "error": null,
-          "testFiles": 60
+          "testFiles": 61
         }
       ]
     },
@@ -820,7 +820,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 126,
-      "testFiles": 52,
+      "testFiles": 53,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -854,7 +854,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 52
+          "testFiles": 53
         }
       ]
     },
@@ -1035,8 +1035,8 @@
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 510,
-      "testFiles": 441,
+      "sourceFiles": 513,
+      "testFiles": 442,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1065,7 +1065,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 441
+          "testFiles": 442
         }
       ]
     },
@@ -2199,6 +2199,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/history-view-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/host-build-notice.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14492,6 +14498,12 @@
         ]
       },
       {
+        "file": "packages/fleet/tests/acp-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/fleet/tests/architecture-decision-acp.test.ts",
         "projects": [
           "root-node"
@@ -17150,6 +17162,12 @@
         ]
       },
       {
+        "file": "packages/plug-lsp/tests/unit/completion-limit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plug-lsp/tests/unit/config-persist.test.ts",
         "projects": [
           "root-node"
@@ -19407,6 +19425,12 @@
       },
       {
         "file": "packages/runtime/tests/acp-leader-host-state.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/acp-leader-switch-race.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24579,6 +24603,12 @@
       },
       {
         "file": "packages/tui/tests/code-block.comprehensive.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/command-discovery-layout.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -34111,6 +34141,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/host-build-notice.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/input-answer-draft.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -35886,6 +35923,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/HostBuildNotice.tsx",
+      "specifier": "./update-notice.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/HuntRounds.tsx",
       "specifier": "./hunt.css",
       "syntax": "import"
@@ -36608,6 +36650,11 @@
       "file": "packages/tui/src/reducers/settings-value-cycle.ts",
       "lines": 703,
       "relativeImports": 6
+    },
+    {
+      "file": "packages/tui/src/ui-glyphs.ts",
+      "lines": 708,
+      "relativeImports": 0
     },
     {
       "file": "packages/vector-memory/src/store.ts",
@@ -40549,6 +40596,10 @@
     {
       "file": "packages/tui/src/tool-glyph.ts",
       "name": "TOOL_GLYPHS"
+    },
+    {
+      "file": "packages/tui/src/tool-glyph.ts",
+      "name": "toolGlyphSet"
     },
     {
       "file": "packages/tui/src/tui-memory-counters.ts",

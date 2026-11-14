@@ -387,4 +387,27 @@ describe('normalizeKanbanBoundaryPolicy inactive-rules warning', () => {
     spy.mockRestore();
     expect(inactiveCalls).toHaveLength(0);
   });
+
+  it('handles repeated **/ globstars without ReDoS (F242)', () => {
+    const layers = [
+      {
+        source: 'task' as const,
+        policy: {
+          enabled: true,
+          enforcement: 'block' as const,
+          allow: [],
+          deny: [
+            { kind: 'glob' as const, path: `${'**/'.repeat(24)}secret`, access: 'write' as const },
+          ],
+          shellAccess: 'block' as const,
+        },
+      },
+    ];
+    const t0 = performance.now();
+    expect(evaluateKanbanBoundaryPath(layers, `${'a/'.repeat(24)}other`, 'write').decision).toBe(
+      'allow',
+    );
+    expect(performance.now() - t0).toBeLessThan(100);
+    expect(evaluateKanbanBoundaryPath(layers, 'a/b/c/secret', 'write').decision).toBe('block');
+  });
 });

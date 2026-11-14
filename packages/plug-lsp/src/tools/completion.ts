@@ -74,7 +74,12 @@ export function createCompletionTool(deps: ToolDeps): Tool<CompletionInput, stri
           LSP_CONSTANTS.TOOL_TIMEOUT_MS,
           signal,
         );
-        const items = collectCompletionItems(result, Math.min(input.limit ?? 25, 100));
+        const rawLimit = input.limit;
+        const limit =
+          typeof rawLimit === 'number' && Number.isFinite(rawLimit)
+            ? Math.max(1, Math.min(Math.trunc(rawLimit), 100))
+            : 25;
+        const items = collectCompletionItems(result, limit);
         if (input.format === 'json') {
           return JSON.stringify({
             items: items.map((item) => ({

@@ -318,7 +318,12 @@ function visitValue(
     for (const [childKey, childValue] of Object.entries(value)) {
       const next = visitValue(childValue, options, childKey);
       redacted ||= next.redacted;
-      out[childKey] = next.value;
+      Object.defineProperty(out, childKey, {
+        value: next.value,
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      });
     }
     return { value: out, redacted };
   } finally {

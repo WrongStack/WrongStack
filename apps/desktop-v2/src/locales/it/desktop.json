@@ -992,7 +992,9 @@
     "projectedSaving": "Risparmio previsto di circa ${{amount}}.",
     "switchTier": "Passa a {{tier}}",
     "autoWakeOneNotice": "un avviso di timer/monitoraggio richiesto",
-    "autoWakeNotices": "avvisi di timer/monitoraggio richiesti"
+    "autoWakeNotices": "avvisi di timer/monitoraggio richiesti",
+    "engineBehindApp": "Questa conversazione gira sul motore {{current}}; questa app è {{app}}.",
+    "engineBehindAppHint": "Usa “Riavvia motore” nell’avviso in alto per spostare le conversazioni su questa versione."
   },
   "message": {
     "you": "Tu",
@@ -9791,7 +9793,7 @@
   },
   "updates": {
     "available": "WrongStack Desktop {{version}} è disponibile",
-    "keepsRunning": "Le tue conversazioni continuano mentre l'app si riavvia.",
+    "keepsRunning": "Le tue conversazioni continuano mentre l'app si riavvia; poi riavvia il motore per spostarle sulla nuova versione.",
     "install": "Installa e riavvia",
     "installing": "Installazione…",
     "download": "Scarica",
@@ -9809,5 +9811,15 @@
       "found": "È disponibile la versione {{version}}.",
       "upToDate": "Hai l'ultima versione ({{version}})."
     }
+  },
+  "hostBuild": {
+    "stale": "Le tue conversazioni girano ancora sul motore di una versione precedente di WrongStack Desktop.",
+    "explain": "Riavvia il motore per spostarle su questa versione.",
+    "confirm": "Le conversazioni in corso si fermano in modo ordinato; ricollegale poi per continuare.",
+    "restart": "Riavvia motore",
+    "restartNow": "Riavvia ora",
+    "restarting": "Riavvio in corso…",
+    "cancel": "Annulla",
+    "failed": "Impossibile riavviare il motore: {{error}}"
   }
 }

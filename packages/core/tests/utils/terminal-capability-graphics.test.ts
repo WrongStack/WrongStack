@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectTerminal } from '../../src/utils/terminal-capability.js';
+import { detectTerminal, detectTerminalHost } from '../../src/utils/terminal-capability.js';
 
 function fakeStreams(isTTY = true, withColorDepth = true) {
   const stdin = { isTTY } as unknown as NodeJS.ReadStream;
@@ -132,5 +132,108 @@ describe('detectTerminal — supportsSyncOutput & graphicsProtocol', () => {
         },
       }).graphicsProtocol,
     ).toBe('none');
+  });
+});
+
+describe('detectTerminalHost — browser/webview hosts', () => {
+  it('keeps native desktop terminals native', () => {
+    expect(detectTerminalHost({ TERM: 'xterm-256color' })).toEqual({
+      host: 'native',
+      kind: null,
+      remoteClient: false,
+    });
+  });
+
+  it('detects hosted browser workspaces as remote browser clients', () => {
+    expect(detectTerminalHost({ CODESPACES: 'true', CODESPACE_NAME: 'demo' })).toEqual({
+      host: 'browser',
+      kind: 'codespaces',
+      remoteClient: true,
+    });
+    expect(detectTerminalHost({ GITPOD_WORKSPACE_ID: 'ws-1' })).toEqual({
+      host: 'browser',
+      kind: 'gitpod',
+      remoteClient: true,
+    });
+    expect(detectTerminalHost({ OPENVSCODE_SERVER_ROOT: '/opt/openvscode-server' })).toEqual({
+      host: 'browser',
+      kind: 'code-server',
+      remoteClient: true,
+    });
+    expect(detectTerminalHost({ JUPYTER_SERVER_ROOT: '/home/me' })).toEqual({
+      host: 'browser',
+      kind: 'jupyter',
+      remoteClient: true,
+    });
+  });
+
+  it('treats the local VS Code webview as a browser host with a local client', () => {
+    expect(detectTerminalHost({ TERM_PROGRAM: 'vscode' })).toEqual({
+      host: 'browser',
+      kind: 'vscode',
+      remoteClient: false,
+    });
+  });
+
+  it('marks the client remote when the session itself is SSH', () => {
+    expect(detectTerminalHost({ TERM_PROGRAM: 'vscode', SSH_CONNECTION: 'a 1 b 2' })).toEqual({
+      host: 'browser',
+      kind: 'vscode',
+      remoteClient: true,
+    });
+  });
+
+  it('honors the WRONGSTACK_TUI_TERMINAL override in both directions', () => {
+    expect(detectTerminalHost({ CODESPACES: 'true', WRONGSTACK_TUI_TERMINAL: 'native' })).toEqual({
+      host: 'native',
+      kind: null,
+      remoteClient: false,
+    });
+    expect(detectTerminalHost({ WRONGSTACK_TUI_TERMINAL: 'browser' })).toEqual({
+      host: 'browser',
+      kind: null,
+      remoteClient: true,
+    });
+  });
+
+  it('never selects kitty/iTerm2 image protocols for a browser host', () => {
+    const tty = fakeStreams(true, true);
+    const capability = detectTerminal({
+      ...tty,
+      env: {
+        TERM: 'xterm-kitty',
+        KITTY_WINDOW_ID: '1',
+        COLORTERM: 'truecolor',
+        CODESPACES: 'true',
+      },
+    });
+    expect(capability.terminalHost.host).toBe('browser');
+    expect(capability.graphicsProtocol).toBe('halfblock');
+
+    const noTruecolor = detectTerminal({
+      ...tty,
+      env: { TERM: 'xterm-kitty', KITTY_WINDOW_ID: '1', CODESPACES: 'true' },
+    });
+    expect(noTruecolor.graphicsProtocol).toBe('none');
+  });
+
+  it('still honors an explicit WRONGSTACK_TUI_GRAPHICS override on a browser host', () => {
+    const capability = detectTerminal({
+      ...fakeStreams(true, true),
+      env: { TERM: 'xterm-256color', CODESPACES: 'true', WRONGSTACK_TUI_GRAPHICS: 'kitty' },
+    });
+    expect(capability.graphicsProtocol).toBe('kitty');
+  });
+
+  it('exposes the host on the capability snapshot', () => {
+    const capability = detectTerminal({
+      ...fakeStreams(true, true),
+      env: { TERM: 'xterm-256color', GITPOD_WORKSPACE_ID: 'ws-1' },
+    });
+    expect(capability.terminalHost).toEqual({
+      host: 'browser',
+      kind: 'gitpod',
+      remoteClient: true,
+    });
   });
 });

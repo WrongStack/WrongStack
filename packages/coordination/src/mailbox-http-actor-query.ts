@@ -24,7 +24,7 @@ export function stripAggregateReceiptState(
 ): ActorMailboxMessage {
   const projection = message as Partial<MailboxMessageProjection>;
   const actorState = projection.recipientState?.[actorId];
-  const readByMe = actorState?.readAt !== undefined || actorId in message.readBy;
+  const readByMe = actorState?.readAt !== undefined || Object.hasOwn(message.readBy, actorId);
   const completedByMe = actorState?.completedAt !== undefined;
   const legacyGlobalCompletion = projection.legacyGlobalCompletion === true;
   const visible = { ...message } as Record<string, unknown>;
@@ -182,7 +182,7 @@ function countUnreadForActor(messages: readonly MailboxMessage[], actorId: strin
  * test stays sound without the receipt projection.
  */
 export function isMessageUnreadForActor(message: MailboxMessage, actorId: string): boolean {
-  if (actorId in message.readBy) return false;
+  if (Object.hasOwn(message.readBy, actorId)) return false;
   return !isMessageCompletedForActor(message, actorId);
 }
 

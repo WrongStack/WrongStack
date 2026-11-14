@@ -18,6 +18,8 @@
     "allow-speech-stop",
     "allow-open-project-window",
     "allow-update-check",
-    "allow-update-install"
+    "allow-update-install",
+    "allow-host-info",
+    "allow-host-restart"
   ]
 }

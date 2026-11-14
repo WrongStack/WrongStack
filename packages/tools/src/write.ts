@@ -16,6 +16,7 @@ import {
   safeResolveReal,
   sha256hex,
   truncateDiffPayload,
+  withPathLock,
 } from './_util.js';
 import { enqueueReindex } from './codebase-index/background-indexer.js';
 
@@ -88,15 +89,35 @@ export const writeTool: Tool<WriteInput, WriteOutput> = {
   async *executeStream(input, ctx, opts) {
     const signal = opts?.signal ?? ctx?.signal;
     signal?.throwIfAborted();
-    const prepared = await prepareWrite(input, ctx);
-    signal?.throwIfAborted();
-    if (!prepared.existed) {
-      for (const line of input.content.split('\n')) {
-        signal?.throwIfAborted();
-        yield { type: 'partial_output', text: `${line}\n`, data: { livePreview: true } };
+    const absPath = await resolveWriteTarget(input, ctx);
+    let releaseLock!: () => void;
+    const workDone = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+    let markAcquired!: () => void;
+    const acquired = new Promise<void>((resolve) => {
+      markAcquired = resolve;
+    });
+    const lockPromise = withPathLock(absPath, async () => {
+      markAcquired();
+      await workDone;
+    });
+    await acquired;
+    try {
+      signal?.throwIfAborted();
+      const prepared = await prepareWrite(input, ctx, absPath);
+      signal?.throwIfAborted();
+      if (!prepared.existed) {
+        for (const line of input.content.split('\n')) {
+          signal?.throwIfAborted();
+          yield { type: 'partial_output', text: `${line}\n`, data: { livePreview: true } };
+        }
       }
+      yield { type: 'final', output: await finishWrite(input, ctx, prepared, signal) };
+    } finally {
+      releaseLock();
+      await lockPromise;
     }
-    yield { type: 'final', output: await finishWrite(input, ctx, prepared, signal) };
   },
 };
 
@@ -122,10 +143,13 @@ async function writeFile(
   signal?: AbortSignal | undefined,
 ): Promise<WriteOutput> {
   signal?.throwIfAborted();
-  return finishWrite(input, ctx, await prepareWrite(input, ctx), signal);
+  const absPath = await resolveWriteTarget(input, ctx);
+  return withPathLock(absPath, async () =>
+    finishWrite(input, ctx, await prepareWrite(input, ctx, absPath), signal),
+  );
 }
 
-async function prepareWrite(input: WriteInput, ctx: Context): Promise<PreparedWrite> {
+async function resolveWriteTarget(input: WriteInput, ctx: Context): Promise<string> {
   if (!input?.path) {
     throw new ToolValidationError({
       message: 'write: path is required',
@@ -138,8 +162,14 @@ async function prepareWrite(input: WriteInput, ctx: Context): Promise<PreparedWr
       field: 'content',
     });
   }
-  const absPath = await safeResolveReal(input.path, ctx);
+  return safeResolveReal(input.path, ctx);
+}
 
+async function prepareWrite(
+  input: WriteInput,
+  ctx: Context,
+  absPath: string,
+): Promise<PreparedWrite> {
   let existed = false;
   let prev = '';
   try {

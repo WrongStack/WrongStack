@@ -232,4 +232,41 @@ describe('browser live view', () => {
     await vi.advanceTimersByTimeAsync(3000);
     expect(ws.sent.length).toBe(sentBefore);
   });
+
+  it('drops superseded concurrent watch calls without leaking screencasts or timers (F250)', async () => {
+    const ws = createWs();
+    const resolvers: Array<(value: unknown) => void> = [];
+    live.sessions.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvers.push(resolve);
+        }),
+    );
+
+    const p1 = handleBrowserLiveWatch(
+      ws,
+      msg('browser.live.watch', { id: 'b1', sessionId: 's1' }),
+      '/p',
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    const p2 = handleBrowserLiveWatch(
+      ws,
+      msg('browser.live.watch', { id: 'b1', sessionId: 's1' }),
+      '/p',
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    while (resolvers.length > 0) {
+      resolvers.shift()!([session('b1', 's1')]);
+      await Promise.resolve();
+    }
+    await Promise.all([p1, p2]);
+    await handleBrowserLiveUnwatch(ws);
+
+    expect(live.watch).toHaveBeenCalledTimes(1);
+    expect(stopScreencast).toHaveBeenCalledTimes(1);
+  });
 });

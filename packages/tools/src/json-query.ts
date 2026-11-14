@@ -62,6 +62,9 @@ export function jmespathSearch(data: unknown, query: string): unknown {
   const multiMatch = query.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\[\*\](?:\.(.+))?$/);
   if (multiMatch) {
     const key = multiMatch[1]!;
+    if (key === '__proto__' || key === 'prototype' || key === 'constructor') {
+      return [];
+    }
     const rest = multiMatch[2];
     const arr = (data as Record<string, unknown[]> | undefined)?.[key];
     if (!Array.isArray(arr)) return [];
@@ -75,6 +78,9 @@ export function jmespathSearch(data: unknown, query: string): unknown {
   );
   if (filterMatch) {
     const field = filterMatch[1]!;
+    if (field === '__proto__' || field === 'prototype' || field === 'constructor') {
+      return [];
+    }
     const op = filterMatch[2]!;
     const rawVal = filterMatch[3]!;
     const rest = filterMatch[4];

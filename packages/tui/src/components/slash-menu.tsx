@@ -1,147 +1,111 @@
 import type React from 'react';
 import type { SlashCommandMatch } from '../app-state.js';
+import { useActiveTheme } from '../hooks/use-active-theme.js';
+import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { Box, Text } from '../ink.js';
+import { theme } from '../theme.js';
+import { commandListWindow } from './command-list-window.js';
+import { CompactPicker } from './compact-picker.js';
+import { pickerViewport } from './picker-viewport.js';
 
 interface SlashMenuProps {
   query: string;
   matches: SlashCommandMatch[];
   selected: number;
   maxRows?: number | undefined;
+  columns?: number | undefined;
 }
-
-type Row =
-  | { type: 'header'; category: string }
-  | { type: 'item'; match: SlashCommandMatch; index: number };
-
-/** Hard cap on visible items so the menu never outgrows a single screen pane. */
-const MAX_VISIBLE_ITEMS = 8;
 
 export function SlashMenu({
   query,
   matches,
   selected,
   maxRows,
+  columns,
 }: SlashMenuProps): React.ReactElement {
-  const compact = maxRows !== undefined && maxRows < 12;
-  const placeholder = query ? `/${query}` : '/';
-  const resultMeta = matches.length > 0 ? `${selected + 1}/${matches.length}` : 'no matches';
-
-  // Build the flat row list (category headers interleaved with items) while
-  // preserving the flat item ordering used for keyboard navigation.
-  const rows: Row[] = [];
-  let lastCategory = '';
-  for (let i = 0; i < matches.length; i++) {
-    const m = matches[i] as SlashCommandMatch;
-    if (m.category !== lastCategory) {
-      lastCategory = m.category;
-      rows.push({ type: 'header', category: m.category });
-    }
-    rows.push({ type: 'item', match: m, index: i });
+  useActiveTheme();
+  const terminal = useTerminalSize({ maxWidth: columns });
+  const viewport = pickerViewport(terminal, { columns, maxRows, reservedRows: 6 });
+  const budget = viewport.rows;
+  const compact = budget < 12;
+  const minimal = budget < 6;
+  // Borders, title, optional subtitle and keyboard hint all share the same budget.
+  const chrome = 3 + (minimal ? 0 : 1) + (compact ? 0 : 1);
+  const visible = commandListWindow(matches, selected, Math.min(8, budget - chrome));
+  const resultMeta = matches.length ? `${visible.focus + 1}/${matches.length}` : 'no matches';
+  if (viewport.compact) {
+    return (
+      <CompactPicker
+        label={matches[visible.focus]?.name}
+        emptyLabel="No matching commands"
+        position={resultMeta}
+        columns={viewport.columns}
+        rows={budget}
+        context={matches[visible.focus]?.description}
+        action="run"
+      />
+    );
   }
-
-  // Window the rows around the selected item so the menu scrolls as the
-  // selection moves. We window over the flat `rows` array (which includes
-  // headers) and re-attach the header for the first visible item so a
-  // scrolled view never loses its category context.
-  const selectedRowIdx = rows.findIndex((r) => r.type === 'item' && r.index === selected);
-  const limit =
-    maxRows === undefined
-      ? MAX_VISIBLE_ITEMS
-      : Math.max(1, Math.min(MAX_VISIBLE_ITEMS, maxRows - (compact ? 6 : 8)));
-  const visible = windowRows(rows, Math.max(selectedRowIdx, 0), limit);
-
-  const hiddenAbove = visible.start;
-  const hiddenBelow = rows.length - visible.end;
-
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
-      <Text bold color="cyan" wrap="truncate-end">
-        ━━ Command palette ━━ <Text dimColor>{placeholder}</Text>{' '}
-        <Text dimColor>({resultMeta})</Text>
+    <Box
+      flexDirection="column"
+      width={viewport.columns}
+      borderStyle="round"
+      borderColor={theme.borderActive}
+      paddingX={1}
+    >
+      <Text bold color={theme.accent} wrap="truncate-end">
+        {minimal ? 'Commands · Esc' : viewport.columns < 50 ? 'Commands' : 'Command palette'}{' '}
+        <Text color={theme.textSecondary}>
+          /{query} ({resultMeta})
+        </Text>
       </Text>
       {!compact ? (
-        <Text dimColor wrap="truncate-end">
+        <Text color={theme.textSecondary} wrap="truncate-end">
           Type to filter commands by name, alias, or description.
         </Text>
       ) : null}
-      {hiddenAbove > 0 && <Text dimColor> ↑ {hiddenAbove} more</Text>}
-      {!compact && visible.contextHeader && (
-        <Text bold color="yellow" dimColor>
-          {'  '}
-          {visible.contextHeader}
-        </Text>
-      )}
-      {visible.rows.map((row) => {
-        if (row.type === 'header') {
-          return (
-            <Text key={`cat-${row.category}`} bold color="yellow" dimColor>
-              {'  '}
-              {row.category}
-            </Text>
-          );
-        }
-        const { match: m, index: i } = row;
-        return (
+      {visible.rows.map((row, index) =>
+        row.type === 'header' ? (
           <Text
-            key={m.name}
+            key={`cat-${row.category}-${index}`}
+            bold
+            color={theme.brandAccent}
             wrap="truncate-end"
-            inverse={i === selected}
-            {...(i === selected ? { color: 'cyan' } : {})}
           >
-            {i === selected ? '› ' : '  '}
-            <Text bold>{m.name}</Text>
-            {m.argsHint ? <Text dimColor> {m.argsHint}</Text> : null}
-            {m.matchedAlias ? <Text dimColor> alias /{m.matchedAlias}</Text> : null}
-            <Text dimColor> — {m.description}</Text>
+            {' '}
+            {row.category}
           </Text>
-        );
-      })}
-      {hiddenBelow > 0 && <Text dimColor> ↓ {hiddenBelow} more</Text>}
-      {matches.length === 0 && <Text dimColor>No matching commands</Text>}
-      <Text dimColor wrap="truncate-end">
-        ↑↓ · Enter run · Tab fill · Esc close
-      </Text>
+        ) : (
+          <Text
+            key={row.item.name}
+            wrap="truncate-end"
+            inverse={row.index === visible.focus}
+            color={row.index === visible.focus ? theme.accent : theme.textPrimary}
+          >
+            {row.index === visible.focus ? '› ' : '  '}
+            <Text bold>{row.item.name}</Text>
+            {row.item.argsHint ? <Text> {row.item.argsHint}</Text> : null}
+            {row.item.matchedAlias ? <Text> alias /{row.item.matchedAlias}</Text> : null}
+            <Text color={row.index === visible.focus ? undefined : theme.textSecondary}>
+              {' '}
+              — {row.item.description}
+            </Text>
+          </Text>
+        ),
+      )}
+      {matches.length === 0 ? (
+        <Text color={theme.textSecondary} wrap="truncate-end">
+          No matching commands · try another name or alias.
+        </Text>
+      ) : null}
+      {!minimal ? (
+        <Text color={theme.textSecondary} wrap="truncate-end">
+          {viewport.columns < 50
+            ? '↑↓ · Enter · Tab · Esc'
+            : '↑↓ · Enter run · Tab fill · Esc close'}
+        </Text>
+      ) : null}
     </Box>
   );
-}
-
-/**
- * Pick a contiguous slice of `rows` of at most `max` entries that keeps the row
- * at `focus` visible, scrolling the window as `focus` moves toward either edge.
- * Returns the slice plus the [start, end) bounds (so the caller can render
- * "+N more" indicators) and, when the slice starts mid-category, the category
- * header to re-attach above it so context is never lost while scrolled.
- */
-function windowRows(
-  rows: Row[],
-  focus: number,
-  max: number,
-): { rows: Row[]; start: number; end: number; contextHeader: string | null } {
-  if (rows.length <= max) {
-    return { rows, start: 0, end: rows.length, contextHeader: null };
-  }
-  // Center the focus in the window, then clamp to the array bounds.
-  let start = focus - Math.floor(max / 2);
-  if (start < 0) start = 0;
-  let end = start + max;
-  if (end > rows.length) {
-    end = rows.length;
-    start = end - max;
-  }
-  // If the window starts on an item, find the category header that governs it
-  // so a scrolled view still shows which category the first item belongs to.
-  let contextHeader: string | null = null;
-  if (start > 0) {
-    const first = rows[start];
-    if (first && first.type === 'item') {
-      for (let i = start - 1; i >= 0; i--) {
-        const r = rows[i];
-        if (r && r.type === 'header') {
-          contextHeader = r.category;
-          break;
-        }
-      }
-    }
-  }
-  return { rows: rows.slice(start, end), start, end, contextHeader };
 }

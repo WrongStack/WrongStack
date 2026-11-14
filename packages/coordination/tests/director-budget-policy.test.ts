@@ -277,4 +277,57 @@ describe('DirectorBudgetPolicy.removeSubagent() cleanup', () => {
     policy.dispose();
     usage.dispose();
   });
+
+  it('enforces maxBudgetExtensions across concurrent async cost decisions (F228)', async () => {
+    const fleet = new FleetBus();
+    const usage = new FleetUsageAggregator(fleet);
+    const resolvers: Array<(d: { type: 'answer'; optionId: string }) => void> = [];
+    let grants = 0;
+    let denies = 0;
+    const policy = new DirectorBudgetPolicy({
+      fleet,
+      usage,
+      maxBudgetExtensions: 1,
+      maxFleetCostUsd: Number.POSITIVE_INFINITY,
+      currentSessionId: () => 'sess-f228',
+      brain: {
+        decide: async () =>
+          new Promise((resolve) => {
+            resolvers.push(resolve as never);
+          }),
+      } as never,
+    });
+    policy.start();
+    try {
+      for (const used of [1, 2]) {
+        fleet.emit({
+          subagentId: 'sub-cost-race',
+          ts: Date.now(),
+          type: 'budget.threshold_reached',
+          payload: {
+            kind: 'cost',
+            used,
+            limit: used,
+            timeoutMs: 1000,
+            extend: () => {
+              grants += 1;
+            },
+            deny: () => {
+              denies += 1;
+            },
+          },
+        });
+      }
+      await flushMacro();
+      for (const resolve of resolvers) resolve({ type: 'answer', optionId: 'extend' });
+      await flushMacro();
+      await flushMacro();
+      expect(grants).toBe(1);
+      expect(denies).toBe(1);
+      expect(policy.extensionsFor('sub-cost-race')).toBe(1);
+    } finally {
+      policy.dispose();
+      usage.dispose();
+    }
+  });
 });

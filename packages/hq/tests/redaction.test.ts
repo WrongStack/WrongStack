@@ -418,4 +418,15 @@ describe('HQ redaction covers built-in tool input fields', () => {
     );
     expect(paths.value.filePath).toBe('packages/hq/src/index.ts');
   });
+
+  it('defines __proto__ as an own data property instead of mutating prototype (F248)', () => {
+    const payload = JSON.parse('{"__proto__":{"polluted":true},"safe":"ok"}') as Record<
+      string,
+      unknown
+    >;
+    const res = redactHqValue(payload);
+    expect('polluted' in (res.value as object)).toBe(false);
+    expect(Object.hasOwn(res.value as object, '__proto__')).toBe(true);
+    expect((res.value as Record<string, unknown>).safe).toBe('ok');
+  });
 });

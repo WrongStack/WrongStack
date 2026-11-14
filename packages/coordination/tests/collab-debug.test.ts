@@ -501,4 +501,30 @@ describe('CollabSession', () => {
     // shared FleetBus, where they keep processing events for a dead session.
     expect(subscriberCount()).toBe(0);
   });
+
+  it('disarms the session timeout immediately when Promise.race settles before async post-processing (F229)', async () => {
+    const { mockDirector } = makeMockDirector(fleetBus);
+    const session = new CollabSession(mockDirector as never, fleetBus, {
+      targetPaths: [],
+      timeoutMs: 30,
+    });
+    let cancelCalls = 0;
+    const origCancel = session.cancel.bind(session);
+    session.cancel = async (reason?: string) => {
+      cancelCalls += 1;
+      return origCancel(reason);
+    };
+    const origParse = (
+      session as unknown as { parseAndEmit: (r: unknown) => Promise<void> }
+    ).parseAndEmit.bind(session);
+    (session as unknown as { parseAndEmit: (r: unknown) => Promise<void> }).parseAndEmit = async (
+      r,
+    ) => {
+      await new Promise((res) => setTimeout(res, 25));
+      return origParse(r);
+    };
+    const report = await session.start();
+    expect(cancelCalls).toBe(0);
+    expect(report.disposition).toBe('completed');
+  });
 });

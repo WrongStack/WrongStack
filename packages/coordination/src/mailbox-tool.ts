@@ -603,7 +603,7 @@ function formatMessage(m: MailboxMessage, readerId: string) {
     subject: m.subject,
     body: truncated,
     priority: m.priority,
-    readByMe: readerId in m.readBy,
+    readByMe: Object.hasOwn(m.readBy, readerId),
     readByCount: Object.keys(m.readBy).length,
     readBy: m.readBy,
     completed: m.completed,

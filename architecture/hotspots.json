@@ -166,6 +166,10 @@
       "lines": 703,
       "relativeImports": 6
     },
+    "packages/tui/src/ui-glyphs.ts": {
+      "lines": 708,
+      "relativeImports": 0
+    },
     "packages/vector-memory/src/store.ts": {
       "lines": 726,
       "relativeImports": 8

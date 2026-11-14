@@ -89,7 +89,8 @@ function globToRegex(pattern: string): RegExp {
   const normalized = pattern
     .replace(/\\/g, '/')
     .replace(/^(\.\/|\/)+/, '')
-    .replace(/\/+$/, '');
+    .replace(/\/+$/, '')
+    .replace(/(?:\*\*\/)+/g, '**/');
   let source = '';
   for (let index = 0; index < normalized.length; index++) {
     const char = normalized[index];

@@ -27,6 +27,7 @@ import type { Tool } from '@wrongstack/contracts/types';
 import { ToolValidationError } from '@wrongstack/contracts/types';
 import { enqueueRuntimeNotice, resolveRuntimeNoticeTarget } from '@wrongstack/coordination';
 import { buildChildEnv } from './_env.js';
+import { compileUserRegex } from './_regex.js';
 import { formatNoticeDuration } from './background-exit-notice.js';
 import { checkAndBlockKillCommand } from './bash-kill-guard.js';
 import { resolveBashShellPlan } from './bash-shell-plan.js';
@@ -313,14 +314,14 @@ function compileFilter(source: string | undefined): RegExp | undefined {
       field: 'filter',
     });
   }
-  try {
-    return new RegExp(source);
-  } catch (err) {
+  const compiled = compileUserRegex(source, '');
+  if (!compiled.ok) {
     throw new ToolValidationError({
-      message: `filter is not a valid regular expression: ${err instanceof Error ? err.message : String(err)}`,
+      message: `filter is not a valid regular expression: ${compiled.reason}`,
       field: 'filter',
     });
   }
+  return compiled.regex;
 }
 
 async function startWatch(input: ProcessWatchInput, ctx: unknown): Promise<ProcessWatchOutput> {

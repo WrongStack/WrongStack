@@ -406,9 +406,9 @@ function extractDiffTargets(patch: string): DiffTarget[] {
   for (const line of patch.split(/\r?\n/)) {
     const hunkMatch = /^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@/.exec(line);
     if (hunkMatch) {
-      inHunk = true;
       oldLinesLeft = hunkMatch[1] ? Number(hunkMatch[1]) : 1;
       newLinesLeft = hunkMatch[2] ? Number(hunkMatch[2]) : 1;
+      inHunk = oldLinesLeft > 0 || newLinesLeft > 0;
       lastOld = undefined;
       continue;
     }

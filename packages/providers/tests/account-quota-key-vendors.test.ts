@@ -470,4 +470,36 @@ describe('provider factory', () => {
     });
     expect(Object.hasOwn(other, 'stream')).toBe(false);
   });
+
+  it('ignores prototype-property keys in OmniRoute provider and OpenRouter reset tables (F230, F231)', async () => {
+    const { reportOmniRouteQuota } = await import('../src/omniroute-quota.js');
+    const { reportOpenRouterQuota } = await import('../src/openrouter-quota.js');
+
+    for (const key of ['toString', 'constructor', 'valueOf', '__proto__']) {
+      const omni = await reportOmniRouteQuota('omni-proto', {
+        managementToken: 'tok',
+        root: 'http://localhost:20128',
+        fetchImpl: (async (url: unknown) => {
+          const body = String(url).endsWith('/api/providers')
+            ? { connections: [{ id: '1', provider: key, isActive: true }] }
+            : { caches: { '1': { fetchedAt: new Date().toISOString(), message: 'ok' } } };
+          return new Response(JSON.stringify(body), { status: 200 });
+        }) as unknown as typeof fetch,
+      });
+      expect(omni).toHaveLength(1);
+      expect(omni[0]?.meterLabel).toBe(key);
+
+      const or = await reportOpenRouterQuota('or-proto', {
+        apiKey: 'k',
+        fetchImpl: (async (url: unknown) => {
+          const body = String(url).endsWith('/key')
+            ? { data: { limit: 10, limit_remaining: 5, limit_reset: key } }
+            : {};
+          return new Response(JSON.stringify(body), { status: 200 });
+        }) as unknown as typeof fetch,
+      });
+      expect(or[0]?.windows[0]?.label).toBe('key limit');
+      expect(or[0]?.windows[0]?.windowMinutes).toBeUndefined();
+    }
+  });
 });

@@ -156,6 +156,7 @@ describe('PluginPanelOverlay, PluginStatusStrip, ImagePreviewModal, ResumePicker
           isWindowsConhost: false,
           supportsSyncOutput: true,
           graphicsProtocol: 'halfblock',
+          terminalHost: { host: 'native', kind: null, remoteClient: false },
         },
         onClose,
       }),

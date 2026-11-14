@@ -175,4 +175,11 @@ describe('isMessageUnreadForActor', () => {
 
     expect(isMessageUnreadForActor(message, 'agent-b')).toBe(false);
   });
+
+  it('ignores Object.prototype keys in readBy when checking unread state (F226)', () => {
+    for (const actorId of ['constructor', 'toString', 'hasOwnProperty', 'valueOf']) {
+      const message = projection({ readBy: {} });
+      expect(isMessageUnreadForActor(message, actorId)).toBe(true);
+    }
+  });
 });

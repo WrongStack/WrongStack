@@ -360,4 +360,10 @@ describe('changelog-writer plugin', () => {
       expect.any(Object),
     );
   });
+
+  it('falls back to Changed for Object.prototype commit types (F236)', () => {
+    expect(commitToEntry('constructor: harden lookup').section).toBe('Changed');
+    expect(commitToEntry('toString: harden lookup').section).toBe('Changed');
+    expect(commitToEntry('__proto__: harden lookup').section).toBe('Changed');
+  });
 });

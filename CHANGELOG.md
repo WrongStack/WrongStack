@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Desktop engine restart.** When an updated application still uses a session
+  host from an older build, a notice offers to move conversations onto the new
+  engine. Restart requires confirmation, waits for graceful session shutdown,
+  replaces the host and reloads application windows. On Unix, conversations
+  that refuse to stop prevent replacement.
+- **Browser terminal detection.** Recognize browser and webview terminal hosts,
+  use portable glyphs and automatic graphics fallbacks, and retain explicit
+  terminal, icon and graphics overrides.
+
+### Changed
+
+- **TUI command discovery.** Help, command and file pickers adapt to the available
+  rows and columns, keep the focused result visible, expose measured keyboard
+  controls in compact panes and preserve filenames in long paths. Help details
+  scroll by wrapped display lines and reflow on resize.
+
+### Fixed
+
+- Serialize concurrent fleet spawn admission, budget-extension decisions and
+  writes to the same file; disarm completed collaboration timeouts before
+  asynchronous result processing.
+- Cancel pending OAuth loopback retries on abort, normalize MCP redirect URIs
+  consistently for registration and authorization, and reject malformed ACP
+  request URLs without an unhandled exception.
+- Keep mailbox receipts, quota labels, templates, command allowlists and scan
+  report categories independent of inherited object properties. Preserve own
+  `__proto__` data fields during HQ redaction.
+- Clamp invalid LSP completion and location limits and wrap picker movement
+  correctly for large negative offsets.
+- Coalesce ACP leader model switches without dropping a newer session, discard
+  superseded browser-watch starts, and reject dot-directory dead-code backup IDs.
+
+### Security
+
+- Preserve containment checks after zero-line patch hunks and normalize template
+  output paths before applying protected-file rules.
+- Bound repeated globstar patterns and validate process-watch regular expressions
+  before matching; quote ACP delete and move paths with POSIX shell escaping.
+
 ## [1.7.1] — 2026-11-14
 
 Desktop updates gain version-bound signatures and an in-app update notice.

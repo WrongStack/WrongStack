@@ -992,7 +992,9 @@
     "projectedSaving": "Projected saving about ${{amount}}.",
     "switchTier": "Switch to {{tier}}",
     "autoWakeOneNotice": "a timer/watch notice you asked for",
-    "autoWakeNotices": "timer/watch notices you asked for"
+    "autoWakeNotices": "timer/watch notices you asked for",
+    "engineBehindApp": "This conversation runs on engine {{current}}; this app is {{app}}.",
+    "engineBehindAppHint": "Use Restart engine in the notice at the top to move conversations to this version."
   },
   "message": {
     "you": "You",
@@ -9791,7 +9793,7 @@
   },
   "updates": {
     "available": "WrongStack Desktop {{version}} is available",
-    "keepsRunning": "Your conversations keep running while the app restarts.",
+    "keepsRunning": "Your conversations keep running while the app restarts; restart the engine afterwards to move them to the new version.",
     "install": "Install & restart",
     "installing": "Installing…",
     "download": "Download",
@@ -9809,5 +9811,15 @@
       "found": "Version {{version}} is available.",
       "upToDate": "You have the latest version ({{version}})."
     }
+  },
+  "hostBuild": {
+    "stale": "Your conversations still run on the engine of an earlier WrongStack Desktop.",
+    "explain": "Restart the engine to move them to this version.",
+    "confirm": "Running conversations stop gracefully; reconnect them afterwards to continue.",
+    "restart": "Restart engine",
+    "restartNow": "Restart now",
+    "restarting": "Restarting…",
+    "cancel": "Cancel",
+    "failed": "The engine could not be restarted: {{error}}"
   }
 }

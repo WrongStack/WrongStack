@@ -37,6 +37,8 @@ terminal size after subscribing to resize events, covering changes during mount.
   ───────────────────────────────────────────────  ctx ████░░ 47%
 ```
 
+Command discovery adapts to the main-column viewport: `/help` uses split panes at 76 columns, stacks details on narrower tall terminals, and keeps only the command list on short terminals. PgUp/PgDn scroll wrapped help lines; `/` and `@` pickers keep the focused result visible, show its position, and follow the active theme. Long file paths retain their filename, with matching query text emphasized. Below six rows or 32 columns, these pickers use a borderless focus view: one row keeps Esc inline, two rows give the label full width with measured controls underneath, and three rows add context. Command/file controls include Enter run/attach when space permits; help remains informational. Zero available rows or columns render nothing.
+
 ### 1.1 Architecture Diagram
 
 ```
@@ -434,11 +436,13 @@ Both `env` and `isTTY` are overridable for testability.
 
 | Profile | Activate With | Usage |
 |---------|--------------|-------|
-| `unicode` | automatic fallback or `WRONGSTACK_TUI_ICON_STYLE=unicode` | Portable Unicode set — works on any modern terminal without special fonts |
+| `unicode` | automatic fallback or `WRONGSTACK_TUI_ICON_STYLE=unicode` | Portable Unicode set, no special fonts needed; base of the width-safe `browser` profile used in [browser terminals](./tui-browser-terminals.md) |
 | `nerd` | automatic local detection or `WRONGSTACK_TUI_ICON_STYLE=nerd` | Rich Nerd Font icons (requires Nerd Font installed and selected in the terminal) |
 | `ascii` | `--ascii` or `WRONGSTACK_TUI_ICON_STYLE=ascii` | Pure ASCII — CI captures, basic terminals |
 
 The glyph set covers only the named chrome glyphs. In ASCII mode every other symbol is converted as well: box drawing, arrows, bullets, spinners, emoji, Nerd Font icons and typographic punctuation. The `Text` wrapper in `src/ink.tsx` converts text before Ink measures it, and bordered `Box`es switch to Ink's `classic` border. stdout/stderr are wrapped too (width-preserving) for the plain REPL and one-shot output (`@wrongstack/core` `utils/ascii-fallback.ts`). Letters and digits in any script are left alone. Measured in a real pseudo-terminal: the TUI's first screen plus the command palette went from 8,143 non-ASCII characters to 0.
+
+**Browser-hosted terminals never auto-select `nerd`.** xterm.js-family emulators paint with a client-side CSS font stack and implement no image protocol, so `detectTerminalHost()` suppresses the server-side font scan (portable `unicode` profile) and clamps `graphicsProtocol` to `halfblock`/`none`. See [TUI in browser-hosted terminals](./tui-browser-terminals.md) for detection markers, overrides, and tests.
 
 ### 6.2 42 Semantic Glyphs
 
@@ -785,7 +789,7 @@ Based on mailbox broadcast activity during this session:
 5. Add panel-local shortcut hints for panels that own keyboard input
 
 ### 20.2 Design Considerations
-- **No font installation**: WrongStack never silently installs or changes system fonts; it detects an existing local Nerd Font and uses the Nerd profile automatically. SSH cannot expose the client font, so remote sessions require an explicit `WRONGSTACK_TUI_ICON_STYLE=nerd` override.
+- **No font installation**: WrongStack never silently installs or changes system fonts; it detects an existing local Nerd Font and uses the Nerd profile automatically. SSH cannot expose the client font, so remote sessions require an explicit `WRONGSTACK_TUI_ICON_STYLE=nerd` override. Browser-hosted terminals are treated the same way, and a web terminal that reports no marker can be pinned with `WRONGSTACK_TUI_TERMINAL=browser` (or forced back with `=native`).
 - **Alternate screen**: The TUI owns a full alternate buffer, so terminal-native scrollback is unavailable while it is visible; the normal shell screen is restored on exit
 - **Performance**: `React.memo` on history/input prevents keystroke churn; display retention is capped at 400 entries / 1 MiB; height-cache windowing, markdown LRU caching, and `fleetBatch` coalescing bound hot paths
 - **Ghost artifacts**: Resize handler erases from cursor to end-of-screen to prevent reflow ghosts

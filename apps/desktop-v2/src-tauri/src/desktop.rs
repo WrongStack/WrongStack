@@ -9,7 +9,7 @@ use std::{
     collections::HashMap,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
+        Arc, Mutex, RwLock,
     },
     thread,
     time::Duration,
@@ -19,13 +19,40 @@ use tauri::{
     Manager, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
 
-struct Desktop {
-    client: Client,
+pub(crate) struct Desktop {
+    /// The conversation host; replaced when the user moves conversations onto this build's
+    /// engine (`host_restart`).
+    client: RwLock<Client>,
     services: Client,
     drafts: Arc<Mutex<crate::registry::Registry>>,
     project_aliases: Arc<Mutex<HashMap<String, String>>>,
     streams: Mutex<HashMap<String, Arc<StreamControl>>>,
     geometry: Mutex<HashMap<String, Geometry>>,
+    /// The engine this launch found, for a host started later in the session.
+    pub(crate) engine: Option<std::path::PathBuf>,
+    pub(crate) restarting: AtomicBool,
+}
+impl Desktop {
+    pub(crate) fn client(&self) -> Client {
+        match self.client.read() {
+            Ok(client) => client.clone(),
+            Err(poisoned) => poisoned.into_inner().clone(),
+        }
+    }
+    pub(crate) fn replace_client(&self, client: Client) {
+        match self.client.write() {
+            Ok(mut current) => *current = client,
+            Err(poisoned) => *poisoned.into_inner() = client,
+        }
+    }
+    /// Ends every terminal stream: they read from the host being replaced.
+    pub(crate) fn cancel_streams(&self) {
+        if let Ok(streams) = self.streams.lock() {
+            for control in streams.values() {
+                control.cancel.store(true, Ordering::Relaxed);
+            }
+        }
+    }
 }
 struct StreamControl {
     cancel: AtomicBool,
@@ -184,7 +211,7 @@ async fn host_request(
     {
         return Err("Method unavailable to shell".into());
     }
-    let client = state.client.clone();
+    let client = state.client();
     let services = state.services.clone();
     let drafts = Arc::clone(&state.drafts);
     let aliases = Arc::clone(&state.project_aliases);
@@ -205,7 +232,7 @@ async fn host_request(
         }
         if method == "session.restore" {
             if !crate::host::can_share_services(&client.call("ping", json!({}))?) {
-                return Err("The running session host uses an older engine. Keep reading history, or stop its sessions and restart the desktop before resuming or forking.".into());
+                return Err("The running session host uses an older engine. Keep reading history, or use Restart engine in the notice above before resuming or forking.".into());
             }
             // A dedicated command fails closed on older hosts, unlike optional
             // session.open fields that an old binary could silently ignore.
@@ -448,7 +475,7 @@ fn terminal_stream(
     {
         previous.cancel.store(true, Ordering::Relaxed);
     }
-    let client = state.client.clone();
+    let client = state.client();
     let app = window.app_handle().clone();
     thread::spawn(move || {
         let mut offset: Option<u64> = None;
@@ -573,7 +600,7 @@ pub fn run() {
                 .map_err(std::io::Error::other)?
             };
             app.manage(Desktop {
-                client,
+                client: RwLock::new(client),
                 services,
                 drafts: Arc::new(Mutex::new(
                     crate::registry::Registry::open(
@@ -588,6 +615,8 @@ pub fn run() {
                         .map(|dir| window_geometry::load(&dir))
                         .unwrap_or_default(),
                 ),
+                engine: engine.clone(),
+                restarting: AtomicBool::new(false),
             });
             // The main window reopens where it was, unless that display is gone.
             if let (Some(main), Some(g)) = (
@@ -642,7 +671,9 @@ pub fn run() {
             speech_start,
             speech_stop,
             crate::update::update_check,
-            crate::update::update_install
+            crate::update::update_install,
+            crate::host_restart::host_info,
+            crate::host_restart::host_restart
         ])
         .run(tauri::generate_context!())
         .expect("WrongStack desktop runtime");

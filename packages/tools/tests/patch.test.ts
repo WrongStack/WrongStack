@@ -484,4 +484,16 @@ describe('patchTool — VULN-001 containment (git extended headers, fail-closed)
       patchTool.execute({ patch: evilUnified, dry_run: true }, ctx, makeOpts()),
     ).rejects.toThrow('patch refused');
   });
+
+  it('does not let a zero-line hunk swallow a subsequent escaping --- header (F222)', () => {
+    const wt = patchTool.writeTargets!;
+    const bypass = [
+      '--- a/safe.txt',
+      '+++ b/safe.txt',
+      '@@ -0,0 +0,0 @@',
+      '--- a/../../secret.txt',
+      '+++ /dev/null',
+    ].join('\n');
+    expect(wt({ patch: bypass, strip: 1 })).toContain('../../secret.txt');
+  });
 });

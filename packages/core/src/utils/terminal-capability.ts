@@ -38,6 +38,39 @@ export type MouseProtocol = 'none' | 'x10' | 'urxvt' | 'sgr';
 export type TerminalGraphicsProtocol = 'kitty' | 'iterm2' | 'halfblock' | 'none';
 
 /**
+ * Where the emulator that paints our output actually runs.
+ *
+ *   'native'  — a desktop terminal process on this machine (Windows Terminal,
+ *               iTerm2, kitty, Alacritty, …)
+ *   'browser' — a browser/webview emulator (xterm.js family): VS Code's
+ *               integrated terminal, code-server / openvscode-server,
+ *               GitHub Codespaces, Gitpod, Theia, Jupyter, Cloud Shell,
+ *               Replit, and self-hosted web terminals (ttyd, gotty, wetty)
+ *
+ * The distinction is not cosmetic. Browser emulators paint with a *CSS* font
+ * stack chosen by the page rather than by the process, never implement the
+ * Kitty Graphics or iTerm2 `OSC 1337` image protocols, and are frequently
+ * attached to a client that is a different machine entirely — so any
+ * server-side font scan describes a machine the user is not looking at.
+ */
+export type TerminalHost = 'native' | 'browser';
+
+export interface TerminalHostInfo {
+  host: TerminalHost;
+  /**
+   * Short surface name for diagnostics (`codespaces`, `vscode`, `ttyd`, …), or
+   * `null` when the host is a native terminal or was forced by env override.
+   */
+  kind: string | null;
+  /**
+   * True when glyph/colour discovery performed on this machine cannot
+   * describe the surface the user is looking at (the browser client is
+   * elsewhere: SSH session, hosted workspace, Jupyter server, …).
+   */
+  remoteClient: boolean;
+}
+
+/**
  * A snapshot of the terminal's capabilities and identity, computed once at
  * startup. Call {@link detectTerminal} once and pass the result through your
  * app — never re-detect mid-session.
@@ -111,6 +144,11 @@ export interface TerminalCapability {
    * Respects `WRONGSTACK_TUI_GRAPHICS=auto|kitty|iterm2|halfblock|off`.
    */
   graphicsProtocol: TerminalGraphicsProtocol;
+  /**
+   * Whether the painting surface is a native terminal or a browser/webview
+   * emulator, plus whether the client is remote. See {@link detectTerminalHost}.
+   */
+  terminalHost: TerminalHostInfo;
 }
 
 /**
@@ -206,6 +244,92 @@ function parseSupportsSyncOutput(
   return !isWindowsConhost;
 }
 
+/**
+ * Browser/webview terminals that set an unambiguous environment marker.
+ *
+ * Only markers the terminal itself (or its hosting platform) exports are used —
+ * never a heuristic on `$TERM`, which browser emulators commonly report as
+ * `xterm-256color` exactly like a native emulator.
+ */
+interface BrowserHostSignal {
+  kind: string;
+  /** The browser client is a different machine than this process. */
+  remoteClient: boolean;
+}
+
+const VSCODE_FAMILY_PROGRAMS = new Set(['vscode', 'vscode-insiders', 'visual studio code']);
+
+function detectBrowserHostSignal(env: typeof process.env): BrowserHostSignal | null {
+  const has = (key: string): boolean => {
+    const value = env[key];
+    return typeof value === 'string' && value.trim() !== '';
+  };
+
+  if (has('CODESPACE_NAME') || env.CODESPACES === 'true') {
+    return { kind: 'codespaces', remoteClient: true };
+  }
+  if (has('GITPOD_WORKSPACE_ID') || has('GITPOD_WORKSPACE_URL')) {
+    return { kind: 'gitpod', remoteClient: true };
+  }
+  if (has('OPENVSCODE_SERVER_ROOT')) {
+    return { kind: 'code-server', remoteClient: true };
+  }
+  if (has('THEIA_WORKSPACE_ROOT') || env.TERM_PROGRAM?.trim().toLowerCase() === 'theia') {
+    return { kind: 'theia', remoteClient: true };
+  }
+  if (env.CLOUD_SHELL === 'true') {
+    return { kind: 'cloud-shell', remoteClient: true };
+  }
+  if (has('REPL_ID') || has('REPL_OWNER') || has('REPLIT_DEV_DOMAIN')) {
+    return { kind: 'replit', remoteClient: true };
+  }
+  if (has('JPY_PARENT_PID') || has('JUPYTER_SERVER_ROOT')) {
+    return { kind: 'jupyter', remoteClient: true };
+  }
+  if (env.BROWSER_TERMINAL?.trim() === '1' || env.BROWSER_TERMINAL?.toLowerCase() === 'true') {
+    return { kind: 'browser', remoteClient: true };
+  }
+
+  const termProgram = (env.TERM_PROGRAM ?? '').trim().toLowerCase();
+  if (VSCODE_FAMILY_PROGRAMS.has(termProgram)) {
+    // Desktop VS Code paints with a local client font, so a local font scan is
+    // still meaningful there; web builds are detected by the markers above.
+    return { kind: 'vscode', remoteClient: false };
+  }
+  if (termProgram === 'hyper' || termProgram === 'tabby') {
+    return { kind: termProgram, remoteClient: false };
+  }
+  return null;
+}
+
+/**
+ * Detect whether the emulator painting our output is a browser/webview surface.
+ *
+ * Detection is env-only because there is no programmatic query for "am I inside
+ * xterm.js". Unknown/absent markers resolve to `native`, which keeps the
+ * existing native behaviour untouched. `WRONGSTACK_TUI_TERMINAL=browser|native`
+ * is the explicit escape hatch for self-hosted web terminals (ttyd, gotty,
+ * wetty) that export no marker of their own.
+ */
+export function detectTerminalHost(
+  env: typeof process.env = process.env,
+  isRemoteSSH: boolean = Boolean(env.SSH_CONNECTION || env.SSH_CLIENT || env.SSH_TTY),
+): TerminalHostInfo {
+  const override = env.WRONGSTACK_TUI_TERMINAL?.trim().toLowerCase();
+  if (override === 'native') return { host: 'native', kind: null, remoteClient: false };
+  if (override === 'browser' || override === 'web' || override === 'xterm') {
+    return { host: 'browser', kind: null, remoteClient: true };
+  }
+
+  const signal = detectBrowserHostSignal(env);
+  if (!signal) return { host: 'native', kind: null, remoteClient: false };
+  return {
+    host: 'browser',
+    kind: signal.kind,
+    remoteClient: signal.remoteClient || isRemoteSSH,
+  };
+}
+
 function parseGraphicsProtocol(
   isRealTTY: boolean,
   isWindowsConhost: boolean,
@@ -213,6 +337,7 @@ function parseGraphicsProtocol(
   colorDepth: ColorDepth,
   term: string,
   env: typeof process.env,
+  host: TerminalHostInfo,
 ): TerminalGraphicsProtocol {
   const t = term.toLowerCase();
   if (!isRealTTY || t === 'dumb' || isWindowsConhost) return 'none';
@@ -229,6 +354,13 @@ function parseGraphicsProtocol(
     .trim()
     .toLowerCase();
   if (perfProfile === 'frugal') return 'none';
+
+  // Browser/webview emulators never implement Kitty Graphics or iTerm2
+  // `OSC 1337` images; emitting those escapes there paints literal base64
+  // garbage into the screen. Degrade to truecolor half-blocks, which every
+  // xterm.js build renders correctly. An explicit WRONGSTACK_TUI_GRAPHICS
+  // selection was already honoured above.
+  if (host.host === 'browser') return colorDepth >= 3 ? 'halfblock' : 'none';
 
   // Inside tmux, raw APC/OSC image payloads are dropped unless the user enabled
   // `allow-passthrough` in tmux.conf. Default to truecolor half-block cells
@@ -295,6 +427,7 @@ export function detectTerminal(
     typeof (stdout as NodeJS.WriteStream & { getColorDepth?: unknown }).getColorDepth !==
       'function';
   const colorDepth: ColorDepth = isRealTTY ? parseColorDepth(env) : 0;
+  const terminalHost = detectTerminalHost(env);
 
   return {
     isRealTTY,
@@ -312,6 +445,8 @@ export function detectTerminal(
       colorDepth,
       term,
       env,
+      terminalHost,
     ),
+    terminalHost,
   };
 }

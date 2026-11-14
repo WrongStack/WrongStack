@@ -10,6 +10,7 @@ import {
   type MCPTokenSet,
   parseMcpAuthorizationCallback,
   parseMcpBearerChallenge,
+  validateRedirectUri,
 } from './authorization.js';
 import {
   type MCPOAuthCallbackServerOptions,
@@ -156,6 +157,11 @@ export class MCPAuthorizationManager {
 
   async begin(input: MCPAuthorizationStartInput): Promise<MCPAuthorizationStartResult> {
     const resource = canonicalMcpResource(input.resource);
+    // Normalize before discovery/registration: OAuth compares redirect URIs as
+    // exact strings, so a client registered with `…:43123` would fail the
+    // authorization request that sends the canonical `…:43123/`. Failing here
+    // also keeps an invalid URI from reaching dynamic registration.
+    const redirectUri = validateRedirectUri(input.redirectUri);
     const key = authorizationKey(input.serverName, resource);
     this.pruneExpired();
     if (this.starting.has(key)) {
@@ -183,7 +189,7 @@ export class MCPAuthorizationManager {
         serverName: input.serverName,
         resource,
         discovery,
-        redirectUri: input.redirectUri,
+        redirectUri,
         explicitClientId: input.clientId,
         scopes,
         signal: input.signal,
@@ -194,7 +200,7 @@ export class MCPAuthorizationManager {
       const session = createMcpAuthorizationRequest({
         authorizationServer: discovery.authorizationServer,
         clientId: identity.clientId,
-        redirectUri: input.redirectUri,
+        redirectUri,
         resource,
         scopes,
       });

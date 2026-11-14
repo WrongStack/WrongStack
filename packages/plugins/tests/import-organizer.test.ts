@@ -801,4 +801,12 @@ describe('issue #367 allowlist + oxlint + timeout', () => {
     const status = await statusTool.execute();
     expect(status.counters.errors).toBeGreaterThan(0);
   });
+
+  it('rejects Object.prototype keys in resolveAllowedCommand (F235)', async () => {
+    const { resolveAllowedCommand } = await import('../src/import-organizer/index.js');
+    expect(resolveAllowedCommand('npx constructor')).toBeNull();
+    expect(resolveAllowedCommand('npx toString')).toBeNull();
+    expect(resolveAllowedCommand('npx __proto__')).toBeNull();
+    expect(resolveAllowedCommand('bunx valueOf')).toBeNull();
+  });
 });

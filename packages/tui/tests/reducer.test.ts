@@ -1999,4 +1999,23 @@ describe('sendModePicker reducer', () => {
     const s = reducer(initial() as never, { type: 'sendModePickerMove', delta: 1 } as never);
     expect((s as never as { sendModePicker: unknown }).sendModePicker).toBeNull();
   });
+
+  it('pickerMove wraps large negative deltas into [0, n - 1] (F249)', () => {
+    const withPicker = initial({
+      picker: {
+        open: true,
+        query: '',
+        matches: [
+          { id: 'a', label: 'A', insert: 'a' },
+          { id: 'b', label: 'B', insert: 'b' },
+          { id: 'c', label: 'C', insert: 'c' },
+        ] as never,
+        selected: 0,
+      },
+    } as never);
+    expect(reducer(withPicker as never, { type: 'pickerMove', delta: -10 }).picker.selected).toBe(
+      2,
+    );
+    expect(reducer(withPicker as never, { type: 'pickerMove', delta: 4 }).picker.selected).toBe(1);
+  });
 });

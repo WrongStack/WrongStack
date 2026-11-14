@@ -236,7 +236,17 @@ export function startLoopbackServer(opts: LoopbackOptions): Promise<LoopbackServ
    * ends, so a browser tab left open on the callback page (or an abort that
    * arrives mid-request) pins a fixed callback port indefinitely.
    */
+  let closed = false;
+  let retryTimer: ReturnType<typeof setTimeout> | undefined;
+  let onTeardown: (() => void) | undefined;
+
   const teardown = (): void => {
+    closed = true;
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      retryTimer = undefined;
+    }
+    onTeardown?.();
     try {
       // Stop accepting first, then drop whatever is still attached — Node's
       // documented shutdown order. Forcing the second step is safe here: the
@@ -265,6 +275,7 @@ export function startLoopbackServer(opts: LoopbackOptions): Promise<LoopbackServ
   return new Promise<LoopbackServer>((resolve) => {
     const ports = [port, ...fallbackPorts];
     let index = 0;
+    let settled = false;
 
     const close = (): void => {
       resolveCode(null);
@@ -272,6 +283,8 @@ export function startLoopbackServer(opts: LoopbackOptions): Promise<LoopbackServ
     };
 
     const fail = (): void => {
+      if (settled) return;
+      settled = true;
       resolveCode(null);
       resolve({
         bound: false,
@@ -280,15 +293,28 @@ export function startLoopbackServer(opts: LoopbackOptions): Promise<LoopbackServ
         close,
       });
     };
+    onTeardown = fail;
+    if (closed) {
+      fail();
+      return;
+    }
 
     let ephemeralRetries = 0;
     server.on('error', () => {
+      if (closed) {
+        fail();
+        return;
+      }
       // Port 0 asks the OS for any free port, so a failure there is transient
       // (seen on a loaded Windows host) rather than "this port is taken":
       // ask again a few times before falling back to manual entry.
       if ((ports[index] ?? port) === 0 && ephemeralRetries < EPHEMERAL_LISTEN_RETRIES) {
         ephemeralRetries += 1;
-        setTimeout(() => server.listen(0, host), EPHEMERAL_LISTEN_BACKOFF_MS * ephemeralRetries);
+        retryTimer = setTimeout(() => {
+          retryTimer = undefined;
+          if (closed) return;
+          server.listen(0, host);
+        }, EPHEMERAL_LISTEN_BACKOFF_MS * ephemeralRetries);
         return;
       }
       index += 1;
@@ -301,6 +327,11 @@ export function startLoopbackServer(opts: LoopbackOptions): Promise<LoopbackServ
       fail();
     });
     server.on('listening', () => {
+      if (closed || settled) {
+        teardown();
+        return;
+      }
+      settled = true;
       const address = server.address();
       const actualPort =
         typeof address === 'object' && address ? address.port : (ports[index] ?? port);

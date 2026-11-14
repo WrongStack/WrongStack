@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { displayWidth } from '../src/terminal-width.js';
 import {
   glyphSet,
   glyphs,
   hasInstalledNerdFont,
   type IconStyle,
+  isBrowserSafeGlyph,
   resolveIconStyle,
 } from '../src/ui-glyphs.js';
 
@@ -188,5 +190,124 @@ describe('glyphs singleton', () => {
   it('is exported as a frozen object resolved from the process env', () => {
     expect(Object.isFrozen(glyphs)).toBe(true);
     expect(glyphs).toBe(glyphSet(resolveIconStyle()));
+  });
+});
+
+describe('resolveIconStyle — browser-hosted terminals', () => {
+  it('refuses Nerd Font auto-detection for every browser host, local or remote', () => {
+    // Browser emulators paint with the page's CSS font stack, so a font scan of
+    // this machine cannot describe the surface the user is looking at — private-
+    // use Nerd glyphs would render as tofu boxes.
+    expect(resolveIconStyle({ CODESPACES: 'true' }, () => true)).toBe('browser');
+    expect(resolveIconStyle({ GITPOD_WORKSPACE_ID: 'ws-1' }, () => true)).toBe('browser');
+    expect(
+      resolveIconStyle({ TERM_PROGRAM: 'vscode', SSH_CONNECTION: 'a 1 b 2' }, () => true),
+    ).toBe('browser');
+    // Remote-SSH/Containers spawn the shell on the server, so SSH_CONNECTION is
+    // absent there; the local webview marker alone must still suppress it.
+    expect(resolveIconStyle({ TERM_PROGRAM: 'vscode' }, () => true)).toBe('browser');
+    expect(resolveIconStyle({ TERM_PROGRAM: 'hyper' }, () => true)).toBe('browser');
+    expect(resolveIconStyle({ TERM_PROGRAM: 'tabby' }, () => true)).toBe('browser');
+  });
+
+  it('keeps native terminals on the font scan', () => {
+    expect(resolveIconStyle({ TERM: 'xterm-256color' }, () => true)).toBe('nerd');
+    expect(resolveIconStyle({ TERM: 'xterm-256color' }, noNerdFont)).toBe('unicode');
+  });
+
+  it('still honors an explicit icon style override in a browser terminal', () => {
+    expect(
+      resolveIconStyle({ CODESPACES: 'true', WRONGSTACK_TUI_ICON_STYLE: 'nerd' }, noNerdFont),
+    ).toBe('nerd');
+    expect(
+      resolveIconStyle({ CODESPACES: 'true', WRONGSTACK_TUI_ICON_STYLE: 'ascii' }, () => true),
+    ).toBe('ascii');
+  });
+});
+
+describe('browser glyph profile', () => {
+  const browser = glyphSet('browser');
+  const unicode = glyphSet('unicode');
+
+  // Structural prefixes, not icons: `indent` is two spaces, the tree prefixes a
+  // corner plus a dash. They must still be safe and exactly two cells wide.
+  const COMPOSITE_KEYS = ['indent', 'treeLast', 'treeBranch', 'treeThrough'] as const;
+
+  it('is a complete profile with the same keys as unicode', () => {
+    expect(Object.keys(browser).sort()).toEqual(Object.keys(unicode).sort());
+  });
+
+  it('renders every icon glyph in exactly one cell', () => {
+    for (const [key, value] of Object.entries(browser)) {
+      if ((COMPOSITE_KEYS as readonly string[]).includes(key)) continue;
+      expect(displayWidth(value), `${key} (${value})`).toBe(1);
+    }
+  });
+
+  it('keeps layout prefixes at two safe cells', () => {
+    for (const key of COMPOSITE_KEYS) {
+      expect(displayWidth(browser[key]), key).toBe(2);
+      expect(isBrowserSafeGlyph(browser[key]), key).toBe(true);
+    }
+  });
+
+  it('uses only code points common monospace fonts cover', () => {
+    for (const [key, value] of Object.entries(browser)) {
+      expect(isBrowserSafeGlyph(value), `${key} (${value})`).toBe(true);
+    }
+  });
+
+  it('contains no private-use, variation-selector or emoji-presentation glyphs', () => {
+    for (const [key, value] of Object.entries(browser)) {
+      expect(/[\uE000-\uF8FF]/.test(value), key).toBe(false);
+      expect(/[\uFE0E\uFE0F\u200D]/.test(value), key).toBe(false);
+      // Some Geometric Shapes (▶, ◀) carry Extended_Pictographic yet render as
+      // single-cell text in every monospace font; a pictographic glyph outside
+      // that block is an emoji whose width the layout cannot predict.
+      for (const char of value) {
+        if (!/\p{Extended_Pictographic}/u.test(char)) continue;
+        const codePoint = char.codePointAt(0) ?? 0;
+        expect(codePoint >= 0x25a0 && codePoint <= 0x25ff, `${key} (${char})`).toBe(true);
+      }
+    }
+  });
+
+  it('replaces the width-unstable symbols named in the remap', () => {
+    const unstable = [
+      '\u26B7',
+      '\u26BF',
+      '\u2397',
+      '\u2398',
+      '\u26E8',
+      '\u2315',
+      '\u{1F3A8}',
+      '\u26A1',
+    ];
+    const browserValues = Object.values(browser);
+    const unicodeValues = Object.values(unicode);
+    for (const symbol of unstable) {
+      expect(browserValues, symbol).not.toContain(symbol);
+      expect(unicodeValues, symbol).toContain(symbol);
+    }
+  });
+
+  it('maps every unsafe unicode glyph explicitly instead of falling back', () => {
+    let remapped = 0;
+    for (const [key, value] of Object.entries(unicode)) {
+      if (isBrowserSafeGlyph(value)) continue;
+      remapped += 1;
+      expect(browser[key as keyof typeof browser], key).not.toBe(value);
+      expect(browser[key as keyof typeof browser], key).not.toBe('\u00B7');
+    }
+    expect(remapped).toBeGreaterThan(0);
+  });
+
+  it('leaves already-safe unicode glyphs untouched and keeps the native profile intact', () => {
+    for (const [key, value] of Object.entries(unicode)) {
+      if (!isBrowserSafeGlyph(value)) continue;
+      expect(browser[key as keyof typeof browser], key).toBe(value);
+    }
+    expect(unicode.lock).toBe('\u26BF');
+    expect(browser.lock).toBe('L');
   });
 });

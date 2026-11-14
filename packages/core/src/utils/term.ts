@@ -3,8 +3,10 @@ export type {
   MouseProtocol,
   TerminalCapability,
   TerminalGraphicsProtocol,
+  TerminalHost,
+  TerminalHostInfo,
 } from './terminal-capability.js';
-export { detectTerminal } from './terminal-capability.js'; /**
+export { detectTerminal, detectTerminalHost } from './terminal-capability.js'; /**
  * TTY detection helpers — the single source of truth for "is this process
  * running against a real terminal?". Replaces ad-hoc `process.stdin.isTTY`
  * / `process.stdout.isTTY` checks scattered across the codebase so that:

@@ -125,4 +125,11 @@ describe('probeAcpAgents (bounded, phased)', () => {
     // local completes before the npx package agent (locals run first).
     expect(order).toEqual(['local', 'pkg']);
   });
+
+  it('returns null for Object.prototype keys in resolveAcpAgentCommand (F244)', async () => {
+    const { resolveAcpAgentCommand } = await import('../src/integration/acp-agent-probe.js');
+    for (const key of ['toString', 'constructor', 'valueOf', '__proto__']) {
+      expect(resolveAcpAgentCommand(key)).toBeNull();
+    }
+  });
 });

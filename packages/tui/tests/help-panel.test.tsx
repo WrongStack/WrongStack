@@ -1,7 +1,7 @@
 import { render } from 'ink-testing-library';
 import React from 'react';
 import { describe, expect, it } from 'vitest';
-import { HelpPanel, type HelpEntry } from '../src/components/help-panel.js';
+import { type HelpEntry, HelpPanel } from '../src/components/help-panel.js';
 
 function makeEntry(overrides: Partial<HelpEntry> = {}): HelpEntry {
   return {
@@ -203,7 +203,7 @@ describe('HelpPanel', () => {
 
   it('handles large entry list with scrolling', () => {
     const entries = Array.from({ length: 50 }, (_, i) =>
-      makeEntry({ name: `cmd-${i}`, category: 'Run' }),
+      makeEntry({ name: `cmd-${String(i).padStart(2, '0')}`, category: 'Run' }),
     );
     const view = render(
       React.createElement(HelpPanel, {

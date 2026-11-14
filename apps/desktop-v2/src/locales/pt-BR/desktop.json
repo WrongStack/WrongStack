@@ -992,7 +992,9 @@
     "projectedSaving": "Economia prevista de cerca de ${{amount}}.",
     "switchTier": "Mudar para {{tier}}",
     "autoWakeOneNotice": "um aviso de timer/monitoramento solicitado",
-    "autoWakeNotices": "avisos de timer/monitoramento solicitados"
+    "autoWakeNotices": "avisos de timer/monitoramento solicitados",
+    "engineBehindApp": "Esta conversa roda no mecanismo {{current}}; este aplicativo é {{app}}.",
+    "engineBehindAppHint": "Use “Reiniciar mecanismo” no aviso acima para mover as conversas para esta versão."
   },
   "message": {
     "you": "Você",
@@ -9791,7 +9793,7 @@
   },
   "updates": {
     "available": "O WrongStack Desktop {{version}} está disponível",
-    "keepsRunning": "Suas conversas continuam enquanto o aplicativo reinicia.",
+    "keepsRunning": "Suas conversas continuam enquanto o aplicativo reinicia; depois reinicie o mecanismo para movê-las para a nova versão.",
     "install": "Instalar e reiniciar",
     "installing": "Instalando…",
     "download": "Baixar",
@@ -9809,5 +9811,15 @@
       "found": "A versão {{version}} está disponível.",
       "upToDate": "Você tem a versão mais recente ({{version}})."
     }
+  },
+  "hostBuild": {
+    "stale": "Suas conversas ainda rodam no mecanismo de uma versão anterior do WrongStack Desktop.",
+    "explain": "Reinicie o mecanismo para movê-las para esta versão.",
+    "confirm": "As conversas em andamento param de forma ordenada; reconecte-as depois para continuar.",
+    "restart": "Reiniciar mecanismo",
+    "restartNow": "Reiniciar agora",
+    "restarting": "Reiniciando…",
+    "cancel": "Cancelar",
+    "failed": "Não foi possível reiniciar o mecanismo: {{error}}"
   }
 }

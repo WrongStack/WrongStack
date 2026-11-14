@@ -343,7 +343,7 @@ export function parseMailboxLines(raw: string): MailboxMessage[] {
  * outcome, deletedAt, deletedBy).
  */
 export function applyAckToMessage(msg: MailboxMessage, ack: AckRecord): void {
-  if (ack.read && !(ack.readerId in msg.readBy)) {
+  if (ack.read && !Object.hasOwn(msg.readBy, ack.readerId)) {
     msg.readBy[ack.readerId] = ack.timestamp;
   }
   if (ack.completed && !msg.completed) {

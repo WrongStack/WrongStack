@@ -99,9 +99,9 @@
       "runtimeOrMixed": 11
     },
     "@wrongstack/core/quota": {
-      "files": 59,
+      "files": 60,
       "typeOnly": 1,
-      "runtimeOrMixed": 58
+      "runtimeOrMixed": 59
     },
     "@wrongstack/core/registry": {
       "files": 213,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1000,
+      "files": 1001,
       "typeOnly": 76,
-      "runtimeOrMixed": 960
+      "runtimeOrMixed": 961
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -5850,6 +5850,12 @@
     {
       "specifier": "@wrongstack/core/quota",
       "file": "packages/fleet/src/wrongforge-quota.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/quota",
+      "file": "packages/fleet/tests/acp-hardening.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -16572,6 +16578,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tui/src/submit-slash-command.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tui/src/ui-glyphs.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

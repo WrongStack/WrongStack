@@ -214,7 +214,8 @@ function selectorMatches(selector: KanbanBoundarySelector, rawResourcePath: stri
   return globToRegExp(selectorPath).test(resourcePath);
 }
 
-function globToRegExp(pattern: string): RegExp {
+function globToRegExp(rawPattern: string): RegExp {
+  const pattern = rawPattern.replace(/(?:\*\*\/)+/g, '**/').replace(/\*{2,}/g, '**');
   let source = '^';
   for (let index = 0; index < pattern.length; index++) {
     const char = pattern[index]!;

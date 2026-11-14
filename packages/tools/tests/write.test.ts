@@ -214,4 +214,39 @@ describe('write tool', () => {
     expect(await fs.readFile(file)).toEqual(original);
     expect(changes).toEqual([]);
   });
+
+  it('serializes concurrent stream and non-stream writes on the same path with withPathLock (F223)', async () => {
+    const changes: Array<{ before: string | null; after: string }> = [];
+    (sb.ctx as { session?: unknown }).session = {
+      recordFileChange: (entry: { before: string | null; after: string }) => {
+        changes.push({ before: entry.before, after: entry.after });
+      },
+    };
+
+    const stream = writeTool.executeStream!(
+      { path: 'race.txt', content: 'stream-1\nstream-2\n' },
+      sb.ctx,
+      { signal: newSignal() },
+    )[Symbol.asyncIterator]();
+    const first = await stream.next();
+    expect(first.done).toBe(false);
+
+    let concurrentDone = false;
+    const concurrent = writeTool
+      .execute({ path: 'race.txt', content: 'concurrent\n' }, sb.ctx, { signal: newSignal() })
+      .then(() => {
+        concurrentDone = true;
+      });
+    await new Promise((r) => setTimeout(r, 30));
+    expect(concurrentDone).toBe(false);
+
+    while (!(await stream.next()).done) {
+      // drain
+    }
+    await concurrent;
+
+    expect(changes).toHaveLength(2);
+    expect(changes[0]?.before).toBeNull();
+    expect(changes[1]?.before).toBe(changes[0]?.after);
+  });
 });

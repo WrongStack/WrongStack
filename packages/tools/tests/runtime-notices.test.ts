@@ -220,6 +220,13 @@ describe('process_watch', () => {
     await expect(
       processWatchTool.execute({ command: 'echo hi', description: 'x', filter: '(' }, ctx, opts),
     ).rejects.toThrow(/regular expression/);
+    await expect(
+      processWatchTool.execute(
+        { command: 'echo hi', description: 'x', filter: '(a+)+$' },
+        ctx,
+        opts,
+      ),
+    ).rejects.toThrow(/regular expression/);
     const worker = await leaderSandbox('worker-1');
     await expect(
       processWatchTool.execute({ command: 'echo hi', description: 'x' }, worker.ctx, opts),

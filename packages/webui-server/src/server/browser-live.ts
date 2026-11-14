@@ -32,6 +32,7 @@ interface Watch {
 }
 
 const watches = new WeakMap<WebSocket, Watch>();
+const watchGenerations = new WeakMap<WebSocket, number>();
 const picking = new WeakSet<WebSocket>();
 
 export async function handleBrowserLivePick(
@@ -117,10 +118,15 @@ export async function handleBrowserLiveList(
   });
 }
 
-export async function handleBrowserLiveUnwatch(ws: WebSocket): Promise<void> {
+async function stopCurrentWatch(ws: WebSocket): Promise<void> {
   const watch = watches.get(ws);
   watches.delete(ws);
   await watch?.stop();
+}
+
+export async function handleBrowserLiveUnwatch(ws: WebSocket): Promise<void> {
+  watchGenerations.set(ws, (watchGenerations.get(ws) ?? 0) + 1);
+  await stopCurrentWatch(ws);
 }
 
 export async function handleBrowserLiveWatch(
@@ -141,8 +147,12 @@ export async function handleBrowserLiveWatch(
     );
     return;
   }
-  await handleBrowserLiveUnwatch(ws);
+  const generation = (watchGenerations.get(ws) ?? 0) + 1;
+  watchGenerations.set(ws, generation);
+  await stopCurrentWatch(ws);
+  if (watchGenerations.get(ws) !== generation) return;
   const sessions = await tabSessions(projectRoot, sessionId).catch(() => []);
+  if (watchGenerations.get(ws) !== generation) return;
   if (!sessions.some((s) => s.id === id)) {
     sendResult(ws, false, `Browser session ${id} is not open in this session`);
     return;

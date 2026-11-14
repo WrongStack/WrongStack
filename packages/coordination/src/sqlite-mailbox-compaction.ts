@@ -100,7 +100,7 @@ export async function autoCompact(
       isMailboxMessageVisibleTo(message, status.agentId, status.role),
     );
     if (!retention.completed && eligible.length > 0) {
-      const readByAll = eligible.every((status) => status.agentId in message.readBy);
+      const readByAll = eligible.every((status) => Object.hasOwn(message.readBy, status.agentId));
       const latestRead = Math.max(
         ...eligible.map((status) => new Date(message.readBy[status.agentId] ?? 0).getTime()),
       );

@@ -51,4 +51,11 @@ describe('JSON ordering filters', () => {
     expect(jmespathSearch(data, '[?n==`"0"`]')).toEqual([{ n: '0' }]);
     expect(jmespathSearch([{ n: 0 }, { n: '0' }], '[?n!=`0`]')).toEqual([{ n: '0' }]);
   });
+
+  it('blocks prototype-property keys in wildcard and filter queries (F224)', () => {
+    for (const key of ['__proto__', 'prototype', 'constructor']) {
+      expect(jmespathSearch({}, `${key}[*]`)).toEqual([]);
+      expect(jmespathSearch([{ a: 1 }], `[?${key}!=\`null\`]`)).toEqual([]);
+    }
+  });
 });

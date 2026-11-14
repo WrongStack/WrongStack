@@ -230,7 +230,7 @@ export class ReportGenerator {
   }
 
   private groupByCategory(findings: Finding[]): Record<string, Finding[]> {
-    const groups: Record<string, Finding[]> = {};
+    const groups: Record<string, Finding[]> = Object.create(null);
 
     for (const finding of findings) {
       if (groups[finding.category] === undefined) {

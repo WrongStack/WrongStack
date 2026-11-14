@@ -44,12 +44,15 @@ function clampPercent(value: number): number {
   return Math.min(100, Math.max(0, value));
 }
 
-const RESET_MINUTES: Readonly<Record<string, number>> = { daily: 1440, weekly: 10_080 };
-const RESET_LABEL: Readonly<Record<string, string>> = {
+const RESET_MINUTES: Readonly<Record<string, number>> = Object.assign(Object.create(null), {
+  daily: 1440,
+  weekly: 10_080,
+});
+const RESET_LABEL: Readonly<Record<string, string>> = Object.assign(Object.create(null), {
   daily: 'key/day',
   weekly: 'key/week',
   monthly: 'key/month',
-};
+});
 
 /** The windows `/key` describes, in display order. */
 function parseOpenRouterKey(body: unknown): {

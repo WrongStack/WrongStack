@@ -54,4 +54,16 @@ describe('loopback callback listener on an ephemeral port', () => {
     expect(server.bound).toBe(false);
     server.close();
   });
+
+  it('cancels pending ephemeral retries and resolves unbound when aborted (F232)', async () => {
+    const listen = failEphemeralBinds(1);
+    const ctrl = new AbortController();
+    const pending = startLoopbackServer({ ...options, signal: ctrl.signal });
+    ctrl.abort();
+    const server = await pending;
+    await new Promise((r) => setTimeout(r, 150));
+    expect(server.bound).toBe(false);
+    expect(listen).toHaveBeenCalledTimes(1);
+    server.close();
+  });
 });

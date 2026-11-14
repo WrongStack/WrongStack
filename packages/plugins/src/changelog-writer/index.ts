@@ -125,7 +125,7 @@ function readConfig(raw: unknown): ChangelogWriterConfig {
 // Conventional-commit mapping
 // ---------------------------------------------------------------------------
 
-const TYPE_TO_SECTION: Record<string, Section> = {
+const TYPE_TO_SECTION: Record<string, Section> = Object.assign(Object.create(null), {
   feat: 'Added',
   feature: 'Added',
   fix: 'Fixed',
@@ -143,7 +143,7 @@ const TYPE_TO_SECTION: Record<string, Section> = {
   remove: 'Removed',
   sec: 'Security',
   security: 'Security',
-};
+});
 
 /** Parse "feat(scope): add dark mode" → { section: Added, text: "add dark mode (scope)" }. */
 export function commitToEntry(subject: string): { section: Section; text: string } {

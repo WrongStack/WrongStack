@@ -472,6 +472,36 @@ describe('MCPAuthorizationManager client identity', () => {
     });
   });
 
+  it('registers the exact redirect_uri spelling sent in the authorization request', async () => {
+    const fixture = await createFixture();
+    const register = vi.fn(async (_options: MCPClientRegistrationOptions) => ({
+      clientId: 'dcr-client',
+      issuer: 'https://auth.example.com',
+      registeredAt: new Date().toISOString(),
+    }));
+    const manager = new MCPAuthorizationManager({
+      store: fixture.store,
+      discover: async () => registrableDiscovery(resource),
+      register,
+      exchange: async () => tokenSet(),
+    });
+
+    // OAuth compares redirect URIs as exact strings. `new URL()` canonicalizes
+    // an origin-only loopback URI to a trailing slash, so registering the
+    // caller's raw spelling would make every authorization request fail with
+    // redirect_uri mismatch at the authorization server.
+    const started = await manager.begin({
+      serverName: 'team',
+      resource,
+      redirectUri: 'http://127.0.0.1:43123',
+    });
+
+    const requested = new URL(started.authorizationUrl).searchParams.get('redirect_uri');
+    expect(requested).toBe('http://127.0.0.1:43123/');
+    expect([...register.mock.calls][0]?.[0]).toMatchObject({ redirectUris: [requested] });
+    expect(started.redirectUri).toBe(requested);
+  });
+
   it('reuses the stored client id instead of registering again', async () => {
     const fixture = await createFixture();
     const register = vi.fn();

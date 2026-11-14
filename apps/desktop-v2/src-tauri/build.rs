@@ -28,6 +28,8 @@ fn main() {
             "speech_stop",
             "update_check",
             "update_install",
+            "host_info",
+            "host_restart",
         ]),
     ))
     .expect("Tauri build configuration");

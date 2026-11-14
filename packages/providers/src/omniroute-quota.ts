@@ -48,7 +48,7 @@ function finite(value: unknown): number | undefined {
 }
 
 /** Display names for OmniRoute's provider ids; any other id shows as itself. */
-const PROVIDER_NAME: Readonly<Record<string, string>> = {
+const PROVIDER_NAME: Readonly<Record<string, string>> = Object.assign(Object.create(null), {
   claude: 'Claude',
   codex: 'Codex',
   github: 'Copilot',
@@ -62,7 +62,7 @@ const PROVIDER_NAME: Readonly<Record<string, string>> = {
   'command-code': 'Command Code',
   cursor: 'Cursor',
   kiro: 'Kiro',
-};
+});
 
 const MAX_LABEL = 60;
 

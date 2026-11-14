@@ -44,4 +44,9 @@ describe('dead-code backup identity', () => {
     expect(undoDeadCodeFix(root, first.id).conflicts).toEqual([]);
     expect(fs.readFileSync(path.join(root, 'a.txt'), 'utf8')).toBe('first');
   });
+
+  it('rejects dot-segment backupId traversal inputs (F251)', () => {
+    expect(() => undoDeadCodeFix(root, '.')).toThrow(/invalid backup id/);
+    expect(() => undoDeadCodeFix(root, '..')).toThrow(/invalid backup id/);
+  });
 });

@@ -201,5 +201,38 @@ describe('template-engine plugin', () => {
         await fs.unlink(tmpFile).catch(() => {});
       }
     });
+
+    it('rejects output_path targeting protected prefixes with ./ or repeated slashes (F233)', async () => {
+      templateEnginePlugin.setup(mockApi as any);
+      const tool = mockApi.tools.register.mock.calls.find(
+        ([t]: any[]) => t.name === 'template_expand',
+      )?.[0];
+      await expect(
+        tool.execute({
+          template: 'hello',
+          variables: {},
+          output_path: './//.git/config',
+        }),
+      ).rejects.toThrow(/protected path/);
+      await expect(
+        tool.execute({
+          template: 'hello',
+          variables: {},
+          output_path: '././.env',
+        }),
+      ).rejects.toThrow(/protected path/);
+    });
+
+    it('does not leak Object.prototype properties in interpolation, conditionals, or loops (F237)', async () => {
+      templateEnginePlugin.setup(mockApi as any);
+      const tool = mockApi.tools.register.mock.calls.find(
+        ([t]: any[]) => t.name === 'template_expand',
+      )?.[0];
+      const expanded = await tool.execute({
+        template: '[{{constructor}}][{{#if toString}}Y{{/if}}][{{#each valueOf}}Z{{/each}}]',
+        variables: { name: 'world' },
+      });
+      expect(expanded.result).toBe('[{{constructor}}][][]');
+    });
   });
 });

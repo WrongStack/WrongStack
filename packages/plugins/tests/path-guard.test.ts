@@ -2997,4 +2997,22 @@ describe('path-guard covers any tool that declares a write', () => {
     // A second teardown after state deletion is a safe no-op.
     expect(() => pathGuardPlugin.teardown!(api as never)).not.toThrow();
   });
+
+  it('ignores Object.prototype keys when resolving scaffold templates (F234)', async () => {
+    const { pathsFromToolInput } = await import('../src/path-guard/tool-targets.js');
+    expect(() =>
+      pathsFromToolInput(
+        { template: 'constructor', name: 'app', cwd: '/tmp/proj' },
+        'scaffold',
+        '/tmp/proj',
+      ),
+    ).not.toThrow();
+    expect(() =>
+      pathsFromToolInput(
+        { template: 'toString', name: 'app', cwd: '/tmp/proj' },
+        'scaffold',
+        '/tmp/proj',
+      ),
+    ).not.toThrow();
+  });
 });

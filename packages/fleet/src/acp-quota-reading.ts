@@ -11,12 +11,15 @@
 import { type ProviderQuotaWindow, recordProviderQuota } from '@wrongstack/core/quota';
 
 /** Claude's window names, with the short id and length the quota plane uses. */
-const WINDOWS: Readonly<Record<string, { id: string; minutes: number }>> = {
-  five_hour: { id: '5h', minutes: 300 },
-  seven_day: { id: '7d', minutes: 10_080 },
-  seven_day_opus: { id: '7d opus', minutes: 10_080 },
-  seven_day_sonnet: { id: '7d sonnet', minutes: 10_080 },
-};
+const WINDOWS: Readonly<Record<string, { id: string; minutes: number }>> = Object.assign(
+  Object.create(null) as Record<string, { id: string; minutes: number }>,
+  {
+    five_hour: { id: '5h', minutes: 300 },
+    seven_day: { id: '7d', minutes: 10_080 },
+    seven_day_opus: { id: '7d opus', minutes: 10_080 },
+    seven_day_sonnet: { id: '7d sonnet', minutes: 10_080 },
+  },
+);
 
 /** Last windows seen per agent: a reading names only the windows it re-reports. */
 const lastWindows = new Map<string, Map<string, ProviderQuotaWindow>>();

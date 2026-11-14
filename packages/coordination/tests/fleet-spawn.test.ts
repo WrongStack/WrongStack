@@ -151,4 +151,28 @@ describe('fleet spawn admission and bookkeeping', () => {
     });
     await expect(spawn(host, config())).rejects.toBeInstanceOf(ErrorType);
   });
+
+  it('serializes concurrent spawns per host so maxSpawns cannot be bypassed across await (F227)', async () => {
+    let coordinatorSpawnCount = 0;
+    const host = makeHost({
+      maxSpawns: 1,
+      coordinator: {
+        spawn: vi.fn(async () => {
+          await new Promise((r) => setTimeout(r, 15));
+          coordinatorSpawnCount += 1;
+          return { subagentId: `sub-${coordinatorSpawnCount}` };
+        }),
+        setSubagentBridge: vi.fn(),
+        sessionOf: vi.fn(),
+      } as never,
+    });
+    const results = await Promise.allSettled([
+      spawn(host, config({ name: 'a' })),
+      spawn(host, config({ name: 'b' })),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((r) => r.status === 'rejected')).toHaveLength(1);
+    expect(coordinatorSpawnCount).toBe(1);
+    expect(host.spawnCount).toBe(1);
+  });
 });

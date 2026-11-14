@@ -177,6 +177,7 @@ export class AcpLeaderProvider implements Provider {
   private caps: { agentId: string; value: Capabilities } | undefined;
   private acp: AcpModule | undefined;
   private readonly sessions = new Map<string, Promise<LeaderSession>>();
+  private readonly sessionLeaders = new WeakMap<Promise<LeaderSession>, LeaderSession>();
   private readonly sideProviders = new Map<string, Provider>();
   /**
    * Fleet calls the user already approved through the agent's permission
@@ -419,6 +420,8 @@ export class AcpLeaderProvider implements Provider {
   }
 
   private drop(key: string, leader: LeaderSession): void {
+    const current = this.sessions.get(key);
+    if (!current || this.sessionLeaders.get(current) !== leader) return;
     this.sessions.delete(key);
     this.dropFleetGrants(key);
     void leader.session.close().catch(() => {});
@@ -432,11 +435,16 @@ export class AcpLeaderProvider implements Provider {
       return existing.then((leader) => {
         if (leader.agentId === agentId) return leader;
         // `/model acp/<other agent>` mid-session: a different agent, a new session.
-        this.drop(key, leader);
+        if (this.sessions.get(key) === existing) {
+          this.drop(key, leader);
+        }
         return this.sessionFor(key, agentId);
       });
     }
-    const starting = this.startSession(key, agentId);
+    const starting = this.startSession(key, agentId).then((leader) => {
+      this.sessionLeaders.set(starting, leader);
+      return leader;
+    });
     this.sessions.set(key, starting);
     starting.catch(() => {
       if (this.sessions.get(key) === starting) this.sessions.delete(key);

@@ -992,7 +992,9 @@
     "projectedSaving": "Économie prévue d’environ ${{amount}}.",
     "switchTier": "Passer à {{tier}}",
     "autoWakeOneNotice": "une notification de minuteur/surveillance demandée",
-    "autoWakeNotices": "des notifications de minuteur/surveillance demandées"
+    "autoWakeNotices": "des notifications de minuteur/surveillance demandées",
+    "engineBehindApp": "Cette conversation tourne sur le moteur {{current}} ; cette application est en {{app}}.",
+    "engineBehindAppHint": "Utilisez « Redémarrer le moteur » dans l’avis en haut pour passer les conversations à cette version."
   },
   "message": {
     "you": "Vous",
@@ -9791,7 +9793,7 @@
   },
   "updates": {
     "available": "WrongStack Desktop {{version}} est disponible",
-    "keepsRunning": "Vos conversations continuent pendant le redémarrage de l'application.",
+    "keepsRunning": "Vos conversations continuent pendant le redémarrage de l'application ; redémarrez ensuite le moteur pour les passer à la nouvelle version.",
     "install": "Installer et redémarrer",
     "installing": "Installation…",
     "download": "Télécharger",
@@ -9809,5 +9811,15 @@
       "found": "La version {{version}} est disponible.",
       "upToDate": "Vous avez la dernière version ({{version}})."
     }
+  },
+  "hostBuild": {
+    "stale": "Vos conversations tournent encore sur le moteur d'une version antérieure de WrongStack Desktop.",
+    "explain": "Redémarrez le moteur pour les passer à cette version.",
+    "confirm": "Les conversations en cours s’arrêtent proprement ; reconnectez-les ensuite pour continuer.",
+    "restart": "Redémarrer le moteur",
+    "restartNow": "Redémarrer maintenant",
+    "restarting": "Redémarrage…",
+    "cancel": "Annuler",
+    "failed": "Le moteur n'a pas pu être redémarré : {{error}}"
   }
 }

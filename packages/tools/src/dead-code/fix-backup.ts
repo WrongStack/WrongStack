@@ -107,7 +107,7 @@ export function undoDeadCodeFix(
   backupId: string,
   opts: { force?: boolean } = {},
 ): DeadCodeUndoResult {
-  if (!/^[\w.-]+$/.test(backupId))
+  if (!/^[\w.-]+$/.test(backupId) || backupId === '.' || backupId === '..')
     throw new Error(`dead-code undo: invalid backup id "${backupId}"`);
   const file = path.join(backupRoot(projectRoot), backupId, 'manifest.json');
   if (!fs.existsSync(file)) throw new Error(`dead-code undo: no backup "${backupId}"`);

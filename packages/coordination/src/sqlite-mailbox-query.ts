@@ -161,7 +161,11 @@ export async function query(
       !isMailboxMessageVisibleTo(message, query.unreadBy ?? query.to ?? '', query.readerRole)
     )
       return false;
-    if (!query.incompleteOnly && query.unreadBy !== undefined && query.unreadBy in message.readBy)
+    if (
+      !query.incompleteOnly &&
+      query.unreadBy !== undefined &&
+      Object.hasOwn(message.readBy, query.unreadBy)
+    )
       return false;
     if (
       query.incompleteOnly &&

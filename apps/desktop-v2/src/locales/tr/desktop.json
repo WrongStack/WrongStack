@@ -992,7 +992,9 @@
     "projectedSaving": "Öngörülen tasarruf yaklaşık ${{amount}}.",
     "switchTier": "{{tier}} katmanına geç",
     "autoWakeOneNotice": "istenen bir zamanlayıcı/izleme bildirimi",
-    "autoWakeNotices": "istenen zamanlayıcı/izleme bildirimleri"
+    "autoWakeNotices": "istenen zamanlayıcı/izleme bildirimleri",
+    "engineBehindApp": "Bu konuşma {{current}} motorunda çalışıyor; bu uygulama {{app}}.",
+    "engineBehindAppHint": "Konuşmaları bu sürüme taşımak için üstteki bildirimden Motoru yeniden başlat’ı kullanın."
   },
   "message": {
     "you": "Sen",
@@ -9791,7 +9793,7 @@
   },
   "updates": {
     "available": "WrongStack Desktop {{version}} kullanılabilir",
-    "keepsRunning": "Uygulama yeniden başlarken konuşmalarınız çalışmaya devam eder.",
+    "keepsRunning": "Uygulama yeniden başlarken konuşmalarınız çalışmaya devam eder; yeni sürüme taşımak için ardından motoru yeniden başlatın.",
     "install": "Yükle ve yeniden başlat",
     "installing": "Yükleniyor…",
     "download": "İndir",
@@ -9809,5 +9811,15 @@
       "found": "{{version}} sürümü kullanılabilir.",
       "upToDate": "En son sürümü kullanıyorsunuz ({{version}})."
     }
+  },
+  "hostBuild": {
+    "stale": "Konuşmalarınız hâlâ önceki bir WrongStack Desktop sürümünün motorunda çalışıyor.",
+    "explain": "Onları bu sürüme taşımak için motoru yeniden başlatın.",
+    "confirm": "Çalışan konuşmalar düzgünce durdurulur; devam etmek için sonra yeniden bağlayın.",
+    "restart": "Motoru yeniden başlat",
+    "restartNow": "Şimdi yeniden başlat",
+    "restarting": "Yeniden başlatılıyor…",
+    "cancel": "İptal",
+    "failed": "Motor yeniden başlatılamadı: {{error}}"
   }
 }

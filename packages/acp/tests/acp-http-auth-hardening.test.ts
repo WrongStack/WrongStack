@@ -101,4 +101,25 @@ describe('ACP HTTP auth gate', () => {
     base = `http://127.0.0.1:${port}`;
     expect((await post('/', { Authorization: 'Bearer ' })).status).toBe(401);
   });
+
+  it('returns 400 instead of throwing unhandled TypeError on malformed request URL (F243)', async () => {
+    await startServer();
+    const port = Number(new URL(base).port);
+    const net = await import('node:net');
+    const rawResponse = await new Promise<string>((resolve) => {
+      const sock = net.createConnection({ host: '127.0.0.1', port }, () => {
+        sock.write('POST http://[invalid HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n');
+      });
+      let data = '';
+      sock.setTimeout(1000, () => {
+        sock.destroy();
+        resolve(data);
+      });
+      sock.on('data', (chunk) => {
+        data += chunk.toString('utf8');
+      });
+      sock.on('end', () => resolve(data));
+    });
+    expect(rawResponse).toMatch(/^HTTP\/1\.1 400\b/);
+  });
 });

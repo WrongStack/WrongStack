@@ -1,3 +1,4 @@
+import { desktopVersion, versionAtLeast } from './desktop-version';
 import { displayDecimal } from './display-dates';
 import english from './locales/en/desktop.json';
 
@@ -107,7 +108,17 @@ function runEventNotice(type: string, payload: Record<string, unknown>): NoticeW
     payload['updateAvailable'] === true &&
     str(payload['latestVersion']) &&
     str(payload['appVersion'])
-  )
+  ) {
+    const app = desktopVersion();
+    // The application is already at the release: the conversation runs on an engine from the
+    // build that started the session host, and only restarting it brings the new one.
+    if (app && versionAtLeast(app, str(payload['latestVersion'])))
+      return {
+        severity: 'info',
+        message: line('engineBehindApp', { current: str(payload['appVersion']), app }),
+        detail: line('engineBehindAppHint'),
+        once: true,
+      };
     return {
       severity: 'info',
       message: line('updateAvailable', {
@@ -117,6 +128,7 @@ function runEventNotice(type: string, payload: Record<string, unknown>): NoticeW
       detail: line('updateAvailableHint'),
       once: true,
     };
+  }
   if (type === 'provider.stream_error')
     return {
       severity: 'warning',

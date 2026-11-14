@@ -2,6 +2,8 @@
 pub mod desktop;
 pub mod engine;
 pub mod host;
+#[cfg(feature = "desktop")]
+mod host_restart;
 pub mod http_bridge;
 mod project_runtime;
 pub mod registry;

@@ -194,7 +194,15 @@ export class WrongStackACPServer {
       // Accept `Authorization: Bearer <token>` header or `?token=<token>`
       // query parameter (the latter for browser clients).
       if (authToken) {
-        const url = new URL(requestPath(req.url), `http://${host}:${port}`);
+        const urlHost = host.includes(':') && !host.startsWith('[') ? `[${host}]` : host;
+        let url: URL;
+        try {
+          url = new URL(requestPath(req.url), `http://${urlHost}:${port}`);
+        } catch {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: { code: -32600, message: 'Invalid Request URL' } }));
+          return;
+        }
         const bearerToken = headerValue(req.headers.authorization)?.replace(/^Bearer\s+/i, '');
         // WS-109: `?token=` was accepted on any bind. That is the query-string
         // exposure class (C-598) the WebUI and HQ surfaces already close: the

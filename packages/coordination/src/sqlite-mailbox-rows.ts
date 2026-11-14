@@ -178,7 +178,7 @@ export function materializeMessageRows(
   return rows.map((row) => {
     const base = JSON.parse(row.data) as MailboxMessage;
     const recipientState = receiptState.get(row.id) ?? {};
-    const readBy = { ...base.readBy };
+    const readBy: Record<string, string> = Object.assign(Object.create(null), base.readBy);
     for (const state of Object.values(recipientState)) {
       if (state.readAt !== undefined) readBy[state.actorId] = state.readAt;
     }

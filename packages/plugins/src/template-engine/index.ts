@@ -78,7 +78,7 @@ function expandTemplate(
 
   // Replace simple {{variable}} patterns (supporting hyphens and dots with optional whitespace)
   result = result.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (match, key) => {
-    const value = variables[key];
+    const value = Object.hasOwn(variables, key) ? variables[key] : undefined;
     if (value !== undefined) return escapeValue(String(value));
     return match; // leave unresolved
   });
@@ -91,7 +91,7 @@ function expandConditionals(template: string, variables: Record<string, string>)
   return template.replace(
     /\{\{#if\s+([\w.-]+)\s*\}\}([\s\S]*?)\{\{\/if\}\}/g,
     (_, key, content) => {
-      const val = variables[key];
+      const val = Object.hasOwn(variables, key) ? variables[key] : undefined;
       return val !== undefined && val !== '' && val !== 'false' && val !== '0' ? content : '';
     },
   );
@@ -108,7 +108,7 @@ function expandLoops(
   return template.replace(
     /\{\{#each\s+([\w.-]+)\s*\}\}([\s\S]*?)\{\{\/each\}\}/g,
     (_, key, content) => {
-      const val = variables[key];
+      const val = Object.hasOwn(variables, key) ? variables[key] : undefined;
       if (!val) return '';
       // If the variable value is a comma-separated list, expand each
       if (typeof val === 'string' && val.includes(',')) {
@@ -229,7 +229,11 @@ const PROTECTED_WRITE_FILES = new Set([
 function validateWritableTemplateTarget(field: string, value: string): string | null {
   const baseError = validateRelativeTemplatePath(field, value);
   if (baseError) return baseError;
-  const norm = value.replace(/\\/g, '/').replace(/^\.\//, '').toLowerCase();
+  const norm = value
+    .replace(/\\/g, '/')
+    .replace(/\/+/g, '/')
+    .replace(/^(\.\/)+/, '')
+    .toLowerCase();
   const base = norm.slice(norm.lastIndexOf('/') + 1);
   if (
     PROTECTED_WRITE_PREFIXES.some((p) => norm.startsWith(p)) ||

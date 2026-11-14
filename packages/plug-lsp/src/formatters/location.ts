@@ -14,7 +14,9 @@ export function formatLocations(
   if (!locations) return 'No locations found.';
   const list = Array.isArray(locations) ? locations : [locations];
   if (list.length === 0) return 'No locations found.';
-  const lines = list.slice(0, limit).map((loc) => {
+  const effectiveLimit =
+    typeof limit === 'number' && Number.isFinite(limit) ? Math.max(0, Math.trunc(limit)) : 100;
+  const lines = list.slice(0, effectiveLimit).map((loc) => {
     const uri = 'uri' in loc ? loc.uri : loc.targetUri;
     const range = 'range' in loc ? loc.range : loc.targetSelectionRange;
     // Columns go out in the same 1-based byte convention the tools take in,
@@ -28,7 +30,8 @@ export function formatLocations(
         : range.start.character + 1;
     return `${displayUri(uri, cwd)}:${range.start.line + 1}:${column}`;
   });
-  if (list.length > limit) lines.push(`... truncated ${list.length - limit} more`);
+  if (list.length > effectiveLimit)
+    lines.push(`... truncated ${list.length - effectiveLimit} more`);
   return lines.join('\n');
 }
 

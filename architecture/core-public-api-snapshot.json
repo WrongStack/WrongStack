@@ -249,7 +249,7 @@
         "export { authoredBlocks, authoredText, LIVE_CONTEXT_MARKER, } from '@wrongstack/contracts/types/live-context';",
         "export { bindProviderCatalogId, configuredProviderIdentities, providerIdentities, } from './provider-catalog-binding.js';",
         "export { buildCompletedWorkLedgerBlock, buildContextEvidenceDigest, COMPLETED_WORK_LEDGER_MARKER, createContextEvidenceState, formatCompletedWorkLedger, markAssistantReferencedEvidence, type RecordCompletedWorkInput, type RecordToolOutputEvidenceInput, recordCompletedWorkEvidence, recordToolOutputEvidence, recordUserIntentEvidence, rehydrateContextEvidenceFromMessages, repeatedReadPressure, syncCompletedWorkLedgerBlock, } from './context-evidence.js';",
-        "export { buildSgrSequence, buildTitleSequence, type ColorDepth, detectTerminal, ESCAPE_TERMINATOR, type EscapeEmitResult, type EscapeSequence, isStdinTTY, type MouseProtocol, onResize, safeEmit, setOutputLineGuard, setRawMode, setTitle, type TerminalCapability, type TerminalGraphicsProtocol, TerminalLifecycle, writeErr, writeOut, } from './term.js';",
+        "export { buildSgrSequence, buildTitleSequence, type ColorDepth, detectTerminal, detectTerminalHost, ESCAPE_TERMINATOR, type EscapeEmitResult, type EscapeSequence, isStdinTTY, type MouseProtocol, onResize, safeEmit, setOutputLineGuard, setRawMode, setTitle, type TerminalCapability, type TerminalGraphicsProtocol, type TerminalHost, type TerminalHostInfo, TerminalLifecycle, writeErr, writeOut, } from './term.js';",
         "export { buildWin32CmdShimInvocation, type Win32CmdShimInvocation } from './win32-cmd.js';",
         "export { capSageLines, SAGE_INJECTOR_HEADINGS, type SageOutputSplit, splitSageOutputBlock, } from './sage-output-block.js';",
         "export { checkConnectivity, resetConnectivityCache } from './connectivity.js';",
@@ -1253,7 +1253,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 97,
-      "sourceLines": 15537
+      "sourceLines": 15677
     },
     {
       "directory": "vcs",

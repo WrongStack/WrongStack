@@ -102,7 +102,33 @@ export interface DirectorFleetHost {
 /**
  * Spawn a subagent. See `Director.spawn` for the full contract.
  */
+const hostSpawnLocks = new WeakMap<DirectorFleetHost, Promise<void>>();
+
+function withHostSpawnLock<T>(host: DirectorFleetHost, fn: () => Promise<T>): Promise<T> {
+  const prev = hostSpawnLocks.get(host) ?? Promise.resolve();
+  const next = prev.catch(() => {}).then(fn);
+  const tail = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  hostSpawnLocks.set(host, tail);
+  return next;
+}
+
 export async function spawn(
+  host: DirectorFleetHost,
+  config: SubagentConfig,
+  priceLookup?: {
+    input?: number | undefined;
+    output?: number | undefined;
+    cacheRead?: number | undefined;
+    cacheWrite?: number | undefined;
+  },
+): Promise<string> {
+  return withHostSpawnLock(host, () => spawnLocked(host, config, priceLookup));
+}
+
+async function spawnLocked(
   host: DirectorFleetHost,
   config: SubagentConfig,
   priceLookup?: {

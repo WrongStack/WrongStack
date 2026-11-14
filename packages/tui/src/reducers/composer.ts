@@ -45,7 +45,7 @@ export function reduceComposer(state: State, action: ComposerAction): State {
     case 'pickerMove': {
       const n = state.picker.matches.length;
       if (n === 0) return state;
-      const next = (state.picker.selected + action.delta + n) % n;
+      const next = (((state.picker.selected + action.delta) % n) + n) % n;
       return { ...state, picker: { ...state.picker, selected: next } };
     }
     case 'bashModeEnter':

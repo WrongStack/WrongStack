@@ -91,13 +91,13 @@ export function resolveAllowedCommand(command: string): { cmd: string; args: str
       i++;
     }
     const toolToken = tokens[i];
-    if (!toolToken || !(toolToken in LOCAL_BIN_PACKAGES)) return null;
+    if (!toolToken || !Object.hasOwn(LOCAL_BIN_PACKAGES, toolToken)) return null;
   }
   if (head === 'node') {
     const target = tokens[1];
     if (!target) return null;
     const base = basename(target);
-    if (!(base in LOCAL_BIN_PACKAGES) && !ALLOWED_FIRST_TOKENS.has(base)) return null;
+    if (!Object.hasOwn(LOCAL_BIN_PACKAGES, base) && !ALLOWED_FIRST_TOKENS.has(base)) return null;
   }
   // Prefer the project-local binary: no package runner, no shell, no shim.
   // Defense-in-depth: only enter the local-resolution path when the first
