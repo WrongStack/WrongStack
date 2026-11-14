@@ -260,25 +260,23 @@ describe('store idempotency recovery', () => {
     });
   });
 
-  it('skips corrupt record files during readIndex directory recovery', async () => {
+  it('preserves corrupt records and reports parse errors until they are repaired', async () => {
     const dir = await makeDir();
     const store = new RequirementIntakeStore({ baseDir: dir });
-    const now = new Date().toISOString();
-    const created = await store.create({
-      id: 'reqi_valid',
-      version: 1,
-      title: 'Valid',
-      summary: 'Valid summary',
-      requester: 'tester',
-      status: 'draft',
-      createdAt: now,
-      updatedAt: now,
-    } as never);
+    const created = await store.create(recordLiteral('reqi_valid'));
+    expect((await store.list()).map((record) => record.id)).toEqual([created.record.id]);
 
     await fsp.rm(path.join(dir, '_index.json'), { force: true });
-    await fsp.writeFile(path.join(dir, 'corrupt.json'), '{truncated', 'utf8');
+    const damagedPath = path.join(dir, 'reqi_damaged.json');
+    await fsp.writeFile(damagedPath, '{truncated', 'utf8');
+    await expect(store.list()).rejects.toThrow(SyntaxError);
+    expect(await fsp.readFile(damagedPath, 'utf8')).toBe('{truncated');
+    await expect(store.load(created.record.id)).resolves.toMatchObject({ id: created.record.id });
 
+    await fsp.writeFile(damagedPath, JSON.stringify(recordLiteral('reqi_damaged')), 'utf8');
     const recovered = await store.list();
-    expect(recovered.map((r) => r.id)).toEqual([created.record.id]);
+    expect(new Set(recovered.map((record) => record.id))).toEqual(
+      new Set([created.record.id, 'reqi_damaged']),
+    );
   });
 });

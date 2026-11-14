@@ -334,9 +334,7 @@ export class RequirementIntakeStore {
           await fsp.readFile(path.join(this.baseDir, file), 'utf8'),
         ) as RequirementIntakeRecord | null;
       } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT' || error instanceof SyntaxError) {
-          continue;
-        }
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
         throw error;
       }
       if (record?.id !== id) throw new Error(`Invalid requirement intake record: ${file}`);

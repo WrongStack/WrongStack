@@ -45,8 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ignore inherited lookup keys across client-facing labels, file references,
   activity maps and branch models; handle cyclic session-story ancestry safely.
 - Validate client session responses before accepting them, serialize outbound
-  requests before changing active subscriptions, and recover past corrupt intake
-  records without hiding invalid record IDs.
+  requests before changing active subscriptions, and tolerate intake records
+  disappearing during index recovery while surfacing corrupt JSON and invalid IDs.
 - Preserve disabled empty project scripts and refresh ACP regression fixtures
   for shell quoting and stale-session cleanup.
 - Recognize JetBrains, Coder and Cloud9 terminals, retain truecolor graphics in
