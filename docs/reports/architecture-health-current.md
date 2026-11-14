@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-14T17:14:10.102Z
+**Generated:** 2026-11-14T17:42:35.694Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6340 |
-| Production source lines | 1309846 |
-| Test files | 5292 |
+| Production source lines | 1309983 |
+| Test files | 5293 |
 | Workspace dependency edges | 250 |
 | Relative module edges | 18695 |
 | Non-command slash imports | 0 |
@@ -64,7 +64,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/security-scanner | 21 | 34 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/techstack | 55 | 65 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 28 | 45 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
-| @wrongstack/tools | 402 | 391 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/tools | 402 | 392 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 510 | 441 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 18 | 29 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/vibeui | 99 | 34 | @wrongstack/webui-protocol |

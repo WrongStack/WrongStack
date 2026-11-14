@@ -93,4 +93,31 @@ describe('BrowserSessionManager.open() failure-path cleanup', () => {
       await manager.dispose().catch(() => undefined);
     }
   });
+
+  it('reports isIdle() as false while open() is in flight (F214)', async () => {
+    let releaseNewPage!: () => void;
+    const fakes = makeFakes();
+    const origNewPage = fakes.context.newPage;
+    const newPageEntered = new Promise<void>((r) => {
+      fakes.context.newPage = async () => {
+        r();
+        await new Promise<void>((res) => {
+          releaseNewPage = res;
+        });
+        return origNewPage();
+      };
+    });
+    const manager = makeManager(fakes);
+    try {
+      const openPromise = manager.open('owner', {}, new AbortController().signal);
+      await newPageEntered;
+      expect(manager.isIdle()).toBe(false);
+      releaseNewPage();
+      await openPromise;
+      await manager.closeOwner('owner');
+      expect(manager.isIdle()).toBe(true);
+    } finally {
+      await manager.dispose().catch(() => undefined);
+    }
+  });
 });

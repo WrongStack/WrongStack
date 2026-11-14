@@ -55,6 +55,18 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.7.1
+
+- **Desktop update notices:** check at launch or from Appearance, dismiss a
+  version with Later, and install future signed Windows/macOS updates in place.
+- **Updates signed for their version:** publication verifies four updater
+  targets before exposing `latest.json`. Linux keeps its package-manager flow.
+- **One manual upgrade from 1.7.0:** run `wstack update`, then
+  `wstack desktop update`. The new desktop contains the updater's public key.
+- **Safer session and file handling:** rewind respects resolved project paths,
+  replay and streaming buffers stay with their session, failed file rollback
+  preserves recovery data, and background cleanup handles lookup failures.
+
 ### What's new in 1.7.0
 
 - **Conversations you can find:** desktop tabs take their names from the first
@@ -318,7 +330,7 @@ irm https://wrongstack.com/install.ps1 | iex
 The installers download the build for your OS/CPU (musl is detected on
 Linux), verify it against the release `SHA256SUMS`, and install `wstack` plus a
 `wrongstack` alias into `~/.wrongstack/bin`. The musl builds need the C++
-runtime (`apk add libstdc++ libgcc` on Alpine). Set `WSTACK_VERSION=1.7.0` to pin a
+runtime (`apk add libstdc++ libgcc` on Alpine). Set `WSTACK_VERSION=1.7.1` to pin a
 release or `WSTACK_INSTALL_DIR` to install elsewhere. You can also download a
 `wstack-<os>-<arch>` file from the
 [releases page](https://github.com/WrongStack/WrongStack/releases) and put it on
@@ -540,7 +552,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.7.0**; versions follow semver
+- Release notes: **v1.7.1**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements

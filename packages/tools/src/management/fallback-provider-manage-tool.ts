@@ -262,6 +262,8 @@ export function createProviderManageTool(
       const providers = {
         ...((config.providers ?? {}) as unknown as Record<string, Record<string, unknown>>),
       };
+      const isForbiddenKey = (k: string) =>
+        k === '__proto__' || k === 'constructor' || k === 'prototype';
       const leaderProvider: string = config.provider ?? '';
       // Raw ids as the user wrote them; compared case-insensitively so a casing
       // difference between the heading id and the entry never silently re-enables
@@ -311,7 +313,13 @@ export function createProviderManageTool(
             field: !input.provider ? 'provider' : 'type',
           });
         }
-        if (providers[input.provider]) {
+        if (isForbiddenKey(input.provider)) {
+          throw new ToolValidationError({
+            message: `Invalid provider id "${input.provider}".`,
+            field: 'provider',
+          });
+        }
+        if (Object.hasOwn(providers, input.provider)) {
           throw new ToolValidationError({
             message: `Provider "${input.provider}" already exists. Use "configure" to update.`,
             field: 'provider',
@@ -359,7 +367,7 @@ export function createProviderManageTool(
             field: 'provider',
           });
         }
-        if (!providers[input.provider]) {
+        if (isForbiddenKey(input.provider) || !Object.hasOwn(providers, input.provider)) {
           throw new ToolValidationError({
             message: `Provider "${input.provider}" not found. Use "add" first or check "list".`,
             field: 'provider',
@@ -435,7 +443,7 @@ export function createProviderManageTool(
             field: 'provider',
           });
         }
-        if (!providers[input.provider]) {
+        if (isForbiddenKey(input.provider) || !Object.hasOwn(providers, input.provider)) {
           throw new ToolValidationError({
             message: `Provider "${input.provider}" not found.`,
             field: 'provider',

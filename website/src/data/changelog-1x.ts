@@ -1,4 +1,4 @@
-// Changelog — 1.x era (1.7.0 → 1.0.0).
+// Changelog — 1.x era (1.7.1 → 1.0.0).
 // Historical entries mirror CHANGELOG.md release notes. The 1.0.37 entry was
 // written from committed runtime/source evidence (git history and packages), not
 // the root CHANGELOG, which had not been extended when it landed. 1.1.0 absorbs
@@ -13,10 +13,24 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.1',
+    date: '2026-11-14',
+    tagline: 'Signed desktop updates, safer session replay and recovery that preserves your work',
+    latest: true,
+    highlights: [
+      'The desktop checks for updates at launch and every six hours, with Check now and Later controls',
+      'Windows/macOS updater packages authenticate both bytes and version; publication verifies all four targets before exposing latest.json',
+      'Upgrade from 1.7.0 manually once to install the updater public key; later signed updates install from the application',
+      'Rewind resolves project-relative paths and refuses escaping symlink targets; replay-log compaction publishes cache state after a successful disk write',
+      'WebUI stream buffers follow their session and are cleared on context resets and replay; rewind and file-cache resets fence stale state',
+      'Failed file-delete rollback preserves recovery copies, analytics retains split UTF-8 characters, and session cleanup handles protection lookup failures',
+      'Browser opens count as live work, blocked terminal writes release the host lock, and fallback configuration rejects prototype-related names',
+    ],
+  },
+  {
     version: '1.7.0',
     date: '2026-11-14',
     tagline: 'Named desktop conversations, larger Code Atlas graphs and plugins from Settings',
-    latest: true,
     highlights: [
       'Desktop conversations take their names from the first prompt; double-click or F2 renames a tab',
       'Code Atlas transfers large graphs in consistent chunks in the desktop and WebUI, preserving nodes, edges and enrichment',

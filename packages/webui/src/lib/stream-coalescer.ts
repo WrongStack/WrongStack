@@ -22,6 +22,7 @@ type FlushFn = (key: string, text: string) => void;
 interface Pending {
   buffer: string;
   flush: FlushFn;
+  sessionId?: string | undefined;
 }
 
 /**
@@ -46,14 +47,15 @@ export class StreamCoalescer {
    * next frame. Repeated calls for the same key before a flush concatenate.
    * The `flush` callback is captured per key from the latest push.
    */
-  push(key: string, text: string, flush: FlushFn): void {
+  push(key: string, text: string, flush: FlushFn, sessionId?: string): void {
     if (!text) return;
     const existing = this.pending.get(key);
     if (existing) {
       existing.buffer += text;
       existing.flush = flush;
+      if (sessionId !== undefined) existing.sessionId = sessionId;
     } else {
-      this.pending.set(key, { buffer: text, flush });
+      this.pending.set(key, { buffer: text, flush, sessionId });
     }
     this.schedule();
   }
@@ -89,6 +91,15 @@ export class StreamCoalescer {
    *  owner changes, such as session resume/new/project switch. */
   dropAll(): void {
     this.pending.clear();
+  }
+
+  /** Discard buffered streams belonging to `sessionId` without touching other sessions. */
+  dropSession(sessionId: string): void {
+    for (const [key, entry] of this.pending.entries()) {
+      if (entry.sessionId === sessionId) {
+        this.pending.delete(key);
+      }
+    }
   }
 
   /** Drain a single key immediately (if buffered). Safe to call when empty. */

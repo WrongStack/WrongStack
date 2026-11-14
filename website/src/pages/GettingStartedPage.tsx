@@ -81,6 +81,15 @@ export function GettingStartedPage() {
           ))}
         </div>
         <div className="mt-6 rounded-2xl border border-line bg-surface p-6 text-sm leading-7 text-muted">
+          <h2 className="font-black text-fg">Desktop: upgrading from 1.7.0 or earlier</h2>
+          <p className="mt-2">
+            Run <code className="font-mono text-fg">wstack update</code>, then{' '}
+            <code className="font-mono text-fg">wstack desktop update</code> to install the first
+            desktop with the updater public key. Later signed Windows and macOS releases can install
+            from the application. Linux continues to use its package manager.
+          </p>
+        </div>
+        <div className="mt-6 rounded-2xl border border-line bg-surface p-6 text-sm leading-7 text-muted">
           <h2 className="font-black text-fg">Installed from npm before?</h2>
           <p className="mt-2">
             The npm packages are legacy and no longer updated. The installer finds old

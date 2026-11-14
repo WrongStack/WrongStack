@@ -162,15 +162,16 @@ impl HostState {
             "session.reconnect" => self.reconnect(p),
             "session.read" => self.read(field(p, "id")?, p["offset"].as_u64()),
             "session.write" => {
-                let mut live = self.live.lock().map_err(err)?;
+                let data = field(p, "data")?.to_owned();
+                let live = self.live.lock().map_err(err)?;
                 let writer = live
-                    .get_mut(field(p, "id")?)
-                    .and_then(|s| s.writer.as_mut())
+                    .get(field(p, "id")?)
+                    .and_then(|s| s.writer.as_ref())
+                    .map(Arc::clone)
                     .ok_or("Terminal is not running")?;
+                drop(live);
                 let mut writer = writer.lock().map_err(err)?;
-                writer
-                    .write_all(field(p, "data")?.as_bytes())
-                    .map_err(err)?;
+                writer.write_all(data.as_bytes()).map_err(err)?;
                 writer.flush().map_err(err)?;
                 Ok(Value::Null)
             }
@@ -1380,6 +1381,60 @@ mod history_tests {
             );
         }
         assert!(history_source(&json!({"history":{"id":"sess_ok","mode":"new"}})).is_err());
+    }
+
+    #[test]
+    fn session_write_does_not_hold_live_lock_across_writer_io() {
+        struct GatedWriter {
+            entered: std::sync::mpsc::SyncSender<()>,
+            release: std::sync::mpsc::Receiver<()>,
+        }
+        impl std::io::Write for GatedWriter {
+            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                self.entered.send(()).unwrap();
+                self.release.recv().map_err(|_| {
+                    std::io::Error::new(std::io::ErrorKind::BrokenPipe, "test writer released")
+                })?;
+                Ok(bytes.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        let dir = std::env::temp_dir().join(format!("ws-f218-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let host = HostState::new(&dir).unwrap();
+        let (entered, writing) = std::sync::mpsc::sync_channel(1);
+        let (release, resume) = std::sync::mpsc::sync_channel(1);
+        let writer: SharedWriter = Arc::new(Mutex::new(Box::new(GatedWriter {
+            entered,
+            release: resume,
+        })));
+        host.live.lock().unwrap().insert(
+            "t1".into(),
+            LiveSession {
+                master: None,
+                writer: Some(writer),
+                killer: None,
+                agent_pid: None,
+                engine: None,
+            },
+        );
+        let host_bg = Arc::clone(&host);
+        let handle = thread::spawn(move || {
+            host_bg.request("session.write", &json!({"id": "t1", "data": "hello"}))
+        });
+        writing.recv_timeout(Duration::from_secs(5)).unwrap();
+        let live_try = host.live.try_lock();
+        let is_contended = matches!(live_try, Err(std::sync::TryLockError::WouldBlock));
+        drop(live_try);
+        release.send(()).unwrap();
+        handle.join().unwrap().unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(
+            !is_contended,
+            "session.write held HostState::live lock while blocked on PTY writer"
+        );
     }
 }
 fn engine_command(adopted: Option<&Path>) -> Result<Command> {

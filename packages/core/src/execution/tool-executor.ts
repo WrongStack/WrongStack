@@ -154,7 +154,25 @@ export class ToolExecutor extends ToolExecutorCore {
         };
       }
 
-      if (!areSubagentsAllowed(ctx) && hasCapability(tool, ToolCapabilities.SUBAGENT_SPAWN)) {
+      const gatewayTargetName =
+        use.name === CATALOG_GATEWAY_TOOL &&
+        use.input &&
+        typeof use.input === 'object' &&
+        typeof (use.input as { tool?: unknown }).tool === 'string'
+          ? (use.input as { tool: string }).tool.trim()
+          : undefined;
+      const gatedTool =
+        use.name === CATALOG_GATEWAY_TOOL
+          ? gatewayTargetName
+            ? this.registry.get(gatewayTargetName)
+            : undefined
+          : tool;
+
+      if (
+        !areSubagentsAllowed(ctx) &&
+        (hasCapability(tool, ToolCapabilities.SUBAGENT_SPAWN) ||
+          (gatedTool !== undefined && hasCapability(gatedTool, ToolCapabilities.SUBAGENT_SPAWN)))
+      ) {
         const result = deniedResult(
           use,
           'Subagents are disabled for this session. This policy is locked after the session starts.',
@@ -173,19 +191,6 @@ export class ToolExecutor extends ToolExecutorCore {
       // rather than the outer gateway: calling `tool_use({ tool: "skill" })`
       // or any read-only tool through the gateway must never be blocked by
       // the skill gate.
-      const gatewayTargetName =
-        use.name === CATALOG_GATEWAY_TOOL &&
-        use.input &&
-        typeof use.input === 'object' &&
-        typeof (use.input as { tool?: unknown }).tool === 'string'
-          ? (use.input as { tool: string }).tool.trim()
-          : undefined;
-      const gatedTool =
-        use.name === CATALOG_GATEWAY_TOOL
-          ? gatewayTargetName
-            ? this.registry.get(gatewayTargetName)
-            : undefined
-          : tool;
       const gatedInput =
         use.name === CATALOG_GATEWAY_TOOL && use.input && typeof use.input === 'object'
           ? ((use.input as { input?: unknown }).input ?? {})

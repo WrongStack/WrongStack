@@ -51,7 +51,7 @@ handle.
 
 ## Workspace and dependency direction
 
-The Bun workspace contains 43 packages, two applications, and the marketing
+The Bun workspace contains 46 packages, two applications, and the marketing
 site. All current workspace packages share the version in the root
 `package.json`; do not hard-code that number here.
 
@@ -59,12 +59,13 @@ site. All current workspace packages share the version in the root
 | --- | --- | --- |
 | Foundation | @wrongstack/primitives, @wrongstack/persistence, @wrongstack/kanban, @wrongstack/contracts, @wrongstack/agent-catalog, @wrongstack/core | SQLite/file primitives, task-board domain, shared type vocabulary and DI kernel, roster catalog, agent runtime |
 | Runtime composition | @wrongstack/runtime, @wrongstack/providers, @wrongstack/tools | Default host wiring, provider implementations, built-in tools and Codebase Index |
-| Agent domains | @wrongstack/sage, @wrongstack/vector-memory, @wrongstack/sdd, @wrongstack/requirement-intake, @wrongstack/techstack, @wrongstack/governance, @wrongstack/goal, @wrongstack/chronicle, @wrongstack/worktree, @wrongstack/coordination | Memory, spec workflow, intake, project analysis, governance contracts, goal runner, event journal, worktree isolation, fleet coordination |
-| External integration | @wrongstack/mcp, @wrongstack/acp, @wrongstack/plug-lsp, @wrongstack/plugin-sdk, @wrongstack/plugins, @wrongstack/builtin-plugins, @wrongstack/telegram, @wrongstack/wrongtrace | MCP, Agent Client Protocol, LSP, bundled extensions, and Telegram bridge |
+| Agent domains | @wrongstack/sage, @wrongstack/vector-memory, @wrongstack/sdd, @wrongstack/requirement-intake, @wrongstack/techstack, @wrongstack/governance, @wrongstack/goal, @wrongstack/chronicle, @wrongstack/worktree, @wrongstack/coordination, @wrongstack/fleet | Memory, spec workflow, intake, project analysis, governance contracts, goal runner, event journal, worktree isolation, fleet coordination and the multi-agent fleet host |
+| External integration | @wrongstack/mcp, @wrongstack/acp, @wrongstack/plug-lsp, @wrongstack/plugin-sdk, @wrongstack/plugins, @wrongstack/builtin-plugins, @wrongstack/telegram, @wrongstack/wrongtrace, @wrongstack/wrongmemory-client | MCP, Agent Client Protocol, LSP, bundled extensions, Telegram bridge, and the vendored WrongMemory daemon client |
 | MCP products | codebase-index-mcp, kanban-mcp, mailbox-mcp, requirement-intake-mcp, sage-mcp | Capability-limited MCP facades over local domains |
 | Browser contracts | @wrongstack/webui-protocol, @wrongstack/client | Shared wire types/schema and browser client transport |
-| User surfaces | cli, tui, webui, webui-server, vibeui, hq-next, hq | Terminal, full browser UI, focused browser coding workspace, HQ dashboard and control plane |
-| Support | bench, security-scanner, wrongstack | Benchmarks, standalone scan surface, and the command shim |
+| User surfaces | cli, tui, webui, webui-server, vibeui, hq-next, hq, @wrongstack/project-surfaces | Terminal, full browser UI, focused browser coding workspace, HQ dashboard and control plane, plus the project surfaces (SAGE, Atlas, Kanban, session tree) shared by the browser clients |
+| Support | bench, security-scanner | Benchmarks and the standalone scan surface |
+| Applications | apps/wrongstack, apps/desktop-v2 | Command shim over @wrongstack/cli, and the Tauri desktop shell whose front end is a client of @wrongstack/webui-server (it does not depend on the CLI) |
 
 The package graph is a directed acyclic graph checked by
 packages/core/tests/architecture/package-boundaries.test.ts and by the

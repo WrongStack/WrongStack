@@ -4,7 +4,7 @@
 
 ## Project brief
 
-WrongStack is a terminal AI coding agent in TypeScript: an LLM that reads code, edits files, runs shell commands, and reasons through bugs. Per-call approval and project-root containment form the non-YOLO policy: tool calls that mutate or touch the network prompt the user unless YOLO is on; filesystem tools refuse to read or write outside the active project root unless `features.allowOutsideProjectRoot` is set; explicit deny rules (trust file, `/permissions deny`, directory rules, a session "no") make YOLO ask instead of refuse, and refuse under YOLO+ and with YOLO off; `permission: 'deny'` tools refuse at every level. YOLO is not blanket auto-approval: a call classified as one of the nine `DestructiveKind`s (`security/yolo-risk.ts` — disk wipe, system halt, delete outside the project, bulk delete, git-history rewrite, publish, download-and-run, agent-state write, credential bind) still prompts while that kind is gated. The user owns seven of them via `autonomy.yoloConfirm` / `/yolo confirm` / the WebUI settings menu; `agent-state` and `credential-bind` are locked because they write the files that decide whether approval happens at all. Interactive first launch currently selects and persists YOLO on; use `--no-yolo` or `/yolo off` to restore approval prompts. Monorepo: 43 packages + 2 apps + website. Runtime surfaces: CLI (REPL), optional TUI (React/Ink), WebUI (Vite/React), VibeUI (focused Next.js browser coding workspace), and HQ. Bin entry: `apps/wrongstack/src/index.ts` → `@wrongstack/cli` → `packages/cli/src/index.ts` / `cli-main.ts`.
+WrongStack is a terminal AI coding agent in TypeScript: an LLM that reads code, edits files, runs shell commands, and reasons through bugs. Per-call approval and project-root containment form the non-YOLO policy: tool calls that mutate or touch the network prompt the user unless YOLO is on; filesystem tools refuse to read or write outside the active project root unless `features.allowOutsideProjectRoot` is set; explicit deny rules (trust file, `/permissions deny`, directory rules, a session "no") make YOLO ask instead of refuse, and refuse under YOLO+ and with YOLO off; `permission: 'deny'` tools refuse at every level. YOLO is not blanket auto-approval: a call classified as one of the nine `DestructiveKind`s (`security/yolo-risk.ts` — disk wipe, system halt, delete outside the project, bulk delete, git-history rewrite, publish, download-and-run, agent-state write, credential bind) still prompts while that kind is gated. The user owns seven of them via `autonomy.yoloConfirm` / `/yolo confirm` / the WebUI settings menu; `agent-state` and `credential-bind` are locked because they write the files that decide whether approval happens at all. Interactive first launch currently selects and persists YOLO on; use `--no-yolo` or `/yolo off` to restore approval prompts. Monorepo: 46 packages + 2 apps + website. Runtime surfaces: CLI (REPL), optional TUI (React/Ink), WebUI (Vite/React), VibeUI (focused Next.js browser coding workspace), and HQ. Bin entry: `apps/wrongstack/src/index.ts` → `@wrongstack/cli` → `packages/cli/src/index.ts` / `cli-main.ts`.
 
 ## Package map
 
@@ -20,6 +20,7 @@ contracts/         — Shared type vocabulary and DI kernel: Container, Pipeline
 agent-catalog/     — Roster role definitions, capability routing metadata, and role prompts
 core/              — Agent runtime: Context, Agent loop, ToolExecutor, models, storage, hooks
 coordination/      — Director, fleet, supervisor, delegation, and the project mailbox
+fleet/             — Multi-agent fleet host: delegation runtime, ACP and WrongForge workers, explore/memory/skill companions
 goal/              — Autonomous goal runner: planner, phase graph, orchestrator, checkpoints
 chronicle/         — Per-project event journal, SQLite metrics projection, and its daemon
 worktree/          — Git worktree isolation: allocate, commit, squash-merge, release
@@ -44,15 +45,18 @@ mailbox-mcp/       — Mailbox MCP facade
 requirement-intake-mcp/ — Intake MCP facade
 sage-mcp/          — SAGE MCP facade
 sage/      — Project-local structured memory, graph, verification, hygiene, and retrieval
+wrongmemory-client/ — Vendored TypeScript client for the WrongMemory daemon (adapter lives in sage)
 telegram/          — Telegram bridge plugin
 builtin-plugins/   — Built-in plugins: chimera, auto-review, skills, prompts, sync
 webui/             — Vite+React web UI frontend and client state (docs/webui.md)
+project-surfaces/  — Project surfaces (SAGE, Atlas, Kanban, session tree) shared by WebUI and desktop
 vibeui/            — Focused Next.js browser coding workspace
 webui-server/      — Shared Node WebUI backend that powers `wstack --webui`
 hq-next/           — HQ dashboard (Next.js static export; shared store/transport under src/hq/)
 plugins/           — 90-entry first-party plugin catalog and subpath exports
 bench/             — Benchmark harness (Aider polyglot + SWE-bench); docs/subcommands/bench.md
 apps/wrongstack/   — bin entry (wrongstack / wstack)
+apps/desktop-v2/   — Tauri desktop shell; front end is a client of @wrongstack/webui-server (no CLI dependency)
 ```
 
 **Dependency direction:** `@wrongstack/primitives` and `@wrongstack/persistence` are dependency leaves. Kanban depends on both; Core depends on primitives, persistence, Kanban, contracts, and agent-catalog. `core` must not depend on `cli`, `tui`, `webui`, `vibeui`, `webui-server`, `hq-next`, apps, or other packages that consume core. Product surfaces compose the lower packages; never reverse a surface dependency into the kernel.

@@ -213,7 +213,7 @@ export async function executeArchiveCanonical(
       }
       if (host.catalogClient) {
         await host.catalogClient.call('upsert_summary', {
-          summary,
+          summary: coldSummary,
           transcriptRelativePath: result.relativePath,
           summaryRelativePath: `${id}.summary.json`,
           storageState: 'cold',

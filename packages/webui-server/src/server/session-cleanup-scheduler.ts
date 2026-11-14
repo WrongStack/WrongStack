@@ -78,7 +78,23 @@ export async function cleanupOwnerlessEmptySessions(
   let errors = 0;
   // Resolved once per sweep and merged into the protected set at BOTH
   // checkpoints below — discovery and the pre-delete re-check.
-  const extraProtected = new Set((await ctx.getExtraProtectedSessionIds?.()) ?? []);
+  let extraProtected: Set<string>;
+  try {
+    extraProtected = new Set((await ctx.getExtraProtectedSessionIds?.()) ?? []);
+  } catch (error) {
+    errors++;
+    ctx.logger.error('Empty session cleanup failed to resolve protected sessions', {
+      event: 'webui.empty_session_cleanup_error',
+      phase: 'extra_protected',
+      message: toErrorMessage(error),
+    });
+    ctx.logger.info('Empty session cleanup completed', {
+      event: 'webui.empty_session_cleanup_completed',
+      deleted,
+      errors,
+    });
+    return { deleted, errors };
+  }
   const isProtected = (sessionId: string): boolean =>
     protectedSessionIds(ctx).has(sessionId) || extraProtected.has(sessionId);
 
@@ -181,12 +197,18 @@ export function scheduleOwnerlessEmptySessionCleanup(
   // closed without typing) were never cleaned until some later run happened
   // to stay alive a full interval. A user-configured interval shorter than
   // the startup delay wins, so an aggressive cadence is never made lazier.
-  const startupTimer = setTimeout(
-    () => void runNow(),
-    Math.min(STARTUP_SWEEP_DELAY_MS, intervalMs),
-  );
+  const runSafe = () => {
+    void runNow().catch((error) => {
+      ctx.logger.error('Empty session cleanup sweep failed unexpectedly', {
+        event: 'webui.empty_session_cleanup_error',
+        phase: 'sweep',
+        message: toErrorMessage(error),
+      });
+    });
+  };
+  const startupTimer = setTimeout(runSafe, Math.min(STARTUP_SWEEP_DELAY_MS, intervalMs));
   startupTimer.unref?.();
-  const timer = setInterval(() => void runNow(), intervalMs);
+  const timer = setInterval(runSafe, intervalMs);
   timer.unref?.();
   return {
     dispose: async () => {

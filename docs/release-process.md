@@ -104,8 +104,9 @@ to the Windows account and machine that created it. Repository checkouts contain
 only the public key. Preserve the existing signing identity when setting up a
 different machine; a new key cannot update installations that trust the old one.
 
-The first release containing this updater and public key is the bootstrap:
-users of published 1.7.0 installers install that release manually. Later releases
+Version 1.7.1 is the bootstrap release containing this updater and public key:
+users of published 1.7.0 installers install it manually (`wstack update`, then
+`wstack desktop update`). Later releases
 can update in place. Existing published tags and their installers are not rebuilt
 or replaced to bootstrap the updater.
 

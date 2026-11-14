@@ -54,11 +54,17 @@ const ALLOWED_SELF_IMPORTS = new Set([
 
 /**
  * Core subdirectories that form the internal layer graph.
- * Listed from lowest level (kernel) to highest (application).
+ * Listed from lowest level (infrastructure) to highest (observability/skills).
+ *
+ * Ranks that no longer exist inside `packages/core/src` are intentionally
+ * absent: `kernel/` and `types/` moved to `@wrongstack/contracts` on 2026-10-24,
+ * and `coordination/` (`@wrongstack/coordination`) and `sdd/` (`@wrongstack/sdd`)
+ * left earlier. Keeping them here would register layer groups that can never
+ * match a file and therefore always pass vacuously. The authoritative rank
+ * ladder for the remaining areas is `architecture/core-layers.json`, enforced
+ * by `bun run check:core-layers`; this test keeps the per-area rule checks.
  */
 const LAYERS = [
-  'kernel',
-  'types',
   'infrastructure',
   'core',
   'models',
@@ -66,11 +72,9 @@ const LAYERS = [
   'registry',
   'execution',
   'storage',
-  'coordination',
   'plugin',
   'extension',
   'observability',
-  'sdd',
   'skills',
 ] as const;
 
@@ -172,19 +176,21 @@ describe('core cross-package boundaries', () => {
 /**
  * Internal layer dependency rules (from docs/architecture-rules.md):
  *
- * Rule 2  kernel/  may import runtime values only from types/.
- *           All other imports from other subdirs must be `import type`.
- *           Exception: WrongStackError from types/ is a permitted runtime import.
+ * Rules 2 (the `kernel/` base) and every `coordination/` clause are retired
+ * along with the areas themselves: `kernel/` + `types/` are now
+ * `@wrongstack/contracts`, `coordination/` is `@wrongstack/coordination`, and
+ * `sdd/` is `@wrongstack/sdd`. Core imports none of them, so what remains are
+ * the per-area runtime constraints overside the rank gate in
+ * `architecture/core-layers.json` (`bun run check:core-layers`).
  *
- * Rule 3  core/    may not import runtime values from execution/,
- *           storage/, or coordination/.
+ * Rule 3  core/    may not import runtime values from execution/ or storage/.
  *
  * Rule 4  observability/ may not import runtime values from core/,
- *           execution/, storage/, or coordination/.
+ *           execution/, or storage/.
  *
- * Rule 5  security/ may not import from execution/, storage/, or coordination/.
+ * Rule 5  security/ may not import from execution/ or storage/.
  *
- * Rule 6  registry/ may not import from execution/, storage/, or coordination/.
+ * Rule 6  registry/ may not import from execution/ or storage/.
  *
  * "Runtime import" means an import that is NOT `import type`.
  * `import type` from any subdir is always allowed (type-only imports
@@ -233,28 +239,9 @@ describe('core internal layer rules', () => {
 
       const typeOnly = isTypeOnlyImport(line);
 
-      // ── Rule 2: kernel/ ───────────────────────────────────────────────────
-      if (myLayer === 'kernel') {
-        // Only WrongStackError from types/ is allowed as a runtime import.
-        // All other cross-samedir imports must be type-only.
-        if (!typeOnly && targetLayer !== 'types') {
-          violations.push(
-            `kernel imports runtime value from '${targetDir}/' — only 'types/' (WrongStackError) is permitted`,
-          );
-        }
-        if (!typeOnly && targetLayer === 'types' && !line.includes('WrongStackError')) {
-          // Example: kernel importing something else from types/ as a value
-          // WrongStackError is explicitly allowed; other value imports are violations
-          violations.push(
-            `kernel imports runtime value '${targetDir}/' — only WrongStackError from types/ is permitted`,
-          );
-        }
-        continue;
-      }
-
       // ── Rule 3: core/ ─────────────────────────────────────────────────────
       if (myLayer === 'core') {
-        const forbidden = new Set<LayerName>(['execution', 'storage', 'coordination']);
+        const forbidden = new Set<LayerName>(['execution', 'storage']);
         if (forbidden.has(targetLayer) && !typeOnly) {
           violations.push(`core/ imports runtime value from '${targetDir}/' — forbidden by Rule 3`);
         }
@@ -263,7 +250,7 @@ describe('core internal layer rules', () => {
 
       // ── Rule 4: observability/ ────────────────────────────────────────────
       if (myLayer === 'observability') {
-        const forbidden = new Set<LayerName>(['core', 'execution', 'storage', 'coordination']);
+        const forbidden = new Set<LayerName>(['core', 'execution', 'storage']);
         if (forbidden.has(targetLayer) && !typeOnly) {
           violations.push(
             `observability/ imports runtime value from '${targetDir}/' — forbidden by Rule 4`,
@@ -274,7 +261,7 @@ describe('core internal layer rules', () => {
 
       // ── Rule 5: security/ ─────────────────────────────────────────────────
       if (myLayer === 'security') {
-        const forbidden = new Set<LayerName>(['execution', 'storage', 'coordination']);
+        const forbidden = new Set<LayerName>(['execution', 'storage']);
         if (forbidden.has(targetLayer) && !typeOnly) {
           violations.push(
             `security/ imports runtime value from '${targetDir}/' — forbidden by Rule 5`,
@@ -285,7 +272,7 @@ describe('core internal layer rules', () => {
 
       // ── Rule 6: registry/ ─────────────────────────────────────────────────
       if (myLayer === 'registry') {
-        const forbidden = new Set<LayerName>(['execution', 'storage', 'coordination']);
+        const forbidden = new Set<LayerName>(['execution', 'storage']);
         if (forbidden.has(targetLayer) && !typeOnly) {
           violations.push(
             `registry/ imports runtime value from '${targetDir}/' — forbidden by Rule 6`,
@@ -296,9 +283,8 @@ describe('core internal layer rules', () => {
 
       // ── Rule 7: infrastructure/ ────────────────────────────────────────────
       // infrastructure/ is the system integration layer (logger, token counter,
-      // path resolver, etc.). It must not reach into domain/execution/storage/
-      // coordination layers at runtime level. Type-only imports from any layer
-      // are always fine.
+      // path resolver, etc.). It must not reach into domain/execution/storage
+      // layers at runtime level. Type-only imports from any layer are always fine.
       if (myLayer === 'infrastructure') {
         const forbidden = new Set<LayerName>([
           'core',
@@ -307,11 +293,9 @@ describe('core internal layer rules', () => {
           'registry',
           'execution',
           'storage',
-          'coordination',
           'plugin',
           'extension',
           'observability',
-          'sdd',
           'skills',
         ]);
         if (forbidden.has(targetLayer) && !typeOnly) {
@@ -326,7 +310,7 @@ describe('core internal layer rules', () => {
       // models/ (ModelSelector, ModelsRegistry, ModeStore) must not import
       // runtime values from execution/, storage/, or coordination/.
       if (myLayer === 'models') {
-        const forbidden = new Set<LayerName>(['execution', 'storage', 'coordination']);
+        const forbidden = new Set<LayerName>(['execution', 'storage']);
         if (forbidden.has(targetLayer) && !typeOnly) {
           violations.push(
             `models/ imports runtime value from '${targetDir}/' — forbidden by Rule 8`,
@@ -339,7 +323,7 @@ describe('core internal layer rules', () => {
       // extension/ (ExtensionRegistry) must not import runtime values from
       // execution/, storage/, or coordination/.
       if (myLayer === 'extension') {
-        const forbidden = new Set<LayerName>(['execution', 'storage', 'coordination']);
+        const forbidden = new Set<LayerName>(['execution', 'storage']);
         if (forbidden.has(targetLayer) && !typeOnly) {
           violations.push(
             `extension/ imports runtime value from '${targetDir}/' — forbidden by Rule 9`,
@@ -361,21 +345,7 @@ describe('core internal layer rules', () => {
     return violations;
   }
 
-  it('kernel/ only imports runtime values from types/ (WrongStackError)', async () => {
-    const kernelFiles = (await walk(CORE_SRC)).filter((f) => layerOf(f) === 'kernel');
-    const allViolations: string[] = [];
-
-    for (const file of kernelFiles) {
-      const violations = await collectViolations(file);
-      for (const v of violations) {
-        allViolations.push(`${path.relative(process.cwd(), file)}: ${v}`);
-      }
-    }
-
-    expect(allViolations).toEqual([]);
-  });
-
-  it('core/ does not import runtime values from execution/, storage/, or coordination/', async () => {
+  it('core/ does not import runtime values from execution/ or storage/', async () => {
     const coreFiles = (await walk(CORE_SRC)).filter((f) => layerOf(f) === 'core');
     const allViolations: string[] = [];
 
@@ -389,7 +359,7 @@ describe('core internal layer rules', () => {
     expect(allViolations).toEqual([]);
   });
 
-  it('observability/ does not import runtime values from core/, execution/, storage/, or coordination/', async () => {
+  it('observability/ does not import runtime values from core/, execution/, or storage/', async () => {
     const obsFiles = (await walk(CORE_SRC)).filter((f) => layerOf(f) === 'observability');
     const allViolations: string[] = [];
 
@@ -403,7 +373,7 @@ describe('core internal layer rules', () => {
     expect(allViolations).toEqual([]);
   });
 
-  it('security/ does not import runtime values from execution/, storage/, or coordination/', async () => {
+  it('security/ does not import runtime values from execution/ or storage/', async () => {
     const secFiles = (await walk(CORE_SRC)).filter((f) => layerOf(f) === 'security');
     const allViolations: string[] = [];
 
@@ -417,7 +387,7 @@ describe('core internal layer rules', () => {
     expect(allViolations).toEqual([]);
   });
 
-  it('registry/ does not import runtime values from execution/, storage/, or coordination/', async () => {
+  it('registry/ does not import runtime values from execution/ or storage/', async () => {
     const regFiles = (await walk(CORE_SRC)).filter((f) => layerOf(f) === 'registry');
     const allViolations: string[] = [];
 
@@ -445,7 +415,7 @@ describe('core internal layer rules', () => {
     expect(allViolations).toEqual([]);
   });
 
-  it('models/ does not import runtime values from execution/, storage/, or coordination/', async () => {
+  it('models/ does not import runtime values from execution/ or storage/', async () => {
     const modelFiles = (await walk(CORE_SRC)).filter((f) => layerOf(f) === 'models');
     const allViolations: string[] = [];
 
@@ -459,7 +429,7 @@ describe('core internal layer rules', () => {
     expect(allViolations).toEqual([]);
   });
 
-  it('extension/ does not import runtime values from execution/, storage/, or coordination/', async () => {
+  it('extension/ does not import runtime values from execution/ or storage/', async () => {
     const extFiles = (await walk(CORE_SRC)).filter((f) => layerOf(f) === 'extension');
     const allViolations: string[] = [];
 
@@ -525,20 +495,16 @@ async function buildRuntimeEdgeSet(): Promise<Set<DirectedEdge>> {
 
 describe('core bidirectional coupling', () => {
   /**
-   * layers excluded from the bidirectional check:
+   * layers excluded from the bidirectional check.
    *
-   * types/    — public-type barrel for the whole package. Its index.ts
-   *              re-exports from nearly every other layer (e.g. types/index.ts
-   *              → execution/tool-executor.js). Treating those re-exports as
-   *              "types → X" edges produces false positives: every layer that
-   *              imports from types/ would appear to have a reverse edge back
-   *              through the barrel. types/ is the shared contract surface,
-   *              not a domain layer.
+   * Nothing is excluded today: `types/`, the shared contract barrel that used
+   * to produce false "types → X" reverse edges, left core for
+   * `@wrongstack/contracts` on 2026-10-24 and is no longer in `LAYERS`.
    *
-   * defaults/ is also a compatibility barrel, but it is intentionally absent
-   * from LAYERS, so layerOf() skips it before this graph is built.
+   * `defaults/` is a compatibility barrel, but it is intentionally absent from
+   * LAYERS, so layerOf() skips it before this graph is built.
    */
-  const EXCLUDED = new Set<LayerName>(['types']);
+  const EXCLUDED = new Set<LayerName>();
 
   it('no two layers should have mutual runtime dependencies', async () => {
     const edges = await buildRuntimeEdgeSet();

@@ -83,4 +83,48 @@ describe('session-rewinder — extra coverage', () => {
     expect(result.errors.some((e) => e.includes('outside project root'))).toBe(true);
     expect(result.errors.length).toBeGreaterThanOrEqual(2); // outside-root skip + created-unlink ENOENT
   });
+
+  it('blocks rewind through a symlink/junction pointing outside project root (F212)', async () => {
+    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rewind-f212-'));
+    const projectRoot = path.join(tmp, 'proj');
+    const outsideDir = path.join(tmp, 'outside');
+    await fs.mkdir(projectRoot, { recursive: true });
+    await fs.mkdir(outsideDir, { recursive: true });
+    try {
+      const secretFile = path.join(outsideDir, 'secret.txt');
+      await fs.writeFile(secretFile, 'ORIGINAL_SECRET', 'utf8');
+      const linkDir = path.join(projectRoot, 'escape-dir');
+      await fs.symlink(outsideDir, linkDir, 'junction');
+      const targetViaLink = path.join(linkDir, 'secret.txt');
+
+      const sessionPath = path.join(tmp, 's-f212.jsonl');
+      await fs.writeFile(
+        sessionPath,
+        [
+          JSON.stringify({ type: 'session_start', ts: '2026-01-01T00:00:00Z' }),
+          JSON.stringify({
+            type: 'checkpoint',
+            ts: '2026-01-01T00:00:01Z',
+            promptIndex: 0,
+            promptPreview: 'p',
+          }),
+          JSON.stringify({
+            type: 'file_snapshot',
+            ts: '2026-01-01T00:00:02Z',
+            promptIndex: 0,
+            files: [{ path: targetViaLink, action: 'modified', before: 'OVERWRITTEN', after: '' }],
+          }),
+        ].join('\n') + '\n',
+        'utf8',
+      );
+
+      const rewind = new DefaultSessionRewinder(tmp, projectRoot);
+      const result = await rewind.rewindToCheckpoint('s-f212', 0);
+
+      expect(await fs.readFile(secretFile, 'utf8')).toBe('ORIGINAL_SECRET');
+      expect(result.errors.some((e) => e.includes('outside project root'))).toBe(true);
+    } finally {
+      await fs.rm(tmp, { recursive: true, force: true });
+    }
+  });
 });

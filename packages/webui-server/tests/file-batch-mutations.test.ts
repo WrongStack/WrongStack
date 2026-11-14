@@ -2,9 +2,31 @@ import { watch } from 'node:fs';
 import { mkdir, mkdtemp, open, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import { type ContentRouteContext, handleContentRoute } from '../src/server/content-routes.js';
+
+let renameHook:
+  | ((
+      orig: typeof import('node:fs/promises').rename,
+      from: Parameters<typeof import('node:fs/promises').rename>[0],
+      to: Parameters<typeof import('node:fs/promises').rename>[1],
+    ) => Promise<void>)
+  | null = null;
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return {
+    ...actual,
+    rename: async (
+      from: Parameters<typeof actual.rename>[0],
+      to: Parameters<typeof actual.rename>[1],
+    ) => {
+      if (renameHook) return renameHook(actual.rename, from, to);
+      return actual.rename(from, to);
+    },
+  };
+});
 
 let dir = '';
 const base = resolve(tmpdir());
@@ -176,3 +198,35 @@ it.runIf(process.platform === 'win32')(
     }
   },
 );
+
+it('preserves unrestored staged files when delete_many rollback fails (F199)', async () => {
+  await writeFile(join(dir, 'src', 'keep-me.txt'), 'CRITICAL_USER_DATA', 'utf8');
+  const bPath = join(dir, 'src', 'b.ts');
+  const keepPath = join(dir, 'src', 'keep-me.txt');
+  renameHook = async (origRename, from, to) => {
+    if (String(from) === bPath) {
+      const err = new Error('EBUSY: resource busy') as NodeJS.ErrnoException;
+      err.code = 'EBUSY';
+      throw err;
+    }
+    if (String(to) === keepPath) {
+      const err = new Error('EACCES: cannot put back') as NodeJS.ErrnoException;
+      err.code = 'EACCES';
+      throw err;
+    }
+    return origRename(from, to);
+  };
+  try {
+    const res = await call('files.delete_many', {
+      filePaths: ['src/keep-me.txt', 'src/b.ts'],
+    });
+    expect(res.payload['success']).toBe(false);
+    const rootEntries = await readdir(dir);
+    const stagingDir = rootEntries.find((name) => name.startsWith('.wrongstack-delete-'));
+    expect(stagingDir).toBeDefined();
+    const preserved = await readFile(join(dir, stagingDir!, '0'), 'utf8');
+    expect(preserved).toBe('CRITICAL_USER_DATA');
+  } finally {
+    renameHook = null;
+  }
+});

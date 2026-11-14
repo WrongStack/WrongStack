@@ -1,29 +1,29 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.7.0',
-  title: 'Keep your workspace moving.',
+  version: '1.7.1',
+  title: 'Updates that keep your place.',
   summary:
-    'Desktop conversations take their names from your first prompt and can be renamed in place. Code Atlas loads larger graphs in the desktop and WebUI, plugins can be added and removed from WebUI Settings, Chronicle reuses its counts, and VibeUI makes keyboard navigation and narrow screens easier to use.',
+    'The desktop checks for new releases and verifies version-bound signatures before installing Windows and macOS updates. Upgrade from 1.7.0 manually once to enable that path. Session replay, streaming buffers, file recovery and background cleanup also gain focused reliability fixes.',
   socialDescription:
-    'WrongStack 1.7.0: named desktop conversations, larger Code Atlas graphs, plugin management in WebUI Settings, faster Chronicle refreshes and a refined VibeUI.',
+    'WrongStack 1.7.1: signed desktop updates, in-app update notices, safer session replay and streaming, and file recovery that preserves your work.',
   cards: [
     {
-      title: 'Conversations you can find',
-      body: 'Desktop tabs take a name from the first prompt. Double-click or press F2 to rename one; long titles stay compact and show their full text on hover.',
+      title: 'Updates from the desktop',
+      body: 'Check for a new release in Appearance, put it off with Later, or install a verified Windows/macOS update while the separate session host keeps conversations running.',
       href: '/interfaces',
       linkLabel: 'Explore the interfaces',
     },
     {
-      title: 'Code Atlas for larger projects',
-      body: 'Large graphs arrive in consistent chunks, keeping their nodes and edges together. The desktop and WebUI share the same loader and clearer recovery guidance.',
-      href: '/interfaces',
-      linkLabel: 'Find your workspace',
+      title: 'Signed for the version you install',
+      body: 'Release publication verifies all four Windows/macOS updater targets and their signed versions before exposing the update manifest. Linux keeps its package-manager flow.',
+      href: '/security',
+      linkLabel: 'Explore the safeguards',
     },
     {
-      title: 'Plugins from WebUI Settings',
-      body: 'Add or remove a plugin and inspect configured and official lists in Settings → Context. The engine reports the result and tells you when a restart is needed.',
-      href: '/plugins',
-      linkLabel: 'Explore plugins',
+      title: 'Move from 1.7.0 once',
+      body: 'Run wstack update, then wstack desktop update to install the first desktop with the updater public key. Later signed releases can install from the application.',
+      href: '/getting-started',
+      linkLabel: 'Upgrade your installation',
     },
   ],
 } as const;

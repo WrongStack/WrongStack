@@ -265,7 +265,17 @@ export const useFileStore = create<FileStoreState>()(
           if (state.fileSessionId) {
             filesBySession[state.fileSessionId] = readFileSession(state);
           }
-          const next = sessionId ? filesBySession[sessionId] : undefined;
+          // When the store rehydrated from localStorage while fileSessionId was
+          // still null, adopt those restored stubs into the first bound session
+          // instead of overwriting them with defaultFileSession().
+          const rehydratedUnbound =
+            !state.fileSessionId &&
+            (state.openFiles.length > 0 ||
+              state.activeFilePath !== null ||
+              state.projectIdentity.length > 0)
+              ? readFileSession(state)
+              : undefined;
+          const next = sessionId ? (filesBySession[sessionId] ?? rehydratedUnbound) : undefined;
           const fileSession = next ?? defaultFileSession();
           return {
             fileSessionId: sessionId,

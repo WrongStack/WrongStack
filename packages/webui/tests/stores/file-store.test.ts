@@ -515,3 +515,26 @@ describe('setError', () => {
     expect(useFileStore.getState().error).toBe(null);
   });
 });
+
+describe('bindSessionFiles rehydration adoption (F207)', () => {
+  beforeEach(() => resetStore());
+
+  it('adopts rehydrated unbound openFiles on first bindSessionFiles instead of wiping them', () => {
+    useFileStore.setState({
+      fileSessionId: null,
+      filesBySession: {},
+      openFiles: [{ path: 'src/index.ts', content: '', dirty: false, savedContent: '' }],
+      activeFilePath: 'src/index.ts',
+      projectIdentity: 'my-proj',
+    });
+
+    useFileStore.getState().bindSessionFiles('s-reloaded');
+
+    const state = useFileStore.getState();
+    expect(state.fileSessionId).toBe('s-reloaded');
+    expect(state.openFiles).toHaveLength(1);
+    expect(state.openFiles[0]?.path).toBe('src/index.ts');
+    expect(state.activeFilePath).toBe('src/index.ts');
+    expect(state.projectIdentity).toBe('my-proj');
+  });
+});

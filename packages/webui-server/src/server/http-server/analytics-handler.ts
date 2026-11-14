@@ -68,18 +68,18 @@ function pushEvent(event: AnalyticsEvent): void {
 
 function parseBody(req: http.IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
-    let body = '';
+    const chunks: Buffer[] = [];
     let bodyBytes = 0;
     let tooLarge = false;
     req.on('data', (chunk: Buffer) => {
       bodyBytes += chunk.length;
       if (bodyBytes > ANALYTICS_MAX_BODY_BYTES) {
         tooLarge = true;
-        body = '';
+        chunks.length = 0;
         return;
       }
       if (tooLarge) return;
-      body += chunk.toString('utf-8');
+      chunks.push(chunk);
     });
     req.on('end', () => {
       if (tooLarge) {
@@ -87,7 +87,7 @@ function parseBody(req: http.IncomingMessage): Promise<unknown> {
         return;
       }
       try {
-        resolve(JSON.parse(body));
+        resolve(JSON.parse(Buffer.concat(chunks).toString('utf-8')));
       } catch {
         reject(new Error('Invalid JSON'));
       }

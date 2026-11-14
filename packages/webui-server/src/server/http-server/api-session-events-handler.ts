@@ -210,24 +210,28 @@ export async function handleApiSessionEvents(
     const all = correlateToolEvents(ring);
     const tail = all.slice(-limit);
 
+    const payload = JSON.stringify({
+      sessionId,
+      status: entry.status,
+      clientType: entry.clientType,
+      projectName: entry.projectName,
+      // Exact when the whole session fit in the ring (the previous
+      // behaviour). Past that, correlation never ran over the dropped
+      // prefix, so report the raw event count — an upper bound — and say so
+      // rather than silently understating the session's size.
+      total: dropped ? totalRaw : all.length,
+      ...(dropped ? { truncated: true } : {}),
+      entries: tail,
+    } satisfies ApiSessionEvents);
+
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({
-        sessionId,
-        status: entry.status,
-        clientType: entry.clientType,
-        projectName: entry.projectName,
-        // Exact when the whole session fit in the ring (the previous
-        // behaviour). Past that, correlation never ran over the dropped
-        // prefix, so report the raw event count — an upper bound — and say so
-        // rather than silently understating the session's size.
-        total: dropped ? totalRaw : all.length,
-        ...(dropped ? { truncated: true } : {}),
-        entries: tail,
-      } satisfies ApiSessionEvents),
-    );
+    res.end(payload);
   } catch (err) {
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: sanitizeApiError(err) }));
+    if (!res.headersSent) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: sanitizeApiError(err) }));
+    } else if (!res.writableEnded) {
+      res.end();
+    }
   }
 }

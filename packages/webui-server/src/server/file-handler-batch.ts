@@ -307,7 +307,9 @@ export async function handleFilesDeleteMany(
         sources.map((from, index) => ({ from, to: path.join(staging, String(index)) })),
       );
     } catch (error) {
-      await fs.rm(staging, { recursive: true, force: true }).catch(() => {});
+      // Only remove staging if rollback put every file back; otherwise keep
+      // unrestored items safe inside staging instead of destroying user data.
+      await fs.rmdir(staging).catch(() => {});
       throw error;
     }
     let leftover: string | undefined;

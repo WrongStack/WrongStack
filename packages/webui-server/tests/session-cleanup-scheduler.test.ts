@@ -210,4 +210,18 @@ describe('ownerless empty session cleanup', () => {
     expect(fixture.store.delete).not.toHaveBeenCalledWith('held-by-webui');
     expect(fixture.store.delete).toHaveBeenCalledWith('free');
   });
+
+  it('fails closed and never leaks unhandled rejections when getExtraProtectedSessionIds rejects (F200)', async () => {
+    const fixture = context({ ids: ['free'] });
+
+    await expect(
+      cleanupOwnerlessEmptySessions({
+        ...fixture.ctx,
+        getExtraProtectedSessionIds: async () => {
+          throw new Error('registry unavailable');
+        },
+      }),
+    ).resolves.toEqual({ deleted: 0, errors: 1 });
+    expect(fixture.store.delete).not.toHaveBeenCalled();
+  });
 });

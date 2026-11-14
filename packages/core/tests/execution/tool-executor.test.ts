@@ -11,6 +11,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
 import { ToolCapabilities } from '../../src/security/capabilities.js';
 import { DEFAULT_ALWAYS_TRUST_TTL_MS } from '../../src/security/scoped-approval.js';
+import { SUBAGENTS_ALLOWED_META_KEY } from '../../src/security/session-subagent-policy.js';
 import { createMockTool } from '../helpers/test-harness.js';
 
 function makeToolUse(name: string, id: string, input: Record<string, unknown> = {}): ToolUseBlock {
@@ -457,5 +458,63 @@ describe('ToolExecutor scoped inline approval', () => {
       'smart',
     );
     expect(maxSmart).toBe(1);
+  });
+
+  it('denies SUBAGENT_SPAWN tools invoked through the tool_use gateway when subagents are disabled', async () => {
+    let spawnCalls = 0;
+    const spawnTool = {
+      ...createMockTool({ name: 'agent_spawn' }),
+      capabilities: [ToolCapabilities.SUBAGENT_SPAWN],
+      execute: async () => {
+        spawnCalls += 1;
+        return 'SPAWNED';
+      },
+    };
+    const gatewayTool = {
+      ...createMockTool({ name: 'tool_use' }),
+      execute: async (input: unknown, c: any, opts: any) => {
+        const payload = input as { tool: string; input?: unknown };
+        if (payload.tool === 'agent_spawn') {
+          return spawnTool.execute(payload.input ?? {}, c, opts);
+        }
+        return 'noop';
+      },
+    };
+    const exec = new ToolExecutor(makeRegistry([spawnTool, gatewayTool]), {
+      events: new EventBus(),
+      secretScrubber: noopScrubber,
+      permissionPolicy: {
+        evaluate: vi.fn().mockResolvedValue({ permission: 'auto', source: 'default' }),
+      },
+    } as any);
+
+    const blockedCtx = {
+      projectRoot: process.cwd(),
+      messages: [],
+      signal: new AbortController().signal,
+      session: { id: 'subagent-gateway-blocked', append: () => {} },
+      meta: { [SUBAGENTS_ALLOWED_META_KEY]: false },
+    } as any;
+
+    const gatewayRes = await exec.executeBatch(
+      [makeToolUse('tool_use', 'gw-1', { tool: 'agent_spawn', input: {} })],
+      blockedCtx,
+      'sequential',
+    );
+    expect(gatewayRes.outputs[0]?.settlement).toBe('denied_by_policy');
+    expect(spawnCalls).toBe(0);
+
+    const allowedCtx = {
+      ...blockedCtx,
+      session: { id: 'subagent-gateway-allowed', append: () => {} },
+      meta: { [SUBAGENTS_ALLOWED_META_KEY]: true },
+    };
+    const allowedRes = await exec.executeBatch(
+      [makeToolUse('tool_use', 'gw-2', { tool: 'agent_spawn', input: {} })],
+      allowedCtx,
+      'sequential',
+    );
+    expect(allowedRes.outputs[0]?.result.content).toBe('SPAWNED');
+    expect(spawnCalls).toBe(1);
   });
 });

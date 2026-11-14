@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.1] — 2026-11-14
+
+Desktop updates gain version-bound signatures and an in-app update notice.
+This is the first release with the updater public key: upgrade older desktop
+installations manually once, then later signed releases can install from the
+application. Session replay, streaming, file recovery and lifecycle fixes make
+long-running work safer.
+
 ### Added
 
 - **Desktop update notices.** Packaged desktop builds check for a newer stable
@@ -17,6 +25,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   signs packages with their version, and release publication verifies all four
   Windows/macOS targets before publishing `latest.json`.
   Restarting the application leaves the session host and conversations running.
+
+### Fixed
+
+- Session rewind resolves relative file paths against the project and refuses
+  symlink or junction targets outside it. Replay-log compaction updates its
+  cache only after the disk write succeeds, and a zero-entry budget retains
+  no entries. Archived session catalog summaries now report cold storage.
+- WebUI stream buffers are scoped to their session and cleared before context
+  resets or replay, so old chunks cannot reappear in another conversation.
+  Rewind rebuilds tool-message indexes, and file-cache resets fence late reads.
+- Failed batch-delete rollback preserves files left in staging instead of
+  deleting the remaining recovery copy. Analytics JSON decodes UTF-8 after
+  collecting its byte chunks, and intake routes decode identifiers consistently.
+- Empty-session cleanup preserves sessions when protection lookup fails and
+  catches scheduled-sweep errors. A browser manager stays busy while opening a
+  context, and terminal writes release the host session lock before blocked I/O.
+- Fallback profile and provider management refuse prototype-related names;
+  CLI export rejects a missing output path, and test teardown recognizes an
+  already-exited server.
 
 ## [1.7.0] — 2026-11-14
 

@@ -108,4 +108,18 @@ describe('StreamCoalescer', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(flush).toHaveBeenCalledWith('a', 'hello');
   });
+
+  it('dropSession drops only streams for that session without affecting other sessions (F208)', () => {
+    const c = new StreamCoalescer();
+    const flushA = vi.fn();
+    const flushB = vi.fn();
+    c.push('msg-a', 'drop-me', flushA, 'sess-a');
+    c.push('msg-b', 'keep-me', flushB, 'sess-b');
+
+    c.dropSession('sess-a');
+    tick();
+
+    expect(flushA).not.toHaveBeenCalled();
+    expect(flushB).toHaveBeenCalledWith('msg-b', 'keep-me');
+  });
 });

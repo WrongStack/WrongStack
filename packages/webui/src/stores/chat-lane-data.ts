@@ -120,7 +120,7 @@ export interface ChatLaneActions {
   addMessage: (
     msg: Omit<ChatMessage, 'id' | 'timestamp'> & { id?: string; timestamp?: number },
   ) => string;
-  setMessages: (messages: ChatMessage[]) => void;
+  setMessages: (messages: ChatMessage[], options?: { preserveLiveStream?: boolean }) => void;
   updateMessage: (id: string, updates: Partial<ChatMessage>) => void;
   appendToMessage: (id: string, text: string) => void;
   finalizeMessage: (id: string, opts?: { final?: boolean }) => void;

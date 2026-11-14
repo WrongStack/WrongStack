@@ -302,12 +302,16 @@ export async function handleApiRoutes(
   const intakeIdMatch = url.pathname.match(/^\/api\/requirement-intakes\/([^/]+)$/);
   if (intakeIdMatch && req.method === 'GET') {
     if (requireAccessToken && !accessTokenOk) return unauthorized(res);
-    await handleRequirementIntakeGet(res, deps.intakeService, intakeIdMatch[1]!);
+    const intakeId = strictDecodeParam(intakeIdMatch[1]!, res);
+    if (intakeId === null) return true;
+    await handleRequirementIntakeGet(res, deps.intakeService, intakeId);
     return true;
   }
   if (intakeIdMatch && req.method === 'PATCH') {
     if (requireAccessToken && !accessTokenOk) return unauthorized(res);
-    await handleRequirementIntakeUpdate(res, req, deps.intakeService, intakeIdMatch[1]!);
+    const intakeId = strictDecodeParam(intakeIdMatch[1]!, res);
+    if (intakeId === null) return true;
+    await handleRequirementIntakeUpdate(res, req, deps.intakeService, intakeId);
     return true;
   }
 
@@ -335,16 +339,15 @@ export async function handleApiRoutes(
   );
   if (intakeActionMatch && req.method === 'POST') {
     if (requireAccessToken && !accessTokenOk) return unauthorized(res);
-    const intakeId = intakeActionMatch[1]!;
+    const intakeId = strictDecodeParam(intakeActionMatch[1]!, res);
+    if (intakeId === null) return true;
     const action = intakeActionMatch[2]!;
     if (action === 'answers') {
       await handleRequirementIntakeAnswers(res, req, deps.intakeService, intakeId);
     } else if (action === 'suggestions') {
       await handleRequirementIntakeSuggestions(res, req, deps.intakeService, intakeId);
     } else if (action === 'resources') {
-      const decodedId = strictDecodeParam(intakeId, res);
-      if (decodedId !== null)
-        await handleRequirementIntakeResource(res, req, deps.intakeService, decodedId);
+      await handleRequirementIntakeResource(res, req, deps.intakeService, intakeId);
     } else if (action === 'submit') {
       await handleRequirementIntakeSubmit(res, deps.intakeService, intakeId);
     } else if (action === 'cancel') {

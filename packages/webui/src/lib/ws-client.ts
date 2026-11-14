@@ -551,7 +551,13 @@ class WrongStackWebSocketClientBase {
       this.pendingSwapAt = Date.now();
     }
     if (message.type === 'context.clear') {
-      streamCoalescer.dropAll();
+      const targetSid =
+        (message.payload as { sessionId?: string } | undefined)?.sessionId ?? this.sessionId;
+      if (targetSid) {
+        streamCoalescer.dropSession(targetSid);
+      } else {
+        streamCoalescer.dropAll();
+      }
     } else if (message.type === 'session.new' || message.type === 'session.resume') {
       streamCoalescer.flushAll();
     }

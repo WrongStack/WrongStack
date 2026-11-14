@@ -2,6 +2,7 @@
  * @vitest-environment node
  */
 
+import { EventEmitter } from 'node:events';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -178,6 +179,32 @@ describe('handleApiAnalyticsPost', () => {
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body!).rejected).toBe(1);
     expect(getAnalyticsBuffer()).toHaveLength(0);
+  });
+
+  it('preserves multi-byte UTF-8 characters split across data chunks (F201)', async () => {
+    const payload = Buffer.from(
+      JSON.stringify({
+        event: 'utf8_split',
+        category: 'test',
+        timestamp: new Date().toISOString(),
+        label: '€🚀ğ',
+      }),
+      'utf8',
+    );
+    const euroIdx = payload.indexOf(0xe2);
+    const req = new EventEmitter() as IncomingMessage;
+    req.headers = {};
+    const res = createMockRes();
+
+    const pending = handleApiAnalyticsPost(res, req);
+    req.emit('data', payload.subarray(0, euroIdx + 1));
+    req.emit('data', payload.subarray(euroIdx + 1));
+    req.emit('end');
+    await pending;
+
+    expect(res.statusCode).toBe(200);
+    expect(getAnalyticsBuffer()).toHaveLength(1);
+    expect(getAnalyticsBuffer()[0]?.label).toBe('€🚀ğ');
   });
 });
 

@@ -91,7 +91,12 @@ export function handleTextDelta(msg: WSServerMessage) {
     id = chat.addMessage({ role: 'assistant', content: '', streaming: true });
     chat.setCurrentAssistantMessage(id);
   }
-  streamCoalescer.push(id, payload.text, (mid, text) => chat.appendToMessage(mid, text));
+  streamCoalescer.push(
+    id,
+    payload.text,
+    (mid, text) => chat.appendToMessage(mid, text),
+    chat.sessionId,
+  );
 }
 
 export function handleThinkingDelta(msg: WSServerMessage) {
@@ -100,8 +105,11 @@ export function handleThinkingDelta(msg: WSServerMessage) {
   // Per-token viz push removed (same reasoning as handleTextDelta).
   const payload = projectChatMessage(msg);
   if (payload?.kind !== 'thinking-delta') return;
-  streamCoalescer.push(thinkingKey(chat.sessionId), payload.text, (_k, text) =>
-    chat.appendThinking(text),
+  streamCoalescer.push(
+    thinkingKey(chat.sessionId),
+    payload.text,
+    (_k, text) => chat.appendThinking(text),
+    chat.sessionId,
   );
 }
 
@@ -159,11 +167,15 @@ export function handleToolProgress(msg: WSServerMessage) {
   const ownerId = chat.getToolMessageId(payload.id);
   if (!ownerId) return;
   const prefix = payload.eventType === 'warning' ? '⚠ ' : '';
-  streamCoalescer.push(ownerId, `${prefix}${text}\n`, (_oid, buffered) =>
-    chat.appendToolProgressLinesByUseId(
-      payload.id,
-      buffered.split('\n').filter((l) => l.length > 0),
-    ),
+  streamCoalescer.push(
+    ownerId,
+    `${prefix}${text}\n`,
+    (_oid, buffered) =>
+      chat.appendToolProgressLinesByUseId(
+        payload.id,
+        buffered.split('\n').filter((l) => l.length > 0),
+      ),
+    chat.sessionId,
   );
 }
 

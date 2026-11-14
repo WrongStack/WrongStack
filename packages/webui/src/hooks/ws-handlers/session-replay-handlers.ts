@@ -371,7 +371,9 @@ export function handleSessionStart(msg: WSServerMessage) {
   if (isRedisplay && hasLiveTranscript && hydrated.length > 0) {
     const oldestShown = chat.messages[0]?.timestamp ?? 0;
     const missingPrefix = hydrated.filter((m) => m.timestamp < oldestShown);
-    if (missingPrefix.length > 0) chat.setMessages([...missingPrefix, ...chat.messages]);
+    if (missingPrefix.length > 0) {
+      chat.setMessages([...missingPrefix, ...chat.messages], { preserveLiveStream: true });
+    }
   } else if (hydrated.length > 0 && !keepLiveTranscript) {
     // Server replay wins, except for a lane whose run is still streaming (its
     // in-memory transcript is ahead of anything the journal can replay) or a

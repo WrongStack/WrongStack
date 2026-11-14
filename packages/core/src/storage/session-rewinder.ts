@@ -381,10 +381,35 @@ async function revertSnapshots(
         // Without this, a maliciously recorded path (e.g., via path traversal
         // in a tool call that wasn't caught) could cause rewind to write
         // to arbitrary locations.
-        const absPath = path.resolve(file.path);
         const root = path.resolve(projectRoot);
-        const rel = path.relative(root, absPath);
-        if (rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
+        const absPath = path.resolve(root, file.path);
+        const isOutside = (base: string, target: string) => {
+          const rel = path.relative(base, target);
+          return rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel);
+        };
+        if (isOutside(root, absPath)) {
+          errors.push(`${file.path}: path resolves outside project root — skipping`);
+          continue;
+        }
+        // Resolve symlinks (both the target if it exists, and its nearest existing parent)
+        // so a symlink/junction inside projectRoot cannot redirect writes or unlinks outside.
+        const realRoot = await fsp.realpath(root).catch(() => root);
+        const targetReal = await fsp.realpath(absPath).catch(async () => {
+          let cursor = path.dirname(absPath);
+          const tail: string[] = [path.basename(absPath)];
+          while (true) {
+            try {
+              const resolvedParent = await fsp.realpath(cursor);
+              return path.join(resolvedParent, ...tail);
+            } catch {
+              const parent = path.dirname(cursor);
+              if (parent === cursor) return absPath;
+              tail.unshift(path.basename(cursor));
+              cursor = parent;
+            }
+          }
+        });
+        if (isOutside(realRoot, targetReal)) {
           errors.push(`${file.path}: path resolves outside project root — skipping`);
           continue;
         }
@@ -393,18 +418,18 @@ async function revertSnapshots(
           // File was deleted — restore it from before
           if (file.before !== null) {
             // atomicWrite: torn restore would leave the user with a frankenstein file.
-            await atomicWrite(file.path, file.before, { mode: 0o644 });
+            await atomicWrite(absPath, file.before, { mode: 0o644 });
             revertedFiles.push(file.path);
           }
         } else if (file.action === 'created') {
           // File was created — delete it
-          await fsp.unlink(file.path);
+          await fsp.unlink(absPath);
           revertedFiles.push(file.path);
         } else if (file.action === 'modified') {
           // File was modified — restore before content
           if (file.before !== null) {
             // atomicWrite: torn restore would leave the user with a frankenstein file.
-            await atomicWrite(file.path, file.before, { mode: 0o644 });
+            await atomicWrite(absPath, file.before, { mode: 0o644 });
             revertedFiles.push(file.path);
           }
         }

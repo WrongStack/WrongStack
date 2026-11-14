@@ -55,6 +55,7 @@ export const useChatLanes = create<ChatLanesState>()(
       partialize: (s) => ({
         lanes: Object.fromEntries(
           Object.entries(s.lanes)
+            .filter(([sid]) => sid !== DEFAULT_LANE_ID)
             .slice(0, MAX_LANES)
             .map(([sid, lane]) => [
               sid,

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-14T17:14:10.102Z",
+  "generatedAt": "2026-11-14T17:42:35.694Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6340,
-    "testFiles": 5292,
-    "sourceLines": 1309846,
+    "testFiles": 5293,
+    "sourceLines": 1309983,
     "workspaceEdges": 250,
     "moduleEdges": 18695,
     "nonCommandSlashImports": 0,
@@ -1009,7 +1009,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 402,
-      "testFiles": 391,
+      "testFiles": 392,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -1028,7 +1028,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 391
+          "testFiles": 392
         }
       ]
     },
@@ -23463,6 +23463,12 @@
       },
       {
         "file": "packages/tools/tests/management/fallback-model-ref-parse-coverage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/management/fallback-reserved-names.test.ts",
         "projects": [
           "root-node"
         ]

@@ -55,9 +55,9 @@ and macOS `.app.tar.gz` archives; release publication verifies all four targets
 before uploading `latest.json`. These updater signatures are separate from
 Windows Authenticode signing and macOS notarization.
 
-This starts with the next release containing the updater and its public key.
-Published 1.7.0 installers predate this implementation and need a manual upgrade
-to that release. Until signed metadata is available, the notice falls back to
+Version 1.7.1 is the first release containing the updater and its public key.
+Published 1.7.0 installers predate this implementation and need a manual upgrade:
+run `wstack update`, then `wstack desktop update`. Until signed metadata is available, the notice falls back to
 the release download page. Linux `.deb` and `.rpm` builds continue to use that
 page. Restarting the application keeps the separate session host and its
 conversations running. See [release signing](../../docs/release-process.md#desktop-updater-signatures).

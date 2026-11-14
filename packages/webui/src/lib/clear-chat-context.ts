@@ -46,14 +46,18 @@ interface ClearChatContextOptions {
 
 export function clearChatContext(options: ClearChatContextOptions): void {
   const { client, isLoading, clearMessages, setLoading, sendAbort, sessionId } = options;
-  streamCoalescer.dropAll();
+  const targetSessionId = sessionId ?? activeSessionLaneId();
+  if (targetSessionId && targetSessionId !== SESSION_DEFAULT_LANE_ID) {
+    streamCoalescer.dropSession(targetSessionId);
+  } else {
+    streamCoalescer.dropAll();
+  }
   // A run that is still streaming has to be stopped, not orphaned: its deltas
   // would otherwise land in the transcript we are about to wipe.
   if (isLoading) (sendAbort ?? client?.sendAbort)?.();
   clearMessages();
   setLoading(false);
 
-  const targetSessionId = sessionId ?? activeSessionLaneId();
   if (targetSessionId && targetSessionId !== SESSION_DEFAULT_LANE_ID && client?.newSession) {
     client.newSession({ replaceSessionId: targetSessionId });
   } else {

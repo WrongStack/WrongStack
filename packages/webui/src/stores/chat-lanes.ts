@@ -175,19 +175,27 @@ export function chatLane(sessionId: string): ChatLaneActions {
       return id;
     },
 
-    setMessages: (messages) => {
+    setMessages: (messages, options) => {
       const retained = retainWebChatMessages(messages);
-      mutate(sid, () => ({
-        messages: retained,
-        currentAssistantMessageId: null,
-        currentToolId: null,
-        executions: indexToolExecutions(retained),
-        toolMessageIdsByUseId: indexToolMessages(retained),
-        thinkingBuffer: '',
-        thinkingStartedAt: null,
-        thinkingLogBuffer: '',
-        thinkingLogStartedAt: null,
-      }));
+      mutate(sid, () =>
+        options?.preserveLiveStream
+          ? {
+              messages: retained,
+              executions: indexToolExecutions(retained),
+              toolMessageIdsByUseId: indexToolMessages(retained),
+            }
+          : {
+              messages: retained,
+              currentAssistantMessageId: null,
+              currentToolId: null,
+              executions: indexToolExecutions(retained),
+              toolMessageIdsByUseId: indexToolMessages(retained),
+              thinkingBuffer: '',
+              thinkingStartedAt: null,
+              thinkingLogBuffer: '',
+              thinkingLogStartedAt: null,
+            },
+      );
     },
 
     updateMessage: (id, updates) =>

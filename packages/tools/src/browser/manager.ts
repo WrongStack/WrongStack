@@ -564,9 +564,9 @@ export class BrowserSessionManager {
     };
   }
 
-  /** True when the manager owns no live browser contexts. */
+  /** True when the manager owns no live browser contexts and no open() is in flight. */
   isIdle(): boolean {
-    return this.sessions.size === 0;
+    return this.sessions.size === 0 && this.openers === 0;
   }
 
   async dispose(): Promise<void> {

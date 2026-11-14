@@ -1,7 +1,8 @@
 # WrongStack Architecture Rules
 
-> **Status**: Active — adopted 2026-05-20
+> **Status**: Active — adopted 2026-05-20, reconciled with the current layout 2026-11-14
 > **Supersedes**: Nothing (new document)
+> **Current layout authority**: [`architecture/core-layers.json`](../architecture/core-layers.json) — this document keeps the rationale and the rule set; layer *membership* is machine-readable there and enforced by `bun run check:core-layers`.
 > **Reason**: Previous plan to extract `@wrongstack/kernel` was abandoned after discovering `WrongStackError` (runtime class) is used everywhere in core, making extraction disproportionately expensive. This document captures the agreed-upon alternative: strict internal layering with automated enforcement.
 
 ---
@@ -18,9 +19,13 @@ The original plan was to extract `packages/core/src/kernel/` as a standalone `@w
 
 The following layers exist within `packages/core/src/`. Rules below govern what each layer may and may not depend on. `kernel/` and `types/` now live in `@wrongstack/contracts` and `coordination/` in `@wrongstack/coordination` (the current gate reads `architecture/core-layers.json`), so the layers below record the original core-internal layout.
 
-### Layer 1 — Primitives (lowest level)
-- `kernel/` — Container, Pipeline, EventBus, RunController, TOKENS
-- `types/` — Public contracts, error hierarchy, type aliases
+### Layer 1 — Primitives (lowest level) — *moved out of core*
+`kernel/` (Container, Pipeline, EventBus, RunController, TOKENS) and `types/`
+(public contracts, error hierarchy, type aliases) left core for
+`@wrongstack/contracts` (`packages/contracts`) on 2026-10-24. Core depends on that
+package from below every area, so the lowest rank inside `packages/core/src` is
+now `primitives` (`utils/`, `vcs/`, `performance/`) — see
+[`architecture/core-layers.json`](../architecture/core-layers.json).
 
 ### Layer 2 — Infrastructure
 - `infrastructure/` — Logger, TokenCounter, PathResolver, ContextManager, MCPServers presets
@@ -37,14 +42,20 @@ The following layers exist within `packages/core/src/`. Rules below govern what 
 ### Layer 5 — Storage
 - `storage/` — SessionStore, ConfigStore, ConfigLoader, MemoryStore, PlanStore, TodosCheckpoint, QueueStore, RecoveryLock, AttachmentStore, SessionReader, SessionRewinder, SessionAnalyzer, PlanTemplates, ConfigMigration, DirectorState
 
-### Layer 6 — Coordination
-- `coordination/` — MultiAgentCoordinator, Director, FleetManager, FleetBus, AgentBridge, AgentSubagentRunner, SubagentBudget, Transport, DelegateTool, fleet state
+### Layer 6 — Coordination — *moved out of core*
+`coordination/` (MultiAgentCoordinator, Director, FleetManager, FleetBus,
+AgentBridge, AgentSubagentRunner, SubagentBudget, Transport, DelegateTool, fleet
+state) left core for `@wrongstack/coordination` (`packages/coordination`). Core
+never imports it: the agent loop reaches coordination only through the
+`AGENT_COORDINATION` container token, which `@wrongstack/runtime` binds. The
+current rank ladder therefore has **no coordination row** — see
+[`architecture/core-layers.json`](../architecture/core-layers.json).
 
 ### Layer 7 — High-level / UI-facing
 - `plugin/` — PluginAPI, PluginLoader
 - `extension/` — ExtensionRegistry
 - `observability/` — Metrics, Tracer, Health, Prometheus, OTLP
-- `sdd/` — SpecParser, TaskGenerator, TaskFlow, SpecBuilder
+- `sdd/` — *moved out*: SpecParser, TaskGenerator, TaskFlow, SpecBuilder live in `@wrongstack/sdd` (`packages/sdd`); see [architecture/core-layers.json](../architecture/core-layers.json)
 - `skills/` — SkillInstaller, ManifestStore, GitHubFetcher
 
 ---
@@ -54,91 +65,90 @@ The following layers exist within `packages/core/src/`. Rules below govern what 
 ### Rule 1 — Lower layers must not import higher-layer runtime values
 A lower layer must not directly import a higher layer's implementation. Runtime imports from a higher consumer layer into a lower provider layer are the normal dependency direction; type-only imports are erased and are permitted in either direction. The automated test treats the order in `LAYERS` as lowest to highest and rejects runtime edges whose source appears earlier than the target.
 
-### Rule 2 — kernel/ is the base
-`kernel/` may import type-only contracts from `types/`. It must not import runtime values from any other subdirectory.
+### Rule 2 — the contracts rank is the base
+The former in-core exception is gone. `kernel/` (including `container.ts`, which
+imported `WrongStackError` from `types/errors.js` — the relaxation recorded here
+on 2026-05-20) and `types/` both left core for `@wrongstack/contracts`, so the
+edge this rule used to relax no longer exists inside `packages/core/src`; the
+package boundary now enforces it. The rank ladder that replaces the in-core
+`kernel/` base, and the exact area membership of every rank, is
+[`architecture/core-layers.json`](../architecture/core-layers.json): contracts →
+primitives → services → agent → features → composition. The gate is
+`bun run check:core-layers`, documented in
+[`architecture/README.md`](../architecture/README.md).
 
-**Current reality** (as of 2026-05-20):
-- `kernel/container.ts` → imports `WrongStackError` from `../types/errors.js` — **runtime import** (violates Rule 2)
-- `kernel/events.ts` → type-only imports from `../core/context.js` and `../types/` — **compliant**
-- `kernel/tokens.ts` → type-only imports from `../types/` — **compliant**
+### Rule 3 — core/ (agent loop) may not reach into execution or storage
+`core/agent.ts` and `core/context.ts` must not import runtime values from
+`execution/` or `storage/`. They may import from `@wrongstack/contracts`
+(`kernel/` + `types/` now live there), `utils/`, `vcs/`, `performance/`,
+`infrastructure/`, `models/`, `security/`, `registry/`, `plugin/`, `extension/`,
+`hooks/`, `observability/`, and `skills/`. `coordination/` is no longer an
+in-core target — it is `@wrongstack/coordination`, reached only through the
+`AGENT_COORDINATION` token.
 
-The test will flag `kernel/container.ts`'s runtime import of `WrongStackError` as a violation. Given `WrongStackError` is the framework's base error type used everywhere, the correct fix is **not** to move it into `kernel/` (that would create a circular dependency for other subdirectories), but to accept that `container.ts`'s import is an intentional exception at the framework level. The rule is relaxed below.
-
-**Relaxed Rule 2**: `kernel/` may import `WrongStackError` (and only `WrongStackError`) from `types/` as a runtime dependency. All other imports from higher layers must be type-only.
-
-### Rule 3 — core/ (agent loop) may not reach into execution/storage/coordination
-`core/agent.ts` and `core/context.ts` must not import runtime values from `execution/`, `storage/`, or `coordination/`. They may import from `kernel/`, `types/`, `infrastructure/`, `models/`, `security/`, `registry/`, `plugin/`, `extension/`, `observability/`, `sdd/`, and `skills/`.
-
-### Rule 4 — observability/ may not reach into execution/storage/coordination
-`observability/` may import from `kernel/` (types), `types/`, and `infrastructure/`. It must not import runtime values from `core/`, `execution/`, `storage/`, or `coordination/`.
+### Rule 4 — observability/ may not reach into core/execution/storage
+`observability/` may import from `@wrongstack/contracts` (types), `utils/`, and
+`infrastructure/`. It must not import runtime values from `core/`, `execution/`,
+or `storage/`.
 
 ### Rule 5 — security/ is a leaf at layer 3
-The specialized check forbids runtime imports from `execution/`, `storage/`,
-and `coordination/`. It does not apply the general upward-edge check to every
-other target; type-only imports remain permitted.
+The specialized check forbids runtime imports from `execution/` and `storage/`.
+It does not apply the general upward-edge check to every other target; type-only
+imports remain permitted.
 
 ### Rule 6 — registries are consumers, not providers
-`registry/` may import from `kernel/`, `types/`, `security/`, `infrastructure/`, and `models/`. It must not import from `execution/`, `storage/`, or `coordination/`.
+`registry/` may import from `@wrongstack/contracts`, `utils/`, `security/`,
+`infrastructure/`, and `models/`. It must not import from `execution/` or
+`storage/`.
 
 ### Rule 7 — infrastructure/ is a thin integration layer
-`infrastructure/` must not import runtime values from `core/`, `models/`, `security/`, `registry/`, `execution/`, `storage/`, `coordination/`, `plugin/`, `extension/`, `observability/`, `sdd/`, or `skills/`. It may import from `kernel/` and `types/`.
+`infrastructure/` must not import runtime values from `core/`, `models/`,
+`security/`, `registry/`, `execution/`, `storage/`, `plugin/`, `extension/`,
+`observability/`, or `skills/`. It may import from `@wrongstack/contracts` and
+`utils/`.
 
-### Rule 8 — models/ must not reach execution/storage/coordination
-`models/` (ModelsRegistry, ModelSelector, ModeStore) must not import runtime values from `execution/`, `storage/`, or `coordination/`.
+### Rule 8 — models/ must not reach execution or storage
+`models/` (ModelsRegistry, ModelSelector, ModeStore) must not import runtime
+values from `execution/` or `storage/`.
 
-### Rule 9 — extension/ must not reach execution/storage/coordination
-`extension/` (ExtensionRegistry) must not import runtime values from `execution/`, `storage/`, or `coordination/`.
+### Rule 9 — extension/ must not reach execution or storage
+`extension/` (ExtensionRegistry) must not import runtime values from
+`execution/` or `storage/`.
 
 ---
 
 ## Layer Diagram
 
+Current ranks inside `packages/core/src` (authoritative membership and per-file
+edge baseline: [`architecture/core-layers.json`](../architecture/core-layers.json)):
+
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  LAYER 7  High-level / UI-facing                                         │
-│  observability/  sdd/  skills/  plugin/  extension/                         │
-│         ↑          ↑         ↑        ↑          ↑                          │
-│         │          │         │        │          │                          │
-│  ┌──────┴──────────┴─────────┴────────┴──────────┴──────────┐              │
-│  │  LAYER 6  Coordination                                       │              │
-│  │  coordination/                                                │              │
-│  │         ↑                                                     │              │
-│  │         │                                                     │              │
-│  │  ┌──────┴────────────────────────────────────────────┐     │              │
-│  │  │  LAYER 5  Storage                                     │     │              │
-│  │  │  storage/                                               │     │              │
-│  │  │         ↑                                               │     │              │
-│  │  │         │                                               │     │              │
-│  │  │  ┌──────┴────────────────────────────────────────┐   │     │              │
-│  │  │  │  LAYER 4  Execution                             │   │     │              │
-│  │  │  │  execution/  (ToolExecutor lives here)          │   │     │              │
-│  │  │  │         ↑                                       │   │     │              │
-│  │  │  │         │                                       │   │     │              │
-│  │  │  │  ┌──────┴──────────────────────────────────┐   │   │     │              │
-│  │  │  │  │  LAYER 3  Domain                          │   │   │     │              │
-│  │  │  │  │  core/  models/  security/  registry/      │   │   │     │              │
-│  │  │  │  │         ↑                                   │   │   │     │              │
-│  │  │  │  │         │                                   │   │   │     │              │
-│  │  │  │  │  ┌──────┴──────────────────────────────┐   │   │   │     │              │
-│  │  │  │  │  │  LAYER 2  Infrastructure             │   │   │   │     │              │
-│  │  │  │  │  │  infrastructure/                      │   │   │   │     │              │
-│  │  │  │  │  │         ↑                             │   │   │   │     │              │
-│  │  │  │  │  │         │                             │   │   │   │     │              │
-│  │  │  │  │  │  ┌──────┴──────────────────────┐     │   │   │     │              │
-│  │  │  │  │  │  │  LAYER 1  Primitives          │     │   │   │     │              │
-│  │  │  │  │  │  │  kernel/  types/              │     │   │   │     │              │
-│  └──│──│──│──│──│──└──────────────────────────────┘     │   │   │     │              │
-│     │  │  │  │  └───────────────────────────────────────┘   │   │              │
-│     │  │  │  └───────────────────────────────────────────────┘   │              │
-│     │  │  └──────────────────────────────────────────────────────┘              │
-│     │  └───────────────────────────────────────────────────────────────────┘              │
-│     └──────────────────────────────────────────────────────────────────────────────────┘              │
-│                                                                                             │
-│  VERTICAL ORDER = low → high layer number. Allowed runtime dependencies point downward.   │
-└─────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  composition   <root>   index.ts · boot.ts · public-*.ts   (wiring/barrels)   │
+│                                   ↑                                          │
+│  features      design/                                                       │
+│                                   ↑                                          │
+│  agent         core/ · execution/ · plugin/                                  │
+│                                   ↑                                          │
+│  services      brain · security · sandbox · registry · hooks · notifications  │
+│                extension · observability · infrastructure · tasking ·        │
+│                prompts · typesafe · models · quota · storage ·               │
+│                session-catalog · replay · skills · statusline · wiring       │
+│                                   ↑                                          │
+│  primitives    utils/ · vcs/ · performance/                                  │
+│                                   ↑                                          │
+│  contracts     @wrongstack/contracts  (packages/contracts)                    │
+│                kernel/ + types/ — a package now, below every area            │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+Extracted to packages above core (core must not import them):
+  coordination · sdd · chronicle · goal · worktree · tools · builtin-plugins
 ```
 
-**Rule of thumb**: dependency arrows point from a higher consumer toward a lower provider. A lower layer must not import a higher layer's runtime values.
+**Rule of thumb**: dependency arrows point from a higher consumer toward a lower
+provider. A lower rank must not import a higher rank's runtime values. The gate
+is `bun run check:core-layers`; the baseline is empty, so any new upward edge
+fails.
 
 ---
 
@@ -149,14 +159,14 @@ The following rules are enforced automatically by `packages/core/tests/architect
 | Rule | What it checks |
 |---|---|
 | Cross-package | `@wrongstack/core` must not import higher-level packages (`@wrongstack/cli`, etc.) |
-| kernel/ | Only imports `WrongStackError` as runtime value from `types/` |
-| core/ | No runtime imports from `execution/`, `storage/`, or `coordination/` |
-| observability/ | No runtime imports from `core/`, `execution/`, `storage/`, or `coordination/` |
-| security/ | No runtime imports from `execution/`, `storage/`, or `coordination/` |
-| registry/ | No runtime imports from `execution/`, `storage/`, or `coordination/` |
-| infrastructure/ | No runtime imports from domain/execution/storage/coordination layers |
-| models/ | No runtime imports from `execution/`, `storage/`, or `coordination/` |
-| extension/ | No runtime imports from `execution/`, `storage/`, or `coordination/` |
+| contracts (below core) | `kernel/` and `types/` are `@wrongstack/contracts`; that package boundary replaces the old in-core `kernel/` rule, which this suite no longer models |
+| core/ | No runtime imports from `execution/` or `storage/` |
+| observability/ | No runtime imports from `core/`, `execution/`, or `storage/` |
+| security/ | No runtime imports from `execution/` or `storage/` |
+| registry/ | No runtime imports from `execution/` or `storage/` |
+| infrastructure/ | No runtime imports from domain/execution/storage layers |
+| models/ | No runtime imports from `execution/` or `storage/` |
+| extension/ | No runtime imports from `execution/` or `storage/` |
 | Bidirectional | No two non-barrel layers have mutual runtime dependencies |
 | Cycle | No directed cycle exists in the runtime dependency graph |
 
@@ -184,22 +194,26 @@ Until then, the layering rules keep the internal structure clean without the ove
 
 ## Consistency with Package Exports
 
-The `package.json` exports map already reflects the intended layering:
+The `package.json` exports map mirrors the current layering. Representative
+subpaths (48 declared at the time of writing — use the manifest, not this list):
 
 ```json
 {
-  "./kernel":         { "types": "./dist/kernel/index.d.ts" },
-  "./types":          { "types": "./dist/types/index.d.ts" },
-  "./infrastructure": { "types": "./dist/infrastructure/index.d.ts" },
-  "./storage":        { "types": "./dist/storage/index.d.ts" },
-  "./security":       { "types": "./dist/security/index.d.ts" },
-  "./coordination":   { "types": "./dist/coordination/index.d.ts" },
-  "./tasking":        { "types": "./dist/tasking/index.d.ts" },
-  ...
+  "./agent":           "./dist/core/index.js",
+  "./execution":       "./dist/execution/index.js",
+  "./infrastructure":  "./dist/infrastructure/index.js",
+  "./storage":         "./dist/storage/index.js",
+  "./security":        "./dist/security/index.js",
+  "./session-catalog": "./dist/session-catalog/index.js",
+  "./skills":          "./dist/skills/index.js",
+  "./tasking":         "./dist/tasking/index.js"
 }
 ```
 
-Public subpaths map to source owners or focused facades; `./tasking` is outside
-the historical `LAYERS` list. Use the current Core manifest's declared exports.
-The removed `./defaults` facade is not an import target. Architecture checks,
-rather than the exports map alone, enforce internal runtime edges.
+`./kernel`, `./types`, and `./coordination` were removed when those areas left
+core (`@wrongstack/contracts`, `@wrongstack/coordination`), so the old
+specifiers no longer resolve. Public subpaths map to source owners or focused
+facades; `./tasking` is outside the historical `LAYERS` list. Use the current
+Core manifest's declared exports. The removed `./defaults` facade is not an
+import target. Architecture checks, rather than the exports map alone, enforce
+internal runtime edges.

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "1.7.0",
+  "packageVersion": "1.7.1",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -1106,7 +1106,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 112,
-      "sourceLines": 31398
+      "sourceLines": 31403
     },
     {
       "directory": "extension",
@@ -1232,7 +1232,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 129,
-      "sourceLines": 29820
+      "sourceLines": 29845
     },
     {
       "directory": "tasking",

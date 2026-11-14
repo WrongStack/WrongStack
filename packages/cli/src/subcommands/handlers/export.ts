@@ -27,8 +27,14 @@ export const exportCmd: SubcommandHandler = async (args, deps) => {
         return 1;
       }
       format = v;
-    } else if (a === '--out' || a === '-o') output = args[++i];
-    else if (a === '--no-tools') includeTools = false;
+    } else if (a === '--out' || a === '-o') {
+      const v = args[++i];
+      if (!v || v.startsWith('-')) {
+        deps.renderer.writeError('Missing file path for --out.');
+        return 1;
+      }
+      output = v;
+    } else if (a === '--no-tools') includeTools = false;
     else if (a === '--no-diagnostics') includeDiagnostics = false;
     else if (a.startsWith('-')) {
       deps.renderer.writeError(`Unknown flag: ${a}`);

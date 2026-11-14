@@ -66,6 +66,8 @@ export function createFallbackProfileManageTool(
     async execute(input) {
       const config = opts.getConfig();
       const profiles = { ...profileList(config) };
+      const isForbiddenKey = (k: string) =>
+        k === '__proto__' || k === 'constructor' || k === 'prototype';
 
       if (input.action === 'list') {
         const names = Object.keys(profiles);
@@ -87,6 +89,12 @@ export function createFallbackProfileManageTool(
         if (!input.name) {
           throw new ToolValidationError({
             message: 'Provide "name" for the profile (e.g. "fast").',
+            field: 'name',
+          });
+        }
+        if (isForbiddenKey(input.name)) {
+          throw new ToolValidationError({
+            message: `Invalid profile name "${input.name}".`,
             field: 'name',
           });
         }
@@ -128,7 +136,7 @@ export function createFallbackProfileManageTool(
             field: 'name',
           });
         }
-        if (!(input.name in profiles)) {
+        if (isForbiddenKey(input.name) || !Object.hasOwn(profiles, input.name)) {
           throw new ToolValidationError({
             message: `Profile "${input.name}" not found.`,
             field: 'name',

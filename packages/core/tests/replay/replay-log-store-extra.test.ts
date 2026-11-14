@@ -299,4 +299,32 @@ describe('ReplayLogStore — chunked scan across a 64KiB UTF-8 boundary', () => 
       await fs.rm(dir, { recursive: true, force: true });
     }
   });
+
+  it('does not mutate in-memory cache or diskCount when compaction writeAll fails (F211)', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'replay-extra-f211-'));
+    try {
+      const store = new ReplayLogStore({ dir, maxEntries: 2 });
+      const mk = (id: number) => ({
+        request: { model: 'm1', messages: [{ role: 'user', content: `q${id}` }] } as never,
+        response: { content: `a${id}` } as never,
+      });
+      await store.record({ sessionId: 'sess1', ...mk(1) });
+      await store.record({ sessionId: 'sess1', ...mk(2) });
+
+      const origWriteAll = (store as unknown as { writeAll: (...a: unknown[]) => Promise<void> })
+        .writeAll;
+      (store as unknown as { writeAll: (...a: unknown[]) => Promise<void> }).writeAll =
+        async () => {
+          throw new Error('ENOSPC');
+        };
+      await expect(store.record({ sessionId: 'sess1', ...mk(3) })).rejects.toThrow('ENOSPC');
+      (store as unknown as { writeAll: (...a: unknown[]) => Promise<void> }).writeAll =
+        origWriteAll;
+
+      expect(await store.lookup('sess1', mk(1).request)).not.toBeNull();
+      expect(await store.lookup('sess1', mk(3).request)).toBeNull();
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
 });

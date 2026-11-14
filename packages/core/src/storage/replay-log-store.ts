@@ -184,7 +184,7 @@ export class ReplayLogStore {
           // most once per `maxEntries` writes (default 1000), not per write.
           const all = await this.readAll(input.sessionId);
           all.push(entry);
-          const keep = all.slice(-this.maxEntries);
+          const keep = this.maxEntries <= 0 ? [] : all.slice(-this.maxEntries);
           const refreshed = new Map<string, ReplayEntryLocation>();
           let offset = 0;
           for (const e of keep) {
@@ -192,11 +192,11 @@ export class ReplayLogStore {
             refreshed.set(e.hash, { entry: e, offset, length: Buffer.byteLength(line, 'utf8') });
             offset += Buffer.byteLength(line, 'utf8');
           }
+          await this.writeAll(input.sessionId, keep, 'compact');
           this.cache.set(input.sessionId, refreshed);
           this.diskCount.set(input.sessionId, keep.length);
           this.diskSize.set(input.sessionId, offset);
           this.diskEndsWithNewline.set(input.sessionId, true);
-          await this.writeAll(input.sessionId, keep, 'compact');
         });
       });
       return hash;
