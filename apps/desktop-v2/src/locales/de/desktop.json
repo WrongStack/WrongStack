@@ -9788,5 +9788,26 @@
     "match": "Entwurfsrevisionen stimmen mit dem gespeicherten Entwurf überein.",
     "changed": "Entwurfsrevisionen unterscheiden sich: Speichern läuft oder ein anderes Fenster hat sie geändert.",
     "pending": "Vergleich der Entwurfsrevisionen ausstehend."
+  },
+  "updates": {
+    "available": "WrongStack Desktop {{version}} ist verfügbar",
+    "keepsRunning": "Ihre Unterhaltungen laufen weiter, während die App neu startet.",
+    "install": "Installieren und neu starten",
+    "installing": "Wird installiert…",
+    "download": "Herunterladen",
+    "notes": "Neuerungen",
+    "later": "Später",
+    "failed": "Das Update konnte nicht installiert werden: {{error}}",
+    "settings": {
+      "title": "Updates",
+      "body": "Sucht beim Start und alle sechs Stunden nach einer neuen Version. Unter Windows und macOS wird sie direkt installiert, unter Linux wird auf den Download verwiesen.",
+      "label": "Update-Prüfung",
+      "on": "Nach Updates suchen",
+      "off": "Aus",
+      "checkNow": "Jetzt prüfen",
+      "checking": "Wird geprüft…",
+      "found": "Version {{version}} ist verfügbar.",
+      "upToDate": "Sie haben die neueste Version ({{version}})."
+    }
   }
 }

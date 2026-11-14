@@ -17,6 +17,7 @@ const MAX_API_RESPONSE_BYTES: u64 = 2 * 1024 * 1024;
 
 impl EngineHttp {
     pub fn new(port: u16, token: &str) -> Result<Self> {
+        crate::ensure_tls_provider();
         let client = Client::builder()
             .no_proxy()
             .redirect(reqwest::redirect::Policy::none())

@@ -9,6 +9,7 @@ import { ConversationAppearanceSettings } from './ConversationAppearanceSettings
 import { useDesktopText } from './desktop-i18n';
 import { SurfaceLanguageSync } from './SurfaceLanguageSync';
 import { displayLanguage } from './surface-i18n';
+import { UpdateSettings } from './UpdateNotice';
 import type { DesktopController } from './useDesktop';
 import { useProfileEngine } from './useEngine';
 
@@ -195,6 +196,7 @@ export function AppearanceSettings({ vm }: { vm: DesktopController }) {
         </div>
       </div>
       <DisplayLanguage reportError={vm.reportError} />
+      <UpdateSettings />
       <div className="settings-host">
         <span className={`status-dot ${vm.connected ? 'running' : 'stopped'}`} />
         <span>{t(vm.connected ? 'appearance.host.connected' : 'appearance.host.connecting')}</span>

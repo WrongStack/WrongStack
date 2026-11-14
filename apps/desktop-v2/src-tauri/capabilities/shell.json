@@ -16,6 +16,8 @@
     "allow-speech-status",
     "allow-speech-start",
     "allow-speech-stop",
-    "allow-open-project-window"
+    "allow-open-project-window",
+    "allow-update-check",
+    "allow-update-install"
   ]
 }

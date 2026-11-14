@@ -94,7 +94,7 @@ fn remember_geometry(window: &tauri::Window) {
     };
     map.insert(key, next);
 }
-fn persist_geometry(app: &tauri::AppHandle) {
+pub(crate) fn persist_geometry(app: &tauri::AppHandle) {
     let Some(state) = app.try_state::<Desktop>() else {
         return;
     };
@@ -105,7 +105,7 @@ fn persist_geometry(app: &tauri::AppHandle) {
         let _ = window_geometry::save(&dir, &map);
     }
 }
-fn trusted(window: &WebviewWindow) -> Result<()> {
+pub(crate) fn trusted(window: &WebviewWindow) -> Result<()> {
     if window.label() == "main" || window.label().starts_with("project-") {
         Ok(())
     } else {
@@ -532,6 +532,8 @@ fn terminal_ack(
 }
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(crate::update::UpdateState::default())
         .setup(|app| {
             let development = std::env::var_os("WRONGSTACK_DESKTOP_BUN").is_some()
                 && std::env::var_os("WRONGSTACK_DESKTOP_ENTRY").is_some();
@@ -638,7 +640,9 @@ pub fn run() {
             terminal_ack,
             speech_status,
             speech_start,
-            speech_stop
+            speech_stop,
+            crate::update::update_check,
+            crate::update::update_install
         ])
         .run(tauri::generate_context!())
         .expect("WrongStack desktop runtime");

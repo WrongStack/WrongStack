@@ -8,6 +8,7 @@ import type {
   RequirementDraftStorage,
 } from './requirement-draft';
 import type { RequirementRecordDraft } from './requirement-record-draft';
+import type { UpdateStatus } from './update-notice';
 
 export const native = isTauri();
 export const request = <T>(method: string, params: Record<string, unknown> = {}): Promise<T> => {
@@ -106,6 +107,11 @@ export const openProjectWindow = (id: string): Promise<void> =>
 export const openPreview = (url: string, devtools = false): Promise<void> =>
   invoke('open_preview', { url, devtools });
 export const openExternal = (url: string): Promise<void> => invoke('open_external', { url });
+/** The newest release this build could move to; the native side answers from a cache. */
+export const checkForUpdate = (force = false): Promise<UpdateStatus> =>
+  invoke<UpdateStatus>('update_check', { force });
+/** Installs the update the last check found and restarts the application. */
+export const installUpdate = (): Promise<void> => invoke('update_install');
 export function streamTerminal(
   id: string,
   onData: (data: Uint8Array, acknowledge: () => void) => void,

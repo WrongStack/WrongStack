@@ -13,6 +13,7 @@ import { Sidebar } from './Sidebar';
 import { SurfaceLanguageSync } from './SurfaceLanguageSync';
 import { useShownSettingsSection } from './settings-section-request';
 import { cachedLanguage, surfaceI18n } from './surface-i18n';
+import { UpdateNotice } from './UpdateNotice';
 import { useDesktop } from './useDesktop';
 import { WorkspaceDialogs } from './WorkspaceDialogs';
 
@@ -143,6 +144,7 @@ export function App() {
             </button>
           </div>
         )}
+        <UpdateNotice />
         {!native && (
           <div className="preview-banner">
             <Radio size={15} />{' '}

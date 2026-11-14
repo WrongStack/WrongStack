@@ -26,6 +26,8 @@ fn main() {
             "speech_status",
             "speech_start",
             "speech_stop",
+            "update_check",
+            "update_install",
         ]),
     ))
     .expect("Tauri build configuration");

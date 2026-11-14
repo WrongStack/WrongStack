@@ -9788,5 +9788,26 @@
     "match": "Taslak sürümleri bu konuşmanın kayıtlı taslağıyla eşleşiyor.",
     "changed": "Taslak sürümleri farklı: kayıt bekliyor veya başka pencere değiştirmiş olabilir.",
     "pending": "Taslak sürümü karşılaştırması bekleniyor."
+  },
+  "updates": {
+    "available": "WrongStack Desktop {{version}} kullanılabilir",
+    "keepsRunning": "Uygulama yeniden başlarken konuşmalarınız çalışmaya devam eder.",
+    "install": "Yükle ve yeniden başlat",
+    "installing": "Yükleniyor…",
+    "download": "İndir",
+    "notes": "Yenilikler",
+    "later": "Sonra",
+    "failed": "Güncelleme yüklenemedi: {{error}}",
+    "settings": {
+      "title": "Güncellemeler",
+      "body": "Açılışta ve altı saatte bir yeni sürüm olup olmadığına bakar. Windows ve macOS’ta yerinde yükler; Linux’ta indirme bağlantısı verir.",
+      "label": "Güncelleme denetimi",
+      "on": "Güncellemeleri denetle",
+      "off": "Kapalı",
+      "checkNow": "Şimdi denetle",
+      "checking": "Denetleniyor…",
+      "found": "{{version}} sürümü kullanılabilir.",
+      "upToDate": "En son sürümü kullanıyorsunuz ({{version}})."
+    }
   }
 }

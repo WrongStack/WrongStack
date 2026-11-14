@@ -7,7 +7,7 @@ publish = false
 
 [features]
 default = ["desktop"]
-desktop = ["dep:tauri", "dep:rfd", "dep:tauri-build", "dep:windows"]
+desktop = ["dep:tauri", "dep:rfd", "dep:tauri-build", "dep:windows", "dep:tauri-plugin-updater", "dep:rustls"]
 
 [build-dependencies]
 tauri-build = { version = "=2.7.4", optional = true , features = [] }
@@ -15,6 +15,12 @@ tauri-build = { version = "=2.7.4", optional = true , features = [] }
 [dependencies]
 tauri = { version = "=2.12.5", optional = true, features = ["devtools"] }
 rfd = { version = "=0.17.2", optional = true }
+# Desktop updates: checks and installs signed releases (Windows NSIS, macOS .app). Linux deb/rpm
+# cannot self-update; there the update notice links to the release page.
+tauri-plugin-updater = { version = "=2.14.1", optional = true }
+# The updater's TLS stack, for the release check made without the updater (Linux, no key):
+# reqwest is built without a crypto provider, so `update.rs` installs ring's.
+rustls = { version = "=0.23.46", optional = true, default-features = false, features = ["ring"] }
 portable-pty = "=0.9.0"
 rusqlite = { version = "=0.41.0", features = ["bundled"] }
 serde = { version = "=1.0.229", features = ["derive"] }

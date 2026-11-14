@@ -9788,5 +9788,26 @@
     "match": "Draft revisions match this conversation's saved draft.",
     "changed": "Draft revisions differ: a save may be pending or another window changed them.",
     "pending": "Draft revision comparison pending."
+  },
+  "updates": {
+    "available": "WrongStack Desktop {{version}} is available",
+    "keepsRunning": "Your conversations keep running while the app restarts.",
+    "install": "Install & restart",
+    "installing": "Installing…",
+    "download": "Download",
+    "notes": "What's new",
+    "later": "Later",
+    "failed": "The update could not be installed: {{error}}",
+    "settings": {
+      "title": "Updates",
+      "body": "Checks for a new release at launch and every six hours. On Windows and macOS it installs in place; on Linux it links to the download.",
+      "label": "Update checks",
+      "on": "Check for updates",
+      "off": "Off",
+      "checkNow": "Check now",
+      "checking": "Checking…",
+      "found": "Version {{version}} is available.",
+      "upToDate": "You have the latest version ({{version}})."
+    }
   }
 }

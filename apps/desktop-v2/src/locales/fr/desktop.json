@@ -9788,5 +9788,26 @@
     "match": "Les révisions correspondent au brouillon enregistré de cette conversation.",
     "changed": "Les révisions diffèrent : enregistrement en cours ou modification dans une autre fenêtre.",
     "pending": "Comparaison des révisions en attente."
+  },
+  "updates": {
+    "available": "WrongStack Desktop {{version}} est disponible",
+    "keepsRunning": "Vos conversations continuent pendant le redémarrage de l'application.",
+    "install": "Installer et redémarrer",
+    "installing": "Installation…",
+    "download": "Télécharger",
+    "notes": "Nouveautés",
+    "later": "Plus tard",
+    "failed": "La mise à jour n'a pas pu être installée : {{error}}",
+    "settings": {
+      "title": "Mises à jour",
+      "body": "Recherche une nouvelle version au lancement et toutes les six heures. Sous Windows et macOS, elle s’installe sur place ; sous Linux, un lien de téléchargement est proposé.",
+      "label": "Recherche de mises à jour",
+      "on": "Rechercher les mises à jour",
+      "off": "Désactivée",
+      "checkNow": "Vérifier maintenant",
+      "checking": "Vérification…",
+      "found": "La version {{version}} est disponible.",
+      "upToDate": "Vous avez la dernière version ({{version}})."
+    }
   }
 }

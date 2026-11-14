@@ -10,6 +10,8 @@ pub mod sessions;
 #[cfg(feature = "desktop")]
 mod speech;
 pub mod transcript;
+#[cfg(feature = "desktop")]
+mod update;
 pub mod window_geometry;
 #[cfg(windows)]
 mod windows_process;
@@ -17,6 +19,14 @@ mod windows_process;
 pub type Result<T> = std::result::Result<T, String>;
 pub fn err(e: impl std::fmt::Display) -> String {
     e.to_string()
+}
+/// With the desktop feature, the updater builds reqwest with rustls but no crypto provider, and
+/// building any client without one panics. Every client is built after this.
+pub fn ensure_tls_provider() {
+    #[cfg(feature = "desktop")]
+    if rustls::crypto::CryptoProvider::get_default().is_none() {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+    }
 }
 pub fn now() -> i64 {
     std::time::SystemTime::now()

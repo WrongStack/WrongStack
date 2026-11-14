@@ -29,5 +29,16 @@
   "bundle": {
     "active": false,
     "icon": ["icons/icon.ico", "icons/icon.png"]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "",
+      "endpoints": [
+        "https://github.com/WrongStack/WrongStack/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }
