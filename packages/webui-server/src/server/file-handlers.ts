@@ -21,7 +21,15 @@ import {
   validatedPayload,
   withSessionEcho,
 } from './file-handler-helpers.js';
-import { isHiddenEntry, rankFiles, SKIP_DIRS } from './file-picker.js';
+import {
+  FILES_LIST_ENTRY_BUDGET,
+  FILES_LIST_MATCH_BUDGET,
+  fileMatchesQuery,
+  isHiddenEntry,
+  normalizeFileQuery,
+  rankFiles,
+  SKIP_DIRS,
+} from './file-picker.js';
 import { isPathInside, resolveWorkingDirInsideProject } from './path-containment.js';
 import { clampLimit } from './ws-payload-validation.js';
 import { errMessage, messageSessionId, send } from './ws-utils.js';
@@ -629,6 +637,15 @@ export async function handleFilesList(
 
   const results: string[] = [];
   const isGitignored = await loadGitignoreMatcher(projectRoot);
+  // Only files the query can match are collected. The walk used to keep the first 600 files it
+  // met and rank those, so on any project larger than that a query only searched an arbitrary
+  // corner of the tree: `@SessionComposer` found nothing in this repository even though the
+  // file exists. Matching while walking spends the budget on candidates; the entry budget
+  // still bounds the walk itself on a huge tree.
+  const query = normalizeFileQuery(payload.query ?? '');
+  const maxResults = query ? FILES_LIST_MATCH_BUDGET : 600;
+  let visited = 0;
+  const exhausted = () => results.length >= maxResults || visited >= FILES_LIST_ENTRY_BUDGET;
 
   async function walk(
     dir: string,
@@ -636,7 +653,7 @@ export async function handleFilesList(
     depth: number,
     ancestors: ReadonlySet<string>,
   ): Promise<void> {
-    if (depth > 8 || results.length >= 600) return;
+    if (depth > 8 || exhausted()) return;
     let entries: import('node:fs').Dirent[] = [];
     try {
       entries = await fs.readdir(dir, { withFileTypes: true });
@@ -644,7 +661,8 @@ export async function handleFilesList(
       return;
     }
     for (const e of entries) {
-      if (results.length >= 600) return;
+      if (exhausted()) return;
+      visited++;
       if (isHiddenEntry(e.name)) continue;
       const childRel = rel ? `${rel}/${e.name}` : e.name;
       const childAbs = path.join(dir, e.name);
@@ -672,7 +690,7 @@ export async function handleFilesList(
         const nextAncestors = new Set(ancestors);
         nextAncestors.add(key);
         await walk(realDir, childRel, depth + 1, nextAncestors);
-      } else if (isFile) {
+      } else if (isFile && fileMatchesQuery(childPath, query)) {
         results.push(childPath);
       }
     }

@@ -297,6 +297,8 @@ const plugin: Plugin = {
         // Register with the host's Notifier so other subsystems can send
         // notifications to the "telegram" channel without knowing Telegram.
         api.notifier?.registerChannel(notifyChannel);
+        const channelName = notifyChannel.name;
+        cleanups.push(() => api.notifier?.unregisterChannel(channelName));
       }
 
       // ---- Notification event handlers ----

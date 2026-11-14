@@ -309,10 +309,14 @@
   box-shadow: var(--shadow);
 }
 .workspace-backdrop {
+  display: none;
   position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: 19;
   background: var(--overlay);
+}
+.vibe-shell:not([data-view="studio"]) .workspace-backdrop {
+  display: block;
 }
 .vibe-shell[data-view="focus"] .composer-area {
   max-width: 840px;
@@ -630,8 +634,15 @@
     display: none;
   }
   .cozy-shortcuts {
-    gap: 6px;
-    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, auto)) auto;
+    gap: 4px;
+    padding: 8px 12px;
+  }
+  .cozy-shortcuts > :where(button:not(.icon-button)) {
+    justify-content: center;
+    gap: 5px;
+    white-space: nowrap;
   }
   .cozy-shortcuts > span {
     display: none;
@@ -673,11 +684,42 @@
   }
 }
 @media (max-width: 370px) {
+  .cozy-shortcuts > button > svg {
+    display: none;
+  }
+  .cozy-shortcuts > .icon-button > svg {
+    display: block;
+  }
   .vibe-shell:not([data-view="studio"]) .header-project > span:not(.cozy-brand) {
     max-width: 60px;
   }
   .vibe-shell:not([data-view="studio"]) .header-actions > .connection-chip {
     display: none;
+  }
+}
+@media (max-width: 760px) and (max-height: 700px) {
+  .vibe-shell:not([data-view="studio"]) .launchpad {
+    padding: 8px 0;
+  }
+  .cozy-greeting {
+    padding: 0;
+  }
+  .cozy-greeting .vibe-buddy {
+    width: 56px;
+    height: 51px;
+  }
+  .cozy-hello {
+    display: none;
+  }
+  .welcome .cozy-greeting h1 {
+    font-size: 26px;
+    margin: 6px 0;
+  }
+  .cozy-greeting > p {
+    line-height: 1.6;
+  }
+  .inspiration-toggle {
+    margin: 6px 0;
   }
 }
 @media (prefers-reduced-motion: no-preference) {

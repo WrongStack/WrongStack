@@ -12,6 +12,7 @@ import { runEngineText } from './engine-command-run';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { Modal } from './Modal';
+import './surfaces.css';
 
 interface PluginPanelSummary {
   qualifiedId: string;
@@ -317,33 +318,41 @@ export function DesktopSessionBranchAndPlugins({
 
   return (
     <>
+      {/* The pill is a shared WebUI component: its colours come from the surface tokens, which
+          apply only inside `.ws-surfaces`. It sits in the status bar at the bottom of the
+          window, so its menu opens upwards. */}
       {tree && (
-        <SessionBranchPill
-          tree={tree}
-          busy={treeBusy || state.running}
-          onRefresh={() => void refreshTree()}
-          onCreateBranch={(name) => runTreeMutation(`branch ${quoteTreeArg(name)}`)}
-          onSwitchBranch={(branchId, opts) =>
-            runTreeMutation(
-              `switch ${quoteTreeArg(branchId)}${opts?.keepFiles ? ' --keep-files' : ''}`,
-            )
-          }
-          onFoldBranch={(sourceBranchId, opts) =>
-            runTreeMutation(
-              `fold ${quoteTreeArg(sourceBranchId)}${opts?.note ? ` --note ${quoteTreeArg(opts.note)}` : ''}${opts?.keepOpen ? ' --keep-open' : ''}`,
-            )
-          }
-        />
+        <span className="ws-surfaces session-branch-slot">
+          <SessionBranchPill
+            placement="up"
+            tree={tree}
+            busy={treeBusy || state.running}
+            onRefresh={() => void refreshTree()}
+            onCreateBranch={(name) => runTreeMutation(`branch ${quoteTreeArg(name)}`)}
+            onSwitchBranch={(branchId, opts) =>
+              runTreeMutation(
+                `switch ${quoteTreeArg(branchId)}${opts?.keepFiles ? ' --keep-files' : ''}`,
+              )
+            }
+            onFoldBranch={(sourceBranchId, opts) =>
+              runTreeMutation(
+                `fold ${quoteTreeArg(sourceBranchId)}${opts?.note ? ` --note ${quoteTreeArg(opts.note)}` : ''}${opts?.keepOpen ? ' --keep-open' : ''}`,
+              )
+            }
+          />
+        </span>
       )}
 
       {chips.length > 0 && (
-        <PluginStatusChipsBar
-          chips={chips}
-          onSelectChip={(chip) => {
-            const ownerPanel = panels.find((p) => p.owner === chip.owner);
-            openModalForPanel(ownerPanel?.qualifiedId);
-          }}
-        />
+        <span className="ws-surfaces session-branch-slot">
+          <PluginStatusChipsBar
+            chips={chips}
+            onSelectChip={(chip) => {
+              const ownerPanel = panels.find((p) => p.owner === chip.owner);
+              openModalForPanel(ownerPanel?.qualifiedId);
+            }}
+          />
+        </span>
       )}
 
       {panels.length > 0 && (

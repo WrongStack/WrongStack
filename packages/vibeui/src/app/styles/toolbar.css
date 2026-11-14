@@ -1,5 +1,6 @@
 .session-toolbar {
   display: flex;
+  flex-shrink: 0;
   justify-content: space-between;
   align-items: center;
   width: 100%;
@@ -18,13 +19,20 @@
   max-width: 55%;
 }
 
-.model-trigger > span:where(:nth-child(2)) {
+.model-trigger > .model-name {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.model-trigger > .acp-runtime-badge {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .model-symbol {
+  flex-shrink: 0;
   width: 21px;
   height: 21px;
   border-radius: var(--corner-sm);
@@ -194,7 +202,7 @@
 
 @media (max-width: 760px) {
   .session-toolbar {
-    padding: 0 34px 8px;
+    padding: 0 14px 8px;
   }
   .context-track {
     display: none;

@@ -1,4 +1,4 @@
-import type { RefObject } from 'react';
+import { type RefObject, useRef, useState } from 'react';
 import { AutoContinue } from './AutoContinue';
 import { autoContinueStep, sessionAutonomy } from './autonomy-model';
 import type { EngineState } from './engine-state';
@@ -33,10 +33,13 @@ export function TurnFollowUps({
   report: (notice: string, problem: string) => void;
   onContinue: (text: string) => void;
 }) {
+  const visibilityRoot = useRef<HTMLDivElement>(null);
+  const [reviewing, setReviewing] = useState<EngineState['nextSteps'] | null>(null);
+  const stepKey = state.nextSteps.map((item) => `${item.index}:${item.text}`).join('|');
   if (state.running || state.hydrating || state.inputs.length || state.approvals.length)
     return null;
   const step =
-    composerEmpty && !huntContinues
+    composerEmpty && !huntContinues && !sending && reviewing !== state.nextSteps
       ? autoContinueStep({
           ...sessionAutonomy(state.results['prefs.updated']),
           count: continued.current,
@@ -44,7 +47,12 @@ export function TurnFollowUps({
         })
       : null;
   return (
-    <>
+    <div
+      ref={visibilityRoot}
+      onPointerDownCapture={() => setReviewing(state.nextSteps)}
+      onFocusCapture={() => setReviewing(state.nextSteps)}
+      onKeyDownCapture={() => setReviewing(state.nextSteps)}
+    >
       {state.nextSteps.length > 0 && (
         <NextStepsPanel
           steps={state.nextSteps}
@@ -64,7 +72,8 @@ export function TurnFollowUps({
       )}
       {step && (
         <AutoContinue
-          stepKey={state.nextSteps.map((item) => `${item.index}:${item.text}`).join('|')}
+          stepKey={stepKey}
+          visibilityRoot={visibilityRoot}
           text={step.text}
           onSubmit={(text) => {
             continued.current += 1;
@@ -72,6 +81,6 @@ export function TurnFollowUps({
           }}
         />
       )}
-    </>
+    </div>
   );
 }

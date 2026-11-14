@@ -136,6 +136,10 @@ export function useTabSummaries(titles?: Map<string, string>): TabSummary[] {
 
 export function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  if (n >= 1_000) {
+    const k = (n / 1_000).toFixed(1);
+    // 999_950+ rounds to "1000.0": past the unit, so it renders as millions.
+    return Number(k) >= 1_000 ? `${(n / 1_000_000).toFixed(1)}M` : `${k}k`;
+  }
   return String(n);
 }

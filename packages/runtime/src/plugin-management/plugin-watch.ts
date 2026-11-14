@@ -89,6 +89,7 @@ function shouldIgnoreWatchFilename(filename: string | null | undefined): boolean
  */
 export class PluginDevWatchController {
   private readonly watches = new Map<string, ActivePluginWatch>();
+  private disposed = false;
 
   list(): string[] {
     return [...this.watches.keys()].sort();
@@ -116,6 +117,9 @@ export class PluginDevWatchController {
   }
 
   async watch(rawName: string, opts: PluginDevWatchOptions): Promise<string> {
+    if (this.disposed) {
+      return 'Plugin watcher has been disposed.';
+    }
     const name = rawName.trim();
     if (!name || /[/\\]|\.\.|\s/.test(name)) {
       return [
@@ -128,6 +132,9 @@ export class PluginDevWatchController {
     const userPluginsDir = join(globalRoot, 'plugins');
 
     const { candidates: userCandidates } = await discoverExternalPlugins([userPluginsDir]);
+    if (this.disposed) {
+      return 'Plugin watcher has been disposed.';
+    }
     const candidate = userCandidates.find((c) => c.name === name);
     if (!candidate) {
       if (opts.projectRoot) {
@@ -135,6 +142,9 @@ export class PluginDevWatchController {
         const { candidates: projectCandidates } = await discoverExternalPlugins([
           projectPluginsDir,
         ]);
+        if (this.disposed) {
+          return 'Plugin watcher has been disposed.';
+        }
         if (projectCandidates.some((c) => c.name === name)) {
           return [
             `Refused to watch project-local plugin "${name}".`,
@@ -238,6 +248,7 @@ export class PluginDevWatchController {
   }
 
   dispose(): void {
+    this.disposed = true;
     this.unwatch();
   }
 }

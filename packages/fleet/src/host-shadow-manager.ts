@@ -136,6 +136,7 @@ export class HostShadowManager {
   /** Live shadow agent id → owning conversation. */
   private readonly agentSessions = new Map<string, string>();
   private readonly shadowActivityOffHandles: Array<() => void> = [];
+  private disposed = false;
 
   constructor(private readonly ctx: HostShadowManagerContext) {}
 
@@ -219,10 +220,11 @@ export class HostShadowManager {
 
   exitShadowSpawn(sessionId?: string | undefined): void {
     const state = this.peek(sessionId);
-    if (state) state.autoStartSuppressions--;
+    if (state && state.autoStartSuppressions > 0) state.autoStartSuppressions--;
   }
 
   onShadowTaskCompleted(taskId: string, subagentId: string): void {
+    if (this.disposed) return;
     const sessionId = this.taskSessions.get(taskId) ?? this.agentSessions.get(subagentId);
     const state = this.peek(sessionId);
     state?.outstandingTaskIds.delete(taskId);
@@ -236,7 +238,7 @@ export class HostShadowManager {
   }
 
   armIfNeeded(): void {
-    if (this.shadowActivityOffHandles.length > 0) return;
+    if (this.disposed || this.shadowActivityOffHandles.length > 0) return;
 
     this.shadowActivityOffHandles.push(
       this.ctx.deps.events.on('agent.run.started', (e) => this.noteShadowWorkStarted(e.sessionId)),
@@ -375,6 +377,7 @@ export class HostShadowManager {
   }
 
   requestShadowPass(reason: string, sessionId?: string | undefined): void {
+    if (this.disposed) return;
     const id = this.resolve(sessionId);
     // Fired from event handlers, so nothing awaits it. `runHostShadowPass`
     // only swallows FleetSpawnBudgetError; the director also refuses a spawn
@@ -382,6 +385,7 @@ export class HostShadowManager {
     // fail. A reviewer that could not start is a missed review, not a reason
     // to raise an unhandled rejection in the host process.
     queueMicrotask(() => {
+      if (this.disposed) return;
       void this.runShadowPass(reason, id).catch((error: unknown) =>
         logShadowFailure('shadow_pass_failed', id, error),
       );
@@ -389,6 +393,7 @@ export class HostShadowManager {
   }
 
   async runShadowPass(reason: string, sessionId?: string | undefined): Promise<void> {
+    if (this.disposed) return;
     const director = this.ctx.getDirector();
     if (!director) return;
     const id = this.resolve(sessionId);
@@ -402,7 +407,7 @@ export class HostShadowManager {
     state.passInFlight = true;
     return runHostShadowPass(
       {
-        getDirector: () => this.ctx.getDirector(),
+        getDirector: () => (this.disposed ? undefined : this.ctx.getDirector()),
         getLiveConfig: () => this.ctx.deps.configStore.get() as Config,
         getObservedWorkDepth: () => state.observedWorkDepth,
         getQueuedProblem: () => state.queuedProblem,
@@ -416,13 +421,16 @@ export class HostShadowManager {
         sessionId: id,
         spawnAndAssign: (subagentConfig, task, opts) =>
           this.ctx.spawnAndAssign(subagentConfig, task, opts),
-        requestShadowPass: (queued) => this.requestShadowPass(queued, id),
+        requestShadowPass: (queued) => {
+          if (!this.disposed) this.requestShadowPass(queued, id);
+        },
       },
       reason,
     );
   }
 
   private async stopShadowAfterTask(subagentId: string, sessionId: string): Promise<void> {
+    if (this.disposed) return;
     const director = this.ctx.getDirector();
     const coordinator = director
       ? (director as never as { coordinator: { stop: (id: string) => Promise<void> } }).coordinator
@@ -436,7 +444,9 @@ export class HostShadowManager {
       (value) => {
         state.queuedProblem = value;
       },
-      (queued) => this.requestShadowPass(queued, sessionId),
+      (queued) => {
+        if (!this.disposed) this.requestShadowPass(queued, sessionId);
+      },
       subagentId,
     );
   }
@@ -458,6 +468,7 @@ export class HostShadowManager {
   }
 
   dispose(): void {
+    this.disposed = true;
     this.clearShadowAgent();
     this.sessions.clear();
     this.taskSessions.clear();

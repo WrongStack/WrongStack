@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveBunExecutable } from './lib/bun-executable.mjs';
+import { bunSpawnInvocation, resolveBunExecutable } from './lib/bun-executable.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const coreRoot = path.join(repoRoot, 'packages/core');
@@ -293,17 +293,18 @@ function buildUsageSnapshot() {
 function emit(name, value) {
   const target = path.join(architectureRoot, name);
   // Formatting must not turn a current data snapshot into a stale one.
-  const serialized = execFileSync(
+  const spawn = bunSpawnInvocation(
     process.versions.bun ? process.execPath : resolveBunExecutable(),
     ['run', 'biome', 'format', '--stdin-file-path', target],
-    {
-      input: `${JSON.stringify(value, null, 2)}\n`,
-      encoding: 'utf8',
-      windowsHide: true,
-      cwd: repoRoot,
-      maxBuffer: 4 * 1024 * 1024,
-    },
   );
+  const serialized = execFileSync(spawn.command, spawn.args, {
+    input: `${JSON.stringify(value, null, 2)}\n`,
+    encoding: 'utf8',
+    windowsHide: true,
+    cwd: repoRoot,
+    maxBuffer: 4 * 1024 * 1024,
+    ...spawn.options,
+  });
   if (write) {
     writeFileSync(target, serialized);
     return;

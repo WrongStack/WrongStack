@@ -57,7 +57,7 @@ const FIELD_BY_KIND = {
   tokens: 'maxTokens',
   cost: 'maxCostUsd',
   timeout: 'timeoutMs',
-  idle_timeout: 'timeoutMs',
+  idle_timeout: 'idleTimeoutMs',
 } as const;
 
 /**
@@ -109,7 +109,7 @@ export function attachAutoExtend(events: EventBus, policy: AutoExtendPolicy = {}
             deny();
             return;
           }
-          extend({ timeoutMs: next });
+          extend({ [FIELD_BY_KIND[kind]]: next });
         } else {
           // No new work since the last timeout extension — the agent is stuck.
           deny();

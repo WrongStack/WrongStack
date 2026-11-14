@@ -596,10 +596,23 @@ async function startHqServerWithAuth(
         bindAttempts += 1;
         listen(port + bindAttempts);
       } else {
-        authWatcher.close();
-        snapshotBroadcaster.close();
-        wss.close();
-        reject(err);
+        // The bind error is what the caller hears, even if a cleanup step throws.
+        try {
+          clearInterval(cleanupTimer);
+          clearInterval(browserHeartbeatTimer);
+          clearInterval(timeseriesFlushTimer);
+          clearInterval(sessionCleanupTimer);
+          stopAlertEngine();
+          void notify.close();
+          authWatcher.close();
+          snapshotBroadcaster.close();
+          bootstrapStore.clear();
+          persistence.timeseries.flush();
+          wss.close();
+          mailboxManager.close();
+        } finally {
+          reject(err);
+        }
       }
     };
 

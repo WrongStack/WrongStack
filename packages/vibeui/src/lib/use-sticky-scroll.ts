@@ -15,29 +15,32 @@ export function isNearBottom(el: {
 
 /**
  * Keeps a scroll container pinned to the newest content while the user follows
- * along. Scrolling up releases it and offers "Latest"; `resetKey` (the session
+ * along. Disable following on non-conversation surfaces such as the welcome screen.
+ * Scrolling up releases it and offers "Latest"; `resetKey` (the session
  * id) re-pins. `followDeps` lists whatever grows the content.
  */
 export function useStickyScroll<T extends HTMLElement>(
   followDeps: DependencyList,
   resetKey: string,
+  enabled = true,
 ) {
   const ref = useRef<T>(null);
   const stick = useRef(true);
   const [showLatest, setShowLatest] = useState(false);
   useEffect(() => {
-    if (stick.current && ref.current) ref.current.scrollTop = ref.current.scrollHeight;
-  }, followDeps);
-  useEffect(() => {
     stick.current = true;
     setShowLatest(false);
-  }, [resetKey]);
+    if (!enabled && ref.current) ref.current.scrollTop = 0;
+  }, [resetKey, enabled]);
+  useEffect(() => {
+    if (enabled && stick.current && ref.current) ref.current.scrollTop = ref.current.scrollHeight;
+  }, [enabled, resetKey, ...followDeps]);
   const onScroll = useCallback(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!enabled || !el) return;
     stick.current = isNearBottom(el);
     setShowLatest(!stick.current);
-  }, []);
+  }, [enabled]);
   const jumpToLatest = useCallback(() => {
     if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
     stick.current = true;

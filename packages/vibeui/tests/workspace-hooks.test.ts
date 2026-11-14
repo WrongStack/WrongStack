@@ -181,6 +181,12 @@ describe('useWorkspaceLayout', () => {
     expect(renderHook(() => useWorkspaceLayout('cozy')).current().panel).toBe(false);
     width(900);
     expect(renderHook(() => useWorkspaceLayout('studio')).current().panel).toBe(false);
+    for (const viewport of [1200, 1250]) {
+      width(viewport);
+      expect(renderHook(() => useWorkspaceLayout('studio')).current().panel).toBe(false);
+    }
+    width(1251);
+    expect(renderHook(() => useWorkspaceLayout('studio')).current().panel).toBe(true);
   });
 
   it('opens tabs with a fresh request key and reveals agents by counter', () => {
@@ -205,6 +211,34 @@ describe('useWorkspaceLayout', () => {
 });
 
 describe('useStickyScroll', () => {
+  it('leaves the welcome screen at the top and follows when a conversation starts', () => {
+    let enabled = false;
+    let update!: () => void;
+    const hook = renderHook(() => {
+      const [revision, setRevision] = useState(0);
+      update = () => setRevision((value) => value + 1);
+      return useStickyScroll<HTMLElement>([revision], 'one', enabled);
+    });
+    const el = document.createElement('main');
+    Object.defineProperties(el, {
+      scrollHeight: { configurable: true, value: 1000 },
+      clientHeight: { configurable: true, value: 100 },
+    });
+    (hook.current().ref as { current: HTMLElement | null }).current = el;
+    act(() => update());
+    expect(el.scrollTop).toBe(0);
+    el.scrollTop = 200;
+    act(() => hook.current().onScroll());
+    expect(hook.current().showLatest).toBe(false);
+    enabled = true;
+    act(() => update());
+    expect(el.scrollTop).toBe(1000);
+    enabled = false;
+    act(() => update());
+    expect(el.scrollTop).toBe(0);
+    expect(hook.current().showLatest).toBe(false);
+  });
+
   it('follows within 100px of the bottom', () => {
     expect(isNearBottom({ scrollHeight: 1000, scrollTop: 850, clientHeight: 100 })).toBe(true);
     expect(isNearBottom({ scrollHeight: 1000, scrollTop: 700, clientHeight: 100 })).toBe(false);

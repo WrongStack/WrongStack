@@ -1,4 +1,4 @@
-// Changelog — 1.x era (1.6.3 → 1.0.0).
+// Changelog — 1.x era (1.7.0 → 1.0.0).
 // Historical entries mirror CHANGELOG.md release notes. The 1.0.37 entry was
 // written from committed runtime/source evidence (git history and packages), not
 // the root CHANGELOG, which had not been extended when it landed. 1.1.0 absorbs
@@ -13,10 +13,25 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.0',
+    date: '2026-11-14',
+    tagline: 'Named desktop conversations, larger Code Atlas graphs and plugins from Settings',
+    latest: true,
+    highlights: [
+      'Desktop conversations take their names from the first prompt; double-click or F2 renames a tab',
+      'Code Atlas transfers large graphs in consistent chunks in the desktop and WebUI, preserving nodes, edges and enrichment',
+      'WebUI Settings → Context adds plugin install, remove, configured and official lists through the engine’s /plugin command',
+      'Chronicle caches facet counts per query and reads only appended rows on refresh, recounting after retention or compaction',
+      'VibeUI improves narrow-screen layouts, keyboard file mentions, model search and focus after dialogs close',
+      'Desktop continuation waits for visible suggestions, cache usage stays within 100%, and branch menus open above the status bar',
+      'Desktop updates prune unused builds’ project-service journals while preserving conversations and live hosts',
+      'Idle-timeout extensions update the correct budget; plugin, shadow-agent, Telegram and HQ cleanup closes pending work',
+    ],
+  },
+  {
     version: '1.6.3',
     date: '2026-11-14',
     tagline: 'Decisions your agents keep, fourteen new design kits and safer rewinds',
-    latest: true,
     highlights: [
       'Agents propose architecture decisions; only a user review makes a revision binding',
       'Accepted decisions reach later sessions and ACP agents; /adr works in the TUI, WebUI and desktop',

@@ -121,6 +121,9 @@
 }
 
 @media (max-width: 1250px) {
+  .workspace-backdrop {
+    display: block;
+  }
   .panel-open .workspace-panel {
     position: fixed;
     top: 0;

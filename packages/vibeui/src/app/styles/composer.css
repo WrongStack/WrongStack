@@ -21,6 +21,7 @@
 }
 
 .composer-area {
+  flex-shrink: 0;
   padding: 16px 34px 18px;
   width: 100%;
   max-width: 848px;
@@ -167,8 +168,16 @@
   word-break: break-all;
 }
 
-.file-picker button:hover {
+.file-picker button:hover,
+.file-picker button[aria-selected="true"] {
   background: var(--hover);
+}
+
+.file-picker-footer {
+  padding: 8px 9px;
+  color: var(--faint);
+  border-top: 1px solid var(--border);
+  font-size: var(--type-2xs);
 }
 
 .file-picker p {

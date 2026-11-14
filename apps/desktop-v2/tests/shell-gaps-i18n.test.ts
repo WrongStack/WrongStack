@@ -32,6 +32,7 @@ const render = () =>
         key: 'a',
         stepKey: 'k',
         text: 'Run the tests',
+        visibilityRoot: { current: null },
         onSubmit: () => undefined,
       }),
       createElement(SessionWorklist, {

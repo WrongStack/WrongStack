@@ -6682,7 +6682,10 @@
     "draftError": "Der Entwurf dieser Sitzung konnte nicht wiederhergestellt werden: {{error}}",
     "retry": "Erneut versuchen",
     "restoring": "Sitzungsentwurf wird wiederhergestellt…",
-    "openingTerminal": "Terminal wird geöffnet…"
+    "openingTerminal": "Terminal wird geöffnet…",
+    "untitled": "Neue Unterhaltung",
+    "tabHint": "{{title}} — zum Umbenennen doppelklicken oder F2 drücken",
+    "rename": "Sitzungsname"
   },
   "draftConflict": {
     "title": "Dieser Entwurf wurde in einem anderen Fenster geändert.",

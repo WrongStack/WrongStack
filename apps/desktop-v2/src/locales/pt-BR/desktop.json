@@ -6682,7 +6682,10 @@
     "draftError": "Não foi possível restaurar o rascunho desta sessão: {{error}}",
     "retry": "Tentar de novo",
     "restoring": "Restaurando o rascunho da sessão…",
-    "openingTerminal": "Abrindo terminal…"
+    "openingTerminal": "Abrindo terminal…",
+    "untitled": "Nova conversa",
+    "tabHint": "{{title}} — clique duas vezes ou pressione F2 para renomear",
+    "rename": "Nome da sessão"
   },
   "draftConflict": {
     "title": "Este rascunho mudou em outra janela.",

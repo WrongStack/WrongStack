@@ -1,4 +1,3 @@
-import { CodeBlock } from '@/components/site/primitives';
 import {
   Blocks,
   Check,
@@ -13,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
+  CodeBlock,
   ExternalDoc,
   heroTitleFontSize,
   PageHero,
@@ -426,6 +426,12 @@ export function PluginsPage() {
             <p className="mt-5 text-xs leading-6 text-muted">
               The chat leader remains the fallback. Per-call overrides can narrow routing further
               when a plugin needs a specialist model.
+            </p>
+            <p className="mt-4 text-xs leading-6 text-muted">
+              In the WebUI, Settings → Context also lets you add or remove a plugin and inspect
+              configured and official lists. These actions use the engine’s /plugin command, back up
+              the profile configuration and show its result, including any restart requirement.
+              Adding a plugin name registers it; it does not run a package manager.
             </p>
           </div>
         </div>

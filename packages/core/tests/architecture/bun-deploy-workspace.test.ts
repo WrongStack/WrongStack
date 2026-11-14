@@ -2,7 +2,10 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { resolveBunExecutable } from '../../../../scripts/lib/bun-executable.mjs';
+import {
+  bunSpawnInvocation,
+  resolveBunExecutable,
+} from '../../../../scripts/lib/bun-executable.mjs';
 import { deployBunWorkspace } from '../../../../scripts/lib/deploy-bun-workspace.mjs';
 
 const directories: string[] = [];
@@ -48,9 +51,15 @@ describe('Bun workspace deployment', () => {
           : "module.exports = 'local workspace';",
       );
     }
-    execFileSync(resolveBunExecutable(), ['install', '--lockfile-only', '--ignore-scripts'], {
+    const install = bunSpawnInvocation(resolveBunExecutable(), [
+      'install',
+      '--lockfile-only',
+      '--ignore-scripts',
+    ]);
+    execFileSync(install.command, install.args, {
       cwd: root,
       stdio: 'inherit',
+      ...install.options,
     });
     const result = deployBunWorkspace('@fixture/app', join(root, 'deployed'), root);
     directories.push(result.scratch);

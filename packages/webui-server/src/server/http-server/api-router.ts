@@ -379,10 +379,14 @@ export async function handleApiRoutes(
       res.end(JSON.stringify({ error: 'Project root not configured' }));
       return true;
     }
-    await handleCodemapPackages(res, {
-      projectRoot: deps.projectRoot,
-      ...(deps.indexDir ? { indexDir: deps.indexDir } : {}),
-    });
+    await handleCodemapPackages(
+      res,
+      {
+        projectRoot: deps.projectRoot,
+        ...(deps.indexDir ? { indexDir: deps.indexDir } : {}),
+      },
+      url.searchParams,
+    );
     return true;
   }
 
@@ -401,6 +405,7 @@ export async function handleApiRoutes(
         ...(deps.indexDir ? { indexDir: deps.indexDir } : {}),
       },
       pkg,
+      url.searchParams,
     );
     return true;
   }
@@ -420,6 +425,7 @@ export async function handleApiRoutes(
         ...(deps.indexDir ? { indexDir: deps.indexDir } : {}),
       },
       file,
+      url.searchParams,
     );
     return true;
   }

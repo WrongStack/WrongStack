@@ -6682,7 +6682,10 @@
     "draftError": "Impossible de restaurer le brouillon de cette session : {{error}}",
     "retry": "Réessayer",
     "restoring": "Restauration du brouillon de la session…",
-    "openingTerminal": "Ouverture du terminal…"
+    "openingTerminal": "Ouverture du terminal…",
+    "untitled": "Nouvelle conversation",
+    "tabHint": "{{title}} — double-cliquez ou appuyez sur F2 pour renommer",
+    "rename": "Nom de la session"
   },
   "draftConflict": {
     "title": "Ce brouillon a changé dans une autre fenêtre.",

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 /** Below this width the workspace panel overlays the conversation instead of docking. */
-export const PANEL_DOCK_MIN_WIDTH = 1100;
+export const PANEL_DOCK_MIN_WIDTH = 1251;
 
 export interface PanelRequest {
   tab: string;

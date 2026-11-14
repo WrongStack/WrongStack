@@ -379,16 +379,21 @@ describe('handleApiRoutes — codemap routes', () => {
 
   it('dispatches packages, files, and symbols with query params', async () => {
     await route('GET', '/api/codemap/packages', { indexDir: '/idx' });
-    expect(codemap['handleCodemapPackages']).toHaveBeenCalledWith(expect.anything(), {
-      projectRoot: '/proj',
-      indexDir: '/idx',
-    });
+    expect(codemap['handleCodemapPackages']).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        projectRoot: '/proj',
+        indexDir: '/idx',
+      },
+      new URLSearchParams(),
+    );
 
     const files = await route('GET', '/api/codemap/files', {}, { search: '?package=pkg-a' });
     expect(codemap['handleCodemapFiles']).toHaveBeenCalledWith(
       expect.anything(),
       { projectRoot: '/proj' },
       'pkg-a',
+      new URLSearchParams({ package: 'pkg-a' }),
     );
     expect(files.handled).toBe(true);
 
@@ -397,8 +402,28 @@ describe('handleApiRoutes — codemap routes', () => {
       expect.anything(),
       { projectRoot: '/proj' },
       'src/a.ts',
+      new URLSearchParams({ file: 'src/a.ts' }),
     );
   });
+});
+
+describe('handleApiRoutes — CodeMap transfer continuation', () => {
+  it.each(['packages', 'files', 'symbols'])(
+    'preserves snapshot query parameters for %s',
+    async (level) => {
+      const query = new URLSearchParams({
+        transfer: 'chunks',
+        snapshot: 'fixture',
+        offset: '524288',
+        package: 'pkg-a',
+        file: 'src/a.ts',
+      });
+      await route('GET', `/api/codemap/${level}`, {}, { search: `?${query}` });
+      const name = `handleCodemap${level.charAt(0).toUpperCase()}${level.slice(1)}`;
+      const args = codemap[name]?.mock.calls[0];
+      expect(args?.at(-1)?.toString()).toBe(query.toString());
+    },
+  );
 });
 
 describe('handleApiRoutes — techstack routes', () => {

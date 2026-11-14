@@ -161,6 +161,7 @@ async fn host_request(
         "session.resize",
         "session.kill",
         "session.remove",
+        "session.rename",
         "engine.send",
         "engine.http",
         "engine.events",

@@ -147,6 +147,8 @@ function buildAutoReviewCommand(
 }
 
 export function createAutoReviewPlugin(): Plugin {
+  let teardownHook: (() => void) | undefined;
+
   return {
     name: 'wstack-auto-review',
     version: '1.0.0',
@@ -156,6 +158,8 @@ export function createAutoReviewPlugin(): Plugin {
     defaultConfig: {},
 
     setup(api) {
+      teardownHook?.();
+      teardownHook = undefined;
       const recompute = (): ResolvedAutoReviewConfig => {
         const raw: AutoReviewConfig =
           (api.config.extensions?.['wstack-auto-review'] as AutoReviewConfig | undefined) ?? {};
@@ -711,9 +715,20 @@ export function createAutoReviewPlugin(): Plugin {
           );
         }
       });
+
+      teardownHook = () => {
+        sessionEnded = true;
+        cancelPendingReviewTimer();
+        pendingFiles.clear();
+        for (const entry of inFlight.splice(0)) {
+          if (entry.timer) clearTimeout(entry.timer);
+        }
+      };
     },
 
     teardown(api) {
+      teardownHook?.();
+      teardownHook = undefined;
       api.slashCommands.unregister('auto-review');
       api.log.info('[auto-review] unloaded');
     },

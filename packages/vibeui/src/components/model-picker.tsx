@@ -53,7 +53,13 @@ export const ModelPicker = memo(function ModelPicker({
   const visible = matches.slice(0, 100);
   useEffect(() => {
     setActive(0);
-  }, [query, open]);
+  }, [query]);
+  useEffect(() => {
+    if (open) {
+      setQuery('');
+      setActive(0);
+    }
+  }, [open]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented || document.querySelector('.modal-content')) return;
@@ -70,24 +76,21 @@ export const ModelPicker = memo(function ModelPicker({
     setOpen(false);
   };
   return (
-    <Popover.Root
-      open={open}
-      onOpenChange={(value) => {
-        setOpen(value);
-        if (value) setQuery('');
-      }}
-    >
+    <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger className="model-trigger" disabled={locked} title="Choose a model · Ctrl+K">
         <span className="model-symbol">
           <Sparkles size={13} />
         </span>
         {isAcpProvider(provider) && <span className="acp-runtime-badge">ACP agent</span>}
-        <span>{pending ? 'Switching model…' : model || 'Choose a model'}</span>
+        <span className="model-name" title={model || 'Choose a model'}>
+          {pending ? 'Switching model…' : model || 'Choose a model'}
+        </span>
         <ChevronDown size={13} />
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
           className="model-popover"
+          collisionPadding={10}
           sideOffset={8}
           align="start"
           onOpenAutoFocus={(event) => {
@@ -109,6 +112,7 @@ export const ModelPicker = memo(function ModelPicker({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing) return;
                 if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
                   event.preventDefault();
                   const next = visible.length

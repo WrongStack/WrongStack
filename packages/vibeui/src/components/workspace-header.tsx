@@ -76,9 +76,11 @@ export function WorkspaceHeader({
           )
         )}
         <Folder size={15} />
-        <span>{state.project || 'Workspace'}</span>
+        <span className="header-project-name" title={state.project || 'Workspace'}>
+          {state.project || 'Workspace'}
+        </span>
         <span className="breadcrumb">/</span>
-        <strong>{sessionTitle}</strong>
+        <strong title={sessionTitle}>{sessionTitle}</strong>
       </div>
       <div className="header-actions">
         <WorkspaceViewMenu

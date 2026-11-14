@@ -4,7 +4,7 @@ import type {
 } from '@wrongstack/contracts/types/session';
 import { Check, ChevronDown, GitBranch, GitMerge, Plus } from 'lucide-react';
 import type React from 'react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 export interface SessionBranchRow {
   branch: SessionBranchDescriptor;
@@ -72,6 +72,11 @@ export interface SessionBranchPillProps {
   onFoldBranch?:
     | ((sourceBranchId: string, opts?: SessionBranchFoldOptions) => void | Promise<void>)
     | undefined;
+  /**
+   * Which way the menu opens. `down` suits a header at the top of the window (WebUI);
+   * `up` suits a status bar at the bottom (desktop), where a downward menu left the window.
+   */
+  placement?: 'down' | 'up' | undefined;
 }
 
 export function SessionBranchPill({
@@ -81,8 +86,27 @@ export function SessionBranchPill({
   onCreateBranch,
   onSwitchBranch,
   onFoldBranch,
+  placement = 'down',
 }: SessionBranchPillProps): React.ReactElement | null {
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // A click outside the pill or Escape closes the menu, as any other dropdown does.
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
   const [newBranchName, setNewBranchName] = useState('');
   const [keepFiles, setKeepFiles] = useState(false);
   const [foldNote, setFoldNote] = useState('');
@@ -137,7 +161,7 @@ export function SessionBranchPill({
   };
 
   return (
-    <div className="relative shrink-0" data-testid="session-branch-pill">
+    <div ref={rootRef} className="relative shrink-0" data-testid="session-branch-pill">
       <button
         type="button"
         onClick={() => {
@@ -158,7 +182,10 @@ export function SessionBranchPill({
       </button>
 
       {open ? (
-        <div className="absolute left-0 top-full mt-1 z-40 w-80 rounded-md border border-border/80 bg-popover p-2 shadow-lg space-y-2">
+        <div
+          data-placement={placement}
+          className={`absolute left-0 ${placement === 'up' ? 'bottom-full mb-1' : 'top-full mt-1'} z-40 w-80 max-w-[calc(100vw-1rem)] rounded-md border border-border/80 bg-popover p-2 shadow-lg space-y-2`}
+        >
           <div className="flex items-center justify-between border-b border-border/60 pb-1.5">
             <span className="text-[11px] font-semibold">
               Session Tree ({branchCount} {branchCount === 1 ? 'branch' : 'branches'})

@@ -24,6 +24,8 @@
   margin-left: auto;
 }
 .next-steps-body {
+  max-height: min(36vh, 20rem);
+  overflow: auto;
   border-top: 1px solid var(--border);
   padding: 10px;
 }

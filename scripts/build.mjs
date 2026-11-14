@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveBunExecutable } from './lib/bun-executable.mjs';
+import { bunSpawnInvocation, resolveBunExecutable } from './lib/bun-executable.mjs';
 import { workspaceMemberDirs } from './lib/publishable-packages.mjs';
 
 const root = join(fileURLToPath(import.meta.url), '..', '..');
@@ -145,10 +145,14 @@ function runBuild(pkgDir, script, envOverrides) {
     NODE_OPTIONS: '--max-old-space-size=4096',
     WRONGSTACK_WORKSPACE_BUILD: '1',
   };
-  const result = spawnSync(resolveBunExecutable(), ['run', 'build'], {
+  // A `.cmd` shim cannot be spawned bare (EINVAL, a null exit status, no child);
+  // see `bunSpawnInvocation`. A real `bun.exe` keeps the previous bare argv form.
+  const spawn = bunSpawnInvocation(resolveBunExecutable(), ['run', 'build']);
+  const result = spawnSync(spawn.command, spawn.args, {
     cwd: join(root, pkgDir),
     stdio: 'inherit',
     env,
+    ...spawn.options,
   });
   if (result.status !== 0) {
     console.error(`\nBuild failed in ${pkgDir} (exit ${result.status})`);

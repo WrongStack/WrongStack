@@ -6682,7 +6682,10 @@
     "draftError": "Bu oturum taslağı geri yüklenemedi: {{error}}",
     "retry": "Yeniden dene",
     "restoring": "Oturum taslağı geri yükleniyor…",
-    "openingTerminal": "Terminal açılıyor…"
+    "openingTerminal": "Terminal açılıyor…",
+    "untitled": "Yeni konuşma",
+    "tabHint": "{{title}} — yeniden adlandırmak için çift tıklayın veya F2'ye basın",
+    "rename": "Oturum adı"
   },
   "draftConflict": {
     "title": "Bu taslak başka bir pencerede değişti.",

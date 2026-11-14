@@ -47,8 +47,10 @@
   background: var(--raised);
   overflow: hidden;
 }
+/* Split panes can be narrow even on a wide screen: wrap metrics before squeezing tool names. */
 .activity-entry > summary {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
@@ -68,7 +70,7 @@
   display: grid;
   gap: 3px;
   min-width: 0;
-  flex: 1;
+  flex: 1 1 12rem;
 }
 .activity-entry-label strong {
   font-size: 13px;
@@ -143,11 +145,6 @@
   cursor: pointer;
   color: var(--muted);
   font-size: 12px;
-}
-@media (max-width: 900px) {
-  .activity-entry > summary {
-    flex-wrap: wrap;
-  }
 }
 .chat-earlier {
   justify-self: center;

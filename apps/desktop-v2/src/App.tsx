@@ -3,6 +3,7 @@ import { lazy, Suspense, useState } from 'react';
 import { Trans } from 'react-i18next';
 import { useDesktopText } from './desktop-i18n';
 import { FleetPanel } from './FleetPanel';
+import { sessionTitle } from './model';
 import { NotificationMenu } from './NotificationMenu';
 import { useNotificationFeed } from './notification-feed';
 import { ProjectViews } from './ProjectViews';
@@ -62,7 +63,9 @@ export function App() {
             {focused ? (
               <>
                 <span className="topbar-context">{currentProject?.name}</span>
-                <span className="breadcrumb-session">{currentSession.title}</span>
+                <span className="breadcrumb-session">
+                  {sessionTitle(currentSession, t('workbench.untitled'))}
+                </span>
               </>
             ) : section === 'wrongstack' ? (
               settingsTitle

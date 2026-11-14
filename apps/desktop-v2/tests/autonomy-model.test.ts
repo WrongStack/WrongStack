@@ -44,7 +44,12 @@ describe('conversation continuation', () => {
 
   it('shows the countdown with the chosen step and a cancel button', () => {
     const html = renderToStaticMarkup(
-      createElement(AutoContinue, { stepKey: '2:Run', text: 'Run the tests', onSubmit: () => {} }),
+      createElement(AutoContinue, {
+        stepKey: '2:Run',
+        text: 'Run the tests',
+        visibilityRoot: { current: null },
+        onSubmit: () => {},
+      }),
     );
     expect(html).toContain('Continuing in 5 s with: <strong>Run the tests</strong>');
     expect(html).toContain('Cancel');

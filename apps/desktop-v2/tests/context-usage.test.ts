@@ -43,6 +43,24 @@ describe('context usage under the chat', () => {
     expect(state.context.compaction).toEqual({ before: 90000, after: 30000, saved: 60000 });
     expect(contextZone(contextPercent(state.context))).toBe('ok');
   });
+  it('keeps the cache share within 100 % when a response sums many model calls (WrongForge)', () => {
+    let state = emptyEngineState;
+    // A WrongForge leader turn: one response carrying the usage of every step in the turn,
+    // then the agent's own context reading (one request's size) through `ctx.pct`.
+    for (const event of frames('s1', [
+      ['session.start', { provider: 'wrongforge', model: 'm', maxContext: 200000 }],
+      [
+        'provider.response',
+        { usage: { input: 6000, cacheRead: 600000, cacheWrite: 24000, output: 4000 } },
+      ],
+      ['ctx.pct', { tokens: 30000, maxContext: 200000, load: 0.15 }],
+    ]))
+      state = reduceEngine(state, event);
+    expect(state.context.tokens).toBe(30000);
+    expect(contextPercent(state.context)).toBe(15);
+    // 600000 / 30000 read as 2000 % before; the share comes from one usage report now.
+    expect(cacheHitPercent(state.context)).toBe(95);
+  });
   it('records a provider limit below the configured window until it is reset', () => {
     let state = reduceEngine(emptyEngineState, {
       type: 'session.start',

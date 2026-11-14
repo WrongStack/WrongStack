@@ -13,7 +13,7 @@ export async function exerciseNativeNextSteps({ page, artifactDir, waitFor, prov
   await page.locator('.composer-send').click();
   const panel = page.locator('details.next-steps-panel');
   await panel.getByText('Suggested next steps').waitFor({ timeout: 60000 });
-  await panel.locator('summary').click();
+  assert.equal(await panel.getAttribute('open'), '', 'Completed choices are expanded');
   await panel.getByText('[native-composer-nextstep-selected] Inspect the result').waitFor();
   // Continue automatically (with YOLO) offers a cancellable countdown; cancelling sends nothing.
   const mode = page.getByRole('combobox', { name: 'Continuation mode', exact: true });

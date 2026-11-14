@@ -12,7 +12,7 @@ import {
   WandSparkles,
   X,
 } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { canRestoreDraft, readSavedDraft } from '../lib/component-guards';
 import { clientId } from '../lib/ids';
 import { composeMessage, draftKey } from '../lib/session';
@@ -77,6 +77,11 @@ export function Composer({
   const blockedDraft = useRef('');
   const mention = /(?:^|\s)@([^\s@]*)$/.exec(draft);
   const query = mention?.[1];
+  const fileListId = useId();
+  const [selectedFile, setSelectedFile] = useState(0);
+  const [dismissedFiles, setDismissedFiles] = useState('');
+  const fileMentionKey = `${state.id}\0${draft}`;
+  const activeFile = Math.min(selectedFile, Math.max(0, state.matches.length - 1));
   const hasDraft = Boolean(draft.trim() || references.length || images.length);
   useEffect(() => onDraftChange?.(hasDraft), [hasDraft, onDraftChange]);
   const enabled =
@@ -85,6 +90,19 @@ export function Composer({
     Boolean(state.id && state.model) &&
     !modelPending &&
     !controller.compactPending;
+
+  const filesOpen =
+    query !== undefined && enabled && !skills.open && dismissedFiles !== fileMentionKey;
+  useEffect(() => setSelectedFile(0), [query]);
+  useEffect(() => {
+    if (filesOpen)
+      document.getElementById(`${fileListId}-${activeFile}`)?.scrollIntoView({ block: 'nearest' });
+  }, [filesOpen, fileListId, activeFile, state.matches]);
+  const pickFile = (path: string) => {
+    setReferences((items) => [...new Set([...items, path])]);
+    setDraft((value) => value.replace(/@[^\s@]*$/, ''));
+    textarea.current?.focus();
+  };
 
   useEffect(() => {
     mounted.current = true;
@@ -345,35 +363,42 @@ export function Composer({
             </footer>
           </section>
         )}
-        {query !== undefined && enabled && !skills.open && (
+        {filesOpen && (
           <section className="file-picker" aria-label="Matching project files">
-            {state.matches.length ? (
-              state.matches.map((path) => (
+            <div id={fileListId} role="listbox" aria-label="Project files">
+              {state.matches.map((path, index) => (
                 <button
                   type="button"
+                  role="option"
+                  aria-selected={index === activeFile}
+                  id={`${fileListId}-${index}`}
                   key={path}
-                  onClick={() => {
-                    setReferences((items) => [...new Set([...items, path])]);
-                    setDraft((value) => value.replace(/@[^\s@]*$/, ''));
-                    textarea.current?.focus();
-                  }}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onMouseEnter={() => setSelectedFile(index)}
+                  onClick={() => pickFile(path)}
                 >
                   <FileCode2 size={14} />
                   {path}
                 </button>
-              ))
-            ) : (
-              <p>No matching files. Type a project path.</p>
-            )}
+              ))}
+            </div>
+            {!state.matches.length && <p>No matching files. Type a project path.</p>}
+            <footer className="file-picker-footer">
+              ↑ ↓ browse · Enter / Tab attach · Esc close
+            </footer>
           </section>
         )}
         <textarea
           ref={textarea}
           aria-label="Message"
           value={draft}
-          aria-controls={skills.open ? skills.listId : undefined}
+          aria-controls={skills.open ? skills.listId : filesOpen ? fileListId : undefined}
           aria-activedescendant={
-            skills.open && skills.matches.length ? `${skills.listId}-${skills.selected}` : undefined
+            skills.open && skills.matches.length
+              ? `${skills.listId}-${skills.selected}`
+              : filesOpen && state.matches.length
+                ? `${fileListId}-${activeFile}`
+                : undefined
           }
           rows={3}
           placeholder="Describe what you want to build…"
@@ -383,13 +408,39 @@ export function Composer({
           }}
           onSelect={skills.trackCursor}
           onKeyDown={(event) => {
-            if (skills.onKeyDown(event)) return;
+            if (skills.onKeyDown(event) || event.nativeEvent.isComposing) return;
+            if (filesOpen) {
+              if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                setSelectedFile(
+                  state.matches.length
+                    ? (activeFile + (event.key === 'ArrowDown' ? 1 : -1) + state.matches.length) %
+                        state.matches.length
+                    : 0,
+                );
+                return;
+              }
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                setDismissedFiles(fileMentionKey);
+                return;
+              }
+              // With nothing to pick, Enter sends the draft as it always did.
+              if (
+                !event.shiftKey &&
+                (event.key === 'Enter' || event.key === 'Tab') &&
+                state.matches.length > 0
+              ) {
+                event.preventDefault();
+                const path = state.matches[activeFile];
+                if (path) pickFile(path);
+                return;
+              }
+            }
             if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
               event.preventDefault();
               void sendDraft();
             }
-            if (event.key === 'Escape' && query !== undefined)
-              setDraft((value) => value.replace(/@[^\s@]*$/, ''));
           }}
           onPaste={(event) => {
             const files = Array.from(event.clipboardData.files).filter((file) =>

@@ -40,6 +40,9 @@
 }
 
 .message-queue {
+  max-height: min(180px, 20dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -164,7 +167,8 @@
 
 .jump-latest {
   position: absolute;
-  bottom: 200px;
+  bottom: 12px;
+  z-index: 1;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -545,6 +549,9 @@
 }
 
 .model-popover {
+  display: flex;
+  flex-direction: column;
+  max-height: min(600px, var(--radix-popover-content-available-height, calc(100dvh - 20px)));
   width: min(430px, calc(100vw - 28px));
   border: 1px solid var(--border);
   background: var(--raised);
@@ -555,6 +562,7 @@
 }
 
 .model-search {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -564,6 +572,7 @@
 }
 
 .model-results {
+  min-height: 0;
   max-height: min(420px, 55dvh);
   overflow: auto;
   padding: 6px;
@@ -606,6 +615,7 @@
 }
 
 .model-picker-footer {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -644,6 +654,11 @@
 }
 
 .queue-heading {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--base);
+  padding-block: 4px;
   display: flex;
   justify-content: space-between;
   gap: 12px;

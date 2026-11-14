@@ -38,6 +38,7 @@ describe('completed-turn suggestions', () => {
       'Add selected to draft',
     ])
       expect(html).toContain(text);
+    expect(html).toContain('<details class="next-steps-panel" open="">');
     expect(html).not.toContain('Your message');
     const sendable = renderToStaticMarkup(
       createElement(NextStepsPanel, {

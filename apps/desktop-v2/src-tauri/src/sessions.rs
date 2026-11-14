@@ -195,11 +195,29 @@ impl HostState {
             "session.kill" => self.stop(field(p, "id")?),
             "session.remove" => self.remove(field(p, "id")?),
             "engine.send" => {
-                let live = self.live.lock().map_err(err)?;
-                live.get(field(p, "id")?)
-                    .and_then(|s| s.engine.as_ref())
-                    .ok_or("Engine is still starting")?
-                    .send(p["message"].clone())
+                let id = field(p, "id")?;
+                let sent = {
+                    let live = self.live.lock().map_err(err)?;
+                    live.get(id)
+                        .and_then(|s| s.engine.as_ref())
+                        .ok_or("Engine is still starting")?
+                        .send(p["message"].clone())?
+                };
+                // A conversation without a name takes its first prompt's. Naming is a
+                // convenience: a failure here never fails the prompt that was sent.
+                if let Some(prompt) = sent_prompt(&p["message"]) {
+                    if let Ok(registry) = self.registry.lock() {
+                        let _ = registry.name_untitled(id, prompt);
+                    }
+                }
+                Ok(sent)
+            }
+            "session.rename" => {
+                self.registry
+                    .lock()
+                    .map_err(err)?
+                    .rename(field(p, "id")?, field(p, "title")?)?;
+                Ok(Value::Null)
             }
             "engine.events" => {
                 let id = field(p, "id")?;
@@ -277,16 +295,18 @@ impl HostState {
             .lock()
             .map_err(err)?
             .workdir(project_id, p["workdir"].as_str())?;
-        let title = p["title"]
-            .as_str()
-            .unwrap_or(if kind == "agent" {
-                "Agent session"
-            } else {
-                "Terminal"
-            })
-            .trim();
-        if title.is_empty() || title.len() > 200 {
-            return Err("Title must contain 1–200 bytes".into());
+        // An agent conversation opened without a name is named after its first prompt; until
+        // then the interface shows a localized placeholder (the stored one is for readers
+        // that do not know `untitled`).
+        let named = p["title"].as_str().map(str::trim).filter(|t| !t.is_empty());
+        let untitled = named.is_none() && kind == "agent";
+        let title = named.unwrap_or(if kind == "agent" {
+            "New conversation"
+        } else {
+            "Terminal"
+        });
+        if title.len() > 200 || title.chars().any(char::is_control) {
+            return Err("Title must contain 1–200 bytes without control characters".into());
         }
         let workdir_text = workdir.to_string_lossy().into_owned();
         let spare = if kind == "agent" {
@@ -310,6 +330,7 @@ impl HostState {
             updated_at: now(),
             exit_code: None,
             error: None,
+            untitled,
         };
         self.registry.lock().map_err(err)?.insert(&s)?;
         let result = if kind == "terminal" {
@@ -1019,6 +1040,17 @@ impl HostState {
         Ok(Value::Null)
     }
 }
+/// The prompt text an engine message carries: a user message sent now, or one queued for later.
+fn sent_prompt(message: &Value) -> Option<&str> {
+    match message["type"].as_str()? {
+        "user_message" => crate::registry::user_message_text(&message["payload"]),
+        "queue.add" => message["payload"]["journalRaw"]
+            .as_str()
+            .filter(|raw| !raw.trim().is_empty())
+            .or_else(|| message["payload"]["text"].as_str()),
+        _ => None,
+    }
+}
 fn history_source(p: &Value) -> Result<Option<(&str, bool)>> {
     let Some(source) = p.get("history") else {
         return Ok(None);
@@ -1252,6 +1284,7 @@ mod history_tests {
                 updated_at: now(),
                 exit_code: None,
                 error: None,
+                untitled: false,
             };
             host.registry.lock().unwrap().insert(&s).unwrap();
             s.id
@@ -1298,6 +1331,26 @@ mod history_tests {
         );
         drop(host);
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn a_sent_or_queued_prompt_is_what_names_a_conversation() {
+        assert_eq!(
+            sent_prompt(&json!({"type":"user_message","payload":{"content":"Fix it"}})),
+            Some("Fix it")
+        );
+        assert_eq!(
+            sent_prompt(
+                &json!({"type":"user_message","payload":{"content":"refined","journalRaw":"original"}})
+            ),
+            Some("original"),
+            "the user's own words, not the refinement"
+        );
+        assert_eq!(
+            sent_prompt(&json!({"type":"queue.add","payload":{"text":"Later"}})),
+            Some("Later")
+        );
+        assert_eq!(sent_prompt(&json!({"type":"abort","payload":{}})), None);
     }
 
     #[test]

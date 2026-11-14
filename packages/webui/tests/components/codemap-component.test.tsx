@@ -208,6 +208,17 @@ describe('CodeMap component', () => {
     expect(screen.getByText(/codebase-index/)).toBeDefined();
   });
 
+  it.each([
+    'Engine API response exceeds 2 MiB; narrow the query',
+    'CodeMap graph exceeds the 16 MiB transfer budget — open a narrower package or file scope.',
+    'Engine API request failed or timed out',
+  ])('does not recommend reindexing for transport errors: %s', async (message) => {
+    mockFetch.mockRejectedValue(new Error(message));
+    render(<CodeMap />);
+    await waitFor(() => expect(screen.getByText(message)).toBeDefined());
+    expect(screen.queryByText(/codebase-index/)).toBeNull();
+  });
+
   it('says the index is being refreshed instead of asking for a new index', async () => {
     mockFetch.mockResolvedValue({
       ok: false,

@@ -2,7 +2,7 @@ import { Square, SquareTerminal, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
-import { isLive, type Session } from './model';
+import { isLive, type Session, sessionTitle } from './model';
 import { request } from './platform';
 import './sidebar-sessions.css';
 
@@ -34,7 +34,7 @@ export function SidebarSessionRow({
 }) {
   const { t } = useDesktopText();
   const [confirming, setConfirming] = useState(false);
-  const title = session.title;
+  const title = sessionTitle(session, t('workbench.untitled'));
   const remove = () => {
     setConfirming(false);
     return run(async () => {
@@ -54,7 +54,7 @@ export function SidebarSessionRow({
         onClick={() => onOpen(session)}
       >
         <span className={`status-dot ${session.status}`} />
-        <span>{title}</span>
+        <span title={title}>{title}</span>
         {session.kind === 'terminal' && (
           <small className="tree-session-kind" title={t('explorer.terminal')}>
             <SquareTerminal size={12} aria-hidden="true" />

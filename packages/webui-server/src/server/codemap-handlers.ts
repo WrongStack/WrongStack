@@ -27,6 +27,7 @@ import {
   indexDbVersion,
   setCachedCodemapBody,
 } from './codemap-cache.js';
+import { continueGraphTransfer, startGraphTransfer } from './codemap-transfer.js';
 import { errMessage } from './ws-utils.js';
 
 /** The 503 error text while a full index refresh runs; the Code Atlas surface matches it. */
@@ -109,13 +110,20 @@ async function serveCachedGraph(
   deps: CodemapHandlerDeps,
   scope: string,
   compute: () => Promise<CodeMapGraph>,
+  query?: URLSearchParams,
 ): Promise<void> {
   try {
-    const version = await indexDbVersion(deps.projectRoot, deps.indexDir);
     const key = codemapCacheKey(deps.projectRoot, deps.indexDir, scope);
+    const continuation = continueGraphTransfer(key, query);
+    if (continuation) {
+      sendJsonBody(res, continuation.status, continuation.body, 'BYPASS');
+      return;
+    }
+    const version = await indexDbVersion(deps.projectRoot, deps.indexDir);
     const hit = getCachedCodemapBody(key, version);
     if (hit !== undefined) {
-      sendJsonBody(res, 200, hit, 'HIT');
+      const reply = startGraphTransfer(key, hit, query);
+      sendJsonBody(res, reply.status, reply.body, 'HIT');
       return;
     }
     const graph = await compute();
@@ -123,7 +131,8 @@ async function serveCachedGraph(
     if (version !== 'missing') {
       setCachedCodemapBody(key, version, body);
     }
-    sendJsonBody(res, 200, body, 'MISS');
+    const reply = startGraphTransfer(key, body, query);
+    sendJsonBody(res, reply.status, reply.body, 'MISS');
   } catch (err) {
     // The real detail stays server-side (WS-066: a provider error body that
     // echoed an `Authorization` header used to reach the browser verbatim).
@@ -162,12 +171,18 @@ async function serveCachedGraph(
 export async function handleCodemapPackages(
   res: http.ServerResponse,
   deps: CodemapHandlerDeps,
+  query?: URLSearchParams,
 ): Promise<void> {
-  await serveCachedGraph(res, deps, 'packages', () =>
-    packageGraphService({
-      projectRoot: deps.projectRoot,
-      ...(deps.indexDir ? { indexDir: deps.indexDir } : {}),
-    }),
+  await serveCachedGraph(
+    res,
+    deps,
+    'packages',
+    () =>
+      packageGraphService({
+        projectRoot: deps.projectRoot,
+        ...(deps.indexDir ? { indexDir: deps.indexDir } : {}),
+      }),
+    query,
   );
 }
 
@@ -176,17 +191,23 @@ export async function handleCodemapFiles(
   res: http.ServerResponse,
   deps: CodemapHandlerDeps,
   pkg: string,
+  query?: URLSearchParams,
 ): Promise<void> {
   if (!pkg) {
     sendJson(res, 400, { error: 'Missing "package" query parameter' });
     return;
   }
-  await serveCachedGraph(res, deps, `files:${pkg}`, () =>
-    fileGraphService({
-      projectRoot: deps.projectRoot,
-      packageFilter: pkg,
-      ...(deps.indexDir ? { indexDir: deps.indexDir } : {}),
-    }),
+  await serveCachedGraph(
+    res,
+    deps,
+    `files:${pkg}`,
+    () =>
+      fileGraphService({
+        projectRoot: deps.projectRoot,
+        packageFilter: pkg,
+        ...(deps.indexDir ? { indexDir: deps.indexDir } : {}),
+      }),
+    query,
   );
 }
 
@@ -195,16 +216,22 @@ export async function handleCodemapSymbols(
   res: http.ServerResponse,
   deps: CodemapHandlerDeps,
   file: string,
+  query?: URLSearchParams,
 ): Promise<void> {
   if (!file) {
     sendJson(res, 400, { error: 'Missing "file" query parameter' });
     return;
   }
-  await serveCachedGraph(res, deps, `symbols:${file}`, () =>
-    symbolGraphService({
-      projectRoot: deps.projectRoot,
-      fileFilter: file,
-      ...(deps.indexDir ? { indexDir: deps.indexDir } : {}),
-    }),
+  await serveCachedGraph(
+    res,
+    deps,
+    `symbols:${file}`,
+    () =>
+      symbolGraphService({
+        projectRoot: deps.projectRoot,
+        fileFilter: file,
+        ...(deps.indexDir ? { indexDir: deps.indexDir } : {}),
+      }),
+    query,
   );
 }

@@ -1,3 +1,12 @@
+.conversation-area {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
 .conversation {
   overflow-y: auto;
   flex: 1;
@@ -450,6 +459,13 @@
 .queue-item-actions .icon-button {
   width: 23px;
   height: 23px;
+}
+
+@media (max-width: 650px) {
+  .queue-item-actions .icon-button {
+    width: 32px;
+    height: 32px;
+  }
 }
 
 .delivery-mode {

@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
-import { resolveBunExecutable } from './bun-executable.mjs';
+import { bunSpawnInvocation, resolveBunExecutable } from './bun-executable.mjs';
 import { workspaceMemberDirs } from './publishable-packages.mjs';
 import { readBunLock } from './read-bun-lock.mjs';
 
@@ -51,14 +51,18 @@ export function deployBunWorkspace(name, destination, root) {
   for (const key of selected) {
     const pkg = packages.get(key);
     const filename = `${key.replace(/^@/, '').replace('/', '-')}-${pkg.manifest.version}.tgz`;
-    execFileSync(
-      resolveBunExecutable(),
-      ['pm', 'pack', '--ignore-scripts', '--destination', packs],
-      {
-        cwd: pkg.dir,
-        stdio: 'inherit',
-      },
-    );
+    const pack = bunSpawnInvocation(resolveBunExecutable(), [
+      'pm',
+      'pack',
+      '--ignore-scripts',
+      '--destination',
+      packs,
+    ]);
+    execFileSync(pack.command, pack.args, {
+      cwd: pkg.dir,
+      stdio: 'inherit',
+      ...pack.options,
+    });
     const tarball = join(packs, filename);
     tarballs.set(key, tarball);
     overrides[key] = `file:${tarball.replaceAll('\\', '/')}`;
@@ -135,14 +139,17 @@ export function deployBunWorkspace(name, destination, root) {
   }
   writeFileSync(join(stage, 'package.json'), `${JSON.stringify(manifest, null, 2)}\n`);
   writeFileSync(join(stage, 'bun.lock'), `${JSON.stringify(stagedLock, null, 2)}\n`);
-  execFileSync(
-    resolveBunExecutable(),
-    ['install', '--lockfile-only', '--ignore-scripts', '--offline'],
-    {
-      cwd: stage,
-      stdio: 'inherit',
-    },
-  );
+  const lockfileOnly = bunSpawnInvocation(resolveBunExecutable(), [
+    'install',
+    '--lockfile-only',
+    '--ignore-scripts',
+    '--offline',
+  ]);
+  execFileSync(lockfileOnly.command, lockfileOnly.args, {
+    cwd: stage,
+    stdio: 'inherit',
+    ...lockfileOnly.options,
+  });
   const resolvedLock = readBunLock(join(stage, 'bun.lock'));
   const localPackages = new Set(
     [...tarballs].map(([key, tarball]) => `${key}@${tarball.replaceAll('\\', '/')}`),
@@ -157,11 +164,19 @@ export function deployBunWorkspace(name, destination, root) {
       throw new Error(`Bun deploy changed a locked registry dependency: ${pkg[0]}`);
     }
   }
-  execFileSync(
-    resolveBunExecutable(),
-    ['install', '--frozen-lockfile', '--production', '--ignore-scripts', '--linker', 'hoisted'],
-    { cwd: stage, stdio: 'inherit' },
-  );
+  const production = bunSpawnInvocation(resolveBunExecutable(), [
+    'install',
+    '--frozen-lockfile',
+    '--production',
+    '--ignore-scripts',
+    '--linker',
+    'hoisted',
+  ]);
+  execFileSync(production.command, production.args, {
+    cwd: stage,
+    stdio: 'inherit',
+    ...production.options,
+  });
   mkdirSync(absolute, { recursive: true });
   cpSync(stage, absolute, { recursive: true });
   // Retain scratch inputs for diagnosis; no workspace install or relinking occurs here.

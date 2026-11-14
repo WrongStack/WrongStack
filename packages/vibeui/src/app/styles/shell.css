@@ -1,6 +1,6 @@
 .vibe-shell {
   height: 100dvh;
-  min-height: 400px;
+  min-height: 0;
   display: grid;
   grid-template-columns: 224px minmax(0, 1fr);
   padding: 10px;
@@ -175,6 +175,7 @@
 }
 
 .project-icon {
+  flex-shrink: 0;
   width: 30px;
   height: 30px;
   display: grid;
@@ -185,11 +186,15 @@
 }
 
 .project-card > span:last-child {
+  flex: 1;
   min-width: 0;
 }
 
 .project-card strong {
   display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--type-sm);
   font-weight: 550;
 }
@@ -271,6 +276,15 @@
   flex-shrink: 0;
 }
 
+.header-project > .header-project-name {
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 24ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .breadcrumb {
   color: var(--faint);
   margin: 0 2px;
@@ -279,7 +293,7 @@
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 10px;
   flex-shrink: 0;
 }
 
@@ -343,10 +357,12 @@
     z-index: 31;
     width: 250px;
     transform: translateX(-100%);
+    visibility: hidden;
     transition: transform 180ms ease;
   }
   .sidebar-open .session-sidebar {
     transform: translateX(0);
+    visibility: visible;
   }
   .workspace-header {
     height: 55px;

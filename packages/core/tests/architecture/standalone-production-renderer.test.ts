@@ -5,7 +5,10 @@ import { join, resolve } from 'node:path';
 import { build } from 'esbuild';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { binaryCompileArgs } from '../../../../scripts/build-binaries.mjs';
-import { resolveBunExecutable } from '../../../../scripts/lib/bun-executable.mjs';
+import {
+  bunSpawnInvocation,
+  resolveBunExecutable,
+} from '../../../../scripts/lib/bun-executable.mjs';
 
 const root = resolve(import.meta.dirname, '../../../..');
 let dir: string;
@@ -78,7 +81,7 @@ console.log(JSON.stringify({
   const os = process.platform === 'win32' ? 'windows' : process.platform;
   const env = { ...process.env };
   delete env.NODE_ENV;
-  const result = spawnSync(
+  const compile = bunSpawnInvocation(
     resolveBunExecutable(),
     binaryCompileArgs(
       `bun-${os}-${process.arch}`,
@@ -86,8 +89,15 @@ console.log(JSON.stringify({
       bundled,
       executable,
     ),
-    { cwd: root, env, encoding: 'utf8', timeout: 60_000, windowsHide: true },
   );
+  const result = spawnSync(compile.command, compile.args, {
+    cwd: root,
+    env,
+    encoding: 'utf8',
+    timeout: 60_000,
+    windowsHide: true,
+    ...compile.options,
+  });
   expect(result.error).toBeUndefined();
   expect(result.status, result.stderr).toBe(0);
 });

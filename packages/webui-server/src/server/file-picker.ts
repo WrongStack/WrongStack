@@ -40,6 +40,25 @@ export function isHiddenEntry(name: string): boolean {
   return name.startsWith('.') && !KEEP_DOTFILES.has(name);
 }
 
+/** Directory entries one `files.list` walk may visit before it answers with what it found. */
+export const FILES_LIST_ENTRY_BUDGET = 200_000;
+/** Matching files one query walk collects for ranking. */
+export const FILES_LIST_MATCH_BUDGET = 5_000;
+
+/** The picker's normalized form of a query: trimmed, forward slashes, lower case. */
+export function normalizeFileQuery(query: string): string {
+  return query.trim().replaceAll('\\', '/').toLowerCase();
+}
+
+/**
+ * Whether `rankFiles` would keep `path` for an already-normalized query. The walk uses it to
+ * keep only candidates, so its file budget is spent on matches rather than on whatever the
+ * walk met first.
+ */
+export function fileMatchesQuery(path: string, normalizedQuery: string): boolean {
+  return !normalizedQuery || path.replaceAll('\\', '/').toLowerCase().includes(normalizedQuery);
+}
+
 /**
  * Rank `paths` against `query` and return up to `limit` paths, best first.
  *
@@ -51,7 +70,7 @@ export function isHiddenEntry(name: string): boolean {
  */
 export function rankFiles(paths: readonly string[], query: string, limit: number): string[] {
   if (typeof query !== 'string') return [];
-  const q = query.trim().replaceAll('\\', '/').toLowerCase();
+  const q = normalizeFileQuery(query);
   const normalizedLimit =
     typeof limit === 'number' && Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 0;
   const scored: Array<{ path: string; score: number }> = [];

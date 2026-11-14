@@ -15,6 +15,15 @@ export interface Session {
   updatedAt: number;
   exitCode: number | null;
   error: string | null;
+  /**
+   * An agent conversation still waiting for its name: the host names it after its first
+   * prompt. Absent from hosts older than conversation naming.
+   */
+  untitled?: boolean;
+}
+/** A session's name for display: a placeholder (`untitled`) until its first prompt names it. */
+export function sessionTitle(s: Pick<Session, 'title' | 'untitled'>, untitled: string): string {
+  return s.untitled ? untitled : s.title;
 }
 export interface Snapshot {
   projects: Project[];

@@ -696,6 +696,7 @@ wss.on('connection', (socket) => {
         name: 'read_file',
         input: { path: 'src/app.tsx' },
       });
+      if (p.content === 'Hold for queue layout') return;
       responseTimer = setTimeout(
         () => {
           frame(socket, 'provider.text_delta', {
@@ -760,6 +761,145 @@ const useStudioFixture = (page) =>
       );
   });
 try {
+  // The picker must fit short viewports and keep keyboard text composition local.
+  {
+    const pickerPage = await browser.newPage({ viewport: { width: 320, height: 360 } });
+    pickerPage.on('pageerror', (error) => errors.push(error.message));
+    await useStudioFixture(pickerPage);
+    try {
+      await pickerPage.goto(origin);
+      await expect(pickerPage.locator('.connection-chip')).toHaveText('Ready');
+      await expect(pickerPage.locator('.model-trigger')).toBeEnabled();
+      await pickerPage.keyboard.press('Control+k');
+      const search = pickerPage.getByRole('combobox', { name: 'Search models', exact: true });
+      await expect(search).toBeVisible();
+      await expect(
+        pickerPage.getByRole('listbox', { name: 'Models', exact: true }).getByRole('option'),
+      ).toHaveCount(2);
+      const pickerBounds = await pickerPage.locator('.model-popover').boundingBox();
+      assert.ok(
+        pickerBounds.y >= 0 && pickerBounds.y + pickerBounds.height <= 360,
+        'The model picker must fit inside a short viewport',
+      );
+      await expect(
+        pickerPage.getByRole('button', { name: 'Provider settings', exact: true }),
+      ).toBeInViewport();
+      await search.fill('no-such-model');
+      await pickerPage.keyboard.press('Escape');
+      await pickerPage.keyboard.press('Control+k');
+      await expect(search).toHaveValue('');
+      const active = await search.getAttribute('aria-activedescendant');
+      await search.dispatchEvent('keydown', { key: 'ArrowDown', isComposing: true });
+      await expect(search).toHaveAttribute('aria-activedescendant', active);
+      await search.dispatchEvent('keydown', { key: 'Enter', isComposing: true });
+      await expect(search).toBeVisible();
+      await pickerPage.screenshot({
+        path: join(output, 'model-picker-short.png'),
+        animations: 'disabled',
+      });
+      await pickerPage.keyboard.press('Escape');
+      const longModel = 'acp/very-long-agent-runtime-and-model-identifier'.repeat(4);
+      for (const socket of clients)
+        frame(socket, 'session.start', {
+          sessionId: 'session-one',
+          provider: 'acp',
+          model: longModel,
+          projectName: 'VibeUI Studio',
+          cwd: 'D:/workspace/studio',
+          maxContext: 128000,
+        });
+      await expect(pickerPage.locator('.model-trigger')).toContainText(longModel);
+      await expect(pickerPage.locator('.model-name')).toHaveAttribute('title', longModel);
+      const triggerBounds = await pickerPage.locator('.model-trigger').boundingBox();
+      assert.ok(triggerBounds.height <= 40, 'Long ACP model names must stay on one line');
+      await expect(pickerPage.locator('.model-trigger .acp-runtime-badge')).toHaveText('ACP agent');
+      await pickerPage.screenshot({
+        path: join(output, 'model-name-320.png'),
+        animations: 'disabled',
+      });
+    } finally {
+      await pickerPage.close();
+    }
+  }
+  // Layout regressions use fresh pages so persisted views cannot mask first-visit failures.
+  {
+    const compact = await browser.newPage({ viewport: { width: 320, height: 568 } });
+    compact.on('pageerror', (error) => errors.push(error.message));
+    try {
+      await compact.goto(origin);
+      await expect(compact.locator('.vibe-shell')).toBeVisible();
+      await expect(compact.locator('.connection-chip')).toHaveText('Ready');
+      await expect
+        .poll(() => compact.locator('main.conversation').evaluate((el) => el.scrollTop))
+        .toBe(0);
+      const toolbar = await compact.locator('.session-toolbar').boundingBox();
+      const composer = await compact.locator('.composer').boundingBox();
+      const toolbarInset = await compact
+        .locator('.session-toolbar')
+        .evaluate((el) => Number.parseFloat(getComputedStyle(el).paddingLeft));
+      assert.ok(
+        Math.abs(toolbar.x + toolbarInset - composer.x) <= 1,
+        'Mobile controls must align with the composer',
+      );
+      const shortcutRows = await compact
+        .locator('.cozy-shortcuts > button')
+        .evaluateAll(
+          (buttons) =>
+            new Set(
+              buttons.map((button) =>
+                Math.round(
+                  button.getBoundingClientRect().top + button.getBoundingClientRect().height / 2,
+                ),
+              ),
+            ).size,
+        );
+      assert.equal(shortcutRows, 1, 'Quick shortcuts must fit on one row at 320px');
+      await compact.getByRole('button', { name: 'Open sessions', exact: true }).click();
+      await compact.getByRole('button', { name: 'Settings', exact: true }).click();
+      await expect(compact.getByRole('dialog')).toBeVisible();
+      await compact.keyboard.press('Escape');
+      await expect(compact.locator('.vibe-shell')).not.toHaveClass(/sidebar-open/);
+    } finally {
+      await compact.close();
+    }
+    const tablet = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+    await useStudioFixture(tablet);
+    tablet.on('pageerror', (error) => errors.push(error.message));
+    try {
+      await tablet.goto(origin);
+      await expect(tablet.locator('.connection-chip')).toHaveText('Ready');
+      await expect(tablet.locator('.workspace-panel')).toHaveCount(0);
+      const longProject = 'WorkspaceWithAnExtremelyLongUnbrokenProjectName'.repeat(4);
+      for (const socket of clients)
+        frame(socket, 'session.start', {
+          sessionId: 'session-one',
+          provider: 'fixture',
+          model: selectedModel,
+          projectName: longProject,
+          cwd: 'D:/workspace/studio',
+          maxContext: 128000,
+        });
+      await expect(tablet.locator('.project-card strong')).toHaveText(longProject);
+      assert.ok(
+        await tablet.locator('.project-card').evaluate((el) => el.scrollWidth <= el.clientWidth),
+        'Long project names must stay inside the sidebar card',
+      );
+      const projectName = await tablet.locator('.header-project-name').boundingBox();
+      const headerActions = await tablet.locator('.header-actions').boundingBox();
+      assert.ok(
+        projectName.x + projectName.width <= headerActions.x,
+        'Header controls must remain reachable',
+      );
+      await tablet.getByRole('button', { name: 'Toggle workspace', exact: true }).click();
+      await expect(tablet.locator('.workspace-panel')).toBeVisible();
+      await tablet
+        .getByRole('button', { name: 'Close workspace panel', exact: true })
+        .click({ position: { x: 300, y: 150 } });
+      await expect(tablet.locator('.workspace-panel')).toHaveCount(0);
+    } finally {
+      await tablet.close();
+    }
+  }
   const page = await browser.newPage({
     viewport: { width: 1512, height: 982 },
     deviceScaleFactor: 1,
@@ -1787,7 +1927,7 @@ try {
   await accounts.getByRole('button', { name: 'Save provider', exact: true }).click();
   await accounts.getByText('second-account', { exact: true }).waitFor();
   assert.equal(
-    (await accounts.innerText()).includes('fixture-secret'),
+    ((await accounts.textContent()) ?? '').includes('fixture-secret'),
     false,
     'Credentials must stay masked',
   );
@@ -1992,7 +2132,7 @@ try {
   await message.press('Tab');
   assert.equal(await message.inputValue(), 'Explain $testing ');
   await message.fill(`${await message.inputValue()}@app`);
-  await page.getByRole('button', { name: 'src/app.tsx', exact: true }).click();
+  await page.getByRole('option', { name: 'src/app.tsx', exact: true }).click();
   await page.locator('input[type="file"]').setInputFiles({
     name: 'pixel.png',
     mimeType: 'image/png',
@@ -2386,8 +2526,8 @@ try {
     await page
       .getByRole('dialog')
       .locator('.agent-latest .markdown')
-      .innerText()
-      .then((value) => value.includes('Full output begins here.')),
+      .textContent()
+      .then((value) => value?.includes('Full output begins here.') ?? false),
     false,
   );
   await page.getByRole('dialog').getByRole('button', { name: 'Extended', exact: true }).click();
@@ -2396,8 +2536,8 @@ try {
     await page
       .getByRole('dialog')
       .locator('.agent-latest .markdown')
-      .innerText()
-      .then((value) => value.includes('Full output begins here.')),
+      .textContent()
+      .then((value) => value?.includes('Full output begins here.') ?? false),
     true,
   );
   assert.equal(
@@ -3934,6 +4074,19 @@ try {
     path: join(output, 'workspace-notes-mobile.png'),
     animations: 'disabled',
   });
+  await page.locator('main.conversation').evaluate((el) => {
+    el.scrollTop = 0;
+    el.dispatchEvent(new Event('scroll'));
+  });
+  const latest = page.getByRole('button', { name: 'Latest', exact: true });
+  await expect(latest).toBeVisible();
+  const latestBounds = await latest.boundingBox();
+  const readingBounds = await page.locator('main.conversation').boundingBox();
+  assert.ok(
+    latestBounds.y >= readingBounds.y &&
+      latestBounds.y + latestBounds.height <= readingBounds.y + readingBounds.height,
+    'Latest must stay inside the conversation above the controls',
+  );
   await notes.locator('summary').click();
   await page.setViewportSize({ width: 1512, height: 982 });
   await page.keyboard.press('Control+Shift+f');
@@ -3955,6 +4108,69 @@ try {
   await notes.locator('summary').click();
   await page.setViewportSize({ width: 390, height: 844 });
 
+  // Keyboard and queue checks exercise the production components without paid model calls.
+  {
+    const interaction = await browser.newPage({ viewport: { width: 320, height: 568 } });
+    interaction.on('pageerror', (error) => errors.push(error.message));
+    try {
+      await interaction.goto(origin);
+      await expect(interaction.locator('.connection-chip')).toHaveText('Ready');
+      const draft = interaction.getByRole('textbox', { name: 'Message', exact: true });
+      await draft.fill('Keep this draft');
+      await draft.press('Control+Shift+f');
+      await expect(interaction.getByRole('dialog')).toBeVisible();
+      await interaction.keyboard.press('Escape');
+      await expect(draft).toBeFocused();
+      await draft.fill('@app');
+      const files = interaction.getByRole('region', { name: 'Matching project files' });
+      await expect(files.getByRole('option')).toHaveCount(2);
+      await draft.press('ArrowDown');
+      await expect(
+        files.getByRole('option', { name: 'src/styles.css', exact: true }),
+      ).toHaveAttribute('aria-selected', 'true');
+      await draft.press('Enter');
+      await expect(
+        interaction.getByRole('button', { name: 'Remove src/styles.css', exact: true }),
+      ).toBeVisible();
+      await expect(draft).toHaveValue('');
+      await expect(draft).toBeFocused();
+      await interaction.getByRole('button', { name: 'Remove src/styles.css', exact: true }).click();
+      await draft.fill('Keep @app');
+      await expect(files).toBeVisible();
+      await draft.press('Escape');
+      await expect(files).toHaveCount(0);
+      await expect(draft).toHaveValue('Keep @app');
+      await draft.fill('Hold for queue layout');
+      await interaction.getByRole('button', { name: 'Send message', exact: true }).click();
+      await expect(
+        interaction.getByRole('button', { name: 'Queue message', exact: true }),
+      ).toBeVisible();
+      for (let i = 0; i < 9; i++) {
+        await draft.fill('Queued layout message ' + i);
+        await interaction.getByRole('button', { name: 'Queue message', exact: true }).click();
+      }
+      const composerBounds = await interaction.locator('.composer').boundingBox();
+      assert.ok(
+        composerBounds.y + composerBounds.height <= 568,
+        'Queued messages must leave the composer visible',
+      );
+      const queue = interaction.getByRole('region', { name: 'Queued messages' });
+      assert.ok(
+        await queue.evaluate((el) => el.scrollHeight > el.clientHeight),
+        'A long queue must scroll inside its own area',
+      );
+      await interaction
+        .getByRole('button', { name: 'Remove queued message 9', exact: true })
+        .click();
+      await expect(queue.locator('.queue-heading')).toContainText('8 queued');
+      await interaction.screenshot({
+        path: join(output, 'queue-layout-320.png'),
+        animations: 'disabled',
+      });
+    } finally {
+      await interaction.close();
+    }
+  }
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth,
   );

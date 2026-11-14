@@ -250,11 +250,13 @@
 .native-composer-stack {
   position: relative;
 }
+/* Lined up with the composer it completes: on a wide window the composer is centred at 860 px,
+   and an 18 px inset stretched the suggestions across the whole conversation. */
 .composer-mention-popup {
   position: absolute;
   bottom: calc(100% + 6px);
-  left: 18px;
-  right: 18px;
+  left: var(--composer-inline, 18px);
+  right: var(--composer-inline, 18px);
   z-index: 25;
   max-height: min(320px, 45vh);
   overflow-y: auto;
@@ -297,9 +299,21 @@
   font-size: 11px;
   line-height: 1.6;
 }
+/* The project gate shows briefly while the picker checks the project engine; its page-sized
+   heading and spinner filled the small popup. */
 .composer-mention-popup .runtime-state {
-  min-height: 100px;
+  min-height: 0;
   padding: 10px;
+  gap: 6px;
+}
+.composer-mention-popup .runtime-state h2 {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+.composer-mention-popup .runtime-state > svg {
+  width: 16px;
+  height: 16px;
 }
 .composer-reference-chips,
 .chat-file-references {

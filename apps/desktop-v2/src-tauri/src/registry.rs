@@ -1,5 +1,5 @@
 use crate::{err, now, Result};
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, Transaction, TransactionBehavior};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -27,6 +27,80 @@ pub struct Session {
     pub updated_at: i64,
     pub exit_code: Option<i32>,
     pub error: Option<String>,
+    /// An agent conversation still waiting for its name: its first prompt names it. The
+    /// interface shows a localized placeholder instead of the stored title meanwhile.
+    #[serde(default)]
+    pub untitled: bool,
+}
+
+/// The longest name a first prompt gives a conversation, in characters. At most 4 bytes each
+/// plus the ellipsis, it stays inside the 200-byte title limit.
+pub const PROMPT_TITLE_CHARS: usize = 48;
+
+/// A conversation's name from a prompt: its first line that says something, without the file
+/// references the composer attaches, Markdown lead-ins or control characters, cut to
+/// [`PROMPT_TITLE_CHARS`] with an ellipsis. None for an empty prompt or a bare command
+/// (`/clear`), which says nothing about the conversation.
+pub fn prompt_title(text: &str) -> Option<String> {
+    let text = text
+        .split("[Project file references]")
+        .next()
+        .unwrap_or_default();
+    let line = text.lines().map(str::trim).find(|line| !line.is_empty())?;
+    let line = line
+        .trim_start_matches(|c: char| matches!(c, '#' | '>' | '-' | '*' | '`') || c.is_whitespace())
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    let line: String = line.chars().filter(|c| !c.is_control()).collect();
+    if line.is_empty() || (line.starts_with('/') && !line.contains(' ')) {
+        return None;
+    }
+    let mut chars = line.chars();
+    let cut: String = chars.by_ref().take(PROMPT_TITLE_CHARS).collect();
+    Some(if chars.next().is_some() {
+        format!("{}…", cut.trim_end())
+    } else {
+        cut
+    })
+}
+
+/// The text a user prompt sent to an engine says: the original text when a refinement was sent
+/// in its place (`journalRaw`), else its content.
+pub fn user_message_text(payload: &Value) -> Option<&str> {
+    payload["journalRaw"]
+        .as_str()
+        .filter(|raw| !raw.trim().is_empty())
+        .or_else(|| payload["content"].as_str())
+}
+
+/// The name a conversation's journal gives it: its first prompt that says something. Reads
+/// line by line from the start and stops at the first one; a journal without one is read up
+/// to a bound, not entirely.
+fn journal_prompt_title(path: &Path) -> Option<String> {
+    use std::io::{BufRead, BufReader, Read};
+    const LIMIT: u64 = 16 * 1024 * 1024;
+    let file = std::fs::File::open(path).ok()?;
+    for line in BufReader::new(file.take(LIMIT)).split(b'\n') {
+        let line = line.ok()?;
+        // Cheap test first: most lines are engine frames.
+        if !line
+            .windows(b"desktop.user_message".len())
+            .any(|w| w == b"desktop.user_message")
+        {
+            continue;
+        }
+        let Ok(event) = serde_json::from_slice::<Value>(&line) else {
+            continue;
+        };
+        if event["type"] != "desktop.user_message" {
+            continue;
+        }
+        if let Some(title) = user_message_text(&event["payload"]).and_then(prompt_title) {
+            return Some(title);
+        }
+    }
+    None
 }
 
 pub struct Registry {
@@ -64,10 +138,138 @@ impl Registry {
               FROM sessions WHERE kind='agent' AND id=CASE WHEN OLD.key LIKE 'draft:%' THEN substr(OLD.key,7) WHEN OLD.key LIKE 'draftrefs:%' THEN substr(OLD.key,11) WHEN OLD.key LIKE 'draftmedia:%' THEN substr(OLD.key,12) ELSE substr(OLD.key,11) END
               ON CONFLICT(session_id,part) DO UPDATE SET revision=revision+1;
           END;").map_err(err)?;
-        Ok(Self {
+        let registry = Self {
             db,
             dir: dir.to_owned(),
-        })
+        };
+        registry.migrate_titles()?;
+        Ok(registry)
+    }
+    /// Gives a registry from before conversations were named after their first prompt the
+    /// `untitled_sessions` table. Every agent conversation such a registry opened without a name
+    /// was called "Agent session": it takes its first prompt from its journal now, or waits for
+    /// its next one.
+    ///
+    /// The marker is a table of its own, not a column on `sessions`: a session host from an
+    /// older build keeps running through an update and inserts all of a session's columns
+    /// positionally, which an added column would make fail. Journals are read before the write
+    /// lock is taken, so the other process opening this registry never waits on them.
+    fn migrate_titles(&self) -> Result<()> {
+        if self.has_untitled_table()? {
+            return Ok(());
+        }
+        let legacy: Vec<String> = {
+            let mut q = self
+                .db
+                .prepare("SELECT id FROM sessions WHERE kind='agent' AND title='Agent session'")
+                .map_err(err)?;
+            let rows = q.query_map([], |r| r.get(0)).map_err(err)?;
+            rows.collect::<std::result::Result<_, _>>().map_err(err)?
+        };
+        let titles: Vec<(String, Option<String>)> = legacy
+            .into_iter()
+            .map(|id| {
+                let journal = self
+                    .dir
+                    .join("transcripts")
+                    .join(format!("{id}.events.jsonl"));
+                let title = journal_prompt_title(&journal);
+                (id, title)
+            })
+            .collect();
+        // A 1.7.0 pre-release kept the marker in an `untitled` column on `sessions`.
+        let column: bool = self
+            .db
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM pragma_table_info('sessions') WHERE name='untitled')",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(err)?;
+        let tx =
+            Transaction::new_unchecked(&self.db, TransactionBehavior::Immediate).map_err(err)?;
+        // Another process holding this registry migrated it first.
+        if self.has_untitled_table()? {
+            return Ok(());
+        }
+        tx.execute(
+            "CREATE TABLE untitled_sessions (session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE)",
+            [],
+        )
+        .map_err(err)?;
+        if column {
+            tx.execute(
+                "INSERT OR IGNORE INTO untitled_sessions SELECT id FROM sessions WHERE untitled=1",
+                [],
+            )
+            .map_err(err)?;
+        }
+        for (id, title) in titles {
+            match title {
+                Some(title) => tx.execute(
+                    "UPDATE sessions SET title=?2 WHERE id=?1 AND title='Agent session'",
+                    params![id, title],
+                ),
+                None => tx.execute(
+                    "INSERT OR IGNORE INTO untitled_sessions (session_id) SELECT id FROM sessions WHERE id=?1",
+                    [id],
+                ),
+            }
+            .map_err(err)?;
+        }
+        tx.commit().map_err(err)
+    }
+    fn has_untitled_table(&self) -> Result<bool> {
+        self.db
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='untitled_sessions')",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(err)
+    }
+    /// Names a conversation that has no name yet after a prompt it was sent. False when it
+    /// already has one (its first prompt, or one the user gave it) or the prompt says nothing.
+    pub fn name_untitled(&self, id: &str, prompt: &str) -> Result<bool> {
+        let Some(title) = prompt_title(prompt) else {
+            return Ok(false);
+        };
+        // A conversation an older host opened while this build was installed carries that
+        // host's default name and no marker.
+        let changed = self
+            .db
+            .execute(
+                "UPDATE sessions SET title=?2 WHERE id=?1 AND (EXISTS(SELECT 1 FROM untitled_sessions WHERE session_id=?1) OR (kind='agent' AND title='Agent session'))",
+                params![id, title],
+            )
+            .map_err(err)?;
+        if changed > 0 {
+            self.db
+                .execute("DELETE FROM untitled_sessions WHERE session_id=?1", [id])
+                .map_err(err)?;
+        }
+        Ok(changed > 0)
+    }
+    /// Gives a session the name the user chose; its prompts no longer rename it.
+    pub fn rename(&self, id: &str, title: &str) -> Result<()> {
+        let title = title.trim();
+        if title.is_empty() || title.len() > 200 || title.chars().any(char::is_control) {
+            return Err("Title must contain 1–200 bytes without control characters".into());
+        }
+        let changed = self
+            .db
+            .execute(
+                "UPDATE sessions SET title=?2 WHERE id=?1",
+                params![id, title],
+            )
+            .map_err(err)?;
+        if changed == 0 {
+            return Err("Unknown session".into());
+        }
+        self.db
+            .execute("DELETE FROM untitled_sessions WHERE session_id=?1", [id])
+            .map_err(err)?;
+        Ok(())
     }
     pub fn register(&self, root: &str) -> Result<Project> {
         let path = std::fs::canonicalize(root).map_err(err)?;
@@ -136,7 +338,7 @@ impl Registry {
     pub fn insert(&self, s: &Session) -> Result<()> {
         self.db
             .execute(
-                "INSERT INTO sessions VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
+                "INSERT INTO sessions (id,project_id,title,kind,workdir,status,created_at,updated_at,exit_code,error) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
                 params![
                     s.id,
                     s.project_id,
@@ -151,10 +353,18 @@ impl Registry {
                 ],
             )
             .map_err(err)?;
+        if s.untitled {
+            self.db
+                .execute(
+                    "INSERT OR IGNORE INTO untitled_sessions (session_id) VALUES (?1)",
+                    [&s.id],
+                )
+                .map_err(err)?;
+        }
         Ok(())
     }
     pub fn sessions(&self) -> Result<Vec<Session>> {
-        let mut q = self.db.prepare("SELECT id,project_id,title,kind,workdir,status,created_at,updated_at,exit_code,error FROM sessions ORDER BY created_at DESC").map_err(err)?;
+        let mut q = self.db.prepare("SELECT id,project_id,title,kind,workdir,status,created_at,updated_at,exit_code,error,EXISTS(SELECT 1 FROM untitled_sessions u WHERE u.session_id=sessions.id) FROM sessions ORDER BY created_at DESC").map_err(err)?;
         let rows = q
             .query_map([], |r| {
                 Ok(Session {
@@ -168,6 +378,7 @@ impl Registry {
                     updated_at: r.get(7)?,
                     exit_code: r.get(8)?,
                     error: r.get(9)?,
+                    untitled: r.get(10)?,
                 })
             })
             .map_err(err)?;
@@ -817,6 +1028,289 @@ impl Registry {
 }
 
 #[cfg(test)]
+mod title_tests {
+    use super::*;
+
+    fn record(
+        db: &Registry,
+        project: &str,
+        dir: &Path,
+        kind: &str,
+        title: &str,
+        untitled: bool,
+    ) -> String {
+        let s = Session {
+            id: Uuid::new_v4().to_string(),
+            project_id: project.into(),
+            title: title.into(),
+            kind: kind.into(),
+            workdir: dir.to_string_lossy().into(),
+            status: "running".into(),
+            created_at: now(),
+            updated_at: now(),
+            exit_code: None,
+            error: None,
+            untitled,
+        };
+        db.insert(&s).unwrap();
+        s.id
+    }
+    fn title_of(db: &Registry, id: &str) -> (String, bool) {
+        let s = db
+            .sessions()
+            .unwrap()
+            .into_iter()
+            .find(|s| s.id == id)
+            .unwrap();
+        (s.title, s.untitled)
+    }
+
+    #[test]
+    fn a_prompt_names_a_conversation_by_its_first_meaningful_line_within_bounds() {
+        assert_eq!(
+            prompt_title("  Fix the login bug  ").as_deref(),
+            Some("Fix the login bug")
+        );
+        assert_eq!(
+            prompt_title("\n\n## Refactor   the\tparser\nmore detail").as_deref(),
+            Some("Refactor the parser")
+        );
+        assert_eq!(prompt_title(""), None);
+        assert_eq!(prompt_title("   \n  "), None);
+        assert_eq!(prompt_title("/clear"), None);
+        assert_eq!(
+            prompt_title("/goal ship it").as_deref(),
+            Some("/goal ship it")
+        );
+        let long = "a".repeat(200);
+        let cut = prompt_title(&long).unwrap();
+        assert_eq!(cut.chars().count(), PROMPT_TITLE_CHARS + 1);
+        assert!(cut.ends_with('…'));
+        // Multibyte text is cut on characters and stays inside the title limit.
+        let wide = prompt_title(&"🦀".repeat(100)).unwrap();
+        assert!(wide.len() <= 200 && wide.ends_with('…'));
+        assert_eq!(
+            prompt_title("Look at this\n\n[Project file references]\n- src/a.ts").as_deref(),
+            Some("Look at this")
+        );
+        assert_eq!(prompt_title("[Project file references]\n- src/a.ts"), None);
+    }
+
+    #[test]
+    fn only_an_untitled_conversation_takes_a_prompt_name_and_a_rename_sticks() {
+        let dir = std::env::temp_dir().join(Uuid::new_v4().to_string());
+        let project_dir = dir.join("repo");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        let db = Registry::open(&dir.join("state")).unwrap();
+        let p = db.register(project_dir.to_str().unwrap()).unwrap();
+        let fresh = record(&db, &p.id, &project_dir, "agent", "New conversation", true);
+        let named = record(&db, &p.id, &project_dir, "agent", "Chosen", false);
+        assert!(
+            !db.name_untitled(&fresh, "/clear").unwrap(),
+            "a bare command names nothing"
+        );
+        assert_eq!(title_of(&db, &fresh), ("New conversation".into(), true));
+        assert!(db.name_untitled(&fresh, "Add dark mode").unwrap());
+        assert_eq!(title_of(&db, &fresh), ("Add dark mode".into(), false));
+        assert!(
+            !db.name_untitled(&fresh, "Second prompt").unwrap(),
+            "only the first prompt"
+        );
+        assert!(!db.name_untitled(&named, "Anything").unwrap());
+        assert_eq!(title_of(&db, &named).0, "Chosen");
+        db.rename(&fresh, "  My name  ").unwrap();
+        assert_eq!(title_of(&db, &fresh), ("My name".into(), false));
+        assert!(db.rename(&fresh, "   ").is_err());
+        assert!(db.rename(&fresh, &"x".repeat(201)).is_err());
+        assert!(db.rename(&fresh, "bad\nname").is_err());
+        assert!(db.rename("missing", "Name").is_err());
+        drop(db);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn an_older_registry_names_its_agent_sessions_from_their_journals() {
+        let dir = std::env::temp_dir().join(Uuid::new_v4().to_string());
+        let state = dir.join("state");
+        let project_dir = dir.join("repo");
+        std::fs::create_dir_all(state.join("transcripts")).unwrap();
+        std::fs::create_dir_all(&project_dir).unwrap();
+        let root = std::fs::canonicalize(&project_dir).unwrap();
+        {
+            // The schema before the `untitled` column.
+            let db = Connection::open(state.join("workspace.sqlite")).unwrap();
+            db.execute_batch(
+                "CREATE TABLE projects (id TEXT PRIMARY KEY, name TEXT NOT NULL, root TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL);
+                 CREATE TABLE sessions (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), title TEXT NOT NULL, kind TEXT NOT NULL, workdir TEXT NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, exit_code INTEGER, error TEXT);",
+            )
+            .unwrap();
+            db.execute(
+                "INSERT INTO projects VALUES ('p','repo',?1,0)",
+                [root.to_string_lossy()],
+            )
+            .unwrap();
+            for (id, title, kind) in [
+                (
+                    "11111111-1111-4111-8111-111111111111",
+                    "Agent session",
+                    "agent",
+                ),
+                (
+                    "22222222-2222-4222-8222-222222222222",
+                    "Agent session",
+                    "agent",
+                ),
+                ("33333333-3333-4333-8333-333333333333", "Kept", "agent"),
+                (
+                    "44444444-4444-4444-8444-444444444444",
+                    "Terminal",
+                    "terminal",
+                ),
+            ] {
+                db.execute(
+                    "INSERT INTO sessions VALUES (?1,'p',?2,?3,'w','stopped',0,0,NULL,NULL)",
+                    params![id, title, kind],
+                )
+                .unwrap();
+            }
+        }
+        std::fs::write(
+            state.join("transcripts/11111111-1111-4111-8111-111111111111.events.jsonl"),
+            concat!(
+                "{\"type\":\"session.start\",\"payload\":{}}\n",
+                "{\"type\":\"desktop.user_message\",\"payload\":{\"content\":\"/clear\"}}\n",
+                "{\"type\":\"desktop.user_message\",\"payload\":{\"content\":\"refined text\",\"journalRaw\":\"Write the release notes\"}}\n",
+            ),
+        )
+        .unwrap();
+        let db = Registry::open(&state).unwrap();
+        assert_eq!(
+            title_of(&db, "11111111-1111-4111-8111-111111111111"),
+            ("Write the release notes".into(), false)
+        );
+        assert_eq!(
+            title_of(&db, "22222222-2222-4222-8222-222222222222"),
+            ("Agent session".into(), true),
+            "no prompt yet: the next one names it"
+        );
+        assert_eq!(
+            title_of(&db, "33333333-3333-4333-8333-333333333333"),
+            ("Kept".into(), false)
+        );
+        assert_eq!(
+            title_of(&db, "44444444-4444-4444-8444-444444444444"),
+            ("Terminal".into(), false)
+        );
+        drop(db);
+        // Opening again is a no-op.
+        let db = Registry::open(&state).unwrap();
+        assert!(title_of(&db, "22222222-2222-4222-8222-222222222222").1);
+        drop(db);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A session host from an older build keeps running through an update and keeps
+    /// inserting sessions positionally into the registry this build migrated.
+    #[test]
+    fn an_older_host_still_creates_sessions_after_this_build_opened_the_registry() {
+        let dir = std::env::temp_dir().join(Uuid::new_v4().to_string());
+        let project_dir = dir.join("repo");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        let db = Registry::open(&dir.join("state")).unwrap();
+        let project = db.register(&project_dir.to_string_lossy()).unwrap();
+        let marked = record(
+            &db,
+            &project.id,
+            &project_dir,
+            "agent",
+            "New conversation",
+            true,
+        );
+
+        let old_host = Connection::open(dir.join("state/workspace.sqlite")).unwrap();
+        old_host.execute_batch("PRAGMA foreign_keys=ON;").unwrap();
+        // The 1.6.x host's statement, verbatim.
+        old_host
+            .execute(
+                "INSERT INTO sessions VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
+                params![
+                    "55555555-5555-4555-8555-555555555555",
+                    project.id,
+                    "Agent session",
+                    "agent",
+                    project_dir.to_string_lossy(),
+                    "running",
+                    0,
+                    0,
+                    Option::<i32>::None,
+                    Option::<String>::None
+                ],
+            )
+            .unwrap();
+        // Its conversation carries that host's default name and takes its first prompt's.
+        assert!(db
+            .name_untitled("55555555-5555-4555-8555-555555555555", "Ship it")
+            .unwrap());
+        assert_eq!(
+            title_of(&db, "55555555-5555-4555-8555-555555555555"),
+            ("Ship it".into(), false)
+        );
+        // Deleting a session (from either host) drops its marker with it.
+        old_host
+            .execute("DELETE FROM sessions WHERE id=?1", [&marked])
+            .unwrap();
+        let markers: i64 = old_host
+            .query_row("SELECT count(*) FROM untitled_sessions", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(markers, 0);
+        drop((db, old_host));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A 1.7.0 pre-release kept the marker in an `untitled` column on `sessions`.
+    #[test]
+    fn a_pre_release_untitled_column_carries_its_markers_over() {
+        let dir = std::env::temp_dir().join(Uuid::new_v4().to_string());
+        let state = dir.join("state");
+        let project_dir = dir.join("repo");
+        std::fs::create_dir_all(&state).unwrap();
+        std::fs::create_dir_all(&project_dir).unwrap();
+        let root = std::fs::canonicalize(&project_dir).unwrap();
+        {
+            let db = Connection::open(state.join("workspace.sqlite")).unwrap();
+            db.execute_batch(
+                "CREATE TABLE projects (id TEXT PRIMARY KEY, name TEXT NOT NULL, root TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL);
+                 CREATE TABLE sessions (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), title TEXT NOT NULL, kind TEXT NOT NULL, workdir TEXT NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, exit_code INTEGER, error TEXT, untitled INTEGER NOT NULL DEFAULT 0);",
+            )
+            .unwrap();
+            db.execute(
+                "INSERT INTO projects VALUES ('p','repo',?1,0)",
+                [root.to_string_lossy()],
+            )
+            .unwrap();
+            db.execute(
+                "INSERT INTO sessions VALUES ('a','p','New conversation','agent','w','stopped',0,0,NULL,NULL,1)",
+                [],
+            )
+            .unwrap();
+            db.execute(
+                "INSERT INTO sessions VALUES ('b','p','Named','agent','w','stopped',0,0,NULL,NULL,0)",
+                [],
+            )
+            .unwrap();
+        }
+        let db = Registry::open(&state).unwrap();
+        assert_eq!(title_of(&db, "a"), ("New conversation".into(), true));
+        assert_eq!(title_of(&db, "b"), ("Named".into(), false));
+        // Inserting still works with the extra column present.
+        let fresh = record(&db, "p", &project_dir, "agent", "New conversation", true);
+        assert!(title_of(&db, &fresh).1);
+        drop(db);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[cfg(test)]
 mod tests {
     #[test]
     fn profile_model_drafts_need_no_projects_and_use_revision_checked_cleanup() {
@@ -1186,6 +1680,7 @@ mod tests {
             updated_at: now(),
             exit_code: None,
             error: None,
+            untitled: false,
         };
         db.insert(&s).unwrap();
         let a = Session {

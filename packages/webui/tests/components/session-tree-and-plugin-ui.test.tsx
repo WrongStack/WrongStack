@@ -99,6 +99,24 @@ describe('WebUI & project-surfaces Session Tree and Declarative Plugin UI compon
     expect(onCreateBranch).toHaveBeenCalledWith('try-duckdb');
   });
 
+  it('opens the branch menu upwards in a bottom status bar and closes it on outside click or Escape', () => {
+    render(<SessionBranchPill tree={sampleTree} placement="up" />);
+    const trigger = screen.getByTitle(/Session branch: try-sqlite/i);
+
+    fireEvent.click(trigger);
+    const menu = screen.getByText(/Session Tree \(2 branches\)/).closest('[data-placement]');
+    expect(menu?.getAttribute('data-placement')).toBe('up');
+    expect(menu?.className).toContain('bottom-full');
+    expect(menu?.className).not.toContain('top-full');
+
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByText(/Session Tree \(2 branches\)/)).toBeNull();
+
+    fireEvent.click(trigger);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByText(/Session Tree \(2 branches\)/)).toBeNull();
+  });
+
   it('renders all 9 PluginViewNode kinds and PluginStatusChipsBar cleanly', () => {
     const onSelectChip = vi.fn();
     render(

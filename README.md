@@ -55,6 +55,25 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.7.0
+
+- **Conversations you can find:** desktop tabs take their names from the first
+  prompt. Double-click or press F2 to rename one; long titles stay compact.
+- **Code Atlas for larger projects:** the desktop and WebUI load large graphs
+  in consistent chunks, preserving nodes, edges and enrichment. Update both
+  the engine and desktop to use the new transfer.
+- **Plugins from WebUI Settings:** Settings → Context adds install, remove,
+  configured and official lists through the engine's `/plugin` command, with
+  the result and any restart requirement shown in place.
+- **Quicker Chronicle refreshes:** facet counts are cached per query and
+  updated from new rows, with a recount after retention or compaction.
+- **A smoother VibeUI:** keyboard file mentions, a model search that resets
+  when reopened, focus restored after dialogs, and better narrow-screen layouts.
+- **Desktop follow-ups stay under your control:** automatic continuation waits
+  for visible suggestions; reviewing them cancels the countdown. Cache usage
+  percentages and branch-menu placement are corrected, and unused builds'
+  project-service journals are pruned without deleting conversations.
+
 ### What's new in 1.6.3
 
 - **Architecture decisions:** agents propose, you review, and accepted
@@ -299,7 +318,7 @@ irm https://wrongstack.com/install.ps1 | iex
 The installers download the build for your OS/CPU (musl is detected on
 Linux), verify it against the release `SHA256SUMS`, and install `wstack` plus a
 `wrongstack` alias into `~/.wrongstack/bin`. The musl builds need the C++
-runtime (`apk add libstdc++ libgcc` on Alpine). Set `WSTACK_VERSION=1.5.4` to pin a
+runtime (`apk add libstdc++ libgcc` on Alpine). Set `WSTACK_VERSION=1.7.0` to pin a
 release or `WSTACK_INSTALL_DIR` to install elsewhere. You can also download a
 `wstack-<os>-<arch>` file from the
 [releases page](https://github.com/WrongStack/WrongStack/releases) and put it on
@@ -521,7 +540,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.6.3**; versions follow semver
+- Release notes: **v1.7.0**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements

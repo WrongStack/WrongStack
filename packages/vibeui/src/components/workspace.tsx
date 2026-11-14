@@ -54,6 +54,7 @@ export function Workspace() {
   const conversation = useStickyScroll<HTMLElement>(
     [state.messages, state.running, state.tools, state.agents, state.runOutcome],
     state.id,
+    state.messages.length > 0,
   );
   const { smallerModel, chooseModel, refreshModels, confirmPending, cancelPending } =
     useModelChoice({
@@ -276,52 +277,54 @@ export function Workspace() {
               </button>
             </div>
           )}
-          <main className="conversation" ref={conversation.ref} onScroll={conversation.onScroll}>
-            {!state.messages.length ? (
-              <StartSpace
-                key={state.id || 'connecting'}
-                project={state.project}
-                canPrepare={
-                  ready &&
-                  Boolean(state.id) &&
-                  connection === 'open' &&
-                  !controller.sessionTransition
-                }
-                needsProvider={ready && !state.model}
-                onPrepare={controller.prepareDraft}
-                onConnect={() => setProvidersOpen(true)}
-              />
-            ) : (
-              <Transcript
+          <div className="conversation-area">
+            <main className="conversation" ref={conversation.ref} onScroll={conversation.onScroll}>
+              {!state.messages.length ? (
+                <StartSpace
+                  key={state.id || 'connecting'}
+                  project={state.project}
+                  canPrepare={
+                    ready &&
+                    Boolean(state.id) &&
+                    connection === 'open' &&
+                    !controller.sessionTransition
+                  }
+                  needsProvider={ready && !state.model}
+                  onPrepare={controller.prepareDraft}
+                  onConnect={() => setProvidersOpen(true)}
+                />
+              ) : (
+                <Transcript
+                  state={state}
+                  controller={controller}
+                  connection={connection}
+                  ready={ready}
+                  locked={locked}
+                  presentation={presentation}
+                  compact={preferences.view !== 'studio'}
+                  latestAssistantId={latestAssistantId}
+                  hasDraft={hasDraft}
+                  copied={copied}
+                  copy={copy}
+                  setInspectedToolId={setInspectedToolId}
+                  showActivity={showActivity}
+                />
+              )}
+              <SessionWorkStatus
                 state={state}
-                controller={controller}
-                connection={connection}
-                ready={ready}
-                locked={locked}
-                presentation={presentation}
-                compact={preferences.view !== 'studio'}
-                latestAssistantId={latestAssistantId}
-                hasDraft={hasDraft}
-                copied={copied}
-                copy={copy}
-                setInspectedToolId={setInspectedToolId}
-                showActivity={showActivity}
+                connected={connection === 'open'}
+                canStop={ready && !controller.sessionTransition}
+                onStop={requestStop}
+                onWatch={revealAgents}
               />
+            </main>
+            {conversation.showLatest && state.messages.length > 0 && (
+              <button type="button" className="jump-latest" onClick={conversation.jumpToLatest}>
+                <ArrowDown size={13} />
+                Latest
+              </button>
             )}
-            <SessionWorkStatus
-              state={state}
-              connected={connection === 'open'}
-              canStop={ready && !controller.sessionTransition}
-              onStop={requestStop}
-              onWatch={revealAgents}
-            />
-          </main>
-          {conversation.showLatest && state.messages.length > 0 && (
-            <button type="button" className="jump-latest" onClick={conversation.jumpToLatest}>
-              <ArrowDown size={13} />
-              Latest
-            </button>
-          )}
+          </div>
           <StreamMeter activity={state.streamActivity} running={state.running} />
           <SessionToolbar
             state={state}
@@ -346,14 +349,12 @@ export function Workspace() {
         </div>
         {panel && (
           <>
-            {preferences.view !== 'studio' && (
-              <button
-                type="button"
-                className="workspace-backdrop"
-                aria-label="Close workspace panel"
-                onClick={() => setPanel(false)}
-              />
-            )}
+            <button
+              type="button"
+              className="workspace-backdrop"
+              aria-label="Close workspace panel"
+              onClick={() => setPanel(false)}
+            />
             <WorkspacePanel
               controller={controller}
               revealAgents={agentReveal}

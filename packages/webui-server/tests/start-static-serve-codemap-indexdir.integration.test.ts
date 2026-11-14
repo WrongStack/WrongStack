@@ -65,9 +65,13 @@ describe('startStaticServe real HTTP → /api/codemap/packages', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ marker: 'codemap-packages' });
     expect(handleCodemapPackages).toHaveBeenCalledTimes(1);
-    expect(handleCodemapPackages).toHaveBeenCalledWith(expect.anything(), {
-      projectRoot,
-      indexDir,
-    });
+    expect(handleCodemapPackages).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        projectRoot,
+        indexDir,
+      },
+      new URLSearchParams(),
+    );
   });
 });

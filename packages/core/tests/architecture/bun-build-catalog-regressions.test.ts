@@ -2,7 +2,10 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { resolveBunExecutable } from '../../../../scripts/lib/bun-executable.mjs';
+import {
+  bunSpawnInvocation,
+  resolveBunExecutable,
+} from '../../../../scripts/lib/bun-executable.mjs';
 import { toolCatalog } from '../../../../website/src/data/runtime-catalog.js';
 
 const root = resolve(import.meta.dirname, '../../../..');
@@ -20,12 +23,14 @@ function put(dir: string, file: string, content: string) {
   writeFileSync(target, content);
 }
 function run(dir: string, script: string, ...args: string[]) {
-  return spawnSync(resolveBunExecutable(), [script, ...args], {
+  const spawn = bunSpawnInvocation(resolveBunExecutable(), [script, ...args]);
+  return spawnSync(spawn.command, spawn.args, {
     cwd: dir,
     encoding: 'utf8',
     timeout: 15_000,
     env: { ...process.env, WRONGSTACK_WORKSPACE_BUILD: '' },
     windowsHide: true,
+    ...spawn.options,
   });
 }
 afterEach(() => {

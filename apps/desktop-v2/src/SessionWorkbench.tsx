@@ -1,12 +1,13 @@
-import { Plus, Square, Terminal, Workflow, X } from 'lucide-react';
+import { Plus, Square } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
 import { ConversationReconnect } from './ConversationReconnect';
 import { CopyButton } from './CopyButton';
 import { useDesktopText } from './desktop-i18n';
 import { EngineWorkspace } from './EngineWorkspace';
-import { isLive } from './model';
+import { isLive, sessionTitle } from './model';
 import { request } from './platform';
 import { SandboxChip } from './SandboxChip';
+import { SessionTab } from './SessionTab';
 import { requestSettingsSection } from './settings-section-request';
 import './draft-conflict.css';
 
@@ -41,35 +42,20 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
             .map((id) => snapshot.sessions.find((s) => s.id === id))
             .filter((s) => s !== undefined)
             .map((s) => (
-              <div
-                className={`session-tab ${s.id === session.id ? 'active-session-tab' : ''}`}
+              <SessionTab
                 key={s.id}
-              >
-                <button
-                  type="button"
-                  className="session-tab-label"
-                  aria-current={s.id === session.id ? 'page' : undefined}
-                  onClick={() => jumpToSession(s)}
-                >
-                  {s.kind === 'terminal' ? <Terminal size={13} /> : <Workflow size={13} />}
-                  <span>
-                    {/* Only a session from another project names its project. */}
-                    {s.projectId !== session.projectId && (
-                      <small>{snapshot.projects.find((p) => p.id === s.projectId)?.name}</small>
-                    )}
-                    {s.title}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="session-tab-close"
-                  title={t('workbench.detach', { title: s.title })}
-                  aria-label={t('workbench.detach', { title: s.title })}
-                  onClick={() => closeSessionTab(s.id)}
-                >
-                  <X size={12} />
-                </button>
-              </div>
+                session={s}
+                active={s.id === session.id}
+                // Only a session from another project names its project.
+                projectName={
+                  s.projectId !== session.projectId
+                    ? snapshot.projects.find((p) => p.id === s.projectId)?.name
+                    : undefined
+                }
+                onOpen={() => jumpToSession(s)}
+                onClose={() => closeSessionTab(s.id)}
+                onRename={(title) => void run(() => request('session.rename', { id: s.id, title }))}
+              />
             ))}
           <button
             type="button"
@@ -139,7 +125,7 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
             key={session.id}
             id={session.id}
             sessionStatus={session.status}
-            sessionTitle={session.title}
+            sessionTitle={sessionTitle(session, t('workbench.untitled'))}
             scopeKey={session.workdir}
             projectId={session.projectId}
             projectRoot={

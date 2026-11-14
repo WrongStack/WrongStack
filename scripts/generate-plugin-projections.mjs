@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { OFFICIAL_PLUGIN_MANIFEST } from '../packages/plugins/src/manifest/index.ts';
-import { resolveBunExecutable } from './lib/bun-executable.mjs';
+import { bunSpawnInvocation, resolveBunExecutable } from './lib/bun-executable.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PACKAGE_PATH = fileURLToPath(new URL('../packages/plugins/package.json', import.meta.url));
@@ -135,15 +135,19 @@ function renderExports() {
 }
 
 function formatTypeScript(path, content) {
-  const result = spawnSync(
-    resolveBunExecutable(),
-    ['run', 'biome', 'format', '--stdin-file-path', path],
-    {
-      cwd: ROOT,
-      encoding: 'utf8',
-      input: content,
-    },
-  );
+  const spawn = bunSpawnInvocation(resolveBunExecutable(), [
+    'run',
+    'biome',
+    'format',
+    '--stdin-file-path',
+    path,
+  ]);
+  const result = spawnSync(spawn.command, spawn.args, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    input: content,
+    ...spawn.options,
+  });
   if (result.status !== 0) {
     throw new Error(`Failed to format generated ${path}: ${result.stderr || result.stdout}`);
   }

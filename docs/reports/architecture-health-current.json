@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-14T10:56:59.437Z",
+  "generatedAt": "2026-11-14T14:46:20.668Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6335,
-    "testFiles": 5277,
-    "sourceLines": 1308955,
+    "sourceFiles": 6338,
+    "testFiles": 5290,
+    "sourceLines": 1309579,
     "workspaceEdges": 250,
-    "moduleEdges": 18682,
+    "moduleEdges": 18689,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 341,
+    "testsWithoutTypecheck": 342,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1066
   },
@@ -161,7 +161,7 @@
       "name": "@wrongstack/builtin-plugins",
       "dir": "packages/builtin-plugins",
       "sourceFiles": 35,
-      "testFiles": 29,
+      "testFiles": 30,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -177,7 +177,7 @@
         {
           "path": "packages/builtin-plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 29
+          "testFiles": 30
         }
       ]
     },
@@ -209,7 +209,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 637,
-      "testFiles": 701,
+      "testFiles": 702,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -261,7 +261,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 701
+          "testFiles": 702
         }
       ]
     },
@@ -336,7 +336,7 @@
       "name": "@wrongstack/coordination",
       "dir": "packages/coordination",
       "sourceFiles": 192,
-      "testFiles": 191,
+      "testFiles": 192,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -354,7 +354,7 @@
         {
           "path": "packages/coordination/tsconfig.test.json",
           "error": null,
-          "testFiles": 191
+          "testFiles": 192
         }
       ]
     },
@@ -386,8 +386,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 518,
-      "testFiles": 341,
+      "sourceFiles": 519,
+      "testFiles": 342,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -409,7 +409,7 @@
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
       "sourceFiles": 63,
-      "testFiles": 6,
+      "testFiles": 7,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -430,7 +430,7 @@
         {
           "path": "packages/fleet/tsconfig.test.json",
           "error": null,
-          "testFiles": 6
+          "testFiles": 7
         }
       ]
     },
@@ -733,7 +733,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 260,
+      "sourceFiles": 261,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -820,7 +820,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 126,
-      "testFiles": 51,
+      "testFiles": 52,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -854,7 +854,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 51
+          "testFiles": 52
         }
       ]
     },
@@ -986,7 +986,7 @@
       "name": "@wrongstack/telegram",
       "dir": "packages/telegram",
       "sourceFiles": 28,
-      "testFiles": 44,
+      "testFiles": 45,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1001,7 +1001,7 @@
         {
           "path": "packages/telegram/tsconfig.test.json",
           "error": null,
-          "testFiles": 44
+          "testFiles": 45
         }
       ]
     },
@@ -1097,7 +1097,7 @@
       "name": "@wrongstack/vibeui",
       "dir": "packages/vibeui",
       "sourceFiles": 99,
-      "testFiles": 32,
+      "testFiles": 34,
       "workspaceDependencies": [
         "@wrongstack/webui-protocol"
       ],
@@ -1110,7 +1110,7 @@
         {
           "path": "packages/vibeui/tsconfig.test.json",
           "error": null,
-          "testFiles": 32
+          "testFiles": 34
         }
       ]
     },
@@ -1118,7 +1118,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 796,
-      "testFiles": 530,
+      "testFiles": 532,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1144,7 +1144,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 530
+          "testFiles": 532
         }
       ]
     },
@@ -1174,8 +1174,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 352,
-      "testFiles": 398,
+      "sourceFiles": 353,
+      "testFiles": 400,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1210,7 +1210,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 398
+          "testFiles": 400
         }
       ]
     },
@@ -3128,6 +3128,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/session-tab.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/session-todos.test.ts",
         "projects": [
           "root-node"
@@ -4251,6 +4257,12 @@
       },
       {
         "file": "packages/builtin-plugins/tests/auto-review-plugin.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/builtin-plugins/tests/auto-review-teardown.test.ts",
         "projects": [
           "root-node"
         ]
@@ -6333,6 +6345,12 @@
       },
       {
         "file": "packages/cli/tests/hq-server-auth.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/hq-server-bind-cleanup.test.ts",
         "projects": [
           "root-node"
         ]
@@ -9021,6 +9039,12 @@
       },
       {
         "file": "packages/coordination/tests/agent-subagent-runner.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/auto-extend-idle-timeout.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14486,6 +14510,12 @@
         ]
       },
       {
+        "file": "packages/fleet/tests/host-shadow-manager-dispose.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/fleet/tests/wrongforge-http-errors.test.ts",
         "projects": [
           "root-node"
@@ -19610,6 +19640,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/plugin-watch-dispose.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/runtime-100-coverage.test.ts",
         "projects": [
           "root-node"
@@ -21651,6 +21687,12 @@
       },
       {
         "file": "packages/telegram/tests/integration/startup-selftest.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/telegram/tests/notifier-teardown.test.ts",
         "projects": [
           "root-node"
         ]
@@ -27128,6 +27170,18 @@
         ]
       },
       {
+        "file": "packages/vibeui/tests/modal-focus.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/vibeui/tests/model-picker.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/vibeui/tests/reduce-frame-characterization.test.ts",
         "projects": [
           "root-node"
@@ -27567,6 +27621,18 @@
       },
       {
         "file": "packages/webui-server/tests/codemap-telemetry.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/codemap-transfer-http.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/codemap-transfer.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30104,6 +30170,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/codemap-transfer.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/codemap-tree-sidebar-states.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -31083,6 +31155,12 @@
       },
       {
         "file": "packages/webui/tests/components/session-tab-close-modal.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/session-tab-format-tokens.test.ts",
         "projects": [
           "webui-jsdom"
         ]
@@ -35093,6 +35171,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/session-tab.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/session-todos.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -35714,6 +35799,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/DesktopSessionBranchAndPlugins.tsx",
+      "specifier": "./surfaces.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/DraftCounter.tsx",
       "specifier": "./draft-counter.css",
       "syntax": "import"
@@ -36284,7 +36374,7 @@
     },
     {
       "file": "packages/builtin-plugins/src/auto-review-plugin.ts",
-      "lines": 726,
+      "lines": 741,
       "relativeImports": 7
     },
     {
@@ -36311,6 +36401,11 @@
       "file": "packages/chronicle/src/project-server.ts",
       "lines": 706,
       "relativeImports": 17
+    },
+    {
+      "file": "packages/cli/src/hq-server.ts",
+      "lines": 711,
+      "relativeImports": 21
     },
     {
       "file": "packages/client/src/client.ts",
@@ -36526,6 +36621,11 @@
       "file": "packages/webui-server/src/server/design-handlers.ts",
       "lines": 704,
       "relativeImports": 1
+    },
+    {
+      "file": "packages/webui-server/src/server/file-handlers.ts",
+      "lines": 712,
+      "relativeImports": 6
     },
     {
       "file": "packages/webui-server/src/server/memory-handlers.ts",
@@ -36820,6 +36920,11 @@
       "relativeImports": 3
     },
     {
+      "file": "packages/builtin-plugins/src/auto-review-plugin.ts",
+      "lines": 741,
+      "relativeImports": 7
+    },
+    {
       "file": "packages/webui-server/src/server/completion-handlers.ts",
       "lines": 737,
       "relativeImports": 3
@@ -36833,11 +36938,6 @@
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
       "lines": 732,
       "relativeImports": 19
-    },
-    {
-      "file": "packages/builtin-plugins/src/auto-review-plugin.ts",
-      "lines": 726,
-      "relativeImports": 7
     },
     {
       "file": "packages/coordination/src/multi-agent-coordinator.ts",

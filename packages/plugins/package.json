@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/plugins",
-  "version": "1.6.3",
+  "version": "1.7.0",
   "private": true,
   "description": "Official WrongStack collection of focused plugins for code quality, security, observability, planning, and agent coordination",
   "license": "MIT",

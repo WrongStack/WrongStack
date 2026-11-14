@@ -14,7 +14,7 @@ import {
 import { useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
-import { sessionStatus, visibleSessions } from './model';
+import { sessionStatus, sessionTitle, visibleSessions } from './model';
 import { PaletteActions } from './PaletteActions';
 import { openPreview } from './platform';
 
@@ -228,7 +228,7 @@ export function WorkspaceDialogs({ vm }: { vm: DesktopController }) {
                     }}
                   >
                     <Terminal size={17} />
-                    <span>{s.title}</span>
+                    <span>{sessionTitle(s, t('workbench.untitled'))}</span>
                     <small>{t(`fleetView.status.${sessionStatus(s)}`)}</small>
                     <ArrowRight size={15} />
                   </button>

@@ -32,7 +32,7 @@ export function NextStepsPanel({
   const chosen = steps.filter((step) => selected.includes(step.index)).map((step) => step.text);
   const batch = message.trim() ? [...chosen, message.trim()] : chosen;
   return (
-    <details className="next-steps-panel">
+    <details className="next-steps-panel" open>
       <summary>
         <Lightbulb size={14} /> {t('nextSteps.title')} <small>{steps.length}</small>
       </summary>

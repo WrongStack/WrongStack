@@ -12,6 +12,8 @@ pub struct EngineHttp {
 /// Searches that take no session selector: they always apply the non-session visibility policy
 /// and refuse a selector they cannot honour, so the bridge does not add one.
 const SESSIONLESS_PATHS: [&str; 2] = ["/api/memory/search-page", "/api/vector-memory/search"];
+// CodeMap transfers large graphs in bounded chunks; keep the per-response IPC guard.
+const MAX_API_RESPONSE_BYTES: u64 = 2 * 1024 * 1024;
 
 impl EngineHttp {
     pub fn new(port: u16, token: &str) -> Result<Self> {
@@ -107,10 +109,20 @@ impl EngineHttp {
                 });
         let mut bytes = Vec::new();
         response
-            .take(2 * 1024 * 1024 + 1)
+            .take(MAX_API_RESPONSE_BYTES + 1)
             .read_to_end(&mut bytes)
             .map_err(|_| "Cannot read engine API response")?;
-        if bytes.len() > 2 * 1024 * 1024 {
+        if bytes.len() as u64 > MAX_API_RESPONSE_BYTES {
+            if method == "GET"
+                && [
+                    "/api/codemap/packages",
+                    "/api/codemap/files",
+                    "/api/codemap/symbols",
+                ]
+                .contains(&path.as_str())
+            {
+                return Err("CodeMap response exceeds 2 MiB; update the engine and desktop to use chunked graph transfer".into());
+            }
             return Err("Engine API response exceeds 2 MiB; narrow the query".into());
         }
         let data = if bytes.is_empty() {
@@ -286,6 +298,54 @@ mod tests {
         );
         assert!(result.unwrap_err().contains("2 MiB"));
         server.join().unwrap();
+    }
+    #[test]
+    fn accepts_the_exact_response_limit_and_diagnoses_oversized_codemap_responses() {
+        for (extra, accepted) in [(0, true), (1, false)] {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let port = listener.local_addr().unwrap().port();
+            let server = thread::spawn(move || {
+                let (mut socket, _) = listener.accept().unwrap();
+                socket
+                    .set_read_timeout(Some(Duration::from_secs(3)))
+                    .unwrap();
+                socket
+                    .set_write_timeout(Some(Duration::from_secs(3)))
+                    .unwrap();
+                let mut request = [0; 4096];
+                let count = socket.read(&mut request).unwrap();
+                let request = String::from_utf8_lossy(&request[..count]);
+                assert!(request.contains("transfer=chunks"));
+                assert!(request.contains("snapshot=fixture"));
+                assert!(request.contains("offset=524288"));
+                let body = format!(
+                    "{{}}{}",
+                    " ".repeat(MAX_API_RESPONSE_BYTES as usize - 2 + extra)
+                );
+                let header = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    body.len()
+                );
+                socket.write_all(header.as_bytes()).unwrap();
+                let _ = socket.write_all(body.as_bytes());
+            });
+            let result = EngineHttp::new(port, "fixture").unwrap().request(
+                "GET",
+                "/api/codemap/packages?transfer=chunks&snapshot=fixture&offset=524288",
+                &Value::Null,
+                "selected",
+                None,
+            );
+            if accepted {
+                assert_eq!(result.unwrap()["data"], json!({}));
+            } else {
+                let message = result.unwrap_err();
+                assert!(message.contains("CodeMap response exceeds 2 MiB"));
+                assert!(message.contains("chunked graph transfer"));
+                assert!(!message.contains("codebase-index"));
+            }
+            server.join().unwrap();
+        }
     }
     #[test]
     fn refuses_origins_static_pages_traversal_and_unsupported_methods_before_network_access() {

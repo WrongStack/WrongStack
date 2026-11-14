@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveBunExecutable } from './lib/bun-executable.mjs';
+import { bunSpawnInvocation, resolveBunExecutable } from './lib/bun-executable.mjs';
 
 export const COVERAGE_RUNS = [
   {
@@ -57,10 +57,12 @@ export function runCoverage(options = {}) {
   for (const run of runs) {
     log(`\n=== Coverage: ${run.label} ===\n`);
     const args = run.vitest ? [...run.args, ...transientRetryArgs] : run.args;
-    const result = spawnCommand(execPath, ['run', ...args], {
+    const spawn = bunSpawnInvocation(execPath, ['run', ...args]);
+    const result = spawnCommand(spawn.command, spawn.args, {
       cwd,
       env,
       stdio: 'inherit',
+      ...spawn.options,
     });
 
     if (result.error) {

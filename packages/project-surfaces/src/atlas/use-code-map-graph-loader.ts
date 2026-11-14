@@ -1,12 +1,12 @@
 import { toErrorMessage } from '@wrongstack/core/utils/error';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { surfaceFetch } from '../host';
 import type { useAppTranslation } from '../lib/i18n';
 import { resolveSymbolForActivity, touchClientGraphCache } from './CodeMapActivityHelpers';
 import { EMPTY_GRAPH, MAX_CLIENT_GRAPH_CACHE, MAX_SYMBOL_RESOLVE_INFLIGHT } from './CodeMapConfig';
 import type { FileActivity, useCodemapActivityStore } from './codemap-activity-store';
 import { useCodemapIndexStore } from './codemap-index-store';
 import { type CodeMapGraphResponse, type CodeMapScope, scopeKey, scopeUrl } from './codemap-model';
+import { fetchCodeMapGraph } from './fetch-code-map-graph';
 
 type ResolveActivitySymbol = ReturnType<
   typeof useCodemapActivityStore.getState
@@ -51,7 +51,11 @@ export function useCodeMapGraphLoader({
   const symbolResolveInflight = useRef(new Set<string>());
 
   const fetchGraph = useCallback(
-    async (targetScope: CodeMapScope, force = false): Promise<CodeMapGraphResponse> => {
+    async (
+      targetScope: CodeMapScope,
+      force = false,
+      cancelled: () => boolean = () => false,
+    ): Promise<CodeMapGraphResponse> => {
       const key = scopeKey(targetScope);
       const existing = cache.current.get(key);
       if (existing && !force && !stale.current.has(key)) {
@@ -63,23 +67,14 @@ export function useCodeMapGraphLoader({
       // cookie, the desktop's engine connection). A 401/403 means no valid session —
       // which is NOT a missing index — so surface a truthful error instead of the
       // misleading index guidance.
-      const response = await surfaceFetch(scopeUrl(targetScope));
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          throw new Error('Authentication required — open this dashboard from its token URL.');
-        }
-        const body = await response.json().catch(() => ({ error: response.statusText }));
-        throw new Error(body.error ?? `HTTP ${response.status}`);
-      }
-      // A 200 whose body is HTML is the SPA fallback, not a graph — surface
-      // the friendly server-unavailable message instead of a parse exception.
-      const nextGraph = (await response.json().catch(() => {
-        throw new Error(
-          t('activity:codeMap.snapshotUnavailable', {
-            defaultValue: 'CodeMap graph unavailable — start the WebUI server to load it.',
-          }),
-        );
-      })) as CodeMapGraphResponse;
+      const nextGraph = await fetchCodeMapGraph(
+        scopeUrl(targetScope),
+        t('activity:codeMap.snapshotUnavailable', {
+          defaultValue: 'CodeMap graph unavailable — start the WebUI server to load it.',
+        }),
+        undefined,
+        cancelled,
+      );
       touchClientGraphCache(cache.current, key, nextGraph, MAX_CLIENT_GRAPH_CACHE);
       stale.current.delete(key);
       setCacheRevision((revision) => revision + 1);
@@ -152,7 +147,7 @@ export function useCodeMapGraphLoader({
       setLoading(true);
       setError(null);
     }
-    void fetchGraph(scope, forceRefresh)
+    void fetchGraph(scope, forceRefresh, cancelled)
       .then((nextGraph) => {
         if (cancelled()) return;
         firstLoad.current = null;

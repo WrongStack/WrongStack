@@ -54,6 +54,13 @@ different runner and is not the website test command.
   the tools package before generating or comparing website projections.
 - Preserve historical changelog entries; verify current command examples against
   the owning package scripts and runtime handlers.
+- For each release, align root `README.md` and `CHANGELOG.md` with
+  `src/data/changelog-1x.ts` and `src/data/release-highlights.ts`. Keep exactly one
+  latest entry matching the root package version and `src/lib/utils.ts` metadata.
+- Keep Open Graph and Twitter descriptions in `index.html` identical to the
+  release highlights' social description, and set the structured-data version
+  and modification date to the current changelog entry. The site-data tests
+  verify this alignment; the homepage uses the shared release highlights.
 - Keep hand-maintained files at or below 800 physical lines.
 
 Deployment is the manually dispatched `.github/workflows/pages.yml` workflow.

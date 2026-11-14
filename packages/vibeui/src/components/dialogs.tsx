@@ -2,7 +2,7 @@
 
 import { AlertCircle, Check, KeyRound, Moon, PanelTop, Settings2, Sun, X } from 'lucide-react';
 import { Dialog } from 'radix-ui';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { uiVersion } from '../lib/build-info';
 import { inputQueueLabel } from '../lib/component-guards';
 import type { InputRequest } from '../lib/session';
@@ -44,6 +44,8 @@ export function Modal({
 }) {
   const { preferences } = useWorkspacePreferences();
   const { mode } = usePresentation();
+  const opener = useRef<HTMLElement | null>(null);
+  const surface = useRef<HTMLElement | null>(null);
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -51,10 +53,37 @@ export function Modal({
         <Dialog.Content
           onEscapeKeyDown={onEscapeKeyDown}
           onOpenAutoFocus={(event) => {
+            opener.current =
+              document.activeElement instanceof HTMLElement ? document.activeElement : null;
+            surface.current = event.target instanceof HTMLElement ? event.target : null;
             if (initialFocusRef?.current) {
               event.preventDefault();
               initialFocusRef.current.focus();
             }
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            const active = document.activeElement;
+            // Search results and newly opened dialogs retain their deliberate focus.
+            if (
+              active instanceof HTMLElement &&
+              active !== document.body &&
+              active !== document.documentElement &&
+              !surface.current?.contains(active)
+            )
+              return;
+            const target = opener.current;
+            if (
+              target?.isConnected &&
+              target !== document.body &&
+              target !== document.documentElement
+            ) {
+              target.focus({ preventScroll: true });
+              if (document.activeElement === target) return;
+            }
+            document
+              .querySelector<HTMLTextAreaElement>('textarea[aria-label="Message"]')
+              ?.focus({ preventScroll: true });
           }}
           className={`modal-content ${wide ? 'modal-wide' : ''} ${drawer ? 'modal-drawer' : ''}`}
         >

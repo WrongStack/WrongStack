@@ -6682,7 +6682,10 @@
     "draftError": "No se pudo restaurar el borrador de esta sesión: {{error}}",
     "retry": "Reintentar",
     "restoring": "Restaurando el borrador de la sesión…",
-    "openingTerminal": "Abriendo terminal…"
+    "openingTerminal": "Abriendo terminal…",
+    "untitled": "Nueva conversación",
+    "tabHint": "{{title}} — haz doble clic o pulsa F2 para renombrar",
+    "rename": "Nombre de la sesión"
   },
   "draftConflict": {
     "title": "Este borrador cambió en otra ventana.",

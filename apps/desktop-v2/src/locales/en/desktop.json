@@ -6682,7 +6682,10 @@
     "draftError": "Could not restore this session draft: {{error}}",
     "retry": "Retry",
     "restoring": "Restoring session draft…",
-    "openingTerminal": "Opening terminal…"
+    "openingTerminal": "Opening terminal…",
+    "untitled": "New conversation",
+    "tabHint": "{{title}} — double-click or press F2 to rename",
+    "rename": "Session name"
   },
   "draftConflict": {
     "title": "This draft changed in another window.",

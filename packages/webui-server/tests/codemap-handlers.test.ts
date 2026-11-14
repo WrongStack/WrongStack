@@ -127,6 +127,63 @@ describe('Code Atlas graph handlers', () => {
   });
 });
 
+describe('bounded graph transfer', () => {
+  it('transfers a graph larger than 2 MiB losslessly in bounded snapshot chunks', async () => {
+    const graph = { nodes: [{ id: 'large', concept: 'İ🧭'.repeat(400_000) }], edges: [] };
+    packageGraphService.mockResolvedValueOnce(graph);
+    const deps = { projectRoot: 'D:/repo' };
+    let query = new URLSearchParams({ transfer: 'chunks' });
+    const chunks: Buffer[] = [];
+    let pages = 0;
+    do {
+      const capture = responseCapture();
+      await handleCodemapPackages(capture.response, deps, query);
+      expect(capture.status()).toBe(200);
+      const page = capture.body() as {
+        transport: string;
+        snapshot: string;
+        offset: number;
+        nextOffset: number | null;
+        totalBytes: number;
+        chunk: string;
+      };
+      expect(page.transport).toBe('codemap-chunks-v1');
+      expect(Buffer.byteLength(JSON.stringify(page))).toBeLessThan(2 * 1024 * 1024);
+      expect(page.offset).toBe(Buffer.concat(chunks).length);
+      chunks.push(Buffer.from(page.chunk, 'base64'));
+      pages += 1;
+      query = new URLSearchParams({
+        transfer: 'chunks',
+        snapshot: page.snapshot,
+        offset: String(page.nextOffset),
+      });
+      if (page.nextOffset === null) break;
+      expect(pages).toBeLessThan(64);
+    } while (pages < 64);
+    expect(pages).toBeGreaterThan(1);
+    expect(JSON.parse(Buffer.concat(chunks).toString('utf8'))).toEqual(graph);
+    expect(packageGraphService).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps small graphs compatible and rejects unknown or cross-project snapshots', async () => {
+    const control = responseCapture();
+    await handleCodemapPackages(
+      control.response,
+      { projectRoot: 'D:/repo' },
+      new URLSearchParams({ transfer: 'chunks' }),
+    );
+    expect(control.body()).toEqual({ nodes: [{ id: 'pkg' }], edges: [] });
+    const missing = responseCapture();
+    await handleCodemapPackages(
+      missing.response,
+      { projectRoot: 'D:/other' },
+      new URLSearchParams({ transfer: 'chunks', snapshot: 'unknown', offset: '524288' }),
+    );
+    expect(missing.status()).toBe(409);
+    expect(missing.body()).toMatchObject({ code: 'CODEMAP_SNAPSHOT_EXPIRED' });
+  });
+});
+
 describe('atlas enrichment on the wire', () => {
   it('passes rank, concept, crux and subsystem through untouched', async () => {
     // The handler serialises the graph wholesale rather than mapping fields,

@@ -1,5 +1,5 @@
-import { record } from './engine-values.js';
 import { displayDecimal } from './display-dates';
+import { record } from './engine-values.js';
 
 /** An engine frame as the reducer sees it (structurally `EngineEvent`). */
 type EngineEvent = { type: string; payload: Record<string, unknown> };
@@ -19,6 +19,13 @@ export interface ContextUsage {
   /** Prompt tokens of the latest response read from and written to the provider's cache. */
   cacheRead: number;
   cacheWrite: number;
+  /**
+   * Prompt tokens of the latest response (uncached + cache read + cache write), from the
+   * same usage as `cacheRead`. Not `tokens`: a response can cover many model calls (a
+   * WrongForge leader turn runs up to 150 steps and reports their summed usage), while
+   * `tokens` is the size of one request, so dividing one by the other overshot 100 %.
+   */
+  prompt: number;
   /** Every response of this conversation added together. */
   totals: TokenTotals;
   responses: number;
@@ -31,6 +38,7 @@ export const emptyContextUsage: ContextUsage = {
   max: 0,
   cacheRead: 0,
   cacheWrite: 0,
+  prompt: 0,
   totals: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   responses: 0,
   decreasedFrom: 0,
@@ -115,6 +123,7 @@ export function reduceContextUsage(usage: ContextUsage, event: EngineEvent): Con
     tokens: prompt || usage.tokens,
     cacheRead,
     cacheWrite,
+    prompt,
     responses: usage.responses + 1,
     totals: {
       input: usage.totals.input + input,
@@ -134,11 +143,14 @@ export function contextZone(percent: number | null): 'unknown' | 'ok' | 'warn' |
   if (percent === null) return 'unknown';
   return percent >= 85 ? 'critical' : percent >= 60 ? 'warn' : 'ok';
 }
-/** Share of the latest prompt served from the provider's cache, in whole percent. */
+/**
+ * Share of the latest response's prompt served from the provider's cache, in whole percent.
+ * Numerator and denominator come from the same usage report, so the share stays within
+ * 0–100 even when that report sums many model calls.
+ */
 export function cacheHitPercent(usage: ContextUsage): number | null {
-  const prompt = usage.cacheRead + usage.cacheWrite;
-  if (!usage.tokens || !prompt) return null;
-  return Math.round((usage.cacheRead / usage.tokens) * 100);
+  if (!usage.prompt || !(usage.cacheRead + usage.cacheWrite)) return null;
+  return Math.min(100, Math.round((usage.cacheRead / usage.prompt) * 100));
 }
 export function formatTokens(value: number): string {
   if (value >= 1_000_000) return `${displayDecimal(value / 1_000_000, 1)}M`;

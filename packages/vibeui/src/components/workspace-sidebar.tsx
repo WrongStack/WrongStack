@@ -243,12 +243,20 @@ export function WorkspaceSidebar({
             <Folder size={16} />
           </span>
           <span>
-            <strong>{state.project || 'Your workspace'}</strong>
+            <strong title={state.project || 'Your workspace'}>
+              {state.project || 'Your workspace'}
+            </strong>
             <small title={state.cwd}>{state.cwd || 'Connecting to WrongStack'}</small>
           </span>
         </div>
         <div className="sidebar-footer">
-          <button type="button" onClick={() => setSettings(true)}>
+          <button
+            type="button"
+            onClick={() => {
+              setSidebar(false);
+              setSettings(true);
+            }}
+          >
             <Settings2 size={15} />
             Settings
           </button>
@@ -257,7 +265,10 @@ export function WorkspaceSidebar({
             className="icon-button"
             aria-label="Getting started"
             title="Getting started"
-            onClick={() => setGuideOpen(true)}
+            onClick={() => {
+              setSidebar(false);
+              setGuideOpen(true);
+            }}
           >
             <Compass size={16} />
           </button>
@@ -270,7 +281,14 @@ export function WorkspaceSidebar({
             {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
           </button>
         </div>
-        <button type="button" className="version-info" onClick={() => setSettings(true)}>
+        <button
+          type="button"
+          className="version-info"
+          onClick={() => {
+            setSidebar(false);
+            setSettings(true);
+          }}
+        >
           VibeUI v{uiVersion}
           {state.appVersion && <span> · WrongStack v{state.appVersion}</span>}
           {state.updateAvailable && <span> · Update available</span>}

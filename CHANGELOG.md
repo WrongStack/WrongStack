@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] — 2026-11-14
+
+Conversations are easier to find and workspaces handle larger projects. Desktop
+tabs take their names from your first prompt, Code Atlas loads large graphs in
+consistent chunks, and the WebUI manages plugins from Settings. Chronicle
+reuses its query counts, and VibeUI improves keyboard navigation, dialog focus
+and narrow-screen layouts.
+
+### Added
+
+- **Desktop conversation names.** An unnamed agent conversation takes its
+  title from the first meaningful prompt. Double-click a tab or press F2 to
+  rename it. Long titles are bounded and ellipsized, with the full name in the
+  tooltip; legacy unnamed conversations recover a title from their journals.
+- **Plugin management in WebUI Settings → Context.** Add or remove a plugin,
+  inspect configured plugins and browse official names through the engine's
+  `/plugin` command. Changes back up and update the profile configuration;
+  the command reports whether an engine restart is needed. Adding a name
+  registers the plugin without running a package manager.
+- **Large Code Atlas graph transfers.** The shared desktop/WebUI loader
+  assembles immutable graph snapshots in bounded chunks, preserving nodes,
+  edges and enrichment. It retries an expired snapshot once and gives
+  scope-narrowing guidance for graphs above the transfer budget. Older engines
+  still return ordinary graphs; update both engine and desktop for chunked
+  transfer. See the [transport contract](docs/codemap-transfer.md).
+
+### Changed
+
+- **Chronicle refreshes reuse facet counts.** Counts are cached per database
+  and query; subsequent requests scan only appended rows, including backdated
+  events. Retention or compaction triggers a recount. Batch scans continue
+  from the last key instead of repeatedly skipping earlier rows.
+- VibeUI refines its welcome screen, composer, sidebar and narrow-screen
+  layout. File mentions support arrow keys, Enter, Tab and Escape, and model
+  search resets when reopened without interfering with composed text input.
+- Desktop updates prune project-service journals belonging to builds with no
+  running host, preserving the conversation store and live builds.
+
+### Fixed
+
+- Desktop automatic continuation counts down only while its suggestions are
+  expanded and fully visible in a visible window. Reviewing a suggestion,
+  typing or sending a message cancels that pending continuation.
+- Desktop cache-hit percentages use prompt usage from the same response and
+  stay within 100%. Session token labels switch to millions at the rounding
+  boundary, and branch menus open above the desktop status bar with the
+  shared surface colors.
+- VibeUI dialogs restore focus to their opener or the composer, and empty
+  conversations stay at the top instead of scrolling past the welcome screen.
+- File-reference search applies its collection budget to matching paths, so
+  files beyond the first unfiltered batch remain discoverable within the
+  directory-walk budget.
+- Idle-timeout extensions update the idle budget instead of the total timeout.
+- Auto-review teardown clears pending timers; disposed plugin watchers and
+  shadow managers cannot schedule new work; Telegram unregisters its
+  notification channel; and an HQ bind failure cleans up background services.
+- Windows source builds and related build helpers can launch a `bun.cmd`
+  shim instead of failing before the child process starts.
+
 ## [1.6.3] — 2026-11-14
 
 Projects keep their decisions. Agents can propose an architecture decision and

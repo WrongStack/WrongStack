@@ -423,6 +423,26 @@ describe('file handlers integration', () => {
       expect(response.payload.files[0]).toBe('alpha.ts');
     });
 
+    it('finds a query match beyond the first 600 files of the walk', async () => {
+      // `aaa/` sorts before `zzz/` in a directory listing, so the old walk filled its 600-file
+      // budget there and never reached the wanted file: the @ picker showed nothing for it.
+      fsSync.mkdirSync(path.join(tempDir, 'aaa'), { recursive: true });
+      for (let i = 0; i < 700; i++)
+        fsSync.writeFileSync(path.join(tempDir, 'aaa', `filler-${i}.ts`), '');
+      fsSync.mkdirSync(path.join(tempDir, 'zzz', 'src'), { recursive: true });
+      fsSync.writeFileSync(path.join(tempDir, 'zzz', 'src', 'SessionComposer.tsx'), '');
+
+      const ws = createMockWs();
+      await handleFilesList(
+        ws,
+        { type: 'files.list', payload: { query: 'sessioncomp', limit: 40 } },
+        tempDir,
+      );
+
+      const files = (ws.sent[0] as { payload: { files: string[] } }).payload.files;
+      expect(files).toEqual(['zzz/src/SessionComposer.tsx']);
+    });
+
     it('returns empty for path outside projectRoot', async () => {
       const ws = createMockWs();
 
