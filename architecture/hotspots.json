@@ -202,6 +202,10 @@
       "lines": 704,
       "relativeImports": 1
     },
+    "packages/webui-server/src/server/file-handlers.ts": {
+      "lines": 712,
+      "relativeImports": 6
+    },
     "packages/webui-server/src/server/memory-handlers.ts": {
       "lines": 777,
       "relativeImports": 5

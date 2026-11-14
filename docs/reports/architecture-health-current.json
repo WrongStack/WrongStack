@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-14T09:29:46.915Z",
+  "generatedAt": "2026-11-14T10:20:43.187Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6334,
-    "testFiles": 5277,
-    "sourceLines": 1308728,
+    "sourceFiles": 6335,
+    "testFiles": 5278,
+    "sourceLines": 1308966,
     "workspaceEdges": 250,
-    "moduleEdges": 18681,
+    "moduleEdges": 18685,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 341,
+    "testsWithoutTypecheck": 342,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1066
   },
@@ -386,8 +386,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 518,
-      "testFiles": 341,
+      "sourceFiles": 519,
+      "testFiles": 342,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -3123,6 +3123,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-status-memory.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-tab.test.ts",
         "projects": [
           "root-node"
         ]
@@ -35093,6 +35099,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/session-tab.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/session-todos.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -35711,6 +35724,11 @@
     {
       "from": "apps/desktop-v2/src/DesktopCommandHelp.tsx",
       "specifier": "./composer-dialog.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/DesktopSessionBranchAndPlugins.tsx",
+      "specifier": "./surfaces.css",
       "syntax": "import"
     },
     {
@@ -36526,6 +36544,11 @@
       "file": "packages/webui-server/src/server/design-handlers.ts",
       "lines": 704,
       "relativeImports": 1
+    },
+    {
+      "file": "packages/webui-server/src/server/file-handlers.ts",
+      "lines": 712,
+      "relativeImports": 6
     },
     {
       "file": "packages/webui-server/src/server/memory-handlers.ts",

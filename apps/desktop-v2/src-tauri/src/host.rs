@@ -211,6 +211,57 @@ mod service_version_tests {
         assert!(host.is_file());
         std::fs::remove_dir_all(data).unwrap();
     }
+    #[cfg(windows)]
+    #[test]
+    fn a_new_build_drops_the_project_journals_of_builds_no_host_runs() {
+        let data = std::env::temp_dir().join(format!("desktop-journal-prune-{}", Uuid::new_v4()));
+        let build = |name: &str| {
+            let dir = data.join(COMPANION_ROOT).join(name);
+            std::fs::create_dir_all(dir.join("transcripts")).unwrap();
+            std::fs::write(dir.join("host.lock"), b"").unwrap();
+            std::fs::write(dir.join("owner.lock"), b"").unwrap();
+            std::fs::write(
+                dir.join("transcripts").join("project-a.events.jsonl"),
+                b"{}\n",
+            )
+            .unwrap();
+            dir
+        };
+        let exited = build("exited");
+        let running = build("running");
+        let owner = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(running.join("owner.lock"))
+            .unwrap();
+        owner.lock().unwrap();
+        // The main folder's transcripts are conversations: never pruned.
+        std::fs::create_dir_all(data.join("transcripts")).unwrap();
+        std::fs::write(data.join("transcripts").join("conversation.jsonl"), b"{}\n").unwrap();
+        std::fs::write(data.join("owner.lock"), b"").unwrap();
+        std::fs::write(data.join("host.lock"), b"").unwrap();
+        let current = data.join(COMPANION_ROOT).join("current");
+        std::fs::create_dir_all(&current).unwrap();
+
+        stage_session_host(&current, None).unwrap();
+        drop(owner);
+        assert!(!exited
+            .join("transcripts")
+            .join("project-a.events.jsonl")
+            .exists());
+        assert!(
+            running
+                .join("transcripts")
+                .join("project-a.events.jsonl")
+                .is_file(),
+            "a build whose host still runs keeps its journals"
+        );
+        assert!(data
+            .join("transcripts")
+            .join("conversation.jsonl")
+            .is_file());
+        std::fs::remove_dir_all(data).unwrap();
+    }
     #[test]
     fn does_not_reuse_project_services_from_a_different_engine_build() {
         assert!(can_share_services(
@@ -471,7 +522,32 @@ fn prune_sibling_builds(dir: &Path) {
         };
         if lock.try_lock().is_ok() {
             prune_exited_hosts(&sibling);
+            if sibling != base {
+                prune_exited_build_journals(&sibling);
+            }
         }
+    }
+}
+/// An earlier build's project-services folder holds only project and profile journals (the
+/// conversations live in the main folder), and no later build reads them: each start opens its
+/// projects under new runtime ids. Before the snapshot gate they grew to gigabytes. They go once
+/// no host of that build runs (its `owner.lock` is free); a held file is left for a later launch.
+fn prune_exited_build_journals(sibling: &Path) {
+    let Ok(owner) = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(sibling.join("owner.lock"))
+    else {
+        return;
+    };
+    if owner.try_lock().is_err() {
+        return;
+    }
+    let Ok(entries) = std::fs::read_dir(sibling.join("transcripts")) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let _ = std::fs::remove_file(entry.path());
     }
 }
 const COMPANION_ROOT: &str = "project-services-v1";
