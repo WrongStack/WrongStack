@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-14T10:20:43.187Z",
+  "generatedAt": "2026-11-14T10:22:26.762Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6335,
-    "testFiles": 5278,
-    "sourceLines": 1308966,
+    "sourceFiles": 6334,
+    "testFiles": 5276,
+    "sourceLines": 1308724,
     "workspaceEdges": 250,
-    "moduleEdges": 18685,
+    "moduleEdges": 18681,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 342,
+    "testsWithoutTypecheck": 341,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1066
   },
@@ -386,8 +386,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 519,
-      "testFiles": 342,
+      "sourceFiles": 518,
+      "testFiles": 341,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1118,7 +1118,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 795,
-      "testFiles": 530,
+      "testFiles": 529,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1144,7 +1144,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 530
+          "testFiles": 529
         }
       ]
     },
@@ -3123,12 +3123,6 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-status-memory.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "apps/desktop-v2/tests/session-tab.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31088,12 +31082,6 @@
         ]
       },
       {
-        "file": "packages/webui/tests/components/session-tab-format-tokens.test.ts",
-        "projects": [
-          "webui-jsdom"
-        ]
-      },
-      {
         "file": "packages/webui/tests/components/session-tree-and-plugin-ui.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -35099,13 +35087,6 @@
         "typecheckProjects": []
       },
       {
-        "file": "apps/desktop-v2/tests/session-tab.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
         "file": "apps/desktop-v2/tests/session-todos.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -35724,11 +35705,6 @@
     {
       "from": "apps/desktop-v2/src/DesktopCommandHelp.tsx",
       "specifier": "./composer-dialog.css",
-      "syntax": "import"
-    },
-    {
-      "from": "apps/desktop-v2/src/DesktopSessionBranchAndPlugins.tsx",
-      "specifier": "./surfaces.css",
       "syntax": "import"
     },
     {
@@ -36544,11 +36520,6 @@
       "file": "packages/webui-server/src/server/design-handlers.ts",
       "lines": 704,
       "relativeImports": 1
-    },
-    {
-      "file": "packages/webui-server/src/server/file-handlers.ts",
-      "lines": 712,
-      "relativeImports": 6
     },
     {
       "file": "packages/webui-server/src/server/memory-handlers.ts",
