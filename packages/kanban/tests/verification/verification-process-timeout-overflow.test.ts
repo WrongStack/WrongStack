@@ -6,7 +6,7 @@ describe('VerificationProcessRunner timeout chunking (F303)', () => {
     const origSetTimeout = globalThis.setTimeout;
     const recordedDelays: number[] = [];
     (globalThis as unknown as { setTimeout: typeof setTimeout }).setTimeout = ((
-      _fn: TimerHandler,
+      _fn: Parameters<typeof setTimeout>[0],
       delay?: number,
     ) => {
       recordedDelays.push(Number(delay ?? 0));
