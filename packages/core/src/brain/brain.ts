@@ -38,12 +38,12 @@ export type { BrainDecisionSource, BrainFallback, BrainRisk };
  * that arrive from config/JSON and may not be valid `BrainRisk` members, and
  * are expected to supply their own `?? default` for that case.
  */
-export const BRAIN_RISK_LEVELS: Record<string, number> = {
+export const BRAIN_RISK_LEVELS: Record<string, number> = Object.assign(Object.create(null), {
   low: 0,
   medium: 1,
   high: 2,
   critical: 3,
-};
+});
 
 export type { BrainArbiter, BrainDecision, BrainDecisionOption, BrainDecisionRequest };
 
@@ -291,7 +291,7 @@ export class BrainDecisionQueue {
             this.pending.delete(request.id);
             if (entry.timer) clearTimeout(entry.timer);
             markDecisionTier(request, 'terminal');
-            const delegated = terminalPolicyDecision(request);
+            const delegated = this.opts.onTimeout?.(request) ?? terminalPolicyDecision(request);
             emitBrainTierTransition(
               this.events,
               request,

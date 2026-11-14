@@ -80,6 +80,11 @@ git commit -am 'release: X.Y.Z'
   - `bun run test:coverage`
 - [ ] Run `bun run lint` separately if the release policy requires the full Biome lint; it is not currently part of `release:check`.
 - [ ] Do not edit the tree after the gate passes; a change invalidates it.
+- [ ] In a shared checkout with ongoing writers, push the reviewed candidate
+      and dispatch `release-check.yml` with its full SHA before creating the
+      tag. This runs the same uncached 19-gate matrix in a clean checkout and
+      retains its logs. Verify the run's SHA and success; a local run whose
+      sources changed during verification is not certification.
 - [ ] Optionally dispatch the CI and dependency-audit workflows for the reviewed ref. `ci.yml` and `audit.yml` are `workflow_dispatch` only; a push or pull request does not run them.
 
 ## 6–7. Push main, then the tag

@@ -44,6 +44,8 @@ long-running work safer.
 - Fallback profile and provider management refuse prototype-related names;
   CLI export rejects a missing output path, and test teardown recognizes an
   already-exited server.
+- Brain risk lookups ignore inherited object properties, and a delegated human
+  decision honors the configured terminal policy, including deny-all.
 
 ## [1.7.0] — 2026-11-14
 

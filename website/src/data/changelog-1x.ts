@@ -25,6 +25,7 @@ export const changelog1x: ChangelogEntry[] = [
       'WebUI stream buffers follow their session and are cleared on context resets and replay; rewind and file-cache resets fence stale state',
       'Failed file-delete rollback preserves recovery copies, analytics retains split UTF-8 characters, and session cleanup handles protection lookup failures',
       'Browser opens count as live work, blocked terminal writes release the host lock, and fallback configuration rejects prototype-related names',
+      'Brain risk lookups ignore prototype properties, and delegated human decisions honor the configured terminal policy',
     ],
   },
   {

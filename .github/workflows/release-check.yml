@@ -1,0 +1,52 @@
+name: Certify Release Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Full commit SHA to certify before creating a release tag
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    name: Uncached release gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify candidate identity
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Install dependencies without lifecycle scripts
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Rebuild reviewed native dependencies
+        run: bun run setup:native
+      - name: Install browser for live plugin journeys
+        run: bun x --bun playwright install --with-deps chromium
+      - name: Full uncached release matrix
+        run: bun run release:check --no-cache
+      - name: Retain gate evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-check-${{ inputs.ref }}
+          path: .reports/release-check-matrix/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7

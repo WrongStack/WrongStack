@@ -9,6 +9,7 @@ import {
   DefaultBrainArbiter,
   EscalationRoutingBrainArbiter,
   ObservableBrainArbiter,
+  terminalPolicyDecision,
 } from '../../src/brain/brain.js';
 import { BrainDecisionCache, brainCacheKey } from '../../src/brain/brain-cache.js';
 import {
@@ -16,6 +17,7 @@ import {
   createLedgerGuardBrainArbiter,
 } from '../../src/brain/brain-ledger.js';
 import { BrainMonitor } from '../../src/brain/brain-monitor.js';
+import { brainTierEligibility, resolveRiskCeiling } from '../../src/brain/brain-risk.js';
 import { compileBrainRules } from '../../src/brain/brain-rules.js';
 import { BrainTierCounter, readDecisionTier } from '../../src/brain/brain-telemetry.js';
 import {
@@ -985,5 +987,47 @@ describe('Brain architecture regressions', () => {
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  });
+
+  it('rejects prototype-property keys in BRAIN_RISK_LEVELS lookups (F220)', () => {
+    for (const key of ['toString', 'constructor', 'valueOf', '__proto__']) {
+      const compiled = compileBrainRules([
+        {
+          id: `proto-${key}`,
+          when: { minRisk: key as never },
+          // biome-ignore lint/suspicious/noThenProperty: domain rule field.
+          then: { action: 'answer', optionId: 'approve' },
+        },
+      ]);
+      expect(compiled.rules).toHaveLength(0);
+      expect(compiled.errors).toHaveLength(1);
+      expect(resolveRiskCeiling(key as never)).toBe(1);
+      expect(brainTierEligibility(request({ risk: key as never }), 'all', true, 'high')).toEqual({
+        autonomous: true,
+        council: true,
+        systemOne: false,
+      });
+    }
+  });
+
+  it('respects configured onTimeout terminal policy when human delegates decision (F221)', async () => {
+    const events = new EventBus();
+    const queue = new BrainDecisionQueue(events, {
+      onTimeout: (req) => terminalPolicyDecision(req, 'deny-all'),
+      userInputAwaiter: async () => ({
+        status: 'submitted',
+        answers: [{ questionId: 'decision', selectedOptionIds: [], delegated: true }],
+      }),
+    });
+    const decision = await queue.requestHumanDecision(
+      request({
+        id: 'delegated-deny-all',
+        risk: 'low',
+        fallback: 'continue',
+        options: [{ id: 'approve', label: 'Approve', recommended: true }],
+      }),
+    );
+    queue.dispose();
+    expect(decision.type).toBe('deny');
   });
 });
