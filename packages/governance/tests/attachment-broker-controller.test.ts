@@ -410,4 +410,53 @@ describe('governance attachment broker controller', () => {
     expect(afterStop.state).toBe('expired');
     expect(afterStop.stopReason).toBe('credential_expired');
   });
+
+  it('does not spin rotateNow when ttlMs - renewBeforeMs exceeds 2^31-1 ms', async () => {
+    let calls = 0;
+    let sequence = 0;
+    const metadata = createGovernanceDaemonMetadata({
+      projectRoot: process.cwd(),
+      projectId: 'project-f267',
+      pid: process.pid,
+      instanceId: 'daemon-instance',
+      startedAt: new Date(START).toISOString(),
+    });
+    const controller = new GovernanceAttachmentBrokerController({
+      projectRoot: process.cwd(),
+      metadata,
+      ttlMs: 2_147_484_648,
+      renewBeforeMs: 1_000,
+      retryMs: 5_000,
+      now: () => START,
+      grants: {
+        issueGrant(options) {
+          sequence += 1;
+          calls += 1;
+          const grantId = `broker-${sequence}`;
+          return {
+            token: `wsg_${grantId}.${SECRET}${sequence}`,
+            grant: {
+              grantId,
+              projectId: 'project-f267',
+              clientId: options.clientId,
+              issuedBy: options.issuedBy ?? 'trusted-server',
+              capabilities: Object.freeze([...options.capabilities]),
+              issuedAt: new Date(START).toISOString(),
+              expiresAt: new Date(START + options.ttlMs).toISOString(),
+              status: 'active',
+            },
+          };
+        },
+        revokeGrant() {
+          return true;
+        },
+      },
+      publish: async () => {},
+      remove: async () => true,
+    });
+    await controller.start();
+    await new Promise((r) => setTimeout(r, 30));
+    await controller.stop();
+    expect(calls).toBe(1);
+  });
 });

@@ -230,6 +230,11 @@ describe('reduceEvent — resume cursors', () => {
       [HQ_BROWSER_PEER_RESUME_CLIENT_ID]: 2,
     });
   });
+
+  it('advances resumeCursors for Object.prototype-named clientIds', () => {
+    const patch = reduceEvent(fleetState(), event('e1', { clientId: 'toString', seq: 3 }));
+    expect(patch.resumeCursors?.['toString']).toBe(3);
+  });
 });
 
 describe('reduceEvent — peer lifecycle banner', () => {

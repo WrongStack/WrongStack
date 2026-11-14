@@ -259,4 +259,26 @@ describe('store idempotency recovery', () => {
       id: 'reqi_002',
     });
   });
+
+  it('skips corrupt record files during readIndex directory recovery', async () => {
+    const dir = await makeDir();
+    const store = new RequirementIntakeStore({ baseDir: dir });
+    const now = new Date().toISOString();
+    const created = await store.create({
+      id: 'reqi_valid',
+      version: 1,
+      title: 'Valid',
+      summary: 'Valid summary',
+      requester: 'tester',
+      status: 'draft',
+      createdAt: now,
+      updatedAt: now,
+    } as never);
+
+    await fsp.rm(path.join(dir, '_index.json'), { force: true });
+    await fsp.writeFile(path.join(dir, 'corrupt.json'), '{truncated', 'utf8');
+
+    const recovered = await store.list();
+    expect(recovered.map((r) => r.id)).toEqual([created.record.id]);
+  });
 });

@@ -34,6 +34,10 @@ class TestTransport extends BaseHTTPTransport {
     this.protocolVersion = value;
   }
 
+  exposeTimeoutSignal(timeoutMs: number, parent?: AbortSignal) {
+    return this.requestTimeoutSignal(parent, timeoutMs, false);
+  }
+
   setMetadata(): void {
     this.serverMetadata = {
       protocolVersion: '2025-06-18',
@@ -439,5 +443,19 @@ describe('BaseHTTPTransport helpers', () => {
     });
     // The loop performs exactly MAX_TRANSPORT_REDIRECTS hops before throwing.
     expect(globalThis.fetch).toHaveBeenCalledTimes(5);
+  });
+
+  it('does not overflow 32-bit setTimeout when requestTimeoutSignal exceeds 2^31-1 ms', async () => {
+    const transport = new TestTransport({
+      name: 'base',
+      url: 'https://example.test',
+    });
+    const handle = transport.exposeTimeoutSignal(2_147_483_648);
+    try {
+      await new Promise((r) => setTimeout(r, 30));
+      expect(handle.signal.aborted).toBe(false);
+    } finally {
+      handle.dispose();
+    }
   });
 });

@@ -46,7 +46,7 @@ export const RULE_LABEL: Record<string, { name: string; checks: string }> = {
 export function ruleName(ruleId: string): string {
   if (ruleId.startsWith('budget-project:')) return 'Daily project budget';
   if (ruleId.startsWith('budget-machine:')) return 'Daily machine budget';
-  return RULE_LABEL[ruleId]?.name ?? ruleId;
+  return (Object.hasOwn(RULE_LABEL, ruleId) ? RULE_LABEL[ruleId]?.name : undefined) ?? ruleId;
 }
 
 export interface Episode {

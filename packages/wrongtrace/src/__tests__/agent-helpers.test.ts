@@ -414,6 +414,37 @@ describe('getRecentActivity', () => {
     const risk = await getCrossAgentRisk(riskWt, 'src/foo.ts');
     expect(risk.risk).toBe(20);
   });
+
+  it('skips null friction rows, non-string file entries, and null atlas entries', async () => {
+    const riskWt = {
+      ...offlineStub(),
+      isAvailable: true,
+      async getFileHealth() {
+        return {
+          path: 'src/foo.ts',
+          health_score: 90,
+          is_fragile: false,
+          recent_thrashing_count: 0,
+          is_locked: false,
+        };
+      },
+      async getFrictionMatrix() {
+        return [null, { files: [null, 123, 'src/foo.ts'], conflict_count: 4 }] as never;
+      },
+    };
+    const risk = await getCrossAgentRisk(riskWt, 'src/foo.ts');
+    expect(risk.band).toBe('safe');
+    expect(risk.risk).toBe(20);
+
+    const digest = digestAtlas({
+      packages: [
+        null as never,
+        { name: 'bad', files: 'not-an-array' as never },
+        { name: 'ok', files: [null as never, { health_score: 20 }] },
+      ],
+    } as never);
+    expect(digest?.fragileFileCount).toBe(1);
+  });
 });
 
 describe('digestAtlas', () => {

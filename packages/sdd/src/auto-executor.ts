@@ -105,7 +105,10 @@ export class AutoExecutor {
       }
 
       // Execute batch
-      const batch = readyTasks.slice(0, this.opts.maxConcurrent ?? 1);
+      const rawConcurrency = this.opts.maxConcurrent ?? 1;
+      const concurrency =
+        Number.isFinite(rawConcurrency) && rawConcurrency >= 1 ? Math.floor(rawConcurrency) : 1;
+      const batch = readyTasks.slice(0, concurrency);
 
       const results = await Promise.allSettled(
         batch.map((task) => this.executeTaskWithRetry(task, graph, spec)),

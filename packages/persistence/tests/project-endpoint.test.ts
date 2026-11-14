@@ -367,4 +367,24 @@ describe('isProjectEndpointLive', () => {
       await fs.rm(tmpDir, { recursive: true, force: true });
     }
   });
+
+  it('chunks probe timeouts above 2^31-1 ms instead of overflowing 32-bit setTimeout', async () => {
+    const orig = _projectEndpointOps.createConnection;
+    try {
+      _projectEndpointOps.createConnection = () => {
+        const sock = new EventEmitter() as EventEmitter & { destroy: () => void };
+        let destroyed = false;
+        sock.destroy = () => {
+          destroyed = true;
+        };
+        setTimeout(() => {
+          if (!destroyed) sock.emit('connect');
+        }, 25);
+        return sock as never;
+      };
+      await expect(isProjectEndpointLive('pipe://overflow', 2_147_483_648)).resolves.toBe(true);
+    } finally {
+      _projectEndpointOps.createConnection = orig;
+    }
+  });
 });

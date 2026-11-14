@@ -141,4 +141,11 @@ describe('SddTaskDecomposer', () => {
     d.acknowledgeBatch(['t2']);
     expect(d.getWaveCount()).toBe(2);
   });
+
+  it('falls back to default slots when parallelSlots is NaN or non-finite', async () => {
+    const { tracker, add } = await harness();
+    add('A');
+    const d = new SddTaskDecomposer(tracker, {} as TaskGraph, { parallelSlots: Number.NaN });
+    expect(d.nextBatch().tasks).toHaveLength(1);
+  });
 });

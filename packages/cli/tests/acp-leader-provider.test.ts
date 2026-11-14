@@ -531,47 +531,62 @@ describe('the fleet endpoint for a leader', () => {
     });
   });
 
-  it('clears session fleetGrants on drop so dropped sessions do not leak grants into new sessions', async () => {
-    const provider = new AcpLeaderProvider({
-      bootConfig: CONFIG,
-      buildProvider: () => undefined,
-    });
-    const tool = { name: 'delegate', description: 'delegate', inputSchema: { type: 'object' } };
-    const input = { task: 'sensitive' };
-
-    let askCount = 0;
-    (provider as unknown as { ask: () => Promise<boolean> }).ask = async () => {
-      askCount++;
-      return true;
-    };
-
-    // User confirms in session 's-leak'
-    await (
-      provider as unknown as {
-        confirm: (s: string, t: unknown, i: unknown, r: unknown) => Promise<boolean>;
+  it.each(['current', 'stale'] as const)(
+    "handles a %s session drop without leaking or clearing another session's fleet grants",
+    async (kind) => {
+      const provider = new AcpLeaderProvider({
+        bootConfig: CONFIG,
+        buildProvider: () => undefined,
+      });
+      const tool = { name: 'delegate', description: 'delegate', inputSchema: { type: 'object' } };
+      const input = { task: 'sensitive' };
+      const lifecycle = provider as unknown as {
+        sessionFor: (key: string, agentId: string) => Promise<unknown>;
+        drop: (key: string, leader: unknown) => void;
+      };
+      // Register through the real lifecycle so the test supplies an actual owner,
+      // rather than an unrelated object that the stale-drop guard must ignore.
+      const original = await lifecycle.sessionFor('s-leak', 'claude-code');
+      let current = original;
+      if (kind === 'stale') {
+        lifecycle.drop('s-leak', original);
+        current = await lifecycle.sessionFor('s-leak', 'claude-code');
       }
-    ).confirm('s-leak', tool, input, { toolCallId: '1', signal: SIGNAL });
+      const closesBefore = acp.closes.length;
 
-    // Session is dropped
-    (
-      provider as unknown as {
-        drop: (k: string, l: unknown) => void;
+      let askCount = 0;
+      (provider as unknown as { ask: () => Promise<boolean> }).ask = async () => {
+        askCount++;
+        return true;
+      };
+
+      // User confirms in session 's-leak'
+      await (
+        provider as unknown as {
+          confirm: (s: string, t: unknown, i: unknown, r: unknown) => Promise<boolean>;
+        }
+      ).confirm('s-leak', tool, input, { toolCallId: '1', signal: SIGNAL });
+
+      // A current owner loses its grants. A delayed duplicate drop from the old
+      // owner must leave the replacement's grants and session intact.
+      lifecycle.drop('s-leak', original);
+
+      // New session on 's-leak' must ask user again rather than auto-approving
+      askCount = 0;
+      await (
+        provider as unknown as {
+          approveFleetCall: (s: string, t: unknown, i: unknown) => Promise<boolean>;
+        }
+      ).approveFleetCall('s-leak', tool, input);
+
+      expect(askCount).toBe(kind === 'current' ? 1 : 0);
+      expect(acp.closes.length).toBe(closesBefore + (kind === 'current' ? 1 : 0));
+      if (kind === 'stale') {
+        expect(await lifecycle.sessionFor('s-leak', 'claude-code')).toBe(current);
       }
-    ).drop('s-leak', {
-      session: { close: async () => {} },
-      fleet: undefined,
-    });
-
-    // New session on 's-leak' must ask user again rather than auto-approving
-    askCount = 0;
-    await (
-      provider as unknown as {
-        approveFleetCall: (s: string, t: unknown, i: unknown) => Promise<boolean>;
-      }
-    ).approveFleetCall('s-leak', tool, input);
-
-    expect(askCount).toBe(1);
-  });
+      await provider.closeAll();
+    },
+  );
 });
 
 describe('the host binding', () => {

@@ -146,39 +146,51 @@ export function buildSessionStory(
     const parentBranchId = branchParents.get(branchId);
     return parentBranchId && parentBranchId !== 'main' ? `branch:${parentBranchId}` : 'session';
   };
-  const ensureActor = (id: string, at: number): StoryActor => {
-    let actor = actors.get(id);
-    if (!actor) {
-      const branchId = id.startsWith('branch:') ? id.slice('branch:'.length) : undefined;
-      const parentActorId = branchId ? resolveBranchParentActor(branchId) : undefined;
-      if (parentActorId && parentActorId !== 'session' && parentActorId !== id) {
-        ensureActor(parentActorId, at);
+  const ensureActor = (id: string, at: number, visiting = new Set<string>()): StoryActor => {
+    visiting.add(id);
+    try {
+      let actor = actors.get(id);
+      if (!actor) {
+        const branchId = id.startsWith('branch:') ? id.slice('branch:'.length) : undefined;
+        const parentActorId = branchId ? resolveBranchParentActor(branchId) : undefined;
+        if (
+          parentActorId &&
+          parentActorId !== 'session' &&
+          parentActorId !== id &&
+          !visiting.has(parentActorId)
+        ) {
+          ensureActor(parentActorId, at, visiting);
+        }
+        actor = {
+          id,
+          name: branchId
+            ? `⎇ ${branchNames.get(branchId) ?? branchId}`
+            : (names.get(id) ??
+              (id === 'session' ? 'Session / unattributed' : `Agent ${id.slice(0, 12)}`)),
+          ...(parentActorId ? { parent: parentActorId } : {}),
+          start: at,
+          end: at,
+          events: 0,
+        };
+        actors.set(id, actor);
+      } else if (id.startsWith('branch:')) {
+        const branchId = id.slice('branch:'.length);
+        const knownBranchName = branchNames.get(branchId);
+        if (knownBranchName) actor.name = `⎇ ${knownBranchName}`;
+        const parentActorId = resolveBranchParentActor(branchId);
+        if (parentActorId !== id) {
+          if (parentActorId !== 'session' && !visiting.has(parentActorId)) {
+            ensureActor(parentActorId, at, visiting);
+          }
+          actor.parent = parentActorId;
+        }
       }
-      actor = {
-        id,
-        name: branchId
-          ? `⎇ ${branchNames.get(branchId) ?? branchId}`
-          : (names.get(id) ??
-            (id === 'session' ? 'Session / unattributed' : `Agent ${id.slice(0, 12)}`)),
-        ...(parentActorId ? { parent: parentActorId } : {}),
-        start: at,
-        end: at,
-        events: 0,
-      };
-      actors.set(id, actor);
-    } else if (id.startsWith('branch:')) {
-      const branchId = id.slice('branch:'.length);
-      const knownBranchName = branchNames.get(branchId);
-      if (knownBranchName) actor.name = `⎇ ${knownBranchName}`;
-      const parentActorId = resolveBranchParentActor(branchId);
-      if (parentActorId !== id) {
-        if (parentActorId !== 'session') ensureActor(parentActorId, at);
-        actor.parent = parentActorId;
-      }
+      actor.start = Math.min(actor.start, at);
+      actor.end = Math.max(actor.end, at);
+      return actor;
+    } finally {
+      visiting.delete(id);
     }
-    actor.start = Math.min(actor.start, at);
-    actor.end = Math.max(actor.end, at);
-    return actor;
   };
   for (const record of records) {
     if (!sessionId || record.scope.sessionId !== sessionId || seen.has(record.eventId)) continue;

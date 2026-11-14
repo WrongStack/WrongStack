@@ -297,4 +297,20 @@ describe('chronicle counter sink', () => {
     expect(closed).toBe(true);
     await expect(journal.append(event())).rejects.toThrow('Chronicle remote journal is disposed');
   });
+
+  it('aggregates Object.prototype outcome names without coercion corruption (F262)', async () => {
+    const inner = recordingSink();
+    const sink = createChronicleCounterSink({
+      inner,
+      level: 'balanced',
+    });
+    await sink.append({
+      eventType: 'iteration.started',
+      outcome: 'toString' as never,
+      scope: { installationId: 'i', machineId: 'm' },
+      correlation: { traceId: 't', spanId: 's' },
+    } as never);
+    await sink.flush();
+    expect(inner.written.at(-1)?.attributes?.outcomes).toEqual({ toString: 1 });
+  });
 });

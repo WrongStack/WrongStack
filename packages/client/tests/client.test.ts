@@ -1316,4 +1316,64 @@ describe('createHttpClient', () => {
       code: 'invalid_url',
     });
   });
+
+  it('does not evict subscribed sessions when send fails serialization, and ignores malformed session.start in newSession (F256, F257)', async () => {
+    let sock!: FakeSocket;
+    class FakeSocket extends EventTarget {
+      readyState = 1;
+      constructor() {
+        super();
+        sock = this;
+        queueMicrotask(() => {
+          this.dispatchEvent(new Event('open'));
+          this.dispatchEvent(
+            new MessageEvent('message', {
+              data: JSON.stringify({
+                type: 'session.start',
+                payload: { sessionId: 's1', model: 'm', provider: 'p' },
+              }),
+            }),
+          );
+        });
+      }
+      send() {}
+      close() {
+        this.readyState = 3;
+      }
+    }
+
+    const client = await WrongStackClient.connect({
+      url: 'ws://127.0.0.1:1',
+      WebSocket: FakeSocket as never,
+    });
+    const active = ['s1', 's2', 's3', 's4'].map((sid) => {
+      const r = client.send('hi', { sessionId: sid });
+      let err: unknown;
+      r.result.catch((e) => {
+        err = e;
+      });
+      return () => err;
+    });
+
+    expect(() => client.send('bad', { sessionId: 's5', images: [{ bad: 1n }] as never })).toThrow();
+    await Promise.resolve();
+    expect(active.every((getErr) => getErr() === undefined)).toBe(true);
+
+    const nextP = client.newSession();
+    sock.dispatchEvent(
+      new MessageEvent('message', {
+        data: JSON.stringify({ type: 'session.start', payload: null }),
+      }),
+    );
+    sock.dispatchEvent(
+      new MessageEvent('message', {
+        data: JSON.stringify({
+          type: 'session.start',
+          payload: { sessionId: 's2', model: 'm', provider: 'p' },
+        }),
+      }),
+    );
+    await expect(nextP).resolves.toMatchObject({ sessionId: 's2' });
+    client.close();
+  });
 });

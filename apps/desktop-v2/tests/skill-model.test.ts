@@ -66,3 +66,17 @@ it('words the update summary through the given words', () => {
     ),
   ).toBe('1/0/2');
 });
+
+it('ignores Object.prototype keys in fileLanguage, skillSource, and englishText (F258, F259, F260)', async () => {
+  const { fileLanguage } = await import('../src/file-model.js');
+  const { skillSource } = await import('../src/skill-model.js');
+  const { englishText } = await import('../src/desktop-text.js');
+
+  expect(fileLanguage('foo.constructor')).toBe('Plain text');
+  expect(fileLanguage('foo.__proto__')).toBe('Plain text');
+  expect(skillSource('toString')).toBe('toString');
+  expect(skillSource('constructor')).toBe('constructor');
+  expect(() => englishText('composerMessage', 'toString')).toThrow(
+    'Missing English desktop text composerMessage.toString',
+  );
+});

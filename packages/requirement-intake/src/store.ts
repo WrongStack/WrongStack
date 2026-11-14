@@ -328,9 +328,17 @@ export class RequirementIntakeStore {
       if (file === INDEX_PATH || file === IDEMPOTENCY_PATH || !file.endsWith('.json')) continue;
       const id = file.slice(0, -'.json'.length);
       if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) continue;
-      const record = JSON.parse(
-        await fsp.readFile(path.join(this.baseDir, file), 'utf8'),
-      ) as RequirementIntakeRecord | null;
+      let record: RequirementIntakeRecord | null;
+      try {
+        record = JSON.parse(
+          await fsp.readFile(path.join(this.baseDir, file), 'utf8'),
+        ) as RequirementIntakeRecord | null;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT' || error instanceof SyntaxError) {
+          continue;
+        }
+        throw error;
+      }
       if (record?.id !== id) throw new Error(`Invalid requirement intake record: ${file}`);
       entries.push(indexEntryFor(record));
     }

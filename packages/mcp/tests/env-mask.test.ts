@@ -120,4 +120,19 @@ describe('MCP env masking round-trip (WS-036)', () => {
     expect(env?.['STALE']).toBeUndefined();
     expect(env?.['GITHUB_TOKEN']).toBe(STORED_SECRET);
   });
+
+  it('drops masked Object.prototype keys instead of copying prototype functions', async () => {
+    await seed({ GITHUB_TOKEN: STORED_SECRET });
+    const res = await updateMcp(
+      {
+        name: 'demo',
+        env: { GITHUB_TOKEN: MCP_ENV_MASK, toString: MCP_ENV_MASK, constructor: MCP_ENV_MASK },
+      } as never,
+      deps(),
+    );
+    expect(res.ok).toBe(true);
+    expect(res.server?.env?.['GITHUB_TOKEN']).toBe(STORED_SECRET);
+    expect(Object.hasOwn(res.server?.env ?? {}, 'toString')).toBe(false);
+    expect(Object.hasOwn(res.server?.env ?? {}, 'constructor')).toBe(false);
+  });
 });

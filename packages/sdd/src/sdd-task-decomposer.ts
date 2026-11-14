@@ -52,7 +52,11 @@ export class SddTaskDecomposer {
     _graph: TaskGraph,
     opts: SddTaskDecomposerOptions = {},
   ) {
-    this.slots = Math.min(16, Math.max(1, opts.parallelSlots ?? 4));
+    const rawSlots =
+      typeof opts.parallelSlots === 'number' && Number.isFinite(opts.parallelSlots)
+        ? Math.floor(opts.parallelSlots)
+        : 4;
+    this.slots = Math.min(16, Math.max(1, rawSlots));
   }
 
   // -------------------------------------------------------------------

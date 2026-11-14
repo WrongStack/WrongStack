@@ -449,4 +449,31 @@ describe('createGoalRunnerFromTaskGraph', () => {
     }
     await Promise.all([run1, run2]);
   });
+
+  it('clamps maxRunDurationMs > 32-bit signed max without TimeoutOverflowWarning (F254)', async () => {
+    let overflowed = false;
+    const onWarning = (w: Error) => {
+      if (w.name === 'TimeoutOverflowWarning') overflowed = true;
+    };
+    process.on('warning', onWarning);
+    try {
+      const runner = new GoalRunner({
+        goalId: 'g-overflow',
+        title: 'Overflow',
+        description: 'Overflow',
+        phases: [{ name: 'P1', description: 'd', prompt: 'p', dependsOn: [] }],
+        projectRoot: '/tmp/proj',
+        events: new EventBus(),
+        maxRunDurationMs: 2_500_000_000,
+        executeTask: async () => ({ status: 'completed', output: 'ok' }),
+      } as never);
+      const p = runner.start();
+      await new Promise((r) => setTimeout(r, 15));
+      runner.stop();
+      await p;
+      expect(overflowed).toBe(false);
+    } finally {
+      process.off('warning', onWarning);
+    }
+  });
 });

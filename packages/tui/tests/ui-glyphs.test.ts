@@ -223,6 +223,21 @@ describe('resolveIconStyle — browser-hosted terminals', () => {
       resolveIconStyle({ CODESPACES: 'true', WRONGSTACK_TUI_ICON_STYLE: 'ascii' }, () => true),
     ).toBe('ascii');
   });
+
+  it('lets the width-safe profile be forced by env on any terminal', () => {
+    // Escape hatch for a terminal we cannot classify (self-hosted ttyd/gotty) or
+    // a native terminal whose configured mono font lacks the ornament glyphs.
+    expect(resolveIconStyle({ WRONGSTACK_TUI_ICON_STYLE: 'browser' }, () => true)).toBe('browser');
+    expect(resolveIconStyle({ WRONGSTACK_TUI_ICON_STYLE: 'width-safe' }, noNerdFont)).toBe(
+      'browser',
+    );
+    expect(
+      resolveIconStyle(
+        { TERM: 'xterm-256color', WRONGSTACK_TUI_ICON_STYLE: 'browser' },
+        () => true,
+      ),
+    ).toBe('browser');
+  });
 });
 
 describe('browser glyph profile', () => {

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-14T20:48:24.925Z",
+  "generatedAt": "2026-11-14T21:57:06.467Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6345,
-    "testFiles": 5298,
-    "sourceLines": 1310711,
+    "testFiles": 5302,
+    "sourceLines": 1310937,
     "workspaceEdges": 250,
     "moduleEdges": 18722,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 345,
+    "testsWithoutTypecheck": 347,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1068
   },
@@ -734,7 +734,7 @@
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
       "sourceFiles": 261,
-      "testFiles": 0,
+      "testFiles": 2,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -862,7 +862,7 @@
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
       "sourceFiles": 177,
-      "testFiles": 176,
+      "testFiles": 178,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -881,7 +881,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 176
+          "testFiles": 178
         }
       ]
     },
@@ -18524,6 +18524,18 @@
         ]
       },
       {
+        "file": "packages/project-surfaces/tests/codemap-activity-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/session-story-branch-cycle.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/providers/tests/account-quota-gateway-balance.test.ts",
         "projects": [
           "root-node"
@@ -20240,6 +20252,12 @@
         ]
       },
       {
+        "file": "packages/sage/tests/project-server-hygiene-timeout-overflow.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sage/tests/project-server-maintenance.test.ts",
         "projects": [
           "root-node"
@@ -20823,6 +20841,12 @@
       },
       {
         "file": "packages/sage/tests/wrongmemory-service.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/wrongmemory-wire-proto.test.ts",
         "projects": [
           "root-node"
         ]
@@ -35532,6 +35556,20 @@
           "root-node"
         ],
         "typecheckProjects": []
+      },
+      {
+        "file": "packages/project-surfaces/tests/codemap-activity-proto.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "packages/project-surfaces/tests/session-story-branch-cycle.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
       }
     ],
     "multipleTypechecks": []
@@ -36488,7 +36526,7 @@
     },
     {
       "file": "packages/client/src/client.ts",
-      "lines": 785,
+      "lines": 796,
       "relativeImports": 4
     },
     {
@@ -36653,7 +36691,7 @@
     },
     {
       "file": "packages/tui/src/ui-glyphs.ts",
-      "lines": 708,
+      "lines": 712,
       "relativeImports": 0
     },
     {
@@ -36950,7 +36988,7 @@
     },
     {
       "file": "packages/client/src/client.ts",
-      "lines": 785,
+      "lines": 796,
       "relativeImports": 4
     },
     {

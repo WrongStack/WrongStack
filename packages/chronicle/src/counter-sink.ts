@@ -152,7 +152,7 @@ export function createChronicleCounterSink(
         startedAt: at,
         updatedAt: at,
         samples: 0,
-        outcomes: {},
+        outcomes: Object.create(null) as Record<string, number>,
         sums: {},
         latest: {},
         scope: input.scope,

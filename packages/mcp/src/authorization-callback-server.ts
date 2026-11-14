@@ -59,7 +59,13 @@ export async function startMcpOAuthCallbackServer(
       return;
     }
     // The Host header is attacker-influenced; the request line is what routes.
-    const requestUrl = new URL(req.url ?? '/', 'http://127.0.0.1');
+    let requestUrl: URL;
+    try {
+      requestUrl = new URL(req.url ?? '/', 'http://127.0.0.1');
+    } catch {
+      res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' }).end('Bad request');
+      return;
+    }
     if (req.method !== 'GET' || requestUrl.pathname !== path) {
       res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }).end('Not found');
       return;
@@ -100,12 +106,24 @@ export async function startMcpOAuthCallbackServer(
   }
   const redirectUri = `http://127.0.0.1:${address.port}${path}`;
 
-  const timer = setTimeout(() => {
-    finished = true;
-    fail?.(new Error(`MCP OAuth callback was not received within ${timeoutMs}ms`));
-    close();
-  }, timeoutMs);
-  timer.unref?.();
+  const MAX_TIMEOUT_MS = 2_147_483_647;
+  let remainingMs = timeoutMs;
+  let timer: ReturnType<typeof setTimeout>;
+  const scheduleTimeout = () => {
+    const chunk = Math.min(remainingMs, MAX_TIMEOUT_MS);
+    remainingMs -= chunk;
+    timer = setTimeout(() => {
+      if (remainingMs > 0) {
+        scheduleTimeout();
+        return;
+      }
+      finished = true;
+      fail?.(new Error(`MCP OAuth callback was not received within ${timeoutMs}ms`));
+      close();
+    }, chunk);
+    timer.unref?.();
+  };
+  scheduleTimeout();
 
   const onAbort = () => {
     finished = true;

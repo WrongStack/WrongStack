@@ -62,14 +62,18 @@ export function normalizeRoot(root: string): string {
 /** Drop `undefined` members so the wire carries only intended fields. */
 export function compact<T extends Record<string, unknown>>(value: T): Partial<T> {
   const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(value)) if (v !== undefined) out[k] = v;
+  for (const [k, v] of Object.entries(value)) {
+    if (k !== '__proto__' && v !== undefined) out[k] = v;
+  }
   return out as Partial<T>;
 }
 
 export function pick(source: object, keys: readonly string[]): Record<string, unknown> {
   const rec = source as Record<string, unknown>;
   const out: Record<string, unknown> = {};
-  for (const k of keys) if (rec[k] !== undefined) out[k] = rec[k];
+  for (const k of keys) {
+    if (k !== '__proto__' && Object.hasOwn(rec, k) && rec[k] !== undefined) out[k] = rec[k];
+  }
   return out;
 }
 

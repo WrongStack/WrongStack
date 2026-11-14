@@ -123,12 +123,13 @@ export const useChatLanes = create<ChatLanesState>()(
 /** Read a lane's data, or the shared empty lane when it does not exist. */
 export function readLane(sessionId: string | null | undefined): ChatLaneData {
   if (!sessionId) return EMPTY_LANE;
-  return useChatLanes.getState().lanes[sessionId] ?? EMPTY_LANE;
+  const lanes = useChatLanes.getState().lanes;
+  return Object.hasOwn(lanes, sessionId) ? lanes[sessionId] : EMPTY_LANE;
 }
 
 export function hasLane(sessionId: string | null | undefined): boolean {
   if (!sessionId) return false;
-  return sessionId in useChatLanes.getState().lanes;
+  return Object.hasOwn(useChatLanes.getState().lanes, sessionId);
 }
 
 export function laneIds(): string[] {
@@ -138,7 +139,7 @@ export function laneIds(): string[] {
 /** Create the lane if missing. Returns the sessionId for chaining. */
 export function ensureLane(sessionId: string): string {
   if (!sessionId) return DEFAULT_LANE_ID;
-  if (useChatLanes.getState().lanes[sessionId]) return sessionId;
+  if (Object.hasOwn(useChatLanes.getState().lanes, sessionId)) return sessionId;
   useChatLanes.setState((s) => ({ lanes: { ...s.lanes, [sessionId]: createLaneData() } }));
   return sessionId;
 }

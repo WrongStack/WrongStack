@@ -62,7 +62,7 @@ export function mapEcosystem(language: string): EcosystemId | undefined {
     'c++': 'cpp',
     c: 'cpp',
   };
-  return map[lower];
+  return Object.hasOwn(map, lower) ? map[lower] : undefined;
 }
 
 /**

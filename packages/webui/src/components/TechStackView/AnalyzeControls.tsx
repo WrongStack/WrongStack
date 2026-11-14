@@ -13,12 +13,12 @@
  * is wired yet.
  */
 
-import { useCallback, useEffect, useState } from 'react';
 import { Brain, Loader2, Sparkles, Zap } from 'lucide-react';
-import { type TechStackAnalyzeDepth, type TechStackModelInfo, useTechStackStore } from '@/stores';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
+import { type TechStackAnalyzeDepth, type TechStackModelInfo, useTechStackStore } from '@/stores';
 
 interface AnalyzeControlsProps {
   /** Disabled while a job is in flight. */
@@ -72,9 +72,11 @@ export function AnalyzeControls({ busy, onAnalyze, onInventory }: AnalyzeControl
   const setAvailableModels = useTechStackStore((state) => state.setAvailableModels);
 
   const [modelsLoading, setModelsLoading] = useState(false);
+  const [modelsAttempted, setModelsAttempted] = useState(false);
 
   const refreshModels = useCallback(async () => {
     setModelsLoading(true);
+    setModelsAttempted(true);
     try {
       const next = await fetchModels();
       setAvailableModels(next);
@@ -88,10 +90,10 @@ export function AnalyzeControls({ busy, onAnalyze, onInventory }: AnalyzeControl
   }, [setAvailableModels]);
 
   useEffect(() => {
-    if (!availableModels && !modelsLoading) {
+    if (!availableModels && !modelsLoading && !modelsAttempted) {
       void refreshModels();
     }
-  }, [availableModels, modelsLoading, refreshModels]);
+  }, [availableModels, modelsLoading, modelsAttempted, refreshModels]);
 
   const aiDisabled = busy || !availableModels?.available;
   const inventoryDisabled = busy;

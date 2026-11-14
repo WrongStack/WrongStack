@@ -300,7 +300,9 @@ export async function verifyGoalProject(
       output: `[verify] package.json could not be read: ${(err as Error).message}`,
     };
   }
-  const steps = (options.steps ?? ['typecheck', 'lint']).filter((step) => scripts[step]);
+  const steps = (options.steps ?? ['typecheck', 'lint']).filter(
+    (step) => Object.hasOwn(scripts, step) && Boolean(scripts[step]),
+  );
   if (steps.length === 0) {
     return { ok: true, skipped: true, output: 'verify skipped: no configured scripts' };
   }

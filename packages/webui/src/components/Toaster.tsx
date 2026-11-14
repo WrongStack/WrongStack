@@ -22,12 +22,33 @@ function Icon({ variant }: { variant: ToastVariant }) {
   return <Info className="h-4 w-4 text-info" />;
 }
 
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
 function ToastItem({ entry }: { entry: ToastEntry }) {
   const { t } = useAppTranslation();
   const dismissToast = useNotificationStore((s) => s.dismissToast);
   useEffect(() => {
-    const timer = setTimeout(() => dismissToast(entry.id), entry.ttl);
-    return () => clearTimeout(timer);
+    if (!Number.isFinite(entry.ttl) || entry.ttl <= 0) return;
+    let remainingMs = entry.ttl;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      const chunk = Math.min(remainingMs, MAX_TIMEOUT_MS);
+      remainingMs -= chunk;
+      timer = setTimeout(() => {
+        if (cancelled) return;
+        if (remainingMs > 0) {
+          schedule();
+          return;
+        }
+        dismissToast(entry.id);
+      }, chunk);
+    };
+    schedule();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [entry.id, entry.ttl, dismissToast]);
 
   return (

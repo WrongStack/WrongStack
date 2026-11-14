@@ -130,10 +130,10 @@ export function parseArgs(
         break;
       }
       case '--stdio':
-        parsed.transport = 'stdio';
+        if (parseSwitch(parsed.transport === 'stdio')) parsed.transport = 'stdio';
         break;
       case '--http':
-        parsed.transport = 'http';
+        parsed.transport = parseSwitch(parsed.transport === 'http') ? 'http' : 'stdio';
         break;
       case '--port': {
         const next = value();
@@ -168,7 +168,7 @@ export function parseArgs(
         break;
       case '-h':
       case '--help':
-        parsed.help = true;
+        parsed.help = parseSwitch(parsed.help);
         break;
       default:
         if (arg?.startsWith('-')) warn('mcp_cli_unknown_option', `unknown option ${arg} ignored.`);

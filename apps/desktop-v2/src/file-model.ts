@@ -1,5 +1,5 @@
-import { entries } from './engine-values';
 import { displayDecimal } from './display-dates';
+import { entries } from './engine-values';
 
 export function projectRelativePath(value: string, projectRoot: string): string {
   const normalize = (rawPath: string) => {
@@ -139,30 +139,31 @@ export function fileRowName(
     .filter(Boolean)
     .join(' ');
 }
+const FILE_LANGUAGES: Record<string, string> = Object.assign(
+  Object.create(null) as Record<string, string>,
+  {
+    ts: 'TypeScript',
+    tsx: 'TypeScript React',
+    js: 'JavaScript',
+    jsx: 'JavaScript React',
+    rs: 'Rust',
+    py: 'Python',
+    md: 'Markdown',
+    json: 'JSON',
+    css: 'CSS',
+    html: 'HTML',
+    yaml: 'YAML',
+    yml: 'YAML',
+    toml: 'TOML',
+    sh: 'Shell',
+    ps1: 'PowerShell',
+  },
+);
+
 /** The file's language by extension; `plain` names any other file, in the display language. */
 export function fileLanguage(path: string, plain = 'Plain text') {
   const extension = path.split('.').at(-1)?.toLowerCase() ?? '';
-  return (
-    (
-      {
-        ts: 'TypeScript',
-        tsx: 'TypeScript React',
-        js: 'JavaScript',
-        jsx: 'JavaScript React',
-        rs: 'Rust',
-        py: 'Python',
-        md: 'Markdown',
-        json: 'JSON',
-        css: 'CSS',
-        html: 'HTML',
-        yaml: 'YAML',
-        yml: 'YAML',
-        toml: 'TOML',
-        sh: 'Shell',
-        ps1: 'PowerShell',
-      } as Record<string, string>
-    )[extension] ?? plain
-  );
+  return FILE_LANGUAGES[extension] ?? plain;
 }
 export interface DiffLine {
   kind: 'same' | 'add' | 'remove';

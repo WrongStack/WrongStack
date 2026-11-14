@@ -189,4 +189,15 @@ describe('attached SAGE MCP (external coding agents)', () => {
     expect(bareToken.tokenMissing).toBe(true);
     expect(bareToken.writable).toBe(true);
   });
+
+  it('does not overflow 32-bit setTimeout when idleReleaseMs exceeds 2^31-1 ms', async () => {
+    const attached = createAttachedSageMcp(port, {
+      projectRoot: dir,
+      idleReleaseMs: 2_147_483_648,
+    });
+    await attached.host.callTool('memory_search', { query: 'test' });
+    await new Promise((r) => setTimeout(r, 30));
+    expect(port.releaseConnection).not.toHaveBeenCalled();
+    attached.dispose();
+  });
 });

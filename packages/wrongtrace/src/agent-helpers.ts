@@ -149,9 +149,12 @@ async function scoreFromHealth(
   // Path-aware friction lookup: best-effort, daemon schema may not carry file_path.
   const targetPath = normalizeMatchPath(path);
   const fileFriction = friction.filter((row) => {
-    const r = row as WrongTraceFrictionRow & { file_path?: string; files?: string[] };
+    if (!row || typeof row !== 'object') return false;
+    const r = row as WrongTraceFrictionRow & { file_path?: string; files?: unknown[] };
     if (typeof r.file_path === 'string') return normalizeMatchPath(r.file_path) === targetPath;
-    if (Array.isArray(r.files)) return r.files.some((f) => normalizeMatchPath(f) === targetPath);
+    if (Array.isArray(r.files)) {
+      return r.files.some((f) => typeof f === 'string' && normalizeMatchPath(f) === targetPath);
+    }
     return false;
   });
   if (fileFriction.length > 0) {
@@ -419,9 +422,11 @@ export function digestAtlas(atlas: WrongTraceAtlasSummary | AtlasShape | null): 
   const thrashCounts = new Map<string, number>();
 
   for (const pkg of packages) {
-    const files = pkg.files ?? [];
+    if (!pkg || typeof pkg !== 'object') continue;
+    const files = Array.isArray(pkg.files) ? pkg.files : [];
     if (files.length > 0) {
       for (const f of files) {
+        if (!f || typeof f !== 'object') continue;
         if ((f.health_score ?? 100) < 40 || f.is_fragile === true) fragileFileCount++;
         const thrash = f.recent_thrashing_count ?? 0;
         if (Number.isFinite(thrash) && thrash > 5) {

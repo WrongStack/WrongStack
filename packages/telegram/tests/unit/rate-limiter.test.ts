@@ -109,14 +109,15 @@ describe('createTokenBucket.isFull', () => {
     vi.setSystemTime(5_000);
     expect(bucket.fill()).toBe(3);
 
-    // When untilToken <= 0 (e.g. negative tokensPerSecond configuration), delay is floored at 1ms
+    // Negative tokensPerSecond falls back to default positive rate instead of draining negative (F261)
     const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
     try {
       const negRateBucket = createTokenBucket({ tokensPerSecond: -1, burst: 0 });
       const p = negRateBucket.waitForToken(2);
-      expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1);
+      expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 2);
       await vi.advanceTimersByTimeAsync(5);
       await p;
+      expect(negRateBucket.fill()).toBeGreaterThanOrEqual(0);
     } finally {
       setTimeoutSpy.mockRestore();
     }

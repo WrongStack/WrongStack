@@ -87,15 +87,36 @@ interface GovernanceAttachmentBrokerControllerOptions {
   readonly onEvent?: ((event: GovernanceAttachmentBrokerLifecycleEvent) => void) | undefined;
 }
 
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
 function defaultScheduler(): GovernanceAttachmentBrokerScheduler {
   return {
     schedule(callback, delayMs) {
-      const handle = setTimeout(callback, delayMs);
-      handle.unref();
-      return handle;
+      const state: { handle: ReturnType<typeof setTimeout>; cancelled: boolean } = {
+        handle: undefined as never,
+        cancelled: false,
+      };
+      let remainingMs = Math.max(0, delayMs);
+      const arm = () => {
+        const chunk = Math.min(remainingMs, MAX_TIMEOUT_MS);
+        remainingMs -= chunk;
+        state.handle = setTimeout(() => {
+          if (state.cancelled) return;
+          if (remainingMs > 0) {
+            arm();
+            return;
+          }
+          callback();
+        }, chunk);
+        state.handle.unref();
+      };
+      arm();
+      return state;
     },
     cancel(handle) {
-      clearTimeout(handle as ReturnType<typeof setTimeout>);
+      const state = handle as { handle: ReturnType<typeof setTimeout>; cancelled: boolean };
+      state.cancelled = true;
+      clearTimeout(state.handle);
     },
   };
 }

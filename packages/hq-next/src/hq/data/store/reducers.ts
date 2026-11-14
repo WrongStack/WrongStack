@@ -158,7 +158,7 @@ function advanceCursor(
   key: string,
   event: HqEventEnvelope,
 ): Partial<HqFleetState> {
-  const previousSeq = cursors[key] ?? 0;
+  const previousSeq = (Object.hasOwn(cursors, key) ? cursors[key] : undefined) ?? 0;
   const nextSeq = event.seq;
   const publisherRestarted =
     previousSeq > 0 && nextSeq > 0 && nextSeq <= previousSeq / 2 && event.type !== 'client.hello';

@@ -159,20 +159,32 @@ function createTimeoutSignal(
   } else {
     parent?.addEventListener('abort', onAbort, { once: true });
   }
+  const MAX_TIMEOUT_MS = 2_147_483_647;
   const safeTimeout =
     typeof timeoutMs === 'number' && Number.isFinite(timeoutMs) && timeoutMs > 0
       ? timeoutMs
       : MCP_CONSTANTS.REQUEST_TIMEOUT_MS;
+  let remainingMs = safeTimeout;
+  let timer: ReturnType<typeof setTimeout>;
+  const scheduleTimeout = () => {
+    const chunk = Math.min(remainingMs, MAX_TIMEOUT_MS);
+    remainingMs -= chunk;
+    timer = setTimeout(onTimeout, chunk);
+    timer.unref?.();
+  };
   const onTimeout = () => {
+    if (remainingMs > 0) {
+      scheduleTimeout();
+      return;
+    }
     if (hold?.()) {
-      timer = setTimeout(onTimeout, safeTimeout);
-      timer.unref?.();
+      remainingMs = safeTimeout;
+      scheduleTimeout();
       return;
     }
     ctrl.abort(new Error(`MCP HTTP request timed out after ${safeTimeout}ms`));
   };
-  let timer = setTimeout(onTimeout, safeTimeout);
-  timer.unref?.();
+  scheduleTimeout();
   return {
     signal: ctrl.signal,
     dispose: () => {

@@ -61,7 +61,7 @@ describe('request translation', () => {
     });
     expect(
       await wrongstackCallFor(request('delete', {}, { locations: [{ path: `${ROOT}/old.ts` }] })),
-    ).toEqual({ tool: 'bash', input: { command: `rm "${ROOT}/old.ts"` } });
+    ).toEqual({ tool: 'bash', input: { command: `rm '${ROOT}/old.ts'` } });
     expect(await wrongstackCallFor(request('read', { file_path: '~/.aws/credentials' }))).toEqual({
       tool: 'read',
       input: { path: '~/.aws/credentials' },

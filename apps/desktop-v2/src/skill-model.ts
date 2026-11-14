@@ -4,20 +4,21 @@ export function skillInstructions(document: string): string {
   const end = normalized.indexOf('\n---', 4);
   return end < 0 ? document : normalized.slice(end + 4).replace(/^\n/, '');
 }
+const SKILL_SOURCES: Record<string, string> = Object.assign(
+  Object.create(null) as Record<string, string>,
+  {
+    project: 'This project',
+    user: 'WrongStack profile',
+    bundled: 'Bundled',
+    foreign: 'Other agent',
+    'claude-project': 'Claude project',
+    'claude-user': 'Claude user',
+    extra: 'Additional directory',
+  },
+);
+
 export function skillSource(source: unknown): string {
-  return (
-    (
-      {
-        project: 'This project',
-        user: 'WrongStack profile',
-        bundled: 'Bundled',
-        foreign: 'Other agent',
-        'claude-project': 'Claude project',
-        'claude-user': 'Claude user',
-        extra: 'Additional directory',
-      } as Record<string, string>
-    )[String(source)] ?? String(source ?? 'Unknown source')
-  );
+  return SKILL_SOURCES[String(source)] ?? String(source ?? 'Unknown source');
 }
 export function skillWritable(source: unknown, scope: 'project' | 'profile'): boolean {
   return source === (scope === 'project' ? 'project' : 'user');

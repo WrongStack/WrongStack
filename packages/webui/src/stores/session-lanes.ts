@@ -222,12 +222,13 @@ export const useSessionLanes = create<SessionLanesState>()(
 
 export function readSessionLane(sessionId: string | null | undefined): SessionLaneData {
   if (!sessionId) return EMPTY_SESSION_LANE;
-  return useSessionLanes.getState().lanes[sessionId] ?? EMPTY_SESSION_LANE;
+  const lanes = useSessionLanes.getState().lanes;
+  return Object.hasOwn(lanes, sessionId) ? lanes[sessionId] : EMPTY_SESSION_LANE;
 }
 
 export function hasSessionLane(sessionId: string | null | undefined): boolean {
   if (!sessionId) return false;
-  return sessionId in useSessionLanes.getState().lanes;
+  return Object.hasOwn(useSessionLanes.getState().lanes, sessionId);
 }
 
 export function sessionLaneIds(): string[] {
@@ -236,7 +237,7 @@ export function sessionLaneIds(): string[] {
 
 export function ensureSessionLane(sessionId: string): string {
   if (!sessionId) return SESSION_DEFAULT_LANE_ID;
-  if (useSessionLanes.getState().lanes[sessionId]) return sessionId;
+  if (Object.hasOwn(useSessionLanes.getState().lanes, sessionId)) return sessionId;
   useSessionLanes.setState((s) => ({
     lanes: { ...s.lanes, [sessionId]: createSessionLaneData() },
   }));
@@ -379,7 +380,10 @@ export function sessionLane(sessionId: string): SessionLaneActions {
   const cached = laneActionCache.get(sid);
   if (cached) return cached;
 
-  const read = (): SessionLaneData => useSessionLanes.getState().lanes[sid] ?? EMPTY_SESSION_LANE;
+  const read = (): SessionLaneData => {
+    const lanes = useSessionLanes.getState().lanes;
+    return Object.hasOwn(lanes, sid) ? lanes[sid] : EMPTY_SESSION_LANE;
+  };
 
   const actions: SessionLaneActions = {
     sessionId: sid,

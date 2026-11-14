@@ -75,6 +75,13 @@ describe('event log', () => {
     expect(eventLabel('custom.thing')).toBe('custom.thing');
     expect(eventLabel(undefined)).toBe('Unknown event');
   });
+
+  it('ignores Object.prototype keys in eventLabel and payloadFacts', () => {
+    expect(eventLabel('constructor')).toBe('constructor');
+    expect(eventLabel('toString')).toBe('toString');
+    const facts = payloadFacts({ constructor: 'x', toString: 'y' });
+    expect(facts.every((f) => typeof f.label === 'string')).toBe(true);
+  });
 });
 
 let seq = 0;

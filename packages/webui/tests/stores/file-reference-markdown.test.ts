@@ -237,4 +237,10 @@ describe('file reference store', () => {
     useFileReferenceStore.getState().clearRefs();
     expect(useFileReferenceStore.getState().refs).toEqual([]);
   });
+
+  it('ignores Object.prototype keys in fileContents lookup (F287)', () => {
+    const md = refsToMarkdown([fileRef('toString')], { 'src/a.ts': 'hello' });
+    expect(md).toContain('@toString');
+    expect(md).not.toContain('function toString');
+  });
 });

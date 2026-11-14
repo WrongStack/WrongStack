@@ -44,12 +44,14 @@ const TOOL_TYPE_MAP: Record<string, ActivityType> = {
   memory_delete: 'memory',
 };
 
+const DIRECT_ACTIVITY_OPERATIONS = new Set<string>(['read', 'write', 'edit', 'delete', 'search']);
+
 function activityTypeForOperation(operation: string, toolName = ''): ActivityType | undefined {
   if (operation === 'rename') return 'edit';
-  if (operation in { read: 1, write: 1, edit: 1, delete: 1, search: 1 }) {
+  if (DIRECT_ACTIVITY_OPERATIONS.has(operation)) {
     return operation as ActivityType;
   }
-  return TOOL_TYPE_MAP[toolName];
+  return Object.hasOwn(TOOL_TYPE_MAP, toolName) ? TOOL_TYPE_MAP[toolName] : undefined;
 }
 
 function extractPaths(input: Record<string, unknown>): string[] {
@@ -239,13 +241,15 @@ export function extractActivitiesFromMessage(msg: ActivityFrame): FileActivity[]
           payload['input'] && typeof payload['input'] === 'object'
             ? (payload['input'] as Record<string, unknown>)
             : {},
-        ).map(
-          (filePath) =>
-            ({
-              filePath,
-              operation: TOOL_TYPE_MAP[String(payload['name'] ?? '')] ?? 'edit',
-            }) as WSCodeMapFileTarget,
-        );
+        ).map((filePath) => {
+          const toolKey = String(payload['name'] ?? '');
+          return {
+            filePath,
+            operation:
+              (Object.hasOwn(TOOL_TYPE_MAP, toolKey) ? TOOL_TYPE_MAP[toolKey] : undefined) ??
+              'edit',
+          } as WSCodeMapFileTarget;
+        });
     const started = msg.type === 'tool.started' || msg.type === 'codemap.tool_started';
     return targetActivities(payload, targets, started ? 'active' : 'completed');
   }

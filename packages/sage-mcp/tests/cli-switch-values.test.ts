@@ -32,4 +32,12 @@ describe('sage-mcp: privilege switches with an inline value', () => {
     expect(parse(['--writable=1', '--writable=0']).writable).toBe(false);
     expect(parse(['--writable=false', '--writable=true']).writable).toBe(true);
   });
+
+  it('respects =false / =0 on --http, --stdio, and --help switches', () => {
+    expect(parse(['--http=false']).transport).toBe('stdio');
+    expect(parse(['--http=0']).transport).toBe('stdio');
+    expect(parse(['--http', '--stdio=false']).transport).toBe('http');
+    expect(parse(['--help=false']).help).toBe(false);
+    expect(parse(['--help=0']).help).toBe(false);
+  });
 });

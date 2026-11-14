@@ -240,10 +240,10 @@ function unmaskEnv(
 ): Record<string, string> | undefined {
   if (env === undefined) return undefined;
   let changed = false;
-  const out: Record<string, string> = {};
+  const out: Record<string, string> = Object.create(null);
   for (const [key, value] of Object.entries(env)) {
     if (value === MCP_ENV_MASK) {
-      const stored = base?.[key];
+      const stored = base && Object.hasOwn(base, key) ? base[key] : undefined;
       // An unknown key carrying the mask has no stored value to restore, so
       // it is dropped rather than persisted as the literal placeholder.
       if (stored === undefined) {

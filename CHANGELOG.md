@@ -40,6 +40,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   correctly for large negative offsets.
 - Coalesce ACP leader model switches without dropping a newer session, discard
   superseded browser-watch starts, and reject dot-directory dead-code backup IDs.
+- Keep long-running goal, MCP, endpoint, maintenance and notification timers
+  within platform timeout limits, and cancel them cleanly on disposal.
+- Ignore inherited lookup keys across client-facing labels, file references,
+  activity maps and branch models; handle cyclic session-story ancestry safely.
+- Validate client session responses before accepting them, serialize outbound
+  requests before changing active subscriptions, and recover past corrupt intake
+  records without hiding invalid record IDs.
+- Preserve disabled empty project scripts and refresh ACP regression fixtures
+  for shell quoting and stale-session cleanup.
+- Recognize JetBrains, Coder and Cloud9 terminals, retain truecolor graphics in
+  browser terminals and allow the width-safe icon profile to be selected explicitly.
 
 ### Security
 

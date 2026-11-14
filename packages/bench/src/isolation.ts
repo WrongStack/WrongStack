@@ -224,7 +224,8 @@ export function deepMerge(
 ): Record<string, unknown> {
   const out: Record<string, unknown> = { ...base };
   for (const [key, value] of Object.entries(over)) {
-    const prev = out[key];
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+    const prev = Object.hasOwn(out, key) ? out[key] : undefined;
     out[key] = isRecord(prev) && isRecord(value) ? deepMerge(prev, value) : value;
   }
   return out;

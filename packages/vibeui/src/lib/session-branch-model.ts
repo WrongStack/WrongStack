@@ -48,7 +48,9 @@ export function flattenVibeBranchRows(tree: VibeSessionTreeSnapshot): VibeBranch
   const childrenByParent = new Map<string, VibeBranchDescriptor[]>();
   for (const branch of all) {
     if (branch.parentBranchId === null) continue;
-    const parentId = tree.branches[branch.parentBranchId] ? branch.parentBranchId : 'main';
+    const parentId = Object.hasOwn(tree.branches, branch.parentBranchId)
+      ? branch.parentBranchId
+      : 'main';
     const list = childrenByParent.get(parentId) ?? [];
     list.push(branch);
     childrenByParent.set(parentId, list);

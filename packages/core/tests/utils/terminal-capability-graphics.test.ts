@@ -175,6 +175,24 @@ describe('detectTerminalHost — browser/webview hosts', () => {
     });
   });
 
+  it('detects IDE-hosted terminals that paint with the editor font (JetBrains, Coder, Cloud9)', () => {
+    expect(detectTerminalHost({ TERMINAL_EMULATOR: 'JetBrains-JediTerm' })).toEqual({
+      host: 'browser',
+      kind: 'jetbrains',
+      remoteClient: true,
+    });
+    expect(detectTerminalHost({ CODER_WORKSPACE_ID: 'ws-1' })).toEqual({
+      host: 'browser',
+      kind: 'coder',
+      remoteClient: true,
+    });
+    expect(detectTerminalHost({ C9_PROJECT: '/home/ec2-user/environment' })).toEqual({
+      host: 'browser',
+      kind: 'cloud9',
+      remoteClient: true,
+    });
+  });
+
   it('marks the client remote when the session itself is SSH', () => {
     expect(detectTerminalHost({ TERM_PROGRAM: 'vscode', SSH_CONNECTION: 'a 1 b 2' })).toEqual({
       host: 'browser',
@@ -214,7 +232,17 @@ describe('detectTerminalHost — browser/webview hosts', () => {
       ...tty,
       env: { TERM: 'xterm-kitty', KITTY_WINDOW_ID: '1', CODESPACES: 'true' },
     });
-    expect(noTruecolor.graphicsProtocol).toBe('none');
+    // A browser host is 24-bit whether or not COLORTERM arrived, so the
+    // half-block mosaic survives instead of degrading to a text card.
+    expect(noTruecolor.colorDepth).toBe(3);
+    expect(noTruecolor.graphicsProtocol).toBe('halfblock');
+
+    const optedOut = detectTerminal({
+      ...tty,
+      env: { TERM: 'xterm-kitty', KITTY_WINDOW_ID: '1', CODESPACES: 'true', NO_COLOR: '1' },
+    });
+    expect(optedOut.colorDepth).toBe(0);
+    expect(optedOut.graphicsProtocol).toBe('none');
   });
 
   it('still honors an explicit WRONGSTACK_TUI_GRAPHICS override on a browser host', () => {
@@ -235,5 +263,60 @@ describe('detectTerminalHost — browser/webview hosts', () => {
       kind: 'gitpod',
       remoteClient: true,
     });
+  });
+});
+
+describe('detectTerminal — browser hosts are truecolor-capable', () => {
+  it('promotes a COLORTERM-less web terminal so the halfblock mosaic survives', () => {
+    // ttyd/gotty shape: a shell inheriting only TERM=xterm-256color, no
+    // COLORTERM, and the operator pinning the host because those servers export
+    // no marker of their own.
+    const ttyd = detectTerminal({
+      ...fakeStreams(true, true),
+      env: { TERM: 'xterm-256color', WRONGSTACK_TUI_TERMINAL: 'browser' },
+    });
+    expect(ttyd.colorDepth).toBe(3);
+    expect(ttyd.graphicsProtocol).toBe('halfblock');
+
+    const gotty = detectTerminal({
+      ...fakeStreams(true, true),
+      env: { TERM: 'xterm', BROWSER_TERMINAL: '1' },
+    });
+    expect(gotty.colorDepth).toBe(3);
+    expect(gotty.graphicsProtocol).toBe('halfblock');
+  });
+
+  it('leaves a native 256-colour terminal at its reported depth', () => {
+    const native = detectTerminal({
+      ...fakeStreams(true, true),
+      env: { TERM: 'xterm-256color' },
+    });
+    expect(native.colorDepth).toBe(2);
+    expect(native.graphicsProtocol).toBe('none');
+  });
+
+  it('keeps explicit colour opt-outs intact on a browser host', () => {
+    const noColor = detectTerminal({
+      ...fakeStreams(true, true),
+      env: { TERM: 'xterm-256color', CODESPACES: 'true', NO_COLOR: '1' },
+    });
+    expect(noColor.colorDepth).toBe(0);
+    expect(noColor.graphicsProtocol).toBe('none');
+
+    const forcedOff = detectTerminal({
+      ...fakeStreams(true, true),
+      env: { TERM: 'xterm-256color', CODESPACES: 'true', FORCE_COLOR: '0' },
+    });
+    expect(forcedOff.colorDepth).toBe(0);
+    expect(forcedOff.graphicsProtocol).toBe('none');
+  });
+
+  it('does not promote non-TTY output', () => {
+    const piped = detectTerminal({
+      ...fakeStreams(false, true),
+      env: { TERM: 'xterm-256color', CODESPACES: 'true' },
+    });
+    expect(piped.colorDepth).toBe(0);
+    expect(piped.graphicsProtocol).toBe('none');
   });
 });

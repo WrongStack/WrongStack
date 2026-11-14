@@ -181,4 +181,37 @@ describe('verifyGoalProject', () => {
     });
     expect(execFile).toHaveBeenCalledOnce();
   });
+
+  it('ignores Object.prototype script keys in steps (F253)', async () => {
+    await fs.mkdir(path.join(dir, 'node_modules'));
+    await fs.writeFile(
+      path.join(dir, 'package.json'),
+      JSON.stringify({ scripts: { typecheck: 'tsc --noEmit' } }),
+    );
+    await expect(
+      verifyGoalProject({ cwd: dir, steps: ['toString', 'constructor', 'valueOf'] }),
+    ).resolves.toEqual({
+      ok: true,
+      skipped: true,
+      output: 'verify skipped: no configured scripts',
+    });
+    expect(execFile).not.toHaveBeenCalled();
+  });
+
+  it('keeps explicitly empty scripts disabled', async () => {
+    execFile.mockImplementation((_command, _args, _options, callback) => {
+      callback(null, '', '');
+    });
+    await fs.mkdir(path.join(dir, 'node_modules'));
+    await fs.writeFile(
+      path.join(dir, 'package.json'),
+      JSON.stringify({ scripts: { typecheck: '', lint: '' } }),
+    );
+    await expect(verifyGoalProject({ cwd: dir })).resolves.toEqual({
+      ok: true,
+      skipped: true,
+      output: 'verify skipped: no configured scripts',
+    });
+    expect(execFile).not.toHaveBeenCalled();
+  });
 });

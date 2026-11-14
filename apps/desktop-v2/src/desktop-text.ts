@@ -3,7 +3,9 @@ import english from './locales/en/desktop.json';
 type TextValues = Record<string, string | number>;
 
 const englishGroup = (group: string): Record<string, string> => {
-  const node = (english as Record<string, unknown>)[group];
+  const node = Object.hasOwn(english, group)
+    ? (english as Record<string, unknown>)[group]
+    : undefined;
   return node && typeof node === 'object' ? (node as Record<string, string>) : {};
 };
 const fill = (template: string, values: TextValues) =>
@@ -14,7 +16,8 @@ const fill = (template: string, values: TextValues) =>
  * display language; {@link localizedText} turns the line into the display language later.
  */
 export function englishText(group: string, key: string, values: TextValues = {}): string {
-  const template = englishGroup(group)[key];
+  const groupMap = englishGroup(group);
+  const template = Object.hasOwn(groupMap, key) ? groupMap[key] : undefined;
   if (template === undefined) throw Error(`Missing English desktop text ${group}.${key}`);
   return fill(template, values);
 }

@@ -125,4 +125,17 @@ describe('retainFleetTopology', () => {
     expect(result.topology.nodes.map((n) => n.id)).toEqual(['t1']);
     expect(result.topology.edges).toEqual([]);
   });
+
+  it('tracks numeric missingSince and expires Object.prototype-named node IDs', () => {
+    const step1 = retainFleetTopology({ nodes: [], edges: [] }, topology(['constructor']), {}, T0);
+    expect(step1.missingSince['constructor']).toBe(T0);
+
+    const step2 = retainFleetTopology(
+      { nodes: [], edges: [] },
+      step1.topology,
+      step1.missingSince,
+      T0 + FLEET_TOPOLOGY_RETENTION_MS + 1,
+    );
+    expect(step2.topology.nodes).toEqual([]);
+  });
 });

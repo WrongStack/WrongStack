@@ -26,6 +26,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DetectedWorkspace } from '@wrongstack/tools/languages';
 import { describe, expect, it } from 'vitest';
+import { mapEcosystem } from '../src/discovery/index.js';
 import {
   coverageForEcosystem,
   discoverWorkspaces,
@@ -385,5 +386,11 @@ describe('discovery — discoverWorkspaces against real fixtures', () => {
       );
     });
     expect(workspaces).toEqual(sorted);
+  });
+
+  it('mapEcosystem ignores Object.prototype keys such as constructor (F284)', () => {
+    expect(mapEcosystem('constructor')).toBeUndefined();
+    expect(mapEcosystem('toString')).toBeUndefined();
+    expect(mapEcosystem('TypeScript')).toBe('npm');
   });
 });

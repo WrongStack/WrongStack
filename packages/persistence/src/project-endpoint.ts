@@ -178,8 +178,23 @@ function probeProjectEndpoint(
       probe.destroy();
       resolve(state);
     };
-    const timer = setTimeout(() => finish('unknown'), safeTimeoutMs);
-    timer.unref?.();
+    const MAX_TIMEOUT_MS = 2_147_483_647;
+    let remainingMs = safeTimeoutMs;
+    let timer: ReturnType<typeof setTimeout>;
+    const armTimer = () => {
+      const chunk = Math.min(remainingMs, MAX_TIMEOUT_MS);
+      remainingMs -= chunk;
+      timer = setTimeout(() => {
+        if (settled) return;
+        if (remainingMs > 0) {
+          armTimer();
+          return;
+        }
+        finish('unknown');
+      }, chunk);
+      timer.unref?.();
+    };
+    armTimer();
     probe.once('connect', () => {
       clearTimeout(timer);
       finish('live');

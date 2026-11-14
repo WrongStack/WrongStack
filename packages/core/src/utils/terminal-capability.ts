@@ -286,6 +286,17 @@ function detectBrowserHostSignal(env: typeof process.env): BrowserHostSignal | n
   if (has('JPY_PARENT_PID') || has('JUPYTER_SERVER_ROOT')) {
     return { kind: 'jupyter', remoteClient: true };
   }
+  // JetBrains terminals (JediTerm) render with the IDE's configured font, never
+  // a font the shell can inspect — the same structural problem as a webview.
+  if (env.TERMINAL_EMULATOR?.trim().toLowerCase() === 'jetbrains-jediterm') {
+    return { kind: 'jetbrains', remoteClient: true };
+  }
+  if (has('CODER_WORKSPACE_ID') || has('CODER_AGENT_URL')) {
+    return { kind: 'coder', remoteClient: true };
+  }
+  if (has('C9_USER') || has('C9_PROJECT')) {
+    return { kind: 'cloud9', remoteClient: true };
+  }
   if (env.BROWSER_TERMINAL?.trim() === '1' || env.BROWSER_TERMINAL?.toLowerCase() === 'true') {
     return { kind: 'browser', remoteClient: true };
   }
@@ -328,6 +339,24 @@ export function detectTerminalHost(
     kind: signal.kind,
     remoteClient: signal.remoteClient || isRemoteSSH,
   };
+}
+
+/**
+ * Browser/webview emulators (xterm.js family) render 24-bit colour regardless of
+ * whether the shell inherited `COLORTERM`. ttyd, gotty and wetty commonly launch
+ * a shell with only `TERM=xterm-256color`, which would otherwise demote the
+ * image preview to a text card even though a truecolor half-block mosaic renders
+ * fine. Explicit opt-outs survive: `parseColorDepth` already returns 0 for
+ * `NO_COLOR`, `FORCE_COLOR=0`, `TERM=dumb` and non-TTY output, so only a real
+ * 16/256-colour guess (1 or 2) is promoted.
+ */
+function resolveBrowserColorDepth(
+  colorDepth: ColorDepth,
+  isRealTTY: boolean,
+  host: TerminalHostInfo,
+): ColorDepth {
+  if (host.host !== 'browser' || !isRealTTY) return colorDepth;
+  return colorDepth >= 1 ? 3 : colorDepth;
 }
 
 function parseGraphicsProtocol(
@@ -426,8 +455,12 @@ export function detectTerminal(
     process.platform === 'win32' &&
     typeof (stdout as NodeJS.WriteStream & { getColorDepth?: unknown }).getColorDepth !==
       'function';
-  const colorDepth: ColorDepth = isRealTTY ? parseColorDepth(env) : 0;
   const terminalHost = detectTerminalHost(env);
+  const colorDepth: ColorDepth = resolveBrowserColorDepth(
+    isRealTTY ? parseColorDepth(env) : 0,
+    isRealTTY,
+    terminalHost,
+  );
 
   return {
     isRealTTY,

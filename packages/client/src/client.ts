@@ -146,8 +146,7 @@ export class WrongStackClient {
     }
     this.runs.set(id, { run, socket: this.socketNumber });
     try {
-      if (!this.subscribed.includes(sessionId)) this.subscribe(sessionId);
-      this.post({
+      const frame: CoreClientMessage = {
         type: 'user_message',
         payload: {
           id,
@@ -157,7 +156,20 @@ export class WrongStackClient {
           ...(options.images ? { images: options.images } : {}),
           ...(options.freshContext ? { freshContext: true } : {}),
         },
-      });
+      };
+      // Validate/serialize before subscribe() so an unserializable payload
+      // never evicts or fails an active run on another subscribed session.
+      try {
+        JSON.stringify(frame);
+      } catch (err) {
+        throw new WrongStackError({
+          kind: 'protocol',
+          code: 'serialize',
+          detail: err instanceof Error ? err.message : String(err),
+        });
+      }
+      if (!this.subscribed.includes(sessionId)) this.subscribe(sessionId);
+      this.post(frame);
     } catch (error) {
       this.runs.delete(id);
       const failure =
@@ -202,12 +214,11 @@ export class WrongStackClient {
   async newSession(): Promise<SessionInfo> {
     const before = new Set(this.sessions.keys());
     this.post({ type: 'session.new', payload: { sessionId: this.current.sessionId } });
-    const answer = this.nextSession(
-      'session.new',
-      (frame) =>
-        frame.type === 'session.start' &&
-        !before.has((frame.payload as SessionInfo | undefined)?.sessionId ?? ''),
-    );
+    const answer = this.nextSession('session.new', (frame) => {
+      if (frame.type !== 'session.start') return false;
+      const sid = (frame.payload as SessionInfo | undefined)?.sessionId;
+      return typeof sid === 'string' && sid.trim().length > 0 && !before.has(sid);
+    });
     return this.adopt((await answer).payload as SessionInfo);
   }
 

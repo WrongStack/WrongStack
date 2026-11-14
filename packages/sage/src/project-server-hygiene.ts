@@ -122,8 +122,18 @@ export function createHygieneRunner(
   function arm(delayMs: number): void {
     if (disposed) return;
     if (timer) clearTimeout(timer);
-    nextRunAt = now() + delayMs;
-    timer = setTimeout(() => void tick(), delayMs);
+    const safeDelay = Number.isFinite(delayMs) && delayMs > 0 ? delayMs : 0;
+    nextRunAt = now() + safeDelay;
+    const chunk = Math.min(safeDelay, 2_147_483_647);
+    timer = setTimeout(() => {
+      if (disposed) return;
+      const remaining = (nextRunAt ?? 0) - now();
+      if (remaining > 0) {
+        arm(remaining);
+        return;
+      }
+      void tick();
+    }, chunk);
     // Maintenance must never keep an idle daemon alive.
     timer.unref?.();
   }

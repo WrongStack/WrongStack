@@ -49,4 +49,9 @@ describe('alert episodes', () => {
     expect(duration(3 * 3_600_000)).toBe('3.0 h');
     expect(duration(5 * 24 * 3_600_000)).toBe('5 days');
   });
+
+  it('ignores Object.prototype keys in ruleName', () => {
+    expect(ruleName('constructor')).toBe('constructor');
+    expect(ruleName('toString')).toBe('toString');
+  });
 });

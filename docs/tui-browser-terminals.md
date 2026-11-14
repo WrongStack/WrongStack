@@ -59,6 +59,9 @@ never a guess based on `$TERM`, which browser emulators report as
 | `CLOUD_SHELL=true` | `cloud-shell` | yes |
 | `REPL_ID`, `REPL_OWNER`, `REPLIT_DEV_DOMAIN` | `replit` | yes |
 | `JPY_PARENT_PID`, `JUPYTER_SERVER_ROOT` | `jupyter` | yes |
+| `TERMINAL_EMULATOR=JetBrains-JediTerm` | `jetbrains` | yes |
+| `CODER_WORKSPACE_ID`, `CODER_AGENT_URL` | `coder` | yes |
+| `C9_USER`, `C9_PROJECT` | `cloud9` | yes |
 | `BROWSER_TERMINAL=1` | `browser` | yes |
 | `TERM_PROGRAM=vscode` (also `vscode-insiders`) | `vscode` | no — local webview client |
 | `TERM_PROGRAM=hyper`, `TERM_PROGRAM=tabby` | `hyper` / `tabby` | no |
@@ -75,7 +78,7 @@ page's font stack whether or not its client is remote.
 |----------|--------|
 | `WRONGSTACK_TUI_TERMINAL=browser` (or `web`, `xterm`) | force the browser class — for ttyd/gotty/wetty, which export no marker |
 | `WRONGSTACK_TUI_TERMINAL=native` | force the native class when a marker is wrong |
-| `WRONGSTACK_TUI_ICON_STYLE=unicode\|nerd\|ascii` | wins over all host-based glyph decisions |
+| `WRONGSTACK_TUI_ICON_STYLE=unicode\|nerd\|ascii\|browser` | wins over all host-based glyph decisions; `browser` forces the width-safe profile on any terminal |
 | `WRONGSTACK_TUI_GRAPHICS=kitty\|iterm2\|halfblock\|off` | wins over the graphics clamp below |
 
 ## 3. Effects
@@ -127,11 +130,21 @@ mosaic) for a browser host — or `none` without truecolor — instead of
 `resolveEffectiveGraphicsProtocol()`, the image preview modal, the tool-card
 preview, and the Kitty stdin/teardown filters all adapt without further checks.
 
+A detected browser host is also treated as truecolor-capable: `detectTerminal()`
+promotes its `colorDepth` to 3 regardless of `COLORTERM`, because xterm.js paints
+24-bit colour whether or not the shell was told so. That matters for self-hosted
+web terminals — ttyd, gotty and wetty commonly launch a shell with only
+`TERM=xterm-256color`, which previously yielded `colorDepth: 2` and demoted every
+image preview to a text card. Explicit opt-outs still win: `NO_COLOR`,
+`FORCE_COLOR=0`, `TERM=dumb` and non-TTY output keep depth 0 and therefore
+`graphicsProtocol: 'none'`.
+
 ### 3.3 What intentionally does not change
 
 Alternate-screen entry, synchronized output (`DECSET 2026`, ignored harmlessly by
-emulators that lack it), bracketed paste, SGR mouse tracking, OSC title updates,
-and truecolor all work in browser emulators and are left alone.
+emulators that lack it), bracketed paste, SGR mouse tracking, and OSC title
+updates all work in browser emulators and are left alone. Colour depth is the one
+otherwise-similar capability that *is* adjusted — see §3.2.
 
 ## 4. Verification
 

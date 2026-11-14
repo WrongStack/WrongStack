@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { agentPrompt, agentPromptCacheSize } from '../src/agent-prompts.js';
+import { getAgentDefinition } from '../src/index.js';
 import { captureLearnedFromAgentOutputDetailed } from '../src/project-agent-identity.js';
 
 /**
@@ -200,5 +201,11 @@ describe('agentPrompt tech-version policy env-dir (B3)', () => {
     const overridePrompt = agentPrompt('\u0000__tech_version_policy__');
     expect(overridePrompt).toContain('Override Policy');
     expect(overridePrompt).not.toContain('Mandatory modern technology policy');
+  });
+
+  it('returns undefined from getAgentDefinition for Object.prototype keys', () => {
+    expect(getAgentDefinition('toString')).toBeUndefined();
+    expect(getAgentDefinition('constructor')).toBeUndefined();
+    expect(getAgentDefinition('__proto__')).toBeUndefined();
   });
 });

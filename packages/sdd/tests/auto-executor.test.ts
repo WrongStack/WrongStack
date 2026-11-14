@@ -417,4 +417,19 @@ describe('AutoExecutor', () => {
     });
     expect(onTaskFail).toHaveBeenCalledTimes(2);
   });
+
+  it('clamps non-positive or NaN maxConcurrent to at least 1 instead of looping', async () => {
+    for (const maxConcurrent of [0, -2, Number.NaN]) {
+      const graph = makeGraph([makeNode('a')]);
+      await store.saveGraph(graph);
+      await tracker.loadGraph(graph.id);
+      const executor = new AutoExecutor({
+        tracker,
+        events,
+        maxConcurrent,
+        executeTask: async () => ({ success: true, output: 'done' }),
+      });
+      await expect(executor.execute(graph, makeSpec())).resolves.toMatchObject({ completed: 1 });
+    }
+  });
 });

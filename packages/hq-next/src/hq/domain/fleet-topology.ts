@@ -520,7 +520,8 @@ export function retainFleetTopology(
 
   for (const node of previous.nodes) {
     if (presentIds.has(node.id)) continue;
-    const since = missingSince[node.id] ?? nowMs;
+    const since =
+      (Object.hasOwn(missingSince, node.id) ? missingSince[node.id] : undefined) ?? nowMs;
     if (nowMs - since > graceMs) continue;
     nextMissingSince[node.id] = since;
     nodes.push(markRetained(node));

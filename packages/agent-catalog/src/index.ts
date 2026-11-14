@@ -122,7 +122,7 @@ export const AGENT_CATALOG: Record<string, AgentDefinition> = (() => {
     if (!role) {
       throw new Error(`Agent "${def.config.name}" is missing a role`);
     }
-    if (map[role]) {
+    if (Object.hasOwn(map, role)) {
       throw new Error(`Duplicate agent role in catalog: "${role}"`);
     }
     map[role] = def;
@@ -132,7 +132,7 @@ export const AGENT_CATALOG: Record<string, AgentDefinition> = (() => {
 
 /** Role lookup helper. Returns undefined for unknown roles. */
 export function getAgentDefinition(role: string): AgentDefinition | undefined {
-  return AGENT_CATALOG[role];
+  return Object.hasOwn(AGENT_CATALOG, role) ? AGENT_CATALOG[role] : undefined;
 }
 
 /**

@@ -52,6 +52,17 @@ describe('lean harness overlay', () => {
       b: { c: 1, d: 5 },
     });
   });
+
+  it('ignores __proto__, constructor, and prototype keys in deepMerge', () => {
+    const payload = JSON.parse(
+      '{"__proto__": {"polluted": true}, "constructor": {"prototype": {"x": 1}}, "safe": 42}',
+    ) as Record<string, unknown>;
+    const merged = deepMerge({ a: 1 }, payload);
+    expect((merged as { polluted?: unknown }).polluted).toBeUndefined();
+    expect(Object.hasOwn(merged, '__proto__')).toBe(false);
+    expect(Object.hasOwn(merged, 'constructor')).toBe(false);
+    expect(merged['safe']).toBe(42);
+  });
 });
 
 describe('bundled suites and subsets', () => {

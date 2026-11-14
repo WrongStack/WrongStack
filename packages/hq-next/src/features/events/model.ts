@@ -49,7 +49,7 @@ export const EVENT_TYPE_LABEL: Record<string, string> = {
 
 export function eventLabel(type: string | undefined): string {
   if (type === undefined || type === '') return 'Unknown event';
-  return EVENT_TYPE_LABEL[type] ?? type;
+  return (Object.hasOwn(EVENT_TYPE_LABEL, type) ? EVENT_TYPE_LABEL[type] : undefined) ?? type;
 }
 
 /** Types a reader usually wants to see first: they record something happening. */
@@ -167,7 +167,7 @@ const FACT_LABELS: Record<string, string> = {
 
 /** `ownerLabel` → `Owner label`, `exit_code` → `Exit code`. */
 function factLabel(key: string): string {
-  const known = FACT_LABELS[key];
+  const known = Object.hasOwn(FACT_LABELS, key) ? FACT_LABELS[key] : undefined;
   if (known !== undefined) return known;
   const words = key
     .replace(/[_-]+/g, ' ')

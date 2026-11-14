@@ -71,4 +71,35 @@ describe('VibeUI session-branch-model', () => {
     expect(quoteVibeTreeArg('')).toBe('""');
     expect(quoteVibeTreeArg('plain-id_1')).toBe('plain-id_1');
   });
+
+  it('falls back to main when parentBranchId matches an Object.prototype key (F290)', () => {
+    const rows = flattenVibeBranchRows({
+      activeBranchId: 'main',
+      headSeq: 1,
+      branches: {
+        main: {
+          id: 'main',
+          parentBranchId: null,
+          name: 'main',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          forkSeq: 0,
+          lastActivityAt: '2026-01-01T00:00:00.000Z',
+          status: 'active',
+          turnCount: 0,
+        },
+        b1: {
+          id: 'b1',
+          parentBranchId: 'toString',
+          name: 'b1',
+          createdAt: '2026-01-01T00:00:01.000Z',
+          forkSeq: 1,
+          lastActivityAt: '2026-01-01T00:00:01.000Z',
+          status: 'active',
+          turnCount: 0,
+        },
+      },
+    });
+    const b1Row = rows.find((r) => r.branch.id === 'b1');
+    expect(b1Row?.depth).toBe(1);
+  });
 });

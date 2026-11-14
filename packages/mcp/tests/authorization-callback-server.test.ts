@@ -56,4 +56,33 @@ describe('startMcpOAuthCallbackServer', () => {
       /absolute path without query/,
     );
   });
+
+  it('chunks timeouts above 2^31-1 ms and returns 400 for malformed request URLs', async () => {
+    const { request: httpRequest } = await import('node:http');
+    const listener = await startMcpOAuthCallbackServer({ timeoutMs: 2_147_483_648 });
+    let earlyTimeout = false;
+    listener.waitForCallback().catch(() => {
+      earlyTimeout = true;
+    });
+    try {
+      await new Promise((r) => setTimeout(r, 30));
+      expect(earlyTimeout).toBe(false);
+
+      const port = Number(new URL(listener.redirectUri).port);
+      const status = await new Promise<number>((resolve, reject) => {
+        const req = httpRequest(
+          { host: '127.0.0.1', port, path: 'http://[invalid', method: 'GET' },
+          (res) => {
+            res.resume();
+            resolve(res.statusCode ?? 0);
+          },
+        );
+        req.on('error', reject);
+        req.end();
+      });
+      expect(status).toBe(400);
+    } finally {
+      listener.close();
+    }
+  });
 });

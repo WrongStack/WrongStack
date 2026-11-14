@@ -145,7 +145,8 @@ export function refsToMarkdown(
   const completeReadPaths = new Set<string>();
   for (const ref of refs) {
     if (ref.kind === 'file') {
-      const content = fileContents?.[ref.path];
+      const content =
+        fileContents && Object.hasOwn(fileContents, ref.path) ? fileContents[ref.path] : undefined;
       if (content) {
         const lang = languageFromPath(ref.path);
         const fence = lang ? `\`\`\`${lang}` : '```';

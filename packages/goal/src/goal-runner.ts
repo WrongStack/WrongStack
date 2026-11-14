@@ -172,8 +172,15 @@ export class GoalRunner {
     // settled, so the safety timeout could not protect a hung task and the
     // progress interval leaked beyond successful completion.
     if (this.opts.maxRunDurationMs === undefined || this.opts.maxRunDurationMs > 0) {
-      this.maxRunTimer = setTimeout(
-        () => {
+      const MAX_TIMEOUT_MS = 2_147_483_647;
+      const scheduleMaxRunTimer = (remainingMs: number): void => {
+        const delay = Math.min(remainingMs, MAX_TIMEOUT_MS);
+        this.maxRunTimer = setTimeout(() => {
+          const left = remainingMs - delay;
+          if (left > 0) {
+            scheduleMaxRunTimer(left);
+            return;
+          }
           this.opts.onProgress?.({
             totalPhases: 0,
             pending: 0,
@@ -191,10 +198,10 @@ export class GoalRunner {
             actualHours: 0,
           });
           this.stop();
-        },
-        this.opts.maxRunDurationMs ?? 7 * 24 * 60 * 60_000,
-      );
-      this.maxRunTimer.unref?.();
+        }, delay);
+        this.maxRunTimer.unref?.();
+      };
+      scheduleMaxRunTimer(this.opts.maxRunDurationMs ?? 7 * 24 * 60 * 60_000);
     }
 
     if (this.opts.onProgress) {

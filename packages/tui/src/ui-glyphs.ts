@@ -684,6 +684,10 @@ export function resolveIconStyle(
   const raw = env.WRONGSTACK_TUI_ICON_STYLE?.trim().toLowerCase();
   if (raw === 'nerd' || raw === 'nerd-font' || raw === 'nerdfont') return 'nerd';
   if (raw === 'ascii' || raw === 'plain') return 'ascii';
+  // Escape hatch for a terminal whose font we cannot inspect: a native terminal
+  // configured with a mono font that lacks the ornament glyphs, or a web
+  // terminal that exports no host marker.
+  if (raw === 'browser' || raw === 'width-safe' || raw === 'safe') return 'browser';
   if (raw) return 'unicode';
   // Browser-hosted terminals (VS Code webview and its Remote-SSH/Containers
   // variants, code-server, Codespaces, Gitpod, Theia, Jupyter, Cloud Shell,
