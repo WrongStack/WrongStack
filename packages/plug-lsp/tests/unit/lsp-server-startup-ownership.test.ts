@@ -113,6 +113,25 @@ describe('LSP startup retains only its own lifecycle', () => {
     await value.server.shutdown();
   });
 
+  it('reports a child that exits before it is ready without asking for a reconnect', async () => {
+    const onCrash = vi.fn();
+    const value = harness(onCrash);
+    const crashed = vi.fn();
+    value.events.on('lsp.server.crashed', crashed);
+    const started = value.server.start().catch(() => undefined);
+    await value.initializing;
+    value.child.emit('exit', 1, null);
+    await started;
+    expect(value.server.state).toBe('failed');
+    expect(crashed).toHaveBeenCalledWith({
+      name: 'startup',
+      error: 'process exited code=1 signal=null',
+    });
+    // Only a server that reached ready is reconnected; a startup failure is reported.
+    expect(onCrash).not.toHaveBeenCalled();
+    await value.server.shutdown();
+  });
+
   it.each([
     [null, 'SIGTERM', 'code=null signal=SIGTERM'],
     [7, null, 'code=7 signal=null'],
