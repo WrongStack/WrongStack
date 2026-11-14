@@ -442,7 +442,7 @@ Both `env` and `isTTY` are overridable for testability.
 
 The glyph set covers only the named chrome glyphs. In ASCII mode every other symbol is converted as well: box drawing, arrows, bullets, spinners, emoji, Nerd Font icons and typographic punctuation. The `Text` wrapper in `src/ink.tsx` converts text before Ink measures it, and bordered `Box`es switch to Ink's `classic` border. stdout/stderr are wrapped too (width-preserving) for the plain REPL and one-shot output (`@wrongstack/core` `utils/ascii-fallback.ts`). Letters and digits in any script are left alone. Measured in a real pseudo-terminal: the TUI's first screen plus the command palette went from 8,143 non-ASCII characters to 0.
 
-**Browser-hosted terminals never auto-select `nerd`.** xterm.js-family emulators paint with a client-side CSS font stack and implement no image protocol, so `detectTerminalHost()` suppresses the server-side font scan (portable `unicode` profile) and clamps `graphicsProtocol` to `halfblock`/`none`. See [TUI in browser-hosted terminals](./tui-browser-terminals.md) for detection markers, overrides, and tests.
+**Browser-hosted terminals never auto-select `nerd`.** xterm.js-family emulators paint with a client-side CSS font stack and implement no image protocol, so `detectTerminalHost()` selects the width-safe `browser` glyph profile and clamps `graphicsProtocol` to `halfblock`/`none`. See [TUI in browser-hosted terminals](./tui-browser-terminals.md) for detection markers, overrides, and tests.
 
 ### 6.2 42 Semantic Glyphs
 
