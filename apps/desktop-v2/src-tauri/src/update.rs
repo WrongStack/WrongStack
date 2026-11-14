@@ -234,6 +234,8 @@ mod tests {
         let updater = config["plugins"]["updater"].clone();
         assert!(updater.is_object(), "tauri.conf.json needs plugins.updater");
         let parsed: tauri_plugin_updater::Config = serde_json::from_value(updater).unwrap();
+        assert!(!parsed.pubkey.trim().is_empty());
+        assert!(parsed.require_signed_version);
         assert_eq!(
             parsed
                 .endpoints

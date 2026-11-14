@@ -48,13 +48,19 @@ Appearance settings let you turn checks off or choose **Check now**. **Later**
 dismisses that version; a newer version can still be offered. Development builds
 skip release checks, and network failures do not interrupt your work.
 
-The current configuration opens the release page for downloading an update.
-Windows and macOS can offer **Install & restart** through the Tauri updater after
-`plugins.updater.pubkey` contains the release public key and the release publishes
-signed updater metadata at the configured `latest.json` endpoint. That signing
-and publication setup is still pending. Linux `.deb` and `.rpm` builds continue
-to link to the release page. Restarting the application keeps the separate
-session host and its conversations running.
+Windows and macOS offer **Install & restart** for signed updater packages.
+The application embeds the release public key and requires the package signature
+to authenticate the announced version. Desktop CI signs Windows NSIS installers
+and macOS `.app.tar.gz` archives; release publication verifies all four targets
+before uploading `latest.json`. These updater signatures are separate from
+Windows Authenticode signing and macOS notarization.
+
+This starts with the next release containing the updater and its public key.
+Published 1.7.0 installers predate this implementation and need a manual upgrade
+to that release. Until signed metadata is available, the notice falls back to
+the release download page. Linux `.deb` and `.rpm` builds continue to use that
+page. Restarting the application keeps the separate session host and its
+conversations running. See [release signing](../../docs/release-process.md#desktop-updater-signatures).
 
 ## Build the installer
 

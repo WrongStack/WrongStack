@@ -13,7 +13,8 @@ name: Desktop
 #
 # AppImage is not built: its squashfs mount disappears when the window closes,
 # while the persistent session host and its engines keep running from it.
-# The installers are unsigned (macOS: ad-hoc signature, not notarized).
+# Updater payloads carry a release signature. OS signing is separate: Windows
+# has no Authenticode certificate; macOS uses an ad-hoc signature, not notarization.
 
 on:
   workflow_dispatch:
@@ -27,6 +28,11 @@ on:
         description: Prefix of the uploaded artifacts; each platform appends its label
         required: true
         type: string
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: true
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        required: false
 
 permissions:
   contents: read
@@ -122,8 +128,15 @@ jobs:
       - name: Build desktop installers
         working-directory: apps/desktop-v2
         shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ runner.os != 'Linux' && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ runner.os != 'Linux' && secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
         run: |
           set -uo pipefail
+          if [ "$RUNNER_OS" != Linux ] && [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::error::Desktop updater signing key is required for Windows and macOS."
+            exit 1
+          fi
           for attempt in 1 2 3; do
             if bun scripts/launch.ts build --skip-workspace-build 2>&1 | tee "$RUNNER_TEMP/desktop-build.log"; then
               exit 0
@@ -162,6 +175,7 @@ jobs:
             echo "::error::Expected $expected installer(s) for $RUNNER_OS, found $count."
             exit 1
           fi
+          bun scripts/desktop-updater.mjs collect "$bundle" "$out" "$LABEL" "$version"
           if command -v sha256sum >/dev/null 2>&1; then sum='sha256sum'; else sum='shasum -a 256'; fi
           (cd "$out" && $sum wrongstack-desktop-* > "SHA256SUMS-$LABEL")
           cat "$out/SHA256SUMS-$LABEL"

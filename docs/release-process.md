@@ -75,6 +75,40 @@ that implements it is `scripts/binary/entry.mjs`. Two rules for new code:
   directly. A new runtime asset directory also goes into `ASSETS` in
   `scripts/build-binaries.mjs`.
 
+## Desktop updater signatures
+
+Windows NSIS installers and macOS application archives carry Tauri updater
+signatures. The application embeds `plugins.updater.pubkey` and sets
+`requireSignedVersion: true`, so both package bytes and the announced version
+must match the signature. These signatures do not provide Windows Authenticode
+certificates or macOS notarization. Linux `.deb` and `.rpm` updates use the
+release page and the system package manager.
+
+The repository secret `TAURI_SIGNING_PRIVATE_KEY` holds the updater signing key.
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` is optional for password-protected keys.
+The reusable desktop workflow accepts these secrets explicitly; only the
+Windows/macOS installer-build step receives them. Local installer builds without
+the key still work, but do not emit updater payloads.
+
+`scripts/desktop-updater.mjs` collects the signed artifacts without changing
+their bytes. The release job checks every payload and its authenticated version
+against the embedded public key, requires all four Windows/macOS targets, and
+includes payloads, signatures and `latest.json` in `DESKTOP-SHA256SUMS`. It uploads
+the discovery manifest last, after the artifacts it names. Artifact URLs name
+the immutable release tag rather than `latest`.
+
+The initial key's local recovery copy is
+`%USERPROFILE%\.wrongstack\credentials\desktop-updater-key.dpapi`, with its public
+key in `desktop-updater-key.pub` beside it. Windows DPAPI ties that encrypted copy
+to the Windows account and machine that created it. Repository checkouts contain
+only the public key. Preserve the existing signing identity when setting up a
+different machine; a new key cannot update installations that trust the old one.
+
+The first release containing this updater and public key is the bootstrap:
+users of published 1.7.0 installers install that release manually. Later releases
+can update in place. Existing published tags and their installers are not rebuilt
+or replaced to bootstrap the updater.
+
 ## Full gate — `release:check`
 
 A broad correctness sweep run on the release commit before the tag is pushed:

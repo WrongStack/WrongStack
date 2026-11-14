@@ -76,6 +76,10 @@ const tauriArgs =
   mode === 'build'
     ? ['--bun', 'run', 'tauri', 'build', '--config', 'src-tauri/tauri.bundle.conf.json']
     : ['--bun', 'run', 'tauri', 'dev'];
+// Local installers still build without credentials; signed CI builds also emit updater payloads.
+if (mode === 'build' && process.platform !== 'linux' && process.env.TAURI_SIGNING_PRIVATE_KEY) {
+  tauriArgs.push('--config', 'src-tauri/tauri.updater.conf.json');
+}
 const code = await run([...tauriArgs, ...passthrough], {
   ...process.env,
   WRONGSTACK_DESKTOP_ENGINE_ID: engineId,
