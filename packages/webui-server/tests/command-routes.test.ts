@@ -179,7 +179,8 @@ describe('command bridge', () => {
       send: (_ws, message) => sent.push(message as never),
     });
     const names = (await ctx.getCommands()).map((command) => command.name);
-    expect(names.slice(0, 10)).toEqual([
+    expect(names.slice(0, 11)).toEqual([
+      'adr',
       'sandbox',
       'prune',
       'scout-stats',

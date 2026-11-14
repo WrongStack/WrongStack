@@ -18,9 +18,9 @@
 import type { ContentBlock, TextBlock } from '@wrongstack/contracts/types/blocks';
 import type { Message } from '@wrongstack/contracts/types/messages';
 import type { Provider, Request } from '@wrongstack/contracts/types/provider';
-import { buildArchitectureDecisionBlock } from '../storage/architecture-decision-context.js';
 import { bindRequestHistoryVersion } from '../utils/context-history-version.js';
 import { forgetRequestLayout } from '../utils/request-layout.js';
+import { resolveArchitectureDecisionContext } from './agent-coordination.js';
 import type { AgentInternals } from './agent-internals.js';
 import { agentSessionKey } from './agent-owned-context.js';
 import { bindRequestPromptBasis, type RequestPromptBasis } from './context-usage-anchor.js';
@@ -44,7 +44,11 @@ export function buildAgentOwnedRequest(
   forgetRequestLayout(ctx);
   const additions: TextBlock[] = requestScopedEntries(ctx).map((entry) => entry.block);
   if (decisionChecks) additions.push(decisionChecks);
-  const architectureDecisions = buildArchitectureDecisionBlock(ctx.projectRoot, ctx.meta, a.logger);
+  const architectureDecisions = resolveArchitectureDecisionContext(a.container)?.buildDecisionBlock(
+    ctx.projectRoot,
+    ctx.meta,
+    a.logger,
+  );
   if (architectureDecisions) additions.push(architectureDecisions);
   // The agent never sees WrongStack's system prompt, so the gate carries the
   // whole policy, and it cannot call WrongStack's `nextsteps` tool directly.

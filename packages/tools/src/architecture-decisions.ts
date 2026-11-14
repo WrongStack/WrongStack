@@ -27,6 +27,8 @@ export const architectureDecisionsTool: Tool<DecisionInput, unknown> = {
     useInstead: ['remember'],
   },
   permission: 'confirm',
+  // Reads and proposals are approved separately, as the design tool does.
+  subjectKey: 'action',
   mutating: true,
   capabilities: ['memory.read', 'memory.write'],
   inputSchema: {

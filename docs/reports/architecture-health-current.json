@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-13T23:00:24.954Z",
+  "generatedAt": "2026-11-14T09:29:46.915Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6333,
-    "testFiles": 5276,
-    "sourceLines": 1308626,
+    "sourceFiles": 6334,
+    "testFiles": 5277,
+    "sourceLines": 1308728,
     "workspaceEdges": 250,
-    "moduleEdges": 18676,
+    "moduleEdges": 18681,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -313,7 +313,7 @@
     {
       "name": "@wrongstack/contracts",
       "dir": "packages/contracts",
-      "sourceFiles": 131,
+      "sourceFiles": 132,
       "testFiles": 4,
       "workspaceDependencies": [
         "@wrongstack/kanban",
@@ -1118,7 +1118,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 795,
-      "testFiles": 529,
+      "testFiles": 530,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1144,7 +1144,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 529
+          "testFiles": 530
         }
       ]
     },
@@ -31077,6 +31077,12 @@
       },
       {
         "file": "packages/webui/tests/components/session-tab-close-modal.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/session-tab-format-tokens.test.ts",
         "projects": [
           "webui-jsdom"
         ]

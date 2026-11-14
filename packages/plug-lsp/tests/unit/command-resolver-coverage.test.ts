@@ -161,6 +161,16 @@ describe('command resolver completion coverage', () => {
     expect(await commandResolverCoverage.windowsPathHits('tsls', {}, 'C:\\more', readDir)).toEqual([
       path.join('C:\\more', 'tsls.exe'),
     ]);
+    // A directory that is both the current directory and on PATH, or on PATH twice, is
+    // reported once: where.exe lists each file a single time.
+    expect(
+      await commandResolverCoverage.windowsPathHits(
+        'tsls',
+        { Path: 'C:\\more;C:\\more', PATHEXT: '.EXE' },
+        'C:\\more',
+        readDir,
+      ),
+    ).toEqual([path.join('C:\\more', 'tsls.exe')]);
   });
 
   // 2026-11-13: the directory listing behind the Windows PATH scan was only exercised by the

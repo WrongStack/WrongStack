@@ -4,13 +4,22 @@ import path from 'node:path';
 import type { Request } from '@wrongstack/contracts/types/provider';
 import { loadRuntimeDatabaseSync } from '@wrongstack/persistence';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ARCHITECTURE_DECISION_CONTEXT } from '../../src/core/agent-coordination.js';
 import type { AgentInternals } from '../../src/core/agent-internals.js';
 import { createAgentResponseHandler } from '../../src/core/agent-response.js';
+import { storageArchitectureDecisionContext } from '../../src/storage/architecture-decision-checks.js';
 import {
   rememberWarnedRoot,
   WARNED_PROJECT_ROOTS_CAP,
 } from '../../src/storage/architecture-decision-context.js';
 import { ArchitectureDecisionStore } from '../../src/storage/architecture-decision-store.js';
+
+/** The binding the runtime container makes; the agent loop only resolves the port. */
+const decisionContainer = {
+  has: (token: unknown) => token === ARCHITECTURE_DECISION_CONTEXT,
+  resolve: () => storageArchitectureDecisionContext,
+};
+
 import { createContextEvidenceState } from '../../src/utils/context-evidence.js';
 
 describe('architecture decisions on the real provider request boundary', () => {
@@ -82,6 +91,7 @@ describe('architecture decisions on the real provider request boundary', () => {
       };
       const agent = {
         ctx,
+        container: decisionContainer,
         tools: { get: () => read, list: () => [], listForProvider: () => [] },
         permission: { explain: async () => ({ decision: { permission: 'auto' } }) },
         pipelines: { request: { run: async (r: Request) => r } },
@@ -142,6 +152,7 @@ describe('architecture decisions on the real provider request boundary', () => {
       } as unknown as AgentInternals['ctx'];
       const agent = {
         ctx,
+        container: decisionContainer,
         tools: { listForProvider: () => [], list: () => [] },
         pipelines: { request: { run: async (r: Request) => r } },
         events: { emit() {} },
@@ -242,6 +253,7 @@ describe('an ADR store that cannot be read', () => {
       } as unknown as AgentInternals['ctx'];
       const agent = {
         ctx,
+        container: decisionContainer,
         tools: { listForProvider: () => [], list: () => [] },
         pipelines: { request: { run: async (r: Request) => r } },
         events: { emit() {} },

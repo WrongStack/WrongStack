@@ -97,7 +97,7 @@
       "declarations": [
         "export type { AgentInternals } from './agent-internals.js';",
         "export { // Exported so surfaces that need to *predict* the identity block (e.g. the // CLI's startup system-prompt menu, which shows a per-variant token count) // compose it exactly the way the builder does instead of re-implementing the // WS-016 project-append rule and drifting from it. buildIdentityLayer, DefaultSystemPromptBuilder, type DefaultSystemPromptBuilderOptions, type SystemBlockSource, } from './system-prompt-builder.js';",
-        "export { AGENT_COORDINATION, type AgentCoordinationPort, CHIMERA_REPORT_SESSION_RESOLVER, CHRONICLE_FILE_LINEAGE, HQ_MAILBOX_PUBLISHER_FACTORY, resolveAgentCoordination, resolveChimeraReportSessionResolver, resolveChronicleFileLineage, resolveHqMailboxPublisherFactory, } from './agent-coordination.js';",
+        "export { AGENT_COORDINATION, type AgentCoordinationPort, ARCHITECTURE_DECISION_CONTEXT, CHIMERA_REPORT_SESSION_RESOLVER, CHRONICLE_FILE_LINEAGE, HQ_MAILBOX_PUBLISHER_FACTORY, resolveAgentCoordination, resolveArchitectureDecisionContext, resolveChimeraReportSessionResolver, resolveChronicleFileLineage, resolveHqMailboxPublisherFactory, } from './agent-coordination.js';",
         "export { Agent, type RunResult, type UserInputPayload, } from './agent.js';",
         "export { Context, type ContextInit, type ProviderMemoryEvidence, type RunOptions, type TodoItem, } from './context.js';",
         "export { ConversationState, type ReadonlyConversationState, type StateChange, type StateChangeHandler, wrapAsState, } from './conversation-state.js';",
@@ -614,6 +614,7 @@
         "export { attachScoutToolLearning, seedScoutLearnedTools } from './scout-tool-learning.js';",
         "export { attachTodosCheckpoint, loadTodosCheckpoint, saveTodosCheckpoint, type TodosCheckpointFile, } from './todos-checkpoint.js';",
         "export { buildArchitectureDecisionBlock } from './architecture-decision-context.js';",
+        "export { buildArchitectureDecisionChecksBlock, storageArchitectureDecisionContext, } from './architecture-decision-checks.js';",
         "export { cleanOrphanLocks, type OrphanLockCleanResult, } from './orphan-lock-cleaner.js';",
         "export { createGoalKanbanBoard, deleteGoalKanbanBoard, findGoalBoardByTag, findGoalKanbanBoard, formatGoalAutonomyChoice, formatGoalEvent, formatGoalKanbanPreview, type GoalFileWithKanban, parseAutonomyChoice, } from './goal-kanban.js';",
         "export { deriveSessionAgents, type SessionAgentRecord, type SessionAgentStatus, } from '../session-catalog/session-agents.js';",
@@ -1090,8 +1091,8 @@
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
-      "sourceFiles": 83,
-      "sourceLines": 17458
+      "sourceFiles": 82,
+      "sourceLines": 17430
     },
     {
       "directory": "design",
@@ -1230,8 +1231,8 @@
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
-      "sourceFiles": 128,
-      "sourceLines": 29745
+      "sourceFiles": 129,
+      "sourceLines": 29820
     },
     {
       "directory": "tasking",

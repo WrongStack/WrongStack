@@ -46,6 +46,10 @@ export {
 } from './annotations-store.js';
 export * from './architecture-decision.js';
 export {
+  buildArchitectureDecisionChecksBlock,
+  storageArchitectureDecisionContext,
+} from './architecture-decision-checks.js';
+export {
   type ArchitectureDecisionCheckResult,
   type ArchitectureDecisionCompliance,
   architectureDecisionReadAuthorizer,

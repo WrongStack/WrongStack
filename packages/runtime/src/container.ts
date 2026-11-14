@@ -10,6 +10,7 @@ import {
 import { defaultAgentCoordination, ProviderModelStatusTracker } from '@wrongstack/coordination';
 import {
   AGENT_COORDINATION,
+  ARCHITECTURE_DECISION_CONTEXT,
   CHIMERA_REPORT_SESSION_RESOLVER,
   CHRONICLE_FILE_LINEAGE,
   DefaultSystemPromptBuilder,
@@ -35,6 +36,7 @@ import {
   DefaultSessionStore,
   getSessionRegistry,
   resolveSessionLoggingConfig,
+  storageArchitectureDecisionContext,
 } from '@wrongstack/core/storage';
 import { createTypeSafeCriterionJudge, resolveTypeSafeJudge } from '@wrongstack/core/typesafe';
 import { toErrorMessage, type WstackPaths } from '@wrongstack/core/utils';
@@ -108,6 +110,8 @@ export function createDefaultContainer(opts: CreateContainerOptions): Container 
   container.bind(CHRONICLE_FILE_LINEAGE, () => readChronicleFileLineage);
   // Mailbox session affinity resolves report-scoped chimera mail to a session.
   container.bind(CHIMERA_REPORT_SESSION_RESOLVER, () => createChimeraReportSessionResolver);
+  // Accepted architecture decisions and their check results for each request.
+  container.bind(ARCHITECTURE_DECISION_CONTEXT, () => storageArchitectureDecisionContext);
   container.bind(TOKENS.SecretScrubber, () => new DefaultSecretScrubber());
   container.bind(TOKENS.RetryPolicy, () => new DefaultRetryPolicy());
   // Wire the compactor into the recovery chain so a 413 / context-overflow

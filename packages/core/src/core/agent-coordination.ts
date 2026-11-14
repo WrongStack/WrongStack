@@ -1,4 +1,5 @@
 import type { Container, Token } from '@wrongstack/contracts/kernel/container';
+import type { ArchitectureDecisionContextPort } from '@wrongstack/contracts/types/architecture-decision-context';
 import type { TextBlock } from '@wrongstack/contracts/types/blocks';
 import type { ChronicleFileLineageReader } from '@wrongstack/contracts/types/chronicle-metrics';
 import type { FleetConfig } from '@wrongstack/contracts/types/config';
@@ -117,6 +118,27 @@ export function resolveChimeraReportSessionResolver(
   try {
     return typeof container?.has === 'function' && container.has(CHIMERA_REPORT_SESSION_RESOLVER)
       ? container.resolve(CHIMERA_REPORT_SESSION_RESOLVER)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Accepted architecture decisions and their check results for each request.
+ * The ADR registry lives in core's storage layer, which the agent loop may not
+ * import, so hosts bind it; unbound means no ADR context reaches the request.
+ */
+export const ARCHITECTURE_DECISION_CONTEXT = Symbol.for(
+  '@wrongstack/core/agent#ArchitectureDecisionContext',
+) as Token<ArchitectureDecisionContextPort>;
+
+export function resolveArchitectureDecisionContext(
+  container: Pick<Container, 'has' | 'resolve'> | undefined,
+): ArchitectureDecisionContextPort | undefined {
+  try {
+    return typeof container?.has === 'function' && container.has(ARCHITECTURE_DECISION_CONTEXT)
+      ? container.resolve(ARCHITECTURE_DECISION_CONTEXT)
       : undefined;
   } catch {
     return undefined;

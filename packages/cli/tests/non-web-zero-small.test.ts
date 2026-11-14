@@ -107,15 +107,16 @@ describe('small non-WebUI CLI modules', () => {
   });
 
   it('builds ACP runners from resolveAcpAgentCommand (same path as spawn)', async () => {
-    const builtInRunner = { run: vi.fn() };
+    const builtInRunner = vi.fn();
     mocks.resolveAcpAgentCommand.mockReturnValueOnce({
       command: 'gemini',
       args: ['--acp'],
       role: 'gemini-cli',
     });
-    mocks.makeACPSubagentRunner.mockReturnValueOnce(builtInRunner);
+    mocks.makeACPSubagentRunner.mockResolvedValueOnce(builtInRunner);
 
-    expect(buildAcpSubagentRunner('gemini-cli')).toBe(builtInRunner);
+    // The runner comes back wrapped so every task carries the accepted decisions.
+    await expect(buildAcpSubagentRunner('gemini-cli')).resolves.toBeTypeOf('function');
     expect(mocks.resolveAcpAgentCommand).toHaveBeenCalledWith('gemini-cli', undefined, undefined);
     expect(mocks.makeACPSubagentRunner).toHaveBeenNthCalledWith(1, {
       command: 'gemini',
@@ -125,16 +126,16 @@ describe('small non-WebUI CLI modules', () => {
       onTurnLive: expect.any(Function),
     });
 
-    const discoveredRunner = { run: vi.fn() };
+    const discoveredRunner = vi.fn();
     mocks.resolveAcpAgentCommand.mockReturnValueOnce({
       command: 'custom-agent',
       args: ['run'],
       role: 'custom',
       env: { TOKEN: 'test' },
     });
-    mocks.makeACPSubagentRunner.mockReturnValueOnce(discoveredRunner);
+    mocks.makeACPSubagentRunner.mockResolvedValueOnce(discoveredRunner);
 
-    expect(buildAcpSubagentRunner('custom')).toBe(discoveredRunner);
+    await expect(buildAcpSubagentRunner('custom')).resolves.toBeTypeOf('function');
     expect(mocks.makeACPSubagentRunner).toHaveBeenNthCalledWith(2, {
       command: 'custom-agent',
       args: ['run'],
@@ -147,7 +148,7 @@ describe('small non-WebUI CLI modules', () => {
 
   it("runs the worker in the project, asking, under the delegating session's rules", async () => {
     mocks.resolveAcpAgentCommand.mockReturnValue({ command: 'agent', role: 'x' });
-    mocks.makeACPSubagentRunner.mockReturnValue({ run: vi.fn() });
+    mocks.makeACPSubagentRunner.mockResolvedValue(vi.fn());
     const sessionPolicy = vi.fn();
     const permissions = vi.fn(() => sessionPolicy);
 
@@ -182,7 +183,7 @@ describe('small non-WebUI CLI modules', () => {
   it('hands the WrongStack bridge to bridged agents only', async () => {
     const cmd = { command: 'npx', args: ['-y', 'adapter'], role: 'claude-code' };
     mocks.resolveAcpAgentCommand.mockReturnValue(cmd);
-    mocks.makeACPSubagentRunner.mockReturnValue({ run: vi.fn() });
+    mocks.makeACPSubagentRunner.mockResolvedValue(vi.fn());
     const bridge = { projectRoot: '/proj' };
 
     buildAcpSubagentRunner('claude-code', { bridge });
@@ -215,7 +216,7 @@ describe('small non-WebUI CLI modules', () => {
       args: [],
       role: 'minimal',
     });
-    mocks.makeACPSubagentRunner.mockReturnValueOnce({ run: vi.fn() });
+    mocks.makeACPSubagentRunner.mockResolvedValueOnce(vi.fn());
 
     const overrides = { minimal: { command: 'minimal-agent' } };
     buildAcpSubagentRunner('minimal', { overrides });

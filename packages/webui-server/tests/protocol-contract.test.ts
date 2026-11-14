@@ -52,7 +52,8 @@ describe('surface protocol contract', () => {
     // +2: command.list / command.run (the engine's slash commands).
     // +1: acp.config_options (an ACP agent's runtime settings).
     // +1: plugin.ui.prompt_response (answer to a plugin api.ui.prompt modal).
-    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(315);
+    // +4: design.draw / design.kept / design.photos / design.snapshot (Design Studio).
+    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(319);
     expect(CLIENT_MESSAGE_TYPES).toContain('acp.config_options');
     expect(CLIENT_MESSAGE_TYPES).toEqual(expect.arrayContaining(['mcp.tools', 'mcp.tool.call']));
     expect(CLIENT_MESSAGE_TYPES).toEqual(
@@ -89,7 +90,8 @@ describe('surface protocol contract', () => {
     // +1: acp.config_options (its reply).
     // +4: plugin.ui.updated / plugin.ui.notify / plugin.ui.prompt / plugin.ui.prompt_resolved
     //     (plugin api.ui chips, toasts and prompt modals).
-    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(328);
+    // +4: design.draw / design.kept / design.photos / design.snapshot (Design Studio).
+    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(332);
     expect(SERVER_MESSAGE_TYPES).toContain('acp.config_options');
     expect(SERVER_MESSAGE_TYPES).toEqual(expect.arrayContaining(['mcp.tools', 'mcp.tool.result']));
     expect(SERVER_MESSAGE_TYPES).toContain('provider.primary_restored');

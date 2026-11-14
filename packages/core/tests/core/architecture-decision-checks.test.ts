@@ -4,7 +4,7 @@ import path from 'node:path';
 import type { AgentContext } from '@wrongstack/contracts/types/context';
 import type { Tool } from '@wrongstack/contracts/types/tool';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildArchitectureDecisionChecksBlock } from '../../src/core/architecture-decision-checks.js';
+import { buildArchitectureDecisionChecksBlock } from '../../src/storage/architecture-decision-checks.js';
 import { ArchitectureDecisionStore } from '../../src/storage/architecture-decision-store.js';
 
 describe('automatic architecture check context', () => {
@@ -60,17 +60,19 @@ describe('automatic architecture check context', () => {
   it('rechecks inspected bytes and uses the host side-effect-free permission explanation', async () => {
     const explain = vi.fn().mockResolvedValue({ decision: { permission: 'auto' } });
     const policy = { explain };
-    const first = await buildArchitectureDecisionChecksBlock(ctx, policy, read);
+    const first = await buildArchitectureDecisionChecksBlock(ctx, () => policy, read);
     expect(first?.text).toContain('result: pass');
-    expect((await buildArchitectureDecisionChecksBlock(ctx, policy, read))?.text).toBe(first?.text);
+    expect((await buildArchitectureDecisionChecksBlock(ctx, () => policy, read))?.text).toBe(
+      first?.text,
+    );
     expect(explain).toHaveBeenCalledWith(read, { path: path.join(ctx.projectRoot, 'a.txt') }, ctx);
     writeFileSync(path.join(ctx.projectRoot, 'a.txt'), 'changed');
-    expect((await buildArchitectureDecisionChecksBlock(ctx, policy, read))?.text).toContain(
+    expect((await buildArchitectureDecisionChecksBlock(ctx, () => policy, read))?.text).toContain(
       'result: fail',
     );
     expect(ctx.meta.architectureDecisionChecks).toMatchObject({ status: 'fail' });
     explain.mockResolvedValue({ decision: { permission: 'deny' } });
-    expect((await buildArchitectureDecisionChecksBlock(ctx, policy, read))?.text).toContain(
+    expect((await buildArchitectureDecisionChecksBlock(ctx, () => policy, read))?.text).toContain(
       'result: blocked',
     );
   });
@@ -82,8 +84,25 @@ describe('automatic architecture check context', () => {
       [confirm, read],
       [confirm, undefined],
     ] as const)
-      expect((await buildArchitectureDecisionChecksBlock(ctx, policy, tool))?.text).toContain(
+      expect((await buildArchitectureDecisionChecksBlock(ctx, () => policy, tool))?.text).toContain(
         'result: blocked',
       );
+  });
+
+  // 2026-11-14: the request builder resolved the permission policy on every request, so a
+  // container without one failed each run before any ADR was even read.
+  it('reads the permission policy only for accepted checks, and a missing one blocks', async () => {
+    const unbound = vi.fn(() => {
+      throw new Error('Container: token not bound');
+    });
+    const block = await buildArchitectureDecisionChecksBlock(ctx, unbound, read);
+    expect(block?.text).toContain('blocked');
+    expect(ctx.meta.architectureDecisionChecks).toMatchObject({ status: 'blocked' });
+
+    const empty = { projectRoot: path.join(dir, 'other'), meta: {} } as AgentContext;
+    mkdirSync(empty.projectRoot);
+    const untouched = vi.fn();
+    expect(await buildArchitectureDecisionChecksBlock(empty, untouched, read)).toBeUndefined();
+    expect(untouched).not.toHaveBeenCalled();
   });
 });

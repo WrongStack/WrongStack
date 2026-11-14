@@ -16,10 +16,12 @@ export {
 export {
   AGENT_COORDINATION,
   type AgentCoordinationPort,
+  ARCHITECTURE_DECISION_CONTEXT,
   CHIMERA_REPORT_SESSION_RESOLVER,
   CHRONICLE_FILE_LINEAGE,
   HQ_MAILBOX_PUBLISHER_FACTORY,
   resolveAgentCoordination,
+  resolveArchitectureDecisionContext,
   resolveChimeraReportSessionResolver,
   resolveChronicleFileLineage,
   resolveHqMailboxPublisherFactory,

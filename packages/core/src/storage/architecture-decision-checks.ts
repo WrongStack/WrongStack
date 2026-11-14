@@ -1,17 +1,24 @@
+import type { ArchitectureDecisionContextPort } from '@wrongstack/contracts/types/architecture-decision-context';
 import type { TextBlock } from '@wrongstack/contracts/types/blocks';
 import type { AgentContext } from '@wrongstack/contracts/types/context';
 import type { PermissionPolicy } from '@wrongstack/contracts/types/permission';
 import type { Tool } from '@wrongstack/contracts/types/tool';
+import { formatProjectSuppliedBlock } from '../utils/project-supplied-fence.js';
 import {
   architectureDecisionReadAuthorizer,
   checkArchitectureDecisions,
-} from '../storage/architecture-decision-compliance.js';
-import { ArchitectureDecisionStore } from '../storage/architecture-decision-store.js';
-import { formatProjectSuppliedBlock } from '../utils/project-supplied-fence.js';
+} from './architecture-decision-compliance.js';
+import { buildArchitectureDecisionBlock } from './architecture-decision-context.js';
+import { ArchitectureDecisionStore } from './architecture-decision-store.js';
 
+/**
+ * Host-computed results of the accepted decisions' declared checks. The
+ * permission policy is looked up only when an accepted decision has checks; a
+ * missing or throwing policy yields a blocked result, never a throw.
+ */
 export async function buildArchitectureDecisionChecksBlock(
   ctx: AgentContext,
-  permission?: Pick<PermissionPolicy, 'explain'>,
+  getPermission: () => Pick<PermissionPolicy, 'explain'> | undefined,
   readTool?: Tool,
 ): Promise<TextBlock | undefined> {
   if (!ctx.projectRoot) return undefined;
@@ -23,7 +30,7 @@ export async function buildArchitectureDecisionChecksBlock(
     }
     const report = await checkArchitectureDecisions(
       ctx.projectRoot,
-      architectureDecisionReadAuthorizer(ctx, permission, readTool),
+      architectureDecisionReadAuthorizer(ctx, getPermission(), readTool),
     );
     ctx.meta.architectureDecisionChecks = report;
     return {
@@ -55,3 +62,9 @@ export async function buildArchitectureDecisionChecksBlock(
     };
   }
 }
+
+/** The storage-backed ADR context the runtime binds for the agent loop. */
+export const storageArchitectureDecisionContext: ArchitectureDecisionContextPort = {
+  buildDecisionBlock: buildArchitectureDecisionBlock,
+  buildChecksBlock: buildArchitectureDecisionChecksBlock,
+};
