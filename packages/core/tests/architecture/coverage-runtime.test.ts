@@ -45,6 +45,9 @@ describe('Bun fixture cleanup', () => {
       { cwd: directory, stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true },
     );
     const closed = new Promise<void>((resolve) => child.once('close', () => resolve()));
+    // The child exits 100 ms after the first "release", and the removal waits for that exit,
+    // so the cleanup write below usually meets a closed pipe: EPIPE there is expected.
+    child.stdin!.on('error', () => {});
     try {
       await new Promise<void>((resolve, reject) => {
         child.once('error', reject);
