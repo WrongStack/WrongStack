@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-14T18:33:06.291Z",
+  "generatedAt": "2026-11-14T19:42:55.438Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6340,
-    "testFiles": 5293,
-    "sourceLines": 1309983,
+    "sourceFiles": 6343,
+    "testFiles": 5296,
+    "sourceLines": 1310242,
     "workspaceEdges": 250,
-    "moduleEdges": 18695,
+    "moduleEdges": 18717,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -409,7 +409,7 @@
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
       "sourceFiles": 63,
-      "testFiles": 7,
+      "testFiles": 8,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -430,7 +430,7 @@
         {
           "path": "packages/fleet/tsconfig.test.json",
           "error": null,
-          "testFiles": 7
+          "testFiles": 8
         }
       ]
     },
@@ -643,7 +643,7 @@
       "name": "@wrongstack/plug-lsp",
       "dir": "packages/plug-lsp",
       "sourceFiles": 52,
-      "testFiles": 60,
+      "testFiles": 61,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -658,7 +658,7 @@
         {
           "path": "packages/plug-lsp/tsconfig.test.json",
           "error": null,
-          "testFiles": 60
+          "testFiles": 61
         }
       ]
     },
@@ -1035,8 +1035,8 @@
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 510,
-      "testFiles": 441,
+      "sourceFiles": 513,
+      "testFiles": 442,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1065,7 +1065,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 441
+          "testFiles": 442
         }
       ]
     },
@@ -14492,6 +14492,12 @@
         ]
       },
       {
+        "file": "packages/fleet/tests/acp-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/fleet/tests/architecture-decision-acp.test.ts",
         "projects": [
           "root-node"
@@ -17145,6 +17151,12 @@
       },
       {
         "file": "packages/plug-lsp/tests/unit/completion-coverage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plug-lsp/tests/unit/completion-limit.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24579,6 +24591,12 @@
       },
       {
         "file": "packages/tui/tests/code-block.comprehensive.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/command-discovery-layout.test.tsx",
         "projects": [
           "root-node"
         ]

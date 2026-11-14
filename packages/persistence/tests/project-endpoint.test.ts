@@ -127,6 +127,7 @@ describeUnix('bindProjectEndpoint', () => {
     const savedOps = { ..._projectEndpointOps };
     let owner: number | null = 0;
     let probeCount = 0;
+    let staleRemovals = 0;
 
     class Probe extends EventEmitter {
       destroy(): void {}
@@ -155,6 +156,7 @@ describeUnix('bindProjectEndpoint', () => {
     _projectEndpointOps.chmod = (async () => undefined) as never;
     _projectEndpointOps.stat = (async () => ({ uid: process.getuid?.() ?? 0 })) as never;
     _projectEndpointOps.rm = (async () => {
+      staleRemovals += 1;
       owner = null;
     }) as never;
     _projectEndpointOps.createConnection = (() => {
@@ -185,8 +187,11 @@ describeUnix('bindProjectEndpoint', () => {
           maxAttempts: 2,
         }),
       ]);
-      expect(first.outcome).toBe('bound');
-      expect(second.outcome).toBe('already-owned');
+      // Filesystem lock acquisition is not FIFO: either caller may win.
+      // The contract is one winner whose endpoint the loser leaves intact.
+      expect([first.outcome, second.outcome].sort()).toEqual(['already-owned', 'bound']);
+      expect(owner).toBe(first.outcome === 'bound' ? 1 : 2);
+      expect(staleRemovals).toBe(1);
       expect(probeCount).toBeGreaterThanOrEqual(2);
     } finally {
       Object.assign(_projectEndpointOps, savedOps);
