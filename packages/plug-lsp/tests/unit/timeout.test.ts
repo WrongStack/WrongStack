@@ -95,4 +95,66 @@ describe('promiseWithTimeout', () => {
       setTimeoutSpy.mockRestore();
     }
   });
+
+  it('keeps a long request pending through its first timer chunk and expires at its deadline', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const timers = vi.spyOn(globalThis, 'setTimeout');
+    try {
+      const limit = 2_147_483_647;
+      let complete!: (value: string) => void;
+      const work = new Promise<string>((resolve) => {
+        complete = resolve;
+      });
+      const timed = promiseWithTimeout(work, limit + 50);
+      let outcome = 'pending';
+      const observed = timed.then(
+        () => {
+          outcome = 'resolved';
+          return undefined;
+        },
+        (error: unknown) => {
+          outcome = 'rejected';
+          return error;
+        },
+      );
+      await vi.advanceTimersByTimeAsync(limit);
+      expect(outcome).toBe('pending');
+      expect(timers.mock.calls.map((call) => call[1])).toEqual([limit, 50]);
+      await vi.advanceTimersByTimeAsync(49);
+      expect(outcome).toBe('pending');
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await observed).toMatchObject({
+        message: `LSP request timed out after ${limit + 50}ms`,
+      });
+      expect(outcome).toBe('rejected');
+      expect(vi.getTimerCount()).toBe(0);
+      // Late work completion after timeout must remain harmless and timer-free.
+      complete('late');
+      await Promise.resolve();
+      expect(outcome).toBe('rejected');
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      timers.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('ignores an already queued timer callback after the request completes', async () => {
+    vi.useFakeTimers();
+    const timers = vi.spyOn(globalThis, 'setTimeout');
+    try {
+      const timed = promiseWithTimeout(Promise.resolve('done'), 2_147_483_648);
+      const callback = timers.mock.calls[0]?.[0];
+      expect(typeof callback).toBe('function');
+      expect(await timed).toBe('done');
+      if (typeof callback !== 'function') throw new Error('Expected a scheduled timeout callback');
+      callback();
+      expect(timers).toHaveBeenCalledTimes(1);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      timers.mockRestore();
+      vi.useRealTimers();
+    }
+  });
 });

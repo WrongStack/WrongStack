@@ -26,7 +26,7 @@ export async function promiseWithTimeout<T>(
       reject(abortError(signal!));
     };
     const armTimer = (remaining: number) => {
-      if (settled) return;
+      // Called only at creation or by the unsettled timer callback below.
       if (timer) clearTimeout(timer);
       const chunk = Math.min(Math.max(0, remaining), MAX_TIMEOUT_MS);
       timer = setTimeout(() => {
