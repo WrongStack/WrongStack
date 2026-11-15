@@ -104,6 +104,25 @@ export async function read(root: string, value: unknown): Promise<string> {
 export async function json(root: string, value: unknown): Promise<Data> {
   return object(JSON.parse(await read(root, value)));
 }
+/** Parse the JSON object report from child stdout (last valid JSON object line), or null. */
+export function parseJsonReport(stdout: string): Record<string, unknown> | null {
+  const trimmed = stdout.trim();
+  if (!trimmed) return null;
+  const lines = trimmed.split(/\r?\n/);
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i]?.trim();
+    if (!line?.startsWith('{')) continue;
+    try {
+      const parsed = JSON.parse(line) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // keep scanning upward for the structured report line
+    }
+  }
+  return null;
+}
 export async function fingerprints(root: string, paths: string[]): Promise<Record<string, string>> {
   if (!paths.length) throw new Error('At least one evidence file is required');
   const result: Record<string, string> = Object.create(null);

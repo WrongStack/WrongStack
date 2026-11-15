@@ -170,7 +170,12 @@ export function validateEnvironmentProfile(raw: unknown): asserts raw is Environ
 export function parseEnvironmentProfile(text: string): EnvironmentProfile {
   if (new TextEncoder().encode(text).length > 64 * 1024)
     throw new Error('Environment profile exceeds 64 KiB');
-  const doc: unknown = JSON.parse(text.replace(/^\uFEFF/, ''));
+  let doc: unknown;
+  try {
+    doc = JSON.parse(text.replace(/^\uFEFF/, ''));
+  } catch {
+    throw new Error('Invalid environment profile JSON');
+  }
   const wrapper = record(doc, ['type', 'version', 'profile']);
   if (wrapper.type !== 'wrongstack.environment' || wrapper.version !== 1)
     throw new Error('Unsupported environment profile document');

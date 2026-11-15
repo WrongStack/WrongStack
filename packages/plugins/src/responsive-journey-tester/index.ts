@@ -1,5 +1,7 @@
+import { localUrl } from '../workflow-runtime/http.js';
 import {
   integer,
+  parseJsonReport,
   rows,
   run,
   str,
@@ -7,7 +9,6 @@ import {
   strings,
   workflowPlugin,
 } from '../workflow-runtime/index.js';
-import { localUrl } from '../workflow-runtime/http.js';
 export default workflowPlugin({
   name: 'responsive-journey-tester',
   description:
@@ -50,9 +51,7 @@ export default workflowPlugin({
         );
         return {
           execution,
-          report: execution.passed
-            ? JSON.parse(execution.stdout.trim().split(/\r?\n/).at(-1)!)
-            : null,
+          report: execution.passed ? parseJsonReport(execution.stdout) : null,
         };
       },
     },

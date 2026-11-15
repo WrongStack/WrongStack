@@ -1,4 +1,10 @@
-import { read, run, stringField, workflowPlugin } from '../workflow-runtime/index.js';
+import {
+  parseJsonReport,
+  read,
+  run,
+  stringField,
+  workflowPlugin,
+} from '../workflow-runtime/index.js';
 export default workflowPlugin({
   name: 'migration-rehearsal',
   description:
@@ -28,7 +34,7 @@ try { db.exec(${JSON.stringify(seed)}); const before=snapshot(); db.exec(${JSON.
           dialect: 'sqlite',
           isolation: 'in-memory-child-process',
           execution,
-          report: execution.passed ? JSON.parse(execution.stdout) : null,
+          report: execution.passed ? parseJsonReport(execution.stdout) : null,
           limitation:
             'SQLite only. This does not validate PostgreSQL/MySQL dialects or production-scale locking.',
         };

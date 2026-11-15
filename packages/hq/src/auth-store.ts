@@ -269,9 +269,18 @@ export async function readHqAuthFile(
         'Fix the file or delete it to start with an empty auth state.',
     );
   }
-  if (parsed.version !== HQ_AUTH_FILE_VERSION) {
+  if (
+    typeof parsed !== 'object' ||
+    parsed === null ||
+    Array.isArray(parsed) ||
+    parsed.version !== HQ_AUTH_FILE_VERSION
+  ) {
+    const actualVersion =
+      typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+        ? parsed.version
+        : parsed;
     throw new Error(
-      `HQ auth file at ${file} has unsupported version ${String(parsed.version)} ` +
+      `HQ auth file at ${file} has unsupported version ${String(actualVersion)} ` +
         `(expected ${String(HQ_AUTH_FILE_VERSION)}). ` +
         'Remove or update the file to match the current schema version.',
     );

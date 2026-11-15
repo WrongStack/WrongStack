@@ -63,8 +63,11 @@ export class AutomationGitHubAPI {
         `GitHub request failed (${response.status}); inspect repository access and retry`,
       );
     }
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error('GitHub response body is missing');
+    if (response.status === 204 || !response.body) {
+      await response.body?.cancel().catch(() => {});
+      return null;
+    }
+    const reader = response.body.getReader();
     const chunks: Uint8Array[] = [];
     let size = 0;
     try {
@@ -79,6 +82,12 @@ export class AutomationGitHubAPI {
       await reader.cancel().catch(() => {});
       reader.releaseLock();
     }
-    return JSON.parse(Buffer.concat(chunks).toString('utf8')) as T;
+    const text = Buffer.concat(chunks).toString('utf8').trim();
+    if (!text) return null;
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      throw new Error(`GitHub returned invalid JSON (${response.status})`);
+    }
   }
 }

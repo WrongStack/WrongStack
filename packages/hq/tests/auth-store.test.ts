@@ -687,4 +687,11 @@ describe('HQ password KDF versioning', () => {
       }
     });
   });
+
+  it('rejects JSON null in auth.json with unsupported version error instead of TypeError', async () => {
+    await withTempDir(async (dir) => {
+      await fs.writeFile(hqAuthFilePath(dir), 'null', 'utf8');
+      await expect(readHqAuthFile(dir)).rejects.toThrow(/unsupported version null/);
+    });
+  });
 });

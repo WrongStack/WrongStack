@@ -1,5 +1,11 @@
 import { pathToFileURL } from 'node:url';
-import { projectPath, run, stringField, workflowPlugin } from '../workflow-runtime/index.js';
+import {
+  parseJsonReport,
+  projectPath,
+  run,
+  stringField,
+  workflowPlugin,
+} from '../workflow-runtime/index.js';
 export default workflowPlugin({
   name: 'plugin-workbench',
   description:
@@ -26,9 +32,7 @@ try{await plugin.setup(api);const first=[...tools.keys()];tools.clear();await pl
         );
         return {
           execution,
-          report: execution.passed
-            ? JSON.parse(execution.stdout.trim().split(/\r?\n/).at(-1)!)
-            : null,
+          report: execution.passed ? parseJsonReport(execution.stdout) : null,
           limitation:
             'Mock host covers registration lifecycle, not full production tool execution or provider behavior.',
         };

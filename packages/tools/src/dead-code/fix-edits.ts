@@ -477,7 +477,14 @@ export function editPackageJson(
   text: string,
   removals: Array<{ field: string; dep: string }>,
 ): string {
-  const json = JSON.parse(text) as Record<string, Record<string, unknown> | undefined>;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return text;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return text;
+  const json = parsed as Record<string, Record<string, unknown> | undefined>;
   for (const { field, dep } of removals) {
     const section = json[field];
     if (section && typeof section === 'object') delete section[dep];

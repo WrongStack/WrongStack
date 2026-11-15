@@ -1,6 +1,7 @@
 import { pathToFileURL } from 'node:url';
 import {
   integer,
+  parseJsonReport,
   projectPath,
   run,
   stringField,
@@ -40,8 +41,7 @@ const retained=cycles.map(counts=>Object.fromEntries(Object.entries(counts).filt
           },
           context,
         );
-        let report = null;
-        if (execution.passed) report = JSON.parse(execution.stdout.trim().split(/\r?\n/).at(-1)!);
+        const report = execution.passed ? parseJsonReport(execution.stdout) : null;
         return {
           execution,
           report,

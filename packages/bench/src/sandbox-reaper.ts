@@ -88,7 +88,12 @@ function listProcesses(): Promise<ProcessRow[]> {
           if (err) return reject(err);
           const raw = stdout.trim();
           if (!raw) return resolve([]);
-          const parsed = JSON.parse(raw) as unknown;
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(raw) as unknown;
+          } catch (parseErr) {
+            return reject(parseErr);
+          }
           const list = (Array.isArray(parsed) ? parsed : [parsed]) as Array<{
             ProcessId?: unknown;
             CommandLine?: unknown;

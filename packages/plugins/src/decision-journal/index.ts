@@ -1,6 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { appendFile, mkdir } from 'node:fs/promises';
 import { dirname, relative } from 'node:path';
-import { randomUUID } from 'node:crypto';
 import {
   filesField,
   projectPath,
@@ -63,10 +63,15 @@ export default workflowPlugin({
         const records = (await read(context.root, input.journal))
           .split(/\r?\n/)
           .filter(Boolean)
-          .map(
-            (line) =>
-              JSON.parse(line) as { id: string; files: string[]; supersedes: string | null },
-          );
+          .flatMap((line) => {
+            try {
+              const parsed = JSON.parse(line) as unknown;
+              if (!parsed || typeof parsed !== 'object') return [];
+              return [parsed as { id: string; files: string[]; supersedes: string | null }];
+            } catch {
+              return [];
+            }
+          });
         const superseded = new Set(records.map((record) => record.supersedes).filter(Boolean));
         return {
           decisions: records

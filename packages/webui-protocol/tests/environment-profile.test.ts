@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { editableAutomationJob, createAutomationJobInput } from '../src/automation.js';
+import { createAutomationJobInput, editableAutomationJob } from '../src/automation.js';
 import { exportAutomationJob, importAutomationJob } from '../src/automation-portability.js';
 import {
   canonicalEnvironmentProfile,
+  type EnvironmentProfile,
   exportEnvironmentProfile,
   parseEnvironmentProfile,
   validateEnvironmentProfile,
-  type EnvironmentProfile,
 } from '../src/environment-profile.js';
 
 const profile = (): EnvironmentProfile => ({
@@ -101,5 +101,10 @@ describe('portable environment profiles', () => {
     expect(() =>
       parseEnvironmentProfile(JSON.stringify({ ...wrapper, profile: profile() })),
     ).toThrow('Unsupported environment profile document');
+  });
+  it('throws a domain Error instead of raw SyntaxError on malformed JSON', () => {
+    expect(() => parseEnvironmentProfile('{invalid json')).toThrow(
+      'Invalid environment profile JSON',
+    );
   });
 });

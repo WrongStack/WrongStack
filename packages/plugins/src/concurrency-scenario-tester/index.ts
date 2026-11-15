@@ -58,13 +58,17 @@ export default workflowPlugin({
           const target = localUrl(spec.url);
           if (target.origin !== url.origin) throw new Error('Invariant must use the same origin');
           const response = await localRequest(target, {}, context.signal);
-          const actual = object(JSON.parse(response.body));
-          invariant =
-            response.status >= 200 &&
-            response.status < 300 &&
-            Object.entries(object(spec.expectedJson)).every(([key, value]) =>
-              isDeepStrictEqual(actual[key], value),
-            );
+          try {
+            const actual = object(JSON.parse(response.body));
+            invariant =
+              response.status >= 200 &&
+              response.status < 300 &&
+              Object.entries(object(spec.expectedJson)).every(([key, value]) =>
+                isDeepStrictEqual(actual[key], value),
+              );
+          } catch {
+            invariant = false;
+          }
         }
         return {
           passed:
