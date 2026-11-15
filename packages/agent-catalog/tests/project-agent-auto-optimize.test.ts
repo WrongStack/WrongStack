@@ -410,6 +410,7 @@ describe('scheduler', () => {
   it('clamps debounceMs above 2_147_483_647 ms in LearningOptimizationScheduler.schedule', () => {
     const delays: number[] = [];
     const scheduler = new LearningOptimizationScheduler({
+      projectRoot,
       getPolicy: () => resolveAutoOptimizePolicy({ enabled: true, debounceMs: 3_000_000_000 }),
       getLlm: async () => undefined,
       scheduleTimer: (_fn, ms) => {

@@ -1416,7 +1416,7 @@ describe('createHttpClient', () => {
             sockRef = s as unknown as FakeSocket;
           },
         },
-        { onFrame: () => {}, onClose: () => {} },
+        { frame: () => {}, close: () => {} },
       ).catch((err: { kind?: string }) => {
         if (err?.kind === 'timeout') timedOutEarly = true;
       });

@@ -12,14 +12,11 @@ describe('wrapWithHangDetection timeout clamping (F384)', () => {
       },
     });
 
-    let hung = false;
-    const wrapped = wrapWithHangDetection(
-      stream,
-      { providerId: 'openai', model: 'gpt-5', timeoutMs: 3_000_000_000 },
-      () => {
-        hung = true;
-      },
-    ) as ReadableStream<Uint8Array>;
+    const wrapped = wrapWithHangDetection(stream, {
+      providerId: 'openai',
+      model: 'gpt-5',
+      timeoutMs: 3_000_000_000,
+    }) as ReadableStream<Uint8Array>;
 
     const reader = wrapped.getReader();
     const chunks: Uint8Array[] = [];
@@ -28,7 +25,6 @@ describe('wrapWithHangDetection timeout clamping (F384)', () => {
       if (done) break;
       chunks.push(value);
     }
-    expect(hung).toBe(false);
-    expect(chunks.length).toBe(1);
+    expect(chunks).toEqual([new Uint8Array([1, 2, 3])]);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { launchBuiltinRound } from '../src/lib/launch-builtin-round.js';
+import { launchBuiltinRound } from '../../src/lib/launch-builtin-round.js';
 
 describe('launchBuiltinRound timeout clamping (F378)', () => {
   it('clamps timeoutMs above 32-bit signed max instead of firing error in 1ms', async () => {
@@ -29,6 +29,7 @@ describe('launchBuiltinRound timeout clamping (F378)', () => {
         slug: 'bughunt',
         requireSoloSession: false,
         subagentsAllowed: true,
+        setPrefs: () => {},
         compose: (c) => c,
         onSent: () => {},
         onSettle: (state) => resolve(state),

@@ -135,23 +135,38 @@ describe('SageProjectServerConnection', () => {
   });
 
   it('asks a daemon of an older release to stop and connects to its replacement', async () => {
+    vi.useFakeTimers();
+    // The advertised PID belongs to the socket fixture, not to the runner's OS.
+    // Its graceful shutdown has completed before the replacement is spawned.
+    const probe = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+      expect([pid, signal]).toEqual([4242, 0]);
+      throw Object.assign(new Error('fixture daemon exited'), { code: 'ESRCH' });
+    });
     const older = socket;
     const current = new FakeSocket();
     mocks.createConnection.mockReturnValueOnce(older).mockReturnValue(current);
     const connection = new SageProjectServerConnection('D:/repo');
-    const connecting = connection.connect();
-    send(older, hello({ runtimeVersion: '1.0.0' }));
-    const shutdown = JSON.parse(String(older.write.mock.calls[0]?.[0]).trim());
-    expect(shutdown).toMatchObject({
-      type: 'shutdown',
-      reason: 'older-release-replacement',
-      authToken: 'owner-token',
-    });
-    await vi.waitFor(() => expect(mocks.createConnection).toHaveBeenCalledTimes(2));
-    send(current, hello({ runtimeVersion: WRONGSTACK_RUNTIME_VERSION, pid: 5151 }));
-    await connecting;
-    expect(connection.getState()).toMatchObject({ status: 'connected', pid: 5151 });
-    connection.close();
+    try {
+      const connected = expect(connection.connect()).resolves.toBeUndefined();
+      send(older, hello({ runtimeVersion: '1.0.0' }));
+      const shutdown = JSON.parse(String(older.write.mock.calls[0]?.[0]).trim());
+      expect(shutdown).toMatchObject({
+        type: 'shutdown',
+        reason: 'older-release-replacement',
+        authToken: 'owner-token',
+      });
+      // Drive the exit probe (50 ms) and election backoff (75 ms) explicitly.
+      await vi.advanceTimersByTimeAsync(125);
+      expect(probe).toHaveBeenCalledOnce();
+      expect(mocks.createConnection).toHaveBeenCalledTimes(2);
+      send(current, hello({ runtimeVersion: WRONGSTACK_RUNTIME_VERSION, pid: 5151 }));
+      await connected;
+      expect(connection.getState()).toMatchObject({ status: 'connected', pid: 5151 });
+    } finally {
+      connection.close();
+      probe.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it('reuses a daemon of the same release', async () => {

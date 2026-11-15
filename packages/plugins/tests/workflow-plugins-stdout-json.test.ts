@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Plugin, PluginAPI, Tool } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const runMock = vi.hoisted(() =>
@@ -36,19 +37,20 @@ afterEach(async () => {
   }
 });
 
-async function getTool(plugin: { setup: (api: unknown) => Promise<void> | void }, name: string) {
-  let exec:
-    | ((input: Record<string, unknown>, ctx: Record<string, unknown>) => Promise<unknown>)
-    | undefined;
+async function getTool(plugin: Plugin, name: string) {
+  let tool: Tool | undefined;
   await plugin.setup({
     config: { extensions: {} },
     tools: {
-      register: (t: { name: string; execute: typeof exec }) => {
-        if (t.name === name) exec = t.execute;
+      register: (t: Tool) => {
+        if (t.name === name) tool = t;
       },
     },
-  });
-  return exec!;
+  } as unknown as PluginAPI);
+  if (!tool) throw new Error(`Missing tool: ${name}`);
+  const registered = tool;
+  return (input: Record<string, unknown>, ctx: Record<string, unknown>) =>
+    registered.execute(input, ctx as never, { signal: new AbortController().signal });
 }
 
 describe('workflow plugins non-JSON stdout resilience (F380-F383)', () => {

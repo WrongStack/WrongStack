@@ -31,7 +31,8 @@ describe('CodexWebSocketConnection stallTimeoutMs clamping (F386)', () => {
     for await (const ev of conn.stream(
       { model: 'gpt-5', input: [] },
       {
-        model: 'gpt-5',
+        request: { model: 'gpt-5', messages: [] },
+        fallbackModel: 'gpt-5',
         providerId: 'openai',
         signal: new AbortController().signal,
         stallTimeoutMs: 3_000_000_000,

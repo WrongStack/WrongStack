@@ -21,12 +21,7 @@ describe('system-prompt-presets corrupt JSON resilience (F370)', () => {
     const fakeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'f370-'));
     temps.push(fakeDir);
 
-    const created = await createSystemPromptPreset(
-      fakeDir,
-      'Valid Preset',
-      'default',
-      'You are helpful.',
-    );
+    const created = await createSystemPromptPreset(fakeDir, 'Valid Preset', 'default');
     const entries = await fs.readdir(fakeDir, { recursive: true });
     const createdRel = entries.find((e) => e.endsWith(`${created.id}.json`));
     expect(createdRel).toBeDefined();

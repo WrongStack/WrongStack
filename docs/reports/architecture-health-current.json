@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-15T15:27:27.312Z",
+  "generatedAt": "2026-11-15T18:36:43.980Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -32318,12 +32318,6 @@
         ]
       },
       {
-        "file": "packages/webui/tests/launch-builtin-round-overflow.test.ts",
-        "projects": [
-          "webui-jsdom"
-        ]
-      },
-      {
         "file": "packages/webui/tests/lib/a11y-static-boundaries.test.ts",
         "projects": [
           "webui-jsdom"
@@ -32517,6 +32511,12 @@
       },
       {
         "file": "packages/webui/tests/lib/kanban-verification.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/lib/launch-builtin-round-overflow.test.ts",
         "projects": [
           "webui-jsdom"
         ]

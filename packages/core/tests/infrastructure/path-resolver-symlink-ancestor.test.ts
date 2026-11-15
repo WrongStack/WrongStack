@@ -26,7 +26,7 @@ describe('DefaultPathResolver non-existent target under symlinked directory (F36
       process.platform === 'win32' ? 'junction' : 'dir',
     );
 
-    const resolver = new DefaultPathResolver(root, root);
+    const resolver = new DefaultPathResolver(root, true);
     expect(() => resolver.ensureInsideRoot('escape/new-secret.txt')).toThrow(
       'outside the project root',
     );
