@@ -63,14 +63,26 @@ export class DefaultPathResolver implements PathResolver {
 
   resolve(input: string): string {
     const abs = path.isAbsolute(input) ? input : path.resolve(this.cwd, input);
-    let real: string;
     try {
-      real = fs.realpathSync(abs);
+      return fs.realpathSync(abs);
     } catch {
-      // path doesn't exist yet; normalize without resolving symlinks
-      real = path.normalize(abs);
+      // Walk up to the nearest existing ancestor so symlinks on parent
+      // directories are still resolved even when the leaf does not exist yet.
+      let cur = path.normalize(abs);
+      const tail: string[] = [];
+      for (;;) {
+        const parent = path.dirname(cur);
+        if (parent === cur) break;
+        tail.unshift(path.basename(cur));
+        cur = parent;
+        try {
+          return path.join(fs.realpathSync(cur), ...tail);
+        } catch {
+          // continue walking up
+        }
+      }
+      return path.normalize(abs);
     }
-    return real;
   }
 
   isInsideRoot(absPath: string): boolean {

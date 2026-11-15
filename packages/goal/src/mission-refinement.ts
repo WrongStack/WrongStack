@@ -2,8 +2,11 @@ import type { Config } from '@wrongstack/contracts/types/config/root';
 import type { Provider, Usage } from '@wrongstack/contracts/types/provider';
 import type { EnhanceFailureKind } from '@wrongstack/core/execution';
 import { resolveRefinerTargetSpecs } from '@wrongstack/core/execution';
-import { toErrorMessage } from '@wrongstack/core/utils';
-import { readBundledInstructionText, renderInstructionTemplate } from '@wrongstack/core/utils';
+import {
+  readBundledInstructionText,
+  renderInstructionTemplate,
+  toErrorMessage,
+} from '@wrongstack/core/utils';
 
 export interface RefinedMission {
   refinedGoal: string;
@@ -118,7 +121,10 @@ export async function refineGoalWithProvider(
   // immediately regardless of the remaining budget. Mirrors the per-pass
   // timer structure of `enhanceUserPrompt` so both refiners classify
   // timeouts identically.
-  const timeoutMs = opts?.timeoutMs ?? 30_000;
+  const rawTimeoutMs = opts?.timeoutMs ?? 30_000;
+  const timeoutMs = Number.isFinite(rawTimeoutMs)
+    ? Math.max(0, Math.min(2_147_483_647, rawTimeoutMs))
+    : 30_000;
   const timer = new AbortController();
   const timeout = setTimeout(() => timer.abort(new Error('goal refiner timeout')), timeoutMs);
   const signal = opts?.signal ? AbortSignal.any([opts.signal, timer.signal]) : timer.signal;

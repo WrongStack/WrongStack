@@ -49,7 +49,10 @@ export class SessionAnalyzer {
         if (!sessionId) sessionId = event.id;
       }
       if (event.type === 'tool_use') {
-        toolUsageCount[event.name] = (toolUsageCount[event.name] ?? 0) + 1;
+        const prev = Object.hasOwn(toolUsageCount, event.name)
+          ? (toolUsageCount[event.name] ?? 0)
+          : 0;
+        toolUsageCount[event.name] = prev + 1;
       }
       if (event.type === 'error') {
         errors.push({ ts: event.ts, phase: event.phase, message: event.message });

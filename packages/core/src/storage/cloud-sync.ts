@@ -286,7 +286,16 @@ export class CloudSync {
           } catch (err) {
             if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
           }
-          const remote = JSON.parse(content.toString('utf8')) as Record<string, unknown>;
+          let parsedRemote: unknown;
+          try {
+            parsedRemote = JSON.parse(content.toString('utf8'));
+          } catch {
+            throw new Error(`Invalid remote settings JSON at ${entry.path}`);
+          }
+          if (!parsedRemote || typeof parsedRemote !== 'object' || Array.isArray(parsedRemote)) {
+            throw new Error(`Invalid remote settings JSON at ${entry.path}`);
+          }
+          const remote = parsedRemote as Record<string, unknown>;
           const merged = mergePortableSettings(local, remote);
           await backupConfigFile(destPath, { globalRoot: this.paths.globalRoot });
           await atomicWrite(destPath, `${JSON.stringify(merged, null, 2)}\n`, { mode: 0o600 });

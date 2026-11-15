@@ -418,7 +418,7 @@ export async function waitForProxyRoutingSettle(
   const chains = [...instantApplyChains].map((get) => get());
   if (chains.length === 0) return;
   const effectiveTimeoutMs = Number.isFinite(timeoutMs)
-    ? Math.max(0, timeoutMs)
+    ? Math.min(2_147_483_647, Math.max(0, timeoutMs))
     : PROXY_ROUTING_SETTLE_CAP_MS;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let onAbort: (() => void) | undefined;

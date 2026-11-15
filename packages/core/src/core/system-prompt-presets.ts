@@ -158,7 +158,14 @@ export async function readSystemPromptPreset(
   globalInstructions: string,
   id: string,
 ): Promise<SystemPromptPreset> {
-  return validateRecord(JSON.parse(await fs.readFile(fileFor(globalInstructions, id), 'utf8')));
+  const raw = await fs.readFile(fileFor(globalInstructions, id), 'utf8');
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('Invalid preset file.');
+  }
+  return validateRecord(parsed);
 }
 
 export async function listSystemPromptPresets(
@@ -174,7 +181,11 @@ export async function listSystemPromptPresets(
   const presets: SystemPromptPreset[] = [];
   for (const name of names) {
     if (!PRESET_ID.test(name.replace(/\.json$/, '')) || !name.endsWith('.json')) continue;
-    presets.push(await readSystemPromptPreset(globalInstructions, name.slice(0, -5)));
+    try {
+      presets.push(await readSystemPromptPreset(globalInstructions, name.slice(0, -5)));
+    } catch {
+      // Skip corrupt or unreadable preset files rather than failing the whole listing.
+    }
   }
   return presets.sort((a, b) => a.name.localeCompare(b.name));
 }

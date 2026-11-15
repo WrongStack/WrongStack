@@ -106,6 +106,10 @@ export async function runToolWithTimeout(
   toolPromise.catch(() => {});
   try {
     output = await new Promise<unknown>((resolve, reject) => {
+      if (combined.aborted) {
+        reject(abortReasonToError(combined.reason));
+        return;
+      }
       const onAbort = () => {
         setTimeout(() => reject(abortReasonToError(combined.reason)), 0);
       };

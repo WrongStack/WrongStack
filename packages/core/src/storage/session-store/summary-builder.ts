@@ -153,7 +153,8 @@ async function summarizeSessionEventSequence(opts: {
       } else if (e.type === 'in_flight_start') iterationCount++;
       else if (e.type === 'tool_call_start') {
         toolCallCount++;
-        toolBreakdown[e.name] = (toolBreakdown[e.name] ?? 0) + 1;
+        const prev = Object.hasOwn(toolBreakdown, e.name) ? (toolBreakdown[e.name] ?? 0) : 0;
+        toolBreakdown[e.name] = prev + 1;
       } else if (e.type === 'tool_result' && e.isError) toolErrorCount++;
       else if (e.type === 'file_snapshot') fileChangeCount += e.files.length;
       else if (e.type === 'session_forked') forkedFrom = e.parentSessionId;

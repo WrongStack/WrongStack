@@ -184,7 +184,10 @@ export class SessionSummaryTracker {
       this.openToolUses.add(event.id);
     } else if (event.type === 'tool_call_start') {
       this.toolCallCount++;
-      this.toolBreakdown[event.name] = (this.toolBreakdown[event.name] ?? 0) + 1;
+      const prevCount = Object.hasOwn(this.toolBreakdown, event.name)
+        ? (this.toolBreakdown[event.name] ?? 0)
+        : 0;
+      this.toolBreakdown[event.name] = prevCount + 1;
     } else if (event.type === 'tool_result') {
       this.openToolUses.delete(event.id);
       // Counted, but NOT an errored session: a failed tool call is ordinary
