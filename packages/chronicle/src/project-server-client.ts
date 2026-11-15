@@ -9,11 +9,18 @@ import {
   retryWhileUnauthorized,
   standaloneDaemonUrl,
 } from '@wrongstack/persistence';
+import {
+  OLDER_RELEASE_REPLACEMENT,
+  replaceOlderDaemon,
+  retireOlderDaemon,
+  shouldReplaceOlderDaemon,
+} from '@wrongstack/primitives';
 import type { ChronicleJournalStats } from './journal.js';
 import {
   chronicleProjectServerEndpoint,
   chronicleProjectServerMetadataPath,
 } from './project-server-endpoint.js';
+import { probeFileExists } from './project-server-probe.js';
 import {
   CHRONICLE_MAX_APPEND_BATCH,
   CHRONICLE_PROJECT_SERVER_MAX_FRAME_CHARS,
@@ -96,39 +103,6 @@ export type ChronicleDaemonAvailability =
   | { readonly kind: 'inline-requested' }
   /** No server entry point exists in any known output layout. */
   | { readonly kind: 'missing-build' };
-
-/**
- * Transient-tolerant entrypoint probe. ENOENT means the layout genuinely
- * does not exist; ANY other stat failure (EMFILE/EPERM/EBUSY spikes under
- * full-suite parallel load) is "unknown", and `fs.existsSync` folds that
- * into false — one transient miss then threw "Built Chronicle project
- * server is unavailable" straight out of the connect loop and failed the
- * caller (mailbox/SAGE sibling flake, observed 2026-09-15). Assume-present
- * is the recoverable direction: a dead spawn is guarded and cadence-
- * retryable, while a false negative was fatal to the connect window.
- */
-function probeFileExists(filePath: string): boolean {
-  try {
-    // Primary probe: the seam existing callers and tests mock, and the fast
-    // path for the common available case.
-    if (fs.existsSync(filePath)) return true;
-  } catch {
-    // existsSync itself failed — fall through to the stat verification.
-  }
-  // existsSync folds transient stat errors (EMFILE/EPERM/EBUSY spikes under
-  // full-suite parallel load) into false. Verify with statSync before
-  // declaring the build missing: ENOENT = genuinely absent; any other error
-  // (or a contradictory success) = assume present — the recoverable
-  // direction, since a dead spawn is guarded and cadence-retryable while a
-  // false negative was fatal to the connect window (mailbox/SAGE sibling
-  // flakes, observed 2026-09-15).
-  try {
-    fs.statSync(filePath);
-    return true;
-  } catch (error) {
-    return (error as NodeJS.ErrnoException)?.code !== 'ENOENT';
-  }
-}
 
 export function resolveChronicleDaemonAvailability(
   moduleUrl = import.meta.url,
@@ -291,6 +265,7 @@ export class ChronicleProjectServerClient {
     const deadline =
       Date.now() + (spawnIfMissing ? SERVER_START_TIMEOUT_MS : CONNECT_ATTEMPT_TIMEOUT_MS);
     let lastSpawnAt = 0;
+    const olderAttempts = { count: 0 };
     let lastError: unknown = new Error('Chronicle project server unavailable');
     const generation = this.closeGeneration;
     while (Date.now() < deadline && generation === this.closeGeneration) {
@@ -299,6 +274,8 @@ export class ChronicleProjectServerClient {
         return;
       } catch (error) {
         lastError = error;
+        // An older daemon was asked to stop: start this release's daemon at once.
+        if (spawnIfMissing && (await replaceOlderDaemon(error, olderAttempts))) lastSpawnAt = 0;
       }
       if (!spawnIfMissing || generation !== this.closeGeneration) break;
       const now = Date.now();
@@ -479,6 +456,19 @@ export class ChronicleProjectServerClient {
       ) {
         this.connectReject?.(new Error('Chronicle project server identity mismatch'));
         this.socket?.destroy();
+        return;
+      }
+      if (shouldReplaceOlderDaemon(message.runtimeVersion)) {
+        const shutdown = () =>
+          encodeChronicleProjectServerMessage({
+            type: 'shutdown',
+            id: this.nextId++,
+            reason: OLDER_RELEASE_REPLACEMENT,
+            authToken: this.currentAuthToken(),
+          });
+        this.connectReject?.(
+          retireOlderDaemon(this.socket, shutdown, message, 'Chronicle project server'),
+        );
         return;
       }
       this.info = message;

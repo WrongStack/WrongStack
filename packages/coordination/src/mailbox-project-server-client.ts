@@ -2,14 +2,23 @@ import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as net from 'node:net';
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { isPidAlive } from '@wrongstack/core/utils';
-import { daemonSpawnArgs, isStandaloneBinary, standaloneDaemonUrl } from '@wrongstack/persistence';
+import { daemonSpawnArgs } from '@wrongstack/persistence';
+import {
+  OLDER_RELEASE_REPLACEMENT,
+  replaceOlderDaemon,
+  retireOlderDaemon,
+  shouldReplaceOlderDaemon,
+} from '@wrongstack/primitives';
 import type { MailboxEvent } from './mailbox-events.js';
 import {
   mailboxProjectServerEndpoint,
   mailboxProjectServerMetadataPath,
 } from './mailbox-project-server-endpoint.js';
+import {
+  isMailboxProjectServerAvailable,
+  resolveProjectServerUrl,
+} from './mailbox-project-server-launch.js';
 import {
   encodeMailboxProjectServerMessage,
   isMailboxProjectServerMessage,
@@ -91,60 +100,6 @@ export interface MailboxProjectServerConnectionState {
 function normalizePath(value: string): string {
   const resolved = path.resolve(value);
   return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
-}
-
-/**
- * Locate the built project-server entrypoint.
- *
- * There is deliberately no env var that turns the server off. The mailbox has
- * exactly one mode — one detached owner per project, reached over IPC — so the
- * only reason this returns null is a missing build, and that is an error, not
- * a fallback. `WRONGSTACK_MAILBOX_INLINE` / `WRONGSTACK_MAILBOX_SERVER=0` used
- * to select an in-process store here; they are gone. Do not reintroduce them:
- * the moment a client can quietly open its own store, "one mailbox per
- * project" becomes "one mailbox per process" with no visible symptom.
- */
-function resolveProjectServerUrl(): URL | null {
-  if (isStandaloneBinary()) return standaloneDaemonUrl('mailbox');
-  for (const relative of [
-    // Built output: the package is split into chunks that sit at the dist
-    // root next to `mailbox-project-server.js`, so every module resolves it
-    // as a sibling. Without it the lookup reports missing-build, which is an
-    // error here, never a silent per-process store.
-    './mailbox-project-server.js',
-    // Source (tests, dev): packages/coordination/src → the package's build.
-    '../dist/mailbox-project-server.js',
-  ]) {
-    try {
-      const url = new URL(relative, import.meta.url);
-      if (url.protocol !== 'file:') continue;
-      const file = fileURLToPath(url);
-      // Primary probe: the seam existing callers and tests mock, and the
-      // fast path for the common available case.
-      if (fs.existsSync(file)) return url;
-      // existsSync folds transient stat errors (EMFILE/EPERM/EBUSY spikes
-      // under full-suite parallel load) into false. Verify with statSync
-      // before declaring the build missing: ENOENT = genuinely absent; any
-      // other error (or a contradictory success) = assume present — the
-      // recoverable direction, since a spawn against a missing file is a
-      // guarded dead child the retry loop survives, while a false negative
-      // was fatal to the connect window (observed 2026-09-15, shard 3/4).
-      try {
-        fs.statSync(file);
-        return url;
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') continue;
-        return url;
-      }
-    } catch {
-      // Try the next supported build layout.
-    }
-  }
-  return null;
-}
-
-export function isMailboxProjectServerAvailable(): boolean {
-  return resolveProjectServerUrl() !== null;
 }
 
 function delay(ms: number): Promise<void> {
@@ -345,6 +300,7 @@ export class MailboxProjectServerConnection {
     const deadline =
       Date.now() + (spawnIfMissing ? SERVER_START_TIMEOUT_MS : CONNECT_ATTEMPT_TIMEOUT_MS);
     let lastSpawnAt = 0;
+    const olderAttempts = { count: 0 };
     let lastError: unknown = new Error('Mailbox project server unavailable');
     const generation = this.closeGeneration;
     const liveOwnerGraceUntil = Date.now() + LIVE_OWNER_SPAWN_GRACE_MS;
@@ -354,6 +310,8 @@ export class MailboxProjectServerConnection {
         return;
       } catch (error) {
         lastError = error;
+        // An older daemon was asked to stop: start this release's daemon at once.
+        if (spawnIfMissing && (await replaceOlderDaemon(error, olderAttempts))) lastSpawnAt = 0;
       }
       if (!spawnIfMissing || generation !== this.closeGeneration) break;
       // Re-arm the spawn on SPAWN_RETRY_CADENCE_MS. A single spawn attempt made
@@ -580,6 +538,19 @@ export class MailboxProjectServerConnection {
       if (normalizePath(message.projectDir) !== normalizePath(this.projectDir)) {
         this.connectReject?.(new Error('Mailbox project server identity mismatch'));
         this.socket?.destroy();
+        return;
+      }
+      if (shouldReplaceOlderDaemon(message.runtimeVersion)) {
+        const shutdown = () =>
+          encodeMailboxProjectServerMessage({
+            type: 'shutdown',
+            id: this.nextId++,
+            reason: OLDER_RELEASE_REPLACEMENT,
+            authToken: this.currentAuthToken(),
+          });
+        this.connectReject?.(
+          retireOlderDaemon(this.socket, shutdown, message, 'Mailbox project server'),
+        );
         return;
       }
       this.info = message;

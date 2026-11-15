@@ -6,6 +6,12 @@
  */
 import type * as net from 'node:net';
 import {
+  OLDER_RELEASE_REPLACEMENT,
+  replaceOlderDaemon,
+  retireOlderDaemon,
+  shouldReplaceOlderDaemon,
+} from '@wrongstack/primitives';
+import {
   CONNECT_ATTEMPT_TIMEOUT_MS,
   cancellationError,
   DEFAULT_CALL_TIMEOUT_MS,
@@ -20,6 +26,7 @@ import {
   SPAWN_RETRY_CADENCE_MS,
 } from './project-server-client-contract.js';
 import {
+  encodeSageProjectServerMessage,
   SAGE_PROJECT_SERVER_PROTOCOL_VERSION,
   type SageProjectServerInfo,
   type SageProjectServerMessage,
@@ -81,6 +88,7 @@ export async function connectWithElection(
   const epoch = self.connectEpoch;
   const closedError = (): Error => new Error('SAGE server client disconnected');
   let lastSpawnAt = 0;
+  const olderAttempts = { count: 0 };
   let lastError: unknown = new Error('SAGE project server unavailable');
   while (Date.now() < deadline) {
     // close() while this election was running stops it: no retry, no re-armed
@@ -91,6 +99,8 @@ export async function connectWithElection(
       return;
     } catch (error) {
       lastError = error;
+      // An older daemon was asked to stop: start this release's daemon at once.
+      if (spawnIfMissing && (await replaceOlderDaemon(error, olderAttempts))) lastSpawnAt = 0;
     }
     // The close may also land between the attempt failing and the spawn/retry
     // decision below — re-check before either.
@@ -281,6 +291,22 @@ export function handleServerMessage(
     // mid-election, or this attempt already failed — must not resurrect a
     // torn-down connection. The socket is dead or being destroyed; drop it.
     if (!self.connectResolve) return;
+    if (shouldReplaceOlderDaemon(message.runtimeVersion)) {
+      const shutdown = (): string => {
+        const id = self.nextId;
+        self.nextId = id >= Number.MAX_SAFE_INTEGER ? 1 : id + 1;
+        return encodeSageProjectServerMessage({
+          type: 'shutdown',
+          id,
+          reason: OLDER_RELEASE_REPLACEMENT,
+          authToken: self.currentAuthToken(),
+        });
+      };
+      self.connectReject?.(
+        retireOlderDaemon(self.socket, shutdown, message, 'SAGE project server'),
+      );
+      return;
+    }
     self.info = message;
     self.transition('connected', { pid: message.pid });
     self.connectResolve?.();

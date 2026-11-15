@@ -93,11 +93,9 @@ export {
 } from './mailbox-http-router.js';
 
 export {
-  isMailboxProjectServerAvailable,
   MailboxProjectServerConnection,
   type MailboxProjectServerConnectionState,
 } from './mailbox-project-server-client.js';
-
 // Endpoint derivation is pure and side-effect free. Exported so daemon
 // inventory surfaces (`wstack doctor --daemons`) can locate this daemon
 // without importing the daemon entry itself, which would start one.
@@ -105,6 +103,7 @@ export {
   mailboxProjectServerEndpoint,
   mailboxProjectServerMetadataPath,
 } from './mailbox-project-server-endpoint.js';
+export { isMailboxProjectServerAvailable } from './mailbox-project-server-launch.js';
 
 export type {
   MailboxProjectServerInfo,

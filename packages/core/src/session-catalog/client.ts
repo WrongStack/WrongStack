@@ -9,6 +9,12 @@ import {
   retryWhileUnauthorized,
   standaloneDaemonUrl,
 } from '@wrongstack/persistence';
+import {
+  OLDER_RELEASE_REPLACEMENT,
+  replaceOlderDaemon,
+  retireOlderDaemon,
+  shouldReplaceOlderDaemon,
+} from '@wrongstack/primitives';
 import { isPidAlive } from '../utils/pid.js';
 import { canonicalProjectRoot } from '../utils/wstack-paths.js';
 import {
@@ -272,6 +278,7 @@ export class SessionCatalogProjectClient {
     const deadline = Date.now() + (spawnIfMissing ? START_TIMEOUT_MS : CONNECT_TIMEOUT_MS);
     let spawned = false;
     let spawnedPid: number | undefined;
+    const olderAttempts = { count: 0 };
     let lastError: unknown = new Error('Session Catalog project server unavailable');
     const generation = this.closeGeneration;
     while (Date.now() < deadline && generation === this.closeGeneration) {
@@ -284,6 +291,8 @@ export class SessionCatalogProjectClient {
       } catch (error) {
         lastError = error;
         catalogDiag(`CONNECT_FAIL: ${(error as Error).message} (spawnIfMissing=${spawnIfMissing})`);
+        // An older daemon was asked to stop: start this release's daemon at once.
+        if (spawnIfMissing && (await replaceOlderDaemon(error, olderAttempts))) spawned = false;
       }
       if (generation !== this.closeGeneration) break;
       if (spawnIfMissing) {
@@ -513,6 +522,19 @@ export class SessionCatalogProjectClient {
       ) {
         this.connectReject?.(new Error('Session Catalog project identity mismatch'));
         this.socket?.destroy();
+        return;
+      }
+      if (shouldReplaceOlderDaemon(message.runtimeVersion)) {
+        const shutdown = () =>
+          encodeSessionCatalogMessage({
+            type: 'shutdown',
+            id: this.nextId++,
+            reason: OLDER_RELEASE_REPLACEMENT,
+            authToken: this.currentAuthToken(),
+          });
+        this.connectReject?.(
+          retireOlderDaemon(this.socket, shutdown, message, 'Session Catalog project server'),
+        );
         return;
       }
       this.info = message;

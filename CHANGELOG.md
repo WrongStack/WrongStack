@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   telemetry lookups, and stop recursive document-symbol cycles.
 - Reject escaping checkpoint paths, vector-memory directory symlinks and static
   asset symlinks while retaining valid project-relative names.
+- Replace Chronicle, Kanban, Session Catalog, SAGE and mailbox project daemons
+  left by an older release: a newer client asks them to stop, starts its own
+  and ends one that does not stop after three attempts. Daemons of the same or
+  a newer release are reused; `WRONGSTACK_DAEMON_REPLACE_OLDER=0` turns this
+  off.
 - On Windows, retire unused release-build hosts and their orphaned engine
   processes while preserving development builds and other running desktops.
 - Generate architecture evidence from the git index so unstaged changes in a

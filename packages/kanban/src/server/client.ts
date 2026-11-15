@@ -19,6 +19,12 @@ import {
   standaloneDaemonUrl,
 } from '@wrongstack/persistence';
 import {
+  OlderDaemonError,
+  replaceOlderDaemon,
+  retireOlderDaemon,
+  shouldReplaceOlderDaemon,
+} from '@wrongstack/primitives';
+import {
   decodeLifecycleIssues,
   KanbanLifecycleError,
   StaleWriteError,
@@ -235,6 +241,20 @@ class KanbanServerConnection {
             );
             this.helloReject(error);
             this.socket?.destroy(error);
+            return;
+          }
+          if (shouldReplaceOlderDaemon(parsed['runtimeVersion'])) {
+            const shutdown = () =>
+              `${JSON.stringify({
+                id: this.nextId++,
+                method: 'shutdown',
+                params: {},
+                authToken: this.currentAuthToken(),
+              })}\n`;
+            const hello = { pid: parsed['pid'], runtimeVersion: parsed['runtimeVersion'] };
+            this.helloReject(
+              retireOlderDaemon(this.socket, shutdown, hello, 'Kanban project server'),
+            );
             return;
           }
           this.helloResolve(parsed as unknown as KanbanHelloFrame);
@@ -464,25 +484,33 @@ export async function getKanbanServerConnection(
 ): Promise<KanbanServerConnection | null> {
   if (process.env['WRONGSTACK_KANBAN_SERVER'] === '0') return null;
   const cacheKey = canonicalRoot(projectRoot);
-  let conn = connections.get(cacheKey);
-  if (!conn) {
-    const endpoint = kanbanProjectServerEndpoint(projectRoot);
-    conn = new KanbanServerConnection(projectRoot, endpoint, cacheKey);
-    connections.set(cacheKey, conn);
-  } else {
-    // Map insertion order is the LRU order.
-    connections.delete(cacheKey);
-    connections.set(cacheKey, conn);
+  const olderAttempts = { count: 0 };
+  for (;;) {
+    let conn = connections.get(cacheKey);
+    if (!conn) {
+      const endpoint = kanbanProjectServerEndpoint(projectRoot);
+      conn = new KanbanServerConnection(projectRoot, endpoint, cacheKey);
+      connections.set(cacheKey, conn);
+    } else {
+      // Map insertion order is the LRU order.
+      connections.delete(cacheKey);
+      connections.set(cacheKey, conn);
+    }
+    try {
+      await conn.connect();
+    } catch (err) {
+      if (connections.get(cacheKey) === conn) connections.delete(cacheKey);
+      conn.close('connection failed');
+      // An older daemon was asked to stop: connect again, starting this release's daemon.
+      if (err instanceof OlderDaemonError && olderAttempts.count < 3) {
+        await replaceOlderDaemon(err, olderAttempts);
+        continue;
+      }
+      throw err;
+    }
+    trimConnectionCache(conn);
+    return conn;
   }
-  try {
-    await conn.connect();
-  } catch (err) {
-    if (connections.get(cacheKey) === conn) connections.delete(cacheKey);
-    conn.close('connection failed');
-    throw err;
-  }
-  trimConnectionCache(conn);
-  return conn;
 }
 
 /** Disconnect this process from every Kanban server without stopping daemons. */

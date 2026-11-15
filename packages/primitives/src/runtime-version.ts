@@ -13,6 +13,35 @@ export function assertDaemonRuntimeVersion(daemonVersion: unknown): void {
   );
 }
 
+/**
+ * Whether a client replaces the project daemon it reached: only a daemon that reports a
+ * strictly older release. A daemon of the same or a newer release is reused, so installations
+ * of different versions sharing a project converge on the newest daemon instead of replacing
+ * each other's on every reconnect. Nothing is replaced unless both releases are a plain
+ * `major.minor.patch` (a pre-release, a development build or a daemon that reports no release
+ * keeps the old behaviour: reuse). `WRONGSTACK_DAEMON_REPLACE_OLDER=0` turns replacement off.
+ */
+export function shouldReplaceOlderDaemon(
+  daemonVersion: unknown,
+  clientVersion: string = WRONGSTACK_RUNTIME_VERSION,
+): boolean {
+  if (process.env['WRONGSTACK_DAEMON_REPLACE_OLDER'] === '0') return false;
+  const client = releaseParts(clientVersion);
+  if (!client) return false;
+  if (typeof daemonVersion !== 'string') return false;
+  const daemon = releaseParts(daemonVersion);
+  if (!daemon) return false;
+  for (let i = 0; i < 3; i++) {
+    if (daemon[i] !== client[i]) return daemon[i]! < client[i]!;
+  }
+  return false;
+}
+
+function releaseParts(version: string): [number, number, number] | undefined {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version.trim());
+  return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : undefined;
+}
+
 /** A release mismatch is advisory; wire compatibility is checked separately. */
 export function withDaemonVersion<T extends { status: string; detail: string }>(
   service: T,

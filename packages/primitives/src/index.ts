@@ -23,6 +23,14 @@ export {
   untrustedGitFilterKeys,
 } from './git-isolation.js';
 export {
+  forceStopDaemon,
+  OLDER_RELEASE_REPLACEMENT,
+  OlderDaemonError,
+  type OlderDaemonSocket,
+  replaceOlderDaemon,
+  retireOlderDaemon,
+} from './older-daemon.js';
+export {
   formatProjectSuppliedBlock,
   PROJECT_SUPPLIED_INSTRUCTIONS_TAG,
   PROJECT_SUPPLIED_TAG,
@@ -58,6 +66,7 @@ export {
 export { type RemovePathSyncOptions, removePathSync } from './remove-path.js';
 export {
   assertDaemonRuntimeVersion,
+  shouldReplaceOlderDaemon,
   WRONGSTACK_RUNTIME_VERSION,
   withDaemonVersion,
 } from './runtime-version.js';

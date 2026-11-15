@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+import { WRONGSTACK_RUNTIME_VERSION } from '@wrongstack/primitives';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -131,6 +132,36 @@ describe('SageProjectServerConnection', () => {
     connection.close();
     expect(socket.destroy).toHaveBeenCalledOnce();
     expect(connection.getState().connected).toBe(false);
+  });
+
+  it('asks a daemon of an older release to stop and connects to its replacement', async () => {
+    const older = socket;
+    const current = new FakeSocket();
+    mocks.createConnection.mockReturnValueOnce(older).mockReturnValue(current);
+    const connection = new SageProjectServerConnection('D:/repo');
+    const connecting = connection.connect();
+    send(older, hello({ runtimeVersion: '1.0.0' }));
+    const shutdown = JSON.parse(String(older.write.mock.calls[0]?.[0]).trim());
+    expect(shutdown).toMatchObject({
+      type: 'shutdown',
+      reason: 'older-release-replacement',
+      authToken: 'owner-token',
+    });
+    await vi.waitFor(() => expect(mocks.createConnection).toHaveBeenCalledTimes(2));
+    send(current, hello({ runtimeVersion: WRONGSTACK_RUNTIME_VERSION, pid: 5151 }));
+    await connecting;
+    expect(connection.getState()).toMatchObject({ status: 'connected', pid: 5151 });
+    connection.close();
+  });
+
+  it('reuses a daemon of the same release', async () => {
+    const connection = new SageProjectServerConnection('D:/repo');
+    const connecting = connection.connect();
+    send(socket, hello({ runtimeVersion: WRONGSTACK_RUNTIME_VERSION }));
+    await connecting;
+    expect(socket.write).not.toHaveBeenCalled();
+    expect(mocks.createConnection).toHaveBeenCalledOnce();
+    connection.close();
   });
 
   it('reports protocol mismatches and malformed server frames as unavailable status', async () => {

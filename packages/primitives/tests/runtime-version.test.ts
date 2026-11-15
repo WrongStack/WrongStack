@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import packageInfo from '../package.json' with { type: 'json' };
 import {
   assertDaemonRuntimeVersion,
+  shouldReplaceOlderDaemon,
   WRONGSTACK_RUNTIME_VERSION,
   withDaemonVersion,
 } from '../src/runtime-version.js';
@@ -61,5 +62,36 @@ describe('daemon release health', () => {
   it.each(['offline', 'unavailable'])('does not invent version skew for %s services', (status) => {
     const service = { status, detail: 'Sleeping.' };
     expect(withDaemonVersion(service, undefined)).toBe(service);
+  });
+});
+
+describe('replacing an older project daemon', () => {
+  it('replaces only a daemon that reports a strictly older release', () => {
+    expect(shouldReplaceOlderDaemon('1.7.1', '1.7.2')).toBe(true);
+    expect(shouldReplaceOlderDaemon('1.6.9', '1.7.0')).toBe(true);
+    expect(shouldReplaceOlderDaemon('0.9.99', '1.0.0')).toBe(true);
+    // A daemon that reports no release keeps being reused, as before.
+    expect(shouldReplaceOlderDaemon(undefined, '1.7.2')).toBe(false);
+    expect(shouldReplaceOlderDaemon('', '1.7.2')).toBe(false);
+  });
+  it('reuses a daemon of the same or a newer release, so installations converge', () => {
+    expect(shouldReplaceOlderDaemon('1.7.2', '1.7.2')).toBe(false);
+    expect(shouldReplaceOlderDaemon('1.8.0', '1.7.2')).toBe(false);
+    expect(shouldReplaceOlderDaemon('1.10.0', '1.9.9')).toBe(false);
+  });
+  it('never replaces from or against a version it cannot order', () => {
+    expect(shouldReplaceOlderDaemon('1.7.1', '1.8.0-rc.1')).toBe(false);
+    expect(shouldReplaceOlderDaemon('1.7.1', 'development')).toBe(false);
+    expect(shouldReplaceOlderDaemon('1.7.1-beta', '1.7.2')).toBe(false);
+  });
+  it('can be turned off', () => {
+    const previous = process.env['WRONGSTACK_DAEMON_REPLACE_OLDER'];
+    process.env['WRONGSTACK_DAEMON_REPLACE_OLDER'] = '0';
+    try {
+      expect(shouldReplaceOlderDaemon('1.0.0', '1.7.2')).toBe(false);
+    } finally {
+      if (previous === undefined) delete process.env['WRONGSTACK_DAEMON_REPLACE_OLDER'];
+      else process.env['WRONGSTACK_DAEMON_REPLACE_OLDER'] = previous;
+    }
   });
 });

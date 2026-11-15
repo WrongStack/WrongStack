@@ -23,8 +23,8 @@
       "relativeImports": 5
     },
     "packages/chronicle/src/project-server-client.ts": {
-      "lines": 719,
-      "relativeImports": 5
+      "lines": 709,
+      "relativeImports": 6
     },
     "packages/chronicle/src/project-server.ts": {
       "lines": 706,
@@ -45,10 +45,6 @@
     "packages/coordination/src/agent-monitor.ts": {
       "lines": 724,
       "relativeImports": 1
-    },
-    "packages/coordination/src/mailbox-project-server-client.ts": {
-      "lines": 725,
-      "relativeImports": 3
     },
     "packages/coordination/src/multi-agent-coordinator.ts": {
       "lines": 726,
