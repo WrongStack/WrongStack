@@ -94,7 +94,7 @@ export function wireRollupsToChronicle(options: ChronicleRollupAdapterOptions): 
     target.count++;
     target.updatedAt = Date.now();
     for (const [name, value] of Object.entries(values)) {
-      const metric = target.metrics[name];
+      const metric = Object.hasOwn(target.metrics, name) ? target.metrics[name] : undefined;
       target.metrics[name] = metric
         ? {
             sum: metric.sum + value,
@@ -104,7 +104,10 @@ export function wireRollupsToChronicle(options: ChronicleRollupAdapterOptions): 
           }
         : { sum: value, min: value, max: value, last: value };
     }
-    if (category) target.categories[category] = (target.categories[category] ?? 0) + 1;
+    if (category) {
+      const prev = Object.hasOwn(target.categories, category) ? target.categories[category] : 0;
+      target.categories[category] = (prev ?? 0) + 1;
+    }
   };
   const flush = (key: string) => {
     const value = buckets.get(key);

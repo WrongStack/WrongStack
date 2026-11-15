@@ -292,7 +292,7 @@ export async function dispatchAgent(
     }));
     try {
       const choice = await opts.classifier(task, pool);
-      if (choice && catalog[choice.role]) {
+      if (choice && Object.hasOwn(catalog, choice.role) && catalog[choice.role]) {
         return {
           role: choice.role,
           definition: catalog[choice.role] ?? FALLBACK_DEFINITION,

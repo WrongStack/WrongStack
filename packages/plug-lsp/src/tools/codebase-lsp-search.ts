@@ -319,7 +319,7 @@ function serverNameFromConfig(deps: ToolDeps, sym: SymbolInformation): string {
     rs: ['rust', 'rust-analyzer'],
   };
 
-  const langs = langMap[ext] ?? [ext];
+  const langs = Object.hasOwn(langMap, ext) ? (langMap[ext] ?? [ext]) : [ext];
   const servers = deps.registry.list();
 
   for (const lang of langs) {

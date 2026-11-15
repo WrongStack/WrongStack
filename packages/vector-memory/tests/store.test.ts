@@ -5,6 +5,7 @@
  * The temp directory is reused via WRONGSTACK_HOME; we just point the
  * store at a unique subdirectory per test.
  */
+import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -408,5 +409,31 @@ describe('VectorMemoryStore', () => {
         }),
     ).toThrow();
     expect(dbPath).toBeTruthy();
+  });
+
+  it('rejects directory paths that escape projectRoot via symlink', () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ws-vec-sym-'));
+    try {
+      const proj = path.join(tmpRoot, 'proj');
+      const outside = path.join(tmpRoot, 'outside');
+      fs.mkdirSync(proj);
+      fs.mkdirSync(outside);
+      fs.symlinkSync(
+        outside,
+        path.join(proj, 'sym'),
+        process.platform === 'win32' ? 'junction' : 'dir',
+      );
+
+      expect(
+        () =>
+          new VectorMemoryStore({
+            projectRoot: proj,
+            directory: 'sym/db',
+            provider: new FakeEmbeddingProvider({ dimensions: 64 }),
+          }),
+      ).toThrow(/project root/);
+    } finally {
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+    }
   });
 });

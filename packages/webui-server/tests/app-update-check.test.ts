@@ -148,4 +148,29 @@ describe('app update check', () => {
       checkFailed: false,
     });
   });
+
+  it('chunks intervals above 2_147_483_647ms without scheduling an overflowing timer', () => {
+    vi.useFakeTimers();
+    const intervals = vi.spyOn(globalThis, 'setInterval');
+    const timeouts = vi.spyOn(globalThis, 'setTimeout');
+
+    try {
+      const checker = createAppUpdateCheck({
+        currentVersion: '1.0.0',
+        cacheFile: '',
+        intervalMs: 30 * 24 * 60 * 60 * 1000,
+        fetchImpl: release('1.0.0'),
+      });
+      const stop = checker.start();
+      stop();
+      const recordedDelays = [...intervals.mock.calls, ...timeouts.mock.calls].map(([, delay]) =>
+        Number(delay ?? 0),
+      );
+      expect(recordedDelays.length).toBeGreaterThan(0);
+      expect(recordedDelays.every((d) => d >= 0 && d <= 2_147_483_647)).toBe(true);
+    } finally {
+      vi.restoreAllMocks();
+      vi.useRealTimers();
+    }
+  });
 });

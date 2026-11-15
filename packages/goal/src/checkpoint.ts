@@ -285,7 +285,21 @@ export class CheckpointManager {
   }
 
   private async saveToDisk(checkpoint: Checkpoint): Promise<void> {
-    const filePath = path.join(this.baseDir, `${checkpoint.graphId}.json`);
+    if (
+      typeof checkpoint.graphId !== 'string' ||
+      checkpoint.graphId.length === 0 ||
+      /[\0/\\]/.test(checkpoint.graphId) ||
+      checkpoint.graphId === '.' ||
+      checkpoint.graphId === '..'
+    ) {
+      throw new Error(`Invalid checkpoint graphId: ${String(checkpoint.graphId)}`);
+    }
+    const baseResolved = path.resolve(this.baseDir);
+    const filePath = path.resolve(baseResolved, `${checkpoint.graphId}.json`);
+    const rel = path.relative(baseResolved, filePath);
+    if (rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
+      throw new Error(`Checkpoint path escapes base directory: ${checkpoint.graphId}`);
+    }
     const serialized: SerializedCheckpoint = {
       ...checkpoint,
     };

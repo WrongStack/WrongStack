@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Keep slash-containing grep globs relative to the requested search root and
+  preserve grouped ACP configuration options when reloading saved sessions.
+- Chunk long ACP, LSP, collaboration, verification, update and scan deadlines;
+  keep long file-lock heartbeats within platform timer limits.
+- Ignore inherited object properties in role, model, plugin, language and
+  telemetry lookups, and stop recursive document-symbol cycles.
+- Reject escaping checkpoint paths, vector-memory directory symlinks and static
+  asset symlinks while retaining valid project-relative names.
+- On Windows, retire unused release-build hosts and their orphaned engine
+  processes while preserving development builds and other running desktops.
+
 ## [1.7.2] — 2026-11-14
 
 After an update, conversations no longer stay on the previous engine without

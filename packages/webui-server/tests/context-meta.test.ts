@@ -557,4 +557,13 @@ describe('seedContextMeta — per-plugin effective state', () => {
     expect(disabledCtx.meta['exploreCompanionEnabled']).toBe(false);
     expect(disabledCtx.meta['skillCompanionEnabled']).toBe(false);
   });
+
+  it('records plugin names matching Object.prototype keys in pluginsEnabled', () => {
+    const context = { meta: {} as Record<string, unknown> };
+    seedContextMeta(makeConfig({ plugins: ['toString', 'valueOf', 'customPlugin'] }), context);
+    const enabled = context.meta['pluginsEnabled'] as Record<string, boolean>;
+    expect(Object.hasOwn(enabled, 'toString')).toBe(true);
+    expect(Object.hasOwn(enabled, 'valueOf')).toBe(true);
+    expect(Object.hasOwn(enabled, 'customPlugin')).toBe(true);
+  });
 });

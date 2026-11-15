@@ -535,4 +535,21 @@ describe('CheckpointManager', () => {
       false,
     );
   });
+
+  it('rejects graphId values that attempt path traversal outside baseDir', async () => {
+    const stubMgr = new CheckpointManager({
+      baseDir: path.join(path.dirname(store.baseDir), 'ckpt-traversal'),
+      store: {
+        baseDir: path.dirname(store.baseDir),
+        save: async () => {},
+      } as never,
+    });
+    await expect(
+      stubMgr.saveCheckpoint({
+        id: '../evil',
+        phases: new Map(),
+        rootPhaseIds: [],
+      } as never),
+    ).rejects.toThrow(/graphId|escapes/i);
+  });
 });

@@ -96,12 +96,34 @@ export class VectorMemoryStore {
     if (path.isAbsolute(dir)) {
       throw new Error('Vector memory directory must be project-relative.');
     }
+    const resolvedProjectRoot = path.resolve(opts.projectRoot);
     const rootDir = path.resolve(opts.projectRoot, dir);
-    const rel = path.relative(path.resolve(opts.projectRoot), rootDir);
-    if (rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
+    const isInsideRoot = (base: string, target: string): boolean => {
+      const r = path.relative(base, target);
+      return r !== '..' && !r.startsWith(`..${path.sep}`) && !path.isAbsolute(r);
+    };
+    if (!isInsideRoot(resolvedProjectRoot, rootDir)) {
       throw new Error('Vector memory directory must stay inside the project root.');
     }
+    if (fs.existsSync(resolvedProjectRoot)) {
+      const realProjectRoot = fs.realpathSync(resolvedProjectRoot);
+      let existingProbe = rootDir;
+      while (!fs.existsSync(existingProbe)) {
+        const parent = path.dirname(existingProbe);
+        if (parent === existingProbe) break;
+        existingProbe = parent;
+      }
+      if (
+        fs.existsSync(existingProbe) &&
+        !isInsideRoot(realProjectRoot, fs.realpathSync(existingProbe))
+      ) {
+        throw new Error('Vector memory directory must stay inside the project root.');
+      }
+    }
     fs.mkdirSync(rootDir, { recursive: true });
+    if (!isInsideRoot(fs.realpathSync(resolvedProjectRoot), fs.realpathSync(rootDir))) {
+      throw new Error('Vector memory directory must stay inside the project root.');
+    }
     this.rootDir = rootDir;
     if (
       typeof filename !== 'string' ||

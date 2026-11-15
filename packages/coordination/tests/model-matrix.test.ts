@@ -13,6 +13,7 @@ import {
   phaseForRole,
   resolveImplementationModelTarget,
   resolveModelMatrix,
+  resolveModelMatrixResolution,
   resolveModelTargetFromEntry,
   resolveSubagentModelTarget,
   roleNeedsIndependentReviewModel,
@@ -347,5 +348,11 @@ describe('agent catalog prompts', () => {
       }
       await fs.rm(tmp, { recursive: true, force: true });
     }
+  });
+
+  it('resolveModelMatrixResolution ignores Object.prototype keys (F305)', () => {
+    const res = resolveModelMatrixResolution({ '*': { model: 'gpt-5' } }, 'toString');
+    expect(res?.source).toBe('default');
+    expect(res?.key).toBe('*');
   });
 });

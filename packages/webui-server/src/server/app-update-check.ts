@@ -159,9 +159,38 @@ export function createAppUpdateCheck(options: AppUpdateCheckOptions): AppUpdateC
     },
     start: () => {
       void refresh();
-      const timer = setInterval(() => void refresh(), options.intervalMs ?? 6 * 60 * 60 * 1000);
-      timer.unref?.();
-      return () => clearInterval(timer);
+      const rawInterval = options.intervalMs ?? 6 * 60 * 60 * 1000;
+      const intervalMs =
+        Number.isFinite(rawInterval) && rawInterval > 0 ? rawInterval : 6 * 60 * 60 * 1000;
+      const MAX_TIMEOUT_MS = 2_147_483_647;
+      if (intervalMs <= MAX_TIMEOUT_MS) {
+        const timer = setInterval(() => void refresh(), intervalMs);
+        timer.unref?.();
+        return () => clearInterval(timer);
+      }
+      let stopped = false;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const scheduleChunk = (remaining: number, deadline: number): void => {
+        if (stopped) return;
+        const chunk = Math.min(Math.max(0, remaining), MAX_TIMEOUT_MS);
+        timer = setTimeout(() => {
+          if (stopped) return;
+          const left = deadline - Date.now();
+          if (left > 0) {
+            scheduleChunk(left, deadline);
+            return;
+          }
+          void refresh();
+          scheduleChunk(intervalMs, Date.now() + intervalMs);
+        }, chunk);
+        timer.unref?.();
+      };
+      scheduleChunk(intervalMs, Date.now() + intervalMs);
+      return () => {
+        stopped = true;
+        if (timer) clearTimeout(timer);
+        timer = undefined;
+      };
     },
   };
 }

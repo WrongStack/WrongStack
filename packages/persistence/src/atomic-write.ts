@@ -454,7 +454,7 @@ export function createPersistencePrimitives(
     // cleared before its first tick for any short section, so the common path
     // pays no syscalls. Deferring or raising the floor beyond staleMs/2 would
     // let a long holder go stale before the first refresh and be stolen.)
-    const refreshMs = Math.max(1, Math.floor(staleMs / 2));
+    const refreshMs = Math.min(2_147_483_647, Math.max(1, Math.floor(staleMs / 2)));
     const heartbeat = setInterval(() => {
       const now = new Date();
       // Refresh the file we acquired, even if stale recovery replaced its

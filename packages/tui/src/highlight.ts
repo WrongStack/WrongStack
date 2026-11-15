@@ -517,7 +517,7 @@ const LANG_ALIASES: Record<string, Lang> = {
 /** Map a code-fence info string (```ts, ```bash, …) to a supported Lang. */
 export function detectLang(fenceInfo: string): Lang {
   const tag = fenceInfo.trim().toLowerCase().split(/\s+/)[0] ?? '';
-  return LANG_ALIASES[tag] ?? 'plain';
+  return (Object.hasOwn(LANG_ALIASES, tag) ? LANG_ALIASES[tag] : undefined) ?? 'plain';
 }
 
 /**
@@ -528,5 +528,5 @@ export function detectLang(fenceInfo: string): Lang {
 export function langFromPath(path: string): Lang {
   const m = /\.([A-Za-z0-9]+)$/.exec(path.trim());
   const ext = m?.[1]?.toLowerCase() ?? '';
-  return LANG_ALIASES[ext] ?? 'plain';
+  return (Object.hasOwn(LANG_ALIASES, ext) ? LANG_ALIASES[ext] : undefined) ?? 'plain';
 }

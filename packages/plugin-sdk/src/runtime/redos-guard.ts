@@ -156,32 +156,44 @@ export function withReDoSGuard(
     function armBudget(): void {
       if (settled) return;
       start = Date.now();
-      timer = setTimeout(() => {
+      const MAX_TIMEOUT_MS = 2_147_483_647;
+      const deadline = start + opts.budgetMs;
+      const armChunk = (remaining: number): void => {
         if (settled) return;
-        const elapsedMs = Date.now() - start;
-        // ACTUAL termination: worker.terminate() kills the regex
-        // process. This is the structural fix for the bug class at
-        // `runtime/index.ts:313`. The pooled worker is NOT parked after a
-        // timeout — a runaway pattern dies with its thread; the next call
-        // spawns a fresh worker.
-        worker.terminate().catch(() => {
-          // best-effort: terminate failure is fine, we're already
-          // committed to timing out.
-        });
-        try {
-          opts.onTimeout?.({
-            regex: re,
-            input,
-            budgetMs: opts.budgetMs,
-            elapsedMs,
+        const chunk = Math.min(Math.max(0, remaining), MAX_TIMEOUT_MS);
+        timer = setTimeout(() => {
+          if (settled) return;
+          const left = deadline - Date.now();
+          if (left > 0) {
+            armChunk(left);
+            return;
+          }
+          const elapsedMs = Date.now() - start;
+          // ACTUAL termination: worker.terminate() kills the regex
+          // process. This is the structural fix for the bug class at
+          // `runtime/index.ts:313`. The pooled worker is NOT parked after a
+          // timeout — a runaway pattern dies with its thread; the next call
+          // spawns a fresh worker.
+          worker.terminate().catch(() => {
+            // best-effort: terminate failure is fine, we're already
+            // committed to timing out.
           });
-        } catch {
-          // best-effort: a throwing onTimeout hook must not propagate
-        }
-        settle({ timedOut: true, match: null });
-      }, opts.budgetMs);
-      // Don't keep the process alive solely for this watchdog.
-      (timer as { unref?: () => void }).unref?.();
+          try {
+            opts.onTimeout?.({
+              regex: re,
+              input,
+              budgetMs: opts.budgetMs,
+              elapsedMs,
+            });
+          } catch {
+            // best-effort: a throwing onTimeout hook must not propagate
+          }
+          settle({ timedOut: true, match: null });
+        }, chunk);
+        // Don't keep the process alive solely for this watchdog.
+        (timer as { unref?: () => void }).unref?.();
+      };
+      armChunk(opts.budgetMs);
     }
 
     worker.on('message', onMessage);

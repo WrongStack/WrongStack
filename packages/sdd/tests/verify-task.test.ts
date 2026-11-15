@@ -242,6 +242,18 @@ describe('makeCommandVerifier', () => {
     // On Windows, `cmd` is the executable — skip the assertion since
     // cmd interprets its own args differently.
   });
+
+  it('chunks timeoutMs above 2_147_483_647ms without immediate 1ms timeout', async () => {
+    const verify = makeCommandVerifier({ timeoutMs: 2_147_483_648 });
+    const out = await verify({
+      task: task({
+        verificationCommand: `"${process.execPath}" -e "setTimeout(process.exit, 60)"`,
+      }),
+      result,
+      cwd,
+    });
+    expect(out).toEqual({ ok: true });
+  });
 });
 
 describe('makeCompositeVerifier', () => {

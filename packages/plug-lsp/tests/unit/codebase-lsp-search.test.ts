@@ -392,4 +392,26 @@ describe('createCodebaseLspSearchTool', () => {
       ),
     ).rejects.toThrow(/no persisted codebase index/);
   });
+
+  it('ignores Object.prototype keys when inferring server name from file extension', async () => {
+    const wsSymbol = vi.fn(async () => [
+      {
+        name: 'MySym',
+        kind: 5,
+        location: {
+          uri: 'file:///tmp/foo.constructor',
+          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+        },
+      },
+    ]);
+    const server = makeMockServer({ name: '', workspaceSymbol: wsSymbol });
+    const tool = createCodebaseLspSearchTool(makeDeps([server]));
+
+    const result = await tool.execute(
+      { query: 'MySym' },
+      { projectRoot: '/proj', cwd: '/proj' } as never,
+      { signal: new AbortController().signal } as never,
+    );
+    expect(result).toContain('MySym');
+  });
 });

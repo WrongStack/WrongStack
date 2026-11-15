@@ -10,20 +10,39 @@ export async function promiseWithTimeout<T>(
     throw abortError(signal);
   }
   const safeMs = typeof ms === 'number' && Number.isFinite(ms) && ms > 0 ? ms : 15_000;
+  const MAX_TIMEOUT_MS = 2_147_483_647;
+  const deadline = Date.now() + safeMs;
   let timer: NodeJS.Timeout | undefined;
+  let settled = false;
   return await new Promise<T>((resolve, reject) => {
     const cleanup = () => {
-      clearTimeout(timer!);
+      settled = true;
+      if (timer) clearTimeout(timer);
+      timer = undefined;
       signal?.removeEventListener('abort', onAbort);
     };
     const onAbort = () => {
       cleanup();
       reject(abortError(signal!));
     };
-    timer = setTimeout(() => {
-      cleanup();
-      reject(new LSPError(LSPErrorCode.RequestTimeout, `LSP request timed out after ${safeMs}ms`));
-    }, safeMs);
+    const armTimer = (remaining: number) => {
+      if (settled) return;
+      if (timer) clearTimeout(timer);
+      const chunk = Math.min(Math.max(0, remaining), MAX_TIMEOUT_MS);
+      timer = setTimeout(() => {
+        if (settled) return;
+        const left = deadline - Date.now();
+        if (left > 0) {
+          armTimer(left);
+          return;
+        }
+        cleanup();
+        reject(
+          new LSPError(LSPErrorCode.RequestTimeout, `LSP request timed out after ${safeMs}ms`),
+        );
+      }, chunk);
+    };
+    armTimer(safeMs);
     signal?.addEventListener('abort', onAbort, { once: true });
     promise.then(
       (value) => {

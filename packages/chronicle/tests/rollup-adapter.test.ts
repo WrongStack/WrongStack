@@ -289,4 +289,25 @@ describe('Chronicle rollups', () => {
       samples: 1,
     });
   });
+
+  it('aggregates categories and metrics safely when names match Object.prototype keys', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-rollup-proto-'));
+    dirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
+    const events = new EventBus();
+    const context = createChronicleContext({ installationId: 'i', machineId: 'm' }, 'trace');
+    const off = wireRollupsToChronicle({ events, journal, context, windowMs: 60_000 });
+    events.emit('tool.progress', {
+      sessionId: 's',
+      id: 'tc-proto',
+      name: 'bash',
+      event: { type: 'constructor', bytes: 10 },
+    } as never);
+    off();
+    await journal.flush();
+    const recorded = await journal.readAll();
+    expect(recorded).toHaveLength(1);
+    const attrs = recorded[0]?.attributes as { categories?: Record<string, unknown> } | undefined;
+    expect(attrs?.categories?.['constructor']).toBe(1);
+  });
 });

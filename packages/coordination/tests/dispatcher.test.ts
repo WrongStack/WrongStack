@@ -238,4 +238,13 @@ describe('makeLLMClassifier', () => {
     const out = await classify('x', [{ role: 'test', name: 'Test', summary: 's' }]);
     expect(out).toBeNull();
   });
+
+  it('dispatchAgent ignores Object.prototype role names returned by classifier (F306)', async () => {
+    const res = await dispatchAgent('hello', {
+      catalog: {},
+      classifier: async () => ({ role: 'constructor', confidence: 0.9, reason: 'test' }),
+    });
+    expect(res.role).not.toBe('constructor');
+    expect(typeof res.definition).not.toBe('function');
+  });
 });

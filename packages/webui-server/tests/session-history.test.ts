@@ -1,6 +1,10 @@
 import type { SessionSummary } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
-import { toSessionHistoryEntries, toSessionHistoryEntry } from '../src/server/session-history.js';
+import {
+  buildInspectPayload,
+  toSessionHistoryEntries,
+  toSessionHistoryEntry,
+} from '../src/server/session-history.js';
 
 const summary: SessionSummary = {
   id: '2026-07-14/session-a',
@@ -44,5 +48,29 @@ describe('session history wire projection', () => {
     expect(entry).toEqual({ ...minimal, isCurrent: false });
     expect(entry).not.toHaveProperty('name');
     expect(entry).not.toHaveProperty('outcome');
+  });
+
+  it('aggregates toolBreakdown safely when tool names match Object.prototype keys', () => {
+    const payload = buildInspectPayload(
+      undefined,
+      [
+        {
+          type: 'tool_call_start',
+          ts: '2026-01-01T00:00:00Z',
+          name: 'toString',
+          id: '1',
+          input: {},
+        } as never,
+        {
+          type: 'tool_call_start',
+          ts: '2026-01-01T00:00:01Z',
+          name: 'toString',
+          id: '2',
+          input: {},
+        } as never,
+      ],
+      { id: 's1', title: 't', model: 'm', provider: 'p', startedAt: '2026-01-01T00:00:00Z' },
+    );
+    expect(payload.toolBreakdown['toString']).toBe(2);
   });
 });

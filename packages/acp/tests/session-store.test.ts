@@ -101,6 +101,91 @@ describe('ACPSessionStore', () => {
     expect(loaded?.history).toHaveLength(1);
   });
 
+  // The host's model picker (cli/src/acp-model-option.ts) emits its values as
+  // `SessionConfigSelectGroup` headers, the second legal member of the
+  // `SessionConfigOption.options` union. A reader that only accepted flat
+  // `{value, name}` entries treated every such session as corrupt, so a
+  // restart answered its `session/load` with "session not found".
+  it('round-trips a session whose config option values are grouped by header', async () => {
+    await store.save(
+      fakeState({
+        configOptions: [
+          {
+            id: 'model',
+            name: 'Model',
+            category: 'model',
+            type: 'select',
+            currentValue: 'openai/gpt-x',
+            options: [
+              {
+                group: 'openai',
+                name: 'openai',
+                options: [{ value: 'openai/gpt-x', name: 'GPT X' }],
+              },
+              {
+                group: 'openrouter',
+                name: 'openrouter',
+                options: [{ value: 'openrouter/a/b', name: 'a/b' }],
+              },
+            ],
+          },
+        ],
+      }),
+      [{ sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'hello' } }],
+    );
+
+    const loaded = await store.load('sess_test1');
+    expect(loaded?.configOptions?.[0]?.currentValue).toBe('openai/gpt-x');
+    expect(loaded?.configOptions?.[0]?.options).toEqual([
+      { group: 'openai', name: 'openai', options: [{ value: 'openai/gpt-x', name: 'GPT X' }] },
+      {
+        group: 'openrouter',
+        name: 'openrouter',
+        options: [{ value: 'openrouter/a/b', name: 'a/b' }],
+      },
+    ]);
+    expect(loaded?.history).toHaveLength(1);
+  });
+
+  it('still loads a session whose config option values are flat', async () => {
+    await store.save(
+      fakeState({
+        configOptions: [
+          {
+            id: 'model',
+            name: 'Model',
+            type: 'select',
+            currentValue: 'openai/gpt-x',
+            options: [{ value: 'openai/gpt-x', name: 'GPT X' }],
+          },
+        ],
+      }),
+    );
+    const loaded = await store.load('sess_test1');
+    expect(loaded?.configOptions?.[0]?.options).toEqual([{ value: 'openai/gpt-x', name: 'GPT X' }]);
+  });
+
+  it('treats a malformed config option group as corrupt', async () => {
+    await fsp.writeFile(
+      path.join(dir, 'sess_bad_group.json'),
+      JSON.stringify({
+        ...fakeState({ id: 'sess_bad_group' }),
+        configOptions: [
+          {
+            id: 'model',
+            name: 'Model',
+            type: 'select',
+            currentValue: 'openai/gpt-x',
+            // A group header needs its `group` id and well-formed children.
+            options: [{ name: 'openai', options: [{ value: 7, name: 'X' }] }],
+          },
+        ],
+      }),
+      'utf8',
+    );
+    await expect(store.load('sess_bad_group')).resolves.toBeNull();
+  });
+
   it('returns null when loading a non-existent session', async () => {
     const loaded = await store.load('sess_nope');
     expect(loaded).toBeNull();

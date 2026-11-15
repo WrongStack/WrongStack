@@ -54,7 +54,7 @@ export async function computeReportScopeDrift(
     tracked.map(async (entry) => {
       const target = path.resolve(resolvedRoot, entry.path);
       const rel = path.relative(resolvedRoot, target);
-      if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return;
+      if (!rel || rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) return;
 
       checkedCount++;
       try {

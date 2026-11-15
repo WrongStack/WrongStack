@@ -448,7 +448,7 @@ export function buildInspectPayload(
   let computedProvider = fallback.provider;
   let lastEventType: SessionEvent['type'] | undefined;
   let hadSessionError = false;
-  const computedToolBreakdown: Record<string, number> = {};
+  const computedToolBreakdown: Record<string, number> = Object.create(null);
 
   for (let i = 0; i < events.length; i++) {
     const e = events[i]!;
@@ -472,7 +472,10 @@ export function buildInspectPayload(
       computedFileChangeCount += e.files.length;
     } else if (e.type === 'tool_call_start') {
       computedToolCallCount++;
-      computedToolBreakdown[e.name] = (computedToolBreakdown[e.name] ?? 0) + 1;
+      const current = Object.hasOwn(computedToolBreakdown, e.name)
+        ? (computedToolBreakdown[e.name] ?? 0)
+        : 0;
+      computedToolBreakdown[e.name] = current + 1;
     } else if (e.type === 'tool_result') {
       if (e.isError) computedToolErrorCount++;
     } else if (e.type === 'compaction') {

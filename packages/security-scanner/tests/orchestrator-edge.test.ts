@@ -242,3 +242,41 @@ describe('SecurityScannerOrchestrator - completeWithRetry abort during backoff',
     await expect(promise).rejects.toThrow('Retry backoff aborted');
   });
 });
+
+describe('SecurityScannerOrchestrator - timeoutMs 32-bit overflow guard', () => {
+  it('chunks timeoutMs above 2_147_483_647ms without immediate abort', async () => {
+    const orch = new SecurityScannerOrchestrator();
+    stubGitignore(orch);
+    let abortedDuringRun = false;
+
+    (orch as unknown as { detector: unknown }).detector = {
+      detect: async () => {
+        await new Promise((r) => setTimeout(r, 35));
+        return {
+          detectedStacks: [{ id: 'typescript', name: 'TypeScript', targetFiles: [] }],
+        };
+      },
+    };
+    (orch as unknown as { skillGenerator: unknown }).skillGenerator = {
+      generateSkillLLM: async (
+        _p: unknown,
+        _m: unknown,
+        _r: unknown,
+        _s: unknown,
+        ac: AbortController,
+      ) => {
+        abortedDuringRun = ac.signal.aborted;
+        throw new Error('STOP_EARLY');
+      },
+    };
+
+    await expect(
+      orch.run(fakeProvider(vi.fn()), {
+        projectRoot,
+        skipGitignore: true,
+        timeoutMs: 2_147_483_648,
+      }),
+    ).rejects.toThrow('STOP_EARLY');
+    expect(abortedDuringRun).toBe(false);
+  });
+});

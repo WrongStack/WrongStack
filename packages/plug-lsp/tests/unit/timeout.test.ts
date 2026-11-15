@@ -1,7 +1,7 @@
 /**
  * Unit tests for promiseWithTimeout — promise timeout with AbortSignal support.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { promiseWithTimeout, timeoutCoverage } from '../../src/utils/timeout.js';
 
 describe('promiseWithTimeout', () => {
@@ -81,5 +81,18 @@ describe('promiseWithTimeout', () => {
     expect(timeoutCoverage.abortError({ reason: 'cancelled' } as AbortSignal)).toEqual(
       new Error('aborted'),
     );
+  });
+
+  it('chunks ms > 2^31-1 ms instead of overflowing setTimeout (F309)', async () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+    try {
+      const result = await promiseWithTimeout(Promise.resolve('ok'), 2_147_483_648);
+      expect(result).toBe('ok');
+      const delays = setTimeoutSpy.mock.calls.map((c) => Number(c[1] ?? 0));
+      expect(delays.length).toBeGreaterThan(0);
+      expect(delays.every((d) => d >= 0 && d <= 2_147_483_647)).toBe(true);
+    } finally {
+      setTimeoutSpy.mockRestore();
+    }
   });
 });

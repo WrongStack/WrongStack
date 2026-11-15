@@ -187,17 +187,38 @@ export class ToolTranslator {
   ): Promise<ACPToolCallResponse> {
     if (this.pending.has(callId)) throw new Error(`Tool call id ${callId} is already pending`);
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.pending.delete(callId);
-        reject(new Error(`Tool call ${name} timed out after ${this.opts.totalTimeoutMs}ms`));
-      }, this.opts.totalTimeoutMs);
-
-      const pending = { resolve, reject, timeout };
+      const MAX_TIMEOUT_MS = 2_147_483_647;
+      const totalTimeoutMs = this.opts.totalTimeoutMs ?? DEFAULT_OPTIONS.totalTimeoutMs ?? 300_000;
+      const deadline = Date.now() + totalTimeoutMs;
+      const pending: {
+        resolve: (value: ACPToolCallResponse) => void;
+        reject: (reason?: unknown) => void;
+        timeout: ReturnType<typeof setTimeout>;
+      } = {
+        resolve,
+        reject,
+        timeout: undefined as unknown as ReturnType<typeof setTimeout>,
+      };
       // Register before sending: a local transport can reply synchronously.
       this.pending.set(callId, pending);
+      const armTimeout = (remaining: number): void => {
+        const chunk = Math.min(Math.max(0, remaining), MAX_TIMEOUT_MS);
+        pending.timeout = setTimeout(() => {
+          if (this.pending.get(callId) !== pending) return;
+          const left = deadline - Date.now();
+          if (left > 0) {
+            armTimeout(left);
+            return;
+          }
+          this.pending.delete(callId);
+          reject(new Error(`Tool call ${name} timed out after ${totalTimeoutMs}ms`));
+        }, chunk);
+      };
+      armTimeout(totalTimeoutMs);
+
       const failSend = (err: unknown): void => {
         if (this.pending.get(callId) !== pending) return;
-        clearTimeout(timeout);
+        clearTimeout(pending.timeout);
         this.pending.delete(callId);
         reject(err instanceof Error ? err : new Error(String(err)));
       };

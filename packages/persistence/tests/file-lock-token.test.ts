@@ -117,4 +117,34 @@ describe('S7 / withFileLock — ownership-token release', () => {
       await fs.rm(tmp, { recursive: true, force: true });
     }
   });
+
+  it('clamps heartbeat setInterval delay to 2_147_483_647ms when staleMs exceeds 32-bit range', async () => {
+    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'lock-heartbeat-clamp-'));
+    const target = path.join(tmp, 'state.json');
+    const origSetInterval = globalThis.setInterval;
+    const delays: number[] = [];
+    (globalThis as unknown as { setInterval: typeof setInterval }).setInterval = ((
+      fn: Parameters<typeof setInterval>[0],
+      delay?: number,
+      ...args: unknown[]
+    ) => {
+      delays.push(Number(delay ?? 0));
+      return origSetInterval(fn, delay, ...args);
+    }) as typeof setInterval;
+
+    try {
+      await withFileLock(
+        target,
+        async () => {
+          await new Promise((r) => setTimeout(r, 15));
+        },
+        { staleMs: 60 * 24 * 60 * 60 * 1000 },
+      );
+      expect(delays.length).toBeGreaterThan(0);
+      expect(delays.every((d) => d >= 1 && d <= 2_147_483_647)).toBe(true);
+    } finally {
+      (globalThis as unknown as { setInterval: typeof setInterval }).setInterval = origSetInterval;
+      await fs.rm(tmp, { recursive: true, force: true });
+    }
+  });
 });

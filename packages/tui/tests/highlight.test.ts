@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { detectLang, highlightLine, type HLState, type Lang } from '../src/highlight.js';
+import {
+  detectLang,
+  type HLState,
+  highlightLine,
+  type Lang,
+  langFromPath,
+} from '../src/highlight.js';
 import { softColor } from '../src/theme.js';
 
 const CORPUS: Record<Lang, string[]> = {
@@ -115,6 +121,9 @@ describe('detectLang', () => {
     expect(detectLang('rust')).toBe('plain');
     expect(detectLang('')).toBe('plain');
     expect(detectLang('ts {2,4}')).toBe('ts'); // first token only
+    expect(detectLang('constructor')).toBe('plain');
+    expect(langFromPath('foo.constructor')).toBe('plain');
+    expect(langFromPath('a.tsx')).toBe('ts');
   });
 });
 

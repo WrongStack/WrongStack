@@ -338,16 +338,31 @@ export function makeCommandVerifier(options: CommandVerifierOptions = {}) {
         clearTimeout(closeBackstop);
         resolve(result);
       };
-      const timer = setTimeout(() => {
-        timedOut = true;
-        // Keep the Windows shell alive until taskkill finishes its tree walk,
-        // and do not release the verifier result while it can still write.
-        treeKill(child);
-        if (process.platform === 'win32') {
-          closeBackstop = setTimeout(() => finish(timeoutResult), WIN32_TREE_KILL_BUDGET_MS + 1000);
-          closeBackstop.unref?.();
-        } else finish(timeoutResult);
-      }, timeoutMs);
+      const MAX_TIMEOUT_CHUNK_MS = 2_147_483_647;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let remainingMs = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 0;
+      const scheduleTimeout = () => {
+        const chunkMs = Math.min(remainingMs, MAX_TIMEOUT_CHUNK_MS);
+        remainingMs -= chunkMs;
+        timer = setTimeout(() => {
+          if (remainingMs > 0) {
+            scheduleTimeout();
+            return;
+          }
+          timedOut = true;
+          // Keep the Windows shell alive until taskkill finishes its tree walk,
+          // and do not release the verifier result while it can still write.
+          treeKill(child);
+          if (process.platform === 'win32') {
+            closeBackstop = setTimeout(
+              () => finish(timeoutResult),
+              WIN32_TREE_KILL_BUDGET_MS + 1000,
+            );
+            closeBackstop.unref?.();
+          } else finish(timeoutResult);
+        }, chunkMs);
+      };
+      scheduleTimeout();
       child.on('exit', (code) => {
         clearTimeout(timer);
         // Don't overwrite the timeout reason once the timer has fired.

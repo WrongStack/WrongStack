@@ -65,10 +65,16 @@ export function resolveModelMatrixResolution(
   role: string | undefined,
 ): ModelMatrixResolution | undefined {
   if (!matrix) return undefined;
-  if (role && matrix[role]) return { entry: matrix[role], source: 'role', key: role };
+  if (role && Object.hasOwn(matrix, role) && matrix[role]) {
+    return { entry: matrix[role], source: 'role', key: role };
+  }
   const phase = phaseForRole(role);
-  if (phase && matrix[phase]) return { entry: matrix[phase], source: 'phase', key: phase };
-  if (matrix['*']) return { entry: matrix['*'], source: 'default', key: '*' };
+  if (phase && Object.hasOwn(matrix, phase) && matrix[phase]) {
+    return { entry: matrix[phase], source: 'phase', key: phase };
+  }
+  if (Object.hasOwn(matrix, '*') && matrix['*']) {
+    return { entry: matrix['*'], source: 'default', key: '*' };
+  }
   return undefined;
 }
 

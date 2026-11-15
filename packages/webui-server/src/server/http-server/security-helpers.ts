@@ -204,9 +204,12 @@ export function buildCspHeader(
 }
 
 export function isInsideDist(candidate: string, distDir: string): boolean {
-  const root = path.resolve(distDir);
-  const resolved = path.resolve(candidate);
-  return resolved === root || resolved.startsWith(root + path.sep);
+  const norm = (p: string): string =>
+    process.platform === 'win32' ? path.resolve(p).toLowerCase() : path.resolve(p);
+  const root = norm(distDir);
+  const resolved = norm(candidate);
+  const prefix = root.endsWith(path.sep) ? root : root + path.sep;
+  return resolved === root || resolved.startsWith(prefix);
 }
 
 /**

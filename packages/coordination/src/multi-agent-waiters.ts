@@ -9,6 +9,36 @@ export interface AwaitTasksParams {
   opts?: { timeoutMs?: number | undefined } | undefined;
 }
 
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
+function armCappedTimeout(delayMs: number, onExpire: () => void): () => void {
+  if (delayMs === Number.POSITIVE_INFINITY) return () => {};
+  const safeDelay = Number.isFinite(delayMs) && delayMs > 0 ? delayMs : 0;
+  const deadline = Date.now() + safeDelay;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let cancelled = false;
+  const arm = (remaining: number): void => {
+    if (cancelled) return;
+    if (timer) clearTimeout(timer);
+    const chunk = Math.min(Math.max(0, remaining), MAX_TIMEOUT_MS);
+    timer = setTimeout(() => {
+      if (cancelled) return;
+      const left = deadline - Date.now();
+      if (left > 0) {
+        arm(left);
+        return;
+      }
+      onExpire();
+    }, chunk);
+  };
+  arm(safeDelay);
+  return () => {
+    cancelled = true;
+    if (timer) clearTimeout(timer);
+    timer = undefined;
+  };
+}
+
 export async function awaitCoordinatorTasks(params: AwaitTasksParams): Promise<TaskResult[]> {
   const { emitter, taskIds, completedResultsById, defaultTimeoutMs, opts } = params;
   const timeoutMs = opts?.timeoutMs ?? defaultTimeoutMs ?? 300_000;
@@ -17,13 +47,13 @@ export async function awaitCoordinatorTasks(params: AwaitTasksParams): Promise<T
       const cached = completedResultsById.get(id);
       if (cached) return cached;
       return new Promise<TaskResult>((resolve, reject) => {
-        const timeout = setTimeout(() => {
+        const cancelTimeout = armCappedTimeout(timeoutMs, () => {
           emitter.off('task.completed', handler);
           reject(new Error(`awaitTasks timed out waiting for task "${id}"`));
-        }, timeoutMs);
+        });
         const handler = ({ result }: { task: TaskSpec; result: TaskResult }) => {
           if (result.taskId === id) {
-            clearTimeout(timeout);
+            cancelTimeout();
             emitter.off('task.completed', handler);
             resolve(result);
           }
@@ -56,10 +86,10 @@ export async function awaitCoordinatorTasksAny(
   }
   const ids = new Set(taskIds);
   return new Promise<AwaitAnyResult>((resolve) => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    let cancelTimeout: (() => void) | undefined;
     const handler = ({ result }: { task: TaskSpec; result: TaskResult }) => {
       if (!ids.has(result.taskId)) return;
-      if (timer) clearTimeout(timer);
+      cancelTimeout?.();
       emitter.off('task.completed', handler);
       resolve({
         completed: [result],
@@ -67,10 +97,10 @@ export async function awaitCoordinatorTasksAny(
       });
     };
     if (opts?.timeoutMs !== undefined) {
-      timer = setTimeout(() => {
+      cancelTimeout = armCappedTimeout(opts.timeoutMs, () => {
         emitter.off('task.completed', handler);
         resolve({ completed: [], pending: [...taskIds], timedOut: true });
-      }, opts.timeoutMs);
+      });
     }
     emitter.on('task.completed', handler);
   });

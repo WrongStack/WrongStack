@@ -52,13 +52,21 @@ export async function handleStaticFileRequest(
     return;
   }
 
-  const ext = path.extname(resolvedPath);
+  const realDistDir = await fs.realpath(distDir);
+  const realTarget = await fs.realpath(resolvedPath);
+  if (!isInsideDist(realTarget, realDistDir)) {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    res.end('Forbidden');
+    return;
+  }
+
+  const ext = path.extname(realTarget);
   const contentType = MIME_TYPES[ext] ?? 'application/octet-stream';
   res.setHeader('Content-Type', contentType);
   setStaticSecurityHeaders(res);
 
   if (ext === '.html') {
-    const html = injectWsConfig(await fs.readFile(resolvedPath, 'utf8'), {
+    const html = injectWsConfig(await fs.readFile(realTarget, 'utf8'), {
       publicWsUrl: opts.publicWsUrl,
     });
     if (!shouldSetAuthCookie) res.setHeader('Cache-Control', 'no-cache');
@@ -79,7 +87,7 @@ export async function handleStaticFileRequest(
         : 'public, max-age=3600',
     );
   }
-  const fileContent = await fs.readFile(resolvedPath);
+  const fileContent = await fs.readFile(realTarget);
   res.writeHead(200);
   res.end(fileContent);
 }

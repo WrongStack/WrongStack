@@ -63,22 +63,42 @@ function isNamedValueList(value: unknown): boolean {
   );
 }
 
+/**
+ * One selectable value of a config option: a flat `{value, name}` entry or a
+ * grouped `{group, name, options}` header. Both are legal members of the
+ * `SessionConfigOption.options` union (`protocol-contract.ts`), and the host's
+ * model picker emits the grouped form, so a reader that only accepted the flat
+ * spelling rejected every session saved with a grouped picker.
+ */
+function isConfigSelectEntry(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  if (typeof value['name'] !== 'string') return false;
+  if (value['description'] !== undefined && typeof value['description'] !== 'string') return false;
+  if (Array.isArray(value['options'])) {
+    return (
+      typeof value['group'] === 'string' &&
+      value['options'].every((option) => isRecord(option) && isFlatSelectOption(option))
+    );
+  }
+  return isFlatSelectOption(value);
+}
+
+/** A single selectable value, never a group. */
+function isFlatSelectOption(value: Record<string, unknown>): boolean {
+  return (
+    typeof value['value'] === 'string' &&
+    typeof value['name'] === 'string' &&
+    (value['description'] === undefined || typeof value['description'] === 'string')
+  );
+}
+
 /** `SessionConfigOption` as the client advertises it back on `session/load`. */
 function isConfigOption(value: unknown): value is SessionConfigOption {
   if (!isRecord(value)) return false;
   if (typeof value['id'] !== 'string' || typeof value['name'] !== 'string') return false;
   if (typeof value['type'] !== 'string' || typeof value['currentValue'] !== 'string') return false;
   const options = value['options'];
-  return (
-    Array.isArray(options) &&
-    options.every(
-      (option) =>
-        isRecord(option) &&
-        typeof option['value'] === 'string' &&
-        typeof option['name'] === 'string' &&
-        (option['description'] === undefined || typeof option['description'] === 'string'),
-    )
-  );
+  return Array.isArray(options) && options.every(isConfigSelectEntry);
 }
 
 function isConfigOptionList(value: unknown): value is SessionConfigOption[] {

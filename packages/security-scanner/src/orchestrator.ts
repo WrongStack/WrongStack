@@ -123,8 +123,21 @@ export class SecurityScannerOrchestrator {
       if (externalSignal) {
         externalSignal.addEventListener('abort', onAbort, { once: true });
       }
-      if (timeoutMs) {
-        timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
+      if (timeoutMs && Number.isFinite(timeoutMs) && timeoutMs > 0) {
+        const MAX_TIMEOUT_CHUNK_MS = 2_147_483_647;
+        let remainingMs = timeoutMs;
+        const scheduleTimeoutChunk = () => {
+          const chunkMs = Math.min(remainingMs, MAX_TIMEOUT_CHUNK_MS);
+          remainingMs -= chunkMs;
+          timeoutId = setTimeout(() => {
+            if (remainingMs > 0) {
+              scheduleTimeoutChunk();
+            } else {
+              abortController.abort();
+            }
+          }, chunkMs);
+        };
+        scheduleTimeoutChunk();
       }
     }
 

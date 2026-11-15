@@ -49,11 +49,18 @@ export function createSymbolsTool(deps: ToolDeps): Tool<Input, string> {
 function formatSymbols(symbols: DocumentSymbol[] | SymbolInformation[] | null): string {
   if (!symbols?.length) return 'No document symbols.';
   const lines: string[] = [];
+  const visited = new Set<DocumentSymbol>();
   const visit = (symbol: DocumentSymbol, depth: number) => {
-    lines.push(
-      `${'  '.repeat(depth)}${symbol.name} [${symbol.kind}] line ${symbol.selectionRange.start.line + 1}`,
-    );
-    for (const child of symbol.children ?? []) visit(child, depth + 1);
+    if (visited.has(symbol)) return;
+    visited.add(symbol);
+    try {
+      lines.push(
+        `${'  '.repeat(depth)}${symbol.name} [${symbol.kind}] line ${symbol.selectionRange.start.line + 1}`,
+      );
+      for (const child of symbol.children ?? []) visit(child, depth + 1);
+    } finally {
+      visited.delete(symbol);
+    }
   };
   for (const symbol of symbols) {
     if ('selectionRange' in symbol) visit(symbol, 0);

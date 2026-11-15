@@ -209,7 +209,7 @@ export function seedContextMeta(config: Config, context: { meta: Record<string, 
   {
     const pluginsEnabled: Record<string, boolean> = {};
     const record = (name: string): void => {
-      if (FORBIDDEN_PROTO_KEYS.has(name) || name in pluginsEnabled) return;
+      if (FORBIDDEN_PROTO_KEYS.has(name) || Object.hasOwn(pluginsEnabled, name)) return;
       pluginsEnabled[name] = resolvePluginEnablement({ name, config }).enabled;
     };
     for (const entry of config.plugins ?? []) {

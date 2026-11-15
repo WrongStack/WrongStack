@@ -286,13 +286,32 @@ async function* runRgStream(
   }
   if (input.glob) {
     const g = input.glob.trim();
-    if (g.startsWith('!') || g.startsWith('**/') || g.startsWith('*')) {
+    // A glob CONTAINING a separator is anchored to the search root: the native
+    // walker tests it against the base-relative path, and rg anchors a slashed
+    // glob to its working directory — which is why this child is spawned with
+    // `cwd` set to that root below. Prefixing `**/` here instead rewrote
+    // `src/**` into "any src directory at any depth": `glob: 'src/**'` went
+    // from 1 file to 6764 in this repo, searching every package's `src` tree,
+    // and the answer depended on whether ripgrep was installed. Only a bare,
+    // separator-free filename pattern (`*.ts`, `index.ts`) is unanchored and
+    // gets the prefix, keeping "match at any depth" for those.
+    if (g.startsWith('!') || g.startsWith('*') || g.includes('/')) {
       args.push('--glob', g);
     } else {
       args.push('--glob', `**/${g}`);
     }
   }
   args.push('--', input.pattern, base);
+
+  // rg anchors a slashed `--glob` to its WORKING DIRECTORY, not to the search
+  // path, so run it inside the search root. Without this, `glob: 'src/**'`
+  // resolved against the agent's process cwd and missed everything whenever the
+  // searched tree was not the cwd — the reason the old code prefixed `**/` and
+  // silently widened the filter instead.
+  const rgCwd = await fs.stat(base).then(
+    (stat) => (stat.isDirectory() ? base : path.dirname(base)),
+    () => base,
+  );
 
   const matches: string[] = [];
   let buf = '';
@@ -308,6 +327,7 @@ async function* runRgStream(
   let bufOverflow = false;
 
   const child = spawn('rg', args, {
+    cwd: rgCwd,
     signal,
     env: buildChildEnv(),
     // rg diagnostics are not part of the tool result. Ignoring stderr avoids

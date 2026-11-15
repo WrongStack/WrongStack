@@ -173,7 +173,7 @@ export async function resolveHostSubagentSkillResolution(
     const developed = new Set(listProjectSkillAugmentations(role, deps.projectRoot));
     for (const skillName of ranked) {
       if (!developed.has(skillName) || loadable.some((item) => item.name === skillName)) continue;
-      let reason = dropped[skillName];
+      let reason = Object.hasOwn(dropped, skillName) ? dropped[skillName] : undefined;
       if (!reason && !examined.has(skillName)) {
         const outcome = await inspect(skillName);
         if ('reason' in outcome) reason = outcome.reason;
