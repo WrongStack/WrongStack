@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Clamp or chunk timer delays above the 32-bit `setTimeout` limit across the
+  client, providers, coordination, Kanban, bench, WebUI, WrongTrace and Core,
+  so long timeouts no longer fire after 1 ms.
+- Resolve symlinked ancestors of paths that do not exist yet, and reject
+  Windows drive-relative paths and traversing agent prompt ids, so path guards
+  cannot be escaped through a missing leaf.
+- Look up user-named sessions, skills, labels and suites without resolving
+  `Object.prototype` members such as `toString` or `constructor`.
+- Treat malformed JSON, a JSON `null` auth file and empty process lists or
+  GitHub bodies as domain errors or documented fallbacks instead of crashes.
+- Release ACP sessions created during a refused mode handshake or confirmed
+  after the caller stopped waiting, without closing resumed sessions.
+- Retry the linter probe after a failure and keep one failed gate-counter
+  write from failing every later call.
+- Reject tool runs whose abort signal fired before they started.
+
 ## [1.7.3] — 2026-11-15
 
 After an update, nothing from the previous release keeps serving in the
