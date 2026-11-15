@@ -465,13 +465,16 @@ export class MailboxProjectServerConnection {
     if (encoded.length > MAILBOX_PROJECT_SERVER_MAX_FRAME_CHARS) {
       return Promise.reject(new Error('Mailbox project server request exceeded frame limit'));
     }
+    const safeTimeoutMs = Number.isFinite(timeoutMs)
+      ? Math.max(0, Math.min(2_147_483_647, timeoutMs))
+      : 0;
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         const pending = this.pending.get(id);
         if (!pending) return;
         this.pending.delete(id);
         pending.reject(new Error(`Mailbox ${message.type} exceeded its ${timeoutMs}ms timeout`));
-      }, timeoutMs);
+      }, safeTimeoutMs);
       timer.unref?.();
       this.pending.set(id, { resolve, reject, timer });
       try {

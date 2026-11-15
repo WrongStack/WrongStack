@@ -108,4 +108,15 @@ describe('Kanban client request lifecycle', () => {
     await expect(connection.request('ping', {})).rejects.toBe(failure);
     expect(state.pending.size).toBe(0);
   });
+
+  it('clamps timeoutMs above 32-bit signed max instead of firing immediately (F364)', async () => {
+    const { connection, state } = await connect();
+    const pending = connection.request('ping', {}, { timeoutMs: 3_000_000_000 });
+    await new Promise<void>((resolve) => setTimeout(resolve, 25));
+    const id = state.pending.keys().next().value;
+    expect(id).toBeDefined();
+    state.socket.emit('data', `${JSON.stringify({ id, ok: true, result: { pong: true } })}\n`);
+    await expect(pending).resolves.toEqual({ pong: true });
+    expect(state.pending.size).toBe(0);
+  });
 });

@@ -157,4 +157,18 @@ describe('createMcpTransport', () => {
       process.off('unhandledRejection', onUnhandled);
     }
   });
+
+  it('clamps timeoutMs above 2_147_483_647 ms so slow handlers are not resolved null in 1ms', async () => {
+    const transport = createMcpTransport(
+      {
+        acquire_file_lock: async () => {
+          await new Promise((r) => setTimeout(r, 25));
+          return { acquired: true };
+        },
+      } as never,
+      3_000_000_000,
+    );
+    const res = await transport.invoke<{ acquired: boolean }>('acquire_file_lock' as never, {});
+    expect(res).toEqual({ acquired: true });
+  });
 });

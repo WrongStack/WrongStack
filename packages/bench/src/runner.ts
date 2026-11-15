@@ -103,10 +103,22 @@ export async function runWstack(opts: RunWstackOptions): Promise<RawRun> {
     let timedOut = false;
     let settled = false;
 
-    const timer = setTimeout(() => {
-      timedOut = true;
-      treeKill(child);
-    }, opts.timeoutMs);
+    const MAX_TIMEOUT_CHUNK_MS = 2_147_483_647;
+    let remainingMs = Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0 ? opts.timeoutMs : 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const scheduleTimeout = () => {
+      const chunkMs = Math.min(remainingMs, MAX_TIMEOUT_CHUNK_MS);
+      remainingMs -= chunkMs;
+      timer = setTimeout(() => {
+        if (remainingMs > 0) {
+          scheduleTimeout();
+          return;
+        }
+        timedOut = true;
+        treeKill(child);
+      }, chunkMs);
+    };
+    scheduleTimeout();
     const onAbort = () => treeKill(child);
     if (opts.signal?.aborted) onAbort();
     else opts.signal?.addEventListener('abort', onAbort, { once: true });

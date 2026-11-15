@@ -196,8 +196,9 @@ export class LearningOptimizationScheduler {
   }
 
   private schedule(fn: () => void, ms: number): NodeJS.Timeout {
-    if (this.opts.scheduleTimer) return this.opts.scheduleTimer(fn, ms);
-    const handle = setTimeout(fn, ms);
+    const safeMs = Number.isFinite(ms) ? Math.min(Math.max(0, ms), 2_147_483_647) : 2_147_483_647;
+    if (this.opts.scheduleTimer) return this.opts.scheduleTimer(fn, safeMs);
+    const handle = setTimeout(fn, safeMs);
     // A pending optimization must never hold the process open on exit.
     handle.unref?.();
     return handle;

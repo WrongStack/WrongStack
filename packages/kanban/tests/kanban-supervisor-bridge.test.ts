@@ -71,4 +71,23 @@ describe('bridgeKanbanSupervisor', () => {
     await vi.advanceTimersByTimeAsync(50);
     expect(clientMock.getKanbanServerConnection).toHaveBeenCalledTimes(2);
   });
+
+  it('clamps reconnectDelayMs above 32-bit signed max instead of reconnecting in 1ms (F365)', async () => {
+    const first = new FakeConnection();
+    const second = new FakeConnection();
+    clientMock.getKanbanServerConnection.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+    const onConnected = vi.fn();
+
+    const dispose = bridgeKanbanSupervisor('C:\\project', vi.fn(), {
+      reconnectDelayMs: 3_000_000_000,
+      onConnected,
+    });
+    await vi.waitFor(() => expect(onConnected).toHaveBeenCalledTimes(1));
+
+    first.disconnect();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(clientMock.getKanbanServerConnection).toHaveBeenCalledTimes(1);
+
+    dispose();
+  });
 });

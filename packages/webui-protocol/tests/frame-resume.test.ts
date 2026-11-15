@@ -337,4 +337,18 @@ describe('FrameResume', () => {
     expect(resume.gate.isResuming('s2')).toBe(false);
     expect(texts(applied)).toContain('b4-held');
   });
+
+  it('clamps timeoutMs above 2_147_483_647 ms so resume does not release early', () => {
+    vi.useFakeTimers();
+    const applied: Frame[] = [];
+    const resume = new FrameResume<Frame>((frames) => applied.push(...frames), 3_000_000_000);
+    resume.gate.adoptEpoch('e1');
+    resume.gate.accept(f(1, 's1'));
+    resume.request(['s1']);
+    resume.gate.accept(f(3, 's1', 'held'));
+    vi.advanceTimersByTime(100);
+    expect(resume.gate.isResuming('s1')).toBe(true);
+    expect(applied).toEqual([]);
+    resume.onFramesResumed({ type: 'session.frames_resumed', payload: { sessionId: 's1' } });
+  });
 });

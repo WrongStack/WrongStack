@@ -81,10 +81,22 @@ export function openSocket(
     const early: Frame[] = [];
     const timeoutMs =
       Number.isFinite(options.timeoutMs) && options.timeoutMs > 0 ? options.timeoutMs : 15_000;
-    const timer = setTimeout(() => {
-      fail(new WrongStackError({ kind: 'timeout', code: 'connect', retryable: true }));
-      socket.close();
-    }, timeoutMs);
+    const MAX_TIMEOUT_CHUNK_MS = 2_147_483_647;
+    let remainingMs = timeoutMs;
+    let timer: ReturnType<typeof setTimeout>;
+    const scheduleConnectTimeout = () => {
+      const chunkMs = Math.min(remainingMs, MAX_TIMEOUT_CHUNK_MS);
+      remainingMs -= chunkMs;
+      timer = setTimeout(() => {
+        if (remainingMs > 0) {
+          scheduleConnectTimeout();
+          return;
+        }
+        fail(new WrongStackError({ kind: 'timeout', code: 'connect', retryable: true }));
+        socket.close();
+      }, chunkMs);
+    };
+    scheduleConnectTimeout();
     const fail = (error: WrongStackError): void => {
       settled = true;
       clearTimeout(timer);

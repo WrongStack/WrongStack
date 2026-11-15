@@ -203,15 +203,26 @@ export class WrongMemoryClient {
     if (this.failure) return Promise.reject(this.failure);
     if (this.frames.length > 0) return Promise.resolve(this.frames.shift());
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.waiter = undefined;
-        // A late reply would desynchronize request/response pairing, and a
-        // timed-out mutation may still commit: drop the connection and let
-        // the caller retry with the same idempotency key.
-        const err = new WrongMemoryError('DEADLINE_EXCEEDED', `no response within ${timeoutMs} ms`, true);
-        this.fail(err);
-        reject(err);
-      }, timeoutMs);
+      const MAX_TIMEOUT_CHUNK_MS = 2_147_483_647;
+      let remainingMs = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 0;
+      let timer: ReturnType<typeof setTimeout>;
+      const scheduleTimeout = () => {
+        const chunkMs = Math.min(remainingMs, MAX_TIMEOUT_CHUNK_MS);
+        remainingMs -= chunkMs;
+        timer = setTimeout(() => {
+          if (remainingMs > 0) {
+            scheduleTimeout();
+            return;
+          }
+          this.waiter = undefined;
+          // A late reply would desynchronize request/response pairing, and a
+          // timed-out mutation may still commit: drop the connection and let
+          // the caller retry with the same idempotency key.
+          const err = new WrongMemoryError('DEADLINE_EXCEEDED', `no response within ${timeoutMs} ms`, true);
+          this.fail(err);
+          reject(err);
+        }, chunkMs);
+      };
       this.waiter = {
         resolve: (v) => {
           clearTimeout(timer);
@@ -222,6 +233,7 @@ export class WrongMemoryClient {
           reject(e);
         },
       };
+      scheduleTimeout();
     });
   }
 
@@ -249,6 +261,9 @@ export class WrongMemoryClient {
 function openPipe(endpoint: string, timeoutMs: number): Promise<Socket> {
   return new Promise((resolve, reject) => {
     const socket = createConnection(endpoint);
+    const MAX_TIMEOUT_CHUNK_MS = 2_147_483_647;
+    let remainingMs = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 0;
+    let timer: ReturnType<typeof setTimeout>;
     const cleanup = () => {
       clearTimeout(timer);
       socket.removeListener('connect', onConnect);
@@ -262,11 +277,20 @@ function openPipe(endpoint: string, timeoutMs: number): Promise<Socket> {
       cleanup();
       reject(new WrongMemoryError('UNAVAILABLE', `cannot open ${endpoint}: ${e.message}`));
     };
-    const timer = setTimeout(() => {
-      cleanup();
-      socket.destroy();
-      reject(new WrongMemoryError('UNAVAILABLE', `cannot open ${endpoint}: timeout`));
-    }, timeoutMs);
+    const scheduleConnectTimeout = () => {
+      const chunkMs = Math.min(remainingMs, MAX_TIMEOUT_CHUNK_MS);
+      remainingMs -= chunkMs;
+      timer = setTimeout(() => {
+        if (remainingMs > 0) {
+          scheduleConnectTimeout();
+          return;
+        }
+        cleanup();
+        socket.destroy();
+        reject(new WrongMemoryError('UNAVAILABLE', `cannot open ${endpoint}: timeout`));
+      }, chunkMs);
+    };
+    scheduleConnectTimeout();
     socket.once('connect', onConnect);
     socket.once('error', onError);
   });

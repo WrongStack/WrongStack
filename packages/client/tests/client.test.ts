@@ -1376,4 +1376,62 @@ describe('createHttpClient', () => {
     await expect(nextP).resolves.toMatchObject({ sessionId: 's2' });
     client.close();
   });
+
+  it('chunks openSocket timeoutMs above 2_147_483_647ms without immediate 1ms timeout', async () => {
+    const { openSocket } = await import('../src/connection.js');
+    const origSetTimeout = globalThis.setTimeout;
+    const delays: number[] = [];
+    (globalThis as unknown as { setTimeout: typeof setTimeout }).setTimeout = ((
+      fn: Parameters<typeof setTimeout>[0],
+      delay?: number,
+      ...args: unknown[]
+    ) => {
+      delays.push(Number(delay ?? 0));
+      return origSetTimeout(fn, delay, ...args);
+    }) as typeof setTimeout;
+
+    class FakeSocket {
+      static OPEN = 1;
+      readyState = 0;
+      listeners = new Map<string, Array<(...args: unknown[]) => void>>();
+      addEventListener(type: string, fn: (...args: unknown[]) => void) {
+        const list = this.listeners.get(type) ?? [];
+        list.push(fn);
+        this.listeners.set(type, list);
+      }
+      close() {}
+      send() {}
+    }
+
+    try {
+      let timedOutEarly = false;
+      let sockRef: FakeSocket | undefined;
+      const openPromise = openSocket(
+        FakeSocket as never,
+        {
+          url: 'ws://127.0.0.1:1',
+          token: 'tok',
+          timeoutMs: 2_147_483_648,
+          onSocket: (s) => {
+            sockRef = s as unknown as FakeSocket;
+          },
+        },
+        { onFrame: () => {}, onClose: () => {} },
+      ).catch((err: { kind?: string }) => {
+        if (err?.kind === 'timeout') timedOutEarly = true;
+      });
+
+      await new Promise((r) => origSetTimeout(r, 25));
+      if (sockRef) {
+        for (const fn of sockRef.listeners.get('close') ?? []) {
+          fn({ wasClean: false, code: 1006, reason: '' });
+        }
+      }
+      await openPromise;
+      expect(timedOutEarly).toBe(false);
+      expect(delays.every((d) => d >= 0 && d <= 2_147_483_647)).toBe(true);
+    } finally {
+      (globalThis as unknown as { setTimeout: typeof setTimeout }).setTimeout = origSetTimeout;
+    }
+  });
 });

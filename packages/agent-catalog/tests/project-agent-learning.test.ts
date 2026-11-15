@@ -1042,4 +1042,35 @@ describe('non-Latin directives', () => {
     expect(llmCalls).toBe(0);
     expect(res.status).toBe('failed');
   });
+
+  it('clamps timeoutMs above 2_147_483_647 ms so setTimeout does not overflow to 1ms', async () => {
+    captureLearnedFromAgentOutputDetailed(
+      'Done.\n\n## LEARNED\n- [skill:testing] Always validate input parameters before querying SQLite.\n- [skill:debugging] Always close temporary database handles in a finally block.',
+      'executor',
+      projectRoot,
+    );
+    const res = await optimizeProjectAgentLearning('executor', projectRoot, {
+      timeoutMs: 3_000_000_000,
+      llm: {
+        model: 'test-model',
+        provider: {
+          complete: async (_req: unknown, opts?: { signal?: AbortSignal }) => {
+            await new Promise((r) => setTimeout(r, 30));
+            if (opts?.signal?.aborted) {
+              throw opts.signal.reason ?? new Error('aborted');
+            }
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: '# Distilled\n- Always validate input parameters before querying SQLite.',
+                },
+              ],
+            };
+          },
+        } as never,
+      },
+    });
+    expect(res.status).toBe('optimized');
+  });
 });

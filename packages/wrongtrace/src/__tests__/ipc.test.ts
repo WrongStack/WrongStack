@@ -509,4 +509,17 @@ describe('createWrongTraceClient() IPC-first routing', () => {
     expect(res).toMatchObject({ ok: true, status: 'locked' });
     expect(lockOverHttp).toBe(true);
   });
+
+  it('clamps connectTimeoutMs and readTimeoutMs above 2_147_483_647 ms', async () => {
+    const server = startRpcServer((_method, _params, id) =>
+      JSON.stringify({ jsonrpc: '2.0', id, result: { ok: true } }),
+    );
+    servers.push(server);
+    const ipc = createIpcTransport(server.path, {
+      connectTimeoutMs: 3_000_000_000,
+      readTimeoutMs: 3_000_000_000,
+    });
+    const res = await ipc.call<{ ok: boolean }>('telemetry/file_health', {});
+    expect(res.result).toEqual({ ok: true });
+  });
 });

@@ -152,10 +152,10 @@ export class ApprovalFlow {
     if (this.callbackWaiters.has(input.requestId))
       throw new Error(`Telegram approval request ${input.requestId} is already pending.`);
     return new Promise((resolve) => {
-      const delayMs = Math.max(0, input.expiresAt - Date.now());
-      const timer = setTimeout(() => {
-        this.settleApproval(input.requestId, 'expired', { approved: false, fromUser: 'timeout' });
-      }, delayMs);
+      const MAX_TIMEOUT_CHUNK_MS = 2_147_483_647;
+      let remainingMs = Number.isFinite(input.expiresAt)
+        ? Math.max(0, input.expiresAt - Date.now())
+        : 0;
       const request: TelegramApprovalRequest = {
         requestId: input.requestId,
         sessionId: input.sessionId,
@@ -166,9 +166,21 @@ export class ApprovalFlow {
         expiresAt: input.expiresAt,
         state: 'pending',
         resolve,
-        timer,
+        timer: undefined as unknown as ReturnType<typeof setTimeout>,
         signal: input.signal,
       };
+      const scheduleExpiration = () => {
+        const chunkMs = Math.min(remainingMs, MAX_TIMEOUT_CHUNK_MS);
+        remainingMs -= chunkMs;
+        request.timer = setTimeout(() => {
+          if (remainingMs > 0) {
+            scheduleExpiration();
+            return;
+          }
+          this.settleApproval(input.requestId, 'expired', { approved: false, fromUser: 'timeout' });
+        }, chunkMs);
+      };
+      scheduleExpiration();
       if (input.signal)
         request.abortHandler = () => {
           this.settleApproval(input.requestId, 'cancelled', {

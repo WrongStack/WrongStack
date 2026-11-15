@@ -103,6 +103,10 @@ async function complete(
     ...(options.maxTokens !== undefined ? { maxTokens: options.maxTokens } : {}),
   };
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const MAX_TIMEOUT_MS = 2_147_483_647;
+  const timerDelayMs = Number.isFinite(timeoutMs)
+    ? Math.min(Math.max(0, timeoutMs), MAX_TIMEOUT_MS)
+    : MAX_TIMEOUT_MS;
   if (options.signal?.aborted) {
     throw options.signal.reason instanceof Error
       ? options.signal.reason
@@ -113,7 +117,7 @@ async function complete(
   const timer = setTimeout(() => {
     timedOut = true;
     controller.abort(new Error('optimization timeout'));
-  }, timeoutMs);
+  }, timerDelayMs);
   timer.unref?.();
   const onOuterAbort = () => controller.abort(options.signal?.reason);
   options.signal?.addEventListener('abort', onOuterAbort, { once: true });

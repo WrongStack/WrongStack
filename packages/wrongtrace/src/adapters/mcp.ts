@@ -62,6 +62,9 @@ export function createMcpTransport(
       if (!Object.hasOwn(tools, tool)) return null;
       const handler = tools[tool];
       if (!handler) return null;
+      const safeTimeoutMs = Number.isFinite(timeoutMs)
+        ? Math.min(Math.max(0, timeoutMs), 2_147_483_647)
+        : 2_147_483_647;
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         // Bound the await: a handler that never settles must resolve null
@@ -71,7 +74,7 @@ export function createMcpTransport(
         return (await Promise.race([
           handler(args),
           new Promise<null>((resolve) => {
-            timer = setTimeout(() => resolve(null), timeoutMs);
+            timer = setTimeout(() => resolve(null), safeTimeoutMs);
           }),
         ])) as T;
       } catch {

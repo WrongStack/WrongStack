@@ -99,11 +99,17 @@ export function createIpcTransport(socketPath?: string, timeouts?: IpcTimeouts):
         clearTimeout(timer);
         sock.destroy();
       };
+      const safeConnectMs = Number.isFinite(connectTimeoutMs)
+        ? Math.min(Math.max(0, connectTimeoutMs), 2_147_483_647)
+        : 2_147_483_647;
+      const safeReadMs = Number.isFinite(readTimeoutMs)
+        ? Math.min(Math.max(0, readTimeoutMs), 2_147_483_647)
+        : 2_147_483_647;
       try {
         await Promise.race([
           once(sock, 'connect'),
           new Promise<never>((_, reject) => {
-            timer = setTimeout(() => reject(new TimeoutError(connectTimeoutMs)), connectTimeoutMs);
+            timer = setTimeout(() => reject(new TimeoutError(connectTimeoutMs)), safeConnectMs);
           }),
         ]);
         clearTimeout(timer);
@@ -112,7 +118,7 @@ export function createIpcTransport(socketPath?: string, timeouts?: IpcTimeouts):
         const payload = `${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`;
         sock.write(payload);
 
-        timer = setTimeout(() => sock.destroy(new TimeoutError(readTimeoutMs)), readTimeoutMs);
+        timer = setTimeout(() => sock.destroy(new TimeoutError(readTimeoutMs)), safeReadMs);
 
         // Line-buffered frame reader: accumulate until the newline-delimited
         // frame carrying our response arrives. Junk/partial lines are skipped,

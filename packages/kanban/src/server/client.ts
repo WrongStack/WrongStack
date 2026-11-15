@@ -418,11 +418,15 @@ class KanbanServerConnection {
     const encoded = JSON.stringify(frame) + '\n';
     const socket = this.socket;
     if (this.destroyed || !socket || socket.destroyed) throw new Error('Connection closed');
+    const rawTimeoutMs = opts.timeoutMs ?? REQUEST_TIMEOUT_MS;
+    const timeoutMs = Number.isFinite(rawTimeoutMs)
+      ? Math.max(0, Math.min(2_147_483_647, rawTimeoutMs))
+      : REQUEST_TIMEOUT_MS;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
         reject(new Error(`Request ${method} timed out`));
-      }, opts.timeoutMs ?? REQUEST_TIMEOUT_MS);
+      }, timeoutMs);
       timer.unref?.();
       this.pending.set(id, {
         resolve: (result) => resolve(result as KanbanServerOperations[M]['result']),

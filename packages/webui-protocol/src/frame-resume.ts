@@ -196,11 +196,14 @@ export class FrameResume<T extends SequencedFrame & { type: string }> {
     this.requested = [...new Set([...this.requested, ...ids])];
     this.gate.beginResume(ids);
     if (this.timer) timers.clearTimeout(this.timer);
+    const safeTimeoutMs = Number.isFinite(this.timeoutMs)
+      ? Math.min(Math.max(0, this.timeoutMs), 2_147_483_647)
+      : 2_147_483_647;
     this.timer = timers.setTimeout(() => {
       this.timer = null;
       this.requested = [];
       this.apply(this.gate.releaseAll());
-    }, this.timeoutMs);
+    }, safeTimeoutMs);
     return request;
   }
 

@@ -136,10 +136,22 @@ export function execCommand(opts: {
       killBackstop.unref?.();
     };
 
-    const timer = setTimeout(() => {
-      timedOut = true;
-      killTree();
-    }, opts.timeoutMs);
+    const MAX_TIMEOUT_CHUNK_MS = 2_147_483_647;
+    let remainingMs = Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0 ? opts.timeoutMs : 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const scheduleTimeout = () => {
+      const chunkMs = Math.min(remainingMs, MAX_TIMEOUT_CHUNK_MS);
+      remainingMs -= chunkMs;
+      timer = setTimeout(() => {
+        if (remainingMs > 0) {
+          scheduleTimeout();
+          return;
+        }
+        timedOut = true;
+        killTree();
+      }, chunkMs);
+    };
+    scheduleTimeout();
     const onAbort = () => killTree();
     if (opts.signal?.aborted) onAbort();
     else opts.signal?.addEventListener('abort', onAbort, { once: true });

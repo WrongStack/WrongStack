@@ -406,4 +406,20 @@ describe('scheduler', () => {
       readQuarantinedDirectives('verifier', projectRoot).map((d) => d.what.slice(0, 7)),
     ).toEqual(['Entry-2', 'Entry-3']);
   });
+
+  it('clamps debounceMs above 2_147_483_647 ms in LearningOptimizationScheduler.schedule', () => {
+    const delays: number[] = [];
+    const scheduler = new LearningOptimizationScheduler({
+      getPolicy: () => resolveAutoOptimizePolicy({ enabled: true, debounceMs: 3_000_000_000 }),
+      getLlm: async () => undefined,
+      scheduleTimer: (_fn, ms) => {
+        delays.push(ms);
+        return { unref() {} } as unknown as NodeJS.Timeout;
+      },
+      cancelTimer: () => {},
+    });
+    scheduler.notifyCaptured('executor');
+    scheduler.dispose();
+    expect(delays).toEqual([2_147_483_647]);
+  });
 });

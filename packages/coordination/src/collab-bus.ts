@@ -111,11 +111,14 @@ export class CollaborationBus {
       await pausePromise;
       return true;
     }
+    const safeTimeoutMs = Number.isFinite(timeoutMs)
+      ? Math.max(0, Math.min(2_147_483_647, timeoutMs))
+      : 2_147_483_647;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise<'timeout' | 'resumed'>((resolve) => {
       timer = setTimeout(
         () => resolve(this.pausePromise === pausePromise ? 'timeout' : 'resumed'),
-        timeoutMs,
+        safeTimeoutMs,
       );
     });
     // pausePromise is created with a void executor that only ever resolves

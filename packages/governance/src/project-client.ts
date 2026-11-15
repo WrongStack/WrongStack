@@ -96,9 +96,12 @@ export class GovernanceProjectClient {
         if (error) reject(error);
         else resolve(response!);
       };
-      const timer = setTimeout(() => {
-        finish(new Error(`Governance IPC request timed out after ${this.timeoutMs}ms.`));
-      }, this.timeoutMs);
+      const timer = setTimeout(
+        () => {
+          finish(new Error(`Governance IPC request timed out after ${this.timeoutMs}ms.`));
+        },
+        Math.min(2_147_483_647, this.timeoutMs),
+      );
       socket.once('connect', () => socket.write(frame));
       socket.on('data', (chunk: Buffer) => {
         if (settled) return;

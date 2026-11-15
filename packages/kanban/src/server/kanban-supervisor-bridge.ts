@@ -40,12 +40,15 @@ export function bridgeKanbanSupervisor(
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   let connecting = false;
 
+  const safeReconnectDelayMs = Number.isFinite(reconnectDelayMs)
+    ? Math.max(0, Math.min(2_147_483_647, reconnectDelayMs))
+    : 0;
   const scheduleReconnect = (): void => {
     if (!autoReconnect || disposed || reconnectTimer !== undefined) return;
     reconnectTimer = setTimeout(() => {
       reconnectTimer = undefined;
       subscribe();
-    }, reconnectDelayMs);
+    }, safeReconnectDelayMs);
     reconnectTimer.unref?.();
   };
 

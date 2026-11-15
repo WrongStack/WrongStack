@@ -190,4 +190,16 @@ else {
     expect(res.exitCode).toBeNull();
     expect(res.stderr).toMatch(/null|EINVAL|ERR_INVALID_ARG_VALUE/);
   });
+
+  it('chunks timeoutMs above 2_147_483_647ms without immediate 1ms timeout', async () => {
+    const res = await execCommand({
+      command: NODE,
+      args: ['-e', 'setTimeout(process.exit, 60)'],
+      cwd: process.cwd(),
+      timeoutMs: 2_147_483_648,
+      shell: false,
+    });
+    expect(res.timedOut).toBe(false);
+    expect(res.exitCode).toBe(0);
+  });
 });

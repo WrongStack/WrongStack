@@ -499,4 +499,19 @@ describe('createWrongTraceClient()', () => {
     const atlas = await wt.getAtlas({ workspace: 'repo', summary: true });
     expect(atlas).toBeNull();
   });
+
+  it('clamps _httpJson timeoutMs above 2_147_483_647 ms so it does not abort in 1ms', async () => {
+    const { _httpJson } = await import('../client.js');
+    globalThis.fetch = makeFetch(async (_url, init) => {
+      await new Promise((r) => setTimeout(r, 25));
+      if (init?.signal?.aborted) {
+        throw new DOMException('Aborted', 'AbortError');
+      }
+      return jsonResponse({ ok: true });
+    });
+    const res = await _httpJson<{ ok: boolean }>('http://localhost:3444', '/api/health', {
+      timeoutMs: 3_000_000_000,
+    });
+    expect(res).toEqual({ ok: true });
+  });
 });

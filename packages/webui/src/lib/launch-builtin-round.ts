@@ -63,7 +63,11 @@ export function launchBuiltinRound(options: LaunchBuiltinRoundOptions): void {
     contentOff();
     options.onSettle(next);
   };
-  const timeout = setTimeout(() => finish('error'), options.timeoutMs ?? 8_000);
+  const rawTimeoutMs = options.timeoutMs ?? 8_000;
+  const safeTimeoutMs = Number.isFinite(rawTimeoutMs)
+    ? Math.max(0, Math.min(2_147_483_647, rawTimeoutMs))
+    : 8_000;
+  const timeout = setTimeout(() => finish('error'), safeTimeoutMs);
 
   const requestPrompt = () => {
     contentOff = client.on('prompts.content', (message) => {

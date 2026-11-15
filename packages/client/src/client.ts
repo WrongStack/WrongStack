@@ -479,6 +479,9 @@ export class WrongStackClient {
         ? this.options.timeoutMs
         : 15_000;
     return new Promise<Frame>((resolve, reject) => {
+      const MAX_TIMEOUT_CHUNK_MS = 2_147_483_647;
+      let remainingMs = timeoutMs;
+      let timer: ReturnType<typeof setTimeout>;
       const waiter = {
         match,
         resolve: (frame: Frame) => {
@@ -492,9 +495,20 @@ export class WrongStackClient {
           reject(error);
         },
       };
-      const timer = setTimeout(() => {
-        waiter.reject(new WrongStackError({ kind: 'timeout', code: 'no_answer', retryable: true }));
-      }, timeoutMs);
+      const scheduleWaiterTimeout = () => {
+        const chunkMs = Math.min(remainingMs, MAX_TIMEOUT_CHUNK_MS);
+        remainingMs -= chunkMs;
+        timer = setTimeout(() => {
+          if (remainingMs > 0) {
+            scheduleWaiterTimeout();
+            return;
+          }
+          waiter.reject(
+            new WrongStackError({ kind: 'timeout', code: 'no_answer', retryable: true }),
+          );
+        }, chunkMs);
+      };
+      scheduleWaiterTimeout();
       this.waiters.add(waiter);
     });
   }

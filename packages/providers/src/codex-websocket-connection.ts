@@ -248,7 +248,10 @@ export class CodexWebSocketConnection {
     // Frame-gap watchdog: a backend that goes silent without closing the socket
     // must fail the turn (falling back to SSE pre-output) instead of hanging
     // the stream — and the whole process — forever.
-    const stallTimeoutMs = opts.stallTimeoutMs ?? DEFAULT_STALL_TIMEOUT_MS;
+    const rawStallTimeoutMs = opts.stallTimeoutMs ?? DEFAULT_STALL_TIMEOUT_MS;
+    const stallTimeoutMs = Number.isFinite(rawStallTimeoutMs)
+      ? Math.min(2_147_483_647, rawStallTimeoutMs)
+      : DEFAULT_STALL_TIMEOUT_MS;
     let stallTimer: ReturnType<typeof setTimeout> | undefined;
     const armStall = (): void => {
       if (stallTimeoutMs <= 0) return;

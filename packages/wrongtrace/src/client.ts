@@ -81,10 +81,11 @@ export async function _httpJson<T>(
   const fetchImpl = globalThis.fetch;
   if (typeof fetchImpl !== 'function') return null;
   const controller = new AbortController();
-  const timer = setTimeout(
-    () => controller.abort(),
-    init?.timeoutMs ?? DEFAULT_TRANSPORT_TIMEOUT_MS,
-  );
+  const rawTimeout = init?.timeoutMs ?? DEFAULT_TRANSPORT_TIMEOUT_MS;
+  const safeTimeout = Number.isFinite(rawTimeout)
+    ? Math.min(Math.max(0, rawTimeout), 2_147_483_647)
+    : 2_147_483_647;
+  const timer = setTimeout(() => controller.abort(), safeTimeout);
   try {
     const headers: Record<string, string> = { Accept: 'application/json' };
     if (init?.body !== undefined) headers['Content-Type'] = 'application/json';

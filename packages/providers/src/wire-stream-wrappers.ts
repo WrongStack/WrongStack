@@ -237,8 +237,11 @@ function wrapHangWebStream(
       // Race the read against a hang timeout
       const readPromise = reader.read();
       let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+      const safeTimeoutMs = Number.isFinite(timeout)
+        ? Math.max(0, Math.min(2_147_483_647, timeout))
+        : 0;
       const timeoutPromise = new Promise<{ timedOut: true }>((resolve) => {
-        timeoutHandle = setTimeout(() => resolve({ timedOut: true }), timeout);
+        timeoutHandle = setTimeout(() => resolve({ timedOut: true }), safeTimeoutMs);
       });
 
       let result: { done: boolean; value?: Uint8Array | undefined } | { timedOut: true };
