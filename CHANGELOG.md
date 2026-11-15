@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   asset symlinks while retaining valid project-relative names.
 - On Windows, retire unused release-build hosts and their orphaned engine
   processes while preserving development builds and other running desktops.
+- Generate architecture evidence from the git index so unstaged changes in a
+  shared checkout cannot alter the committed baselines and reports.
 
 ## [1.7.2] — 2026-11-14
 

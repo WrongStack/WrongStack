@@ -25,12 +25,9 @@ bun scripts/sync-core-public-api-snapshot.mjs
 # chore. When staged production/architecture inputs move, refresh the hotspot
 # ratchet and report pair before the commit is created so release checks never
 # fail merely because generated evidence lagged the source change.
-architecture_staged=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^(packages/|apps/|architecture/|scripts/(check-architecture-health|snapshot-core-public-api|sync-core-public-api-snapshot)\.mjs$)' || true)
+architecture_staged=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^(packages/|apps/|architecture/|scripts/(check-architecture-health|snapshot-core-public-api|sync-core-public-api-snapshot|sync-staged-architecture-evidence)\.mjs$|\.githooks/pre-commit$)' || true)
 if [ -n "$architecture_staged" ]; then
-  bun scripts/check-architecture-health.mjs --write-hotspot-baseline
-  bun run report:architecture
-  git add architecture/hotspots.json architecture/test-only-exports.json \
-    docs/reports/architecture-health-current.json docs/reports/architecture-health-current.md
+  bun scripts/sync-staged-architecture-evidence.mjs
 fi
 
 # ── Mailbox-bridge integrity ─────────────────────────────────────

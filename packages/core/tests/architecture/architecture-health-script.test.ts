@@ -1,5 +1,15 @@
-import { execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { execFileSync, spawnSync } from 'node:child_process';
+import {
+  access,
+  chmod,
+  copyFile,
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -956,5 +966,139 @@ describe('report freshness gate', () => {
     const verdict = evaluateReportFreshness(dst);
     expect(verdict.status).toBe('skipped');
     expect(verdict.reason).toBe('shallow-repository');
+  });
+});
+
+describe('staged architecture evidence', () => {
+  it('measures index contents while preserving unstaged and untracked peer work', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'architecture-index-'));
+    temporaryRoots.push(root);
+    const repository = path.resolve(import.meta.dirname, '../../../..');
+    const put = async (name: string, content: string) => {
+      const target = path.join(root, name);
+      await mkdir(path.dirname(target), { recursive: true });
+      await writeFile(target, content);
+    };
+    const git = (...args: string[]) =>
+      execFileSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true });
+    await put('.gitignore', '.temp_files/\nnode_modules/\n');
+    await put('package.json', '{"name":"fixture","private":true,"type":"module"}\n');
+    await put('packages/sample/package.json', '{"name":"@fixture/sample"}\n');
+    await put('packages/core/package.json', '{"name":"@fixture/core"}\n');
+    await put(
+      'architecture/registry.json',
+      JSON.stringify({
+        scope: { workspaceRoots: ['packages'], excludedPaths: [] },
+        sourceExtensions: ['.ts'],
+        coreAreas: {},
+        testProjects: [],
+      }),
+    );
+    await put('architecture/exceptions.json', '{}\n');
+    await put('architecture/hotspots.json', '{"schemaVersion":1,"thresholdLines":4,"files":{}}\n');
+    await put('architecture/test-only-exports.json', '{"schemaVersion":1,"files":{}}\n');
+    await put('packages/core/src/index.ts', 'export const stable = 1;\n');
+    await put('packages/sample/src/peer.ts', 'export const peer = 1;\n');
+    const staged = `export const staged = 2;\n${'// staged line\n'.repeat(6)}`;
+    await put('packages/sample/src/staged.ts', staged);
+    await mkdir(path.join(root, 'scripts'), { recursive: true });
+    await copyFile(
+      path.join(repository, 'scripts/check-architecture-health.mjs'),
+      path.join(root, 'scripts/check-architecture-health.mjs'),
+    );
+    await cp(path.join(repository, 'scripts/lib'), path.join(root, 'scripts/lib'), {
+      recursive: true,
+    });
+    git('init', '--quiet');
+    git('add', '.');
+    const synchronize = () =>
+      execFileSync(
+        process.execPath,
+        [path.join(repository, 'scripts/sync-staged-architecture-evidence.mjs')],
+        { cwd: root, encoding: 'utf8', windowsHide: true, timeout: 30_000 },
+      );
+    synchronize();
+    const golden = JSON.parse(
+      await readFile(path.join(root, FRESHNESS_REPORT_FILES[0]), 'utf8'),
+    ) as {
+      summary: { sourceFiles: number; sourceLines: number; [key: string]: number };
+      hotspotCandidates: Array<{ file: string; lines: number; relativeImports: number }>;
+    };
+    const goldenHotspots = await readFile(path.join(root, 'architecture/hotspots.json'), 'utf8');
+    expect(golden.summary.sourceFiles).toBe(3);
+
+    const nextStaged = `${staged}// another staged line\n`;
+    await put('packages/sample/src/staged.ts', nextStaged);
+    git('add', 'packages/sample/src/staged.ts');
+    const partial = `${nextStaged}${'// unstaged addition\n'.repeat(30)}`;
+    const peer = `export const peer = 1;\n${'// peer work\n'.repeat(50)}`;
+    await put('packages/sample/src/staged.ts', partial);
+    await put('packages/sample/src/peer.ts', peer);
+    await put('packages/sample/src/untracked.ts', 'export const unfinished = 1;\n');
+    const peerBaseline = JSON.parse(goldenHotspots);
+    peerBaseline.files['packages/sample/src/peer.ts'] = { lines: 52, relativeImports: 0 };
+    const peerDraft = `${JSON.stringify(peerBaseline, null, 2)}\n`;
+    await put('architecture/hotspots.json', peerDraft);
+    // Exercise Git's actual shell environment too. On Windows its GNU tar
+    // interprets an absolute drive-qualified archive name as a remote host.
+    await put('.githooks/pre-commit', '#!/bin/sh\nexec bun "$ARCHITECTURE_HELPER"\n');
+    await chmod(path.join(root, '.githooks/pre-commit'), 0o755);
+    git('config', 'core.hooksPath', '.githooks');
+    git('config', 'user.name', 'Architecture Fixture');
+    git('config', 'user.email', 'fixture@example.invalid');
+    git('config', 'commit.gpgSign', 'false');
+    const gitTools = path.resolve(git('--exec-path').trim(), '../../..', 'usr/bin');
+    let hookPath = process.env.PATH ?? '';
+    let tarOptions: string | undefined;
+    try {
+      const tar = path.join(gitTools, process.platform === 'win32' ? 'tar.exe' : 'tar');
+      await access(tar);
+      hookPath = `${gitTools}${path.delimiter}${hookPath}`;
+      if (
+        execFileSync(tar, ['--version'], { encoding: 'utf8', windowsHide: true }).includes(
+          'GNU tar',
+        )
+      ) {
+        // A broken drive-qualified path must fail without contacting a host.
+        tarOptions = '--rsh-command=false';
+      }
+    } catch {
+      // Other Git distributions use the platform tar already on PATH.
+    }
+    const commit = spawnSync('git', ['commit', '--quiet', '-m', 'staged architecture fixture'], {
+      cwd: root,
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 30_000,
+      env: {
+        ...process.env,
+        PATH: hookPath,
+        TAR_OPTIONS: tarOptions,
+        ARCHITECTURE_HELPER: path
+          .join(repository, 'scripts/sync-staged-architecture-evidence.mjs')
+          .replaceAll('\\', '/'),
+      },
+    });
+    expect(commit.status, commit.stderr).toBe(0);
+    const actual = JSON.parse(await readFile(path.join(root, FRESHNESS_REPORT_FILES[0]), 'utf8'));
+    expect(actual.summary).toEqual({
+      ...golden.summary,
+      sourceLines: golden.summary.sourceLines + 1,
+    });
+    expect(actual.hotspotCandidates).toEqual(
+      golden.hotspotCandidates.map((item) =>
+        item.file === 'packages/sample/src/staged.ts' ? { ...item, lines: item.lines + 1 } : item,
+      ),
+    );
+    const stagedBaseline = JSON.parse(goldenHotspots);
+    stagedBaseline.files['packages/sample/src/staged.ts'].lines++;
+    expect(git('show', ':architecture/hotspots.json')).toBe(
+      `${JSON.stringify(stagedBaseline, null, 2)}\n`,
+    );
+    expect(await readFile(path.join(root, 'architecture/hotspots.json'), 'utf8')).toBe(peerDraft);
+    expect(await readFile(path.join(root, 'packages/sample/src/staged.ts'), 'utf8')).toBe(partial);
+    expect(await readFile(path.join(root, 'packages/sample/src/peer.ts'), 'utf8')).toBe(peer);
+    expect(git('show', ':packages/sample/src/staged.ts')).toBe(nextStaged);
+    expect(git('status', '--porcelain')).toContain('?? packages/sample/src/untracked.ts');
   });
 });
