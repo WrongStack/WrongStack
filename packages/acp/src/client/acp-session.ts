@@ -469,8 +469,23 @@ export class ACPSession {
    * comes. A failure or timeout is surfaced on the warn channel instead of
    * being silently swallowed.
    */
+  /**
+   * Best-effort release for a session the server confirmed after we already
+   * stopped waiting (the abort-during-creation race). The id was never
+   * adopted, so this is the only chance to free it. An agent that advertises
+   * `session/close` gets a real close — `session/cancel` only cancels a turn
+   * and leaves the session open — as a bare transport send bounded by a timer
+   * rather than sendRequest, whose pending-tracking would just expire waiting
+   * for a reply nobody needs. A failure or timeout is surfaced on the warn
+   * channel instead of being silently swallowed.
+   */
   private cancelLateSession(createPromise: Promise<SessionId>): void {
-    cancelLateAcpSession(this.transport, createPromise);
+    const supportsClose = Boolean(this.agentCapabilities.sessionCapabilities?.close);
+    cancelLateAcpSession(
+      this.transport,
+      createPromise,
+      supportsClose ? () => this.allocId() : undefined,
+    );
   }
 
   private async closeSession(graceMs = 10_000): Promise<void> {

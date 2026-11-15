@@ -324,7 +324,32 @@ export async function executeCreateSession(ctx: ACPSessionOpContext): Promise<Se
   if (typeof sessionId !== 'string' || sessionId.length === 0) {
     throw new ACPSessionError('protocol_error', 'session/new returned no sessionId', result);
   }
-  return adoptSessionMode(ctx, sessionId as SessionId, result);
+  try {
+    return await adoptSessionMode(ctx, sessionId as SessionId, result);
+  } catch (err) {
+    // The agent created this session, and the id is discarded from here on, so
+    // a refusal (mode not offered, or the switch failed) would leave it open
+    // on the agent for the rest of the process's life.
+    await discardCreatedSession(ctx, sessionId as SessionId);
+    throw err;
+  }
+}
+
+/**
+ * Best-effort close for a session this client just created and will not use.
+ * A resumed session must never come through here: it already existed on the
+ * agent and belongs to whoever resumes it.
+ */
+async function discardCreatedSession(
+  ctx: ACPSessionOpContext,
+  sessionId: SessionId,
+): Promise<void> {
+  if (!ctx.agentCapabilities.sessionCapabilities?.close) return;
+  try {
+    await ctx.sendRequest(ctx.allocId(), 'session/close', { sessionId }, 5_000);
+  } catch {
+    // Best-effort: the refusal the caller is about to see is the real error.
+  }
 }
 
 /**

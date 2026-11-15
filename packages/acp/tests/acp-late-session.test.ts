@@ -16,8 +16,8 @@
  * handshake required.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { cancelLateAcpSession } from '../src/client/acp-late-session.js';
 import type { ACPClientTransport } from '../src/agent/stdio-transport.js';
+import { cancelLateAcpSession } from '../src/client/acp-late-session.js';
 
 const LATE_CANCEL_SEND_TIMEOUT_MS = 10_000;
 
@@ -56,6 +56,42 @@ describe('cancelLateAcpSession', () => {
     await vi.advanceTimersByTimeAsync(LATE_CANCEL_SEND_TIMEOUT_MS + 1);
 
     expect(warnSpy).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+  it('closes the abandoned session when the agent supports session/close', async () => {
+    vi.useFakeTimers();
+    const sent: Array<{ id?: unknown; method?: string; params?: unknown }> = [];
+    const transport = {
+      send: async (m: { id?: unknown; method?: string; params?: unknown }) => {
+        sent.push(m);
+      },
+    } as unknown as ACPClientTransport;
+    let next = 41;
+    cancelLateAcpSession(transport, Promise.resolve('sess_close' as never), () => ++next);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.method).toBe('session/close');
+    expect(sent[0]?.id).toBe(42);
+    expect(sent[0]?.params).toEqual({ sessionId: 'sess_close' });
+    vi.useRealTimers();
+  });
+
+  it('keeps the session/cancel fallback when the agent cannot close a session', async () => {
+    vi.useFakeTimers();
+    const sent: Array<{ id?: unknown; method?: string; params?: unknown }> = [];
+    const transport = {
+      send: async (m: { id?: unknown; method?: string; params?: unknown }) => {
+        sent.push(m);
+      },
+    } as unknown as ACPClientTransport;
+    cancelLateAcpSession(transport, Promise.resolve('sess_cancel' as never));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.method).toBe('session/cancel');
+    expect(sent[0]?.id).toBeUndefined();
+    expect(sent[0]?.params).toEqual({ sessionId: 'sess_cancel' });
     vi.useRealTimers();
   });
 });
