@@ -993,6 +993,9 @@
     "packages/hq/src/redaction.ts": [
       "redactHqValue"
     ],
+    "packages/kanban/src/boundary.ts": [
+      "normalizeBoundaryPath"
+    ],
     "packages/kanban/src/manager/_internal.ts": [
       "compareTasksForWork",
       "reconcileTaskColumns"

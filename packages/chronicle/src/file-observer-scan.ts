@@ -119,9 +119,17 @@ export function isExcluded(
 export function normalizeExcludedPaths(root: string, values: readonly string[]): Set<string> {
   const result = new Set<string>();
   for (const value of values) {
-    const relative = path.isAbsolute(value) ? path.relative(root, path.resolve(value)) : value;
-    const normalized = normalizeRelative(relative).replace(/\/+$/u, '');
-    if (!normalized || normalized === '.' || normalized.startsWith('../')) continue;
+    const rawRelative = path.isAbsolute(value) ? path.relative(root, path.resolve(value)) : value;
+    const normalized = normalizeRelative(rawRelative).replace(/\/+$/u, '');
+    if (
+      !normalized ||
+      normalized === '.' ||
+      normalized === '..' ||
+      normalized.startsWith('../') ||
+      path.isAbsolute(rawRelative)
+    ) {
+      continue;
+    }
     result.add(normalized);
   }
   return result;

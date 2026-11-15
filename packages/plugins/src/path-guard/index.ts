@@ -5,7 +5,7 @@
  * @public
  */
 
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, lstatSync, readlinkSync, realpathSync } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin, PluginAPI } from '@wrongstack/contracts/types';
 import { withinProject } from '../runtime/index.js';
@@ -101,17 +101,33 @@ export function isSymlinkEscape(path: string, cwd?: string): boolean {
     try {
       real = realpathSync(ancestor);
     } catch {
+      try {
+        const st = lstatSync(ancestor);
+        if (st.isSymbolicLink()) {
+          const linkTarget = resolve(dirname(ancestor), readlinkSync(ancestor));
+          return cwd !== undefined
+            ? !withinBaseRoot(realBase, linkTarget)
+            : !withinProject(linkTarget);
+        }
+      } catch {
+        return false;
+      }
       return false;
     }
   }
   return cwd !== undefined ? !withinBaseRoot(realBase, real) : !withinProject(real);
 }
 
-/** Deepest existing prefix directory of `abs` within `root`; null when none exists. */
+/** Deepest existing prefix directory (or symlink) of `abs` within `root`; null when none exists. */
 function nearestExistingAncestor(abs: string, root: string): string | null {
   let current = dirname(abs);
   for (let hops = 0; hops < 64; hops++) {
     if (existsSync(current)) return current;
+    try {
+      if (lstatSync(current).isSymbolicLink()) return current;
+    } catch {
+      // not present
+    }
     if (current === root) return null;
     const parent = dirname(current);
     if (parent === current) return null;

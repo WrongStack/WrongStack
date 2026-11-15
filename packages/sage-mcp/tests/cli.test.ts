@@ -9,6 +9,8 @@
  * argv parsing is a duplicated cover; the manual smoke test is the
  * right place for that end-to-end check.
  */
+import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { main, parseArgs, projectRelativeStorageDirectory } from '../src/cli.js';
@@ -158,5 +160,28 @@ describe('parseArgs', () => {
     });
     expect(parsed.storageDirectory).toBeUndefined();
     expect(warn).toHaveBeenCalledTimes(5);
+  });
+
+  it('rejects nested non-existent paths under an escaping symlink', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ws-sage-sym-'));
+    try {
+      const projectRoot = path.join(root, 'proj');
+      const outside = path.join(root, 'outside');
+      fs.mkdirSync(projectRoot);
+      fs.mkdirSync(outside);
+      fs.symlinkSync(
+        outside,
+        path.join(projectRoot, 'sym'),
+        process.platform === 'win32' ? 'junction' : 'dir',
+      );
+      expect(() =>
+        projectRelativeStorageDirectory(
+          projectRoot,
+          path.join(projectRoot, 'sym', 'newsub', 'deep'),
+        ),
+      ).toThrow(/project root/);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 });

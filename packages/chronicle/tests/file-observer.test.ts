@@ -610,4 +610,12 @@ describe('startChronicleFileObserver — tool-hint cap eviction (bug 20261106-r3
   it('attributes tool changes below the cap (control)', async () => {
     expect(await observedAttribution(300)).toMatch(/^file\.tool\./);
   }, 15000);
+
+  it('rejects parent ".." paths in normalizeExcludedPaths', async () => {
+    const { normalizeExcludedPaths } = await import('../src/file-observer-scan.js');
+    const root = path.resolve(process.cwd(), 'packages', 'chronicle');
+    const excluded = normalizeExcludedPaths(root, ['..', path.dirname(root)]);
+    expect(excluded.has('..')).toBe(false);
+    expect(excluded.size).toBe(0);
+  });
 });

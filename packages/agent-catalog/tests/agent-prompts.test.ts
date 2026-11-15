@@ -208,4 +208,15 @@ describe('agentPrompt tech-version policy env-dir (B3)', () => {
     expect(getAgentDefinition('constructor')).toBeUndefined();
     expect(getAgentDefinition('__proto__')).toBeUndefined();
   });
+
+  it('rejects path traversal sequences in agentPrompt', () => {
+    const parentSecret = path.join(path.dirname(overrideDir), 'outside-secret.md');
+    fs.writeFileSync(parentSecret, 'OUTSIDE SECRET', 'utf8');
+    process.env['WRONGSTACK_AGENT_INSTRUCTIONS_DIR'] = overrideDir;
+    try {
+      expect(() => agentPrompt('../outside-secret')).toThrow('Invalid agent prompt id');
+    } finally {
+      fs.rmSync(parentSecret, { force: true });
+    }
+  });
 });

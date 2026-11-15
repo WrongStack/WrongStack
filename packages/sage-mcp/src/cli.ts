@@ -236,13 +236,20 @@ export function projectRelativeStorageDirectory(projectRoot: string, directory: 
   const canonicalRoot = canonicalProjectRoot(projectRoot);
   const resolvedDir = path.resolve(directory);
   let canonicalDir = resolvedDir;
-  try {
-    canonicalDir = realpathSync(resolvedDir);
-  } catch {
+  let probe = resolvedDir;
+  while (true) {
     try {
-      canonicalDir = path.join(realpathSync(path.dirname(resolvedDir)), path.basename(resolvedDir));
+      const realProbe = realpathSync(probe);
+      const suffix = path.relative(probe, resolvedDir);
+      canonicalDir = suffix ? path.join(realProbe, suffix) : realProbe;
+      break;
     } catch {
-      canonicalDir = resolvedDir;
+      const parent = path.dirname(probe);
+      if (parent === probe) {
+        canonicalDir = resolvedDir;
+        break;
+      }
+      probe = parent;
     }
   }
   const relative = path.relative(canonicalRoot, canonicalDir);

@@ -334,11 +334,18 @@ export function agentPrompt(id: string): string {
   // and OVERWRITE this key rather than leaving a second generation beside it.
   if (cached !== undefined && cached.fingerprint === overlayFingerprint) return cached.prompt;
 
+  if (!id || /[\\/\0]|^\.\.?$|\.\./.test(id)) {
+    throw new Error(`Invalid agent prompt id: ${id}`);
+  }
+
   const fileName = `${id}.md`;
   let resolved = '';
   for (const dir of agentPromptDirCandidates(envDir, promptProjectRoot)) {
     try {
-      resolved = readFileSync(path.join(dir, fileName), 'utf8').trim();
+      const resolvedDir = path.resolve(dir);
+      const candidate = path.resolve(resolvedDir, fileName);
+      if (!candidate.startsWith(`${resolvedDir}${path.sep}`)) continue;
+      resolved = readFileSync(candidate, 'utf8').trim();
       break;
     } catch {
       // try next candidate

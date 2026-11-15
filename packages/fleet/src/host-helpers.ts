@@ -1,3 +1,4 @@
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { Config, SubagentConfig, TaskSpec, Tool } from '@wrongstack/contracts/types';
 import {
@@ -14,14 +15,30 @@ import { makePreferSideConflictResolver } from '@wrongstack/sdd';
 
 type AgentAvailability = NonNullable<SubagentConfig['availability']>;
 
-export function isInsideDirectory(root: string, candidate: string): boolean {
-  const relative = path.relative(path.resolve(root), path.resolve(candidate));
+function isLexicallyInside(base: string, target: string): boolean {
+  const relative = path.relative(base, target);
   // Canonical escape test: `..hidden` is a legal in-root first segment; a bare
   // startsWith('..') wrongly rejects it.
   return (
     relative === '' ||
     (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
   );
+}
+
+export function isInsideDirectory(root: string, candidate: string): boolean {
+  const resolvedRoot = path.resolve(root);
+  const resolvedCandidate = path.resolve(candidate);
+  if (!isLexicallyInside(resolvedRoot, resolvedCandidate)) return false;
+  if (!fs.existsSync(resolvedRoot)) return true;
+  const realRoot = fs.realpathSync(resolvedRoot);
+  let probe = resolvedCandidate;
+  while (!fs.existsSync(probe)) {
+    const parent = path.dirname(probe);
+    if (parent === probe) break;
+    probe = parent;
+  }
+  if (!fs.existsSync(probe)) return true;
+  return isLexicallyInside(realRoot, fs.realpathSync(probe));
 }
 
 export function isAgentAvailable(

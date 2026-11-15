@@ -3015,4 +3015,25 @@ describe('path-guard covers any tool that declares a write', () => {
       ),
     ).not.toThrow();
   });
+
+  it('detects dangling symlinks pointing outside project root in isSymlinkEscape (F360)', async () => {
+    const { isSymlinkEscape } = await import('../src/path-guard/index.js');
+    const fs = await import('node:fs');
+    const os = await import('node:os');
+    const { join } = await import('node:path');
+    const tmp = fs.mkdtempSync(join(os.tmpdir(), 'pg-dangling-'));
+    const repo = join(tmp, 'repo');
+    const outsideNonExistent = join(tmp, 'outside-target');
+    fs.mkdirSync(repo, { recursive: true });
+    fs.symlinkSync(
+      outsideNonExistent,
+      join(repo, 'dangling-out'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    );
+    try {
+      expect(isSymlinkEscape(join(repo, 'dangling-out', 'new.ts'), repo)).toBe(true);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
 });

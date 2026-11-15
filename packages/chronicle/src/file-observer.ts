@@ -66,8 +66,16 @@ export async function startChronicleFileObserver(
     const absolute = path.isAbsolute(hint.path)
       ? path.normalize(hint.path)
       : path.resolve(root, hint.path);
-    const relative = normalizeRelative(path.relative(root, absolute));
-    if (relative.startsWith('../') || isExcluded(relative, excluded, excludedPaths)) return;
+    const rawRelative = path.relative(root, absolute);
+    const relative = normalizeRelative(rawRelative);
+    if (
+      relative === '..' ||
+      relative.startsWith('../') ||
+      path.isAbsolute(rawRelative) ||
+      isExcluded(relative, excluded, excludedPaths)
+    ) {
+      return;
+    }
     // Map.set on an existing key refreshes the value but keeps its ORIGINAL
     // insertion position, so re-noting a hot path left it at the FRONT of the
     // cap sweep — the newest hint was the eviction victim and its change

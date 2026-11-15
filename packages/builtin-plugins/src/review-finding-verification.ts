@@ -18,6 +18,7 @@
  * @module review-finding-verification
  */
 
+import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { ChimeraFinding } from './review-finding-types.js';
@@ -291,6 +292,31 @@ export function resolveFindingPath(raw: string, cwd: string): string | null {
   const rel = pathMod.relative(cwd, resolved);
   if (!rel || rel === '..' || rel.startsWith(`..${pathMod.sep}`) || pathMod.isAbsolute(rel))
     return null;
+  try {
+    const realCwd = fs.realpathSync(cwd);
+    // Walk up until an existing path is found so non-existent leaf paths in
+    // tests still resolve, while any existing file or symlink ancestor is
+    // canonicalized and checked against `realCwd`.
+    let probe = resolved;
+    while (!fs.existsSync(probe)) {
+      const parent = pathMod.dirname(probe);
+      if (parent === probe) break;
+      probe = parent;
+    }
+    if (fs.existsSync(probe)) {
+      const realProbe = fs.realpathSync(probe);
+      const realRel = pathMod.relative(realCwd, realProbe);
+      if (
+        realRel === '..' ||
+        realRel.startsWith(`..${pathMod.sep}`) ||
+        pathMod.isAbsolute(realRel)
+      ) {
+        return null;
+      }
+    }
+  } catch {
+    return null;
+  }
   return resolved;
 }
 

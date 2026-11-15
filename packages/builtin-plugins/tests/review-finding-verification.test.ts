@@ -275,4 +275,20 @@ describe('verifyFindingsAgainstDisk', () => {
     expect(snapped!.location?.line).toBe(1);
     expect(blocked!.verification?.status).toBe('unverified');
   });
+
+  it('rejects symlinks escaping workspace in resolveFindingPath (F359)', async () => {
+    const fsp = await import('node:fs/promises');
+    const outsideDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'rfv-outside-'));
+    try {
+      await fsp.writeFile(path.join(outsideDir, 'secret.ts'), 'export const s = 1;\n', 'utf8');
+      await fsp.symlink(
+        outsideDir,
+        path.join(dir, 'ext-link'),
+        process.platform === 'win32' ? 'junction' : 'dir',
+      );
+      expect(resolveFindingPath('ext-link/secret.ts', dir)).toBeNull();
+    } finally {
+      await fsp.rm(outsideDir, { recursive: true, force: true });
+    }
+  });
 });

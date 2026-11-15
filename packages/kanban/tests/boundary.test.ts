@@ -410,4 +410,11 @@ describe('normalizeKanbanBoundaryPolicy inactive-rules warning', () => {
     expect(performance.now() - t0).toBeLessThan(100);
     expect(evaluateKanbanBoundaryPath(layers, 'a/b/c/secret', 'write').decision).toBe('block');
   });
+
+  it('rejects Windows drive-relative paths in normalizeBoundaryPath (F358)', async () => {
+    const { normalizeBoundaryPath } = await import('../src/boundary.js');
+    for (const driveRel of ['C:secret.txt', 'D:foo/bar.ts', 'c:..\\outside.txt']) {
+      expect(normalizeBoundaryPath(driveRel)).toBeNull();
+    }
+  });
 });
