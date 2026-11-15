@@ -1,4 +1,4 @@
-// Changelog — 1.x era (1.7.3 → 1.0.0).
+// Changelog — 1.x era (1.7.4 → 1.0.0).
 // Historical entries mirror CHANGELOG.md release notes. The 1.0.37 entry was
 // written from committed runtime/source evidence (git history and packages), not
 // the root CHANGELOG, which had not been extended when it landed. 1.1.0 absorbs
@@ -13,10 +13,23 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.4',
+    date: '2026-11-15',
+    tagline: 'Hardened timers, paths and input handling',
+    latest: true,
+    highlights: [
+      'Timer delays above the 32-bit setTimeout limit are capped or chunked across the client, providers, coordination, Kanban, WebUI, WrongTrace and Core',
+      'Path guards resolve symlinked ancestors of new files and reject Windows drive-relative paths and traversing prompt ids',
+      'Sessions, skills, labels and suites named after Object.prototype members resolve as missing instead of crashing',
+      'Malformed JSON, a null auth file and empty process lists or GitHub bodies produce domain errors or documented fallbacks',
+      'ACP closes sessions created during a refused handshake without closing resumed ones',
+      'Lint gates retry after a failed probe, and one failed counter write no longer fails later calls',
+    ],
+  },
+  {
     version: '1.7.3',
     date: '2026-11-15',
     tagline: 'Updates that leave nothing running behind',
-    latest: true,
     highlights: [
       'A newer client asks Chronicle, Kanban, Session Catalog, SAGE and mailbox daemons of an older release to stop and starts its own; daemons of the same or a newer release are reused',
       'Windows desktops retire hosts and engine processes earlier builds left running, keeping development builds and other running desktops',

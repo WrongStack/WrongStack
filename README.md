@@ -55,6 +55,18 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.7.4
+
+- **Long timeouts that wait:** delays above the 32-bit timer limit are capped
+  or chunked instead of firing after 1 ms.
+- **Path guards that follow symlinks:** new files under a symlinked folder,
+  Windows drive-relative paths and traversing prompt ids cannot escape the
+  project.
+- **Input that does not crash:** malformed JSON, empty bodies and names such as
+  `toString` produce errors or fallbacks instead of crashes.
+- **Cleaner sessions and gates:** ACP releases sessions it refused, and lint
+  gates retry after a failed probe.
+
 ### What's new in 1.7.3
 
 - **Daemons follow the update:** a newer client replaces the Chronicle, Kanban,
@@ -576,7 +588,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.7.3**; versions follow semver
+- Release notes: **v1.7.4**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements

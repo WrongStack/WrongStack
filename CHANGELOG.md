@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.4] — 2026-11-15
+
+A hardening release. Timeouts longer than about 24.8 days no longer fire after
+1 ms, path guards follow symlinked folders and reject drive-relative and
+traversing paths, user-named keys cannot reach object prototype members, and
+malformed JSON or empty responses produce errors instead of crashes. ACP
+releases sessions it refused, and lint gates recover from a failed probe.
+
 ### Fixed
 
 - Clamp or chunk timer delays above the 32-bit `setTimeout` limit across the

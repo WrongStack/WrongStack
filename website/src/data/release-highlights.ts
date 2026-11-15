@@ -1,29 +1,29 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.7.3',
-  title: 'Nothing left behind after an update.',
+  version: '1.7.4',
+  title: 'Hardened where it counts.',
   summary:
-    'After an update, a newer client asks Chronicle, Kanban, Session Catalog, SAGE and mailbox daemons of an older release to stop and starts its own, and Windows desktops retire engine hosts that earlier builds left running. Long timers stay within platform limits, scoped grep globs keep their search root, and lookups and paths reject inherited properties and escaping symlinks.',
+    'Timeouts longer than about 24.8 days no longer fire after 1 ms, path guards follow symlinked folders and reject drive-relative and traversing paths, user-named keys cannot reach object prototype members, and malformed JSON or empty responses produce errors instead of crashes. ACP releases sessions it refused, and lint gates recover from a failed probe.',
   socialDescription:
-    'WrongStack 1.7.3: updated clients replace project daemons and desktop engine processes left by earlier releases, with timer, search and path-safety fixes.',
+    'WrongStack 1.7.4: long timeouts that wait as long as asked, path guards that follow symlinked folders, and input handling that no longer crashes on malformed data.',
   cards: [
     {
-      title: 'Daemons follow the update',
-      body: 'A client of a newer release replaces project daemons of an older one; daemons of the same or a newer release are reused, so mixed installations converge on the newest.',
+      title: 'Timeouts that wait',
+      body: 'Delays above the 32-bit timer limit are capped or chunked, so a long timeout no longer fails after 1 ms.',
       href: '/getting-started',
       linkLabel: 'Upgrade your installation',
     },
     {
-      title: 'Clean Windows desktops',
-      body: 'Hosts and engine processes that earlier desktop builds left running are retired, while development builds and other running desktops are kept.',
-      href: '/interfaces',
-      linkLabel: 'Explore the interfaces',
-    },
-    {
-      title: 'Timers, search and paths',
-      body: 'Long deadlines are chunked within platform timer limits, grep globs keep their search root, and checkpoint and symlink paths cannot escape the project.',
+      title: 'Paths that stay inside',
+      body: 'New files under symlinked folders, Windows drive-relative paths and traversing prompt ids cannot escape the project.',
       href: '/security',
       linkLabel: 'Explore the safeguards',
+    },
+    {
+      title: 'Input that does not crash',
+      body: 'Malformed JSON, empty bodies and names such as toString produce errors or fallbacks; ACP releases sessions it refused.',
+      href: '/interfaces',
+      linkLabel: 'Explore the interfaces',
     },
   ],
 } as const;
