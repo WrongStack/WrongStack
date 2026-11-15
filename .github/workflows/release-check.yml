@@ -37,6 +37,17 @@ jobs:
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Rebuild reviewed native dependencies
         run: bun run setup:native
+      - name: Install pinned ripgrep for real engine parity tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          rg_dir="$RUNNER_TEMP/wstack-ripgrep"
+          mkdir -p "$rg_dir"
+          curl --fail --location --retry 3 --output "$rg_dir/source.tar.gz" https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-x86_64-unknown-linux-musl.tar.gz
+          echo "33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c  $rg_dir/source.tar.gz" | sha256sum --check --strict
+          tar -xzf "$rg_dir/source.tar.gz" --strip-components=1 -C "$rg_dir"
+          "$rg_dir/rg" --version
+          echo "$rg_dir" >> "$GITHUB_PATH"
       - name: Install browser for live plugin journeys
         run: bun x --bun playwright install --with-deps chromium
       - name: Check fixture types before the full matrix

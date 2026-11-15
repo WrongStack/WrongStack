@@ -7,7 +7,9 @@
  * fails from a fresh checkout. This pre-commit helper is the safe automation
  * point. It stages only the two generated artifacts after confirming that no
  * snapshot input has an unstaged or untracked edit that could leak unrelated
- * shared-worktree work into the commit.
+ * shared-worktree work into the commit. If live regeneration is unsafe, a
+ * read-only index archive may prove that both committed snapshots are already
+ * current. That path admits no snapshot drift and preserves peer edits.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -147,11 +149,30 @@ export function main() {
   }
 
   if (decision.action === 'fail') {
+    // An implementation-only edit in an existing Core consumer may leave both
+    // snapshots unchanged. Prove that against the immutable index before
+    // refusing a shared-tree commit; never regenerate from the peer's WIP.
+    const verified = spawnSync(
+      process.execPath,
+      ['scripts/sync-staged-architecture-evidence.mjs', '--verify-core'],
+      {
+        cwd: repoRoot,
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: 120_000,
+        maxBuffer: 32 * 1024 * 1024,
+      },
+    );
+    if (verified.status === 0) {
+      console.log(verified.stdout.trim());
+      return;
+    }
     throw new Error(
       'Cannot safely auto-update Core API snapshots because snapshot inputs also have ' +
         `unstaged or untracked edits: ${decision.unsafeInputs.join(', ')}. ` +
         'Stage or set aside those edits first; this prevents unrelated shared-worktree work ' +
-        'from being captured in the generated architecture artifacts.',
+        'from being captured in the generated architecture artifacts. ' +
+        `Staged-source verification also failed: ${verified.error?.message ?? verified.stderr}`,
     );
   }
 

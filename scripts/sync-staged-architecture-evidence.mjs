@@ -25,10 +25,12 @@ const run = (command, args, cwd = process.cwd(), input) =>
   });
 export function main() {
   if (process.argv.includes('--help')) {
-    console.log('Usage: bun scripts/sync-staged-architecture-evidence.mjs');
+    console.log('Usage: bun scripts/sync-staged-architecture-evidence.mjs [--verify-core]');
     return;
   }
-  if (process.argv.length > 2) throw new Error('This command does not accept arguments.');
+  const verifyCore = process.argv.length === 3 && process.argv[2] === '--verify-core';
+  if (process.argv.length > 2 && !verifyCore)
+    throw new Error('This command does not accept arguments.');
   const repoRoot = path.resolve(run('git', ['rev-parse', '--show-toplevel']).trim());
   const reportFiles = [
     'architecture/hotspots.json',
@@ -59,72 +61,82 @@ export function main() {
     run('tar', ['-xf', 'source.tar', '-C', 'source'], work);
     // The canonical checker anchors its root to its own location. Run the
     // unchanged checker from the index archive, never the mutable checkout.
-    const checker = path.join(source, 'scripts/check-architecture-health.mjs');
-    run(process.execPath, [checker, '--write-hotspot-baseline'], source);
-    run(process.execPath, [checker, '--write', '--report-only'], source);
-    if (run('git', ['write-tree'], repoRoot).trim() !== tree) {
-      throw new Error('The git index changed during architecture generation; retry the commit.');
-    }
-    const modes = new Map();
-    for (const line of run('git', ['ls-tree', '-r', tree, '--', ...reportFiles], repoRoot).split(
-      /\r?\n/,
-    )) {
-      const match = /^(\d+) blob [a-f0-9]+\t(.+)$/.exec(line);
-      if (match) modes.set(match[2], match[1]);
-    }
-    const dirty = new Set(
-      run('git', ['diff', '--name-only', tree, '--', ...reportFiles], repoRoot)
+    if (verifyCore) {
+      // Read-only verification: this mode must never regenerate or stage API
+      // evidence. Existing snapshots must already match the complete index.
+      run(process.execPath, [path.join(source, 'scripts/snapshot-core-public-api.mjs')], source);
+      if (run('git', ['write-tree'], repoRoot).trim() !== tree) {
+        throw new Error('The git index changed during Core API verification; retry the commit.');
+      }
+    } else {
+      const checker = path.join(source, 'scripts/check-architecture-health.mjs');
+      run(process.execPath, [checker, '--write-hotspot-baseline'], source);
+      run(process.execPath, [checker, '--write', '--report-only'], source);
+      if (run('git', ['write-tree'], repoRoot).trim() !== tree) {
+        throw new Error('The git index changed during architecture generation; retry the commit.');
+      }
+      const modes = new Map();
+      for (const line of run('git', ['ls-tree', '-r', tree, '--', ...reportFiles], repoRoot).split(
+        /\r?\n/,
+      )) {
+        const match = /^(\d+) blob [a-f0-9]+\t(.+)$/.exec(line);
+        if (match) modes.set(match[2], match[1]);
+      }
+      const dirty = new Set(
+        run('git', ['diff', '--name-only', tree, '--', ...reportFiles], repoRoot)
+          .trim()
+          .split(/\r?\n/)
+          .filter(Boolean),
+      );
+      const updates = reportFiles.map((file) => {
+        const target = path.join(repoRoot, file);
+        const generated = path.join(source, file);
+        const info = lstatSync(target, { throwIfNoEntry: false });
+        const copy = !info || (info.isFile() && modes.has(file) && !dirty.has(file));
+        const original = copy && info ? readFileSync(target) : null;
+        const mode = modes.get(file) ?? '100644';
+        if (mode !== '100644' && mode !== '100755')
+          throw new Error(`Generated output must be a regular file: ${file}`);
+        const blob = run(
+          'git',
+          ['hash-object', '-w', '--stdin', `--path=${file}`],
+          repoRoot,
+          readFileSync(generated),
+        ).trim();
+        return { file, target, generated, copy, original, record: `${mode} ${blob}\t${file}\n` };
+      });
+      // Stage the generated blobs directly. git add would consume a peer's
+      // working-tree edits in these same generated files.
+      run(
+        'git',
+        ['update-index', '--index-info'],
+        repoRoot,
+        updates.map((item) => item.record).join(''),
+      );
+      const finalTree = run('git', ['write-tree'], repoRoot).trim();
+      const unexpected = run('git', ['diff', '--name-only', tree, finalTree, '--'], repoRoot)
         .trim()
         .split(/\r?\n/)
-        .filter(Boolean),
-    );
-    const updates = reportFiles.map((file) => {
-      const target = path.join(repoRoot, file);
-      const generated = path.join(source, file);
-      const info = lstatSync(target, { throwIfNoEntry: false });
-      const copy = !info || (info.isFile() && modes.has(file) && !dirty.has(file));
-      const original = copy && info ? readFileSync(target) : null;
-      const mode = modes.get(file) ?? '100644';
-      if (mode !== '100644' && mode !== '100755')
-        throw new Error(`Generated output must be a regular file: ${file}`);
-      const blob = run(
-        'git',
-        ['hash-object', '-w', '--stdin', `--path=${file}`],
-        repoRoot,
-        readFileSync(generated),
-      ).trim();
-      return { file, target, generated, copy, original, record: `${mode} ${blob}\t${file}\n` };
-    });
-    // Stage the generated blobs directly. git add would consume a peer's
-    // working-tree edits in these same generated files.
-    run(
-      'git',
-      ['update-index', '--index-info'],
-      repoRoot,
-      updates.map((item) => item.record).join(''),
-    );
-    const finalTree = run('git', ['write-tree'], repoRoot).trim();
-    const unexpected = run('git', ['diff', '--name-only', tree, finalTree, '--'], repoRoot)
-      .trim()
-      .split(/\r?\n/)
-      .filter((file) => file && !reportFiles.includes(file));
-    if (unexpected.length)
-      throw new Error(
-        `The git index changed during architecture staging: ${unexpected.join(', ')}`,
-      );
-    for (const update of updates) {
-      const current = lstatSync(update.target, { throwIfNoEntry: false });
-      const unchanged =
-        update.original === null
-          ? !current
-          : current?.isFile() && readFileSync(update.target).equals(update.original);
-      let parent = path.dirname(update.target);
-      while (!existsSync(parent) && path.dirname(parent) !== parent) parent = path.dirname(parent);
-      if (update.copy && unchanged && inside(realRepoRoot, realpathSync(parent))) {
-        mkdirSync(path.dirname(update.target), { recursive: true });
-        copyFileSync(update.generated, update.target);
-      } else {
-        console.log(`Preserved working-tree edits in ${update.file}.`);
+        .filter((file) => file && !reportFiles.includes(file));
+      if (unexpected.length)
+        throw new Error(
+          `The git index changed during architecture staging: ${unexpected.join(', ')}`,
+        );
+      for (const update of updates) {
+        const current = lstatSync(update.target, { throwIfNoEntry: false });
+        const unchanged =
+          update.original === null
+            ? !current
+            : current?.isFile() && readFileSync(update.target).equals(update.original);
+        let parent = path.dirname(update.target);
+        while (!existsSync(parent) && path.dirname(parent) !== parent)
+          parent = path.dirname(parent);
+        if (update.copy && unchanged && inside(realRepoRoot, realpathSync(parent))) {
+          mkdirSync(path.dirname(update.target), { recursive: true });
+          copyFileSync(update.generated, update.target);
+        } else {
+          console.log(`Preserved working-tree edits in ${update.file}.`);
+        }
       }
     }
   } catch (error) {
@@ -144,7 +156,11 @@ export function main() {
   if (errors.length === 1) throw errors[0];
   if (errors.length > 1)
     throw new AggregateError(errors, 'Architecture generation and cleanup failed.');
-  console.log(`Refreshed architecture evidence from staged tree ${tree}.`);
+  console.log(
+    verifyCore
+      ? `Verified existing Core API snapshots against staged tree ${tree}.`
+      : `Refreshed architecture evidence from staged tree ${tree}.`,
+  );
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

@@ -16,9 +16,9 @@ bun scripts/lint-console-logging.mjs --verbose
 bun scripts/guard-unresolved-imports.mjs --verbose
 
 # Core API snapshots are committed architecture evidence. Refresh and stage
-# them whenever a staged source change can affect them. The helper refuses to
-# run if the shared worktree has unstaged/untracked snapshot inputs, avoiding a
-# generated file that accidentally includes a teammate's WIP.
+# them whenever a staged source change can affect them. With peer snapshot
+# inputs still dirty, the helper verifies existing evidence against the index
+# or refuses regeneration, preserving a teammate's WIP and rejecting drift.
 bun scripts/sync-core-public-api-snapshot.mjs
 
 # Architecture measurements are committed evidence, not a manual release

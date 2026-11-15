@@ -817,6 +817,21 @@
       "fingerprint": "5d302b5384c529c4"
     },
     {
+      "file": "packages/tools/tests/grep-rg-glob-anchoring.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "5d3d565f5dffda35"
+    },
+    {
+      "file": "packages/tools/tests/grep-rg-glob-anchoring.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "86ff2fcf19347d01"
+    },
+    {
+      "file": "packages/tools/tests/grep-rg-glob-anchoring.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "f6773a272c33c8b0"
+    },
+    {
       "file": "packages/tools/tests/grep-rg-hidden-parity.test.ts",
       "kind": "skipIf",
       "fingerprint": "2e917934928446fc"

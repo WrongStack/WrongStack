@@ -31,6 +31,113 @@ const readSource: ReadSource = (file) => {
 };
 
 describe('Core API snapshot pre-commit synchronization', () => {
+  it('verifies unchanged staged evidence without consuming peer edits, and rejects actual drift', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'core-api-index-'));
+    const repository = path.resolve(import.meta.dirname, '../../../..');
+    const put = (file: string, source: string) => {
+      const target = path.join(root, file);
+      mkdirSync(path.dirname(target), { recursive: true });
+      writeFileSync(target, source);
+    };
+    const git = (...args: string[]) =>
+      execFileSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true });
+    try {
+      const biome = path.join(repository, 'node_modules/@biomejs/biome/bin/biome');
+      put(
+        'package.json',
+        JSON.stringify({
+          name: 'fixture',
+          private: true,
+          type: 'module',
+          scripts: {
+            biome: `"${process.execPath.replaceAll('\\', '/')}" "${biome.replaceAll('\\', '/')}"`,
+          },
+        }),
+      );
+      put('.gitignore', '.temp_files/\nnode_modules/\n');
+      put('architecture/core-api-policy.json', '{"maxRootImportFiles":0}\n');
+      put(
+        'packages/core/package.json',
+        JSON.stringify({
+          name: '@fixture/core',
+          version: '0.0.0',
+          exports: { './kernel': { import: './dist/kernel/index.js' } },
+        }),
+      );
+      const core = 'packages/core/src/kernel/index.ts';
+      const coreSource = 'export interface Context {}\n';
+      put(core, coreSource);
+      const specifier = ['@wrongstack', 'core', 'kernel'].join('/');
+      const client = 'packages/client/src/index.ts';
+      const clientSource = `import type { Context } from '${specifier}';\nexport const value = 1;\n`;
+      put(client, clientSource);
+      mkdirSync(path.join(root, 'scripts'), { recursive: true });
+      cpSync(path.join(repository, 'scripts/lib'), path.join(root, 'scripts/lib'), {
+        recursive: true,
+      });
+      for (const file of [
+        'snapshot-core-public-api.mjs',
+        'sync-core-public-api-snapshot.mjs',
+        'sync-staged-architecture-evidence.mjs',
+      ]) {
+        cpSync(path.join(repository, 'scripts', file), path.join(root, 'scripts', file));
+      }
+      git('init', '--quiet');
+      git('config', 'user.name', 'Core Snapshot Fixture');
+      git('config', 'user.email', 'fixture@example.invalid');
+      git('config', 'commit.gpgSign', 'false');
+      execFileSync(process.execPath, ['scripts/snapshot-core-public-api.mjs', '--write'], {
+        cwd: root,
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: 30_000,
+      });
+      git('add', '.');
+      git('commit', '--quiet', '-m', 'baseline');
+      put(
+        '.githooks/pre-commit',
+        '#!/bin/sh\nexec bun scripts/sync-core-public-api-snapshot.mjs\n',
+      );
+      chmodSync(path.join(root, '.githooks/pre-commit'), 0o755);
+      git('config', 'core.hooksPath', '.githooks');
+      const snapshot = 'architecture/core-public-api-snapshot.json';
+      const baseline = readFileSync(path.join(root, snapshot), 'utf8');
+      const changedClient = clientSource.replace('value = 1', 'value = 2');
+      put(client, changedClient);
+      git('add', client);
+      const peer = `${coreSource}export const unfinished = 1;\n`;
+      put(core, peer);
+      put('packages/client/src/untracked.ts', clientSource);
+      const peerDraft = `${baseline}\n`;
+      put(snapshot, peerDraft);
+      const commit = () =>
+        spawnSync('git', ['commit', '--quiet', '-m', 'staged client'], {
+          cwd: root,
+          encoding: 'utf8',
+          windowsHide: true,
+          timeout: 30_000,
+        });
+      const valid = commit();
+      expect(valid.status, valid.stderr).toBe(0);
+      expect(git('show', `:${client}`)).toBe(changedClient);
+      expect(git('show', `:${snapshot}`)).toBe(baseline);
+      expect(readFileSync(path.join(root, core), 'utf8')).toBe(peer);
+      expect(readFileSync(path.join(root, snapshot), 'utf8')).toBe(peerDraft);
+      expect(git('status', '--porcelain')).toContain('?? packages/client/src/untracked.ts');
+
+      // Now the staged API itself really changed. A peer still has unfinished
+      // inputs, so verification must fail instead of writing or admitting drift.
+      git('add', core);
+      const stale = commit();
+      expect(stale.status).not.toBe(0);
+      expect(stale.stderr).toContain('stale');
+      expect(git('show', `:${snapshot}`)).toBe(baseline);
+      expect(readFileSync(path.join(root, snapshot), 'utf8')).toBe(peerDraft);
+    } finally {
+      rmSync(root, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
+    }
+  }, 60_000);
+
   it('detects every source scope that feeds the generated snapshots', () => {
     expect(
       changedSnapshotInputs(
@@ -81,3 +188,16 @@ describe('Core API snapshot pre-commit synchronization', () => {
     expect(isSnapshotInput('packages/tools/src/whatever.ts', throwing)).toBe(true);
   });
 });
+
+import { execFileSync, spawnSync } from 'node:child_process';
+import {
+  chmodSync,
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';

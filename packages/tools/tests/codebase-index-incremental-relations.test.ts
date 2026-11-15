@@ -101,28 +101,36 @@ describe('incremental relation pass', () => {
     expect(importTargets('src/a.ts')).toEqual({ './b': null });
   });
 
-  it('rebinds calls into a deleted file to a same-named symbol once, at the end of a full scan', async () => {
-    // A full scan removing many stale files defers each file's name re-resolution to one
-    // pass at the end (per file it rescanned the whole ref table: minutes for thousands).
-    const first = await write('src/first.ts', 'export function helper() { return 1; }\n');
-    await write('src/second.ts', 'export function helper() { return 2; }\n');
-    await write('src/user.ts', 'export function use() { return helper(); }\n');
-    await index();
-    const target = () =>
-      query<{ file: string | null }>(
-        `SELECT t.file AS file FROM refs r
+  it.each(['forward', 'reverse'] as const)(
+    'rebinds calls into a deleted file after %s discovery, at the end of a full scan',
+    async (order) => {
+      // A full scan removing many stale files defers each file's name re-resolution to one
+      // pass at the end (per file it rescanned the whole ref table: minutes for thousands).
+      const first = await write('src/first.ts', 'export function helper() { return 1; }\n');
+      const second = await write('src/second.ts', 'export function helper() { return 2; }\n');
+      const user = await write('src/user.ts', 'export function use() { return helper(); }\n');
+      await index(order === 'forward' ? [first, second, user] : [second, first, user]);
+      const target = () =>
+        query<{ file: string | null }>(
+          `SELECT t.file AS file FROM refs r
            JOIN symbols s ON s.id = r.from_id
            LEFT JOIN symbols t ON t.id = r.to_id
           WHERE s.file = ? AND r.to_name = 'helper'`,
-        path.join(root, 'src/user.ts'),
-      )[0]?.file;
-    expect(target()).toBe(first);
+          path.join(root, 'src/user.ts'),
+        )[0]?.file;
+      // Same-name, unqualified calls may bind to either file; directory order is
+      // not part of this contract. Delete the actual target so both discovery
+      // orders exercise stale-reference rebinding rather than an unrelated file.
+      const initialTarget = target();
+      expect([first, second]).toContain(initialTarget);
+      if (!initialTarget) throw new Error('Expected a resolved helper before deletion');
 
-    await fs.rm(first);
-    await index();
+      await fs.rm(initialTarget);
+      await index();
 
-    expect(target()).toBe(path.join(root, 'src/second.ts'));
-  });
+      expect(target()).toBe(initialTarget === first ? second : first);
+    },
+  );
 
   it('reports no change, and keeps the content stamp, for an unchanged targeted run', async () => {
     const a = await write('src/a.ts', 'export const a = 1;\n');
