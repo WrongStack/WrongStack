@@ -242,16 +242,22 @@ const plugin: Plugin = {
     // conversation it opens), most of which never write a file.
     let linterProbe: Promise<Awaited<ReturnType<typeof detectLinter>>> | undefined;
     const linterReady = () =>
-      (linterProbe ??= detectLinter(cfg.linter, cwd).then((linter) => {
-        if (!linter) {
-          api.log.warn('lint-gate: no linter found (biome or eslint) — hook will be a no-op', {
-            requested: cfg.linter,
-          });
-        } else {
-          api.log.info('lint-gate: detected linter', { name: linter.name });
-        }
-        return linter;
-      }));
+      (linterProbe ??= detectLinter(cfg.linter, cwd).then(
+        (linter) => {
+          if (!linter) {
+            api.log.warn('lint-gate: no linter found (biome or eslint) — hook will be a no-op', {
+              requested: cfg.linter,
+            });
+          } else {
+            api.log.info('lint-gate: detected linter', { name: linter.name });
+          }
+          return linter;
+        },
+        (err) => {
+          linterProbe = undefined;
+          throw err;
+        },
+      ));
 
     // PreToolUse hook: lint the would-be content before write/edit.
     const hook = async (

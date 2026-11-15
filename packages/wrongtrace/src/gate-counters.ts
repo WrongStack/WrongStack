@@ -140,40 +140,45 @@ export function persistWrongTraceGateCounters(
 ): Promise<void> {
   // Chain so overlapping callers serialize; fail-open and never reject the
   // returned promise (observability must not break teardown).
-  persistChain = persistChain.then(async () => {
-    const file = countersFilePath(projectRoot);
-    const tmp = `${file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
-    try {
-      await _fsOps.mkdir(path.dirname(file), { recursive: true });
-      await _fsOps.writeFile(
-        tmp,
-        JSON.stringify({ at: new Date().toISOString(), ...snapshot }, null, 2),
-        'utf8',
-      );
-      let renamed = false;
-      for (let attempt = 0; attempt < 5; attempt++) {
-        try {
-          await _fsOps.rename(tmp, file);
-          renamed = true;
-          break;
-        } catch {
-          await new Promise((r) => setTimeout(r, 10));
+  persistChain = persistChain
+    .catch(() => {})
+    .then(async () => {
+      let tmp = '';
+      try {
+        const file = countersFilePath(projectRoot);
+        tmp = `${file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
+        await _fsOps.mkdir(path.dirname(file), { recursive: true });
+        await _fsOps.writeFile(
+          tmp,
+          JSON.stringify({ at: new Date().toISOString(), ...snapshot }, null, 2),
+          'utf8',
+        );
+        let renamed = false;
+        for (let attempt = 0; attempt < 5; attempt++) {
+          try {
+            await _fsOps.rename(tmp, file);
+            renamed = true;
+            break;
+          } catch {
+            await new Promise((r) => setTimeout(r, 10));
+          }
+        }
+        if (!renamed) {
+          await _fsOps.copyFile(tmp, file);
+          await _fsOps.unlink(tmp).catch(() => {});
+        }
+      } catch {
+        // best-effort: leave the prior file intact (rename is atomic; a failed
+        // write before it only orphans the tmp file).
+        if (tmp) {
+          try {
+            await _fsOps.unlink(tmp).catch(() => {});
+          } catch {
+            /* ignore */
+          }
         }
       }
-      if (!renamed) {
-        await _fsOps.copyFile(tmp, file);
-        await _fsOps.unlink(tmp).catch(() => {});
-      }
-    } catch {
-      // best-effort: leave the prior file intact (rename is atomic; a failed
-      // write before it only orphans the tmp file).
-      try {
-        await _fsOps.unlink(tmp).catch(() => {});
-      } catch {
-        /* ignore */
-      }
-    }
-  });
+    });
   return persistChain;
 }
 
