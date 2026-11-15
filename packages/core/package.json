@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/core",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "private": true,
   "license": "MIT",
   "description": "WrongStack core: kernel, types, and shared utilities for the WrongStack CLI agent.",

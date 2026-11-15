@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.3] — 2026-11-15
+
+After an update, nothing from the previous release keeps serving in the
+background: a newer client asks Chronicle, Kanban, Session Catalog, SAGE and
+mailbox daemons of an older release to stop and starts its own, and Windows
+desktops retire engine hosts that earlier builds left running. Long timers stay
+within platform limits, scoped grep globs keep their search root, and lookups
+and paths reject inherited properties and escaping symlinks.
+
 ### Fixed
 
 - Keep slash-containing grep globs relative to the requested search root and

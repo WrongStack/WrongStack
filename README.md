@@ -55,6 +55,18 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.7.3
+
+- **Daemons follow the update:** a newer client replaces the Chronicle, Kanban,
+  Session Catalog, SAGE and mailbox daemons left by an older release; daemons
+  of the same or a newer release are reused.
+- **Clean Windows desktops:** hosts and engine processes that earlier desktop
+  builds left running are retired.
+- **Timers and search:** long deadlines stay within platform timer limits, and
+  grep globs containing a slash keep their search root.
+- **Safer lookups and paths:** inherited object properties and escaping
+  symlinks are rejected.
+
 ### What's new in 1.7.2
 
 - **Engine restart after updates:** when conversations still run on the engine
@@ -564,7 +576,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.7.2**; versions follow semver
+- Release notes: **v1.7.3**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements

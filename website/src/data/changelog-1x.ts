@@ -1,4 +1,4 @@
-// Changelog — 1.x era (1.7.2 → 1.0.0).
+// Changelog — 1.x era (1.7.3 → 1.0.0).
 // Historical entries mirror CHANGELOG.md release notes. The 1.0.37 entry was
 // written from committed runtime/source evidence (git history and packages), not
 // the root CHANGELOG, which had not been extended when it landed. 1.1.0 absorbs
@@ -13,10 +13,23 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.3',
+    date: '2026-11-15',
+    tagline: 'Updates that leave nothing running behind',
+    latest: true,
+    highlights: [
+      'A newer client asks Chronicle, Kanban, Session Catalog, SAGE and mailbox daemons of an older release to stop and starts its own; daemons of the same or a newer release are reused',
+      'Windows desktops retire hosts and engine processes earlier builds left running, keeping development builds and other running desktops',
+      'Grep globs containing a slash stay relative to the requested search root; saved ACP sessions keep grouped configuration options',
+      'Long ACP, LSP, collaboration, verification, update and scan deadlines are chunked within platform timer limits',
+      'Role, model, plugin, language and telemetry lookups ignore inherited object properties',
+      'Checkpoint paths, vector-memory directory symlinks and static asset symlinks can no longer escape their roots',
+    ],
+  },
+  {
     version: '1.7.2',
     date: '2026-11-14',
     tagline: 'An engine restart after updates, terminal-friendly pickers and safer concurrency',
-    latest: true,
     highlights: [
       'When conversations still run on an earlier desktop engine, a confirmed restart moves them onto the new one; they resume through Reconnect',
       'The engine release notice points at the restart when the application is already current',
