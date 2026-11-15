@@ -159,7 +159,9 @@ export function main() {
         cwd: repoRoot,
         encoding: 'utf8',
         windowsHide: true,
-        timeout: 120_000,
+        // Covers a fresh index extraction plus the snapshot run; see COMMAND_TIMEOUT_MS in
+        // sync-staged-architecture-evidence.mjs for why first passes can exceed two minutes.
+        timeout: 600_000,
         maxBuffer: 32 * 1024 * 1024,
       },
     );

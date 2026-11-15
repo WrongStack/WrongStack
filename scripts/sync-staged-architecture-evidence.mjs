@@ -14,13 +14,18 @@ import {
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// Every commit extracts the whole index afresh, and the first pass over freshly written files
+// is slow where an on-access scanner reads each one: on a Windows workstation the architecture
+// checker took 144s there against 20s on a warm tree, so a 120s cap failed every commit.
+const COMMAND_TIMEOUT_MS = 600_000;
+
 const run = (command, args, cwd = process.cwd(), input) =>
   execFileSync(command, args, {
     cwd,
     input,
     encoding: 'utf8',
     windowsHide: true,
-    timeout: 120_000,
+    timeout: COMMAND_TIMEOUT_MS,
     maxBuffer: 32 * 1024 * 1024,
   });
 export function main() {
