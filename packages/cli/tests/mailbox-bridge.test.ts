@@ -209,7 +209,10 @@ afterAll(async () => {
 const auth = (): Record<string, string> => ({ Authorization: `Bearer ${token}` });
 
 describe('mailbox-bridge — startup banner', () => {
-  it('routes JSON to stdout and the human banner (with projectId) to stderr', () => {
+  it('routes JSON to stdout and the human banner (with projectId) to stderr', async () => {
+    // The startup event and human banner travel through independent pipes.
+    // Receiving stdout's ready event does not mean stderr's final chunk arrived.
+    await expect.poll(() => startupStderr, { timeout: 5_000 }).toContain('Press Ctrl+C to stop');
     // The projectId is `path.basename(projectDir)`, NOT the directory itself,
     // and mailbox-http-router compares it byte-for-byte. The banner is the only
     // place an operator sees it: without this line they copy the printed
@@ -244,7 +247,6 @@ describe('mailbox-bridge — startup banner', () => {
     expect(startupStderr).toContain('when issuing credentials');
     expect(startupStderr).toContain(`Project dir:  ${mailboxProjectDir}`);
     expect(startupStderr).toContain('Routes:');
-    expect(startupStderr).toContain('Press Ctrl+C to stop');
   });
 });
 
