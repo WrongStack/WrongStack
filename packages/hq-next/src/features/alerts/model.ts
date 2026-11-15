@@ -49,6 +49,11 @@ export function ruleName(ruleId: string): string {
   return (Object.hasOwn(RULE_LABEL, ruleId) ? RULE_LABEL[ruleId]?.name : undefined) ?? ruleId;
 }
 
+/** Human explanation of what a built-in alert rule checks, if known. */
+export function ruleChecks(ruleId: string): string | undefined {
+  return Object.hasOwn(RULE_LABEL, ruleId) ? RULE_LABEL[ruleId]?.checks : undefined;
+}
+
 export interface Episode {
   alert: HqAlert;
   /** Still firing now. */

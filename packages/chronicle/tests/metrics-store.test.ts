@@ -2,6 +2,7 @@ import { mkdtemp, writeFile } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { removeProjectFixtureDirectory } from '../../core/tests/helpers/project-server-harness.js';
 import {
   ChronicleJournal,
   ChronicleMetricsStore,
@@ -9,8 +10,6 @@ import {
 } from '../src/index.js';
 import { loadDatabaseSync } from '../src/metrics-schema.js';
 import type { ChronicleEventInput } from '../src/types.js';
-
-import { removeProjectFixtureDirectory } from '../../core/tests/helpers/project-server-harness.js';
 
 const dirs: string[] = [];
 afterEach(async () =>
@@ -566,6 +565,34 @@ describe.skipIf(!isChronicleMetricsAvailable())('ChronicleMetricsStore', { retry
       const summary = store.defaultSummary({ from: '2026-07-24', to: '2026-07-26' });
       expect(summary.families.tool).toBe(3);
       expect(summary.failuresByFamily.tool).toBe(1);
+    } finally {
+      store.close();
+    }
+  });
+
+  it('ignores Object.prototype keys in family_daily during defaultSummary', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-metrics-proto-'));
+    dirs.push(dir);
+    const store = ChronicleMetricsStore.open(dir);
+    try {
+      const db = (
+        store as unknown as {
+          db: { prepare: (sql: string) => { run: (...args: unknown[]) => void } };
+        }
+      ).db;
+      db.prepare(
+        'INSERT INTO family_daily (day, family, count, failure_count) VALUES (?, ?, ?, ?)',
+      ).run('2026-11-15', 'constructor', 3, 1);
+      db.prepare(
+        'INSERT INTO family_daily (day, family, count, failure_count) VALUES (?, ?, ?, ?)',
+      ).run('2026-11-15', 'tool', 2, 0);
+
+      const summary = store.defaultSummary();
+      expect(Object.hasOwn(summary.families, 'constructor')).toBe(false);
+      expect(
+        typeof (summary.families as unknown as Record<string, unknown>)['constructor'],
+      ).not.toBe('string');
+      expect(summary.families.tool).toBe(2);
     } finally {
       store.close();
     }

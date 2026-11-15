@@ -116,3 +116,12 @@ describe('replyDraft', () => {
     expect(draft.priority).toBe('high');
   });
 });
+
+describe('mailTypeLabel', () => {
+  it('falls back to the raw type for Object.prototype property names', () => {
+    expect(mailTypeLabel('ask')).toBe('Question');
+    for (const key of ['toString', 'constructor', 'valueOf']) {
+      expect(mailTypeLabel(key)).toBe(key);
+    }
+  });
+});

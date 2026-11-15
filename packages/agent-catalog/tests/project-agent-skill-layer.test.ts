@@ -22,6 +22,7 @@ import {
   recordSkillOutcome,
   renderLearnedInstructions,
   resetCaptureWindows,
+  resolveRoleSkillCandidates,
   routeDirectiveToSkill,
   SKILL_AUGMENTATION_MAX_BYTES,
   saveProjectAgentConsolidated,
@@ -498,5 +499,22 @@ describe('skill affinity ranking', () => {
     const curated = ['a-skill', 'b-skill', 'c-skill', 'd-skill'];
     setSkillPinned('executor', 'd-skill', true, projectRoot);
     expect(rankRoleSkills('executor', curated, projectRoot, 1)).toEqual(['d-skill']);
+  });
+
+  it('does not collide with Object.prototype when ranking a skill named "constructor"', () => {
+    saveProjectSkillAugmentation(
+      'coder',
+      'constructor',
+      'Learned rule for constructor.',
+      projectRoot,
+    );
+    const ranked = rankRoleSkills('coder', ['alpha', 'constructor', 'beta'], projectRoot, 3);
+    expect(ranked[0]).toBe('constructor');
+  });
+
+  it('resolveRoleSkillCandidates does not crash on Object.prototype role names', () => {
+    for (const role of ['toString', 'constructor', 'valueOf']) {
+      expect(Array.isArray(resolveRoleSkillCandidates(role, projectRoot))).toBe(true);
+    }
   });
 });

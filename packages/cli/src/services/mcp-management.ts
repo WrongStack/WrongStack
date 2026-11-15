@@ -180,20 +180,21 @@ async function runAdd(
   mcpRegistry: MCPRegistry,
   all: Record<string, MCPServerConfig>,
 ): Promise<string> {
-  const preset = all[name];
+  const preset = Object.hasOwn(all, name) ? all[name] : undefined;
   if (!preset) {
     const known = Object.keys(all).join(', ');
     return `Unknown server "${name}". Available: ${known}`;
   }
 
-  const existing = configured[name];
+  const existing = Object.hasOwn(configured, name) ? configured[name] : undefined;
   const nextCfg = existing
     ? { ...preset, ...existing, enabled: enable }
     : { ...preset, enabled: enable };
 
   await updateJsonObjectFile(configPath, (full) => {
     const current = isMcpServerRecord(full.mcpServers) ? full.mcpServers : {};
-    setJsonPath(full, ['mcpServers', name], { ...current[name], ...nextCfg });
+    const currentEntry = Object.hasOwn(current, name) ? current[name] : undefined;
+    setJsonPath(full, ['mcpServers', name], { ...currentEntry, ...nextCfg });
   });
 
   if (!enable) {
@@ -223,7 +224,7 @@ async function runRemove(
   configPath: string,
   mcpRegistry: MCPRegistry,
 ): Promise<string> {
-  if (!configured[name]) return `Server "${name}" is not in config.`;
+  if (!Object.hasOwn(configured, name)) return `Server "${name}" is not in config.`;
   try {
     await mcpRegistry.stop(name);
   } catch (err) {
@@ -253,7 +254,7 @@ async function runEnable(
   configPath: string,
   mcpRegistry: MCPRegistry,
 ): Promise<string> {
-  const cfg = configured[name];
+  const cfg = Object.hasOwn(configured, name) ? configured[name] : undefined;
   if (!cfg) return `Server "${name}" is not in config. Run \`/mcp add ${name} --enable\` first.`;
   const resolved = resolveMcpServerConfig(name, cfg);
   if (!resolved) return `Server "${name}" has no transport and matches no preset.`;
@@ -267,7 +268,8 @@ async function runEnable(
   }
   await updateJsonObjectFile(configPath, (full) => {
     const current = isMcpServerRecord(full.mcpServers) ? full.mcpServers : {};
-    setJsonPath(full, ['mcpServers', name], { ...cfg, ...current[name], enabled: true });
+    const currentEntry = Object.hasOwn(current, name) ? current[name] : undefined;
+    setJsonPath(full, ['mcpServers', name], { ...cfg, ...currentEntry, enabled: true });
   });
   if (registered) await mcpRegistry.restart(name, startCfg);
   else await mcpRegistry.start(startCfg);
@@ -280,7 +282,7 @@ async function runDisable(
   configPath: string,
   mcpRegistry: MCPRegistry,
 ): Promise<string> {
-  const cfg = configured[name];
+  const cfg = Object.hasOwn(configured, name) ? configured[name] : undefined;
   if (!cfg) return `Server "${name}" is not in config.`;
   try {
     await mcpRegistry.stop(name);
@@ -298,7 +300,8 @@ async function runDisable(
   }
   await updateJsonObjectFile(configPath, (full) => {
     const current = isMcpServerRecord(full.mcpServers) ? full.mcpServers : {};
-    setJsonPath(full, ['mcpServers', name], { ...cfg, ...current[name], enabled: false });
+    const currentEntry = Object.hasOwn(current, name) ? current[name] : undefined;
+    setJsonPath(full, ['mcpServers', name], { ...cfg, ...currentEntry, enabled: false });
   });
   if (typeof mcpRegistry.markDisabled === 'function') {
     mcpRegistry.markDisabled({ ...cfg, name, enabled: false });

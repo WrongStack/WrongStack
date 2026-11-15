@@ -900,6 +900,9 @@
       "isSuccessfulWorkflowState",
       "isTerminalWorkflowState"
     ],
+    "packages/hq-next/src/features/alerts/model.ts": [
+      "RULE_LABEL"
+    ],
     "packages/hq-next/src/hq/data/local-prefs.ts": [
       "__test__",
       "getHqLocalPrefsSnapshot",

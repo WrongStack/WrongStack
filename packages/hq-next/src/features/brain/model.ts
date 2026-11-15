@@ -276,3 +276,17 @@ export function summarize(items: readonly TrailItem[]): TrailSummary {
   }
   return summary;
 }
+
+const STEP_LABEL: Record<string, string> = {
+  decision_requested: 'Asked',
+  decision_answered: 'Answered',
+  decision_denied: 'Denied',
+  decision_ask_human: 'Handed to a human',
+  human_answered: 'Human answered',
+  council_resolved: 'Council voted',
+};
+
+/** Human label for a decision step kind, falling back to the raw kind. */
+export function stepLabel(kind: string): string {
+  return (Object.hasOwn(STEP_LABEL, kind) ? STEP_LABEL[kind] : undefined) ?? kind;
+}

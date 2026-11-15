@@ -453,6 +453,7 @@ export class ChronicleMetricsStore {
     const failuresByFamily = { ...EMPTY_FAMILIES };
     for (const row of familyRows) {
       const family = row.family as ChronicleSignalFamily;
+      if (!Object.hasOwn(families, family)) continue;
       families[family] = (families[family] ?? 0) + Number(row.count);
       failuresByFamily[family] = (failuresByFamily[family] ?? 0) + Number(row.failure_count);
     }

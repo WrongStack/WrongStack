@@ -44,7 +44,9 @@ const CHECK_LABEL: Record<string, string> = {
 };
 
 export function checkLabel(name: string): string {
-  return CHECK_LABEL[name] ?? name.replace(/-/g, ' ');
+  return (
+    (Object.hasOwn(CHECK_LABEL, name) ? CHECK_LABEL[name] : undefined) ?? name.replace(/-/g, ' ')
+  );
 }
 
 /** Latency checks carry milliseconds; the concurrency check carries a count. */

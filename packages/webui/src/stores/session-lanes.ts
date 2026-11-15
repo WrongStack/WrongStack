@@ -322,10 +322,11 @@ function mutate(
   updater: (lane: SessionLaneData) => Partial<SessionLaneData> | void,
 ) {
   useSessionLanes.setState((s) => {
-    const current = s.lanes[sessionId] ?? createSessionLaneData();
+    const hasOwn = Object.hasOwn(s.lanes, sessionId);
+    const current = hasOwn ? s.lanes[sessionId]! : createSessionLaneData();
     const patch = updater(current);
     if (!patch) {
-      if (s.lanes[sessionId]) return {};
+      if (hasOwn) return {};
       return { lanes: { ...s.lanes, [sessionId]: current } };
     }
     return { lanes: { ...s.lanes, [sessionId]: { ...current, ...patch } } };

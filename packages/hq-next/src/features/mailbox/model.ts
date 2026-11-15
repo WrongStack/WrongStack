@@ -20,7 +20,7 @@ export const MAIL_TYPE_LABEL: Record<string, string> = {
 };
 
 export function mailTypeLabel(type: string): string {
-  return MAIL_TYPE_LABEL[type] ?? type;
+  return (Object.hasOwn(MAIL_TYPE_LABEL, type) ? MAIL_TYPE_LABEL[type] : undefined) ?? type;
 }
 
 /** Types that ask the receiver to act, not just to know. */

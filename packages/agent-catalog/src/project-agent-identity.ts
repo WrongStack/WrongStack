@@ -195,14 +195,17 @@ export function loadRoleKnowledgeManifest(
   role: string,
   projectRoot?: string,
 ): RoleKnowledgeManifest | undefined {
+  const builtIn = Object.hasOwn(BUILT_IN_KNOWLEDGE_MANIFESTS, role)
+    ? BUILT_IN_KNOWLEDGE_MANIFESTS[role]
+    : undefined;
   const projectPath = path.join(roleDir(role, projectRoot), 'knowledge.json');
   let parsed: unknown;
   try {
     parsed = JSON.parse(readFileSync(projectPath, 'utf8'));
   } catch {
-    return BUILT_IN_KNOWLEDGE_MANIFESTS[role];
+    return builtIn;
   }
-  return normalizeKnowledgeManifest(parsed, role) ?? BUILT_IN_KNOWLEDGE_MANIFESTS[role];
+  return normalizeKnowledgeManifest(parsed, role) ?? builtIn;
 }
 
 /**
@@ -227,6 +230,7 @@ function normalizeKnowledgeManifest(
   const queries = raw['liveQueries'];
   if (typeof queries === 'object' && queries !== null && !Array.isArray(queries)) {
     for (const [topic, query] of Object.entries(queries)) {
+      if (topic === '__proto__' || topic === 'constructor' || topic === 'prototype') continue;
       if (typeof query !== 'object' || query === null) continue;
       const { registry, key, description } = query as Record<string, unknown>;
       if (typeof registry !== 'string' || typeof key !== 'string') continue;

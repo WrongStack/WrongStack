@@ -75,7 +75,10 @@ export function AuthAuditPanel(): React.ReactElement {
           data-testid="auth-audit-row"
           className="flex flex-wrap items-center gap-2 px-2 py-1.5 text-xs"
         >
-          <span className="font-medium">{KIND_LABEL[entry.kind] ?? entry.kind}</span>
+          <span className="font-medium">
+            {(Object.hasOwn(KIND_LABEL, entry.kind) ? KIND_LABEL[entry.kind] : undefined) ??
+              entry.kind}
+          </span>
           <Badge tone="idle">{entry.scope}</Badge>
           <Mono>{entry.tokenId === PASSWORD_ROTATION_TOKEN ? '—' : entry.tokenId.slice(0, 8)}</Mono>
           {entry.actor !== undefined && <Mono>{entry.actor}</Mono>}

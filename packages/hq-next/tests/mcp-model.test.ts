@@ -5,6 +5,7 @@
 import type { HqClientRecord, HqMcpServerHealth, HqProjectRecord } from '@wrongstack/hq';
 import { describe, expect, it } from 'vitest';
 import {
+  checkLabel,
   checkValue,
   formatMs,
   latencyLine,
@@ -154,5 +155,14 @@ describe('MCP route', () => {
   it('lives under System at /system/mcp/', () => {
     expect(hrefForView('mcp')).toBe('/system/mcp/');
     expect(tabForPath('/system/mcp/').view).toBe('mcp');
+  });
+});
+
+describe('checkLabel', () => {
+  it('falls back to text for Object.prototype property names instead of returning prototype methods', () => {
+    expect(checkLabel('connection-latency-p95')).toBe('Connecting (p95)');
+    for (const key of ['toString', 'constructor', 'valueOf']) {
+      expect(checkLabel(key)).toBe(key);
+    }
   });
 });

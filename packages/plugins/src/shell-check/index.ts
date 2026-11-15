@@ -463,7 +463,7 @@ const plugin: Plugin = {
             ? rawIssues.filter((issue) => !ignoredCodes.has(normalizeCode(issue.code)))
             : rawIssues;
 
-        const byFile: Record<string, ShellCheckIssue[]> = {};
+        const byFile = Object.create(null) as Record<string, ShellCheckIssue[]>;
         for (const issue of issues) {
           if (byFile[issue.file] === undefined) {
             byFile[issue.file] = [];

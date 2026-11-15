@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  useChimeraReportsStore,
   type ChimeraReportNotice,
+  useChimeraReportsStore,
 } from '../../src/stores/chimera-reports-store';
 
 function notice(overrides: Partial<ChimeraReportNotice> = {}): ChimeraReportNotice {
@@ -82,5 +82,15 @@ describe('chimera-reports-store', () => {
     store.forgetSession('sess-1');
     expect(useChimeraReportsStore.getState().bySession['sess-1']).toBeUndefined();
     expect(useChimeraReportsStore.getState().bySession['sess-2']).toHaveLength(1);
+  });
+
+  it('hydrateReports and forgetSession ignore Object.prototype keys', () => {
+    const store = useChimeraReportsStore.getState();
+    for (const key of ['toString', 'constructor', 'valueOf']) {
+      store.hydrateReports(key, [notice({ reportId: `rep-${key}`, sessionId: key })]);
+      expect(useChimeraReportsStore.getState().bySession[key]).toHaveLength(1);
+      store.forgetSession(key);
+      expect(Object.hasOwn(useChimeraReportsStore.getState().bySession, key)).toBe(false);
+    }
   });
 });

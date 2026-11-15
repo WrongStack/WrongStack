@@ -194,4 +194,12 @@ describe('createPolyglotSuite.subsetId', () => {
     ]);
     expect(idDup).toMatch(/^polyglot:/);
   });
+
+  it('ignores Object.prototype keys in languages without throwing', async () => {
+    const suite = createPolyglotSuite({
+      polyglotDir: root,
+      languages: ['toString', 'constructor'],
+    });
+    await expect(suite.loadTasks({ limit: 10 })).resolves.toEqual([]);
+  });
 });

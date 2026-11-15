@@ -29,6 +29,7 @@ import {
   isModelBacked,
   OUTCOME_LABEL,
   type Outcome,
+  stepLabel,
   summarize,
   type TrailFilter,
 } from './model';
@@ -43,15 +44,6 @@ const OUTCOME_TONE: Record<Outcome, string> = {
   waiting: 'text-warning',
   escalated: 'text-warning',
   human: 'text-info',
-};
-
-const STEP_LABEL: Record<string, string> = {
-  decision_requested: 'Asked',
-  decision_answered: 'Answered',
-  decision_denied: 'Denied',
-  decision_ask_human: 'Handed to a human',
-  human_answered: 'Human answered',
-  council_resolved: 'Council voted',
 };
 
 function useNow(intervalMs = 30_000): number {
@@ -323,7 +315,7 @@ function DecisionCard({
             <ol className="mt-1 flex flex-col gap-0.5">
               {decision.steps.map((step, index) => (
                 <li key={`${step.kind}-${step.at}-${index}`} className="tabular">
-                  {new Date(step.at).toLocaleTimeString()} · {STEP_LABEL[step.kind] ?? step.kind}
+                  {new Date(step.at).toLocaleTimeString()} · {stepLabel(step.kind)}
                   {step.tier !== undefined && ` · ${step.tier}`}
                 </li>
               ))}

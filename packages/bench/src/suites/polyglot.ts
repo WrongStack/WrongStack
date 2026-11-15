@@ -129,6 +129,7 @@ export function createPolyglotSuite(opts: {
       const wanted = opts.ids ? new Set(opts.ids) : undefined;
       const langs = opts.languages ?? Object.keys(LANGUAGE_RUNNERS);
       for (const lang of langs) {
+        if (!Object.hasOwn(LANGUAGE_RUNNERS, lang)) continue;
         const runner = LANGUAGE_RUNNERS[lang];
         if (!runner) continue;
         const practiceDir = path.join(opts.polyglotDir, runner.dir, 'exercises', 'practice');

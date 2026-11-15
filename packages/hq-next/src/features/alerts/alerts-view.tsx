@@ -19,7 +19,7 @@ import { relativeTime } from '@/features/attention/model';
 import { plural } from '@/features/overview/model';
 import { cn } from '@/lib/cn';
 import { errorText } from '@/lib/error-text';
-import { duration, type Episode, episodes, RULE_LABEL, ruleCounts, ruleName } from './model';
+import { duration, type Episode, episodes, ruleChecks, ruleCounts, ruleName } from './model';
 import { MuteControls } from './mute-controls';
 
 const POLL_MS = 15_000;
@@ -163,8 +163,8 @@ export function AlertsView(): ReactNode {
                   <p className="text-xs text-muted-foreground">
                     Since {new Date(episode.alert.firstFiredAt).toLocaleString()} · last confirmed{' '}
                     {relativeTime(episode.alert.lastFiredAt, now)}
-                    {RULE_LABEL[episode.alert.ruleId] !== undefined &&
-                      ` · ${RULE_LABEL[episode.alert.ruleId]?.checks}`}
+                    {ruleChecks(episode.alert.ruleId) !== undefined &&
+                      ` · ${ruleChecks(episode.alert.ruleId)}`}
                   </p>
                   <MuteControls
                     ruleId={episode.alert.ruleId}

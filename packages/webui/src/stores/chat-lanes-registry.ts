@@ -235,10 +235,11 @@ export function mutate(
   updater: (lane: ChatLaneData) => Partial<ChatLaneData> | void,
 ) {
   useChatLanes.setState((s) => {
-    const current = s.lanes[sessionId] ?? createLaneData();
+    const hasOwn = Object.hasOwn(s.lanes, sessionId);
+    const current = hasOwn ? s.lanes[sessionId]! : createLaneData();
     const patch = updater(current);
     if (!patch) {
-      if (s.lanes[sessionId]) return {};
+      if (hasOwn) return {};
       return { lanes: { ...s.lanes, [sessionId]: current } };
     }
     return { lanes: { ...s.lanes, [sessionId]: { ...current, ...patch } } };

@@ -86,7 +86,10 @@ export function chatLane(sessionId: string): ChatLaneActions {
   const cached = actionCache.get(sid);
   if (cached) return cached;
 
-  const read = (): ChatLaneData => useChatLanes.getState().lanes[sid] ?? EMPTY_LANE;
+  const read = (): ChatLaneData => {
+    const lanes = useChatLanes.getState().lanes;
+    return Object.hasOwn(lanes, sid) ? lanes[sid]! : EMPTY_LANE;
+  };
 
   const actions: ChatLaneActions = {
     sessionId: sid,

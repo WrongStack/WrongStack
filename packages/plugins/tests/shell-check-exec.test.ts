@@ -410,4 +410,25 @@ describe('shellcheck tool — directory scan mode (merged from shellcheck_scan)'
       rmSync(outsideDir, { recursive: true, force: true });
     }
   });
+
+  it('does not crash when a scanned file is named like an Object.prototype property (F357)', async () => {
+    const fs = await import('node:fs');
+    fs.writeFileSync(join(tmpRoot, 'toString'), '#!/bin/sh\necho $x\n', 'utf8');
+    cp.execFileSync.mockReturnValue(
+      JSON.stringify([
+        {
+          file: 'toString',
+          line: 1,
+          column: 1,
+          level: 'error',
+          code: 2086,
+          message: 'Double quote to prevent globbing and word splitting.',
+        },
+      ]),
+    );
+    const { tools } = setup();
+    const res = await tools.shellcheck!.execute({ files: ['toString'] });
+    expect(res.ok).toBe(true);
+    expect((res.summary as { total: number }).total).toBe(1);
+  });
 });

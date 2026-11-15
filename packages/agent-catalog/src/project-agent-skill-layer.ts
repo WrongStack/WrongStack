@@ -619,7 +619,11 @@ export function rankRoleSkills(
       index,
       // An existing addendum is itself evidence the project developed this
       // skill, even when the affinity file was reset or hand-edited.
-      score: scoreSkillAffinity(affinity.entries[skill], now) + (augmented.has(skill) ? 1 : 0),
+      score:
+        scoreSkillAffinity(
+          Object.hasOwn(affinity.entries, skill) ? affinity.entries[skill] : undefined,
+          now,
+        ) + (augmented.has(skill) ? 1 : 0),
     }))
     .sort((a, b) => (b.score === a.score ? a.index - b.index : b.score - a.score))
     .slice(0, limit)
@@ -641,11 +645,13 @@ export function resolveRoleSkillCandidates(role: string, projectRoot?: string): 
   const override = loadProjectAgentConfig(normalizedRole, projectRoot)?.skillNames;
   const curated =
     override ??
-    ROLE_SKILL_SETS[normalizedRole as keyof typeof ROLE_SKILL_SETS] ??
+    (Object.hasOwn(ROLE_SKILL_SETS, normalizedRole)
+      ? ROLE_SKILL_SETS[normalizedRole as keyof typeof ROLE_SKILL_SETS]
+      : undefined) ??
     (() => {
       const profile = loadProjectAgentProfile(normalizedRole, projectRoot);
       const base = profile?.baseRole as keyof typeof ROLE_SKILL_SETS | undefined;
-      return base ? ROLE_SKILL_SETS[base] : undefined;
+      return base && Object.hasOwn(ROLE_SKILL_SETS, base) ? ROLE_SKILL_SETS[base] : undefined;
     })() ??
     [];
   return [

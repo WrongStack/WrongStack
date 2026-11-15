@@ -79,13 +79,14 @@ export const useChimeraReportsStore = create<ChimeraReportsState>()((set, get) =
   hydrateReports: (sessionId, notices) => {
     if (notices.length === 0) return;
     set((s) => {
-      const known = new Set((s.bySession[sessionId] ?? []).map((r) => r.reportId));
+      const existing = Object.hasOwn(s.bySession, sessionId) ? (s.bySession[sessionId] ?? []) : [];
+      const known = new Set(existing.map((r) => r.reportId));
       const fresh = notices.filter((n) => n.reportId && !known.has(n.reportId));
       if (fresh.length === 0) return s;
       return {
         bySession: {
           ...s.bySession,
-          [sessionId]: [...(s.bySession[sessionId] ?? []), ...fresh],
+          [sessionId]: [...existing, ...fresh],
         },
       };
     });
@@ -93,7 +94,7 @@ export const useChimeraReportsStore = create<ChimeraReportsState>()((set, get) =
 
   forgetSession: (sessionId) => {
     set((s) => {
-      if (!(sessionId in s.bySession)) return s;
+      if (!Object.hasOwn(s.bySession, sessionId)) return s;
       const next = { ...s.bySession };
       delete next[sessionId];
       return { bySession: next };

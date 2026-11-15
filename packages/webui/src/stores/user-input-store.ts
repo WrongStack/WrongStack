@@ -20,7 +20,9 @@ export const useUserInputStore = create<UserInputState>((set) => ({
   queues: {},
   enqueue: (entry) =>
     set((state) => {
-      const current = state.queues[entry.sessionId] ?? [];
+      const current = Object.hasOwn(state.queues, entry.sessionId)
+        ? (state.queues[entry.sessionId] ?? [])
+        : [];
       const withoutDuplicate = current.filter((item) => item.request.id !== entry.request.id);
       return {
         queues: {
@@ -50,6 +52,8 @@ export function pendingUserInputForSession(
   queues: UserInputState['queues'],
   sessionId: string | null,
 ): PendingUserInputEntry | null {
-  if (sessionId) return queues[sessionId]?.[0] ?? null;
+  if (sessionId) {
+    return Object.hasOwn(queues, sessionId) ? (queues[sessionId]?.[0] ?? null) : null;
+  }
   return Object.values(queues).flat()[0] ?? null;
 }
