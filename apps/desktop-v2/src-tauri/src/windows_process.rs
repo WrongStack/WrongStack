@@ -43,6 +43,12 @@ extern "system" {
     fn CreateToolhelp32Snapshot(flags: u32, pid: u32) -> Handle;
     fn Process32FirstW(snapshot: Handle, entry: *mut ProcessEntry) -> i32;
     fn Process32NextW(snapshot: Handle, entry: *mut ProcessEntry) -> i32;
+    fn QueryFullProcessImageNameW(
+        handle: Handle,
+        flags: u32,
+        name: *mut u16,
+        size: *mut u32,
+    ) -> i32;
 }
 struct OwnedHandle(Handle);
 impl Drop for OwnedHandle {
@@ -91,6 +97,71 @@ impl Process {
             _ => Err(crate::err(io::Error::last_os_error())),
         }
     }
+}
+/// Every process as `(pid, parent, executable file name)`.
+fn snapshot() -> crate::Result<Vec<(u32, u32, String)>> {
+    let raw = unsafe { CreateToolhelp32Snapshot(2, 0) };
+    if raw as isize == -1 {
+        return Err(crate::err(io::Error::last_os_error()));
+    }
+    let snapshot = OwnedHandle(raw);
+    let mut entry: ProcessEntry = unsafe { mem::zeroed() };
+    entry.size = mem::size_of::<ProcessEntry>() as u32;
+    let mut rows = Vec::new();
+    let mut next = unsafe { Process32FirstW(snapshot.0, &mut entry) };
+    while next != 0 {
+        let len = entry
+            .name
+            .iter()
+            .position(|c| *c == 0)
+            .unwrap_or(entry.name.len());
+        rows.push((
+            entry.pid,
+            entry.parent,
+            String::from_utf16_lossy(&entry.name[..len]),
+        ));
+        next = unsafe { Process32NextW(snapshot.0, &mut entry) };
+    }
+    Ok(rows)
+}
+/// The full path of a process's executable, when it can be read.
+fn image_path(pid: u32) -> Option<std::path::PathBuf> {
+    let raw = unsafe { OpenProcess(0x1000, 0, pid) };
+    if raw.is_null() {
+        return None;
+    }
+    let handle = OwnedHandle(raw);
+    let mut buffer = [0u16; 1024];
+    let mut size = buffer.len() as u32;
+    if unsafe { QueryFullProcessImageNameW(handle.0, 0, buffer.as_mut_ptr(), &mut size) } == 0 {
+        return None;
+    }
+    Some(String::from_utf16_lossy(&buffer[..size as usize]).into())
+}
+/// Ends every process (and its descendants) whose executable is exactly `image`. Only an
+/// executable private to one exited host qualifies: whatever runs from it is that host's
+/// orphan, such as a project daemon its engine started.
+pub(crate) fn stop_image(image: &std::path::Path) -> crate::Result<()> {
+    let Some(file) = image.file_name().and_then(|n| n.to_str()) else {
+        return Ok(());
+    };
+    let wanted = image.to_string_lossy().to_lowercase();
+    for (pid, _, name) in snapshot()? {
+        if !name.eq_ignore_ascii_case(file) {
+            continue;
+        }
+        if image_path(pid).is_some_and(|path| path.to_string_lossy().to_lowercase() == wanted) {
+            stop_tree(pid)?;
+        }
+    }
+    Ok(())
+}
+/// Whether a process with this executable file name runs, other than this one.
+pub(crate) fn another_running(file_name: &str) -> crate::Result<bool> {
+    let own = std::process::id();
+    Ok(snapshot()?
+        .into_iter()
+        .any(|(pid, _, name)| pid != own && name.eq_ignore_ascii_case(file_name)))
 }
 fn owned_tree(pid: u32) -> crate::Result<Vec<Process>> {
     let Some(root) = Process::open(pid)? else {

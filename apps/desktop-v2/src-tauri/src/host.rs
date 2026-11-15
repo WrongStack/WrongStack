@@ -119,6 +119,66 @@ mod service_version_tests {
         }
         std::fs::remove_dir_all(dir).unwrap();
     }
+    #[test]
+    fn only_a_release_build_retires_other_release_builds_and_only_when_alone() {
+        let own = "a".repeat(64);
+        let other = "b".repeat(64);
+        assert!(retires_sibling(&own, &other, false));
+        assert!(
+            !retires_sibling(&own, &other, true),
+            "another desktop may own it"
+        );
+        assert!(!retires_sibling(&own, &own, false), "its own folder");
+        assert!(!retires_sibling(&own, "development", false));
+        assert!(!retires_sibling("development", &other, false));
+    }
+    /// The user's case: the host is gone, its engine died, and the project daemons that engine
+    /// started kept running from the private engine copy, reused by newer clients for hours.
+    #[cfg(windows)]
+    #[test]
+    fn an_exited_host_takes_the_processes_still_running_from_its_engine_copy_with_it() {
+        use std::os::windows::process::CommandExt;
+        let dir = std::env::temp_dir().join(format!("desktop-orphans-{}", Uuid::new_v4()));
+        let bin = dir.join("hosts").join(Uuid::new_v4().to_string());
+        std::fs::create_dir_all(&bin).unwrap();
+        let engine = bin.join(ENGINE_FILE_NAME);
+        std::fs::copy(r"C:\Windows\System32\PING.EXE", &engine).unwrap();
+        let mut orphan = Command::new(&engine)
+            .args(["-n", "60", "127.0.0.1"])
+            .creation_flags(0x08000000)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        // A process running something else must survive.
+        let mut bystander = Command::new(r"C:\Windows\System32\PING.EXE")
+            .args(["-n", "60", "127.0.0.1"])
+            .creation_flags(0x08000000)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        prune_exited_hosts(&dir);
+        let ended = orphan.try_wait().unwrap().is_some() || {
+            thread::sleep(Duration::from_millis(500));
+            orphan.try_wait().unwrap().is_some()
+        };
+        let survived = bystander.try_wait().unwrap().is_none();
+        let _ = orphan.kill();
+        let _ = bystander.kill();
+        let _ = orphan.wait();
+        let _ = bystander.wait();
+        assert!(
+            ended,
+            "the orphan running from the engine copy must be ended"
+        );
+        assert!(
+            survived,
+            "a process running another executable is left alone"
+        );
+        assert!(!bin.exists(), "the exited host's folder is removed");
+        let _ = std::fs::remove_dir_all(dir);
+    }
     #[cfg(windows)]
     #[test]
     fn a_new_host_removes_the_copies_of_exited_hosts_and_keeps_live_ones() {
@@ -489,8 +549,29 @@ fn prune_exited_hosts(dir: &Path) {
         if host.is_file() && std::fs::remove_file(&host).is_err() {
             continue;
         }
+        // The host is gone, so anything still running from its private engine copy is an
+        // orphan: project daemons its engines started keep running, and newer clients keep
+        // reusing them, until something ends them.
+        #[cfg(windows)]
+        {
+            let engine = bin.join(ENGINE_FILE_NAME);
+            if engine.is_file() && std::fs::remove_file(&engine).is_err() {
+                let _ = crate::windows_process::stop_image(&engine);
+            }
+        }
         let _ = std::fs::remove_dir_all(&bin);
     }
+}
+/// Whether this launch ends the project-services host in another build's folder. A release
+/// build retires the hosts of other builds: after an update no window of the old build is left
+/// to use them, and nothing else stops them. Development builds retire nothing and are never
+/// retired, and nothing is touched while another desktop process runs (it may be the build
+/// that owns that host).
+fn retires_sibling(own_build: &str, sibling_build: &str, another_desktop_running: bool) -> bool {
+    own_build != "development"
+        && sibling_build != "development"
+        && sibling_build != own_build
+        && !another_desktop_running
 }
 /// Every desktop build keeps its own project-services host folder
 /// (`project-services-v1/<engine build>`) beside the main one, and a build only ever stages in
@@ -521,12 +602,40 @@ fn prune_sibling_builds(dir: &Path) {
             continue;
         };
         if lock.try_lock().is_ok() {
+            if sibling != base {
+                retire_sibling_host(&sibling);
+            }
             prune_exited_hosts(&sibling);
             if sibling != base {
                 prune_exited_build_journals(&sibling);
             }
         }
     }
+}
+/// Ends the project-services host of another build (see [`retires_sibling`]). Its identity is
+/// proven by the host itself (`Client::load` checks the pid it answers with), never taken from
+/// a `host.json` a reused pid could outlive.
+fn retire_sibling_host(sibling: &Path) {
+    #[cfg(windows)]
+    {
+        let Some(sibling_build) = sibling.file_name().and_then(|n| n.to_str()) else {
+            return;
+        };
+        let desktop = std::env::current_exe()
+            .ok()
+            .and_then(|exe| exe.file_name().map(|n| n.to_string_lossy().into_owned()));
+        let another = desktop
+            .map(|name| crate::windows_process::another_running(&name).unwrap_or(true))
+            .unwrap_or(true);
+        if !retires_sibling(engine_build(), sibling_build, another) {
+            return;
+        }
+        if let Ok(client) = Client::load(sibling) {
+            let _ = crate::windows_process::stop_tree(client.endpoint.pid);
+        }
+    }
+    #[cfg(not(windows))]
+    let _ = sibling;
 }
 /// An earlier build's project-services folder holds only project and profile journals (the
 /// conversations live in the main folder), and no later build reads them: each start opens its
