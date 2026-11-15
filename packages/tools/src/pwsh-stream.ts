@@ -34,6 +34,8 @@ const SPAWN_EPERM_RETRIES = 3;
 const SPAWN_EPERM_BACKOFF_MS = 50;
 /** 0xC0070005 as a signed 32-bit errno: access denied, untranslated by libuv. */
 const SPAWN_ACCESS_DENIED_NTSTATUS = -1073283067;
+const STORE_POWERSHELL_BINARY =
+  /[\\/]WindowsApps[\\/](?:Microsoft\.PowerShell_[^\\/]+[\\/])?pwsh\.exe$/i;
 
 /**
  * `spawn`, retrying a synchronous EPERM on Windows. PowerShell 7 installed
@@ -43,17 +45,29 @@ const SPAWN_ACCESS_DENIED_NTSTATUS = -1073283067;
  * are in flight, and the same spawn succeeds a moment later. Without the
  * retry a busy machine turned a valid command into "spawn failed". The same
  * denial sometimes reaches libuv untranslated, as the NTSTATUS-style
- * 0xC0070005 ("Unknown system error -1073283067"), and is retried alike. The caller
- * passes the spawn itself so each call site keeps its buildChildEnv-derived env
- * in view (see spawn-convention.test.ts).
+ * 0xC0070005 ("Unknown system error -1073283067"), and is retried alike. Bun can
+ * also collapse that denial to EUNKNOWN/-4094: native probes with GetLastError
+ * cleared before spawn still returned 0xC0070005. Limit that form to Store
+ * PowerShell paths and the observed spawn syscall; unrelated unknown errors
+ * must surface immediately. Each caller passes the spawn itself so its
+ * buildChildEnv-derived env stays visible (see spawn-convention.test.ts).
  */
-async function retrySpawnEperm(launch: () => ChildProcess, isWin: boolean): Promise<ChildProcess> {
+async function retrySpawnEperm(
+  launch: () => ChildProcess,
+  isWin: boolean,
+  binary: string,
+): Promise<ChildProcess> {
   for (let attempt = 0; ; attempt++) {
     try {
       return launch();
     } catch (err) {
-      const { code, errno } = err as NodeJS.ErrnoException;
-      const denied = code === 'EPERM' || errno === SPAWN_ACCESS_DENIED_NTSTATUS;
+      const { code, errno, syscall } = err as NodeJS.ErrnoException;
+      const storeUnknown =
+        code === 'EUNKNOWN' &&
+        errno === -4094 &&
+        syscall === 'spawn' &&
+        STORE_POWERSHELL_BINARY.test(binary);
+      const denied = code === 'EPERM' || errno === SPAWN_ACCESS_DENIED_NTSTATUS || storeUnknown;
       if (!isWin || !denied || attempt >= SPAWN_EPERM_RETRIES) throw err;
       await new Promise((resolve) => setTimeout(resolve, SPAWN_EPERM_BACKOFF_MS * (attempt + 1)));
     }
@@ -135,6 +149,7 @@ export async function* executePwshStream(
             windowsHide: true,
           }),
         isWin,
+        bin,
       );
     } catch (err) {
       closeBackgroundLogFd(bgLog);
@@ -291,6 +306,7 @@ export async function* executePwshStream(
           windowsHide: true,
         }),
       isWin,
+      bin,
     );
   } catch (err) {
     // Spawn threw — release the breaker reservation the successful

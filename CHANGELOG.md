@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Recover from transient Microsoft Store PowerShell launch denials that Bun
+  reports as `EUNKNOWN`, using the existing bounded Windows retry budget.
+
 ## [1.7.4] — 2026-11-15
 
 A hardening release. Timeouts longer than about 24.8 days no longer fire after

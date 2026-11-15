@@ -11,14 +11,21 @@ import { mkSandbox, newSignal } from './fixtures.js';
 const hoisted = vi.hoisted(() => ({
   epermThrows: 0,
   spawnCalls: 0,
+  binary: 'pwsh.exe',
+  platform: 'win32' as NodeJS.Platform,
   makeError: (): Error =>
     Object.assign(new Error('spawn EPERM'), { code: 'EPERM', syscall: 'spawn' }),
 }));
 
 vi.mock('node:os', async (orig) => {
   const actual = await orig<typeof import('node:os')>();
-  return { ...actual, default: actual, platform: () => 'win32' as NodeJS.Platform };
+  return { ...actual, default: actual, platform: () => hoisted.platform };
 });
+
+vi.mock('../src/_win32-resolve.js', async (orig) => ({
+  ...(await orig<typeof import('../src/_win32-resolve.js')>()),
+  resolvePowerShell: () => hoisted.binary,
+}));
 
 vi.mock('node:child_process', async (orig) => {
   const actual = await orig<typeof import('node:child_process')>();
@@ -52,9 +59,11 @@ afterEach(() => {
   hoisted.epermThrows = 0;
   hoisted.spawnCalls = 0;
   hoisted.makeError = epermError;
+  hoisted.binary = 'pwsh.exe';
+  hoisted.platform = 'win32';
 });
 
-describe('pwsh spawn EPERM retry (Store app execution alias)', () => {
+describe('pwsh Windows launch retry', () => {
   it('retries a transient synchronous EPERM and runs the command', async () => {
     hoisted.epermThrows = 2;
     const sb = await mkSandbox();
@@ -103,4 +112,104 @@ describe('pwsh spawn EPERM retry (Store app execution alias)', () => {
       await sb.cleanup();
     }
   });
+
+  it.each([
+    'C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.7.0.0_x64__8wekyb3d8bbwe\\pwsh.exe',
+    'C:\\Users\\owner\\AppData\\Local\\Microsoft\\WindowsApps\\pwsh.exe',
+    'C:/Program Files/WindowsApps/Microsoft.PowerShell_7.7.0.0_x64__8wekyb3d8bbwe/PWSH.EXE',
+  ])('recovers from the observed Bun EUNKNOWN for Store PowerShell: %s', async (binary) => {
+    hoisted.binary = binary;
+    hoisted.makeError = () =>
+      Object.assign(new Error('EUNKNOWN: unknown error, uv_spawn'), {
+        code: 'EUNKNOWN',
+        errno: -4094,
+        syscall: 'spawn',
+      });
+    hoisted.epermThrows = 2;
+    const sb = await mkSandbox();
+    try {
+      const out = await pwshTool.execute({ command: 'Write-Output "x"' }, sb.ctx, {
+        signal: newSignal(),
+      });
+      expect(hoisted.spawnCalls).toBe(3);
+      expect(out.exit_code).toBe(0);
+      expect(out.output).toContain('spawned-after-eperm');
+    } finally {
+      await sb.cleanup();
+    }
+  });
+
+  it.each([false, true])(
+    'reports persistent Store EUNKNOWN within the existing budget (background=%s)',
+    async (run_in_background) => {
+      hoisted.binary =
+        'C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.7.0.0_x64__8wekyb3d8bbwe\\pwsh.exe';
+      hoisted.makeError = () =>
+        Object.assign(new Error('EUNKNOWN: unknown error, uv_spawn'), {
+          code: 'EUNKNOWN',
+          errno: -4094,
+          syscall: 'spawn',
+        });
+      hoisted.epermThrows = Number.POSITIVE_INFINITY;
+      const sb = await mkSandbox();
+      try {
+        await expect(
+          pwshTool.execute({ command: 'Write-Output "x"', run_in_background }, sb.ctx, {
+            signal: newSignal(),
+          }),
+        ).rejects.toThrow('pwsh: spawn failed: EUNKNOWN');
+        expect(hoisted.spawnCalls).toBe(4);
+      } finally {
+        await sb.cleanup();
+      }
+    },
+  );
+
+  it('does not retry a POSIX EPERM', async () => {
+    hoisted.platform = 'linux';
+    hoisted.epermThrows = 1;
+    const sb = await mkSandbox();
+    try {
+      await expect(
+        pwshTool.execute({ command: 'Write-Output "x"' }, sb.ctx, { signal: newSignal() }),
+      ).rejects.toThrow('pwsh: spawn failed: spawn EPERM');
+      expect(hoisted.spawnCalls).toBe(1);
+    } finally {
+      await sb.cleanup();
+    }
+  });
+
+  it.each([
+    {
+      binary: 'C:\\Program Files\\PowerShell\\7\\pwsh.exe',
+      code: 'EUNKNOWN',
+      errno: -4094,
+      syscall: 'spawn',
+    },
+    {
+      binary: 'C:\\WindowsApps\\other-app\\pwsh.exe',
+      code: 'EUNKNOWN',
+      errno: -4094,
+      syscall: 'spawn',
+    },
+    { binary: 'C:\\WindowsApps\\pwsh.exe', code: 'EUNKNOWN', errno: -1, syscall: 'spawn' },
+    { binary: 'C:\\WindowsApps\\pwsh.exe', code: 'EUNKNOWN', errno: -4094, syscall: 'read' },
+    { binary: 'C:\\WindowsApps\\pwsh.exe', code: 'ENOENT', errno: -4058, syscall: 'spawn' },
+  ])(
+    'fails immediately for an unrelated launch error: $binary / $code / $errno / $syscall',
+    async ({ binary, ...error }) => {
+      hoisted.binary = binary;
+      hoisted.makeError = () => Object.assign(new Error('unrelated launch failure'), error);
+      hoisted.epermThrows = 1;
+      const sb = await mkSandbox();
+      try {
+        await expect(
+          pwshTool.execute({ command: 'Write-Output "x"' }, sb.ctx, { signal: newSignal() }),
+        ).rejects.toThrow('pwsh: spawn failed: unrelated launch failure');
+        expect(hoisted.spawnCalls).toBe(1);
+      } finally {
+        await sb.cleanup();
+      }
+    },
+  );
 });
