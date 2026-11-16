@@ -20,6 +20,8 @@ use std::{
 };
 use uuid::Uuid;
 type SharedWriter = Arc<Mutex<Box<dyn Write + Send>>>;
+/// When a spare was claimed (none while it waits); a claimed start has the usual deadline.
+type ClaimTime = Arc<Mutex<Option<std::time::Instant>>>;
 
 pub struct LiveSession {
     pub master: Option<Box<dyn MasterPty + Send>>,
@@ -37,6 +39,10 @@ pub struct HostState {
     adopted_engine: Mutex<Option<PathBuf>>,
     /// Booted engines waiting to become a conversation, newest last.
     spares: Mutex<Vec<SpareEngine>>,
+    /// Conversations whose running engine was started under another runtime id (a spare taken
+    /// over by a reconnect): conversation id -> the engine's runtime id, whose stop file the
+    /// engine watches.
+    aliases: Mutex<HashMap<String, String>>,
 }
 
 /// An engine started ahead of need for one working directory. An engine boot takes seconds
@@ -49,6 +55,9 @@ pub(crate) struct SpareEngine {
     /// The engine command it was started from; a spare from another engine is not used.
     engine: String,
     claimed: Arc<Mutex<Option<std::time::Instant>>>,
+    /// The conversation its exit watcher reports to: its own runtime id, or the conversation
+    /// that took it over ([`HostState::adopt_spare`]).
+    owner: Arc<Mutex<String>>,
     /// When it was started: an old spare carries stale boot-time state and is about to stop.
     started: std::time::Instant,
 }
@@ -100,6 +109,7 @@ impl HostState {
             dir: dir.into(),
             adopted_engine: Mutex::new(None),
             spares: Mutex::new(Vec::new()),
+            aliases: Mutex::new(HashMap::new()),
         }))
     }
     pub fn request(self: &Arc<Self>, method: &str, p: &Value) -> Result<Value> {
@@ -427,6 +437,52 @@ impl HostState {
         *spare.claimed.lock().map_err(err)? = Some(std::time::Instant::now());
         std::fs::rename(&next, &claim).map_err(err)
     }
+    /// Makes a running spare the engine of the stopped conversation `id` and tells it to resume
+    /// `history`. The conversation keeps its id, record and journal: the spare's process entry,
+    /// exit reports and journal move to `id`, and a stop for `id` reaches the stop file the
+    /// spare watches. If the claim cannot be written, everything goes back, the spare is asked
+    /// to stop, and the error is returned so the caller boots an engine of its own.
+    fn adopt_spare(self: &Arc<Self>, spare: &SpareEngine, id: &str, history: &str) -> Result<()> {
+        {
+            let mut live = self.live.lock().map_err(err)?;
+            let entry = live
+                .remove(&spare.runtime_id)
+                .ok_or("The spare engine has stopped")?;
+            live.insert(id.to_owned(), entry);
+            *spare.owner.lock().map_err(err)? = id.to_owned();
+            // Claimed under the live lock: from now on its exit is the conversation's.
+            *spare.claimed.lock().map_err(err)? = Some(std::time::Instant::now());
+            self.aliases
+                .lock()
+                .map_err(err)?
+                .insert(id.to_owned(), spare.runtime_id.clone());
+        }
+        let (claim, _) = self.spare_files(&spare.runtime_id);
+        let next = claim.with_extension("json.tmp");
+        let written = serde_json::to_vec(&spare_claim(Some((history, false))))
+            .map_err(err)
+            .and_then(|bytes| std::fs::write(&next, bytes).map_err(err))
+            .and_then(|()| std::fs::rename(&next, &claim).map_err(err));
+        if let Err(error) = written {
+            if let Ok(mut live) = self.live.lock() {
+                if let Some(entry) = live.remove(id) {
+                    live.insert(spare.runtime_id.clone(), entry);
+                }
+                if let Ok(mut owner) = spare.owner.lock() {
+                    *owner = spare.runtime_id.clone();
+                }
+                if let Ok(mut claimed) = spare.claimed.lock() {
+                    *claimed = None;
+                }
+            }
+            if let Ok(mut aliases) = self.aliases.lock() {
+                aliases.remove(id);
+            }
+            self.stop_spare(spare.runtime_id.clone());
+            return Err(error);
+        }
+        Ok(())
+    }
     /// Starts a spare for `workdir` in the background, after [`SPARE_REFILL_DELAY`], unless one
     /// is waiting there, stopping the oldest spares beyond [`SPARE_LIMIT`].
     fn refill_spare(self: &Arc<Self>, workdir: String) {
@@ -448,7 +504,8 @@ impl HostState {
                 }
             }
             let runtime_id = Uuid::new_v4().to_string();
-            let Ok(claimed) = host.spawn_engine(&runtime_id, &workdir, true, None, true) else {
+            let Ok((claimed, owner)) = host.spawn_engine(&runtime_id, &workdir, true, None, true)
+            else {
                 return;
             };
             let overflow: Vec<String> = {
@@ -460,6 +517,7 @@ impl HostState {
                     workdir,
                     engine,
                     claimed,
+                    owner,
                     started: std::time::Instant::now(),
                 });
                 let excess = spares.len().saturating_sub(SPARE_LIMIT);
@@ -503,6 +561,15 @@ impl HostState {
             .lock()
             .map_err(err)?
             .state(id, "starting", None, None)?;
+        // A spare already booted in this working directory resumes the conversation in about a
+        // second instead of a whole engine boot; without one, or if it cannot be told, the
+        // conversation boots its own engine as before.
+        if let Some(spare) = self.take_spare(&session.workdir) {
+            if self.adopt_spare(&spare, id, history).is_ok() {
+                self.refill_spare(session.workdir.clone());
+                return Ok(json!({ "id": id }));
+            }
+        }
         if let Err(e) =
             self.start_engine_with_history(id, &session.workdir, true, Some((history, false)))
         {
@@ -676,13 +743,13 @@ impl HostState {
         bind_session: bool,
         history: Option<(&str, bool)>,
         spare: bool,
-    ) -> Result<Arc<Mutex<Option<std::time::Instant>>>> {
+    ) -> Result<(ClaimTime, Arc<Mutex<String>>)> {
         let reservation = TcpListener::bind("127.0.0.1:0").map_err(err)?;
         let port = reservation.local_addr().map_err(err)?.port();
         let token = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
         let mut command = self.engine_command()?;
         let (claim_path, ready_path) = self.spare_files(runtime_id);
-        let stop_path = self.stop_file(runtime_id);
+        let stop_path = self.own_stop_file(runtime_id);
         let _ = std::fs::remove_file(&stop_path);
         command.env("WRONGSTACK_DESKTOP_STOP_FILE", &stop_path);
         let claimed = Arc::new(Mutex::new((!spare).then(std::time::Instant::now)));
@@ -768,7 +835,22 @@ impl HostState {
         // A spare answers through the readiness file too, once it is claimed.
         let restoring = history.is_some() || spare;
         let watched = Arc::clone(&claimed);
+        let owner = Arc::new(Mutex::new(runtime_id.to_owned()));
+        let owned = Arc::clone(&owner);
         thread::spawn(move || {
+            // The conversation this engine serves; a reconnect that takes over a spare changes
+            // it (under the live lock) before the claim, so read it for every report.
+            let owner = || {
+                owned
+                    .lock()
+                    .map(|o| o.clone())
+                    .unwrap_or_else(|_| id.clone())
+            };
+            let forget = || {
+                let mut live = host.live.lock().unwrap();
+                let owner = owner();
+                live.remove(&owner);
+            };
             // The 90 s start deadline runs from the claim: a spare waits unclaimed for as long
             // as it is not needed.
             let expired = || {
@@ -780,11 +862,22 @@ impl HostState {
             };
             let mut ready = false;
             loop {
-                match child.try_wait() {
-                    Ok(Some(_)) if watched.lock().map(|at| at.is_none()).unwrap_or(false) => {
+                let exited = child.try_wait();
+                // Decided under the live lock: a reconnect takes a spare over (and claims it)
+                // under the same lock, so an exit is either an unclaimed spare's or the
+                // conversation's, never lost between the two.
+                let unclaimed_exit = matches!(exited, Ok(Some(_))) && {
+                    let mut live = host.live.lock().unwrap();
+                    let unclaimed = watched.lock().map(|at| at.is_none()).unwrap_or(false);
+                    if unclaimed {
+                        live.remove(&id);
+                    }
+                    unclaimed
+                };
+                match exited {
+                    Ok(Some(_)) if unclaimed_exit => {
                         // An unclaimed spare stopped (replaced, or the engine exited): it was
                         // never a conversation, so it leaves nothing behind.
-                        host.live.lock().unwrap().remove(&id);
                         if let Ok(mut spares) = host.spares.lock() {
                             spares.retain(|spare| spare.runtime_id != id);
                         }
@@ -801,7 +894,7 @@ impl HostState {
                         break;
                     }
                     Ok(Some(code)) => {
-                        host.live.lock().unwrap().remove(&id);
+                        forget();
                         let restore_error = if restoring {
                             std::fs::read(&ready_path)
                                 .ok()
@@ -811,7 +904,7 @@ impl HostState {
                             None
                         };
                         let _ = host.publish_runtime_state(
-                            &id,
+                            &owner(),
                             if code.success() { "stopped" } else { "error" },
                             code.code(),
                             if code.success() {
@@ -827,8 +920,12 @@ impl HostState {
                         break;
                     }
                     Err(e) => {
-                        let _ =
-                            host.publish_runtime_state(&id, "error", None, Some(&e.to_string()));
+                        let _ = host.publish_runtime_state(
+                            &owner(),
+                            "error",
+                            None,
+                            Some(&e.to_string()),
+                        );
                         break;
                     }
                     _ => {}
@@ -843,8 +940,9 @@ impl HostState {
                         {
                             let _ = child.kill();
                             let _ = child.wait();
-                            host.live.lock().unwrap().remove(&id);
-                            let _ = host.publish_runtime_state(&id, "error", None, Some(message));
+                            forget();
+                            let _ =
+                                host.publish_runtime_state(&owner(), "error", None, Some(message));
                             break;
                         }
                         if restored
@@ -855,9 +953,9 @@ impl HostState {
                             if expired() {
                                 let _ = child.kill();
                                 let _ = child.wait();
-                                host.live.lock().unwrap().remove(&id);
+                                forget();
                                 let _ = host.publish_runtime_state(
-                                    &id,
+                                    &owner(),
                                     "error",
                                     None,
                                     Some("Recorded conversation startup timed out"),
@@ -877,20 +975,23 @@ impl HostState {
                         &host
                             .dir
                             .join("transcripts")
-                            .join(format!("{id}.events.jsonl")),
+                            .join(format!("{}.events.jsonl", owner())),
                         bind_session,
                     ) {
-                        if let Some(live) = host.live.lock().unwrap().get_mut(&id) {
-                            live.engine = Some(engine);
+                        {
+                            let mut live = host.live.lock().unwrap();
+                            if let Some(live) = live.get_mut(&owner()) {
+                                live.engine = Some(engine);
+                            }
                         }
                         ready = true;
-                        let _ = host.publish_runtime_state(&id, "running", None, None);
+                        let _ = host.publish_runtime_state(&owner(), "running", None, None);
                     } else if expired() {
                         let _ = child.kill();
                         let _ = child.wait();
-                        host.live.lock().unwrap().remove(&id);
+                        forget();
                         let _ = host.publish_runtime_state(
-                            &id,
+                            &owner(),
                             "error",
                             None,
                             Some("WrongStack engine startup timed out after 90 seconds"),
@@ -907,15 +1008,45 @@ impl HostState {
                 }));
             }
             // A stop request the engine never read must not stop the next engine on this id.
-            let _ = std::fs::remove_file(host.stop_file(&id));
+            let _ = std::fs::remove_file(host.own_stop_file(&id));
+            let conversation = owner();
+            if conversation != id {
+                // A spare a reconnect took over: its conversation no longer points at it, and
+                // the files it was started with go (its claim, readiness answer and logs).
+                if let Ok(mut aliases) = host.aliases.lock() {
+                    if aliases.get(&conversation) == Some(&id) {
+                        aliases.remove(&conversation);
+                    }
+                }
+                let (claim, ready_file) = host.spare_files(&id);
+                let transcripts = host.dir.join("transcripts");
+                for path in [
+                    claim,
+                    ready_file,
+                    transcripts.join(format!("{id}.bin")),
+                    transcripts.join(format!("{id}.jsonl")),
+                ] {
+                    let _ = std::fs::remove_file(path);
+                }
+            }
         });
-        Ok(claimed)
+        Ok((claimed, owner))
     }
-    /// The file an engine watches for a graceful stop request (`WRONGSTACK_DESKTOP_STOP_FILE`).
-    fn stop_file(&self, runtime_id: &str) -> PathBuf {
+    /// The stop file the engine started under `runtime_id` was told to watch.
+    fn own_stop_file(&self, runtime_id: &str) -> PathBuf {
         self.dir
             .join("transcripts")
             .join(format!("{runtime_id}.stop"))
+    }
+    /// The file the engine serving conversation `id` watches for a graceful stop request
+    /// (`WRONGSTACK_DESKTOP_STOP_FILE`): its own, or the one of the spare it took over.
+    fn stop_file(&self, id: &str) -> PathBuf {
+        let runtime = self
+            .aliases
+            .lock()
+            .ok()
+            .and_then(|aliases| aliases.get(id).cloned());
+        self.own_stop_file(runtime.as_deref().unwrap_or(id))
     }
     /// Stops a session. An engine is asked first, through its stop file, so it runs its
     /// graceful shutdown: every conversation journal it holds gets its `session_end` (a killed
@@ -1144,6 +1275,7 @@ mod history_tests {
             workdir: workdir.into(),
             engine: engine.into(),
             claimed: Arc::new(Mutex::new(None)),
+            owner: Arc::new(Mutex::new(id.into())),
             started: std::time::Instant::now(),
         };
         let idle = || LiveSession {
@@ -1259,6 +1391,141 @@ mod history_tests {
         assert!(host.registry.lock().unwrap().sessions().unwrap().is_empty());
         drop(host);
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn reconnect_takes_over_a_running_spare_and_keeps_the_conversation_id() {
+        if std::env::var_os("WRONGSTACK_DESKTOP_ENGINE").is_some()
+            || std::env::var_os("WRONGSTACK_DESKTOP_ENTRY").is_some()
+        {
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!("desktop-reconnect-spare-{}", Uuid::new_v4()));
+        let project_dir = dir.join("project");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        let host = HostState::new(&dir).unwrap();
+        // An engine file that cannot start: a cold boot shows as an error, a spare never boots.
+        let engine = dir.join("wrongstack-engine.exe");
+        std::fs::write(&engine, b"").unwrap();
+        host.request("engine.adopt", &json!({"path": engine.to_string_lossy()}))
+            .unwrap();
+        let current = command_identity(&host.engine_command().unwrap());
+        let project = host
+            .registry
+            .lock()
+            .unwrap()
+            .register(project_dir.to_str().unwrap())
+            .unwrap();
+        let workdir = project_dir.to_string_lossy().to_string();
+        let record = || {
+            let s = Session {
+                id: Uuid::new_v4().to_string(),
+                project_id: project.id.clone(),
+                title: "test".into(),
+                kind: "agent".into(),
+                workdir: workdir.clone(),
+                status: "interrupted".into(),
+                created_at: now(),
+                updated_at: now(),
+                exit_code: None,
+                error: None,
+                untitled: false,
+            };
+            host.registry.lock().unwrap().insert(&s).unwrap();
+            s.id
+        };
+        let pool = |id: &str| {
+            let owner = Arc::new(Mutex::new(id.to_owned()));
+            let claimed = Arc::new(Mutex::new(None));
+            host.spares.lock().unwrap().push(SpareEngine {
+                runtime_id: id.into(),
+                workdir: workdir.clone(),
+                engine: current.clone(),
+                claimed: Arc::clone(&claimed),
+                owner: Arc::clone(&owner),
+                started: std::time::Instant::now(),
+            });
+            host.live.lock().unwrap().insert(
+                id.into(),
+                LiveSession {
+                    master: None,
+                    writer: None,
+                    killer: None,
+                    // No such process: a hard stop must never be reached in this test.
+                    agent_pid: Some(u32::MAX),
+                    engine: None,
+                },
+            );
+            (owner, claimed)
+        };
+        let resume = |id: &str| json!({"id": id, "history": {"id": "sess_ok", "mode": "resume"}});
+        let status = |id: &str| {
+            host.registry
+                .lock()
+                .unwrap()
+                .sessions()
+                .unwrap()
+                .into_iter()
+                .find(|s| s.id == id)
+                .map(|s| s.status)
+        };
+
+        // A spare of the workdir becomes the conversation's engine, under the conversation's id.
+        let conversation = record();
+        let (owner, claimed) = pool("spare-1");
+        host.request("session.reconnect", &resume(&conversation))
+            .unwrap();
+        assert_eq!(status(&conversation).as_deref(), Some("starting"));
+        assert_eq!(
+            *owner.lock().unwrap(),
+            conversation,
+            "exit reports go to the conversation"
+        );
+        assert!(claimed.lock().unwrap().is_some(), "its start deadline runs");
+        {
+            let live = host.live.lock().unwrap();
+            assert!(live.contains_key(&conversation));
+            assert!(!live.contains_key("spare-1"));
+        }
+        assert!(host.spares.lock().unwrap().is_empty());
+        let (claim, _) = host.spare_files("spare-1");
+        let written: Value = serde_json::from_slice(&std::fs::read(&claim).unwrap()).unwrap();
+        assert_eq!(written, json!({"resume": "sess_ok", "fork": false}));
+        assert_eq!(
+            host.registry.lock().unwrap().sessions().unwrap().len(),
+            1,
+            "no record is made for the spare"
+        );
+        // A stop for the conversation reaches the stop file the spare was started with.
+        assert_eq!(host.stop_file(&conversation), host.own_stop_file("spare-1"));
+        host.stop(&conversation).unwrap();
+        assert!(host.own_stop_file("spare-1").exists());
+        assert!(!host.own_stop_file(&conversation).exists());
+        host.live.lock().unwrap().remove(&conversation);
+
+        // A spare that cannot be told goes back and stops; the conversation boots its own engine.
+        let second = record();
+        let (owner, claimed) = pool("spare-2");
+        let (blocked, _) = host.spare_files("spare-2");
+        std::fs::create_dir_all(blocked.join("occupied")).unwrap();
+        let cold = host.request("session.reconnect", &resume(&second));
+        assert!(
+            cold.is_err(),
+            "the engine file cannot start: the cold boot ran"
+        );
+        assert_eq!(status(&second).as_deref(), Some("error"));
+        assert_eq!(*owner.lock().unwrap(), "spare-2");
+        assert!(claimed.lock().unwrap().is_none());
+        assert!(host.live.lock().unwrap().contains_key("spare-2"));
+        assert_eq!(host.stop_file(&second), host.own_stop_file(&second));
+
+        // Without a spare, reconnect boots an engine exactly as before.
+        let third = record();
+        assert!(host.request("session.reconnect", &resume(&third)).is_err());
+        assert_eq!(status(&third).as_deref(), Some("error"));
+        drop(host);
+        // Best effort: refill and stop-grace threads still hold the host.
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]

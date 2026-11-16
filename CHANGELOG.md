@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when its text changes; the composer repaints alone and the window catches up
   as an interruptible update; draft saves made during a save coalesce to the
   newest text (one native write per round trip instead of per keystroke).
+- Reconnecting a stopped desktop conversation takes over the spare engine
+  already booted in its working directory and resumes in it, instead of
+  booting a whole engine; the conversation keeps its id, journal and graceful
+  stop. Without a usable spare it boots its own engine as before.
 
 ## [1.7.7] — 2026-11-16
 
