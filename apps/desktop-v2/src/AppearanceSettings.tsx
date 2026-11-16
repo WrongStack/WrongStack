@@ -7,6 +7,7 @@ import { AppearanceStatusChips } from './AppearanceStatusChips';
 import { accentThemes } from './appearance';
 import { ConversationAppearanceSettings } from './ConversationAppearanceSettings';
 import { useDesktopText } from './desktop-i18n';
+import { RuntimeGate } from './RuntimeGate';
 import { SurfaceLanguageSync } from './SurfaceLanguageSync';
 import { displayLanguage } from './surface-i18n';
 import { UpdateSettings } from './UpdateNotice';
@@ -18,6 +19,13 @@ import { useProfileEngine } from './useEngine';
  * each language's own, so anyone can find theirs whatever is shown now.
  */
 function DisplayLanguage({ reportError }: { reportError: (error: unknown) => void }) {
+  return (
+    <RuntimeGate scope="profile">
+      <LiveDisplayLanguage reportError={reportError} />
+    </RuntimeGate>
+  );
+}
+function LiveDisplayLanguage({ reportError }: { reportError: (error: unknown) => void }) {
   const { t } = useDesktopText();
   const { state, command } = useProfileEngine(reportError);
   const [busy, setBusy] = useState(false);

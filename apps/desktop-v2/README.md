@@ -62,6 +62,27 @@ the release download page. Linux `.deb` and `.rpm` builds continue to use that
 page. Restarting the application keeps the separate session host and its
 conversations running. See [release signing](../../docs/release-process.md#desktop-updater-signatures).
 
+## Startup and background services
+
+The shell restores its layout without warming unrelated engines. A restored project workspace
+starts that project's services; WrongStack or Appearance settings starts the profile runtime.
+Mission Control, the project list, and activity do not start these runtimes speculatively.
+Settings and model pickers still open the profile engine on demand through their runtime gate.
+
+The remembered display language (or English on a fresh installation) is used
+at launch. The profile language is synchronized when settings is opened; shared project surfaces
+use the same in-memory language rather than polling an unopened profile runtime.
+
+Optional up-arrow history from other conversations is loaded only if project services are
+already running. Otherwise recall stays within the current conversation, without starting an
+extra project engine and its helper daemons just for history.
+
+Backend provider discovery reuses a valid, current-identity cache for up to five minutes, avoiding
+network discovery on each runtime start. Expired, malformed, future-dated, or different-account
+entries do not take this fast path. A cache miss still discovers normally, including credential
+renewal and the existing offline fallback. Already-running hosts/engines are not stopped by these
+changes; packaged applications need a rebuilt engine and renderer to use them.
+
 ## Build the installer
 
 `bun run desktop:v2:build` compiles the engine for this machine's Rust target, bundles it as the

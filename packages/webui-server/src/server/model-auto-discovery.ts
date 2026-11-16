@@ -21,6 +21,9 @@ interface DiscoverCacheEntry {
 
 type DiscoverCache = Record<string, DiscoverCacheEntry>;
 
+/** Bound staleness without repeating network discovery for every desktop runtime boot. */
+const DISCOVERY_CACHE_TTL_MS = 5 * 60_000;
+
 interface OverlayRegistry {
   mergeOverlay(payload: ModelsDevPayload, opts?: DiscoveryOverlayOptions): void;
 }
@@ -77,6 +80,17 @@ export async function discoverAndMergeWebuiProviders(opts: {
 
   await Promise.all(
     targets.map(async (target) => {
+      if (target.isCurrent && !target.isCurrent()) return;
+      const saved = cache[target.cacheKey];
+      if (validCacheEntry(saved)) {
+        const age = Date.now() - Date.parse(saved.fetchedAt);
+        if (age >= 0 && age < DISCOVERY_CACHE_TTL_MS) {
+          if (target.accountCatalog) target.cfg.models = Object.keys(saved.provider.models);
+          const merge = discoveryOverlay(target, saved.provider, saved.fetchedAt);
+          registry.mergeOverlay(merge.payload, merge.options);
+          return;
+        }
+      }
       const previousCacheKey = target.cacheKey;
       const {
         id,

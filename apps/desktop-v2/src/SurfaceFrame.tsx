@@ -13,7 +13,6 @@ import { SurfacePortalContext } from '@wrongstack/project-surfaces/ui/portal';
 import { type ReactNode, useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { I18nextProvider, useTranslation } from 'react-i18next';
-import { SurfaceLanguageSync } from './SurfaceLanguageSync';
 import { surfaceI18n } from './surface-i18n';
 import './surfaces.css';
 
@@ -56,7 +55,6 @@ export function SurfaceFrame({
   const pending = confirm.pending;
   return (
     <I18nextProvider i18n={surfaceI18n}>
-      <SurfaceLanguageSync />
       <SurfaceHostProvider host={host}>
         <SurfacePortalContext.Provider value={portal}>
           <div className={`ws-surfaces ws-surface-frame${fill ? ' is-fill' : ''}`}>{children}</div>

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The desktop starts engines on demand: a restored project workspace starts
+  that project's services and WrongStack or Appearance settings start the
+  profile runtime, while Mission Control, the project list and activity start
+  none. Cross-conversation up-arrow history loads only when project services
+  are already running, and the launch language comes from the remembered
+  display language until settings are opened.
+- Backend provider discovery reuses a valid cache for the current account for
+  up to five minutes instead of discovering on every runtime start; expired,
+  malformed, future-dated or other-account entries still discover normally.
+
 ## [1.7.6] — 2026-11-16
 
 TUI editing keys now go through Ink's own parser, so Home/End fire once and

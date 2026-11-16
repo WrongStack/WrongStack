@@ -1,29 +1,25 @@
-import type { Snapshot } from './model';
-
-/** How long after the first snapshot the settings (profile) engine starts booting. */
-const PROFILE_WARM_DELAY_MS = 3000;
-
-/**
- * Starts the engines the user is about to need while the window is coming up. A project's
- * services engine and the profile engine (settings, model pickers) used to boot only when their
- * page was opened, so the first visit after a launch waited 6-10 s behind "Opening…". Opening
- * is idempotent on the host: a running or starting runtime is left alone. The project the
- * saved layout returns to starts at once; the profile engine a little later, so it does not
- * compete with the first paint.
- */
+/** Warm only the runtime used by the restored page; other surfaces open theirs on demand. */
 export function warmRuntimes(
-  snapshot: Pick<Snapshot, 'projects'>,
+  snapshot: { projects: readonly { id: string }[] },
   savedLayout: string | null | undefined,
   request: (method: string, params: Record<string, unknown>) => Promise<unknown>,
-  later: (run: () => void, ms: number) => void = (run, ms) => void setTimeout(run, ms),
 ): void {
-  let project: unknown;
+  let layout: unknown;
   try {
-    project = savedLayout ? (JSON.parse(savedLayout) as Record<string, unknown>)['project'] : null;
+    layout = savedLayout ? JSON.parse(savedLayout) : null;
   } catch {
-    project = null;
+    return;
   }
-  if (typeof project === 'string' && snapshot.projects.some((p) => p.id === project))
-    void request('project.open', { projectId: project }).catch(() => undefined);
-  later(() => void request('profile.open', {}).catch(() => undefined), PROFILE_WARM_DELAY_MS);
+  if (!layout || typeof layout !== 'object' || Array.isArray(layout)) return;
+  if ('section' in layout && (layout.section === 'wrongstack' || layout.section === 'engine')) {
+    void request('profile.open', {}).catch(() => undefined);
+  } else if (
+    'section' in layout &&
+    layout.section === 'project' &&
+    'project' in layout &&
+    typeof layout.project === 'string' &&
+    snapshot.projects.some((project) => project.id === layout.project)
+  ) {
+    void request('project.open', { projectId: layout.project }).catch(() => undefined);
+  }
 }

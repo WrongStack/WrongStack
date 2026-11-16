@@ -1,7 +1,31 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Config } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const config: Config = {
+  version: 1,
+  provider: 'account',
+  model: 'cached',
+  context: {
+    warnThreshold: 0.7,
+    softThreshold: 0.8,
+    hardThreshold: 0.9,
+    preserveK: 2,
+    eliseThreshold: 1000,
+  },
+  tools: {
+    defaultExecutionStrategy: 'sequential',
+    maxIterations: 0,
+    iterationTimeoutMs: 1000,
+    sessionTimeoutMs: 1000,
+    perIterationOutputCapBytes: 1024,
+  },
+  log: { level: 'error' },
+  features: { mcp: false, plugins: false, memory: false, modelsRegistry: true, skills: false },
+};
+
 import { discoverAndMergeWebuiProviders } from '../src/server/model-auto-discovery.js';
 
 const mocks = vi.hoisted(() => ({
@@ -35,6 +59,86 @@ describe('model-auto-discovery', () => {
     } catch {
       // Ignore
     }
+  });
+
+  it('serves a fresh identity-scoped cache without waiting for discovery', async () => {
+    const cfg = { models: ['old'] };
+    const provider = { id: 'account', models: { cached: { id: 'cached' } } };
+    mocks.resolveDiscoveryTargets.mockReturnValue([
+      {
+        id: 'account',
+        cfg,
+        baseUrl: 'https://catalog.test/v1',
+        cacheKey: 'identity',
+        accountCatalog: true,
+      },
+    ]);
+    await fs.writeFile(
+      path.join(tmpDir, 'discovered-models-cache.json'),
+      JSON.stringify({ identity: { fetchedAt: new Date().toISOString(), provider } }),
+    );
+    const registry = { mergeOverlay: vi.fn() };
+    // If startup contacts the network, it would block on this unresolved request.
+    mocks.discoverOpenAICompatibleModels.mockReturnValue(new Promise(() => undefined));
+    const startup = discoverAndMergeWebuiProviders({ config, registry, cacheDir: tmpDir });
+    await vi.waitFor(() => expect(registry.mergeOverlay).toHaveBeenCalled());
+    await startup;
+    expect(mocks.discoverOpenAICompatibleModels).not.toHaveBeenCalled();
+    expect(cfg.models).toEqual(['cached']);
+  });
+
+  it.each(['expired', 'future', 'other-account', 'invalid'])(
+    'refreshes a %s cache instead of trusting it',
+    async (kind) => {
+      const provider = { id: 'account', models: { cached: { id: 'cached' } } };
+      const fetchedAt =
+        kind === 'expired'
+          ? new Date(Date.now() - 5 * 60_000).toISOString()
+          : kind === 'future'
+            ? new Date(Date.now() + 60_000).toISOString()
+            : new Date().toISOString();
+      await fs.writeFile(
+        path.join(tmpDir, 'discovered-models-cache.json'),
+        JSON.stringify({
+          [kind === 'other-account' ? 'foreign-identity' : 'identity']: {
+            fetchedAt,
+            provider: kind === 'invalid' ? { models: null } : provider,
+          },
+        }),
+      );
+      mocks.resolveDiscoveryTargets.mockReturnValue([
+        { id: 'account', cfg: {}, baseUrl: 'https://catalog.test/v1', cacheKey: 'identity' },
+      ]);
+      const live = { id: 'account', models: { live: { id: 'live' } } };
+      mocks.discoverOpenAICompatibleModels.mockResolvedValue(live);
+      const registry = { mergeOverlay: vi.fn() };
+      await discoverAndMergeWebuiProviders({ config, registry, cacheDir: tmpDir });
+      expect(mocks.discoverOpenAICompatibleModels).toHaveBeenCalledOnce();
+      expect(registry.mergeOverlay).toHaveBeenCalledWith({ account: live }, {});
+    },
+  );
+
+  it('does not apply a fresh cache for an account that is no longer current', async () => {
+    await fs.writeFile(
+      path.join(tmpDir, 'discovered-models-cache.json'),
+      JSON.stringify({
+        identity: { fetchedAt: new Date().toISOString(), provider: { models: {} } },
+      }),
+    );
+    mocks.resolveDiscoveryTargets.mockReturnValue([
+      {
+        id: 'account',
+        cfg: {},
+        baseUrl: 'https://catalog.test/v1',
+        cacheKey: 'identity',
+        isCurrent: () => false,
+      },
+    ]);
+    const registry = { mergeOverlay: vi.fn() };
+    mocks.discoverOpenAICompatibleModels.mockResolvedValue(undefined);
+    await discoverAndMergeWebuiProviders({ config, registry, cacheDir: tmpDir });
+    expect(registry.mergeOverlay).not.toHaveBeenCalled();
+    expect(mocks.discoverOpenAICompatibleModels).not.toHaveBeenCalled();
   });
 
   it('forwards account renewal and caches using its rotated identity', async () => {

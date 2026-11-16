@@ -32,7 +32,8 @@ export function App() {
   const { t } = useDesktopText();
   // Plan quota is a settings section with its own rail button: the title names it too.
   const settingsTitle = t(useShownSettingsSection() === 'quota' ? 'rail.quota' : 'rail.settings');
-  // The display language is read from the profile once; afterwards the remembered one opens.
+  // Use the remembered language (or English) at launch. Read the profile when settings opens,
+  // rather than booting an entire settings engine just to learn its display language.
   const [readLanguage, setReadLanguage] = useState(() => native && cachedLanguage() === null);
   const {
     snapshot,
@@ -55,7 +56,9 @@ export function App() {
   const focused = section === 'fleet' && currentSession !== undefined;
   return (
     <div className="app-shell">
-      {readLanguage && <SurfaceLanguageSync onKnown={() => setReadLanguage(false)} />}
+      {readLanguage && section === 'wrongstack' && (
+        <SurfaceLanguageSync onKnown={() => setReadLanguage(false)} />
+      )}
       <Sidebar vm={vm} />
       <div
         className={`workspace-shell ${focused ? 'workspace-focused' : ''} ${section === 'project' ? 'project-focused' : ''} ${section === 'wrongstack' ? 'settings-focused' : ''}`}
