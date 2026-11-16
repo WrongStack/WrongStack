@@ -1,27 +1,27 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.7.5',
-  title: 'Files that load, text that keeps its shape.',
+  version: '1.7.6',
+  title: 'Keys that land once.',
   summary:
-    'State, profiles, caches and manifests saved with a byte order mark load again, and malformed JSON roots produce controlled errors. Truncation, prompts and editor search keep Unicode boundaries and literal replacement text, numeric options and durations are validated, and Windows recovers from transient Microsoft Store PowerShell launch denials.',
+    "TUI editing keys now go through Ink's own parser, so Home/End fire once and editing holds up when a PTY or WebSocket splits escape sequences; paste stays isolated in browser terminals. Persisted files written with a byte order mark load, malformed JSON roots are reported instead of crashing, and dependency audits parse Cargo workspaces, wheel and sdist names, PEP 508 ranges and pubspec blocks.",
   socialDescription:
-    'WrongStack 1.7.5: BOM-tolerant state files, Unicode-safe truncation and search, validated numeric options and steadier Windows PowerShell launches.',
+    'WrongStack 1.7.6: TUI editing that holds up in browser terminals, BOM-tolerant locks and manifests, and dependency audits that read real workspace manifests.',
   cards: [
     {
-      title: 'Files that load',
-      body: 'State, profiles, caches and toolchain manifests saved with a byte order mark are read, and malformed JSON gives a controlled error or fallback.',
-      href: '/getting-started',
-      linkLabel: 'Upgrade your installation',
-    },
-    {
-      title: 'Text that keeps its shape',
-      body: 'Prompts, evidence excerpts, output truncation and editor search respect Unicode boundaries and literal replacement text.',
+      title: 'TUI input that holds',
+      body: 'Home/End fire once, editing survives split escape sequences, and pastes stay data until Enter, including in browser terminals.',
       href: '/interfaces',
       linkLabel: 'Explore the interfaces',
     },
     {
-      title: 'Validated input',
-      body: 'Numeric options, durations, telemetry and quota windows are checked, and authorization cancellation stays within its own session.',
+      title: 'Files that load',
+      body: 'BOM-prefixed locks, registries, prompts, caches and manifests are read, and malformed JSON roots are reported instead of crashing.',
+      href: '/getting-started',
+      linkLabel: 'Upgrade your installation',
+    },
+    {
+      title: 'Real dependency manifests',
+      body: 'Cargo virtual workspaces, wheel and sdist names, PEP 508 ranges and pubspec blocks are parsed, so audits see real changes.',
       href: '/security',
       linkLabel: 'Explore the safeguards',
     },

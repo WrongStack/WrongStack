@@ -1,4 +1,4 @@
-// Changelog — 1.x era (1.7.5 → 1.0.0).
+// Changelog — 1.x era (1.7.6 → 1.0.0).
 // Historical entries mirror CHANGELOG.md release notes. The 1.0.37 entry was
 // written from committed runtime/source evidence (git history and packages), not
 // the root CHANGELOG, which had not been extended when it landed. 1.1.0 absorbs
@@ -13,10 +13,23 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.6',
+    date: '2026-11-16',
+    tagline: 'Steadier TUI input and manifests that parse',
+    latest: true,
+    highlights: [
+      "TUI editing keys go through Ink's parser: Home/End fire once and editing survives split escape sequences",
+      'Pastes stay data in browser terminals, and newline-only pastes no longer submit the draft',
+      'A headless Chromium/xterm.js suite and a real-PTY App scenario cover browser terminals',
+      'BOM-prefixed locks, registries, prompts, caches, manifests and Kanban history load; malformed JSON roots are reported',
+      'Dependency audits parse Cargo virtual workspaces, wheel and sdist names, PEP 508 ranges and pubspec blocks',
+      'A failing format check reports the formatter exit code',
+    ],
+  },
+  {
     version: '1.7.5',
     date: '2026-11-16',
     tagline: 'Files that load, text that keeps its shape',
-    latest: true,
     highlights: [
       'State, profiles, caches and toolchain manifests saved with a byte order mark load again; malformed JSON roots give controlled errors',
       'Prompts, evidence excerpts, output truncation and editor search keep Unicode boundaries and literal replacement text',

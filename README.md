@@ -55,6 +55,17 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.7.6
+
+- **TUI input in browser terminals:** Home/End fire once, editing survives
+  split escape sequences, and pastes stay data until Enter.
+- **More files that load:** BOM-prefixed locks, registries, prompts, caches,
+  manifests and Kanban history are read; malformed JSON roots are reported.
+- **Real dependency manifests:** Cargo virtual workspaces, wheel and sdist
+  names, PEP 508 ranges with commas and pubspec blocks at any indent.
+- **Formatter checks that fail:** a failing format check now reports its exit
+  code.
+
 ### What's new in 1.7.5
 
 - **Files that load:** state, profiles, caches and toolchain manifests saved
@@ -600,7 +611,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.7.5**; versions follow semver
+- Release notes: **v1.7.6**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.6] — 2026-11-16
+
+TUI editing keys now go through Ink's own parser, so Home/End fire once and
+editing holds up when a PTY or WebSocket splits escape sequences; paste stays
+isolated in browser terminals. Locks, registries, caches, manifests and other
+persisted files written with a byte order mark load, malformed JSON roots are
+reported instead of crashing, and dependency audits parse Cargo workspaces,
+wheel and sdist names, PEP 508 ranges and pubspec blocks.
+
 ### Fixed
 
 - Read BOM-prefixed locks, registries, prompts, modes, model caches, plugin
