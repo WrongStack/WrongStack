@@ -1,4 +1,5 @@
 import * as path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parseJvmCompiler } from '../src/languages/compiler-diagnostics.js';
 import {
@@ -94,18 +95,29 @@ describe('language diagnostic normalization', () => {
     expect(result.diagnostics[0]).toMatchObject({ file: target, source: 'typescript-parser' });
   });
 
-  it('handles literal % characters in file:// URIs without throwing URIError', () => {
-    const denoOut = [
-      'TS2322 [ERROR]: Type string is not assignable to type number.',
-      '    at file:///D:/100%_suite/a.ts:12:5',
-    ].join('\n');
-    const denoDiags = parseDenoTest(denoOut, 'D:/100%_suite');
-    expect(denoDiags).toHaveLength(1);
-    expect(denoDiags[0]?.file).toBe(path.normalize('D:/100%_suite/a.ts'));
+  it.each(['encoded', 'literal'] as const)(
+    'handles %s %% characters in file:// URIs',
+    (encoding) => {
+      const denoRoot = path.join(path.parse(root).root, '100%_suite');
+      const denoFile = path.join(denoRoot, 'a.ts');
+      const jvmRoot = path.join(path.parse(root).root, '100%_app');
+      const jvmFile = path.join(jvmRoot, 'App.java');
+      const fileUri = (file: string) => {
+        const uri = pathToFileURL(file).href;
+        return encoding === 'literal' ? uri.replaceAll('%25', '%') : uri;
+      };
+      const denoOut = [
+        'TS2322 [ERROR]: Type string is not assignable to type number.',
+        `    at ${fileUri(denoFile)}:12:5`,
+      ].join('\n');
+      const denoDiags = parseDenoTest(denoOut, denoRoot);
+      expect(denoDiags).toHaveLength(1);
+      expect(denoDiags[0]?.file).toBe(denoFile);
 
-    const jvmOut = '[ERROR] file:///D:/100%_app/App.java:[4,13] incompatible types';
-    const jvmDiags = parseJvmCompiler(jvmOut, 'D:/100%_app');
-    expect(jvmDiags).toHaveLength(1);
-    expect(jvmDiags[0]?.file).toBe(path.normalize('D:/100%_app/App.java'));
-  });
+      const jvmOut = `[ERROR] ${fileUri(jvmFile)}:[4,13] incompatible types`;
+      const jvmDiags = parseJvmCompiler(jvmOut, jvmRoot);
+      expect(jvmDiags).toHaveLength(1);
+      expect(jvmDiags[0]?.file).toBe(jvmFile);
+    },
+  );
 });
