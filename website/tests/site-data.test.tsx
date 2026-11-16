@@ -1,8 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { releaseHighlights } from '../src/data/release-highlights';
 import { pageMeta } from '../src/data/content-page-meta';
+import { releaseHighlights } from '../src/data/release-highlights';
 import {
   type ChangelogEntry,
   changelog,
@@ -122,6 +122,7 @@ describe('site data — hand-maintained file size budget', () => {
     'src/data/changelog.ts',
     'src/data/changelog-types.ts',
     'src/data/changelog-1x.ts',
+    'src/data/changelog-1x-early.ts',
     'src/data/changelog-0x-a.ts',
     'src/data/changelog-0x-b.ts',
     'src/pages/HomePage.tsx',

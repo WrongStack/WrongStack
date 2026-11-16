@@ -10,12 +10,14 @@
 import { changelog0xRecent } from './changelog-0x-a';
 import { changelog0xEarly } from './changelog-0x-b';
 import { changelog1x } from './changelog-1x';
+import { changelog1xEarly } from './changelog-1x-early';
 import type { ChangelogEntry } from './changelog-types';
 
 export type { ChangelogEntry } from './changelog-types';
 
 // Pure catalog assembly lets unused release history stay out of the startup bundle.
 export const changelog: ChangelogEntry[] = /* @__PURE__ */ changelog1x.concat(
+  changelog1xEarly,
   changelog0xRecent,
   changelog0xEarly,
 );
