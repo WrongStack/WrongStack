@@ -361,7 +361,7 @@ export async function readPluginTrustStore(
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(raw.replace(/^\uFEFF/, ''));
   } catch (err) {
     throw new FsError({
       message: `Plugin trust store "${storePath}" is not valid JSON — fix or delete the file before loading external plugins (${err instanceof Error ? err.message : String(err)})`,

@@ -345,7 +345,10 @@ export async function readKanbanEvents(
   const boardId = await resolveBoardRef(projectRoot, boardRef);
   if (!boardId) return [];
   try {
-    const raw = await readFileWithRetry(getKanbanEventsPath(projectRoot, boardId));
+    const raw = (await readFileWithRetry(getKanbanEventsPath(projectRoot, boardId))).replace(
+      /^\uFEFF/,
+      '',
+    );
     return raw
       .split(/\r?\n/)
       .filter(Boolean)
@@ -390,7 +393,7 @@ export async function readBoardHistory(
   const backend = runtimeStorage(projectRoot);
   if (backend) return backend.readBoardHistory(boardId);
   try {
-    const raw = await readFileWithRetry(getBoardHistoryPath(projectRoot));
+    const raw = (await readFileWithRetry(getBoardHistoryPath(projectRoot))).replace(/^\uFEFF/, '');
     const entries = raw
       .split(/\r?\n/)
       .filter(Boolean)

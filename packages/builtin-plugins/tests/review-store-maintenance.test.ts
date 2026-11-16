@@ -272,6 +272,23 @@ describe('review store maintenance', () => {
     expect(await reports.get('cap-report-40d')).not.toBeNull();
     expect(await findings.get('cap-finding-40d')).not.toBeNull();
   });
+
+  it('strips UTF-8 BOM from .review-store-maintenance.json so interval throttling holds (F489)', async () => {
+    const { REVIEW_STORE_MAINTENANCE_FILE } = await import('../src/review-store-maintenance.js');
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'review-maint-bom-'));
+    try {
+      const nowMs = Date.now();
+      await fs.writeFile(
+        path.join(dir, REVIEW_STORE_MAINTENANCE_FILE),
+        `\uFEFF${JSON.stringify({ compactedAt: new Date(nowMs - 1_000).toISOString(), totalBytesBefore: 100 })}`,
+        'utf8',
+      );
+      const res = await maybeCompactReviewStores(dir, { thresholdBytes: 0, now: nowMs });
+      expect(res.reason).toBe('interval');
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 /**

@@ -366,5 +366,22 @@ describe('RecoveryLock', () => {
       const next = new RecoveryLock({ dir, sessionStore });
       await expect(next.write('fresh-session')).resolves.toBeUndefined();
     });
+
+    it('preserves BOM-prefixed live active.json locks in checkAbandoned (F499)', async () => {
+      await fsp.writeFile(
+        path.join(dir, 'active.json'),
+        `\uFEFF${JSON.stringify({
+          v: 1,
+          sessionId: 'live-bom',
+          pid: 999_999_999,
+          hostname: os.hostname(),
+          startedAt: new Date().toISOString(),
+        })}`,
+        'utf8',
+      );
+      const checker = new RecoveryLock({ dir, isPidAlive: () => true });
+      expect(await checker.checkAbandoned()).toBeNull();
+      expect((await fsp.stat(path.join(dir, 'active.json'))).isFile()).toBe(true);
+    });
   });
 });

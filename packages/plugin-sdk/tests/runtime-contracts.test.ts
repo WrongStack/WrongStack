@@ -186,4 +186,26 @@ describe('runtime helper contracts', () => {
       expect(runtime.allowedFlags?.has('--version') ?? false).toBe(false);
     },
   );
+
+  it('strips UTF-8 BOM and ignores non-object package.json in resolveNodeBin (F487)', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'sdk-bin-bom-'));
+    try {
+      const pkgDir = path.join(root, 'node_modules', 'demo-bin');
+      await fs.mkdir(pkgDir, { recursive: true });
+      await fs.writeFile(path.join(pkgDir, 'cli.js'), 'console.log("ok");\n', 'utf8');
+      await fs.writeFile(
+        path.join(pkgDir, 'package.json'),
+        `\uFEFF${JSON.stringify({ name: 'demo-bin', bin: { 'demo-bin': 'cli.js' } })}`,
+        'utf8',
+      );
+      clearLocalBinCache();
+      expect(resolveNodeBin('demo-bin', 'demo-bin', root)).not.toBeNull();
+
+      await fs.writeFile(path.join(pkgDir, 'package.json'), 'null', 'utf8');
+      clearLocalBinCache();
+      expect(resolveNodeBin('demo-bin', 'demo-bin', root)).toBeNull();
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
 });

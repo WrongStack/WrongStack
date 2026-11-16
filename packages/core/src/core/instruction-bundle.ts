@@ -281,7 +281,7 @@ async function readInstructionJson(
     return {};
   }
   try {
-    return normalizeInstructionBundle(JSON.parse(raw));
+    return normalizeInstructionBundle(JSON.parse(raw.replace(/^\uFEFF/, '')));
   } catch {
     return {};
   }

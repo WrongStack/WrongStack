@@ -1,11 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import type {
-  KanbanAgentAssignment,
-  KanbanBoard,
-  KanbanRecoveryPolicy,
-  KanbanTask,
-} from '../src/types.js';
-import { areDependenciesMet, findBlockedTasks } from '../src/manager/dependencies.js';
 import {
   assertNoDependencyCycles,
   buildTaskGraphMetadata,
@@ -16,19 +9,19 @@ import {
   findGoalMetric,
   findTask,
   hasDependencyPath,
+  highestPriority,
   inferTaskType,
   isAssignmentHeartbeatDue,
+  isoFromTimestamp,
   isTaskFromGraph,
   isTaskReadyForWork,
   kanbanStatusToTaskGraphStatus,
   later,
   matchesKanbanSearch,
   mergedTaskDescription,
-  highestPriority,
   msUntilExpiry,
   optionalArray,
   parseIsoTimestamp,
-  isoFromTimestamp,
   remapIdList,
   remapTaskReferences,
   resolveTaskRefs,
@@ -36,13 +29,20 @@ import {
   selectRecoveryMode,
   slugify,
   statusForColumn,
-  taskGraphStatusToKanbanStatus,
   taskGraphEdgesFromBoard,
+  taskGraphStatusToKanbanStatus,
   tasksInChain,
   uniqueColumnId,
   uniqueIdFromSet,
   uniqueStrings,
 } from '../src/manager/_internal.js';
+import { areDependenciesMet, findBlockedTasks } from '../src/manager/dependencies.js';
+import type {
+  KanbanAgentAssignment,
+  KanbanBoard,
+  KanbanRecoveryPolicy,
+  KanbanTask,
+} from '../src/types.js';
 
 // ── Test fixtures ────────────────────────────────────────────────────
 
@@ -1023,5 +1023,12 @@ describe('areDependenciesMet + findBlockedTasks together', () => {
   });
   it('returns [] for an unknown task', () => {
     expect(findBlockedTasks(b, 'nope')).toEqual([]);
+  });
+
+  it('returns fallback instead of throwing RangeError for out-of-range finite timestamps in isoFromTimestamp (F483)', async () => {
+    const { isoFromTimestamp } = await import('../src/manager/basic-helpers.js');
+    const fallback = '2026-01-01T00:00:00.000Z';
+    expect(isoFromTimestamp(1e16, fallback)).toBe(fallback);
+    expect(isoFromTimestamp(-1e16, fallback)).toBe(fallback);
   });
 });

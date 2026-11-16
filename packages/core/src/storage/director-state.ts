@@ -85,7 +85,7 @@ export async function loadDirectorState(filePath: string): Promise<DirectorState
     return null;
   }
   try {
-    const parsed = JSON.parse(raw) as DirectorStateSnapshot;
+    const parsed = JSON.parse(raw.replace(/^\uFEFF/, '')) as DirectorStateSnapshot;
     if (parsed?.version !== 1) return null;
     return parsed;
   } catch {

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-16T10:03:24.177Z",
+  "generatedAt": "2026-11-16T10:59:36.646Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6348,
-    "testFiles": 5364,
-    "sourceLines": 1312488,
+    "testFiles": 5369,
+    "sourceLines": 1312715,
     "workspaceEdges": 250,
     "moduleEdges": 18727,
     "nonCommandSlashImports": 0,
@@ -362,7 +362,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 661,
-      "testFiles": 730,
+      "testFiles": 732,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -379,7 +379,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 730
+          "testFiles": 732
         }
       ]
     },
@@ -1036,7 +1036,7 @@
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
       "sourceFiles": 513,
-      "testFiles": 442,
+      "testFiles": 443,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1065,7 +1065,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 442
+          "testFiles": 443
         }
       ]
     },
@@ -1118,7 +1118,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 796,
-      "testFiles": 535,
+      "testFiles": 536,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1144,7 +1144,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 535
+          "testFiles": 536
         }
       ]
     },
@@ -1240,7 +1240,7 @@
       "name": "@wrongstack/wrongmemory-client",
       "dir": "packages/wrongmemory-client",
       "sourceFiles": 6,
-      "testFiles": 2,
+      "testFiles": 3,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -1251,7 +1251,7 @@
         {
           "path": "packages/wrongmemory-client/tsconfig.test.json",
           "error": null,
-          "testFiles": 2
+          "testFiles": 3
         }
       ]
     },
@@ -11186,6 +11186,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/core/system-prompt-plan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/core/system-prompt-presets-corrupt-json.test.ts",
         "projects": [
           "root-node"
@@ -13887,6 +13893,12 @@
       },
       {
         "file": "packages/core/tests/storage/session-writer-truncate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/shard-manifest.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26738,6 +26750,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/statusbar-view-model-bom.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/statusbar-view-model-polling-gate.test.tsx",
         "projects": [
           "root-node"
@@ -30692,6 +30710,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/dead-code-panel-model.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/dead-code-scan-panel.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -33435,6 +33459,12 @@
       },
       {
         "file": "packages/wrongmemory-client/tests/client-timeout-overflow.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/wrongmemory-client/tests/discovery.test.ts",
         "projects": [
           "root-node"
         ]

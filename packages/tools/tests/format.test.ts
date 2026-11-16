@@ -10,6 +10,7 @@ vi.mock('../src/_spawn-stream.js', async (orig) => {
   return { ...actual, spawnStream: spawnStreamMocks.spawnStream };
 });
 
+import { createToolOutputSerializer } from '@wrongstack/core/utils';
 import { formatTool, parseFormatterCounts } from '../src/format.js';
 
 const makeCtx = () => ({ cwd: '/fake', tools: [], projectRoot: '/fake' }) as any;
@@ -328,5 +329,75 @@ describe('parseFormatterCounts', () => {
     } finally {
       await fsPromises.rm(dir, { recursive: true, force: true });
     }
+  });
+});
+
+// Regression: `format` with `check: true` published no process exit status, so
+// the shared verifier renderer (which defaults `exit_code` to 0) printed
+// `status=passed` for a project the formatter had just rejected. Real Biome
+// 2.6.5 exits 1 on violations and writes `Checked N files … Found 1 error.`;
+// `files_changed` is legitimately 0 in check mode, so the exit code is the
+// only failure signal the payload can carry.
+describe('formatTool exit status (check-mode false green)', () => {
+  const serialize = (value: unknown) =>
+    createToolOutputSerializer().serialize(value, {
+      toolName: 'format',
+      input: { check: true },
+    });
+
+  // Captured verbatim from the measured run, minus the box-drawing ruler.
+  const BIOME_REJECTION = [
+    'src/a.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    '',
+    '  × Formatter would have printed the following content:',
+    '',
+    'Checked 1 file in 1594µs. No fixes applied.',
+    'Found 1 error.',
+  ].join('\n');
+
+  it('propagates the formatter exit code when a check fails', async () => {
+    spawnStreamMocks.spawnStream.mockImplementation(
+      fakeSpawn('', { stderr: BIOME_REJECTION, exitCode: 1 }),
+    );
+    const result = await formatTool.execute({ check: true, fixer: 'biome' }, makeCtx(), makeOpts());
+    expect(result.exit_code).toBe(1);
+    // The check-mode count contract is unchanged: nothing was written.
+    expect(result.files_changed).toBe(0);
+    const rendered = serialize(result);
+    expect(rendered).not.toContain('status=passed');
+    expect(rendered).toContain('error_context');
+  });
+
+  it('still reports a clean check as passed (control)', async () => {
+    spawnStreamMocks.spawnStream.mockImplementation(
+      fakeSpawn('', { stderr: 'Checked 1 file in 2ms. No fixes applied.', exitCode: 0 }),
+    );
+    const result = await formatTool.execute({ check: true, fixer: 'biome' }, makeCtx(), makeOpts());
+    expect(result.exit_code).toBe(0);
+    expect(serialize(result)).toContain('status=passed');
+  });
+
+  it('keeps the write-mode verdict intact: changed files, exit 0 (control)', async () => {
+    spawnStreamMocks.spawnStream.mockImplementation(
+      fakeSpawn('', { stderr: 'Formatted 2 files in 2ms. Fixed 1 file.', exitCode: 0 }),
+    );
+    const result = await formatTool.execute({ fixer: 'biome' }, makeCtx(), makeOpts());
+    expect(result.exit_code).toBe(0);
+    expect(result.files_changed).toBe(1);
+    expect(serialize(result)).toContain('status=changed');
+  });
+
+  it('pins the causality: a format payload without exit_code renders as passed', () => {
+    // The pre-fix shape — exactly what `format` used to yield on a rejected
+    // project. Kept as a guard so the field is never dropped again: the
+    // renderer cannot infer failure from a check run any other way.
+    const preFixShape = {
+      fixer: 'biome',
+      files_checked: 1,
+      files_changed: 0,
+      output: BIOME_REJECTION,
+      truncated: false,
+    };
+    expect(serialize(preFixShape)).toContain('status=passed');
   });
 });

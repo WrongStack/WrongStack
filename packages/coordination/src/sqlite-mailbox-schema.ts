@@ -421,7 +421,11 @@ function readLegacyRegistry<T>(
   parseEntry: (value: unknown) => T | null,
 ): Map<string, T> {
   try {
-    const raw = JSON.parse(fs.readFileSync(filePath, 'utf8')) as Record<string, unknown>;
+    const parsedRaw: unknown = JSON.parse(fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, ''));
+    if (!parsedRaw || typeof parsedRaw !== 'object' || Array.isArray(parsedRaw)) {
+      return new Map();
+    }
+    const raw = parsedRaw as Record<string, unknown>;
     const result = new Map<string, T>();
     for (const [id, value] of Object.entries(raw)) {
       const parsed = parseEntry(value);

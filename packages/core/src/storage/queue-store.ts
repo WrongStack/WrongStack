@@ -236,7 +236,7 @@ export class QueueStore {
     }
     let parsed: unknown;
     try {
-      parsed = JSON.parse(raw);
+      parsed = JSON.parse(raw.replace(/^\uFEFF/, ''));
     } catch {
       this.events?.emit('storage.read', {
         sessionId: this.traceId ?? '~boot~',

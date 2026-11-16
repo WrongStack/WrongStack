@@ -328,4 +328,17 @@ describe('hashPluginDirectoryClosure — single-file plugins in a discovery root
     await writeFile(qHelper, 'export const Q = 2;\n', 'utf8');
     expect(await hashPluginDirectoryClosure(soloEntry, [root])).not.toBe(s2);
   });
+
+  it('strips UTF-8 BOM in readPluginTrustStore (F496)', async () => {
+    const { readPluginTrustStore } = await import('../../src/plugin/trust.js');
+    const root = await tempDir();
+    const file = join(root, 'trust.json');
+    await writeFile(
+      file,
+      `\uFEFF${JSON.stringify({ pinned: { 'my-plugin': { sha256: 'a'.repeat(64), pinnedAt: '2026-01-01T00:00:00Z' } } })}`,
+      'utf8',
+    );
+    const store = await readPluginTrustStore(file);
+    expect(store.pinned['my-plugin']).toBeDefined();
+  });
 });

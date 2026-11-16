@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   createSystemPromptPreset,
   listSystemPromptPresets,
+  readActiveSystemPromptPresets,
   readSystemPromptPreset,
 } from '../../src/core/system-prompt-presets.js';
 
@@ -38,5 +39,23 @@ describe('system-prompt-presets corrupt JSON resilience (F370)', () => {
     await expect(readSystemPromptPreset(fakeDir, corruptId)).rejects.toThrow(
       'Invalid preset file.',
     );
+  });
+
+  it('strips UTF-8 BOM and handles JSON null in active.json (F504)', async () => {
+    const fakeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'f504-'));
+    temps.push(fakeDir);
+    const presetsDir = path.join(fakeDir, 'system-prompt-presets');
+    await fs.mkdir(presetsDir, { recursive: true });
+    const id = '11111111-1111-4111-8111-111111111111';
+
+    await fs.writeFile(
+      path.join(presetsDir, 'active.json'),
+      `\uFEFF${JSON.stringify({ default: id })}`,
+      'utf8',
+    );
+    await expect(readActiveSystemPromptPresets(fakeDir)).resolves.toEqual({ default: id });
+
+    await fs.writeFile(path.join(presetsDir, 'active.json'), 'null', 'utf8');
+    await expect(readActiveSystemPromptPresets(fakeDir)).resolves.toEqual({});
   });
 });

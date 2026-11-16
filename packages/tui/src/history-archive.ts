@@ -140,8 +140,10 @@ export class HistoryArchive {
       const text = buf.toString('utf8').trim();
       if (!text) continue;
       try {
-        const parsed = JSON.parse(text) as HistoryEntry;
-        entries.push(parsed);
+        const parsed = JSON.parse(text) as unknown;
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          entries.push(parsed as HistoryEntry);
+        }
       } catch {
         // A corrupt line skips silently — durable archive invariant
         // means earlier entries are still recoverable.

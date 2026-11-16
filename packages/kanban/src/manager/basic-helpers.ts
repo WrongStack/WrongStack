@@ -32,7 +32,8 @@ export function parseIsoTimestamp(value: string | undefined, fallback: number): 
 
 export function isoFromTimestamp(value: number | undefined, fallback: string): string {
   if (value === undefined || !Number.isFinite(value)) return fallback;
-  return new Date(value).toISOString();
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? fallback : date.toISOString();
 }
 
 export { nowIso } from '@wrongstack/primitives';

@@ -1073,4 +1073,34 @@ describe('non-Latin directives', () => {
     });
     expect(res.status).toBe('optimized');
   });
+
+  it('strips UTF-8 BOM in learning policy and consolidation metadata loaders (F474, F475)', async () => {
+    const { mkdirSync, writeFileSync } = await import('node:fs');
+    const path = await import('node:path');
+    const { learningPolicyPath, roleDir } = await import('../src/project-agent-paths.js');
+    const { loadProjectAgentLearningPolicy } = await import(
+      '../src/project-agent-learning-policy.js'
+    );
+    const { loadConsolidationMetadata } = await import('../src/project-agent-consolidation.js');
+
+    const policyFile = learningPolicyPath('researcher', projectRoot);
+    mkdirSync(path.dirname(policyFile), { recursive: true });
+    writeFileSync(
+      policyFile,
+      `\uFEFF${JSON.stringify({ enabled: false, lifetimeCaptureCount: 7 })}`,
+      'utf8',
+    );
+    expect(loadProjectAgentLearningPolicy('researcher', projectRoot)).toMatchObject({
+      enabled: false,
+      lifetimeCaptureCount: 7,
+    });
+
+    const consFile = path.join(roleDir('researcher', projectRoot), 'consolidation.json');
+    writeFileSync(
+      consFile,
+      `\uFEFF${JSON.stringify({ consolidatedAt: '2026-01-01T00:00:00Z', sourceEntryCount: 5 })}`,
+      'utf8',
+    );
+    expect(loadConsolidationMetadata('researcher', projectRoot)?.sourceEntryCount).toBe(5);
+  });
 });

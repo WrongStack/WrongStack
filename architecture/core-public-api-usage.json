@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1001,
+      "files": 1002,
       "typeOnly": 76,
-      "runtimeOrMixed": 960
+      "runtimeOrMixed": 961
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -16200,6 +16200,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/tests/browser-policy.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/tests/format.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

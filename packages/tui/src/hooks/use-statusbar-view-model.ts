@@ -364,10 +364,12 @@ export function useStatusbarViewModel({
         const fingerprint = `${stat.mtimeMs}:${stat.size}`;
         if (fingerprint === lastFingerprint) return;
         const data = await fs.readFile(planPath, 'utf8');
-        const parsed = JSON.parse(data) as { items?: Array<{ status?: string | undefined }> };
+        const parsed = parseStatusJsonObject(data) as {
+          items?: Array<{ status?: string | undefined }>;
+        } | null;
         if (cancelled) return;
         lastFingerprint = fingerprint;
-        if (!Array.isArray(parsed.items)) {
+        if (!parsed || !Array.isArray(parsed.items)) {
           setPlanCounts((previous) => (previous === null ? previous : null));
           return;
         }
@@ -412,10 +414,12 @@ export function useStatusbarViewModel({
         const fingerprint = `${stat.mtimeMs}:${stat.size}`;
         if (fingerprint === lastFingerprint) return;
         const data = await fs.readFile(taskPath, 'utf8');
-        const parsed = JSON.parse(data) as { tasks?: Array<{ status?: string | undefined }> };
+        const parsed = parseStatusJsonObject(data) as {
+          tasks?: Array<{ status?: string | undefined }>;
+        } | null;
         if (cancelled) return;
         lastFingerprint = fingerprint;
-        if (!Array.isArray(parsed.tasks)) {
+        if (!parsed || !Array.isArray(parsed.tasks)) {
           setTaskCounts((previous) => (previous === null ? previous : null));
           return;
         }
@@ -502,4 +506,11 @@ export function useStatusbarViewModel({
     taskCounts,
     droppedTools,
   };
+}
+
+function parseStatusJsonObject(raw: string): Record<string, unknown> | null {
+  const parsed = JSON.parse(raw.replace(/^\uFEFF/, '')) as unknown;
+  return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+    ? (parsed as Record<string, unknown>)
+    : null;
 }

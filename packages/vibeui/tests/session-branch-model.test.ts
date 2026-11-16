@@ -102,4 +102,15 @@ describe('VibeUI session-branch-model', () => {
     const b1Row = rows.find((r) => r.branch.id === 'b1');
     expect(b1Row?.depth).toBe(1);
   });
+
+  it('rejects array branches and non-integer/negative headSeq in parseVibeSessionTree (F491)', async () => {
+    const { parseVibeSessionTree } = await import('../src/lib/session-branch-model.js');
+    expect(
+      parseVibeSessionTree(JSON.stringify({ activeBranchId: 'b1', branches: [], headSeq: 1 })),
+    ).toBeNull();
+    expect(
+      parseVibeSessionTree(JSON.stringify({ activeBranchId: 'b1', branches: {}, headSeq: -5 }))
+        ?.headSeq,
+    ).toBe(-1);
+  });
 });

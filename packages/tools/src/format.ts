@@ -20,6 +20,18 @@ export interface FormatOutput {
   files_checked: number | undefined;
   /** Parsed from formatter output when confidently available; undefined otherwise. */
   files_changed: number | undefined;
+  /**
+   * The formatter's process exit status.
+   *
+   * `check: true` legitimately reports `files_changed: 0` — a verification run
+   * writes nothing — so the exit code is the ONLY failure signal a check-mode
+   * run carries. Without it the shared verifier renderer (`exit_code ?? 0`)
+   * printed `status=passed` for a project Biome had just rejected with
+   * `exit 1` / "Found 1 error", i.e. a false-green CI gate. `typecheck` and
+   * `lint` already publish this field; `format` is routed through the same
+   * renderer and must carry the same signal.
+   */
+  exit_code: number;
   output: string;
   truncated: boolean;
 }
@@ -149,6 +161,11 @@ export const formatTool: Tool<FormatInput, FormatOutput> = {
             // Language-bridge runs don't report per-file counts.
             files_checked: undefined,
             files_changed: undefined,
+            // A planner run can finish with status 'failed' (the throws above
+            // cover only unavailable/cancelled/timed_out), and with no per-file
+            // counts the exit status is the only signal that it failed — a
+            // `cargo fmt --check` violation would otherwise render passed.
+            exit_code: run.exitCode ?? (run.status === 'passed' ? 0 : 1),
             output: normalizeCommandOutput(run.output || run.error || ''),
             truncated: run.truncated,
           },
@@ -166,6 +183,9 @@ export const formatTool: Tool<FormatInput, FormatOutput> = {
           fixer: 'none',
           files_checked: 0,
           files_changed: 0,
+          // No command ran and nothing failed: a missing formatter is a
+          // reported no-op, not a verification failure.
+          exit_code: 0,
           output: 'No formatter found (biome.json, .prettierrc)',
           truncated: false,
         },
@@ -259,6 +279,13 @@ export const formatTool: Tool<FormatInput, FormatOutput> = {
         fixer: detected,
         files_checked: counts.checked,
         files_changed: counts.changed,
+        // The formatter ran and reported violations: Biome `format` (the
+        // check-mode argv) exits 1 with "Found N error", Prettier `--check`
+        // exits 1 with a warn list. In check mode `files_changed` is
+        // legitimately 0, so this is the only signal that the verification
+        // FAILED — dropping it made the shared verifier renderer print
+        // `status=passed` for a project the formatter had just rejected.
+        exit_code: result.exitCode,
         output: normalizeCommandOutput(rawOutput),
         truncated: result.truncated,
       },

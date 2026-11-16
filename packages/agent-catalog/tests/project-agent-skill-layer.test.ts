@@ -517,4 +517,24 @@ describe('skill affinity ranking', () => {
       expect(Array.isArray(resolveRoleSkillCandidates(role, projectRoot))).toBe(true);
     }
   });
+
+  it('strips UTF-8 BOM and ignores non-object JSON in loadSkillAffinity (F473)', async () => {
+    const { mkdirSync, writeFileSync } = await import('node:fs');
+    const path = await import('node:path');
+    const { loadSkillAffinity, projectSkillAffinityPath } = await import(
+      '../src/project-agent-skill-layer.js'
+    );
+    const file = projectSkillAffinityPath('researcher', projectRoot);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(
+      file,
+      `\uFEFF${JSON.stringify({ role: 'researcher', updatedAt: '2026-01-01T00:00:00Z', entries: { 'vitest-testing': { loads: 2, pinned: true } } })}`,
+      'utf8',
+    );
+    expect(loadSkillAffinity('researcher', projectRoot).entries['vitest-testing']?.pinned).toBe(
+      true,
+    );
+    writeFileSync(file, 'null', 'utf8');
+    expect(loadSkillAffinity('researcher', projectRoot).entries).toEqual({});
+  });
 });

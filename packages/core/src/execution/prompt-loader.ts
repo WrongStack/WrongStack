@@ -194,7 +194,7 @@ export class DefaultPromptLoader implements PromptLoader {
     const files = await walkJson(dir);
     for (const file of files) {
       try {
-        const parsed = JSON.parse(await fs.readFile(file, 'utf8'));
+        const parsed = JSON.parse((await fs.readFile(file, 'utf8')).replace(/^\uFEFF/, ''));
         // Builtin files store a bare PromptEntry (no { version, entry } wrapper).
         const migrated = migratePromptEntry(parsed);
         if (migrated) out.push({ ...migrated, source: 'builtin' });

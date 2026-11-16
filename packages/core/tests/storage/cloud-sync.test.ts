@@ -910,5 +910,27 @@ describe('CloudSync', () => {
         expect(pushed).toBe('fix the token refresh bug\nadd an API key field to settings');
       });
     });
+
+    it('strips UTF-8 BOM in CloudSync.loadState (F494)', async () => {
+      await withTempDir(async (dir) => {
+        await fs.writeFile(
+          path.join(dir, 'sync-state.json'),
+          `\uFEFF${JSON.stringify({ lastSyncedAt: new Date().toISOString(), localRev: 'r1', remoteRev: 'r1', gistId: 'g1' })}`,
+          'utf8',
+        );
+        const sync = new CloudSync(
+          { ...mockPaths, globalRoot: dir, configDir: dir },
+          () => ({
+            enabled: true,
+            repo: 'owner/repo',
+            githubToken: 'test-token',
+            categories: ['prompts'],
+          }),
+          vi.fn(),
+        );
+        await sync.loadState();
+        expect(await sync.status()).not.toContain('never');
+      });
+    });
   });
 });

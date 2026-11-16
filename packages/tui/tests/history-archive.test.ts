@@ -99,4 +99,21 @@ describe('HistoryArchive', () => {
     handle.close = vi.fn().mockRejectedValueOnce(new Error('already closed'));
     await expect(second.close()).resolves.toBeUndefined();
   });
+
+  it('skips JSON null, primitives, and arrays in loadRange (F507)', async () => {
+    const directory = await temporaryDirectory();
+    const valid = JSON.stringify({ id: 1, kind: 'error', text: 'kept' });
+    await fs.writeFile(
+      path.join(directory, 'history-archive.jsonl'),
+      `${valid}\nnull\n123\n[]\n${valid}\n`,
+      'utf8',
+    );
+    const archive = new HistoryArchive(directory);
+    const entries = await archive.loadRange(0, 10);
+    await archive.close();
+    expect(entries).toHaveLength(2);
+    expect(
+      entries.every((entry) => entry && typeof entry === 'object' && !Array.isArray(entry)),
+    ).toBe(true);
+  });
 });

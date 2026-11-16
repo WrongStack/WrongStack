@@ -385,4 +385,9 @@ describe('formatGuardReport', () => {
     expect(() => parseBaselineFile('{"schemaVersion":1,"entries":{}}')).toThrow();
     expect(() => parseBaselineFile('{"schemaVersion":1,"thresholdPct":-5,"entries":[]}')).toThrow();
   });
+
+  it('strips UTF-8 BOM in parseBaselineFile (F495)', () => {
+    const parsed = parseBaselineFile(`\uFEFF${JSON.stringify({ entries: [], thresholdPct: 10 })}`);
+    expect(parsed.thresholdPct).toBe(10);
+  });
 });

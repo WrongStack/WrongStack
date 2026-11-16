@@ -231,4 +231,28 @@ describe('retryWhileUnauthorized', () => {
     expect(bindOutcome.outcome).toBe('bound');
     expect(listenCalls).toBe(1);
   });
+
+  it('strips UTF-8 BOM from endpoint metadata in createProjectMetadataReasserter (F490)', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'pers-bom-'));
+    try {
+      const metadataPath = path.join(dir, 'endpoint.json');
+      await fs.writeFile(
+        metadataPath,
+        `\uFEFF${JSON.stringify({ pid: OWN.pid, endpoint: OWN.endpoint, authToken: OWN.authToken })}`,
+        'utf8',
+      );
+      const write = vi.fn(async () => undefined);
+      const reasserter = createProjectMetadataReasserter({
+        metadataPath,
+        pid: OWN.pid,
+        endpoint: OWN.endpoint,
+        write,
+      });
+      reasserter.enable();
+      await reasserter.reassert();
+      expect(write).not.toHaveBeenCalled();
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
 });

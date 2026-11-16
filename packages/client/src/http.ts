@@ -89,11 +89,18 @@ export function createHttpClient(options: HttpClientOptions): WrongStackHttpClie
         retryable: true,
       });
     }
+    const cleanText = text.replace(/^\uFEFF/, '');
     if (!response.ok) {
       let detail = text;
       try {
-        const errorBody = JSON.parse(text) as ApiErrorBody;
-        detail = typeof errorBody.error === 'string' ? errorBody.error : text;
+        const errorBody: unknown = JSON.parse(cleanText);
+        detail =
+          errorBody &&
+          typeof errorBody === 'object' &&
+          !Array.isArray(errorBody) &&
+          typeof (errorBody as ApiErrorBody).error === 'string'
+            ? (errorBody as ApiErrorBody).error!
+            : text;
       } catch {
         // Some refusals are plain text.
       }
@@ -105,7 +112,7 @@ export function createHttpClient(options: HttpClientOptions): WrongStackHttpClie
       });
     }
     try {
-      return JSON.parse(text) as T;
+      return JSON.parse(cleanText) as T;
     } catch {
       throw new WrongStackError({
         kind: 'protocol',

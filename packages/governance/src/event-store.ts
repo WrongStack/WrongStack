@@ -139,13 +139,20 @@ function observationHash(observation: GovernanceObservation): string {
 }
 
 function parseJson<T>(json: string, description: string): T {
+  let parsed: unknown;
   try {
-    return JSON.parse(json) as T;
+    parsed = JSON.parse(json) as unknown;
   } catch (error) {
     throw new GovernanceStoreCorruptionError(
       `Cannot parse stored ${description}: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new GovernanceStoreCorruptionError(
+      `Cannot parse stored ${description}: expected a JSON object.`,
+    );
+  }
+  return parsed as T;
 }
 
 export class SqliteGovernanceEventStore implements GovernanceEventStore {

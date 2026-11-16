@@ -41,8 +41,10 @@ export async function readSummaryManifestFile(
     return null;
   }
   try {
+    const parsed: unknown = JSON.parse(raw.replace(/^\uFEFF/, ''));
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
     emitSessionStoreRead(events, id, manifestPath, 'summary', 'success', Date.now() - startTime);
-    return JSON.parse(raw) as SessionSummary;
+    return parsed as SessionSummary;
   } catch {
     return null;
   }

@@ -235,7 +235,10 @@ async function fileSize(filePath: string): Promise<number> {
 
 async function readMaintenanceState(filePath: string): Promise<MaintenanceState | null> {
   try {
-    const parsed = JSON.parse(await fsp.readFile(filePath, 'utf8')) as Partial<MaintenanceState>;
+    const raw = (await fsp.readFile(filePath, 'utf8')).replace(/^\uFEFF/, '');
+    const parsedRaw: unknown = JSON.parse(raw);
+    if (!parsedRaw || typeof parsedRaw !== 'object' || Array.isArray(parsedRaw)) return null;
+    const parsed = parsedRaw as Partial<MaintenanceState>;
     return typeof parsed.compactedAt === 'string' && Number.isFinite(parsed.totalBytesBefore)
       ? (parsed as MaintenanceState)
       : null;

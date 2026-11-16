@@ -165,10 +165,28 @@ function parsePackageJson(content: string): DeclaredDependency[] {
   return out;
 }
 
-/** Cargo — `[dependencies]`, `[dev-dependencies]`, `[build-dependencies]`. */
+/**
+ * Cargo — `[dependencies]`, `[dev-dependencies]`, `[build-dependencies]`, and
+ * the workspace-wide `[workspace.dependencies]`.
+ *
+ * The workspace table is not a nice-to-have: in a virtual workspace root — the
+ * layout `cargo new` produces for every multi-crate project — it is the ONLY
+ * place a declared range exists, because member crates write
+ * `foo.workspace = true`, which carries no version. Leaving it out made a
+ * workspace `Cargo.toml` report no dependencies at all, so
+ * `diffDeclaredDependencies` produced an empty delta, `hasDependencyChanges`
+ * stayed false, and the dep-watcher audit gate never opened for a genuinely
+ * new Rust dependency. `[workspace]` itself stays out of the list: its keys
+ * (`resolver`, `members`) are not packages.
+ */
 function parseCargoToml(content: string): DeclaredDependency[] {
   const out: DeclaredDependency[] = [];
-  const sections = ['dependencies', 'dev-dependencies', 'build-dependencies'];
+  const sections = [
+    'dependencies',
+    'dev-dependencies',
+    'build-dependencies',
+    'workspace.dependencies',
+  ];
   let current: string | undefined;
 
   for (const rawLine of content.split(/\r?\n/)) {
@@ -246,12 +264,61 @@ function parseRequirementsTxt(content: string): DeclaredDependency[] {
       if (egg) out.push({ name: egg, range: line.replace(/#.*$/, ''), section: 'dependencies' });
       continue;
     }
+    // pip also accepts a *path* requirement: a local directory, or a wheel /
+    // sdist file (PEP 427 / PEP 527). Those are filenames, not
+    // `name<op>version`, and the generic pattern below read the leading path
+    // segment — `.` from `./local-package`, `wheels` from
+    // `wheels/foo-1.0-py3-none-any.whl` — or the whole filename as the package
+    // name. That invented a package literally named "." and encoded the
+    // version inside the name, so a wheel version bump arrived as
+    // added+removed identity churn instead of one `changed` entry. The archive
+    // carries a recoverable name+version; a directory path declares neither.
+    if (isPathRequirement(line)) {
+      const archive = archiveRequirement(line);
+      if (archive) out.push({ ...archive, section: 'dependencies' });
+      continue;
+    }
     const entry = /^([A-Za-z0-9._-]+)\s*(\[[^\]]*\])?\s*(.*)$/.exec(line);
     const name = entry?.[1];
     if (!name) continue;
     out.push({ name, range: entry?.[3]?.trim() ?? '', section: 'dependencies' });
   }
   return out;
+}
+
+const ARCHIVE_REQUIREMENT = /\.(?:whl|zip|tgz|tar\.(?:gz|bz2|xz))$/i;
+
+/** A requirement that names a filesystem path instead of a distribution. */
+function isPathRequirement(line: string): boolean {
+  // `foo @ https://…/foo-1.0-py3-none-any.whl` is a PEP 508 direct reference:
+  // it DOES name the package, so it keeps going to the generic parser.
+  if (/^[A-Za-z0-9._-]+\s*@\s*\S/.test(line)) return false;
+  // Only the first token: a hash-pinned line such as
+  // `foo==1.26.4 --hash=sha256:abcd/ef` carries a `/` in an OPTION, and the
+  // requirement itself is an ordinary PEP 508 name.
+  const first = line.split(/\s+/)[0] ?? '';
+  return (
+    /^[.~/]/.test(first) ||
+    /^[a-zA-Z]:[\\/]/.test(first) ||
+    first.includes('/') ||
+    first.includes('\\') ||
+    ARCHIVE_REQUIREMENT.test(first)
+  );
+}
+
+/** `{name}-{version}…` from a wheel or sdist filename; undefined for a directory. */
+function archiveRequirement(
+  line: string,
+): { readonly name: string; readonly range: string } | undefined {
+  const base = (line.split(/\s+/)[0] ?? '').split(/[\\/]/).pop() ?? '';
+  const stem = base.replace(ARCHIVE_REQUIREMENT, '');
+  if (stem === base) return undefined;
+  // The name ends at the first `-` followed by a digit: wheel distribution
+  // names cannot contain `-` (PEP 427 normalises them to `_`, dots survive),
+  // and it keeps `zope.interface-5.0.tar.gz` whole.
+  const parts = /^(.+?)-(\d[^-]*)/.exec(stem);
+  if (!parts?.[1] || !parts[2]) return undefined;
+  return { name: parts[1], range: parts[2] };
 }
 
 /** Python project metadata — PEP 621 `[project] dependencies = [...]`. */
@@ -289,9 +356,16 @@ function parsePyprojectToml(content: string): DeclaredDependency[] {
       continue;
     }
     if (/^dependencies\s*=\s*\[(.*)\]\s*$/.test(line)) {
+      // Take the quoted strings; never split on `,`. A PEP 508 range may
+      // legitimately contain one (`numpy>=1.21,<2.0` is the common
+      // lower-and-upper bound form), and splitting put a quote on each side of
+      // that comma, so neither fragment matched the quoted pattern and the
+      // whole dependency disappeared — while the identical multi-line array
+      // parsed it. A dropped package also means `diffDeclaredDependencies`
+      // reports nothing and the dep-watcher audit gate never opens for it.
       const inline = /\[(.*)\]/.exec(line)?.[1] ?? '';
-      for (const part of inline.split(',')) {
-        const quoted = /"([^"]+)"/.exec(part.trim())?.[1];
+      for (const match of inline.matchAll(/"([^"]+)"/g)) {
+        const quoted = match[1];
         if (quoted) out.push(...pep508Entry(quoted));
       }
     }
@@ -342,9 +416,19 @@ function parseGemfile(content: string): DeclaredDependency[] {
 function parsePubspecYaml(content: string): DeclaredDependency[] {
   const out: DeclaredDependency[] = [];
   let current: string | undefined;
+  // The whitespace of the section's OWN keys, taken from the first line under
+  // the header. YAML lets the author choose it — two spaces is the convention,
+  // not a requirement — and a range-less dependency (`pkg:` followed by a
+  // nested `git:`/`sdk:`/`path:` map) is written as a bare key, so the entry
+  // test has to be "same depth as the section's keys", not "exactly two spaces
+  // and a non-empty value". Hard-coding both made a 4-space or tab-indented
+  // pubspec report NO dependencies at all, and hid every map-form package:
+  // `diffDeclaredDependencies` then produced an empty delta and the
+  // dep-watcher audit gate never opened for a brand-new dependency.
+  let entryWs = '';
 
   for (const rawLine of content.split(/\r?\n/)) {
-    const line = rawLine.replace(/\s+#.*$/, '');
+    const line = rawLine.replace(/(^|\s)#.*$/, '');
     if (!line.trim()) continue;
 
     const topLevel = /^([A-Za-z_][A-Za-z0-9_]*):\s*$/.exec(line);
@@ -353,11 +437,22 @@ function parsePubspecYaml(content: string): DeclaredDependency[] {
         topLevel[1] === 'dependencies' || topLevel[1] === 'dev_dependencies'
           ? topLevel[1]
           : undefined;
+      entryWs = '';
       continue;
     }
     if (!current) continue;
 
-    const entry = /^\s{2}([A-Za-z0-9_]+):\s*(.+?)\s*$/.exec(line);
+    const ws = /^[\t ]*/.exec(line)?.[0] ?? '';
+    // A zero-indent line that is not a bare `key:` header ends the block.
+    if (ws === '') {
+      current = undefined;
+      continue;
+    }
+    if (!entryWs) entryWs = ws;
+    // Deeper than the section's keys: options of the dependency above it.
+    if (ws !== entryWs) continue;
+
+    const entry = /^([A-Za-z0-9_]+):(.*)$/.exec(line.slice(ws.length));
     const name = entry?.[1];
     if (!name) continue;
     out.push({ name, range: stripYamlQuotes(entry?.[2] ?? ''), section: current });

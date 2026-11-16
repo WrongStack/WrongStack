@@ -270,13 +270,21 @@ function parseActivePresets(raw: Record<string, unknown>): ActivePresets {
 
 async function readProjectMap(globalInstructions: string): Promise<Record<string, ActivePresets>> {
   try {
-    const raw = JSON.parse(await fs.readFile(projectsFile(globalInstructions), 'utf8')) as Record<
-      string,
-      Record<string, unknown>
-    >;
+    const text = (await fs.readFile(projectsFile(globalInstructions), 'utf8')).replace(
+      /^\uFEFF/,
+      '',
+    );
+    const raw = JSON.parse(text) as unknown;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
     return Object.fromEntries(
-      Object.entries(raw)
-        .filter(([key, value]) => /^[a-f0-9]{64}$/.test(key) && value && typeof value === 'object')
+      Object.entries(raw as Record<string, unknown>)
+        .filter(
+          (entry): entry is [string, Record<string, unknown>] =>
+            /^[a-f0-9]{64}$/.test(entry[0]) &&
+            Boolean(entry[1]) &&
+            typeof entry[1] === 'object' &&
+            !Array.isArray(entry[1]),
+        )
         .map(([key, value]) => [key, parseActivePresets(value)]),
     );
   } catch (error) {
@@ -296,11 +304,10 @@ export async function readActiveSystemPromptPresets(
   globalInstructions: string,
 ): Promise<ActivePresets> {
   try {
-    const raw = JSON.parse(await fs.readFile(activeFile(globalInstructions), 'utf8')) as Record<
-      string,
-      unknown
-    >;
-    return parseActivePresets(raw);
+    const text = (await fs.readFile(activeFile(globalInstructions), 'utf8')).replace(/^\uFEFF/, '');
+    const raw = JSON.parse(text) as unknown;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    return parseActivePresets(raw as Record<string, unknown>);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return {};
     throw error;

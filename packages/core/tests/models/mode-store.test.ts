@@ -210,4 +210,14 @@ describe('loadUserModes', () => {
     const modes = await loadUserModes(tmpDir);
     expect(modes.map((m) => m.id)).toEqual(['user-valid']);
   });
+
+  it('strips UTF-8 BOM in loadUserModes and mode.json (F493)', async () => {
+    await fs.writeFile(
+      path.join(tmpDir, 'modes.json'),
+      `\uFEFF${JSON.stringify({ modes: [{ id: 'custom-bom', name: 'Custom', prompt: 'Be concise' }] })}`,
+      'utf8',
+    );
+    const modes = await loadUserModes(tmpDir);
+    expect(modes.map((m) => m.id)).toEqual(['custom-bom']);
+  });
 });

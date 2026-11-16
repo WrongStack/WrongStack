@@ -75,8 +75,11 @@ export async function readJson<T>(res: Response): Promise<T> {
     throw new Error(`HTTP ${res.status}: the server returned a non-JSON response`);
   }
   if (!res.ok) {
-    const err = parsed as { error?: string; detail?: string };
-    throw new Error(err.detail ?? err.error ?? `HTTP ${res.status}`);
+    const err =
+      parsed && typeof parsed === 'object'
+        ? (parsed as { error?: string; detail?: string })
+        : undefined;
+    throw new Error(err?.detail ?? err?.error ?? `HTTP ${res.status}`);
   }
   return parsed as T;
 }

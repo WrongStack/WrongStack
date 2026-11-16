@@ -1092,7 +1092,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 82,
-      "sourceLines": 17463
+      "sourceLines": 17471
     },
     {
       "directory": "design",
@@ -1134,7 +1134,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or Providers",
       "sourceFiles": 19,
-      "sourceLines": 4458
+      "sourceLines": 4464
     },
     {
       "directory": "notifications",
@@ -1232,7 +1232,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 129,
-      "sourceLines": 29865
+      "sourceLines": 29875
     },
     {
       "directory": "tasking",

@@ -140,4 +140,29 @@ describe('matchesSessionFilter', () => {
   it('edge: undefined minTokens does not filter', () => {
     expect(matchesSessionFilter(summary, { minTokens: undefined })).toBe(true);
   });
+
+  it('strips UTF-8 BOM and ignores null JSON in readSummaryManifestFile (F501)', async () => {
+    const { mkdtemp, rm, writeFile } = await import('node:fs/promises');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const { readSummaryManifestFile } = await import(
+      '../../src/storage/session-store/summary-manifest.js'
+    );
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'summary-bom-'));
+    try {
+      const file = path.join(dir, 's1.summary.json');
+      await writeFile(
+        file,
+        `\uFEFF${JSON.stringify({ id: 's1', title: 'Summary', updatedAt: '2026-01-01T00:00:00Z' })}`,
+        'utf8',
+      );
+      expect((await readSummaryManifestFile(file, undefined, 's1', Date.now(), false))?.id).toBe(
+        's1',
+      );
+      await writeFile(file, 'null', 'utf8');
+      expect(await readSummaryManifestFile(file, undefined, 's1', Date.now(), false)).toBeNull();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });

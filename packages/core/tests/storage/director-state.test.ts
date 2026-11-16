@@ -308,4 +308,19 @@ describe('director-state checkpoint', () => {
       await fs.rm(dir, { recursive: true, force: true });
     }
   });
+
+  it('strips UTF-8 BOM in loadDirectorState (F492)', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-dstate-bom-'));
+    try {
+      const file = path.join(dir, 'director-state.json');
+      await fs.writeFile(
+        file,
+        `\uFEFF${JSON.stringify({ version: 1, sessionId: 's1', updatedAt: '2026-01-01T00:00:00Z' })}`,
+        'utf8',
+      );
+      expect((await loadDirectorState(file))?.version).toBe(1);
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
 });

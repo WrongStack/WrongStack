@@ -58,4 +58,29 @@ describe('/prompts add: unique slug within the layer', () => {
       'review-3',
     ]);
   });
+
+  it('strips UTF-8 BOM and rejects null JSON cleanly in /prompts import (F485)', async () => {
+    const { mkdtempSync, rmSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const path = await import('node:path');
+    const { buildPromptsCommand } = await import('../src/prompts-command.js');
+    const dir = mkdtempSync(path.join(tmpdir(), 'prompts-bom-'));
+    try {
+      const cmd = buildPromptsCommand(
+        () => ({ save: async () => undefined, list: async () => [] }) as never,
+        () => ({ reload: async () => undefined }) as never,
+        () => undefined,
+      );
+      const file = path.join(dir, 'prompts.json');
+      writeFileSync(file, `\uFEFF${JSON.stringify([{ name: 'p1', content: 'hello' }])}`, 'utf8');
+      const bom = await cmd.run(`import ${file}`, { cwd: dir } as never);
+      expect((bom as { message?: string }).message).toMatch(/^Imported /);
+
+      writeFileSync(file, 'null', 'utf8');
+      const nullRes = await cmd.run(`import ${file}`, { cwd: dir } as never);
+      expect((nullRes as { message?: string }).message).toContain('expected a JSON array');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

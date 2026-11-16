@@ -600,15 +600,17 @@ export class KnowledgeGraph {
 
   /** Collapse historical update records to the latest version of every node. */
   private async _compactLogLocked(): Promise<void> {
-    const raw = await fsp.readFile(this.graphFilePath, 'utf8');
+    const raw = (await fsp.readFile(this.graphFilePath, 'utf8')).replace(/^\uFEFF/, '');
     const latest = new Map<string, GraphNode>();
     for (const line of raw.split('\n')) {
       if (!line.trim()) continue;
       try {
-        const parsed = JSON.parse(line) as GraphNode | { op?: string; node?: GraphNode };
+        const parsed: unknown = JSON.parse(line);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
+        const rec = parsed as { op?: unknown; node?: unknown };
         const node =
-          'op' in parsed && parsed.op === 'update' && parsed.node
-            ? parsed.node
+          rec.op === 'update' && rec.node && typeof rec.node === 'object'
+            ? (rec.node as GraphNode)
             : (parsed as GraphNode);
         if (typeof node.id === 'string') latest.set(node.id, node);
       } catch {
@@ -622,28 +624,40 @@ export class KnowledgeGraph {
   /** Rebuild in-memory state from the log file. Call on startup. */
   async load(): Promise<void> {
     try {
-      const content = await fsp.readFile(this.graphFilePath, 'utf8');
+      const content = (await fsp.readFile(this.graphFilePath, 'utf8')).replace(/^\uFEFF/, '');
       const lines = content.split('\n').filter(Boolean);
       for (const line of lines) {
         try {
-          const parsed = JSON.parse(line);
-          if (parsed.op === 'update') {
-            const oldNode = this.nodes.get(parsed.node.id);
+          const parsed: unknown = JSON.parse(line);
+          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
+          const rec = parsed as { op?: unknown; node?: unknown; id?: unknown };
+          if (rec.op === 'update') {
+            if (
+              !rec.node ||
+              typeof rec.node !== 'object' ||
+              typeof (rec.node as GraphNode).id !== 'string'
+            ) {
+              continue;
+            }
+            const nextNode = rec.node as GraphNode;
+            const oldNode = this.nodes.get(nextNode.id);
             if (oldNode) {
               // Prune stale index entries before re-indexing
               this._removeFromIndex(oldNode, this._indexKeys(oldNode));
             }
-            this.nodes.set(parsed.node.id, parsed.node);
-            this._trackSeq(parsed.node.id);
-            this._addToIndex(parsed.node, this._indexKeys(parsed.node));
+            this.nodes.set(nextNode.id, nextNode);
+            this._trackSeq(nextNode.id);
+            this._addToIndex(nextNode, this._indexKeys(nextNode));
           } else {
-            const oldNode = this.nodes.get(parsed.id);
+            if (typeof rec.id !== 'string') continue;
+            const nextNode = parsed as GraphNode;
+            const oldNode = this.nodes.get(nextNode.id);
             if (oldNode) {
               this._removeFromIndex(oldNode, this._indexKeys(oldNode));
             }
-            this.nodes.set(parsed.id, parsed);
-            this._trackSeq(parsed.id);
-            this._addToIndex(parsed, this._indexKeys(parsed));
+            this.nodes.set(nextNode.id, nextNode);
+            this._trackSeq(nextNode.id);
+            this._addToIndex(nextNode, this._indexKeys(nextNode));
           }
         } catch {
           /* skip malformed lines */

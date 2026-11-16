@@ -1434,4 +1434,14 @@ describe('createHttpClient', () => {
       (globalThis as unknown as { setTimeout: typeof setTimeout }).setTimeout = origSetTimeout;
     }
   });
+
+  it('strips UTF-8 BOM in createHttpClient responses (F486)', async () => {
+    const { createHttpClient } = await import('../src/http.js');
+    const client = createHttpClient({
+      url: 'http://127.0.0.1:4100',
+      fetch: (async () =>
+        new Response(`\uFEFF${JSON.stringify({ sessions: [] })}`, { status: 200 })) as never,
+    });
+    await expect(client.listLiveSessions()).resolves.toEqual({ sessions: [] });
+  });
 });

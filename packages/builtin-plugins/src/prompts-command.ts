@@ -195,7 +195,7 @@ export function buildPromptsCommand(
           const src = resolveIoPath(restJoined, ctx);
           let raw: unknown;
           try {
-            raw = JSON.parse(await fs.readFile(src, 'utf8'));
+            raw = JSON.parse((await fs.readFile(src, 'utf8')).replace(/^\uFEFF/, ''));
           } catch (err) {
             return {
               message: `Import failed: ${toErrorMessage(err)}`,
@@ -203,7 +203,9 @@ export function buildPromptsCommand(
           }
           const list = Array.isArray(raw)
             ? raw
-            : Array.isArray((raw as { prompts?: unknown }).prompts)
+            : raw &&
+                typeof raw === 'object' &&
+                Array.isArray((raw as { prompts?: unknown }).prompts)
               ? (raw as { prompts: unknown[] }).prompts
               : null;
           if (!list)

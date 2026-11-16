@@ -300,4 +300,14 @@ describe('mailbox SQLite schema migration', () => {
     const state = fresh?.['recipientState'] as Record<string, Record<string, unknown>>;
     expect(state['worker@session']?.['completedAt']).toBeDefined();
   });
+
+  it('strips UTF-8 BOM from legacy mailbox registry files during migration (F482)', async () => {
+    await fs.writeFile(
+      path.join(dir, '_mailbox.registry.json'),
+      `\uFEFF${JSON.stringify({})}`,
+      'utf8',
+    );
+    const store = openStore();
+    await expect(store.query({ limit: 10 })).resolves.toEqual([]);
+  });
 });

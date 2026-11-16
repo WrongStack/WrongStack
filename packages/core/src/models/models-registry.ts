@@ -425,8 +425,11 @@ export class DefaultModelsRegistry implements ModelsRegistry {
   private async readOverlayFile(): Promise<ModelsDevPayload | undefined> {
     if (!this.overlayFile) return undefined;
     try {
-      const raw = await fs.readFile(this.overlayFile, 'utf8');
-      return JSON.parse(raw) as ModelsDevPayload;
+      const raw = (await fs.readFile(this.overlayFile, 'utf8')).replace(/^\uFEFF/, '');
+      const parsed: unknown = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? (parsed as ModelsDevPayload)
+        : undefined;
     } catch {
       return undefined;
     }
@@ -623,8 +626,11 @@ export class DefaultModelsRegistry implements ModelsRegistry {
 
   private async readCacheAt(file: string): Promise<CacheEnvelope | undefined> {
     try {
-      const raw = await fs.readFile(file, 'utf8');
-      return JSON.parse(raw) as CacheEnvelope;
+      const raw = (await fs.readFile(file, 'utf8')).replace(/^\uFEFF/, '');
+      const parsed: unknown = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? (parsed as CacheEnvelope)
+        : undefined;
     } catch {
       return undefined;
     }

@@ -952,4 +952,29 @@ describe('NodeFilter.since', () => {
     expect(graph.getAll({ type: 'fact', since: '2026-06-01T00:00:00.000Z' })).toEqual([]);
     expect(graph.getAll({ type: 'fact', since: '2026-01-01T00:00:00.000Z' })).toHaveLength(1);
   });
+
+  it('strips UTF-8 BOM on load and skips null/malformed graph records (F480)', async () => {
+    const kgDir = path.join(tempDir, '_knowledge_graph');
+    await fs.mkdir(kgDir, { recursive: true });
+    const n1 = {
+      id: 'n1',
+      type: 'fact',
+      category: 'bug',
+      subject: 's',
+      detail: 'd',
+      key: 'k1',
+      discoveredBy: 'agent',
+      discoveredAt: '2026-03-01T00:00:00.000Z',
+      tags: [],
+      related: [],
+    };
+    await fs.writeFile(
+      path.join(kgDir, 'graph.jsonl'),
+      `\uFEFF${JSON.stringify(n1)}\nnull\n${JSON.stringify({ op: 'update', node: null })}\n`,
+      'utf8',
+    );
+    const graph = new KnowledgeGraph(tempDir);
+    await graph.load();
+    expect(graph.get('n1')?.id).toBe('n1');
+  });
 });

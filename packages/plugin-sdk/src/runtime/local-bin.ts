@@ -256,7 +256,11 @@ export function resolveNodeBin(
       if (!found) throw new Error('Package is not installed');
       packagePath = found;
     }
-    const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8')) as {
+    const parsedPkg: unknown = JSON.parse(
+      readFileSync(packagePath, 'utf-8').replace(/^\uFEFF/, ''),
+    );
+    if (!parsedPkg || typeof parsedPkg !== 'object' || Array.isArray(parsedPkg)) return null;
+    const packageJson = parsedPkg as {
       bin?: string | Record<string, string>;
     };
     const relativeBin =

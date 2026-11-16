@@ -432,7 +432,9 @@ export function createProjectMetadataReasserter(options: {
   let rerun = false;
   const namesThisDaemon = async (): Promise<boolean> => {
     try {
-      const current = JSON.parse(await fsPromises.readFile(options.metadataPath, 'utf8')) as {
+      const current = JSON.parse(
+        (await fsPromises.readFile(options.metadataPath, 'utf8')).replace(/^\uFEFF/, ''),
+      ) as {
         pid?: unknown;
         endpoint?: unknown;
         authToken?: unknown;

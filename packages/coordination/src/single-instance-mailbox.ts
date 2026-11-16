@@ -214,8 +214,10 @@ export async function release(projectDir: string, generation: number): Promise<v
   const lockPath = path.join(projectDir, MAILBOX_BRIDGE_LOCK_FILENAME);
   const tokenPath = path.join(projectDir, MAILBOX_BRIDGE_TOKEN_FILENAME);
   try {
-    const raw = await fsp.readFile(lockPath, 'utf-8');
-    const parsed = JSON.parse(raw) as MailboxBridgeLock;
+    const raw = (await fsp.readFile(lockPath, 'utf-8')).replace(/^\uFEFF/, '');
+    const parsedRaw: unknown = JSON.parse(raw);
+    if (!parsedRaw || typeof parsedRaw !== 'object' || Array.isArray(parsedRaw)) return;
+    const parsed = parsedRaw as MailboxBridgeLock;
     if (parsed.generation !== generation) return; // not ours
     if (parsed.pid !== process.pid) return; // not ours
     // Claim the lock path atomically before deleting anything. rename(2) is
@@ -341,7 +343,11 @@ async function readLockForInspection(lockPath: string): Promise<LockInspection> 
   }
   let parsed: MailboxBridgeLock;
   try {
-    parsed = JSON.parse(raw) as MailboxBridgeLock;
+    const parsedRaw: unknown = JSON.parse(raw.replace(/^\uFEFF/, ''));
+    if (!parsedRaw || typeof parsedRaw !== 'object' || Array.isArray(parsedRaw)) {
+      throw new SyntaxError('Lock payload is not a JSON object');
+    }
+    parsed = parsedRaw as MailboxBridgeLock;
   } catch {
     // Malformed JSON — no usable data to preserve, safe to unlink so
     // the next acquire starts fresh. We don't lose anything here.

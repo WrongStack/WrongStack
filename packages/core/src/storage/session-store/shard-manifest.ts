@@ -20,11 +20,15 @@ export async function readOrBuildShardManifestEntry(
   opts: ReadOrBuildShardManifestOptions,
 ): Promise<ShardManifestEntry & { transient?: true }> {
   try {
-    const raw = await fsp.readFile(opts.manifestPath, 'utf8');
-    const parsed = JSON.parse(raw) as ShardManifestEntry;
+    const raw = (await fsp.readFile(opts.manifestPath, 'utf8')).replace(/^\uFEFF/, '');
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('Invalid shard manifest');
+    }
+    const entry = parsed as ShardManifestEntry;
     return {
-      summaries: Array.isArray(parsed.summaries) ? parsed.summaries : [],
-      ids: Array.isArray(parsed.ids) ? parsed.ids : [],
+      summaries: Array.isArray(entry.summaries) ? entry.summaries : [],
+      ids: Array.isArray(entry.ids) ? entry.ids : [],
     };
   } catch {
     // build below

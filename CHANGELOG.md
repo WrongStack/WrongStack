@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Read BOM-prefixed locks, registries, prompts, modes, model caches, plugin
+  trust, sync and director state, queues, manifests, governance and endpoint
+  metadata, Kanban history and plans; skip JSON `null`, primitives and
+  non-object roots instead of crashing, and keep BOM-prefixed live locks.
+- Report governance events stored as JSON `null` as store corruption, and fall
+  back for out-of-range timestamps instead of throwing `RangeError`.
+- Parse Cargo virtual workspace dependencies, wheel and sdist requirement
+  names, pyproject PEP 508 ranges with commas, extras and markers, and
+  pubspec dependencies at any indent, so dependency audits see real changes.
+- Propagate the formatter's exit code when a format check fails.
+- Validate VibeUI session tree branches and sequence numbers, and keep
+  automation job credentials and environment names well formed on export.
+
 ## [1.7.5] — 2026-11-16
 
 A hardening release. State, profiles, caches and manifests saved with a byte

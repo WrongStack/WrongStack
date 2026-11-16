@@ -127,4 +127,14 @@ describe('autoDiscoverServers TypeScript selection', () => {
     expect(servers['typescript-native']).toBeUndefined();
     expect(resolver.resolve).not.toHaveBeenCalledWith('tsc');
   });
+
+  it('strips UTF-8 BOM from typescript/package.json in workspaceTypeScriptMajor (F478)', async () => {
+    const { workspaceTypeScriptMajor } = await import('../../src/typescript-flavor.js');
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'plug-lsp-bom-'));
+    dirs.push(root);
+    const pkgPath = path.join(root, 'node_modules', 'typescript', 'package.json');
+    await fs.mkdir(path.dirname(pkgPath), { recursive: true });
+    await fs.writeFile(pkgPath, `\uFEFF${JSON.stringify({ version: '7.0.2' })}`, 'utf8');
+    await expect(workspaceTypeScriptMajor(root)).resolves.toBe(7);
+  });
 });

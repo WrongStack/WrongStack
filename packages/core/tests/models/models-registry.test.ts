@@ -673,5 +673,25 @@ describe('DefaultModelsRegistry', () => {
       const reg = new DefaultModelsRegistry({ cacheFile, fetchImpl });
       await expect(reg.load()).rejects.toThrow(/offline/);
     });
+
+    it('strips UTF-8 BOM when reading cached models envelope (F497)', async () => {
+      await fs.writeFile(
+        cacheFile,
+        `\uFEFF${JSON.stringify({
+          fetchedAt: new Date().toISOString(),
+          url: 'https://models.dev/api.json',
+          payload: {
+            openai: {
+              id: 'openai',
+              name: 'OpenAI',
+              models: { 'gpt-4o': { id: 'gpt-4o', name: 'GPT-4o' } },
+            },
+          },
+        })}`,
+        'utf8',
+      );
+      const reg = new DefaultModelsRegistry({ cacheFile, ttlSeconds: 3600 });
+      await expect(reg.loadCached()).resolves.toBe(true);
+    });
   });
 });

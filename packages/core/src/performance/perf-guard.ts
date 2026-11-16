@@ -114,7 +114,7 @@ export interface EvaluateGuardOptions {
 export function parseBaselineFile(text: string): PerfBaselineFile {
   let raw: unknown;
   try {
-    raw = JSON.parse(text);
+    raw = JSON.parse(text.replace(/^\uFEFF/, ''));
   } catch (error) {
     throw new Error(`perf baseline is not valid JSON: ${(error as Error).message}`);
   }

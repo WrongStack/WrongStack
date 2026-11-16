@@ -335,8 +335,12 @@ export class CloudSync {
 
   async loadState(): Promise<void> {
     try {
-      const raw = await fs.readFile(this.statePath, 'utf8');
-      this.state = JSON.parse(raw) as SyncStateFile;
+      const raw = (await fs.readFile(this.statePath, 'utf8')).replace(/^\uFEFF/, '');
+      const parsed: unknown = JSON.parse(raw);
+      this.state =
+        parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+          ? (parsed as SyncStateFile)
+          : null;
     } catch {
       this.state = null;
     }

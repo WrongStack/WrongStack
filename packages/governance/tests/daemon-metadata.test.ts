@@ -342,6 +342,28 @@ describe('governance daemon startup lease', () => {
     expect(shouldRecoverGovernanceEndpoint('win32', stale)).toBe(false);
     expect(shouldRecoverGovernanceEndpoint('linux', invalid)).toBe(false);
   });
+
+  it('strips UTF-8 BOM from governance daemon metadata files (F476)', async () => {
+    const { mkdirSync, rmSync } = await import('node:fs');
+    const { dirname, join } = await import('node:path');
+    const root = mkdtempSync(join(tmpdir(), 'gov-meta-bom-'));
+    try {
+      const meta = createGovernanceDaemonMetadata({
+        projectRoot: root,
+        projectId: 'proj-1',
+        instanceId: 'inst-1',
+        pid: process.pid,
+        startedAt: new Date().toISOString(),
+      });
+      const file = governanceDaemonMetadataPath(root);
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, `\uFEFF${JSON.stringify(meta)}`, 'utf8');
+      const read = await readGovernanceDaemonMetadata(root);
+      expect(read.kind).toBe('valid');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 vi.mock('node:fs/promises', async (importOriginal) => ({

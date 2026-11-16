@@ -519,6 +519,20 @@ describe('isProcessAlive (POSIX process.kill branch)', () => {
     const res = await readLiveLock(tmp);
     expect(res.kind).toBe('probe-failed');
   });
+
+  it('preserves BOM-prefixed active locks and ignores null lock files in release (F481)', async () => {
+    const lockPath = path.join(tmp, MAILBOX_BRIDGE_LOCK_FILENAME);
+    await fs.writeFile(
+      lockPath,
+      `\uFEFF${JSON.stringify({ pid: process.pid, generation: 1, url: 'http://127.0.0.1:0', startedAt: new Date().toISOString() })}`,
+      'utf8',
+    );
+    await readLiveLock(tmp);
+    expect((await fs.stat(lockPath)).isFile()).toBe(true);
+
+    await fs.writeFile(lockPath, 'null', 'utf8');
+    await expect(release(tmp, 1)).resolves.toBeUndefined();
+  });
 });
 
 vi.mock('node:fs/promises', async (importOriginal) => ({

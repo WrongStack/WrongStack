@@ -8,12 +8,16 @@ export interface PortableAutomation {
 }
 export function exportAutomationJob(job: AutomationJobInput): PortableAutomation {
   const spec = editableAutomationJob(job);
-  spec.credentials = job.credentials?.map(({ profile, provider, keyLabel, envName }) => ({
-    profile,
-    provider,
-    keyLabel,
-    envName,
-  }));
+  spec.credentials = Array.isArray(job.credentials)
+    ? job.credentials
+        .filter((c): c is NonNullable<typeof c> => Boolean(c) && typeof c === 'object')
+        .map(({ profile, provider, keyLabel, envName }) => ({
+          profile,
+          provider,
+          keyLabel,
+          envName,
+        }))
+    : undefined;
   return { type: 'wrongstack.automation', version: 1, spec };
 }
 /** Transport contains names/references only. Validation and project binding remain server-side. */

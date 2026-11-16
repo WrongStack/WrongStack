@@ -107,4 +107,25 @@ describe('portable environment profiles', () => {
       'Invalid environment profile JSON',
     );
   });
+
+  it('defaults missing envNames in editableAutomationJob and filters invalid credentials in exportAutomationJob (F479)', async () => {
+    const { editableAutomationJob } = await import('../src/automation.js');
+    const { exportAutomationJob, importAutomationJob } = await import(
+      '../src/automation-portability.js'
+    );
+    const imported = importAutomationJob({
+      type: 'wrongstack.automation',
+      version: 1,
+      spec: { name: 'nightly', image: 'node:22', prompt: 'run tests' },
+    });
+    expect(editableAutomationJob(imported).envNames).toEqual([]);
+    const exported = exportAutomationJob({
+      ...imported,
+      credentials: [
+        null as never,
+        { profile: 'p', provider: 'openai', keyLabel: 'k', envName: 'K' },
+      ],
+    });
+    expect(exported.spec.credentials).toHaveLength(1);
+  });
 });

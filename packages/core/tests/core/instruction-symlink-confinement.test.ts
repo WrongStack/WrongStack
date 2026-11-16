@@ -62,4 +62,17 @@ describe('instruction files that resolve outside the project', () => {
     expect(JSON.stringify(bundle)).not.toContain(SECRET);
     expect(bundle.system?.leaderAfterTask).toBe('leader rules');
   });
+
+  it('strips UTF-8 BOM from instruction bundle JSON files (F500)', async () => {
+    const empty = path.join(base, 'bom-bundle');
+    fs.mkdirSync(empty, { recursive: true });
+    const file = path.join(empty, 'instructions.json');
+    fs.writeFileSync(
+      file,
+      `\uFEFF${JSON.stringify({ version: 1, system: { identity: 'Custom sys' } })}`,
+      'utf8',
+    );
+    const bundle = await loadInstructionBundle({ bundledDir: empty, files: [file] });
+    expect(bundle.system?.identity).toBe('Custom sys');
+  });
 });

@@ -157,7 +157,7 @@ export function editableAutomationJob(job: AutomationJobInput): AutomationJobInp
     prompt,
     provider,
     model,
-    envNames: [...envNames],
+    envNames: Array.isArray(envNames) ? [...envNames] : [],
     credentials: structuredClone(credentials),
     yolo,
     enabled,

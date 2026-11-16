@@ -278,4 +278,22 @@ describe('renderPrompt', () => {
     const rDup = renderPrompt(e, {});
     expect(rDup.missing).toEqual(['target']);
   });
+
+  it('strips UTF-8 BOM from builtin prompt JSON files in DefaultPromptLoader (F502)', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'prompt-bom-'));
+    try {
+      const promptsDir = path.join(dir, 'prompts');
+      await fs.mkdir(promptsDir, { recursive: true });
+      await fs.writeFile(
+        path.join(promptsDir, 'demo.json'),
+        `\uFEFF${JSON.stringify({ id: 'demo', title: 'Demo', content: 'Hello' })}`,
+        'utf8',
+      );
+      // Only the bundled directory is read; no user or project prompt paths.
+      const loader = new DefaultPromptLoader({ paths: {} as never, bundledDir: dir });
+      expect((await loader.list()).map((p) => p.id)).toEqual(['demo']);
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
 });

@@ -238,7 +238,7 @@ export class RecoveryLock {
       return null;
     }
     try {
-      const parsed = JSON.parse(raw) as unknown;
+      const parsed = JSON.parse(raw.replace(/^\uFEFF/, '')) as unknown;
       if (!isLockFile(parsed)) {
         await this.clearIfUnchanged(raw);
         return null;

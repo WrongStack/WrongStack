@@ -754,4 +754,29 @@ describe('boardMeta with undefined fields', () => {
     const loaded = await readBoard(tmpDir, board.id);
     expect(loaded?.id).toBe(board.id);
   });
+
+  it('strips UTF-8 BOM when reading kanban events and board history JSONL (F484)', async () => {
+    const { appendBoardHistory, appendKanbanEvent, readBoardHistory, readKanbanEvents } =
+      await import('../src/storage.js');
+    const board = await makeBoard();
+    await appendKanbanEvent(tmpDir, board.id, moveEvent(board.id, 't1'));
+    await appendBoardHistory(tmpDir, {
+      boardId: board.id,
+      title: 'B',
+      action: 'created',
+      timestamp: '2026-01-01T00:00:00.000Z',
+    } as never);
+    const evPath = path.join(
+      path.dirname(getKanbanPath(tmpDir, board.id)),
+      `${board.id}.events.jsonl`,
+    );
+    const histPath = path.join(
+      path.dirname(getKanbanPath(tmpDir, board.id)),
+      '_board_history.jsonl',
+    );
+    await fs.writeFile(evPath, `\uFEFF${await fs.readFile(evPath, 'utf8')}`, 'utf8');
+    await fs.writeFile(histPath, `\uFEFF${await fs.readFile(histPath, 'utf8')}`, 'utf8');
+    expect(await readKanbanEvents(tmpDir, board.id)).toHaveLength(1);
+    expect(await readBoardHistory(tmpDir, board.id)).toHaveLength(2);
+  });
 });

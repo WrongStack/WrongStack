@@ -338,4 +338,16 @@ describe('QueueStore', () => {
       }),
     );
   });
+
+  it('strips UTF-8 BOM from queue.json in read() (F498)', async () => {
+    const store = new QueueStore({ dir });
+    await fsp.writeFile(
+      path.join(dir, 'queue.json'),
+      `\uFEFF${JSON.stringify([{ displayText: 'bom', blocks: [{ type: 'text', text: 'bom' }] }])}`,
+      'utf8',
+    );
+    const items = await store.read();
+    expect(items).toHaveLength(1);
+    expect(items[0]?.displayText).toBe('bom');
+  });
 });

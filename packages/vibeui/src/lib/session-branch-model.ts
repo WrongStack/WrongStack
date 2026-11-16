@@ -27,16 +27,24 @@ export function parseVibeSessionTree(raw: string): VibeSessionTreeSnapshot | nul
     const parsed = JSON.parse(raw) as Partial<VibeSessionTreeSnapshot>;
     if (
       !parsed ||
+      typeof parsed !== 'object' ||
+      Array.isArray(parsed) ||
       typeof parsed.activeBranchId !== 'string' ||
       !parsed.branches ||
-      typeof parsed.branches !== 'object'
+      typeof parsed.branches !== 'object' ||
+      Array.isArray(parsed.branches)
     ) {
       return null;
     }
     return {
       activeBranchId: parsed.activeBranchId,
       branches: parsed.branches as Record<string, VibeBranchDescriptor>,
-      headSeq: typeof parsed.headSeq === 'number' ? parsed.headSeq : -1,
+      headSeq:
+        typeof parsed.headSeq === 'number' &&
+        Number.isSafeInteger(parsed.headSeq) &&
+        parsed.headSeq >= 0
+          ? parsed.headSeq
+          : -1,
     };
   } catch {
     return null;

@@ -30,12 +30,13 @@ function formatActivePlan(raw: string): string {
   let parsed: {
     items?: Array<{ status?: string | undefined; title?: string | undefined }>;
     title?: string | undefined;
-  };
+  } | null;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(raw.replace(/^\uFEFF/, ''));
   } catch {
     return '';
   }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return '';
   if (!Array.isArray(parsed.items) || parsed.items.length === 0) return '';
   const open = parsed.items.filter((i) => i?.status !== 'done');
   if (open.length === 0) return '';

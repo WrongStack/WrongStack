@@ -345,4 +345,35 @@ describe('SQLite governance event store', () => {
     ).toThrow(/limit must be between/);
     store.close();
   });
+
+  it('throws GovernanceStoreCorruptionError instead of TypeError on JSON null event_json (F488)', async () => {
+    const { rmSync } = await import('node:fs');
+    const { loadRuntimeDatabaseSync } = await import('@wrongstack/persistence');
+    const dir = mkdtempSync(join(tmpdir(), 'gov-event-null-'));
+    try {
+      const dbPath = join(dir, 'gov.sqlite');
+      const store = SqliteGovernanceEventStore.open(dbPath);
+      store.close();
+
+      const DatabaseSync = loadRuntimeDatabaseSync();
+      const rawDb = new DatabaseSync(dbPath);
+      rawDb
+        .prepare(
+          'INSERT INTO governance_events (task_id, revision, event_id, command_id, event_json, occurred_at) VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .run('t1', 1, 'e1', 'c1', 'null', '2026-01-01T00:00:00Z');
+      rawDb.close();
+
+      const store2 = SqliteGovernanceEventStore.open(dbPath);
+      try {
+        expect(() => store2.readEvents('t1')).toThrow(/expected a JSON object/);
+      } finally {
+        store2.close();
+      }
+    } finally {
+      try {
+        rmSync(dir, { recursive: true, force: true });
+      } catch {}
+    }
+  });
 });

@@ -62,7 +62,7 @@ export class DefaultModeStore implements ModeStore {
     this.loaded = true;
     try {
       const configPath = path.join(this.configDir, 'mode.json');
-      const content = await fs.readFile(configPath, 'utf8');
+      const content = (await fs.readFile(configPath, 'utf8')).replace(/^\uFEFF/, '');
       const data = JSON.parse(content) as Record<string, unknown> | null;
       if (data && typeof data === 'object' && 'activeMode' in data) {
         if (data.activeMode === null) {
@@ -127,7 +127,7 @@ export async function loadUserModes(modesDir: string): Promise<Mode[]> {
   const modes: Mode[] = [];
   try {
     const manifestPath = path.join(modesDir, 'modes.json');
-    const content = await fs.readFile(manifestPath, 'utf8');
+    const content = (await fs.readFile(manifestPath, 'utf8')).replace(/^\uFEFF/, '');
     const manifest = JSON.parse(content) as Partial<ModeManifest> | null;
     if (Array.isArray(manifest?.modes)) {
       for (const mode of manifest.modes) {
