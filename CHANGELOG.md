@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.7] — 2026-11-16
+
+The desktop starts only the engines a restored workspace or settings need, and
+provider discovery reuses a fresh cache for the current account instead of
+discovering on every runtime start. Command redaction covers empty colon
+values and single-quoted PowerShell values, token checks avoid object
+conversion hooks, and piped stdin reports truncation exactly at its cap.
+
 ### Changed
 
 - The desktop starts engines on demand: a restored project workspace starts

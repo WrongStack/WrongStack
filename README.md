@@ -55,6 +55,17 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.7.7
+
+- **Lighter desktop launch:** only the restored project's services start;
+  Mission Control, the project list and activity start no engines.
+- **Cached provider discovery:** a fresh cache for the current account is
+  reused for up to five minutes instead of discovering on every start.
+- **Tighter redaction:** empty colon values and single-quoted PowerShell
+  values are redacted without hiding the arguments after them.
+- **Exact input limits:** piped stdin ending on its cap is complete, and one
+  byte past it is reported as truncated.
+
 ### What's new in 1.7.6
 
 - **TUI input in browser terminals:** Home/End fire once, editing survives
@@ -611,7 +622,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.7.6**; versions follow semver
+- Release notes: **v1.7.7**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements

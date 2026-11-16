@@ -1,4 +1,4 @@
-// Changelog — recent 1.x era (1.7.6 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
+// Changelog — recent 1.x era (1.7.7 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
 // Historical entries mirror CHANGELOG.md release notes. 1.1.0 absorbs the 1.0.38
 // bump, which was never published.
 // The 1.1.5 entry summarizes the commits in v1.1.4..v1.1.5, the 1.1.6 entry
@@ -11,10 +11,23 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.7',
+    date: '2026-11-16',
+    tagline: 'A lighter desktop launch and tighter redaction',
+    latest: true,
+    highlights: [
+      "The desktop starts only a restored workspace's project services; Mission Control, the project list and activity start no engines",
+      'Cross-conversation prompt recall uses project services only when they are already running',
+      'Provider discovery reuses a fresh cache for the current account for up to five minutes',
+      'Command redaction covers empty colon values and single-quoted PowerShell values without hiding later arguments',
+      'Error sanitizing and token comparison avoid object conversion hooks; malformed Kanban tokens are rejected',
+      'Piped stdin that ends on its cap is complete; one byte past it is reported as truncated',
+    ],
+  },
+  {
     version: '1.7.6',
     date: '2026-11-16',
     tagline: 'Steadier TUI input and manifests that parse',
-    latest: true,
     highlights: [
       "TUI editing keys go through Ink's parser: Home/End fire once and editing survives split escape sequences",
       'Pastes stay data in browser terminals, and newline-only pastes no longer submit the draft',
