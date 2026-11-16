@@ -153,7 +153,7 @@ export function validateEnvironmentProfile(raw: unknown): asserts raw is Environ
       Number(port.port) < 1024 ||
       Number(port.port) > 65535 ||
       ports.has(Number(port.port)) ||
-      !['http', 'tcp'].includes(String(port.protocol))
+      (port.protocol !== 'http' && port.protocol !== 'tcp')
     )
       throw new Error('Ports require unique names and ports 1024 to 65535');
     portNames.add(port.name);

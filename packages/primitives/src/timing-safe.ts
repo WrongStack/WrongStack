@@ -32,13 +32,13 @@ import { timingSafeEqual } from 'node:crypto';
  * throws on unequal lengths, and the length of a credential is not the secret —
  * these tokens are fixed-width hex. An empty or missing value is always false,
  * so a caller cannot accidentally authenticate an unset token against an unset
- * expectation.
+ * expectation. Non-string runtime values from wire payloads are rejected before
+ * buffer conversion rather than coerced or allowed to throw.
  */
-export function timingSafeTokenEqual(
-  supplied: string | undefined | null,
-  expected: string | undefined | null,
-): boolean {
-  if (!supplied || !expected) return false;
+export function timingSafeTokenEqual(supplied: unknown, expected: unknown): boolean {
+  if (typeof supplied !== 'string' || typeof expected !== 'string' || !supplied || !expected) {
+    return false;
+  }
   // UTF-8 replaces lone surrogates, making distinct strings compare equal.
   const a = Buffer.from(supplied, 'utf16le');
   const b = Buffer.from(expected, 'utf16le');

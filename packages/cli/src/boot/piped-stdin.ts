@@ -76,7 +76,11 @@ export function readPipedStdin(
       clearTimeout(timer);
       const buf = typeof chunk === 'string' ? Buffer.from(chunk, 'utf8') : chunk;
       const room = maxBytes - size;
-      if (buf.length >= room) {
+      // Strictly `>`: a chunk that exactly fills the cap exceeded nothing and
+      // cut nothing, so `truncated` must stay false (the run then ends at EOF).
+      // Any later chunk finds room 0 and lands here with length > 0, which is
+      // a real cut and finishes immediately with `truncated: true`.
+      if (buf.length > room) {
         chunks.push(buf.subarray(0, Math.max(0, room)));
         size = maxBytes;
         truncated = true;

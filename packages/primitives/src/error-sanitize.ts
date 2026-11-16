@@ -30,11 +30,12 @@ const scrubber = new DefaultSecretScrubber();
 export const ERROR_DETAIL_MAX = 500;
 
 function messageOf(err: unknown): string {
-  if (err instanceof Error) return err.message;
-  if (typeof err === 'string') return err;
   try {
+    if (err instanceof Error) return err.message;
+    if (typeof err === 'string') return err;
     return String(err);
   } catch {
+    // Prototype inspection and message access can fail too, not just String().
     return 'unknown error';
   }
 }

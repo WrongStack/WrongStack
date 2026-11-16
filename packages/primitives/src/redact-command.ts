@@ -210,10 +210,10 @@ const KEYWORDS =
 /**
  * A quoted value, tried before the bare one. Without it a quoted secret that
  * contains a space (`--password="hunter two"`) was cut at the space and its
- * tail printed verbatim (`--password=[REDACTED] two"`). The env-style literals
- * below spell the same alternation inline.
+ * tail printed verbatim (`--password=[REDACTED] two"`). PowerShell encodes an
+ * apostrophe inside single quotes as two apostrophes; keep that pair in the value.
  */
-const QUOTED_VALUE = `"[^"\\n]*"|'[^'\\n]*'`;
+const QUOTED_VALUE = `"[^"\\n]*"|'(?:[^'\\n]|'')*'`;
 
 /** Shared by `tools` (`/ps` output, crash dumps) and `core` telemetry. */
 const COMMAND_PATTERNS: readonly RegExp[] = [
@@ -398,9 +398,9 @@ export function redactCommandArgs(
     if (equals > 0 && ATTACHED_ENV_SECRET_KEY.test(a.slice(0, equals).trim())) {
       return `${a.slice(0, equals + 1)}[REDACTED]`;
     }
-    const comma = typeof a === 'string' ? a.indexOf(',') : -1;
-    if (comma > 0 && BARE_SENSITIVE_LONG_FLAG.test(a.slice(0, comma))) {
-      return `${a.slice(0, comma + 1)}[REDACTED]`;
+    const separator = typeof a === 'string' ? a.search(/[:,]/) : -1;
+    if (separator > 0 && BARE_SENSITIVE_LONG_FLAG.test(a.slice(0, separator))) {
+      return `${a.slice(0, separator + 1)}[REDACTED]`;
     }
     return redactCommand(a);
   });

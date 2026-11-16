@@ -165,6 +165,40 @@ describe.skipIf(!distReady)('kanban project daemon auth gate (WS-027)', () => {
     expect(wrong).toMatchObject({ id: 4, error: { code: 'UNAUTHORIZED' } });
   }, 45_000);
 
+  it('rejects malformed JSON token values as unauthorized without coercing them', async () => {
+    child = spawnDaemon(root);
+    const metadata = await waitFor(async () => {
+      try {
+        return JSON.parse(
+          await readFile(join(root, '.wrongstack', 'kanban-server.json'), 'utf8'),
+        ) as { authToken: string };
+      } catch {
+        return undefined;
+      }
+    });
+    const endpoint = kanbanProjectServerEndpoint(root);
+    const allowed = await rawRequest(endpoint, {
+      id: 1,
+      method: 'storageListBoardIds',
+      params: {},
+      authToken: metadata.authToken,
+    });
+    expect(allowed['error']).toBeUndefined();
+
+    const bytes = [...Buffer.from(metadata.authToken, 'utf16le')];
+    const malformed: unknown[] = [42, true, {}, [], bytes, { type: 'Buffer', data: bytes }];
+    for (const [index, authToken] of malformed.entries()) {
+      const id = index + 2;
+      const denied = await rawRequest(endpoint, {
+        id,
+        method: 'storageListBoardIds',
+        params: {},
+        authToken,
+      });
+      expect(denied).toMatchObject({ id, error: { code: 'UNAUTHORIZED' } });
+    }
+  }, 45_000);
+
   it('never puts the token in the greeting', async () => {
     child = spawnDaemon(root);
     await waitFor(async () => {

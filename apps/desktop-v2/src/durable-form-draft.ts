@@ -42,6 +42,7 @@ export class DurableFormDraft<T> {
   };
   private listeners = new Set<() => void>();
   private pending: Promise<void> | null = null;
+  private clearing = false;
   private loading: Promise<void> | null = null;
   private blocked = false;
   /** The version whose save failed for a non-conflict reason; the next edit retries it. */
@@ -93,7 +94,13 @@ export class DurableFormDraft<T> {
   };
   flush = (): Promise<void> => {
     if (this.pending) return this.pending;
-    if (!this.state.ready || this.blocked || this.state.review || !this.state.dirty)
+    if (
+      !this.state.ready ||
+      this.clearing ||
+      this.blocked ||
+      this.state.review ||
+      !this.state.dirty
+    )
       return Promise.resolve();
     this.update({ saving: true });
     this.pending = (async () => {
@@ -188,17 +195,18 @@ export class DurableFormDraft<T> {
   clear = async (expected?: T | null): Promise<boolean> => {
     const version = this.version;
     await this.flush();
-    if (this.blocked || this.state.review || this.state.dirty) return false;
+    if (this.clearing || this.blocked || this.state.review || this.state.dirty) return false;
     if (expected !== undefined && this.state.value !== expected) return false;
     if (version !== this.version) return false;
     const revision = this.state.revision;
     if (this.state.value === null) return true;
+    // Autosaves must wait for this write's revision acknowledgement too.
+    this.clearing = true;
     try {
       const next = await this.storage.save(null, revision);
       if (next !== revision + 1) throw Error('Invalid draft clear acknowledgement.');
       if (version !== this.version) {
         this.update({ revision: next, dirty: true });
-        await this.flush();
         return false;
       }
       this.version++;
@@ -213,6 +221,9 @@ export class DurableFormDraft<T> {
         });
       } else this.update({ error: String(error) });
       return false;
+    } finally {
+      this.clearing = false;
+      await this.flush();
     }
   };
 }

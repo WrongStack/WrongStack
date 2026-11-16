@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-16T16:29:15.240Z",
+  "generatedAt": "2026-11-16T20:48:21.626Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6349,
-    "testFiles": 5373,
-    "sourceLines": 1312695,
+    "testFiles": 5381,
+    "sourceLines": 1312717,
     "workspaceEdges": 250,
     "moduleEdges": 18727,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 349,
+    "testsWithoutTypecheck": 350,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1073
   },
@@ -269,7 +269,7 @@
       "name": "@wrongstack/client",
       "dir": "packages/client",
       "sourceFiles": 7,
-      "testFiles": 4,
+      "testFiles": 5,
       "workspaceDependencies": [
         "@wrongstack/webui-protocol"
       ],
@@ -282,7 +282,7 @@
         {
           "path": "packages/client/tsconfig.test.json",
           "error": null,
-          "testFiles": 4
+          "testFiles": 5
         }
       ]
     },
@@ -387,7 +387,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 523,
-      "testFiles": 347,
+      "testFiles": 348,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -624,7 +624,7 @@
       "name": "@wrongstack/persistence",
       "dir": "packages/persistence",
       "sourceFiles": 10,
-      "testFiles": 23,
+      "testFiles": 24,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -635,7 +635,7 @@
         {
           "path": "packages/persistence/tsconfig.test.json",
           "error": null,
-          "testFiles": 23
+          "testFiles": 24
         }
       ]
     },
@@ -715,7 +715,7 @@
       "name": "@wrongstack/primitives",
       "dir": "packages/primitives",
       "sourceFiles": 26,
-      "testFiles": 40,
+      "testFiles": 44,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -726,7 +726,7 @@
         {
           "path": "packages/primitives/tsconfig.test.json",
           "error": null,
-          "testFiles": 40
+          "testFiles": 44
         }
       ]
     },
@@ -1152,7 +1152,7 @@
       "name": "@wrongstack/webui-protocol",
       "dir": "packages/webui-protocol",
       "sourceFiles": 29,
-      "testFiles": 15,
+      "testFiles": 16,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1167,7 +1167,7 @@
         {
           "path": "packages/webui-protocol/tsconfig.test.json",
           "error": null,
-          "testFiles": 15
+          "testFiles": 16
         }
       ]
     },
@@ -1893,6 +1893,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/draft-storage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/durable-form-clear-race.test.ts",
         "projects": [
           "root-node"
         ]
@@ -9003,6 +9009,12 @@
       },
       {
         "file": "packages/client/tests/close-during-catch-up.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/client/tests/handshake-probe-cleanup.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17276,6 +17288,12 @@
         ]
       },
       {
+        "file": "packages/persistence/tests/profile-device-names.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/persistence/tests/project-endpoint.test.ts",
         "projects": [
           "root-node"
@@ -18590,6 +18608,12 @@
         ]
       },
       {
+        "file": "packages/primitives/tests/error-sanitize-inspection.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/primitives/tests/error-unprintable.test.ts",
         "projects": [
           "root-node"
@@ -18632,6 +18656,12 @@
         ]
       },
       {
+        "file": "packages/primitives/tests/redaction-colon-argv.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/primitives/tests/redaction-colon-separated-flags.test.ts",
         "projects": [
           "root-node"
@@ -18663,6 +18693,12 @@
       },
       {
         "file": "packages/primitives/tests/redaction-password-argv.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/redaction-pwsh-single-quotes.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18807,6 +18843,12 @@
       },
       {
         "file": "packages/primitives/tests/time.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/timing-safe-token-types.test.ts",
         "projects": [
           "root-node"
         ]
@@ -27770,6 +27812,12 @@
         ]
       },
       {
+        "file": "packages/webui-protocol/tests/environment-port-protocol.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-protocol/tests/environment-profile.test.ts",
         "projects": [
           "root-node"
@@ -34228,6 +34276,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/draft-storage.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/durable-form-clear-race.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

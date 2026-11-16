@@ -294,7 +294,9 @@ export interface WstackPathOptions {
   profileName?: string | undefined;
 }
 
-const WINDOWS_RESERVED_PROFILE_RE = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i;
+// Win32 also treats superscript 1, 2 and 3 as COM/LPT device-number digits.
+const WINDOWS_RESERVED_PROFILE_RE =
+  /^(?:con|prn|aux|nul|(?:com|lpt)[1-9\u00b9\u00b2\u00b3])(?:\..*)?$/i;
 
 /** Make an untrusted profile name safe for use as one path segment. */
 export function safeProfileName(name: string | undefined): string {

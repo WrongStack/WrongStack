@@ -44,6 +44,32 @@ describe('readPipedStdin', () => {
     await expect(pending).resolves.toEqual({ text: 'abcd', truncated: true, timedOut: false });
   });
 
+  it('treats input exactly at the cap as complete, not truncated', async () => {
+    const stream = new PassThrough();
+    const pending = readPipedStdin(stream, { maxBytes: 4 });
+    stream.write('abcd');
+    stream.end();
+    // `truncated` means the input EXCEEDED the cap; an exact fit cut nothing.
+    await expect(pending).resolves.toEqual({ text: 'abcd', truncated: false, timedOut: false });
+  });
+
+  it('treats an exact cap reached across chunks as complete, not truncated', async () => {
+    const stream = new PassThrough();
+    const pending = readPipedStdin(stream, { maxBytes: 8 });
+    stream.write('abcd');
+    stream.write('efgh');
+    stream.end();
+    await expect(pending).resolves.toEqual({ text: 'abcdefgh', truncated: false, timedOut: false });
+  });
+
+  it('flags truncation for one byte past the cap and keeps the capped text', async () => {
+    const stream = new PassThrough();
+    const pending = readPipedStdin(stream, { maxBytes: 4 });
+    stream.write('abcde');
+    stream.end();
+    await expect(pending).resolves.toEqual({ text: 'abcd', truncated: true, timedOut: false });
+  });
+
   it('treats an immediately closed stdin as empty', async () => {
     const stream = new PassThrough();
     const pending = readPipedStdin(stream, { firstByteTimeoutMs: 1_000 });

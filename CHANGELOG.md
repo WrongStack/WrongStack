@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   up to five minutes instead of discovering on every runtime start; expired,
   malformed, future-dated or other-account entries still discover normally.
 
+### Fixed
+
+- Redact sensitive command arguments written with an empty colon value, and
+  single-quoted PowerShell values, without swallowing the following public
+  arguments.
+- Sanitize errors and compare tokens without invoking object conversion
+  hooks, and reject malformed Kanban token values as unauthorized.
+- Read piped stdin exactly up to its cap: input ending on the cap is complete,
+  one byte past it is reported as truncated.
+- Avoid a second desktop draft clear racing the first, and resume autosave
+  after a failed clear.
+- Apply profile device-name rules to the bootstrap profile, keep environment
+  port settings well formed, and clean up a bodyless handshake probe.
+
 ## [1.7.6] — 2026-11-16
 
 TUI editing keys now go through Ink's own parser, so Home/End fire once and
