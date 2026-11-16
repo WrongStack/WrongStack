@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Desktop screens in the WebUI's style: the running turn is a live card (orb,
+  elapsed time, the tool it runs or its last line of reasoning), a turn's
+  activity summary shows status chips, Mission Control and the project
+  overview open with KPI tiles, and the top bar shows a live-run chip and the
+  application version. Motion animates only transform and opacity and stops
+  under reduced motion.
+
+### Changed
+
+- Desktop conversations stay smooth while answers stream and while typing:
+  completed blocks of a streaming answer keep their own Markdown parse and the
+  block being written is plain text until it completes; Markdown re-parses only
+  when its text changes; the composer repaints alone and the window catches up
+  as an interruptible update; draft saves made during a save coalesce to the
+  newest text (one native write per round trip instead of per keystroke).
+
 ## [1.7.7] — 2026-11-16
 
 The desktop starts only the engines a restored workspace or settings need, and

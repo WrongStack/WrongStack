@@ -56,7 +56,8 @@ export function TranscriptMessage({
 }: {
   message: Message;
   display?: ConversationDisplay | undefined;
-  state: Pick<EngineState, 'turnActivity' | 'turnStats'>;
+  state: Pick<EngineState, 'turnActivity' | 'turnStats'> &
+    Partial<Pick<EngineState, 'activeTextMessageId'>>;
   projectRoot?: string | null | undefined;
   onLink: (href: string) => void;
   onOpenFile: (path: string) => void;
@@ -171,7 +172,13 @@ export function TranscriptMessage({
           ) : answer && source ? (
             <pre className="message-source">{message.text}</pre>
           ) : answer ? (
-            <MarkdownContent text={answerText} onLink={onLink} streaming={activityLive} />
+            <MarkdownContent
+              text={answerText}
+              onLink={onLink}
+              // Only while text still arrives for this answer; tools that run after it leave
+              // it whole, so its last paragraph renders as Markdown, not as raw text.
+              streaming={state.activeTextMessageId === message.id}
+            />
           ) : (
             <UserComposerMessage text={message.text} />
           )}
