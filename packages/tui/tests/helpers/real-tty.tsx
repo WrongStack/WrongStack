@@ -71,14 +71,18 @@ export interface RealTtyView {
 /** Render into a fake TTY of the given size with Ink's real renderer. */
 export function renderRealTty(
   element: ReactElement,
-  { columns = 60, rows = 30 }: { columns?: number; rows?: number } = {},
+  {
+    columns = 60,
+    rows = 30,
+    debug = true,
+  }: { columns?: number; rows?: number; debug?: boolean } = {},
 ): RealTtyView {
   const stdout = new FakeStdout(columns, rows);
   const stdin = new FakeStdin();
   const instance = render(element, {
     stdout: stdout as unknown as NodeJS.WriteStream,
     stdin: stdin as unknown as NodeJS.ReadStream,
-    debug: true,
+    debug,
     exitOnCtrlC: false,
     patchConsole: false,
   });

@@ -15,12 +15,23 @@ import { feedPaste } from '../paste-accumulator.js';
  * Returns true when the key was consumed by the paste pipeline; false
  * falls through to the later routes.
  */
-export async function routePastePipeline(ctx: KeyRouteContext, input: string): Promise<boolean> {
+export async function routePastePipeline(
+  ctx: KeyRouteContext,
+  input: string,
+  explicitPaste = false,
+): Promise<boolean> {
   const { state, dispatch, pasteAccumRef, pasteFlushTimerRef, commitPaste } = ctx;
   if (!input) return false;
   // Unfocus sidebar before processing paste so the buffer receives focus.
   if (state.sidebarFocused) {
     dispatch({ type: 'toggleSidebarFocus' });
+  }
+  if (explicitPaste) {
+    if (pasteFlushTimerRef.current) clearTimeout(pasteFlushTimerRef.current);
+    pasteFlushTimerRef.current = null;
+    pasteAccumRef.current = null;
+    await commitPaste(input);
+    return true;
   }
   const paste = feedPaste(pasteAccumRef.current, input);
   if (!paste) return false;

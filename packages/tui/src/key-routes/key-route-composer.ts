@@ -117,7 +117,9 @@ export function routeComposer(
     // between attach and send rejects while resolving attachments).
     // `useStableKeyHandler` only covers the promise `handleKey` itself
     // returns; `void submit()` detached from that chain.
-    detach(Promise.resolve(submit()), 'Send');
+    // A batched text+Enter read can reach this route before React commits the
+    // updated reducer buffer. The synchronous draft is the user's current input.
+    detach(Promise.resolve(submit(draftRef.current.buffer)), 'Send');
     return true;
   }
   return false;

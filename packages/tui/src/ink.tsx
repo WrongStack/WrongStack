@@ -9,11 +9,19 @@
 // highlight tokens, per-subagent colors, status-chip ternaries) with a single
 // import swap per component (`from 'ink'` → `from './ink.js'`).
 //
-// Everything else from Ink is re-exported untouched so callers can switch that
-// one import line without losing hooks.
+// Input hooks also preserve bracketed-paste provenance below. Other Ink hooks
+// are re-exported so callers can switch one import line without losing them.
 
 import { isAsciiMode, toAscii } from '@wrongstack/core/utils';
-import { type DOMElement, Box as InkBox, Text as InkText, useStdout as useInkStdout } from 'ink';
+import {
+  type DOMElement,
+  Box as InkBox,
+  type Key as InkKey,
+  Text as InkText,
+  useInput as useInkInput,
+  usePaste as useInkPaste,
+  useStdout as useInkStdout,
+} from 'ink';
 import {
   type ComponentProps,
   type ForwardRefExoticComponent,
@@ -44,15 +52,64 @@ type BoxOwnProps = Omit<
   backgroundColor?: string | undefined;
 };
 
-export type { DOMElement, Key } from 'ink';
+export type { DOMElement } from 'ink';
+export type Key = InkKey & { readonly paste?: boolean };
 export {
   measureElement,
   Static,
   useAnimation,
   useApp,
-  useInput,
   useStdin,
 } from 'ink';
+
+const PASTE_KEY: Key = {
+  upArrow: false,
+  downArrow: false,
+  leftArrow: false,
+  rightArrow: false,
+  pageUp: false,
+  pageDown: false,
+  home: false,
+  end: false,
+  return: false,
+  escape: false,
+  ctrl: false,
+  shift: false,
+  tab: false,
+  backspace: false,
+  delete: false,
+  meta: false,
+  super: false,
+  hyper: false,
+  capsLock: false,
+  numLock: false,
+  paste: true,
+};
+
+/**
+ * Keep paste as data for every input owner, including locally handled panels.
+ * Ink's legacy fallback parses a paste as a key and loses its provenance;
+ * xterm.js also converts pasted newlines to CR before sending them to the PTY.
+ */
+export function useInput(
+  handler: (input: string, key: Key) => void,
+  options?: Parameters<typeof useInkInput>[1],
+): void {
+  useInkInput((input, key) => {
+    // A PTY may coalesce the final typed characters and Return into one read.
+    // Bracketed paste has its own channel below, so CR here is a submit key.
+    if (input.includes('\r') && !key.ctrl && !key.meta) {
+      const parts = input.split(/\r\n?/);
+      for (let index = 0; index < parts.length; index++) {
+        if (parts[index]) handler(parts[index]!, key);
+        if (index < parts.length - 1) handler('', { ...key, return: true });
+      }
+      return;
+    }
+    handler(input, key);
+  }, options);
+  useInkPaste((text) => handler(text.replace(/\r\n?/g, '\n'), PASTE_KEY), options);
+}
 
 // Ink 8 accepts generic writable streams. Terminal dimensions are optional on
 // pipes and injected renderers; callers retain their existing non-TTY defaults.

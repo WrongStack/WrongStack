@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Propagate the formatter's exit code when a format check fails.
 - Validate VibeUI session tree branches and sequence numbers, and keep
   automation job credentials and environment names well formed on export.
+- Leave TUI editing keys and Escape timing to Ink 8's parser, so Home/End no
+  longer fire twice and editing does not depend on how a PTY or WebSocket
+  splits escape sequences. Only F-key and SGR mouse reports are framed
+  separately; paste bodies stay isolated and newline-only pastes no longer
+  submit the draft. A headless Chromium/xterm.js suite and a real-PTY App
+  scenario (`test:browser-terminal`) cover browser terminals.
 
 ## [1.7.5] — 2026-11-16
 

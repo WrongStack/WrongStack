@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 528,
-      "typeOnly": 397,
+      "files": 529,
+      "typeOnly": 398,
       "runtimeOrMixed": 163
     },
     "@wrongstack/core/boot": {
@@ -104,9 +104,9 @@
       "runtimeOrMixed": 59
     },
     "@wrongstack/core/registry": {
-      "files": 213,
+      "files": 214,
       "typeOnly": 84,
-      "runtimeOrMixed": 138
+      "runtimeOrMixed": 139
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -149,9 +149,9 @@
       "runtimeOrMixed": 30
     },
     "@wrongstack/core/storage": {
-      "files": 220,
+      "files": 221,
       "typeOnly": 62,
-      "runtimeOrMixed": 195
+      "runtimeOrMixed": 196
     },
     "@wrongstack/core/tasking": {
       "files": 46,
@@ -2688,6 +2688,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tui/tests/helpers/app-journey-harness.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tui/tests/helpers/browser-pty-app.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -7145,6 +7151,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/tui/tests/helpers/browser-pty-app.tsx",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/tui/tests/resume-slash-routing.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -10704,6 +10716,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/tui/src/use-controller-key-pipeline.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/tui/tests/helpers/browser-pty-app.tsx",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

@@ -1,0 +1,109 @@
+/** Full production launch in a real PTY; only the agent/provider boundary is deterministic. */
+import { appendFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel';
+import type { ContentBlock, Message } from '@wrongstack/contracts/types';
+import type { Agent } from '@wrongstack/core/agent';
+import { SlashCommandRegistry } from '@wrongstack/core/registry';
+import { DefaultAttachmentStore } from '@wrongstack/core/storage';
+import type { Settings } from '../../src/app-state.js';
+import { SETTINGS_DEFAULTS } from '../../src/components/settings-picker-model.js';
+import { runTui } from '../../src/run-tui.js';
+
+const root = process.argv[2]!;
+const record = (event: unknown) =>
+  appendFileSync(join(root, 'events.jsonl'), `${JSON.stringify(event)}\n`);
+const noop = () => {};
+const restoredMessages: Message[] = Array.from({ length: 40 }, (_, index) => [
+  {
+    role: 'user' as const,
+    content: [
+      { type: 'text' as const, text: `PTY question ${String(index + 1).padStart(2, '0')}` },
+    ],
+  },
+  {
+    role: 'assistant' as const,
+    content: [
+      {
+        type: 'text' as const,
+        text: `PTY answer ${String(index + 1).padStart(2, '0')} selectable transcript text`,
+      },
+    ],
+  },
+]).flat();
+const events = new EventBus();
+let calls = 0;
+const agent = {
+  ctx: {
+    todos: [],
+    messages: restoredMessages,
+    meta: {},
+    state: { onChange: () => noop },
+    projectRoot: root,
+    cwd: root,
+    workingDir: root,
+    model: 'fixture/terminal-model',
+    provider: { id: 'fixture', capabilities: { maxContext: 200_000, supportsVision: false } },
+    session: { id: 'pty-browser-session', writeEvent: noop, close: async () => {} },
+    eventSessionId: () => 'pty-browser-session',
+    sideEffects: [],
+    signal: new AbortController().signal,
+    tokenCounter: {
+      countTokens: () => 0,
+      estimateCost: () => ({ total: 0 }),
+      total: () => ({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }),
+    },
+    onWorkingDirChanged: () => noop,
+    systemPrompt: [],
+    tools: [],
+    agentId: 'pty-fixture',
+    agentName: 'PTY fixture',
+    writtenFiles: new Set(),
+    recordRead: noop,
+  },
+  run: async (blocks: ContentBlock[]) => {
+    calls++;
+    record({ type: 'run', calls, blocks });
+    return { status: 'done', iterations: 1, finalText: `PTY completed request ${calls}` };
+  },
+  abort: noop,
+  on: () => noop,
+} as unknown as Agent;
+let settings: Settings = {
+  ...SETTINGS_DEFAULTS,
+  fleetChatVerbosity: 'off',
+  featureTokenSaving: 'off',
+  lastSettingsField: 67,
+  showSidebar: false,
+  chime: false,
+  selectionMode: 'text',
+};
+record({
+  type: 'boot',
+  pid: process.pid,
+  stdinTTY: process.stdin.isTTY,
+  stdoutTTY: process.stdout.isTTY,
+});
+const code = await runTui({
+  agent,
+  events,
+  attachments: new DefaultAttachmentStore(),
+  slashRegistry: new SlashCommandRegistry(),
+  model: 'fixture/terminal-model',
+  banner: false,
+  restoredMessages,
+  chime: false,
+  titleAnimation: false,
+  enhanceController: { enabled: false, setEnabled: noop },
+  statuslineHiddenItems: [],
+  setStatuslineHiddenItems: noop,
+  saveStatuslineHiddenItems: async () => {},
+  getSettings: () => settings,
+  saveSettings: async (next) => {
+    settings = next;
+    record({ type: 'settings', selectionMode: next.selectionMode });
+    return null;
+  },
+});
+record({ type: 'exit', code });
+process.exit(code);

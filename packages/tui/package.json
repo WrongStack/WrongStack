@@ -30,6 +30,7 @@
     "build": "bun ../../scripts/build-package.mjs",
     "test": "bun --bun run vitest run --config vitest.config.ts",
     "test:status-bar": "bun --bun run vitest run --config vitest.status-bar-sgr.config.ts",
+    "test:browser-terminal": "bun --bun run vitest run --config vitest.browser-terminal.config.ts",
     "test:watch": "bun --bun run vitest --config vitest.config.ts",
     "test:coverage": "bun --bun run vitest run --coverage --config vitest.config.ts",
     "typecheck": "bun ../../scripts/bun-typecheck.mjs --noEmit && bun ../../scripts/bun-typecheck.mjs --noEmit -p tsconfig.test.json",

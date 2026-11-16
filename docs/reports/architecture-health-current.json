@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-16T10:59:36.646Z",
+  "generatedAt": "2026-11-16T14:03:59.781Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6348,
-    "testFiles": 5369,
-    "sourceLines": 1312715,
+    "sourceFiles": 6349,
+    "testFiles": 5371,
+    "sourceLines": 1312685,
     "workspaceEdges": 250,
-    "moduleEdges": 18727,
+    "moduleEdges": 18728,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -1035,8 +1035,8 @@
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 513,
-      "testFiles": 443,
+      "sourceFiles": 514,
+      "testFiles": 445,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1065,7 +1065,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 443
+          "testFiles": 445
         }
       ]
     },
@@ -25592,6 +25592,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/input-transport.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/input-validation.comprehensive.test.ts",
         "projects": [
           "root-node"
@@ -26871,6 +26877,12 @@
       },
       {
         "file": "packages/tui/tests/sync-stdout-and-graphics.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/terminal-reports.test.ts",
         "projects": [
           "root-node"
         ]

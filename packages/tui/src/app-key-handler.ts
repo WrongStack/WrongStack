@@ -200,7 +200,7 @@ export function createAppKeyHandler(
     // fragments accumulate until the end marker (\x1b[201~), then the whole
     // payload finalizes at once — before Enter handling, so a "\n" fragment
     // inside a paste never submits mid-paste.
-    if (!panelOwnsInput && (await routePastePipeline(ctx, input))) return;
+    if (!panelOwnsInput && (await routePastePipeline(ctx, input, key.paste))) return;
 
     // Some terminals emit \r\n for Enter as two separate stdin events.
     // \r arrives with key.return=true (handled below); \n may arrive as

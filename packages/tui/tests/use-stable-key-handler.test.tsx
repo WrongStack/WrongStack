@@ -25,6 +25,43 @@ function mount(handleKey: Handler, onError?: (err: unknown) => void) {
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
 describe('useStableKeyHandler', () => {
+  it('orders typing, asynchronous paste and Enter while keeping Ctrl+C responsive', async () => {
+    const trace: string[] = [];
+    let releaseText!: () => void;
+    let releasePaste!: () => void;
+    const text = new Promise<void>((resolve) => {
+      releaseText = resolve;
+    });
+    const paste = new Promise<void>((resolve) => {
+      releasePaste = resolve;
+    });
+    const probe = mount(async (input, key) => {
+      if (key.ctrl) {
+        trace.push('interrupt');
+        return;
+      }
+      trace.push(key.return ? 'enter' : input);
+      if (input === 'text') await text;
+      if (key.paste) await paste;
+    });
+    try {
+      void probe.stable('text', EMPTY_KEY);
+      void probe.stable('paste', { ...EMPTY_KEY, paste: true });
+      void probe.stable('', { ...EMPTY_KEY, return: true });
+      void probe.stable('c', { ...EMPTY_KEY, ctrl: true });
+      expect(trace).toEqual(['text', 'interrupt']);
+      releaseText();
+      await flush();
+      expect(trace).toEqual(['text', 'interrupt', 'paste']);
+      releasePaste();
+      await flush();
+      expect(trace).toEqual(['text', 'interrupt', 'paste', 'enter']);
+    } finally {
+      releaseText();
+      releasePaste();
+      probe.unmount();
+    }
+  });
   it('reports a rejected key handler instead of swallowing it', async () => {
     const onError = vi.fn();
     const probe = mount(() => Promise.reject(new Error('boom')), onError);

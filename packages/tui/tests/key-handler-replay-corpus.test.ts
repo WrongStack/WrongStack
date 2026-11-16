@@ -25,6 +25,15 @@ interface Step {
   key: KeyEvent;
 }
 
+it('submits the current draft when typing and Enter arrive before React commits', async () => {
+  const h = makeHandler(createTestState({ buffer: 'previous render' }), {
+    buffer: 'complete current draft',
+    cursor: 22,
+  });
+  await h.handler('', key({ return: true }));
+  expect(h.submit).toHaveBeenCalledWith('complete current draft');
+});
+
 interface CorpusCase {
   /** Snapshot name — must stay stable across Phase 3. */
   name: string;

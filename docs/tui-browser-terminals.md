@@ -154,5 +154,82 @@ otherwise-similar capability that *is* adjusted — see §3.2.
 - `packages/tui/tests/ui-glyphs.test.ts` — glyph suppression for local and remote
   browser hosts, native-terminal font detection, and override precedence.
 
-Both suites assert the decision layer; they do not paint into a real browser
-terminal. A visual check in xterm.js remains a manual step.
+These two suites assert the decision layer. The browser renderer and transport
+also have an automated check:
+
+```sh
+bun run --filter @wrongstack/tui test:browser-terminal
+```
+
+This starts headless Chromium with the repository's installed xterm.js, paints
+the real Ink composer using the `browser` glyph profile and alternate screen,
+and exercises Home/End, Ctrl+Left, Backspace, F2, bracketed text paste, wheel
+events, and 80 → 40 → 100 → 80 column resizing. Keyboard checks run with both
+whole and byte-fragmented input. It requires the Playwright Chromium runtime;
+use the repository's `bun run install:browser` setup if it is absent. The test
+owns a loopback-only fixture server and closes it and Chromium on teardown.
+
+The component harness uses an injected TTY stream. A second scenario,
+`packages/tui/tests/browser-pty.browser.ts`, starts Bun in a real `node-pty`
+terminal and calls production `runTui()` with the full App, real attachment
+storage and restored transcript. Only the agent/provider responses are a
+deterministic fixture; no live model or account is used. The fixture sets the
+browser host markers and `TERM=xterm-256color` explicitly on Windows too.
+
+The full-App scenario covers:
+
+- Multiline paste: the original lines reach the agent once, only after Enter.
+- PageUp and actual browser wheel events moving the managed transcript.
+- Shift-drag browser selection and App SGR drag highlighting, cancelled in the
+  gutter before release so verification does not replace the OS clipboard.
+- Reconnecting a browser to the same retained PTY, replaying output and keeping
+  the unsent draft without a second App boot or duplicate submission.
+- A paste interrupted after its opening marker, a 650 ms disconnected pause,
+  and completion after reconnect with both lines preserved.
+- Newline-only paste remaining data rather than submitting the existing draft.
+
+Each PTY run retains screenshots, `terminal.bin`, `input.jsonl`, `events.jsonl`
+and `checks.jsonl` under `.temp_files/tui-browser-terminals/pty-*/` for inspection.
+All browser/server/PTY resources are closed by test teardown, including failures.
+The reconnect bridge is a test fixture for persistent terminal hosts. It does
+not change the WebUI integrated terminal's existing per-client policy, which
+kills its shell on disconnect. Product-specific ttyd/code-server deployments,
+mobile IME input, clipboard copying and the image preview modal require their
+own validation.
+
+## 5. Input transport boundaries
+
+PTY and WebSocket reads can split one escape sequence across several chunks or
+combine several keys in one chunk. `Input` leaves editing keys and Escape timing
+to Ink 8's parser. It does not decode them again from raw stdin: doing so emitted
+Home/End twice and could make editing depend on chunk boundaries.
+
+The supplemental `TerminalReportParser` frames only the sequences needed by the
+F-key and SGR mouse handlers. It handles split and batched reports, ignores
+bracketed-paste bodies, and retains only bounded control prefixes rather than
+the pasted text. Incomplete non-paste controls expire after Ink's 20 ms escape
+window. Hidden/disabled composers keep F-key and wheel routing alive, while
+normal editing stays blocked during abort. Alt/Option+Backspace retains its
+word-deletion behavior.
+
+`packages/tui/tests/input-transport.test.tsx` drives the real Ink input path with
+transport fragments and checks single delivery, paste isolation and the ordinary
+typing control. The Chromium check above verifies the corresponding xterm.js
+keyboard and wheel encodings. The bridge must still deliver partial escape
+sequences within the parser's escape window; arbitrary network-delay tolerance
+and reconnect recovery are separate concerns.
+
+### 5.1 Paste and submit ordering
+
+The shared Ink shim subscribes to Ink 8's dedicated paste channel for each
+active input owner, including panels. Paste events carry `key.paste`, never
+`key.return` or shortcut modifiers, and normalize xterm's CR/CRLF line breaks
+to LF. The composer sends these payloads directly to the paste commit path;
+legacy marker accumulation remains available for older input paths.
+
+Unbracketed typed text can arrive in the same PTY read as Return. The shim splits
+that CR into a submit event, while bracketed pasted CR stays literal newline
+data. The App orders edit/paste/submit handlers across asynchronous attachment
+operations; Ctrl+C, Escape and pointer events remain independent escape routes.
+Enter submits the synchronous current draft so a pending React commit cannot
+drop the final typed characters.

@@ -6,12 +6,8 @@ import { useComposerPointer } from '../hooks/use-composer-pointer.js';
 import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { Box, type DOMElement, Text, useInput, useStdin } from '../ink.js';
 import { type InputCell, layoutInputRows } from '../input-tokens.js';
-import {
-  isLeakedMouseInput,
-  type MouseEventInfo,
-  parseMouseEvents,
-  splitTrailingMousePartial,
-} from '../mouse.js';
+import { isLeakedMouseInput, type MouseEventInfo, parseMouseEvents } from '../mouse.js';
+import { TerminalReportParser } from '../terminal-reports.js';
 import { displayWidth, truncateDisplay } from '../terminal-width.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
@@ -65,7 +61,7 @@ export interface InputProps {
   /**
    * When true the visible prompt rows are replaced by an empty placeholder of
    * `placeholderHeight` rows, but BOTH keyboard listeners (the Ink `useInput`
-   * and the raw-stdin parser that produces F-keys / Home / End / wheel) stay
+   * and the raw-stdin parser that produces F-keys / wheel) stay
    * mounted. This is what keeps the central `handleKey` router — and therefore
    * the F-key/Esc toggles that open and CLOSE the monitor overlays — alive
    * while an overlay occupies the bottom region. Unmounting the Input here is
@@ -110,50 +106,13 @@ export interface KeyEvent {
    */
   mouse?: MouseEventInfo | undefined;
   /** Function-key number 1–12 when a plain F-key was pressed, else undefined.
-   *  Ink's useInput does not decode F-keys, so these are caught from raw stdin
-   *  (same mechanism as Home/End) and surfaced here. F-keys are terminal-safe
+   *  Ink's public Key has no F-key field, so these are caught from raw stdin
+   *  as complete transport reports and surfaced here. F-keys are terminal-safe
    *  aliases for chords some terminals intercept (e.g. Windows Terminal eats
    *  Ctrl+F for "Find"). */
   fn?: number | undefined;
-}
-
-// Ink 5.x useInput does not expose home/end as boolean flags even though
-// parseKeypress recognizes them. We subscribe to raw stdin to catch these.
-function isHomeEnd(data: string): 'home' | 'end' | null {
-  // Common terminal sequences for Home/End.
-  // CSI H / CSI F are the most universal; the longer variants are fallbacks.
-  if (data === '\x1b[H' || data === '\x1b[1~' || data === '\x1bOH' || data === '\x1b[7~')
-    return 'home';
-  if (data === '\x1b[F' || data === '\x1b[4~' || data === '\x1bOF' || data === '\x1b[8~')
-    return 'end';
-  return null;
-}
-
-function isCtrlArrow(data: string): 'left' | 'right' | null {
-  // Xterm/Windows Terminal encode Ctrl+Arrow as CSI 1;5D/C. Some terminals
-  // omit the "1;" prefix and send CSI 5D/C instead.
-  if (data === '\x1b[1;5D' || data === '\x1b[5D') return 'left';
-  if (data === '\x1b[1;5C' || data === '\x1b[5C') return 'right';
-  return null;
-}
-
-/**
- * Detect Backspace / Delete from raw stdin bytes. Ink 5.x `useInput` may
- * miss these on Windows Terminal — Backspace often sends `\x08` (BS / Ctrl+H)
- * while most Unix terminals send `\x7f` (DEL). We catch both so the key works
- * regardless of terminal configuration. Delete sends the escape sequence
- * `\x1b[3~` which Ink usually handles, but we include it here for completeness
- * and to avoid relying on Ink internals.
- *
- * Also aliases `\x1b\x7f` and `\x1b\x08` (ESC+Backspace / Meta+Backspace) to
- * Ctrl+Backspace behaviour — delete the previous word. On macOS, Opt+Backspace
- * sends this sequence, and on Linux, Alt+Backspace does as well.
- */
-function isBackspaceOrDelete(data: string): 'backspace' | 'delete' | 'metaBackspace' | null {
-  if (data === '\x1b\x7f' || data === '\x1b\x08') return 'metaBackspace';
-  if (data === '\x7f' || data === '\x08') return 'backspace';
-  if (data === '\x1b[3~') return 'delete';
-  return null;
+  /** Literal bracketed-paste payload, never an editing or submit key. */
+  paste?: boolean | undefined;
 }
 
 export const EMPTY_KEY: KeyEvent = {
@@ -201,237 +160,71 @@ export const Input = memo(function Input({
   const pointer = useComposerPointer();
   const pointerHandlerRef = useRef(pointer.handle);
   pointerHandlerRef.current = pointer.handle;
-  // Suppress duplicate key events: when our raw-stdin handler catches a key
-  // before Ink's useInput does, we set a suppression flag so Ink doesn't
-  // fire a duplicate event. Without this, Backspace deletes two characters
-  // — both the raw-stdin handler AND Ink fire onKey() for the same keystroke.
-  const suppressInkEscRef = useRef(false);
-  const suppressInkBackspaceRef = useRef(false);
-  const suppressInkDeleteRef = useRef(false);
-  const suppressInkCtrlLeftRef = useRef(false);
-  const suppressInkCtrlRightRef = useRef(false);
-  const suppressInkShiftEnterRef = useRef(false);
-  // Carries a half-delivered SGR mouse report across `data` events. Lives at
-  // component scope, not inside the effect, so a `disabled` toggle (which
-  // re-creates the listener) cannot strand one mid-drag.
-  const mousePartialRef = useRef('');
-
+  const pendingFunctions = useRef<number[]>([]);
+  const functionIndex = useRef(0);
+  // Ink 8 owns editing keys and escape timing. Parsing them again from raw
+  // reads used to duplicate Home/End and made semantics depend on packet size.
   useInput((input, key) => {
-    // Ctrl+C must survive `disabled`. The prop is set exactly during
-    // status==='aborting' and while a confirm panel is open — the two states
-    // where the escalation ladder is the only way out — and on raw-mode
-    // terminals (ConPTY/Windows) Ctrl+C arrives HERE as key data, never as a
-    // SIGINT. Forward it to the key router (whose first line routes it into
-    // the ladder); everything else stays blocked while disabled.
+    if (key.eventType === 'release') return;
+    // Decode the missing F-key field on Ink's corresponding event, preserving
+    // its position among ordinary keys in the same transport read.
+    if (!input && !Object.keys(EMPTY_KEY).some((name) => key[name as keyof typeof key] === true)) {
+      const fn = pendingFunctions.current[functionIndex.current];
+      if (fn !== undefined) {
+        functionIndex.current++;
+        if (functionIndex.current === pendingFunctions.current.length) {
+          pendingFunctions.current = [];
+          functionIndex.current = 0;
+        }
+        onKey('', { ...EMPTY_KEY, fn });
+      }
+      return;
+    }
     if (disabled) {
-      if (key.ctrl && (input === 'c' || input === 'C')) {
-        onKey(input, key as KeyEvent);
-      }
-      // Forward Ctrl+V even while disabled so the app-level handler can
-      // show "input locked" feedback instead of silently swallowing the paste.
-      if (key.ctrl && (input === 'v' || input === 'V')) {
+      if ((key.ctrl && ['c', 'C', 'v', 'V'].includes(input)) || key.home || key.end) {
         onKey(input, key as KeyEvent);
       }
       return;
     }
-    // Drop mouse reports that leaked through Ink as text. With mouse tracking on,
-    // the terminal emits SGR reports (\x1b[<b;x;yM); Ink can't decode them, strips
-    // the ESC, and would insert "[<b;x;yM" into the buffer. The raw-stdin handler
-    // below parses the real events — here we just discard the leaked text.
-    if (input && isLeakedMouseInput(input)) return;
-    if (key.escape && suppressInkEscRef.current) {
-      suppressInkEscRef.current = false;
-      return;
-    }
-    if (key.backspace && suppressInkBackspaceRef.current) {
-      suppressInkBackspaceRef.current = false;
-      return;
-    }
-    if (key.delete && suppressInkDeleteRef.current) {
-      suppressInkDeleteRef.current = false;
-      return;
-    }
-    if (key.ctrl && key.leftArrow && suppressInkCtrlLeftRef.current) {
-      suppressInkCtrlLeftRef.current = false;
-      return;
-    }
-    if (key.ctrl && key.rightArrow && suppressInkCtrlRightRef.current) {
-      suppressInkCtrlRightRef.current = false;
-      return;
-    }
-    // Suppress duplicate Enter from useInput when raw handler caught Shift+Enter
-    if (key.return && suppressInkShiftEnterRef.current) {
-      suppressInkShiftEnterRef.current = false;
-      return;
-    }
-    onKey(input, key as KeyEvent);
+    if (!key.paste && input && isLeakedMouseInput(input)) return;
+    // Preserve the established Alt/Option+Backspace word-delete alias.
+    onKey(input, key.backspace && key.meta ? { ...key, ctrl: true } : (key as KeyEvent));
   });
 
-  // Catch Home/End/Backspace/Delete that Ink's useInput may not surface
-  // (especially on Windows Terminal where Backspace sends \x08 not \x7f).
-  //
-  // Also buffers a bare ESC for 10ms: if Backspace follows immediately,
-  // it's ALT+Backspace / Opt+Backspace (delete previous word). Arrow keys,
-  // Home, End, and other CSI sequences arrive within microseconds of the
-  // ESC byte so the 10ms window is wide enough to catch split sequences
-  // without introducing perceptible Esc latency. After 10ms with no
-  // follow-up, a real Esc press is emitted.
   const { stdin } = useStdin();
+  const reportParser = useRef(new TerminalReportParser());
+  const keyHandler = useRef(onKey);
+  keyHandler.current = onKey;
+  const disabledRef = useRef(disabled);
+  disabledRef.current = disabled;
   useEffect(() => {
     if (!stdin) return;
-    let escTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const handleData = (data: Buffer) => {
-      // Rejoin a mouse report the terminal split across chunks before ANY
-      // parser looks at the bytes — otherwise the leading half reaches the
-      // key parsers as garbage and the gesture is lost entirely.
-      const { consumed: s, pending } = splitTrailingMousePartial(
-        mousePartialRef.current + data.toString(),
-      );
-      mousePartialRef.current = pending;
-      if (s === '') return;
-
-      // While disabled (status==='aborting', confirm panel open) the parser
-      // stays MOUNTED — the sibling `hidden` prop documents why unmounting
-      // kills the F-key router — and forwards only the non-editing controls
-      // the abort contract promises stay live (app-key-handler: "all
-      // toggles allowed during abort"): F-keys, mouse reports, Home/End.
-      // Unmounting wholesale here left F2/F3/F4/F10, wheel scroll, and
-      // Home/End dead for the whole abort. Editing keys stay blocked, and
-      // Ctrl+C continues to arrive via Ink's useInput path above.
-      if (disabled) {
-        const disabledHomeEnd = isHomeEnd(s);
-        if (disabledHomeEnd === 'home') {
-          onKey('', { ...EMPTY_KEY, home: true });
-          return;
-        }
-        if (disabledHomeEnd === 'end') {
-          onKey('', { ...EMPTY_KEY, end: true });
-          return;
-        }
-        const disabledMouse = parseMouseEvents(s);
-        if (disabledMouse.length > 0) {
-          for (const ev of disabledMouse) {
-            onKey('', {
-              ...EMPTY_KEY,
-              mouse: ev,
-              wheelDeltaY: ev.kind === 'wheel' ? ev.wheel : undefined,
-            });
-          }
-          return;
-        }
-        const disabledFn = fnKey(s);
-        if (disabledFn !== null) onKey('', { ...EMPTY_KEY, fn: disabledFn });
-        return;
-      }
-
-      // ESC buffering: see comment block above.
-      if (s === '\x1b') {
-        escTimer = setTimeout(() => {
-          escTimer = null;
-          suppressInkEscRef.current = true;
-          onKey('', { ...EMPTY_KEY, escape: true });
-        }, 10);
-        return;
-      }
-      if (escTimer !== null) {
-        clearTimeout(escTimer);
-        escTimer = null;
-        if (s === '\x7f' || s === '\x08') {
-          suppressInkBackspaceRef.current = true;
-          onKey('', { ...EMPTY_KEY, backspace: true, ctrl: true });
-          return;
-        }
-        // Not Backspace — let Ink handle the full sequence.
-        return;
-      }
-
-      // Home / End
-      const homeEnd = isHomeEnd(s);
-      if (homeEnd === 'home') {
-        onKey('', { ...EMPTY_KEY, home: true });
-        return;
-      }
-      if (homeEnd === 'end') {
-        onKey('', { ...EMPTY_KEY, end: true });
-        return;
-      }
-
-      // Ctrl+Left / Ctrl+Right — Ink may surface these as plain arrows or text
-      // depending on terminal, so decode the raw CSI sequence explicitly.
-      const ctrlArrow = isCtrlArrow(s);
-      if (ctrlArrow === 'left') {
-        suppressInkCtrlLeftRef.current = true;
-        onKey('', { ...EMPTY_KEY, leftArrow: true, ctrl: true });
-        return;
-      }
-      if (ctrlArrow === 'right') {
-        suppressInkCtrlRightRef.current = true;
-        onKey('', { ...EMPTY_KEY, rightArrow: true, ctrl: true });
-        return;
-      }
-
-      // Shift+Enter via CSI u protocol (kitty, Windows Terminal, etc.).
-      // Some terminals send \x1b[13;2u for Shift+Enter; Ink's decode may not
-      // set key.shift=true, so we catch it here and fire a synthetic event.
-      if (s === '\x1b[13;2u') {
-        suppressInkShiftEnterRef.current = true;
-        onKey('', { ...EMPTY_KEY, return: true, shift: true });
-        return;
-      }
-
-      // Backspace / Delete — caught here because Ink's useInput may miss
-      // \x08 (BS) on Windows Terminal. We fire before Ink so the key is never lost.
-      // Set suppression flags so Ink's useInput doesn't fire a duplicate event
-      // (Backspace would delete two characters otherwise — both handlers fire onKey).
-      const bsdel = isBackspaceOrDelete(s);
-      if (bsdel === 'backspace') {
-        suppressInkBackspaceRef.current = true;
-        onKey('', { ...EMPTY_KEY, backspace: true });
-        return;
-      }
-      if (bsdel === 'delete') {
-        suppressInkDeleteRef.current = true;
-        onKey('', { ...EMPTY_KEY, delete: true });
-        return;
-      }
-      if (bsdel === 'metaBackspace') {
-        // ALT+Backspace / Opt+Backspace / Cmd+Backspace (macOS Terminal) —
-        // delete the previous word. Translates to Ctrl+Backspace which the
-        // handleKey router already handles by slicing from the last space
-        // to the cursor.
-        suppressInkBackspaceRef.current = true;
-        onKey('', { ...EMPTY_KEY, backspace: true, ctrl: true });
-        return;
-      }
-
-      // Mouse reports (SGR protocol — enabled per-overlay/globally; see mouse.ts
-      // and run-tui's lifecycle). A fast wheel scroll batches several reports into
-      // one chunk, so emit each. The leak-drop in useInput above stops Ink from
-      // also inserting these as text.
-      const mouseEvents = parseMouseEvents(s);
-      if (mouseEvents.length > 0) {
+    let pendingTimer: ReturnType<typeof setTimeout> | undefined;
+    const handleData = (data: Buffer | string) => {
+      if (pendingTimer !== undefined) clearTimeout(pendingTimer);
+      for (const report of reportParser.current.push(data.toString())) {
+        const mouseEvents = parseMouseEvents(report);
         for (const ev of mouseEvents) {
-          if (pointerHandlerRef.current(ev)) continue;
-          onKey('', {
+          if (!disabledRef.current && pointerHandlerRef.current(ev)) continue;
+          keyHandler.current('', {
             ...EMPTY_KEY,
             mouse: ev,
             wheelDeltaY: ev.kind === 'wheel' ? ev.wheel : undefined,
           });
         }
-        return;
+        const fn = fnKey(report);
+        if (fn !== null) pendingFunctions.current.push(fn);
       }
-
-      // Function keys (F1–F12)
-      const fn = fnKey(s);
-      if (fn !== null) onKey('', { ...EMPTY_KEY, fn });
+      pendingTimer = reportParser.current.hasPendingControl
+        ? setTimeout(() => reportParser.current.discardPendingControl(), 20)
+        : undefined;
     };
     stdin.on('data', handleData);
     return () => {
-      if (escTimer !== null) clearTimeout(escTimer);
+      if (pendingTimer !== undefined) clearTimeout(pendingTimer);
       stdin.off('data', handleData);
     };
-  }, [stdin, disabled, onKey]);
+  }, [stdin]);
 
   // Track terminal width so the input wraps at the real column count and the
   // box grows to exactly the number of visual rows the content needs.
