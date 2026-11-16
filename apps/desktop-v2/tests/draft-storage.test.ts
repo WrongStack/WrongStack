@@ -24,6 +24,26 @@ describe('session draft persistence', () => {
     await Promise.all([a, b]);
     expect(seen).toEqual(['a:first', 'b:other', 'a:second']);
   });
+  it('saves only the newest text of writes made while a save is in flight', async () => {
+    const seen: string[] = [];
+    let release!: () => void;
+    const first = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const writer = new DraftWriter(async (_id, text, revision) => {
+      seen.push(text);
+      if (text === 'h') await first;
+      return revision + 1;
+    });
+    writer.initialize('a', 0);
+    const typed = ['h', 'he', 'hel', 'hell', 'hello'].map((text) => writer.write('a', text));
+    release();
+    await Promise.all(typed);
+    expect(seen).toEqual(['h', 'hello']);
+    expect(writer.revision('a')).toBe(2);
+    await writer.write('a', 'hello!');
+    expect(seen).toEqual(['h', 'hello', 'hello!']);
+  });
   it('reports failed writes while allowing a later save', async () => {
     const writer = new DraftWriter(async (_id, text, revision) => {
       if (text === 'bad') throw Error('disk full');

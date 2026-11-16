@@ -1,6 +1,7 @@
 /** Preserve the order of saves for each session even if native IPC completes out of order. */
 export class DraftWriter {
   private pending = new Map<string, Promise<void>>();
+  private queued = new Map<string, { text: string; promise: Promise<void> }>();
   private revisions = new Map<string, number>();
   private blocked = new Set<string>();
   constructor(
@@ -20,11 +21,26 @@ export class DraftWriter {
   revision(id: string): number | undefined {
     return this.revisions.get(id);
   }
-  write(id: string, text: string): Promise<void> {
-    const previous = this.pending.get(id) ?? Promise.resolve();
-    const next = previous
+  /**
+   * Saves `text` after the session's earlier saves. While a save is in flight, later writes
+   * wait as one: each replaces the waiting text and shares its promise, so typing saves the
+   * newest text once per native round trip instead of once per keystroke.
+   */
+  write(id: string, value: string): Promise<void> {
+    const waiting = this.queued.get(id);
+    if (waiting) {
+      waiting.text = value;
+      return waiting.promise;
+    }
+    const entry = { text: value, promise: Promise.resolve() };
+    const previous = this.pending.get(id);
+    if (previous) this.queued.set(id, entry);
+    const next = (previous ?? Promise.resolve())
       .catch(() => {})
       .then(async () => {
+        // From here on a new write waits behind this save instead of joining it.
+        if (this.queued.get(id) === entry) this.queued.delete(id);
+        const text = entry.text;
         if (this.blocked.has(id))
           throw Error('DRAFT_CONFLICT: This draft changed in another window');
         const revision = this.revisions.get(id);
@@ -39,6 +55,7 @@ export class DraftWriter {
           throw error;
         }
       });
+    entry.promise = next;
     this.pending.set(id, next);
     void next
       .finally(() => {

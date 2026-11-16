@@ -15,7 +15,7 @@ import {
   Terminal,
   X,
 } from 'lucide-react';
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AgentModeControl } from './AgentModeControl';
 import { AutonomyControl, autonomyControlInputs } from './AutonomyControl';
 import { BtwReceipts } from './BtwReceipts';
@@ -47,6 +47,7 @@ import type { EngineState } from './engine-state';
 import { FailedRunContinue } from './FailedRunContinue';
 import { useHunts } from './HuntRounds';
 import { JournalRecallLoader } from './JournalRecallLoader';
+import { useLocalDraft } from './local-draft';
 import { Modal } from './Modal';
 import { PromptRefinement } from './PromptRefinement';
 import { PromptWorkspace } from './PromptWorkspace';
@@ -73,12 +74,12 @@ export function SessionComposer({
   state,
   send,
   command,
-  draft,
+  draft: savedDraft,
   mode,
   onModeChange,
   draftConflict,
   validateDraft,
-  onDraftChange,
+  onDraftChange: saveDraft,
   onSettings,
   projectId,
   projectRoot,
@@ -113,6 +114,8 @@ export function SessionComposer({
   refineDraftStorage?: FormDraftStorage;
 }) {
   const { t } = useDesktopText();
+  // Typing repaints the composer at once; the window catches up as an interruptible update.
+  const [draft, onDraftChange] = useLocalDraft(savedDraft, saveDraft);
   const [sending, setSending] = useState(false),
     [notice, setNotice] = useState(''),
     [error, setError] = useState(''),
@@ -168,16 +171,23 @@ export function SessionComposer({
     (prompts: string[]) => setJournalRecall({ session: state.sessionId, prompts }),
     [state.sessionId],
   );
+  // Prompt recall reads the conversation's prompts; re-split only when the messages change,
+  // not on every keystroke.
+  const recallMessages = useMemo(
+    () =>
+      state.messages.map((message) => ({
+        ...message,
+        text: splitReferenceMessage(message.text).text,
+      })),
+    [state.messages],
+  );
   const input = useComposerInput({
     draft,
     onDraftChange,
     references,
     onReferencesChange,
     recall: recallLoaded ? journalRecall.prompts : [],
-    messages: state.messages.map((message) => ({
-      ...message,
-      text: splitReferenceMessage(message.text).text,
-    })),
+    messages: recallMessages,
     projectId,
     textarea,
     engine: { command, state },

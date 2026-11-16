@@ -21,6 +21,10 @@
   line-height: 1.85;
   overflow-wrap: anywhere;
 }
+/* The paragraph a streaming answer is still writing: plain text until it completes. */
+.markdown-content .markdown-stream-tail {
+  white-space: pre-wrap;
+}
 /* Emphasis in an answer is bold text at the answer's size. The workspace's label rule
    (`.session-workspace strong`: 12 px, weight 500) also matched Markdown, so **bold** in a
    reply came out smaller and lighter than the sentence around it. */

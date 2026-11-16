@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-16T20:54:15.029Z",
+  "generatedAt": "2026-11-16T21:43:08.180Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6349,
-    "testFiles": 5381,
-    "sourceLines": 1312717,
+    "sourceFiles": 6350,
+    "testFiles": 5382,
+    "sourceLines": 1312867,
     "workspaceEdges": 250,
-    "moduleEdges": 18727,
+    "moduleEdges": 18728,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 350,
+    "testsWithoutTypecheck": 351,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1073
+    "testOnlyExports": 1074
   },
   "errors": [],
   "packageCycles": [],
@@ -386,8 +386,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 523,
-      "testFiles": 348,
+      "sourceFiles": 524,
+      "testFiles": 349,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2391,6 +2391,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/markdown-content.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/markdown-stream-blocks.test.ts",
         "projects": [
           "root-node"
         ]
@@ -34863,6 +34869,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/markdown-stream-blocks.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/mcp-auth-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -37336,8 +37349,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1072,
-      "relativeImports": 39
+      "lines": 1082,
+      "relativeImports": 40
     },
     {
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
@@ -37377,14 +37390,14 @@
       "relativeImports": 0
     },
     {
+      "file": "apps/desktop-v2/src/SessionComposer.tsx",
+      "lines": 1082,
+      "relativeImports": 40
+    },
+    {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
       "lines": 1080,
       "relativeImports": 11
-    },
-    {
-      "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1072,
-      "relativeImports": 39
     },
     {
       "file": "packages/webui/src/components/ChimeraReviewsView.tsx",
@@ -37825,6 +37838,10 @@
     {
       "file": "apps/desktop-v2/src/MailboxUnread.tsx",
       "name": "mailboxUnreadSummary"
+    },
+    {
+      "file": "apps/desktop-v2/src/MarkdownContent.tsx",
+      "name": "splitStreamBlocks"
     },
     {
       "file": "apps/desktop-v2/src/memory-injections.ts",

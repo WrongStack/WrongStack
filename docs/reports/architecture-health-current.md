@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-16T20:54:15.029Z
+**Generated:** 2026-11-16T21:43:08.180Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,15 +8,15 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 48 |
-| Production source files | 6349 |
-| Production source lines | 1312717 |
-| Test files | 5381 |
+| Production source files | 6350 |
+| Production source lines | 1312867 |
+| Test files | 5382 |
 | Workspace dependency edges | 250 |
-| Relative module edges | 18727 |
+| Relative module edges | 18728 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
-| Tests without TypeScript test-project coverage | 350 |
+| Tests without TypeScript test-project coverage | 351 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
@@ -38,7 +38,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/contracts | 132 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 193 | 201 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 661 | 732 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 523 | 348 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 524 | 349 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 63 | 11 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 24 | 28 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 38 | @wrongstack/persistence |
@@ -96,8 +96,8 @@ None.
 | 1519 | `packages/core/src/execution/design-dna.ts` |
 | 1162 | `packages/core/src/execution/design-md.ts` |
 | 1110 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
+| 1082 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 1080 | `apps/desktop-v2/src/ProjectGoals.tsx` |
-| 1072 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 1042 | `packages/webui/src/components/ChimeraReviewsView.tsx` |
 | 966 | `apps/desktop-v2/src/ProjectChimera.tsx` |
 | 953 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
@@ -143,13 +143,13 @@ None.
 
 ## Exports only tests reference
 
-- 1073 runtime exports are referenced by tests and by no other production file.
+- 1074 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 
 ## TypeScript test coverage debt
 
-- 350 test files are not included in a package TypeScript test project.
+- 351 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.

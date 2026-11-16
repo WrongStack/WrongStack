@@ -6,7 +6,7 @@ import {
 } from '@wrongstack/project-surfaces/lib/perf-run-message';
 import { stripNextStepsBlock } from '@wrongstack/webui-protocol';
 import { Code2, Pencil, Pin, PinOff, RotateCcw } from 'lucide-react';
-import { lazy, type ReactNode, Suspense, useState } from 'react';
+import { lazy, type ReactNode, Suspense, useMemo, useState } from 'react';
 import { BrainMessageCard } from './BrainMessageCard';
 import { replayedBrainMessage } from './brain-message';
 import { ChimeraMessageCard } from './ChimeraMessageCard';
@@ -82,6 +82,10 @@ export function TranscriptMessage({
   const brain =
     !user && !message.council ? (message.brain ?? replayedBrainMessage(message.text)) : null;
   const answer = !user && !message.council && !message.chimera && !brain;
+  const answerText = useMemo(
+    () => (answer ? stripNextStepsBlock(message.text) : ''),
+    [answer, message.text],
+  );
   return (
     <>
       {day && (
@@ -167,7 +171,7 @@ export function TranscriptMessage({
           ) : answer && source ? (
             <pre className="message-source">{message.text}</pre>
           ) : answer ? (
-            <MarkdownContent text={stripNextStepsBlock(message.text)} onLink={onLink} />
+            <MarkdownContent text={answerText} onLink={onLink} streaming={activityLive} />
           ) : (
             <UserComposerMessage text={message.text} />
           )}
