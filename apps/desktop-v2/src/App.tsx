@@ -2,6 +2,7 @@ import { ExternalLink, Moon, Plus, Radio, Sun, X } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
 import { Trans } from 'react-i18next';
 import { useDesktopText } from './desktop-i18n';
+import { desktopVersion } from './desktop-version';
 import { FleetPanel } from './FleetPanel';
 import { HostBuildNotice } from './HostBuildNotice';
 import { sessionTitle } from './model';
@@ -88,6 +89,23 @@ export function App() {
             )}
           </h1>
           <div className="topbar-right">
+            {vm.active.length > 0 && (
+              <button
+                type="button"
+                className="topbar-live"
+                title={t('topbar.liveTitle')}
+                onClick={() => {
+                  setFilter('active');
+                  setProject(null);
+                  setSection('fleet');
+                  setSelected(null);
+                }}
+              >
+                <i aria-hidden="true" />
+                {t('topbar.live', { count: vm.active.length })}
+              </button>
+            )}
+            {desktopVersion() && <span className="topbar-version">v{desktopVersion()}</span>}
             {currentProject && !focused && section !== 'wrongstack' && (
               <button
                 type="button"

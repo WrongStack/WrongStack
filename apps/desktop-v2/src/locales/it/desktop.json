@@ -116,6 +116,8 @@
     "olderHost": "L’host delle sessioni in esecuzione è più vecchio di questo desktop. Arresta le sue sessioni e riavvia il desktop per rimuovere le sessioni."
   },
   "topbar": {
+    "live": "{{count}} attive",
+    "liveTitle": "Mostra le sessioni attive",
     "project": "Progetto",
     "projectWindow": "Finestra del progetto",
     "openInWindow": "Apri in una finestra separata",
@@ -675,6 +677,13 @@
     "automations": "Attività pianificate e workflow ripetibili per {{name}}."
   },
   "overview": {
+    "kpi": {
+      "live": "Sessioni attive",
+      "sessions": "{{count}} sessioni in questo progetto",
+      "memories": "Memorie attive",
+      "boards": "{{count}} bacheche",
+      "packages": "Pacchetti mappati"
+    },
     "memory": {
       "art": "Memoria del progetto",
       "body": "Mantieni le decisioni collegate al codice e tra loro.",
@@ -918,7 +927,9 @@
   },
   "working": {
     "waiting": "In attesa delle tue risposte…",
-    "busy": "WrongStack sta lavorando…"
+    "busy": "WrongStack sta lavorando…",
+    "thinking": "Sto pensando",
+    "running": "Esecuzione di {{tool}}"
   },
   "turn": {
     "activity": "Attività di esecuzione",
@@ -9476,6 +9487,14 @@
     }
   },
   "fleetView": {
+    "kpi": {
+      "liveNote": "Agenti {{agents}} · terminali {{terminals}}",
+      "attention": "Richiedono attenzione",
+      "attentionNote": "Errori ed esecuzioni interrotte",
+      "projectsNote": "{{count}} con lavoro attivo",
+      "today": "Avviate oggi",
+      "totalNote": "{{count}} sessioni in totale"
+    },
     "sessionsLabel": "Sessioni",
     "activeOne": "sessione attiva",
     "activeMany": "sessioni attive",

@@ -116,6 +116,8 @@
     "olderHost": "Çalışan oturum sunucusu bu masaüstünden eski. Oturum kaldırmak için oturumlarını durdurup masaüstünü yeniden başlat."
   },
   "topbar": {
+    "live": "{{count}} canlı",
+    "liveTitle": "Canlı oturumları göster",
     "project": "Proje",
     "projectWindow": "Proje penceresi",
     "openInWindow": "Kendi penceresinde aç",
@@ -675,6 +677,13 @@
     "automations": "{{name}} için zamanlanmış işler ve tekrarlanabilir iş akışları."
   },
   "overview": {
+    "kpi": {
+      "live": "Canlı oturumlar",
+      "sessions": "Bu projede {{count}} oturum",
+      "memories": "Etkin hafızalar",
+      "boards": "{{count}} pano",
+      "packages": "Haritalanan paketler"
+    },
     "memory": {
       "art": "Proje belleği",
       "body": "Kararları koda ve birbirine bağlı tut.",
@@ -918,7 +927,9 @@
   },
   "working": {
     "waiting": "Yanıtların bekleniyor…",
-    "busy": "WrongStack çalışıyor…"
+    "busy": "WrongStack çalışıyor…",
+    "thinking": "Düşünüyor",
+    "running": "{{tool}} çalışıyor"
   },
   "turn": {
     "activity": "Çalışma etkinliği",
@@ -9476,6 +9487,14 @@
     }
   },
   "fleetView": {
+    "kpi": {
+      "liveNote": "{{agents}} ajan · {{terminals}} terminal",
+      "attention": "Dikkat gerekiyor",
+      "attentionNote": "Hatalar ve yarıda kalan çalışmalar",
+      "projectsNote": "{{count}} tanesinde canlı iş",
+      "today": "Bugün başlayan",
+      "totalNote": "Toplam {{count}} oturum"
+    },
     "sessionsLabel": "Oturumlar",
     "activeOne": "etkin oturum",
     "activeMany": "etkin oturum",

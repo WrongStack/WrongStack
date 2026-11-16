@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
-import { LoaderCircle, Wrench } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { CheckCircle2, LoaderCircle, Sparkles, Wrench, XCircle } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { formatTokens, type TurnStats } from './context-usage';
 import {
   type ConversationDisplay,
@@ -93,15 +93,34 @@ function formatDuration(ms: number): string {
   if (minutes < 60) return `${minutes} min ${String(seconds % 60).padStart(2, '0')} s`;
   return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')} min`;
 }
-/** The running turn's line under the conversation, with how long it has been running. */
+/** The last non-empty line of the reasoning text, shortened for one line of the card. */
+function lastThought(text: string): string {
+  const line =
+    text
+      .split('\n')
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .at(-1) ?? '';
+  return line.length > 160 ? `…${line.slice(-159)}` : line;
+}
+/**
+ * The running turn's card under the conversation: how long it has been running and what it is
+ * doing now (the tool it runs or the last line it thought), as the WebUI's working bubble shows.
+ * Its motion uses transform and opacity only, so it never repaints the transcript around it.
+ */
 export function AgentWorking({
   waiting,
   since,
+  timeline = [],
+  showThinking = true,
 }: {
   /** The turn waits for answers to its questions. */
   waiting: boolean;
   /** When the turn's first iteration started; unknown in journals without frame times. */
   since: number | null;
+  /** The running turn's frames, for the step it is on now. */
+  timeline?: readonly EngineEvent[] | undefined;
+  showThinking?: boolean | undefined;
 }) {
   const { t } = useDesktopText();
   const [now, setNow] = useState(() => Date.now());
@@ -110,11 +129,49 @@ export function AgentWorking({
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [since]);
+  const step = useMemo(() => {
+    const row = activityRows(timeline)
+      .filter((item) => item.kind === 'tool' || item.kind === 'reasoning')
+      .at(-1);
+    if (!row) return null;
+    if (row.kind === 'reasoning')
+      return showThinking && row.output ? { thinking: true, text: lastThought(row.output) } : null;
+    return row.status === 'running' ? { thinking: false, text: row.title } : null;
+  }, [timeline, showThinking]);
   return (
-    <div className="agent-working">
-      <LoaderCircle size={13} className="spin" />
-      {waiting ? t('working.waiting') : t('working.busy')}
-      {since ? <span className="agent-working-elapsed"> {formatDuration(now - since)}</span> : null}
+    <div className={`agent-working${waiting ? ' waiting' : ''}`} role="status">
+      <span className="agent-working-orb" aria-hidden="true">
+        <Sparkles size={13} />
+      </span>
+      <span className="agent-working-body">
+        <span className="agent-working-head">
+          <strong>{waiting ? t('working.waiting') : t('working.busy')}</strong>
+          {!waiting && (
+            <span className="agent-working-dots" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </span>
+          )}
+          {since ? (
+            <span className="agent-working-elapsed">{formatDuration(now - since)}</span>
+          ) : null}
+        </span>
+        {step && !waiting && (
+          <span className={`agent-working-step${step.thinking ? ' thinking' : ''}`}>
+            {step.thinking ? (
+              <>
+                <em>{t('working.thinking')}</em> {step.text}
+              </>
+            ) : (
+              <>
+                <LoaderCircle size={11} className="spin" />{' '}
+                {t('working.running', { tool: step.text })}
+              </>
+            )}
+          </span>
+        )}
+      </span>
     </div>
   );
 }
@@ -166,9 +223,19 @@ export function LiveRunActivity({
     <details className="chat-run-activity" open={live}>
       <summary>
         <Wrench size={12} /> {t('turn.activity')}
-        {calls ? ` · ${toolCalls(calls, t)}` : ''}
-        {summary.failed ? ` · ${t('turn.failed', { count: summary.failed })}` : ''}
-        {summary.text ? ` · ${summary.text}` : ''}
+        {calls ? (
+          <span className={`turn-chip ${live ? 'live' : 'ok'}`}>
+            {live ? <LoaderCircle size={11} className="spin" /> : <CheckCircle2 size={11} />}
+            {toolCalls(calls, t)}
+          </span>
+        ) : null}
+        {summary.failed ? (
+          <span className="turn-chip failed">
+            <XCircle size={11} />
+            {t('turn.failed', { count: summary.failed })}
+          </span>
+        ) : null}
+        {summary.text ? <span className="turn-summary-text">{summary.text}</span> : null}
       </summary>
       <SessionActivity
         compact

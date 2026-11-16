@@ -56,10 +56,42 @@ describe('turn duration', () => {
   it('shows how long the running turn has run, when the journal knows its start', () => {
     const since = Date.now() - 12_000;
     expect(renderToStaticMarkup(createElement(AgentWorking, { waiting: false, since }))).toMatch(
-      /WrongStack is working…<span class="agent-working-elapsed"> 1[23] s<\/span>/,
+      /WrongStack is working…<\/strong>.*<span class="agent-working-elapsed">1[23] s<\/span>/,
     );
     expect(
       renderToStaticMarkup(createElement(AgentWorking, { waiting: true, since: null })),
     ).not.toContain('agent-working-elapsed');
+  });
+
+  it('names the step the running turn is on: the running tool, or its last thought', () => {
+    const tool = renderToStaticMarkup(
+      createElement(AgentWorking, {
+        waiting: false,
+        since: null,
+        timeline: [{ type: 'tool.started', payload: { id: 't1', name: 'bash', input: {} } }],
+      }),
+    );
+    expect(tool).toContain('agent-working-step');
+    expect(tool).toContain('bash');
+    const thought = renderToStaticMarkup(
+      createElement(AgentWorking, {
+        waiting: false,
+        since: null,
+        timeline: [
+          { type: 'provider.thinking_delta', payload: { text: 'First idea\nCheck the parser' } },
+        ],
+      }),
+    );
+    expect(thought).toContain('Check the parser');
+    expect(thought).not.toContain('First idea');
+    const hidden = renderToStaticMarkup(
+      createElement(AgentWorking, {
+        waiting: false,
+        since: null,
+        showThinking: false,
+        timeline: [{ type: 'provider.thinking_delta', payload: { text: 'Secret plan' } }],
+      }),
+    );
+    expect(hidden).not.toContain('Secret plan');
   });
 });

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-16T21:43:08.180Z
+**Generated:** 2026-11-16T22:26:57.680Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6350 |
-| Production source lines | 1312867 |
+| Production source lines | 1313035 |
 | Test files | 5382 |
 | Workspace dependency edges | 250 |
-| Relative module edges | 18728 |
+| Relative module edges | 18730 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -106,7 +106,7 @@ None.
 | 898 | `apps/desktop-v2/src/SkillLibrary.tsx` |
 | 878 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
 | 877 | `packages/builtin-plugins/src/review-followup-briefing.ts` |
-| 870 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
+| 875 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
 | 869 | `packages/runtime/src/chimera/execution-chimera-review.ts` |
 | 853 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
 | 853 | `packages/plugins/src/adversary-mode/evaluator.ts` |

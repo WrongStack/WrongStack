@@ -589,3 +589,72 @@
 .session-tab-list > .new-session-tab {
   flex-shrink: 0;
 }
+/* Mission Control KPI tiles (WebUI dashboard tiles): separate cards, hover lift by transform. */
+.metrics-strip.fleet-kpis {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin: -4px 0 18px;
+  border: 0;
+  background: none;
+}
+.fleet-kpis .metric {
+  position: relative;
+  overflow: hidden;
+  padding: 16px 18px 15px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: linear-gradient(160deg, var(--accent-soft), transparent 55%), var(--raised);
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease;
+}
+.fleet-kpis .metric:last-child {
+  border: 1px solid var(--border);
+}
+.fleet-kpis .metric:hover {
+  border-color: var(--accent-border);
+  transform: translateY(-2px);
+}
+.fleet-kpis .metric::after {
+  position: absolute;
+  right: -18px;
+  bottom: -18px;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--accent);
+  content: "";
+  opacity: 0.06;
+}
+.fleet-kpis .metric > strong {
+  margin-top: 10px;
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
+}
+.fleet-kpis .metric-live-dot {
+  width: 7px;
+  height: 7px;
+  animation: kpi-live 1.6s ease-in-out infinite;
+}
+.fleet-kpis .metric-label > svg {
+  color: var(--accent);
+}
+.fleet-kpis .metric-label > span:not(.live-label) {
+  display: inline-block;
+}
+.fleet-kpis .metric-label > span:not(.live-label)::first-letter {
+  text-transform: uppercase;
+}
+@keyframes kpi-live {
+  50% {
+    opacity: 0.3;
+    transform: scale(0.7);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fleet-kpis .metric,
+  .fleet-kpis .metric-live-dot {
+    animation: none;
+    transition: none;
+  }
+}

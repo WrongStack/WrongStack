@@ -10,6 +10,7 @@ vi.mock('../src/useDesktop', () => ({
     section: shell.section,
     snapshot: { projects: [], sessions: [] },
     attention: [],
+    active: [],
     connected: true,
   }),
 }));

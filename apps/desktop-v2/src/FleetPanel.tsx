@@ -1,4 +1,15 @@
-import { ArrowRight, FolderPlus, Layers3, Plus, Search, Terminal } from 'lucide-react';
+import {
+  Activity,
+  AlertTriangle,
+  ArrowRight,
+  CalendarClock,
+  FolderGit2,
+  FolderPlus,
+  Layers3,
+  Plus,
+  Search,
+  Terminal,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import {
@@ -8,7 +19,7 @@ import {
   writePinnedSessions,
 } from './model';
 import { addProject, native } from './platform';
-import { SessionCard } from './SessionCard';
+import { Metric, SessionCard } from './SessionCard';
 import type { DesktopController } from './useDesktop';
 
 export function FleetPanel({ vm }: { vm: DesktopController }) {
@@ -51,18 +62,45 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
       (!project || item.id === project) &&
       sessions.some((session) => session.projectId === item.id),
   );
+  const liveAgents = active.filter((session) => session.kind === 'agent').length;
+  const busyProjects = new Set(active.map((session) => session.projectId)).size;
+  const midnight = new Date().setHours(0, 0, 0, 0);
+  const startedToday = snapshot.sessions.filter((session) => session.createdAt >= midnight).length;
   return (
     <section className="sessions-region" aria-label={t('fleetView.sessionsLabel')}>
+      <div className="metrics-strip fleet-kpis">
+        <Metric
+          icon={<Activity size={14} />}
+          label={t(active.length === 1 ? 'fleetView.activeOne' : 'fleetView.activeMany')}
+          value={active.length}
+          live={active.length > 0}
+          note={t('fleetView.kpi.liveNote', {
+            agents: liveAgents,
+            terminals: active.length - liveAgents,
+          })}
+        />
+        <Metric
+          icon={<AlertTriangle size={14} />}
+          label={t('fleetView.kpi.attention')}
+          value={attention.length}
+          note={t('fleetView.kpi.attentionNote')}
+        />
+        <Metric
+          icon={<FolderGit2 size={14} />}
+          label={t(
+            snapshot.projects.length === 1 ? 'fleetView.projectOne' : 'fleetView.projectMany',
+          )}
+          value={snapshot.projects.length}
+          note={t('fleetView.kpi.projectsNote', { count: busyProjects })}
+        />
+        <Metric
+          icon={<CalendarClock size={14} />}
+          label={t('fleetView.kpi.today')}
+          value={startedToday}
+          note={t('fleetView.kpi.totalNote', { count: snapshot.sessions.length })}
+        />
+      </div>
       <div className="workspace-overview">
-        <span>
-          <i className="status-dot running" />
-          <strong>{active.length}</strong>{' '}
-          {t(active.length === 1 ? 'fleetView.activeOne' : 'fleetView.activeMany')}
-        </span>
-        <span>
-          <strong>{snapshot.projects.length}</strong>{' '}
-          {t(snapshot.projects.length === 1 ? 'fleetView.projectOne' : 'fleetView.projectMany')}
-        </span>
         {attention.length > 0 && (
           <button type="button" onClick={() => setFilter('attention')}>
             {t('fleetView.needAttention', { count: attention.length })} <ArrowRight size={12} />

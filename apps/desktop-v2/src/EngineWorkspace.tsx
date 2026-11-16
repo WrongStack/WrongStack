@@ -624,7 +624,12 @@ export function EngineWorkspace({
                 />
               ))}
               {state.running && (
-                <AgentWorking waiting={state.inputs.length > 0} since={state.runStartAt} />
+                <AgentWorking
+                  waiting={state.inputs.length > 0}
+                  since={state.runStartAt}
+                  timeline={state.runTimeline}
+                  showThinking={display.showThinkingLogs}
+                />
               )}
               <div ref={end} />
             </>

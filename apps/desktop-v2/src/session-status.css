@@ -116,3 +116,194 @@ strong.context-critical {
 .git-chip .git-deleted {
   color: var(--danger);
 }
+
+/* The running turn's card (WebUI working bubble): motion is transform/opacity only. */
+.agent-working {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 850px;
+  margin: 6px 0 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--accent-border);
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent-soft), transparent 70%), var(--raised);
+  color: var(--muted);
+  font-size: 12px;
+}
+.agent-working.waiting {
+  border-color: hsl(var(--ws-warning) / 0.45);
+  background:
+    linear-gradient(135deg, hsl(var(--ws-warning) / 0.12), transparent 70%), var(--raised);
+}
+.agent-working-orb {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: var(--on-accent);
+  background: var(--accent);
+  isolation: isolate;
+}
+.agent-working-orb::before {
+  position: absolute;
+  inset: -4px;
+  border: 2px solid transparent;
+  border-top-color: var(--accent);
+  border-right-color: var(--accent-border);
+  border-radius: 50%;
+  content: "";
+  animation: agent-orbit 1.4s linear infinite;
+}
+.agent-working-orb::after {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  content: "";
+  opacity: 0.35;
+  animation: agent-ripple 1.8s ease-out infinite;
+  z-index: -1;
+}
+.agent-working.waiting .agent-working-orb {
+  background: hsl(var(--ws-warning));
+}
+.agent-working.waiting .agent-working-orb::before,
+.agent-working.waiting .agent-working-orb::after {
+  animation: none;
+  opacity: 0;
+}
+.agent-working-body {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+.agent-working-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+}
+.agent-working-head strong,
+.agent-working-elapsed {
+  white-space: nowrap;
+}
+.agent-working-head strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.agent-working-elapsed {
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+.agent-working-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+.agent-working-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: agent-bounce 1s ease-in-out infinite;
+}
+.agent-working-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.agent-working-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.agent-working-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 11.5px;
+}
+.agent-working-step.thinking {
+  display: block;
+  font-family: inherit;
+  font-style: italic;
+}
+.agent-working-step em {
+  color: var(--accent);
+  font-style: normal;
+  font-weight: 600;
+}
+@keyframes agent-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes agent-ripple {
+  from {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  to {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+@keyframes agent-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  40% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+/* A turn's activity summary: status chips instead of a plain line. */
+.turn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  vertical-align: 1px;
+}
+.turn-chip.live {
+  border-color: var(--accent-border);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.turn-chip.ok {
+  border-color: hsl(var(--ws-success) / 0.4);
+  color: hsl(var(--ws-success));
+  background: hsl(var(--ws-success) / 0.1);
+}
+.turn-chip.failed {
+  border-color: hsl(var(--ws-destructive) / 0.45);
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+.turn-summary-text {
+  margin-left: 8px;
+  color: var(--muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-working-orb::before,
+  .agent-working-orb::after,
+  .agent-working-dots i {
+    animation: none;
+  }
+}

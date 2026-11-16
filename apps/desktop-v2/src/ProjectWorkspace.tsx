@@ -1,4 +1,15 @@
-import { ArrowRight, BookOpen, Brain, Network, Settings, Terminal, Workflow } from 'lucide-react';
+import {
+  Activity,
+  ArrowRight,
+  BookOpen,
+  Boxes,
+  Brain,
+  KanbanSquare,
+  Network,
+  Settings,
+  Terminal,
+  Workflow,
+} from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import { projectHttp } from './engine-http';
@@ -27,6 +38,7 @@ import {
   requirementRecordDraftStorage,
 } from './platform';
 import { RuntimeGate } from './RuntimeGate';
+import { Metric } from './SessionCard';
 import { SkillLibrary } from './SkillLibrary';
 import type { DesktopController } from './useDesktop';
 import { useProjectEngine } from './useEngine';
@@ -423,8 +435,36 @@ function ProjectOverview({
   }, [command, http]);
   const sessions = vm.snapshot.sessions.filter((session) => session.projectId === project.id);
   const tasks = boards.reduce((sum, board) => sum + Number(board['taskCount'] ?? 0), 0);
+  const live = sessions.filter(isLive).length;
   return (
     <section className="project-overview">
+      <div className="metrics-strip fleet-kpis project-kpis">
+        <Metric
+          icon={<Activity size={14} />}
+          label={t('overview.kpi.live')}
+          value={live}
+          live={live > 0}
+          note={t('overview.kpi.sessions', { count: sessions.length })}
+        />
+        <Metric
+          icon={<Brain size={14} />}
+          label={t('pages.memory')}
+          value={memories ?? '—'}
+          note={t('overview.kpi.memories')}
+        />
+        <Metric
+          icon={<KanbanSquare size={14} />}
+          label={t('pages.kanban')}
+          value={tasks}
+          note={t('overview.kpi.boards', { count: boards.length })}
+        />
+        <Metric
+          icon={<Boxes size={14} />}
+          label={t('pages.atlas')}
+          value={packages ?? '—'}
+          note={t('overview.kpi.packages')}
+        />
+      </div>
       <div className="project-destination-grid">
         <button
           type="button"

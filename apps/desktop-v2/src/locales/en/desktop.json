@@ -116,6 +116,8 @@
     "olderHost": "The running session host is older than this desktop. Stop its sessions and restart the desktop to remove sessions."
   },
   "topbar": {
+    "live": "{{count}} live",
+    "liveTitle": "Show live sessions",
     "project": "Project",
     "projectWindow": "Project window",
     "openInWindow": "Open in its own window",
@@ -675,6 +677,13 @@
     "automations": "Scheduled jobs and repeatable workflows for {{name}}."
   },
   "overview": {
+    "kpi": {
+      "live": "Live sessions",
+      "sessions": "{{count}} sessions in this project",
+      "memories": "Active memories",
+      "boards": "{{count}} boards",
+      "packages": "Packages mapped"
+    },
     "memory": {
       "art": "Project memory",
       "body": "Keep decisions connected to the code and to each other.",
@@ -918,7 +927,9 @@
   },
   "working": {
     "waiting": "Waiting for your answers…",
-    "busy": "WrongStack is working…"
+    "busy": "WrongStack is working…",
+    "thinking": "Thinking",
+    "running": "Running {{tool}}"
   },
   "turn": {
     "activity": "Run activity",
@@ -9476,6 +9487,14 @@
     }
   },
   "fleetView": {
+    "kpi": {
+      "liveNote": "Agents {{agents}} · terminals {{terminals}}",
+      "attention": "Need attention",
+      "attentionNote": "Errors and interrupted runs",
+      "projectsNote": "{{count}} with live work",
+      "today": "Started today",
+      "totalNote": "{{count}} sessions in total"
+    },
     "sessionsLabel": "Sessions",
     "activeOne": "active session",
     "activeMany": "active sessions",

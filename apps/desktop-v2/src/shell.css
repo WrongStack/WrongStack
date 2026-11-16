@@ -591,3 +591,83 @@
   width: 18px;
   height: 18px;
 }
+/* Top bar: live-run chip and version badge (WebUI run-status and version chips). */
+.topbar-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--accent-border);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-ink, var(--accent));
+  font-size: 12px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.topbar-live:hover {
+  transform: translateY(-1px);
+}
+.topbar-live > i {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.topbar-live > i::after {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  content: "";
+  animation: live-ring 1.6s ease-out infinite;
+}
+.topbar-version {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+/* Sidebar: the open session carries an accent rule; a live session's dot sends a ring out. */
+.explorer .tree-session.chosen {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.status-dot.running {
+  position: relative;
+}
+.status-dot.running::after {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  content: "";
+  animation: live-ring 1.8s ease-out infinite;
+}
+@keyframes live-ring {
+  from {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  to {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .topbar-live > i::after,
+  .status-dot.running::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+@media (max-width: 800px) {
+  .topbar-version {
+    display: none;
+  }
+}
