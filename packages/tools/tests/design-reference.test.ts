@@ -363,4 +363,40 @@ describe('design_reference capability gates', () => {
     expect(designTool.permission).toBe('confirm');
     expect(designTool.subjectKey).toBe('url');
   });
+
+  it('compares BOM-prefixed dna.json files without SyntaxError', async () => {
+    const fsPromises = await import('node:fs/promises');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const { designReferenceTool } = await import('../src/design-reference.js');
+    const root = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'dref-bom-'));
+    try {
+      const refDir = path.join(root, '.design', 'references', 'site-a');
+      await fsPromises.mkdir(refDir, { recursive: true });
+      const dna = {
+        url: 'https://example.com',
+        capturedAt: '2026-01-01T00:00:00.000Z',
+        color: { roles: { background: '#ffffff', text: '#111111' } },
+        type: { ratio: 1.25, scale: [16, 20] },
+        space: { unit: 8, scale: [8, 16] },
+        shape: { radius: 8 },
+        components: {},
+        layout: [],
+        motion: { duration: null },
+      };
+      await fsPromises.writeFile(
+        path.join(refDir, 'dna.json'),
+        `\uFEFF${JSON.stringify(dna)}`,
+        'utf8',
+      );
+      const out = await designReferenceTool.execute(
+        { action: 'compare', reference: 'site-a', against: 'site-a' },
+        { projectRoot: root, cwd: root } as never,
+        { signal: new AbortController().signal },
+      );
+      expect(out).toBeDefined();
+    } finally {
+      await fsPromises.rm(root, { recursive: true, force: true });
+    }
+  });
 });

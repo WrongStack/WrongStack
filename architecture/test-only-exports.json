@@ -977,6 +977,7 @@
       "isOpenMode"
     ],
     "packages/hq/src/factory.ts": [
+      "discoverLocalHqEndpoint",
       "resolveHqConfigFromEnv"
     ],
     "packages/hq/src/host-health.ts": [
@@ -1607,6 +1608,7 @@
       "refLooksLikeOutsidePath"
     ],
     "packages/tools/src/format.ts": [
+      "detectFixer",
       "parseFormatterCounts"
     ],
     "packages/tools/src/grep.ts": [

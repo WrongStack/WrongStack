@@ -83,9 +83,11 @@ export function discoverLocalHqEndpoint(
 
 function readFirstClientTokenFromAuthFile(dataDir: string): string | undefined {
   try {
-    const raw = fs.readFileSync(hqAuthFilePath(dataDir), 'utf8');
-    const parsed = JSON.parse(raw) as HqAuthFile;
-    return parsed.clientTokens?.find((t) => t.token.trim().length > 0)?.token;
+    const raw = fs.readFileSync(hqAuthFilePath(dataDir), 'utf8').replace(/^\uFEFF/, '');
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+    const tokens = (parsed as HqAuthFile).clientTokens;
+    return Array.isArray(tokens) ? tokens.find((t) => t.token.trim().length > 0)?.token : undefined;
   } catch {
     return undefined;
   }

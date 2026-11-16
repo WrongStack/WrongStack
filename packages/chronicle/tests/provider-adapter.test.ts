@@ -315,4 +315,31 @@ describe('wireProviderAttemptsToChronicle', () => {
     expect(recorded[0]?.scope).not.toHaveProperty('taskId');
     expect(recorded[0]?.scope).not.toHaveProperty('kanbanBoardId');
   });
+
+  it('clamps non-finite or negative durationMs to "0" durationNs', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-prov-nan-'));
+    tempDirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
+    const events = new EventBus();
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', sessionId: 'sess' },
+      'trace',
+    );
+    const unsubscribe = wireProviderAttemptsToChronicle({ events, journal, context });
+    events.emit('provider.attempt.completed', {
+      sessionId: 'sess',
+      logicalRequestId: 'req-nan',
+      attemptId: 'att-nan',
+      attempt: 0,
+      providerId: 'anthropic',
+      model: 'claude',
+      streaming: false,
+      startedAt: new Date().toISOString(),
+      endedAt: new Date().toISOString(),
+      durationMs: Number.NaN,
+    } as never);
+    const recorded = await journal.readAll();
+    unsubscribe();
+    expect(recorded[0]?.durationNs).toBe('0');
+  });
 });

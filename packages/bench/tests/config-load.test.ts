@@ -50,4 +50,15 @@ describe('loadBenchConfig', () => {
     await fs.writeFile(file, '{ not valid json');
     await expect(loadBenchConfig(file)).rejects.toThrow(/is not valid JSON/);
   });
+
+  it('strips UTF-8 BOM from bench.config.json', async () => {
+    const file = path.join(dir, 'bom.config.json');
+    await fs.writeFile(
+      file,
+      `\uFEFF${JSON.stringify({ cells: [{ provider: 'anthropic', model: 'claude-opus-4-8' }] })}`,
+      'utf8',
+    );
+    const cfg = await loadBenchConfig(file);
+    expect(cfg.cells[0]?.model).toBe('claude-opus-4-8');
+  });
 });

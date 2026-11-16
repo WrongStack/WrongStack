@@ -199,9 +199,10 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
                 const isYolo = opts.getYolo?.() ?? false;
                 const autoSuggestions = opts.getAutoSuggestions?.() ?? [];
                 const useAutoSuggestions = isYolo && autoSuggestions.length > 0;
+                // Function replacer: suggestion text must not be parsed as `$&`/`$$` patterns.
                 const promptToFeed =
                   useAutoSuggestions && opts.autonomyNextPrompt
-                    ? opts.autonomyNextPrompt.replace('{{suggestion}}', top)
+                    ? opts.autonomyNextPrompt.replace('{{suggestion}}', () => top)
                     : top;
                 const submitted = await runAutoProceed(
                   opts,

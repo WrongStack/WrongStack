@@ -502,4 +502,15 @@ describe('useNextStepsAutoSubmit', () => {
       true,
     );
   });
+
+  it('preserves literal $& and $$ sequences in autonomyNextPrompt suggestion interpolation', () => {
+    const suggestion = 'fix $& and $$ escaping';
+    const candidate = selectAutoProceedCandidate({
+      todos: [],
+      autoSuggestions: [suggestion],
+      yolo: true,
+      autonomyNextPrompt: 'Next: {{suggestion}}',
+    });
+    expect(candidate?.prompt).toBe(`Next: ${suggestion}`);
+  });
 });

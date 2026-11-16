@@ -33,13 +33,15 @@ function parseRemoteTargetText(input: string): RemoteTarget {
   const text = input.trim();
   if (text.startsWith('ssh://')) {
     let url: URL;
+    let user: string;
+    let path: string;
     try {
       url = new URL(text);
+      user = url.username ? `${decodeURIComponent(url.username)}@` : '';
+      path = decodeURIComponent(url.pathname);
     } catch {
       throw new Error(`Not a valid ssh:// address: ${text}`);
     }
-    const user = url.username ? `${decodeURIComponent(url.username)}@` : '';
-    const path = decodeURIComponent(url.pathname);
     if (!url.hostname || !path || path === '/') {
       throw new Error(`Give the remote project directory: ssh://user@host/path (got ${text})`);
     }

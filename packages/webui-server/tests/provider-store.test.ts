@@ -334,5 +334,32 @@ describe('provider-store', () => {
         expect(store.maskedKey('abcdefghijklmnop')).toBe('abcd…mnop');
       });
     });
+
+    it('strips UTF-8 BOM on load/save and ignores null JSON (F449)', async () => {
+      mockReadFile.mockResolvedValueOnce(
+        `\uFEFF${JSON.stringify({ otherSetting: 'keep', providers: { openai: { type: 'openai' } } })}`,
+      );
+      mockDecrypt.mockImplementation((v: unknown) => v);
+      mockEncrypt.mockImplementation((v: unknown) => v);
+      const store = createProviderStore({
+        profileConfigPath: '/tmp/profile.json',
+        vault: {} as never,
+      });
+
+      const loaded = await store.load();
+      expect(loaded['openai']).toBeDefined();
+
+      mockReadFile.mockResolvedValueOnce(
+        `\uFEFF${JSON.stringify({ otherSetting: 'keep', providers: { openai: { type: 'openai' } } })}`,
+      );
+      await store.save({ anthropic: { type: 'anthropic' } as never });
+      expect(mockEncrypt).toHaveBeenCalledWith(
+        expect.objectContaining({ otherSetting: 'keep' }),
+        expect.anything(),
+      );
+
+      mockReadFile.mockResolvedValueOnce('null');
+      await expect(store.save({ openai: { type: 'openai' } as never })).resolves.toBeUndefined();
+    });
   });
 });

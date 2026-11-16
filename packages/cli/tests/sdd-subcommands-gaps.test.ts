@@ -281,4 +281,10 @@ describe('/sdd spec catalog commands', () => {
     ];
     expect(matchTaskNode(nodes, '1.5')).toEqual(nodes[1]);
   });
+
+  it('formatElapsed returns 0ms for non-finite or negative durations', async () => {
+    const { formatElapsed } = await import('../src/services/sdd/task-manager.js');
+    expect(formatElapsed(Number.NaN)).toBe('0ms');
+    expect(formatElapsed(-500)).toBe('0ms');
+  });
 });

@@ -154,4 +154,43 @@ describe('createCloudflareGatewayModel dispatch serialization', () => {
     await expect(gateway.doGenerate(callOptions)).rejects.toThrow(/cannot intercept provider/);
     expect(calls).toHaveLength(0);
   });
+
+  it('handles bodyless requests and BOM-prefixed JSON bodies in parseRequestBody (F465)', async () => {
+    const { model, config } = fakeProviderModel(neverRoutedRealFetch());
+    const { options, calls } = gatewayOptions();
+    let mode: 'get' | 'bom' = 'get';
+    model.doGenerate = async () => {
+      const providerFetch = config.fetch;
+      if (!providerFetch) throw new Error('Fake provider fetch is not configured');
+      if (mode === 'get') {
+        await providerFetch('https://api.openai.com/v1/models', { method: 'GET' });
+      } else {
+        await providerFetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          body: `\uFEFF${JSON.stringify({ model: 'gpt-4o' })}`,
+        });
+      }
+      return {
+        content: [],
+        finishReason: 'stop',
+        usage: { inputTokens: 0, outputTokens: 0 },
+      } as never;
+    };
+    const gateway = createCloudflareGatewayModel(model, options);
+    await gateway.doGenerate(callOptions);
+    mode = 'bom';
+    await gateway.doGenerate(callOptions);
+    expect(calls).toHaveLength(2);
+    expect(calls[0]?.body).toEqual([
+      { provider: 'openai', endpoint: 'v1/models', headers: {}, query: {} },
+    ]);
+    expect(calls[1]?.body).toEqual([
+      {
+        provider: 'openai',
+        endpoint: 'v1/chat/completions',
+        headers: {},
+        query: { model: 'gpt-4o' },
+      },
+    ]);
+  });
 });

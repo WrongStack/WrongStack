@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Recover from transient Microsoft Store PowerShell launch denials that Bun
   reports as `EUNKNOWN`, using the existing bounded Windows retry budget.
+- Read BOM-prefixed state, profiles, caches and toolchain manifests, and handle
+  malformed JSON root values with controlled errors or documented fallbacks.
+- Preserve literal replacement text and Unicode boundaries in prompts, evidence
+  excerpts, output truncation and editor search ranges.
+- Bound overflowing timers and validate numeric command options, durations,
+  telemetry, quota windows and image counts.
+- Keep stale authorization cancellation scoped to its own session, and report
+  synchronous verifier launch failures as structured command results.
+- Retain legal `..name` directories in flow traces and follow-up evidence while
+  preserving outside-root and test-callee exclusions.
 
 ## [1.7.4] — 2026-11-15
 

@@ -388,7 +388,7 @@ function stripYamlQuotes(value: string): string {
 /** `JSON.parse` that yields undefined instead of throwing on a half-written file. */
 function safeJson(content: string): unknown {
   try {
-    return JSON.parse(content) as unknown;
+    return JSON.parse(content.replace(/^\uFEFF/, '')) as unknown;
   } catch {
     return undefined;
   }

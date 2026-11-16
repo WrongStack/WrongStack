@@ -68,9 +68,9 @@ function logPath(storageDir: string): string {
 
 async function loadLog(storageDir: string, projectRoot: string): Promise<PackageAuthorLog> {
   try {
-    const raw = await fs.readFile(logPath(storageDir), 'utf-8');
-    const parsed = JSON.parse(raw) as PackageAuthorLog;
-    if (!parsed.entries || !Array.isArray(parsed.entries)) {
+    const raw = (await fs.readFile(logPath(storageDir), 'utf-8')).replace(/^\uFEFF/, '');
+    const parsed = JSON.parse(raw) as PackageAuthorLog | null;
+    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.entries)) {
       return { projectRoot, entries: [] };
     }
     return parsed;

@@ -72,7 +72,7 @@ export async function resolveConfiguredExecutable(
   try {
     const req = createRequire(path.join(projectRoot, 'package.json'));
     const pkgJsonPath = req.resolve(`${base}/package.json`);
-    const pkg = JSON.parse(await fsp.readFile(pkgJsonPath, 'utf8')) as {
+    const pkg = JSON.parse((await fsp.readFile(pkgJsonPath, 'utf8')).replace(/^\uFEFF/, '')) as {
       bin?: string | Record<string, string>;
     };
     const rel = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin?.[base];
@@ -128,7 +128,7 @@ export async function resolveConfiguredExecutable(
 export async function detectTestRunner(cwd: string): Promise<TestRunnerInvocation | null> {
   let preferred: 'vitest' | 'jest' = 'vitest';
   try {
-    const pkg = await fsp.readFile(path.join(cwd, 'package.json'), 'utf8');
+    const pkg = (await fsp.readFile(path.join(cwd, 'package.json'), 'utf8')).replace(/^\uFEFF/, '');
     const json = JSON.parse(pkg) as Record<string, unknown>;
     const scripts = json['scripts'];
     const testScript =
@@ -151,7 +151,9 @@ export async function detectTestRunner(cwd: string): Promise<TestRunnerInvocatio
   for (const runner of candidates) {
     try {
       const packageJsonPath = requireFromProject.resolve(`${runner}/package.json`);
-      const packageJson = JSON.parse(await fsp.readFile(packageJsonPath, 'utf8')) as {
+      const packageJson = JSON.parse(
+        (await fsp.readFile(packageJsonPath, 'utf8')).replace(/^\uFEFF/, ''),
+      ) as {
         bin?: string | Record<string, string>;
       };
       const relativeBin =

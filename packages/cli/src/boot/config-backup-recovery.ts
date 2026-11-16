@@ -36,7 +36,9 @@ function providerIds(value: unknown): string[] {
  */
 export async function defaultProfileProvidersAreEmpty(profilePath: string): Promise<boolean> {
   try {
-    const parsed: unknown = JSON.parse(await fs.readFile(profilePath, 'utf8'));
+    const parsed: unknown = JSON.parse(
+      (await fs.readFile(profilePath, 'utf8')).replace(/^\uFEFF/, ''),
+    );
     return providerIds(parsed).length === 0;
   } catch {
     return false;
@@ -107,7 +109,7 @@ export async function findLatestProviderBackup(
   candidates.sort((a, b) => b.modifiedAtMs - a.modifiedAtMs);
   for (const candidate of candidates) {
     try {
-      const raw = await fs.readFile(candidate.filePath, 'utf8');
+      const raw = (await fs.readFile(candidate.filePath, 'utf8')).replace(/^\uFEFF/, '');
       const parsed: unknown = JSON.parse(raw);
       const ids = providerIds(parsed);
       if (ids.length === 0) continue;

@@ -812,5 +812,16 @@ describe('/brain slash command', () => {
       const res = await cmd.run!('definitely-not-a-subcommand');
       expect(stripAnsi(res?.message ?? '')).toContain('stats');
     });
+
+    it('rejects non-numeric timeout, confidence, and breaker values without patching NaN', async () => {
+      const { runtime, patches } = makeRt();
+      const ctx = makeCtx({ brainRuntime: runtime });
+      const cmd = buildBrainCommand(ctx);
+      await cmd.run!('timeout abc');
+      await cmd.run!('human-timeout abc');
+      await cmd.run!('llm confidence abc');
+      await cmd.run!('llm breaker abc');
+      expect(patches).toHaveLength(0);
+    });
   });
 });

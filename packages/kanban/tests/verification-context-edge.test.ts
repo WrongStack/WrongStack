@@ -480,4 +480,32 @@ describe('round-44: resolveConfiguredExecutable accepts legal ..-prefixed in-roo
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toBe('r44-edge-ok');
   }, 15_000);
+
+  it('strips UTF-8 BOM from package.json in detectTestRunner (F468)', async () => {
+    const { mkdtemp } = await import('node:fs/promises');
+    const { detectTestRunner } = await import('../src/verification/verification-executables.js');
+    const root = await mkdtemp(join(tmpdir(), 'kanban-bom-runner-'));
+    roots.push(root);
+    await mkdir(join(root, 'node_modules', 'jest', 'bin'), { recursive: true });
+    await writeFile(
+      join(root, 'node_modules', 'jest', 'package.json'),
+      JSON.stringify({ name: 'jest', bin: { jest: 'bin/jest.js' } }),
+      'utf8',
+    );
+    await writeFile(join(root, 'node_modules', 'jest', 'bin', 'jest.js'), '// jest\n', 'utf8');
+    await mkdir(join(root, 'node_modules', 'vitest'), { recursive: true });
+    await writeFile(
+      join(root, 'node_modules', 'vitest', 'package.json'),
+      JSON.stringify({ name: 'vitest', bin: { vitest: 'vitest.mjs' } }),
+      'utf8',
+    );
+    await writeFile(join(root, 'node_modules', 'vitest', 'vitest.mjs'), '// vitest\n', 'utf8');
+    await writeFile(
+      join(root, 'package.json'),
+      `\uFEFF${JSON.stringify({ name: 'app', scripts: { test: 'jest' } })}`,
+      'utf8',
+    );
+    const runner = await detectTestRunner(root);
+    expect(runner?.args.some((a) => a.includes('jest'))).toBe(true);
+  });
 });

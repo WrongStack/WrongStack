@@ -146,7 +146,7 @@ export class RequirementIntakeStore {
 
   async load(id: string): Promise<RequirementIntakeRecord | null> {
     try {
-      const raw = await fsp.readFile(this.recordPath(id), 'utf8');
+      const raw = (await fsp.readFile(this.recordPath(id), 'utf8')).replace(/^\uFEFF/, '');
       return JSON.parse(raw) as RequirementIntakeRecord;
     } catch (error) {
       if (
@@ -331,7 +331,7 @@ export class RequirementIntakeStore {
       let record: RequirementIntakeRecord | null;
       try {
         record = JSON.parse(
-          await fsp.readFile(path.join(this.baseDir, file), 'utf8'),
+          (await fsp.readFile(path.join(this.baseDir, file), 'utf8')).replace(/^\uFEFF/, ''),
         ) as RequirementIntakeRecord | null;
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
@@ -418,7 +418,7 @@ export class RequirementIntakeStore {
       let record: RequirementIntakeRecord;
       try {
         record = JSON.parse(
-          await fsp.readFile(path.join(this.baseDir, file), 'utf8'),
+          (await fsp.readFile(path.join(this.baseDir, file), 'utf8')).replace(/^\uFEFF/, ''),
         ) as RequirementIntakeRecord;
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;

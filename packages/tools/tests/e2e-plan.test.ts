@@ -223,4 +223,19 @@ describe('e2e_plan tool', () => {
     expect(output.projects).toBeDefined();
     expect(Array.isArray(output.projects)).toBe(true);
   });
+
+  it('strips UTF-8 BOM from package.json during E2E project discovery', async () => {
+    const box = await sandbox();
+    await fs.writeFile(
+      path.join(box.dir, 'package.json'),
+      `\uFEFF${JSON.stringify({
+        name: 'app',
+        devDependencies: { '@playwright/test': '^1.50.0' },
+        scripts: { 'test:e2e': 'playwright test' },
+      })}`,
+      'utf8',
+    );
+    const output = await e2ePlanTool.execute({}, box.ctx, { signal: newSignal() });
+    expect(output.projects[0]?.framework).toBe('playwright');
+  });
 });

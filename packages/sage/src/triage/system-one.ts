@@ -150,7 +150,7 @@ export async function probeMemoryValue(
   const probabilities: Record<number, number> = {};
   let best = -1;
   let bestP = -1;
-  for (const [key, p] of Object.entries(answer.probabilities)) {
+  for (const [key, p] of Object.entries(answer.probabilities ?? {})) {
     const idx = Number(key);
     if (!Number.isInteger(idx) || idx < 0 || idx >= VALUE_LEVELS.length) continue;
     probabilities[idx + 1] = p;

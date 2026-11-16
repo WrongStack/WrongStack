@@ -223,7 +223,7 @@ export class HostMemoryCompanion {
         JSON.stringify({
           memoryId,
           revision: record.revision,
-          historicalClaim: record.text.slice(0, 600),
+          historicalClaim: capText(record.text, 600),
           validity: record.validity,
           applicability: 'unknown',
           validityChecks: snapshot.validityChecks,
@@ -285,7 +285,7 @@ export class HostMemoryCompanion {
         memoryId,
         revision: record.revision,
         reason,
-        historicalClaim: record.text.slice(0, 600),
+        historicalClaim: capText(record.text, 600),
         validity: record.validity,
         validityChecks: snapshot.validityChecks,
         applicability: 'unknown',
@@ -487,4 +487,19 @@ export class HostMemoryCompanion {
       if (timer) clearTimeout(timer);
     }
   }
+}
+
+/**
+ * Surrogate-safe truncation — the repo-wide convention for model-bound text.
+ * The historical claim rides in mailbox payloads and the companion subagent's
+ * task description; an orphaned surrogate half at the cut would reach the
+ * model request ill-formed. The straddling character is dropped whole and the
+ * result stays within `max`.
+ */
+function capText(text: string, max: number): string {
+  if (text.length <= max) return text;
+  let end = max;
+  const lastKept = text.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  return text.slice(0, end);
 }

@@ -201,7 +201,7 @@ export function loadRoleKnowledgeManifest(
   const projectPath = path.join(roleDir(role, projectRoot), 'knowledge.json');
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(projectPath, 'utf8'));
+    parsed = JSON.parse(readFileSync(projectPath, 'utf8').replace(/^\uFEFF/, ''));
   } catch {
     return builtIn;
   }

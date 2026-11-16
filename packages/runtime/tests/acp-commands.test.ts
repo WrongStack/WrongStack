@@ -138,4 +138,32 @@ describe('/acp on an engine', () => {
     expect(usage[0]?.inputTokens).toBe(100);
     expect(usage[0]?.outputTokens).toBe(50);
   });
+
+  it('loadCachedAcpRegistry strips UTF-8 BOM and handles null cache payloads', async () => {
+    const fs = await import('node:fs/promises');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const { loadCachedAcpRegistry } = await import(
+      '../src/portable-commands/acp-registry-cache.js'
+    );
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'acp-cache-bom-'));
+    try {
+      const cacheFile = path.join(tmpDir, 'acp-registry.json');
+      await fs.writeFile(cacheFile, 'null', 'utf8');
+      expect(await loadCachedAcpRegistry({ cacheDir: tmpDir } as never)).toBeNull();
+
+      await fs.writeFile(
+        cacheFile,
+        `\uFEFF${JSON.stringify({
+          fetchedAt: '2026-11-08T00:00:00Z',
+          agents: [{ id: 'codex', displayName: 'Codex', acp: { command: 'npx' } }],
+        })}`,
+        'utf8',
+      );
+      const loaded = await loadCachedAcpRegistry({ cacheDir: tmpDir } as never);
+      expect(loaded?.agents).toHaveLength(1);
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
 });

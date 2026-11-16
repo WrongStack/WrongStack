@@ -86,7 +86,7 @@ export async function snapshotMemoryEvidence(
               : 'not_satisfied';
         }
       }
-      files.push({ path: sourcePath, hash, text: fullText.slice(0, 6000) });
+      files.push({ path: sourcePath, hash, text: capText(fullText, 6000) });
       if (
         memory.anchors.some((a) => a.path === sourcePath && a.contentHash && a.contentHash !== hash)
       )
@@ -105,4 +105,19 @@ export async function snapshotMemoryEvidence(
     changedAnchor,
     ...(validityChecks ? { validityChecks } : {}),
   };
+}
+
+/**
+ * Surrogate-safe truncation — the repo-wide convention for model-bound text.
+ * The snapshot's file excerpts feed the memory-companion subagent prompt and
+ * the verdict quote corpus; an orphaned surrogate half at the cut would reach
+ * the model request ill-formed. The straddling character is dropped whole and
+ * the result stays within `max`.
+ */
+function capText(text: string, max: number): string {
+  if (text.length <= max) return text;
+  let end = max;
+  const lastKept = text.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  return text.slice(0, end);
 }

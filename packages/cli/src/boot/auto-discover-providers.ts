@@ -17,7 +17,10 @@ type DiscoverCache = Record<string, DiscoverCacheEntry>;
 
 async function readCache(file: string): Promise<DiscoverCache> {
   try {
-    return JSON.parse(await fs.readFile(file, 'utf8')) as DiscoverCache;
+    const parsed: unknown = JSON.parse((await fs.readFile(file, 'utf8')).replace(/^\uFEFF/, ''));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as DiscoverCache)
+      : {};
   } catch {
     return {};
   }

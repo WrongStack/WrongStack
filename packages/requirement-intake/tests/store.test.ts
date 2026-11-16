@@ -271,4 +271,17 @@ describe('RequirementIntakeStore', () => {
     expect(id).toMatch(/^reqi_[A-Z0-9]+$/i);
     expect(newIntakeId()).not.toBe(id);
   });
+
+  it('strips UTF-8 BOM when loading and indexing intake records (F455)', async () => {
+    const { writeFile } = await import('node:fs/promises');
+    const { join } = await import('node:path');
+    const harness = makeHarness();
+    const record = buildRecord();
+    await harness.store.create(record, 'bom-key');
+    const file = join(harness.dir, `${record.id}.json`);
+    const raw = JSON.stringify(record);
+    await writeFile(file, `\uFEFF${raw}`, 'utf8');
+    await expect(harness.store.load(record.id)).resolves.toMatchObject({ id: record.id });
+    await expect(harness.store.list()).resolves.toHaveLength(1);
+  });
 });

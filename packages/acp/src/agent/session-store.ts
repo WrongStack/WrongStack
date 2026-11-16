@@ -150,7 +150,7 @@ function isMcpServerList(value: unknown): value is McpServer[] {
 function parsePersistedSession(raw: string): PersistedSession | null {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(raw.replace(/^\uFEFF/, ''));
   } catch {
     return null;
   }
@@ -461,7 +461,7 @@ export class ACPSessionStore {
   private async readIndex(): Promise<Array<{ id: string; updatedAt: string }> | null> {
     try {
       const data = await fsp.readFile(this.indexPath(), 'utf8');
-      const parsed = JSON.parse(data);
+      const parsed = JSON.parse(data.replace(/^\uFEFF/, ''));
       if (!Array.isArray(parsed)) return null;
       const out: Array<{ id: string; updatedAt: string }> = [];
       for (const e of parsed) {

@@ -257,4 +257,16 @@ describe('parsePackageAuditOutput', () => {
     expect(parsed.summary.high).toBe(1);
     expect(parsed.summary.moderate).toBe(1);
   });
+
+  it('strips UTF-8 BOM from audit stdout before parsing JSON (F457)', () => {
+    const parsed = parsePackageAuditOutput(
+      `\uFEFF${JSON.stringify({
+        vulnerabilities: {},
+        metadata: {
+          vulnerabilities: { info: 0, low: 0, moderate: 0, high: 0, critical: 0, total: 0 },
+        },
+      })}`,
+    );
+    expect(parsed.summary.total).toBe(0);
+  });
 });

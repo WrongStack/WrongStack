@@ -469,4 +469,20 @@ describe('a WebSocket-wrapped HTTP failure is handled like the HTTP response', (
     );
     expect(err?.retryable).toBe(true);
   });
+
+  it('ignores non-finite or negative window_minutes/reset_at in rate limit events (F459)', async () => {
+    const { parseCodexRateLimitEvent } = await import('../src/openai-codex-rate-limits.js');
+    const snap = parseCodexRateLimitEvent({
+      type: 'codex.rate_limits',
+      rate_limits: {
+        primary: {
+          used_percent: 25,
+          window_minutes: Number.NaN,
+          reset_at: -10,
+        },
+      },
+    });
+    expect(snap?.windows[0]?.windowMinutes).toBeUndefined();
+    expect(snap?.windows[0]?.resetsAt).toBeUndefined();
+  });
 });

@@ -492,3 +492,69 @@ describe('truncateHeadTail / truncateDiffPayload — undersized budgets (bug 202
     expect(truncateDiffPayload('abc', 96)).toEqual({ text: 'abc', truncated: false });
   });
 });
+
+describe('byte-boundary truncation never splits an astral character (bug-hunter 2026-11-15)', () => {
+  // `takeHeadBytes`/`takeTailBytes` binary-search on UTF-16 code units, so the
+  // cut could land between the halves of a surrogate pair: the head kept a
+  // lone high surrogate and the tail a lone low one. The pre-existing
+  // "never splits a character" assertions used `é` (one code unit, two bytes)
+  // and could not see it. `Buffer.byteLength` charges a lone surrogate 3 bytes
+  // (U+FFFD), so the pair also corrupted the byte accounting.
+  const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+  const astral = '😀'.repeat(100); // 400 UTF-8 bytes, 200 UTF-16 code units
+
+  const expectWholeCodePoints = (out: string): void => {
+    expect(LONE_SURROGATE.test(out), `lone surrogate: ${JSON.stringify(out.slice(-12))}`).toBe(
+      false,
+    );
+    // A lone half survives the string but becomes U+FFFD once written as UTF-8.
+    expect(Buffer.from(out, 'utf8').toString('utf8')).toBe(out);
+  };
+
+  it('truncateHeadTail keeps pairs whole at every budget around the cut', () => {
+    for (let max = 65; max <= 400; max++) {
+      const out = truncateHeadTail(astral, max);
+      expect(Buffer.byteLength(out, 'utf8')).toBeLessThanOrEqual(max);
+      expectWholeCodePoints(out);
+    }
+  });
+
+  it('truncateMiddle keeps pairs whole at every budget around the cut', () => {
+    for (let max = 65; max <= 400; max++) {
+      const out = truncateMiddle(astral, max);
+      expect(Buffer.byteLength(out, 'utf8')).toBeLessThanOrEqual(max);
+      expectWholeCodePoints(out);
+    }
+  });
+
+  it('capBytesWithNotice keeps pairs whole where the notice boundary falls', () => {
+    for (const max of [100, 101, 102, 103, 120, 130, 149, 150, 151, 160]) {
+      const out = capBytesWithNotice(astral, max, '[cut]');
+      expect(Buffer.byteLength(out, 'utf8')).toBeLessThanOrEqual(max);
+      expectWholeCodePoints(out);
+    }
+  });
+
+  it('truncateDiffPayload keeps pairs whole where the newline lands', () => {
+    const diff = `${astral}\n${astral}`;
+    for (let max = 97; max <= 400; max += 7) {
+      const { text } = truncateDiffPayload(diff, max);
+      expect(Buffer.byteLength(text, 'utf8')).toBeLessThanOrEqual(max);
+      expectWholeCodePoints(text);
+    }
+  });
+
+  it('detectPackageManager strips UTF-8 BOM from package.json', async () => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'util-pm-bom-'));
+    try {
+      await fsp.writeFile(
+        path.join(dir, 'package.json'),
+        `\uFEFF${JSON.stringify({ name: 'demo', packageManager: 'pnpm@9.0.0' })}`,
+        'utf8',
+      );
+      expect(await detectPackageManager(dir)).toBe('pnpm');
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  });
+});

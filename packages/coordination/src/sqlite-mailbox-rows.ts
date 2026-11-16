@@ -175,19 +175,28 @@ export function materializeMessageRows(
     receiptState.set(row.message_id, states);
   }
 
-  return rows.map((row) => {
-    const base = JSON.parse(row.data) as MailboxMessage;
+  return rows.flatMap((row) => {
+    let base: MailboxMessage;
+    try {
+      const parsed = JSON.parse(row.data) as unknown;
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return [];
+      base = parsed as MailboxMessage;
+    } catch {
+      return [];
+    }
     const recipientState = receiptState.get(row.id) ?? {};
     const readBy: Record<string, string> = Object.assign(Object.create(null), base.readBy);
     for (const state of Object.values(recipientState)) {
       if (state.readAt !== undefined) readBy[state.actorId] = state.readAt;
     }
-    return {
-      ...base,
-      readBy,
-      recipientState,
-      ...(row.legacy_global_completion === 1 ? { legacyGlobalCompletion: true } : {}),
-    };
+    return [
+      {
+        ...base,
+        readBy,
+        recipientState,
+        ...(row.legacy_global_completion === 1 ? { legacyGlobalCompletion: true } : {}),
+      },
+    ];
   });
 }
 

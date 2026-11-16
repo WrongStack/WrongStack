@@ -1109,5 +1109,41 @@ describe('runRepl', () => {
       expect(warns.some((w) => w.includes('Todo board unchanged'))).toBe(true);
       expect(warns.some((w) => w.includes('Auto-proceed halted'))).toBe(true);
     });
+
+    it('preserves literal $& and $$ sequences in autonomyNextPrompt suggestion interpolation', async () => {
+      const prompts: string[] = [];
+      const agent = makeFakeAgent({
+        ctx: { todos: [] } as unknown as Context,
+        run: vi.fn(async (prompt: unknown): Promise<RunResult> => {
+          const text =
+            typeof prompt === 'string'
+              ? prompt
+              : Array.isArray(prompt)
+                ? prompt.map((b: { text?: string }) => b.text ?? '').join('')
+                : String(prompt);
+          prompts.push(text);
+          return { status: 'done', iterations: 1, finalText: 'ok' };
+        }) as never,
+      });
+
+      const literal = 'inspect $& and $$ vars';
+      await runRepl({
+        agent,
+        renderer: makeFakeRenderer(),
+        reader: makeFakeReader([]),
+        slashRegistry: makeFakeSlashRegistry(),
+        attachments: makeFakeAttachmentStore(),
+        banner: false,
+        getAutonomy: () => 'auto',
+        getYolo: () => true,
+        getSuggestions: () => (prompts.length === 0 ? ['fallback'] : []),
+        getAutoSuggestions: () => [literal],
+        autonomyNextPrompt: 'Next: {{suggestion}}',
+        autoProceedDelayMs: 0,
+        autoProceedMaxIterations: 1,
+      });
+
+      expect(prompts[0]).toBe(`Next: ${literal}`);
+    });
   });
 });

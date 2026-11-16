@@ -19,7 +19,7 @@
       "relativeImports": 5
     },
     "packages/builtin-plugins/src/review-followup-briefing.ts": {
-      "lines": 869,
+      "lines": 877,
       "relativeImports": 5
     },
     "packages/chronicle/src/project-server-client.ts": {
@@ -61,6 +61,10 @@
     "packages/coordination/src/subagent-budget.ts": {
       "lines": 709,
       "relativeImports": 2
+    },
+    "packages/coordination/src/task-auctioneer.ts": {
+      "lines": 701,
+      "relativeImports": 8
     },
     "packages/core/src/core/agent-tools.ts": {
       "lines": 708,
@@ -199,7 +203,7 @@
       "relativeImports": 0
     },
     "packages/webui-server/src/server/completion-handlers.ts": {
-      "lines": 737,
+      "lines": 744,
       "relativeImports": 3
     },
     "packages/webui-server/src/server/design-handlers.ts": {

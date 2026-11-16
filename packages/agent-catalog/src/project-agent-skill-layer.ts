@@ -376,7 +376,11 @@ export function loadSkillAffinity(role: string, projectRoot?: string): SkillAffi
 
 function affinityFromText(normalizedRole: string, text: string): SkillAffinity {
   try {
-    const parsed = JSON.parse(text) as Partial<SkillAffinity>;
+    const parsedRaw: unknown = JSON.parse(text.replace(/^\uFEFF/, ''));
+    if (!parsedRaw || typeof parsedRaw !== 'object' || Array.isArray(parsedRaw)) {
+      return { role: normalizedRole, entries: {}, updatedAt: new Date(0).toISOString() };
+    }
+    const parsed = parsedRaw as Partial<SkillAffinity>;
     const entries: Record<string, SkillAffinityEntry> = {};
     for (const [skill, entry] of Object.entries(parsed.entries ?? {})) {
       if (!isProjectSkillName(skill)) continue;

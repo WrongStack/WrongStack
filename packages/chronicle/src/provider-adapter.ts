@@ -146,5 +146,6 @@ function compactManifest(
 }
 
 function millisecondsToNanoseconds(durationMs: number): string {
+  if (!Number.isFinite(durationMs) || durationMs <= 0) return '0';
   return Math.round(durationMs * 1_000_000).toString();
 }

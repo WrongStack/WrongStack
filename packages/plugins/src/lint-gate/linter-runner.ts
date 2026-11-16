@@ -65,7 +65,7 @@ export function resolveLocalLinter(name: 'biome' | 'eslint', cwd: string): Resol
     const packageName = LINTER_PACKAGES[name];
     const requireFromProject = createRequire(resolve(cwd, 'package.json'));
     const packagePath = requireFromProject.resolve(`${packageName}/package.json`);
-    const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8')) as {
+    const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8').replace(/^\uFEFF/, '')) as {
       bin?: string | Record<string, string>;
     };
     const relativeBin =

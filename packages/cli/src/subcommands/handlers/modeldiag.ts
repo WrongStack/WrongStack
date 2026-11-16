@@ -39,8 +39,15 @@ async function readProviders(cachePath: string | undefined): Promise<ReadProvide
     return { ok: false, message: `${color.red('Models cache not available')}.`, hard: true };
   }
   try {
-    const raw = await fs.readFile(cachePath, 'utf8');
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const raw = (await fs.readFile(cachePath, 'utf8')).replace(/^\uFEFF/, '');
+    const parsed = JSON.parse(raw) as Record<string, unknown> | null;
+    if (!parsed || typeof parsed !== 'object') {
+      return {
+        ok: false,
+        message: 'Models cache not available. Run wstack sync-models.',
+        hard: false,
+      };
+    }
     const payload = (parsed.payload ?? parsed) as Record<string, Record<string, unknown>>;
     return {
       ok: true,

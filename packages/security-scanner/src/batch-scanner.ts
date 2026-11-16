@@ -311,7 +311,7 @@ export class BatchScanner {
               ? (rawSeverity as Finding['severity'])
               : 'medium';
             const resolvedLine =
-              typeof item.line === 'number' && Number.isFinite(item.line)
+              typeof item.line === 'number' && Number.isSafeInteger(item.line) && item.line > 0
                 ? item.line
                 : lineFromFileSuffix;
             const finding: Finding = {

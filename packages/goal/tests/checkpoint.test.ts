@@ -552,4 +552,26 @@ describe('CheckpointManager', () => {
       } as never),
     ).rejects.toThrow(/graphId|escapes/i);
   });
+
+  it('loads UTF-8 BOM-prefixed checkpoint files and skips null entries', async () => {
+    const fsPromises = await import('node:fs/promises');
+    const cpDir = path.join(path.dirname(store.baseDir), 'ckpt-bom');
+    await fsPromises.mkdir(cpDir, { recursive: true });
+    const cp = {
+      id: 'cp-bom-1',
+      graphId: 'g-bom',
+      phaseId: 'p-1',
+      phaseStatus: 'completed',
+      taskStatuses: [],
+      timestamp: 1000,
+    };
+    await fsPromises.writeFile(
+      path.join(cpDir, 'g-bom.json'),
+      `\uFEFF${JSON.stringify([null, cp])}`,
+      'utf8',
+    );
+    const mgr = new CheckpointManager({ baseDir: cpDir, store });
+    await mgr.deleteCheckpoint('nonexistent');
+    expect(mgr.listCheckpoints('g-bom').map((c) => c.id)).toEqual(['cp-bom-1']);
+  });
 });

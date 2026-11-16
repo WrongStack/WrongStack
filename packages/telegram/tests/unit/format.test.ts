@@ -318,4 +318,16 @@ describe('formatSessionEnded', () => {
     expect(msg.isWellFormed()).toBe(true);
     expect(msg).toContain('🏁 Session abcdefg ended');
   });
+
+  it('clamps non-finite/negative durationMs and ignores non-finite costUsd', () => {
+    expect(
+      formatToolExecuted({ name: 'bash', ok: true, durationMs: Number.NaN, output: '' }),
+    ).toContain('completed in 0.0s');
+    expect(formatToolExecuted({ name: 'bash', ok: true, durationMs: -1000, output: '' })).toContain(
+      'completed in 0.0s',
+    );
+    expect(formatDelegateCompleted({ ...base, costUsd: Number.POSITIVE_INFINITY })).not.toContain(
+      'Infinity',
+    );
+  });
 });

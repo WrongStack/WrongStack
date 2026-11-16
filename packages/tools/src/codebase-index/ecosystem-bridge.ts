@@ -548,11 +548,13 @@ export function findFileHealthAlerts(
   const healthJsonPath = path.join(projectRoot, '.wrongstack', 'wrongtrace-health.json');
   if (existsSync(healthJsonPath)) {
     try {
-      const raw = JSON.parse(readFileSync(healthJsonPath, 'utf8')) as
+      const raw = JSON.parse(readFileSync(healthJsonPath, 'utf8').replace(/^\uFEFF/, '')) as
         | { files?: Array<Record<string, unknown>> }
-        | Array<Record<string, unknown>>;
+        | Array<Record<string, unknown>>
+        | null;
       const list = Array.isArray(raw) ? raw : Array.isArray(raw?.files) ? raw.files : [];
       for (const entry of list) {
+        if (!entry || typeof entry !== 'object') continue;
         const rawPath = String(entry['file_path'] ?? entry['file'] ?? entry['path'] ?? '');
         if (!rawPath) continue;
         const rel = path.isAbsolute(rawPath) ? path.relative(projectRoot, rawPath) : rawPath;

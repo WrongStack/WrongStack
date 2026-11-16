@@ -129,7 +129,10 @@ async function exchangeCode(
   if (typeof json.access_token !== 'string' || json.access_token.length === 0) {
     throw new Error('Google token exchange returned no access token.');
   }
-  const expiresIn = typeof json.expires_in === 'number' ? json.expires_in : 3_600;
+  const expiresIn =
+    typeof json.expires_in === 'number' && Number.isFinite(json.expires_in) && json.expires_in > 0
+      ? json.expires_in
+      : 3_600;
   return {
     accessToken: json.access_token,
     refreshToken: typeof json.refresh_token === 'string' ? json.refresh_token : undefined,

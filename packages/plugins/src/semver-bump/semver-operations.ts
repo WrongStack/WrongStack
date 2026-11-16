@@ -56,7 +56,7 @@ export async function getPackageJson(cwd?: string): Promise<{ version: string } 
   const path = cwd ? `${cwd}/package.json` : 'package.json';
   try {
     await access(path);
-    return JSON.parse(await readFile(path, 'utf-8'));
+    return JSON.parse((await readFile(path, 'utf-8')).replace(/^\uFEFF/, ''));
   } catch {
     return null;
   }

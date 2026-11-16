@@ -28,7 +28,7 @@ export function loadProjectAgentProfile(
 ): ProjectAgentProfile | undefined {
   try {
     const parsed = JSON.parse(
-      readFileSync(projectAgentProfilePath(role, projectRoot), 'utf8'),
+      readFileSync(projectAgentProfilePath(role, projectRoot), 'utf8').replace(/^\uFEFF/, ''),
     ) as Partial<ProjectAgentProfile>;
     const normalizedRole = assertProjectAgentRole(parsed.role ?? role);
     const baseRole = assertProjectAgentRole(parsed.baseRole ?? 'generic');

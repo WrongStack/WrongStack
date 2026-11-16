@@ -43,7 +43,11 @@ interface ConsolidationState {
 
 function readState(file: string): ConsolidationState {
   try {
-    const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as {
+    const raw: unknown = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return { lastRunAt: 0, seen: {} };
+    }
+    const parsed = raw as {
       lastRunAt?: unknown;
       seen?: unknown;
     };

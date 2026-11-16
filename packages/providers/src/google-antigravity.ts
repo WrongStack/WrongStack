@@ -129,7 +129,10 @@ export async function refreshAntigravityToken(
       ANTIGRAVITY_PROVIDER_ID,
     );
   }
-  const expiresIn = typeof json.expires_in === 'number' ? json.expires_in : 3_600;
+  const expiresIn =
+    typeof json.expires_in === 'number' && Number.isFinite(json.expires_in) && json.expires_in > 0
+      ? json.expires_in
+      : 3_600;
   return {
     access: json.access_token,
     expires: Date.now() + expiresIn * 1_000,

@@ -219,10 +219,18 @@ async function readContainedFileContent(
   try {
     const candidate = path.resolve(cwdReal, rawFilePath);
     const rel = path.relative(cwdReal, candidate);
-    if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
+    // Canonical escape test (paths.ts escapesRoot, shell-open.ts): only '..' itself
+    // or a '..<sep>' prefix leaves the root. A bare startsWith('..') also matches
+    // legal in-root first segments ('..evidence/notes.md' → rel "..evidence\notes.md"),
+    // silently dropping such files from follow-up briefings and from the fixed-claim
+    // disk-divergence check.
+    const insideLexical = rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel);
+    if (!insideLexical) return null;
     const targetReal = await fsp.realpath(candidate);
     const realRel = path.relative(cwdReal, targetReal);
-    if (realRel.startsWith('..') || path.isAbsolute(realRel)) return null;
+    const insideCanonical =
+      realRel !== '..' && !realRel.startsWith(`..${path.sep}`) && !path.isAbsolute(realRel);
+    if (!insideCanonical) return null;
     const stat = await fsp.stat(targetReal);
     if (!stat.isFile() || stat.size > MAX_FILE_READ_BYTES) return null;
     return await fsp.readFile(targetReal, 'utf8');

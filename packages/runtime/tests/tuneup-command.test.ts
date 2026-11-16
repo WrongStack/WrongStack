@@ -89,4 +89,20 @@ describe('/tuneup on an engine', () => {
     expect(isReadOnlyCommand('sed -ibak s/a/b/ file')).toBe(false);
     expect(isReadOnlyCommand('sort -o file file')).toBe(false);
   });
+
+  it('rejects sed write/exec script commands and env command-runner invocations', () => {
+    // sed's `w` (write-to-file) and GNU `e` (execute) script commands carry no
+    // shell metacharacter, and a TRUE classification becomes a verb-wide
+    // add-exec-allow suggestion — lifting the gate on `sed -i`/`sed e` too.
+    expect(isReadOnlyCommand("sed 's/x/y/w /tmp/pwned.txt' README.md")).toBe(false);
+    expect(isReadOnlyCommand("sed -n 'e id' README.md")).toBe(false);
+    expect(isReadOnlyCommand("sed -n 'W out.txt' README.md")).toBe(false);
+    // `env` runs a command: `env FOO=1 bash x.sh` executes bash.
+    expect(isReadOnlyCommand('env FOO=1 bash x.sh')).toBe(false);
+    // Conservative over-rejection is acceptable, but the common flag spellings
+    // must keep their classification so print-only sed forms stay suggestible.
+    expect(isReadOnlyCommand("sed -n 's/a/b/' README.md")).toBe(true);
+    expect(isReadOnlyCommand('sed -E "s/ax/bx/g" README.md')).toBe(true);
+    expect(isReadOnlyCommand("sed -e 's/a/b/' README.md")).toBe(true);
+  });
 });

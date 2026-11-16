@@ -272,4 +272,19 @@ describe('performance-regression-gate plugin', () => {
       expect.any(Object),
     );
   });
+
+  it('strips UTF-8 BOM from benchmark results JSON', async () => {
+    mocks.existsSync.mockReturnValue(true);
+    mocks.readFileSync.mockReturnValue(
+      `\uFEFF${JSON.stringify([
+        { name: 'parse (old)', mean: 10 },
+        { name: 'parse (new)', mean: 11 },
+      ])}`,
+    );
+    const api = makeApi();
+    perfPlugin.setup(api as never);
+    const status = getTool(api, 'perf_regression_status');
+    const res = (await status({ resultsPath: 'bench-results.json' })) as { ok: boolean };
+    expect(res.ok).toBe(true);
+  });
 });

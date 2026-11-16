@@ -135,7 +135,13 @@ interface ClientIdentity {
 export class MCPAuthorizationManager {
   private readonly pending = new Map<string, PendingAuthorization>();
   private readonly starting = new Map<string, symbol>();
-  private readonly completing = new Map<string, symbol>();
+  /**
+   * The attempt token records WHICH session it belongs to: `cancel()` is a
+   * per-handle operation and may only cancel the completion of its own
+   * session, while a newer `begin()` legitimately replaces the pending
+   * session and its completion must survive a stale handle's cancel.
+   */
+  private readonly completing = new Map<string, { attempt: symbol; state: string }>();
   /** Registrations reused across servers that share one authorization server. */
   private readonly registrations = new Map<string, MCPClientRegistration>();
   private readonly pendingTtlMs: number;
@@ -243,7 +249,11 @@ export class MCPAuthorizationManager {
     // network exchange so retries cannot accidentally replay either value.
     this.pending.delete(key);
     const attempt = Symbol(key);
-    this.completing.set(key, attempt);
+    // The entry records the session it belongs to: a newer begin() replacing
+    // the pending session overwrites it (the stale completion is discarded
+    // before it can save), and cancel() may only cancel the completion of its
+    // own session — a stale handle must not kill a successor's exchange.
+    this.completing.set(key, { attempt, state: pending.session.state });
     try {
       const tokenSet = await this.exchange({
         authorizationServer: pending.discovery.authorizationServer,
@@ -255,7 +265,7 @@ export class MCPAuthorizationManager {
         codeVerifier: pending.session.codeVerifier,
         signal: input.signal,
       });
-      if (this.completing.get(key) !== attempt) {
+      if (this.completing.get(key)?.attempt !== attempt) {
         throw new Error('MCP authorization completion was cancelled');
       }
       const stored: MCPStoredAuthorization = {
@@ -268,14 +278,14 @@ export class MCPAuthorizationManager {
         updatedAt: new Date(this.now()).toISOString(),
       };
       await this.options.store.save(stored);
-      if (this.completing.get(key) !== attempt) {
+      if (this.completing.get(key)?.attempt !== attempt) {
         await this.options.store.remove(serverName, resource).catch(() => false);
         throw new Error('MCP authorization completion was cancelled');
       }
       this.emit('authorized', stored);
       return statusFromStored(stored, this.now());
     } finally {
-      if (this.completing.get(key) === attempt) this.completing.delete(key);
+      if (this.completing.get(key)?.attempt === attempt) this.completing.delete(key);
     }
   }
 
@@ -334,7 +344,14 @@ export class MCPAuthorizationManager {
       completion,
       cancel: () => {
         clearOwnedPending();
-        this.completing.delete(key);
+        // Scope the cancellation to THIS login's session: a newer begin() may
+        // have replaced the pending session, and its in-flight completion must
+        // survive a stale handle's cancel — killing it would discard a one-shot
+        // authorization code that belongs to the successor flow.
+        const inFlight = this.completing.get(key);
+        if (inFlight && createdSession && inFlight.state === createdSession.state) {
+          this.completing.delete(key);
+        }
         listener.close();
       },
     };

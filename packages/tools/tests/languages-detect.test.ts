@@ -189,4 +189,14 @@ describe('detectLanguageWorkspaces', () => {
     const result = await detectLanguageWorkspaces({ projectRoot: root, language: 'javascript' });
     expect(result.workspaces[0]?.packageManager).toBeUndefined();
   });
+
+  it('strips UTF-8 BOM when reading packageManager from package.json', async () => {
+    await file('index.ts', 'export const x = 1;\n');
+    await file(
+      'package.json',
+      `\uFEFF${JSON.stringify({ name: 'demo', packageManager: 'bun@1.4.4' })}`,
+    );
+    const result = await detectLanguageWorkspaces({ projectRoot: root });
+    expect(result.workspaces[0]?.packageManager).toBe('bun');
+  });
 });

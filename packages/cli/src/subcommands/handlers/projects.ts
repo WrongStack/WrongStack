@@ -1,6 +1,6 @@
-import { color } from '@wrongstack/core/utils';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { color } from '@wrongstack/core/utils';
 import type { SubcommandHandler } from '../contracts.js';
 
 interface ProjectManifestEntry {
@@ -29,10 +29,15 @@ export const projectsCmd: SubcommandHandler = async (_args, deps) => {
 
   let entries: ProjectManifestEntry[];
   try {
-    const parsed = JSON.parse(await fs.readFile(manifestPath, 'utf8')) as {
+    const parsed = JSON.parse((await fs.readFile(manifestPath, 'utf8')).replace(/^\uFEFF/, '')) as {
       projects?: unknown;
-    };
-    entries = Array.isArray(parsed.projects) ? (parsed.projects as ProjectManifestEntry[]) : [];
+    } | null;
+    entries =
+      parsed && typeof parsed === 'object' && Array.isArray(parsed.projects)
+        ? (parsed.projects.filter(
+            (e): e is ProjectManifestEntry => Boolean(e) && typeof e === 'object',
+          ) as ProjectManifestEntry[])
+        : [];
   } catch {
     deps.renderer.write('No projects tracked yet.\n');
     return 0;

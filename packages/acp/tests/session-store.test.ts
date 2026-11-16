@@ -680,4 +680,14 @@ describe('ACPSessionStore', () => {
       { id: 'sess_good', updatedAt: '2026-01-05T00:00:00.000Z' },
     ]);
   });
+
+  it('strips UTF-8 BOM from persisted session and index files (F461)', async () => {
+    await store.save(fakeState({ id: 'sess_bom', updatedAt: '2026-01-08T00:00:00.000Z' }));
+    const sessPath = path.join(dir, 'sess_bom.json');
+    const idxPath = path.join(dir, 'index.json');
+    await fsp.writeFile(sessPath, `\uFEFF${await fsp.readFile(sessPath, 'utf8')}`, 'utf8');
+    await fsp.writeFile(idxPath, `\uFEFF${await fsp.readFile(idxPath, 'utf8')}`, 'utf8');
+    await expect(store.load('sess_bom')).resolves.toMatchObject({ id: 'sess_bom' });
+    expect((await store.list()).some((e) => e.id === 'sess_bom')).toBe(true);
+  });
 });

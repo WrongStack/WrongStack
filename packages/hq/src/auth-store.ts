@@ -262,7 +262,7 @@ export async function readHqAuthFile(
   }
   let parsed: HqAuthFile;
   try {
-    parsed = JSON.parse(raw) as HqAuthFile;
+    parsed = JSON.parse(raw.replace(/^\uFEFF/, '')) as HqAuthFile;
   } catch (err) {
     throw new Error(
       `HQ auth file at ${file} is not valid JSON: ${(err as Error).message}. ` +

@@ -587,6 +587,111 @@ describe('resolveChimeraFollowupBriefing & createChimeraFollowupExtension', () =
     expect((await findingStore.get(finding.id))?.status).toBe('active');
   });
 
+  it('resolves a fixed claim whose file lives under a legal ".."-prefixed in-root dir', async () => {
+    const reportId = '77777777-7777-4777-8777-777777777771';
+    const reviewed = 'export const token = "broken";\n';
+    const baselineSha = createHash('sha256').update(reviewed).digest('hex');
+    // '..evidence' is an ordinary in-root directory NAME (like '..hidden'), not a
+    // traversal: the canonical containment predicate admits it, the loose
+    // startsWith('..') form it replaced did not and silently dropped such files
+    // from the fixed-claim disk-divergence check.
+    await fsp.mkdir(path.join(cwdDir, '..evidence'), { recursive: true });
+    await fsp.writeFile(
+      path.join(cwdDir, '..evidence', 'notes.md'),
+      'export const token = "fixed";\n',
+      'utf8',
+    );
+
+    const finding = parseChimeraReviewReport(
+      JSON.stringify({
+        findings: [
+          {
+            severity: 'high',
+            category: 'bug',
+            file: '..evidence/notes.md',
+            line: 1,
+            title: 'Broken token constant',
+            description: 'Broken on disk at review time.',
+          },
+        ],
+      }),
+      {
+        sessionId: 'sess-dotdir',
+        agentId: 'chimera-review',
+        reviewerModel: 'anthropic/claude-sonnet-4-6',
+        reviewType: 'chimera-session',
+        reportId,
+      },
+    ).findings[0]!;
+
+    const findingStore = new JsonlFindingStore(projectDir);
+    await findingStore.upsert([finding], {
+      sessionId: 'sess-dotdir',
+      reportId,
+      agentId: 'chimera-review',
+      model: 'anthropic/claude-sonnet-4-6',
+    });
+
+    // editedInRun: false — only the SHA-256 disk check can prove the divergence.
+    const resolved = await reconcileChimeraFollowupOutcomes({
+      reportId,
+      projectDir,
+      cwd: cwdDir,
+      outcomes: [
+        { id: finding.id, outcome: 'fixed', reason: 'Disk diverged from reviewed baseline' },
+      ],
+      reviewedFileHashes: { '..evidence/notes.md': baselineSha },
+      editedInRun: false,
+      verifiedAfterEdit: true,
+    });
+    expect(resolved.resolvedCount).toBe(1);
+    expect((await findingStore.get(finding.id))?.status).toBe('resolved');
+
+    // Guard strength: an unchanged dotted-dir file must stay rejected.
+    const unchanged = 'export const flag = "still-broken";\n';
+    await fsp.writeFile(path.join(cwdDir, '..evidence', 'other.md'), unchanged, 'utf8');
+    const unchangedSha = createHash('sha256').update(unchanged).digest('hex');
+    const finding2 = parseChimeraReviewReport(
+      JSON.stringify({
+        findings: [
+          {
+            severity: 'medium',
+            category: 'bug',
+            file: '..evidence/other.md',
+            line: 1,
+            title: 'Still broken',
+            description: 'Unchanged on disk.',
+          },
+        ],
+      }),
+      {
+        sessionId: 'sess-dotdir',
+        agentId: 'chimera-review',
+        reviewerModel: 'anthropic/claude-sonnet-4-6',
+        reviewType: 'chimera-session',
+        reportId,
+      },
+    ).findings[0]!;
+    await findingStore.upsert([finding2], {
+      sessionId: 'sess-dotdir',
+      reportId,
+      agentId: 'chimera-review',
+      model: 'anthropic/claude-sonnet-4-6',
+    });
+    const rejected = await reconcileChimeraFollowupOutcomes({
+      reportId,
+      projectDir,
+      cwd: cwdDir,
+      outcomes: [{ id: finding2.id, outcome: 'fixed', reason: 'Claims fixed without edits' }],
+      reviewedFileHashes: { '..evidence/other.md': unchangedSha },
+      editedInRun: false,
+      verifiedAfterEdit: true,
+    });
+    expect(rejected.resolvedCount).toBe(0);
+    expect(rejected.rejectedUnverifiedCount).toBe(1);
+    expect((await findingStore.get(finding2.id))?.status).toBe('active');
+  });
+
   it('rejects snake_case bash exit_code failures, tracks patch + exec args, and blocks zero-edit fileless fixed claims', async () => {
     const initial = 'export const token = "broken";\n';
     await fsp.writeFile(path.join(cwdDir, 'src', 'broken.ts'), initial, 'utf8');

@@ -220,4 +220,9 @@ describe('BackgroundStrip', () => {
     expect(out).not.toMatch(/\+1/);
     view.unmount();
   });
+
+  it('formatElapsed returns 0s for non-finite durations', () => {
+    expect(formatElapsed(Number.NaN)).toBe('0s');
+    expect(formatElapsed(Number.POSITIVE_INFINITY)).toBe('0s');
+  });
 });

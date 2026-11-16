@@ -49,10 +49,12 @@ export function createProviderStore(deps: ProviderStoreDeps): ProviderStore {
 
   async function loadSavedProviders(): Promise<Record<string, ProviderConfig>> {
     try {
-      const raw = await fs.readFile(profileConfigPath, 'utf8');
-      const parsed = JSON.parse(raw) as { providers?: Record<string, ProviderConfig> };
-      if (!parsed.providers) return {};
-      return decryptConfigSecrets(parsed.providers, vault);
+      const raw = (await fs.readFile(profileConfigPath, 'utf8')).replace(/^\uFEFF/, '');
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+      const providers = (parsed as { providers?: Record<string, ProviderConfig> }).providers;
+      if (!providers || typeof providers !== 'object' || Array.isArray(providers)) return {};
+      return decryptConfigSecrets(providers, vault);
     } catch {
       return {};
     }
@@ -64,8 +66,12 @@ export function createProviderStore(deps: ProviderStoreDeps): ProviderStore {
       await prev;
       let parsed: Record<string, unknown>;
       try {
-        const raw = await fs.readFile(profileConfigPath, 'utf8');
-        parsed = JSON.parse(raw) as Record<string, unknown>;
+        const raw = (await fs.readFile(profileConfigPath, 'utf8')).replace(/^\uFEFF/, '');
+        const candidate: unknown = JSON.parse(raw);
+        parsed =
+          candidate && typeof candidate === 'object' && !Array.isArray(candidate)
+            ? (candidate as Record<string, unknown>)
+            : {};
       } catch {
         parsed = {};
       }

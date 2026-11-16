@@ -1,9 +1,11 @@
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { parseJvmCompiler } from '../src/languages/compiler-diagnostics.js';
 import {
   diagnosticsForInternalSyntax,
   parseLanguageDiagnostics,
 } from '../src/languages/diagnostics.js';
+import { parseDenoTest } from '../src/languages/test-diagnostics.js';
 
 const root = path.resolve('fixture');
 
@@ -90,5 +92,20 @@ describe('language diagnostic normalization', () => {
     const result = await diagnosticsForInternalSyntax('typescript', target, 'const x = ;');
     expect(result.summary.errors).toBeGreaterThan(0);
     expect(result.diagnostics[0]).toMatchObject({ file: target, source: 'typescript-parser' });
+  });
+
+  it('handles literal % characters in file:// URIs without throwing URIError', () => {
+    const denoOut = [
+      'TS2322 [ERROR]: Type string is not assignable to type number.',
+      '    at file:///D:/100%_suite/a.ts:12:5',
+    ].join('\n');
+    const denoDiags = parseDenoTest(denoOut, 'D:/100%_suite');
+    expect(denoDiags).toHaveLength(1);
+    expect(denoDiags[0]?.file).toBe(path.normalize('D:/100%_suite/a.ts'));
+
+    const jvmOut = '[ERROR] file:///D:/100%_app/App.java:[4,13] incompatible types';
+    const jvmDiags = parseJvmCompiler(jvmOut, 'D:/100%_app');
+    expect(jvmDiags).toHaveLength(1);
+    expect(jvmDiags[0]?.file).toBe(path.normalize('D:/100%_app/App.java'));
   });
 });

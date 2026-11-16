@@ -220,4 +220,10 @@ esac`);
     expect(fs.readdirSync(servers).filter((name) => name.endsWith('.token'))).toEqual([]);
     expect(fs.existsSync(path.join(home, 'p', '.wrongstack'))).toBe(false);
   });
+
+  it('throws a clean address error instead of raw URIError on malformed ssh:// percent-encoding', () => {
+    expect(() => parseRemoteTarget('ssh://alice@example.com/my%ZZproj')).toThrow(
+      'Not a valid ssh:// address',
+    );
+  });
 });

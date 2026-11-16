@@ -506,15 +506,16 @@ export class CloudConfigSync {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
       raw = '';
     }
+    const text = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
     try {
-      const parsed = JSON.parse(raw) as Partial<CloudConfigSyncState>;
+      const parsed = JSON.parse(text) as Partial<CloudConfigSyncState>;
       this.state = {
         ...structuredClone(EMPTY_STATE),
         ...parsed,
         version: 1,
       };
     } catch (error) {
-      if (raw.trim() === '') {
+      if (text.trim() === '') {
         // A missing file (ENOENT → raw '') or a blank one is the legitimate
         // first sync: start from the empty state.
         this.state = structuredClone(EMPTY_STATE);

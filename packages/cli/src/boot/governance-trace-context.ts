@@ -87,7 +87,7 @@ function validTimestamp(value: unknown): value is string {
 function planTrace(raw: string, observedAt: string): GovernancePlanTrace {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(raw.replace(/^\uFEFF/, ''));
   } catch {
     return Object.freeze({ state: 'invalid' });
   }

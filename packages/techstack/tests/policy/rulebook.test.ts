@@ -370,4 +370,11 @@ describe('loadRulebook', () => {
       expect(result.rulebook.preferred).toEqual([]);
     }
   });
+
+  it('strips UTF-8 BOM from techstack.rulebook.json', async () => {
+    const io = new MemoryFileSystem();
+    io.set(DEFAULT_JSON, `\uFEFF${VALID_RULEBOOK_JSON}`);
+    const result = await loadRulebook(ROOT, undefined, io);
+    expect(result.kind).toBe('loaded');
+  });
 });

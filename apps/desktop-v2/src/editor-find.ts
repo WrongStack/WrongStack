@@ -11,15 +11,60 @@ export function findMatches(text: string, query: string, caseSensitive: boolean)
   if (!query) return [];
   const haystack = caseSensitive ? text : text.toLowerCase(),
     needle = caseSensitive ? query : query.toLowerCase();
+  // Lowering can change string length (U+0130 İ → i + combining dot), so lowered
+  // indices then stop addressing the original `text` that consumers highlight and
+  // replace. Map them back for that case; length-preserving lowering (the common
+  // case) keeps the fast path. Divergent unit counts (no known lowering does
+  // this) fall back to case-sensitive matching, whose indices are always valid.
+  const origins =
+    caseSensitive || haystack.length === text.length
+      ? undefined
+      : loweredOrigins(text, haystack.length);
+  if (origins === null) return findMatches(text, query, true);
   const matches: TextMatch[] = [];
   let from = 0;
   while (matches.length < MAX_MATCHES) {
     const start = haystack.indexOf(needle, from);
     if (start < 0) break;
-    matches.push({ start, end: start + query.length });
-    from = start + query.length;
+    matches.push(
+      origins
+        ? {
+            start: origins.starts[start]!,
+            end: origins.ends[start + needle.length - 1]!,
+          }
+        : { start, end: start + needle.length },
+    );
+    from = start + needle.length;
   }
   return matches;
+}
+
+/**
+ * Lowered-unit → original-text index map for a length-changing lowercase:
+ * `starts[i]` is the original index of the character that produced lowered unit
+ * `i`, `ends[i]` the index just after it. Per-character lowering yields the same
+ * unit counts as whole-string lowering (İ is the only lengthening mapping and is
+ * context-free), so the arrays always cover every lowered index; `null` reports
+ * the impossible divergence so the caller can degrade instead of misindexing.
+ */
+function loweredOrigins(
+  text: string,
+  loweredLength: number,
+): { starts: number[]; ends: number[] } | null {
+  const starts: number[] = [];
+  const ends: number[] = [];
+  let read = 0;
+  while (read < text.length) {
+    const char = String.fromCodePoint(text.codePointAt(read)!);
+    const loweredChar = char.toLowerCase();
+    for (let unit = 0; unit < loweredChar.length; unit++) {
+      starts.push(read);
+      ends.push(read + char.length);
+      if (starts.length > loweredLength) return null;
+    }
+    read += char.length;
+  }
+  return starts.length === loweredLength ? { starts, ends } : null;
 }
 
 /**

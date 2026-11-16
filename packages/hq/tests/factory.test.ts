@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { ensureProjectIdentity } from '@wrongstack/core/utils';
 import { describe, expect, it } from 'vitest';
 import {
   createHqPublisherFromEnv,
@@ -11,7 +12,6 @@ import {
   writeHqAuthFile,
   writeHqRuntimeFile,
 } from '../src/index.js';
-import { ensureProjectIdentity } from '@wrongstack/core/utils';
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'hq-factory-'));
@@ -400,6 +400,31 @@ describe('HQ publisher factory env config', () => {
       expect(
         resolveHqConfigFromEnv({ WRONGSTACK_HQ_DATA_DIR: dir, WRONGSTACK_HQ_ENABLED: '0' }),
       ).toBeUndefined();
+    });
+  });
+
+  it('strips UTF-8 BOM from auth.json during local HQ endpoint discovery (F466)', async () => {
+    const { discoverLocalHqEndpoint } = await import('../src/factory.js');
+    await withTempDir(async (dir) => {
+      await fs.writeFile(
+        path.join(dir, 'runtime.json'),
+        JSON.stringify({
+          url: 'http://127.0.0.1:4100',
+          pid: process.pid,
+          startedAt: new Date().toISOString(),
+        }),
+        'utf8',
+      );
+      await fs.writeFile(
+        path.join(dir, 'auth.json'),
+        `\uFEFF${JSON.stringify({
+          version: HQ_AUTH_FILE_VERSION,
+          updatedAt: new Date().toISOString(),
+          clientTokens: [{ id: 'ct-1', token: 'bom-token', createdAt: new Date().toISOString() }],
+        })}`,
+        'utf8',
+      );
+      expect(discoverLocalHqEndpoint({ dataDir: dir })?.token).toBe('bom-token');
     });
   });
 });

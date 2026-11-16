@@ -56,8 +56,10 @@ function empty(): SkillOutcomes {
 }
 
 function parse(text: string): SkillOutcomes {
-  if (!text.trim()) return empty();
-  const raw = JSON.parse(text) as { skills?: unknown; updatedAt?: unknown };
+  const clean = text.replace(/^\uFEFF/, '');
+  if (!clean.trim()) return empty();
+  const raw = JSON.parse(clean) as { skills?: unknown; updatedAt?: unknown } | null;
+  if (!raw || typeof raw !== 'object') return empty();
   const skills: Record<string, SkillOutcomeEntry> = {};
   if (raw.skills && typeof raw.skills === 'object') {
     for (const [name, entry] of Object.entries(raw.skills as Record<string, unknown>)) {

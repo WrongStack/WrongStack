@@ -1,3 +1,4 @@
+import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -360,6 +361,38 @@ describe('package-author-tracker', () => {
       });
       const aPkgs = await getPackagesByAgent(opts, 'agent-a');
       expect(aPkgs.size).toBe(0);
+    });
+
+    it('treats a literal JSON null log file as empty instead of throwing TypeError', async () => {
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, 'package-authors.json'), 'null', 'utf8');
+      const opts = { storageDir: dir, projectRoot: '/test' };
+      expect(await getPackageAuthor(opts, 'package.json', 'zod')).toBeUndefined();
+      await recordPackageAction(opts, {
+        manifestPath: 'package.json',
+        packageName: 'zod',
+        versionSpec: '^3.0.0',
+        ecosystem: 'npm',
+        agentId: 'agent-1',
+      });
+      const entry = await getPackageAuthor(opts, 'package.json', 'zod');
+      expect(entry?.packageName).toBe('zod');
+    });
+
+    it('strips UTF-8 BOM from package-authors.json log (F470)', async () => {
+      await fs.mkdir(dir, { recursive: true });
+      const opts = { storageDir: dir, projectRoot: '/test' };
+      await recordPackageAction(opts, {
+        manifestPath: 'package.json',
+        packageName: 'zod',
+        versionSpec: '^3.0.0',
+        ecosystem: 'npm',
+        agentId: 'agent-1',
+      });
+      const logFile = path.join(dir, 'package-authors.json');
+      await fs.writeFile(logFile, `\uFEFF${await fs.readFile(logFile, 'utf8')}`, 'utf8');
+      const full = await getFullPackageLog(opts);
+      expect(full.entries).toHaveLength(1);
     });
   });
 });

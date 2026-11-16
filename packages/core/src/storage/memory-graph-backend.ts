@@ -346,10 +346,13 @@ export class GraphMemoryBackend implements MemoryBackend {
   private async loadGraph(scope: MemoryScope): Promise<void> {
     if (this.loaded && this.loadedScope === scope) return;
     try {
-      const raw = await fs.readFile(this.graphFile, 'utf8');
-      const data: { nodes: Array<[string, GraphNode]>; edges: GraphEdge[] } = JSON.parse(raw);
-      this.nodes = new Map(data.nodes);
-      this.edges = data.edges;
+      const raw = (await fs.readFile(this.graphFile, 'utf8')).replace(/^\uFEFF/, '');
+      const data = JSON.parse(raw) as {
+        nodes?: Array<[string, GraphNode]>;
+        edges?: GraphEdge[];
+      } | null;
+      this.nodes = new Map(Array.isArray(data?.nodes) ? data.nodes : []);
+      this.edges = Array.isArray(data?.edges) ? data.edges : [];
     } catch {
       this.nodes = new Map();
       this.edges = [];

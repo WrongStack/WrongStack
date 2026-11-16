@@ -409,7 +409,7 @@ async function extractReference(
 async function loadDna(projectRoot: string, slug: string, field: string): Promise<DesignDna> {
   const file = path.join(referencesDir(projectRoot), assertSlug(slug, field), 'dna.json');
   try {
-    return JSON.parse(await fs.readFile(file, 'utf8')) as DesignDna;
+    return JSON.parse((await fs.readFile(file, 'utf8')).replace(/^\uFEFF/, '')) as DesignDna;
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
       throw new ToolValidationError({

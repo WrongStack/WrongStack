@@ -7,6 +7,7 @@ import { sddState } from './state.js';
  * Format elapsed milliseconds as a human-readable string.
  */
 export function formatElapsed(ms: number): string {
+  if (!Number.isFinite(ms) || ms <= 0) return '0ms';
   if (ms < 1000) return `${ms}ms`;
   const s = Math.floor(ms / 1000);
   if (s < 60) return `${s}s`;

@@ -39,7 +39,7 @@ export class SkillManifestStore {
   async read(): Promise<ManifestData> {
     if (this.cache) return this.cache;
     try {
-      const raw = await fs.readFile(this.manifestPath, 'utf8');
+      const raw = (await fs.readFile(this.manifestPath, 'utf8')).replace(/^\uFEFF/, '');
       const data = JSON.parse(raw) as ManifestData;
       if (!Array.isArray(data.skills)) {
         this.cache = { skills: [] };

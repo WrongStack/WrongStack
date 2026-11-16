@@ -221,4 +221,22 @@ describe('parseConventional breaking detection', () => {
     );
     expect(parseConventional('fix: tweak').breaking).toBe(false);
   });
+
+  it('getPackageJson strips UTF-8 BOM from package.json', async () => {
+    const fs = await import('node:fs/promises');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const { getPackageJson } = await import('../src/semver-bump/semver-operations.js');
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'semver-bom-'));
+    try {
+      await fs.writeFile(
+        path.join(dir, 'package.json'),
+        `\uFEFF${JSON.stringify({ name: 'demo', version: '1.2.3' })}`,
+        'utf8',
+      );
+      expect((await getPackageJson(dir))?.version).toBe('1.2.3');
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
 });

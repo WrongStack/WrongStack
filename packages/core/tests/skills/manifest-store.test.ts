@@ -162,4 +162,16 @@ describe('SkillManifestStore', () => {
     const matches = await store.findBySource('github:u/r');
     expect(matches.map((s) => s.name).sort()).toEqual(['a', 'b']);
   });
+
+  it('read strips UTF-8 BOM from manifest.json', async () => {
+    await fs.mkdir(path.dirname(manifestPath), { recursive: true });
+    await fs.writeFile(
+      manifestPath,
+      `\uFEFF${JSON.stringify({ skills: [makeEntry({ name: 'bom-skill' })] })}`,
+      'utf8',
+    );
+    const store = new SkillManifestStore(manifestPath);
+    const data = await store.read();
+    expect(data.skills.map((s) => s.name)).toEqual(['bom-skill']);
+  });
 });

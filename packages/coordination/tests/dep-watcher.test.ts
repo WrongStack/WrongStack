@@ -521,5 +521,15 @@ describe('makeDependencyWatcherConfig', () => {
       expect(secondCall.subject).toBe('Dependency added: immer@^10.0.0 (package.json)');
       cfg.dispose();
     });
+
+    it('escapes regex metacharacters in custom glob patterns without throwing', async () => {
+      const cfg = makeDependencyWatcherConfig({
+        projectRoot,
+        mailbox,
+        patterns: ['*(bad.json'],
+      });
+      await expect(cfg.onChange(makeEntry({ path: 'src/other.ts' }))).resolves.toBeUndefined();
+      cfg.dispose();
+    });
   });
 });

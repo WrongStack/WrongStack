@@ -116,4 +116,20 @@ describe('stale SAGE sweep marker ownership', () => {
       }),
     ).resolves.toEqual({ swept: false, reason: 'throttled' });
   });
+
+  it('strips UTF-8 BOM from sweep marker so throttling still holds (F452)', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(epoch);
+    const directory = mkdtempSync(join(tmpdir(), 'wrongstack-sweep-bom-marker-'));
+    writeFileSync(
+      join(directory, SAGE_SWEEP_MARKER_FILENAME),
+      `\uFEFF${JSON.stringify({ at: new Date(epoch).toISOString() })}`,
+    );
+    await expect(
+      sweepStaleSageMirrors({
+        store: { directory, list: () => [] } as unknown as VectorMemoryStore,
+        memoryStore: port(async () => null),
+      }),
+    ).resolves.toEqual({ swept: false, reason: 'throttled' });
+  });
 });

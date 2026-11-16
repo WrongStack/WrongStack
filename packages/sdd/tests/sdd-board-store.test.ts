@@ -323,4 +323,22 @@ describe('sameIndexSignature', () => {
     expect(sameIndexSignature(base, { ...base, mtimeMs: 9 })).toBe(false);
     expect(sameIndexSignature(base, { ...base, ctimeMs: 9 })).toBe(false);
   });
+
+  it('loads BOM-prefixed SDD board snapshots and indexes', async () => {
+    const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'sdd-bom-'));
+    try {
+      const store = new SddBoardStore({ baseDir: directory });
+      await store.saveSnapshot(snapshot('bom-run', 42));
+      const snapPath = path.join(directory, 'bom-run.json');
+      const idxPath = path.join(directory, '_index.json');
+      await fs.writeFile(snapPath, `\uFEFF${await fs.readFile(snapPath, 'utf8')}`, 'utf8');
+      await fs.writeFile(idxPath, `\uFEFF${await fs.readFile(idxPath, 'utf8')}`, 'utf8');
+
+      const reloaded = new SddBoardStore({ baseDir: directory });
+      expect((await reloaded.load('bom-run'))?.runId).toBe('bom-run');
+      expect((await reloaded.list()).map((e) => e.runId)).toEqual(['bom-run']);
+    } finally {
+      await fs.rm(directory, { recursive: true, force: true });
+    }
+  });
 });

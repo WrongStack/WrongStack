@@ -77,8 +77,10 @@ async function readTextIfPresent(file: string): Promise<string | undefined> {
 
 function parsePackageJsonName(source: string): string | undefined {
   try {
-    const parsed = JSON.parse(source) as { name?: unknown };
-    return typeof parsed.name === 'string' && parsed.name ? parsed.name : undefined;
+    const parsed = JSON.parse(source.replace(/^\uFEFF/, '')) as { name?: unknown } | null;
+    return parsed && typeof parsed === 'object' && typeof parsed.name === 'string' && parsed.name
+      ? parsed.name
+      : undefined;
   } catch {
     return undefined;
   }

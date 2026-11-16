@@ -311,4 +311,22 @@ describe('parseFormatterCounts', () => {
       changed: 1,
     });
   });
+
+  it('detectFixer strips UTF-8 BOM from package.json when checking prettier', async () => {
+    const fsPromises = await import('node:fs/promises');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const { detectFixer } = await import('../src/format.js');
+    const dir = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'fmt-bom-'));
+    try {
+      await fsPromises.writeFile(
+        path.join(dir, 'package.json'),
+        `\uFEFF${JSON.stringify({ name: 'app', prettier: {} })}`,
+        'utf8',
+      );
+      expect(await detectFixer(dir)).toBe('prettier');
+    } finally {
+      await fsPromises.rm(dir, { recursive: true, force: true });
+    }
+  });
 });

@@ -267,4 +267,29 @@ describe('managed worktree holds', () => {
       commits: 0,
     });
   });
+
+  it('parses UTF-8 BOM-prefixed hold markers in isManagedWorktreeHeld (F456)', async () => {
+    const { spawn } = await import('node:child_process');
+    const { holdManagedWorktree, isManagedWorktreeHeld } = await import('../src/worktree-hold.js');
+    const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 10000)'], {
+      stdio: 'ignore',
+    });
+    try {
+      const wtDir = path.join(root, '.wrongstack', 'worktrees', 'bom-hold');
+      await fs.mkdir(wtDir, { recursive: true });
+      const worktreesRoot = path.join(root, '.wrongstack', 'worktrees');
+      const release = await holdManagedWorktree(worktreesRoot, wtDir, 'temp');
+      const holdsDir = path.join(worktreesRoot, '.holds');
+      const [file] = await fs.readdir(holdsDir);
+      await release();
+      await fs.writeFile(
+        path.join(holdsDir, file!),
+        `\uFEFF${JSON.stringify({ pid: child.pid, ownerId: 'other', heldAt: new Date().toISOString() })}`,
+        'utf8',
+      );
+      await expect(isManagedWorktreeHeld(worktreesRoot, wtDir)).resolves.toBe(true);
+    } finally {
+      child.kill();
+    }
+  });
 });

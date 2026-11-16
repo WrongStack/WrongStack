@@ -39,7 +39,7 @@ function patternTargets(map: Record<string, unknown>, key: string): string[] {
   const targets: string[] = [];
   const collect = (v: unknown, depth: number, star?: string): void => {
     if (depth > 8 || v == null) return;
-    if (typeof v === 'string') targets.push(star === undefined ? v : v.replace(/\*/g, star));
+    if (typeof v === 'string') targets.push(star === undefined ? v : v.replace(/\*/g, () => star));
     else if (Array.isArray(v)) for (const x of v) collect(x, depth + 1, star);
     else if (typeof v === 'object') for (const x of Object.values(v)) collect(x, depth + 1, star);
   };
@@ -254,7 +254,7 @@ export class DeadCodeResolver {
       ? spec.slice(best.prefix.length, spec.length - best.suffix.length)
       : null;
     for (const target of best.targets) {
-      const t = star === null ? target : target.replace('*', star);
+      const t = star === null ? target : target.replace('*', () => star);
       const hit = this.resolveFileLike(path.posix.join(cfg.base, t));
       if (hit.length > 0) return hit;
     }

@@ -826,4 +826,26 @@ describe('wireToolsToChronicle', () => {
     expect(recorded[0]?.attributes).toMatchObject({ settlement: 'denied_by_policy' });
     expect(recorded.at(-1)?.attributes).not.toHaveProperty('settlement');
   });
+
+  it('clamps non-finite or negative durationMs to "0" durationNs', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-tool-nan-'));
+    tempDirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
+    const events = new EventBus();
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', sessionId: 'sess' },
+      'trace',
+    );
+    const off = wireToolsToChronicle({ events, journal, context, scrubber });
+    events.emit('tool.executed', {
+      sessionId: 'sess',
+      id: 't-nan',
+      name: 'bash',
+      durationMs: Number.NaN,
+      ok: true,
+    });
+    const recorded = await journal.readAll();
+    off();
+    expect(recorded[0]?.durationNs).toBe('0');
+  });
 });

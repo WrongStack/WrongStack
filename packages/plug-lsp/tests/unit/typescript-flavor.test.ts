@@ -49,6 +49,24 @@ describe('workspaceTypeScriptMajor', () => {
     expect(await workspaceTypeScriptMajor(nested)).toBe(7);
   });
 
+  it('reads a BOM-prefixed workspace manifest', async () => {
+    const root = await workspace('7.0.2');
+    await fs.writeFile(
+      path.join(root, 'node_modules/typescript/package.json'),
+      '\uFEFF{"version":"7.0.2"}',
+    );
+    expect(await workspaceTypeScriptMajor(root)).toBe(7);
+  });
+
+  it.each([null, [], 42, 'invalid'])('stops at an invalid nearest manifest: %j', async (value) => {
+    const parent = await workspace('7.0.2');
+    const child = path.join(parent, 'packages', 'nested');
+    const directory = path.join(child, 'node_modules', 'typescript');
+    await fs.mkdir(directory, { recursive: true });
+    await fs.writeFile(path.join(directory, 'package.json'), JSON.stringify(value));
+    expect(await workspaceTypeScriptMajor(child)).toBeUndefined();
+  });
+
   it('is undefined when the project has no TypeScript, or a broken manifest', async () => {
     const bare = await fs.mkdtemp(path.join(os.tmpdir(), 'ts-flavor-bare-'));
     dirs.push(bare);

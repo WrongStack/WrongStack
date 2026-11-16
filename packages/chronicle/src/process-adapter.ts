@@ -34,7 +34,10 @@ export function wireProcessesToChronicle(options: ChronicleProcessAdapterOptions
         eventType: 'process.completed',
         outcome: event.exitCode === 0 ? 'success' : event.timedOut ? 'cancelled' : 'failure',
         occurredAt: event.endedAt,
-        durationNs: Math.round(event.durationMs * 1_000_000).toString(),
+        durationNs:
+          Number.isFinite(event.durationMs) && event.durationMs > 0
+            ? Math.round(event.durationMs * 1_000_000).toString()
+            : '0',
         attributes: {
           exitCode: event.exitCode,
           signal: event.signal,

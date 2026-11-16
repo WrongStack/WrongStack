@@ -207,7 +207,9 @@ export class SSEReader {
         params?: unknown | undefined;
         id?: number | undefined;
       };
-      this.dispatch(parsed);
+      if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        this.dispatch(parsed);
+      }
     } catch {
       // ignore parse errors
     }

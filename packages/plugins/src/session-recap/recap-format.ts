@@ -1,7 +1,9 @@
 export function formatDuration(startedAt: string | null, lastActivityAt: string | null): string {
   if (!startedAt) return '0s';
   const start = Date.parse(startedAt);
+  if (!Number.isFinite(start)) return '0s';
   const end = lastActivityAt ? Date.parse(lastActivityAt) : Date.now();
+  if (!Number.isFinite(end)) return '0s';
   const ms = Math.max(0, end - start);
   const sec = Math.floor(ms / 1000);
   if (sec < 60) return `${sec}s`;

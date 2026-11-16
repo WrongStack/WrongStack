@@ -509,4 +509,21 @@ describe('Phase 4.1: Cross-System Ecosystem Bridge (SAGE + Codebase Index)', () 
       [],
     );
   });
+
+  it('findFileHealthAlerts strips UTF-8 BOM and skips null entries in wrongtrace-health.json', async () => {
+    const fsPromises = await import('node:fs/promises');
+    const { findFileHealthAlerts } = await import('../src/codebase-index/ecosystem-bridge.js');
+    const dir = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'eco-health-bom-'));
+    try {
+      await fsPromises.mkdir(path.join(dir, '.wrongstack'), { recursive: true });
+      await fsPromises.writeFile(
+        path.join(dir, '.wrongstack', 'wrongtrace-health.json'),
+        `\uFEFF${JSON.stringify([null, { file_path: 'src/app.ts', health_score: 30, is_fragile: true }])}`,
+        'utf8',
+      );
+      expect(findFileHealthAlerts(dir, ['src/app.ts'])).toHaveLength(1);
+    } finally {
+      await fsPromises.rm(dir, { recursive: true, force: true });
+    }
+  });
 });

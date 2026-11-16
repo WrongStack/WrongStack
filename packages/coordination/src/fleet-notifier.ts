@@ -146,9 +146,16 @@ export class FleetNotifier {
 
   private async discover(): Promise<PingTarget[]> {
     try {
-      const raw = await fs.readFile(path.join(this.baseDir, INSTANCES_FILE), 'utf8');
-      const data = JSON.parse(raw) as { instances?: InstanceRecordLike[] };
-      const list = Array.isArray(data?.instances) ? data.instances : [];
+      const raw = (await fs.readFile(path.join(this.baseDir, INSTANCES_FILE), 'utf8')).replace(
+        /^\uFEFF/,
+        '',
+      );
+      const data: unknown = JSON.parse(raw);
+      const instances =
+        data && typeof data === 'object' && !Array.isArray(data)
+          ? (data as { instances?: InstanceRecordLike[] }).instances
+          : undefined;
+      const list = Array.isArray(instances) ? instances : [];
       return (
         list
           .filter((i) => i && typeof i.httpPort === 'number')

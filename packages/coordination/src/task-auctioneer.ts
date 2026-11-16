@@ -575,6 +575,9 @@ export class TaskAuctioneer {
 
   private _startBidWindow(taskId: string): void {
     this._cancelBidWindow(taskId);
+    const safeBidWindowMs = Number.isFinite(this.bidWindowMs)
+      ? Math.max(0, Math.min(2_147_483_647, this.bidWindowMs))
+      : 30_000;
     const timer = setTimeout(() => {
       this.bidTimers.delete(taskId);
       // Fire-and-forget: the timer owns this promise, so swallow rejections
@@ -585,7 +588,7 @@ export class TaskAuctioneer {
       void this._evaluateBids(taskId).catch(() => {
         /* best-effort — bid window fired with nothing left to write to */
       });
-    }, this.bidWindowMs);
+    }, safeBidWindowMs);
     this.bidTimers.set(taskId, timer);
   }
 

@@ -39,7 +39,8 @@ function markerPath(worktreesRoot: string, dir: string): string {
 
 async function readMarker(file: string): Promise<HoldMarker | null> {
   try {
-    const parsed = JSON.parse(await fsp.readFile(file, 'utf8')) as Partial<HoldMarker> | null;
+    const raw = (await fsp.readFile(file, 'utf8')).replace(/^\uFEFF/, '');
+    const parsed = JSON.parse(raw) as Partial<HoldMarker> | null;
     return parsed !== null &&
       typeof parsed === 'object' &&
       typeof parsed.pid === 'number' &&

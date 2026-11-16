@@ -758,4 +758,22 @@ describe('SddBoardProjector', () => {
     expect(snap.feed?.[0]?.taskShortId).toBe(expectedShortId);
     proj.dispose();
   });
+
+  it('clamps non-finite or negative task durationMs in completion feed entries', () => {
+    const g = graph();
+    const tracker = makeTracker(g);
+    const events = new EventBus();
+    const proj = new SddBoardProjector({ runId: 'nan-dur', graph: g, tracker, events, store });
+
+    events.emit('sdd.task.completed', {
+      runId: 'nan-dur',
+      taskId: 'a',
+      subagentId: 'worker-a',
+      durationMs: Number.NaN,
+    });
+    const snap = proj.snapshot();
+    expect(snap.feed?.[0]?.text).toContain('0.0s');
+    expect(snap.feed?.[0]?.text).not.toContain('NaN');
+    proj.dispose();
+  });
 });

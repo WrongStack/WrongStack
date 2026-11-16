@@ -894,4 +894,19 @@ describe('429 reset time', () => {
     expect(calls).toBe(1);
     expect(seen).toEqual(['partial-']);
   });
+
+  it('falls back to 3600s when refreshAntigravityToken receives non-finite or non-positive expires_in (F460)', async () => {
+    const { refreshAntigravityToken } = await import('../src/google-antigravity.js');
+    const refreshed = await refreshAntigravityToken(
+      'ref-1',
+      { clientId: 'cid', clientSecret: 'sec' },
+      undefined,
+      (async () =>
+        new Response(JSON.stringify({ access_token: 'tok-1', expires_in: -100 }), {
+          status: 200,
+        })) as never as typeof fetch,
+    );
+    expect(Number.isFinite(refreshed.expires)).toBe(true);
+    expect(refreshed.expires).toBeGreaterThan(Date.now());
+  });
 });

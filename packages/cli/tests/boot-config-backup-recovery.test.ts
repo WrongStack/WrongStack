@@ -160,4 +160,18 @@ describe('interactive config backup recovery', () => {
     expect(restored).toBe(false);
     expect(JSON.parse(await fs.readFile(profilePath, 'utf8'))).toEqual(current);
   });
+
+  it('strips UTF-8 BOM from profile and backup snapshots (F443)', async () => {
+    await fs.writeFile(profilePath, `\uFEFF${JSON.stringify({ providers: {} })}`);
+    await fs.writeFile(
+      path.join(
+        globalRoot,
+        'config-history',
+        'profiles-default-config-2026-07-19T12-00-00-000.json',
+      ),
+      `\uFEFF${JSON.stringify({ providers: { anthropic: { type: 'anthropic' } } })}`,
+    );
+    const backup = await findLatestProviderBackup(globalRoot, 'default');
+    expect(backup?.providerIds).toEqual(['anthropic']);
+  });
 });

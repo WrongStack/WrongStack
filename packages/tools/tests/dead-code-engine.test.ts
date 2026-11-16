@@ -736,4 +736,39 @@ describe('dead-code precision (patterns found on a real monorepo)', () => {
     const r = await analyzeDeadCode(dir, { noCache: true });
     expect(find(r.findings, 'unreachable-file', 'src/helper.ts')).toBeUndefined();
   });
+
+  it('resolves exports and tsconfig paths wildcards literally when the subpath contains $&', async () => {
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'root', private: true, workspaces: ['packages/*'] }),
+      'packages/web/package.json': JSON.stringify({
+        name: '@test/web',
+        exports: { './routes/*': './dist/routes/*.js' },
+      }),
+      'packages/web/src/routes/$&.ts': 'export const route = 1;\n',
+      'packages/app/package.json': JSON.stringify({
+        name: '@test/app',
+        main: './src/main.ts',
+        dependencies: { '@test/web': 'workspace:*' },
+      }),
+      'packages/app/tsconfig.json': JSON.stringify({
+        compilerOptions: { baseUrl: '.', paths: { '@routes/*': ['src/routes/*.ts'] } },
+      }),
+      'packages/app/src/routes/$&.ts': 'export const localRoute = 2;\n',
+      'packages/app/src/main.ts':
+        "import { route } from '@test/web/routes/$&';\nimport { localRoute } from '@routes/$&';\nconsole.log(route, localRoute);\n",
+    });
+    const r = await analyzeDeadCode(dir, { noCache: true });
+    expect(find(r.findings, 'unreachable-file', 'packages/web/src/routes/$&.ts')).toBeUndefined();
+    expect(find(r.findings, 'unreachable-file', 'packages/app/src/routes/$&.ts')).toBeUndefined();
+  });
+
+  it('strips UTF-8 BOM from .wrongstack/dead-code.json', async () => {
+    const dir = project({
+      '.wrongstack/dead-code.json': `\uFEFF${JSON.stringify({ entries: ['src/custom.ts'] })}`,
+      'package.json': JSON.stringify({ name: 'p', private: true }),
+      'src/custom.ts': 'export const ok = 1;\n',
+    });
+    const r = await analyzeDeadCode(dir, { noCache: true });
+    expect(find(r.findings, 'unreachable-file', 'src/custom.ts')).toBeUndefined();
+  });
 });

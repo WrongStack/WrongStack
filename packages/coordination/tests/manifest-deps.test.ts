@@ -187,4 +187,10 @@ describe('diffDeclaredDependencies', () => {
     const after = parseDeclaredDependencies(content, 'package.json');
     expect(hasDependencyChanges(diffDeclaredDependencies(before, after))).toBe(false);
   });
+
+  it('strips UTF-8 BOM from JSON manifests (F472)', () => {
+    const content = `\uFEFF${JSON.stringify({ dependencies: { zod: '^3.23.0' } })}`;
+    const parsed = parseDeclaredDependencies(content, 'package.json');
+    expect(parsed.get('zod')?.range).toBe('^3.23.0');
+  });
 });

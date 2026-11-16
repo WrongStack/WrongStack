@@ -116,7 +116,7 @@ async function readCentralPackageVersions(projectDir: string): Promise<Map<strin
 function parseProjectAssetsJson(content: string): Map<string, string> {
   const versions = new Map<string, string>();
   try {
-    const json = JSON.parse(content) as {
+    const json = JSON.parse(content.replace(/^\uFEFF/, '')) as {
       libraries?: Record<string, { type?: string }>;
     };
     if (json.libraries) {
@@ -149,15 +149,20 @@ function parseProjectAssetsJson(content: string): Map<string, string> {
  */
 function parseNuGetPackagesLock(content: string): Map<string, string> {
   const versions = new Map<string, string>();
-  const json = JSON.parse(content) as {
-    dependencies?: Record<string, Record<string, { type?: string; resolved?: string }>>;
-  };
-  for (const frameworkDeps of Object.values(json.dependencies ?? {})) {
-    for (const [name, entry] of Object.entries(frameworkDeps ?? {})) {
-      if (typeof entry?.resolved === 'string' && !versions.has(name.toLowerCase())) {
-        versions.set(name.toLowerCase(), entry.resolved);
+  try {
+    const json = JSON.parse(content.replace(/^\uFEFF/, '')) as {
+      dependencies?: Record<string, Record<string, { type?: string; resolved?: string }>>;
+    } | null;
+    if (!json || typeof json !== 'object') return versions;
+    for (const frameworkDeps of Object.values(json.dependencies ?? {})) {
+      for (const [name, entry] of Object.entries(frameworkDeps ?? {})) {
+        if (typeof entry?.resolved === 'string' && !versions.has(name.toLowerCase())) {
+          versions.set(name.toLowerCase(), entry.resolved);
+        }
       }
     }
+  } catch {
+    // Malformed JSON
   }
   return versions;
 }

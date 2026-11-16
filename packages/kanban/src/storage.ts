@@ -162,7 +162,10 @@ export async function readBoard(
   const boardId = await resolveBoardRef(projectRoot, boardRef);
   if (!boardId) return null;
   try {
-    const raw = await readFileWithRetry(getKanbanPath(projectRoot, boardId));
+    const raw = (await readFileWithRetry(getKanbanPath(projectRoot, boardId))).replace(
+      /^\uFEFF/,
+      '',
+    );
     return normalizeBoard(JSON.parse(raw) as KanbanBoard);
   } catch (err) {
     if (isEnoent(err)) return null;
@@ -457,7 +460,7 @@ export async function mutateBoard<T>(
   return withFileLock(filePath, async () => {
     let board: KanbanBoard;
     try {
-      const raw = await readFileWithRetry(filePath);
+      const raw = (await readFileWithRetry(filePath)).replace(/^\uFEFF/, '');
       board = normalizeBoard(JSON.parse(raw) as KanbanBoard);
     } catch (err) {
       if (isEnoent(err)) return null;
@@ -487,7 +490,7 @@ export async function mutateBoard<T>(
     // were computing, and our mutation is based on stale state. This check
     // runs for both no-op and mutating paths so a silent no-op cannot mask a
     // concurrent write that happened during the mutator's async execution.
-    const currentRaw = await readFileWithRetry(filePath);
+    const currentRaw = (await readFileWithRetry(filePath)).replace(/^\uFEFF/, '');
     const currentBoard = JSON.parse(currentRaw) as KanbanBoard;
     const currentRevision = currentBoard.revision ?? 0;
     if (currentRevision !== readRevision) {

@@ -14,6 +14,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import sessionRecapPlugin from '../src/session-recap/index.js';
+import { formatDuration } from '../src/session-recap/recap-format.js';
 
 // ---------------------------------------------------------------------------
 // Types + helpers
@@ -819,5 +820,11 @@ describe('session-recap: tool-call counting over real core tool events', () => {
     const recap = await publishedRecap(api);
     expect(recap.tools.totalCalls).toBe(1);
     expect(recap.tools.uniqueTools).toBe(1);
+  });
+
+  it('formatDuration returns 0s when timestamps are unparseable', () => {
+    expect(formatDuration('2026-01-01T00:00:00.000Z', '2026-01-01T00:02:05.000Z')).toBe('2m5s');
+    expect(formatDuration('not-a-date', '2026-01-01T00:02:05.000Z')).toBe('0s');
+    expect(formatDuration('2026-01-01T00:00:00.000Z', 'not-a-date')).toBe('0s');
   });
 });

@@ -93,7 +93,7 @@ async function hqAlertsEval(_args: string[], deps: SubcommandDeps): Promise<numb
 
   let snapshot: unknown;
   try {
-    snapshot = JSON.parse(raw);
+    snapshot = JSON.parse(raw.replace(/^\uFEFF/, ''));
   } catch (err) {
     deps.renderer.writeError(
       `Snapshot at ${snapshotPath} is not valid JSON: ${(err as Error).message}\n`,

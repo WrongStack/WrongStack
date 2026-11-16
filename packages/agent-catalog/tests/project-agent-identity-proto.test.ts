@@ -38,4 +38,40 @@ describe('loadRoleKnowledgeManifest prototype safety', () => {
       expect(() => buildProjectContextualizedPrompt('Base instructions', role)).not.toThrow();
     }
   });
+
+  it('loads BOM-prefixed knowledge.json manifests', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ws-cat-know-bom-'));
+    tempRoots.push(root);
+    const dir = path.join(root, '.wrongstack', 'agents', 'custom-bom');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'knowledge.json'),
+      `\uFEFF${JSON.stringify({ checklist: ['Check registry'], liveQueries: {} })}`,
+      'utf8',
+    );
+
+    const manifest = loadRoleKnowledgeManifest('custom-bom', root);
+    expect(manifest?.checklist).toEqual(['Check registry']);
+  });
+
+  it('loads BOM-prefixed profile.json files', async () => {
+    const { loadProjectAgentProfile } = await import('../src/project-agent-profile.js');
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ws-cat-prof-bom-'));
+    tempRoots.push(root);
+    const dir = path.join(root, '.wrongstack', 'agents', 'reviewer-bom');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'profile.json'),
+      `\uFEFF${JSON.stringify({
+        role: 'reviewer-bom',
+        name: 'Reviewer BOM',
+        baseRole: 'generic',
+        purpose: 'Review carefully',
+        taskTypes: ['review'],
+      })}`,
+      'utf8',
+    );
+
+    expect(loadProjectAgentProfile('reviewer-bom', root)?.name).toBe('Reviewer BOM');
+  });
 });

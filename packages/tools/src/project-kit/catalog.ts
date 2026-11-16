@@ -51,7 +51,7 @@ export async function kitPath(root: string, relative: string, create = false): P
 }
 
 function parseManifest(raw: Buffer, name: string): KitManifest {
-  const m = JSON.parse(raw.toString('utf8')) as KitManifest;
+  const m = JSON.parse(raw.toString('utf8').replace(/^\uFEFF/, '')) as KitManifest;
   if (!m || typeof m !== 'object' || m.formatVersion !== 1 || m.name !== name)
     throw new Error('Manifest formatVersion/name mismatch');
   if (typeof m.description !== 'string' || !m.description.trim() || m.description.length > 2048)

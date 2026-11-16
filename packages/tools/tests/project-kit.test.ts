@@ -425,4 +425,12 @@ export async function run(input, ctx) {
     });
     expect(projectKitRunTool.subjectFields).toContain('revision');
   });
+
+  it('loadKit strips UTF-8 BOM from kit.json', async () => {
+    const f = await fixture();
+    const kitJsonPath = path.join(f.kitDir, 'kit.json');
+    await writeFile(kitJsonPath, `\uFEFF${JSON.stringify(f.manifest)}`, 'utf8');
+    const loaded = await loadKit(f.root, 'strings.unique');
+    expect(loaded.manifest.name).toBe('strings.unique');
+  });
 });

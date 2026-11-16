@@ -399,8 +399,12 @@ export async function sweepStaleSageMirrors(
       : DEFAULT_SWEEP_INTERVAL_MS;
   if (!opts.force) {
     try {
-      const raw = JSON.parse(fs.readFileSync(markerPath, 'utf8')) as { at?: unknown };
-      const at = typeof raw.at === 'string' ? Date.parse(raw.at) : Number.NaN;
+      const raw: unknown = JSON.parse(fs.readFileSync(markerPath, 'utf8').replace(/^\uFEFF/, ''));
+      const atStr =
+        raw && typeof raw === 'object' && !Array.isArray(raw)
+          ? (raw as { at?: unknown }).at
+          : undefined;
+      const at = typeof atStr === 'string' ? Date.parse(atStr) : Number.NaN;
       const ageMs = Date.now() - at;
       if (Number.isFinite(at) && ageMs >= 0 && ageMs < interval) {
         return { swept: false, reason: 'throttled' };
@@ -427,8 +431,17 @@ export async function sweepStaleSageMirrors(
     return { swept: true, ...result };
   } catch (err) {
     try {
-      const marker = JSON.parse(fs.readFileSync(markerPath, 'utf8')) as { claimId?: unknown };
-      if (marker.claimId === claimId) fs.unlinkSync(markerPath);
+      const marker: unknown = JSON.parse(
+        fs.readFileSync(markerPath, 'utf8').replace(/^\uFEFF/, ''),
+      );
+      if (
+        marker &&
+        typeof marker === 'object' &&
+        !Array.isArray(marker) &&
+        (marker as { claimId?: unknown }).claimId === claimId
+      ) {
+        fs.unlinkSync(markerPath);
+      }
     } catch {
       // Missing, corrupt, or replaced marker: another process owns the path.
     }

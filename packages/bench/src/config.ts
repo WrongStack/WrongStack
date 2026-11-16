@@ -156,7 +156,7 @@ export async function loadBenchConfig(path: string): Promise<BenchConfig> {
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(raw.replace(/^\uFEFF/, ''));
   } catch (err) {
     /* v8 ignore next 2 -- JSON.parse throws a SyntaxError; the String(err) branch is defensive. */
     throw new Error(

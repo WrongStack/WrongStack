@@ -166,4 +166,12 @@ describe('file-author-tracker', () => {
     );
     expect((await getFullLog(opts)).entries).toHaveLength(20);
   });
+
+  it('strips UTF-8 BOM from file-authors.json log (F469)', async () => {
+    await recordFileAction(opts, { filePath: 'src/bom.ts', action: 'create', agentId: 'leader' });
+    const files = await fs.readdir(tmpDir);
+    const logFile = path.join(tmpDir, files.find((f) => f.endsWith('.json'))!);
+    await fs.writeFile(logFile, `\uFEFF${await fs.readFile(logFile, 'utf8')}`, 'utf8');
+    expect((await getFullLog(opts)).entries).toHaveLength(1);
+  });
 });

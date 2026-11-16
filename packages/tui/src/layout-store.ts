@@ -233,13 +233,21 @@ export class LayoutStore {
 
     let snapshot: LayoutSnapshot;
     try {
-      snapshot = JSON.parse(raw) as LayoutSnapshot;
+      snapshot = JSON.parse(raw.replace(/^\uFEFF/, '')) as LayoutSnapshot;
     } catch {
       return 0; // Corrupt
     }
 
-    // Version check — discard if the engine changed
-    if (snapshot.version !== LAYOUT_VERSION) return 0;
+    // Version check — discard if the engine changed or JSON was malformed (null/primitive)
+    if (
+      !snapshot ||
+      typeof snapshot !== 'object' ||
+      snapshot.version !== LAYOUT_VERSION ||
+      !snapshot.entries ||
+      typeof snapshot.entries !== 'object'
+    ) {
+      return 0;
+    }
 
     // Width check — discard if terminal has changed substantially (>20 col)
     if (Math.abs(snapshot.termWidth - this.currentTermWidth) > 20) return 0;

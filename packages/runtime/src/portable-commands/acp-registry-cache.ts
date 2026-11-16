@@ -35,9 +35,9 @@ function acpRegistryCachePath(paths: WstackPaths): string {
 /** Read the cached registry, or `null` if it's missing or unreadable. */
 export async function loadCachedAcpRegistry(paths: WstackPaths): Promise<LoadedAcpRegistry | null> {
   try {
-    const raw = await fs.readFile(acpRegistryCachePath(paths), 'utf8');
-    const env = JSON.parse(raw) as CacheEnvelope;
-    if (!Array.isArray(env.agents)) return null;
+    const raw = (await fs.readFile(acpRegistryCachePath(paths), 'utf8')).replace(/^\uFEFF/, '');
+    const env = JSON.parse(raw) as CacheEnvelope | null;
+    if (!env || typeof env !== 'object' || !Array.isArray(env.agents)) return null;
     const byId: AcpLiveCatalog = Object.create(null);
     const validAgents: ACPAgentDescriptor[] = [];
     for (const a of env.agents) {

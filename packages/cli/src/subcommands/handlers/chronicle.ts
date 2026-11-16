@@ -248,8 +248,13 @@ function parseQuery(tokens: string[]): ChronicleQuery {
       query.outcomes = value.split(',').filter(Boolean) as NonNullable<ChronicleQuery['outcomes']>;
     else if (key === 'resourceKind')
       query.resourceKind = value as NonNullable<ChronicleQuery['resourceKind']>;
-    else if (key === 'line' || key === 'limit') query[key] = Number(value);
-    else if (key === 'order' && (value === 'asc' || value === 'desc')) query.order = value;
+    else if (key === 'line' || key === 'limit') {
+      const n = /^\d+$/.test(value.trim()) ? Number(value.trim()) : Number.NaN;
+      if (!Number.isSafeInteger(n) || n < 1) {
+        throw new Error(`Invalid ${key}: "${value}". Expected a positive integer.`);
+      }
+      query[key] = n;
+    } else if (key === 'order' && (value === 'asc' || value === 'desc')) query.order = value;
     else if (key.startsWith('tag.')) {
       const tags = query.tags ?? {};
       tags[key.slice(4)] = value;

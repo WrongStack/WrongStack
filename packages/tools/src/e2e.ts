@@ -241,7 +241,8 @@ async function readPackageInfo(packagePath: string): Promise<PackageInfo | undef
   try {
     const raw = await readBoundedText(packagePath, MAX_PACKAGE_BYTES);
     if (raw === undefined) return undefined;
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const parsed = JSON.parse(raw.replace(/^\uFEFF/, '')) as Record<string, unknown> | null;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
     const scripts =
       parsed.scripts && typeof parsed.scripts === 'object'
         ? Object.fromEntries(

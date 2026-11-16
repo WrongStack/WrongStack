@@ -250,12 +250,15 @@ export class CollabSession extends EventEmitter {
     this.subagentIds.set('refactor-planner', refactorPlanner.subagentId);
     this.subagentIds.set('critic', critic.subagentId);
 
+    const safeTimeoutMs = Number.isFinite(this.timeoutMs)
+      ? Math.max(0, Math.min(2_147_483_647, this.timeoutMs))
+      : 10 * 60 * 1000;
     const timeout = new Promise<never>((_, reject) => {
       this._timeoutTimer = setTimeout(() => {
         if (this._raceResolved) return;
         this.cancel('Session-level timeout reached');
         reject(new Error(`CollabSession timed out after ${this.timeoutMs}ms`));
-      }, this.timeoutMs);
+      }, safeTimeoutMs);
     });
 
     let results: TaskResult[][] | null = null;

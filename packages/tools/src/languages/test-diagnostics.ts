@@ -164,7 +164,13 @@ export function parseDenoTest(text: string, root: string): LanguageDiagnostic[] 
     for (let j = i + 1; j < lines.length && j <= i + 6; j++) {
       const at = /^\s+at (file:\/\/\/.+?):(\d+):(\d+)$/.exec(lines[j]!);
       if (!at) continue;
-      let file = decodeURIComponent(at[1]!.replace(/^file:\/\/\//, ''));
+      const rawFile = at[1]!.replace(/^file:\/\/\//, '');
+      let file: string;
+      try {
+        file = decodeURIComponent(rawFile);
+      } catch {
+        file = rawFile;
+      }
       if (!/^[A-Za-z]:/.test(file)) file = `/${file}`;
       diagnostics.push({
         severity: typeError[2] === 'WARNING' ? 'warning' : 'error',

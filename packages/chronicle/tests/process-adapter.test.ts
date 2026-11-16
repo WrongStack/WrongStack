@@ -4,16 +4,16 @@ import * as path from 'node:path';
 import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  ChronicleJournal,
-  createChronicleContext,
-  wireProcessesToChronicle,
-} from '../src/index.js';
-import {
   emitProcessCompleted,
   emitProcessOutput,
   emitProcessStarted,
   runWithProcessTelemetry,
 } from '../../core/src/observability/process-telemetry.js';
+import {
+  ChronicleJournal,
+  createChronicleContext,
+  wireProcessesToChronicle,
+} from '../src/index.js';
 
 const tempDirs: string[] = [];
 const scrubber = {
@@ -84,5 +84,32 @@ describe('Chronicle process telemetry', () => {
     expect(recorded[1]).toMatchObject({ outcome: 'success', durationNs: '25000000' });
     expect(recorded[1]?.runtime?.processId).toBe(700);
     await expect(journal.verify()).resolves.toMatchObject({ ok: true, entries: 2 });
+  });
+
+  it('clamps non-finite or negative durationMs to "0" durationNs', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-process-nan-'));
+    tempDirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
+    const events = new EventBus();
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', sessionId: 'sess' },
+      'trace',
+    );
+    const off = wireProcessesToChronicle({ events, journal, context, scrubber });
+    events.emit('process.completed', {
+      pid: 701,
+      sessionId: 'sess',
+      toolCallId: 'call-701',
+      toolName: 'pwsh',
+      exitCode: 0,
+      durationMs: Number.NaN,
+      stdoutBytes: 0,
+      stderrBytes: 0,
+      timedOut: false,
+      endedAt: '2026-07-18T00:00:00.025Z',
+    });
+    const recorded = await journal.readAll();
+    off();
+    expect(recorded[0]?.durationNs).toBe('0');
   });
 });

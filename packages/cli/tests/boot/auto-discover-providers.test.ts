@@ -388,4 +388,24 @@ describe('discoverAndMergeProviders', () => {
     });
     expect(curated.providers?.xai?.models).toEqual(['grok-4.6']);
   });
+
+  it('treats null discovered-models-cache.json as empty without throwing', async () => {
+    await fs.writeFile(path.join(cacheDir, 'discovered-models-cache.json'), 'null', 'utf8');
+    await expect(
+      discoverAndMergeProviders({
+        config: cfgWith({
+          local: {
+            type: 'openai-compatible',
+            baseUrl: 'http://127.0.0.1:1/v1',
+            autoDiscoverModels: true,
+          },
+        }),
+        registry: fakeRegistry() as never,
+        cacheDir,
+        fetchImpl: (async () => {
+          throw new Error('offline');
+        }) as never,
+      }),
+    ).resolves.toBeUndefined();
+  });
 });

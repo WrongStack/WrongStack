@@ -100,4 +100,14 @@ describe('governance wording', () => {
     ]);
     expect(detail.facts[0]?.value).toBe('retry wait · degraded');
   });
+
+  it('agentFacts formats non-finite or negative token counts as 0', async () => {
+    const { agentFacts } = await import('../src/features/console/model.js');
+    const facts = agentFacts(
+      undefined,
+      { id: 'leader', tokensIn: Number.NaN, tokensOut: Number.POSITIVE_INFINITY } as never,
+      null,
+    );
+    expect(facts?.tokens).toBe('0 in · 0 out');
+  });
 });

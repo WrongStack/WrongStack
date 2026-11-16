@@ -243,7 +243,15 @@ export function parseJvmCompiler(text: string, root: string): LanguageDiagnostic
   const diagnostics: LanguageDiagnostic[] = [];
   const lines = text.split(/\r?\n/);
   const filePath = (raw: string) => {
-    const decoded = raw.startsWith('file://') ? decodeURIComponent(raw.slice(7)) : raw;
+    let decoded = raw;
+    if (raw.startsWith('file://')) {
+      const rest = raw.slice(7);
+      try {
+        decoded = decodeURIComponent(rest);
+      } catch {
+        decoded = rest;
+      }
+    }
     // Maven and file URLs write a Windows path as `/D:/…`.
     return normalizeDiagnosticPath(decoded.replace(/^\/([A-Za-z]:[\\/])/, '$1'), root);
   };

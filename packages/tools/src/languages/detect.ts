@@ -311,7 +311,9 @@ async function detectPackageManager(
 
   let declared: string | undefined;
   try {
-    const pkg = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8')) as {
+    const pkg = JSON.parse(
+      (await fs.readFile(path.join(root, 'package.json'), 'utf8')).replace(/^\uFEFF/, ''),
+    ) as {
       packageManager?: unknown;
     };
     if (typeof pkg.packageManager === 'string') {

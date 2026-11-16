@@ -745,6 +745,42 @@ describe('completion WebSocket handler', { timeout: 30_000 }, () => {
       },
     });
   });
+
+  it('returns empty items without error when LLM completion JSON is null or non-JSON (F454)', async () => {
+    const { handleCompletionRequest } = await import('@wrongstack/webui-server');
+    const provider = {
+      id: 'mock',
+      capabilities: { structuredOutput: false, jsonMode: true },
+      complete: vi.fn(async () => ({
+        content: [{ type: 'text', text: 'null' }],
+        stopReason: 'end_turn',
+        usage: { input: 1, output: 1 },
+        model: 'test-model',
+      })),
+    } as never as Provider;
+
+    const ws = createMockWs();
+    await handleCompletionRequest(
+      ws,
+      {
+        type: 'completion.request',
+        payload: {
+          requestId: 'r-null-json',
+          filePath: 'src/empty.ts',
+          language: 'typescript',
+          lineNumber: 1,
+          column: 10,
+          prefix: 'const x = ',
+          suffix: '',
+          allowLlm: true,
+        },
+      },
+      { projectRoot: process.cwd(), provider, model: 'test-model' },
+    );
+
+    const last = ws.sent.at(-1) as { payload: { error?: string; items: unknown[] } };
+    expect(last.payload.error).toBeUndefined();
+  });
 });
 
 function createMockWs() {

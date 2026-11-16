@@ -61,7 +61,9 @@ export interface ProjectDeadCodeConfig {
 export function readProjectDeadCodeConfig(projectRoot: string): ProjectDeadCodeConfig {
   try {
     const raw = JSON.parse(
-      fs.readFileSync(path.join(projectRoot, '.wrongstack', 'dead-code.json'), 'utf8'),
+      fs
+        .readFileSync(path.join(projectRoot, '.wrongstack', 'dead-code.json'), 'utf8')
+        .replace(/^\uFEFF/, ''),
     ) as Record<string, unknown>;
     const strings = (v: unknown): string[] | undefined =>
       Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : undefined;

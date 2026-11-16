@@ -103,4 +103,19 @@ describe('HQ Kanban snapshots', () => {
     expect(internals.cache.size).toBeLessThanOrEqual(MAX_HQ_KANBAN_CACHE_PROJECTS);
     expect(internals.writers.size).toBe(0);
   });
+
+  it('strips UTF-8 BOM when loading stored kanban snapshots (F462)', async () => {
+    const { createHash } = await import('node:crypto');
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'hq-kanban-bom-'));
+    dirs.push(dir);
+    const store = new HqKanbanStore(dir);
+    await store.merge(snapshot([board('board-bom', 2, '2026-07-22T12:03:00Z')], [], 'proj-bom'));
+    await store.drain();
+    const safe = createHash('sha256').update('proj-bom').digest('hex');
+    const file = path.join(dir, 'kanban', `${safe}.json`);
+    await fs.writeFile(file, `\uFEFF${await fs.readFile(file, 'utf8')}`, 'utf8');
+    const reloaded = await new HqKanbanStore(dir).load('proj-bom');
+    expect(reloaded.boards).toHaveLength(1);
+    expect(reloaded.boards[0]?.boardId).toBe('board-bom');
+  });
 });

@@ -85,7 +85,8 @@ function buildCompactPrompt(entries: CompactEntry[]): string {
     )
     .join('\n\n');
 
-  return COMPACT_SYSTEM_PROMPT.replace('__ENTRIES__', entriesBlock);
+  // Function replacer: memory entry text must not be parsed as `$&`/`$$` patterns.
+  return COMPACT_SYSTEM_PROMPT.replace('__ENTRIES__', () => entriesBlock);
 }
 
 interface CompactEntry {

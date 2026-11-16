@@ -131,7 +131,7 @@ export function formatDelegateCompleted(e: DelegateCompletedLike): string {
   const body = redactSecrets(rawBody);
 
   const stats = [`⏱ ${fmtDuration(e.durationMs)}`, `${e.iterations} iter`, `${e.toolCalls} tools`];
-  if (typeof e.costUsd === 'number' && e.costUsd > 0) {
+  if (typeof e.costUsd === 'number' && Number.isFinite(e.costUsd) && e.costUsd > 0) {
     stats.push(`💲${e.costUsd.toFixed(4)}`);
   }
 
@@ -148,7 +148,8 @@ export function formatDelegateCompleted(e: DelegateCompletedLike): string {
  */
 export function formatToolExecuted(e: ToolExecutedLike): string {
   const icon = e.ok ? '✅' : '❌';
-  const sec = (e.durationMs / 1000).toFixed(1);
+  const safeMs = Number.isFinite(e.durationMs) && e.durationMs > 0 ? e.durationMs : 0;
+  const sec = (safeMs / 1000).toFixed(1);
   const headline = `${icon} ${e.name} completed in ${sec}s`;
 
   const output = fmtToolOutput(e.output);

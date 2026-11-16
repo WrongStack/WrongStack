@@ -200,7 +200,7 @@ async function readBounded(pathname: string): Promise<string | null> {
 function parseMetadata(raw: string, projectRoot: string): GovernanceDaemonMetadataReadResult {
   let value: unknown;
   try {
-    value = JSON.parse(raw) as unknown;
+    value = JSON.parse(raw.replace(/^\uFEFF/, '')) as unknown;
   } catch {
     return { kind: 'invalid', reason: 'Metadata is not valid JSON.' };
   }
@@ -240,7 +240,7 @@ function parseMetadata(raw: string, projectRoot: string): GovernanceDaemonMetada
 function parseLease(raw: string, projectRoot: string): GovernanceDaemonStartupLeaseRecord | null {
   let value: unknown;
   try {
-    value = JSON.parse(raw) as unknown;
+    value = JSON.parse(raw.replace(/^\uFEFF/, '')) as unknown;
   } catch {
     return null;
   }
@@ -266,7 +266,7 @@ function parseAttachmentBroker(
 ): GovernanceDaemonAttachmentBrokerReadResult {
   let value: unknown;
   try {
-    value = JSON.parse(raw) as unknown;
+    value = JSON.parse(raw.replace(/^\uFEFF/, '')) as unknown;
   } catch {
     return { kind: 'invalid', reason: 'Attachment broker record is not valid JSON.' };
   }

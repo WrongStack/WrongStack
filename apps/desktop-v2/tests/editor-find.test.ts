@@ -35,6 +35,27 @@ describe('editor find and replace', () => {
     expect(findMatches(many, 'z', true)).toHaveLength(MAX_MATCHES);
     expect(replaceAllMatches(many, 'z', 'y', true)).toEqual({ text: many, count: 0 });
   });
+  it('maps matches back to original indices when lowering lengthens a character (İ)', () => {
+    // U+0130 İ lowercases to i + combining dot (2 units), so lowered-space indices
+    // stop addressing the original text; every match after an İ was shifted before
+    // the index map, and replace-all then corrupted text instead of replacing.
+    expect(findMatches('\u0130x', 'x', false)).toEqual([{ start: 1, end: 2 }]);
+    expect(findMatches('\u0130xx', 'xx', false)).toEqual([{ start: 1, end: 3 }]);
+    expect(findMatches('\u0130 a x', 'a', false)).toEqual([{ start: 2, end: 3 }]);
+    expect(replaceAllMatches('\u0130x', 'x', 'foo', false)).toEqual({
+      text: '\u0130foo',
+      count: 1,
+    });
+    // A needle matching inside the lengthened İ consumes the whole character.
+    expect(findMatches('\u0130', 'i', false)).toEqual([{ start: 0, end: 1 }]);
+    expect(replaceAllMatches('\u0130', 'i', 'I', false)).toEqual({ text: 'I', count: 1 });
+    // The needle's own lowering can also lengthen: its lowered width bounds the match.
+    expect(findMatches('i\u0307 x', '\u0130', false)).toEqual([{ start: 0, end: 2 }]);
+    expect(replaceAllMatches('i\u0307 x', '\u0130', '\u0130', false)).toEqual({
+      text: '\u0130 x',
+      count: 1,
+    });
+  });
 });
 
 describe('match lines', () => {

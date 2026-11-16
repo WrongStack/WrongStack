@@ -85,4 +85,14 @@ describe('wstack projects', () => {
     expect(text).toContain('D:/partial');
     expect(text).toContain('?');
   });
+
+  it('reads BOM-prefixed projects.json and skips null entries', async () => {
+    await fs.writeFile(
+      path.join(globalRoot, 'projects.json'),
+      `\uFEFF${JSON.stringify({ projects: [null, { slug: 'bom-proj', root: 'D:/bom' }] })}`,
+      'utf8',
+    );
+    expect(await projectsCmd([], deps())).toBe(0);
+    expect(out.join('')).toContain('bom-proj');
+  });
 });

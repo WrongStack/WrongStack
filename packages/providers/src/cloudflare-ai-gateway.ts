@@ -167,14 +167,19 @@ async function sendGatewayRequest(
 }
 
 function parseRequestBody(body: RequestInit['body']): Record<string, unknown> {
-  if (typeof body === 'string') return JSON.parse(body) as Record<string, unknown>;
-  if (body instanceof Uint8Array) {
-    return JSON.parse(new TextDecoder().decode(body)) as Record<string, unknown>;
+  if (body === undefined || body === null) return {};
+  let text: string;
+  if (typeof body === 'string') text = body;
+  else if (body instanceof Uint8Array) text = new TextDecoder().decode(body);
+  else if (body instanceof ArrayBuffer) text = new TextDecoder().decode(body);
+  else {
+    throw new Error('Cloudflare AI Gateway received an unsupported provider request body.');
   }
-  if (body instanceof ArrayBuffer) {
-    return JSON.parse(new TextDecoder().decode(body)) as Record<string, unknown>;
+  const parsed: unknown = JSON.parse(text.replace(/^\uFEFF/, ''));
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Cloudflare AI Gateway request body must be a JSON object.');
   }
-  throw new Error('Cloudflare AI Gateway received an unsupported provider request body.');
+  return parsed as Record<string, unknown>;
 }
 
 function providerEndpoint(

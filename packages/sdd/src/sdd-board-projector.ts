@@ -182,13 +182,14 @@ export class SddBoardProjector {
     this.onRun('sdd.task.completed', (e) => {
       const sid = this.shortId.get(e.taskId);
       const agent = this.assigneeOf(e.taskId);
+      const safeDurationMs = Number.isFinite(e.durationMs) && e.durationMs > 0 ? e.durationMs : 0;
       this.pushFeed({
         ts: this.now(),
         kind: 'completed',
         taskId: e.taskId,
         taskShortId: sid,
         agentName: agent,
-        text: `${sid ?? 'task'}${this.titleOf(e.taskId)} completed${agent ? ` by ${agent}` : ''} · ${(e.durationMs / 1000).toFixed(1)}s`,
+        text: `${sid ?? 'task'}${this.titleOf(e.taskId)} completed${agent ? ` by ${agent}` : ''} · ${(safeDurationMs / 1000).toFixed(1)}s`,
       });
       this.markDirty();
     });

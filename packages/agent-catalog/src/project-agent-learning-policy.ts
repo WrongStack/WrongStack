@@ -43,7 +43,11 @@ export function loadProjectAgentLearningPolicy(
 
 function policyFromText(text: string): ProjectAgentLearningPolicy {
   try {
-    const parsed = JSON.parse(text) as Partial<ProjectAgentLearningPolicy>;
+    const parsedRaw: unknown = JSON.parse(text.replace(/^\uFEFF/, ''));
+    if (!parsedRaw || typeof parsedRaw !== 'object' || Array.isArray(parsedRaw)) {
+      return { ...DEFAULT_LEARNING_POLICY };
+    }
+    const parsed = parsedRaw as Partial<ProjectAgentLearningPolicy>;
     return {
       enabled: parsed.enabled !== false,
       lifetimeCaptureCount:

@@ -20,11 +20,21 @@ import {
 import { credentialVerifyThrottle } from './mailbox-credential-throttle.js';
 import { persistCredential } from './sqlite-mailbox-rows.js';
 
+function parseCredentialRow(raw: string): MailboxCredential | null {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    return parsed as MailboxCredential;
+  } catch {
+    return null;
+  }
+}
+
 export function credentialGet(db: DatabaseSync, credentialId: string): MailboxCredential | null {
   const row = db
     .prepare('SELECT data FROM credentials WHERE credential_id = ?')
     .get(credentialId) as { data: string } | undefined;
-  return row === undefined ? null : (JSON.parse(row.data) as MailboxCredential);
+  return row === undefined ? null : parseCredentialRow(row.data);
 }
 
 export function credentialList(db: DatabaseSync): MailboxCredential[] {
@@ -32,7 +42,10 @@ export function credentialList(db: DatabaseSync): MailboxCredential[] {
     data: string;
   }[];
   return rows
-    .map((row) => JSON.parse(row.data) as MailboxCredential)
+    .flatMap((row) => {
+      const parsed = parseCredentialRow(row.data);
+      return parsed ? [parsed] : [];
+    })
     .sort((left, right) => {
       if (left.status === 'active' && right.status !== 'active') return -1;
       if (left.status !== 'active' && right.status === 'active') return 1;

@@ -243,4 +243,21 @@ describe('LayoutStore (persistence mode)', () => {
     const filePath = path.join(dir, 'tui-layout.json');
     await expect(fs.access(filePath)).rejects.toThrow();
   });
+
+  it('handles null layout JSON safely and restores BOM-prefixed layout snapshots', async () => {
+    const filePath = path.join(dir, 'tui-layout.json');
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(filePath, 'null', 'utf8');
+    const nullStore = new LayoutStore({ sessionDataDir: dir, ephemeral: false });
+    nullStore.setTermWidth(80);
+    expect(await nullStore.load()).toBe(0);
+
+    store.setTermWidth(80);
+    store.set(1, computeLayout(1, 'user', 'bom-test', 80));
+    await store.flushNow();
+    await fs.writeFile(filePath, `\uFEFF${await fs.readFile(filePath, 'utf8')}`, 'utf8');
+    const bomStore = new LayoutStore({ sessionDataDir: dir, ephemeral: false });
+    bomStore.setTermWidth(80);
+    expect(await bomStore.load()).toBe(1);
+  });
 });

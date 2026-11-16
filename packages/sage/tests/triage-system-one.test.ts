@@ -120,4 +120,12 @@ describe('System One triage — Phase 4', () => {
     expect(callLlm).not.toHaveBeenCalled();
     expect(result.merges).toHaveLength(1);
   });
+
+  it('falls back cleanly when score answers omit probabilities (F450)', async () => {
+    const { probeMemoryValue } = await import('../src/triage/system-one.js');
+    const m = makeMemory();
+    await expect(
+      probeMemoryValue(judgeWith({ type: 'score', score: 0, confidence: 0.7 }), m),
+    ).resolves.toBeUndefined();
+  });
 });

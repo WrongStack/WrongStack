@@ -794,4 +794,28 @@ describe('createWrongTraceHookPair abandoned pre hook', () => {
       wt.unlockFile = origUnlock;
     }
   });
+
+  it('strips UTF-8 BOM and rejects null JSON in loadWrongTraceGateCounters (F453)', async () => {
+    const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { loadWrongTraceGateCounters } = await import('../gate-counters.js');
+    const dir = mkdtempSync(join(tmpdir(), 'wt-gate-bom-'));
+    try {
+      const wtDir = join(dir, '.wrongstack');
+      mkdirSync(wtDir, { recursive: true });
+      const file = join(wtDir, 'wrongtrace-gate-counters.json');
+      writeFileSync(
+        file,
+        `\uFEFF${JSON.stringify({ deny: 1, allowFragile: 0, lockAcquired: 2, lockConflictRace: 0, lockReleased: 2 })}`,
+        'utf8',
+      );
+      const snap = await loadWrongTraceGateCounters(dir);
+      expect(snap?.total).toBe(5);
+      writeFileSync(file, 'null', 'utf8');
+      await expect(loadWrongTraceGateCounters(dir)).resolves.toBeNull();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

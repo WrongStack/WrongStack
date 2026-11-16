@@ -342,7 +342,7 @@ export async function loadRulebook(
 
     let parsed: unknown;
     try {
-      parsed = JSON.parse(raw);
+      parsed = JSON.parse(raw.replace(/^\uFEFF/, ''));
     } catch (error) {
       return {
         kind: 'malformed',

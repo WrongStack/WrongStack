@@ -27,7 +27,6 @@ const READONLY_VERBS = new Set([
   'stat',
   'du',
   'df',
-  'env',
   'printenv',
   'date',
   'whoami',
@@ -75,6 +74,16 @@ export function isReadOnlyCommand(command: string): boolean {
     }
   } else if (first === 'sed') {
     if (/(?:^|\s)(?:--in-place\b|-[a-zA-Z]*i)/.test(trimmed)) return false;
+    // sed's `w`/`W` (write-to-file) and GNU `e` (execute) script commands carry
+    // no shell metacharacter for the scans above, and a TRUE verdict here
+    // becomes a verb-wide add-exec-allow suggestion — lifting the gate on
+    // `sed -i` and `sed e` along with the matched line. Conservative
+    // direction: reject any sed whose arguments carry these command tokens as
+    // standalone words; this also rejects the -e/-E flag spellings and s///
+    // replacements that produce a bare `e`, which only costs a suggestion.
+    // The lookbehind keeps `-e`/`-E` classified so common print-only forms
+    // (e.g. `sed -n "1,10p"`, pinned by tests) stay read-only.
+    if (/\bw\b|\bW\b|(?<![-\w])[eE]\b/.test(trimmed)) return false;
   } else if (first === 'sort' || first === 'uniq') {
     if (/(?:^|\s)(?:-o\S*|--output(?:=|\b))/.test(trimmed)) return false;
   }

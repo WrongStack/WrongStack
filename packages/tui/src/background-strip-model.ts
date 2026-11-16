@@ -69,6 +69,7 @@ export function buildBackgroundItems(
 
 /** `12s`, `3m`, `1h4m`. */
 export function formatElapsed(ms: number): string {
+  if (!Number.isFinite(ms)) return '0s';
   const s = Math.max(0, Math.floor(ms / 1000));
   if (s < 60) return `${s}s`;
   const m = Math.floor(s / 60);

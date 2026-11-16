@@ -38,7 +38,12 @@ export function loadDiscovery(root: string): Discovery {
     throw new WrongMemoryError('UNAVAILABLE', `no discovery metadata in ${root}`);
   }
   try {
-    const info = JSON.parse(readFileSync(p.endpointFile, 'utf8')) as EndpointInfo;
+    const raw = readFileSync(p.endpointFile, 'utf8').replace(/^\uFEFF/, '');
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('endpoint metadata is not a JSON object');
+    }
+    const info = parsed as EndpointInfo;
     const token = readFileSync(p.tokenFile, 'utf8').trim();
     return { info, token };
   } catch (e) {

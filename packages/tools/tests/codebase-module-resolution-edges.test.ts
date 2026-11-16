@@ -130,4 +130,22 @@ describe('npm roots', () => {
       await fs.rm(root, { recursive: true, force: true });
     }
   });
+
+  it('reads package name from BOM-prefixed package.json', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ws-npm-bom-'));
+    try {
+      const dir = path.join(root, 'packages', 'alpha');
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(
+        path.join(dir, 'package.json'),
+        `\uFEFF${JSON.stringify({ name: '@acme/alpha' })}`,
+      );
+      const file = path.join(dir, 'index.ts');
+      await fs.writeFile(file, '');
+      const structure = await detectModuleRoots(root, [file]);
+      expect(structure.roots.some((r) => r.name === '@acme/alpha')).toBe(true);
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
 });

@@ -176,7 +176,7 @@ function flattenResults(results: BenchResults): FlatBenchmark[] {
 function loadResults(path: string): BenchResults | null {
   if (!path || !existsSync(path)) return null;
   try {
-    return JSON.parse(readFileSync(path, 'utf-8')) as BenchResults;
+    return JSON.parse(readFileSync(path, 'utf-8').replace(/^\uFEFF/, '')) as BenchResults;
   } catch (err) {
     // Used to return null, reporting a corrupt file as "no results found".
     throw new Error(`Could not read benchmark results at ${path}: ${String(err)}`, {

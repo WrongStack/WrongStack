@@ -59,8 +59,8 @@ async function detectPackageManagerInDir(dir: string): Promise<PackageManager | 
   const fs = await import('node:fs/promises');
   // 1. Honor an explicit `package.json#packageManager` declaration.
   try {
-    const raw = await fs.readFile(path.join(dir, 'package.json'), 'utf8');
-    const declared = (JSON.parse(raw) as { packageManager?: unknown }).packageManager;
+    const raw = (await fs.readFile(path.join(dir, 'package.json'), 'utf8')).replace(/^\uFEFF/, '');
+    const declared = (JSON.parse(raw) as { packageManager?: unknown } | null)?.packageManager;
     if (typeof declared === 'string') {
       const name = declared.split('@')[0] ?? '';
       if (name === 'pnpm' || name === 'yarn') return name;
@@ -430,7 +430,14 @@ export function collapseConsecutiveDuplicates(text: string, minRun = REPEAT_RUN_
   return out.join('\n');
 }
 
-/** Largest prefix of `s` whose UTF-8 byte length is <= `maxBytes`. */
+/**
+ * Largest prefix of `s` whose UTF-8 byte length is <= `maxBytes`.
+ *
+ * The search cuts on UTF-16 code units, so it can land between the two halves
+ * of an astral character (a surrogate pair): the lone high surrogate encodes
+ * as U+FFFD. Drop that half — the budget then keeps slightly less, which is
+ * what callers' "never splits a character" contract requires.
+ */
 function takeHeadBytes(s: string, maxBytes: number): string {
   if (maxBytes <= 0) return '';
   /* v8 ignore next -- only caller (truncateHeadTail) passes a budget smaller than s; defensive. */
@@ -442,10 +449,17 @@ function takeHeadBytes(s: string, maxBytes: number): string {
     if (Buffer.byteLength(s.slice(0, mid), 'utf8') <= maxBytes) lo = mid;
     else hi = mid - 1;
   }
-  return s.slice(0, lo);
+  const head = s.slice(0, lo);
+  return isHighSurrogate(head.charCodeAt(head.length - 1)) ? head.slice(0, -1) : head;
 }
 
-/** Largest suffix of `s` whose UTF-8 byte length is <= `maxBytes`. */
+/**
+ * Largest suffix of `s` whose UTF-8 byte length is <= `maxBytes`.
+ *
+ * Mirrors {@link takeHeadBytes}: a cut that starts on the low half of a
+ * surrogate pair would leave a lone low surrogate (U+FFFD on the wire), so the
+ * half is dropped.
+ */
 function takeTailBytes(s: string, maxBytes: number): string {
   if (maxBytes <= 0) return '';
   /* v8 ignore next -- only caller (truncateHeadTail) passes a budget smaller than s; defensive. */
@@ -457,7 +471,18 @@ function takeTailBytes(s: string, maxBytes: number): string {
     if (Buffer.byteLength(s.slice(s.length - mid), 'utf8') <= maxBytes) lo = mid;
     else hi = mid - 1;
   }
-  return s.slice(s.length - lo);
+  const tail = s.slice(s.length - lo);
+  return isLowSurrogate(tail.charCodeAt(0)) ? tail.slice(1) : tail;
+}
+
+/** UTF-16 high surrogate (first half of an astral character). */
+function isHighSurrogate(code: number): boolean {
+  return code >= 0xd800 && code <= 0xdbff;
+}
+
+/** UTF-16 low surrogate (second half of an astral character). */
+function isLowSurrogate(code: number): boolean {
+  return code >= 0xdc00 && code <= 0xdfff;
 }
 
 /**

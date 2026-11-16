@@ -308,7 +308,7 @@ export class CheckpointManager {
       // Read current on-disk state first
       let existing: SerializedCheckpoint[] = [];
       try {
-        const raw = await fsp.readFile(filePath, 'utf8');
+        const raw = (await fsp.readFile(filePath, 'utf8')).replace(/^\uFEFF/, '');
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
           existing = parsed as SerializedCheckpoint[];
@@ -337,11 +337,13 @@ export class CheckpointManager {
       const filePath = path.join(this.baseDir, filename);
       try {
         await withFileLock(filePath, async () => {
-          const raw = await fsp.readFile(filePath, 'utf8');
+          const raw = (await fsp.readFile(filePath, 'utf8')).replace(/^\uFEFF/, '');
           const parsed = JSON.parse(raw);
           if (!Array.isArray(parsed)) return;
           const existing = parsed as SerializedCheckpoint[];
-          const filtered = existing.filter((c) => c.id !== checkpointId);
+          const filtered = existing.filter(
+            (c) => c && typeof c === 'object' && c.id !== checkpointId,
+          );
 
           if (filtered.length !== existing.length) {
             if (filtered.length === 0) {
@@ -372,12 +374,13 @@ export class CheckpointManager {
 
       const filePath = path.join(this.baseDir, filename);
       try {
-        const raw = await fsp.readFile(filePath, 'utf8');
+        const raw = (await fsp.readFile(filePath, 'utf8')).replace(/^\uFEFF/, '');
         const parsed = JSON.parse(raw);
         if (!Array.isArray(parsed)) continue;
         const checkpoints = parsed as SerializedCheckpoint[];
 
         for (const sc of checkpoints) {
+          if (!sc || typeof sc !== 'object' || typeof sc.id !== 'string') continue;
           const checkpoint: Checkpoint = {
             id: sc.id,
             graphId: sc.graphId,

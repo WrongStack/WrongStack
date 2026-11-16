@@ -1037,4 +1037,21 @@ describe('MavenAdapter', () => {
       expect(await new MavenAdapter().inventory(ws, {})).toEqual([]);
     }, dir);
   });
+
+  it('strips UTF-8 BOM from NuGet packages.lock.json', async () => {
+    const { dir, ws } = mkWorkspace('dotnet', {
+      'App.csproj':
+        '<Project Sdk="Microsoft.NET.Sdk"><ItemGroup><PackageReference Include="Serilog" Version="4.*" /></ItemGroup></Project>',
+      'packages.lock.json': `\uFEFF${JSON.stringify({
+        version: 1,
+        dependencies: {
+          'net8.0': { Serilog: { type: 'Direct', requested: '[4.0.0, )', resolved: '4.2.0' } },
+        },
+      })}`,
+    });
+    await withCleanup(async () => {
+      const deps = await new DotNetAdapter().inventory(ws, { projectRoot: dir });
+      expect(deps[0]?.locked).toBe('4.2.0');
+    }, dir);
+  });
 });

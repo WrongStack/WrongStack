@@ -243,4 +243,12 @@ describe('generateImage', () => {
       ),
     ).toThrow(/no image API/);
   });
+
+  it('defaults non-finite or non-positive image count to 1 instead of NaN (F458)', async () => {
+    const { openAIImagesBody } = await import('../src/image-generation.js');
+    expect(openAIImagesBody({ model: 'dall-e-3', prompt: 'a cat', count: Number.NaN }).n).toBe(1);
+    expect(
+      openAIImagesBody({ model: 'dall-e-3', prompt: 'a cat', count: Number.POSITIVE_INFINITY }).n,
+    ).toBe(1);
+  });
 });

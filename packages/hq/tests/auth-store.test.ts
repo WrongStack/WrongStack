@@ -694,4 +694,17 @@ describe('HQ password KDF versioning', () => {
       await expect(readHqAuthFile(dir)).rejects.toThrow(/unsupported version null/);
     });
   });
+
+  it('strips UTF-8 BOM from auth.json (F451)', async () => {
+    await withTempDir(async (dir) => {
+      await fs.writeFile(
+        hqAuthFilePath(dir),
+        `\uFEFF${JSON.stringify({ version: 1, clientTokens: [] })}`,
+        'utf8',
+      );
+      const auth = await readHqAuthFile(dir);
+      expect(auth.version).toBe(1);
+      expect(auth.clientTokens).toEqual([]);
+    });
+  });
 });

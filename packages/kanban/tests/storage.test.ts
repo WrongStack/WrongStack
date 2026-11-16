@@ -746,4 +746,12 @@ describe('boardMeta with undefined fields', () => {
     expect(meta.taskCount).toBe(2);
     expect(meta.completedTaskCount).toBe(1);
   });
+
+  it('strips UTF-8 BOM when reading and mutating board JSON (F467)', async () => {
+    const board = await makeBoard();
+    const file = getKanbanPath(tmpDir, board.id);
+    await fs.writeFile(file, `\uFEFF${await fs.readFile(file, 'utf8')}`, 'utf8');
+    const loaded = await readBoard(tmpDir, board.id);
+    expect(loaded?.id).toBe(board.id);
+  });
 });

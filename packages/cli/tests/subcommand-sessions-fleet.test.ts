@@ -324,4 +324,20 @@ describe('sessionsFleetCmd — show mode', () => {
     expect(code).toBe(0);
     expect(joined(d.renderer.write)).toContain('fleet.json — not found');
   });
+
+  it('strips UTF-8 BOM and ignores null/array JSON in fleet artifacts (F446)', async () => {
+    const runDir = path.join(tmp, 'r9-bom');
+    await fs.mkdir(runDir, { recursive: true });
+    await fs.writeFile(
+      path.join(runDir, 'fleet.json'),
+      `\uFEFF${JSON.stringify({ strategy: 'parallel', subagents: [{ id: 'a' }] })}`,
+    );
+    await fs.writeFile(path.join(runDir, 'checkpoint.json'), 'null');
+    await fs.writeFile(path.join(runDir, 'checkpoint.json.lock'), '[]');
+    const d = deps();
+    const code = await sessionsFleetCmd(['r9-bom'], d);
+    expect(code).toBe(0);
+    const out = joined(d.renderer.write);
+    expect(out).toContain('fleet.json — 1 subagent(s), 0/0 tasks done');
+  });
 });

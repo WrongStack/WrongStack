@@ -156,7 +156,12 @@ export function discoverEntryPoints(
   for (const sym of allSymbols) {
     if (sym.name === MODULE_OWNER_NAME && declaringFiles.has(sym.file)) continue;
     const relFile = posixIndexPath(path.relative(projectRoot, sym.file));
-    if (relFile.startsWith('..')) continue;
+    // Canonical escape test (paths.ts escapesRoot, shell-open.ts): only '..' itself
+    // or a '../'-prefixed relative path leaves the root (relFile is posix-normalized).
+    // A bare startsWith('..') also matches legal in-root first segments — a directory
+    // NAMED '..configs' is indexed (DEFAULT_WALK_IGNORE_DIRS is exact-segment), and
+    // dropping its symbols silently omitted them from traces.
+    if (relFile === '..' || relFile.startsWith('../') || path.isAbsolute(relFile)) continue;
     if (fileFilter && !relFile.toLowerCase().includes(fileFilter)) continue;
     if (isTestFilePath(relFile)) continue;
 
@@ -271,7 +276,15 @@ export function sliceExecutionFlow(
       if (steps.length >= maxSteps) break;
       const callee = call.symbol;
       const relCalleeFile = posixIndexPath(path.relative(projectRoot, callee.file));
-      if (relCalleeFile.startsWith('..') || isTestFilePath(relCalleeFile)) continue;
+      // Canonical escape test — see the discovery loop above: '..name' dirs are
+      // indexed and their symbols must flow, only real escapes are skipped.
+      if (
+        relCalleeFile === '..' ||
+        relCalleeFile.startsWith('../') ||
+        path.isAbsolute(relCalleeFile) ||
+        isTestFilePath(relCalleeFile)
+      )
+        continue;
 
       const key = `${relCalleeFile}::${callee.name}`;
       if (visited.has(key)) continue;

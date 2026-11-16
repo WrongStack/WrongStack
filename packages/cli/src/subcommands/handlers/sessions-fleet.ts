@@ -227,8 +227,9 @@ async function showFleetRun(runId: string, deps: SubcommandDeps): Promise<number
   const manifestPath = path.join(runDir, 'fleet.json');
   let manifestData: string | null = null;
   try {
-    manifestData = await fsp.readFile(manifestPath, 'utf8');
+    manifestData = (await fsp.readFile(manifestPath, 'utf8')).replace(/^\uFEFF/, '');
     const manifest = JSON.parse(manifestData);
+    if (!manifest || typeof manifest !== 'object') throw new Error('Invalid fleet manifest');
     const subagents = manifest.subagents ?? [];
     const tasks = manifest.tasks ?? [];
     const completed = tasks.filter(
@@ -249,13 +250,15 @@ async function showFleetRun(runId: string, deps: SubcommandDeps): Promise<number
   const checkpointPath = path.join(runDir, 'checkpoint.json');
   let checkpointData: string | null = null;
   try {
-    checkpointData = await fsp.readFile(checkpointPath, 'utf8');
+    checkpointData = (await fsp.readFile(checkpointPath, 'utf8')).replace(/^\uFEFF/, '');
     const snap = JSON.parse(checkpointData);
+    if (!snap || typeof snap !== 'object') throw new Error('Invalid checkpoint');
     const lockPath = `${checkpointPath}.lock`;
     let lockStatus = color.dim('○ no lock');
     try {
-      const lockRaw = await fsp.readFile(lockPath, 'utf8');
+      const lockRaw = (await fsp.readFile(lockPath, 'utf8')).replace(/^\uFEFF/, '');
       const lock = JSON.parse(lockRaw);
+      if (!lock || typeof lock !== 'object') throw new Error('Invalid lock');
       lockStatus = `${color.yellow('▸')} lock held by pid ${lock.pid} on ${lock.hostname} (started ${lock.startedAt})`;
     } catch {
       lockStatus = color.green('✓ no lock (safe to resume)');

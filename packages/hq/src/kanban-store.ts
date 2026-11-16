@@ -50,7 +50,7 @@ export class HqKanbanStore {
     }
     let snapshot: unknown;
     try {
-      snapshot = JSON.parse(content);
+      snapshot = JSON.parse(content.replace(/^\uFEFF/, ''));
     } catch {
       return emptyKanbanSnapshot(projectId);
     }

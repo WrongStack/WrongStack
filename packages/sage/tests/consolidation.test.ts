@@ -491,4 +491,29 @@ describe('consolidation end to end on a real store', () => {
     await expect(fs.stat(statePath)).rejects.toThrow();
     expect(await store.listCandidates(false)).toHaveLength(0);
   });
+
+  it('strips UTF-8 BOM from consolidation.json so throttling still holds (F463)', async () => {
+    const stateDir = path.join(tmpDir, 'hygiene-f463-bom');
+    await fs.mkdir(stateDir, { recursive: true });
+    await fs.writeFile(
+      path.join(stateDir, 'consolidation.json'),
+      `\uFEFF${JSON.stringify({ lastRunAt: new Date(NOW).toISOString(), seen: {} })}`,
+      'utf8',
+    );
+    const getLlmCall = vi.fn(() => undefined);
+    const dispose = scheduleConsolidation({
+      surface: {} as never,
+      getLlmCall,
+      stateDir,
+      maxCalls: 5,
+      logger: { debug: () => {} } as never,
+      now: () => NOW + 1_000,
+      firstCheckMs: 5,
+      checkIntervalMs: 60_000,
+      idleMs: 0,
+    });
+    await new Promise((r) => setTimeout(r, 40));
+    dispose();
+    expect(getLlmCall).not.toHaveBeenCalled();
+  });
 });

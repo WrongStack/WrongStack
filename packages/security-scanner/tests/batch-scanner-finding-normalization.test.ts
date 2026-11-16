@@ -165,4 +165,16 @@ describe('scan inputs at the project boundary', () => {
     const missing = path.join(os.tmpdir(), `batch-normalize-missing-${process.pid}-${Date.now()}`);
     await expect(gatherProjectInfo(missing, { stack: 'nodejs' } as never)).resolves.toBe('');
   });
+
+  it('drops non-positive or fractional LLM finding line numbers (F464)', async () => {
+    const dir = await project({ 'app.ts': 'eval(input);' });
+    const result = await scan(
+      dir,
+      reply([
+        { file: 'app.ts', severity: 'high', title: 'NegLine', line: -5 },
+        { file: 'app.ts', severity: 'high', title: 'FloatLine', line: 12.5 },
+      ]),
+    );
+    expect(result.findings.map((f) => f.line)).toEqual([undefined, undefined]);
+  });
 });

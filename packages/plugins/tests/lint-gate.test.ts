@@ -202,4 +202,26 @@ describe('config parsing', () => {
     const status = await getStatusTool(api).execute({});
     expect(status.fixRules).toEqual([]);
   });
+
+  it('resolveLocalLinter strips UTF-8 BOM from linter package.json', async () => {
+    const fs = await import('node:fs/promises');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const { resolveLocalLinter } = await import('../src/lint-gate/linter-runner.js');
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'lint-gate-bom-'));
+    try {
+      await fs.writeFile(path.join(dir, 'package.json'), '{"name":"app"}', 'utf8');
+      const pkgDir = path.join(dir, 'node_modules', '@biomejs', 'biome');
+      await fs.mkdir(path.join(pkgDir, 'bin'), { recursive: true });
+      await fs.writeFile(path.join(pkgDir, 'bin', 'biome.js'), '// bin', 'utf8');
+      await fs.writeFile(
+        path.join(pkgDir, 'package.json'),
+        `\uFEFF${JSON.stringify({ name: '@biomejs/biome', bin: { biome: 'bin/biome.js' } })}`,
+        'utf8',
+      );
+      expect(resolveLocalLinter('biome', dir)).not.toBeNull();
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
 });

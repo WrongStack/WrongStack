@@ -182,7 +182,7 @@ export function parsePackageAuditOutput(output: string): {
   vulnerabilities: PackageAuditVulnerability[];
   summary: PackageAuditSummary;
 } {
-  const parsed: unknown = JSON.parse(output);
+  const parsed: unknown = JSON.parse(output.replace(/^\uFEFF/, ''));
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))
     throw new Error('Audit output is not a JSON object');
   const root = parsed as Record<string, unknown>;

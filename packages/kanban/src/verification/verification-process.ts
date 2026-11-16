@@ -188,19 +188,38 @@ export class VerificationProcessRunner {
     }
     return new Promise<CommandResult>((resolve) => {
       const detachedProcessGroup = process.platform !== 'win32';
-      const child = shim
-        ? spawn(shim.command, shim.args, {
-            cwd: opts.cwd,
-            windowsHide: true,
-            windowsVerbatimArguments: true,
-            detached: detachedProcessGroup,
-          })
-        : spawn(command, args, {
-            cwd: opts.cwd,
-            shell: opts.shell ?? false,
-            windowsHide: true,
-            detached: detachedProcessGroup,
-          });
+      let child: ChildProcess;
+      try {
+        child = shim
+          ? spawn(shim.command, shim.args, {
+              cwd: opts.cwd,
+              windowsHide: true,
+              windowsVerbatimArguments: true,
+              detached: detachedProcessGroup,
+            })
+          : spawn(command, args, {
+              cwd: opts.cwd,
+              shell: opts.shell ?? false,
+              windowsHide: true,
+              detached: detachedProcessGroup,
+            });
+      } catch (error) {
+        // Node validates spawn arguments synchronously (ERR_INVALID_ARG_VALUE,
+        // e.g. a null byte in argv) before any 'error' event can fire, so this
+        // throw cannot reach the structured handler below. Every failure mode
+        // must resolve as a CommandResult: the only caller chain (runCommand →
+        // CommandPlugin.verify → VerifierRegistry.verify → verifyTaskCompletion
+        // Phase 2) has no try/catch, so a rejection here would crash the whole
+        // verification run instead of failing one check — the same class of
+        // malformed input runTest rejects structurally for null-byte patterns.
+        return resolve({
+          command: displayCommand,
+          exitCode: -1,
+          stdout: '',
+          stderr: `--- spawn error: ${error instanceof Error ? error.message : String(error)} ---`,
+          durationMs: Date.now() - start,
+        });
+      }
       const stdout = new BoundedProcessOutput();
       const stderr = new BoundedProcessOutput();
       let timedOut = false;

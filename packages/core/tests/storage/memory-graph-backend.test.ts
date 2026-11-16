@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { MemoryEntry } from '@wrongstack/contracts/types/memory';
+import { resolveWstackPaths } from '@wrongstack/persistence';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { GraphMemoryBackend } from '../../src/storage/memory-graph-backend.js';
 
@@ -300,5 +301,20 @@ describe('GraphMemoryBackend.forget — exact entry id', () => {
 
     expect(await backend.search('user-memory', 'oldtag', userMemFile)).toEqual([]);
     expect((await backend.search('user-memory', 'newtag', userMemFile)).length).toBe(1);
+  });
+
+  it('handles graph files missing edges and strips UTF-8 BOM on load', async () => {
+    const graphPath = `${tmp}/custom-graph.json`;
+    const fsPromises = await import('node:fs/promises');
+    await fsPromises.writeFile(graphPath, `\uFEFF${JSON.stringify({ nodes: [] })}`, 'utf8');
+
+    const customBackend = new GraphMemoryBackend({
+      paths: resolveWstackPaths({ projectRoot: tmp, userHome: tmp, globalRoot: `${tmp}/global` }),
+      graphPath,
+    });
+    expect(await customBackend.findRelated(scope, memFile, 'anything')).toEqual([]);
+    await customBackend.remember(scope, entry('alpha beta gamma'), memFile);
+    await customBackend.flush();
+    expect(customBackend.getGraph().nodes).toHaveLength(1);
   });
 });

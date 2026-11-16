@@ -621,6 +621,27 @@ describe('outbound credential values inside contract fields', () => {
     expect(payload).toContain('"/srv/data","--max-tokens","4096"');
     expect(payload).toContain('region=eu');
   });
+
+  it('loadState strips UTF-8 BOM from state.json', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ccs-bom-'));
+    try {
+      const statePath = path.join(dir, 'state.json');
+      await fs.writeFile(
+        statePath,
+        `\uFEFF${JSON.stringify({ version: 1, cursor: 9, baselines: {}, rejectedHashes: {} })}`,
+        'utf8',
+      );
+      const engine = new CloudConfigSync({
+        statePath,
+        getSettings: () => ({ enabled: true, url: 'https://sync.example.com', token: 'tok' }),
+        readLocalConfig: async () => ({}),
+        writeLocalConfig: async () => {},
+      });
+      expect(await engine.statusText()).toContain('cursor:     9');
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 vi.mock('node:fs/promises', async (importOriginal) => ({

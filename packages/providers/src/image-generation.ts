@@ -14,7 +14,11 @@ import type {
 const MAX_IMAGES = 4;
 
 function imageCount(req: ImageGenerationRequest): number {
-  return Math.min(MAX_IMAGES, Math.max(1, Math.floor(req.count ?? 1)));
+  const count =
+    typeof req.count === 'number' && Number.isFinite(req.count) && req.count >= 1
+      ? Math.floor(req.count)
+      : 1;
+  return Math.min(MAX_IMAGES, Math.max(1, count));
 }
 
 // ── OpenAI images API (`/images/generations`) ─────────────────────────────

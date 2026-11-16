@@ -488,9 +488,16 @@ function buildCompletionPrompt(opts: {
 }
 
 function parseCompletionJson(text: string): CompletionSuggestion[] {
-  const parsed = JSON.parse(extractJson(text)) as { items?: unknown };
-  if (!Array.isArray(parsed.items)) return [];
-  return parsed.items
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(extractJson(text));
+  } catch {
+    return [];
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return [];
+  const items = (parsed as { items?: unknown }).items;
+  if (!Array.isArray(items)) return [];
+  return items
     .map(normalizeSuggestion)
     .filter((item): item is CompletionSuggestion => item !== null);
 }

@@ -207,4 +207,18 @@ describe('modeldiag handler', () => {
     const code = await modeldiagCmd(['suggest'], deps);
     expect(code).toBe(1);
   });
+
+  it('strips UTF-8 BOM and ignores non-object JSON in providers.json (F448)', async () => {
+    const { deps, lines } = makeDeps();
+    mockReadFile.mockResolvedValueOnce(
+      `\uFEFF${JSON.stringify({ openai: { models: ['gpt-4o'] } })}`,
+    );
+    const codeBom = await modeldiagCmd(['keys'], deps);
+    expect(codeBom).toBe(0);
+    expect(lines.some((l) => l.includes('openai'))).toBe(true);
+
+    mockReadFile.mockResolvedValueOnce('null');
+    const codeNull = await modeldiagCmd(['keys'], deps);
+    expect(codeNull).toBe(0);
+  });
 });

@@ -167,4 +167,26 @@ describe('wstack hq alerts eval (W2 #6)', () => {
     expect(code).toBe(0);
     expect(deps.stdout.join('')).toContain('No alert rules fired');
   });
+
+  it('strips UTF-8 BOM from snapshot JSON files (F444)', async () => {
+    writeFileSync(
+      snapshotFile,
+      `\uFEFF${JSON.stringify({
+        generatedAt: new Date().toISOString(),
+        clients: [],
+        projects: [],
+        sessions: [],
+        fleets: [],
+        mailboxes: [],
+        machines: [],
+        liveSessions: [],
+        totals: { activeProjects: 0, activeClients: 0, totalCostUsd: 0 },
+      })}`,
+      'utf8',
+    );
+    const deps = makeDeps(dataDir, snapshotFile);
+    const code = await hqCmd(['alerts', 'eval'], deps);
+    expect(code).toBe(0);
+    expect(deps.stdout.join('')).toContain('No alert rules fired');
+  });
 });

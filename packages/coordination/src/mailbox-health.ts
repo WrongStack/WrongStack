@@ -120,9 +120,12 @@ export class MailboxHealthWatchdog {
     // First probe immediately so the operator sees a baseline within
     // `timeoutMs` instead of waiting `intervalMs` for the first tick.
     void this.tick();
-    this.timer = setInterval(() => {
-      void this.tick();
-    }, this.intervalMs);
+    this.timer = setInterval(
+      () => {
+        void this.tick();
+      },
+      Math.min(2_147_483_647, this.intervalMs),
+    );
     // Don't keep the event loop alive solely for this timer.
     this.timer.unref?.();
   }
@@ -181,7 +184,7 @@ export class MailboxHealthWatchdog {
 
   private async probe(): Promise<boolean> {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), this.timeoutMs);
+    const timer = setTimeout(() => ctrl.abort(), Math.min(2_147_483_647, this.timeoutMs));
     try {
       const res = await fetch(`${this.url}/healthz`, {
         signal: ctrl.signal,

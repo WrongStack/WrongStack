@@ -21,8 +21,12 @@ export async function workspaceTypeScriptMajor(cwd: string): Promise<number | un
   for (;;) {
     const manifest = path.join(dir, 'node_modules', 'typescript', 'package.json');
     try {
-      const raw = await fs.readFile(manifest, 'utf8');
-      const version = (JSON.parse(raw) as { version?: unknown }).version;
+      const raw = (await fs.readFile(manifest, 'utf8')).replace(/^\uFEFF/, '');
+      const parsed: unknown = JSON.parse(raw);
+      const version =
+        parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+          ? (parsed as { version?: unknown }).version
+          : undefined;
       if (typeof version === 'string') {
         const major = Number.parseInt(version, 10);
         if (Number.isInteger(major)) return major;

@@ -29,4 +29,12 @@ describe('SSE reader callback ownership', () => {
       },
     );
   }
+
+  it('ignores non-object JSON frames (null, primitives, arrays)', () => {
+    const reader = new SSEReader();
+    const received: unknown[] = [];
+    reader.onMessage((msg) => received.push(msg));
+    reader.feed('data: null\n\ndata: 123\n\ndata: []\n\ndata: {"jsonrpc":"2.0","id":1}\n\n');
+    expect(received).toEqual([{ jsonrpc: '2.0', id: 1 }]);
+  });
 });

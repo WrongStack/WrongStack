@@ -269,8 +269,17 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
         if (!raw) {
           return warn('Usage: /brain timeout <ms|default>');
         }
-        const patch: BrainConfigPatch =
-          raw === 'default' ? { decisionTimeoutMs: null } : { decisionTimeoutMs: Number(raw) };
+        let decisionTimeoutMs: number | null;
+        if (raw === 'default') {
+          decisionTimeoutMs = null;
+        } else {
+          const ms = Number(raw);
+          if (!Number.isFinite(ms) || ms <= 0) {
+            return warn('Usage: /brain timeout <ms|default>');
+          }
+          decisionTimeoutMs = ms;
+        }
+        const patch: BrainConfigPatch = { decisionTimeoutMs };
         return applyPatch(
           patch,
           (s) =>
@@ -283,8 +292,17 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
         if (!raw) {
           return warn('Usage: /brain human-timeout <ms|off>');
         }
-        const patch: BrainConfigPatch =
-          raw === 'off' ? { humanTimeoutMs: null } : { humanTimeoutMs: Number(raw) };
+        let humanTimeoutMs: number | null;
+        if (raw === 'off') {
+          humanTimeoutMs = null;
+        } else {
+          const ms = Number(raw);
+          if (!Number.isFinite(ms) || ms <= 0) {
+            return warn('Usage: /brain human-timeout <ms|off>');
+          }
+          humanTimeoutMs = ms;
+        }
+        const patch: BrainConfigPatch = { humanTimeoutMs };
         return applyPatch(
           patch,
           (s) =>
@@ -480,8 +498,17 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
           );
         }
         if (op === 'confidence') {
+          const minConfidence = Number(rest[1]);
+          if (
+            !rest[1] ||
+            !Number.isFinite(minConfidence) ||
+            minConfidence < 0 ||
+            minConfidence > 1
+          ) {
+            return warn('Usage: /brain llm confidence <0..1>');
+          }
           return applyPatch(
-            { llm: { minConfidence: Number(rest[1]) } },
+            { llm: { minConfidence } },
             (s2) => `Brain LLM minConfidence set to ${color.cyan(String(s2.llm.minConfidence))}`,
           );
         }
@@ -501,7 +528,13 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
             return warn('Usage: /brain llm breaker <n|off> [cooldownMs]');
           }
           const threshold = raw === 'off' ? 0 : Number(raw);
-          const cooldown = rest[2] ? Number(rest[2]) : undefined;
+          if (!Number.isFinite(threshold) || threshold < 0) {
+            return warn('Usage: /brain llm breaker <n|off> [cooldownMs]');
+          }
+          const cooldown = rest[2] !== undefined ? Number(rest[2]) : undefined;
+          if (cooldown !== undefined && (!Number.isFinite(cooldown) || cooldown < 0)) {
+            return warn('Usage: /brain llm breaker <n|off> [cooldownMs]');
+          }
           return applyPatch(
             {
               llm: {

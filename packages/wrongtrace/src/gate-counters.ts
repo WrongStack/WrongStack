@@ -190,8 +190,13 @@ export async function loadWrongTraceGateCounters(
   projectRoot: string,
 ): Promise<WrongTraceGateCounterSnapshot | null> {
   try {
-    const raw = await _fsOps.readFile(countersFilePath(projectRoot), 'utf8');
-    const parsed = JSON.parse(raw) as Partial<WrongTraceGateCounterSnapshot> & {
+    const raw = (await _fsOps.readFile(countersFilePath(projectRoot), 'utf8')).replace(
+      /^\uFEFF/,
+      '',
+    );
+    const parsedRaw: unknown = JSON.parse(raw);
+    if (!parsedRaw || typeof parsedRaw !== 'object' || Array.isArray(parsedRaw)) return null;
+    const parsed = parsedRaw as Partial<WrongTraceGateCounterSnapshot> & {
       at?: string;
     };
     if (

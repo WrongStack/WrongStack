@@ -291,8 +291,15 @@ function eventWindow(id: string, raw: unknown): ProviderQuotaWindow | undefined 
       : undefined;
   if (usedPercent === undefined) return undefined;
   const windowMinutes =
-    typeof w.window_minutes === 'number' ? Math.trunc(w.window_minutes) : undefined;
-  const resetsAt = typeof w.reset_at === 'number' ? Math.trunc(w.reset_at) : undefined;
+    typeof w.window_minutes === 'number' &&
+    Number.isFinite(w.window_minutes) &&
+    w.window_minutes > 0
+      ? Math.trunc(w.window_minutes)
+      : undefined;
+  const resetsAt =
+    typeof w.reset_at === 'number' && Number.isFinite(w.reset_at) && w.reset_at >= 0
+      ? Math.trunc(w.reset_at)
+      : undefined;
   return {
     id,
     usedPercent,

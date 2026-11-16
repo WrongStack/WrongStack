@@ -62,7 +62,7 @@ function logPath(storageDir: string): string {
 
 async function loadLog(storageDir: string, projectRoot: string): Promise<FileAuthorLog> {
   try {
-    const raw = await fs.readFile(logPath(storageDir), 'utf-8');
+    const raw = (await fs.readFile(logPath(storageDir), 'utf-8')).replace(/^\uFEFF/, '');
     const parsed = JSON.parse(raw) as FileAuthorLog;
     // Validate basic shape
     if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.entries)) {

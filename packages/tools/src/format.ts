@@ -333,9 +333,9 @@ export async function detectFixer(cwd: string): Promise<string | null> {
   }
   // package.json#prettier counts as a prettier config too.
   try {
-    const raw = await fs.readFile(join(cwd, 'package.json'), 'utf8');
-    const pkg = JSON.parse(raw) as Record<string, unknown>;
-    if (pkg['prettier'] !== undefined) return 'prettier';
+    const raw = (await fs.readFile(join(cwd, 'package.json'), 'utf8')).replace(/^\uFEFF/, '');
+    const pkg = JSON.parse(raw) as Record<string, unknown> | null;
+    if (pkg && typeof pkg === 'object' && pkg['prettier'] !== undefined) return 'prettier';
   } catch {
     /* no readable package.json — fall through */
   }

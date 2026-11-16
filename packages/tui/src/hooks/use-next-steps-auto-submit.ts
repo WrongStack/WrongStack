@@ -113,8 +113,9 @@ export function selectAutoProceedCandidate({
     ? autoSuggestions.find((item) => item.trim().length > 0)?.trim()
     : undefined;
   if (automatic) {
+    // Function replacer: suggestion text must not be parsed as `$&`/`$$` patterns.
     const prompt = autonomyNextPrompt
-      ? autonomyNextPrompt.replace('{{suggestion}}', automatic)
+      ? autonomyNextPrompt.replace('{{suggestion}}', () => automatic)
       : automatic;
     return { source: 'auto-suggestion', prompt, label: automatic };
   }

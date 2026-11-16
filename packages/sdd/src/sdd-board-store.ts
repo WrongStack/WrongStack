@@ -115,7 +115,7 @@ export class SddBoardStore {
 
   async load(runId: string): Promise<SddBoardSnapshot | null> {
     try {
-      const raw = await fsp.readFile(this.snapshotPath(runId), 'utf8');
+      const raw = (await fsp.readFile(this.snapshotPath(runId), 'utf8')).replace(/^\uFEFF/, '');
       const value = JSON.parse(raw);
       if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
         return value as SddBoardSnapshot;
@@ -326,7 +326,7 @@ export class SddBoardStore {
       return this.cachedIndex;
     }
     try {
-      const raw = await fsp.readFile(this.indexPath, 'utf8');
+      const raw = (await fsp.readFile(this.indexPath, 'utf8')).replace(/^\uFEFF/, '');
       const parsed = JSON.parse(raw) as SddBoardIndex;
       if (parsed?.version === 1 && Array.isArray(parsed.entries)) {
         parsed.entries.sort((a, b) => b.updatedAt - a.updatedAt);

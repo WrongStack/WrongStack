@@ -110,4 +110,21 @@ describe('CLI governance trace context', () => {
 
     expect(trace.snapshot(null).plan).toEqual({ state: 'unreadable' });
   });
+
+  it('strips UTF-8 BOM when parsing the plan sidecar (F447)', async () => {
+    const trace = await createGovernanceTraceContext(
+      { sessionId: 'session-1', planPath: 'D:/project/bom.plan.json' },
+      {
+        readFile: async () =>
+          `\uFEFF${JSON.stringify({
+            version: 1,
+            sessionId: 'session-1',
+            items: [{ id: 'step-1', title: 'Step 1', status: 'open' }],
+          })}`,
+        now: () => '2026-08-02T12:00:00.000Z',
+      },
+    );
+
+    expect(trace.snapshot(null).plan).toMatchObject({ state: 'available', schemaVersion: 1 });
+  });
 });

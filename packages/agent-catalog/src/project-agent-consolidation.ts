@@ -143,7 +143,10 @@ export function loadConsolidationMetadata(
   projectRoot?: string,
 ): ConsolidationMetadata | undefined {
   try {
-    const raw = readFileSync(consolidationMetaPath(role, projectRoot), 'utf8');
+    const raw = readFileSync(consolidationMetaPath(role, projectRoot), 'utf8').replace(
+      /^\uFEFF/,
+      '',
+    );
     const parsed = JSON.parse(raw) as unknown;
     if (
       typeof parsed === 'object' &&
