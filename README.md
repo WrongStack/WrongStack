@@ -55,6 +55,18 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.7.5
+
+- **Files that load:** state, profiles, caches and toolchain manifests saved
+  with a byte order mark are read, and malformed JSON roots give controlled
+  errors or documented fallbacks.
+- **Unicode-safe text:** prompts, evidence excerpts, output truncation and
+  editor search keep Unicode boundaries and literal replacement text.
+- **Validated input:** numeric command options, durations, telemetry, quota
+  windows and image counts are checked, and overflowing timers are bounded.
+- **Steadier Windows launches:** transient Microsoft Store PowerShell launch
+  denials are retried within the existing budget.
+
 ### What's new in 1.7.4
 
 - **Long timeouts that wait:** delays above the 32-bit timer limit are capped
@@ -588,7 +600,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.7.4**; versions follow semver
+- Release notes: **v1.7.5**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements

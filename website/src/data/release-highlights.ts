@@ -1,29 +1,29 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.7.4',
-  title: 'Hardened where it counts.',
+  version: '1.7.5',
+  title: 'Files that load, text that keeps its shape.',
   summary:
-    'Timeouts longer than about 24.8 days no longer fire after 1 ms, path guards follow symlinked folders and reject drive-relative and traversing paths, user-named keys cannot reach object prototype members, and malformed JSON or empty responses produce errors instead of crashes. ACP releases sessions it refused, and lint gates recover from a failed probe.',
+    'State, profiles, caches and manifests saved with a byte order mark load again, and malformed JSON roots produce controlled errors. Truncation, prompts and editor search keep Unicode boundaries and literal replacement text, numeric options and durations are validated, and Windows recovers from transient Microsoft Store PowerShell launch denials.',
   socialDescription:
-    'WrongStack 1.7.4: long timeouts that wait as long as asked, path guards that follow symlinked folders, and input handling that no longer crashes on malformed data.',
+    'WrongStack 1.7.5: BOM-tolerant state files, Unicode-safe truncation and search, validated numeric options and steadier Windows PowerShell launches.',
   cards: [
     {
-      title: 'Timeouts that wait',
-      body: 'Delays above the 32-bit timer limit are capped or chunked, so a long timeout no longer fails after 1 ms.',
+      title: 'Files that load',
+      body: 'State, profiles, caches and toolchain manifests saved with a byte order mark are read, and malformed JSON gives a controlled error or fallback.',
       href: '/getting-started',
       linkLabel: 'Upgrade your installation',
     },
     {
-      title: 'Paths that stay inside',
-      body: 'New files under symlinked folders, Windows drive-relative paths and traversing prompt ids cannot escape the project.',
-      href: '/security',
-      linkLabel: 'Explore the safeguards',
-    },
-    {
-      title: 'Input that does not crash',
-      body: 'Malformed JSON, empty bodies and names such as toString produce errors or fallbacks; ACP releases sessions it refused.',
+      title: 'Text that keeps its shape',
+      body: 'Prompts, evidence excerpts, output truncation and editor search respect Unicode boundaries and literal replacement text.',
       href: '/interfaces',
       linkLabel: 'Explore the interfaces',
+    },
+    {
+      title: 'Validated input',
+      body: 'Numeric options, durations, telemetry and quota windows are checked, and authorization cancellation stays within its own session.',
+      href: '/security',
+      linkLabel: 'Explore the safeguards',
     },
   ],
 } as const;

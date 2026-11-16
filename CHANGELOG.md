@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.5] — 2026-11-16
+
+A hardening release. State, profiles, caches and manifests saved with a byte
+order mark load again, and malformed JSON roots produce controlled errors.
+Truncation, prompts and editor search keep Unicode boundaries and literal
+replacement text, numeric options and durations are validated, and Windows
+recovers from transient Microsoft Store PowerShell launch denials.
+
 ### Fixed
 
 - Recover from transient Microsoft Store PowerShell launch denials that Bun

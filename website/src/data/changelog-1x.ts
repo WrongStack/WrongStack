@@ -1,4 +1,4 @@
-// Changelog — 1.x era (1.7.4 → 1.0.0).
+// Changelog — 1.x era (1.7.5 → 1.0.0).
 // Historical entries mirror CHANGELOG.md release notes. The 1.0.37 entry was
 // written from committed runtime/source evidence (git history and packages), not
 // the root CHANGELOG, which had not been extended when it landed. 1.1.0 absorbs
@@ -13,10 +13,23 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.5',
+    date: '2026-11-16',
+    tagline: 'Files that load, text that keeps its shape',
+    latest: true,
+    highlights: [
+      'State, profiles, caches and toolchain manifests saved with a byte order mark load again; malformed JSON roots give controlled errors',
+      'Prompts, evidence excerpts, output truncation and editor search keep Unicode boundaries and literal replacement text',
+      'Numeric command options, durations, telemetry, quota windows and image counts are validated, and overflowing timers are bounded',
+      'Stale authorization cancellation stays within its own session; synchronous verifier launch failures become structured results',
+      'Legal ..name directories stay in flow traces and follow-up evidence',
+      'Transient Microsoft Store PowerShell launch denials on Windows are retried',
+    ],
+  },
+  {
     version: '1.7.4',
     date: '2026-11-15',
     tagline: 'Hardened timers, paths and input handling',
-    latest: true,
     highlights: [
       'Timer delays above the 32-bit setTimeout limit are capped or chunked across the client, providers, coordination, Kanban, WebUI, WrongTrace and Core',
       'Path guards resolve symlinked ancestors of new files and reject Windows drive-relative paths and traversing prompt ids',
