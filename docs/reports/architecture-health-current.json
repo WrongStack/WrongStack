@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-17T12:25:17.524Z",
+  "generatedAt": "2026-11-17T12:26:28.824Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6351,
-    "testFiles": 5388,
-    "sourceLines": 1313157,
+    "testFiles": 5390,
+    "sourceLines": 1313168,
     "workspaceEdges": 250,
     "moduleEdges": 18733,
     "nonCommandSlashImports": 0,
@@ -624,7 +624,7 @@
       "name": "@wrongstack/persistence",
       "dir": "packages/persistence",
       "sourceFiles": 10,
-      "testFiles": 24,
+      "testFiles": 26,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -635,7 +635,7 @@
         {
           "path": "packages/persistence/tsconfig.test.json",
           "error": null,
-          "testFiles": 24
+          "testFiles": 26
         }
       ]
     },
@@ -17252,6 +17252,12 @@
         ]
       },
       {
+        "file": "packages/persistence/tests/atomic-write-long-names.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/persistence/tests/atomic-write-temp-ownership.test.ts",
         "projects": [
           "root-node"
@@ -17379,6 +17385,12 @@
       },
       {
         "file": "packages/persistence/tests/streamed-temp-failure-ownership.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/persistence/tests/unauthorized-retry-delay.test.ts",
         "projects": [
           "root-node"
         ]

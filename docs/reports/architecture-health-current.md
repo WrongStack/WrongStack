@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-17T12:25:17.524Z
+**Generated:** 2026-11-17T12:26:28.824Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6351 |
-| Production source lines | 1313157 |
-| Test files | 5388 |
+| Production source lines | 1313168 |
+| Test files | 5390 |
 | Workspace dependency edges | 250 |
 | Relative module edges | 18733 |
 | Non-command slash imports | 0 |
@@ -48,7 +48,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/kanban-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/mailbox-mcp | 7 | 11 | @wrongstack/coordination, @wrongstack/core, @wrongstack/mcp |
 | @wrongstack/mcp | 74 | 103 | @wrongstack/contracts, @wrongstack/core |
-| @wrongstack/persistence | 10 | 24 | — |
+| @wrongstack/persistence | 10 | 26 | — |
 | @wrongstack/plug-lsp | 52 | 62 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugin-sdk | 12 | 11 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugins | 154 | 136 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |

@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import type { FSWatcher } from 'node:fs';
 import { watch as watchDir } from 'node:fs';
 import * as fs from 'node:fs/promises';
@@ -239,10 +239,15 @@ export function createPersistencePrimitives(
   }
 
   function tempPathFor(targetPath: string): string {
-    return path.join(
-      path.dirname(targetPath),
-      `.${path.basename(targetPath)}.${randomBytes(6).toString('hex')}.tmp`,
-    );
+    const base = path.basename(targetPath);
+    const suffix = `.${randomBytes(6).toString('hex')}.tmp`;
+    // A valid basename can exceed the 255-byte component limit once decorated.
+    // Hash only oversized prefixes; retain the random suffix and exclusive open.
+    const prefix =
+      Buffer.byteLength(`.${base}${suffix}`, 'utf8') <= 255
+        ? base
+        : createHash('sha256').update(base).digest('hex');
+    return path.join(path.dirname(targetPath), `.${prefix}${suffix}`);
   }
 
   async function atomicWrite(

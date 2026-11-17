@@ -522,7 +522,13 @@ export async function retryWhileUnauthorized<T>(
       return await attempt();
     } catch (error) {
       if (retry >= retries || !isUnauthorized(error)) throw error;
-      await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+      // Native timers turn delays above the signed 32-bit limit into 1 ms.
+      let remainingMs = delayMs;
+      do {
+        const chunk = Math.min(remainingMs, 2_147_483_647);
+        await new Promise<void>((resolve) => setTimeout(resolve, chunk));
+        remainingMs -= chunk;
+      } while (remainingMs > 0);
     }
   }
 }
