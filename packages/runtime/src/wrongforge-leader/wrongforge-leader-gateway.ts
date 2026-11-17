@@ -149,12 +149,21 @@ export async function startLeaderGateway(
     }
     const chunks: Buffer[] = [];
     let size = 0;
+    let tooLarge = false;
     req.on('data', (c: Buffer) => {
+      if (tooLarge) return;
       size += c.length;
-      if (size > MAX_BODY) req.destroy();
-      else chunks.push(c);
+      if (size > MAX_BODY) {
+        tooLarge = true;
+        chunks.length = 0;
+        send(res, 413, { ok: false, error: 'payload_too_large' });
+        req.resume();
+        return;
+      }
+      chunks.push(c);
     });
     req.on('end', () => {
+      if (tooLarge) return;
       let input: Record<string, unknown> = {};
       try {
         const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}') as {

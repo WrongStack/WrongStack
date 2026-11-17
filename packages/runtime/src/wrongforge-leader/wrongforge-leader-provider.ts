@@ -409,6 +409,7 @@ export class WrongForgeLeaderProvider implements Provider {
     let joinedBefore: boolean;
     try {
       info = await this.info(call, opts.signal);
+      if (this.sessions.get(key) !== leader) return;
       model = this.model(req.model, info);
       if (host && !leader.gateway) {
         leader.gateway = startLeaderGateway(host, key).catch(() => {
@@ -417,6 +418,10 @@ export class WrongForgeLeaderProvider implements Provider {
         });
       }
       gateway = await leader.gateway;
+      if (this.sessions.get(key) !== leader) {
+        await gateway?.close().catch(() => undefined);
+        return;
+      }
       if (!gateway) {
         leader.gateway = undefined;
       }
