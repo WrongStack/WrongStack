@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a turn's tool calls and each call's input, output and overview are built when
   opened. A conversation measured in the app held 6,000 of these nodes while
   collapsed and took a 110 ms task to open.
+- The SAGE memory list (desktop and WebUI) virtualizes from 40 memories instead
+  of 100; a 100-memory list built about 1,500 nodes in a 50-70 ms task on open.
 - Desktop conversations open and resume faster: a journal page joins the
   streamed answer text it holds before reading it, so a long conversation no
   longer costs time growing with its length squared (800 turns: 0.8 s to 0.17 s).

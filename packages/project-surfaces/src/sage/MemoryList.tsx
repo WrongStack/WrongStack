@@ -18,8 +18,10 @@ interface MemoryListProps {
 }
 
 // Only virtualize above this threshold — small lists render normally
-// with zero virtualizer overhead.
-const VIRTUALIZE_THRESHOLD = 100;
+// with zero virtualizer overhead. A card is about 15 nodes: 100 cards built
+// ~1,500 nodes in one 50-70 ms task when the page opened (measured in the
+// desktop), so a list virtualizes once it is longer than a screen or two.
+const VIRTUALIZE_THRESHOLD = 40;
 
 export function MemoryList({
   memoryListRef,
