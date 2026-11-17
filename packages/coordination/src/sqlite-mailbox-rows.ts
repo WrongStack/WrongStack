@@ -164,7 +164,8 @@ export function materializeMessageRows(
   }
   const receiptState = new Map<string, Record<string, MailboxRecipientState>>();
   for (const row of receiptRows) {
-    const states = receiptState.get(row.message_id) ?? {};
+    const states: Record<string, MailboxRecipientState> =
+      receiptState.get(row.message_id) ?? Object.create(null);
     states[row.actor_id] = {
       actorId: row.actor_id,
       ...(row.read_at !== null ? { readAt: row.read_at } : {}),
@@ -184,7 +185,8 @@ export function materializeMessageRows(
     } catch {
       return [];
     }
-    const recipientState = receiptState.get(row.id) ?? {};
+    const recipientState: Record<string, MailboxRecipientState> =
+      receiptState.get(row.id) ?? Object.create(null);
     const readBy: Record<string, string> = Object.assign(Object.create(null), base.readBy);
     for (const state of Object.values(recipientState)) {
       if (state.readAt !== undefined) readBy[state.actorId] = state.readAt;
