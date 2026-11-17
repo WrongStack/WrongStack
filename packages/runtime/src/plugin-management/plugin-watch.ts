@@ -195,8 +195,10 @@ export class PluginDevWatchController {
         do {
           state.queued = false;
           const integrity = await hashPluginDirectoryClosure(realEntry, [realRoot]);
+          if (this.watches.get(name) !== state) return;
           const canonical = normalizeTrustKey(realEntry);
           await pinPluginTrust(trustPath, canonical, canonical, integrity, name);
+          if (this.watches.get(name) !== state) return;
           await opts.onReload(name);
         } while (state.queued && this.watches.get(name) === state);
       } catch (err) {
@@ -216,6 +218,9 @@ export class PluginDevWatchController {
         void triggerReload(state);
       }, debounceMs);
       state.timer.unref?.();
+    });
+    watcher.on('error', (err) => {
+      opts.onError?.(name, err);
     });
     watcher.unref?.();
 

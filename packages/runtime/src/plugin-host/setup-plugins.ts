@@ -113,7 +113,9 @@ export function _resetDeprecatedWarningsForTests(): void {
  * to know to skip the plugin. For unknown names, return false.
  */
 export function warnIfDeprecatedPluginName(name: string, log: Logger): boolean {
-  const replacement = DEPRECATED_PLUGIN_NAMES[name];
+  const replacement = Object.hasOwn(DEPRECATED_PLUGIN_NAMES, name)
+    ? DEPRECATED_PLUGIN_NAMES[name]
+    : undefined;
   if (!replacement) return false;
   if (deprecatedWarningsEmitted.has(name)) return true;
   deprecatedWarningsEmitted.add(name);
@@ -142,7 +144,8 @@ export function pluginNameFromSpec(spec: string): string | null {
 }
 
 export function builtinPluginNameFromSpec(spec: string): string | null {
-  if (BUILTIN_PLUGIN_CONFIG_ALIASES[spec]) return BUILTIN_PLUGIN_CONFIG_ALIASES[spec];
+  if (Object.hasOwn(BUILTIN_PLUGIN_CONFIG_ALIASES, spec))
+    return BUILTIN_PLUGIN_CONFIG_ALIASES[spec] ?? null;
   const bareName = pluginNameFromSpec(spec);
   if (BUILTIN_PLUGIN_CONFIG_NAMES.has(spec)) return bareName ?? spec;
   if (bareName && BUILTIN_PLUGIN_CONFIG_NAMES.has(bareName)) return bareName;

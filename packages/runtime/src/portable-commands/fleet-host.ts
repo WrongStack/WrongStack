@@ -50,7 +50,7 @@ export function fleetSpawnCallbacks(input: {
         });
       }
       return director.spawn({
-        ...(FLEET_ROSTER[role] ?? {
+        ...((Object.hasOwn(FLEET_ROSTER, role) ? FLEET_ROSTER[role] : undefined) ?? {
           id: `manual-${Date.now()}`,
           name: role,
           maxIterations: 50,

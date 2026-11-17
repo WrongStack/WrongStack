@@ -94,6 +94,10 @@ export async function runPluginLlmCommand(
     return { code: 0, level: 'output', message: lines.join('\n') };
   }
 
+  if (name === '__proto__' || name === 'constructor' || name === 'prototype') {
+    return errorResult(`Invalid plugin name "${name}".`);
+  }
+
   const existing = await readConfig(deps.configPath);
   const fileExtensions = isRecord(existing.extensions)
     ? (existing.extensions as Record<string, unknown>)

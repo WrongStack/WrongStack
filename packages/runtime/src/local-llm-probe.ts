@@ -185,6 +185,17 @@ export async function probeLocalLlm(opts: ProbeOptions): Promise<ProbeResult> {
       modelIds.push(id);
     }
   } catch (err) {
+    // The request deadline also covers body consumption after headers arrive.
+    const name = (err as { name?: string } | null)?.name;
+    if (name === 'TimeoutError' || name === 'AbortError') {
+      return {
+        ok: false,
+        status: 'timeout',
+        httpStatus: res.status,
+        elapsedMs: Date.now() - started,
+        detail: `> ${timeout}ms`,
+      };
+    }
     return {
       ok: false,
       status: 'invalid_response',

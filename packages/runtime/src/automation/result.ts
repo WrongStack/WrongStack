@@ -148,7 +148,11 @@ function decodeGitPath(raw: string): string {
           ] ?? escaped,
         ),
       );
-    } else bytes.push(Buffer.from(raw[i]!));
+    } else {
+      const point = raw.codePointAt(i)!;
+      bytes.push(Buffer.from(String.fromCodePoint(point)));
+      if (point > 0xffff) i++;
+    }
   }
   return Buffer.concat(bytes).toString('utf8');
 }

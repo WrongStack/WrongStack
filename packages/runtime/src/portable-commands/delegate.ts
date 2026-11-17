@@ -108,7 +108,9 @@ export function buildDelegateCommand(host: FleetCommandHost): SlashCommand {
       // ── Explicit role → validate and spawn ─────────────────────────────
       if (role) {
         const normalized = role.toLowerCase();
-        const def = AGENT_CATALOG[normalized];
+        const def = Object.hasOwn(AGENT_CATALOG, normalized)
+          ? AGENT_CATALOG[normalized]
+          : undefined;
         if (!def) {
           const available = Object.keys(AGENT_CATALOG).sort().join(', ');
           return {

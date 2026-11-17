@@ -149,11 +149,7 @@ export function startHqHostConnection(options: HqHostConnectionOptions): HqHostC
       return;
     }
 
-    sageSync?.stop();
-    sageSync = undefined;
-    publisher?.close();
-    publisher = undefined;
-    publisherKey = undefined;
+    retire();
 
     const next = createHqHostPublisher(current);
     if (next === undefined) return;

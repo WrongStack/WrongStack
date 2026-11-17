@@ -195,18 +195,22 @@ async function generateCommitMessageWithLLM(
   try {
     const ac = new AbortController();
     const timeout = setTimeout(() => ac.abort(), 15_000);
-    const resp = await provider.complete(
-      {
-        model,
-        system: [{ type: 'text', text: systemPrompt }],
-        messages: [
-          { role: 'user', content: [{ type: 'text', text: `Here is the git diff:\n\n${diff}` }] },
-        ],
-        temperature: 0.3,
-      },
-      { signal: ac.signal },
-    );
-    clearTimeout(timeout);
+    let resp: Awaited<ReturnType<CommitLLMProvider['complete']>>;
+    try {
+      resp = await provider.complete(
+        {
+          model,
+          system: [{ type: 'text', text: systemPrompt }],
+          messages: [
+            { role: 'user', content: [{ type: 'text', text: `Here is the git diff:\n\n${diff}` }] },
+          ],
+          temperature: 0.3,
+        },
+        { signal: ac.signal },
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const raw = resp.content;
     const text = Array.isArray(raw)

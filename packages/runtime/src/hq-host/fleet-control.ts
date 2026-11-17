@@ -97,7 +97,7 @@ export async function spawnHqAgent(
   // first, so the old `maxIterations ?? 0` gave every non-roster role (project
   // agents included) a limit of 0 — stopped after its first iteration. Absent,
   // it falls through to the generic subagent budget like a CLI delegate.
-  const base = FLEET_ROSTER[role] ?? {
+  const base = (Object.hasOwn(FLEET_ROSTER, role) ? FLEET_ROSTER[role] : undefined) ?? {
     id: `manual-${Date.now()}`,
     name: role,
     maxToolCalls: 200,
