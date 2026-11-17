@@ -130,6 +130,8 @@ export const helpCmd: SubcommandHandler = async (_args, deps) => {
     ...section('Interfaces', [
       ['--tui | --no-tui', 'Force or disable the TUI'],
       ['--mouse', 'Full mouse mode in the TUI'],
+      ['--icons auto|nerd|ascii', 'TUI icons: nerd needs a Nerd Font; ascii draws any font'],
+      ['', 'Also WSTACK_ICONS or config "icons"; auto picks nerd only where known to render'],
       ['--ascii', 'Plain-ASCII symbols, borders and spinners (no emoji or box drawing)'],
       [
         '--webui [--host <h>] [--port <n>] [--open]',

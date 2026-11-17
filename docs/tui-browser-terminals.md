@@ -78,25 +78,28 @@ page's font stack whether or not its client is remote.
 |----------|--------|
 | `WRONGSTACK_TUI_TERMINAL=browser` (or `web`, `xterm`) | force the browser class — for ttyd/gotty/wetty, which export no marker |
 | `WRONGSTACK_TUI_TERMINAL=native` | force the native class when a marker is wrong |
-| `WRONGSTACK_TUI_ICON_STYLE=unicode\|nerd\|ascii\|browser` | wins over all host-based glyph decisions; `browser` forces the width-safe profile on any terminal |
+| `--icons` / `WSTACK_ICONS=auto\|nerd\|ascii` | the `icons` setting ([TUI glyphs](./tui-ink.md#61-the-icons-setting)); `nerd` and `ascii` win over host detection, `auto` keeps it |
+| `NERD_FONT=1` | under `icons = auto`, use Nerd icons even in a browser host |
+| `WRONGSTACK_TUI_ICON_STYLE=unicode\|nerd\|ascii\|browser` | legacy; below `WSTACK_ICONS`, wins over host-based glyph decisions; `browser` forces the width-safe profile on any terminal |
 | `WRONGSTACK_TUI_GRAPHICS=kitty\|iterm2\|halfblock\|off` | wins over the graphics clamp below |
 
 ## 3. Effects
 
 ### 3.1 Glyph profile
 
-`resolveIconStyle()` returns the `browser` profile for **every** browser host —
-local webview and remote client alike. The reason is structural, not geographic:
-an xterm.js surface paints with a CSS font stack chosen by the page, so a font
-scan of this machine cannot describe the glyphs the user will see. That is
-equally true for a desktop VS Code terminal (usually Consolas/Menlo/Cascadia, not
-the Nerd Font we found on disk) and for VS Code Remote-SSH / Remote-Containers,
-where the shell is spawned on the server and `SSH_CONNECTION` is typically absent.
+Under `icons = auto`, `resolveIconStyle()` returns the `browser` profile for
+**every** browser host — local webview and remote client alike. The reason is
+structural, not geographic: an xterm.js surface paints with a CSS font stack
+chosen by the page, so nothing on this machine describes the glyphs the user will
+see. That is equally true for a desktop VS Code terminal (usually
+Consolas/Menlo/Cascadia, whatever fonts are installed) and for VS Code
+Remote-SSH / Remote-Containers, where the shell is spawned on the server and
+`SSH_CONNECTION` is typically absent.
 
 `remoteClient` remains on `TerminalHostInfo` as diagnostic metadata — it says
 whether the user is looking at another machine — but glyph safety no longer
 depends on it. A user who did configure a Nerd Font in their editor opts back in
-with `WRONGSTACK_TUI_ICON_STYLE=nerd`.
+with `--icons nerd`, `WSTACK_ICONS=nerd` or `NERD_FONT=1`.
 
 ### 3.1.1 The `browser` profile
 

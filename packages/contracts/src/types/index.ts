@@ -77,6 +77,7 @@ export type {
   FleetSupervisorConfig,
   GitBehaviorConfig,
   HqClientConfig,
+  IconSetting,
   IndexingAtlasConfig,
   IndexingConceptsConfig,
   IndexingConfig,
@@ -129,7 +130,7 @@ export type {
   ToolResultRenderModeConfig,
   ToolsConfig,
 } from './config.js';
-// ── config (59 symbols) ──
+// ── config (62 symbols) ──
 export {
   activeLimits,
   BUILTIN_MODEL_TIER_IDS,
@@ -138,6 +139,7 @@ export {
   DEFAULT_TUI_THINKING_WORD,
   FLEET_CHAT_VERBOSITY_VALUES,
   formatLimitRange,
+  ICON_SETTINGS,
   installLimitsSource,
   LIMIT_BOUNDS,
   LIMITS_BUDGET_KEYS,
@@ -148,6 +150,7 @@ export {
   NEXT_STEPS_MODES,
   normalizeTokenSavingTier,
   normalizeTuiThinkingWord,
+  parseIconSetting,
   parseStreamWatchdogSeconds,
   positiveLimit,
   resolveFleetChatVerbosity,

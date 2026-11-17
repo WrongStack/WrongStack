@@ -22,6 +22,7 @@ export const KNOWN_TOP_LEVEL_KEYS = [
   'maxConcurrent',
   'uiLocale',
   'themePreset',
+  'icons',
   'providers',
   'models',
   'modelMatrix',

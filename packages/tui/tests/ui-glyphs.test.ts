@@ -3,7 +3,6 @@ import { displayWidth } from '../src/terminal-width.js';
 import {
   glyphSet,
   glyphs,
-  hasInstalledNerdFont,
   type IconStyle,
   isBrowserSafeGlyph,
   resolveIconStyle,
@@ -12,17 +11,17 @@ import {
 const noNerdFont = () => false;
 
 describe('resolveIconStyle', () => {
-  it('returns "unicode" when env is not set', () => {
-    expect(resolveIconStyle({}, noNerdFont)).toBe('unicode');
+  it('falls back to readable glyphs when nothing is set and the terminal is unknown', () => {
+    expect(resolveIconStyle({}, noNerdFont)).toBe('fallback');
   });
 
-  it('returns "unicode" when env is undefined', () => {
+  it('reads process.env when env is undefined (pinned to unicode for this suite)', () => {
     expect(resolveIconStyle(undefined as unknown as NodeJS.ProcessEnv, noNerdFont)).toBe('unicode');
   });
 
-  it('returns "unicode" for unrecognised values', () => {
+  it('returns "unicode" for unrecognised legacy values', () => {
     expect(resolveIconStyle({ WRONGSTACK_TUI_ICON_STYLE: 'whatever' }, () => true)).toBe('unicode');
-    expect(resolveIconStyle({ WRONGSTACK_TUI_ICON_STYLE: '' }, noNerdFont)).toBe('unicode');
+    expect(resolveIconStyle({ WRONGSTACK_TUI_ICON_STYLE: '' }, noNerdFont)).toBe('fallback');
   });
 
   it('returns "nerd" for "nerd"', () => {
@@ -53,69 +52,57 @@ describe('resolveIconStyle', () => {
     expect(resolveIconStyle({ WRONGSTACK_TUI_ICON_STYLE: '  nerd  ' })).toBe('nerd');
   });
 
-  it('auto-selects nerd glyphs when a local Nerd Font is installed', () => {
+  it('auto-selects nerd glyphs only on a terminal known to draw them', () => {
     expect(resolveIconStyle({}, () => true)).toBe('nerd');
   });
 
-  it('lets an explicit unicode setting override installed Nerd Fonts', () => {
+  it('lets an explicit unicode setting override a Nerd-capable terminal', () => {
     expect(resolveIconStyle({ WRONGSTACK_TUI_ICON_STYLE: 'unicode' }, () => true)).toBe('unicode');
   });
 
   it('reads from process.env by default', () => {
     // This test checks the default parameter behavior
     const result = resolveIconStyle();
-    expect(['unicode', 'nerd', 'ascii']).toContain(result);
+    expect(['unicode', 'nerd', 'fallback', 'ascii', 'browser']).toContain(result);
   });
 });
 
-describe('hasInstalledNerdFont', () => {
-  it('detects Nerd Font files recursively in local font directories', () => {
-    const files = new Map<string, Array<{ name: string; isDirectory: boolean }>>([
-      ['/home/me/.local/share/fonts', [{ name: 'JetBrainsMono', isDirectory: true }]],
-      [
-        '/home/me/.local/share/fonts/JetBrainsMono',
-        [{ name: 'JetBrainsMonoNerdFontMono-Regular.ttf', isDirectory: false }],
-      ],
-    ]);
-    expect(
-      hasInstalledNerdFont({
-        platform: 'linux',
-        homeDir: '/home/me',
-        env: {},
-        readDirectory: (directory) => {
-          const entries = files.get(directory);
-          if (!entries) throw new Error('missing');
-          return entries;
-        },
-      }),
-    ).toBe(true);
+describe('resolveIconStyle — the icons setting (WSTACK_ICONS)', () => {
+  it('maps nerd and ascii to their profiles, case- and space-insensitively', () => {
+    expect(resolveIconStyle({ WSTACK_ICONS: 'nerd' }, noNerdFont)).toBe('nerd');
+    expect(resolveIconStyle({ WSTACK_ICONS: ' ASCII ' }, () => true)).toBe('fallback');
   });
 
-  it('does not infer the SSH client font from server-side font files', () => {
+  it('wins over the legacy WRONGSTACK_TUI_ICON_STYLE', () => {
+    // `ascii` here is the icon set, never the legacy full-output conversion that
+    // rewrites the prompt and the box drawing.
     expect(
-      hasInstalledNerdFont({
-        platform: 'linux',
-        homeDir: '/home/me',
-        env: { SSH_CONNECTION: 'client 1 server 2' },
-        readDirectory: () => [{ name: 'SymbolsNerdFont-Regular.ttf', isDirectory: false }],
-      }),
-    ).toBe(false);
+      resolveIconStyle({ WSTACK_ICONS: 'ascii', WRONGSTACK_TUI_ICON_STYLE: 'ascii' }, noNerdFont),
+    ).toBe('fallback');
+    expect(
+      resolveIconStyle({ WSTACK_ICONS: 'nerd', WRONGSTACK_TUI_ICON_STYLE: 'unicode' }, noNerdFont),
+    ).toBe('nerd');
   });
 
-  it('ignores unrelated font files', () => {
+  it('auto ignores the legacy variable and asks the terminal', () => {
     expect(
-      hasInstalledNerdFont({
-        platform: 'darwin',
-        homeDir: '/Users/me',
-        env: {},
-        readDirectory: (directory) => {
-          if (directory === '/Users/me/Library/Fonts') {
-            return [{ name: 'Inter-Regular.ttf', isDirectory: false }];
-          }
-          throw new Error('missing');
-        },
-      }),
-    ).toBe(false);
+      resolveIconStyle({ WSTACK_ICONS: 'auto', WRONGSTACK_TUI_ICON_STYLE: 'nerd' }, noNerdFont),
+    ).toBe('fallback');
+    expect(resolveIconStyle({ WSTACK_ICONS: 'auto' }, () => true)).toBe('nerd');
+  });
+
+  it('treats an unknown value as unset', () => {
+    expect(resolveIconStyle({ WSTACK_ICONS: 'emoji' }, noNerdFont)).toBe('fallback');
+    expect(
+      resolveIconStyle({ WSTACK_ICONS: 'emoji', WRONGSTACK_TUI_ICON_STYLE: 'nerd' }, noNerdFont),
+    ).toBe('nerd');
+  });
+
+  it('honours NERD_FONT=1 / NERD_FONT=0 under auto, over terminal detection', () => {
+    expect(resolveIconStyle({ NERD_FONT: '1' }, noNerdFont)).toBe('nerd');
+    expect(resolveIconStyle({ NERD_FONT: 'true', CODESPACES: 'true' }, noNerdFont)).toBe('nerd');
+    expect(resolveIconStyle({ NERD_FONT: '0' }, () => true)).toBe('fallback');
+    expect(resolveIconStyle({ NERD_FONT: 'maybe' }, noNerdFont)).toBe('fallback');
   });
 });
 
@@ -195,9 +182,9 @@ describe('glyphs singleton', () => {
 
 describe('resolveIconStyle — browser-hosted terminals', () => {
   it('refuses Nerd Font auto-detection for every browser host, local or remote', () => {
-    // Browser emulators paint with the page's CSS font stack, so a font scan of
-    // this machine cannot describe the surface the user is looking at — private-
-    // use Nerd glyphs would render as tofu boxes.
+    // Browser emulators paint with the page's CSS font stack, so nothing about
+    // this machine describes the surface the user is looking at — private-use
+    // Nerd glyphs would render as tofu boxes.
     expect(resolveIconStyle({ CODESPACES: 'true' }, () => true)).toBe('browser');
     expect(resolveIconStyle({ GITPOD_WORKSPACE_ID: 'ws-1' }, () => true)).toBe('browser');
     expect(
@@ -210,9 +197,9 @@ describe('resolveIconStyle — browser-hosted terminals', () => {
     expect(resolveIconStyle({ TERM_PROGRAM: 'tabby' }, () => true)).toBe('browser');
   });
 
-  it('keeps native terminals on the font scan', () => {
+  it('keeps native terminals on terminal detection', () => {
     expect(resolveIconStyle({ TERM: 'xterm-256color' }, () => true)).toBe('nerd');
-    expect(resolveIconStyle({ TERM: 'xterm-256color' }, noNerdFont)).toBe('unicode');
+    expect(resolveIconStyle({ TERM: 'xterm-256color' }, noNerdFont)).toBe('fallback');
   });
 
   it('still honors an explicit icon style override in a browser terminal', () => {

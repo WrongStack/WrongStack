@@ -432,13 +432,27 @@ Both `env` and `isTTY` are overridable for testability.
 
 `src/ui-glyphs.ts`
 
-### 6.1 Three Profiles
+### 6.1 The `icons` setting
+
+`icons = auto | nerd | ascii` picks the icon set for the status bar, the input box header and the tool rows. Precedence: `--icons <value>` > `WSTACK_ICONS` > legacy `WRONGSTACK_TUI_ICON_STYLE` > `icons` in config > `auto`. The CLI (`packages/cli/src/boot/icons-setting.ts`) resolves the flag and config into `WSTACK_ICONS` right after config loads, before the TUI is imported, because the glyph tables are fixed at module load; child `wstack` processes inherit it.
+
+- `nerd` → the `nerd` profile.
+- `ascii` → the `fallback` profile: built key by key from `nerd`. A glyph already in `BROWSER_SAFE_CODE_POINTS` is kept, anything else takes the `browser` profile's substitute, and each result is padded to the Nerd glyph's `displayWidth`, so every chip measures the same in both modes. `prompt` stays `❯`, and box drawing is untouched (supervising tools match the input box with regexes). No private-use code point is written.
+- `auto` → `nerd` when `NERD_FONT=1`, or when `src/nerd-font-terminal.ts` finds a terminal that draws Nerd glyphs:
+  - WezTerm, kitty and Ghostty, which bundle the Nerd Font symbols;
+  - Alacritty or Windows Terminal whose config file sets a Nerd Font family for the active profile (`WT_PROFILE_ID`, else `defaultProfile`). Never over SSH.
+  
+  Browser hosts get `browser`. Everything else, including tmux/screen and `NERD_FONT=0`, gets `fallback`. An installed Nerd Font is not evidence on its own.
+
+### 6.2 Profiles
 
 | Profile | Activate With | Usage |
 |---------|--------------|-------|
-| `unicode` | automatic fallback or `WRONGSTACK_TUI_ICON_STYLE=unicode` | Portable Unicode set, no special fonts needed; base of the width-safe `browser` profile used in [browser terminals](./tui-browser-terminals.md) |
-| `nerd` | automatic local detection or `WRONGSTACK_TUI_ICON_STYLE=nerd` | Rich Nerd Font icons (requires Nerd Font installed and selected in the terminal) |
-| `ascii` | `--ascii` or `WRONGSTACK_TUI_ICON_STYLE=ascii` | Pure ASCII — CI captures, basic terminals |
+| `nerd` | `icons = nerd`, or `auto` on a detected terminal, or `WRONGSTACK_TUI_ICON_STYLE=nerd` | Rich Nerd Font icons (the terminal's font must have them) |
+| `fallback` | `icons = ascii`, or `auto` anywhere else | The Nerd layout in characters every monospace font has, same cell widths |
+| `browser` | `auto` in a [browser terminal](./tui-browser-terminals.md) or `WRONGSTACK_TUI_ICON_STYLE=browser` | Width-safe set for xterm.js surfaces |
+| `unicode` | `WRONGSTACK_TUI_ICON_STYLE=unicode` | Portable Unicode set; base of the `browser` profile |
+| `ascii` | `--ascii` or `WRONGSTACK_TUI_ICON_STYLE=ascii` | Pure ASCII for ALL output, borders and prompt included — CI captures, basic terminals |
 
 The glyph set covers only the named chrome glyphs. In ASCII mode every other symbol is converted as well: box drawing, arrows, bullets, spinners, emoji, Nerd Font icons and typographic punctuation. The `Text` wrapper in `src/ink.tsx` converts text before Ink measures it, and bordered `Box`es switch to Ink's `classic` border. stdout/stderr are wrapped too (width-preserving) for the plain REPL and one-shot output (`@wrongstack/core` `utils/ascii-fallback.ts`). Letters and digits in any script are left alone. Measured in a real pseudo-terminal: the TUI's first screen plus the command palette went from 8,143 non-ASCII characters to 0.
 
@@ -789,7 +803,7 @@ Based on mailbox broadcast activity during this session:
 5. Add panel-local shortcut hints for panels that own keyboard input
 
 ### 20.2 Design Considerations
-- **No font installation**: WrongStack never silently installs or changes system fonts; it detects an existing local Nerd Font and uses the Nerd profile automatically. SSH cannot expose the client font, so remote sessions require an explicit `WRONGSTACK_TUI_ICON_STYLE=nerd` override. Browser-hosted terminals are treated the same way, and a web terminal that reports no marker can be pinned with `WRONGSTACK_TUI_TERMINAL=browser` (or forced back with `=native`).
+- **No font installation**: WrongStack never silently installs or changes system fonts. `icons = auto` uses Nerd icons only on a terminal known to draw them (§6.1); anywhere else it draws the same layout in plain characters, and `icons = nerd` (or `WSTACK_ICONS=nerd`) opts in. Browser-hosted terminals are treated the same way, and a web terminal that reports no marker can be pinned with `WRONGSTACK_TUI_TERMINAL=browser` (or forced back with `=native`).
 - **Alternate screen**: The TUI owns a full alternate buffer, so terminal-native scrollback is unavailable while it is visible; the normal shell screen is restored on exit
 - **Performance**: `React.memo` on history/input prevents keystroke churn; display retention is capped at 400 entries / 1 MiB; height-cache windowing, markdown LRU caching, and `fleetBatch` coalescing bound hot paths
 - **Ghost artifacts**: Resize handler erases from cursor to end-of-screen to prevent reflow ghosts

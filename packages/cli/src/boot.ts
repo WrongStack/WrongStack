@@ -16,6 +16,7 @@ import { discoverAndMergeProviders } from './boot/auto-discover-providers.js';
 import { maybeRestoreDefaultProfileFromBackup } from './boot/config-backup-recovery.js';
 import { applyGoalTuiDefault } from './boot/goal-tui-default.js';
 import { applyHeadlessHarnessDefaults } from './boot/headless-harness-defaults.js';
+import { applyIconsSetting } from './boot/icons-setting.js';
 import { resolveLaunchMcpServers } from './boot/mcp-config-flag.js';
 import { activateRestrictedMode } from './boot/restricted-mode.js';
 import { announceSafeMode } from './boot/safe-mode.js';
@@ -235,6 +236,15 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
         return 2;
       }
     }
+  }
+
+  // Icon set, once config is known and before anything loads the TUI (its
+  // glyph tables are fixed when the module is first imported).
+  const icons = applyIconsSetting(flags, config.icons);
+  if (!icons.ok) {
+    writeErr(`wstack: ${icons.error}\n`);
+    await reader.close();
+    return 2;
   }
 
   const { cwd, projectRoot, userHome, wpaths, pathResolver } = paths;

@@ -98,6 +98,30 @@ export const THEME_RANDOM_ID = 'random';
 
 export type ThemeName = ThemePresetId | typeof THEME_RANDOM_ID;
 
+/**
+ * Which icon set the TUI draws in its status bar, header and tool rows.
+ *
+ * - `nerd`: Nerd Font icons and Powerline separators (private-use code points).
+ *   Only readable when the terminal's font has them.
+ * - `ascii`: the same layout with every icon replaced by a character common
+ *   monospace fonts have, each at the Nerd icon's cell width. The `❯` prompt
+ *   and box drawing are kept.
+ * - `auto`: `nerd` only where the terminal is known to draw it, else `ascii`.
+ *
+ * Set by `--icons`, then `WSTACK_ICONS`, then `Config.icons`. Distinct from
+ * `--ascii`, which rewrites ALL output (borders and prompt too) to 7-bit ASCII.
+ */
+export const ICON_SETTINGS = ['auto', 'nerd', 'ascii'] as const;
+
+export type IconSetting = (typeof ICON_SETTINGS)[number];
+
+/** Normalizes a raw flag, env or config value; `undefined` when it is not one. */
+export function parseIconSetting(raw: unknown): IconSetting | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const value = raw.trim().toLowerCase();
+  return (ICON_SETTINGS as readonly string[]).includes(value) ? (value as IconSetting) : undefined;
+}
+
 /** Display metadata for one preset, as shown by both the TUI and CLI pickers. */
 export interface ThemePresetMeta {
   /** Human-readable picker label. */

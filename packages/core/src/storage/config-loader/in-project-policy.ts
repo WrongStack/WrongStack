@@ -32,6 +32,8 @@ const IN_PROJECT_ALLOWED_KEYS: ReadonlySet<string> = new Set([
   // 'catppuccin' for an unknown value, so the worst a repo can do is pick a
   // colour scheme.
   'themePreset',
+  // Same class: which glyphs the TUI draws. No behaviour beyond the icons.
+  'icons',
   'fallbackModels',
   'fallbackBridge',
   'fallbackProfiles',
@@ -203,6 +205,7 @@ const KNOWN_CONFIG_TOP_LEVEL_KEY_LIST = [
   'brain',
   'git',
   'themePreset',
+  'icons',
   'modelTiers',
   'fallbackGateSeconds',
   'chronicle',

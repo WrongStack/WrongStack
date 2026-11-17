@@ -10,6 +10,7 @@
 // keyed by ToolIconId, which already covers every built-in.
 
 import { getToolIcon, TOOL_ICON_CONFIG, type ToolIconId } from '@wrongstack/tools/tool-icons';
+import { displayWidth } from './terminal-width.js';
 import { type IconStyle, isBrowserSafeGlyph, resolveIconStyle } from './ui-glyphs.js';
 
 /**
@@ -114,9 +115,23 @@ const BROWSER_TOOL_GLYPHS: Record<ToolIconId, string> = Object.fromEntries(
   }),
 ) as Record<ToolIconId, string>;
 
+/**
+ * `icons = ascii`: the Nerd table with each glyph a browser-safe one of the same
+ * cell width (the rule `ui-glyphs.ts` applies to the chrome).
+ */
+const NERD_FALLBACK_TOOL_GLYPHS: Record<ToolIconId, string> = Object.fromEntries(
+  (Object.keys(NERD_TOOL_GLYPHS) as ToolIconId[]).map((id) => {
+    const value = NERD_TOOL_GLYPHS[id];
+    const safe = isBrowserSafeGlyph(value) ? value : BROWSER_TOOL_GLYPHS[id];
+    const missing = displayWidth(value) - displayWidth(safe);
+    return [id, missing > 0 ? safe + ' '.repeat(missing) : safe];
+  }),
+) as Record<ToolIconId, string>;
+
 /** Tool-icon table for one icon style, independent of ambient environment. */
 export function toolGlyphSet(style: IconStyle): Record<ToolIconId, string> {
   if (style === 'nerd') return NERD_TOOL_GLYPHS;
+  if (style === 'fallback') return NERD_FALLBACK_TOOL_GLYPHS;
   if (style === 'ascii') return ASCII_TOOL_GLYPHS;
   if (style === 'browser') return BROWSER_TOOL_GLYPHS;
   return UNICODE_TOOL_GLYPHS;

@@ -1,11 +1,19 @@
 /** A coherent, switchable glyph language for TUI chrome. */
 
-import { readdirSync } from 'node:fs';
-import * as os from 'node:os';
-import * as path from 'node:path';
+import { parseIconSetting } from '@wrongstack/contracts/types';
 import { detectTerminalHost } from '@wrongstack/core/utils';
+import { detectNerdFontTerminal } from './nerd-font-terminal.js';
+import { displayWidth } from './terminal-width.js';
 
-export type IconStyle = 'unicode' | 'nerd' | 'ascii' | 'browser';
+/**
+ * - `nerd`: Nerd Font icons + Powerline separators.
+ * - `fallback`: what `icons = ascii` selects; the Nerd layout with every glyph
+ *   swapped for a browser-safe one of the same cell width.
+ * - `unicode`, `browser`, `ascii`: picked only through `WRONGSTACK_TUI_ICON_STYLE`
+ *   (and `browser` for browser-hosted terminals under `auto`); `ascii` is the
+ *   full-output conversion behind `--ascii`.
+ */
+export type IconStyle = 'unicode' | 'nerd' | 'fallback' | 'ascii' | 'browser';
 
 interface UiGlyphs {
   brand: string;
@@ -289,8 +297,8 @@ const UNICODE: UiGlyphs = Object.freeze({
   treeThrough: '│ ',
 });
 
-// Optional Nerd Font profile. Explicit env selection always wins; without it,
-// local desktop installs are detected from the OS font directories below.
+// Nerd Font profile: chosen by `icons = nerd`, or by `auto` on a terminal known
+// to draw these glyphs (see resolveIconStyle). Unreadable without the font.
 const NERD: UiGlyphs = Object.freeze({
   ...UNICODE,
   brand: '󰚩',
@@ -565,123 +573,82 @@ function buildBrowserGlyphs(): UiGlyphs {
  */
 const BROWSER: UiGlyphs = Object.freeze(buildBrowserGlyphs());
 
-interface FontDirectoryEntry {
-  name: string;
-  isDirectory: boolean;
+/**
+ * The `icons = ascii` profile: the Nerd layout, readable in any monospace font.
+ *
+ * Built key by key from NERD, never by hand, so it cannot drift from the layout
+ * it stands in for. A glyph that is already browser-safe is kept; anything else
+ * (a private-use Nerd icon, a Powerline separator, a symbol common fonts lack)
+ * takes the browser profile's single-cell substitute. Each result is padded to
+ * the Nerd glyph's measured width, so every chip and rail measures exactly as it
+ * does with Nerd icons and nothing shifts. `prompt` is exempt: the `❯` prompt is
+ * matched by the tools that supervise WrongStack and stays as it is.
+ */
+function buildNerdFallbackGlyphs(): UiGlyphs {
+  const entries = Object.entries(NERD).map(([key, value]): [string, string] => {
+    if (key === 'prompt') return [key, value];
+    const safe = isBrowserSafeGlyph(value) ? value : BROWSER[key as keyof UiGlyphs];
+    const missing = displayWidth(value) - displayWidth(safe);
+    return [key, missing > 0 ? safe + ' '.repeat(missing) : safe];
+  });
+  return Object.fromEntries(entries) as unknown as UiGlyphs;
 }
 
-interface NerdFontDetectionOptions {
-  platform?: NodeJS.Platform | undefined;
-  homeDir?: string | undefined;
-  env?: NodeJS.ProcessEnv | undefined;
-  readDirectory?: ((directory: string) => readonly FontDirectoryEntry[]) | undefined;
+const NERD_FALLBACK: UiGlyphs = Object.freeze(buildNerdFallbackGlyphs());
+
+/** Environment variable that carries the `icons` setting (`--icons` writes it). */
+const ICONS_ENV = 'WSTACK_ICONS';
+
+function envFlag(value: string | undefined): boolean | undefined {
+  const raw = value?.trim().toLowerCase();
+  if (raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on') return true;
+  if (raw === '0' || raw === 'false' || raw === 'no' || raw === 'off') return false;
+  return undefined;
 }
 
-const NERD_FONT_FILE_RE = /nerd[-_ ]?font/i;
-const FONT_FILE_RE = /\.(?:otf|ttc|ttf)$/i;
-const MAX_FONT_SCAN_ENTRIES = 8_192;
-const MAX_FONT_SCAN_DEPTH = 4;
+let processTerminalDrawsNerd: boolean | undefined;
 
-function isRemoteTerminal(env: NodeJS.ProcessEnv): boolean {
-  return Boolean(env['SSH_CONNECTION'] || env['SSH_CLIENT'] || env['SSH_TTY']);
-}
-
-function fontDirectories(
-  platform: NodeJS.Platform,
-  homeDir: string,
-  env: NodeJS.ProcessEnv,
-): string[] {
-  const paths = platform === 'win32' ? path.win32 : path.posix;
-  if (platform === 'win32') {
-    return [
-      env['LOCALAPPDATA'] ? paths.join(env['LOCALAPPDATA'], 'Microsoft', 'Windows', 'Fonts') : '',
-      paths.join(env['SystemRoot'] || 'C:\\Windows', 'Fonts'),
-    ].filter(Boolean);
-  }
-  if (platform === 'darwin') {
-    return [paths.join(homeDir, 'Library', 'Fonts'), '/Library/Fonts', '/System/Library/Fonts'];
-  }
-  return [
-    paths.join(homeDir, '.local', 'share', 'fonts'),
-    paths.join(homeDir, '.fonts'),
-    '/usr/local/share/fonts',
-    '/usr/share/fonts',
-    ...(env['WSL_DISTRO_NAME'] ? ['/mnt/c/Windows/Fonts'] : []),
-  ];
-}
-
-function readFontDirectory(directory: string): FontDirectoryEntry[] {
-  return readdirSync(directory, { withFileTypes: true }).map((entry) => ({
-    name: entry.name,
-    isDirectory: entry.isDirectory(),
-  }));
+/** Reads terminal config files at most once for the real process environment. */
+function terminalDrawsNerd(env: NodeJS.ProcessEnv): boolean {
+  if (env !== process.env) return detectNerdFontTerminal(env);
+  processTerminalDrawsNerd ??= detectNerdFontTerminal(env);
+  return processTerminalDrawsNerd;
 }
 
 /**
- * Best-effort local Nerd Font discovery.
- *
- * Font rendering belongs to the terminal host. An SSH server cannot inspect
- * the client's selected font, so remote sessions deliberately stay on the
- * portable Unicode profile unless `WRONGSTACK_TUI_ICON_STYLE=nerd` is set.
- * Local scans are bounded and ignore symlinks to keep TUI module startup fast
- * and deterministic even in unusually large system font trees.
+ * `icons = auto`. Nerd icons only on evidence that they will draw: an explicit
+ * `NERD_FONT=1`, or a terminal known to render them (see nerd-font-terminal.ts).
+ * Every other case gets readable characters rather than empty boxes.
  */
-export function hasInstalledNerdFont(options: NerdFontDetectionOptions = {}): boolean {
-  const platform = options.platform ?? process.platform;
-  const homeDir = options.homeDir ?? os.homedir();
-  const env = options.env ?? process.env;
-  if (isRemoteTerminal(env)) return false;
-  const paths = platform === 'win32' ? path.win32 : path.posix;
-
-  const readDirectory = options.readDirectory ?? readFontDirectory;
-  const pending = fontDirectories(platform, homeDir, env).map((directory) => ({
-    directory,
-    depth: 0,
-  }));
-  const visited = new Set<string>();
-  let scanned = 0;
-
-  while (pending.length > 0 && scanned < MAX_FONT_SCAN_ENTRIES) {
-    const current = pending.shift();
-    if (!current || visited.has(current.directory)) continue;
-    visited.add(current.directory);
-    let entries: readonly FontDirectoryEntry[];
-    try {
-      entries = readDirectory(current.directory);
-    } catch {
-      continue;
-    }
-    for (const entry of entries) {
-      scanned += 1;
-      if (scanned > MAX_FONT_SCAN_ENTRIES) return false;
-      if (entry.isDirectory) {
-        if (current.depth < MAX_FONT_SCAN_DEPTH) {
-          pending.push({
-            directory: paths.join(current.directory, entry.name),
-            depth: current.depth + 1,
-          });
-        }
-        continue;
-      }
-      if (FONT_FILE_RE.test(entry.name) && NERD_FONT_FILE_RE.test(entry.name)) return true;
-    }
-  }
-  return false;
+function autoIconStyle(
+  env: NodeJS.ProcessEnv,
+  detectNerdTerminal: (env: NodeJS.ProcessEnv) => boolean,
+): IconStyle {
+  const nerdFont = envFlag(env['NERD_FONT']);
+  if (nerdFont === true) return 'nerd';
+  // Browser-hosted terminals (VS Code webview and its Remote-SSH/Containers
+  // variants, code-server, Codespaces, Gitpod, Theia, Jupyter, Cloud Shell,
+  // Replit, Hyper, Tabby, self-hosted ttyd/gotty) paint with a CSS font stack
+  // chosen by the page, so they keep the width-stable `browser` profile.
+  if (detectTerminalHost(env).host === 'browser') return 'browser';
+  if (nerdFont === undefined && detectNerdTerminal(env)) return 'nerd';
+  return 'fallback';
 }
 
-let installedNerdFont: boolean | undefined;
-
-function detectInstalledNerdFont(env: NodeJS.ProcessEnv): boolean {
-  if (env !== process.env) return hasInstalledNerdFont({ env });
-  installedNerdFont ??= hasInstalledNerdFont({ env });
-  return installedNerdFont;
-}
-
+/**
+ * Precedence: `WSTACK_ICONS` (which `--icons` and the `icons` config key are
+ * written into at startup) > `WRONGSTACK_TUI_ICON_STYLE` > auto.
+ */
 export function resolveIconStyle(
   env: NodeJS.ProcessEnv = process.env,
-  detectNerdFont: (env: NodeJS.ProcessEnv) => boolean = detectInstalledNerdFont,
+  detectNerdTerminal: (env: NodeJS.ProcessEnv) => boolean = terminalDrawsNerd,
 ): IconStyle {
-  const raw = env.WRONGSTACK_TUI_ICON_STYLE?.trim().toLowerCase();
+  const source = env ?? {};
+  const setting = parseIconSetting(source[ICONS_ENV]);
+  if (setting === 'nerd') return 'nerd';
+  if (setting === 'ascii') return 'fallback';
+  if (setting === 'auto') return autoIconStyle(source, detectNerdTerminal);
+  const raw = source['WRONGSTACK_TUI_ICON_STYLE']?.trim().toLowerCase();
   if (raw === 'nerd' || raw === 'nerd-font' || raw === 'nerdfont') return 'nerd';
   if (raw === 'ascii' || raw === 'plain') return 'ascii';
   // Escape hatch for a terminal whose font we cannot inspect: a native terminal
@@ -689,20 +656,12 @@ export function resolveIconStyle(
   // terminal that exports no host marker.
   if (raw === 'browser' || raw === 'width-safe' || raw === 'safe') return 'browser';
   if (raw) return 'unicode';
-  // Browser-hosted terminals (VS Code webview and its Remote-SSH/Containers
-  // variants, code-server, Codespaces, Gitpod, Theia, Jupyter, Cloud Shell,
-  // Replit, Hyper, Tabby, self-hosted ttyd/gotty) paint with a CSS font stack
-  // chosen by the page, not a font this process can observe. Private-use Nerd
-  // glyphs then render as tofu boxes whose width disagrees with what we
-  // measured, breaking the chrome's alignment. Every browser host therefore
-  // uses the width-stable `browser` profile; a user who configured a Nerd Font
-  // in their editor opts back in with WRONGSTACK_TUI_ICON_STYLE=nerd.
-  if (detectTerminalHost(env).host === 'browser') return 'browser';
-  return detectNerdFont(env) ? 'nerd' : 'unicode';
+  return autoIconStyle(source, detectNerdTerminal);
 }
 
 export function glyphSet(style: IconStyle = resolveIconStyle()): UiGlyphs {
   if (style === 'nerd') return NERD;
+  if (style === 'fallback') return NERD_FALLBACK;
   if (style === 'ascii') return ASCII;
   if (style === 'browser') return BROWSER;
   return UNICODE;

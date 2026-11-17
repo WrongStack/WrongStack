@@ -1,0 +1,13 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`icons setting — status bar and input box > ascii: same layout, no private-use code point anywhere in the output 1`] = `
+" ◖ anthropic/claude-opus-4-8 · high ▶ ◑ catppuccin ▶ v1.7.7 ◗
+ ◖ ● idle ▶ ◴ queued 2 ◗
+ ◖ ! YOLO ▶ todos ▶ 1 ○ 2 ✓ 3 ▶ = ▶ 1 ○ 1 ✓ 1 ◗"
+`;
+
+exports[`icons setting — status bar and input box > nerd: Powerline separators and Nerd icons 1`] = `
+"  anthropic/claude-opus-4-8 · high  󰏘 catppuccin  v1.7.7 
+  ● idle  ◴ queued 2 
+  ! YOLO  todos ▶ 1 ○ 2 ✓ 3  󰈙 ▶ 1 ○ 1 ✓ 1 "
+`;

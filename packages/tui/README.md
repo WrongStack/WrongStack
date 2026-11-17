@@ -87,28 +87,44 @@ The wordmark and route label render in the brand gradient (orange → pink).
 
 ## Terminal icons and Powerline
 
-The TUI defaults to a portable Unicode icon set, so the segmented status rail,
-composer frame, and tool cards work without installing a special font. Two
-When no override is set, WrongStack checks the local OS font directories once
-at startup and automatically selects the Nerd profile when it finds an
-installed Nerd Font. SSH sessions stay on portable Unicode because the server
-cannot inspect the client terminal's font. Explicit profiles are available
-through `WRONGSTACK_TUI_ICON_STYLE`:
+The status bar, the input box header and the tool rows can draw Nerd Font
+icons and Powerline separators. Those are private-use code points: in a
+terminal whose font lacks them they render as empty boxes. The `icons` setting
+chooses the set:
+
+| Value | Draws |
+|-------|-------|
+| `nerd` | Nerd Font icons and Powerline arrows. Needs a Nerd Font in the terminal. |
+| `ascii` | The same layout, with each icon replaced by a character every monospace font has (`◖ ▶ ◗` for the Powerline arrows, `◑`, `=`, `@`, `$` … for the icons), each at the icon's cell width, so nothing shifts. The `❯` prompt and box drawing are unchanged. |
+| `auto` (default) | `nerd` only where it is known to render, otherwise `ascii`. |
+
+Set it with, from highest precedence:
 
 ```powershell
-# Rich Powerline + development icons (requires a Nerd Font in the terminal)
-$env:WRONGSTACK_TUI_ICON_STYLE = 'nerd'
-wstack --tui
-
-# Strict compatibility for basic terminals and CI captures
-$env:WRONGSTACK_TUI_ICON_STYLE = 'ascii'
-wstack --tui
+wstack --tui --icons ascii          # flag
+$env:WSTACK_ICONS = 'nerd'          # environment
+# config.json: { "icons": "nerd" }  # config (profile or global)
 ```
 
-For the `nerd` profile, select a current Nerd Font such as **CaskaydiaCove Nerd
-Font** or **MesloLGS Nerd Font** in Windows Terminal, WezTerm, Kitty, or the
-terminal host you use. Font selection belongs to the terminal; WrongStack does
-not silently install or change system fonts.
+`auto` picks `nerd` when `NERD_FONT=1` is set, or in WezTerm, kitty and
+Ghostty (they ship the Nerd Font symbols), or in Alacritty / Windows Terminal
+when their own config file sets a Nerd Font for the profile in use
+(`alacritty.toml` `family`, Windows Terminal `font.face`). Everything else gets
+`ascii`: an unknown terminal, tmux or screen (the outer terminal is unknown),
+SSH into Alacritty or Windows Terminal (their config is on the other machine),
+and browser-hosted terminals (which get the width-safe `browser` profile).
+`NERD_FONT=0` forces `ascii` under `auto`. Having a Nerd Font installed is not
+enough on its own: the terminal has to use it, so set `icons` to `nerd` if
+your terminal does and is not detected.
+
+`--ascii` is a different, stronger switch: it rewrites all output, including
+box drawing, the prompt and spinners, to 7-bit ASCII. The legacy
+`WRONGSTACK_TUI_ICON_STYLE` (`unicode|nerd|ascii|browser`) still works and
+sits between `WSTACK_ICONS` and the config value.
+
+For `nerd`, select a current Nerd Font such as **CaskaydiaCove Nerd Font** or
+**MesloLGS Nerd Font** in your terminal. Font selection belongs to the
+terminal; WrongStack does not silently install or change system fonts.
 
 ## Key bindings
 

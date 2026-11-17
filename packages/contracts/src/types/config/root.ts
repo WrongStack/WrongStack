@@ -33,7 +33,7 @@ import type {
 import type { BrainConfig, FleetConfig, SkillsConfig } from './skills-fleet-brain.js';
 import type { ToolsConfig } from './tools.js';
 import type { TypeSafeConfig } from './typesafe.js';
-import type { ThemeName } from './ui.js';
+import type { IconSetting, ThemeName } from './ui.js';
 import type { UpdateConfig } from './update.js';
 
 export interface GitBehaviorConfig {
@@ -82,6 +82,13 @@ export interface Config {
    * drift on the TUI side never breaks the config round-trip.
    */
   themePreset?: ThemeName | undefined;
+  /**
+   * TUI icon set: `nerd` (Nerd Font icons), `ascii` (same layout, characters
+   * every monospace font has) or `auto` (the default: `nerd` only on a terminal
+   * known to draw it). `--icons` and `WSTACK_ICONS` override it. Read once at
+   * startup, before the TUI loads.
+   */
+  icons?: IconSetting | undefined;
   providers?: Record<string, ProviderConfig>;
   /**
    * Top-level custom models (maps modelId → definition). Merged with
