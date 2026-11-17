@@ -106,27 +106,34 @@ export function FanoutPanel({
     onSendingChange(true);
     setOutcomes(new Map());
     const results = new Map<string, FanoutOutcome>();
-    await runFanout(
-      review,
-      postCommand,
-      (target) =>
-        !unmounted.current &&
-        !vanishedTargets(
-          { ...review, targets: [target] },
-          latest.current?.clients ?? [],
-          latest.current?.liveSessions ?? [],
-        ).has(target.sessionId),
-      (sessionId, outcome) => {
-        results.set(sessionId, outcome);
-        setOutcomes(new Map(results));
-      },
-    );
-    if (unmounted.current) return;
-    setSending(false);
-    onSendingChange(false);
-    setReview(null);
-    setConfirmText('');
-    onSent();
+    try {
+      await runFanout(
+        review,
+        postCommand,
+        (target) =>
+          !unmounted.current &&
+          !vanishedTargets(
+            { ...review, targets: [target] },
+            latest.current?.clients ?? [],
+            latest.current?.liveSessions ?? [],
+          ).has(target.sessionId),
+        (sessionId, outcome) => {
+          results.set(sessionId, outcome);
+          setOutcomes(new Map(results));
+        },
+      );
+      if (unmounted.current) return;
+      setReview(null);
+      setConfirmText('');
+      onSent();
+    } catch {
+      // runFanout failed unexpectedly; finally releases the sending lock.
+    } finally {
+      if (!unmounted.current) {
+        setSending(false);
+        onSendingChange(false);
+      }
+    }
   };
 
   const locked = review !== null || sending;

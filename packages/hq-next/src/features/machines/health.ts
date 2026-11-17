@@ -42,7 +42,10 @@ const PLATFORM: Record<string, string> = {
 };
 
 export function platformLabel(health: HqHostHealth): string {
-  return `${PLATFORM[health.platform] ?? health.platform} · ${health.arch}`;
+  const label = Object.hasOwn(PLATFORM, health.platform)
+    ? PLATFORM[health.platform]
+    : health.platform;
+  return `${label} · ${health.arch}`;
 }
 
 export interface HealthProblem {

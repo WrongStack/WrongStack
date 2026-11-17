@@ -35,7 +35,9 @@ export function summarizeHealthDetail(
     .filter(([, state]) => state !== 'ok')
     .map(([name]) => name);
   const publishers = { fresh: 0, quiet: 0, stale: 0 };
-  for (const entry of health.publisherHealth ?? []) publishers[entry.staleness] += 1;
+  for (const entry of health.publisherHealth ?? []) {
+    if (Object.hasOwn(publishers, entry.staleness)) publishers[entry.staleness] += 1;
+  }
   return {
     degradedStores,
     publishers,

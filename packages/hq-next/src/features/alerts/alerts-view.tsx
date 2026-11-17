@@ -14,7 +14,7 @@ import { ArrowRight, BellOff } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { relativeTime } from '@/features/attention/model';
 import { plural } from '@/features/overview/model';
 import { cn } from '@/lib/cn';
@@ -50,27 +50,36 @@ export function AlertsView(): ReactNode {
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [snoozes, setSnoozes] = useState<Record<string, number>>({});
+  const sequence = useRef(0);
 
   const load = useCallback(async (): Promise<void> => {
+    const request = ++sequence.current;
     try {
       const next = await fetchJson<{ active: HqAlert[]; history: HqAlert[] }>(
         `/api/alerts?limit=${HISTORY_LIMIT}`,
       );
+      if (request !== sequence.current) return;
       setData({ active: next.active ?? [], history: next.history ?? [] });
       setError(null);
       // Mutes are a convenience on top of the history: a failure here
       // leaves the list readable.
-      setSnoozes((await fetchAlertSettings().catch(() => null))?.snoozes ?? {});
+      const settings = await fetchAlertSettings().catch(() => null);
+      if (request !== sequence.current) return;
+      setSnoozes(settings?.snoozes ?? {});
     } catch (cause) {
+      if (request !== sequence.current) return;
       setError(errorText(cause));
     } finally {
-      setNow(Date.now());
+      if (request === sequence.current) setNow(Date.now());
     }
   }, []);
   useEffect(() => {
     void load();
     const timer = window.setInterval(() => void load(), POLL_MS);
-    return () => window.clearInterval(timer);
+    return () => {
+      sequence.current += 1;
+      window.clearInterval(timer);
+    };
   }, [load]);
 
   const all = useMemo(() => (data === null ? [] : episodes(data.active, data.history)), [data]);

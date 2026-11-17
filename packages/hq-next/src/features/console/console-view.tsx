@@ -74,6 +74,7 @@ function useSelectionInUrl(sessionId: string | null, agentId: string | null): vo
   const pathname = usePathname();
   const params = useSearchParams();
   const hydrated = useRef(false);
+  const skipNextUrlSync = useRef(false);
 
   useEffect(() => {
     if (hydrated.current) return;
@@ -81,12 +82,17 @@ function useSelectionInUrl(sessionId: string | null, agentId: string | null): vo
     const session = params.get('session');
     if (session === null) return;
     const agent = params.get('agent');
+    if (session !== sessionId || agent !== agentId) skipNextUrlSync.current = true;
     if (agent === null) useHqStore.getState().selectSession(session);
     else useHqStore.getState().selectAgent(session, agent);
-  }, [params]);
+  }, [params, sessionId, agentId]);
 
   useEffect(() => {
     if (!hydrated.current) return;
+    if (skipNextUrlSync.current) {
+      skipNextUrlSync.current = false;
+      return;
+    }
     const next = new URLSearchParams();
     if (sessionId !== null) next.set('session', sessionId);
     if (sessionId !== null && agentId !== null) next.set('agent', agentId);

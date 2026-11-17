@@ -61,6 +61,8 @@ export function HealthHistory({ machineKey }: { machineKey: string }): ReactNode
 
   useEffect(() => {
     let cancelled = false;
+    setPoints(null);
+    setError(null);
     const load = (): void => {
       fetchHealthHistory(machineKey).then(
         (result) => {

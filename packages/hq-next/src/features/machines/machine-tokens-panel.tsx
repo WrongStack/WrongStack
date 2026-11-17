@@ -89,6 +89,7 @@ function TokenRow({
       await onChanged();
     } catch (cause) {
       setError(errorText(cause));
+    } finally {
       setBusy(false);
     }
   };

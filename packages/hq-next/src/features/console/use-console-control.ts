@@ -17,7 +17,7 @@ import { setHqConsolePrefs, useHqLocalPrefs } from '@hq/data/local-prefs';
 import { useHqStore } from '@hq/data/store/index';
 import type { ConsoleControlTarget } from '@hq/domain/console-target';
 import type { HqTranscriptEntry } from '@wrongstack/hq';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { errorText } from '@/lib/error-text';
 import {
   type CommandReceipt,
@@ -50,8 +50,11 @@ export function useConsoleControl(
   const clientId = target?.client?.clientId;
   const sessionId = target?.session.sessionId;
   const recipient = target?.recipient;
+  const targetSeq = useRef(0);
   useEffect(() => {
+    targetSeq.current += 1;
     if (clientId !== undefined) useHqStore.getState().selectClient(clientId);
+    setBusy(false);
     setStatus(null);
     setReceipts([]);
   }, [clientId, sessionId, recipient]);
@@ -78,6 +81,7 @@ export function useConsoleControl(
     const text = body.trim();
     if (target === null || text.length === 0 || (channel !== 'live' && channel !== 'mailbox'))
       return;
+    const seq = targetSeq.current;
     setBusy(true);
     setStatus(null);
     const message = {
@@ -94,6 +98,7 @@ export function useConsoleControl(
           to: target.recipient,
           ...message,
         });
+        if (targetSeq.current !== seq) return;
         setStatus({ tone: 'ok', text: `Delivered to ${targetLabel} through the mailbox.` });
       } else {
         const result = await postCommand(target.client.clientId, delivery, {
@@ -101,6 +106,7 @@ export function useConsoleControl(
           to: target.recipient,
           ...message,
         });
+        if (targetSeq.current !== seq) return;
         addReceipt({
           commandId: result.commandId,
           type: delivery,
@@ -112,9 +118,10 @@ export function useConsoleControl(
       }
       setBody('');
     } catch (cause) {
+      if (targetSeq.current !== seq) return;
       setStatus({ tone: 'error', text: errorText(cause) });
     } finally {
-      setBusy(false);
+      if (targetSeq.current === seq) setBusy(false);
     }
   };
 
@@ -122,6 +129,7 @@ export function useConsoleControl(
   const interrupt = async (includeSubagents: boolean): Promise<boolean> => {
     const client = target?.client;
     if (target === null || client === null || client === undefined) return false;
+    const seq = targetSeq.current;
     setBusy(true);
     setStatus(null);
     try {
@@ -129,6 +137,7 @@ export function useConsoleControl(
         sessionId: target.session.sessionId,
         target: target.recipient,
       });
+      if (targetSeq.current !== seq) return false;
       addReceipt({
         commandId: primary.commandId,
         type: 'abort',
@@ -141,6 +150,7 @@ export function useConsoleControl(
           sessionId: target.session.sessionId,
           target: 'fleet',
         });
+        if (targetSeq.current !== seq) return false;
         addReceipt({
           commandId: fleet.commandId,
           type: 'abort',
@@ -158,10 +168,11 @@ export function useConsoleControl(
       });
       return true;
     } catch (cause) {
+      if (targetSeq.current !== seq) return false;
       setStatus({ tone: 'error', text: errorText(cause) });
       return false;
     } finally {
-      setBusy(false);
+      if (targetSeq.current === seq) setBusy(false);
     }
   };
 
