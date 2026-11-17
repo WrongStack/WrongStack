@@ -89,6 +89,9 @@ const sessions = await api.listLiveSessions(); // every live session on the mach
 await api.messageSession(sessions[0].sessionId, { text: 'wrap up', type: 'steer' });
 ```
 
+HTTP session API requests refuse redirects so the access token and message bodies
+stay on the configured server. Use the server's direct URL, not a redirecting endpoint.
+
 ## The contract
 
 The frame and body types are the ones in `@wrongstack/webui-protocol`, and the server and the WebUI build against them too. For clients in other languages, that package publishes files generated from those types:

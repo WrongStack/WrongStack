@@ -68,6 +68,8 @@ export function createHttpClient(options: HttpClientOptions): WrongStackHttpClie
       response = await doFetch(targetUrl, {
         method: init.method ?? 'GET',
         headers,
+        // Fetch forwards custom auth headers and POST bodies across redirects.
+        redirect: 'error',
         ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
       });
     } catch (error) {
