@@ -123,7 +123,6 @@ export async function routePointerEvents(
     mouseMode,
     historyScrollRef,
     onHistoryCopy,
-    onHistoryScrollActivity,
     statusBarWrapRef,
     belowStatusBarRef,
     statusBarClickMapRef,
@@ -205,7 +204,6 @@ export async function routePointerEvents(
         if (key.mouse.shift)
           historyScrollRef.current?.scrollPage(key.mouse.wheel > 0 ? 'up' : 'down');
         else historyScrollRef.current?.scrollBy(key.mouse.wheel > 0 ? 1 : -1);
-        onHistoryScrollActivity?.();
         // Scrolling always cancels any pending drag-select: the user is
         // moving through history, not committing a text selection. Without
         // this clear, a Right-Click after a wheel-flushed drag would copy a
@@ -336,7 +334,6 @@ export async function routePointerEvents(
         // scrubbing chat, not selecting text.
         historyScrollRef.current?.clearSelection();
         historyScrollRef.current?.scrollToTrackCell(region.cell);
-        onHistoryScrollActivity?.();
         return true;
       }
     }
@@ -445,12 +442,10 @@ export async function routePointerEvents(
     }
     if (key.pageUp) {
       historyScrollRef.current?.scrollPage('up');
-      onHistoryScrollActivity?.();
       return true;
     }
     if (key.pageDown) {
       historyScrollRef.current?.scrollPage('down');
-      onHistoryScrollActivity?.();
       return true;
     }
     // Terminal-safe paging fallback for compact keyboards (notably MacBooks).
@@ -458,7 +453,6 @@ export async function routePointerEvents(
     // text; on an empty draft these chords page through chat history.
     if (key.ctrl && draftRef.current.buffer === '' && (input === 'u' || input === 'd')) {
       historyScrollRef.current?.scrollPage(input === 'u' ? 'up' : 'down');
-      onHistoryScrollActivity?.();
       return true;
     }
   }

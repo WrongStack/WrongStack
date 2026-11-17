@@ -75,6 +75,7 @@ export interface HostDirectorSetupHost {
   getMaxConcurrent(): number;
   buildSubagentRunner(config: Config): Promise<SubagentRunner>;
   directorRunnerSet: boolean;
+  disposed?: boolean;
 }
 
 export async function buildDirector(host: HostDirectorSetupHost): Promise<void> {
@@ -341,6 +342,7 @@ export async function buildDirector(host: HostDirectorSetupHost): Promise<void> 
   }
 
   const runner = await host.buildSubagentRunner(config);
+  if (host.disposed) return;
   if (!host.directorRunnerSet) {
     host.getCoordinator().setRunner(runner);
     host.directorRunnerSet = true;

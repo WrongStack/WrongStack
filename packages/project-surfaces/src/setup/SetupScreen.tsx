@@ -102,9 +102,11 @@ export function SetupScreen() {
         setLastUpdatedAt(new Date());
       })
       .catch(() => {
+        if (controller.signal.aborted) return;
         if (!isInitialLoadRef.current) toast.error(t('setup:screen.toasts.providersRefreshFailed'));
       })
       .finally(() => {
+        if (controller.signal.aborted) return;
         setIsLoadingPopular(false);
         isInitialLoadRef.current = false;
       });

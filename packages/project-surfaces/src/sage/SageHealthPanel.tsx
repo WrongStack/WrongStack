@@ -119,7 +119,14 @@ export function SageHealthPanel({
         });
         pendingRef.current.add(cancel);
         timer = setTimeout(cancel, DOCTOR_TIMEOUT_MS);
-        sageDoctor({ ...(fix && fix.length > 0 ? { fix } : {}), requestId }, { echoToChat: false });
+        try {
+          sageDoctor(
+            { ...(fix && fix.length > 0 ? { fix } : {}), requestId },
+            { echoToChat: false },
+          );
+        } catch (err) {
+          settle({ error: err instanceof Error ? err.message : String(err) });
+        }
       }),
     [client, sageDoctor, t],
   );
@@ -151,8 +158,11 @@ export function SageHealthPanel({
   const refresh = useCallback(async () => {
     setLoading(true);
     setNotice(null);
-    apply(await run());
-    setLoading(false);
+    try {
+      apply(await run());
+    } finally {
+      setLoading(false);
+    }
   }, [apply, run]);
 
   const fix = useCallback(
@@ -161,8 +171,11 @@ export function SageHealthPanel({
       if (fixes.length === 0) return;
       setBusyFix(target);
       setNotice(null);
-      apply(await run(fixes));
-      setBusyFix(null);
+      try {
+        apply(await run(fixes));
+      } finally {
+        setBusyFix(null);
+      }
     },
     [apply, report, run],
   );

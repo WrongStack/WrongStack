@@ -50,7 +50,6 @@ export function useControllerKeyPipeline({
   getSddRun,
   confirmExitRef,
   historyScrollRef,
-  onHistoryScrollActivity,
   enhanceCancelledRef,
   enhanceAbortRef,
   enhanceOriginalRef,
@@ -276,7 +275,6 @@ export function useControllerKeyPipeline({
   historyScrollRef: React.RefObject<
     import('./components/history/scroll-controller-types.js').HistoryScrollController | null
   >;
-  onHistoryScrollActivity: () => void;
   enhanceCancelledRef: React.MutableRefObject<boolean>;
   enhanceAbortRef: React.MutableRefObject<AbortController | null>;
   enhanceOriginalRef: React.MutableRefObject<string>;
@@ -424,7 +422,6 @@ export function useControllerKeyPipeline({
     state,
     dispatch,
     historyScrollRef,
-    onHistoryScrollActivity,
     runInterruptLadder,
     enhanceCancelledRef,
     enhanceAbortRef,

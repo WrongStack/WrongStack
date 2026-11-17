@@ -19,18 +19,25 @@ export async function buildHostSubagentProvider(
   overrideId?: string | undefined,
   model?: string | undefined,
 ): Promise<Provider> {
+  const hasOwnProvider = (id: string) =>
+    config.providers !== undefined &&
+    Object.hasOwn(config.providers, id) &&
+    config.providers[id] !== undefined;
   const requestedProviderId = overrideId ?? config.provider;
   const providerId =
     requestedProviderId === config.provider ||
-    config.providers?.[requestedProviderId] !== undefined ||
+    hasOwnProvider(requestedProviderId) ||
     deps.providerRegistry.has(requestedProviderId)
       ? requestedProviderId
       : config.provider;
-  const newCfg = config.providers?.[providerId] ?? {
-    type: providerId,
-    apiKey: config.apiKey,
-    baseUrl: config.baseUrl,
-  };
+  const newCfg =
+    hasOwnProvider(providerId) && config.providers
+      ? config.providers[providerId]!
+      : {
+          type: providerId,
+          apiKey: config.apiKey,
+          baseUrl: config.baseUrl,
+        };
   // WrongProxy / WrongTrace: rewrite THIS subagent's base URL through the
   // shared singleton when the toggle is on and the daemon is reachable.
   // Subagents must traverse the same proxy as the leader — a bare

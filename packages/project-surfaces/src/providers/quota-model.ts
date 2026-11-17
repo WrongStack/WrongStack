@@ -172,9 +172,11 @@ export function quotaVendorOf(p: SavedProviderLite): QuotaVendor | undefined {
     }
     if (host === 'opencode.ai' && path.startsWith('/zen')) return 'opencode';
     if (host === 'openrouter.ai') return 'openrouter';
-    return BALANCE_HOSTS[host];
+    return Object.hasOwn(BALANCE_HOSTS, host) ? BALANCE_HOSTS[host] : undefined;
   }
-  return CATALOG_VENDOR[p.type ?? p.id] ?? CATALOG_VENDOR[p.id];
+  const catalogKey = p.type ?? p.id;
+  if (Object.hasOwn(CATALOG_VENDOR, catalogKey)) return CATALOG_VENDOR[catalogKey];
+  return Object.hasOwn(CATALOG_VENDOR, p.id) ? CATALOG_VENDOR[p.id] : undefined;
 }
 
 /**
@@ -229,7 +231,7 @@ export function buildQuotaCards(
   refreshes: Readonly<Record<string, QuotaRefreshOutcome>>,
 ): QuotaCard[] {
   const readAs = (providerId: string): QuotaVendor | undefined => {
-    const vendor = refreshes[providerId]?.vendor;
+    const vendor = Object.hasOwn(refreshes, providerId) ? refreshes[providerId]?.vendor : undefined;
     return isQuotaVendor(vendor) ? vendor : undefined;
   };
   const byProvider = new Map<string, { vendor: QuotaVendor; meters: QuotaSnapshot[] }>();
@@ -268,7 +270,10 @@ export function buildQuotaCards(
   for (const [providerId, entry] of ordered) {
     // A Zen-only OpenCode account has no Go plan to read: once its read has
     // failed with nothing standing, the card could only ever say so.
-    const unread = entry.meters.length === 0 && refreshes[providerId]?.ok === false;
+    const unread =
+      entry.meters.length === 0 &&
+      Object.hasOwn(refreshes, providerId) &&
+      refreshes[providerId]?.ok === false;
     if (entry.vendor === 'opencode' && unread) continue;
     const key = accountReadingKey(entry.vendor, entry.meters);
     const aliases = key === undefined ? undefined : byAccount.get(key);
@@ -319,7 +324,7 @@ function omniRouteProviderOfModel(model: string): string | undefined {
   if (slash <= 0) return undefined;
   const prefix = id.slice(0, slash).toLowerCase();
   if (prefix === 'auto') return undefined;
-  return OMNIROUTE_ALIAS[prefix] ?? prefix;
+  return (Object.hasOwn(OMNIROUTE_ALIAS, prefix) ? OMNIROUTE_ALIAS[prefix] : undefined) ?? prefix;
 }
 
 /** The OmniRoute provider of a pool meter (`omniroute:<provider>:<connection>`). */

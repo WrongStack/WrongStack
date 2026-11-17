@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-17T12:44:52.553Z",
+  "generatedAt": "2026-11-17T13:20:11.686Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6363,
-    "testFiles": 5452,
-    "sourceLines": 1315034,
+    "sourceFiles": 6362,
+    "testFiles": 5459,
+    "sourceLines": 1315049,
     "workspaceEdges": 250,
-    "moduleEdges": 18774,
+    "moduleEdges": 18772,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 388,
+    "testsWithoutTypecheck": 393,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1074
+    "testOnlyExports": 1073
   },
   "errors": [],
   "packageCycles": [],
@@ -387,7 +387,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 534,
-      "testFiles": 370,
+      "testFiles": 372,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -409,7 +409,7 @@
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
       "sourceFiles": 63,
-      "testFiles": 13,
+      "testFiles": 14,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -430,7 +430,7 @@
         {
           "path": "packages/fleet/tsconfig.test.json",
           "error": null,
-          "testFiles": 13
+          "testFiles": 14
         }
       ]
     },
@@ -734,7 +734,7 @@
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
       "sourceFiles": 261,
-      "testFiles": 13,
+      "testFiles": 16,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1035,7 +1035,7 @@
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 515,
+      "sourceFiles": 514,
       "testFiles": 448,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
@@ -1118,7 +1118,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 796,
-      "testFiles": 536,
+      "testFiles": 537,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1144,7 +1144,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 536
+          "testFiles": 537
         }
       ]
     },
@@ -1815,6 +1815,18 @@
       },
       {
         "file": "apps/desktop-v2/tests/design-studio-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/desktop-branch-plugins-catch.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/desktop-code-assist-abort.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -14882,6 +14894,12 @@
         ]
       },
       {
+        "file": "packages/fleet/tests/host-dispose-director-race.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/fleet/tests/host-ensure-director-race.test.ts",
         "projects": [
           "root-node"
@@ -19118,6 +19136,18 @@
         ]
       },
       {
+        "file": "packages/project-surfaces/tests/sage-health-panel-catch.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/session-branch-pill-unhandled.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/project-surfaces/tests/session-story-branch-cycle.test.ts",
         "projects": [
           "root-node"
@@ -19131,6 +19161,12 @@
       },
       {
         "file": "packages/project-surfaces/tests/session-watch-panel-send-race.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/setup-screen-popular-abort.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -25898,6 +25934,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/history-reader-position.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/history-retention.test.ts",
         "projects": [
           "root-node"
@@ -27507,12 +27549,6 @@
       },
       {
         "file": "packages/tui/tests/use-history-archive.test.tsx",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tui/tests/use-history-auto-scroll.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -32276,6 +32312,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/terminal-panel-font-resize.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/terminal-panel-height.test.ts",
         "projects": [
           "webui-jsdom"
@@ -34617,6 +34659,20 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/desktop-branch-plugins-catch.test.tsx",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/desktop-code-assist-abort.test.tsx",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/desktop-commands.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -36696,6 +36752,20 @@
         "typecheckProjects": []
       },
       {
+        "file": "packages/project-surfaces/tests/sage-health-panel-catch.test.tsx",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "packages/project-surfaces/tests/session-branch-pill-unhandled.test.tsx",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "packages/project-surfaces/tests/session-story-branch-cycle.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -36711,6 +36781,13 @@
       },
       {
         "file": "packages/project-surfaces/tests/session-watch-panel-send-race.test.tsx",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "packages/project-surfaces/tests/setup-screen-popular-abort.test.tsx",
         "runtimeProjects": [
           "root-node"
         ],
@@ -41648,10 +41725,6 @@
     {
       "file": "packages/tui/src/hooks/use-file-search.ts",
       "name": "isFileSelectionCurrent"
-    },
-    {
-      "file": "packages/tui/src/hooks/use-history-auto-scroll.ts",
-      "name": "HISTORY_AUTO_SCROLL_DELAY_MS"
     },
     {
       "file": "packages/tui/src/hooks/use-leader-auto-wake.ts",

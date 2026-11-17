@@ -8,7 +8,6 @@ import { resolveControllerProps } from './controller-props.js';
 import { useAppRefSpine } from './hooks/use-app-ref-spine.js';
 import { useFileSearch } from './hooks/use-file-search.js';
 import { useHistoryArchive } from './hooks/use-history-archive.js';
-import { useHistoryAutoScroll } from './hooks/use-history-auto-scroll.js';
 import { useHistoryCopyNotice } from './hooks/use-history-copy-notice.js';
 import { useInputHistoryPersistence } from './hooks/use-input-history-persistence.js';
 import { useKanbanBoardFocus } from './hooks/use-kanban-board-focus.js';
@@ -81,10 +80,6 @@ export function useAppController(props: AppProps) {
       dispatch({ type: 'setHistoryScrolled', scrolled: info.scrolled }),
     [dispatch],
   );
-  const onHistoryScrollActivity = useHistoryAutoScroll({
-    historyScrolled: state.historyScrolled,
-    historyScrollRef,
-  });
   const { onRequestOlderEntries } = useHistoryArchive({
     entries: state.entries,
     dispatch,
@@ -355,7 +350,6 @@ export function useAppController(props: AppProps) {
     liveDirector,
     exit,
     clearPendingConfirms,
-    onHistoryScrollActivity,
     openProjectPicker,
     loadLiveSessions,
     openStatuslinePicker,

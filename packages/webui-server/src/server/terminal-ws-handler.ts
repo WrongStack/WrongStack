@@ -197,11 +197,18 @@ export class TerminalWebSocketHandler {
     let pty: PtyProcess;
     try {
       pty = nodePty.spawn(shell, [], {
-        name: 'xterm-color',
+        name: 'xterm-256color',
         cols: clampDim(payload.cols, DEFAULT_COLS),
         rows: clampDim(payload.rows, DEFAULT_ROWS),
         cwd,
-        env: buildChildEnv(),
+        // The painting surface is the browser's xterm.js, regardless of
+        // which console (or service manager) launched the WebUI server.
+        env: {
+          ...buildChildEnv(),
+          TERM: 'xterm-256color',
+          COLORTERM: 'truecolor',
+          WRONGSTACK_TUI_TERMINAL: 'browser',
+        },
         ...windowsPtyOptions(),
       });
     } catch (err) {

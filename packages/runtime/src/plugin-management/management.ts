@@ -549,10 +549,14 @@ async function runPluginTrustCommand(
   // through config/discovery) or a raw entry path for cleanup of stale pins.
   const store = await readPluginTrustStore(storePath);
   let entry: string | undefined;
-  if (store.pinned[name] !== undefined) {
+  const normalizedName = normalizeTrustKey(name);
+  if (Object.hasOwn(store.pinned, name) && store.pinned[name] !== undefined) {
     entry = name;
-  } else if (store.pinned[normalizeTrustKey(name)] !== undefined) {
-    entry = normalizeTrustKey(name);
+  } else if (
+    Object.hasOwn(store.pinned, normalizedName) &&
+    store.pinned[normalizedName] !== undefined
+  ) {
+    entry = normalizedName;
   } else {
     entry = await resolveExternalPluginEntry(name, deps);
   }

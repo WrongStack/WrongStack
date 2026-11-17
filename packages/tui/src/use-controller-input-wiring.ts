@@ -38,7 +38,6 @@ export function useControllerInputWiring({
   liveDirector,
   exit,
   clearPendingConfirms,
-  onHistoryScrollActivity,
   openProjectPicker,
   loadLiveSessions,
   openStatuslinePicker,
@@ -70,7 +69,6 @@ export function useControllerInputWiring({
   liveDirector: KeyPipelineArgs['liveDirector'];
   exit: KeyPipelineArgs['exit'];
   clearPendingConfirms: KeyPipelineArgs['clearPendingConfirms'];
-  onHistoryScrollActivity: KeyPipelineArgs['onHistoryScrollActivity'];
   openProjectPicker: KeyPipelineArgs['openProjectPicker'];
   loadLiveSessions: KeyPipelineArgs['loadLiveSessions'];
   openStatuslinePicker: KeyPipelineArgs['openStatuslinePicker'];
@@ -222,7 +220,6 @@ export function useControllerInputWiring({
     getSddRun: controllerProps.getSddRun,
     confirmExitRef,
     historyScrollRef,
-    onHistoryScrollActivity,
     enhanceCancelledRef,
     enhanceAbortRef,
     enhanceOriginalRef,

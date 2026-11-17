@@ -97,13 +97,28 @@ export function DesktopSessionBranchAndPlugins({
   const [promptInput, setPromptInput] = useState('');
   const lastSeenPromptId = useRef<string>('');
   const lastSeenNotifyRef = useRef<unknown>(null);
+  const sessionSeqRef = useRef(0);
+  const panelSeqRef = useRef(0);
+
+  useEffect(() => {
+    const seq = ++sessionSeqRef.current;
+    panelSeqRef.current += 1;
+    return () => {
+      if (sessionSeqRef.current === seq) {
+        sessionSeqRef.current += 1;
+        panelSeqRef.current += 1;
+      }
+    };
+  }, [state.connected, state.sessionId]);
 
   const refreshTree = useCallback(async () => {
     if (!state.connected || !state.sessionId) {
       setTree(null);
       return;
     }
+    const seq = sessionSeqRef.current;
     const res = await runEngineText(command, 'tree', 'list --json', state.sessionId);
+    if (sessionSeqRef.current !== seq) return;
     if (res.error || !res.text) return;
     const next = parseTreeSnapshot(res.text);
     if (next) setTree(next);
@@ -111,7 +126,9 @@ export function DesktopSessionBranchAndPlugins({
 
   const loadPluginCatalog = useCallback(async () => {
     if (!state.connected) return;
+    const seq = sessionSeqRef.current;
     const res = await runEngineText(command, 'panel', 'list --json', state.sessionId || undefined);
+    if (sessionSeqRef.current !== seq) return;
     if (res.error || !res.text) return;
     try {
       const parsed = JSON.parse(res.text) as PluginUiCatalogPayload;
@@ -125,6 +142,8 @@ export function DesktopSessionBranchAndPlugins({
   const loadPanelDetail = useCallback(
     async (panelRef: string) => {
       if (!state.connected) return;
+      const sSeq = sessionSeqRef.current;
+      const pSeq = ++panelSeqRef.current;
       setPanelBusy(true);
       setPanelError('');
       try {
@@ -134,6 +153,7 @@ export function DesktopSessionBranchAndPlugins({
           `show ${panelRef} --json`,
           state.sessionId || undefined,
         );
+        if (sessionSeqRef.current !== sSeq || panelSeqRef.current !== pSeq) return;
         if (res.error) {
           setPanelError(res.error);
           return;
@@ -151,9 +171,12 @@ export function DesktopSessionBranchAndPlugins({
           setSelectedPanelId(parsed.activePanel.qualifiedId);
         }
       } catch (err) {
+        if (sessionSeqRef.current !== sSeq || panelSeqRef.current !== pSeq) return;
         setPanelError(err instanceof Error ? err.message : String(err));
       } finally {
-        setPanelBusy(false);
+        if (sessionSeqRef.current === sSeq && panelSeqRef.current === pSeq) {
+          setPanelBusy(false);
+        }
       }
     },
     [command, state.connected, state.sessionId],
@@ -287,6 +310,8 @@ export function DesktopSessionBranchAndPlugins({
 
   const triggerAction = useCallback(
     async (panelId: string, actionId: string) => {
+      const sSeq = sessionSeqRef.current;
+      const pSeq = ++panelSeqRef.current;
       setPanelBusy(true);
       setPanelError('');
       try {
@@ -296,6 +321,7 @@ export function DesktopSessionBranchAndPlugins({
           `action ${panelId} ${actionId} --json`,
           state.sessionId || undefined,
         );
+        if (sessionSeqRef.current !== sSeq || panelSeqRef.current !== pSeq) return;
         if (res.error) {
           setPanelError(res.error);
           return;
@@ -309,8 +335,13 @@ export function DesktopSessionBranchAndPlugins({
         if (Array.isArray(parsed.statusChips)) setChips(parsed.statusChips);
         if (Array.isArray(parsed.panels)) setPanels(parsed.panels);
         if (parsed.activePanel) setActivePanel(parsed.activePanel);
+      } catch (err) {
+        if (sessionSeqRef.current !== sSeq || panelSeqRef.current !== pSeq) return;
+        setPanelError(err instanceof Error ? err.message : String(err));
       } finally {
-        setPanelBusy(false);
+        if (sessionSeqRef.current === sSeq && panelSeqRef.current === pSeq) {
+          setPanelBusy(false);
+        }
       }
     },
     [command, state.sessionId],

@@ -1,7 +1,7 @@
 import type { Logger } from '@wrongstack/contracts/types';
 import type { TrustBoundary } from '@wrongstack/core/security';
 import { createCompatibilityTrustBoundary } from '@wrongstack/core/security';
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 // ── Fake node-pty ────────────────────────────────────────────────────────────
 interface FakePty {
@@ -85,6 +85,7 @@ const loadFakeNodePty = () => ({ spawn: spawnMock });
 const allowBoundary = createCompatibilityTrustBoundary({ denyCriticalRiskRemoteClient: false });
 
 describe('TerminalWebSocketHandler', () => {
+  afterEach(() => vi.unstubAllEnvs());
   beforeEach(() => {
     spawned.length = 0;
     spawnMock.mockClear();
@@ -174,6 +175,27 @@ describe('TerminalWebSocketHandler', () => {
       [string, string[], { env: Record<string, string | undefined> }]
     >;
     expect(calls[0]?.[2].env).not.toHaveProperty('WS_TERMINAL_CANARY_API_KEY');
+  });
+
+  it('describes the browser emulator instead of inheriting the server terminal', async () => {
+    vi.stubEnv('TERM', 'dumb');
+    vi.stubEnv('COLORTERM', '8bit');
+    vi.stubEnv('WRONGSTACK_TUI_TERMINAL', 'native');
+    const h = new TerminalWebSocketHandler(
+      () => '/c',
+      logger,
+      loadFakeNodePty,
+      undefined,
+      allowBoundary,
+    );
+    const ws = makeWs();
+    h.addClient(ws);
+    await h.handleMessage(ws, { type: 'terminal.create', payload: { id: 'browser-env' } });
+    expect(spawnMock.mock.calls[0]?.[2]).toMatchObject({
+      name: 'xterm-256color',
+      env: { TERM: 'xterm-256color', COLORTERM: 'truecolor', WRONGSTACK_TUI_TERMINAL: 'browser' },
+    });
+    h.dispose();
   });
 
   it('terminal.create is idempotent for the same id', async () => {

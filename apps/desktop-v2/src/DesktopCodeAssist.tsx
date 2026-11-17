@@ -72,7 +72,13 @@ export function DesktopCodeAssist({
     [send],
   );
   const start = async () => {
-    if (current.current) await send('code.assist.abort', { requestId: current.current });
+    if (current.current) {
+      try {
+        await send('code.assist.abort', { requestId: current.current });
+      } catch {
+        // Best-effort abort before starting a new assist request.
+      }
+    }
     const id = crypto.randomUUID();
     const edits = (preset === 'fix' || preset === 'custom') && allowEdits;
     setSnapshot(null);
@@ -126,7 +132,7 @@ export function DesktopCodeAssist({
             type="button"
             className="button secondary small"
             aria-label={t('codeAssist.stopLabel')}
-            onClick={() => void send('code.assist.abort', { requestId })}
+            onClick={() => void send('code.assist.abort', { requestId }).catch(() => {})}
           >
             <Square size={11} />
             {t('codeAssist.stop')}

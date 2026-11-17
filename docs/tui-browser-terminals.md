@@ -85,6 +85,13 @@ page's font stack whether or not its client is remote.
 
 ## 3. Effects
 
+The integrated WebUI terminal starts its shell with `TERM=xterm-256color`,
+`COLORTERM=truecolor` and `WRONGSTACK_TUI_TERMINAL=browser`, after sanitizing the
+child environment. The parent server's console profile does not describe the
+browser's emulator. This prevents a server launched with `TERM=dumb` or a native
+terminal override from disabling mouse reports or selecting unsupported glyphs
+in the browser.
+
 ### 3.1 Glyph profile
 
 Under `icons = auto`, `resolveIconStyle()` returns the `browser` profile for
@@ -181,8 +188,14 @@ browser host markers and `TERM=xterm-256color` explicitly on Windows too.
 
 The full-App scenario covers:
 
+- Sidebar on/off with `icons = auto`, 30×12 through 160×48 grids, and changes
+  between 10–20 px font sizes using a common monospace font. Both the emulator
+  and PTY are resized; checks assert one composer, a visible live tail and no
+  native scrollback drift in the alternate screen.
 - Multiline paste: the original lines reach the agent once, only after Enter.
 - PageUp and actual browser wheel events moving the managed transcript.
+- A reader anchor surviving new streamed output and width changes, followed by
+  PageDown returning to the tail and following subsequent output.
 - Shift-drag browser selection and App SGR drag highlighting, cancelled in the
   gutter before release so verification does not replace the OS clipboard.
 - Reconnecting a browser to the same retained PTY, replaying output and keeping
@@ -199,6 +212,30 @@ not change the WebUI integrated terminal's existing per-client policy, which
 kills its shell on disconnect. Product-specific ttyd/code-server deployments,
 mobile IME input, clipboard copying and the image preview modal require their
 own validation.
+
+### 4.1 Scroll ownership
+
+The full-screen TUI uses an alternate buffer and virtualizes its transcript.
+Its scrollbar represents application history; the browser terminal's native
+scrollbar cannot expose entries that the App has not mounted. Plain wheel events
+therefore go to the App through SGR mouse reports. PageUp/PageDown and Ctrl+U/D
+on an empty draft also navigate history. Shift-drag selects native terminal text;
+`/mouse native` explicitly releases mouse ownership and leaves keyboard paging
+available.
+
+Scrolling away from the tail stays at the reader's chosen position, including
+while new output arrives. There is no idle timeout that returns the reader to
+the bottom. Paging or scrubbing back to the bottom resumes following output.
+`packages/tui/tests/history-reader-position.test.tsx` exercises the full App with
+a fake clock past the former 30-second timeout and checks explicit re-pinning.
+
+The browser host must resize its PTY when its terminal grid changes, including
+after a font or browser zoom change. Resizing only the canvas leaves the process
+laying out against stale rows/columns; the TUI cannot observe client-side CSS.
+The integrated WebUI forwards xterm's `onResize` events, including font-only fits
+that do not trigger a container `ResizeObserver`.
+These checks cover Chromium/xterm.js on the current platform. They do not certify
+every emulator, font, operating system or arbitrarily small grid.
 
 ## 5. Input transport boundaries
 

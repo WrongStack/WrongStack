@@ -14,8 +14,6 @@ export interface AppKeyHandlerOptions {
   state: State;
   dispatch: Dispatch<Action>;
   historyScrollRef: MutableRefObject<HistoryScrollController | null>;
-  /** Resets the live-tail timeout after a user-driven history navigation. */
-  onHistoryScrollActivity?: (() => void) | undefined;
   runInterruptLadder: () => void;
   enhanceCancelledRef: MutableRefObject<boolean>;
   enhanceAbortRef: MutableRefObject<AbortController | null>;

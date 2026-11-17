@@ -150,11 +150,11 @@ export function SessionBranchPill({
     const opts = buildFoldOpts();
     setFoldNote('');
     setOpen(false);
-    void Promise.resolve(opts ? onFoldBranch(branchId, opts) : onFoldBranch(branchId)).finally(
-      () => {
+    void Promise.resolve(opts ? onFoldBranch(branchId, opts) : onFoldBranch(branchId))
+      .catch(() => {})
+      .finally(() => {
         onRefresh?.();
-      },
-    );
+      });
   };
 
   const handleCreate = (e: React.FormEvent) => {
@@ -162,9 +162,11 @@ export function SessionBranchPill({
     const trimmed = newBranchName.trim();
     if (!trimmed || !onCreateBranch) return;
     setNewBranchName('');
-    void Promise.resolve(onCreateBranch(trimmed)).finally(() => {
-      onRefresh?.();
-    });
+    void Promise.resolve(onCreateBranch(trimmed))
+      .catch(() => {})
+      .finally(() => {
+        onRefresh?.();
+      });
   };
 
   return (
@@ -223,9 +225,11 @@ export function SessionBranchPill({
                   onClick={() => {
                     if (!onSwitchBranch || isActive) return;
                     setOpen(false);
-                    void Promise.resolve(onSwitchBranch(branch.id, { keepFiles })).finally(() => {
-                      onRefresh?.();
-                    });
+                    void Promise.resolve(onSwitchBranch(branch.id, { keepFiles }))
+                      .catch(() => {})
+                      .finally(() => {
+                        onRefresh?.();
+                      });
                   }}
                   className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
                 >

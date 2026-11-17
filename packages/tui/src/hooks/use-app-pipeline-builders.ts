@@ -19,7 +19,6 @@ export function buildAppPipelineArgs(params: {
   state: K['state'];
   dispatch: K['dispatch'];
   historyScrollRef: K['historyScrollRef'];
-  onHistoryScrollActivity: K['onHistoryScrollActivity'];
   runInterruptLadder: K['runInterruptLadder'];
   enhanceCancelledRef: K['enhanceCancelledRef'];
   enhanceAbortRef: K['enhanceAbortRef'];
@@ -124,7 +123,6 @@ export function buildAppPipelineArgs(params: {
     state,
     dispatch,
     historyScrollRef,
-    onHistoryScrollActivity,
     runInterruptLadder,
     enhanceCancelledRef,
     enhanceAbortRef,
@@ -230,7 +228,6 @@ export function buildAppPipelineArgs(params: {
       state,
       dispatch,
       historyScrollRef,
-      onHistoryScrollActivity,
       runInterruptLadder,
       enhanceCancelledRef,
       enhanceAbortRef,

@@ -1,5 +1,5 @@
 /** Full production launch in a real PTY; only the agent/provider boundary is deterministic. */
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { EventBus } from '@wrongstack/contracts/kernel';
 import type { ContentBlock, Message } from '@wrongstack/contracts/types';
@@ -64,6 +64,30 @@ const agent = {
   run: async (blocks: ContentBlock[]) => {
     calls++;
     record({ type: 'run', calls, blocks });
+    if (blocks.some((block) => block.type === 'text' && block.text === 'stream-proof')) {
+      let text = '';
+      const commandPath = join(root, 'stream-command.json');
+      const deadline = Date.now() + 15_000;
+      while (Date.now() < deadline) {
+        if (existsSync(commandPath)) {
+          const command = JSON.parse(readFileSync(commandPath, 'utf8')) as {
+            text: string;
+            finish?: boolean;
+          };
+          if (command.text !== text) {
+            events.emit('provider.text_delta', {
+              ctx: agent.ctx,
+              text: command.text.slice(text.length),
+            });
+            text = command.text;
+            record({ type: 'stream', text });
+          }
+          if (command.finish) return { status: 'done', iterations: 1, finalText: text };
+        }
+        await new Promise<void>((resolve) => setTimeout(resolve, 25));
+      }
+      throw new Error('Browser streaming proof did not finish');
+    }
     return { status: 'done', iterations: 1, finalText: `PTY completed request ${calls}` };
   },
   abort: noop,
@@ -74,7 +98,7 @@ let settings: Settings = {
   fleetChatVerbosity: 'off',
   featureTokenSaving: 'off',
   lastSettingsField: 67,
-  showSidebar: false,
+  showSidebar: process.env.WRONGSTACK_PTY_TEST_SIDEBAR === 'true',
   chime: false,
   selectionMode: 'text',
 };

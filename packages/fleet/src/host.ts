@@ -157,11 +157,13 @@ export class MultiAgentHost {
    * see the orchestration tools.
    */
   private buildingDirector: Promise<void> | undefined;
+  private disposed = false;
 
   async ensureDirector(): Promise<Director | null> {
+    if (this.disposed) return null;
     if (this.director && !this.buildingDirector) return this.director;
     await this.buildDirector();
-    return this.director ?? null;
+    return this.disposed ? null : (this.director ?? null);
   }
 
   /** Access the Director's internal coordinator. Returns the concrete
@@ -212,6 +214,7 @@ export class MultiAgentHost {
   }
 
   private async buildDirector(): Promise<void> {
+    if (this.disposed) return;
     if (this.buildingDirector) return this.buildingDirector;
     const work = buildDirectorFromHost(this.hostDirectorSetupHost()).finally(() => {
       if (this.buildingDirector === work) this.buildingDirector = undefined;
@@ -574,6 +577,8 @@ export class MultiAgentHost {
   }
 
   async dispose(): Promise<void> {
+    this.disposed = true;
+    await this.buildingDirector?.catch(() => {});
     this.learningScheduler.dispose();
     this.shadowManager.dispose();
     for (const off of this.directorOffHandles) {
@@ -664,6 +669,7 @@ export class MultiAgentHost {
       getMaxConcurrent: this.getMaxConcurrent,
       buildSubagentRunner: this.buildSubagentRunner,
       directorRunnerSet: this.directorRunnerSet,
+      disposed: this.disposed,
     } satisfies HostDirectorSetupHost);
     return this as unknown as HostDirectorSetupHost;
   }

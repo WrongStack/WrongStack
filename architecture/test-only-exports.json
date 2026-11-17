@@ -1841,9 +1841,6 @@
       "detectAtToken",
       "isFileSelectionCurrent"
     ],
-    "packages/tui/src/hooks/use-history-auto-scroll.ts": [
-      "HISTORY_AUTO_SCROLL_DELAY_MS"
-    ],
     "packages/tui/src/hooks/use-leader-auto-wake.ts": [
       "createTuiLeaderWakePort"
     ],

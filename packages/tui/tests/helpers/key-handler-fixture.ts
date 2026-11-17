@@ -82,7 +82,6 @@ export function makeHandler(
     state,
     dispatch,
     historyScrollRef: { current: null },
-    onHistoryScrollActivity: vi.fn(),
     runInterruptLadder,
     enhanceCancelledRef: { current: false },
     enhanceAbortRef: { current: null },

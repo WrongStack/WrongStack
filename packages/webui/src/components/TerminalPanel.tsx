@@ -466,12 +466,16 @@ function TerminalSession({
     const onData = term.onData((data) => {
       ws.send({ type: 'terminal.input', payload: { id, data } });
     });
+    // A font/zoom change can resize the grid without changing the container.
+    // Forward xterm's actual grid changes from every fit path to the PTY.
+    const onResize = term.onResize(({ cols, rows }) => {
+      ws.send({ type: 'terminal.resize', payload: { id, cols, rows } });
+    });
 
     const syncSize = () => {
       if (!container.offsetParent) return;
       try {
         fit.fit();
-        ws.send({ type: 'terminal.resize', payload: { id, cols: term.cols, rows: term.rows } });
       } catch {
         /* not laid out */
       }
@@ -483,6 +487,7 @@ function TerminalSession({
       offOut();
       offExit();
       onData.dispose();
+      onResize.dispose();
       ro.disconnect();
       ws.send({ type: 'terminal.close', payload: { id } });
       term.dispose();
@@ -500,10 +505,6 @@ function TerminalSession({
         fitRef.current?.fit();
         const term = termRef.current;
         if (term) {
-          getWSClient(useConfigStore.getState().wsUrl).send({
-            type: 'terminal.resize',
-            payload: { id, cols: term.cols, rows: term.rows },
-          });
           term.focus();
         }
       } catch {
