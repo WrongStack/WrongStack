@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-17T20:08:16.954Z
+**Generated:** 2026-11-17T21:30:04.955Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,15 +8,15 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 48 |
-| Production source files | 6364 |
-| Production source lines | 1315169 |
-| Test files | 5463 |
+| Production source files | 6365 |
+| Production source lines | 1315466 |
+| Test files | 5477 |
 | Workspace dependency edges | 250 |
-| Relative module edges | 18779 |
+| Relative module edges | 18784 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
-| Tests without TypeScript test-project coverage | 395 |
+| Tests without TypeScript test-project coverage | 408 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
@@ -38,7 +38,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/contracts | 132 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 193 | 202 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 661 | 732 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 534 | 374 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 534 | 384 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 63 | 14 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 24 | 29 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 38 | @wrongstack/persistence |
@@ -53,7 +53,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/plugin-sdk | 12 | 11 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugins | 154 | 136 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 26 | 45 | — |
-| @wrongstack/project-surfaces | 261 | 16 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers, @wrongstack/tools |
+| @wrongstack/project-surfaces | 261 | 19 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers, @wrongstack/tools |
 | @wrongstack/providers | 138 | 128 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/requirement-intake | 18 | 21 | @wrongstack/core |
 | @wrongstack/requirement-intake-mcp | 6 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/requirement-intake |
@@ -65,7 +65,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/techstack | 55 | 65 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 28 | 46 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/tools | 402 | 397 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/tui | 514 | 448 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
+| @wrongstack/tui | 515 | 449 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 18 | 29 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/vibeui | 99 | 39 | @wrongstack/webui-protocol |
 | @wrongstack/webui | 796 | 537 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
@@ -90,7 +90,7 @@ None.
 
 | Lines | File |
 |---:|---|
-| 2094 | `apps/desktop-v2/src/FileWorkspace.tsx` |
+| 2098 | `apps/desktop-v2/src/FileWorkspace.tsx` |
 | 1589 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1532 | `packages/builtin-plugins/src/review-context-builder.ts` |
 | 1519 | `packages/core/src/execution/design-dna.ts` |
@@ -100,7 +100,7 @@ None.
 | 1080 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 1042 | `packages/webui/src/components/ChimeraReviewsView.tsx` |
 | 966 | `apps/desktop-v2/src/ProjectChimera.tsx` |
-| 953 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
+| 957 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
 | 940 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
 | 903 | `packages/tools/src/codebase-index/infra-parser.ts` |
 | 898 | `apps/desktop-v2/src/SkillLibrary.tsx` |
@@ -131,15 +131,15 @@ None.
 | 744 | `packages/tools/src/process-registry.ts` |
 | 744 | `packages/webui-server/src/server/completion-handlers.ts` |
 | 741 | `packages/builtin-plugins/src/auto-review-plugin.ts` |
+| 741 | `packages/project-surfaces/src/analytics/AnalyticsDashboard.tsx` |
 | 733 | `packages/vibeui/src/components/provider-manager.tsx` |
 | 732 | `packages/core/src/execution/auto-compaction-middleware.ts` |
+| 730 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
 | 726 | `packages/coordination/src/multi-agent-coordinator.ts` |
 | 724 | `packages/coordination/src/agent-monitor.ts` |
-| 723 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
 | 720 | `packages/tools/src/read.ts` |
 | 720 | `packages/webui-server/src/server/provider-routes.ts` |
 | 719 | `packages/mailbox-mcp/src/adapter.ts` |
-| 718 | `packages/project-surfaces/src/sage/useMemoryManagerState.ts` |
 
 ## Exports only tests reference
 
@@ -149,7 +149,7 @@ None.
 
 ## TypeScript test coverage debt
 
-- 395 test files are not included in a package TypeScript test project.
+- 408 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.

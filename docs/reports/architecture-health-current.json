@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-17T20:08:16.954Z",
+  "generatedAt": "2026-11-17T21:30:04.955Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6364,
-    "testFiles": 5463,
-    "sourceLines": 1315169,
+    "sourceFiles": 6365,
+    "testFiles": 5477,
+    "sourceLines": 1315466,
     "workspaceEdges": 250,
-    "moduleEdges": 18779,
+    "moduleEdges": 18784,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 395,
+    "testsWithoutTypecheck": 408,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1073
   },
@@ -387,7 +387,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 534,
-      "testFiles": 374,
+      "testFiles": 384,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -734,7 +734,7 @@
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
       "sourceFiles": 261,
-      "testFiles": 16,
+      "testFiles": 19,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1035,8 +1035,8 @@
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 514,
-      "testFiles": 448,
+      "sourceFiles": 515,
+      "testFiles": 449,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1065,7 +1065,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 448
+          "testFiles": 449
         }
       ]
     },
@@ -1479,6 +1479,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/availability-settings-proto.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/background-services-race.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -2072,6 +2078,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/failed-run-switch-race.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/failed-run.test.ts",
         "projects": [
           "root-node"
@@ -2156,6 +2168,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/file-workspace-copy.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/file-workspace-filter-race.test.ts",
         "projects": [
           "root-node"
@@ -2199,6 +2217,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/generated-images.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/git-chip-race.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -2768,6 +2792,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/project-chronicle-health-race.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/project-goals.test.ts",
         "projects": [
           "root-node"
@@ -2811,6 +2841,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/project-pages-i18n.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/project-requirements-catch-race.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -3086,6 +3122,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/sandbox-chip-race.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/sandbox-chip.test.ts",
         "projects": [
           "root-node"
@@ -3158,6 +3200,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/session-browser-race.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/session-browser.test.ts",
         "projects": [
           "root-node"
@@ -3207,6 +3255,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-layout.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-mcp-tasks-starve.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -3309,6 +3363,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-usage-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-usage-starve.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -19100,6 +19160,12 @@
         ]
       },
       {
+        "file": "packages/project-surfaces/tests/analytics-dashboard-timer-leak.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/project-surfaces/tests/codemap-activity-proto.test.ts",
         "projects": [
           "root-node"
@@ -19130,6 +19196,12 @@
         ]
       },
       {
+        "file": "packages/project-surfaces/tests/memory-detail-copy.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/project-surfaces/tests/memory-manager-mark-permanent.test.tsx",
         "projects": [
           "root-node"
@@ -19137,6 +19209,12 @@
       },
       {
         "file": "packages/project-surfaces/tests/model-editor-search-cleanup.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/provider-key-save-race.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -26091,6 +26169,12 @@
       },
       {
         "file": "packages/tui/tests/input-validation.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/input-viewport-geometry.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -34291,6 +34375,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/background-services-race.test.tsx",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/background-services-restart.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -34977,6 +35068,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/failed-run-switch-race.test.tsx",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/failed-run.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -35075,6 +35173,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/file-workspace-copy.test.tsx",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/file-workspace-filter-race.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -35125,6 +35230,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/generated-images.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/git-chip-race.test.tsx",
         "runtimeProjects": [
           "root-node"
         ],
@@ -35789,6 +35901,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/project-chronicle-health-race.test.tsx",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/project-goals.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -35839,6 +35958,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/project-pages-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/project-requirements-catch-race.test.tsx",
         "runtimeProjects": [
           "root-node"
         ],
@@ -36160,6 +36286,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/sandbox-chip-race.test.tsx",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/sandbox-chip.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -36244,6 +36377,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/session-browser-race.test.tsx",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/session-browser.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -36301,6 +36441,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-layout.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-mcp-tasks-starve.test.tsx",
         "runtimeProjects": [
           "root-node"
         ],
@@ -36420,6 +36567,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-usage-model.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-usage-starve.test.tsx",
         "runtimeProjects": [
           "root-node"
         ],
@@ -36734,6 +36888,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "packages/project-surfaces/tests/analytics-dashboard-timer-leak.test.tsx",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "packages/project-surfaces/tests/codemap-activity-proto.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -36769,6 +36930,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "packages/project-surfaces/tests/memory-detail-copy.test.tsx",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "packages/project-surfaces/tests/memory-manager-mark-permanent.test.tsx",
         "runtimeProjects": [
           "root-node"
@@ -36777,6 +36945,13 @@
       },
       {
         "file": "packages/project-surfaces/tests/model-editor-search-cleanup.test.tsx",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "packages/project-surfaces/tests/provider-key-save-race.test.tsx",
         "runtimeProjects": [
           "root-node"
         ],
@@ -37943,7 +38118,7 @@
     },
     {
       "file": "packages/project-surfaces/src/analytics/AnalyticsDashboard.tsx",
-      "lines": 710,
+      "lines": 741,
       "relativeImports": 6
     },
     {
@@ -38098,7 +38273,7 @@
     },
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2094,
+      "lines": 2098,
       "relativeImports": 37
     },
     {
@@ -38118,7 +38293,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
-      "lines": 723,
+      "lines": 730,
       "relativeImports": 11
     },
     {
@@ -38138,7 +38313,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
-      "lines": 953,
+      "lines": 957,
       "relativeImports": 14
     },
     {
@@ -38170,7 +38345,7 @@
   "hotspots": [
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2094,
+      "lines": 2098,
       "relativeImports": 37
     },
     {
@@ -38220,7 +38395,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
-      "lines": 953,
+      "lines": 957,
       "relativeImports": 14
     },
     {
@@ -38374,6 +38549,11 @@
       "relativeImports": 7
     },
     {
+      "file": "packages/project-surfaces/src/analytics/AnalyticsDashboard.tsx",
+      "lines": 741,
+      "relativeImports": 6
+    },
+    {
       "file": "packages/vibeui/src/components/provider-manager.tsx",
       "lines": 733,
       "relativeImports": 6
@@ -38384,6 +38564,11 @@
       "relativeImports": 19
     },
     {
+      "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
+      "lines": 730,
+      "relativeImports": 11
+    },
+    {
       "file": "packages/coordination/src/multi-agent-coordinator.ts",
       "lines": 726,
       "relativeImports": 13
@@ -38392,11 +38577,6 @@
       "file": "packages/coordination/src/agent-monitor.ts",
       "lines": 724,
       "relativeImports": 1
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
-      "lines": 723,
-      "relativeImports": 11
     },
     {
       "file": "packages/tools/src/read.ts",
@@ -38412,11 +38592,6 @@
       "file": "packages/mailbox-mcp/src/adapter.ts",
       "lines": 719,
       "relativeImports": 3
-    },
-    {
-      "file": "packages/project-surfaces/src/sage/useMemoryManagerState.ts",
-      "lines": 718,
-      "relativeImports": 14
     }
   ],
   "testOnlyExports": [
