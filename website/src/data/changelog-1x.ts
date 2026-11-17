@@ -1,6 +1,6 @@
-// Changelog — recent 1.x era (1.7.7 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
+// Changelog — recent 1.x era (1.7.9 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
 // Historical entries mirror CHANGELOG.md release notes. 1.1.0 absorbs the 1.0.38
-// bump, which was never published.
+// bump, which was never published; 1.7.8 was never tagged either.
 // The 1.1.5 entry summarizes the commits in v1.1.4..v1.1.5, the 1.1.6 entry
 // those in v1.1.5..v1.1.6, and the 1.1.7 entry those in v1.1.6..v1.1.7.
 // The 1.1.13, 1.1.14 and 1.1.15 entries mirror the tagged release notes; the
@@ -11,10 +11,23 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.9',
+    date: '2026-11-17',
+    tagline: 'A desktop that keeps up',
+    latest: true,
+    highlights: [
+      'Streaming answers and typing repaint only what changed; long desktop conversations open faster',
+      'A stopped conversation reconnects through the spare engine already waiting in its folder',
+      'A session inspector shows each worker transcript and the plan beside the leader transcript',
+      'Projects can be reordered and removed in the left menu; files and history stay',
+      'BTW reaches the leader as a same-session user instruction and is not lost at the end of a turn',
+      'The TUI icons setting picks Nerd Font icons or plain glyphs; MCP frames, temp names and lock races are fixed',
+    ],
+  },
+  {
     version: '1.7.7',
     date: '2026-11-16',
     tagline: 'A lighter desktop launch and tighter redaction',
-    latest: true,
     highlights: [
       "The desktop starts only a restored workspace's project services; Mission Control, the project list and activity start no engines",
       'Cross-conversation prompt recall uses project services only when they are already running',

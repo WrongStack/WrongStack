@@ -7,8 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.9] — 2026-11-17
+
+The desktop stays smooth while answers stream and while typing, reconnects a
+stopped conversation through the spare engine already waiting in its folder,
+and opens long conversations faster. It adds a session inspector beside the
+leader transcript, projects that can be reordered and removed in the left menu,
+and live screens in the WebUI's style. A BTW note reaches the leader as a user
+instruction in the same session, and the TUI gains an icons setting. Fixes bound
+MCP stdio frames, keep atomic temp names within filename limits, and close
+stale-reply, lock, worktree and gateway races. 1.7.8 was never tagged; its
+changes are part of this release.
+
 ### Added
 
+- A desktop session inspector beside the leader transcript: an agent rail with
+  each worker's transcript and the plan. Choosing a worker never retargets the
+  composer or replaces the leader view; finished workers can be hidden and come
+  back when they produce new output.
+- Desktop projects can be reordered in the left menu by dragging their grip or
+  with Alt+Up/Down, and removed from Desktop after confirmation. The order is
+  kept across restarts and windows; removing a project keeps its files, session
+  history and drafts, and adding the folder again restores it.
+- BTW from the desktop composer reaches the leader as a user instruction in the
+  same session instead of peer mail. It is injected at the next tool or model
+  boundary, ambient notes cannot evict it, and a turn does not finish while one
+  is pending (`btw.add` / `btw.get` protocol messages).
+- TUI `icons = auto | nerd | ascii` (also `--icons` and `WSTACK_ICONS`) picks
+  Nerd Font icons or plain glyphs of the same width for the status bar, input
+  header and tool rows; `auto` uses Nerd icons only in terminals known to draw
+  them.
 - Desktop screens in the WebUI's style: the running turn is a live card (orb,
   elapsed time, the tool it runs or its last line of reasoning), a turn's
   activity summary shows status chips, Mission Control and the project
@@ -42,6 +70,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Desktop conversations open and resume faster: a journal page joins the
   streamed answer text it holds before reading it, so a long conversation no
   longer costs time growing with its length squared (800 turns: 0.8 s to 0.17 s).
+
+### Fixed
+
+- MCP stdio enforces its 4 MiB cap on each newline-delimited frame, not each
+  chunk, and server names longer than 222 characters take the hashed manifest
+  path so the temp filename stays under 255 bytes.
+- Atomic writes hash an oversized basename prefix so the random temp suffix
+  fits the filename limit, and retry delays above 2^31-1 ms no longer fire
+  after 1 ms.
+- Worktrees opened through a symlink or junction match their Git checkout, and
+  a nested hold released out of order no longer removes a newer hold's marker.
+- WrongTrace no longer releases a lock that another session claimed meanwhile.
+- Fleet builds its director once under concurrent starts and drops a removed
+  agent's pending status update.
+- A WrongForge leader session closed during startup no longer starts or keeps a
+  gateway, and an oversized gateway request gets a 413 reply.
+- Plugin watch, HQ host, local LLM probe, git path decoding and `/commit`
+  message timeouts settle their edge cases; registry tables are read by own key.
+- Desktop, VibeUI, project surfaces and HQ ignore replies from a superseded
+  request or session, always clear busy flags, and release their listeners and
+  timers on unmount.
+- The session API client refuses HTTP redirects; chronicle rejects a journal
+  row whose stored event hash disagrees; SDD serializes session loads; goal
+  skips checkpoints with malformed task statuses; requirement intake refuses
+  record ids that alias store metadata; closing a Copilot login cancels its
+  device-code wait.
 
 ## [1.7.7] — 2026-11-16
 

@@ -1,29 +1,29 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.7.7',
-  title: 'Only the engines you open.',
+  version: '1.7.9',
+  title: 'A desktop that keeps up.',
   summary:
-    'The desktop starts only the engines a restored workspace or settings need, and provider discovery reuses a fresh cache for the current account instead of discovering on every runtime start. Command redaction covers empty colon values and single-quoted PowerShell values, token checks avoid object conversion hooks, and piped stdin reports truncation exactly at its cap.',
+    'The desktop stays smooth while answers stream and while typing, reconnects a stopped conversation through the spare engine already waiting in its folder, and opens long conversations faster. A session inspector shows each worker beside the leader transcript, projects can be reordered and removed, and a BTW note reaches the leader as a same-session instruction.',
   socialDescription:
-    'WrongStack 1.7.7: a desktop that starts only the engines you open, cached provider discovery, and tighter redaction, token checks and input limits.',
+    'WrongStack 1.7.9: smooth desktop conversations, reconnects through a waiting engine, a session inspector, reorderable projects, and BTW as a same-session instruction.',
   cards: [
     {
-      title: 'A lighter launch',
-      body: "Only a restored workspace's project services start; Mission Control, the project list and activity start no engines.",
+      title: 'Smooth while it streams',
+      body: 'Streaming answers and typing repaint only what changed, and a stopped conversation resumes in the engine already waiting for it.',
       href: '/interfaces',
       linkLabel: 'Explore the interfaces',
     },
     {
-      title: 'Discovery that waits less',
-      body: 'A fresh provider discovery cache for the current account is reused for up to five minutes instead of on every start.',
-      href: '/getting-started',
-      linkLabel: 'Upgrade your installation',
+      title: 'See every worker',
+      body: "A session inspector shows each worker's transcript and the plan beside the leader, without taking over the composer.",
+      href: '/interfaces',
+      linkLabel: 'Explore the desktop',
     },
     {
-      title: 'Tighter redaction',
-      body: 'Empty colon values and single-quoted PowerShell values are redacted, and token checks avoid object conversion hooks.',
-      href: '/security',
-      linkLabel: 'Explore the safeguards',
+      title: 'BTW that lands',
+      body: 'A BTW note reaches the leader as a user instruction in the same session and is not lost when a turn ends.',
+      href: '/getting-started',
+      linkLabel: 'Upgrade your installation',
     },
   ],
 } as const;

@@ -55,6 +55,20 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.7.9
+
+- **Smooth desktop conversations:** streaming answers and typing no longer
+  repaint the whole window; long conversations open faster.
+- **Faster reconnects:** a stopped conversation resumes in the spare engine
+  already waiting in its folder instead of booting a new one.
+- **Session inspector:** each worker's transcript and the plan sit beside the
+  leader transcript without replacing it.
+- **Projects your way:** reorder projects in the left menu or remove them from
+  Desktop; files and history stay.
+- **BTW as an instruction:** a BTW note reaches the leader in the same session
+  and is not lost at the end of a turn.
+- **TUI icons:** `icons = auto | nerd | ascii` for terminals without a Nerd Font.
+
 ### What's new in 1.7.7
 
 - **Lighter desktop launch:** only the restored project's services start;
@@ -622,7 +636,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.7.7**; versions follow semver
+- Release notes: **v1.7.9**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements
