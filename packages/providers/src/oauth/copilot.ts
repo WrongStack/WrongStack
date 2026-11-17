@@ -180,6 +180,7 @@ export async function beginCopilotLogin(
   signal?: AbortSignal,
 ): Promise<OAuthSession> {
   const device = await startDeviceFlow(signal);
+  const owner = new AbortController();
 
   return {
     kind: 'copilot',
@@ -189,26 +190,25 @@ export async function beginCopilotLogin(
     userCode: device.user_code,
     async waitForCompletion(waitSignal?: AbortSignal): Promise<OAuthLoginOutcome | null> {
       const ac = new AbortController();
-      const upstream = waitSignal ?? signal;
+      const upstreams = [signal, waitSignal, owner.signal].filter(
+        (upstream): upstream is AbortSignal => upstream !== undefined,
+      );
       // Named + detached in `finally`: `{ once: true }` fires at most once but
       // does NOT unregister when the flow completes normally, and the device
       // poll can run for minutes against a caller-owned, long-lived signal.
       // An inline arrow here pinned this controller for the signal's lifetime.
       const onUpstreamAbort = (): void => ac.abort();
-      if (upstream) {
+      for (const upstream of upstreams) {
         if (upstream.aborted) ac.abort();
         else upstream.addEventListener('abort', onUpstreamAbort, { once: true });
       }
       try {
-        let githubToken: string;
-        try {
-          githubToken = await pollForGitHubToken(device, ac.signal);
-        } catch (err) {
-          if (err instanceof DOMException && err.name === 'AbortError') return null;
-          throw err;
-        }
+        const githubToken = await pollForGitHubToken(device, ac.signal);
+        ac.signal.throwIfAborted();
         const copilot = await refreshCopilotToken(githubToken, ac.signal);
+        ac.signal.throwIfAborted();
         const fetched = await fetchCopilotModels(copilot.token, ac.signal);
+        ac.signal.throwIfAborted();
         const models = fetched?.map((model) => model.id) ?? [];
         const apiKey: ProviderApiKey = {
           label: 'oauth-default',
@@ -226,8 +226,11 @@ export async function beginCopilotLogin(
           models,
           apiKey,
         };
+      } catch (err) {
+        if (ac.signal.aborted) return null;
+        throw err;
       } finally {
-        upstream?.removeEventListener('abort', onUpstreamAbort);
+        for (const upstream of upstreams) upstream.removeEventListener('abort', onUpstreamAbort);
       }
     },
     completeWithCode(): Promise<OAuthLoginOutcome> {
@@ -236,7 +239,7 @@ export async function beginCopilotLogin(
       );
     },
     close(): void {
-      /* device flow has no loopback to tear down */
+      owner.abort();
     },
   };
 }
