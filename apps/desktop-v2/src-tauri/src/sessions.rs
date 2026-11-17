@@ -800,6 +800,12 @@ impl HostState {
         let stop_path = self.own_stop_file(runtime_id);
         let _ = std::fs::remove_file(&stop_path);
         command.env("WRONGSTACK_DESKTOP_STOP_FILE", &stop_path);
+        // Windows does not end a child with its parent: the engine watches this host and stops
+        // itself once the host is gone, instead of running on with nobody to stop it.
+        command.env(
+            "WRONGSTACK_DESKTOP_HOST_PID",
+            std::process::id().to_string(),
+        );
         let claimed = Arc::new(Mutex::new((!spare).then(std::time::Instant::now)));
         if spare {
             let _ = std::fs::remove_file(&ready_path);

@@ -67,6 +67,16 @@ const { stopGracefully, watchStopRequest } = await import('./stop-request');
 // The host asks for a graceful stop through this file before it ends the process tree.
 const stopFile = process.env['WRONGSTACK_DESKTOP_STOP_FILE'];
 if (stopFile) watchStopRequest(stopFile, stopGracefully);
+{
+  const { HOST_GONE_EXIT_GRACE_MS, hostPidFrom, watchHost } = await import('./host-watch');
+  // Nothing else stops an engine whose host died: it stops itself, gracefully when it can.
+  const hostPid = hostPidFrom(process.env['WRONGSTACK_DESKTOP_HOST_PID']);
+  if (hostPid)
+    watchHost(hostPid, () => {
+      setTimeout(() => process.exit(0), HOST_GONE_EXIT_GRACE_MS);
+      stopGracefully();
+    });
+}
 if (spareClaimFile && readyFile) {
   const { writeFile } = await import('node:fs/promises');
   const { spareMaxAge, waitForSpareClaim } = await import('./spare-claim');
