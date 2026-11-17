@@ -170,6 +170,8 @@ async fn host_request(
     if ![
         "snapshot",
         "project.register",
+        "project-menu.remove",
+        "project-menu.move",
         "project.open",
         "project.status",
         "project.events",
@@ -217,6 +219,12 @@ async fn host_request(
     let drafts = Arc::clone(&state.drafts);
     let aliases = Arc::clone(&state.project_aliases);
     tauri::async_runtime::spawn_blocking(move || {
+        if method == "snapshot" || method == "project.register" || method.starts_with("project-menu.") {
+            let dir = drafts.lock().map_err(err)?.dir.clone();
+            return crate::project_menu::request(&dir, &method, &params, |method, params| {
+                client.call(method, params)
+            });
+        }
         if method == "profile-draft.get" || method == "profile-draft.save" {
             let registry = drafts.lock().map_err(err)?;
             let key = crate::sessions::field(&params, "formKey")?;

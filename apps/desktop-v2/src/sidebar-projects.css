@@ -1,0 +1,44 @@
+.project-drag-handle,
+.project-remove {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 27px;
+  color: var(--muted);
+}
+.project-drag-handle:not(:disabled) {
+  cursor: grab;
+}
+.project-drag-handle:active:not(:disabled) {
+  cursor: grabbing;
+}
+.project-drag-handle:hover:not(:disabled),
+.project-remove:hover:not(:disabled) {
+  background: var(--raised);
+  color: var(--text);
+}
+.project-remove:hover:not(:disabled) {
+  color: var(--danger);
+}
+.project-drag-handle:disabled,
+.project-remove:disabled {
+  opacity: 0.45;
+}
+.project-item[data-drop="before"] {
+  box-shadow: inset 0 2px var(--accent);
+}
+.project-item[data-drop="after"] {
+  box-shadow: inset 0 -2px var(--accent);
+}
+.project-menu-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

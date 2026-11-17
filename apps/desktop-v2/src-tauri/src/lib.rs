@@ -5,6 +5,8 @@ pub mod host;
 #[cfg(feature = "desktop")]
 mod host_restart;
 pub mod http_bridge;
+#[cfg(any(feature = "desktop", test))]
+mod project_menu;
 mod project_runtime;
 pub mod registry;
 mod request_pool;

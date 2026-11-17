@@ -169,6 +169,9 @@ export function useDesktop() {
   const [workdir, setWorkdir] = useState('');
   const [preview, setPreview] = useState('http://localhost:3000');
   const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restored && section === 'project' && !project) setSection('fleet');
+  }, [restored, project, section]);
   const reportError = useCallback(
     (e: unknown) => setError(String(e instanceof Error ? e.message : e)),
     [],
@@ -237,6 +240,9 @@ export function useDesktop() {
       if (text !== snapshotText.current) {
         snapshotText.current = text;
         setSnapshot(next);
+        setOpenSessionIds((ids) => ids.filter((id) => next.sessions.some((s) => s.id === id)));
+        setSelected((id) => (id && next.sessions.some((s) => s.id === id) ? id : null));
+        setProject((id) => (id && next.projects.some((p) => p.id === id) ? id : null));
       }
       setConnected(true);
       if (!restoredRef.current) {

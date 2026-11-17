@@ -227,6 +227,24 @@ describe('desktop selection across a window reload', () => {
     expect(desktop.getDraft('alpha')).toBe('private alpha draft');
   });
 
+  it('clears a removed project and its tabs after a refresh without deleting owned drafts', async () => {
+    await mount();
+    await select('alpha');
+    await act(async () => desktop.openProjectPage('p-alpha'));
+    bridge.snapshot.mockResolvedValue({
+      projects: [{ id: 'p-beta', name: 'beta', root: '/repo/beta', createdAt: 1 }],
+      sessions: sessions.filter((s) => s.id === 'beta'),
+      hostPid: 1,
+      layout: hostLayout,
+    });
+    await act(async () => desktop.run(async () => {}));
+    expect(desktop.project).toBeNull();
+    expect(desktop.selected).toBeNull();
+    expect(desktop.section).toBe('fleet');
+    expect(desktop.openSessionIds).toEqual(['beta']);
+    expect(desktop.getDraft('alpha')).toBe('private alpha draft');
+  });
+
   it('still saves through the host when session storage is unavailable', async () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw Error('Denied');

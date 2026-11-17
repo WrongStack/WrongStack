@@ -62,6 +62,17 @@ the release download page. Linux `.deb` and `.rpm` builds continue to use that
 page. Restarting the application keeps the separate session host and its
 conversations running. See [release signing](../../docs/release-process.md#desktop-updater-signatures).
 
+## Projects in the left menu
+
+Use **+** beside Projects or **Add project** below the list to select a folder.
+Drag a project's grip onto the upper or lower half of another project's name to move it
+before or after that project. With the grip focused, **Alt + Up / Down** moves it one place.
+Ordering is saved across application restarts and shared by desktop windows.
+
+The trash button removes a project from Desktop after confirmation; it does not delete
+files, session history, or drafts, and does not stop running work. Add the same folder again
+to restore the project and its sessions. Removing the selected project returns to Mission Control.
+
 ## Startup and background services
 
 The shell restores its layout without warming unrelated engines. A restored project workspace

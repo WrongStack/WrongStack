@@ -20,8 +20,7 @@ import { useDesktopText } from './desktop-i18n';
 import { ProjectToolsMenu } from './ProjectToolsMenu';
 import { addProject, native } from './platform';
 import { owningTool, projectTools } from './project-tools';
-import { SidebarSessionRow } from './SidebarSessionRow';
-import { sidebarSessions } from './session-layout';
+import { SidebarProjects } from './SidebarProjects';
 import { requestSettingsSection, useShownSettingsSection } from './settings-section-request';
 import type { DesktopController, ProjectPage } from './useDesktop';
 
@@ -115,7 +114,6 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
     setDialog,
     pending,
     run,
-    jumpToSession,
     currentProject,
   } = vm;
   const [explorerOpen, setExplorerOpen] = useState(false);
@@ -148,6 +146,7 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
       compact.removeEventListener('change', reset);
     };
   }, [explorerOpen]);
+  const connectProject = () => run(addProject);
   const page = section === 'project' ? vm.projectPage : undefined;
   const shownSettings = useShownSettingsSection();
   const quotaShown = section === 'wrongstack' && shownSettings === 'quota';
@@ -277,58 +276,19 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
             aria-label={t('explorer.addProject')}
             title={t('explorer.addProject')}
             disabled={!native || pending}
-            onClick={() => void run(addProject)}
+            onClick={() => void connectProject()}
           >
             <Plus size={14} />
           </button>
         </div>
         <div className="project-tree">
-          {snapshot.projects.map((p, i) => {
-            const sessions = sidebarSessions(snapshot.sessions, p.id, vm.openSessionIds);
-            return (
-              <div key={p.id} className="project-branch">
-                <div className="project-branch-heading">
-                  <button
-                    type="button"
-                    className={`project-item ${project === p.id ? 'selected' : ''}`}
-                    onClick={() => vm.openProjectPage(p.id)}
-                  >
-                    <span className={`project-symbol color-${i % 4}`}>
-                      {p.name.slice(0, 1).toUpperCase()}
-                    </span>
-                    <span>{p.name}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="project-new-session"
-                    aria-label={t('explorer.newSessionIn', { name: p.name })}
-                    title={t('explorer.newSession')}
-                    disabled={!native || pending}
-                    onClick={() => vm.newSession(p.id)}
-                  >
-                    <Plus size={13} />
-                  </button>
-                </div>
-                {sessions.map((s) => (
-                  <SidebarSessionRow
-                    key={s.id}
-                    session={s}
-                    chosen={selected === s.id}
-                    disabled={!native || pending}
-                    onOpen={jumpToSession}
-                    run={run}
-                    onRemoved={vm.closeSessionTab}
-                  />
-                ))}
-              </div>
-            );
-          })}
+          <SidebarProjects vm={vm} />
           {!snapshot.projects.length && <p className="sidebar-empty">{t('explorer.empty')}</p>}
           <button
             type="button"
             className="add-project"
             disabled={!native || pending}
-            onClick={() => void run(addProject)}
+            onClick={() => void connectProject()}
           >
             <FolderPlus size={14} /> {t('explorer.addProject')}
           </button>
