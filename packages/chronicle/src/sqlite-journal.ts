@@ -188,7 +188,7 @@ export class ChronicleSqliteJournal extends ChronicleSqliteJournalCore {
         } catch {
           return { ok: false, entries, brokenAt: entries, reason: 'invalid payload JSON' };
         }
-        if (chronicleEventHash(event) !== row.hash) {
+        if (event.hash !== row.hash || chronicleEventHash(event) !== row.hash) {
           return { ok: false, entries, brokenAt: entries, reason: 'entry hash mismatch' };
         }
         entries += 1;
