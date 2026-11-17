@@ -91,6 +91,40 @@ export function engineEvent(value: unknown): EngineEvent | null {
     ...(typeof at === 'number' && at > 0 ? { at } : {}),
   };
 }
+/**
+ * Joins runs of streamed answer text in one journal page: consecutive `provider.text_delta`
+ * frames that differ only in their text become one frame with the joined text and the first
+ * frame's time; `lastAt` is the run's latest time. Each delta used to copy the whole message
+ * list, so reading a long conversation grew with its length squared.
+ */
+export function coalesceTextDeltas(
+  events: readonly EngineEvent[],
+): { event: EngineEvent; lastAt?: number }[] {
+  const out: { event: EngineEvent; lastAt?: number; rest?: string }[] = [];
+  for (const event of events) {
+    const text = event.payload['text'];
+    if (event.type !== 'provider.text_delta' || typeof text !== 'string') {
+      out.push({ event });
+      continue;
+    }
+    const { text: _text, ...others } = event.payload;
+    const rest = JSON.stringify(others);
+    const previous = out.at(-1);
+    if (previous?.rest === rest) {
+      previous.event = {
+        ...previous.event,
+        payload: {
+          ...previous.event.payload,
+          text: `${previous.event.payload['text'] as string}${text}`,
+        },
+      };
+      if (event.at) previous.lastAt = event.at;
+      continue;
+    }
+    out.push({ event, rest, ...(event.at ? { lastAt: event.at } : {}) });
+  }
+  return out.map(({ event, lastAt }) => (lastAt ? { event, lastAt } : { event }));
+}
 /** A partial native journal page is not yet authoritative for delivery mode. */
 export function replayEngineBatch(
   state: EngineState,
@@ -98,8 +132,13 @@ export function replayEngineBatch(
   hasMore: boolean,
   position?: { read: number; total: number },
 ): EngineState {
+  let next = state;
+  for (const { event, lastAt } of coalesceTextDeltas(events)) {
+    const reduced = reduceEngine(next, event);
+    next = lastAt && reduced !== next ? { ...reduced, lastAt } : reduced;
+  }
   return {
-    ...events.reduce(reduceEngine, state),
+    ...next,
     hydrating: hasMore,
     synced: state.synced || !hasMore,
     replay: hasMore && position && position.total > 0 ? position : null,

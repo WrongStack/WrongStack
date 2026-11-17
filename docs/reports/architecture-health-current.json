@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-16T23:06:26.654Z",
+  "generatedAt": "2026-11-17T07:33:30.913Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,16 +13,16 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6350,
-    "testFiles": 5383,
-    "sourceLines": 1313042,
+    "testFiles": 5384,
+    "sourceLines": 1313081,
     "workspaceEdges": 250,
     "moduleEdges": 18730,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 352,
+    "testsWithoutTypecheck": 353,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1074
+    "testOnlyExports": 1075
   },
   "errors": [],
   "packageCycles": [],
@@ -387,7 +387,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 524,
-      "testFiles": 350,
+      "testFiles": 351,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2889,6 +2889,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/refinement-recovery.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/replay-text-coalesce.test.ts",
         "projects": [
           "root-node"
         ]
@@ -35456,6 +35462,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/replay-text-coalesce.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/requirement-record-draft.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -37727,6 +37740,10 @@
     {
       "file": "apps/desktop-v2/src/engine-state.ts",
       "name": "ACTIVITY_LIMIT"
+    },
+    {
+      "file": "apps/desktop-v2/src/engine-state.ts",
+      "name": "coalesceTextDeltas"
     },
     {
       "file": "apps/desktop-v2/src/engine-state.ts",
