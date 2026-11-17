@@ -47,6 +47,50 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
     return content ? parseCouncilMarkdown(content) : null;
   }, [decision, content]);
 
+  const seatsForMemo = councilData?.seats;
+  const voteDistribution = useMemo(() => {
+    const counts: Record<string, { count: number; weight: number; voters: string[] }> =
+      Object.create(null);
+    let totalWeight = 0;
+
+    for (const seat of seatsForMemo ?? []) {
+      if (seat.status !== 'valid') continue;
+      const key = seat.optionId ?? (seat.veto ? 'Veto' : seat.stance ? 'Stance' : 'Approved');
+      const w = seat.weight ?? 1.0;
+      if (!counts[key]) {
+        counts[key] = { count: 0, weight: 0, voters: [] };
+      }
+      counts[key].count += 1;
+      counts[key].weight += w;
+      counts[key].voters.push(seat.persona);
+      totalWeight += w;
+    }
+
+    const items = Object.entries(counts).map(([name, stat], idx) => {
+      const color = OPTION_THEME_CLASSES[idx % OPTION_THEME_CLASSES.length]!;
+      const pct = totalWeight > 0 ? Math.round((stat.weight / totalWeight) * 100) : 0;
+      return {
+        name,
+        count: stat.count,
+        weight: stat.weight,
+        pct,
+        voters: stat.voters,
+        color,
+      };
+    });
+
+    items.sort((a, b) => b.pct - a.pct);
+    return { items, totalWeight };
+  }, [seatsForMemo]);
+
+  const distinctModelsList = useMemo(() => {
+    const models = new Set<string>();
+    for (const s of seatsForMemo ?? []) {
+      if (s.model) models.add(s.model);
+    }
+    return Array.from(models);
+  }, [seatsForMemo]);
+
   if (!councilData) return null;
 
   const {
@@ -90,48 +134,6 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
    * produces looks BETTER than the split it came from, so it needs saying.
    */
   const converged = deliberated && validSeats > 0 && movedSeats > validSeats / 2;
-
-  const voteDistribution = useMemo(() => {
-    const counts: Record<string, { count: number; weight: number; voters: string[] }> = {};
-    let totalWeight = 0;
-
-    for (const seat of seats) {
-      if (seat.status !== 'valid') continue;
-      const key = seat.optionId ?? (seat.veto ? 'Veto' : seat.stance ? 'Stance' : 'Approved');
-      const w = seat.weight ?? 1.0;
-      if (!counts[key]) {
-        counts[key] = { count: 0, weight: 0, voters: [] };
-      }
-      counts[key].count += 1;
-      counts[key].weight += w;
-      counts[key].voters.push(seat.persona);
-      totalWeight += w;
-    }
-
-    const items = Object.entries(counts).map(([name, stat], idx) => {
-      const color = OPTION_THEME_CLASSES[idx % OPTION_THEME_CLASSES.length]!;
-      const pct = totalWeight > 0 ? Math.round((stat.weight / totalWeight) * 100) : 0;
-      return {
-        name,
-        count: stat.count,
-        weight: stat.weight,
-        pct,
-        voters: stat.voters,
-        color,
-      };
-    });
-
-    items.sort((a, b) => b.pct - a.pct);
-    return { items, totalWeight };
-  }, [seats]);
-
-  const distinctModelsList = useMemo(() => {
-    const models = new Set<string>();
-    for (const s of seats) {
-      if (s.model) models.add(s.model);
-    }
-    return Array.from(models);
-  }, [seats]);
 
   const toggleRationale = (seatId: string) => {
     setExpandedRationales((prev) => ({ ...prev, [seatId]: !prev[seatId] }));

@@ -135,30 +135,40 @@ export function SessionWatchPanel({
     return { label, text: a.partialText };
   }, [targetSession, t]);
 
+  const loadSeqRef = useRef(0);
+  const threadSeqRef = useRef(0);
+  const sessionSeqRef = useRef(0);
+
   const load = useCallback(async () => {
+    const seq = ++loadSeqRef.current;
     try {
       const res = await surfaceFetch(
         `/api/sessions/${encodeURIComponent(sessionId)}/events?limit=${limit}`,
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = (await res.json()) as WatchResponse;
-      if (aliveRef.current) {
+      if (aliveRef.current && seq === loadSeqRef.current) {
         setData(json);
         setError(null);
       }
     } catch (e) {
-      if (aliveRef.current) setError(e instanceof Error ? e.message : String(e));
+      if (aliveRef.current && seq === loadSeqRef.current) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
     }
   }, [sessionId, limit]);
 
   // Poll the human↔leader mailbox thread so read-receipts (✓ leader read it)
   // and the agent's replies surface — the visible half of two-way control.
   const loadThread = useCallback(async () => {
+    const seq = ++threadSeqRef.current;
     try {
       const res = await surfaceFetch(`/api/sessions/${encodeURIComponent(sessionId)}/mailbox`);
       if (!res.ok) return;
       const json = (await res.json()) as { thread?: ThreadMsg[] };
-      if (aliveRef.current && Array.isArray(json.thread)) setThread(json.thread);
+      if (aliveRef.current && seq === threadSeqRef.current && Array.isArray(json.thread)) {
+        setThread(json.thread);
+      }
     } catch {
       /* best-effort — thread is supplementary */
     }
@@ -171,6 +181,9 @@ export function SessionWatchPanel({
     setData(null);
     setError(null);
     setThread([]);
+    setSent(null);
+    setSending(false);
+    setInterrupting(false);
     void load();
     void loadThread();
     // One shared interval (not two) and no polling while the tab is hidden —
@@ -182,6 +195,9 @@ export function SessionWatchPanel({
     }, POLL_MS);
     return () => {
       aliveRef.current = false;
+      loadSeqRef.current += 1;
+      threadSeqRef.current += 1;
+      sessionSeqRef.current += 1;
       clearInterval(iv);
     };
   }, [load, loadThread]);
@@ -207,6 +223,7 @@ export function SessionWatchPanel({
   const send = async () => {
     const text = draft.trim();
     if (!text || sending) return;
+    const seq = sessionSeqRef.current;
     setSending(true);
     setSent(null);
     try {
@@ -215,6 +232,7 @@ export function SessionWatchPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, type: msgType, priority }),
       });
+      if (!aliveRef.current || seq !== sessionSeqRef.current) return;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setDraft('');
       setSent(
@@ -222,13 +240,14 @@ export function SessionWatchPanel({
       );
       void loadThread();
     } catch (e) {
+      if (!aliveRef.current || seq !== sessionSeqRef.current) return;
       setSent(
         t('activity:sessionWatch.sentFailed', {
           error: e instanceof Error ? e.message : String(e),
         }),
       );
     } finally {
-      setSending(false);
+      if (aliveRef.current && seq === sessionSeqRef.current) setSending(false);
     }
   };
 
@@ -236,6 +255,7 @@ export function SessionWatchPanel({
   // next iteration boundary (not a process kill).
   const interrupt = async () => {
     if (interrupting) return;
+    const seq = sessionSeqRef.current;
     setInterrupting(true);
     setSent(null);
     try {
@@ -244,17 +264,19 @@ export function SessionWatchPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: t('activity:sessionWatch.interruptReason') }),
       });
+      if (!aliveRef.current || seq !== sessionSeqRef.current) return;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setSent(t('activity:sessionWatch.interruptSent'));
       void loadThread();
     } catch (e) {
+      if (!aliveRef.current || seq !== sessionSeqRef.current) return;
       setSent(
         t('activity:sessionWatch.interruptFailed', {
           error: e instanceof Error ? e.message : String(e),
         }),
       );
     } finally {
-      setInterrupting(false);
+      if (aliveRef.current && seq === sessionSeqRef.current) setInterrupting(false);
     }
   };
 

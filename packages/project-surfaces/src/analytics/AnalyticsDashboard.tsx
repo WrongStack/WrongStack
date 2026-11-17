@@ -20,7 +20,7 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { surfaceClient, surfaceFetch, useSurfaceHost } from '../host';
 import { displayDecimal, displayLocale, useAppTranslation } from '../lib/i18n';
 import { usePagination } from '../lib/usePagination';
@@ -168,7 +168,7 @@ export function AnalyticsDashboard({
   const [sessions, setSessions] = useState<LiveSession[]>([]);
   const [stats, setStats] = useState<StatsPayload | null>(null);
   const [loading, setLoading] = useState(true);
-  const [statsLoading, setStatsLoading] = useState(false);
+  const [, setStatsLoading] = useState(false);
 
   // Fetch from /api/analytics/summary
   const fetchSummary = useCallback(async () => {
@@ -209,35 +209,46 @@ export function AnalyticsDashboard({
     }
   }, []);
 
+  const statsInFlightRef = useRef(false);
+  const statsCleanupRef = useRef<(() => void) | null>(null);
+
   // Request stats.get via WS
   const fetchStats = useCallback(async () => {
-    if (statsLoading) return;
+    if (statsInFlightRef.current) return;
+    statsInFlightRef.current = true;
     setStatsLoading(true);
     let timer: ReturnType<typeof setTimeout> | null = null;
     let cleanup: (() => void) | null = null;
+    const finish = () => {
+      statsInFlightRef.current = false;
+      cleanup?.();
+      if (statsCleanupRef.current === finish) statsCleanupRef.current = null;
+      if (timer !== null) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    };
+    statsCleanupRef.current = finish;
     try {
       const client = surfaceClient();
       cleanup = client.on('stats.get', (msg: unknown) => {
         const payload = (msg as { payload: StatsPayload }).payload;
+        finish();
         setStats(payload);
         setStatsLoading(false);
-        cleanup?.();
-        if (timer !== null) clearTimeout(timer);
       });
       client.send?.({ type: 'stats.get', payload: {} }, { echoToChat: false });
 
       // Timeout guard: clear listener after 8s so stale handlers don't pile up.
-      // Stored in a local so a later refactor can clear it on unmount.
       timer = setTimeout(() => {
-        cleanup?.();
+        finish();
         setStatsLoading(false);
       }, 8000);
     } catch {
-      cleanup?.();
-      if (timer !== null) clearTimeout(timer);
+      finish();
       setStatsLoading(false);
     }
-  }, [statsLoading]);
+  }, []);
 
   // Poll all endpoints every 10s
   useEffect(() => {
@@ -248,7 +259,10 @@ export function AnalyticsDashboard({
     };
     load();
     const id = setInterval(load, 10_000);
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+      statsCleanupRef.current?.();
+    };
   }, [fetchSummary, fetchEvents, fetchSessions, fetchStats]);
 
   // Compute derived stats. Memoized to avoid redoing the reduce/sort work on

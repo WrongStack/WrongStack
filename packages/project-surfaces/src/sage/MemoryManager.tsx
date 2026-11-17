@@ -428,7 +428,7 @@ export function MemoryManager({
                 onUpdate={(memoryId) => {
                   state.openEdit(memoryId);
                 }}
-                onMarkPermanent={(memoryId) => {
+                onMarkPermanent={(memoryId) =>
                   state.sendWithAck(
                     'memory.sage.update',
                     (requestId) =>
@@ -441,8 +441,8 @@ export function MemoryManager({
                       state.setNotice(`Memory ${memoryId.slice(0, 12)}… promoted to permanent.`);
                       state.loadMemories();
                     },
-                  );
-                }}
+                  )
+                }
                 onRecover={(memoryId) => recoverMemory(memoryId, 'recovered via file drawer')}
               />
             ) : (

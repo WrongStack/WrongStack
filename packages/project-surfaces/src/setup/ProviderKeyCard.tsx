@@ -48,18 +48,25 @@ export function ProviderKeyCard({
 
   // Generate QR code when modal opens
   useEffect(() => {
-    if (shareModalOpen && popular.referral) {
-      QRCode.toDataURL(popular.referral!.url, {
-        width: 200,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#ffffff',
-        },
+    if (!shareModalOpen || !popular.referral) return;
+    let cancelled = false;
+    QRCode.toDataURL(popular.referral.url, {
+      width: 200,
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#ffffff',
+      },
+    })
+      .then((url: string) => {
+        if (!cancelled) setQrDataUrl(url);
       })
-        .then((url: string) => setQrDataUrl(url))
-        .catch(() => setQrDataUrl(null));
-    }
+      .catch(() => {
+        if (!cancelled) setQrDataUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [shareModalOpen, popular.referral]);
 
   const handleSave = async () => {

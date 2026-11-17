@@ -39,31 +39,49 @@ export function ModelEditor({
   const [showCustom, setShowCustom] = useState(false);
   const [customId, setCustomId] = useState('');
   const searchRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const activeSearchCleanupRef = useRef<(() => void) | null>(null);
   const customInputRef = useRef<HTMLInputElement>(null);
   const client = useSetupHost().useClient();
 
+  useEffect(() => () => activeSearchCleanupRef.current?.(), []);
+
   const search = useCallback(
     (rawQuery: string) => {
-      if (!rawQuery.trim()) {
+      activeSearchCleanupRef.current?.();
+      const trimmed = rawQuery.trim();
+      if (!trimmed) {
         setMatches([]);
+        setSearching(false);
         return;
       }
       if (!client) return;
       setSearching(true);
-      const off = client.on('provider.models.search_result', (msg: unknown) => {
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      let off: (() => void) | undefined;
+      const cleanup = () => {
+        off?.();
+        off = undefined;
+        if (timer !== null) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        if (activeSearchCleanupRef.current === cleanup) activeSearchCleanupRef.current = null;
+      };
+      activeSearchCleanupRef.current = cleanup;
+      off = client.on('provider.models.search_result', (msg: unknown) => {
         const p = (msg as { payload?: { query?: string; matches?: ProviderCatalogModelMatch[] } })
           .payload;
-        if (!p || p.query !== rawQuery.trim()) return;
+        if (!p || p.query !== trimmed) return;
+        cleanup();
         setMatches(p.matches ?? []);
         setSearching(false);
       });
       client.send({
         type: 'provider.models.search',
-        payload: { query: rawQuery.trim(), limit: 8 },
+        payload: { query: trimmed, limit: 8 },
       });
-      // Timeout cleanup if server never responds
-      setTimeout(() => {
-        off?.();
+      timer = setTimeout(() => {
+        cleanup();
         setSearching(false);
       }, 5000);
     },
@@ -73,6 +91,8 @@ export function ModelEditor({
   useEffect(() => {
     if (searchRef.current) clearTimeout(searchRef.current);
     if (!query.trim()) {
+      activeSearchCleanupRef.current?.();
+      setSearching(false);
       setMatches([]);
       return;
     }

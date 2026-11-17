@@ -221,13 +221,16 @@ export function SetupScreen() {
   // Fetch models when selected provider changes
   useEffect(() => {
     if (!selectedProvider || !wsConnected || !client) return;
-    if (!catalogModels[selectedProvider]) {
+    if (!Object.hasOwn(catalogModels, selectedProvider)) {
       setIsLoadingModels(true);
       client.send({ type: 'provider.models', payload: { providerId: selectedProvider } });
     }
   }, [selectedProvider, wsConnected, client, catalogModels]);
 
-  const currentModels = selectedProvider ? (catalogModels[selectedProvider] ?? []) : [];
+  const currentModels =
+    selectedProvider && Object.hasOwn(catalogModels, selectedProvider)
+      ? (catalogModels[selectedProvider] ?? [])
+      : [];
 
   /**
    * Makes the choice the profile's default. Starting a session also begins a conversation

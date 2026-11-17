@@ -12,12 +12,19 @@ export interface SessionBranchRow {
   isActive: boolean;
 }
 
+function ownBranch(
+  branches: Record<string, SessionBranchDescriptor>,
+  id: string,
+): SessionBranchDescriptor | undefined {
+  return Object.hasOwn(branches, id) ? branches[id] : undefined;
+}
+
 export function flattenSessionBranchRows(tree: SessionTreeSnapshot): SessionBranchRow[] {
   const all = Object.values(tree.branches);
   const childrenByParent = new Map<string, SessionBranchDescriptor[]>();
   for (const b of all) {
     if (b.parentBranchId === null) continue;
-    const parentId = tree.branches[b.parentBranchId] ? b.parentBranchId : 'main';
+    const parentId = ownBranch(tree.branches, b.parentBranchId) ? b.parentBranchId : 'main';
     const list = childrenByParent.get(parentId) ?? [];
     list.push(b);
     childrenByParent.set(parentId, list);
@@ -26,7 +33,7 @@ export function flattenSessionBranchRows(tree: SessionTreeSnapshot): SessionBran
     list.sort((a, b) => a.forkSeq - b.forkSeq || a.createdAt.localeCompare(b.createdAt));
   }
 
-  const root = tree.branches['main'] ??
+  const root = ownBranch(tree.branches, 'main') ??
     all.find((b) => b.parentBranchId === null) ?? {
       id: 'main',
       name: 'main',
@@ -115,11 +122,11 @@ export function SessionBranchPill({
   const rows = useMemo(() => (tree ? flattenSessionBranchRows(tree) : []), [tree]);
   if (!tree) return null;
 
-  const activeBranch = tree.branches[tree.activeBranchId];
+  const activeBranch = ownBranch(tree.branches, tree.activeBranchId);
   const activeName = activeBranch?.name ?? tree.activeBranchId ?? 'main';
   const activeParentName =
     activeBranch?.parentBranchId != null
-      ? (tree.branches[activeBranch.parentBranchId]?.name ?? activeBranch.parentBranchId)
+      ? (ownBranch(tree.branches, activeBranch.parentBranchId)?.name ?? activeBranch.parentBranchId)
       : null;
   const canFoldActiveIntoParent = Boolean(
     activeBranch &&

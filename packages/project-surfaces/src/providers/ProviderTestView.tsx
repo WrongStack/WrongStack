@@ -12,7 +12,7 @@ import {
   Star,
   XCircle,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppTranslation } from '../lib/i18n';
 import { isModelDisabled, isModelInFavorites, isProviderDisabled } from '../lib/model-filter';
 import { cn, safeId } from '../lib/utils';
@@ -53,7 +53,8 @@ export function ProviderTestView({
   const [loadingModels, setLoadingModels] = useState(false);
   const [running, setRunning] = useState(false);
   const [requestId, setRequestId] = useState('');
-  const [retryRequestId, setRetryRequestId] = useState('');
+  const requestIdRef = useRef('');
+  const retryRequestIdRef = useRef('');
   const [retryingModel, setRetryingModel] = useState('');
   const [results, setResults] = useState<TestResult[]>([]);
   const [runError, setRunError] = useState('');
@@ -84,12 +85,13 @@ export function ProviderTestView({
     });
     const offStarted = client.on('provider.test.started', (message) => {
       if (message.type !== 'provider.test.started') return;
-      if (message.payload.requestId === requestId) setRunning(true);
+      if (message.payload.requestId === requestIdRef.current) setRunning(true);
     });
     const offResult = client.on('provider.test.result', (message) => {
       if (
         message.type !== 'provider.test.result' ||
-        (message.payload.requestId !== requestId && message.payload.requestId !== retryRequestId)
+        (message.payload.requestId !== requestIdRef.current &&
+          message.payload.requestId !== retryRequestIdRef.current)
       )
         return;
       setResults((current) => {
@@ -100,12 +102,12 @@ export function ProviderTestView({
     });
     const offComplete = client.on('provider.test.complete', (message) => {
       if (message.type !== 'provider.test.complete') return;
-      if (message.payload.requestId === requestId) {
+      if (message.payload.requestId === requestIdRef.current) {
         setRunning(false);
         setRunError(message.payload.error ?? '');
       }
-      if (message.payload.requestId === retryRequestId) {
-        setRetryRequestId('');
+      if (message.payload.requestId === retryRequestIdRef.current) {
+        retryRequestIdRef.current = '';
         setRetryingModel('');
       }
     });
@@ -117,7 +119,7 @@ export function ProviderTestView({
       offResult();
       offComplete();
     };
-  }, [client, localPrefs.disabledModels, providerId, requestId, retryRequestId]);
+  }, [client, localPrefs.disabledModels, providerId]);
 
   const visibleModels = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -155,6 +157,7 @@ export function ProviderTestView({
   const runTests = () => {
     if (!client || selected.size === 0) return;
     const nextRequestId = safeId();
+    requestIdRef.current = nextRequestId;
     setRequestId(nextRequestId);
     setResults([]);
     setRunError('');
@@ -180,7 +183,7 @@ export function ProviderTestView({
   const retryModel = (modelId: string) => {
     if (!client || running || retryingModel) return;
     const nextRequestId = safeId();
-    setRetryRequestId(nextRequestId);
+    retryRequestIdRef.current = nextRequestId;
     setRetryingModel(modelId);
     client.send({
       type: 'provider.test.run',

@@ -10,7 +10,7 @@ import {
   Server,
   TrendingUp,
 } from 'lucide-react';
-import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { surfaceFetch, useSurfaceHost } from '../host';
 import { displayDecimal, displayLocale, useAppTranslation } from '../lib/i18n';
 import { PageMotif } from '../ui/PageMotif';
@@ -40,13 +40,25 @@ export function DebugDashboard({
   });
   const [isLoading, setIsLoading] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState<number>(2000);
+  const fetchSeqRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      fetchSeqRef.current += 1;
+    };
+  }, []);
 
   const fetchMetrics = useCallback(async () => {
+    const seq = ++fetchSeqRef.current;
     try {
       const [watcherRes, systemRes] = await Promise.all([
         surfaceFetch('/debug/watcher-metrics'),
         surfaceFetch('/debug/system', { cache: 'no-store' }),
       ]);
+      if (!mountedRef.current || fetchSeqRef.current !== seq) return;
       let watcherData: FileWatcherMetrics | null = null;
       const watcherContentType = watcherRes.headers.get('content-type') ?? '';
       if (watcherRes.ok && watcherContentType.includes('application/json')) {
@@ -55,6 +67,7 @@ export function DebugDashboard({
 
       if (!systemRes.ok) throw new Error(`System metrics request failed (${systemRes.status})`);
       const systemData = (await systemRes.json()) as SystemMetrics;
+      if (!mountedRef.current || fetchSeqRef.current !== seq) return;
 
       setData({
         fileWatcher: watcherData,
@@ -63,12 +76,13 @@ export function DebugDashboard({
         error: null,
       });
     } catch (err) {
+      if (!mountedRef.current || fetchSeqRef.current !== seq) return;
       setData((prev) => ({
         ...prev,
         error: err instanceof Error ? err.message : t('activity:debug.fetchFailed'),
       }));
     } finally {
-      setIsLoading(false);
+      if (mountedRef.current && fetchSeqRef.current === seq) setIsLoading(false);
     }
   }, [t]);
 

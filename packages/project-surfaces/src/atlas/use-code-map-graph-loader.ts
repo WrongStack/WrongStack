@@ -75,6 +75,7 @@ export function useCodeMapGraphLoader({
         undefined,
         cancelled,
       );
+      if (cancelled()) return nextGraph;
       touchClientGraphCache(cache.current, key, nextGraph, MAX_CLIENT_GRAPH_CACHE);
       stale.current.delete(key);
       setCacheRevision((revision) => revision + 1);
@@ -89,13 +90,16 @@ export function useCodeMapGraphLoader({
       for (const key of [...stale.current]) {
         if (cancelled()) return;
         if (!key.startsWith('files:')) continue;
-        await fetchGraph({ level: 'files', package: key.slice('files:'.length) }, true).catch(
-          () => {
-            cache.current.delete(key);
-            stale.current.delete(key);
-            setCacheRevision((revision) => revision + 1);
-          },
-        );
+        await fetchGraph(
+          { level: 'files', package: key.slice('files:'.length) },
+          true,
+          cancelled,
+        ).catch(() => {
+          if (cancelled()) return;
+          cache.current.delete(key);
+          stale.current.delete(key);
+          setCacheRevision((revision) => revision + 1);
+        });
       }
     },
     [fetchGraph],
