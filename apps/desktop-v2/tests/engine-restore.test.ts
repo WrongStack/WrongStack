@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocketServer } from 'ws';
-import { restoreEngineSession } from '../engine/restore-session';
+import { type RestoreTiming, restoreEngineSession } from '../engine/restore-session';
 
 const servers: WebSocketServer[] = [];
 afterEach(async () => {
@@ -77,6 +77,41 @@ describe('private engine history bootstrap', () => {
     await expect(restoreEngineSession(incomplete.port, 'private', 'recorded')).rejects.toThrow(
       'replay was not verified',
     );
+  });
+  it('reports when each restore step was reached, once per step, for success and failure', async () => {
+    const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
+    servers.push(server);
+    await new Promise<void>((resolve) => server.once('listening', resolve));
+    server.on('connection', (socket) =>
+      socket.on('message', (data) => {
+        const { requestId } = JSON.parse(String(data)).payload;
+        const send = (type: string, payload: object) =>
+          socket.send(JSON.stringify({ type, payload }));
+        for (const stage of ['reserve_ownership', 'open_journal', 'open_journal', 'swap_writer'])
+          send('session.resume_progress', { sessionId: 'recorded', stage });
+        send('session.start', { sessionId: 'recorded', reset: true });
+        send('key.operation_result', { requestId, success: true });
+      }),
+    );
+    const address = server.address();
+    if (!address || typeof address === 'string') throw Error('Missing test port');
+    const reports: RestoreTiming[] = [];
+    await restoreEngineSession(address.port, 'private', 'recorded', (t) => reports.push(t));
+    expect(reports).toHaveLength(1);
+    expect(reports[0]).toMatchObject({ sessionId: 'recorded', ok: true });
+    expect(Object.keys(reports[0]!.marks)).toEqual([
+      'connected',
+      'reserve_ownership',
+      'open_journal',
+      'swap_writer',
+      'session.start',
+      'answered',
+    ]);
+    const refused = await peer(false, false);
+    await expect(
+      restoreEngineSession(refused.port, 'private', 'recorded', (t) => reports.push(t)),
+    ).rejects.toThrow('Ownership refused');
+    expect(reports[1]).toMatchObject({ ok: false });
   });
   it('trims padded session ids and tokens and rejects invalid arguments early (F104)', async () => {
     const server = await peer(true, true);
