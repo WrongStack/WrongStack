@@ -17,6 +17,7 @@ import { act } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Action } from '../src/app-reducer.js';
 import type { State } from '../src/app-state.js';
+import { historyArchivePath } from '../src/history-archive.js';
 import type { HistoryEntry } from '../src/history-entry.js';
 import { useHistoryArchive } from '../src/hooks/use-history-archive.js';
 import { Text } from '../src/ink.js';
@@ -25,8 +26,12 @@ import { reduceConversation } from '../src/reducers/conversation.js';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const directories: string[] = [];
+const views: Array<ReturnType<typeof render>> = [];
 
 afterEach(async () => {
+  act(() => {
+    for (const view of views.splice(0)) view.unmount();
+  });
   await Promise.all(
     directories.splice(0).map((directory) => fs.rm(directory, { recursive: true, force: true })),
   );
@@ -96,15 +101,6 @@ function ArchiveHarness({
   return <Text>archive</Text>;
 }
 
-/** Let the async archive open (rm + construct) and any queued writes settle. */
-async function settle(): Promise<void> {
-  for (let pass = 0; pass < 6; pass++) {
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 5));
-    });
-  }
-}
-
 describe('scroll-back with a retention omission marker on screen', () => {
   it('serves every omitted entry exactly once instead of re-serving the banner', async () => {
     const sessionsDir = await temporaryDirectory();
@@ -123,8 +119,25 @@ describe('scroll-back with a retention omission marker on screen', () => {
           }}
         />,
       );
+      views.push(view);
     });
-    await settle();
+    // Opening and persisting the archive are asynchronous disk operations;
+    // neither a 30ms startup sleep nor a 25ms page sleep establishes readiness.
+    await vi.waitFor(async () => {
+      let archived: string | undefined;
+      await act(async () => {
+        archived = await fs
+          .readFile(historyArchivePath(path.join(sessionsDir, SESSION_ID)), 'utf8')
+          .catch(() => undefined);
+      });
+      expect(archived).toBeDefined();
+      expect(
+        archived!
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line)),
+      ).toEqual(fullHistory());
+    });
 
     // Retention trims the window: banner + omission marker + newest tail.
     await act(async () => {
@@ -139,7 +152,6 @@ describe('scroll-back with a retention omission marker on screen', () => {
         />,
       );
     });
-    await settle();
 
     dispatch.mockClear();
     const servedIds: number[] = [];
@@ -147,7 +159,11 @@ describe('scroll-back with a retention omission marker on screen', () => {
     for (let round = 0; round < 5; round++) {
       await act(async () => {
         request();
-        await new Promise((resolve) => setTimeout(resolve, 25));
+        await vi.waitFor(() => {
+          expect(dispatch.mock.calls.some(([action]) => action.type === 'archiveLoaded')).toBe(
+            true,
+          );
+        });
       });
       const loadedAction = dispatch.mock.calls
         .map(([action]) => action as { type: string; entries?: HistoryEntry[] })
@@ -169,7 +185,5 @@ describe('scroll-back with a retention omission marker on screen', () => {
     for (const id of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
       expect(ids).toContain(id);
     }
-
-    act(() => view.unmount());
   });
 });

@@ -24,7 +24,7 @@ export function SlashMenu({
   columns,
 }: SlashMenuProps): React.ReactElement {
   useActiveTheme();
-  const terminal = useTerminalSize({ maxWidth: columns });
+  const terminal = useTerminalSize({ maxWidth: columns, allowZero: true });
   const viewport = pickerViewport(terminal, { columns, maxRows, reservedRows: 6 });
   const budget = viewport.rows;
   const compact = budget < 12;

@@ -4,8 +4,8 @@ import React, { useEffect, useRef } from 'react';
 import type { Action } from '../app-action-type.js';
 import type { AppProps } from '../app-props.js';
 import type { State } from '../app-state.js';
-import type { useStdout } from '../ink.js';
 import { resolveAppSidebarLayout } from '../app-ui-state.js';
+import type { useStdout } from '../ink.js';
 import { useActiveTheme } from './use-active-theme.js';
 import type { AppRefSpine } from './use-app-ref-spine.js';
 import { useAutonomyDrivers } from './use-autonomy-drivers.js';
@@ -17,6 +17,7 @@ import { useSettingsAutoSave } from './use-settings-auto-save.js';
 import { useStatusSyncInterval } from './use-status-sync-interval.js';
 import { useStatuslineHiddenSync, useStatuslineLayoutSync } from './use-statusline-hidden-sync.js';
 import { useStreamChipExpiration } from './use-stream-chip-expiration.js';
+import { useTerminalSize } from './use-terminal-size.js';
 import { useThemeState } from './use-theme-state.js';
 import { useTuiActivity } from './use-tui-activity.js';
 import { useTuiEnvironmentState } from './use-tui-environment-state.js';
@@ -232,12 +233,8 @@ export function useAppEnvironment(deps: AppEnvironmentDeps) {
     confirmExitRef,
   } = useLiveSettingsState({ getSettings, titleController, chime, confirmExit });
 
-  const sidebarLayout = resolveAppSidebarLayout(
-    state,
-    stdout?.columns ?? 80,
-    liveSettings,
-    mailboxPanelOpen,
-  );
+  const { columns } = useTerminalSize();
+  const sidebarLayout = resolveAppSidebarLayout(state, columns, liveSettings, mailboxPanelOpen);
 
   useEffect(() => {
     titleController?.setModel(liveModel);

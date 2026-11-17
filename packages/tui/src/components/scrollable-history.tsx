@@ -4,7 +4,8 @@ import { type CellRange, mountedTextRuns, type TextRun } from '../cell-selection
 import { EntryHeightCache } from '../height-cache.js';
 import { SCROLLBAR_HIT_WIDTH } from '../hit-test.js';
 import { useActiveTheme } from '../hooks/use-active-theme.js';
-import { Box, type DOMElement, measureElement, useStdout } from '../ink.js';
+import { useTerminalSize } from '../hooks/use-terminal-size.js';
+import { Box, type DOMElement, measureElement } from '../ink.js';
 import { computeLayout } from '../layout-engine.js';
 import {
   anchorTopRow,
@@ -112,12 +113,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   onToolResultViewChange,
 }: ScrollableHistoryProps): React.ReactElement {
   useActiveTheme();
-  const { stdout } = useStdout();
-  const resolveViewportWidth = useCallback(() => {
-    const raw = stdout?.columns ?? 80;
-    return maxWidth ? Math.min(raw, maxWidth) : raw;
-  }, [stdout, maxWidth]);
-  const [viewportWidth, setViewportWidth] = useState(resolveViewportWidth);
+  const { columns: viewportWidth } = useTerminalSize({ maxWidth });
   const termWidth = useMemo(
     () => Math.max(1, viewportWidth - SCROLLBAR_HIT_WIDTH),
     [viewportWidth],
@@ -126,16 +122,6 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     () => findArmedNextStepsEntryId(entries, nextStepsAutoSubmitLabel),
     [entries, nextStepsAutoSubmitLabel],
   );
-  useEffect(() => {
-    const handleResize = () => {
-      setViewportWidth(resolveViewportWidth());
-    };
-    handleResize();
-    stdout?.on('resize', handleResize);
-    return () => {
-      stdout?.off('resize', handleResize);
-    };
-  }, [stdout, resolveViewportWidth]);
 
   const toolTail = toolStream?.text
     ? tailForDisplay(toolStream.text, MAX_STREAM_DISPLAY_CHARS)

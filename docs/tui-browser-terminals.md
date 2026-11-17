@@ -67,10 +67,22 @@ never a guess based on `$TERM`, which browser emulators report as
 | `TERM_PROGRAM=hyper`, `TERM_PROGRAM=tabby` | `hyper` / `tabby` | no |
 | an SSH session alongside any of the above | as above | yes |
 
-Native terminals resolve to `{ host: 'native', kind: null, remoteClient: false }`,
-so behaviour there is unchanged. `remoteClient` is diagnostic only: glyph
+Native terminals resolve to `host: 'native'`. Known terminal markers identify
+Windows Terminal, Kitty, Ghostty, WezTerm, Alacritty, iTerm2, Apple Terminal,
+Warp, Rio and Mintty in `kind`; unknown identities keep `kind: null`. The
+immediate tmux/screen layer takes precedence over inherited outer-terminal
+markers. SSH marks `remoteClient: true` for native and browser sessions alike.
+`remoteClient` is diagnostic only: glyph
 suppression keys off `host === 'browser'`, because a webview paints with the
 page's font stack whether or not its client is remote.
+
+The recognized painting surface also takes precedence over missing Node stream
+helpers on Windows: a browser or a known modern terminal is not legacy conhost
+merely because the runtime has no `stdout.getColorDepth`. Unidentified Windows
+TTYs without that helper retain the conservative legacy profile. Automatic image
+selection follows the immediate terminal identity; inherited Kitty/iTerm markers
+cannot enable those protocols on an unknown terminal or inside screen. Explicit
+graphics overrides and opt-in tmux passthrough remain available.
 
 ### 2.1 Overrides
 
@@ -234,6 +246,18 @@ after a font or browser zoom change. Resizing only the canvas leaves the process
 laying out against stale rows/columns; the TUI cannot observe client-side CSS.
 The integrated WebUI forwards xterm's `onResize` events, including font-only fits
 that do not trigger a container `ResizeObserver`.
+The TUI normalizes reported dimensions to positive, whole cell counts before
+laying out the root and history. A zero, negative or non-finite dimension
+uses the caller's fallback (normally 80 columns / 24 rows); a later valid resize
+is applied normally. This prevents a transient invalid grid from collapsing the
+root while other parts of the interface use a different size.
+Hideable help, command and file pickers explicitly retain a zero viewport and
+stay hidden until space is available, preserving the focused result on recovery.
+The input router uses the same dimension normalization as rendering. Its main
+column and root height cannot exceed the current physical grid while a resize
+is pending; wheel events outside that grid are ignored before sidebar routing.
+This keeps scrollbar clicks and wrapped caret navigation aligned with the
+visible viewport when reported dimensions are missing or stale.
 These checks cover Chromium/xterm.js on the current platform. They do not certify
 every emulator, font, operating system or arbitrarily small grid.
 

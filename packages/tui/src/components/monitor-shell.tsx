@@ -21,7 +21,11 @@ export function usePanelInput(handler: Parameters<typeof useInput>[0]): void {
   const isActive = useContext(PanelInputContext);
   useInput(handler, { isActive });
 }
-const MonitorViewportContext = createContext<{ columns: number; rows: number } | null>(null);
+const MonitorViewportContext = createContext<{
+  columns: number;
+  rows: number;
+  functionKey?: number | null;
+} | null>(null);
 export const MonitorViewportProvider = MonitorViewportContext.Provider;
 
 export const PanelShortcutsProvider = PanelShortcutsContext.Provider;
@@ -116,6 +120,12 @@ export function MonitorShell({
   const [headerFit, setHeaderFit] = useState<{ header: number; right: number } | null>(null);
   const { stdin } = useStdin();
   const showRight = size.columns >= 64 && right != null;
+  const compactClose = size.rows < 8 ? viewport?.functionKey : null;
+  const panelFooter = compactClose ? (
+    <Text color={theme.textMuted} wrap="truncate-end">{`F${compactClose}/Esc close`}</Text>
+  ) : (
+    footer
+  );
   // The kicker is shown only when it fits beside the title and the right-hand
   // content. Both widths are measured after layout: the header row gives the
   // real width available (a viewport-less mount can differ from the terminal
@@ -225,16 +235,16 @@ export function MonitorShell({
       ) : (
         children
       )}
-      {maxScroll > 0 ? (
+      {maxScroll > 0 && !compactClose ? (
         <Box flexShrink={0}>
           <Text dimColor>
             Alt+PgUp/Dn scroll {scroll}/{maxScroll}
           </Text>
         </Box>
       ) : null}
-      {footer ? (
+      {panelFooter ? (
         <Box marginTop={size.rows >= 16 ? 1 : 0} flexShrink={0}>
-          {footer}
+          {panelFooter}
         </Box>
       ) : null}
     </Box>

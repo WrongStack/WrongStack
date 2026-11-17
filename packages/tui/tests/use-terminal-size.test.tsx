@@ -2,7 +2,9 @@ import { EventEmitter } from 'node:events';
 import { render as renderInk, Text } from 'ink';
 import type { ReactElement } from 'react';
 import { describe, expect, it } from 'vitest';
+import { useHistoryViewportSync } from '../src/hooks/use-history-viewport-sync.js';
 import { useTerminalSize } from '../src/hooks/use-terminal-size.js';
+import { terminalDimension } from '../src/terminal-dimensions.js';
 
 /**
  * Eleven components each hand-rolled this:
@@ -65,6 +67,47 @@ function mount(tree: ReactElement) {
 const settle = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
 describe('useTerminalSize', () => {
+  it.each([0, -10, 0.5, Number.NaN, Number.POSITIVE_INFINITY, undefined])(
+    'does not expose invalid terminal dimension %s to layout',
+    (value) => {
+      expect(terminalDimension(value, 80)).toBe(80);
+    },
+  );
+  it('normalizes fractional cell counts without changing valid integer sizes', () => {
+    expect(terminalDimension(72.8, 80)).toBe(72);
+    expect(terminalDimension(1, 80)).toBe(1);
+    expect(terminalDimension(200, 80)).toBe(200);
+  });
+  it('uses a positive fallback consistently for panels and the root on a zero-size resize, then recovers', async () => {
+    let seen: { columns: number; rows: number; rootRows: number } | undefined;
+    function Probe(): ReactElement {
+      const size = useTerminalSize();
+      const { termRows } = useHistoryViewportSync({
+        stdoutRows: 40,
+        viewportRows: 10,
+        setViewportRows: () => {},
+      });
+      seen = { ...size, rootRows: termRows };
+      return <Text>resize control</Text>;
+    }
+    const { instance, stdout } = mount(<Probe />);
+    try {
+      await settle();
+      expect(seen).toEqual({ columns: 100, rows: 40, rootRows: 40 });
+      stdout.columns = 0;
+      stdout.rows = 0;
+      stdout.emit('resize');
+      await settle();
+      expect(seen).toEqual({ columns: 80, rows: 24, rootRows: 24 });
+      stdout.columns = 72;
+      stdout.rows = 20;
+      stdout.emit('resize');
+      await settle();
+      expect(seen).toEqual({ columns: 72, rows: 20, rootRows: 20 });
+    } finally {
+      instance.unmount();
+    }
+  });
   it('reports the stream it is given', async () => {
     let seen: { columns: number; rows: number } | undefined;
     function Probe(): ReactElement {

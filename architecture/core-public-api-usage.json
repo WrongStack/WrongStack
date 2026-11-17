@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1002,
+      "files": 1003,
       "typeOnly": 76,
-      "runtimeOrMixed": 961
+      "runtimeOrMixed": 962
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -16670,6 +16670,12 @@
       "file": "packages/tui/tests/context-panel-residency.test.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tui/tests/helpers/browser-pty-app.tsx",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",

@@ -14,7 +14,7 @@ import { useBackgroundStrip } from './background-strip-model.js';
 import { BackgroundStrip, backgroundStripRows } from './components/background-strip.js';
 import { ChatSearchBar } from './components/chat-search-bar.js';
 import { LIVE_TOOL_STREAM_COPY_ID } from './components/history/copy-geometry.js';
-import { DEFAULT_INPUT_PROMPT, Input } from './components/input.js';
+import { DEFAULT_INPUT_PROMPT, Input, MAX_INPUT_BODY_ROWS } from './components/input.js';
 import { InspectOverlay, resolveInspectOverlayContent } from './components/inspect-overlay.js';
 import { LiveScrollableHistory, LiveStreamActivityLine } from './components/live-stream-views.js';
 import {
@@ -172,18 +172,31 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
   } = resolveAppSidebarLayout(state, termCols, liveSettings, mailbox.mailboxPanelOpen);
   const routedToSidebar = (id: PanelId): boolean => panelPositions[id] === 'sidebar';
 
-  const effectiveInputHeight = state.helpPanel.open || viewState.panelOwnsInput ? 0 : inputHeight;
   const backgroundStrip = useBackgroundStrip();
   // Selected so the App re-renders when the activity row appears or goes,
   // not on every stream flush that updates its counters.
   const streamActivityVisible = useLiveStream((live) => live.streamActivity !== null);
+  const activityRows = !hideInput && streamActivityVisible ? 1 : 0;
+  const backgroundRows = !hideInput ? backgroundStripRows(backgroundStrip) : 0;
+  const searchRows = chatSearch && !hideInput ? 2 : 0;
+  const maxInputBodyRows = Math.max(
+    1,
+    Math.min(
+      MAX_INPUT_BODY_ROWS,
+      runtime.termRows - runtime.statusBarRows - activityRows - backgroundRows - searchRows - 3,
+    ),
+  );
+  const effectiveInputHeight =
+    state.helpPanel.open || viewState.panelOwnsInput
+      ? 0
+      : Math.min(inputHeight, maxInputBodyRows + 2);
   const pickerMaxRows = Math.max(
-    8,
+    1,
     runtime.termRows -
       runtime.statusBarRows -
       effectiveInputHeight -
-      (!hideInput && streamActivityVisible ? 1 : 0) -
-      backgroundStripRows(backgroundStrip) -
+      activityRows -
+      backgroundRows -
       1,
   );
 
@@ -362,6 +375,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                   hidden={hideInput}
                   placeholderHeight={effectiveInputHeight}
                   maxWidth={mainColumnWidth}
+                  maxBodyRows={maxInputBodyRows}
                   disabled={
                     (state.status === 'aborting' && !state.steeringPending) ||
                     state.confirmQueue.length > 0
@@ -370,7 +384,13 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                   onKey={stableOnKey}
                   workingTime={workingTimeMs}
                 />
-                <MonitorViewportProvider value={{ columns: mainColumnWidth, rows: pickerMaxRows }}>
+                <MonitorViewportProvider
+                  value={{
+                    columns: mainColumnWidth,
+                    rows: pickerMaxRows,
+                    functionKey: foregroundPrompt ? null : viewState.functionPanel,
+                  }}
+                >
                   <AppViewPickers
                     host={host}
                     runtime={runtime}
@@ -382,6 +402,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                   />
                   <AppStatusRegion
                     panelsSuppressed={foregroundPrompt}
+                    panelPositions={panelPositions}
                     host={host}
                     runtime={runtime}
                     mainColumnWidth={mainColumnWidth}

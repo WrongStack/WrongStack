@@ -130,14 +130,16 @@ function formatBranchLine(
  * Format a `SessionTreeSnapshot` as a deterministic Unicode DAG hierarchy.
  */
 export function formatSessionTreeAscii(tree: SessionTreeSnapshot): string {
+  const ownBranch = (id: string): SessionBranchDescriptor | undefined =>
+    Object.hasOwn(tree.branches, id) ? tree.branches[id] : undefined;
   const allBranches = Object.values(tree.branches);
-  const activeName = tree.branches[tree.activeBranchId]?.name ?? tree.activeBranchId;
+  const activeName = ownBranch(tree.activeBranchId)?.name ?? tree.activeBranchId;
   const header = `Session Tree (${allBranches.length} branch${allBranches.length === 1 ? '' : 'es'} · active: ${activeName})`;
 
   const childrenMap = new Map<string, SessionBranchDescriptor[]>();
   for (const branch of allBranches) {
     if (branch.parentBranchId === null) continue;
-    const parentId = tree.branches[branch.parentBranchId] ? branch.parentBranchId : MAIN_BRANCH_ID;
+    const parentId = ownBranch(branch.parentBranchId) ? branch.parentBranchId : MAIN_BRANCH_ID;
     const list = childrenMap.get(parentId) ?? [];
     list.push(branch);
     childrenMap.set(parentId, list);
@@ -146,7 +148,7 @@ export function formatSessionTreeAscii(tree: SessionTreeSnapshot): string {
     list.sort((a, b) => a.forkSeq - b.forkSeq || a.createdAt.localeCompare(b.createdAt));
   }
 
-  const root = tree.branches[MAIN_BRANCH_ID] ??
+  const root = ownBranch(MAIN_BRANCH_ID) ??
     allBranches.find((b) => b.parentBranchId === null) ?? {
       id: MAIN_BRANCH_ID,
       name: MAIN_BRANCH_ID,

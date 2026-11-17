@@ -196,7 +196,16 @@ describe('full App through PTY / WebSocket / xterm.js', () => {
           message: `Full App boot (${root})`,
         })
         .toContain('[Text]');
-      expect(records()[0]).toMatchObject({ type: 'boot', stdinTTY: true, stdoutTTY: true });
+      expect(records()[0]).toMatchObject({
+        type: 'boot',
+        stdinTTY: true,
+        stdoutTTY: true,
+        capability: {
+          terminalHost: { host: 'browser' },
+          isWindowsConhost: false,
+          graphicsProtocol: 'halfblock',
+        },
+      });
       await page.screenshot({ path: join(root, 'boot.png') });
       // Change both the emulator grid and the real PTY, as a host's fit addon
       // does after a browser zoom/font/viewport change. Inspect the full App,
@@ -243,6 +252,50 @@ describe('full App through PTY / WebSocket / xterm.js', () => {
         await page.screenshot({ path: join(root, `resize-${cols}x${rows}.png`) });
       }
       checked('font and grid changes keep composer, tail and alternate screen intact');
+
+      const resizeGrid = async (cols: number, rows: number) => {
+        await page.evaluate(
+          ([cols, rows]) => (globalThis as unknown as TerminalClient).terminal.resize(cols, rows),
+          [cols, rows] as const,
+        );
+        terminal.resize(cols, rows);
+      };
+      await resizeGrid(40, 24);
+      const draft = `DRAFT-START ${'wrapped text '.repeat(39)}${' '.repeat(20)}DRAFT-END`;
+      await page.keyboard.insertText(draft);
+      await expect.poll(async () => (await screen()).join('\n')).toContain('DRAFT-END');
+      await page.keyboard.press('Home');
+      await expect.poll(async () => (await screen()).join('\n')).toContain('DRAFT-START');
+      await resizeGrid(40, 8);
+      await expect.poll(async () => (await screen()).slice(-8).join('\n')).toContain('DRAFT-START');
+      await page.keyboard.press('End');
+      await expect.poll(async () => (await screen()).slice(-8).join('\n')).toContain('DRAFT-END');
+      await page.screenshot({ path: join(root, 'short-terminal-draft.png') });
+      await page.keyboard.press('Control+u');
+      await expect.poll(async () => (await screen()).join('\n')).not.toContain('DRAFT-END');
+      await page.keyboard.insertText('panel draft');
+      await expect.poll(async () => (await screen()).slice(-8).join('\n')).toContain('panel draft');
+      await page.keyboard.press('F2');
+      await expect
+        .poll(async () => (await screen()).slice(-8).join('\n'))
+        .toContain('FLEET CONTROL');
+      await expect.poll(async () => (await screen()).slice(-8).join('\n')).toContain('F2/Esc');
+      expect((await screen()).slice(-8).join('\n')).not.toContain('panel draft');
+      await page.keyboard.press('z');
+      await page.keyboard.press('Escape');
+      await expect.poll(async () => (await screen()).slice(-8).join('\n')).toContain('panel draft');
+      expect((await screen()).slice(-8).join('\n')).not.toContain('panel draftz');
+      await page.keyboard.press('Control+u');
+      await expect
+        .poll(async () => (await screen()).slice(-8).join('\n'))
+        .not.toContain('panel draft');
+      checked('F2 uses the main area and protects the draft in an eight-row terminal');
+      await resizeGrid(100, 32);
+      await expect.poll(async () => (await screen()).join('\n')).toContain('PTY answer 40');
+      checked(
+        'Home and End keep the active row visible in an eight-row terminal with a long draft',
+      );
+
       const paste = 'first browser line\nsecond browser line\nthird browser line';
       await page.evaluate(
         (text) => (globalThis as unknown as TerminalClient).terminal.paste(text),

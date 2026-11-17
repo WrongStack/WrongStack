@@ -17,6 +17,7 @@ import { ComposerTopRail, renderRow } from './input-rows.js';
 import { TextSelectionOverlay } from './text-selection-overlay.js';
 
 export const DEFAULT_INPUT_PROMPT = `${glyphs.prompt} `;
+export const MAX_INPUT_BODY_ROWS = 10;
 
 /** Columns available to input tokens inside the two-sided composer rail. */
 export function inputContentWidth(termColumns: number): number {
@@ -78,6 +79,8 @@ export interface InputProps {
    * narrower than the full terminal (e.g. beside a sidebar).
    */
   maxWidth?: number | undefined;
+  /** Maximum number of wrapped draft rows the host has room to show. */
+  maxBodyRows?: number | undefined;
 }
 
 export interface KeyEvent {
@@ -151,6 +154,7 @@ export const Input = memo(function Input({
   placeholderHeight,
   onKey,
   maxWidth,
+  maxBodyRows = MAX_INPUT_BODY_ROWS,
   selectionMode = 'block',
   onSelectionModeToggle,
   onSelectionBegin,
@@ -249,8 +253,8 @@ export const Input = memo(function Input({
   // in the visible window and up/down arrow at the viewport edges scroll.
   // This prevents the input from pushing the chat history off the top of the
   // terminal on long prompts (GitHub issue #295).
-  const MAX_VISIBLE_ROWS = 10;
-  const needsScroll = rows.length > MAX_VISIBLE_ROWS;
+  const visibleRowLimit = Math.max(1, Math.min(MAX_INPUT_BODY_ROWS, maxBodyRows));
+  const needsScroll = rows.length > visibleRowLimit;
 
   // ── Scroll offset management ────────────────────────────────────────────
   // Determine which row the cursor is on (the *first* row with a cursor cell).
@@ -264,33 +268,24 @@ export const Input = memo(function Input({
       }
     }
   }
-  // State is lifted to the parent via onKey — we compute the scroll offset
-  // here from a local state so scrolling is purely visual. The parent doesn't
-  // need to know about internal scroll.
+  // Keep the cursor visible in the same render that changed the row budget.
+  // Remember the resulting offset so subsequent moves inside the window do
+  // not move the window again.
   const [vScroll, setVScroll] = useState(0);
-  const vScrollRef = useRef(vScroll);
-  vScrollRef.current = vScroll;
-  // Clamp the scroll offset so the cursor row is always visible and the last
-  // row is always reachable.
   const clampedScroll = needsScroll
-    ? Math.max(0, Math.min(vScroll, rows.length - MAX_VISIBLE_ROWS))
+    ? Math.max(
+        0,
+        cursorRow - visibleRowLimit + 1,
+        Math.min(vScroll, cursorRow, rows.length - visibleRowLimit),
+      )
     : 0;
-  // Adjust scroll so the cursor row is in the visible window.
   useEffect(() => {
-    if (!needsScroll || !onKey) return;
-    const cur = vScrollRef.current;
-    const clamped = Math.max(0, Math.min(cur, rows.length - MAX_VISIBLE_ROWS));
-    if (cursorRow < clamped) setVScroll(cursorRow);
-    else if (cursorRow >= clamped + MAX_VISIBLE_ROWS) setVScroll(cursorRow - MAX_VISIBLE_ROWS + 1);
-  }, [cursorRow, needsScroll, onKey]);
-  // When the content shrinks below the max, reset scroll.
-  useEffect(() => {
-    if (!needsScroll && vScroll > 0) setVScroll(0);
-  }, [needsScroll]);
+    if (clampedScroll !== vScroll) setVScroll(clampedScroll);
+  }, [clampedScroll, vScroll]);
 
   // Slice the visible rows.
   const visibleRows = needsScroll
-    ? rows.slice(clampedScroll, clampedScroll + MAX_VISIBLE_ROWS)
+    ? rows.slice(clampedScroll, clampedScroll + visibleRowLimit)
     : rows;
 
   pointer.model.current = {
@@ -329,14 +324,7 @@ export const Input = memo(function Input({
     if (placeholderHeight === 0) {
       return <Box height={0} />;
     }
-    return (
-      <Box
-        height={Math.max(
-          3,
-          placeholderHeight ?? (needsScroll ? MAX_VISIBLE_ROWS + 2 : rows.length + 2),
-        )}
-      />
-    );
+    return <Box height={Math.max(3, placeholderHeight ?? visibleRows.length + 2)} />;
   }
 
   // Right-aligned live status chip. The rail is split into `head`/`tail`
@@ -348,8 +336,7 @@ export const Input = memo(function Input({
     status ?? (disabled ? { kind: 'aborting' } : { kind: 'idle', fleetRunning: 0 });
 
   // When scrolling is active, show a scroll indicator in the bottom frame.
-  const scrollIndicator =
-    needsScroll && rows.length > MAX_VISIBLE_ROWS ? `  ${clampedScroll + 1}/${rows.length}` : '';
+  const scrollIndicator = needsScroll ? `  ${clampedScroll + 1}/${rows.length}` : '';
 
   // ── Bottom frame with optional scroll indicator ──
   // Three-part bottom frame: colored border border, colorless hint text + scroll indicator, colored filler + corner.
@@ -374,7 +361,7 @@ export const Input = memo(function Input({
         if (pointer.model.current) pointer.model.current.node = node;
       }}
       flexDirection="column"
-      height={(needsScroll ? MAX_VISIBLE_ROWS : rows.length) + 2}
+      height={visibleRows.length + 2}
     >
       <ComposerTopRail
         width={cols}

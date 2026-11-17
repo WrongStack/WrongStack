@@ -13,6 +13,33 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+it('keeps the active draft row visible after shrinking a terminal with a long draft', async () => {
+  const journey = createAppJourney();
+  const tty = renderRealTty(<App {...journey.props} banner={false} enhanceEnabled={false} />, {
+    columns: 40,
+    rows: 24,
+  });
+  view = tty;
+  const draft = `DRAFT-START ${'wrapped text '.repeat(39)}${' '.repeat(20)}DRAFT-END`;
+  await vi.waitFor(() => expect(tty.lastFrame()).toContain('Enter send'));
+  tty.stdin.write(draft);
+  await vi.waitFor(() => expect(tty.lastFrame()).toContain('DRAFT-END'));
+  tty.stdin.write('\x1b[H');
+  await vi.waitFor(() => expect(tty.lastFrame()).toContain('DRAFT-START'));
+  tty.resize(40, 8);
+  await vi.waitFor(() => {
+    expect(tty.lines().length).toBe(8);
+    expect(tty.lastFrame()).toContain('DRAFT-START');
+  });
+  tty.stdin.write('\x1b[F');
+  await vi.waitFor(() => expect(tty.lastFrame()).toContain('DRAFT-END'));
+  tty.resize(40, 24);
+  await vi.waitFor(() => expect(tty.lines().length).toBe(24));
+  tty.stdin.write('\r');
+  await vi.waitFor(() => expect(journey.agent.run, tty.lastFrame()).toHaveBeenCalledOnce());
+  expect(vi.mocked(journey.agent.run).mock.calls[0]?.[0]).toEqual([{ type: 'text', text: draft }]);
+});
+
 it('keeps the reader position after idle time and follows new output only after paging to the tail', async () => {
   vi.useFakeTimers();
   const restoredMessages: Message[] = Array.from({ length: 50 }, (_, index) => ({

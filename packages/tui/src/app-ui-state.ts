@@ -4,8 +4,10 @@ import { computeSidebarContentWidth, computeSidebarWidth } from './components/si
 import type { StatuslineItem } from './components/statusline-picker.js';
 import { activeBottomFKeyPanel } from './f-key-panels.js';
 import { sumSidebarTwinRowCount } from './sidebar-sizing.js';
+import { terminalDimension } from './terminal-dimensions.js';
 import {
   coercePanelPositionMap,
+  DEFAULT_PANEL_POSITIONS,
   hasPanelRoutedToSidebar,
   PANEL_IDS,
   type PanelId,
@@ -95,11 +97,13 @@ function effectivePanelPositionsInput(
     : liveSettings?.panelPositions;
 }
 
-/** Coerced form of {@link effectivePanelPositionsInput} for direct map reads. */
+/** Visible panel destinations. A narrow terminal has only the bottom region. */
 export function effectivePanelPositions(
   state: State,
   liveSettings: Settings | undefined,
+  termCols: number,
 ): PanelPositionMap {
+  if (computeSidebarWidth(terminalDimension(termCols, 80)) === 0) return DEFAULT_PANEL_POSITIONS;
   return coercePanelPositionMap(effectivePanelPositionsInput(state, liveSettings));
 }
 
@@ -200,8 +204,8 @@ export function resolveAppSidebarLayout(
 ): SidebarLayoutState {
   return resolveSidebarLayout(
     state,
-    termCols,
-    effectivePanelPositionsInput(state, liveSettings),
+    terminalDimension(termCols, 80),
+    effectivePanelPositions(state, liveSettings, termCols),
     mailboxPanelOpen,
     buildSidebarOpenFlags(state, liveSettings),
     effectiveAgentSwarmPanelMode(state, liveSettings) === 'sidebar',
@@ -246,7 +250,7 @@ export interface SidebarLayoutState {
 function resolveSidebarLayout(
   state: State,
   termCols: number,
-  panelPositionsInput: Partial<Record<PanelId, 'bottom' | 'sidebar'>> | undefined,
+  panelPositions: PanelPositionMap,
   mailboxPanelOpen: boolean,
   /**
    * Open flags for each routable panel, used to compute the visible-twin
@@ -281,7 +285,6 @@ function resolveSidebarLayout(
    */
   showSidebar?: boolean | undefined,
 ): SidebarLayoutState {
-  const panelPositions: PanelPositionMap = coercePanelPositionMap(panelPositionsInput);
   const routedToSidebar = (id: PanelId): boolean => panelPositions[id] === 'sidebar';
 
   const overlayOpen =

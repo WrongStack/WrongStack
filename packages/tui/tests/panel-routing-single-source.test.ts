@@ -34,22 +34,39 @@ describe('panel routing single source (effectivePanelPositions)', () => {
   it('uses the picker draft while the settings picker is open', () => {
     const state = pickerState({ fleet: 'sidebar' }, true);
     // Persisted config says bottom (default) — the draft must win.
-    expect(effectivePanelPositions(state, undefined).fleet).toBe('sidebar');
-    expect(effectivePanelPositions(state, persistedSidebarFleet).todos).toBe('bottom');
+    expect(effectivePanelPositions(state, undefined, 80).fleet).toBe('sidebar');
+    expect(effectivePanelPositions(state, persistedSidebarFleet, 80).todos).toBe('bottom');
   });
 
   it('uses the persisted config when the picker is closed', () => {
     // Draft says sidebar but the picker is closed — persisted (default
     // bottom) must win; a stale draft must never leak out of the picker.
     const state = pickerState({ fleet: 'sidebar' }, false);
-    expect(effectivePanelPositions(state, undefined).fleet).toBe('bottom');
-    expect(effectivePanelPositions(state, persistedSidebarFleet).fleet).toBe('sidebar');
+    expect(effectivePanelPositions(state, undefined, 80).fleet).toBe('bottom');
+    expect(effectivePanelPositions(state, persistedSidebarFleet, 80).fleet).toBe('sidebar');
   });
 
   it('resolveAppSidebarLayout routes from the draft, so the dispatcher matches the renderer', () => {
     const state = pickerState({ fleet: 'sidebar' }, true);
     const layout = resolveAppSidebarLayout(state, 120, undefined, false);
     expect(layout.panelPositions.fleet).toBe('sidebar');
+  });
+  it('switches an open panel to the bottom just below the sidebar width threshold', () => {
+    const state = createTestState({ monitorOpen: true });
+    const narrow = resolveAppSidebarLayout(state, 63, persistedSidebarFleet, false);
+    const wide = resolveAppSidebarLayout(state, 64, persistedSidebarFleet, false);
+    expect(narrow).toMatchObject({
+      panelPositions: { fleet: 'bottom' },
+      overlayOpen: true,
+      sidebarWidth: 0,
+      sidebarTwinRowCount: 0,
+    });
+    expect(wide).toMatchObject({
+      panelPositions: { fleet: 'sidebar' },
+      overlayOpen: false,
+      sidebarWidth: 20,
+    });
+    expect(persistedSidebarFleet.panelPositions?.fleet).toBe('sidebar');
   });
 
   it('reserves per-panel twin heights for wrapped worklists and single-row connections', () => {

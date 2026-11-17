@@ -38,6 +38,7 @@
 import { onResize } from '@wrongstack/core/utils';
 import { useEffect, useState } from 'react';
 import { useStdout } from '../ink.js';
+import { terminalDimension } from '../terminal-dimensions.js';
 
 interface TerminalSize {
   readonly columns: number;
@@ -45,6 +46,8 @@ interface TerminalSize {
 }
 
 interface UseTerminalSizeOptions {
+  /** Hideable picker bodies retain an explicit zero-sized viewport. */
+  readonly allowZero?: boolean | undefined;
   /**
    * Upper bound applied to `columns`. Panels use this to stay inside a pinned
    * content width — see the bordered-box overflow rule.
@@ -61,17 +64,23 @@ interface UseTerminalSizeOptions {
 }
 
 export function useTerminalSize(options: UseTerminalSizeOptions = {}): TerminalSize {
-  const { maxWidth, fallbackColumns = 80, fallbackRows = 24 } = options;
+  const { maxWidth, fallbackColumns = 80, fallbackRows = 24, allowZero = false } = options;
   const { stdout } = useStdout();
   // Ink's stream in a real run IS `process.stdout`; under the test renderer it
   // is not. Read and subscribe to the same one either way.
   const stream = stdout ?? process.stdout;
 
   const measure = (): TerminalSize => {
-    const raw = stream?.columns ?? fallbackColumns;
+    const raw =
+      allowZero && stream?.columns === 0
+        ? 0
+        : terminalDimension(stream?.columns, terminalDimension(fallbackColumns, 80));
     return {
-      columns: maxWidth ? Math.min(raw, maxWidth) : raw,
-      rows: stream?.rows ?? fallbackRows,
+      columns: Math.min(raw, terminalDimension(maxWidth, raw)),
+      rows:
+        allowZero && stream?.rows === 0
+          ? 0
+          : terminalDimension(stream?.rows, terminalDimension(fallbackRows, 24)),
     };
   };
 
@@ -83,9 +92,9 @@ export function useTerminalSize(options: UseTerminalSizeOptions = {}): TerminalS
     // would otherwise render one frame at the old width.
     setSize(measure());
     return onResize(() => setSize(measure()), stream as NodeJS.WriteStream);
-    // `measure` closes over the three values below; re-subscribing on a stream
+    // `measure` closes over the options below; re-subscribing on a stream
     // swap is required, and on a bound change is how the cap takes effect.
-  }, [stream, maxWidth, fallbackColumns, fallbackRows]);
+  }, [stream, maxWidth, fallbackColumns, fallbackRows, allowZero]);
 
   return size;
 }

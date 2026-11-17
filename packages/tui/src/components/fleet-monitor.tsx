@@ -232,7 +232,7 @@ export function FleetMonitor({
         </Box>
       }
     >
-      <Box marginTop={1} gap={1}>
+      <Box marginTop={size.rows < 8 ? 0 : 1} gap={1}>
         <Text color={theme.textMuted}>CAPACITY</Text>
         <Text color={theme.monitor.fleet}>
           [{renderProgress(concurrencyRatio, wide ? 16 : 10)}]

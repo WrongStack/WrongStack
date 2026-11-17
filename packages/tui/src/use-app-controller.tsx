@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
 import type { AppProps } from './app-props.js';
-import { effectivePanelPositions } from './app-ui-state.js';
 import { deriveAppViewState } from './app-view-state.js';
 import { leaderTimelineFromEntries } from './components/agents-monitor.js';
 import { usePendingUserInput } from './components/user-input-prompt.js';
@@ -373,7 +372,7 @@ export function useAppController(props: AppProps) {
     displayThinkingWord,
     fleetRunning: fleetCounts?.running ?? 0,
     liveAnimationStyle,
-    panelPositions: effectivePanelPositions(state, liveSettings),
+    panelPositions: sidebarLayout.panelPositions,
   });
   return {
     pendingUserInput,

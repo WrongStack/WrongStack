@@ -6,9 +6,11 @@ import type { ContentBlock, Message } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
 import { SlashCommandRegistry } from '@wrongstack/core/registry';
 import { DefaultAttachmentStore } from '@wrongstack/core/storage';
+import { detectTerminal } from '@wrongstack/core/utils';
 import type { Settings } from '../../src/app-state.js';
 import { SETTINGS_DEFAULTS } from '../../src/components/settings-picker-model.js';
 import { runTui } from '../../src/run-tui.js';
+import { DEFAULT_PANEL_POSITIONS } from '../../src/ui-contracts.js';
 
 const root = process.argv[2]!;
 const record = (event: unknown) =>
@@ -93,12 +95,16 @@ const agent = {
   abort: noop,
   on: () => noop,
 } as unknown as Agent;
+const sidebar = process.env.WRONGSTACK_PTY_TEST_SIDEBAR === 'true';
 let settings: Settings = {
   ...SETTINGS_DEFAULTS,
   fleetChatVerbosity: 'off',
   featureTokenSaving: 'off',
   lastSettingsField: 67,
-  showSidebar: process.env.WRONGSTACK_PTY_TEST_SIDEBAR === 'true',
+  showSidebar: sidebar,
+  panelPositions: sidebar
+    ? { ...DEFAULT_PANEL_POSITIONS, fleet: 'sidebar' }
+    : DEFAULT_PANEL_POSITIONS,
   chime: false,
   selectionMode: 'text',
 };
@@ -107,6 +113,7 @@ record({
   pid: process.pid,
   stdinTTY: process.stdin.isTTY,
   stdoutTTY: process.stdout.isTTY,
+  capability: detectTerminal(),
 });
 const code = await runTui({
   agent,

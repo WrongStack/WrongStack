@@ -90,7 +90,12 @@ export function HelpPanel({
   detailScroll = 0,
 }: HelpPanelProps): React.ReactElement {
   useActiveTheme();
-  const terminal = useTerminalSize({ maxWidth: columns, fallbackRows: 24, fallbackColumns: 90 });
+  const terminal = useTerminalSize({
+    maxWidth: columns,
+    fallbackRows: 24,
+    fallbackColumns: 90,
+    allowZero: true,
+  });
   const viewport = pickerViewport(terminal, { columns, maxRows, reservedRows: 4, rowCap: 26 });
   const width = viewport.columns;
   const contentWidth = Math.max(0, width - 4);

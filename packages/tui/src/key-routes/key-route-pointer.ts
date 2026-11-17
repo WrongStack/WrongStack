@@ -172,6 +172,16 @@ export async function routePointerEvents(
     // Horizontal trackpad reports are also encoded as "wheel" with delta 0;
     // ignore them so diagonal gestures do not accidentally move chat down.
     if (key.mouse?.kind === 'wheel' && key.mouse.wheel !== 0) {
+      // During shrink the measured history/sidebar height may still describe
+      // the previous frame. Reports outside the current screen own neither.
+      if (
+        !hitRegion(
+          { termRows, termCols: stdout.columns, viewportRows: state.viewportRows },
+          key.mouse.x,
+          key.mouse.y,
+        )
+      )
+        return true;
       // ── Sidebar wheel scroll ──
       // When the wheel lands in the sidebar region (right of the main
       // column) and the sidebar is visible, scroll sidebar content

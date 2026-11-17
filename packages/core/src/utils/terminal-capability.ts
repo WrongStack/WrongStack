@@ -58,8 +58,8 @@ export type TerminalHost = 'native' | 'browser';
 export interface TerminalHostInfo {
   host: TerminalHost;
   /**
-   * Short surface name for diagnostics (`codespaces`, `vscode`, `ttyd`, …), or
-   * `null` when the host is a native terminal or was forced by env override.
+   * Recognized surface name (`vscode`, `windows-terminal`, `kitty`, `tmux`, …),
+   * or `null` when the terminal identity is unknown or forced by env override.
    */
   kind: string | null;
   /**
@@ -130,8 +130,9 @@ export interface TerminalCapability {
    * VS Code Integrated Terminal). Used to apply Windows-specific raw-mode
    * handoff logic.
    *
-   * Detected by: platform === 'win32' AND `!process.stdout.getColorDepth?.()`
-   * (ConPTY exposes color depth; conhost does not). Also false on non-Windows.
+   * A recognized modern surface takes precedence over missing Node stream
+   * helpers (Bun need not expose getColorDepth). An unidentified Windows TTY
+   * without that helper takes the conservative legacy path.
    */
   isWindowsConhost: boolean;
   /**
@@ -259,6 +260,36 @@ interface BrowserHostSignal {
 
 const VSCODE_FAMILY_PROGRAMS = new Set(['vscode', 'vscode-insiders', 'visual studio code']);
 
+const NATIVE_TERMINAL_PROGRAMS = new Map([
+  ['wezterm', 'wezterm'],
+  ['kitty', 'kitty'],
+  ['ghostty', 'ghostty'],
+  ['alacritty', 'alacritty'],
+  ['iterm.app', 'iterm2'],
+  ['apple_terminal', 'apple-terminal'],
+  ['warpterminal', 'warp'],
+  ['rio', 'rio'],
+  ['mintty', 'mintty'],
+  ['tmux', 'tmux'],
+  ['screen', 'screen'],
+]);
+
+function detectNativeTerminalKind(env: typeof process.env): string | null {
+  const term = (env.TERM ?? '').trim().toLowerCase();
+  // The immediate multiplexer wins over markers inherited from its launcher.
+  if (env.TMUX || term.startsWith('tmux')) return 'tmux';
+  if (env.STY || term.startsWith('screen')) return 'screen';
+  const program = (env.TERM_PROGRAM ?? '').trim().toLowerCase();
+  if (program) return NATIVE_TERMINAL_PROGRAMS.get(program) ?? null;
+  if (env.LC_TERMINAL?.trim().toLowerCase() === 'iterm2') return 'iterm2';
+  if (term === 'xterm-kitty' || env.KITTY_WINDOW_ID) return 'kitty';
+  if (term === 'xterm-ghostty' || env.GHOSTTY_RESOURCES_DIR) return 'ghostty';
+  if (term === 'wezterm' || env.WEZTERM_PANE) return 'wezterm';
+  if (term === 'alacritty' || env.ALACRITTY_WINDOW_ID || env.ALACRITTY_SOCKET) return 'alacritty';
+  if (env.WT_SESSION) return 'windows-terminal';
+  return null;
+}
+
 function detectBrowserHostSignal(env: typeof process.env): BrowserHostSignal | null {
   const has = (key: string): boolean => {
     const value = env[key];
@@ -303,8 +334,8 @@ function detectBrowserHostSignal(env: typeof process.env): BrowserHostSignal | n
 
   const termProgram = (env.TERM_PROGRAM ?? '').trim().toLowerCase();
   if (VSCODE_FAMILY_PROGRAMS.has(termProgram)) {
-    // Desktop VS Code paints with a local client font, so a local font scan is
-    // still meaningful there; web builds are detected by the markers above.
+    // Its webview owns the configured font even on a local desktop. Host-side
+    // installed fonts do not identify the font this surface actually paints.
     return { kind: 'vscode', remoteClient: false };
   }
   if (termProgram === 'hyper' || termProgram === 'tabby') {
@@ -327,13 +358,14 @@ export function detectTerminalHost(
   isRemoteSSH: boolean = Boolean(env.SSH_CONNECTION || env.SSH_CLIENT || env.SSH_TTY),
 ): TerminalHostInfo {
   const override = env.WRONGSTACK_TUI_TERMINAL?.trim().toLowerCase();
-  if (override === 'native') return { host: 'native', kind: null, remoteClient: false };
+  if (override === 'native') return { host: 'native', kind: null, remoteClient: isRemoteSSH };
   if (override === 'browser' || override === 'web' || override === 'xterm') {
     return { host: 'browser', kind: null, remoteClient: true };
   }
 
   const signal = detectBrowserHostSignal(env);
-  if (!signal) return { host: 'native', kind: null, remoteClient: false };
+  if (!signal)
+    return { host: 'native', kind: detectNativeTerminalKind(env), remoteClient: isRemoteSSH };
   return {
     host: 'browser',
     kind: signal.kind,
@@ -398,6 +430,23 @@ function parseGraphicsProtocol(
     return colorDepth >= 3 ? 'halfblock' : 'none';
   }
 
+  if (!isTmux) {
+    // Use the immediate surface's identity. A terminal launched from Kitty
+    // may inherit KITTY_WINDOW_ID even though it cannot paint Kitty images.
+    const kind = host.kind ?? detectNativeTerminalKind(env);
+    if (kind === 'kitty' || kind === 'ghostty') return 'kitty';
+    if (
+      kind === 'wezterm' ||
+      kind === 'iterm2' ||
+      kind === 'warp' ||
+      kind === 'rio' ||
+      kind === 'mintty'
+    )
+      return 'iterm2';
+    return colorDepth >= 3 ? 'halfblock' : 'none';
+  }
+
+  // Only explicit tmux passthrough may consult the outer emulator's markers.
   if (
     env.KITTY_WINDOW_ID ||
     t.includes('kitty') ||
@@ -449,13 +498,15 @@ export function detectTerminal(
   const isRealTTY = (stdin?.isTTY ?? false) && (stdout?.isTTY ?? false);
   const stdoutWritable = isRealTTY && typeof stdout?.write === 'function';
   const term = env.TERM ?? '';
-  const isTmux = term.toLowerCase().startsWith('tmux');
+  const terminalHost = detectTerminalHost(env);
+  const isTmux = terminalHost.kind === 'tmux' || term.toLowerCase().startsWith('tmux');
   const isWindowsConhost =
     isRealTTY &&
     process.platform === 'win32' &&
+    terminalHost.host !== 'browser' &&
+    terminalHost.kind === null &&
     typeof (stdout as NodeJS.WriteStream & { getColorDepth?: unknown }).getColorDepth !==
       'function';
-  const terminalHost = detectTerminalHost(env);
   const colorDepth: ColorDepth = resolveBrowserColorDepth(
     isRealTTY ? parseColorDepth(env) : 0,
     isRealTTY,

@@ -20,6 +20,7 @@ import {
 import { routePastePipeline } from './key-routes/key-route-paste.js';
 import { routePointerEvents, routeSidebarFocusScroll } from './key-routes/key-route-pointer.js';
 import { overlayPointerKey } from './overlay-key-router.js';
+import { terminalDimension } from './terminal-dimensions.js';
 
 export type { AppKeyHandlerOptions } from './key-handler-context.js';
 
@@ -100,17 +101,20 @@ export function createAppKeyHandler(
     inputGateRef,
     pasteAccumRef,
     tryPickerKey,
-    termRows,
-    terminalColumns,
-    terminalRows,
-    mainColumnWidth,
     cancelNextStepsCountdown,
     draftRef,
   } = options;
-  const stdout = { columns: terminalColumns, rows: terminalRows };
+  const stdout = {
+    columns: terminalDimension(options.terminalColumns, 80),
+    rows: terminalDimension(options.terminalRows, 24),
+  };
+  const termRows = Math.min(terminalDimension(options.termRows, stdout.rows), stdout.rows);
   /** Effective width of the history area (terminal minus sidebar).
    *  Used for scrollbar/hit-test geometry so clicks land on the correct track. */
-  const historyWidth = mainColumnWidth > 0 ? mainColumnWidth : (stdout?.columns ?? 80);
+  const historyWidth = Math.min(
+    terminalDimension(options.mainColumnWidth, stdout.columns),
+    stdout.columns,
+  );
 
   /**
    * Run a detached promise from a key handler without risking the process.
@@ -137,10 +141,19 @@ export function createAppKeyHandler(
   };
 
   // Shared view for the ordered route modules (decomposition Phase 3).
-  const ctx: KeyRouteContext = { ...options, stdout, historyWidth, detach };
+  const ctx: KeyRouteContext = {
+    ...options,
+    terminalColumns: stdout.columns,
+    terminalRows: stdout.rows,
+    termRows,
+    mainColumnWidth: historyWidth,
+    stdout,
+    historyWidth,
+    detach,
+  };
   const panelOwnsInput = bottomPanelOwnsInput(
     state,
-    effectivePanelPositions(state, options.getSettings?.()),
+    effectivePanelPositions(state, options.getSettings?.(), stdout.columns),
   );
 
   const handleKey = async (input: string, key: KeyEvent) => {

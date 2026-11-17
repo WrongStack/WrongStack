@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { detectTerminal, detectTerminalHost } from '../../src/utils/terminal-capability.js';
 
 function fakeStreams(isTTY = true, withColorDepth = true) {
@@ -12,6 +12,16 @@ function fakeStreams(isTTY = true, withColorDepth = true) {
 }
 
 describe('detectTerminal — supportsSyncOutput & graphicsProtocol', () => {
+  it.each([
+    [{ TERM_PROGRAM: 'unknown-terminal', KITTY_WINDOW_ID: 'outer' }, 'halfblock'],
+    [{ TERM_PROGRAM: 'iTerm.app', KITTY_WINDOW_ID: 'outer' }, 'iterm2'],
+    [{ TERM: 'screen-256color', KITTY_WINDOW_ID: 'outer' }, 'halfblock'],
+  ])('uses the attached surface instead of inherited image markers (%j)', (env, protocol) => {
+    expect(
+      detectTerminal({ ...fakeStreams(), env: { ...env, COLORTERM: 'truecolor' } })
+        .graphicsProtocol,
+    ).toBe(protocol);
+  });
   it('enables synchronized output on modern real TTYs and disables on non-TTY or dumb terminals', () => {
     const tty = fakeStreams(true, true);
     expect(
@@ -136,6 +146,30 @@ describe('detectTerminal — supportsSyncOutput & graphicsProtocol', () => {
 });
 
 describe('detectTerminalHost — browser/webview hosts', () => {
+  it.each([
+    [{ WT_SESSION: 'terminal-session' }, 'windows-terminal'],
+    [{ TERM_PROGRAM: 'WezTerm' }, 'wezterm'],
+    [{ TERM: 'xterm-kitty' }, 'kitty'],
+    [{ TERM: 'xterm-ghostty' }, 'ghostty'],
+    [{ TERM: 'alacritty' }, 'alacritty'],
+    [{ TERM_PROGRAM: 'iTerm.app' }, 'iterm2'],
+    [{ TERM_PROGRAM: 'Apple_Terminal' }, 'apple-terminal'],
+    [{ TERM: 'tmux-256color', WT_SESSION: 'outer-terminal' }, 'tmux'],
+    [{ TERM: 'screen-256color', KITTY_WINDOW_ID: 'outer-terminal' }, 'screen'],
+  ])('identifies the attached native terminal from %j', (env, kind) => {
+    expect(detectTerminalHost(env)).toEqual({ host: 'native', kind, remoteClient: false });
+  });
+
+  it.each(['SSH_CONNECTION', 'SSH_CLIENT', 'SSH_TTY'])(
+    'marks native SSH sessions remote via %s',
+    (marker) => {
+      expect(detectTerminalHost({ TERM: 'xterm-256color', [marker]: 'remote-session' })).toEqual({
+        host: 'native',
+        kind: null,
+        remoteClient: true,
+      });
+    },
+  );
   it('keeps native desktop terminals native', () => {
     expect(detectTerminalHost({ TERM: 'xterm-256color' })).toEqual({
       host: 'native',
@@ -143,6 +177,16 @@ describe('detectTerminalHost — browser/webview hosts', () => {
       remoteClient: false,
     });
   });
+  it.each(['constructor', 'toString', '__proto__'])(
+    'does not recognize arbitrary TERM_PROGRAM=%s',
+    (program) => {
+      expect(detectTerminalHost({ TERM_PROGRAM: program })).toEqual({
+        host: 'native',
+        kind: null,
+        remoteClient: false,
+      });
+    },
+  );
 
   it('detects hosted browser workspaces as remote browser clients', () => {
     expect(detectTerminalHost({ CODESPACES: 'true', CODESPACE_NAME: 'demo' })).toEqual({
@@ -263,6 +307,26 @@ describe('detectTerminalHost — browser/webview hosts', () => {
       kind: 'gitpod',
       remoteClient: true,
     });
+  });
+});
+
+describe('detectTerminal — known Windows painting surfaces', () => {
+  const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform')!;
+  afterEach(() => Object.defineProperty(process, 'platform', originalPlatform));
+
+  it.each([
+    { TERM: 'xterm-256color', TERM_PROGRAM: 'vscode' },
+    { TERM: 'xterm-256color', WRONGSTACK_TUI_TERMINAL: 'browser' },
+    { TERM: 'xterm-256color', WT_SESSION: 'native-terminal' },
+  ])('does not mistake %j for legacy conhost without Node color helpers', (env) => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    const streams = fakeStreams(true, false);
+    // Control: an unidentified Windows console still takes the conservative path.
+    expect(detectTerminal({ ...streams, env: {} }).isWindowsConhost).toBe(true);
+    const capability = detectTerminal({ ...streams, env: { ...env, COLORTERM: 'truecolor' } });
+    expect(capability.isWindowsConhost).toBe(false);
+    expect(capability.supportsSyncOutput).toBe(true);
+    expect(capability.graphicsProtocol).toBe('halfblock');
   });
 });
 

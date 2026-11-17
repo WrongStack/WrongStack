@@ -124,7 +124,11 @@ export function routeEscClosePanels(ctx: KeyRouteContext, key: KeyEvent): boolea
     }
     if (escSelfOwnedPanelOpen(ctx.state)) {
       // Sidebar twins do not mount the bottom component's useInput handler.
-      const positions = effectivePanelPositions(ctx.state, ctx.getSettings?.());
+      const positions = effectivePanelPositions(
+        ctx.state,
+        ctx.getSettings?.(),
+        ctx.terminalColumns,
+      );
       if (ctx.state.worktreeMonitorOpen && positions.worktree === 'sidebar') {
         ctx.dispatch({ type: 'toggleWorktreeMonitor' });
       } else if (ctx.state.kanbanPanelOpen && positions.kanban === 'sidebar') {
@@ -300,7 +304,8 @@ export function routePanelEscapeRouter(ctx: KeyRouteContext, key: KeyEvent): boo
       ctx.state,
       key,
       ctx.dispatch,
-      effectivePanelPositions(ctx.state, ctx.getSettings?.()).processList !== 'sidebar',
+      effectivePanelPositions(ctx.state, ctx.getSettings?.(), ctx.terminalColumns).processList !==
+        'sidebar',
     )
   ) {
     return true;

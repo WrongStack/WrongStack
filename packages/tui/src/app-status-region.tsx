@@ -1,7 +1,7 @@
 import { getProcessRegistry } from '@wrongstack/tools';
 import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { effectiveAgentSwarmPanelMode, effectivePanelPositions } from './app-ui-state.js';
+import { effectiveAgentSwarmPanelMode } from './app-ui-state.js';
 import type { AppViewProps } from './app-view-contract.js';
 import { AgentsMonitor } from './components/agents-monitor.js';
 import { ContextPanel } from './components/context-panel.js';
@@ -38,6 +38,7 @@ import type { PanelId, PanelPositionMap } from './ui-contracts.js';
 export { resolveAgentSwarmPanelVisibility } from './app-ui-state.js';
 
 interface AppStatusRegionProps extends AppViewProps {
+  panelPositions: PanelPositionMap;
   panelsSuppressed?: boolean | undefined;
   /** Optional column width cap for the status bar (when beside a sidebar). */
   mainColumnWidth?: number | undefined;
@@ -64,6 +65,7 @@ export function AppStatusRegion({
   host,
   runtime,
   mainColumnWidth,
+  panelPositions,
   panelsSuppressed = false,
 }: AppStatusRegionProps): React.ReactElement {
   const {
@@ -210,15 +212,8 @@ export function AppStatusRegion({
   const { lowerFunctionPanelOpen } = viewState;
   const projectRoot = agent.ctx.projectRoot;
 
-  // Per-panel position routing. When a panel is set to 'sidebar', its
-  // bottom-region render is suppressed and the right sidebar renders the
-  // sidebar twin instead. See app-view.tsx for the sidebar twin dispatch.
-  // `effectivePanelPositions` is the same dual-source authority (picker
-  // draft while the settings picker is open, persisted config otherwise)
-  // the renderer and the dispatcher use — reading `liveSettings` directly
-  // here made this surface lag the sidebar twin while the picker was open,
-  // double-rendering the routed panel.
-  const panelPositions: PanelPositionMap = effectivePanelPositions(state, liveSettings);
+  // AppView supplies the same resolved destinations to both regions so
+  // a resize or a draft settings edit cannot render the panel twice.
   const routedToBottom = (id: PanelId): boolean => panelPositions[id] === 'bottom';
   const effectiveHiddenItems = useMemo(() => mergeComposerOwnedChips(hiddenItems), [hiddenItems]);
   const [updateReadyVersion, setUpdateReadyVersion] = useState<string | undefined>();

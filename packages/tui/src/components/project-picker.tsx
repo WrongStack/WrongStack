@@ -74,18 +74,24 @@ export function ProjectPicker({
         </Box>
       }
     >
-      <Box height={1} marginTop={compact ? 0 : 1}>
-        <Text color={filter ? theme.warn : theme.textMuted}>{glyphs.prompt} </Text>
-        <Text color={filter ? theme.textPrimary : theme.textMuted}>
-          {filter ||
-            (size.columns < 64 ? 'Filter projects…' : 'Type to filter projects and actions')}
-        </Text>
-        {filter ? <Text color={theme.accent}>█</Text> : null}
-        <Box flexGrow={1} />
-        {size.columns >= 64 ? <Text color={theme.textMuted}>{selectableCount} choices</Text> : null}
-      </Box>
+      {size.rows >= 6 ? (
+        <Box height={1} marginTop={compact ? 0 : 1}>
+          <Text color={filter ? theme.warn : theme.textMuted}>{glyphs.prompt} </Text>
+          <Text color={filter ? theme.textPrimary : theme.textMuted}>
+            {filter ||
+              (size.columns < 64 ? 'Filter projects…' : 'Type to filter projects and actions')}
+          </Text>
+          {filter ? <Text color={theme.accent}>█</Text> : null}
+          <Box flexGrow={1} />
+          {size.columns >= 64 ? (
+            <Text color={theme.textMuted}>{selectableCount} choices</Text>
+          ) : null}
+        </Box>
+      ) : null}
 
-      {window.above > 0 ? <Text color={theme.textMuted}> ↑ {window.above} hidden</Text> : null}
+      {size.rows >= 8 && window.above > 0 ? (
+        <Text color={theme.textMuted}> ↑ {window.above} hidden</Text>
+      ) : null}
 
       {visible.length === 0 ? (
         <EmptyPanelState
@@ -147,7 +153,9 @@ export function ProjectPicker({
         </Box>
       )}
 
-      {window.below > 0 ? <Text color={theme.textMuted}> ↓ {window.below} hidden</Text> : null}
+      {size.rows >= 8 && window.below > 0 ? (
+        <Text color={theme.textMuted}> ↓ {window.below} hidden</Text>
+      ) : null}
       {hint ? (
         <Text color={theme.warn}>
           {glyphs.warning} {hint}
