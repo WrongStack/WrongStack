@@ -3,6 +3,7 @@ import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import type { EngineTab } from './engine-workspace-tabs';
+import { RuntimeGate } from './RuntimeGate';
 
 const SessionMcpTasks = lazy(() =>
   import('./SessionMcpTasks').then((module) => ({ default: module.SessionMcpTasks })),
@@ -81,26 +82,31 @@ export function EngineSessionPanels({
     </Suspense>
   ) : tab === 'story' ? (
     <Suspense fallback={<p role="status">{t('chatView.opening.story')}</p>}>
-      <SessionStory
-        key={state.sessionId}
-        projectId={projectId}
-        projectRoot={projectRoot}
-        state={state}
-        send={send}
-        command={command}
-        onBack={onBack}
-      />
+      {/* The story reads the project's journal: its services start here when they are not running. */}
+      <RuntimeGate scope="project" projectId={projectId}>
+        <SessionStory
+          key={state.sessionId}
+          projectId={projectId}
+          projectRoot={projectRoot}
+          state={state}
+          send={send}
+          command={command}
+          onBack={onBack}
+        />
+      </RuntimeGate>
     </Suspense>
   ) : tab === 'context' ? (
     <Suspense fallback={<p role="status">{t('chatView.opening.context')}</p>}>
-      <SessionContextDashboard
-        key={state.sessionId}
-        projectId={projectId}
-        projectRoot={projectRoot}
-        state={state}
-        command={command}
-        onBack={onBack}
-      />
+      <RuntimeGate scope="project" projectId={projectId}>
+        <SessionContextDashboard
+          key={state.sessionId}
+          projectId={projectId}
+          projectRoot={projectRoot}
+          state={state}
+          command={command}
+          onBack={onBack}
+        />
+      </RuntimeGate>
     </Suspense>
   ) : tab === 'processes' ? (
     <Suspense fallback={<p role="status">{t('chatView.opening.processes')}</p>}>

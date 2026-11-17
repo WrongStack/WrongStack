@@ -1101,7 +1101,7 @@ impl HostState {
     /// one read as a crash on the next launch) and an unused boot session is closed as a
     /// strictly empty journal the empty-session sweep can remove. One still running after
     /// [`ENGINE_STOP_GRACE`] is stopped hard; terminals are stopped hard at once.
-    fn stop(self: &Arc<Self>, id: &str) -> Result<Value> {
+    pub(crate) fn stop(self: &Arc<Self>, id: &str) -> Result<Value> {
         let engine_pid = {
             let live = self.live.lock().map_err(err)?;
             let session = live.get(id).ok_or("Session is not running")?;

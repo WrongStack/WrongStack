@@ -31,11 +31,20 @@ export function RuntimeGate({
           params,
         );
         if (stopped) return;
+        // Services the host stopped for being idle read as never started: start them again.
+        if (result.status === 'idle') {
+          setStatus('starting');
+          await request(`${scope}.open`, params);
+          if (!stopped) timer = setTimeout(poll, 250);
+          return;
+        }
         setStatus(result.status);
         setError(result.error ?? '');
         // A starting engine is checked often: the page appears as soon as it is ready instead
-        // of up to a second later. A running one is only watched for a stop.
-        if (result.status === 'starting') timer = setTimeout(poll, 250);
+        // of up to a second later. A stopping one is followed until it is gone. A running one is
+        // only watched for a stop.
+        if (result.status === 'starting' || result.status === 'stopping')
+          timer = setTimeout(poll, 250);
         else if (result.status === 'running') timer = setTimeout(poll, 1000);
       } catch (error) {
         if (!stopped) {

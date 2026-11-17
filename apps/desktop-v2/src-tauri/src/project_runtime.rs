@@ -1,13 +1,55 @@
 //! Project services have their own native lifecycle. They are never desktop sessions.
 use crate::{engine::Engine, err, sessions::HostState, Result};
 use serde_json::{json, Value};
-use std::sync::Arc;
+use std::{
+    sync::{Arc, Weak},
+    thread,
+    time::{Duration, Instant},
+};
 use uuid::Uuid;
+
+/// Project services no window asked for in this long are stopped, unless one of the project's
+/// Kanban boards is supervised (its supervisor runs in them). The next visit starts them again.
+pub(crate) const PROJECT_IDLE_STOP: Duration = Duration::from_secs(15 * 60);
+const IDLE_SWEEP_EVERY: Duration = Duration::from_secs(60);
 
 pub(crate) struct ProjectRuntime {
     runtime_id: String,
     status: String,
     error: Option<String>,
+    /// The last time a window asked for these services: open, status, events, send or http.
+    last_used: Instant,
+    /// Stopped by the idle sweep: the entry goes once its engine exits, so the services read as
+    /// never started and the next visit starts them.
+    idle_stop: bool,
+}
+impl ProjectRuntime {
+    fn new(runtime_id: String, status: &str, error: Option<String>) -> Self {
+        Self {
+            runtime_id,
+            status: status.into(),
+            error,
+            last_used: Instant::now(),
+            idle_stop: false,
+        }
+    }
+    /// Running, not already being stopped, and untouched for `idle` at `now`.
+    fn idle_at(&self, now: Instant, idle: Duration) -> bool {
+        self.status == "running"
+            && !self.idle_stop
+            && now.saturating_duration_since(self.last_used) >= idle
+    }
+}
+/// Runs the idle sweep once a minute for as long as the host lives.
+pub(crate) fn start_idle_sweep(state: &Arc<HostState>) {
+    let host: Weak<HostState> = Arc::downgrade(state);
+    thread::spawn(move || loop {
+        thread::sleep(IDLE_SWEEP_EVERY);
+        let Some(host) = host.upgrade() else {
+            return;
+        };
+        host.sweep_idle_project_runtimes(Instant::now(), PROJECT_IDLE_STOP);
+    });
 }
 impl HostState {
     pub(crate) fn open_project_runtime(
@@ -29,7 +71,8 @@ impl HostState {
     }
     fn open_runtime(self: &Arc<Self>, project_id: &str, root: &str, retry: bool) -> Result<Value> {
         let mut runtimes = self.project_runtimes.lock().map_err(err)?;
-        if let Some(runtime) = runtimes.get(project_id) {
+        if let Some(runtime) = runtimes.get_mut(project_id) {
+            runtime.last_used = Instant::now();
             if !retry || runtime.status == "starting" || runtime.status == "running" {
                 return Ok(
                     json!({"projectId":project_id,"status":runtime.status,"error":runtime.error}),
@@ -39,11 +82,7 @@ impl HostState {
         let runtime_id = format!("project-{}", Uuid::new_v4());
         runtimes.insert(
             project_id.into(),
-            ProjectRuntime {
-                runtime_id: runtime_id.clone(),
-                status: "starting".into(),
-                error: None,
-            },
+            ProjectRuntime::new(runtime_id.clone(), "starting", None),
         );
         drop(runtimes);
         if let Err(error) = self.start_engine(&runtime_id, root, false) {
@@ -59,12 +98,20 @@ impl HostState {
         error: Option<&str>,
     ) -> Result<()> {
         let mut runtimes = self.project_runtimes.lock().map_err(err)?;
-        if let Some(runtime) = runtimes
-            .values_mut()
-            .find(|runtime| runtime.runtime_id == id)
-        {
-            runtime.status = status.into();
-            runtime.error = error.map(str::to_owned);
+        let project = runtimes
+            .iter()
+            .find(|(_, runtime)| runtime.runtime_id == id)
+            .map(|(project, _)| project.clone());
+        if let Some(project) = project {
+            let runtime = runtimes
+                .get_mut(&project)
+                .ok_or("Project services vanished")?;
+            if runtime.idle_stop && (status == "stopped" || status == "error") {
+                runtimes.remove(&project);
+            } else {
+                runtime.status = status.into();
+                runtime.error = error.map(str::to_owned);
+            }
             return Ok(());
         }
         drop(runtimes);
@@ -82,8 +129,14 @@ impl HostState {
     }
     pub(crate) fn runtime_status(&self, project_id: &str) -> Result<Value> {
         Ok(
-            match self.project_runtimes.lock().map_err(err)?.get(project_id) {
+            match self
+                .project_runtimes
+                .lock()
+                .map_err(err)?
+                .get_mut(project_id)
+            {
                 Some(runtime) => {
+                    runtime.last_used = Instant::now();
                     json!({"projectId":project_id,"status":runtime.status,"error":runtime.error,"engineBuild":crate::host::engine_build()})
                 }
                 None => {
@@ -96,9 +149,67 @@ impl HostState {
         self.project_runtimes
             .lock()
             .map_err(err)?
-            .get(project_id)
-            .map(|runtime| runtime.runtime_id.clone())
+            .get_mut(project_id)
+            .map(|runtime| {
+                runtime.last_used = Instant::now();
+                runtime.runtime_id.clone()
+            })
             .ok_or_else(|| "Project services have not started".into())
+    }
+    /// Stops, gracefully, the project services nobody used for `idle` at `now` and that host no
+    /// supervised Kanban board. Returns the projects whose services were asked to stop.
+    pub(crate) fn sweep_idle_project_runtimes(
+        self: &Arc<Self>,
+        now: Instant,
+        idle: Duration,
+    ) -> Vec<String> {
+        let candidates: Vec<(String, String)> = match self.project_runtimes.lock() {
+            Ok(runtimes) => runtimes
+                .iter()
+                .filter(|(_, runtime)| runtime.idle_at(now, idle))
+                .map(|(project, runtime)| (project.clone(), runtime.runtime_id.clone()))
+                .collect(),
+            Err(_) => return Vec::new(),
+        };
+        let mut stopped = Vec::new();
+        for (project, runtime_id) in candidates {
+            let engine = self.live.lock().ok().and_then(|live| {
+                live.get(&runtime_id)
+                    .and_then(|session| session.engine.clone())
+            });
+            // Without its connection the host cannot see the boards' supervision: keep it.
+            if engine.is_none_or(|engine| engine.supervises_kanban()) {
+                continue;
+            }
+            {
+                let Ok(mut runtimes) = self.project_runtimes.lock() else {
+                    continue;
+                };
+                // Used again, or replaced, since the candidates were read.
+                match runtimes.get_mut(&project) {
+                    Some(runtime)
+                        if runtime.runtime_id == runtime_id && runtime.idle_at(now, idle) =>
+                    {
+                        runtime.idle_stop = true;
+                        runtime.status = "stopping".into();
+                    }
+                    _ => continue,
+                }
+            }
+            if self.stop(&runtime_id).is_err() {
+                // Its engine was already gone: the next visit starts the services again.
+                if let Ok(mut runtimes) = self.project_runtimes.lock() {
+                    if runtimes
+                        .get(&project)
+                        .is_some_and(|runtime| runtime.runtime_id == runtime_id)
+                    {
+                        runtimes.remove(&project);
+                    }
+                }
+            }
+            stopped.push(project);
+        }
+        stopped
     }
     fn project_engine(&self, project_id: &str) -> Result<Arc<Engine>> {
         let id = self.project_runtime_id(project_id)?;
@@ -224,11 +335,7 @@ mod tests {
         assert!(host.project_runtime_status("unknown").is_err());
         host.project_runtimes.lock().unwrap().insert(
             project.id.clone(),
-            ProjectRuntime {
-                runtime_id: "project-contract".into(),
-                status: "starting".into(),
-                error: None,
-            },
+            ProjectRuntime::new("project-contract".into(), "starting", None),
         );
         host.publish_runtime_state(
             "project-contract",
@@ -309,11 +416,7 @@ mod tests {
         .unwrap();
         host.project_runtimes.lock().unwrap().insert(
             project.id.clone(),
-            ProjectRuntime {
-                runtime_id: "project-rt-1".into(),
-                status: "error".into(),
-                error: Some("exited".into()),
-            },
+            ProjectRuntime::new("project-rt-1".into(), "error", Some("exited".into())),
         );
         let page1 = host
             .request(
@@ -336,11 +439,7 @@ mod tests {
         .unwrap();
         host.project_runtimes.lock().unwrap().insert(
             project.id.clone(),
-            ProjectRuntime {
-                runtime_id: "project-rt-2".into(),
-                status: "running".into(),
-                error: None,
-            },
+            ProjectRuntime::new("project-rt-2".into(), "running", None),
         );
         let page2 = host
             .request(
@@ -363,6 +462,84 @@ mod tests {
         assert_eq!(page3["events"].as_array().unwrap().len(), 1);
         assert_eq!(page3["events"][0]["payload"]["sessionId"], "s-new");
 
+        drop(host);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn only_running_services_untouched_for_the_idle_window_are_idle() {
+        let mut runtime = ProjectRuntime::new("project-idle".into(), "running", None);
+        let idle = Duration::from_secs(900);
+        let later = runtime.last_used + idle;
+        assert!(!runtime.idle_at(later - Duration::from_secs(1), idle));
+        assert!(runtime.idle_at(later, idle));
+        runtime.status = "starting".into();
+        assert!(!runtime.idle_at(later, idle));
+        runtime.status = "running".into();
+        runtime.idle_stop = true;
+        assert!(!runtime.idle_at(later, idle), "already being stopped");
+        runtime.idle_stop = false;
+        runtime.last_used = later;
+        assert!(!runtime.idle_at(later, idle), "used again");
+    }
+
+    #[test]
+    fn the_sweep_keeps_services_it_cannot_see_and_an_idle_stop_reads_as_never_started() {
+        let dir = std::env::temp_dir().join(format!("desktop-project-idle-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(dir.join("repo")).unwrap();
+        let host = HostState::new(&dir).unwrap();
+        let project = host
+            .registry
+            .lock()
+            .unwrap()
+            .register(dir.join("repo").to_str().unwrap())
+            .unwrap();
+        host.project_runtimes.lock().unwrap().insert(
+            project.id.clone(),
+            ProjectRuntime::new("project-idle".into(), "running", None),
+        );
+        let idle = Duration::from_secs(900);
+        // No engine connection: the boards' supervision is unknown, so nothing is stopped.
+        let later = Instant::now() + idle;
+        assert!(host.sweep_idle_project_runtimes(later, idle).is_empty());
+        assert_eq!(
+            host.project_runtime_status(&project.id).unwrap()["status"],
+            "running"
+        );
+        // A status read is a use: the services are no longer idle at that moment.
+        let last_used = host.project_runtimes.lock().unwrap()[&project.id].last_used;
+        assert!(last_used + idle > later);
+
+        // Once an idle-stopped engine exits, its entry goes and the services read as idle.
+        host.project_runtimes
+            .lock()
+            .unwrap()
+            .get_mut(&project.id)
+            .unwrap()
+            .idle_stop = true;
+        host.publish_runtime_state("project-idle", "stopping", None, None)
+            .unwrap();
+        assert_eq!(
+            host.project_runtime_status(&project.id).unwrap()["status"],
+            "stopping"
+        );
+        host.publish_runtime_state("project-idle", "stopped", Some(0), None)
+            .unwrap();
+        assert_eq!(
+            host.project_runtime_status(&project.id).unwrap()["status"],
+            "idle"
+        );
+        // A crash of services nobody stopped stays visible.
+        host.project_runtimes.lock().unwrap().insert(
+            project.id.clone(),
+            ProjectRuntime::new("project-crash".into(), "running", None),
+        );
+        host.publish_runtime_state("project-crash", "error", Some(1), Some("exited"))
+            .unwrap();
+        assert_eq!(
+            host.project_runtime_status(&project.id).unwrap()["status"],
+            "error"
+        );
         drop(host);
         std::fs::remove_dir_all(dir).unwrap();
     }

@@ -830,6 +830,7 @@ pub fn serve() -> Result<()> {
         .try_lock()
         .map_err(|_| "Session host already running".to_string())?;
     let state = HostState::new(&dir)?;
+    crate::project_runtime::start_idle_sweep(&state);
     let server = TcpListener::bind("127.0.0.1:0").map_err(err)?;
     let endpoint = Endpoint {
         port: server.local_addr().map_err(err)?.port(),

@@ -28,6 +28,8 @@ pub struct Engine {
     /// frames a second; they are kept in memory only, never in the event log on disk.
     live_frame: Mutex<(u64, Value)>,
     path: PathBuf,
+    /// Each Kanban board's supervision as the engine last reported it: true unless disabled.
+    kanban: Mutex<HashMap<String, bool>>,
 }
 
 /// Most complete journal lines one `events` page returns.
@@ -38,6 +40,18 @@ pub(crate) const PAGE_BYTES: u64 = 1024 * 1024;
 /// Whether an engine message is a live browser frame that bypasses the event log.
 pub(crate) fn is_live_frame(message: &Value) -> bool {
     message["type"] == "browser.live.frame"
+}
+
+/// The board a `kanban.supervisor.status` frame reports and whether it is supervised (any
+/// status but `disabled`). The supervisor re-sends an unchanged board every five minutes.
+pub(crate) fn kanban_supervision(message: &Value) -> Option<(String, bool)> {
+    if message["type"] != "kanban.supervisor.status" {
+        return None;
+    }
+    let data = &message["payload"]["data"];
+    let board = data["boardId"].as_str()?;
+    let status = data["status"].as_str()?;
+    Some((board.to_owned(), status != "disabled"))
 }
 
 /// How a snapshot broadcast the engine re-sends whole is journaled: at most one per `spacing`
@@ -290,9 +304,37 @@ fn scope_message(message: &mut Value, identity: &Value, bind_session: bool) {
 #[cfg(test)]
 mod tests {
     use super::{
-        is_live_frame, scope_message, seed_path, stamp_frame, transient_io, Engine, JournalSeeds,
-        SnapshotGate,
+        is_live_frame, kanban_supervision, scope_message, seed_path, stamp_frame, transient_io,
+        Engine, JournalSeeds, SnapshotGate,
     };
+    #[test]
+    fn kanban_supervision_reads_each_boards_supervisor_status() {
+        let frame = |status: &str| json!({"type":"kanban.supervisor.status","payload":{"success":true,"data":{"boardId":"b1","status":status}}});
+        assert_eq!(
+            kanban_supervision(&frame("healthy")),
+            Some(("b1".into(), true))
+        );
+        assert_eq!(
+            kanban_supervision(&frame("running")),
+            Some(("b1".into(), true))
+        );
+        assert_eq!(
+            kanban_supervision(&frame("disabled")),
+            Some(("b1".into(), false))
+        );
+        assert_eq!(
+            kanban_supervision(
+                &json!({"type":"kanban.board","payload":{"data":{"boardId":"b1","status":"healthy"}}})
+            ),
+            None
+        );
+        assert_eq!(
+            kanban_supervision(
+                &json!({"type":"kanban.supervisor.status","payload":{"success":false}})
+            ),
+            None
+        );
+    }
     use serde_json::json;
     use std::fs;
     use std::time::Duration;
@@ -613,6 +655,7 @@ impl Engine {
             identity: Mutex::new(json!({})),
             live_frame: Mutex::new((0, Value::Null)),
             path: path.into(),
+            kanban: Mutex::new(HashMap::new()),
         });
         let owner = Arc::clone(&engine);
         let mut seeds = JournalSeeds::load(path);
@@ -659,6 +702,9 @@ impl Engine {
                             if message["type"] == "session.start" {
                                 let mut identity = owner.identity.lock().map_err(err)?;
                                 *identity = message["payload"].clone();
+                            }
+                            if let Some((board, supervised)) = kanban_supervision(&message) {
+                                owner.kanban.lock().map_err(err)?.insert(board, supervised);
                             }
                             // Stamped on arrival, so a snapshot that waits keeps its own time.
                             stamp_frame(&mut message, now());
@@ -721,6 +767,14 @@ impl Engine {
                 }
             })
             .unwrap_or(Value::Null)
+    }
+    /// Whether any Kanban board of this engine's project is supervised: its supervisor runs
+    /// in this engine, so the engine is never stopped for being idle.
+    pub fn supervises_kanban(&self) -> bool {
+        self.kanban
+            .lock()
+            .map(|boards| boards.values().any(|supervised| *supervised))
+            .unwrap_or(true)
     }
     pub fn identity(&self) -> Value {
         self.identity
