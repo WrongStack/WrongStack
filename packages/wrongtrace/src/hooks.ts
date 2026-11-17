@@ -259,6 +259,22 @@ function releasingFor(counters: Map<string, number>): Map<string, Set<Promise<un
   return map;
 }
 
+const pathEpochByCounters = new WeakMap<Map<string, number>, Map<string, number>>();
+
+function pathEpochFor(counters: Map<string, number>): Map<string, number> {
+  let map = pathEpochByCounters.get(counters);
+  if (!map) {
+    map = new Map<string, number>();
+    pathEpochByCounters.set(counters, map);
+  }
+  return map;
+}
+
+function bumpPathEpoch(counters: Map<string, number>, path: string): void {
+  const epochs = pathEpochFor(counters);
+  epochs.set(path, (epochs.get(path) ?? 0) + 1);
+}
+
 /** How long a post hook waits for an in-flight claim before leaving it to the TTL. */
 const CLAIM_SETTLE_MS = 10_000;
 
@@ -339,7 +355,7 @@ export function createWrongTraceHookPair(
 
       async function claim(): Promise<WrongTracePreToolUseOutcome | undefined> {
         try {
-          const inFlightRelease = releasingFor(counters).get(key);
+          const inFlightRelease = releasingFor(counters).get(path);
           if (inFlightRelease) await settleWithin(inFlightRelease, CLAIM_SETTLE_MS);
 
           // Self-owner exemption: OUR OWN held lock (leaked by an interrupted
@@ -362,6 +378,7 @@ export function createWrongTraceHookPair(
             });
             if (res?.ok === true) {
               acquireLock(counters, key);
+              bumpPathEpoch(counters, path);
               // Remember the identity this claim was actually acquired with —
               // the release-side owner-guard needs it (legacy post hooks are
               // built with an empty session identity and cannot re-derive it).
@@ -377,6 +394,7 @@ export function createWrongTraceHookPair(
               // claim and release the daemon lock mid-edit (the refcount
               // contract: only the LAST finisher releases).
               acquireLock(counters, key);
+              bumpPathEpoch(counters, path);
               if (!claimedOwnerSetFor(counters).has(key)) {
                 claimedOwnerSetFor(counters).set(key, owner);
               }
@@ -419,6 +437,7 @@ export function createWrongTraceHookPair(
       if (!shouldUnlock) return; // a sibling still holds this path
       const wasRaced = racedSetFor(counters).has(key);
       const recordedOwner = claimedOwnerSetFor(counters).get(key);
+      const releaseEpoch = pathEpochFor(counters).get(path) ?? 0;
       racedSetFor(counters).delete(key);
       claimedOwnerSetFor(counters).delete(key);
       try {
@@ -440,12 +459,12 @@ export function createWrongTraceHookPair(
           }
           const inFlightAfter = pendingFor(counters).get(key);
           if (inFlightAfter) await settleWithin(inFlightAfter, CLAIM_SETTLE_MS);
-          if (counters.has(key)) return; // re-acquired by a new preToolUse while awaiting
+          if (counters.has(key) || (pathEpochFor(counters).get(path) ?? 0) !== releaseEpoch) return; // re-acquired by a new preToolUse (same or another session) while awaiting
           const releasing = releasingFor(counters);
-          let releaseSet = releasing.get(key);
+          let releaseSet = releasing.get(path);
           if (!releaseSet) {
             releaseSet = new Set<Promise<unknown>>();
-            releasing.set(key, releaseSet);
+            releasing.set(path, releaseSet);
           }
           const unlockWork = wt.unlockFile(path);
           releaseSet.add(unlockWork);
@@ -454,7 +473,7 @@ export function createWrongTraceHookPair(
             released = await unlockWork;
           } finally {
             releaseSet.delete(unlockWork);
-            if (releaseSet.size === 0) releasing.delete(key);
+            if (releaseSet.size === 0) releasing.delete(path);
           }
           if (released !== null && released.ok !== false) {
             // Emit lock-released only on a CONFIRMED daemon response —

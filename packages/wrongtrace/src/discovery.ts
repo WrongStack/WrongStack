@@ -59,7 +59,10 @@ export async function discover(opts: DiscoveryOptions = {}): Promise<DiscoveryRe
     process.env['WRONGTRACE_URL'] ??
     'http://localhost:3444'
   ).replace(/\/+$/, '');
-  const timeoutMs = opts.timeoutMs ?? 1000;
+  const rawTimeoutMs = opts.timeoutMs ?? 1000;
+  const timeoutMs = Number.isFinite(rawTimeoutMs)
+    ? Math.min(Math.max(0, rawTimeoutMs), 2_147_483_647)
+    : 2_147_483_647;
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch;
 
   if (typeof fetchImpl !== 'function') {

@@ -92,12 +92,12 @@ export function createIpcTransport(socketPath?: string, timeouts?: IpcTimeouts):
   return {
     isWired: true,
     async call<T>(method: string, params: Record<string, unknown>): Promise<IpcCallResult<T>> {
-      const sock = _connectSocket.connect(socketPath);
+      let sock: ReturnType<typeof _connectSocket.connect> | undefined;
       const id = nextRequestId++;
       let timer: NodeJS.Timeout | undefined;
       const cleanup = () => {
         clearTimeout(timer);
-        sock.destroy();
+        sock?.destroy();
       };
       const safeConnectMs = Number.isFinite(connectTimeoutMs)
         ? Math.min(Math.max(0, connectTimeoutMs), 2_147_483_647)
@@ -106,8 +106,10 @@ export function createIpcTransport(socketPath?: string, timeouts?: IpcTimeouts):
         ? Math.min(Math.max(0, readTimeoutMs), 2_147_483_647)
         : 2_147_483_647;
       try {
+        const connected = _connectSocket.connect(socketPath);
+        sock = connected;
         await Promise.race([
-          once(sock, 'connect'),
+          once(connected, 'connect'),
           new Promise<never>((_, reject) => {
             timer = setTimeout(() => reject(new TimeoutError(connectTimeoutMs)), safeConnectMs);
           }),
@@ -116,16 +118,16 @@ export function createIpcTransport(socketPath?: string, timeouts?: IpcTimeouts):
         timer = undefined;
 
         const payload = `${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`;
-        sock.write(payload);
+        connected.write(payload);
 
-        timer = setTimeout(() => sock.destroy(new TimeoutError(readTimeoutMs)), safeReadMs);
+        timer = setTimeout(() => connected.destroy(new TimeoutError(readTimeoutMs)), safeReadMs);
 
         // Line-buffered frame reader: accumulate until the newline-delimited
         // frame carrying our response arrives. Junk/partial lines are skipped,
         // not fatal — the daemon is allowed to chatter before answering.
         let buffer = '';
         const decoder = new StringDecoder('utf8');
-        for await (const chunk of sock) {
+        for await (const chunk of connected) {
           buffer += decoder.write(chunk as Buffer);
           let newlineAt = buffer.indexOf('\n');
           while (newlineAt !== -1) {

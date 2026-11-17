@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-17T12:28:00.700Z",
+  "generatedAt": "2026-11-17T12:29:02.938Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6351,
-    "testFiles": 5392,
-    "sourceLines": 1313179,
+    "testFiles": 5393,
+    "sourceLines": 1313203,
     "workspaceEdges": 250,
     "moduleEdges": 18733,
     "nonCommandSlashImports": 0,
@@ -1259,7 +1259,7 @@
       "name": "@wrongstack/wrongtrace",
       "dir": "packages/wrongtrace",
       "sourceFiles": 11,
-      "testFiles": 11,
+      "testFiles": 12,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -1270,7 +1270,7 @@
         {
           "path": "packages/wrongtrace/tsconfig.test.json",
           "error": null,
-          "testFiles": 11
+          "testFiles": 12
         }
       ]
     },
@@ -33639,6 +33639,12 @@
       },
       {
         "file": "packages/wrongtrace/src/__tests__/hooks-comma-file-list.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/wrongtrace/src/__tests__/hooks-post-unlock-race.test.ts",
         "projects": [
           "root-node"
         ]
