@@ -45,6 +45,7 @@ export const SERVER_CONVERSATION_MESSAGE_TYPES = [
   'provider.stream_error',
   'provider.text_delta',
   'provider.thinking_delta',
+  'btw.state',
   'queue.drained',
   'queue.state',
   'run.result',

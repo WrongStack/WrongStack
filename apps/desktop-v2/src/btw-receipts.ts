@@ -1,7 +1,8 @@
 import { DurableSessionLog, sessionLogKey } from './durable-session-log';
-import { record } from './engine-values';
+import type { EngineCommand } from './engine-operations';
+import { entries, record } from './engine-values';
 
-/** A BTW note this window sent to a session's leader through the project mailbox. */
+/** A user BTW accepted by the leader, or a legacy mailbox receipt recorded by this desktop. */
 export interface SentBtw {
   messageId: string;
   text: string;
@@ -74,6 +75,43 @@ export class BtwReceiptStore extends DurableSessionLog<SentBtw, SavedBtwReceipts
   }
 }
 export const btwReceipts = new BtwReceiptStore();
+
+export interface PendingBtwSnapshot {
+  sessionId: string;
+  notes: SentBtw[];
+  mail: Map<string, Record<string, unknown>>;
+}
+
+/** Resolve live instruction identities and legacy receipts without treating missing data as an ack. */
+export async function readPendingBtw(
+  notes: readonly SentBtw[],
+  sessionId: string,
+  command: EngineCommand,
+): Promise<PendingBtwSnapshot> {
+  const direct = notes.some((note) => note.messageId.startsWith('btw:'));
+  const legacy = notes.some((note) => !note.messageId.startsWith('btw:'));
+  const pending = direct ? await command('btw.get', {}, ['btw.state']) : { items: [] };
+  const result = legacy
+    ? await command('mailbox.messages', { limit: 200 }, ['mailbox.messages'])
+    : { messages: [] };
+  if (
+    direct &&
+    (!Array.isArray(pending['items']) ||
+      (pending['sessionId'] !== undefined && pending['sessionId'] !== sessionId))
+  )
+    throw Error('The engine returned an invalid BTW status for this conversation.');
+  const pendingIds = new Set(entries(pending['items']).map((item) => String(item['id'])));
+  const mail = new Map(entries(result['messages']).map((item) => [String(item['id']), item]));
+  return {
+    sessionId,
+    mail,
+    notes: notes.filter((note) => {
+      if (note.messageId.startsWith('btw:')) return pendingIds.has(note.messageId);
+      const status = btwStatus(mail.get(note.messageId));
+      return status !== 'read' && status !== 'completed';
+    }),
+  };
+}
 
 /**
  * Receipt state of one mailbox record: completed beats read beats merely saved. A record the

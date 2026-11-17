@@ -102,21 +102,16 @@ export async function dispatchComposer(
     throw Error(englishText('composerMessage', 'noProvider'));
   if (state.inputs.length) throw Error(englishText('composerMessage', 'pendingQuestions'));
   if (delivery === 'btw' && state.running) {
-    const saved = await ports.command(
-      'mailbox.send',
-      {
-        to: 'leader',
-        from: 'desktop',
-        type: 'btw',
-        subject: 'BTW from Desktop',
-        body: content,
-        priority: 'normal',
-        audience: 'all',
-      },
-      ['mailbox.sent'],
-    );
-    if (typeof saved['messageId'] === 'string') ports.onBtwSaved?.(saved['messageId'], content);
-    return englishText('composerMessage', 'btwSaved');
+    if (!Array.isArray(capabilities) || !capabilities.includes('session.user-btw'))
+      throw Error(
+        'Restart the engine on the current Desktop build to deliver BTW as a user instruction. Your draft is kept.',
+      );
+    const saved = await ports.command('btw.add', { text: content }, ['btw.state']);
+    if (typeof saved['id'] !== 'string')
+      throw Error('The engine did not confirm the BTW instruction. Your draft is kept.');
+    ports.onBtwSaved?.(saved['id'], content);
+    // The pending list is the receipt; do not leave a permanent success banner.
+    return '';
   }
   if (delivery === 'steer' && state.running) {
     if (state.queue.length) {
@@ -143,7 +138,7 @@ export async function dispatchComposer(
           error: failure instanceof Error ? failure.message : String(failure),
         });
       }
-      return englishText('composerMessage', 'steerPlaced');
+      return '';
     }
     await ports.send('abort');
     await ports.waitForIdle();
@@ -162,7 +157,7 @@ export async function dispatchComposer(
       },
       ['queue.state'],
     );
-    return englishText('composerMessage', latest.running ? 'queued' : 'accepted');
+    return '';
   }
   if (delivery === 'queue' || latest.running)
     throw Error(englishText('composerMessage', 'noQueue'));

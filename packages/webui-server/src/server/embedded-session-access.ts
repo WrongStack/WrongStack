@@ -7,6 +7,8 @@ export function createEmbeddedSessionAccess(deps: EmbeddedMessageRouterDeps) {
 
   const guardedTypes = new Set([
     'user_message',
+    'btw.add',
+    'btw.get',
     'queue.add',
     'queue.remove',
     'queue.clear',

@@ -25,9 +25,30 @@ const META_KEY = '_btwNotes';
 /** Cap on queued notes so a runaway loop can't grow `ctx.meta` unbounded. */
 const MAX_PENDING = 20;
 
-function readQueue(ctx: Context): string[] {
+interface UserBtwInstruction {
+  id: string;
+  text: string;
+}
+type PendingBtw = string | UserBtwInstruction;
+
+function readQueue(ctx: Context): PendingBtw[] {
   const raw = ctx.meta[META_KEY];
-  return Array.isArray(raw) ? (raw as string[]) : [];
+  return Array.isArray(raw) ? (raw as PendingBtw[]) : [];
+}
+
+/** Only the authenticated user-input boundary creates tracked instructions. */
+export function setUserBtwInstruction(ctx: Context, id: string, text: string): void {
+  const queue = readQueue(ctx);
+  if (queue.length >= MAX_PENDING)
+    throw Error('Too many pending BTW instructions. Wait for the leader to pick them up.');
+  const trimmed = text.trim();
+  if (!id || !trimmed) throw Error('A BTW instruction requires an id and text.');
+  ctx.meta[META_KEY] = [...queue, { id, text: trimmed }];
+}
+
+/** Pending only: consuming the notes clears their display identities atomically. */
+export function pendingUserBtwInstructions(ctx: Context): UserBtwInstruction[] {
+  return readQueue(ctx).flatMap((note) => (typeof note === 'string' ? [] : [{ ...note }]));
 }
 
 /**
@@ -38,7 +59,12 @@ function readQueue(ctx: Context): string[] {
 export function setBtwNote(ctx: Context, text: string): number {
   const trimmed = text.trim();
   if (!trimmed) return readQueue(ctx).length;
-  const next = [...readQueue(ctx), trimmed].slice(-MAX_PENDING);
+  const next = [...readQueue(ctx), trimmed];
+  if (next.length > MAX_PENDING) {
+    // Ambient awareness must never evict an accepted human instruction.
+    const disposable = next.findIndex((note) => typeof note === 'string');
+    if (disposable >= 0) next.splice(disposable, 1);
+  }
   ctx.meta[META_KEY] = next;
   return next.length;
 }
@@ -55,7 +81,7 @@ export function pendingBtwCount(ctx: Context): number {
 export function consumeBtwNotes(ctx: Context): string[] {
   const notes = readQueue(ctx);
   if (notes.length > 0) delete ctx.meta[META_KEY];
-  return notes;
+  return notes.map((note) => (typeof note === 'string' ? note : `User instruction:\n${note.text}`));
 }
 
 /**

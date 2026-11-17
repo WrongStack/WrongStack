@@ -23,6 +23,8 @@ export const SURFACE_PROTOCOL_CAPABILITIES = [
   'session.prompt-queue-front',
   /** Direct user submissions receive a correlated acknowledgement after claiming their turn. */
   'session.user-ack',
+  /** Human instructions consumed at the next tool/model boundary, never peer FYI mail. */
+  'session.user-btw',
   /** `prefs.update` accepts `expectedSubagentModelPlan` and refuses when the plan changed. */
   'session.subagent-plan-expected',
   /** `files.move_many` / `files.delete_many`: multi-item moves and deletions, all or nothing. */

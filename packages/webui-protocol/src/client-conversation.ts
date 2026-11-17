@@ -3,6 +3,8 @@ export const CLIENT_CONVERSATION_MESSAGE_TYPES = [
   'ping',
   'user_message',
   'composer.warm',
+  'btw.add',
+  'btw.get',
   'queue.add',
   'queue.clear',
   'queue.get',

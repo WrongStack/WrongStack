@@ -22,6 +22,7 @@ import {
 } from './session-prompt-queue.js';
 import { STANDALONE_JOURNAL_ORIGIN } from './standalone-prompt-journal.js';
 import type { WSClientMessage } from './types.js';
+import { handleUserBtw } from './user-btw-handler.js';
 import { errMessage } from './ws-utils.js';
 
 type OutboundMessage = { type: string; payload: unknown };
@@ -528,6 +529,20 @@ export function createConversationOperations(
     startRuntimeTurn,
     runRuntimeTurn,
     promptQueue,
+    btw: async (ws, msg) => {
+      ws = correlatedReply(ws, msg.payload, ['error', 'btw.state']).socket;
+      if (!ensureCurrentSession(ws, msg, msg.type)) return;
+      const sessionId = requestedSessionId(msg) ?? ctx.getSessionId();
+      const operation = async () =>
+        handleUserBtw(msg, {
+          sessionId,
+          context: ctx.getAgent(sessionId).ctx,
+          running: activeTurns.has(sessionId),
+          reply: (message) => ctx.send(ws, message),
+        });
+      if (ctx.withSessionTransition) await ctx.withSessionTransition(operation);
+      else await operation();
+    },
     queue: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, msg.type)) return;
       await handlePromptQueueMessage(promptQueue, {

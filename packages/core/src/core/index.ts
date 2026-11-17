@@ -40,7 +40,9 @@ export {
   buildBtwBlock,
   consumeBtwNotes,
   pendingBtwCount,
+  pendingUserBtwInstructions,
   setBtwNote,
+  setUserBtwInstruction,
 } from './btw.js';
 export {
   confirmObserverCount,

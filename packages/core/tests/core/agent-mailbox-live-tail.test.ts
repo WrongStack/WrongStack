@@ -18,7 +18,11 @@ import { TOKENS } from '@wrongstack/contracts/kernel/tokens';
 import type { Capabilities } from '@wrongstack/contracts/types/provider';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Agent, createDefaultPipelines } from '../../src/core/agent.js';
-import { setBtwNote } from '../../src/core/btw.js';
+import {
+  pendingUserBtwInstructions,
+  setBtwNote,
+  setUserBtwInstruction,
+} from '../../src/core/btw.js';
 import { Context } from '../../src/core/context.js';
 import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
@@ -108,6 +112,68 @@ describe('mailbox mail rides the live-context tail', () => {
     for (const dir of tmpDirs)
       await removeProjectFixtureDirectory(dir, { maxRetries: 5, retryDelay: 100 });
     tmpDirs = [];
+  });
+
+  it('reads a human BTW after a tool call as an instruction, not peer FYI', async () => {
+    const provider = new MockProvider([
+      {
+        content: [{ type: 'tool_use', id: 't1', name: 'observe', input: {} }],
+        stopReason: 'tool_use',
+      },
+      { content: [{ type: 'text', text: 'Applied the added instruction.' }] },
+    ]);
+    const { agent, tmp } = await buildAgent(provider);
+    tmpDirs.push(tmp);
+    agent.tools.register({
+      name: 'observe',
+      description: 'Controlled tool boundary',
+      inputSchema: { type: 'object', properties: {} },
+      permission: 'auto',
+      mutating: false,
+      async execute() {
+        setUserBtwInstruction(agent.ctx, 'btw:tool', 'Preserve the public API');
+        expect(pendingUserBtwInstructions(agent.ctx)).toHaveLength(1);
+        return 'tool completed';
+      },
+    });
+    try {
+      expect((await agent.run('Inspect the API')).status).toBe('done');
+      expect(provider.receivedRequests).toHaveLength(2);
+      expect(JSON.stringify(provider.receivedRequests[0])).not.toContain('Preserve the public API');
+      const instruction = JSON.stringify(provider.receivedRequests[1]);
+      expect(instruction).toContain('the user added this');
+      expect(instruction).toContain('User instruction:');
+      expect(instruction).toContain('Preserve the public API');
+      expect(instruction).not.toContain('FYI only');
+      expect(instruction).not.toContain('no reply needed');
+      expect(pendingUserBtwInstructions(agent.ctx)).toEqual([]);
+    } finally {
+      await agent.ctx.session.close();
+    }
+  });
+
+  it('does not finish over a human BTW received during a final provider response', async () => {
+    const provider = new MockProvider([
+      { content: [{ type: 'text', text: 'Original final answer' }] },
+      { content: [{ type: 'text', text: 'Updated answer' }] },
+    ]);
+    const { agent, tmp } = await buildAgent(provider);
+    tmpDirs.push(tmp);
+    const complete = provider.complete.bind(provider);
+    provider.complete = async (request, options) => {
+      const response = await complete(request, options);
+      if (provider.calls === 1)
+        setUserBtwInstruction(agent.ctx, 'btw:late', 'Also verify the error path');
+      return response;
+    };
+    try {
+      expect((await agent.run('Inspect the API')).finalText).toBe('Updated answer');
+      expect(provider.receivedRequests).toHaveLength(2);
+      expect(JSON.stringify(provider.receivedRequests[1])).toContain('Also verify the error path');
+      expect(pendingUserBtwInstructions(agent.ctx)).toEqual([]);
+    } finally {
+      await agent.ctx.session.close();
+    }
   });
 
   it.each([

@@ -30,6 +30,7 @@ import { keepsOwnContext } from './agent-owned-context.js';
 import type { AgentResponseHandler } from './agent-response.js';
 import type { AgentToolHandler } from './agent-tools.js';
 import type { RunResult, UserInputPayload } from './agent-types.js';
+import { pendingUserBtwInstructions } from './btw.js';
 import { type RunOptions, resolveEventSessionId } from './context.js';
 import { resolveRunInputOrigin } from './context-environment.js';
 import { recordContextUsageAnchor, requestPromptStillCurrent } from './context-usage-anchor.js';
@@ -506,6 +507,15 @@ export function createAgentLoopHandler(
             delegateSummaries,
             abortReason: signalAbortReason(controller.signal),
           };
+        }
+        // A human instruction accepted during the in-flight request must be read
+        // before a final answer ends this turn. Peer FYI notes do not extend runs.
+        if (!sealed && pendingUserBtwInstructions(a.ctx).length > 0) {
+          if (responseResult.done || !res.content.some(isToolUseBlock)) {
+            finalText = responseResult.finalText;
+            await a.extensions.runAfterIteration(a.ctx, i);
+            continue;
+          }
         }
         if (responseResult.done) {
           return {

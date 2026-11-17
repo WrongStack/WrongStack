@@ -28,20 +28,25 @@ describe('BTW receipts', () => {
     expect(btwStatus({ readByCount: 2 })).toBe('read');
     expect(btwStatus({ completed: true, readBy: {} })).toBe('completed');
   });
-  it('reports the saved mailbox id of a BTW sent during a run', async () => {
+  it('reports the accepted instruction id of a BTW sent during a run', async () => {
     const saved = vi.fn();
     const started = reduceEngine(emptyEngineState, {
       type: 'session.start',
-      payload: { sessionId: 'native-a', provider: 'local', model: 'reasoner' },
+      payload: {
+        sessionId: 'native-a',
+        provider: 'local',
+        model: 'reasoner',
+        protocolCapabilities: ['session.user-btw'],
+      },
     });
     const ports = {
       current: () => ({ ...started, running: true }),
       send: vi.fn(),
-      command: vi.fn(async () => ({ messageId: 'mail-1' })),
+      command: vi.fn(async () => ({ id: 'btw:1' })),
       waitForIdle: vi.fn(),
       onBtwSaved: saved,
     };
     await dispatchComposer('  Note for the leader  ', 'btw', ports as never);
-    expect(saved).toHaveBeenCalledWith('mail-1', 'Note for the leader');
+    expect(saved).toHaveBeenCalledWith('btw:1', 'Note for the leader');
   });
 });

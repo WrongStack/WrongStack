@@ -292,8 +292,15 @@ explicit engine executable. There is no fallback to `wstack --webui`.
   Attempt identities fence late status updates and stale cancellation. Successful replies trigger
   saved-credential readback; local credential removal uses the existing verified key lifecycle
   and does not revoke remote browser sessions. Live account authentication still needs acceptance.
-- The session composer keeps model/effort beside one delivery-mode selector. BTW reaches the current
-  leader without interrupting; persistent queued prompts belong to the engine. Stop-and-steer waits
+- The session composer keeps model/effort beside one delivery-mode selector. Text-only BTW is a
+  same-session user instruction, consumed between tool/model calls without aborting the run—not
+  peer FYI mail. An instruction arriving during a final response is handled before the turn ends.
+  Pending BTW and queue entries disappear when picked up; historical receipts and success banners
+  do not linger above the composer. History is retained. BTW requires a current engine advertising
+  `session.user-btw`; older engines refuse it and keep the draft until the engine is restarted.
+  Pending BTW survives a UI reload while its engine lives; unlike the persistent prompt queue,
+  it is an in-memory run buffer and does not survive an engine crash. Persistent queued prompts
+  belong to the engine. Stop-and-steer waits
   for the actual turn boundary and refuses ambiguous pending-queue ordering. Prompt refinement uses
   a focused original/refined/English review dialog, explicit approval, editing/retry and the real
   refine-before-send preference. See the [chat checklist](../../docs/desktop-v2-chat-parity.md) for

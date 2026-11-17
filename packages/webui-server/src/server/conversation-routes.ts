@@ -10,6 +10,7 @@ export interface ConversationRouteHandlers {
   submitUserInput: (ws: WebSocket, msg: WSClientMessage) => Promise<void> | void;
   /** `queue.add` / `queue.remove` / `queue.clear` / `queue.get`: the host-owned prompt queue. */
   queue?: ((ws: WebSocket, msg: WSClientMessage) => Promise<void> | void) | undefined;
+  btw?: ((ws: WebSocket, msg: WSClientMessage) => Promise<void> | void) | undefined;
   /** `composer.warm`: open the session's provider connection while the user types. */
   warmProvider?: ((ws: WebSocket, msg: WSClientMessage) => Promise<void> | void) | undefined;
 }
@@ -44,6 +45,11 @@ export async function handleConversationRoute(
     case 'queue.get':
       if (!handlers.queue) return false;
       await handlers.queue(ws, msg);
+      return true;
+    case 'btw.add':
+    case 'btw.get':
+      if (!handlers.btw) return false;
+      await handlers.btw(ws, msg);
       return true;
     case 'composer.warm':
       if (!handlers.warmProvider) return false;

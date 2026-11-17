@@ -19,12 +19,12 @@ function fixture(running = false) {
       sessionId: 'native-a',
       provider: 'local',
       model: 'reasoner',
-      protocolCapabilities: ['session.prompt-queue', 'session.user-ack'],
+      protocolCapabilities: ['session.prompt-queue', 'session.user-ack', 'session.user-btw'],
     },
   });
   state = { ...state, running };
   const send = vi.fn(async () => {});
-  const command = vi.fn(async () => ({}));
+  const command = vi.fn(async (): Promise<Record<string, unknown>> => ({}));
   const waitForIdle = vi.fn(async () => {
     state = { ...state, running: false };
   });
@@ -164,17 +164,14 @@ describe('desktop composer delivery contracts', () => {
       ['queue.state'],
     );
   });
-  it('sends a running BTW through the session mailbox without interrupting or starting a turn', async () => {
+  it('sends a running BTW as a user instruction without interrupting or starting a turn', async () => {
     const ports = fixture(true);
+    ports.command.mockResolvedValue({ id: 'btw:accepted' });
     await dispatchComposer('  Keep the API stable.  ', 'btw', ports);
     expect(ports.command).toHaveBeenCalledExactlyOnceWith(
-      'mailbox.send',
-      expect.objectContaining({
-        to: 'leader',
-        type: 'btw',
-        body: 'Keep the API stable.',
-      }),
-      ['mailbox.sent'],
+      'btw.add',
+      { text: 'Keep the API stable.' },
+      ['btw.state'],
     );
     expect(ports.send).not.toHaveBeenCalled();
     expect(ports.waitForIdle).not.toHaveBeenCalled();
@@ -241,7 +238,7 @@ describe('desktop composer delivery contracts', () => {
     ports.send.mockImplementation(async () => {
       order.push('abort');
     });
-    expect(await dispatchComposer('New direction', 'steer', ports)).toMatch(/ahead of/);
+    expect(await dispatchComposer('New direction', 'steer', ports)).toBe('');
     expect(order).toEqual(['queued first', 'abort']);
     expect(ports.command).toHaveBeenCalledExactlyOnceWith(
       'queue.add',

@@ -132,33 +132,25 @@ export async function exerciseNativeComposer({
   await waitFor(() => providerFixture.holds.has('queue'), 'Real provider held turn');
   const turnCalls = providerFixture.calls.filter((c) => c.stream).length;
   await send('[native-composer-btw] Keep the public API stable.', 'btw');
-  await page.getByRole('status').filter({ hasText: 'BTW saved for this session' }).waitFor();
+  await page.locator('.btw-receipts summary').filter({ hasText: 'BTW notes · 1' }).waitFor();
   assert.equal(
     providerFixture.calls.filter((c) => c.stream).length,
     turnCalls,
     'BTW does not interrupt or start a provider turn',
   );
   assert.ok(providerFixture.holds.has('queue'), 'BTW leaves the active provider request running');
-  // The sent note is followed through its real mailbox record.
+  // Human BTW goes to the live instruction buffer, never the peer mailbox.
   const receipts = page.locator('.btw-receipts');
   await receipts.locator('summary').filter({ hasText: 'BTW notes · 1' }).click();
-  const receipt = receipts
+  await receipts
     .getByRole('region', { name: 'BTW receipts', exact: true })
-    .locator('li')
-    .filter({ hasText: '[native-composer-btw] Keep the public API stable.' });
-  await waitFor(
-    async () => /Saved · not read yet|Read by the leader|Handled/.test(await receipt.innerText()),
-    'BTW receipt read from the mailbox',
-  );
+    .getByText('[native-composer-btw] Keep the public API stable.', { exact: true })
+    .waitFor();
+  assert.equal((await call('btw.get', {}, ['btw.state'])).items.length, 1);
   const btwMail = (
     await call('mailbox.messages', { limit: 200 }, ['mailbox.messages'])
   ).messages.find((mail) => mail.body === '[native-composer-btw] Keep the public API stable.');
-  assert.ok(btwMail, 'The receipt follows a real mailbox record');
-  assert.equal(
-    (await receipt.innerText()).includes('Handled'),
-    btwMail.completed === true,
-    'Handled is shown exactly when the mailbox record is completed',
-  );
+  assert.equal(btwMail, undefined, 'A user instruction is not demoted to peer FYI mail');
   await receipts.locator('summary').click();
   await send('[native-composer-remove] Remove this pending task.', 'queue');
   const queue = page.locator('.composer-queue');
@@ -179,13 +171,9 @@ export async function exerciseNativeComposer({
   await page.locator(`[data-engine-session="${identity.sessionId}"]`).waitFor();
   await queue.locator('summary').filter({ hasText: '1 queued prompt' }).waitFor();
   assert.ok(providerFixture.holds.has('queue'), 'Queue and active turn survive renderer reload');
-  // BTW receipts are stored per project session, not only in the renderer.
-  await receipts.locator('summary').filter({ hasText: 'BTW notes · 1' }).click();
-  await waitFor(
-    async () => /Saved · not read yet|Read by the leader|Handled/.test(await receipt.innerText()),
-    'BTW receipt restored after reload',
-  );
-  await receipts.locator('summary').click();
+  // Reload still shows the pending instruction, not a historical receipt.
+  await receipts.locator('summary').filter({ hasText: 'BTW notes · 1' }).waitFor();
+  assert.equal((await call('btw.get', {}, ['btw.state'])).items.length, 1);
   // Steering over a nonempty queue: the engine places the instruction first, then the run stops.
   await send('[native-composer-steer-first] Take this before the queued task.', 'steer');
   await waitFor(
@@ -208,6 +196,13 @@ export async function exerciseNativeComposer({
   );
   await idle();
   assert.equal((await call('queue.get', {}, ['queue.state'])).items.length, 0);
+  assert.equal((await call('btw.get', {}, ['btw.state'])).items.length, 0);
+  await receipts.waitFor({ state: 'detached' });
+  await queue.waitFor({ state: 'detached' });
+  assert.ok(
+    providerFixture.calls.some((call) => call.composerPrompt.includes('[native-composer-btw]')),
+    'The added user instruction reached a provider request',
+  );
   await findConversationMessages(page, '[native-composer-queued]', 1);
   assert.ok(
     !providerFixture.calls.some((c) => c.composerPrompt.includes('[native-composer-remove]')),
