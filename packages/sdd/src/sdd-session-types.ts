@@ -51,6 +51,16 @@ export interface AISpecSessionPersistence {
   delete(): Promise<void>;
 }
 
+function isCollectedAnswer(value: unknown): value is CollectedAnswer {
+  if (!value || typeof value !== 'object') return false;
+  const answer = value as Partial<CollectedAnswer>;
+  return (
+    typeof answer.question === 'string' &&
+    typeof answer.answer === 'string' &&
+    typeof answer.timestamp === 'number'
+  );
+}
+
 export function isAISpecSession(value: unknown): value is AISpecSession {
   if (!value || typeof value !== 'object') return false;
   const session = value as Partial<AISpecSession>;
@@ -60,6 +70,7 @@ export function isAISpecSession(value: unknown): value is AISpecSession {
     typeof session.title === 'string' &&
     typeof session.userIntent === 'string' &&
     Array.isArray(session.answers) &&
+    session.answers.every(isCollectedAnswer) &&
     typeof session.updatedAt === 'number'
   );
 }

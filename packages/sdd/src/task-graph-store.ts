@@ -255,12 +255,23 @@ export class TaskGraphStore implements TaskStore {
     } else {
       index.entries.push(entry);
     }
-    await atomicWrite(this.indexPath, JSON.stringify(index, null, 2), { mode: 0o600 });
+    await this.writeIndex(index);
   }
 
   private async removeFromIndex(id: string): Promise<void> {
     const index = await this.readIndex();
     index.entries = index.entries.filter((e) => e.id !== id);
-    await atomicWrite(this.indexPath, JSON.stringify(index, null, 2), { mode: 0o600 });
+    await this.writeIndex(index);
+  }
+
+  private async writeIndex(index: TaskGraphIndex): Promise<void> {
+    try {
+      await atomicWrite(this.indexPath, JSON.stringify(index, null, 2), { mode: 0o600 });
+    } catch (error) {
+      // The graph mutation is already durable. Force the next reader to rebuild
+      // rather than trust an older index that hides or misreports that mutation.
+      await fsp.unlink(this.indexPath).catch(() => undefined);
+      throw error;
+    }
   }
 }

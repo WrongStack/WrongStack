@@ -256,12 +256,23 @@ export class SpecStore {
     } else {
       index.entries.push(entry);
     }
-    await atomicWrite(this.indexPath, JSON.stringify(index, null, 2), { mode: 0o600 });
+    await this.writeIndex(index);
   }
 
   private async removeFromIndex(id: string): Promise<void> {
     const index = await this.readIndex();
     index.entries = index.entries.filter((e) => e.id !== id);
-    await atomicWrite(this.indexPath, JSON.stringify(index, null, 2), { mode: 0o600 });
+    await this.writeIndex(index);
+  }
+
+  private async writeIndex(index: SpecIndex): Promise<void> {
+    try {
+      await atomicWrite(this.indexPath, JSON.stringify(index, null, 2), { mode: 0o600 });
+    } catch (error) {
+      // The spec mutation is already durable. Invalidate the derived index so
+      // the next reader rebuilds it from the authoritative specification files.
+      await fsp.unlink(this.indexPath).catch(() => undefined);
+      throw error;
+    }
   }
 }

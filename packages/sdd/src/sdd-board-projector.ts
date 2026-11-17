@@ -512,19 +512,20 @@ export class SddBoardProjector {
       this.timer = null;
     }
     const snap = this.build();
-    const sessionId = this.currentSessionId();
-    this.o.events.emit('sdd.board.snapshot', {
-      ...(sessionId ? { sessionId } : {}),
-      runId: this.o.runId,
-      snapshot: snap,
-    });
     if (this.o.store) {
+      // Reserve persistence order before an observer can synchronously flush again.
       // Keep one write in flight and one latest pending snapshot. If disk is
       // slower than the projection cadence, obsolete intermediate snapshots
       // are replaced instead of building an unbounded Promise/write backlog.
       this.pendingSnapshot = snap;
       this.startSaveLoop(this.o.store);
     }
+    const sessionId = this.currentSessionId();
+    this.o.events.emit('sdd.board.snapshot', {
+      ...(sessionId ? { sessionId } : {}),
+      runId: this.o.runId,
+      snapshot: snap,
+    });
   }
 
   private startSaveLoop(store: SddBoardPersistence): void {

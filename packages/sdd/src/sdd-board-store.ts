@@ -223,18 +223,20 @@ export class SddBoardStore {
 
   private async appendEventInternal(filePath: string, event: SddBoardEvent): Promise<void> {
     await this.ensureBaseDir();
-    await fsp.appendFile(filePath, `${JSON.stringify(event)}\n`, { mode: 0o600 });
+    await withFileLock(filePath, async () => {
+      await fsp.appendFile(filePath, `${JSON.stringify(event)}\n`, { mode: 0o600 });
 
-    const writes = (this.eventWritesSinceCheck.get(filePath) ?? 0) + 1;
-    if (writes < this.eventSizeCheckEvery) {
-      this.eventWritesSinceCheck.set(filePath, writes);
-      return;
-    }
-    this.eventWritesSinceCheck.set(filePath, 0);
+      const writes = (this.eventWritesSinceCheck.get(filePath) ?? 0) + 1;
+      if (writes < this.eventSizeCheckEvery) {
+        this.eventWritesSinceCheck.set(filePath, writes);
+        return;
+      }
+      this.eventWritesSinceCheck.set(filePath, 0);
 
-    const stat = await fsp.stat(filePath);
-    if (stat.size <= this.eventMaxBytes) return;
-    await this.compactEventTail(filePath, stat.size);
+      const stat = await fsp.stat(filePath);
+      if (stat.size <= this.eventMaxBytes) return;
+      await this.compactEventTail(filePath, stat.size);
+    });
   }
 
   private async compactEventTail(filePath: string, size: number): Promise<void> {

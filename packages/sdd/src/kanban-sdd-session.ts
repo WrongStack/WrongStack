@@ -26,28 +26,36 @@ export function createKanbanSddSessionPersistence(
 
   return {
     async load(): Promise<AISpecSession | null> {
-      await writeChain;
-      const state = await readKanbanWorkflowState(projectRoot, SDD_SESSION_WORKFLOW_ID);
-      if (state) {
-        revision = state.revision;
-        return isAISpecSession(state.value) ? structuredClone(state.value) : null;
-      }
+      // Loading can import legacy state and updates the tracked revision, so it
+      // must reserve its place alongside saves and deletes before yielding.
+      const pending = writeChain.then(async () => {
+        const state = await readKanbanWorkflowState(projectRoot, SDD_SESSION_WORKFLOW_ID);
+        if (state) {
+          revision = state.revision;
+          return isAISpecSession(state.value) ? structuredClone(state.value) : null;
+        }
 
-      const legacy = await readLegacySession(legacySessionPath);
-      if (!legacy) {
-        revision = 0;
-        return null;
-      }
+        const legacy = await readLegacySession(legacySessionPath);
+        if (!legacy) {
+          revision = 0;
+          return null;
+        }
 
-      const imported = await writeKanbanWorkflowState(
-        projectRoot,
-        SDD_SESSION_WORKFLOW_ID,
-        legacy,
-        0,
+        const imported = await writeKanbanWorkflowState(
+          projectRoot,
+          SDD_SESSION_WORKFLOW_ID,
+          legacy,
+          0,
+        );
+        revision = imported.revision;
+        if (legacySessionPath) await fsp.unlink(legacySessionPath).catch(() => undefined);
+        return structuredClone(legacy);
+      });
+      writeChain = pending.then(
+        () => undefined,
+        () => undefined,
       );
-      revision = imported.revision;
-      if (legacySessionPath) await fsp.unlink(legacySessionPath).catch(() => undefined);
-      return structuredClone(legacy);
+      return pending;
     },
 
     async save(session: AISpecSession): Promise<void> {
