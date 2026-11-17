@@ -177,14 +177,14 @@ export function selectSubagentTools(
     const directorTool = directorToolsByName.get(name);
     if (directorTool && !result.has(name)) result.set(name, directorTool);
   }
+  result.set('submit_result', makeSubagentResultTool());
+  result.set('session_note', makeSessionNoteTool());
   const missing = [...allowSet].filter(
     (name) => !NEVER_SUBAGENT_TOOLS.has(name) && !result.has(name),
   );
   if (missing.length > 0) {
     throw new Error(`Subagent tool contract is not registered: ${missing.sort().join(', ')}`);
   }
-  result.set('submit_result', makeSubagentResultTool());
-  result.set('session_note', makeSessionNoteTool());
   return Array.from(result.values());
 }
 

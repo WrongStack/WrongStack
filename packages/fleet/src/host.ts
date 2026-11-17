@@ -156,8 +156,10 @@ export class MultiAgentHost {
    * before the agent starts — without this the leader literally cannot
    * see the orchestration tools.
    */
+  private buildingDirector: Promise<void> | undefined;
+
   async ensureDirector(): Promise<Director | null> {
-    if (this.director) return this.director;
+    if (this.director && !this.buildingDirector) return this.director;
     await this.buildDirector();
     return this.director ?? null;
   }
@@ -210,7 +212,12 @@ export class MultiAgentHost {
   }
 
   private async buildDirector(): Promise<void> {
-    return buildDirectorFromHost(this.hostDirectorSetupHost());
+    if (this.buildingDirector) return this.buildingDirector;
+    const work = buildDirectorFromHost(this.hostDirectorSetupHost()).finally(() => {
+      if (this.buildingDirector === work) this.buildingDirector = undefined;
+    });
+    this.buildingDirector = work;
+    return work;
   }
 
   /**

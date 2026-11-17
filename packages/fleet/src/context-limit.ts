@@ -137,7 +137,10 @@ export async function resolveRuntimeMaxContextDetailed(
   // The configured baseUrl is an auth/proxy endpoint (api.anthropic.com, a
   // Copilot proxy, …), not a context-shrinking gateway, so we bypass the
   // divergence guard that the generic catalog path applies below.
-  const sibling = providerConfig?.family ? SIBLING_CATALOG[providerConfig.family] : undefined;
+  const sibling =
+    providerConfig?.family && Object.hasOwn(SIBLING_CATALOG, providerConfig.family)
+      ? SIBLING_CATALOG[providerConfig.family]
+      : undefined;
   if (sibling && input.modelsRegistry) {
     const mergedModels = mergeCustomModelDefs(providerConfig?.customModels, input.config.models);
 
@@ -415,7 +418,10 @@ export async function resolveRuntimePriceCliff(
   if (!modelsRegistry) return undefined;
   if (!modelId) return null;
   const catalogId = catalogProviderIdFor(providerId, providerConfig?.type);
-  const sibling = providerConfig?.family ? SIBLING_CATALOG[providerConfig.family] : undefined;
+  const sibling =
+    providerConfig?.family && Object.hasOwn(SIBLING_CATALOG, providerConfig.family)
+      ? SIBLING_CATALOG[providerConfig.family]
+      : undefined;
   const candidates = [catalogId, sibling, providerId].filter(
     (id, index, all): id is string => Boolean(id) && all.indexOf(id) === index,
   );

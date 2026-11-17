@@ -106,7 +106,9 @@ export function recordSkillOutcomes(
   const at = now.toISOString();
   const bump = (name: string, field: 'accepted' | 'declined') => {
     if (!SKILL_NAME.test(name)) return;
-    const entry = outcomes.skills[name] ?? { accepted: 0, declined: 0 };
+    const entry = Object.hasOwn(outcomes.skills, name)
+      ? outcomes.skills[name]!
+      : { accepted: 0, declined: 0 };
     entry[field]++;
     if (field === 'accepted') entry.lastAcceptedAt = at;
     else entry.lastDeclinedAt = at;

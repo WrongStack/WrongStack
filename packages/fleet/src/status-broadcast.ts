@@ -290,6 +290,11 @@ export function createFleetStatusBroadcaster(opts: FleetStatusBroadcasterOptions
                 /* best-effort — a broken mailbox must never affect the fleet */
               });
           }
+          const pending = coalesced.get(e.subagentId);
+          if (pending) {
+            clearTimeout(pending.timer);
+            coalesced.delete(e.subagentId);
+          }
           announcedSpawn.delete(e.subagentId);
           silentInfrastructureAgents.delete(e.subagentId);
           lastSentAt.delete(e.subagentId);

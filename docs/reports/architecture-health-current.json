@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-17T12:29:02.938Z",
+  "generatedAt": "2026-11-17T12:31:22.619Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6351,
-    "testFiles": 5393,
-    "sourceLines": 1313203,
+    "testFiles": 5395,
+    "sourceLines": 1313223,
     "workspaceEdges": 250,
     "moduleEdges": 18733,
     "nonCommandSlashImports": 0,
@@ -409,7 +409,7 @@
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
       "sourceFiles": 63,
-      "testFiles": 11,
+      "testFiles": 13,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -430,7 +430,7 @@
         {
           "path": "packages/fleet/tsconfig.test.json",
           "error": null,
-          "testFiles": 11
+          "testFiles": 13
         }
       ]
     },
@@ -14756,6 +14756,12 @@
         ]
       },
       {
+        "file": "packages/fleet/tests/host-ensure-director-race.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/fleet/tests/host-helpers-symlink.test.ts",
         "projects": [
           "root-node"
@@ -14775,6 +14781,12 @@
       },
       {
         "file": "packages/fleet/tests/skill-companion-outcomes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/fleet/tests/status-broadcast-removed-timer.test.ts",
         "projects": [
           "root-node"
         ]
