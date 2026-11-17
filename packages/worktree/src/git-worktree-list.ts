@@ -8,6 +8,7 @@
  *
  * @module worktree/git-worktree-list
  */
+import { realpath } from 'node:fs/promises';
 import * as path from 'node:path';
 import { defaultRun, type GitRunner } from './worktree-git.js';
 
@@ -85,7 +86,13 @@ export async function listGitWorktrees(
   try {
     const result = await runGit(['worktree', 'list', '--porcelain'], projectRoot);
     if (result.code !== 0) return [];
-    return parseWorktreePorcelain(result.stdout, projectRoot);
+    // Git reports physical checkout paths; path.resolve does not resolve aliases.
+    const physicalRoot = await realpath(projectRoot).catch((error: unknown) => {
+      // Keep the snapshot usable if the path disappeared after Git finished.
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return projectRoot;
+      throw error;
+    });
+    return parseWorktreePorcelain(result.stdout, physicalRoot);
   } catch {
     return [];
   }

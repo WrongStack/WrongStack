@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-17T12:26:28.824Z
+**Generated:** 2026-11-17T12:28:00.700Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6351 |
-| Production source lines | 1313168 |
-| Test files | 5390 |
+| Production source lines | 1313179 |
+| Test files | 5392 |
 | Workspace dependency edges | 250 |
 | Relative module edges | 18733 |
 | Non-command slash imports | 0 |
@@ -71,7 +71,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/webui | 796 | 536 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-protocol | 29 | 16 | @wrongstack/contracts, @wrongstack/core, @wrongstack/hq |
 | @wrongstack/webui-server | 353 | 401 | @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/worktree, @wrongstack/wrongtrace |
-| @wrongstack/worktree | 10 | 5 | @wrongstack/contracts, @wrongstack/core |
+| @wrongstack/worktree | 10 | 7 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/wrongmemory-client | 6 | 3 | — |
 | @wrongstack/wrongtrace | 11 | 11 | — |
 | wrongstack | 1 | 1 | @wrongstack/cli |

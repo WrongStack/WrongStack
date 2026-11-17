@@ -87,8 +87,12 @@ export async function holdManagedWorktree(
       return;
     }
     inProcessHolds.delete(key);
+    // Nested holds may be released in any order; only a new acquisition
+    // during this release's asynchronous read should prevent marker removal.
+    const releaseGeneration = holdGenerations.get(key);
     const current = await readMarker(file);
-    if ((inProcessHolds.get(key) ?? 0) > 0 || holdGenerations.get(key) !== gen) return;
+    if ((inProcessHolds.get(key) ?? 0) > 0 || holdGenerations.get(key) !== releaseGeneration)
+      return;
     if (current?.pid === process.pid) await fsp.unlink(file).catch(() => undefined);
   };
 }

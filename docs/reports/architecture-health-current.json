@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-17T12:26:28.824Z",
+  "generatedAt": "2026-11-17T12:28:00.700Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6351,
-    "testFiles": 5390,
-    "sourceLines": 1313168,
+    "testFiles": 5392,
+    "sourceLines": 1313179,
     "workspaceEdges": 250,
     "moduleEdges": 18733,
     "nonCommandSlashImports": 0,
@@ -1218,7 +1218,7 @@
       "name": "@wrongstack/worktree",
       "dir": "packages/worktree",
       "sourceFiles": 10,
-      "testFiles": 5,
+      "testFiles": 7,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -1232,7 +1232,7 @@
         {
           "path": "packages/worktree/tsconfig.test.json",
           "error": null,
-          "testFiles": 5
+          "testFiles": 7
         }
       ]
     },
@@ -33554,6 +33554,12 @@
         ]
       },
       {
+        "file": "packages/worktree/tests/git-worktree-list-alias.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/worktree/tests/windows-drive-case.test.ts",
         "projects": [
           "root-node"
@@ -33561,6 +33567,12 @@
       },
       {
         "file": "packages/worktree/tests/worktree-git-fsroot.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/worktree/tests/worktree-hold-release-order.test.ts",
         "projects": [
           "root-node"
         ]
