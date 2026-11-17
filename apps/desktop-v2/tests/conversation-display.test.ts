@@ -1,9 +1,9 @@
 import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { conversationDisplay } from '../src/conversation-appearance';
 import { SessionActivity } from '../src/SessionActivity';
 import { LiveRunActivity, TurnTools } from '../src/TurnTools';
+import { renderOpen } from './helpers/render-open';
 
 const events = [
   { type: 'provider.thinking_delta', payload: { text: 'Private reasoning fixture' } },
@@ -21,10 +21,8 @@ const events = [
 
 describe('conversation display controls', () => {
   it('hides reasoning without losing tool evidence or changing its source events', () => {
-    const shown = renderToStaticMarkup(
-      createElement(SessionActivity, { events, onOpenFile: () => {} }),
-    );
-    const hidden = renderToStaticMarkup(
+    const shown = renderOpen(createElement(SessionActivity, { events, onOpenFile: () => {} }));
+    const hidden = renderOpen(
       createElement(SessionActivity, { events, showThinkingLogs: false, onOpenFile: () => {} }),
     );
     expect(shown).toContain('Private reasoning fixture');
@@ -35,10 +33,8 @@ describe('conversation display controls', () => {
   });
   it('shows individual tool entries when grouping is disabled, for live and finished turns', () => {
     for (const component of [LiveRunActivity, TurnTools]) {
-      const grouped = renderToStaticMarkup(
-        createElement(component, { events, onOpenFile: () => {} }),
-      );
-      const separate = renderToStaticMarkup(
+      const grouped = renderOpen(createElement(component, { events, onOpenFile: () => {} }));
+      const separate = renderOpen(
         createElement(component, {
           events,
           display: conversationDisplay({ groupToolCalls: false, showThinkingLogs: false }),
@@ -54,7 +50,7 @@ describe('conversation display controls', () => {
   });
   it('does not leave an empty reasoning-only transcript block when reasoning is hidden', () => {
     expect(
-      renderToStaticMarkup(
+      renderOpen(
         createElement(LiveRunActivity, {
           events: events.slice(0, 1),
           display: conversationDisplay({ showThinkingLogs: false }),

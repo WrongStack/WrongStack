@@ -1,8 +1,8 @@
 import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { type EngineEvent, emptyEngineState, reduceEngine } from '../src/engine-state';
 import { TranscriptMessage } from '../src/TranscriptMessage';
+import { renderOpen } from './helpers/render-open';
 
 vi.mock('../src/platform', () => ({}));
 
@@ -18,7 +18,7 @@ const fold = (events: EngineEvent[]) => events.reduce(reduceEngine, emptyEngineS
 const transcript = (state: ReturnType<typeof fold>) =>
   state.messages
     .map((message) =>
-      renderToStaticMarkup(
+      renderOpen(
         createElement(TranscriptMessage, {
           message,
           state,

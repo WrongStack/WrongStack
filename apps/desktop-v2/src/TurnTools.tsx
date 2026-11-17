@@ -9,6 +9,7 @@ import {
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineEvent } from './engine-state';
+import { LazyDetails } from './LazyDetails';
 import { SessionActivity } from './SessionActivity';
 import { activityRows } from './session-activity-model';
 import { turnToolSummary } from './turn-tools';
@@ -41,12 +42,16 @@ export function TurnTools({
       {meta && <p className="chat-turn-meta">{meta}</p>}
       {summary.calls > 0 &&
         (display.groupToolCalls ? (
-          <details className="chat-run-activity turn-tools">
-            <summary>
-              <Wrench size={12} /> {t('turn.workedWith', { calls: toolCalls(summary.calls, t) })}
-              {summary.failed ? ` · ${t('turn.failed', { count: summary.failed })}` : ''} ·{' '}
-              {summary.text}
-            </summary>
+          <LazyDetails
+            className="chat-run-activity turn-tools"
+            summary={
+              <summary>
+                <Wrench size={12} /> {t('turn.workedWith', { calls: toolCalls(summary.calls, t) })}
+                {summary.failed ? ` · ${t('turn.failed', { count: summary.failed })}` : ''} ·{' '}
+                {summary.text}
+              </summary>
+            }
+          >
             <SessionActivity
               compact
               showThinkingLogs={display.showThinkingLogs}
@@ -54,7 +59,7 @@ export function TurnTools({
               onOpenFile={onOpenFile}
               command={command}
             />
-          </details>
+          </LazyDetails>
         ) : (
           <SessionActivity
             compact
@@ -220,23 +225,28 @@ export function LiveRunActivity({
       .filter((id) => typeof id === 'string'),
   ).size;
   return (
-    <details className="chat-run-activity" open={live}>
-      <summary>
-        <Wrench size={12} /> {t('turn.activity')}
-        {calls ? (
-          <span className={`turn-chip ${live ? 'live' : 'ok'}`}>
-            {live ? <LoaderCircle size={11} className="spin" /> : <CheckCircle2 size={11} />}
-            {toolCalls(calls, t)}
-          </span>
-        ) : null}
-        {summary.failed ? (
-          <span className="turn-chip failed">
-            <XCircle size={11} />
-            {t('turn.failed', { count: summary.failed })}
-          </span>
-        ) : null}
-        {summary.text ? <span className="turn-summary-text">{summary.text}</span> : null}
-      </summary>
+    <LazyDetails
+      className="chat-run-activity"
+      open={live}
+      summary={
+        <summary>
+          <Wrench size={12} /> {t('turn.activity')}
+          {calls ? (
+            <span className={`turn-chip ${live ? 'live' : 'ok'}`}>
+              {live ? <LoaderCircle size={11} className="spin" /> : <CheckCircle2 size={11} />}
+              {toolCalls(calls, t)}
+            </span>
+          ) : null}
+          {summary.failed ? (
+            <span className="turn-chip failed">
+              <XCircle size={11} />
+              {t('turn.failed', { count: summary.failed })}
+            </span>
+          ) : null}
+          {summary.text ? <span className="turn-summary-text">{summary.text}</span> : null}
+        </summary>
+      }
+    >
       <SessionActivity
         compact
         settled={!live}
@@ -247,6 +257,6 @@ export function LiveRunActivity({
         onOpenDesign={onOpenDesign}
         command={command}
       />
-    </details>
+    </LazyDetails>
   );
 }

@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stop. Without a usable spare it boots its own engine as before.
   Opening a stopped conversation starts that spare at once, so the reconnect
   usually finds it ready; an unused spare stops itself after 20 minutes.
+- Opening a desktop conversation no longer builds its collapsed run activity:
+  a turn's tool calls and each call's input, output and overview are built when
+  opened. A conversation measured in the app held 6,000 of these nodes while
+  collapsed and took a 110 ms task to open.
 - Desktop conversations open and resume faster: a journal page joins the
   streamed answer text it holds before reading it, so a long conversation no
   longer costs time growing with its length squared (800 turns: 0.8 s to 0.17 s).

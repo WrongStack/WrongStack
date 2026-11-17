@@ -1,14 +1,14 @@
 import { buildPerfRunMessage } from '@wrongstack/project-surfaces/lib/perf-run-message';
 import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { SessionActivity } from '../src/SessionActivity';
 import { TranscriptMessage } from '../src/TranscriptMessage';
+import { renderOpen } from './helpers/render-open';
 
 vi.mock('../src/platform', () => ({}));
 
 const render = (text: string, role: 'user' | 'assistant' = 'user') =>
-  renderToStaticMarkup(
+  renderOpen(
     createElement(TranscriptMessage, {
       message: { id: 'm', role, text },
       state: { turnActivity: {}, turnStats: {} },
@@ -39,7 +39,7 @@ describe('shared parity cards in the desktop conversation', () => {
     expect(html).not.toContain('100%');
   });
   it('uses the shared VCS overview while keeping the exact tool details', () => {
-    const html = renderToStaticMarkup(
+    const html = renderOpen(
       createElement(SessionActivity, {
         events: [
           {
@@ -55,7 +55,7 @@ describe('shared parity cards in the desktop conversation', () => {
     expect(html).toContain('main');
   });
   it('shows measured ToolFlow bytes and scripts without calling them token savings', () => {
-    const html = renderToStaticMarkup(
+    const html = renderOpen(
       createElement(SessionActivity, {
         events: [
           {

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-17T07:56:19.723Z",
+  "generatedAt": "2026-11-17T08:09:11.824Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6350,
-    "testFiles": 5385,
-    "sourceLines": 1313090,
+    "sourceFiles": 6351,
+    "testFiles": 5386,
+    "sourceLines": 1313152,
     "workspaceEdges": 250,
-    "moduleEdges": 18731,
+    "moduleEdges": 18733,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 354,
+    "testsWithoutTypecheck": 355,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1075
   },
@@ -386,8 +386,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 524,
-      "testFiles": 352,
+      "sourceFiles": 525,
+      "testFiles": 353,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2343,6 +2343,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/kit-parameter-draft.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/lazy-details.test.ts",
         "projects": [
           "root-node"
         ]
@@ -34825,6 +34831,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/kit-parameter-draft.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/lazy-details.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

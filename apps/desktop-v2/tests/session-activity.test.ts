@@ -1,9 +1,9 @@
 import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { ACTIVITY_LIMIT, emptyEngineState, reduceEngine } from '../src/engine-state';
 import { SessionActivity } from '../src/SessionActivity';
 import { activityRows } from '../src/session-activity-model';
+import { renderOpen } from './helpers/render-open';
 
 describe('session activity', () => {
   it('joins actual tool lifecycle frames, reasoning, retry and run results without mixing sessions', () => {
@@ -75,7 +75,7 @@ describe('session activity', () => {
     });
     expect(rows.some((row) => row.title === 'Run completed')).toBe(true);
     expect(rows.some((row) => row.id.endsWith(':foreign'))).toBe(false);
-    const html = renderToStaticMarkup(
+    const html = renderOpen(
       createElement(SessionActivity, { events: state.activity, onOpenFile: () => {} }),
     );
     for (const text of [

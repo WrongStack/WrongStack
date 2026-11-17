@@ -24,6 +24,7 @@ import { StructuredToolValue } from './ToolApprovalCard';
 import { ToolInputView } from './ToolInputView';
 import { ToolOutputActions } from './ToolOutputActions';
 import './session-activity.css';
+import { LazyDetails } from './LazyDetails';
 
 function readableOutput(value: string): unknown {
   const trimmed = value.trim();
@@ -136,57 +137,64 @@ export function SessionActivity({
               onOpenFile={onOpenFile}
             />
           ) : null,
-          <details key={row.id} className={`activity-entry activity-${row.status}`}>
-            <summary>
-              <span className="activity-entry-icon">
-                {row.kind === 'tool' ? (
-                  <Wrench size={15} />
-                ) : row.kind === 'reasoning' ? (
-                  <Brain size={15} />
-                ) : row.kind === 'retry' ? (
-                  <RotateCw size={15} />
-                ) : (
-                  <Activity size={15} />
+          <LazyDetails
+            key={row.id}
+            className={`activity-entry activity-${row.status}`}
+            summary={
+              <summary>
+                <span className="activity-entry-icon">
+                  {row.kind === 'tool' ? (
+                    <Wrench size={15} />
+                  ) : row.kind === 'reasoning' ? (
+                    <Brain size={15} />
+                  ) : row.kind === 'retry' ? (
+                    <RotateCw size={15} />
+                  ) : (
+                    <Activity size={15} />
+                  )}
+                </span>
+                <span className="activity-entry-label">
+                  <strong>
+                    {row.label ? t(row.label.key, row.label.values ?? {}) : row.title}
+                  </strong>
+                  <small>
+                    {row.agent ? `${row.agent} · ` : ''}
+                    {row.status === 'running'
+                      ? t('runLog.status.running')
+                      : row.status === 'done'
+                        ? t('runLog.status.done')
+                        : row.status === 'failed'
+                          ? t('runLog.status.failed')
+                          : row.status === 'aborted'
+                            ? t('runLog.status.aborted')
+                            : row.kind === 'retry'
+                              ? t('runLog.status.retry')
+                              : t('runLog.status.recorded')}
+                  </small>
+                </span>
+                {row.durationMs !== undefined && (
+                  <small className="activity-metric">
+                    <Clock3 size={12} />{' '}
+                    {row.kind === 'retry'
+                      ? t('runLog.wait', { ms: row.durationMs })
+                      : `${row.durationMs} ms`}
+                  </small>
                 )}
-              </span>
-              <span className="activity-entry-label">
-                <strong>{row.label ? t(row.label.key, row.label.values ?? {}) : row.title}</strong>
-                <small>
-                  {row.agent ? `${row.agent} · ` : ''}
-                  {row.status === 'running'
-                    ? t('runLog.status.running')
-                    : row.status === 'done'
-                      ? t('runLog.status.done')
-                      : row.status === 'failed'
-                        ? t('runLog.status.failed')
-                        : row.status === 'aborted'
-                          ? t('runLog.status.aborted')
-                          : row.kind === 'retry'
-                            ? t('runLog.status.retry')
-                            : t('runLog.status.recorded')}
-                </small>
-              </span>
-              {row.durationMs !== undefined && (
-                <small className="activity-metric">
-                  <Clock3 size={12} />{' '}
-                  {row.kind === 'retry'
-                    ? t('runLog.wait', { ms: row.durationMs })
-                    : `${row.durationMs} ms`}
-                </small>
-              )}
-              {row.outputBytes !== undefined && (
-                <small className="activity-metric">
-                  {t('runLog.bytes', { bytes: row.outputBytes.toLocaleString() })}
-                </small>
-              )}
-              {row.status === 'running' ? (
-                <LoaderCircle size={14} className="spin" />
-              ) : row.status === 'failed' ? (
-                <XCircle size={14} />
-              ) : row.status === 'done' ? (
-                <CheckCircle2 size={14} />
-              ) : null}
-            </summary>
+                {row.outputBytes !== undefined && (
+                  <small className="activity-metric">
+                    {t('runLog.bytes', { bytes: row.outputBytes.toLocaleString() })}
+                  </small>
+                )}
+                {row.status === 'running' ? (
+                  <LoaderCircle size={14} className="spin" />
+                ) : row.status === 'failed' ? (
+                  <XCircle size={14} />
+                ) : row.status === 'done' ? (
+                  <CheckCircle2 size={14} />
+                ) : null}
+              </summary>
+            }
+          >
             <div className="activity-entry-body">
               {row.kind === 'tool' && (
                 <I18nextProvider i18n={surfaceI18n}>
@@ -277,7 +285,7 @@ export function SessionActivity({
                 !row.files.length &&
                 !row.sage.length && <p>{t('runLog.noDetails')}</p>}
             </div>
-          </details>,
+          </LazyDetails>,
         ])}
       </div>
     </section>

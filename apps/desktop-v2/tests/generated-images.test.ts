@@ -1,14 +1,14 @@
 import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { SessionActivity } from '../src/SessionActivity';
+import { renderOpen } from './helpers/render-open';
 
 const executed = (name: string, output: string) => ({
   type: 'tool.executed',
   payload: { id: 't1', name, ok: true, output },
 });
 const render = (events: ReturnType<typeof executed>[], command?: () => Promise<never>) =>
-  renderToStaticMarkup(
+  renderOpen(
     createElement(SessionActivity, {
       events,
       onOpenFile: () => {},
