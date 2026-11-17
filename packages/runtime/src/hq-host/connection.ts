@@ -117,7 +117,8 @@ export function startHqHostConnection(options: HqHostConnectionOptions): HqHostC
       ? publisherOptions
       : { ...publisherOptions, appConfig: options.getAppConfig() };
 
-  const retire = (): void => {
+  // `replaced`: a new publisher is built right after, so this is not a disconnect.
+  const retire = (replaced = false): void => {
     if (publisher === undefined) return;
     kanbanSync?.stop();
     kanbanSync = undefined;
@@ -126,7 +127,7 @@ export function startHqHostConnection(options: HqHostConnectionOptions): HqHostC
     publisher.close();
     publisher = undefined;
     publisherKey = undefined;
-    options.onDisconnect?.();
+    if (!replaced) options.onDisconnect?.();
   };
 
   const tryConnect = (): void => {
@@ -149,10 +150,15 @@ export function startHqHostConnection(options: HqHostConnectionOptions): HqHostC
       return;
     }
 
-    retire();
+    const hadPublisher = publisher !== undefined;
+    retire(true);
 
     const next = createHqHostPublisher(current);
-    if (next === undefined) return;
+    if (next === undefined) {
+      // Nothing replaced the retired publisher after all.
+      if (hadPublisher) options.onDisconnect?.();
+      return;
+    }
     publisher = next;
     publisherKey = nextKey;
     if (shouldOwnKanbanSync) {

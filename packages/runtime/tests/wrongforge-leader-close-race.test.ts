@@ -70,19 +70,21 @@ afterEach(() => {
 describe('WrongForgeLeaderProvider closeAll() vs stream() race', () => {
   it('does not start an orphaned LeaderGateway after closeAll() runs while info() is in flight', async () => {
     const provider = new WrongForgeLeaderProvider({
-      config: () => ({}) as never,
+      bootConfig: {} as never,
       buildProvider: () => undefined,
     });
 
     const ac = new AbortController();
-    const iter = provider.stream(
-      {
-        model: 'claude-sonnet-5-5',
-        messages: [],
-        cache: { sessionId: 'sess-close-race' },
-      } as never,
-      { signal: ac.signal },
-    );
+    const iter = provider
+      .stream(
+        {
+          model: 'claude-sonnet-5-5',
+          messages: [],
+          cache: { sessionId: 'sess-close-race' },
+        } as never,
+        { signal: ac.signal },
+      )
+      [Symbol.asyncIterator]();
 
     const nextPromise = iter.next().catch(() => ({ done: true, value: undefined }));
     await Promise.resolve();

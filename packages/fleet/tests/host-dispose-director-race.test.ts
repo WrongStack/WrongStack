@@ -68,7 +68,7 @@ describe('MultiAgentHost dispose vs buildDirector race', () => {
     });
 
     const buildP = buildDirector(host as never);
-    host.buildingDirector = buildP as never;
+    (host as unknown as { buildingDirector: unknown }).buildingDirector = buildP;
     for (let i = 0; i < 20 && !resolveRunner; i++) {
       await new Promise((r) => setTimeout(r, 1));
     }
@@ -79,7 +79,7 @@ describe('MultiAgentHost dispose vs buildDirector race', () => {
     resolveRunner({});
     await Promise.all([disposeP, buildP]);
 
-    expect(host.disposed).toBe(true);
+    expect((host as unknown as { disposed: boolean }).disposed).toBe(true);
     expect(armedAfterDispose).toBe(false);
     expect(setRunnerAfterDispose).toBe(false);
     expect(await MultiAgentHost.prototype.ensureDirector.call(host)).toBeNull();

@@ -20,7 +20,7 @@ describe('MultiAgentHost.ensureDirector concurrency', () => {
         session: { id: 's1' } as never,
         projectRoot: '/tmp',
         toolRegistry: { list: () => [], register: () => {}, unregister: () => {} } as never,
-      },
+      } as never,
       {},
     );
     (host as unknown as { buildSubagentRunner: () => Promise<unknown> }).buildSubagentRunner =

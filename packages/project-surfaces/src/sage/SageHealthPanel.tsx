@@ -3,6 +3,7 @@
  * and the doctor checks, with the engine's named, idempotent repairs.
  * Mirrors `/memory doctor [--fix]` and `wstack sage doctor`.
  */
+import { toErrorMessage } from '@wrongstack/core/utils/error';
 import { AlertTriangle, Check, Loader2, RefreshCw, Wrench } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SurfaceClient } from '../host';
@@ -125,7 +126,7 @@ export function SageHealthPanel({
             { echoToChat: false },
           );
         } catch (err) {
-          settle({ error: err instanceof Error ? err.message : String(err) });
+          settle({ error: toErrorMessage(err) });
         }
       }),
     [client, sageDoctor, t],

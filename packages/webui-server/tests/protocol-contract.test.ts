@@ -53,7 +53,8 @@ describe('surface protocol contract', () => {
     // +1: acp.config_options (an ACP agent's runtime settings).
     // +1: plugin.ui.prompt_response (answer to a plugin api.ui.prompt modal).
     // +4: design.draw / design.kept / design.photos / design.snapshot (Design Studio).
-    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(319);
+    // +2: btw.add / btw.get (a BTW note delivered as a same-session user instruction).
+    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(321);
     expect(CLIENT_MESSAGE_TYPES).toContain('acp.config_options');
     expect(CLIENT_MESSAGE_TYPES).toEqual(expect.arrayContaining(['mcp.tools', 'mcp.tool.call']));
     expect(CLIENT_MESSAGE_TYPES).toEqual(
@@ -91,7 +92,8 @@ describe('surface protocol contract', () => {
     // +4: plugin.ui.updated / plugin.ui.notify / plugin.ui.prompt / plugin.ui.prompt_resolved
     //     (plugin api.ui chips, toasts and prompt modals).
     // +4: design.draw / design.kept / design.photos / design.snapshot (Design Studio).
-    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(332);
+    // +1: btw.state (pending same-session BTW instructions).
+    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(333);
     expect(SERVER_MESSAGE_TYPES).toContain('acp.config_options');
     expect(SERVER_MESSAGE_TYPES).toEqual(expect.arrayContaining(['mcp.tools', 'mcp.tool.result']));
     expect(SERVER_MESSAGE_TYPES).toContain('provider.primary_restored');

@@ -15,7 +15,7 @@ describe('createFleetStatusBroadcaster subagent.removed cleanup', () => {
     const broadcaster = createFleetStatusBroadcaster({
       events,
       sessionTag: () => 'sess-1',
-      minIntervalMsPerAgent: 15_000,
+      config: { minIntervalMsPerAgent: 15_000 },
       mailboxFactory: () =>
         ({
           registerAgent: async () => {},
@@ -28,15 +28,17 @@ describe('createFleetStatusBroadcaster subagent.removed cleanup', () => {
     });
 
     broadcaster.start();
-    events.emit('subagent.spawned', { subagentId: 's1', role: 'explore', sessionId: 'sess-1' });
+    events.emit('subagent.spawned', { subagentId: 's1', taskId: 't1', sessionId: 'sess-1' });
     const afterSpawn = sent.length;
 
     events.emit('subagent.task_completed', {
       subagentId: 's1',
-      role: 'explore',
+      taskId: 't1',
       sessionId: 'sess-1',
-      status: 'completed',
-      summary: 'done',
+      status: 'success',
+      iterations: 1,
+      toolCalls: 0,
+      durationMs: 1_000,
     });
     events.emit('subagent.removed', { subagentId: 's1', sessionId: 'sess-1' });
 

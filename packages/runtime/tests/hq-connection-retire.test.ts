@@ -51,6 +51,7 @@ describe('startHqHostConnection retire on reconnect failure', () => {
     };
 
     const conn = startHqHostConnection({
+      clientKind: 'cli',
       projectRoot: process.cwd(),
       ownKanbanSync: true,
       ownSageSync: false,
