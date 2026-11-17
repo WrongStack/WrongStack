@@ -381,6 +381,20 @@ export class CheckpointManager {
 
         for (const sc of checkpoints) {
           if (!sc || typeof sc !== 'object' || typeof sc.id !== 'string') continue;
+          if (
+            !Array.isArray(sc.taskStatuses) ||
+            !sc.taskStatuses.every(
+              (task) =>
+                task &&
+                typeof task.taskId === 'string' &&
+                typeof task.title === 'string' &&
+                ['pending', 'in_progress', 'blocked', 'failed', 'review', 'completed'].includes(
+                  task.status,
+                ),
+            )
+          ) {
+            continue;
+          }
           const checkpoint: Checkpoint = {
             id: sc.id,
             graphId: sc.graphId,
