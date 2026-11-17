@@ -36,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   collapsed and took a 110 ms task to open.
 - The SAGE memory list (desktop and WebUI) virtualizes from 40 memories instead
   of 100; a 100-memory list built about 1,500 nodes in a 50-70 ms task on open.
+- Resuming a session answers as soon as the session is reopened, before the
+  session-history broadcast; listing history through a just-started engine's
+  session catalog no longer delays the desktop's reconnect.
 - Desktop conversations open and resume faster: a journal page joins the
   streamed answer text it holds before reading it, so a long conversation no
   longer costs time growing with its length squared (800 turns: 0.8 s to 0.17 s).

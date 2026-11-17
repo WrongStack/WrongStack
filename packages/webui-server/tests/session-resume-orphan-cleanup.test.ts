@@ -32,6 +32,8 @@ const writer = (id: string, startedAt = '2026-01-01T00:00:00.000Z'): Writer => (
 function harness(options?: {
   /** Test hook: the session being left throws when it is finalized. */
   failFinalize?: boolean;
+  /** Test hook: the session history listing answers only when this resolves. */
+  listing?: Promise<unknown[]>;
 }) {
   const bootWriter = writer('sess_boot');
   if (options?.failFinalize) {
@@ -87,7 +89,7 @@ function harness(options?: {
           writer: writer(id, '2026-07-25T10:00:00.000Z'),
           data: { messages: [], events: [], usage: undefined },
         }),
-        list: async () => [],
+        list: () => options?.listing ?? Promise.resolve([]),
       }) as never,
     isSessionLive: (id) => contexts.has(id),
     isRunActive: () => false,
@@ -114,5 +116,27 @@ describe('a resume whose orphan cleanup fails', () => {
     expect((res?.payload as { success?: boolean } | undefined)?.success).toBe(true);
     // The runtime moved onto the resumed session.
     expect(h.currentId()).toBe('sess_cold');
+  });
+});
+
+describe('a resume while the session catalog is slow', () => {
+  it('answers before the history broadcast it is waiting on', async () => {
+    let release!: (list: unknown[]) => void;
+    const listing = new Promise<unknown[]>((resolve) => {
+      release = resolve;
+    });
+    const h = harness({ listing });
+    const done = h.handlers.resumeSession(ws, {
+      type: 'session.resume',
+      payload: { id: 'sess_cold' },
+    });
+    await vi.waitFor(() =>
+      expect(h.sent.some((m) => m.type === 'key.operation_result')).toBe(true),
+    );
+    expect(h.sent.some((m) => m.type === 'sessions.list')).toBe(false);
+    release([]);
+    await done;
+    const types = h.sent.map((m) => m.type);
+    expect(types.indexOf('key.operation_result')).toBeLessThan(types.indexOf('sessions.list'));
   });
 });

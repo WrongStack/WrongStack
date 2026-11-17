@@ -257,6 +257,10 @@ export function createSessionResumeHandler(
           // Displayed only now, after its transcript: a woken turn must stream
           // into a tab that already shows the conversation it continues.
           notifyDisplayed([resumed.writer.id]);
+          // The resume is complete: answer before the history broadcast. Listing up to 200
+          // sessions goes through the session catalog, which a just-started engine may still be
+          // bringing up; the desktop's restore waits for this answer before it connects.
+          result(ws, true, `Resumed session ${id}`);
           try {
             const list = await ctx.getSessionStore().list(200);
             broadcastToAll({
@@ -268,7 +272,6 @@ export function createSessionResumeHandler(
           } catch {
             // best-effort
           }
-          result(ws, true, `Resumed session ${id}`);
         } catch (err) {
           if (!activated) {
             await rollbackClaim?.().catch(() => undefined);
