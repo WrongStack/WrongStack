@@ -144,6 +144,7 @@
 .workspace-overview button {
   display: flex;
   align-items: center;
+  min-height: 28px;
   gap: 7px;
   color: var(--muted);
   font-size: 12px;
@@ -164,11 +165,17 @@
   justify-content: space-between;
   margin-bottom: 15px;
 }
+.project-session-group .project-symbol {
+  color: var(--text);
+}
 .project-session-group h2 {
   font-size: 14px;
   font-weight: 550;
   letter-spacing: -0.2px;
   margin: 0;
+}
+.project-session-group > header > div > span {
+  flex: none;
 }
 .project-session-group > header > div > span:last-child {
   font-size: 11px;
@@ -589,72 +596,156 @@
 .session-tab-list > .new-session-tab {
   flex-shrink: 0;
 }
-/* Mission Control KPI tiles (WebUI dashboard tiles): separate cards, hover lift by transform. */
+/* Mission Control is a session index, not a wall of decorative metric cards. */
+.sessions-region {
+  container: fleet / inline-size;
+  min-width: 0;
+}
 .metrics-strip.fleet-kpis {
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 12px;
-  margin: -4px 0 18px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 0 0 16px;
   border: 0;
+  border-bottom: 1px solid var(--border);
   background: none;
 }
-.fleet-kpis .metric {
-  position: relative;
-  overflow: hidden;
-  padding: 16px 18px 15px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: linear-gradient(160deg, var(--accent-soft), transparent 55%), var(--raised);
-  transition:
-    transform 0.18s ease,
-    border-color 0.18s ease;
-}
+.fleet-kpis .metric,
 .fleet-kpis .metric:last-child {
-  border: 1px solid var(--border);
+  min-width: 0;
+  padding: 4px 16px 16px;
+  border: 0;
+  border-radius: 0;
+  background: none;
 }
-.fleet-kpis .metric:hover {
-  border-color: var(--accent-border);
-  transform: translateY(-2px);
-}
-.fleet-kpis .metric::after {
-  position: absolute;
-  right: -18px;
-  bottom: -18px;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: var(--accent);
-  content: "";
-  opacity: 0.06;
+.fleet-kpis .metric-label {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  letter-spacing: 0;
+  font-size: 12px;
+  color: var(--muted);
 }
 .fleet-kpis .metric > strong {
-  margin-top: 10px;
-  font-size: 30px;
+  margin-top: 8px;
+  font-size: 26px;
+  font-weight: 550;
   font-variant-numeric: tabular-nums;
 }
+.fleet-kpis .metric p {
+  margin: 4px 0 0;
+  line-height: 1.5;
+}
 .fleet-kpis .metric-live-dot {
-  width: 7px;
-  height: 7px;
-  animation: kpi-live 1.6s ease-in-out infinite;
+  width: 6px;
+  height: 6px;
 }
-.fleet-kpis .metric-label > svg {
-  color: var(--accent);
+.project-session-group > header > div {
+  min-width: 0;
 }
-.fleet-kpis .metric-label > span:not(.live-label) {
-  display: inline-block;
+.project-session-group > header > button {
+  flex: none;
 }
-.fleet-kpis .metric-label > span:not(.live-label)::first-letter {
-  text-transform: uppercase;
+.project-session-group h2 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-@keyframes kpi-live {
-  50% {
-    opacity: 0.3;
-    transform: scale(0.7);
+.sessions-region .session-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-top: 1px solid var(--border);
+}
+.sessions-region .session-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.sessions-region .session-card:hover,
+.sessions-region .session-card.selected {
+  background: var(--raised);
+  transform: none;
+}
+.sessions-region .session-card-main {
+  min-width: 0;
+  padding: 16px 12px;
+}
+.sessions-region .session-card-title {
+  margin: 0;
+}
+.sessions-region .session-card-title h3 {
+  font-size: 13px;
+}
+.sessions-region .session-card .status-pill {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+.session-card-open {
+  flex: none;
+  color: var(--muted);
+}
+.sessions-region .session-card > footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 8px 0;
+  border: 0;
+}
+.sessions-region .card-age {
+  min-width: 60px;
+  text-align: right;
+}
+.sessions-region .card-pin {
+  min-width: 32px;
+  min-height: 32px;
+}
+@container fleet (max-width: 600px) {
+  .metrics-strip.fleet-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 16px;
   }
-}
-@media (prefers-reduced-motion: reduce) {
-  .fleet-kpis .metric,
-  .fleet-kpis .metric-live-dot {
-    animation: none;
-    transition: none;
+  .fleet-kpis .metric {
+    padding-inline: 8px;
+  }
+  .section-toolbar {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .section-toolbar .tab-list {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .section-toolbar .inline-search {
+    width: 100%;
+  }
+  .section-toolbar .inline-search input {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+  }
+  .project-session-group > header {
+    gap: 8px;
+  }
+  .sessions-region .session-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .sessions-region .session-card-main {
+    padding: 12px 8px 6px;
+  }
+  .sessions-region .session-card > footer {
+    padding: 0 8px 8px 36px;
+    justify-content: space-between;
   }
 }

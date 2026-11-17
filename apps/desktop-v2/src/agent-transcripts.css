@@ -1,53 +1,215 @@
-.agent-tabs {
+.session-agent-cleanup {
   display: flex;
   flex-wrap: wrap;
+  flex: none;
   gap: 6px;
-  padding: 8px 18px 0;
+  padding: 0 12px 10px;
 }
-.agent-tabs > button {
+.session-agent-cleanup button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 9px;
-  font-size: 12px;
-  color: var(--muted);
-  background: transparent;
+  gap: 5px;
+  min-height: 28px;
+  padding: 4px 7px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-sm, 0);
+  color: var(--text);
+  background: var(--base);
+  font-size: 12px;
+}
+.session-agent-cleanup-error {
+  margin: 0 12px 10px;
+  color: var(--text);
+  border-left: 2px solid var(--danger);
+  padding-left: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.session-conversation-layout {
+  container: conversation / inline-size;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.session-conversation-layout[hidden] {
+  display: none;
+}
+.session-conversation-panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 32%);
+  min-height: 0;
+  min-width: 0;
+}
+.session-leader-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.session-leader-column > .native-chat-messages {
+  flex: 1;
+  min-height: 100px;
+  max-height: none;
+}
+.session-agent-rail {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--raised);
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+  color: var(--text);
+}
+.session-agent-heading,
+.session-agent-detail-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  flex: none;
+}
+.session-agent-heading h2 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0;
+}
+.session-agent-count {
+  margin-left: auto;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.session-agent-destination,
+.session-agent-empty {
+  margin: 0 12px 12px;
+  padding: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.agent-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 8px 8px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  min-height: 72px;
+  flex: 0 1 auto;
+  max-height: 45%;
+  scrollbar-gutter: stable;
+}
+.agent-tabs > button {
+  display: flex;
+  align-items: flex-start;
+  text-align: left;
+  flex: none;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 8px;
+  color: var(--text);
+  background: var(--base);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 0);
+  min-width: 0;
 }
 .agent-tabs > button[aria-pressed="true"] {
-  color: var(--text);
   border-color: var(--accent);
+  box-shadow: inset 2px 0 var(--accent);
 }
-.agent-tabs small {
-  color: var(--subtle);
+.agent-tabs > button:hover {
+  background: var(--raised);
+}
+.agent-tabs > button:focus-visible,
+.agent-transcript:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+.agent-row-copy {
+  flex: 1;
+  min-width: 0;
+}
+.agent-row-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+.agent-row-heading strong {
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.agent-row-heading small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.agent-row-task,
+.agent-row-preview {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 4px;
+}
+.agent-row-task {
+  -webkit-line-clamp: 1;
+}
+.agent-row-preview {
+  color: var(--muted);
 }
 .agent-led {
   width: 7px;
   height: 7px;
+  margin-top: 5px;
   flex: none;
   border-radius: 50%;
-  background: var(--subtle);
+  background: var(--muted);
 }
 .agent-led.running {
   background: var(--accent);
-  animation: agent-led-pulse 1.4s ease-in-out infinite;
 }
 .agent-led.done {
-  background: color-mix(in srgb, var(--accent) 70%, var(--text));
+  background: hsl(var(--ws-success));
 }
 .agent-led.failed {
   background: var(--danger);
 }
-@keyframes agent-led-pulse {
-  50% {
-    opacity: 0.35;
-  }
+.agent-gauge {
+  display: block;
+  flex: none;
+  padding: 8px 12px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+  border-top: 1px solid var(--border);
 }
-@media (prefers-reduced-motion: reduce) {
-  .agent-led.running {
-    animation: none;
-  }
+.session-agent-detail {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  border-top: 1px solid var(--border);
+}
+.session-agent-detail-heading {
+  padding: 8px 12px;
+}
+.session-agent-detail-heading strong {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.session-agent-detail-heading button {
+  margin-left: auto;
+  min-width: 28px;
+  min-height: 28px;
 }
 .agent-transcript {
   display: grid;
@@ -55,8 +217,11 @@
   align-content: start;
   gap: 10px;
   min-height: 0;
-  padding: 14px 18px;
+  min-width: 0;
+  padding: 4px 12px 16px;
   overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 .agent-transcript > header {
   display: flex;
@@ -69,14 +234,13 @@
 .agent-transcript > header p {
   flex-basis: 100%;
   margin: 0;
-  font-size: 13px;
-  color: var(--muted);
-}
-.agent-transcript > header .agent-transcript-note {
   font-size: 12px;
-  color: var(--subtle);
+  color: var(--muted);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 .agent-step {
+  min-width: 0;
   margin: 0;
   font-size: 13px;
   overflow-wrap: anywhere;
@@ -87,18 +251,18 @@
 }
 .agent-step.error {
   padding: 6px 8px;
-  color: var(--danger);
+  color: var(--text);
   background: var(--danger-soft);
-  border-radius: 5px;
+  border-left: 2px solid var(--danger);
 }
 .agent-step.tool,
 .agent-step.thinking {
   padding: 6px 8px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--radius-sm, 0);
 }
 .agent-step.tool.failed {
-  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-color: var(--danger);
 }
 .agent-step > summary {
   display: flex;
@@ -106,6 +270,8 @@
   gap: 6px;
   cursor: pointer;
   color: var(--muted);
+  min-height: 28px;
+  overflow-wrap: anywhere;
 }
 .agent-step > summary small {
   margin-left: auto;
@@ -116,16 +282,67 @@
   overflow: auto;
   font-size: 12px;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
-/* The conversation stays mounted (its scroll place and find state) while an agent is shown. */
+.agent-step .markdown-content {
+  min-width: 0;
+}
 .native-chat-messages[hidden] {
   display: none;
 }
-
-.agent-tabs .agent-gauge {
-  margin-left: auto;
-  align-self: center;
-  white-space: nowrap;
-  font-size: 0.8em;
-  color: var(--muted);
+@container conversation (max-width: 760px) {
+  .session-conversation-panes {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(120px, 1fr);
+  }
+  .session-agent-rail {
+    grid-row: 1;
+    border-left: 0;
+    border-bottom: 1px solid var(--border);
+    max-height: min(40dvh, 320px);
+  }
+  .session-leader-column {
+    grid-row: 2;
+  }
+  .session-agent-heading {
+    padding: 8px 12px;
+  }
+  .session-agent-destination {
+    padding-bottom: 6px;
+  }
+  .agent-tabs {
+    max-height: 120px;
+    min-height: 56px;
+  }
+  .session-agent-detail {
+    min-height: 90px;
+  }
+  .session-agent-empty {
+    padding-bottom: 8px;
+  }
+}
+@media (max-height: 600px) {
+  .session-agent-heading {
+    padding-block: 6px;
+  }
+  .agent-tabs > button {
+    padding-block: 6px;
+  }
+  .agent-row-task {
+    display: none;
+  }
+  .agent-row-preview {
+    -webkit-line-clamp: 1;
+  }
+}
+/* Keep surrounding chat controls usable beside the new bounded transcript panes. */
+.engine-workspace .workspace-tabs.session-chat-navigation button.chosen-tab {
+  color: var(--text);
+}
+.engine-workspace .composer-fold-controls .button,
+.engine-workspace .native-composer select,
+.engine-workspace .native-usage button,
+.session-leader-column .copy-button {
+  min-width: 24px;
+  min-height: 24px;
 }

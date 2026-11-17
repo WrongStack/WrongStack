@@ -305,14 +305,13 @@
   }
 }
 
-/* A short zoomed window needs a scrollable workbench so the transcript and composer keep
-   room for their controls. The title and navigation stay available above the scroll area. */
+/* Short windows let the transcript shrink first; the composer stays inside the viewport. */
 @media (max-height: 500px) {
   .workspace-focused .main-content {
     overflow-y: auto;
   }
   .workspace-focused .session-workbench {
-    min-height: 500px;
+    min-height: 0;
   }
 }
 
@@ -320,6 +319,7 @@
 .session-tabs .session-stop {
   margin-left: auto;
   align-self: center;
+  min-height: 32px;
   padding: 0 14px;
   font-size: 12px;
 }
@@ -591,83 +591,105 @@
   width: 18px;
   height: 18px;
 }
-/* Top bar: live-run chip and version badge (WebUI run-status and version chips). */
+/* Runtime metadata is secondary to the current project and session controls. */
 .topbar-live {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  height: 26px;
-  padding: 0 10px;
-  border: 1px solid var(--accent-border);
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent-ink, var(--accent));
+  min-height: 28px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
   font-size: 12px;
-  font-weight: 550;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
-  transition: transform 0.15s ease;
 }
 .topbar-live:hover {
-  transform: translateY(-1px);
+  color: var(--text);
+  background: var(--raised);
 }
 .topbar-live > i {
-  position: relative;
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: var(--accent);
-}
-.topbar-live > i::after {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: var(--accent);
-  content: "";
-  animation: live-ring 1.6s ease-out infinite;
+  background: hsl(var(--ws-success));
 }
 .topbar-version {
-  padding: 2px 8px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
+  padding: 2px 6px;
   color: var(--muted);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
-/* Sidebar: the open session carries an accent rule; a live session's dot sends a ring out. */
+.topbar .topbar-title {
+  flex: 1;
+}
 .explorer .tree-session.chosen {
   box-shadow: inset 2px 0 0 var(--accent);
 }
-.status-dot.running {
-  position: relative;
+.workspace-shell .session-tab.active-session-tab .session-tab-label,
+.workspace-shell .workspace-tabs button.chosen-tab {
+  color: var(--text);
 }
-.status-dot.running::after {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: var(--accent);
-  content: "";
-  animation: live-ring 1.8s ease-out infinite;
+.workspace-shell .workspace-tabs button.chosen-tab {
+  background: var(--raised);
+  box-shadow: inset 0 -2px var(--accent);
 }
-@keyframes live-ring {
-  from {
-    transform: scale(1);
-    opacity: 0.6;
-  }
-  to {
-    transform: scale(2.8);
-    opacity: 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .topbar-live > i::after,
-  .status-dot.running::after {
-    animation: none;
-    opacity: 0;
-  }
+.workspace-shell .chat-message > header,
+.workspace-shell .chat-message > header strong,
+.workspace-shell .session-status > span:first-child {
+  color: var(--muted);
 }
 @media (max-width: 800px) {
   .topbar-version {
     display: none;
+  }
+}
+@media (max-width: 619px) {
+  .topbar {
+    padding-inline: 12px;
+    gap: 8px;
+  }
+  .topbar-right {
+    gap: 2px;
+  }
+  .topbar-right > .button {
+    min-width: 32px;
+    min-height: 32px;
+    padding: 8px;
+    font-size: 0;
+    gap: 0;
+  }
+  .workspace-shell .session-tabs:has(> .session-tab-list) {
+    flex-wrap: wrap;
+    gap: 0;
+    padding: 4px 8px;
+  }
+  .workspace-shell .session-tab-list {
+    flex: 1 0 100%;
+    min-height: 36px;
+  }
+  .workspace-shell .session-view-slot {
+    flex: 1 1 260px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+  }
+  .workspace-shell .session-view-slot > .workspace-tabs {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    min-width: 0;
+    padding: 0;
+    gap: 0;
+  }
+  .session-view-slot .workspace-tabs button {
+    padding-inline: 5px;
+  }
+  .session-tabs .session-stop {
+    min-width: 32px;
+    min-height: 32px;
+    padding: 8px;
+    font-size: 0;
+    gap: 0;
   }
 }

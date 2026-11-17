@@ -38,11 +38,11 @@
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-sm, 0);
   background: var(--base);
-  box-shadow: 0 14px 38px #0003;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--text) 14%, transparent);
   overflow: hidden;
-  font-size: 11px;
+  font-size: 12px;
 }
 .notification-panel > header {
   display: flex;
@@ -70,8 +70,9 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  min-height: 28px;
   padding: 4px 7px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm, 0);
   color: var(--muted);
 }
 .notification-actions button:not(:disabled):hover,
@@ -99,8 +100,9 @@
 }
 .notification-tabs button {
   flex: 1;
+  min-height: 28px;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm, 0);
   color: var(--muted);
 }
 .notification-tabs button[aria-pressed="true"] {
@@ -150,8 +152,8 @@
   font-size: 10px;
 }
 .notification-list .icon-button {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
 }
 .notification-icon {
   flex-shrink: 0;

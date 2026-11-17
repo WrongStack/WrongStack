@@ -157,7 +157,7 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
               <span className={`project-symbol color-${snapshot.projects.indexOf(item) % 4}`}>
                 {item.name.slice(0, 1).toUpperCase()}
               </span>
-              <h2>{item.name}</h2>
+              <h2 title={item.name}>{item.name}</h2>
               <span>
                 {sessionCount(
                   t,

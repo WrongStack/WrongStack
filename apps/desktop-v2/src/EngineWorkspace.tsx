@@ -1,18 +1,7 @@
 import { parseBugHuntMessage } from '@wrongstack/project-surfaces/lib/bug-hunt-message';
-import {
-  ChevronDown,
-  FolderCode,
-  GitCompareArrows,
-  LoaderCircle,
-  MessageSquare,
-  PanelsTopLeft,
-  Settings2,
-  Square,
-  X,
-} from 'lucide-react';
+import { LoaderCircle, Square, X } from 'lucide-react';
 import { lazy, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useAgentTabs } from './AgentTranscripts';
 import { ComposerFoldControls } from './ComposerFoldControls';
 import { ConversationNotices } from './ConversationNotices';
 import { useConversationShortcuts } from './ConversationShortcuts';
@@ -57,23 +46,26 @@ import {
 import { useRunSounds } from './RunSounds';
 import { recoveryLog, recoveryLogKey, type SavedRecoveryLog } from './recovery-log';
 import type { ProjectFormDraftStorage } from './requirement-draft';
+import { SavedQuestionsReview } from './SavedQuestionsReview';
 import { ScheduledJobs } from './ScheduledJobs';
 import { SessionActivity } from './SessionActivity';
 import { SessionBrowser } from './SessionBrowser';
 import { SessionComposer } from './SessionComposer';
+import { SessionInspector } from './SessionInspector';
 import { SessionRecovery } from './SessionRecovery';
 import { SessionStatusBar } from './SessionStatusBar';
-import { SessionTodos } from './SessionTodos';
 import { SessionWorklist } from './SessionWorklist';
 import { ToolApprovalCard } from './ToolApprovalCard';
 import { useTranscriptFind } from './TranscriptFind';
 import { type MessageAction, TranscriptMessage } from './TranscriptMessage';
+import { TranscriptPins } from './TranscriptPins';
 import { type TranscriptHandle, TranscriptVirtualizer } from './TranscriptVirtualizer';
 import { AgentWorking, LiveRunActivity } from './TurnTools';
 import { useTranscriptFollowHandlers } from './transcript-follow';
 import { useComposerCollapse } from './useComposerCollapse';
 import { useDesignDraftPreparation } from './useDesignDraftPreparation';
 import { useEngine } from './useEngine';
+import { WorkspaceNavigation } from './WorkspaceNavigation';
 import { WorkspaceTools } from './WorkspaceTools';
 import './input-recovery.css';
 
@@ -350,10 +342,9 @@ export function EngineWorkspace({
     'tab' in target ? setTab(target.tab) : onOpen(target);
   const shortcuts = useConversationShortcuts(navigate, display.keyboardShortcuts, focusComposer);
   useRunSounds(state);
-  const agentTabs = useAgentTabs(state, openLink);
   const finder = useTranscriptFind({
     messages: state.messages,
-    enabled: chatActive && !agentTabs.view,
+    enabled: chatActive,
     reveal: (index) => {
       pauseFollowing();
       transcript.current?.scrollToMessage(index);
@@ -364,62 +355,13 @@ export function EngineWorkspace({
     <div className="engine-workspace" data-engine-session={state.sessionId} ref={workspace}>
       {shortcuts}
       {placeTabs(
-        <nav className="workspace-tabs" aria-label={t('workspace.views')}>
-          {(
-            [
-              { name: 'chat', label: t('workspace.chat'), Icon: MessageSquare },
-              { name: 'files', label: t('workspace.files'), Icon: FolderCode },
-              { name: 'changes', label: t('workspace.changes'), Icon: GitCompareArrows },
-            ] as const
-          ).map(({ name, label, Icon }) => (
-            <button
-              type="button"
-              key={name}
-              className={tab === name ? 'chosen-tab' : ''}
-              aria-current={tab === name ? 'page' : undefined}
-              onClick={() => setTab(name)}
-            >
-              <Icon size={14} />
-              {label}
-              {name === 'chat' && state.approvals.length + state.inputs.length > 0 && (
-                <span>{state.approvals.length + state.inputs.length}</span>
-              )}
-            </button>
-          ))}
-          <button
-            type="button"
-            className={
-              [
-                'activity',
-                'skills',
-                'history',
-                'mcp-tasks',
-                'processes',
-                'side-effects',
-                'usage',
-                'story',
-                'context',
-                'plan',
-              ].includes(tab)
-                ? 'chosen-tab project-tools-button'
-                : 'project-tools-button'
-            }
-            onClick={() => setToolsOpen(true)}
-          >
-            <PanelsTopLeft size={14} />
-            {t('workspace.tools')}
-            <ChevronDown size={11} />
-          </button>
-          <button
-            type="button"
-            className="icon-button project-tools-button"
-            aria-label={t('workspace.settings')}
-            title={t('workspace.settingsTitle')}
-            onClick={onSettings}
-          >
-            <Settings2 size={15} />
-          </button>
-        </nav>,
+        <WorkspaceNavigation
+          tab={tab}
+          pending={state.approvals.length + state.inputs.length}
+          onSelect={setTab}
+          onTools={() => setToolsOpen(true)}
+          onSettings={onSettings}
+        />,
       )}
       {toolsOpen && (
         <WorkspaceTools
@@ -475,288 +417,288 @@ export function EngineWorkspace({
           {state.error}
         </div>
       )}
-      {chatActive && (
-        <>
-          {state.archivedInputs.length > 0 && (
-            <button
-              type="button"
-              className="button secondary small"
-              onClick={() => setSavedQuestionsOpen(true)}
-            >
-              {t('input.reviewSaved', { count: state.archivedInputs.length })}
-            </button>
-          )}
-          {state.connected && state.needsSetup && (
-            <div className="provider-setup-banner">
-              <span>{t('chatView.providerNeeded')}</span>
-              <button type="button" className="button primary" onClick={onSettings}>
-                {t('chatView.configureProvider')}
-              </button>
-            </div>
-          )}
-          {state.inputs.length > 0 && (
-            <div className="input-context-toggle">
-              <span>
-                {t(state.inputs.length === 1 ? 'chatView.pendingOne' : 'chatView.pendingMany', {
-                  count: state.inputs.length,
-                })}
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowConversation(!showConversation);
-                  chatPane.current?.scrollTo({ top: 0 });
-                }}
-              >
-                {showConversation ? t('chatView.focusQuestions') : t('chatView.reviewConversation')}
-              </button>
-            </div>
-          )}
-          {agentTabs.bar}
-          {agentTabs.view}
-          {finder.bar}
-          {pins.ids.length > 0 && (
-            <details className="transcript-pins">
-              <summary>{t('messagePins.list', { count: pins.ids.length })}</summary>
-              {pins.ids.map((messageId) => {
-                const index = state.messages.findIndex((message) => message.id === messageId);
-                return (
-                  <div key={messageId}>
-                    <button
-                      type="button"
-                      className="button secondary"
-                      disabled={index < 0}
-                      onClick={() => {
-                        pauseFollowing();
-                        transcript.current?.scrollToMessage(index);
-                      }}
-                    >
-                      {index < 0
-                        ? t('messagePins.unavailable')
-                        : state.messages[index]!.text.slice(0, 120)}
-                    </button>
-                    <button
-                      type="button"
-                      className="button secondary"
-                      onClick={() => pins.toggle(messageId)}
-                    >
-                      {t('messagePins.unpin')}
+      <div className="session-conversation-layout" hidden={!chatActive}>
+        <div className="session-conversation-panes">
+          <div className="session-leader-column">
+            {chatActive && (
+              <>
+                {state.archivedInputs.length > 0 && (
+                  <button
+                    type="button"
+                    className="button secondary small"
+                    onClick={() => setSavedQuestionsOpen(true)}
+                  >
+                    {t('input.reviewSaved', { count: state.archivedInputs.length })}
+                  </button>
+                )}
+                {state.connected && state.needsSetup && (
+                  <div className="provider-setup-banner">
+                    <span>{t('chatView.providerNeeded')}</span>
+                    <button type="button" className="button primary" onClick={onSettings}>
+                      {t('chatView.configureProvider')}
                     </button>
                   </div>
-                );
-              })}
-            </details>
-          )}
-        </>
-      )}
-      {/* The scroll element, measured rows and open disclosures belong to the conversation. */}
-      <div
-        ref={chatPane}
-        hidden={!chatActive || agentTabs.view !== null}
-        className="native-chat-messages"
-        aria-live="polite"
-        {...followHandlers}
-      >
-        <TranscriptVirtualizer
-          ref={transcript}
-          scrollRef={chatPane}
-          following={chatActive ? following : undefined}
-          messages={
-            state.synced && (!state.inputs.length || showConversation) ? state.messages : []
-          }
-          header={
-            <>
-              {/* A conversation read for the first time appears once read to its end, not
+                )}
+                {state.inputs.length > 0 && (
+                  <div className="input-context-toggle">
+                    <span>
+                      {t(
+                        state.inputs.length === 1 ? 'chatView.pendingOne' : 'chatView.pendingMany',
+                        {
+                          count: state.inputs.length,
+                        },
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowConversation(!showConversation);
+                        chatPane.current?.scrollTo({ top: 0 });
+                      }}
+                    >
+                      {showConversation
+                        ? t('chatView.focusQuestions')
+                        : t('chatView.reviewConversation')}
+                    </button>
+                  </div>
+                )}
+                {finder.bar}
+                <TranscriptPins
+                  messages={state.messages}
+                  pins={pins}
+                  onReveal={(index) => {
+                    pauseFollowing();
+                    transcript.current?.scrollToMessage(index);
+                  }}
+                />
+              </>
+            )}
+            {/* The scroll element, measured rows and open disclosures belong to the conversation. */}
+            <div
+              ref={chatPane}
+              hidden={!chatActive}
+              className="native-chat-messages"
+              aria-live="polite"
+              {...followHandlers}
+            >
+              <TranscriptVirtualizer
+                ref={transcript}
+                scrollRef={chatPane}
+                following={chatActive ? following : undefined}
+                messages={
+                  state.synced && (!state.inputs.length || showConversation) ? state.messages : []
+                }
+                header={
+                  <>
+                    {/* A conversation read for the first time appears once read to its end, not
                 message by message from its first prompt as if it were starting over. */}
-              {!state.synced && (
-                <div className="native-chat-welcome" role="status">
-                  <LoaderCircle size={18} className="spin" />
-                  <p>{t('chatView.loading')}</p>
-                  {state.replay && <small>{replayProgress(state.replay)}</small>}
-                </div>
-              )}
-              {state.synced && !state.messages.length && !state.inputs.length && (
-                <ConversationWelcome
-                  projectRoot={projectRoot}
-                  provider={state.provider}
-                  model={state.model}
-                  connected={state.connected}
-                  onStart={(prompt) => void onDraftChange(prompt).then(focusComposer)}
-                  onOpenDesign={() => setDesignOpen(true)}
+                    {!state.synced && (
+                      <div className="native-chat-welcome" role="status">
+                        <LoaderCircle size={18} className="spin" />
+                        <p>{t('chatView.loading')}</p>
+                        {state.replay && <small>{replayProgress(state.replay)}</small>}
+                      </div>
+                    )}
+                    {state.synced && !state.messages.length && !state.inputs.length && (
+                      <ConversationWelcome
+                        projectRoot={projectRoot}
+                        provider={state.provider}
+                        model={state.model}
+                        connected={state.connected}
+                        onStart={(prompt) => void onDraftChange(prompt).then(focusComposer)}
+                        onOpenDesign={() => setDesignOpen(true)}
+                      />
+                    )}
+                    {state.synced && (!state.inputs.length || showConversation) && (
+                      <LiveRunActivity
+                        display={display}
+                        events={state.leadingActivity}
+                        projectRoot={artifactRoot}
+                        live={state.running && !state.messages.length}
+                        command={command}
+                        onOpenFile={openFile}
+                        onOpenDesign={openDesign}
+                      />
+                    )}
+                  </>
+                }
+                footer={
+                  <>
+                    {state.inputs.map((request) => (
+                      <InputRequestCard
+                        key={request.id}
+                        request={request}
+                        draft={inputDrafts[`${id}:${request.id}`]}
+                        onChange={(value) => onInputDraftChange(`${id}:${request.id}`, value)}
+                        persistence={
+                          native && projectId
+                            ? inputAnswerDraft({ projectId, sessionId: id, requestId: request.id })
+                            : undefined
+                        }
+                        send={send}
+                        connected={state.connected}
+                      />
+                    ))}
+                    {state.approvals.map((approval) => (
+                      <ToolApprovalCard
+                        key={String(approval['id'])}
+                        approval={approval}
+                        send={send}
+                        connected={state.connected}
+                      />
+                    ))}
+                    {state.running && (
+                      <AgentWorking
+                        waiting={state.inputs.length > 0}
+                        since={state.runStartAt}
+                        timeline={state.runTimeline}
+                        showThinking={display.showThinkingLogs}
+                      />
+                    )}
+                    <div ref={end} />
+                  </>
+                }
+                renderMessage={(message, index) => (
+                  <TranscriptMessage
+                    key={message.id}
+                    message={message}
+                    display={display}
+                    state={state}
+                    projectRoot={artifactRoot}
+                    activityLive={state.running && index === state.messages.length - 1}
+                    onLink={openLink}
+                    onOpenFile={openFile}
+                    onOpenDesign={openDesign}
+                    command={command}
+                    edit={editAction(message)}
+                    pin={{
+                      active: pins.ids.includes(message.id),
+                      toggle: () => pins.toggle(message.id),
+                    }}
+                    chimeraAction={
+                      message.chimera ? chimeraAction(message.chimera.reportId) : undefined
+                    }
+                    onOpenChimera={
+                      message.chimera
+                        ? () => onOpen({ page: 'reviews', reportId: message.chimera!.reportId })
+                        : undefined
+                    }
+                    mark={finder.mark(message.id)}
+                    day={dayLabel(message, index ? state.messages[index - 1] : undefined)}
+                    askAgain={
+                      index === state.messages.length - 1 && message.role === 'assistant'
+                        ? askAgainAction()
+                        : undefined
+                    }
+                  />
+                )}
+              />
+            </div>
+            {chatActive && (
+              <>
+                {showLatest && !state.inputs.length && (
+                  <div className="chat-follow-control">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        following.current = true;
+                        setShowLatest(false);
+                        end.current?.scrollIntoView({ block: 'nearest' });
+                      }}
+                    >
+                      {t('chatView.jumpToLatest')}
+                      {state.messages.length > leftAt.current &&
+                        ` \u00b7 ${t('chatView.newMessages', { count: state.messages.length - leftAt.current })}`}
+                    </button>
+                  </div>
+                )}
+                <ConversationNotices
+                  key={state.sessionId}
+                  notices={state.notices}
+                  onAction={async (action) => {
+                    try {
+                      await command(action.type, action.payload, [`${action.type}_result`]);
+                    } catch (error) {
+                      onError(error);
+                      throw error;
+                    }
+                  }}
                 />
-              )}
-              {state.synced && (!state.inputs.length || showConversation) && (
-                <LiveRunActivity
-                  display={display}
-                  events={state.leadingActivity}
-                  projectRoot={artifactRoot}
-                  live={state.running && !state.messages.length}
+                <FallbackPicker state={state} send={send} />
+                <ProviderWaitingRoom state={state} command={command} />
+                <ScheduledJobs state={state} />
+                <SessionWorklist state={state} command={command} />
+                <SessionBrowser
+                  id={id}
+                  state={state}
+                  send={send}
                   command={command}
-                  onOpenFile={openFile}
-                  onOpenDesign={openDesign}
+                  onAddToPrompt={(text) => void onDraftChange(appendToDraft(draft, text))}
                 />
-              )}
-            </>
-          }
-          footer={
-            <>
-              {state.inputs.map((request) => (
-                <InputRequestCard
-                  key={request.id}
-                  request={request}
-                  draft={inputDrafts[`${id}:${request.id}`]}
-                  onChange={(value) => onInputDraftChange(`${id}:${request.id}`, value)}
-                  persistence={
-                    native && projectId
-                      ? inputAnswerDraft({ projectId, sessionId: id, requestId: request.id })
-                      : undefined
-                  }
-                  send={send}
-                  connected={state.connected}
-                />
-              ))}
-              {state.approvals.map((approval) => (
-                <ToolApprovalCard
-                  key={String(approval['id'])}
-                  approval={approval}
-                  send={send}
-                  connected={state.connected}
-                />
-              ))}
-              {state.running && (
-                <AgentWorking
-                  waiting={state.inputs.length > 0}
-                  since={state.runStartAt}
-                  timeline={state.runTimeline}
-                  showThinking={display.showThinkingLogs}
-                />
-              )}
-              <div ref={end} />
-            </>
-          }
-          renderMessage={(message, index) => (
-            <TranscriptMessage
-              key={message.id}
-              message={message}
-              display={display}
-              state={state}
-              projectRoot={artifactRoot}
-              activityLive={state.running && index === state.messages.length - 1}
-              onLink={openLink}
-              onOpenFile={openFile}
-              onOpenDesign={openDesign}
-              command={command}
-              edit={editAction(message)}
-              pin={{
-                active: pins.ids.includes(message.id),
-                toggle: () => pins.toggle(message.id),
-              }}
-              chimeraAction={message.chimera ? chimeraAction(message.chimera.reportId) : undefined}
-              onOpenChimera={
-                message.chimera
-                  ? () => onOpen({ page: 'reviews', reportId: message.chimera!.reportId })
-                  : undefined
-              }
-              mark={finder.mark(message.id)}
-              day={dayLabel(message, index ? state.messages[index - 1] : undefined)}
-              askAgain={
-                index === state.messages.length - 1 && message.role === 'assistant'
-                  ? askAgainAction()
-                  : undefined
-              }
-            />
-          )}
-        />
-      </div>
-      {chatActive ? (
-        <>
-          {showLatest && !state.inputs.length && (
-            <div className="chat-follow-control">
-              <button
-                type="button"
-                onClick={() => {
-                  following.current = true;
-                  setShowLatest(false);
-                  end.current?.scrollIntoView({ block: 'nearest' });
-                }}
-              >
-                {t('chatView.jumpToLatest')}
-                {state.messages.length > leftAt.current &&
-                  ` \u00b7 ${t('chatView.newMessages', { count: state.messages.length - leftAt.current })}`}
-              </button>
-            </div>
-          )}
-          <ConversationNotices
-            key={state.sessionId}
-            notices={state.notices}
-            onAction={async (action) => {
-              try {
-                await command(action.type, action.payload, [`${action.type}_result`]);
-              } catch (error) {
-                onError(error);
-                throw error;
-              }
-            }}
-          />
-          <FallbackPicker state={state} send={send} />
-          <ProviderWaitingRoom state={state} command={command} />
-          <SessionTodos state={state} command={command} />
-          <ScheduledJobs state={state} />
-          <SessionWorklist state={state} command={command} />
-          <SessionBrowser
-            id={id}
-            state={state}
-            send={send}
-            command={command}
-            onAddToPrompt={(text) => void onDraftChange(appendToDraft(draft, text))}
-          />
-          {state.inputs.length > 0 && (
-            <div className="input-waiting-controls">
-              <span>{t('chatView.answerForm')}</span>
-              <button type="button" className="button secondary" onClick={() => perform('abort')}>
-                <Square size={13} />
-                {t('chatView.stopRun')}
-              </button>
-            </div>
-          )}
-          {state.messages.length > 0 && !state.inputs.length && (
-            <ComposerFoldControls
-              collapsed={composerFold.collapsed}
-              running={state.running}
-              draft={draft}
-              onExpand={focusComposer}
-              onCollapse={composerFold.collapse}
-              onStop={() => perform('abort')}
-            />
-          )}
-          {/* Hidden, not unmounted, while a form waits: an open refinement review or other
+                {state.inputs.length > 0 && (
+                  <div className="input-waiting-controls">
+                    <span>{t('chatView.answerForm')}</span>
+                    <button
+                      type="button"
+                      className="button secondary"
+                      onClick={() => perform('abort')}
+                    >
+                      <Square size={13} />
+                      {t('chatView.stopRun')}
+                    </button>
+                  </div>
+                )}
+                {state.messages.length > 0 && !state.inputs.length && (
+                  <ComposerFoldControls
+                    collapsed={composerFold.collapsed}
+                    running={state.running}
+                    draft={draft}
+                    onExpand={focusComposer}
+                    onCollapse={composerFold.collapse}
+                    onStop={() => perform('abort')}
+                  />
+                )}
+                {/* Hidden, not unmounted, while a form waits: an open refinement review or other
               composer state must survive the question. */}
-          <div hidden={state.inputs.length > 0 || composerFold.collapsed} className="composer-host">
-            <SessionComposer
-              key={id}
-              state={state}
-              send={send}
-              command={command}
-              draft={draft}
-              mode={mode}
-              onModeChange={onModeChange}
-              draftConflict={draftConflict}
-              validateDraft={validateDraft}
-              onDraftChange={onDraftChange}
-              onSettings={onSettings}
-              references={references}
-              attachments={attachments}
-              onAttachmentsChange={onAttachmentsChange}
-              onReferencesChange={onReferencesChange}
-              projectId={projectId}
-              projectRoot={projectRoot}
-              planDraftStorage={planDraftStorage}
-              refineDraftStorage={refineDraftStorage}
-              onNavigate={navigate}
-            />
+                <div
+                  hidden={state.inputs.length > 0 || composerFold.collapsed}
+                  className="composer-host"
+                >
+                  <SessionComposer
+                    key={id}
+                    state={state}
+                    send={send}
+                    command={command}
+                    draft={draft}
+                    mode={mode}
+                    onModeChange={onModeChange}
+                    draftConflict={draftConflict}
+                    validateDraft={validateDraft}
+                    onDraftChange={onDraftChange}
+                    onSettings={onSettings}
+                    references={references}
+                    attachments={attachments}
+                    onAttachmentsChange={onAttachmentsChange}
+                    onReferencesChange={onReferencesChange}
+                    projectId={projectId}
+                    projectRoot={projectRoot}
+                    planDraftStorage={planDraftStorage}
+                    refineDraftStorage={refineDraftStorage}
+                    onNavigate={navigate}
+                  />
+                </div>
+              </>
+            )}
           </div>
-        </>
-      ) : isEngineSessionPanel(tab) ? (
+          <SessionInspector
+            key={`${id}:${state.sessionId}`}
+            state={state}
+            command={command}
+            onLink={openLink}
+          />
+        </div>
+      </div>
+      {chatActive ? null : isEngineSessionPanel(tab) ? (
         <EngineSessionPanels
           tab={tab}
           state={state}
@@ -833,35 +775,14 @@ export function EngineWorkspace({
         <EngineDataView tab={tab} state={state} send={send} onError={onError} />
       )}
       {savedQuestionsOpen && (
-        <Modal title={t('input.savedTitle')} onClose={() => setSavedQuestionsOpen(false)}>
-          <header className="input-recovery-heading">
-            <h2>{t('input.savedTitle')}</h2>
-            <button
-              type="button"
-              className="button secondary small"
-              onClick={() => setSavedQuestionsOpen(false)}
-            >
-              {t('input.closeSaved')}
-            </button>
-          </header>
-          <p>{t('input.savedHelp')}</p>
-          {state.archivedInputs.map((request) => (
-            <InputRequestCard
-              key={request.id}
-              request={request}
-              draft={inputDrafts[`${id}:${request.id}`]}
-              onChange={() => {}}
-              send={send}
-              connected={false}
-              readOnly
-              persistence={
-                native && projectId
-                  ? inputAnswerDraft({ projectId, sessionId: id, requestId: request.id })
-                  : undefined
-              }
-            />
-          ))}
-        </Modal>
+        <SavedQuestionsReview
+          id={id}
+          projectId={projectId}
+          requests={state.archivedInputs}
+          drafts={inputDrafts}
+          send={send}
+          onClose={() => setSavedQuestionsOpen(false)}
+        />
       )}
       <SessionStatusBar
         state={state}

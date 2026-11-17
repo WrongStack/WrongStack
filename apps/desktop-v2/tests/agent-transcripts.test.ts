@@ -2,7 +2,7 @@ import { EMPTY_FLEET_FOLD } from '@wrongstack/project-surfaces/office/fleet-fold
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { useAgentTabs } from '../src/AgentTranscripts';
+import { SessionAgentRail } from '../src/AgentTranscripts';
 import { agentTabList, transcriptSteps } from '../src/agent-transcripts';
 import { emptyEngineState, reduceEngine } from '../src/engine-state';
 
@@ -129,21 +129,27 @@ describe('subagent transcripts', () => {
     expect(again.agents['a1']?.status).toBe('completed');
   });
 
-  it('shows a tab per agent once the conversation has one', () => {
+  it('always shows the leader and adds a row for every conversation agent', () => {
     function Tabs({ agents }: { agents: typeof emptyEngineState.agents }) {
-      return useAgentTabs({ agents, fleet: EMPTY_FLEET_FOLD }, () => {}).bar;
+      return createElement(SessionAgentRail, {
+        state: { ...emptyEngineState, agents, fleet: EMPTY_FLEET_FOLD },
+        onLink: () => {},
+      });
     }
-    expect(renderToStaticMarkup(createElement(Tabs, { agents: {} }))).toBe('');
+    const empty = renderToStaticMarkup(createElement(Tabs, { agents: {} }));
+    expect(empty).toContain('Session agents');
+    expect(empty).toContain('Leader');
+    expect(empty).toContain('No other agents in this session yet.');
     const html = renderToStaticMarkup(
       createElement(Tabs, {
         agents: { a1: { id: 'a1', name: 'Ada', status: 'running', task: 'Audit', entries: [] } },
       }),
     );
-    expect(html).toContain('aria-pressed="true">Conversation</button>');
+    expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('title="Ada: Audit"');
-    expect(html).toContain(
-      '<span class="agent-led running" aria-hidden="true"></span>Ada<small>Running</small>',
-    );
+    expect(html).toContain('<strong>Ada</strong>');
+    expect(html).toContain('<small>Running</small>');
+    expect(html).toContain('Waiting for the first message');
   });
 
   it('lists every subagent the fleet roster knows, as the WebUI tabs do', () => {
@@ -175,12 +181,13 @@ describe('subagent transcripts', () => {
     expect(tabs['w1']?.entries.map((entry) => entry.kind)).toEqual(['system', 'tool_result']);
 
     function Tabs() {
-      return useAgentTabs(state, () => {}).bar;
+      return createElement(SessionAgentRail, { state, onLink: () => {} });
     }
     const html = renderToStaticMarkup(createElement(Tabs));
     expect(html).toContain('title="Bob: Map it"');
     expect(html).toContain('title="Cy: Test it"');
-    expect(html).not.toContain('Lead');
+    expect(html).not.toContain('<strong>Lead</strong>');
+    expect(html.match(/<strong>Leader<\/strong>/g)).toHaveLength(1);
   });
 
   it('shows a fleet worker’s output when the roster holds no transcript for it', () => {
@@ -243,7 +250,7 @@ describe('subagent transcripts', () => {
       remainingSpawns: 7,
     });
     function Tabs() {
-      return useAgentTabs(state, () => {}).bar;
+      return createElement(SessionAgentRail, { state, onLink: () => {} });
     }
     expect(renderToStaticMarkup(createElement(Tabs))).toContain(
       '<span class="agent-gauge">1/4 running · 7 of 10 spawns left</span>',

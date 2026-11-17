@@ -5,7 +5,6 @@ import { useDesktopText } from './desktop-i18n';
 import { desktopVersion } from './desktop-version';
 import { FleetPanel } from './FleetPanel';
 import { HostBuildNotice } from './HostBuildNotice';
-import { sessionTitle } from './model';
 import { NotificationMenu } from './NotificationMenu';
 import { useNotificationFeed } from './notification-feed';
 import { ProjectViews } from './ProjectViews';
@@ -66,27 +65,20 @@ export function App() {
       >
         <header className="topbar">
           <h1 className="topbar-title">
-            {focused ? (
-              <>
-                <span className="topbar-context">{currentProject?.name}</span>
-                <span className="breadcrumb-session">
-                  {sessionTitle(currentSession, t('workbench.untitled'))}
-                </span>
-              </>
-            ) : section === 'wrongstack' ? (
-              settingsTitle
-            ) : section === 'project' && currentProject ? (
-              currentProject.name
-            ) : (
-              {
-                fleet: t('rail.missionControl'),
-                projects: t('rail.projects'),
-                activity: t('rail.activity'),
-                engine: t('rail.appearance'),
-                project: t('topbar.project'),
-                wrongstack: t('rail.settings'),
-              }[section]
-            )}
+            {focused
+              ? (currentProject?.name ?? t('rail.missionControl'))
+              : section === 'wrongstack'
+                ? settingsTitle
+                : section === 'project' && currentProject
+                  ? currentProject.name
+                  : {
+                      fleet: t('rail.missionControl'),
+                      projects: t('rail.projects'),
+                      activity: t('rail.activity'),
+                      engine: t('rail.appearance'),
+                      project: t('topbar.project'),
+                      wrongstack: t('rail.settings'),
+                    }[section]}
           </h1>
           <div className="topbar-right">
             {vm.active.length > 0 && (
@@ -121,6 +113,8 @@ export function App() {
               <button
                 type="button"
                 className="button secondary small"
+                aria-label={t('topbar.newSession')}
+                title={t('topbar.newSession')}
                 disabled={!native || !snapshot.projects.length || pending}
                 onClick={() => newSession()}
               >

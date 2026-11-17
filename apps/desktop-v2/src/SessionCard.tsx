@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUpRight, Pin, PinOff, Terminal, Workflow } from 'lucide-react';
+import { ArrowRight, Pin, PinOff, Terminal, Workflow } from 'lucide-react';
 import { useDesktopText } from './desktop-i18n';
 import { ageParts, isLive, type Session, sessionStatus } from './model';
 
@@ -20,7 +20,6 @@ export function Metric({
       <div className="metric-label">
         {icon}
         <span>{label}</span>
-        {live && <span className="live-label">LIVE</span>}
       </div>
       <strong>
         {value}
@@ -50,14 +49,16 @@ export function SessionCard({
   const { t } = useDesktopText();
   const live = isLive(s);
   const ago = ageParts(s.updatedAt);
+  const actionLabel = t(s.kind === 'agent' && live ? 'fleetView.openWorkspace' : live ? 'fleetView.attachSession' : 'fleetView.viewTranscript');
   return (
     <article className={`session-card ${selected ? 'selected' : ''} ${pinned ? 'pinned' : ''}`}>
       {/* Cards sit under their project's heading; the folder stays in the tooltip. */}
       <button
         type="button"
         className="session-card-main"
-        title={`${name} · ${s.workdir.replace(/^\\\\\?\\/, '')}`}
-        onClick={onOpen}
+        aria-label={`${actionLabel}: ${s.title}`}
+        title={`${s.title} · ${name} · ${s.workdir.replace(/^\\\\\?\\/, '')}`}
+        onClick={s.kind === 'agent' && live ? onLaunch : onOpen}
       >
         {/* One row: the kind's icon, the title and the state. A kind line above it said
             "WrongStack" on every agent card and "Terminal" over a terminal titled Terminal; the
@@ -74,6 +75,7 @@ export function SessionCard({
             <span className={`status-dot ${s.status}`} />
             {t(`fleetView.status.${sessionStatus(s)}`)}
           </span>
+          <ArrowRight className="session-card-open" size={14} aria-hidden="true" />
         </div>
       </button>
       <footer>
@@ -88,17 +90,6 @@ export function SessionCard({
           {pinned ? t('fleetView.unpin') : t('fleetView.pin')}
         </button>
         <span className="card-age">{t(`fleetView.age.${ago.unit}`, { n: ago.n })}</span>
-        {s.kind === 'agent' && live ? (
-          <button type="button" className="card-footer-action" onClick={onLaunch}>
-            {t('fleetView.openWorkspace')}
-            <ArrowUpRight size={14} />
-          </button>
-        ) : (
-          <button type="button" className="card-footer-action" onClick={onOpen}>
-            {live ? t('fleetView.attachSession') : t('fleetView.viewTranscript')}
-            <ArrowRight size={14} />
-          </button>
-        )}
       </footer>
     </article>
   );

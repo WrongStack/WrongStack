@@ -1,10 +1,12 @@
 import { CheckCircle2, Circle, ListTodo, LoaderCircle, Trash2 } from 'lucide-react';
 import './session-todos.css';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { entries, record } from './engine-values';
+import { surfaceI18n } from './surface-i18n';
 
 export interface SessionTodo {
   id: string;
@@ -48,20 +50,67 @@ export function todoProgress(todos: readonly SessionTodo[]): string {
  * The agent's todo list for this conversation, kept live by `todos.updated`. Items can be
  * marked or removed by hand; Kanban-bound items are task projections and change on the board.
  */
-export function SessionTodos({ state, command }: { state: EngineState; command: EngineCommand }) {
+export function SessionTodos({
+  state,
+  command,
+  embedded = false,
+}: {
+  state: EngineState;
+  command: EngineCommand;
+  embedded?: boolean;
+}) {
   const { t } = useDesktopText();
+  const { t: words } = useTranslation('sessionInspector', { i18n: surfaceI18n });
   const todos = sessionTodos(state.results['todos.updated']);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [clearing, setClearing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [reload, setReload] = useState(0);
   const sessionId = state.sessionId;
   useEffect(() => {
     if (!sessionId) return;
-    void command('todos.get', {}, ['todos.updated']).catch(() => {
-      // An engine without worklist routes simply shows no todo list.
-    });
-  }, [command, sessionId]);
-  if (todos.length === 0) return null;
+    let active = true;
+    setLoading(true);
+    setError('');
+    void command('todos.get', {}, ['todos.updated']).then(
+      () => {
+        if (active) setLoading(false);
+      },
+      (failure: unknown) => {
+        if (!active) return;
+        setLoading(false);
+        setError(failure instanceof Error ? failure.message : String(failure));
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [command, sessionId, reload]);
+  if (todos.length === 0)
+    return embedded ? (
+      <div className="session-plan-empty">
+        <ListTodo size={24} aria-hidden="true" />
+        {error ? (
+          <>
+            <p role="alert">
+              {words('planError')}: {error}
+            </p>
+            <button
+              type="button"
+              className="button secondary small"
+              onClick={() => setReload((value) => value + 1)}
+            >
+              {words('retry')}
+            </button>
+          </>
+        ) : (
+          <p role="status">
+            {loading || state.hydrating ? t('chatView.loading') : words('planEmpty')}
+          </p>
+        )}
+      </div>
+    ) : null;
   const act = async (type: string, payload: Record<string, unknown> = {}) => {
     setBusy(true);
     setError('');
@@ -77,7 +126,7 @@ export function SessionTodos({ state, command }: { state: EngineState; command: 
   const editable = todos.some((todo) => !todo.managed);
   const { done, total, current } = todoCounts(todos);
   return (
-    <details className="session-todos">
+    <details className="session-todos" open={embedded || undefined}>
       <summary>
         <ListTodo size={14} /> {t('todoList.title')} · {t('todoList.progress', { done, total })}
         {current ? ` · ${current}` : ''}

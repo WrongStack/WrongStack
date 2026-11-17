@@ -7,14 +7,18 @@
   --composer-inline: max(18px, calc((100% - 860px) / 2));
 }
 .native-composer-stack {
+  container: composer / inline-size;
   flex-shrink: 0;
   min-width: 0;
   background: var(--base);
 }
 .native-composer-stack .native-composer {
+  position: relative;
   margin-top: 0;
+  padding: 12px;
 }
 .native-composer-stack .native-composer textarea {
+  padding: 8px 2px;
   resize: none;
   min-height: 62px;
   max-height: 180px;
@@ -27,6 +31,9 @@
   gap: 7px;
   min-width: 0;
   flex-wrap: wrap;
+}
+.native-composer-stack .session-model-controls {
+  display: contents;
 }
 /* Controls pack from the left; the actions keep the right edge through their auto margin.
    The generic composer footer spreads its children apart, which left wide, uneven holes
@@ -42,8 +49,8 @@
 }
 .native-composer footer.composer-toolbar {
   justify-content: flex-start;
-  padding-top: 10px;
-  gap: 10px;
+  padding-top: 8px;
+  gap: 4px;
 }
 .composer-actions {
   margin-left: auto;
@@ -52,13 +59,13 @@
 .composer-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
+  gap: 5px;
+  padding: 4px 6px;
   min-height: 32px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 0);
   color: var(--muted);
-  background: var(--base);
+  background: transparent;
   max-width: 100%;
 }
 .composer-chip:hover {
@@ -96,7 +103,7 @@
   padding: 7px;
 }
 .composer-options {
-  position: relative;
+  position: static;
 }
 .composer-options > summary {
   display: flex;
@@ -113,18 +120,21 @@
 }
 .composer-options > div {
   position: absolute;
-  bottom: calc(100% + 12px);
-  right: 0;
+  bottom: calc(100% + 8px);
+  right: 12px;
   z-index: 25;
   width: 260px;
-  max-width: 65vw;
+  max-width: min(65vw, calc(100cqw - 32px));
+  max-height: min(420px, 45dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--border);
-  background: var(--base);
-  box-shadow: 0 12px 35px #0002;
-  border-radius: 9px;
-  padding: 8px;
+  background: var(--raised);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--text) 14%, transparent);
+  border-radius: var(--radius-sm, 0);
+  padding: 6px;
   display: grid;
-  gap: 8px;
+  gap: 2px;
 }
 .composer-options :is(button, label) {
   display: flex;
@@ -135,7 +145,13 @@
   font-size: 12px;
 }
 .composer-options button:hover {
-  background: var(--raised);
+  background: var(--base);
+}
+.composer-options input[type="checkbox"] {
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  flex: none;
 }
 .composer-options small {
   color: var(--muted);
@@ -218,6 +234,8 @@
 }
 .composer-queue :is(button) {
   display: inline-flex;
+  min-width: 24px;
+  min-height: 24px;
   align-items: center;
   gap: 6px;
   padding: 5px;

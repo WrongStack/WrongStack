@@ -6,6 +6,8 @@ import activity from '../../../packages/webui/src/i18n/locales/en/activity.json'
 import common from '../../../packages/webui/src/i18n/locales/en/common.json';
 import setup from '../../../packages/webui/src/i18n/locales/en/setup.json';
 import desktop from './locales/en/desktop.json';
+import { sessionAgentText } from './session-agent-text';
+import { sessionInspectorText } from './session-inspector-text';
 
 /** The WebUI namespaces the shared surfaces translate with; each must be listed here. */
 const surfaceNamespaces = ['common', 'activity', 'setup'] as const;
@@ -52,10 +54,30 @@ void surfaceI18n
     fallbackLng: 'en',
     // The languages the WebUI catalogs ship; English is bundled, the others load on demand.
     supportedLngs: [...SUPPORTED_LNGS],
-    ns: [...surfaceNamespaces, 'desktop'],
+    ns: [...surfaceNamespaces, 'desktop', 'sessionAgents', 'sessionInspector'],
     defaultNS: 'common',
     partialBundledLanguages: true,
-    resources: { en: { common, activity, setup, desktop } },
+    resources: {
+      ...Object.fromEntries(
+        Object.entries(sessionAgentText).map(([language, sessionAgents]) => [
+          language,
+          {
+            sessionAgents,
+            sessionInspector: Object.entries(sessionInspectorText).find(
+              ([key]) => key === language,
+            )?.[1],
+          },
+        ]),
+      ),
+      en: {
+        common,
+        activity,
+        setup,
+        desktop,
+        sessionAgents: sessionAgentText.en,
+        sessionInspector: sessionInspectorText.en,
+      },
+    },
     interpolation: { escapeValue: false },
     react: { useSuspense: false },
     returnNull: false,
