@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.10] — 2026-11-17
+
+Desktop engines start faster and no longer outlive their purpose. A boot that
+waited for an unresponsive mailbox server now waits at most 1 s, project
+services stop once no window has used them for 15 minutes, and an engine whose
+session host died stops itself instead of running on with nobody to stop it.
+
+### Added
+
+- Desktop engines log one `webui.boot.timing` line per start with the time each
+  boot step took, so a slow start names its step in the engine log.
+  `startWebUI` takes an optional `reportBootTiming` callback; a terminal WebUI
+  prints nothing extra.
+
+### Changed
+
+- Desktop project services stop gracefully after 15 minutes that no window
+  used them, unless one of the project's Kanban boards is supervised (the board
+  supervisor runs in them). The next visit starts them again; the session story
+  and context panels now open their project services like the other project
+  pages.
+
+### Fixed
+
+- A desktop engine boot no longer waits up to 10 s when the project's mailbox
+  server does not answer: the online-agents list for the boot prompt is awaited
+  for at most 1 s and the prompt is built without it after that.
+- A desktop engine whose session host died (an update, a host restart, a crash)
+  stops itself within seconds. Windows does not end a child with its parent, so
+  such engines kept running, about 210 MB each, until a later launch swept them.
+- Restoring a conversation from a bare `sess_…` id no longer fails with "replay
+  was not verified": the engine accepts the dated id the server replays and
+  reports it as ready.
+
 ## [1.7.9] — 2026-11-17
 
 The desktop stays smooth while answers stream and while typing, reconnects a

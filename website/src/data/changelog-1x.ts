@@ -1,4 +1,4 @@
-// Changelog — recent 1.x era (1.7.9 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
+// Changelog — recent 1.x era (1.7.10 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
 // Historical entries mirror CHANGELOG.md release notes. 1.1.0 absorbs the 1.0.38
 // bump, which was never published; 1.7.8 was never tagged either.
 // The 1.1.5 entry summarizes the commits in v1.1.4..v1.1.5, the 1.1.6 entry
@@ -11,10 +11,23 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.10',
+    date: '2026-11-17',
+    tagline: 'Engines that start fast and stop on time',
+    latest: true,
+    highlights: [
+      'A desktop engine boot waits at most 1 s for the mailbox server instead of up to 10 s',
+      'Each engine start logs how long every boot step took (webui.boot.timing)',
+      'Project services stop after 15 minutes no window used them and start again on the next visit',
+      'Projects with a supervised Kanban board keep their services running',
+      'An engine whose session host died stops itself instead of running on',
+      'Restoring a conversation from a bare sess_ id works',
+    ],
+  },
+  {
     version: '1.7.9',
     date: '2026-11-17',
     tagline: 'A desktop that keeps up',
-    latest: true,
     highlights: [
       'Streaming answers and typing repaint only what changed; long desktop conversations open faster',
       'A stopped conversation reconnects through the spare engine already waiting in its folder',

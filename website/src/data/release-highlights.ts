@@ -1,27 +1,27 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.7.9',
-  title: 'A desktop that keeps up.',
+  version: '1.7.10',
+  title: 'Engines that start fast and stop on time.',
   summary:
-    'The desktop stays smooth while answers stream and while typing, reconnects a stopped conversation through the spare engine already waiting in its folder, and opens long conversations faster. A session inspector shows each worker beside the leader transcript, projects can be reordered and removed, and a BTW note reaches the leader as a same-session instruction.',
+    'Desktop engines start faster and no longer outlive their purpose. A boot that waited up to 10 s for the mailbox server now waits at most 1 s, project services stop after 15 minutes that no window uses them, and an engine whose session host died stops itself instead of running on.',
   socialDescription:
-    'WrongStack 1.7.9: smooth desktop conversations, reconnects through a waiting engine, a session inspector, reorderable projects, and BTW as a same-session instruction.',
+    'WrongStack 1.7.10: faster desktop engine starts, project services that stop when idle, and no engines left running after their host is gone.',
   cards: [
     {
-      title: 'Smooth while it streams',
-      body: 'Streaming answers and typing repaint only what changed, and a stopped conversation resumes in the engine already waiting for it.',
-      href: '/interfaces',
-      linkLabel: 'Explore the interfaces',
-    },
-    {
-      title: 'See every worker',
-      body: "A session inspector shows each worker's transcript and the plan beside the leader, without taking over the composer.",
+      title: 'Faster starts',
+      body: 'A boot no longer waits up to 10 s for an unresponsive mailbox server, and every start logs how long each step took.',
       href: '/interfaces',
       linkLabel: 'Explore the desktop',
     },
     {
-      title: 'BTW that lands',
-      body: 'A BTW note reaches the leader as a user instruction in the same session and is not lost when a turn ends.',
+      title: 'Idle services stop',
+      body: 'Project services no window used for 15 minutes stop and start again on the next visit; supervised Kanban boards keep theirs.',
+      href: '/interfaces',
+      linkLabel: 'Explore the interfaces',
+    },
+    {
+      title: 'No orphaned engines',
+      body: 'An engine whose session host died stops itself within seconds instead of holding its memory until the next launch.',
       href: '/getting-started',
       linkLabel: 'Upgrade your installation',
     },

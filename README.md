@@ -55,6 +55,15 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.7.10
+
+- **Faster engine starts:** a boot no longer waits up to 10 s for an
+  unresponsive mailbox server, and each start logs how long every step took.
+- **Idle project services stop:** services no window used for 15 minutes stop
+  and start again on the next visit; supervised Kanban boards keep theirs.
+- **No orphaned engines:** an engine whose session host died stops itself.
+- **Bare session ids restore:** reopening `sess_…` without its date works.
+
 ### What's new in 1.7.9
 
 - **Smooth desktop conversations:** streaming answers and typing no longer
@@ -636,7 +645,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.7.9**; versions follow semver
+- Release notes: **v1.7.10**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements
