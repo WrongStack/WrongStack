@@ -159,4 +159,24 @@ describe('journal tail for the shared surfaces', () => {
     listener!(frame('memory.sage.listPage', { requestId, memories: [1] }));
     expect(replies).toEqual([{ requestId, memories: [1] }]);
   });
+
+  it('does not arm another poll timer when the last listener unsubscribes synchronously during delivery', async () => {
+    vi.useFakeTimers();
+    mocked.mockImplementation(async (_command, args) => {
+      const a = args as { tail?: boolean };
+      if (a.tail) return { offset: 100, events: [], hasMore: false, tail: true };
+      return {
+        offset: 200,
+        events: [frame('memory.sage.listPage', { requestId: 'r1' })],
+        hasMore: true,
+      };
+    });
+    const tail = new JournalTail('p-sync-stop', 50);
+    let stop!: () => void;
+    stop = tail.listen(() => {
+      stop();
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(mocked).toHaveBeenCalledTimes(2);
+  });
 });

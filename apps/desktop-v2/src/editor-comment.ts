@@ -26,7 +26,8 @@ export function lineCommentMarker(path: string): string | null {
   return null;
 }
 
-const lineStart = (text: string, offset: number) => text.lastIndexOf('\n', offset - 1) + 1;
+const lineStart = (text: string, offset: number) =>
+  offset <= 0 ? 0 : text.lastIndexOf('\n', offset - 1) + 1;
 
 /**
  * Ctrl+/ over the touched lines: when every non-blank line is already commented the markers

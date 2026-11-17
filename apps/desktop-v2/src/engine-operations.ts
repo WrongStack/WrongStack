@@ -93,7 +93,7 @@ export class EngineOperations {
         const pending = this.pending.get(requestId);
         if (!pending) return;
         this.pending.delete(requestId);
-        clearTimeout(timer);
+        clearTimeout(pending.timer);
         reject(error instanceof Error ? error : new Error(String(error)));
       });
     });

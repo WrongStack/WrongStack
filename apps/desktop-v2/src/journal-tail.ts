@@ -41,14 +41,17 @@ export class JournalTail {
   }
   private pending: Promise<void> | undefined;
   private async locate() {
+    const run = this.run;
     let page = await request<{ offset: number; hasMore?: boolean; tail?: boolean }>(
       'project.events',
       { projectId: this.projectId, tail: true },
     );
+    if (run !== this.run) return;
     // A session host from an older build ignores `tail` and answers from the start: page to
     // the end without handing anything on, so old replies never reach a waiting surface.
     while (page.tail !== true && page.hasMore) {
       page = await request('project.events', { projectId: this.projectId, offset: page.offset });
+      if (run !== this.run) return;
     }
     this.offset ??= page.offset;
   }
@@ -65,7 +68,7 @@ export class JournalTail {
         this.offset = result.offset;
         for (const event of result.events.map(engineEvent))
           if (event) for (const listener of this.listeners) listener(event);
-        this.timer = setTimeout(poll, result.hasMore ? 0 : this.pollMs);
+        if (run === this.run) this.timer = setTimeout(poll, result.hasMore ? 0 : this.pollMs);
       } catch {
         if (run === this.run) this.timer = setTimeout(poll, 1000);
       }

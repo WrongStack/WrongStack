@@ -16,7 +16,8 @@ export function indentUnit(text: string): string {
   return tabs > spaces ? '\t' : '  ';
 }
 
-const lineStart = (text: string, offset: number) => text.lastIndexOf('\n', offset - 1) + 1;
+const lineStart = (text: string, offset: number) =>
+  offset <= 0 ? 0 : text.lastIndexOf('\n', offset - 1) + 1;
 
 /**
  * Enter keeps the current line's leading whitespace, plus one unit after an opening bracket.

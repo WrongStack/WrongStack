@@ -48,15 +48,18 @@ function desktopContextFeed(value: () => DashboardValue): ContextFeed {
     useAgents: () => NO_AGENTS,
     useConnectionKey: () => String(useDashboard().state.connected),
     requestDebug: async (signal) => {
+      if (signal.aborted) throw new Error('The context request was cancelled.');
       const reply = value().command('context.debug', {}, ['context.debug']);
-      const aborted = new Promise<never>((_, reject) =>
-        signal.addEventListener(
-          'abort',
-          () => reject(new Error('The context request was cancelled.')),
-          { once: true },
-        ),
-      );
-      return contextBreakdown(await Promise.race([reply, aborted]));
+      let onAbort: (() => void) | undefined;
+      const aborted = new Promise<never>((_, reject) => {
+        onAbort = () => reject(new Error('The context request was cancelled.'));
+        signal.addEventListener('abort', onAbort, { once: true });
+      });
+      try {
+        return contextBreakdown(await Promise.race([reply, aborted]));
+      } finally {
+        if (onAbort) signal.removeEventListener('abort', onAbort);
+      }
     },
     Memory: DesktopMemoryPanels,
     back: () => value().onBack(),

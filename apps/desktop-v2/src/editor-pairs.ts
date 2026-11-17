@@ -71,7 +71,7 @@ export function backspacePair(
 
 /** Whole lines touched by a selection, as [first line start, end of last line). */
 function lineBlock(text: string, start: number, end: number) {
-  const first = text.lastIndexOf('\n', start - 1) + 1;
+  const first = start <= 0 ? 0 : text.lastIndexOf('\n', start - 1) + 1;
   const last = end > start && text[end - 1] === '\n' ? end - 1 : end;
   const close = text.indexOf('\n', last);
   return { first, stop: close < 0 ? text.length : close };

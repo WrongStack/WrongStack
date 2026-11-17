@@ -73,15 +73,16 @@ export function desktopKanbanHost({
     useEffect(() => {
       if (!active) return;
       for (const { id } of saved) {
-        if (byProvider[id] || requested.current.has(id)) continue;
+        if (Object.hasOwn(byProvider, id) || requested.current.has(id)) continue;
         requested.current.add(id);
         request('provider.models', { providerId: id });
       }
     }, [active, saved, byProvider]);
     return useMemo(() => {
       const out: ModelCandidate[] = [];
-      for (const profile of saved)
-        for (const model of byProvider[profile.id] ?? []) {
+      for (const profile of saved) {
+        const models = Object.hasOwn(byProvider, profile.id) ? (byProvider[profile.id] ?? []) : [];
+        for (const model of models) {
           // A model that cannot emit text cannot drive an agent.
           if (model.outputModalities?.length && !model.outputModalities.includes('text')) continue;
           out.push({
@@ -94,6 +95,7 @@ export function desktopKanbanHost({
             outputModalities: model.outputModalities,
           });
         }
+      }
       return out;
     }, [saved, byProvider]);
   };

@@ -139,7 +139,10 @@ export function ProjectMailbox({
         },
         ['mailbox.messages'],
       );
-      if (seq !== sequence.current) return;
+      if (seq !== sequence.current) {
+        setOlder((current) => (current.busy ? { ...current, busy: false } : current));
+        return;
+      }
       const page = entries(reply['messages']);
       // An engine without the bound returns the recent window again: nothing new is added.
       const next = withOlderMail(messages, page, limit);
@@ -154,6 +157,10 @@ export function ProjectMailbox({
             : t('mailboxPage.older.loaded', { count: next.added }),
       });
     } catch (failure) {
+      if (seq !== sequence.current) {
+        setOlder((current) => (current.busy ? { ...current, busy: false } : current));
+        return;
+      }
       setOlder({ busy: false, done: false, note: String(failure) });
     }
   };

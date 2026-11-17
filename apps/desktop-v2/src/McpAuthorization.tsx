@@ -81,10 +81,12 @@ export function McpAuthorization({ name, command }: { name: string; command: Eng
         },
         ['mcp.auth.pending', 'mcp.operation_result'],
       );
+      if (run.current !== token) return;
       const url = safeAuthorizationUrl(pending['authorizationUrl']);
       if (!url) throw Error(t('mcpAuth.notHttps'));
       setLink(url);
       await openExternal(url).catch(() => setNotice(t('mcpAuth.browserFailed')));
+      if (run.current !== token) return;
       setWaiting(true);
       const deadline =
         typeof pending['expiresAt'] === 'number'
@@ -94,6 +96,7 @@ export function McpAuthorization({ name, command }: { name: string; command: Eng
         await new Promise((resolve) => setTimeout(resolve, POLL_MS));
         if (run.current !== token) return;
         const current = await read();
+        if (run.current !== token) return;
         setStatus(current);
         if (current.state === 'authorized') {
           setNotice(t('mcpAuth.signedIn'));

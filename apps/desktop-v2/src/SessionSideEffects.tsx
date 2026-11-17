@@ -88,7 +88,7 @@ export function SessionSideEffects({
       if (alive.current && current === sequence.current)
         setError(error instanceof Error ? error.message : String(error));
     } finally {
-      pending.current = false;
+      if (current === sequence.current) pending.current = false;
       if (alive.current && current === sequence.current) setBusy(false);
     }
   }, [sessionId, connected, fetchPage]);
@@ -104,6 +104,7 @@ export function SessionSideEffects({
     return () => {
       stopped = true;
       alive.current = false;
+      pending.current = false;
       sequence.current++;
       clearTimeout(timer);
     };

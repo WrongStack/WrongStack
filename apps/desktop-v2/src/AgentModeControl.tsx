@@ -43,11 +43,19 @@ export function AgentModeControl({
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   useEffect(() => {
+    let cancelled = false;
+    setList(null);
+    setError('');
     void command('modes.list', {}, ['modes.list'])
-      .then((reply) => setList(agentModes(reply)))
+      .then((reply) => {
+        if (!cancelled) setList(agentModes(reply));
+      })
       .catch(() => {
         // An engine without a mode store has nothing to offer here.
       });
+    return () => {
+      cancelled = true;
+    };
   }, [command]);
   if (!list || list.modes.length === 0) return null;
   const current = announced || list.activeId;

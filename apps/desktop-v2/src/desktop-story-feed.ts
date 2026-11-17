@@ -88,23 +88,26 @@ export function desktopStoryFeed(value: () => DesktopStoryValue): StoryFeed {
     useContextRequest: () => NO_CONTEXT_REQUEST,
     supportsChronicle: () => engineSupportsChronicle(value().state),
     queryChronicle: async (query, signal) => {
+      if (signal.aborted) throw new Error('The history request was cancelled.');
       const reply = value().command(
         'chronicle.query',
         { query },
         ['chronicle.query_result', 'chronicle.error'],
         { timeoutMs: 45000 },
       );
-      const aborted = new Promise<never>((_, reject) =>
-        signal.addEventListener(
-          'abort',
-          () => reject(new Error('The history request was cancelled.')),
-          { once: true },
-        ),
-      );
-      const result = await Promise.race([reply, aborted]);
-      if (typeof result['message'] === 'string' && !Array.isArray(result['events']))
-        throw new Error(result['message']);
-      return result as unknown as ChronicleQueryResult;
+      let onAbort: (() => void) | undefined;
+      const aborted = new Promise<never>((_, reject) => {
+        onAbort = () => reject(new Error('The history request was cancelled.'));
+        signal.addEventListener('abort', onAbort, { once: true });
+      });
+      try {
+        const result = await Promise.race([reply, aborted]);
+        if (typeof result['message'] === 'string' && !Array.isArray(result['events']))
+          throw new Error(result['message']);
+        return result as unknown as ChronicleQueryResult;
+      } finally {
+        if (onAbort) signal.removeEventListener('abort', onAbort);
+      }
     },
     refreshMail: () => {
       void value()

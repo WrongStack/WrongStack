@@ -83,12 +83,21 @@ async function complete(
   if (!request) return { suggestions: [] };
   let items = cache.get(request.cacheKey);
   if (!items || items.expiresAt <= Date.now()) {
-    const reply = await Promise.race([
-      source.command('completion.request', request.payload, ['completion.result'], {
-        timeoutMs: COMPLETION_TIMEOUT_MS,
-      }),
-      new Promise<null>((resolve) => token.onCancellationRequested(() => resolve(null))),
-    ]).catch(() => null);
+    if (token.isCancellationRequested) return { suggestions: [] };
+    let cancelSub: monaco.IDisposable | undefined;
+    let reply: Record<string, unknown> | null = null;
+    try {
+      reply = await Promise.race([
+        source.command('completion.request', request.payload, ['completion.result'], {
+          timeoutMs: COMPLETION_TIMEOUT_MS,
+        }),
+        new Promise<null>((resolve) => {
+          cancelSub = token.onCancellationRequested(() => resolve(null));
+        }),
+      ]).catch(() => null);
+    } finally {
+      cancelSub?.dispose();
+    }
     if (!reply) return { suggestions: [] };
     remember(request.cacheKey, completionSuggestions(reply));
     items = cache.get(request.cacheKey);

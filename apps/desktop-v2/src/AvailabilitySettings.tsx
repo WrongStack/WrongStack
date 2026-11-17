@@ -156,7 +156,10 @@ export function AvailabilitySettings({ draft, change, command }: PolicyProps) {
                 />
               </label>
               <datalist id={prefix + rule.id}>
-                {(catalog[rule.provider ?? ''] ?? []).map((model) => (
+                {(Object.hasOwn(catalog, rule.provider ?? '')
+                  ? (catalog[rule.provider ?? ''] ?? [])
+                  : []
+                ).map((model) => (
                   <option key={model} value={model} />
                 ))}
               </datalist>

@@ -68,43 +68,46 @@ export function SessionProcesses({
     [batchReview, setBatchReview] = useState(false),
     [ended, setEnded] = useState<EndedProcess[]>(() => endedBySession.get(sessionId)?.ended ?? []);
   const alive = useRef(true),
-    reading = useRef(false),
+    readSeq = useRef(0),
     operating = useRef(false),
     outputSequence = useRef(0);
   // Engines that report ended processes with their exit replace the list this window observed.
   const [reported, setReported] = useState<ReportedEnd[] | null>(null);
-  const read = useCallback(async () => {
-    const payload = await command('process.list', { sessionId }, [
-      'process.list',
-      'key.operation_result',
-    ]);
-    const rows = sessionProcesses(payload, sessionId);
-    if (alive.current) setReported(reportedEnded(payload, sessionId));
-    return rows;
-  }, [command, sessionId]);
+  const read = useCallback(
+    async (seq?: number) => {
+      const payload = await command('process.list', { sessionId }, [
+        'process.list',
+        'key.operation_result',
+      ]);
+      const rows = sessionProcesses(payload, sessionId);
+      if (alive.current && (seq === undefined || seq === readSeq.current))
+        setReported(reportedEnded(payload, sessionId));
+      return rows;
+    },
+    [command, sessionId],
+  );
   const refresh = useCallback(async () => {
-    if (!connected || reading.current || !sessionId) return;
-    reading.current = true;
+    if (!connected || !sessionId) return;
+    const seq = ++readSeq.current;
     setLoading(true);
     try {
-      const rows = await read();
+      const rows = await read(seq);
+      if (!alive.current || seq !== readSeq.current) return;
       const now = Date.now();
       const history = endedBySession.get(sessionId);
       const next = history
         ? endedProcesses(history.ended, history.last, rows, history.at, now)
         : [];
       endedBySession.set(sessionId, { ended: next, last: rows, at: now });
-      if (alive.current) {
-        setEnded(next);
-        setProcesses(rows);
-        setLoaded(true);
-        setError('');
-      }
+      setEnded(next);
+      setProcesses(rows);
+      setLoaded(true);
+      setError('');
     } catch (error) {
-      if (alive.current) setError(error instanceof Error ? error.message : String(error));
+      if (alive.current && seq === readSeq.current)
+        setError(error instanceof Error ? error.message : String(error));
     } finally {
-      reading.current = false;
-      if (alive.current) setLoading(false);
+      if (alive.current && seq === readSeq.current) setLoading(false);
     }
   }, [read, connected, sessionId]);
   useEffect(() => {
@@ -118,6 +121,7 @@ export function SessionProcesses({
     void poll();
     return () => {
       alive.current = false;
+      readSeq.current++;
       stopped = true;
       outputSequence.current++;
       clearTimeout(timer);

@@ -74,6 +74,9 @@ export function TranscriptVirtualizer({
     if (target !== null) list.current?.scrollToIndex(target, { align: 'start' });
   }, [target]);
   const kept = [0, items.length - 1];
+  // An empty replay can measure both sentinel rows at zero. Keep the newest answer
+  // measurable while following so the first message cannot fall outside that empty range.
+  if (messages.length && following?.current) kept.push(items.length - 2);
   if (focused !== null && focused < items.length) kept.push(focused);
   if (target !== null && target < items.length && !kept.includes(target)) kept.push(target);
   return (

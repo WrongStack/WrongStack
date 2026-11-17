@@ -66,6 +66,6 @@ export function useSurfaceScroll<T extends HTMLElement>(
       node.removeEventListener('pointerdown', interact);
       node.removeEventListener('keydown', interact);
     };
-  });
+  }, [scope, key, enabled]);
   return ref;
 }

@@ -212,4 +212,34 @@ describe('desktop Session Story over the engine Chronicle', () => {
     ]);
     expect(files.map((file) => file.path)).toEqual(['src/a.ts']);
   });
+
+  it('rejects immediately on a pre-aborted signal and removes its abort listener on settlement', async () => {
+    let called = false;
+    const feed = feedFor(async () => {
+      called = true;
+      return { events: [] };
+    });
+
+    const preAborted = new AbortController();
+    preAborted.abort();
+    await expect(
+      feed.queryChronicle({ sessionId: SESSION, order: 'desc', limit: 10 }, preAborted.signal),
+    ).rejects.toThrow('The history request was cancelled.');
+    expect(called).toBe(false);
+
+    let activeListeners = 0;
+    const trackedSignal = {
+      aborted: false,
+      addEventListener: () => {
+        activeListeners++;
+      },
+      removeEventListener: () => {
+        activeListeners--;
+      },
+    } as unknown as AbortSignal;
+
+    await feed.queryChronicle({ sessionId: SESSION, order: 'desc', limit: 10 }, trackedSignal);
+    expect(called).toBe(true);
+    expect(activeListeners).toBe(0);
+  });
 });
