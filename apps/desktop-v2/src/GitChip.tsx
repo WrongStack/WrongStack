@@ -70,13 +70,18 @@ export function GitChip({ command, connected }: { command: EngineCommand; connec
   useEffect(() => {
     if (!connected) return;
     let live = true;
-    const read = () =>
+    let seq = 0;
+    const read = () => {
+      const mySeq = ++seq;
       void command('git.info', {}, ['git.info']).then(
-        (reply) => live && setInfo(gitInfo(reply)),
+        (reply) => {
+          if (live && mySeq === seq) setInfo(gitInfo(reply));
+        },
         () => {
           // A failed read keeps the last known state; the next poll tries again.
         },
       );
+    };
     read();
     const timer = setInterval(() => {
       if (document.visibilityState === 'visible') read();

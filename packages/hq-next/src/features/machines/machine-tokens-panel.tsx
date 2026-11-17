@@ -9,7 +9,7 @@
 import { fetchMachineTokens, type MachineTokenRow, revokeMachineToken } from '@hq/data/api';
 import { KeyRound } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { relativeTime } from '@/features/attention/model';
 import { cn } from '@/lib/cn';
 import { errorText } from '@/lib/error-text';
@@ -20,13 +20,17 @@ const button =
 export function MachineTokensPanel({ now }: { now: number }): ReactNode {
   const [rows, setRows] = useState<MachineTokenRow[] | null>(null);
   const [tokenMode, setTokenMode] = useState(false);
+  const loadSeqRef = useRef(0);
 
   const load = useCallback(async (): Promise<void> => {
+    const seq = ++loadSeqRef.current;
     try {
       const next = await fetchMachineTokens();
+      if (loadSeqRef.current !== seq) return;
       setRows(next.tokens);
       setTokenMode(next.tokenMode);
     } catch {
+      if (loadSeqRef.current !== seq) return;
       // Not an admin (or HQ is older): the panel is simply not offered.
       setRows(null);
     }
@@ -34,7 +38,10 @@ export function MachineTokensPanel({ now }: { now: number }): ReactNode {
   useEffect(() => {
     void load();
     const timer = window.setInterval(() => void load(), 30_000);
-    return () => window.clearInterval(timer);
+    return () => {
+      loadSeqRef.current += 1;
+      window.clearInterval(timer);
+    };
   }, [load]);
 
   if (rows === null) return null;

@@ -170,12 +170,30 @@ export function AnalyticsDashboard({
   const [loading, setLoading] = useState(true);
   const [, setStatsLoading] = useState(false);
 
+  const summarySeqRef = useRef(0);
+  const eventsSeqRef = useRef(0);
+  const sessionsSeqRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      summarySeqRef.current += 1;
+      eventsSeqRef.current += 1;
+      sessionsSeqRef.current += 1;
+    };
+  }, []);
+
   // Fetch from /api/analytics/summary
   const fetchSummary = useCallback(async () => {
+    const seq = ++summarySeqRef.current;
     try {
       const res = await surfaceFetch('/api/analytics/summary');
+      if (summarySeqRef.current !== seq || !mountedRef.current) return;
       if (res.ok) {
         const data = (await res.json()) as AnalyticsSummary;
+        if (summarySeqRef.current !== seq || !mountedRef.current) return;
         setSummary(data);
       }
     } catch {
@@ -185,10 +203,13 @@ export function AnalyticsDashboard({
 
   // Fetch from /api/analytics
   const fetchEvents = useCallback(async () => {
+    const seq = ++eventsSeqRef.current;
     try {
       const res = await surfaceFetch('/api/analytics?limit=50');
+      if (eventsSeqRef.current !== seq || !mountedRef.current) return;
       if (res.ok) {
         const data = (await res.json()) as { events: AnalyticsEvent[] };
+        if (eventsSeqRef.current !== seq || !mountedRef.current) return;
         setEvents(data.events);
       }
     } catch {
@@ -198,10 +219,13 @@ export function AnalyticsDashboard({
 
   // Fetch from /api/sessions
   const fetchSessions = useCallback(async () => {
+    const seq = ++sessionsSeqRef.current;
     try {
       const res = await surfaceFetch('/api/sessions');
+      if (sessionsSeqRef.current !== seq || !mountedRef.current) return;
       if (res.ok) {
         const data = (await res.json()) as LiveSession[];
+        if (sessionsSeqRef.current !== seq || !mountedRef.current) return;
         setSessions(data);
       }
     } catch {
@@ -219,7 +243,9 @@ export function AnalyticsDashboard({
     setStatsLoading(true);
     let timer: ReturnType<typeof setTimeout> | null = null;
     let cleanup: (() => void) | null = null;
+    let settled = false;
     const finish = () => {
+      settled = true;
       statsInFlightRef.current = false;
       cleanup?.();
       if (statsCleanupRef.current === finish) statsCleanupRef.current = null;
@@ -234,27 +260,32 @@ export function AnalyticsDashboard({
       cleanup = client.on('stats.get', (msg: unknown) => {
         const payload = (msg as { payload: StatsPayload }).payload;
         finish();
+        if (!mountedRef.current) return;
         setStats(payload);
         setStatsLoading(false);
       });
       client.send?.({ type: 'stats.get', payload: {} }, { echoToChat: false });
 
       // Timeout guard: clear listener after 8s so stale handlers don't pile up.
-      timer = setTimeout(() => {
-        finish();
-        setStatsLoading(false);
-      }, 8000);
+      if (!settled) {
+        timer = setTimeout(() => {
+          finish();
+          if (mountedRef.current) setStatsLoading(false);
+        }, 8000);
+      }
     } catch {
       finish();
-      setStatsLoading(false);
+      if (mountedRef.current) setStatsLoading(false);
     }
   }, []);
 
   // Poll all endpoints every 10s
   useEffect(() => {
     const load = () => {
-      void Promise.all([fetchSummary(), fetchEvents(), fetchSessions(), fetchStats()]).finally(() =>
-        setLoading(false),
+      void Promise.all([fetchSummary(), fetchEvents(), fetchSessions(), fetchStats()]).finally(
+        () => {
+          if (mountedRef.current) setLoading(false);
+        },
       );
     };
     load();

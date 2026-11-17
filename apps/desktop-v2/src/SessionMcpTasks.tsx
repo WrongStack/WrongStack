@@ -60,8 +60,10 @@ export function SessionMcpTasks({
       if (alive.current && request === readSequence.current)
         setError(error instanceof Error ? error.message : String(error));
     } finally {
-      reading.current = false;
-      if (alive.current && request === readSequence.current) setLoading(false);
+      if (request === readSequence.current) {
+        reading.current = false;
+        if (alive.current) setLoading(false);
+      }
     }
   }, [connected, sessionId, command]);
   useEffect(() => {
@@ -79,6 +81,7 @@ export function SessionMcpTasks({
     return () => {
       stopped = true;
       alive.current = false;
+      reading.current = false;
       readSequence.current++;
       clearTimeout(timer);
     };

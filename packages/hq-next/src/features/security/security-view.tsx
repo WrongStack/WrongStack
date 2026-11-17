@@ -23,7 +23,7 @@ import {
 import { TotpDisable, TotpEnroll } from '@hq/views/settings/totp';
 import { ShieldAlert, ShieldCheck } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 import { protectionSummary } from './model';
 import { SessionsList } from './sessions-list';
@@ -95,19 +95,28 @@ export function SecurityView(): ReactNode {
   const [busy, setBusy] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState<PanelMessage | null>(null);
   const [totpMessage, setTotpMessage] = useState<PanelMessage | null>(null);
+  const statusSeqRef = useRef(0);
 
   const loadStatus = useCallback(async (): Promise<void> => {
+    const seq = ++statusSeqRef.current;
     try {
       const response = await authorizedFetch('/api/auth/status');
+      if (statusSeqRef.current !== seq) return;
       if (!response.ok) throw new Error(await errorMessage(response));
-      setStatus((await response.json()) as AuthStatus);
+      const next = (await response.json()) as AuthStatus;
+      if (statusSeqRef.current !== seq) return;
+      setStatus(next);
       setLoadError(null);
     } catch (cause) {
+      if (statusSeqRef.current !== seq) return;
       setLoadError(toMessage(cause).text);
     }
   }, []);
   useEffect(() => {
     void loadStatus();
+    return () => {
+      statusSeqRef.current += 1;
+    };
   }, [loadStatus]);
 
   // The 2FA components report through a message; a success means the

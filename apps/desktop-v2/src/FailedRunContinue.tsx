@@ -45,6 +45,13 @@ export function FailedRunContinue({
   const [now, setNow] = useState(() => Date.now());
   const latest = useRef({ state, automatic });
   latest.current = { state, automatic };
+  const sendSeqRef = useRef(0);
+  useEffect(() => {
+    const seq = ++sendSeqRef.current;
+    return () => {
+      if (sendSeqRef.current === seq) sendSeqRef.current += 1;
+    };
+  }, [state.sessionId]);
   useEffect(() => {
     const previous = seen.current;
     seen.current = { session: state.sessionId, result };
@@ -62,10 +69,15 @@ export function FailedRunContinue({
     if (!failure || latest.current.state.running) return;
     const text = resume ? automaticResumePrompt(resume.attempt, failure) : MANUAL_RESUME_PROMPT;
     if (resume) recordAutomaticResume(state.sessionId);
+    const seq = ++sendSeqRef.current;
     setSent(result);
     send(text).then(
-      (notice) => report(notice, ''),
+      (notice) => {
+        if (sendSeqRef.current !== seq) return;
+        report(notice, '');
+      },
       (error: unknown) => {
+        if (sendSeqRef.current !== seq) return;
         setSent(null);
         report('', reason(error));
       },

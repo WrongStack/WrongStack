@@ -813,7 +813,11 @@ export function FileWorkspace({
   const review = () => {
     const text = reviewText(notes);
     if (onReview) onReview(text);
-    else void navigator.clipboard.writeText(text).then(() => setNotice(t('fileView.reviewCopied')));
+    else
+      void navigator.clipboard
+        ?.writeText(text)
+        .then(() => setNotice(t('fileView.reviewCopied')))
+        .catch(() => {});
   };
   if (history)
     return (
@@ -1839,7 +1843,7 @@ export function FileWorkspace({
             type="button"
             role="menuitem"
             onClick={() => {
-              void navigator.clipboard.writeText(menu.path);
+              void navigator.clipboard?.writeText(menu.path).catch(() => {});
               setMenu(null);
             }}
           >

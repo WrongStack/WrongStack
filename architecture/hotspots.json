@@ -119,7 +119,7 @@
       "relativeImports": 0
     },
     "packages/project-surfaces/src/analytics/AnalyticsDashboard.tsx": {
-      "lines": 710,
+      "lines": 741,
       "relativeImports": 6
     },
     "packages/project-surfaces/src/atlas/codemap-model.ts": {
@@ -243,7 +243,7 @@
       "relativeImports": 61
     },
     "apps/desktop-v2/src/FileWorkspace.tsx": {
-      "lines": 2094,
+      "lines": 2098,
       "relativeImports": 37
     },
     "apps/desktop-v2/src/ModelCatalogSettings.tsx": {
@@ -259,7 +259,7 @@
       "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectChronicle.tsx": {
-      "lines": 723,
+      "lines": 730,
       "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectDesignStudio.tsx": {
@@ -275,7 +275,7 @@
       "relativeImports": 12
     },
     "apps/desktop-v2/src/ProjectRequirements.tsx": {
-      "lines": 953,
+      "lines": 957,
       "relativeImports": 14
     },
     "apps/desktop-v2/src/ProjectSdd.tsx": {

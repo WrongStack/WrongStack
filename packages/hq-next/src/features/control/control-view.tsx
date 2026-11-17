@@ -23,7 +23,7 @@ import type { HqClientRecord, HqCommandAuditEntry, HqSessionSnapshotPayload } fr
 import { SquareTerminal, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import type { KeyboardEvent, ReactNode } from 'react';
-import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 import { useScopedSnapshot } from '@/lib/use-scope';
 import { CommandAudit } from './command-audit';
@@ -119,14 +119,18 @@ export function ControlView(): ReactNode {
 
   const [polled, setPolled] = useState<HqCommandAuditEntry[]>([]);
   const [auditError, setAuditError] = useState<string | null>(null);
+  const auditSeqRef = useRef(0);
   const loadAudit = useCallback(async (): Promise<void> => {
+    const seq = ++auditSeqRef.current;
     try {
       const data = await fetchJson<{ commands: HqCommandAuditEntry[] }>(
         `/api/commands?limit=${AUDIT_LIMIT}`,
       );
+      if (auditSeqRef.current !== seq) return;
       setPolled(data.commands);
       setAuditError(null);
     } catch (cause) {
+      if (auditSeqRef.current !== seq) return;
       setAuditError(cause instanceof Error ? cause.message : String(cause));
     }
   }, []);
@@ -135,7 +139,10 @@ export function ControlView(): ReactNode {
     const timer = window.setInterval(() => {
       if (!document.hidden) void loadAudit();
     }, AUDIT_POLL_MS);
-    return () => window.clearInterval(timer);
+    return () => {
+      auditSeqRef.current += 1;
+      window.clearInterval(timer);
+    };
   }, [loadAudit]);
   const audit = useMemo(
     () => mergeAudit(polled, liveStatuses, AUDIT_LIMIT),

@@ -9,7 +9,7 @@ import {
   Share2,
 } from 'lucide-react';
 import QRCode from 'qrcode';
-import { type KeyboardEvent, useEffect, useState } from 'react';
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { Button } from '../ui/button';
@@ -45,6 +45,15 @@ export function ProviderKeyCard({
   const [copied, setCopied] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const savingRef = useRef(false);
+  const saveAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(
+    () => () => {
+      saveAbortRef.current?.abort();
+    },
+    [],
+  );
 
   // Generate QR code when modal opens
   useEffect(() => {
@@ -70,10 +79,13 @@ export function ProviderKeyCard({
   }, [shareModalOpen, popular.referral]);
 
   const handleSave = async () => {
-    if (!key.trim() || !ws) return;
+    if (!key.trim() || !ws || savingRef.current) return;
+    savingRef.current = true;
+    const controller = new AbortController();
+    saveAbortRef.current = controller;
     setIsSaving(true);
     try {
-      const ack = waitForKeyOperationResult(ws);
+      const ack = waitForKeyOperationResult(ws, 8000, controller.signal);
       // If the provider doesn't exist yet in the catalog, add it first.
       // We pass `popular.id` (the canonical preset id, e.g.
       // `kimi-for-coding` or `moonshotai`) so the server-side preset
@@ -106,11 +118,14 @@ export function ProviderKeyCard({
       // and is displayed inline when `probeResult` updates.
       ws.send({ type: 'provider.probe', payload: { providerId: popular.id } });
     } catch (err) {
+      if (controller.signal.aborted) return;
       const detail =
         err instanceof Error && err.message && err.message !== 'timeout' ? err.message : null;
       toast.error(detail ?? t('setup:screen.toasts.keySaveFailed', { name: popular.name }));
     } finally {
-      setIsSaving(false);
+      savingRef.current = false;
+      if (saveAbortRef.current === controller) saveAbortRef.current = null;
+      if (!controller.signal.aborted) setIsSaving(false);
     }
   };
 

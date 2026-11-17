@@ -151,16 +151,20 @@ export function ProjectRequirements({
   }, [draft.ready]);
   const load = useCallback(async () => {
     const seq = ++listSequence.current;
-    const response = record(await http('/api/requirement-intakes'));
-    if (seq !== listSequence.current) return;
-    if (typeof response['projectId'] !== 'string' || !Array.isArray(response['intakes']))
-      throw new Error(t('req.noCatalog'));
-    setProjectId(response['projectId']);
-    setItems(entries(response['intakes']));
-    setLoaded(true);
-  }, [http]);
+    try {
+      const response = record(await http('/api/requirement-intakes'));
+      if (seq !== listSequence.current) return;
+      if (typeof response['projectId'] !== 'string' || !Array.isArray(response['intakes']))
+        throw new Error(t('req.noCatalog'));
+      setProjectId(response['projectId']);
+      setItems(entries(response['intakes']));
+      setLoaded(true);
+    } catch (e) {
+      if (seq === listSequence.current) setError(String(e));
+    }
+  }, [http, t]);
   useEffect(() => {
-    void load().catch((e) => setError(String(e)));
+    void load();
     return () => {
       listSequence.current++;
       detailSequence.current++;

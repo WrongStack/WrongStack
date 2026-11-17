@@ -1,5 +1,5 @@
 import { Server } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
@@ -72,20 +72,30 @@ export function BackgroundServices({
     [stopping, setStopping] = useState(''),
     [notice, setNotice] = useState(''),
     [error, setError] = useState('');
+  const loadSeqRef = useRef(0);
+  useEffect(
+    () => () => {
+      loadSeqRef.current += 1;
+    },
+    [],
+  );
   const load = useCallback(async () => {
-    setReport(
-      backgroundServices(
-        await command('connections.health', {}, [
-          'connections.health_result',
-          'connections.health_error',
-        ]),
-      ),
-    );
+    const seq = ++loadSeqRef.current;
+    const reply = await command('connections.health', {}, [
+      'connections.health_result',
+      'connections.health_error',
+    ]);
+    if (loadSeqRef.current !== seq) return;
+    setReport(backgroundServices(reply));
   }, [command]);
   useEffect(() => {
-    void load().catch((failure) =>
-      setError(failure instanceof Error ? failure.message : String(failure)),
-    );
+    let cancelled = false;
+    void load().catch((failure) => {
+      if (!cancelled) setError(failure instanceof Error ? failure.message : String(failure));
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
   useEffect(() => {
     const timer = setInterval(() => {

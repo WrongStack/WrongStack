@@ -28,10 +28,12 @@ export function SandboxChip({
   const reader = useMemo(() => http ?? engineHttp(sessionId), [http, sessionId]);
   useEffect(() => {
     let alive = true;
+    let seq = 0;
     const load = async () => {
+      const mySeq = ++seq;
       try {
         const next = readSandboxStatus(await reader('/api/sandbox/status'));
-        if (alive && next) setStatus(next);
+        if (alive && mySeq === seq && next) setStatus(next);
       } catch {
         // The engine may still be starting; the last known posture stays.
       }

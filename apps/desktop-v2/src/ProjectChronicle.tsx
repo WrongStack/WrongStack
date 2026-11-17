@@ -73,6 +73,7 @@ export function ProjectChronicle({
     [healthError, setHealthError] = useState(''),
     [busy, setBusy] = useState(false),
     [graphBusy, setGraphBusy] = useState(false);
+  const healthGeneration = useRef(0);
   const generation = useRef(0),
     graphGeneration = useRef(0);
   const load = useCallback(
@@ -104,6 +105,7 @@ export function ProjectChronicle({
     [command, filters],
   );
   const refreshHealth = useCallback(async () => {
+    const id = ++healthGeneration.current;
     try {
       const result = await command(
         'chronicle.status',
@@ -111,10 +113,12 @@ export function ProjectChronicle({
         ['chronicle.status_result', 'chronicle.error'],
         { timeoutMs: 45000 },
       );
+      if (id !== healthGeneration.current) return;
       if (result['message'] && !result['pipeline']) throw new Error(String(result['message']));
       setHealth(result);
       setHealthError('');
     } catch (e) {
+      if (id !== healthGeneration.current) return;
       setHealthError(String(e instanceof Error ? e.message : e));
     }
   }, [command]);
@@ -144,6 +148,9 @@ export function ProjectChronicle({
   }, [load, command, filters]);
   useEffect(() => {
     void refreshHealth();
+    return () => {
+      healthGeneration.current++;
+    };
   }, [refreshHealth]);
   const trace = async (event: Record<string, unknown>) => {
     const id = ++graphGeneration.current;

@@ -20,7 +20,7 @@ import {
 import type { HqNotifyChannelView, HqNotifySettingsView } from '@wrongstack/hq';
 import { BellRing, Send, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { relativeTime } from '@/features/attention/model';
 import { splitLabels } from '@/features/machines/machine-labels';
 import { cn } from '@/lib/cn';
@@ -83,12 +83,17 @@ export function NotificationsView(): ReactNode {
   const [settings, setSettings] = useState<HqNotifySettingsView | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
   const now = useNow();
+  const reloadSeqRef = useRef(0);
 
   const reload = useCallback(async (): Promise<void> => {
+    const seq = ++reloadSeqRef.current;
     try {
-      setSettings(await fetchNotifySettings());
+      const next = await fetchNotifySettings();
+      if (reloadSeqRef.current !== seq) return;
+      setSettings(next);
       setRefused(null);
     } catch (cause) {
+      if (reloadSeqRef.current !== seq) return;
       setRefused(
         cause instanceof HqHttpError && cause.status === 403
           ? `Notifications need an admin sign-in. ${cause.message.replace(/^403\s*/, '')}`
@@ -98,6 +103,9 @@ export function NotificationsView(): ReactNode {
   }, []);
   useEffect(() => {
     void reload();
+    return () => {
+      reloadSeqRef.current += 1;
+    };
   }, [reload]);
 
   return (
@@ -179,11 +187,12 @@ function ChannelRow({
     setMessage(null);
     try {
       setMessage({ ok: true, text: await work() });
+      await onChanged().catch(() => {});
     } catch (cause) {
       setMessage({ ok: false, text: errorText(cause) });
+      await onChanged().catch(() => {});
     } finally {
       setBusy(false);
-      await onChanged();
     }
   };
 

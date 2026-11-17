@@ -100,11 +100,17 @@ export function SessionBrowser({
   const running = state.running;
   useEffect(() => {
     if (!sessionId) return;
+    let cancelled = false;
     void command('browser.live.list', {}, ['browser.live.list'])
-      .then((reply) => setBrowsers(liveBrowsers(reply)))
+      .then((reply) => {
+        if (!cancelled) setBrowsers(liveBrowsers(reply));
+      })
       .catch(() => {
         // An engine without browser tools has nothing to show.
       });
+    return () => {
+      cancelled = true;
+    };
   }, [command, sessionId, running]);
   const current = browsers.find((browser) => browser.id === selected) ?? browsers[0];
   const watched = open ? current?.id : undefined;

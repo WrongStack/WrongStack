@@ -16,7 +16,7 @@ import {
 import { fetchJson } from '@hq/data/api';
 import { ArrowUpCircle, Check, Copy, ExternalLink } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { type HqUpdateStatus, UPDATE_POLL_MS, type UpdateNotice, updateNotice } from './model';
 
 const RELEASES_URL = 'https://github.com/WrongStack/WrongStack/releases';
@@ -47,13 +47,22 @@ function useUpdateNotice(): UpdateNotice | null {
 export function UpdateNoticeChip(): ReactNode {
   const notice = useUpdateNotice();
   const [copied, setCopied] = useState(false);
+  const timerRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    },
+    [],
+  );
   if (notice === null) return null;
 
   const copy = async (): Promise<void> => {
+    if (!navigator.clipboard?.writeText) return;
     try {
       await navigator.clipboard.writeText(notice.command);
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 2_000);
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+      timerRef.current = window.setTimeout(() => setCopied(false), 2_000);
     } catch {
       // Clipboard can be denied (insecure origin); the command stays visible.
     }

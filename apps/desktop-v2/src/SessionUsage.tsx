@@ -150,14 +150,17 @@ export function SessionUsage({
       if (alive.current && generation.current === version)
         setError(error instanceof Error ? error.message : String(error));
     } finally {
-      pending.current = false;
-      if (alive.current && generation.current === version) setBusy(false);
+      if (generation.current === version) {
+        pending.current = false;
+        if (alive.current) setBusy(false);
+      }
     }
   }, [connected, sessionId, command]);
   useEffect(() => {
     alive.current = true;
     return () => {
       alive.current = false;
+      pending.current = false;
       generation.current++;
     };
   }, [load]);

@@ -17,12 +17,19 @@ import {
 } from '@hq/components/ui/dialog';
 import { Check, Copy, MonitorUp, TriangleAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { hubAddressAdvice } from '@/lib/hub-address';
 import { MachineTokenForm, type MintedToken } from './machine-token-form';
 
 export function CopyLine({ text, label }: { text: string; label?: string }): ReactNode {
   const [copied, setCopied] = useState(false);
+  const timerRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    },
+    [],
+  );
   return (
     <div className="flex items-center gap-2 border border-border bg-background px-3 py-2">
       {/* Wraps instead of scrolling: a scroll box would need keyboard focus. */}
@@ -31,10 +38,14 @@ export function CopyLine({ text, label }: { text: string; label?: string }): Rea
         type="button"
         aria-label={label ?? 'Copy command'}
         onClick={() => {
-          void navigator.clipboard?.writeText(text).then(() => {
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 1500);
-          });
+          void navigator.clipboard
+            ?.writeText(text)
+            .then(() => {
+              setCopied(true);
+              if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+              timerRef.current = window.setTimeout(() => setCopied(false), 1500);
+            })
+            .catch(() => {});
         }}
         className="grid size-8 shrink-0 place-items-center text-muted-foreground hover:bg-muted hover:text-foreground"
       >

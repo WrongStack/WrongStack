@@ -114,8 +114,13 @@ export function MemoryDetail({
             aria-label={t('activity:memoryManager.copyId')}
             title={t('activity:memoryManager.copyId')}
             onClick={() => {
-              void navigator.clipboard?.writeText(memory.id);
-              onNotice(t('activity:memoryManager.copiedNotice'));
+              if (!navigator.clipboard?.writeText) return;
+              void navigator.clipboard
+                .writeText(memory.id)
+                .then(() => {
+                  onNotice(t('activity:memoryManager.copiedNotice'));
+                })
+                .catch(() => {});
             }}
           >
             <Clipboard className="size-4" />

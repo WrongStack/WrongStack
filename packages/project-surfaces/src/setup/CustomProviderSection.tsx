@@ -1,5 +1,5 @@
 import { ChevronRight, Loader2, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppTranslation } from '../lib/i18n';
 import { useFieldKeyboardNav } from '../lib/useFieldKeyboardNav';
 import { cn } from '../lib/utils';
@@ -27,12 +27,24 @@ export function CustomProviderSection({
   const host = useSetupHost();
   const ws = host.useClient();
   const toast = host.notify;
+  const savingRef = useRef(false);
+  const saveAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(
+    () => () => {
+      saveAbortRef.current?.abort();
+    },
+    [],
+  );
 
   const handleSave = async () => {
-    if (!providerId.trim() || !ws) return;
+    if (!providerId.trim() || !ws || savingRef.current) return;
+    savingRef.current = true;
+    const controller = new AbortController();
+    saveAbortRef.current = controller;
     setIsSaving(true);
     try {
-      const ack = waitForKeyOperationResult(ws);
+      const ack = waitForKeyOperationResult(ws, 8000, controller.signal);
       ws.send({
         type: 'provider.add',
         payload: {
@@ -72,11 +84,14 @@ export function CustomProviderSection({
       setModels([]);
       setExpanded(false);
     } catch (err) {
+      if (controller.signal.aborted) return;
       const detail =
         err instanceof Error && err.message && err.message !== 'timeout' ? err.message : null;
       toast.error(detail ?? t('setup:screen.toasts.providerAddFailed'));
     } finally {
-      setIsSaving(false);
+      savingRef.current = false;
+      if (saveAbortRef.current === controller) saveAbortRef.current = null;
+      if (!controller.signal.aborted) setIsSaving(false);
     }
   };
 
