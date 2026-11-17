@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "1.7.7",
+  "packageVersion": "1.7.9",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -104,7 +104,7 @@
         "export { FallbackProfileManager } from './fallback-profile-manager.js';",
         "export { InputBuilder, type InputBuilderEvent, type InputBuilderOptions, } from './input-builder.js';",
         "export { activateSystemPromptPreset, activeSystemPromptPresetText, bundledPromptText, createSystemPromptPreset, deleteSystemPromptPreset, listSystemPromptPresets, type PromptValidationIssue, promptTextHash, readActiveSystemPromptPresets, readProjectSystemPromptPresets, readSystemPromptPreset, type SystemPromptPreset, saveSystemPromptPreset, validateSystemPromptPreset, } from './system-prompt-presets.js';",
-        "export { buildBtwBlock, consumeBtwNotes, pendingBtwCount, setBtwNote, } from './btw.js';",
+        "export { buildBtwBlock, consumeBtwNotes, pendingBtwCount, pendingUserBtwInstructions, setBtwNote, setUserBtwInstruction, } from './btw.js';",
         "export { buildFleetPulseBlock, fleetPulseSignature, } from './fleet-pulse.js';",
         "export { buildMailboxBtwAwarenessBlock, createMailboxChecker, } from './mailbox-loop.js';",
         "export { buildSessionNoteBlock, consumeSessionNotes, enqueueSessionNote, pendingSessionNoteCount, type SessionNote, type SessionNoteKind, } from './session-notes.js';",
@@ -1092,7 +1092,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 82,
-      "sourceLines": 17471
+      "sourceLines": 17509
     },
     {
       "directory": "design",
@@ -1232,7 +1232,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 129,
-      "sourceLines": 29875
+      "sourceLines": 29878
     },
     {
       "directory": "tasking",

@@ -39,7 +39,7 @@
       "relativeImports": 4
     },
     "packages/contracts/src/types/index.ts": {
-      "lines": 704,
+      "lines": 707,
       "relativeImports": 75
     },
     "packages/coordination/src/agent-monitor.ts": {
@@ -65,6 +65,10 @@
     "packages/coordination/src/task-auctioneer.ts": {
       "lines": 701,
       "relativeImports": 8
+    },
+    "packages/core/src/core/agent-loop.ts": {
+      "lines": 707,
+      "relativeImports": 33
     },
     "packages/core/src/core/agent-tools.ts": {
       "lines": 708,
@@ -113,6 +117,10 @@
     "packages/plugins/src/audit/index.ts": {
       "lines": 716,
       "relativeImports": 0
+    },
+    "packages/project-surfaces/src/analytics/AnalyticsDashboard.tsx": {
+      "lines": 710,
+      "relativeImports": 6
     },
     "packages/project-surfaces/src/atlas/codemap-model.ts": {
       "lines": 1110,
@@ -166,10 +174,6 @@
       "lines": 703,
       "relativeImports": 6
     },
-    "packages/tui/src/ui-glyphs.ts": {
-      "lines": 712,
-      "relativeImports": 0
-    },
     "packages/vector-memory/src/store.ts": {
       "lines": 748,
       "relativeImports": 8
@@ -187,7 +191,7 @@
       "relativeImports": 12
     },
     "packages/vibeui/src/lib/use-session.ts": {
-      "lines": 762,
+      "lines": 773,
       "relativeImports": 8
     },
     "packages/webui/src/components/ChimeraReviewsView.tsx": {
@@ -235,8 +239,8 @@
       "relativeImports": 17
     },
     "apps/desktop-v2/src/EngineWorkspace.tsx": {
-      "lines": 875,
-      "relativeImports": 59
+      "lines": 796,
+      "relativeImports": 61
     },
     "apps/desktop-v2/src/FileWorkspace.tsx": {
       "lines": 2094,
@@ -267,7 +271,7 @@
       "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectMailbox.tsx": {
-      "lines": 832,
+      "lines": 839,
       "relativeImports": 12
     },
     "apps/desktop-v2/src/ProjectRequirements.tsx": {

@@ -1964,8 +1964,7 @@
       "resetTuiMemoryCounters"
     ],
     "packages/tui/src/ui-glyphs.ts": [
-      "glyphSet",
-      "hasInstalledNerdFont"
+      "glyphSet"
     ],
     "packages/tui/src/workbench-slash.ts": [
       "renderWorkbenchReport"

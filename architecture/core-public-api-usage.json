@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 529,
+      "files": 532,
       "typeOnly": 398,
-      "runtimeOrMixed": 163
+      "runtimeOrMixed": 166
     },
     "@wrongstack/core/boot": {
       "files": 6,
@@ -89,8 +89,8 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/plugin": {
-      "files": 47,
-      "typeOnly": 19,
+      "files": 48,
+      "typeOnly": 20,
       "runtimeOrMixed": 30
     },
     "@wrongstack/core/prompts": {
@@ -154,9 +154,9 @@
       "runtimeOrMixed": 196
     },
     "@wrongstack/core/tasking": {
-      "files": 46,
+      "files": 47,
       "typeOnly": 20,
-      "runtimeOrMixed": 28
+      "runtimeOrMixed": 29
     },
     "@wrongstack/core/typesafe": {
       "files": 33,
@@ -225,6 +225,12 @@
     }
   },
   "usages": [
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "apps/desktop-v2/tests/btw-pending-browser.mjs",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/acp/src/agent/server-agent-commands.ts",
@@ -3233,6 +3239,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/user-btw-handler.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/user-instructions-handlers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -3360,6 +3372,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/tests/system-prompt-rebuild-variant-scope.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/tests/user-btw.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -5588,6 +5606,12 @@
       "file": "packages/runtime/tests/plugin-reload-heap.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/runtime/tests/plugin-watch-post-unwatch.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/plugin",
@@ -11244,6 +11268,12 @@
     {
       "specifier": "@wrongstack/core/tasking",
       "file": "packages/sdd/tests/requirement-coverage.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/tasking",
+      "file": "packages/sdd/tests/sdd-board-projector-reentrant.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
