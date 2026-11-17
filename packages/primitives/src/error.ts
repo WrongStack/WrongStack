@@ -41,7 +41,7 @@ export function toErrorMessage(err: unknown): string {
  */
 export function rawErrorMessage(err: unknown): string {
   try {
-    return err instanceof Error ? err.message : String(err);
+    return String(err instanceof Error ? err.message : err);
   } catch {
     // Thrown values can have no usable toString, or a conversion hook that throws.
     // Error reporting must not replace the original failure with a coercion error.
