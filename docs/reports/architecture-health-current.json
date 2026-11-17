@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-17T07:33:30.913Z",
+  "generatedAt": "2026-11-17T07:56:19.723Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6350,
-    "testFiles": 5384,
-    "sourceLines": 1313081,
+    "testFiles": 5385,
+    "sourceLines": 1313090,
     "workspaceEdges": 250,
-    "moduleEdges": 18730,
+    "moduleEdges": 18731,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 353,
+    "testsWithoutTypecheck": 354,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1075
   },
@@ -387,7 +387,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 524,
-      "testFiles": 351,
+      "testFiles": 352,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2841,6 +2841,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/provider-waiting.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/reconnect-prewarm.test.ts",
         "projects": [
           "root-node"
         ]
@@ -35400,6 +35406,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/provider-waiting.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/reconnect-prewarm.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

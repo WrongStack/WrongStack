@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   already booted in its working directory and resumes in it, instead of
   booting a whole engine; the conversation keeps its id, journal and graceful
   stop. Without a usable spare it boots its own engine as before.
+  Opening a stopped conversation starts that spare at once, so the reconnect
+  usually finds it ready; an unused spare stops itself after 20 minutes.
 - Desktop conversations open and resume faster: a journal page joins the
   streamed answer text it holds before reading it, so a long conversation no
   longer costs time growing with its length squared (800 turns: 0.8 s to 0.17 s).

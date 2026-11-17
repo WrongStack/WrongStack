@@ -43,6 +43,9 @@ pub struct HostState {
     /// over by a reconnect): conversation id -> the engine's runtime id, whose stop file the
     /// engine watches.
     aliases: Mutex<HashMap<String, String>>,
+    /// Working directories a spare is being started for right now, so a second request does
+    /// not start another while the first one's process is still being created.
+    warming: Mutex<std::collections::HashSet<String>>,
 }
 
 /// An engine started ahead of need for one working directory. An engine boot takes seconds
@@ -110,6 +113,7 @@ impl HostState {
             adopted_engine: Mutex::new(None),
             spares: Mutex::new(Vec::new()),
             aliases: Mutex::new(HashMap::new()),
+            warming: Mutex::new(std::collections::HashSet::new()),
         }))
     }
     pub fn request(self: &Arc<Self>, method: &str, p: &Value) -> Result<Value> {
@@ -170,6 +174,7 @@ impl HostState {
                 self.open(&params)
             }
             "session.reconnect" => self.reconnect(p),
+            "session.prewarm" => self.prewarm(field(p, "id")?),
             "session.read" => self.read(field(p, "id")?, p["offset"].as_u64()),
             "session.write" => {
                 let data = field(p, "data")?.to_owned();
@@ -486,50 +491,93 @@ impl HostState {
     /// Starts a spare for `workdir` in the background, after [`SPARE_REFILL_DELAY`], unless one
     /// is waiting there, stopping the oldest spares beyond [`SPARE_LIMIT`].
     fn refill_spare(self: &Arc<Self>, workdir: String) {
+        self.warm_spare(workdir, SPARE_REFILL_DELAY);
+    }
+    /// A stopped conversation is on screen: start the spare its reconnect would take now, so
+    /// the reconnect resumes in about a second. Nothing happens for a running conversation, a
+    /// terminal, or a working directory that has a spare already or is getting one.
+    fn prewarm(self: &Arc<Self>, id: &str) -> Result<Value> {
+        let session = self
+            .registry
+            .lock()
+            .map_err(err)?
+            .sessions()?
+            .into_iter()
+            .find(|s| s.id == id)
+            .ok_or("Unknown session")?;
+        let stopped = matches!(session.status.as_str(), "stopped" | "error" | "interrupted");
+        if session.kind != "agent" || !stopped || self.live.lock().map_err(err)?.contains_key(id) {
+            return Ok(json!({ "warming": false }));
+        }
+        self.warm_spare(session.workdir, Duration::ZERO);
+        Ok(json!({ "warming": true }))
+    }
+    /// Starts a spare for `workdir` in the background after `delay`, unless one is waiting
+    /// there or being started, stopping the oldest spares beyond [`SPARE_LIMIT`].
+    fn warm_spare(self: &Arc<Self>, workdir: String, delay: Duration) {
         let host = Arc::clone(self);
         thread::spawn(move || {
-            thread::sleep(SPARE_REFILL_DELAY);
+            if !delay.is_zero() {
+                thread::sleep(delay);
+            }
             let Ok(engine) = host.engine_command().map(|c| command_identity(&c)) else {
                 return;
             };
-            {
-                let Ok(spares) = host.spares.lock() else {
-                    return;
-                };
-                if spares
-                    .iter()
-                    .any(|spare| spare.workdir == workdir && spare.engine == engine)
-                {
-                    return;
-                }
-            }
-            let runtime_id = Uuid::new_v4().to_string();
-            let Ok((claimed, owner)) = host.spawn_engine(&runtime_id, &workdir, true, None, true)
-            else {
+            let first = host
+                .warming
+                .lock()
+                .map(|mut warming| warming.insert(workdir.clone()))
+                .unwrap_or(false);
+            if !first {
                 return;
-            };
-            let overflow: Vec<String> = {
-                let Ok(mut spares) = host.spares.lock() else {
-                    return;
-                };
-                spares.push(SpareEngine {
-                    runtime_id,
-                    workdir,
-                    engine,
-                    claimed,
-                    owner,
-                    started: std::time::Instant::now(),
-                });
-                let excess = spares.len().saturating_sub(SPARE_LIMIT);
-                spares
-                    .drain(..excess)
-                    .map(|spare| spare.runtime_id)
-                    .collect()
-            };
-            for id in overflow {
-                host.stop_spare(id);
+            }
+            host.start_spare(&workdir, engine);
+            if let Ok(mut warming) = host.warming.lock() {
+                warming.remove(&workdir);
             }
         });
+    }
+    /// The body of [`HostState::warm_spare`], run while `workdir` is marked as warming.
+    fn start_spare(self: &Arc<Self>, workdir: &str, engine: String) {
+        let host = self;
+        let workdir = workdir.to_owned();
+        {
+            let Ok(spares) = host.spares.lock() else {
+                return;
+            };
+            if spares
+                .iter()
+                .any(|spare| spare.workdir == workdir && spare.engine == engine)
+            {
+                return;
+            }
+        }
+        let runtime_id = Uuid::new_v4().to_string();
+        let Ok((claimed, owner)) = host.spawn_engine(&runtime_id, &workdir, true, None, true)
+        else {
+            return;
+        };
+        let overflow: Vec<String> = {
+            let Ok(mut spares) = host.spares.lock() else {
+                return;
+            };
+            spares.push(SpareEngine {
+                runtime_id,
+                workdir,
+                engine,
+                claimed,
+                owner,
+                started: std::time::Instant::now(),
+            });
+            let excess = spares.len().saturating_sub(SPARE_LIMIT);
+            spares
+                .drain(..excess)
+                .map(|spare| spare.runtime_id)
+                .collect()
+        };
+        for id in overflow {
+            host.stop_spare(id);
+        }
     }
     /// Starts a stopped agent conversation's engine again on its own record and journal,
     /// resuming the WrongStack session it recorded: the conversation keeps its id, its tab and
@@ -1525,6 +1573,58 @@ mod history_tests {
         assert_eq!(status(&third).as_deref(), Some("error"));
         drop(host);
         // Best effort: refill and stop-grace threads still hold the host.
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn prewarm_warms_only_for_a_stopped_agent_conversation() {
+        let dir = std::env::temp_dir().join(format!("desktop-prewarm-{}", Uuid::new_v4()));
+        let project_dir = dir.join("project");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        let host = HostState::new(&dir).unwrap();
+        let project = host
+            .registry
+            .lock()
+            .unwrap()
+            .register(project_dir.to_str().unwrap())
+            .unwrap();
+        let record = |kind: &str, status: &str| {
+            let s = Session {
+                id: Uuid::new_v4().to_string(),
+                project_id: project.id.clone(),
+                title: "test".into(),
+                kind: kind.into(),
+                workdir: project_dir.to_string_lossy().into(),
+                status: status.into(),
+                created_at: now(),
+                updated_at: now(),
+                exit_code: None,
+                error: None,
+                untitled: false,
+            };
+            host.registry.lock().unwrap().insert(&s).unwrap();
+            s.id
+        };
+        let warm = |id: &str| host.request("session.prewarm", &json!({ "id": id }));
+        assert!(warm("missing").unwrap_err().contains("Unknown session"));
+        for (kind, status) in [
+            ("agent", "running"),
+            ("agent", "starting"),
+            ("terminal", "stopped"),
+        ] {
+            assert_eq!(warm(&record(kind, status)).unwrap()["warming"], false);
+        }
+        // Without an engine the background start ends at once; the request itself only asks.
+        // A machine with an engine configured would boot a real one here: skip that part.
+        if host.engine_command().is_ok() {
+            return;
+        }
+        assert_eq!(
+            warm(&record("agent", "interrupted")).unwrap()["warming"],
+            true
+        );
+        assert!(host.spares.lock().unwrap().is_empty());
+        drop(host);
         let _ = std::fs::remove_dir_all(dir);
     }
 

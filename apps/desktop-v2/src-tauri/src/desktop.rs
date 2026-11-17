@@ -183,6 +183,7 @@ async fn host_request(
         "session.open",
         "session.restore",
         "session.reconnect",
+        "session.prewarm",
         "session.read",
         "session.write",
         "session.resize",

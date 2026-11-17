@@ -2,6 +2,7 @@ import { RotateCw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { Session } from './model';
+import { native, request } from './platform';
 import { NoRecordedSession, reconnectConversation } from './session-reconnect';
 import { canReconnect } from './session-reconnect-model';
 import './reconnect.css';
@@ -29,7 +30,15 @@ export function ConversationReconnect({
     },
     [],
   );
-  if (!canReconnect(session)) return null;
+  const stopped = canReconnect(session);
+  // The conversation is on screen with its engine stopped: the host starts the spare engine a
+  // reconnect takes over, so reconnecting resumes in about a second instead of a whole boot.
+  // A list row does not ask (a list would warm engines nobody opens); an older host refuses.
+  useEffect(() => {
+    if (compact || !stopped || !native) return;
+    void request('session.prewarm', { id: session.id }).catch(() => undefined);
+  }, [compact, stopped, session.id]);
+  if (!stopped) return null;
   const reconnect = async () => {
     setWorking(true);
     setError('');
