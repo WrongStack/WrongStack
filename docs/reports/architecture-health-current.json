@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-17T10:15:06.640Z",
+  "generatedAt": "2026-11-17T12:25:17.524Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,7 +13,7 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6351,
-    "testFiles": 5386,
+    "testFiles": 5388,
     "sourceLines": 1313157,
     "workspaceEdges": 250,
     "moduleEdges": 18733,
@@ -602,7 +602,7 @@
       "name": "@wrongstack/mcp",
       "dir": "packages/mcp",
       "sourceFiles": 74,
-      "testFiles": 101,
+      "testFiles": 103,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -616,7 +616,7 @@
         {
           "path": "packages/mcp/tsconfig.test.json",
           "error": null,
-          "testFiles": 101
+          "testFiles": 103
         }
       ]
     },
@@ -16760,6 +16760,12 @@
         ]
       },
       {
+        "file": "packages/mcp/tests/manifest-cache-long-names.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/mcp/tests/manifest-cache.test.ts",
         "projects": [
           "root-node"
@@ -16989,6 +16995,12 @@
       },
       {
         "file": "packages/mcp/tests/stdio-fault-soak.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/stdio-frame-size.test.ts",
         "projects": [
           "root-node"
         ]

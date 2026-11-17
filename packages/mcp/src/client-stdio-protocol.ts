@@ -42,39 +42,34 @@ export interface ClientStdioProtocolHost {
 }
 
 export function receiveStdioData(host: ClientStdioProtocolHost, s: string): void {
-  host.rxBufferBytes += Buffer.byteLength(s, 'utf8');
-
-  // Guard against a malicious or buggy server that never emits a newline —
-  // without this cap the buffer grows without limit and OOMs the process.
-  if (host.rxBufferBytes > MAX_RX_BUFFER_BYTES) {
-    const truncated = host.rxBufferBytes;
-    host.rxParts = [];
-    host.rxBufferBytes = 0;
-    host.failPending(
-      `MCP "${host.opts.name}" rx buffer overflow (${truncated} bytes without a newline) — closing connection`,
-    );
-    void host.close();
-    return;
-  }
-
   // The buffered tail never holds a newline, so only the new chunk is searched.
   let start = 0;
-  let idx = s.indexOf('\n');
-  if (idx === -1) {
-    host.rxParts.push(s);
-    return;
-  }
-  while (idx !== -1) {
+  for (;;) {
+    const idx = s.indexOf('\n', start);
+    const part = idx === -1 ? s.slice(start) : s.slice(start, idx);
+    // Bound each frame, regardless of how stdout fragments or coalesces it.
+    host.rxBufferBytes += Buffer.byteLength(part, 'utf8');
+    if (host.rxBufferBytes > MAX_RX_BUFFER_BYTES) {
+      const truncated = host.rxBufferBytes;
+      host.rxParts = [];
+      host.rxBufferBytes = 0;
+      host.failPending(
+        `MCP "${host.opts.name}" rx buffer overflow (${truncated} bytes without a newline) — closing connection`,
+      );
+      void host.close();
+      return;
+    }
+    if (idx === -1) {
+      if (part) host.rxParts.push(part);
+      return;
+    }
     const head = host.rxParts.length > 0 ? host.rxParts.join('') : '';
     host.rxParts = [];
-    const line = (head + s.slice(start, idx)).trim();
+    host.rxBufferBytes = 0;
+    const line = (head + part).trim();
     start = idx + 1;
     if (line) host.onLine(line);
-    idx = s.indexOf('\n', start);
   }
-  const tail = s.slice(start);
-  host.rxBufferBytes = Buffer.byteLength(tail, 'utf8');
-  if (tail) host.rxParts.push(tail);
 }
 
 export function receiveStdioLine(host: ClientStdioProtocolHost, line: string): void {

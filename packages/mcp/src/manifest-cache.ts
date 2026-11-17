@@ -99,13 +99,18 @@ function passthroughEntries(names: string[] | undefined): [string, string | null
   return names ? [...new Set(names)].sort().map((name) => [name, process.env[name] ?? null]) : null;
 }
 
+// A 255-byte filename component must also fit `.json.<pid>.<12 hex>.tmp`.
+// Reserve ten decimal digits for the PID so identity never depends on the writer.
+const MAX_LEGACY_NAME_CHARS = 222;
+
 /** Filesystem-safe file name for a server within the manifest cache dir. */
 function manifestFile(cacheDir: string, name: string): string {
   const safe = name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  // Preserve legacy paths only for already-safe lowercase names. A lossy
+  // Preserve legacy paths only for short, already-safe lowercase names. A lossy
   // sanitizer makes `team/api` collide with `team_api`, and Windows makes
-  // `Team.json` collide with `team.json`.
-  if (safe === name && name === name.toLowerCase()) {
+  // `Team.json` collide with `team.json`. Longer names need the bounded hash
+  // path or the atomic temporary filename exceeds the filesystem limit.
+  if (safe === name && name === name.toLowerCase() && name.length <= MAX_LEGACY_NAME_CHARS) {
     return path.join(cacheDir, 'mcp-tools', `${safe}.json`);
   }
   const identity = createHash('sha256').update(name).digest('hex');
