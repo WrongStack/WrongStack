@@ -16,13 +16,24 @@ function logTiming(timing: RestoreTiming): void {
   );
 }
 
-/** Private boot connection; never runs a model turn or exposes transport credentials. */
+/**
+ * The recorded conversation the server replayed for a requested id. A bare `sess_…` id names the
+ * conversation the server stores under its day folder, so it answers with the dated `day/sess_…` id.
+ */
+function replayedFor(requested: string, replayed: string): boolean {
+  return replayed === requested || (!requested.includes('/') && replayed.endsWith(`/${requested}`));
+}
+
+/**
+ * Private boot connection; never runs a model turn or exposes transport credentials. Resolves with
+ * the id the server replayed, the dated one for a bare request.
+ */
 export async function restoreEngineSession(
   port: number,
   token: string,
   id: string,
   report: (timing: RestoreTiming) => void = logTiming,
-): Promise<void> {
+): Promise<string> {
   const targetId = typeof id === 'string' ? id.trim() : '';
   const targetToken = typeof token === 'string' ? token.trim() : '';
   if (!Number.isInteger(port) || port < 1 || port > 65535 || !targetToken || !targetId) {
@@ -40,6 +51,7 @@ export async function restoreEngineSession(
     startedAfterMs: Math.round(started),
     marks,
   });
+  let replayedId = targetId;
   await new Promise<void>((resolve, reject) => {
     const socket = new WebSocket(
       `ws://127.0.0.1:${port}/?token=${encodeURIComponent(targetToken)}`,
@@ -79,10 +91,12 @@ export async function restoreEngineSession(
         if (
           frame.type === 'session.start' &&
           typeof frame.payload?.sessionId === 'string' &&
-          frame.payload.sessionId.trim() === targetId &&
+          replayedFor(targetId, frame.payload.sessionId.trim()) &&
           frame.payload?.reset === true
-        )
+        ) {
           replayed = true;
+          replayedId = frame.payload.sessionId.trim();
+        }
         // Older shared resume handlers omit requestId. This private socket has
         // exactly one request; it is never shared with renderer operations.
         if (
@@ -102,4 +116,5 @@ export async function restoreEngineSession(
       }
     };
   });
+  return replayedId;
 }

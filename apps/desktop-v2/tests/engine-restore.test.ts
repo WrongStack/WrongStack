@@ -14,7 +14,7 @@ afterEach(async () => {
     ),
   );
 });
-async function peer(replay: boolean, success: boolean, legacy = false) {
+async function peer(replay: boolean, success: boolean, legacy = false, replayedId = 'recorded') {
   const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
   servers.push(server);
   await new Promise<void>((resolve) => server.once('listening', resolve));
@@ -36,7 +36,7 @@ async function peer(replay: boolean, success: boolean, legacy = false) {
         socket.send(
           JSON.stringify({
             type: 'session.start',
-            payload: { sessionId: 'recorded', reset: true },
+            payload: { sessionId: replayedId, reset: true },
           }),
         );
       socket.send(
@@ -56,6 +56,20 @@ async function peer(replay: boolean, success: boolean, legacy = false) {
   return { port: address.port, requests };
 }
 describe('private engine history bootstrap', () => {
+  it('accepts the dated conversation the server replays for a bare id, and no other', async () => {
+    const dated = await peer(true, true, false, '2026-11-17/sess_1');
+    await expect(restoreEngineSession(dated.port, 'private', 'sess_1')).resolves.toBe(
+      '2026-11-17/sess_1',
+    );
+    const other = await peer(true, true, false, '2026-11-17/sess_10');
+    await expect(restoreEngineSession(other.port, 'private', 'sess_1')).rejects.toThrow(
+      'replay was not verified',
+    );
+    const exact = await peer(true, true, false, '2026-11-16/sess_1');
+    await expect(restoreEngineSession(exact.port, 'private', '2026-11-17/sess_1')).rejects.toThrow(
+      'replay was not verified',
+    );
+  });
   it('accepts a legacy acknowledgement only on its dedicated single-request connection', async () => {
     const server = await peer(true, true, true);
     await restoreEngineSession(server.port, 'private', 'recorded');

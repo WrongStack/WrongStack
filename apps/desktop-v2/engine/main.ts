@@ -103,8 +103,8 @@ if (restoreId && readyFile) {
   const { writeFile } = await import('node:fs/promises');
   const { restoreEngineSession } = await import('./restore-session');
   try {
-    await restoreEngineSession(port, accessToken, restoreId);
-    await writeFile(readyFile, JSON.stringify({ sessionId: restoreId }));
+    const sessionId = await restoreEngineSession(port, accessToken, restoreId);
+    await writeFile(readyFile, JSON.stringify({ sessionId }));
   } catch (error) {
     await writeFile(
       readyFile,
