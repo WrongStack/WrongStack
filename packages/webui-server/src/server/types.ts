@@ -13,6 +13,7 @@ import type { ToolRegistry } from '@wrongstack/core/registry';
 import type { TrustBoundary } from '@wrongstack/core/security';
 import type { JournalEntry } from '@wrongstack/core/storage';
 import type { WebSocket } from 'ws';
+import type { WebuiBootTiming } from './boot-timing.js';
 
 /** Compatibility envelope; new boundaries should decode to CanonicalServerMessage. */
 export interface WSServerMessage {
@@ -35,6 +36,11 @@ export interface WebUIOptions {
    * cache, and reports both in `session.start` (`appVersion`, `latestVersion`, `updateAvailable`).
    */
   appVersion?: string | undefined;
+  /**
+   * Receives how long each boot step took, once the server is listening and wired. Only a host
+   * that records its boots passes it (the desktop engine logs it); nothing is printed otherwise.
+   */
+  reportBootTiming?: ((timing: WebuiBootTiming) => void) | undefined;
   /** Runtime surface label used by instance registration and memory diagnostics. */
   surface?: 'webui' | 'vibeui' | undefined;
   /** Policy authority for terminal/process/native-shell actions. */

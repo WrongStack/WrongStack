@@ -52,6 +52,12 @@ await startWebUI({
   requireToken: true,
   distDir,
   open: false,
+  // Which boot step a slow engine start spent its time in, one JSON line in this engine's log.
+  reportBootTiming: (timing) => {
+    process.stdout.write(
+      `${JSON.stringify({ level: 'info', event: 'webui.boot.timing', ...timing })}\n`,
+    );
+  },
   // A built engine (it carries the release build's stamp) reports newer releases; dev runs do not.
   appVersion: (globalThis as Record<symbol, unknown>)[Symbol.for('wrongstack.standalone-build')]
     ? version

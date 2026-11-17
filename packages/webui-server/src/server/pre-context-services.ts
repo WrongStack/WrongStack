@@ -39,7 +39,6 @@ import {
 } from '@wrongstack/contracts/types';
 import type { AgentStatusTracker } from '@wrongstack/coordination';
 import {
-  getSharedProjectMailbox,
   makeFleetStatusTool,
   makeMailboxTool,
   makeMailInboxTool,
@@ -99,11 +98,13 @@ import {
 } from '@wrongstack/tools/management';
 import { attachSessionKanbanMirror, hydrateSessionKanban } from '@wrongstack/tools/session-kanban';
 import type { VectorMemoryStore } from '@wrongstack/vector-memory';
+import { markBoot } from './boot-timing.js';
 import { seedContextMeta } from './context-meta.js';
 import type { CustomModeStore } from './custom-context-modes.js';
 import { createCustomModeStore } from './custom-context-modes.js';
 import { discoverAndMergeWebuiProviders } from './model-auto-discovery.js';
 import { resolveProviderModelMetadata } from './model-catalog.js';
+import { readPromptOnlineAgents } from './prompt-online-agents.js';
 import { resolveSetupProvider } from './setup-screen.js';
 import { registerStandaloneAcpLeaderProvider } from './standalone-acp-leader.js';
 import {
@@ -219,6 +220,7 @@ export async function createPreContextServices(
   if (!opts.services?.modelsRegistry) {
     await startCatalog({ registry: modelsRegistry, logger });
   }
+  markBoot('catalog');
 
   // Discovery FIRST, matching the CLI boot order: it injects runtime-discovered
   // models into the catalog, and the output-limit index below is built from
@@ -606,13 +608,8 @@ export async function createPreContextServices(
   }
 
   // ── System prompt (with online agents from the shared mailbox) ──
-  let onlineAgents: import('@wrongstack/coordination').MailboxAgentStatus[] = [];
-  try {
-    const systemMailbox = getSharedProjectMailbox(wpaths.projectDir);
-    onlineAgents = await systemMailbox.getAgentStatuses();
-  } catch {
-    /* Non-fatal — mailbox errors should not block prompt building */
-  }
+  const onlineAgents = await readPromptOnlineAgents(wpaths.projectDir);
+  markBoot('mailbox_agents');
   // Resolve the provider before prompt tool conditions so configured tool caps
   // apply to the boot prompt as well as subsequent agent requests.
   const resolvedProvider = resolveSetupProvider({ config, needsProvider, providerRegistry });
@@ -628,6 +625,7 @@ export async function createPreContextServices(
     onlineAgents,
   });
 
+  markBoot('system_prompt');
   // ── Context ──
   context = new Context({
     systemPrompt,
@@ -661,6 +659,7 @@ export async function createPreContextServices(
     sessionScopedPath(wpaths.projectSessions, session.id, '.tasks.json'),
   );
   await hydrateSessionKanban(context);
+  markBoot('kanban');
   attachSessionKanbanMirror(context);
   seedContextMeta(config, context);
   // Scout: promote the deferred tools this project keeps calling through

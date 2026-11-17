@@ -35,6 +35,7 @@ import { getSageService, type LlmCallFn, setupSage } from '@wrongstack/sage';
 import { installVibeProtocol } from '@wrongstack/sdd';
 import { createBackendBrain } from './backend-brain.js';
 import type { AgentServices, AgentServicesInput } from './backend-services-types.js';
+import { markBoot } from './boot-timing.js';
 import { setupWebUICodebaseIndexing } from './codebase-indexing.js';
 import { installConversationFallback } from './conversation-fallback.js';
 import { createSessionAgentManager } from './create-session-agent-manager.js';
@@ -237,6 +238,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
   } catch {
     // best-effort: fall through to the configured value / provider capability
   }
+  markBoot('backend_model_metadata');
   if (!effectiveMaxContext) {
     effectiveMaxContext = positiveWindow(config.context?.effectiveMaxContext) ?? 0;
   }
@@ -336,6 +338,8 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
   });
   input.installToolBoundary?.(pipelines);
 
+  markBoot('pipelines');
+
   // Mailbox bridge discovery — fire-and-forget. Best-effort: a failed
   // discovery never blocks the WebUI from starting.
   const webuiLogger = container.resolve(TOKENS.Logger);
@@ -380,6 +384,8 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
         ? '[WebUI] Worker delegation off: tools.disabledTools names delegate'
         : '[WebUI] Worker delegation unavailable: the engine lacks the fleet host services',
   );
+
+  markBoot('delegation');
 
   const agent = new Agent({
     container,
@@ -542,6 +548,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
           vault: input.vault,
           safeMode: hooks.safeMode,
         });
+  markBoot('plugins');
   const onAgentCreated = (created: Agent): void => {
     chimera.attach(created);
     hooks.attach(created);

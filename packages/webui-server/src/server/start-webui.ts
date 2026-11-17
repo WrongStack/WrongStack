@@ -7,6 +7,7 @@
  * service construction (Phase 1c), route/dispatcher/connection wiring
  * (Phase 1b/1a), WS + HTTP server creation, and graceful shutdown.
  */
+
 import type { Config } from '@wrongstack/contracts/types';
 import {
   fileAuthorStorageDir,
@@ -16,6 +17,7 @@ import {
 import { ensureSessionShell } from '@wrongstack/tools';
 import { createAppUpdateCheck } from './app-update-check.js';
 import { patchConfig } from './boot.js';
+import { beginBootTiming, finishBootTiming, markBoot } from './boot-timing.js';
 import { createEternalSubscription } from './eternal-iteration-broadcast.js';
 import { installFleetConcurrencyFrames } from './fleet-concurrency.js';
 import type { PendingConfirm } from './pending-confirms.js';
@@ -74,9 +76,11 @@ export async function startWebUI(
   const { wsHost, publicUrl, publicWsUrl, requireToken } = ports;
   let httpPort = ports.httpPort;
 
+  beginBootTiming();
   console.log('[WebUI] Starting backend services...');
 
   const prepared = await prepareWebuiConfig(opts);
+  markBoot('config');
   const { boot, vault, configWriteLock, profileConfigPath, prefHelperDeps, updateGlobalConfig } =
     prepared;
   const { globalConfigPath, wpaths, logger } = boot;
@@ -110,6 +114,7 @@ export async function startWebUI(
   let sessionStartedAt = preContext.sessionStartedAt;
   let modeId = preContext.modeId;
   const needsSetup = preContext.needsSetup;
+  markBoot('pre_context_phase');
   // Before any agent runs: the Session Story, Chronicle dashboard and metrics
   // read only what this records (the desktop engine is this host).
   const chronicle = wireStandaloneChronicle({
@@ -121,6 +126,8 @@ export async function startWebUI(
     getSessionId: () => session.id,
     logger,
   });
+
+  markBoot('chronicle');
 
   // Pref keys + snapshot + persistence live in ./pref-helpers.ts (Phase 1c).
   // Thin closures below keep the original signatures the route layer expects
@@ -180,6 +187,7 @@ export async function startWebUI(
     });
   const { peekAgent, toolExecutor, permissionPolicy, brain, updateAutoCompactionMaxContext } =
     agentServices;
+  markBoot('agent_services');
 
   // Eternal / eternal-parallel autonomy: this host drives the engine for the
   // conversation that switches to them (the message dispatcher binds the turn
@@ -412,6 +420,7 @@ export async function startWebUI(
     publicUrl,
   });
 
+  markBoot('listening');
   const companionServer = await setupCompanionServer(httpServer, wsHost, httpPort);
 
   // ---- Route table (extracted to ./routes.ts in Phase 1a) ----
@@ -528,4 +537,6 @@ export async function startWebUI(
     globalConfigPath,
     configPaths: wpaths,
   });
+  const bootTiming = finishBootTiming();
+  if (bootTiming) opts.reportBootTiming?.(bootTiming);
 }

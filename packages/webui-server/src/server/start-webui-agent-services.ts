@@ -6,6 +6,7 @@ import {
 } from '@wrongstack/core/observability';
 import { createCompatibilityTrustBoundary } from '@wrongstack/core/security';
 import { createAgentServices } from './backend-services.js';
+import { markBoot } from './boot-timing.js';
 import { setupWebUiGovernance } from './governance-runtime.js';
 import type { createPreContextServices } from './pre-context-services.js';
 import { createStandaloneAgentPipelines } from './standalone-pipelines.js';
@@ -107,6 +108,7 @@ export async function createStandaloneAgentServices(
             getSessionStore().captureWorkspaceCheckpoint?.(getSession().id, 0),
         })
       : undefined;
+  markBoot('governance');
   const installToolBoundary = opts.installToolBoundary ?? governanceHandle?.installToolBoundary;
   const otlpExport = startOtlpExport(config.observability, { logger });
   // OTLP metrics read a sink the engine's events feed, as the CLI's metrics wiring builds it;
