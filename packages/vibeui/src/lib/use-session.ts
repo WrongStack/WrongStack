@@ -310,6 +310,11 @@ export function useSession() {
         setModelPending(false);
         clearTimeout(modelTimeout.current);
       }
+      if (frame.type === 'session.start' && compacting.current) {
+        compacting.current = false;
+        setCompactPending(false);
+        clearTimeout(compactTimeout.current);
+      }
       const agentFinished =
         (frame.type === 'subagent.event' && p.kind === 'task_completed') ||
         activeAgentsBefore >
@@ -323,6 +328,12 @@ export function useSession() {
         setConnection(next);
         if (next !== 'open') {
           ownedRuns.current.clear();
+          compacting.current = false;
+          setCompactPending(false);
+          clearTimeout(compactTimeout.current);
+          pendingModel.current = false;
+          setModelPending(false);
+          clearTimeout(modelTimeout.current);
           setReady(false);
           // The server re-sends prompts that are still pending on reconnect.
           update(dropConnectionScopedPrompts);

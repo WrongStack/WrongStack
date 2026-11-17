@@ -1,7 +1,7 @@
 'use client';
 
 import { Check, GitBranch, GitMerge, Plus } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { clientId } from '../lib/ids';
 import {
   buildVibeTreeCommandArgs,
@@ -27,9 +27,16 @@ export function SessionBranchDialog({
   const [error, setError] = useState('');
   const [newName, setNewName] = useState('');
   const [keepFiles, setKeepFiles] = useState(false);
+  const pendingCancels = useRef(new Set<() => void>());
+  const requestSeq = useRef(0);
+
+  const cancelPending = useCallback(() => {
+    requestSeq.current += 1;
+    for (const cancel of [...pendingCancels.current]) cancel();
+  }, []);
 
   const runTreeCommand = useCallback(
-    (args: string): Promise<{ message: string; error?: string }> =>
+    (args: string): Promise<{ message: string; error?: string; cancelled?: boolean }> =>
       new Promise((resolve) => {
         if (connection !== 'open' || !state.id) {
           resolve({ message: '', error: 'Workspace connection is offline.' });
@@ -37,13 +44,16 @@ export function SessionBranchDialog({
         }
         const requestId = clientId();
         let settled = false;
-        const finish = (res: { message: string; error?: string }) => {
+        const finish = (res: { message: string; error?: string; cancelled?: boolean }) => {
           if (settled) return;
           settled = true;
+          pendingCancels.current.delete(cancel);
           clearTimeout(timer);
           off();
           resolve(res);
         };
+        const cancel = () => finish({ message: '', cancelled: true });
+        pendingCancels.current.add(cancel);
         const off = subscribe((frame) => {
           if (frame.type !== 'command.result') return;
           const payload = (frame.payload ?? {}) as Record<string, unknown>;
@@ -64,43 +74,55 @@ export function SessionBranchDialog({
   );
 
   const loadTree = useCallback(async () => {
+    const seq = requestSeq.current;
     setBusy(true);
     setError('');
     try {
       const res = await runTreeCommand(buildVibeTreeCommandArgs({ kind: 'list' }));
+      if (res.cancelled || requestSeq.current !== seq) return;
       if (res.error) {
         setError(res.error);
         return;
       }
       setTree(parseVibeSessionTree(res.message));
     } finally {
-      setBusy(false);
+      if (requestSeq.current === seq) setBusy(false);
     }
   }, [runTreeCommand]);
 
   useEffect(() => {
-    if (open) void loadTree();
-  }, [open, loadTree]);
+    if (open) {
+      void loadTree();
+    }
+    return () => {
+      cancelPending();
+      setBusy(false);
+    };
+  }, [open, loadTree, cancelPending]);
 
   const mutateTree = async (args: string, refreshTranscript: boolean) => {
+    const seq = requestSeq.current;
+    const sessionId = state.id;
     setBusy(true);
     setError('');
     try {
       const res = await runTreeCommand(args);
+      if (res.cancelled || requestSeq.current !== seq) return;
       if (res.error) {
         setError(res.error);
         return;
       }
       await loadTree();
-      if (refreshTranscript && state.id) {
-        switchSession(state.id);
+      if (requestSeq.current !== seq) return;
+      if (refreshTranscript && sessionId) {
+        switchSession(sessionId);
       }
       if (res.message) {
         const firstLine = res.message.split('\n')[0]?.trim();
         if (firstLine) notice(firstLine);
       }
     } finally {
-      setBusy(false);
+      if (requestSeq.current === seq) setBusy(false);
     }
   };
 

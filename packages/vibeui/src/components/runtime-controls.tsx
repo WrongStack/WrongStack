@@ -251,8 +251,11 @@ export function RuntimeControls({ controller }: { controller: SessionController 
             <option value="">Follow current model</option>
             {text(state.prefs.refinerProvider) &&
               text(state.prefs.refinerModel) &&
-              !state.models[text(state.prefs.refinerProvider)]?.some(
-                (model) => model.id === state.prefs.refinerModel,
+              !(
+                Object.hasOwn(state.models, text(state.prefs.refinerProvider)) &&
+                state.models[text(state.prefs.refinerProvider)]?.some(
+                  (model) => model.id === state.prefs.refinerModel,
+                )
               ) && (
                 <option value={`${state.prefs.refinerProvider}\t${state.prefs.refinerModel}`}>
                   {text(state.prefs.refinerModel)} (saved)

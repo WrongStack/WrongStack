@@ -27,9 +27,12 @@ export function reduceTool(state: SessionState, tool: ToolProjection): SessionSt
           ),
           status: tool.kind === 'executed' ? (tool.ok ? 'done' : 'error') : 'running',
         };
+  const tools = existing
+    ? state.tools.map((t) => (t.id === tool.id ? next : t))
+    : [...state.tools, next].slice(-MAX_TOOLS);
   return {
     ...state,
-    tools: [...state.tools.filter((t) => t.id !== tool.id), next].slice(-MAX_TOOLS),
+    tools,
     ...(artifact
       ? {
           artifacts: [...state.artifacts.filter((a) => a.id !== artifact.id), artifact].slice(

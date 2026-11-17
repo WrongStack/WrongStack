@@ -24,6 +24,7 @@ export function AcpRuntime({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const sequence = useRef(0);
+  const pendingCancels = useRef(new Set<() => void>());
   const settings = (state.prefs.acpRuntime ?? {}) as AcpRuntimeSelections;
   const values = settings[state.model] ?? {};
   useEffect(() => {
@@ -33,31 +34,45 @@ export function AcpRuntime({
     setError('');
     return () => {
       sequence.current++;
+      for (const cancel of [...pendingCancels.current]) cancel();
     };
   }, [state.id, state.model]);
   const request = (type: string, payload: Record<string, unknown>, reply: string) =>
     new Promise<Record<string, unknown>>((resolve, reject) => {
       const requestId = crypto.randomUUID();
+      let settled = false;
+      const cleanup = () => {
+        if (settled) return false;
+        settled = true;
+        clearTimeout(timer);
+        off();
+        pendingCancels.current.delete(cancel);
+        return true;
+      };
+      const cancel = () => {
+        if (cleanup()) reject(Error('ACP settings request cancelled.'));
+      };
       const timer = setTimeout(
         () => {
-          off();
-          reject(Error('ACP settings were not confirmed.'));
+          if (cleanup()) reject(Error('ACP settings were not confirmed.'));
         },
         type === 'acp.config_options' ? 100_000 : 15_000,
       );
       const off = subscribe((frame) => {
         const p = (frame.payload ?? {}) as Record<string, unknown>;
         if (frame.type !== reply || p.requestId !== requestId) return;
-        clearTimeout(timer);
-        off();
+        if (!cleanup()) return;
         if (p.ok === false || p.success === false)
           reject(Error(String(p.error ?? p.message ?? 'ACP settings failed.')));
         else resolve(p);
       });
-      if (!send(type, { ...payload, requestId })) {
-        clearTimeout(timer);
-        off();
-        reject(Error('Connect before changing ACP settings.'));
+      pendingCancels.current.add(cancel);
+      try {
+        if (!send(type, { ...payload, requestId })) {
+          if (cleanup()) reject(Error('Connect before changing ACP settings.'));
+        }
+      } catch (err) {
+        if (cleanup()) reject(err);
       }
     });
   const load = async (next: AcpRuntimeValues, save = false) => {
