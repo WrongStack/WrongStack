@@ -137,6 +137,11 @@ export class RequirementIntakeStore {
         },
       ]);
     }
+    if ([INDEX_PATH, IDEMPOTENCY_PATH].includes(`${id}.json`.toLowerCase())) {
+      throw new IntakeValidationError([
+        { field: 'id', message: 'record id is reserved for intake store metadata' },
+      ]);
+    }
     return path.join(this.baseDir, `${id}.json`);
   }
 
@@ -212,6 +217,8 @@ export class RequirementIntakeStore {
     record: RequirementIntakeRecord,
     idempotencyKey?: string,
   ): Promise<StoreCreateResult> {
+    // Reject metadata aliases before any directory or idempotency-map write.
+    this.recordPath(record.id);
     await ensureDir(this.baseDir);
 
     if (idempotencyKey !== undefined && idempotencyKey.trim().length > 0) {
