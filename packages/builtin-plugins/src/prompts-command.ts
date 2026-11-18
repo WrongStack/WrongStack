@@ -26,8 +26,10 @@ export function buildPromptsCommand(
       const loader = getLoader();
       if (!store) return { message: 'Prompt store not available.' };
 
-      const [verb, ...rest] = args.trim().split(/\s+/);
-      const restJoined = rest.join(' ');
+      const trimmedArgs = args.trim();
+      const verbEnd = trimmedArgs.search(/\s/);
+      const verb = verbEnd === -1 ? trimmedArgs : trimmedArgs.slice(0, verbEnd);
+      const restJoined = verbEnd === -1 ? '' : trimmedArgs.slice(verbEnd).trim();
 
       switch (verb) {
         case '':
@@ -347,18 +349,19 @@ function parseTitleContent(args: string): { title: string; content: string } {
   const trimmed = args.trim();
   if (!trimmed) return { title: '', content: '' };
   const doubleMatch =
-    /^"([^"]+)"\s+"([^"]+)"$/.exec(trimmed) || /^'([^']+)'\s+'([^']+)'$/.exec(trimmed);
+    /^"([^"]+)"\s+"([^"]+)"$/s.exec(trimmed) || /^'([^']+)'\s+'([^']+)'$/s.exec(trimmed);
   if (doubleMatch)
     return { title: expectDefined(doubleMatch[1]), content: expectDefined(doubleMatch[2]) };
-  const quotedTitleMatch = /^"([^"]+)"\s+(.+)$/.exec(trimmed) || /^'([^']+)'\s+(.+)$/.exec(trimmed);
+  const quotedTitleMatch =
+    /^"([^"]+)"\s+(.+)$/s.exec(trimmed) || /^'([^']+)'\s+(.+)$/s.exec(trimmed);
   if (quotedTitleMatch)
     return {
       title: expectDefined(quotedTitleMatch[1]),
       content: expectDefined(quotedTitleMatch[2]),
     };
-  const firstSpace = trimmed.indexOf(' ');
-  if (firstSpace === -1) return { title: trimmed, content: '' };
-  return { title: trimmed.slice(0, firstSpace), content: trimmed.slice(firstSpace + 1) };
+  const firstWs = trimmed.search(/\s/);
+  if (firstWs === -1) return { title: trimmed, content: '' };
+  return { title: trimmed.slice(0, firstWs), content: trimmed.slice(firstWs + 1) };
 }
 
 export function dim(s: string): string {

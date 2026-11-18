@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 532,
-      "typeOnly": 398,
+      "files": 533,
+      "typeOnly": 399,
       "runtimeOrMixed": 166
     },
     "@wrongstack/core/boot": {
@@ -149,9 +149,9 @@
       "runtimeOrMixed": 30
     },
     "@wrongstack/core/storage": {
-      "files": 221,
+      "files": 222,
       "typeOnly": 62,
-      "runtimeOrMixed": 196
+      "runtimeOrMixed": 197
     },
     "@wrongstack/core/tasking": {
       "files": 47,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1003,
+      "files": 1004,
       "typeOnly": 76,
-      "runtimeOrMixed": 962
+      "runtimeOrMixed": 963
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -348,6 +348,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/builtin-plugins/tests/prompts-plugin.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/builtin-plugins/tests/skills-authoring-flag-parsing.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -9833,6 +9839,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/builtin-plugins/tests/prompts-multiline.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/builtin-plugins/tests/prompts-plugin.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -11863,6 +11875,12 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/builtin-plugins/src/sync-plugin.ts",
       "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/builtin-plugins/tests/cloud-config-sync-teardown-ownership.test.ts",
+      "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {

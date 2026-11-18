@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T21:27:20.869Z",
+  "generatedAt": "2026-11-18T21:29:44.809Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6374,
-    "testFiles": 5503,
-    "sourceLines": 1316239,
+    "testFiles": 5506,
+    "sourceLines": 1316328,
     "workspaceEdges": 250,
     "moduleEdges": 18811,
     "nonCommandSlashImports": 0,
@@ -161,7 +161,7 @@
       "name": "@wrongstack/builtin-plugins",
       "dir": "packages/builtin-plugins",
       "sourceFiles": 40,
-      "testFiles": 31,
+      "testFiles": 34,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -177,7 +177,7 @@
         {
           "path": "packages/builtin-plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 31
+          "testFiles": 34
         }
       ]
     },
@@ -4568,6 +4568,12 @@
         ]
       },
       {
+        "file": "packages/builtin-plugins/tests/cloud-config-sync-teardown-ownership.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/builtin-plugins/tests/git-output-utf8-chunks.test.ts",
         "projects": [
           "root-node"
@@ -4581,6 +4587,12 @@
       },
       {
         "file": "packages/builtin-plugins/tests/prompts-command-slug.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/builtin-plugins/tests/prompts-multiline.test.ts",
         "projects": [
           "root-node"
         ]
@@ -4689,6 +4701,12 @@
       },
       {
         "file": "packages/builtin-plugins/tests/review-store-maintenance.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/builtin-plugins/tests/skills-authoring-flag-parsing.test.ts",
         "projects": [
           "root-node"
         ]

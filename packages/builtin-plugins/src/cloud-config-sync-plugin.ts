@@ -46,6 +46,8 @@ export function createCloudConfigSyncPlugin(opts?: CloudConfigSyncPluginOptions)
   let engine: CloudConfigSync | null = null;
   let timer: ReturnType<typeof setInterval> | null = null;
   let passRunning = false;
+  let generation = 0;
+  let active = false;
 
   return {
     name: 'wstack-cloud-config-sync',
@@ -56,6 +58,16 @@ export function createCloudConfigSyncPlugin(opts?: CloudConfigSyncPluginOptions)
     defaultConfig: {},
 
     setup(api) {
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+      const gen = ++generation;
+      active = false;
+      passRunning = false;
+      engine = null;
+      const isCurrent = () => active && generation === gen;
+
       const rawConfig = api.config as never as Record<string, unknown>;
       const paths = opts?.paths ?? (rawConfig.paths as WstackPaths | undefined);
       const configStore = opts?.configStore ?? (rawConfig.configStore as ConfigStore | undefined);
@@ -69,6 +81,7 @@ export function createCloudConfigSyncPlugin(opts?: CloudConfigSyncPluginOptions)
         return;
       }
 
+      active = true;
       const profileConfigPath = path.join(paths.configDir, 'config.json');
       const statePath = path.join(paths.configDir, 'cloud-sync-state.json');
       const warn = (msg: string) => api.log.warn(msg);
@@ -81,7 +94,9 @@ export function createCloudConfigSyncPlugin(opts?: CloudConfigSyncPluginOptions)
       const writeLocalConfig = async (
         mutator: (config: Record<string, unknown>) => Record<string, unknown>,
       ): Promise<void> => {
+        if (!isCurrent()) return;
         await withFileLock(profileConfigPath, async () => {
+          if (!isCurrent()) return;
           // Rewrite variant: a field this vault cannot decrypt keeps its
           // ciphertext instead of being written back as ''.
           const raw = await readProfileConfigStrict(profileConfigPath);
@@ -102,6 +117,7 @@ export function createCloudConfigSyncPlugin(opts?: CloudConfigSyncPluginOptions)
       };
 
       const getSettings = () => {
+        if (!isCurrent()) return null;
         const cfg = (configStore.get() as Record<string, unknown>).cloudSync as
           | CloudSyncConfig
           | undefined;
@@ -111,24 +127,29 @@ export function createCloudConfigSyncPlugin(opts?: CloudConfigSyncPluginOptions)
         return { enabled: true, url: cfg.url, token };
       };
 
-      engine = new CloudConfigSync({
+      const pluginEngine = new CloudConfigSync({
         statePath,
         readLocalConfig,
         writeLocalConfig,
         getSettings,
+        fetchImpl: ((...args: Parameters<typeof fetch>) =>
+          isCurrent()
+            ? globalThis.fetch(...args)
+            : Promise.reject(new Error('Cloud config sync unloaded'))) as typeof fetch,
         appVersion,
         logger: { info: (m) => api.log.info(m), warn },
       });
+      engine = pluginEngine;
 
       const runPass = async (): Promise<string> => {
-        if (!engine) return 'Cloud config sync is not initialized.';
+        if (!isCurrent() || engine !== pluginEngine) return 'Cloud config sync is not initialized.';
         if (passRunning) return 'A sync pass is already running.';
         passRunning = true;
         try {
-          const result = await engine.syncOnce();
+          const result = await pluginEngine.syncOnce();
           return result.message;
         } finally {
-          passRunning = false;
+          if (generation === gen) passRunning = false;
         }
       };
 
@@ -137,6 +158,7 @@ export function createCloudConfigSyncPlugin(opts?: CloudConfigSyncPluginOptions)
           clearInterval(timer);
           timer = null;
         }
+        if (!isCurrent()) return;
         const cfg = (configStore.get() as Record<string, unknown>).cloudSync as
           | CloudSyncConfig
           | undefined;
@@ -164,13 +186,17 @@ export function createCloudConfigSyncPlugin(opts?: CloudConfigSyncPluginOptions)
       };
 
       api.slashCommands.register(
-        buildCloudSyncCommand(engine, configStore, setCloudSyncConfig, runPass),
+        buildCloudSyncCommand(pluginEngine, configStore, setCloudSyncConfig, runPass),
       );
       scheduleLoop();
       api.log.info('[cloud-config-sync] loaded — /cloudsync available.');
     },
 
     teardown(api) {
+      generation += 1;
+      active = false;
+      passRunning = false;
+      engine = null;
       if (timer) {
         clearInterval(timer);
         timer = null;

@@ -208,13 +208,15 @@ export function buildSkillGeneratorCommand(skillLoader?: SkillLoader): SlashComm
   };
 }
 
+const SKELETON_VALUE_FLAGS = new Set(['--desc', '--trigger']);
+
 /** Parse and run the `skeleton` sub-command. */
 async function runSkeleton(
   rest: string[],
   ctx: Context,
   skillLoader?: SkillLoader,
 ): Promise<{ message: string }> {
-  const name = rest.find((p) => !p.startsWith('--'));
+  const name = findPositionalArg(rest, SKELETON_VALUE_FLAGS);
   if (!name) {
     return {
       message:
@@ -271,14 +273,7 @@ async function runFromPrompt(
   ctx: Context,
   skillLoader?: SkillLoader,
 ): Promise<{ message: string }> {
-  const isGlobal = /(?:^|\s)--global(?=\s|$)/.test(rawPrompt);
-  const force = /(?:^|\s)--force(?=\s|$)/.test(rawPrompt);
-  let promptText = rawPrompt.replace(/(?:^|[ \t])--(?:global|force)(?=\s|$)/g, '').trim();
-  if (
-    (promptText.startsWith('"') && promptText.endsWith('"')) ||
-    (promptText.startsWith("'") && promptText.endsWith("'"))
-  )
-    promptText = promptText.slice(1, -1);
+  const { promptText, isGlobal, force } = parseFromPromptArgs(rawPrompt);
   if (!promptText) return { message: 'Usage: /skill-gen from-prompt <text> [--global] [--force]' };
   const draft = extractSkillFromPrompt(promptText);
   if (!draft.suggestedName) {
@@ -351,4 +346,69 @@ export function parseFlagValue(tokens: string[], flag: string): string | undefin
     }
   }
   return undefined;
+}
+
+function findPositionalArg(
+  tokens: readonly string[],
+  valueFlags: ReadonlySet<string>,
+): string | undefined {
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i]!;
+    if (valueFlags.has(token)) {
+      const next = tokens[i + 1];
+      if (next !== undefined && !next.startsWith('--')) i++;
+      continue;
+    }
+    if (token.startsWith('--')) continue;
+    return token;
+  }
+  return undefined;
+}
+
+function parseFromPromptArgs(rawPrompt: string): {
+  promptText: string;
+  isGlobal: boolean;
+  force: boolean;
+} {
+  let isGlobal = false;
+  let force = false;
+  let rest = rawPrompt.trim();
+
+  while (true) {
+    const leading = /^--(global|force)(?=\s|$)/.exec(rest);
+    if (!leading) break;
+    if (leading[1] === 'global') isGlobal = true;
+    else force = true;
+    rest = rest.slice(leading[0].length).trimStart();
+  }
+
+  const quotedMatch = /^("(?:\\.|[^"\\])*"|'[^']*')([\s\S]*)$/.exec(rest);
+  if (quotedMatch) {
+    const quoted = quotedMatch[1]!;
+    const tail = quotedMatch[2]!.trim();
+    if (tail.length === 0 || /^(?:--(?:global|force)(?:\s+|$))+$/.test(tail)) {
+      for (const token of tail.split(/\s+/).filter(Boolean)) {
+        if (token === '--global') isGlobal = true;
+        else if (token === '--force') force = true;
+      }
+      const promptText =
+        quoted.startsWith('"') && quoted.endsWith('"')
+          ? quoted
+              .slice(1, -1)
+              .replace(/\\(["\\])/g, '$1')
+              .trim()
+          : quoted.slice(1, -1).trim();
+      return { promptText, isGlobal, force };
+    }
+  }
+
+  while (true) {
+    const trailing = /(?:\s+)--(global|force)$/.exec(rest);
+    if (!trailing) break;
+    if (trailing[1] === 'global') isGlobal = true;
+    else force = true;
+    rest = rest.slice(0, rest.length - trailing[0].length).trimEnd();
+  }
+
+  return { promptText: rest, isGlobal, force };
 }
