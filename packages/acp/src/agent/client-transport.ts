@@ -1,6 +1,7 @@
 import type { EventEmitter } from 'node:events';
 import { expectDefined, writeErr } from '@wrongstack/core/utils';
 import { treeKill } from '@wrongstack/core/utils/tree-kill';
+import { scheduleHandshakeTimeout } from '../handshake-timeout.js';
 import type { ACPMessage } from '../types/acp-messages.js';
 import { buildWin32CmdShimInvocation } from '../win32-cmd.js';
 
@@ -124,6 +125,8 @@ export interface ACPChildProcess extends EventEmitter {
 
 export class ClientTransport implements ACPClientTransport {
   private child: ACPChildProcess | null = null;
+  private starting: Promise<void> | undefined;
+  private readonly startupAbort = new AbortController();
   private buffer = '';
   private stderrTail = '';
   private stopRequested = false;
@@ -131,19 +134,18 @@ export class ClientTransport implements ACPClientTransport {
   private readonly claimHandlers = new Set<(msg: ACPMessage) => boolean>();
   private readonly closeHandlers = new Set<(reason: string) => void>();
   private closed = false;
-  private resolveRead: ((msg: ACPMessage | null) => void) | null = null;
+  private readonly pendingReads: Array<(msg: ACPMessage | null) => void> = [];
   private messageQueue: QueuedMessage[] = [];
   private queuedChars = 0;
-  private readonly opts: Required<Pick<ClientTransportOptions, 'handshakeTimeoutMs'>> &
-    ClientTransportOptions;
+  private readonly opts: ClientTransportOptions & { handshakeTimeoutMs: number };
   private readonly maxFrameChars: number;
   private readonly maxQueuedMessages: number;
   private readonly maxQueuedChars: number;
 
   constructor(options: ClientTransportOptions) {
     this.opts = {
-      handshakeTimeoutMs: 30_000,
       ...options,
+      handshakeTimeoutMs: options.handshakeTimeoutMs ?? 30_000,
     };
     this.maxFrameChars = positiveLimit(options.maxFrameChars, DEFAULT_MAX_FRAME_CHARS);
     this.maxQueuedMessages = positiveLimit(options.maxQueuedMessages, DEFAULT_MAX_QUEUED_MESSAGES);
@@ -152,7 +154,18 @@ export class ClientTransport implements ACPClientTransport {
 
   async start(): Promise<void> {
     if (this.closed) throw new Error('ClientTransport is closed');
+    if (this.starting) return this.starting;
     if (this.child) return;
+    const starting = this.startChild();
+    this.starting = starting;
+    try {
+      await starting;
+    } finally {
+      this.starting = undefined;
+    }
+  }
+
+  private async startChild(): Promise<void> {
     const [{ spawn }, { buildChildEnv }, os] = await Promise.all([
       import('node:child_process'),
       import('@wrongstack/core/utils'),
@@ -160,13 +173,30 @@ export class ClientTransport implements ACPClientTransport {
     ]);
     if (this.closed) throw new Error('ClientTransport is closed');
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
+      const signal = this.startupAbort.signal;
+      let settled = false;
+      let detachReady: (() => void) | undefined;
+      const finishStartup = (): boolean => {
+        if (settled) return false;
+        settled = true;
+        cancelTimeout();
+        signal.removeEventListener('abort', onAbort);
+        detachReady?.();
+        return true;
+      };
+      const onAbort = () => {
+        if (finishStartup()) reject(signal.reason);
+      };
+      const cancelTimeout = scheduleHandshakeTimeout(this.opts.handshakeTimeoutMs, () => {
+        if (!finishStartup()) return;
         // Reject the start promise, but first tear down the child we just
         // spawned — otherwise a slow-spawning npx/uvx leaves a real process
         // holding pipes open, with the handshake timer the only handle
         // (RAM-leak audit 2026-07-31, LOW).
         const child = this.child;
         this.child = null;
+        this.buffer = '';
+        this.stderrTail = '';
         /* v8 ignore start - defensive child cleanup on startup timeout */
         if (child) {
           try {
@@ -179,7 +209,8 @@ export class ClientTransport implements ACPClientTransport {
         reject(
           new Error(`ACP child process failed to start within ${this.opts.handshakeTimeoutMs}ms`),
         );
-      }, this.opts.handshakeTimeoutMs);
+      });
+      signal.addEventListener('abort', onAbort, { once: true });
 
       // `npx`/`uvx` resolve+install the package using the npm/pip config of
       // the spawn cwd. Inside a repo with dependency `overrides` (WrongStack
@@ -202,7 +233,7 @@ export class ClientTransport implements ACPClientTransport {
         }) as never as ACPChildProcess;
         /* v8 ignore start -- spawn() throwing synchronously is a defensive guard (e.g. argv0 type errors); the realistic async failure path is the child 'error' event, covered by tests. */
       } catch (err) {
-        clearTimeout(timeout);
+        finishStartup();
         reject(err);
         return;
       }
@@ -212,50 +243,50 @@ export class ClientTransport implements ACPClientTransport {
 
       child.stdout.setEncoding('utf8');
 
-      let settled = false;
       // Register failure handlers IMMEDIATELY, before either readiness path,
       // so a spawn failure (ENOENT / EACCES) rejects start() instead of
       // emitting an unhandled 'error' event that crashes the host process.
       // This is critical for the skip-marker path (external ACP agents),
       // which previously returned before any 'error' listener was attached.
       const onSpawnFailure = (err: Error): void => {
-        if (settled) {
-          // Post-ready error: just tear the connection down.
-          this.closed = true;
+        if (this.closed || this.child !== child) return;
+        if (!finishStartup()) {
+          this.stop(`agent transport error: ${err.message}`);
           return;
         }
-        settled = true;
-        clearTimeout(timeout);
         reject(err);
       };
       child.on('error', onSpawnFailure);
       child.stdout.on('error', onSpawnFailure);
+      child.stderr.on('data', (chunk: string) => {
+        if (this.child === child) this.onChildError(chunk);
+      });
+      child.once('close', (code: number | null, exitSignal?: NodeJS.Signals | null) => {
+        if (this.child !== child) return;
+        const wasStarting = finishStartup();
+        const reason = this.onChildClose(code, exitSignal);
+        if (wasStarting) reject(new Error(reason));
+      });
 
       if (this.opts.skipHandshakeMarker) {
         // External ACP agents don't emit a startup marker. Attach the data
         // pump right away so no early output is dropped, then resolve once
         // the OS confirms the process actually spawned (the 'spawn' event).
         // If the binary is missing, 'error' fires instead and rejects above.
-        child.stdout.on('data', (c: string) => this.onChildData(c));
-        child.stderr.on('data', (c: string) => this.onChildError(c));
-        child.on('close', (code: number | null) => this.onChildClose(code));
-        child.once('spawn', () => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timeout);
-          resolve();
-        });
+        child.stdout.on('data', (c: string) => this.onChildData(child, c));
+        const onSpawn = () => {
+          if (finishStartup()) resolve();
+        };
+        detachReady = () => child.off('spawn', onSpawn);
+        child.once('spawn', onSpawn);
         return;
       }
 
-      const onReady = (): void => {
-        if (settled) return;
-        settled = true;
-        child.stdout.on('data', (c: string) => this.onChildData(c));
-        child.stderr.on('data', (c: string) => this.onChildError(c));
-        child.on('close', (code: number | null) => this.onChildClose(code));
-        clearTimeout(timeout);
+      const onReady = (): boolean => {
+        if (!finishStartup()) return false;
+        child.stdout.on('data', (c: string) => this.onChildData(child, c));
         resolve();
+        return true;
       };
 
       const waitForMarker = (chunk: string) => {
@@ -271,23 +302,22 @@ export class ClientTransport implements ACPClientTransport {
         if (idx !== -1) {
           const rest = this.buffer.slice(idx + '[wstack-acp]\n'.length);
           this.buffer = '';
-          child.stdout.removeListener('data', waitForMarker);
-          onReady();
           // Frames that shared the marker's chunk go through the same framing
           // as later chunks. Left raw in `buffer`, a complete line broke
           // takeLines' newline-free pending tail: it was never delivered, and
           // the next chunk merged into it and failed to parse with it.
-          if (rest) this.onChildData(rest);
+          if (onReady() && rest) this.onChildData(child, rest);
         }
       };
 
+      detachReady = () => child.stdout.off('data', waitForMarker);
       child.stdout.on('data', waitForMarker);
     });
   }
 
   send(msg: ACPMessage): Promise<void> {
-    if (!this.child) return Promise.reject(new Error('ClientTransport not started'));
     if (this.closed) return Promise.reject(new Error('ClientTransport is closed'));
+    if (!this.child) return Promise.reject(new Error('ClientTransport not started'));
     return new Promise((resolve, reject) => {
       const line = JSON.stringify(msg) + '\n';
       this.child?.stdin.write(line, 'utf8', (err) => {
@@ -305,7 +335,7 @@ export class ClientTransport implements ACPClientTransport {
     }
     if (this.closed) return Promise.resolve(null);
     return new Promise((resolve) => {
-      this.resolveRead = resolve;
+      this.pendingReads.push(resolve);
     });
   }
 
@@ -350,9 +380,10 @@ export class ClientTransport implements ACPClientTransport {
   stop(reason = 'transport stopped'): void {
     this.closed = true;
     this.stopRequested = true;
-    this.resolveRead?.(null);
-    this.resolveRead = null;
+    this.startupAbort.abort(new Error(reason));
+    for (const resolve of this.pendingReads.splice(0)) resolve(null);
     this.buffer = '';
+    this.stderrTail = '';
     this.messageQueue.length = 0;
     this.queuedChars = 0;
     this.handlers.clear();
@@ -371,7 +402,8 @@ export class ClientTransport implements ACPClientTransport {
     this.child = null;
   }
 
-  private onChildData(chunk: string): void {
+  private onChildData(child: ACPChildProcess, chunk: string): void {
+    if (this.closed || this.child !== child) return;
     const { lines, pending } = takeLines(this.buffer, chunk);
     this.buffer = pending;
     if (this.buffer.length > this.maxFrameChars) {
@@ -381,6 +413,7 @@ export class ClientTransport implements ACPClientTransport {
     }
 
     for (const raw of lines) {
+      if (this.closed) return;
       if (!raw.trim()) continue;
       if (raw.length > this.maxFrameChars) {
         writeErr(`[acp-child frame exceeds ${this.maxFrameChars} characters]\n`);
@@ -400,11 +433,10 @@ export class ClientTransport implements ACPClientTransport {
     if (echoChildStderr()) writeErr(`[acp-child stderr] ${chunk}`);
   }
 
-  private onChildClose(code: number | null): void {
+  private onChildClose(code: number | null, signal?: NodeJS.Signals | null): string {
     this.closed = true;
     this.child = null;
-    this.resolveRead?.(null);
-    this.resolveRead = null;
+    for (const resolve of this.pendingReads.splice(0)) resolve(null);
     this.buffer = '';
     this.messageQueue.length = 0;
     this.queuedChars = 0;
@@ -412,21 +444,23 @@ export class ClientTransport implements ACPClientTransport {
     this.claimHandlers.clear();
     // Killing the tree on stop() ends the child with a non-zero code (1 on
     // Windows): that is our teardown, not a crash to report.
-    const failed = code !== 0 && code !== null && !this.stopRequested;
+    const failed = !this.stopRequested && (signal != null || (code !== 0 && code !== null));
+    const exit = signal ? `terminated by signal ${signal}` : `exited with code ${code}`;
     if (failed) {
       // The live echo is off by default, so a crash shows what led up to it.
       const tail = echoChildStderr() ? '' : this.stderrTail.trimEnd();
-      writeErr(`[acp-child exited with code ${code}]\n${tail ? `${tail}\n` : ''}`);
+      writeErr(`[acp-child ${exit}]\n${tail ? `${tail}\n` : ''}`);
     }
     const cause = failed ? lastLine(this.stderrTail) : '';
     this.stderrTail = '';
-    this.notifyClosed(`agent process exited with code ${code}${cause ? `: ${cause}` : ''}`);
+    const reason = `agent process ${exit}${cause ? `: ${cause}` : ''}`;
+    this.notifyClosed(reason);
+    return reason;
   }
 
   private dispatch(msg: ACPMessage, chars = JSON.stringify(msg).length): void {
-    if (this.resolveRead) {
-      const resolve = this.resolveRead;
-      this.resolveRead = null;
+    const resolve = this.pendingReads.shift();
+    if (resolve) {
       resolve(msg);
     } else {
       let claimed = false;
@@ -437,6 +471,7 @@ export class ClientTransport implements ACPClientTransport {
           writeErr(`[acp-child handler error] ${err}\n`);
         }
       }
+      if (this.closed) return;
       if (!claimed && this.handlers.size === 0) {
         if (
           this.messageQueue.length >= this.maxQueuedMessages ||

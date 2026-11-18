@@ -126,6 +126,39 @@ describe('StdioTransport', () => {
     expect(await t.read()).toBeNull();
   });
 
+  it.each(['close', 'EOF'] as const)(
+    'settles every pending reader in order on %s',
+    async (mode) => {
+      const transport = new StdioTransport();
+      const reads = [transport.read(), transport.read(), transport.read(), transport.read()];
+      stdin.emit('data', '{"method":"one"}\n{"method":"two"}\n');
+      if (mode === 'close') transport.close();
+      else stdin.emit('end');
+      await expect(Promise.all(reads)).resolves.toEqual([
+        { method: 'one' },
+        { method: 'two' },
+        null,
+        null,
+      ]);
+      transport.close();
+    },
+  );
+
+  it.each(['claim', 'observer'] as const)(
+    'discards stdin frames after a %s handler closes',
+    async (mode) => {
+      const transport = new StdioTransport();
+      if (mode === 'claim')
+        transport.onMessageClaim(() => {
+          transport.close();
+          return false;
+        });
+      else transport.onMessage(() => transport.close());
+      stdin.emit('data', '{"method":"first"}\n{"method":"second"}\n');
+      await expect(transport.read()).resolves.toBeNull();
+    },
+  );
+
   it('buffers partial lines across data events', async () => {
     const t = new StdioTransport();
     const p = t.read();

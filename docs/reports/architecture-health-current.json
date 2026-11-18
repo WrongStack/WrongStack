@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T21:04:27.267Z",
+  "generatedAt": "2026-11-18T21:06:01.864Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6368,
+    "sourceFiles": 6369,
     "testFiles": 5486,
-    "sourceLines": 1315886,
+    "sourceLines": 1315940,
     "workspaceEdges": 250,
-    "moduleEdges": 18796,
+    "moduleEdges": 18798,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -92,7 +92,7 @@
     {
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
-      "sourceFiles": 57,
+      "sourceFiles": 58,
       "testFiles": 68,
       "workspaceDependencies": [
         "@wrongstack/contracts",

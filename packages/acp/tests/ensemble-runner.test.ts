@@ -126,30 +126,30 @@ describe('runEnsemble — concurrent run', () => {
       { id: 'b', installed: true },
       { id: 'c', installed: true },
     ]);
-    let liveCount = 0;
-    let maxLive = 0;
-    makeACPSubagentRunnerWithStop.mockImplementation(async () => {
-      liveCount++;
-      maxLive = Math.max(maxLive, liveCount);
-      // Stagger so concurrency is observable.
-      await new Promise((r) => setTimeout(r, 20));
-      liveCount--;
+    const release = Promise.withResolvers<void>();
+    const entered = vi.fn();
+    makeACPSubagentRunnerWithStop.mockImplementation(async (command: { role: string }) => {
       return {
-        runner: async () => ({ result: `from-${liveCount}`, iterations: 1, toolCalls: 0 }),
+        runner: async () => {
+          entered(command.role);
+          await release.promise;
+          return { result: `from-${command.role}`, iterations: 1, toolCalls: 0 };
+        },
         stop: () => undefined,
       };
     });
-    const t0 = Date.now();
-    const r = await runEnsemble({
+    const running = runEnsemble({
       agentIds: 'a,b,c',
       task: 'parallel-task',
       resolveCmd: fakeCmd,
     });
-    const elapsed = Date.now() - t0;
-    // Three 20ms tasks run in parallel → under 50ms (sequentially it
-    // would be ≥60ms).
-    expect(elapsed).toBeLessThan(55);
-    expect(maxLive).toBeGreaterThanOrEqual(2);
+    try {
+      // Every runner must enter before any runner can finish.
+      await vi.waitFor(() => expect(entered).toHaveBeenCalledTimes(3), { timeout: 5_000 });
+    } finally {
+      release.resolve();
+    }
+    const r = await running;
     expect(r.summary).toEqual({ succeeded: 3, failed: 0, skipped: 0, cancelled: 0 });
   });
 

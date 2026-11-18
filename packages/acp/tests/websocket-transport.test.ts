@@ -6,7 +6,7 @@
 
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ACPSession } from '../src/client/acp-session.js';
 import { WebSocketClientTransport } from '../src/client/websocket-transport.js';
 import type { ACPMessage } from '../src/types/acp-messages.js';
@@ -93,6 +93,30 @@ describe('WebSocketClientTransport', () => {
   it('rejects start() on a timeout', async () => {
     const t = new WebSocketClientTransport({ url: 'ws://agent.test', handshakeTimeoutMs: 10 });
     await expect(t.start()).rejects.toThrow(/within 10ms/);
+  });
+
+  it('cancels the remaining chunk of a long WebSocket handshake on stop', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const transport = new WebSocketClientTransport({
+      url: 'ws://agent.test',
+      handshakeTimeoutMs: 2_147_483_652,
+    });
+    try {
+      const rejected = vi.fn();
+      const start = transport.start().catch(rejected);
+      await vi.advanceTimersByTimeAsync(2_147_483_647);
+      expect(rejected).not.toHaveBeenCalled();
+      expect(last().closed).toBe(false);
+      transport.stop();
+      await start;
+      expect(rejected).toHaveBeenCalledExactlyOnceWith(
+        new Error('WebSocket transport stopped while connecting'),
+      );
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      transport.stop();
+      vi.useRealTimers();
+    }
   });
 
   it('handles error events after socket is already open by marking closed', async () => {

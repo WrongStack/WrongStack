@@ -16,6 +16,7 @@
  */
 
 import type { ACPClientTransport } from '../agent/stdio-transport.js';
+import { scheduleHandshakeTimeout } from '../handshake-timeout.js';
 import type { ACPMessage } from '../types/acp-messages.js';
 
 export interface WebSocketClientTransportOptions {
@@ -64,7 +65,7 @@ export class WebSocketClientTransport implements ACPClientTransport {
   private pendingStart: {
     resolve: () => void;
     reject: (e: Error) => void;
-    timer: ReturnType<typeof setTimeout>;
+    cancelTimeout: () => void;
   } | null = null;
 
   start(): Promise<void> {
@@ -88,7 +89,7 @@ export class WebSocketClientTransport implements ACPClientTransport {
       ws.binaryType = 'arraybuffer';
       this.ws = ws;
       /* v8 ignore start - defensive timeout race */
-      const timer = setTimeout(() => {
+      const cancelTimeout = scheduleHandshakeTimeout(timeoutMs, () => {
         const pending = this.pendingStart;
         if (pending === null) return;
         this.pendingStart = null;
@@ -101,15 +102,15 @@ export class WebSocketClientTransport implements ACPClientTransport {
           // ignore
         }
         pending.reject(new Error(`WebSocket failed to open within ${timeoutMs}ms`));
-      }, timeoutMs);
+      });
       /* v8 ignore stop */
-      this.pendingStart = { resolve, reject, timer };
+      this.pendingStart = { resolve, reject, cancelTimeout };
 
       ws.addEventListener('open', () => {
         const pending = this.pendingStart;
         if (pending === null) return;
         this.pendingStart = null;
-        clearTimeout(pending.timer);
+        pending.cancelTimeout();
         pending.resolve();
       });
       ws.addEventListener('error', (ev: unknown) => {
@@ -123,7 +124,7 @@ export class WebSocketClientTransport implements ACPClientTransport {
         this.closed = true;
         this.ws = null;
         this.handlers.clear();
-        clearTimeout(pending.timer);
+        pending.cancelTimeout();
         const message =
           ev && typeof ev === 'object' && 'message' in ev
             ? String((ev as { message: unknown }).message)
@@ -137,7 +138,7 @@ export class WebSocketClientTransport implements ACPClientTransport {
         const pending = this.pendingStart;
         if (pending !== null) {
           this.pendingStart = null;
-          clearTimeout(pending.timer);
+          pending.cancelTimeout();
           pending.reject(new Error('WebSocket closed before the connection opened'));
         }
         this.notifyClosed('WebSocket closed');
@@ -200,7 +201,7 @@ export class WebSocketClientTransport implements ACPClientTransport {
     if (this.pendingStart !== null) {
       const pending = this.pendingStart;
       this.pendingStart = null;
-      clearTimeout(pending.timer);
+      pending.cancelTimeout();
       try {
         pending.reject(new Error('WebSocket transport stopped while connecting'));
       } catch {

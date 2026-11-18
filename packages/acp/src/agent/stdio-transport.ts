@@ -72,7 +72,7 @@ export class StdioTransport implements AgentServerTransport {
   private closed = false;
   /** stdin ended: queued requests are still read and answered, then read() ends. */
   private inputEnded = false;
-  private resolveRead: ((msg: ACPMessage | null) => void) | null = null;
+  private readonly pendingReads: Array<(msg: ACPMessage | null) => void> = [];
   private messageQueue: QueuedMessage[] = [];
   private queuedChars = 0;
   private readonly maxFrameChars: number;
@@ -119,7 +119,7 @@ export class StdioTransport implements AgentServerTransport {
     }
     if (this.closed || this.inputEnded) return Promise.resolve(null);
     return new Promise((resolve) => {
-      this.resolveRead = resolve;
+      this.pendingReads.push(resolve);
     });
   }
 
@@ -149,8 +149,7 @@ export class StdioTransport implements AgentServerTransport {
     this.stdin.off('end', this.onStdinEnd);
     this.stdin.off('error', this.onStdinError);
     this.stdin.pause();
-    this.resolveRead?.(null);
-    this.resolveRead = null;
+    for (const resolve of this.pendingReads.splice(0)) resolve(null);
     this.buffer = '';
     this.messageQueue.length = 0;
     this.queuedChars = 0;
@@ -159,6 +158,7 @@ export class StdioTransport implements AgentServerTransport {
   }
 
   private onData(chunk: string): void {
+    if (this.closed) return;
     const { lines, pending } = takeLines(this.buffer, chunk);
     this.buffer = pending;
     if (this.buffer.length > this.maxFrameChars) {
@@ -171,6 +171,7 @@ export class StdioTransport implements AgentServerTransport {
     }
 
     for (const raw of lines) {
+      if (this.closed) return;
       if (!raw.trim()) continue;
       if (raw.length > this.maxFrameChars) {
         this.stderr.write(
@@ -195,9 +196,8 @@ export class StdioTransport implements AgentServerTransport {
   }
 
   private dispatch(msg: ACPMessage, chars = JSON.stringify(msg).length): void {
-    if (this.resolveRead) {
-      const resolve = this.resolveRead;
-      this.resolveRead = null;
+    const resolve = this.pendingReads.shift();
+    if (resolve) {
       resolve(msg);
     } else {
       // Claim handlers run first and MAY consume a message exclusively by
@@ -223,6 +223,7 @@ export class StdioTransport implements AgentServerTransport {
           this.stderr.write(`[wstack-acp handler error] ${err}\n`, 'utf8');
         }
       }
+      if (this.closed) return;
       if (!claimed) {
         if (
           this.messageQueue.length >= this.maxQueuedMessages ||
@@ -270,8 +271,7 @@ export class StdioTransport implements AgentServerTransport {
     this.inputEnded = true;
     this.stdin.off('data', this.onStdinData);
     this.stdin.off('end', this.onStdinEnd);
-    this.resolveRead?.(null);
-    this.resolveRead = null;
+    for (const resolve of this.pendingReads.splice(0)) resolve(null);
   }
 
   private failAll(err: Error): void {
