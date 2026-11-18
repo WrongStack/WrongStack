@@ -7,11 +7,24 @@
 
 ---
 
-## Decision: Layer Instead of Split
+## Current decision: Shared contracts plus enforced core layers
 
-The original plan was to extract `packages/core/src/kernel/` as a standalone `@wrongstack/kernel` package. Analysis revealed that `kernel/container.ts` imports `WrongStackError` from `types/errors.js` — a **runtime** class used by virtually every module in core. Extracting kernel as a separate package would require either (a) duplicating `WrongStackError`, (b) making kernel depend on a minimal `core-types` package, or (c) accepting a complex dependency graph. All three options cost more than the benefit.
+The kernel and shared types live together in `@wrongstack/contracts`
+(`packages/contracts/src/{kernel,types}/`). Keeping their runtime error types
+in the same package avoids a cyclic dependency. Core consumes these contracts;
+coordination and other extracted domains are composed above core by hosts.
+Within core, runtime imports follow the machine-readable ranks in
+[`architecture/core-layers.json`](../architecture/core-layers.json), enforced by
+`bun run check:core-layers`.
 
-**Agreed approach**: Keep everything in `@wrongstack/core`, but enforce strict internal layering rules through automated tests. The layering is already correct architecturally — the existing exports map (`./kernel`, `./storage`, `./coordination`, etc.) proves the intent. The gap is enforcement.
+### Historical rationale (2026-05-20; superseded layout)
+
+The original proposal was a kernel-only `@wrongstack/kernel` extraction. It was
+deferred because `kernel/container.ts` used `WrongStackError` from `types/`,
+which would have left a cross-package runtime dependency. Internal layering was
+adopted first. The later extraction moved **both** kernel and types into
+`@wrongstack/contracts`; the earlier recommendation to keep them in core is no
+longer current guidance.
 
 ---
 

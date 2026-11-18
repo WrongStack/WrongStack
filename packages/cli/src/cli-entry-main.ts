@@ -7,13 +7,11 @@
  * exit code in those cases. Only when it returns a live `CliContext` does the
  * session actually need the interactive machinery.
  *
- * That machinery is large: `cli-main.ts` statically imports ~30 wiring modules,
- * which transitively reach `@wrongstack/sdd`, `/acp`, `/sage`, `/mcp` and
- * `/security-scanner` — measured at 21, 21, 20, 11 and 7.5MB RSS respectively.
- * Measured with the static edge in place, the CLI's always-loaded graph was 270
- * modules; `cli-context.ts` and `boot.ts` on their own reach 64 and 31 modules
- * and NONE of those five packages. So `wstack version` and
- * `wstack mailbox serve` were paying for the whole interactive stack.
+ * `cli-main.ts` delegates to boot, orchestration, and execution builders.
+ * Their transitive dependencies include the interactive domains and host
+ * integrations; keeping that graph behind the dynamic import lets short-lived
+ * commands finish without loading it. The boundary is about the transitive
+ * graph, not the number of direct imports in the orchestrator.
  *
  * IMPORTANT: this boundary only works because `@wrongstack/cli` is built with
  * `splitting: true` (scripts/build-package.mjs). With splitting off, esbuild
