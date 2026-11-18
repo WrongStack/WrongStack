@@ -23,7 +23,8 @@ pub(crate) struct Desktop {
     /// The conversation host; replaced when the user moves conversations onto this build's
     /// engine (`host_restart`).
     client: RwLock<Client>,
-    services: Client,
+    /// A separate services host when the conversation host cannot serve this build.
+    companion_services: Option<Client>,
     drafts: Arc<Mutex<crate::registry::Registry>>,
     project_aliases: Arc<Mutex<HashMap<String, String>>>,
     streams: Mutex<HashMap<String, Arc<StreamControl>>>,
@@ -215,7 +216,10 @@ async fn host_request(
         return Err("Method unavailable to shell".into());
     }
     let client = state.client();
-    let services = state.services.clone();
+    let services = state
+        .companion_services
+        .clone()
+        .unwrap_or_else(|| client.clone());
     let drafts = Arc::clone(&state.drafts);
     let aliases = Arc::clone(&state.project_aliases);
     tauri::async_runtime::spawn_blocking(move || {
@@ -593,24 +597,26 @@ pub fn run() {
             let capabilities = client
                 .call("ping", json!({}))
                 .map_err(std::io::Error::other)?;
-            let services = if crate::host::can_share_services(&capabilities)
+            let companion_services = if crate::host::can_share_services(&capabilities)
                 && std::env::var("WRONGSTACK_DESKTOP_USE_COMPANION_HOST").as_deref() != Ok("1")
             {
-                client.clone()
+                None
             } else {
                 // Keep old hosts and their live PTYs intact while adding project/profile services.
-                Client::connect_at(
-                    engine.as_deref(),
-                    &crate::host::data_dir()
-                        .map_err(std::io::Error::other)?
-                        .join("project-services-v1")
-                        .join(crate::host::engine_build()),
+                Some(
+                    Client::connect_at(
+                        engine.as_deref(),
+                        &crate::host::data_dir()
+                            .map_err(std::io::Error::other)?
+                            .join("project-services-v1")
+                            .join(crate::host::engine_build()),
+                    )
+                    .map_err(std::io::Error::other)?,
                 )
-                .map_err(std::io::Error::other)?
             };
             app.manage(Desktop {
                 client: RwLock::new(client),
-                services,
+                companion_services,
                 drafts: Arc::new(Mutex::new(
                     crate::registry::Registry::open(
                         &crate::host::data_dir().map_err(std::io::Error::other)?,

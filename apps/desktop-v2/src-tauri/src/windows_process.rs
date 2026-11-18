@@ -4,7 +4,9 @@ use std::process::Command;
 use std::{
     collections::HashMap,
     ffi::c_void,
-    io, mem, thread,
+    io, mem,
+    path::{Component, Path, Prefix},
+    thread,
     time::{Duration, Instant},
 };
 
@@ -138,6 +140,19 @@ fn image_path(pid: u32) -> Option<std::path::PathBuf> {
     }
     Some(String::from_utf16_lossy(&buffer[..size as usize]).into())
 }
+fn image_key(path: &Path) -> String {
+    let spelling = path.to_string_lossy();
+    match path.components().next() {
+        Some(Component::Prefix(prefix)) => match prefix.kind() {
+            // Windows reports both DOS paths and extended paths for the same executable.
+            Prefix::VerbatimDisk(_) => spelling[4..].to_lowercase(),
+            Prefix::VerbatimUNC(_, _) => format!(r"\\{}", spelling[8..].to_lowercase()),
+            _ => spelling.to_lowercase(),
+        },
+        _ => spelling.to_lowercase(),
+    }
+}
+
 /// Ends every process (and its descendants) whose executable is exactly `image`. Only an
 /// executable private to one exited host qualifies: whatever runs from it is that host's
 /// orphan, such as a project daemon its engine started.
@@ -145,12 +160,12 @@ pub(crate) fn stop_image(image: &std::path::Path) -> crate::Result<()> {
     let Some(file) = image.file_name().and_then(|n| n.to_str()) else {
         return Ok(());
     };
-    let wanted = image.to_string_lossy().to_lowercase();
+    let wanted = image_key(image);
     for (pid, _, name) in snapshot()? {
         if !name.eq_ignore_ascii_case(file) {
             continue;
         }
-        if image_path(pid).is_some_and(|path| path.to_string_lossy().to_lowercase() == wanted) {
+        if image_path(pid).is_some_and(|path| image_key(&path) == wanted) {
             stop_tree(pid)?;
         }
     }

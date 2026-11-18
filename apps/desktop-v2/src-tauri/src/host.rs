@@ -137,6 +137,12 @@ mod service_version_tests {
     #[cfg(windows)]
     #[test]
     fn an_exited_host_takes_the_processes_still_running_from_its_engine_copy_with_it() {
+        check_exited_host_engine_cleanup(false);
+        check_exited_host_engine_cleanup(true);
+    }
+
+    #[cfg(windows)]
+    fn check_exited_host_engine_cleanup(verbatim: bool) {
         use std::os::windows::process::CommandExt;
         let dir = std::env::temp_dir().join(format!("desktop-orphans-{}", Uuid::new_v4()));
         let bin = dir.join("hosts").join(Uuid::new_v4().to_string());
@@ -150,15 +156,22 @@ mod service_version_tests {
             .stderr(Stdio::null())
             .spawn()
             .unwrap();
-        // A process running something else must survive.
-        let mut bystander = Command::new(r"C:\Windows\System32\PING.EXE")
+        // A process with the same image name in a different directory must survive.
+        let other = dir.join(ENGINE_FILE_NAME);
+        std::fs::copy(r"C:\Windows\System32\PING.EXE", &other).unwrap();
+        let mut bystander = Command::new(other)
             .args(["-n", "60", "127.0.0.1"])
             .creation_flags(0x08000000)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
             .unwrap();
-        prune_exited_hosts(&dir);
+        let lookup = if verbatim {
+            dir.canonicalize().unwrap()
+        } else {
+            dir.clone()
+        };
+        prune_exited_hosts(&lookup);
         let ended = orphan.try_wait().unwrap().is_some() || {
             thread::sleep(Duration::from_millis(500));
             orphan.try_wait().unwrap().is_some()

@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { copyFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
-import { createConnection } from 'node:net';
+import { createConnection, createServer } from 'node:net';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { chromium } from '@playwright/test';
 import { stagePortable } from '../scripts/portable.ts';
 import { fixtureKey, fixtureModel, startLocalProvider } from './local-provider.mjs';
 
@@ -39,10 +40,15 @@ const powershell = (command) =>
   spawnSync('pwsh', ['-NoProfile', '-NonInteractive', '-Command', command], {
     encoding: 'utf8',
     windowsHide: true,
+    env: {
+      ...process.env,
+      WRONGSTACK_UPDATE_TEST_DIR: `${work}\\`,
+      WRONGSTACK_UPDATE_TEST_EXTENDED_DIR: `\\\\?\\${work}\\`,
+    },
   }).stdout;
 // The query's own PowerShell command line also contains this path. Only a WebView needs command
 // line ownership: all application/host/engine executables already live inside the fixture.
-const insideWork = `($_.ExecutablePath -and $_.ExecutablePath.StartsWith('${work}\\', [StringComparison]::OrdinalIgnoreCase)) -or ($_.Name -eq 'msedgewebview2.exe' -and $_.CommandLine -and $_.CommandLine.Contains('${work}\\'))`;
+const insideWork = `($_.ExecutablePath -and ($_.ExecutablePath.StartsWith($env:WRONGSTACK_UPDATE_TEST_DIR, [StringComparison]::OrdinalIgnoreCase) -or $_.ExecutablePath.StartsWith($env:WRONGSTACK_UPDATE_TEST_EXTENDED_DIR, [StringComparison]::OrdinalIgnoreCase))) -or ($_.Name -eq 'msedgewebview2.exe' -and $_.CommandLine -and $_.CommandLine.Contains($env:WRONGSTACK_UPDATE_TEST_DIR))`;
 const processes = () =>
   JSON.parse(
     powershell(
@@ -118,7 +124,7 @@ const environment = (name) => {
   };
 };
 
-async function launch(name, { legacy }) {
+async function launch(name, { legacy, debugPort }) {
   const dir = join(work, name);
   const home = join(dir, 'home');
   await mkdir(join(home, 'profiles/default'), { recursive: true });
@@ -147,6 +153,7 @@ async function launch(name, { legacy }) {
   );
   const env = environment(name);
   if (legacy) env.WRONGSTACK_DESKTOP_ENGINE = installedEngine;
+  if (debugPort) env.WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = `--remote-debugging-port=${debugPort}`;
   const child = spawn(exe, [], { cwd: dir, env, stdio: 'ignore', windowsHide: true });
   child.unref();
   const previous = await readFile(join(dir, 'data', 'host.json'), 'utf8').catch(() => null);
@@ -186,6 +193,58 @@ const replaceInstalledEngine = () =>
     () => 'replaced',
     (error) => error.code ?? String(error),
   );
+
+async function checkServiceRoutingAfterRestart({ dir, endpoint }, debugPort) {
+  const project = await call(endpoint, 'project.register', { root: join(dir, 'project') });
+  const debugUrl = `http://127.0.0.1:${debugPort}`;
+  await until(
+    async () => (await fetch(`${debugUrl}/json/version`)).ok,
+    'WebView2 debugging endpoint',
+  );
+  const browser = await chromium.connectOverCDP(debugUrl);
+  try {
+    const page = await until(
+      () =>
+        browser
+          .contexts()
+          .flatMap((context) => context.pages())
+          .find((page) => page.url().includes('tauri.localhost')),
+      'Desktop window',
+    );
+    await page.locator('.main-content').waitFor();
+    const request = (method, params = {}) =>
+      page.evaluate(
+        ({ method, params }) =>
+          window.__TAURI_INTERNALS__.invoke('host_request', { method, params }),
+        { method, params },
+      );
+    await request('profile.status');
+    await request('project.status', { projectId: project.id });
+    // A matching host normally has no restart banner. Exercise the actual native restart command.
+    const reloaded = page.waitForEvent('domcontentloaded', { timeout: 30000 });
+    void page.evaluate(() => window.__TAURI_INTERNALS__.invoke('host_restart')).catch(() => {});
+    const [replacement] = await Promise.all([
+      until(async () => {
+        const current = JSON.parse(await readFile(join(dir, 'data', 'host.json'), 'utf8'));
+        return (
+          current.pid !== endpoint.pid &&
+          (await call(current, 'ping')).pid === current.pid &&
+          current
+        );
+      }, 'replacement session host'),
+      reloaded,
+    ]);
+    await until(
+      async () => (await request('snapshot')).hostPid === replacement.pid,
+      'renderer reconnect',
+    );
+    assert.equal((await request('profile.status')).status, 'idle');
+    assert.equal((await request('project.status', { projectId: project.id })).status, 'idle');
+    pass('shared profile and project requests follow the replacement session host');
+  } finally {
+    await browser.close();
+  }
+}
 
 try {
   await mkdir(app, { recursive: true });
@@ -228,7 +287,11 @@ try {
 
   // 3. The host exits (sessions end, machine restarts): the next launch removes its copies.
   await stopEverything();
-  const relaunched = await launch('staged', { legacy: false });
+  const reservation = createServer();
+  await new Promise((resolve) => reservation.listen(0, '127.0.0.1', resolve));
+  const debugPort = reservation.address().port;
+  await new Promise((resolve) => reservation.close(resolve));
+  const relaunched = await launch('staged', { legacy: false, debugPort });
   const secondCopies = await readdir(join(relaunched.dir, 'data', 'hosts'));
   assert.equal(
     secondCopies.length,
@@ -237,6 +300,7 @@ try {
   );
   assert.notEqual(secondCopies[0], firstCopies[0], 'staged: the exited host folder is gone');
   pass('staged: a new host removes the copies the exited host left');
+  await checkServiceRoutingAfterRestart(relaunched, debugPort);
 } catch (error) {
   console.error(`FAIL: ${error.stack ?? error}`);
   process.exitCode = 1;
