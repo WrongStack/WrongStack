@@ -64,7 +64,7 @@
     "smoke": "bun run build && bun ../../scripts/acp-smoke-test.mts"
   },
   "dependencies": {
-    "@agentclientprotocol/sdk": "^2.5.0",
+    "@agentclientprotocol/sdk": "^2.7.0",
     "@wrongstack/contracts": "workspace:*",
     "@wrongstack/coordination": "workspace:*",
     "@wrongstack/core": "workspace:*",
@@ -73,7 +73,7 @@
   "devDependencies": {
     "@types/node": "^26.6.6",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "publishConfig": {
     "access": "public"

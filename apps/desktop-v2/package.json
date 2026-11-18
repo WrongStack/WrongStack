@@ -46,7 +46,7 @@
     "clsx": "2.1.1",
     "i18next": "26.7.2",
     "i18next-resources-to-backend": "1.2.4",
-    "lucide-react": "1.69.0",
+    "lucide-react": "1.74.0",
     "monaco-editor": "0.57.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
@@ -56,19 +56,19 @@
     "remark-gfm": "4.0.1",
     "tailwind-merge": "3.7.0",
     "virtua": "0.54.2",
-    "zustand": "5.0.16"
+    "zustand": "5.1.0"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "4.3.4",
+    "@tailwindcss/vite": "4.3.5",
     "@tauri-apps/cli": "2.12.4",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "6.2.1",
+    "@vitejs/plugin-react": "6.3.0",
     "@wrongstack/chronicle": "workspace:*",
-    "tailwindcss": "4.3.4",
+    "tailwindcss": "4.3.5",
     "typescript": "^7.0.2",
-    "vite": "8.3.6",
+    "vite": "8.3.8",
     "vitest": "5.1.0"
   }
 }

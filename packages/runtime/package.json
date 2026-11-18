@@ -145,7 +145,7 @@
     "@wrongstack/vector-memory": "workspace:*",
     "@wrongstack/webui-protocol": "workspace:*",
     "@wrongstack/wrongtrace": "workspace:*",
-    "cron-parser": "^5.10.3"
+    "cron-parser": "^5.10.6"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

@@ -272,8 +272,8 @@
     "tree-sitter-wasm": "2.0.4",
     "turndown": "^7.2.5",
     "undici": "^8.12.4",
-    "unpdf": "2.1.0",
-    "web-tree-sitter": "0.27.1"
+    "unpdf": "2.2.1",
+    "web-tree-sitter": "0.27.2"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

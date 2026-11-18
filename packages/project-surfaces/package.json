@@ -37,11 +37,11 @@
     "@xyflow/react": "^12.12.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.69.0",
+    "lucide-react": "^1.74.0",
     "qrcode": "^1.5.4",
     "react-i18next": "^17.1.13",
     "tailwind-merge": "^3.7.0",
-    "zustand": "^5.0.16"
+    "zustand": "^5.1.0"
   },
   "peerDependencies": {
     "react": "^19.3.0",
