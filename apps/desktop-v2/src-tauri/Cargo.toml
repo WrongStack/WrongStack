@@ -10,11 +10,11 @@ default = ["desktop"]
 desktop = ["dep:tauri", "dep:rfd", "dep:tauri-build", "dep:windows", "dep:tauri-plugin-updater", "dep:rustls"]
 
 [build-dependencies]
-tauri-build = { version = "=2.7.4", optional = true , features = [] }
+tauri-build = { version = "=2.7.5", optional = true , features = [] }
 
 [dependencies]
-tauri = { version = "=2.12.5", optional = true, features = ["devtools"] }
-rfd = { version = "=0.17.2", optional = true }
+tauri = { version = "=2.12.6", optional = true, features = ["devtools"] }
+rfd = { version = "=0.18.0", optional = true }
 # Desktop updates: checks and installs signed releases (Windows NSIS, macOS .app). Linux deb/rpm
 # cannot self-update; there the update notice links to the release page.
 tauri-plugin-updater = { version = "=2.14.1", optional = true }
@@ -22,10 +22,10 @@ tauri-plugin-updater = { version = "=2.14.1", optional = true }
 # reqwest is built without a crypto provider, so `update.rs` installs ring's.
 rustls = { version = "=0.23.46", optional = true, default-features = false, features = ["ring"] }
 portable-pty = "=0.9.0"
-rusqlite = { version = "=0.41.0", features = ["bundled"] }
+rusqlite = { version = "=0.43.0", features = ["bundled"] }
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.154", features = ["float_roundtrip"] }
-uuid = { version = "=1.29.0", features = ["v4"] }
+uuid = { version = "=1.29.3", features = ["v4"] }
 tungstenite = { version = "=0.30.0", default-features = false, features = ["handshake"] }
 reqwest = { version = "=0.13.5", default-features = false, features = ["blocking", "json"] }
 
