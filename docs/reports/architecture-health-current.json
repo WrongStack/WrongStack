@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T21:49:40.260Z",
+  "generatedAt": "2026-11-18T21:50:48.545Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6374,
+    "sourceFiles": 6384,
     "testFiles": 5522,
-    "sourceLines": 1316636,
+    "sourceLines": 1317104,
     "workspaceEdges": 250,
-    "moduleEdges": 18812,
+    "moduleEdges": 18846,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -386,7 +386,7 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 534,
+      "sourceFiles": 544,
       "testFiles": 388,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -38402,11 +38402,6 @@
       "relativeImports": 61
     },
     {
-      "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2098,
-      "relativeImports": 37
-    },
-    {
       "file": "apps/desktop-v2/src/ModelCatalogSettings.tsx",
       "lines": 940,
       "relativeImports": 20
@@ -38470,14 +38465,14 @@
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
       "lines": 898,
       "relativeImports": 10
+    },
+    {
+      "file": "apps/desktop-v2/src/useFileWorkspace.ts",
+      "lines": 753,
+      "relativeImports": 19
     }
   ],
   "hotspots": [
-    {
-      "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2098,
-      "relativeImports": 37
-    },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",
       "lines": 1589,
@@ -38647,6 +38642,11 @@
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
       "lines": 754,
       "relativeImports": 16
+    },
+    {
+      "file": "apps/desktop-v2/src/useFileWorkspace.ts",
+      "lines": 753,
+      "relativeImports": 19
     },
     {
       "file": "packages/coordination/src/sqlite-mailbox.ts",

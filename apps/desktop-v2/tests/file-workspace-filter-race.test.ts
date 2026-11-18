@@ -25,10 +25,12 @@ import { surfaceI18n } from '../src/surface-i18n';
 
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
-  const promise = new Promise<T>((res) => {
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
     resolve = res;
+    reject = rej;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 describe('InputRequestCard partial draft defaults and FileWorkspace filter race (F174, F175)', () => {
@@ -99,6 +101,7 @@ describe('InputRequestCard partial draft defaults and FileWorkspace filter race 
           draft: { q1: { selectedOptionIds: [], text: 'WrongStack', delegated: false } },
           onChange: () => {},
           send: async (_type, payload) => {
+            if (!payload) throw new Error('Expected clarify answer payload');
             sent.push(payload);
           },
           connected: true,
@@ -162,5 +165,128 @@ describe('InputRequestCard partial draft defaults and FileWorkspace filter race 
       await dVisible.promise;
     });
     expect(host.querySelector('.file-navigation')?.textContent).toContain('.env');
+  });
+
+  it('shows the cached explorer as soon as the user switches back to it', async () => {
+    const ignoredListing = deferred<Record<string, unknown>>();
+    const visibleTree = [{ name: 'index.ts', path: 'index.ts', type: 'file' }];
+    const command = vi.fn(async (type: string, payload?: Record<string, unknown>) => {
+      if (type !== 'files.tree') return { files: [] };
+      return payload?.['includeIgnored'] ? ignoredListing.promise : { tree: visibleTree };
+    });
+    await act(async () => {
+      root = createRoot(host);
+      root.render(
+        createElement(FileWorkspace, {
+          projectId: 'proj-filter-cache-return',
+          scopeKey: 'D:/filter-cache-return',
+          state: emptyEngineState,
+          send: async () => {},
+          command,
+        }),
+      );
+    });
+
+    const navigation = host.querySelector('.file-navigation')!;
+    const toggle = host.querySelector<HTMLButtonElement>(
+      '.file-workspace-toolbar button[aria-pressed]',
+    )!;
+    expect(navigation.textContent).toContain('index.ts');
+    await act(async () => toggle.click());
+    expect(navigation.querySelector('.spin')).not.toBeNull();
+    await act(async () => toggle.click());
+
+    expect(command.mock.calls.filter(([type]) => type === 'files.tree')).toHaveLength(2);
+    expect(navigation.textContent).toContain('index.ts');
+    expect(navigation.querySelector('.spin')).toBeNull();
+
+    await act(async () =>
+      ignoredListing.resolve({
+        tree: [...visibleTree, { name: 'ignored.txt', path: 'ignored.txt', type: 'file' }],
+      }),
+    );
+    expect(navigation.textContent).not.toContain('ignored.txt');
+  });
+
+  it('keeps the reading indicator for a reopened pending file', async () => {
+    const first = deferred<Record<string, unknown>>();
+    const second = deferred<Record<string, unknown>>();
+    const command = vi.fn(async (type: string, payload?: Record<string, unknown>) => {
+      if (type === 'files.tree')
+        return {
+          tree: ['first.txt', 'second.txt'].map((path) => ({ name: path, path, type: 'file' })),
+        };
+      if (type === 'files.read')
+        return payload?.['filePath'] === 'first.txt' ? first.promise : second.promise;
+      return { files: [] };
+    });
+    await act(async () => {
+      root = createRoot(host);
+      root.render(
+        createElement(FileWorkspace, {
+          projectId: 'proj-pending-file-return',
+          scopeKey: 'D:/pending-file-return',
+          state: emptyEngineState,
+          send: async () => {},
+          command,
+        }),
+      );
+    });
+
+    const selectFile = (path: string) =>
+      act(async () => host.querySelector<HTMLButtonElement>(`[data-tree-path="${path}"]`)!.click());
+    const currentFile = () => host.querySelector('.file-document');
+    await selectFile('first.txt');
+    expect(currentFile()?.textContent).toContain('Reading first.txt');
+    await selectFile('second.txt');
+    expect(currentFile()?.textContent).toContain('Reading second.txt');
+    await selectFile('first.txt');
+    expect(command.mock.calls.filter(([type]) => type === 'files.read')).toHaveLength(2);
+    expect(currentFile()?.textContent).toContain('Reading first.txt');
+
+    await act(async () => second.resolve({ content: 'Second file contents' }));
+    expect(currentFile()?.textContent).toContain('Reading first.txt');
+    await act(async () => first.resolve({ content: 'First file contents' }));
+    expect(currentFile()?.textContent).toContain('First file contents');
+    expect(currentFile()?.querySelector('.spin')).toBeNull();
+  });
+
+  it('displays read errors only for the file the user is viewing', async () => {
+    const pending = deferred<Record<string, unknown>>();
+    const command = async (type: string, payload?: Record<string, unknown>) => {
+      if (type === 'files.tree')
+        return {
+          tree: ['missing.txt', 'ready.txt'].map((path) => ({ name: path, path, type: 'file' })),
+        };
+      if (type === 'files.read')
+        return payload?.['filePath'] === 'missing.txt'
+          ? pending.promise
+          : { content: 'Ready file contents' };
+      return { files: [] };
+    };
+    await act(async () => {
+      root = createRoot(host);
+      root.render(
+        createElement(FileWorkspace, {
+          projectId: 'proj-file-read-error',
+          scopeKey: 'D:/file-read-error',
+          state: emptyEngineState,
+          send: async () => {},
+          command,
+        }),
+      );
+    });
+
+    const selectFile = (path: string) =>
+      act(async () => host.querySelector<HTMLButtonElement>(`[data-tree-path="${path}"]`)!.click());
+    const error = () => host.querySelector('.file-workspace-error')?.textContent;
+    await selectFile('missing.txt');
+    await selectFile('ready.txt');
+    expect(host.querySelector('.file-document')?.textContent).toContain('Ready file contents');
+    await act(async () => pending.reject(new Error('Missing fixture file')));
+    expect(error()).toBeUndefined();
+
+    await selectFile('missing.txt');
+    expect(error()).toBe('Missing fixture file');
   });
 });

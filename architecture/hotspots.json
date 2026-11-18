@@ -238,10 +238,6 @@
       "lines": 796,
       "relativeImports": 61
     },
-    "apps/desktop-v2/src/FileWorkspace.tsx": {
-      "lines": 2098,
-      "relativeImports": 37
-    },
     "apps/desktop-v2/src/ModelCatalogSettings.tsx": {
       "lines": 940,
       "relativeImports": 20
@@ -293,6 +289,10 @@
     "apps/desktop-v2/src/SkillLibrary.tsx": {
       "lines": 898,
       "relativeImports": 10
+    },
+    "apps/desktop-v2/src/useFileWorkspace.ts": {
+      "lines": 753,
+      "relativeImports": 19
     }
   }
 }
