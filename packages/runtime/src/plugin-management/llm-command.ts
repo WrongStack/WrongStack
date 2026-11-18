@@ -1,6 +1,5 @@
 import type { Config } from '@wrongstack/contracts/types';
-import { atomicWrite } from '@wrongstack/core/utils';
-import { errorResult, isRecord, readConfig } from './config.js';
+import { errorResult, isRecord, mutateConfigFile } from './config.js';
 import type { PluginManagementDeps, PluginManagementResult } from './types.js';
 
 const PLUGIN_LLM_USAGE = [
@@ -98,40 +97,51 @@ export async function runPluginLlmCommand(
     return errorResult(`Invalid plugin name "${name}".`);
   }
 
-  const existing = await readConfig(deps.configPath);
-  const fileExtensions = isRecord(existing.extensions)
-    ? (existing.extensions as Record<string, unknown>)
-    : {};
-  const pluginExt = isRecord(fileExtensions[name])
-    ? { ...(fileExtensions[name] as Record<string, unknown>) }
-    : {};
-
   // ── Clear ──────────────────────────────────────────────────────────
   if (args[1] === '--clear' || args[1] === 'clear') {
-    if (!('llm' in pluginExt) && !currentOverride) {
-      return { code: 0, level: 'info', message: `Plugin "${name}" has no LLM override.` };
-    }
-    delete pluginExt['llm'];
-    if (Object.keys(pluginExt).length === 0) delete fileExtensions[name];
-    else fileExtensions[name] = pluginExt;
-    existing.extensions = fileExtensions;
-    await atomicWrite(deps.configPath, JSON.stringify(existing, null, 2), { mode: 0o600 });
-    const merged = mergeExtensionsForPatch(deps.config, fileExtensions);
-    // The in-memory config may still carry the old override — the merge
-    // above unions both sources, so drop the key explicitly.
-    const mergedEntry = merged[name];
-    if (mergedEntry) {
-      delete mergedEntry['llm'];
-      if (Object.keys(mergedEntry).length === 0) delete merged[name];
-    }
-    return {
-      code: 0,
-      level: 'info',
-      message:
-        `Cleared LLM override for "${name}" — it now follows the session default (${sessionDefault}). ` +
-        'Takes effect immediately for api.llm calls.',
-      patch: { extensions: merged },
-    };
+    return mutateConfigFile<PluginManagementResult>(
+      deps.configPath,
+      deps.backupConfig,
+      (existing) => {
+        const fileExtensions = isRecord(existing.extensions)
+          ? (existing.extensions as Record<string, unknown>)
+          : {};
+        const pluginExt = isRecord(fileExtensions[name])
+          ? { ...(fileExtensions[name] as Record<string, unknown>) }
+          : {};
+        if (!('llm' in pluginExt) && !currentOverride) {
+          return {
+            write: false,
+            value: {
+              code: 0,
+              level: 'info' as const,
+              message: `Plugin "${name}" has no LLM override.`,
+            },
+          };
+        }
+        delete pluginExt['llm'];
+        if (Object.keys(pluginExt).length === 0) delete fileExtensions[name];
+        else fileExtensions[name] = pluginExt;
+        existing.extensions = fileExtensions;
+        const merged = mergeExtensionsForPatch(deps.config, fileExtensions);
+        const mergedEntry = merged[name];
+        if (mergedEntry) {
+          delete mergedEntry['llm'];
+          if (Object.keys(mergedEntry).length === 0) delete merged[name];
+        }
+        return {
+          write: true,
+          value: {
+            code: 0,
+            level: 'info' as const,
+            message:
+              `Cleared LLM override for "${name}" — it now follows the session default (${sessionDefault}). ` +
+              'Takes effect immediately for api.llm calls.',
+            patch: { extensions: merged },
+          },
+        };
+      },
+    );
   }
 
   // ── Set ────────────────────────────────────────────────────────────
@@ -142,13 +152,21 @@ export async function runPluginLlmCommand(
   const model = modelArg && modelArg !== '-' ? modelArg : undefined;
   if (!provider && !model) return errorResult(PLUGIN_LLM_USAGE);
 
-  const llm: Record<string, unknown> = {};
-  if (provider) llm['provider'] = provider;
-  if (model) llm['model'] = model;
-  pluginExt['llm'] = llm;
-  fileExtensions[name] = pluginExt;
-  existing.extensions = fileExtensions;
-  await atomicWrite(deps.configPath, JSON.stringify(existing, null, 2), { mode: 0o600 });
+  const fileExtensions = await mutateConfigFile(deps.configPath, deps.backupConfig, (existing) => {
+    const nextExtensions = isRecord(existing.extensions)
+      ? (existing.extensions as Record<string, unknown>)
+      : {};
+    const pluginExt = isRecord(nextExtensions[name])
+      ? { ...(nextExtensions[name] as Record<string, unknown>) }
+      : {};
+    const llm: Record<string, unknown> = {};
+    if (provider) llm['provider'] = provider;
+    if (model) llm['model'] = model;
+    pluginExt['llm'] = llm;
+    nextExtensions[name] = pluginExt;
+    existing.extensions = nextExtensions;
+    return { write: true, value: nextExtensions };
+  });
 
   // Soft sanity note: an unknown provider name still works if the
   // models.dev catalog knows it, but flag likely typos against the

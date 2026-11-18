@@ -13,7 +13,6 @@ import {
   resolvePluginTarget,
   unpinPluginTrust,
 } from '@wrongstack/core/plugin';
-import { atomicWrite } from '@wrongstack/core/utils';
 import {
   PLUGIN_AUDIT_ENTRIES,
   type PluginAuditEntry,
@@ -23,8 +22,9 @@ import {
   errorResult,
   globalPluginsRoot,
   isRecord,
+  mutateConfigFile,
+  pluginMatchesSpec,
   pluginName,
-  readConfig,
   upsertPlugin,
 } from './config.js';
 import { runPluginLlmCommand } from './llm-command.js';
@@ -176,22 +176,23 @@ async function runPluginManagerPolicyCommand(
   if (!rawName) return errorResult(PLUGIN_MANAGER_POLICY_USAGE);
   const name = rawName === '*' ? '*' : resolvePluginToggleSpecifier(rawName);
 
-  const existing = await readConfig(deps.configPath);
-  const filePolicy = isRecord(existing.pluginManager) ? existing.pluginManager : undefined;
-  const current = Array.isArray(filePolicy?.['locked'])
-    ? filePolicy['locked'].filter((entry): entry is string => typeof entry === 'string')
-    : [...(deps.config.pluginManager?.locked ?? [])];
-  const canonical = canonicalPolicyName(name);
-  const next =
-    action === 'lock'
-      ? current.some((entry) => canonicalPolicyName(entry) === canonical)
-        ? current
-        : [...current, name]
-      : current.filter((entry) => canonicalPolicyName(entry) !== canonical);
+  const pluginManager = await mutateConfigFile(deps.configPath, deps.backupConfig, (existing) => {
+    const filePolicy = isRecord(existing.pluginManager) ? existing.pluginManager : undefined;
+    const current = Array.isArray(filePolicy?.['locked'])
+      ? filePolicy['locked'].filter((entry): entry is string => typeof entry === 'string')
+      : [...(deps.config.pluginManager?.locked ?? [])];
+    const canonical = canonicalPolicyName(name);
+    const next =
+      action === 'lock'
+        ? current.some((entry) => canonicalPolicyName(entry) === canonical)
+          ? current
+          : [...current, name]
+        : current.filter((entry) => canonicalPolicyName(entry) !== canonical);
 
-  const pluginManager: PluginManagerConfig = { locked: next };
-  existing.pluginManager = { ...(filePolicy ?? {}), ...pluginManager };
-  await atomicWrite(deps.configPath, JSON.stringify(existing, null, 2), { mode: 0o600 });
+    const updated: PluginManagerConfig = { locked: next };
+    existing.pluginManager = { ...(filePolicy ?? {}), ...updated };
+    return { write: true, value: updated };
+  });
 
   return {
     code: 0,
@@ -244,9 +245,16 @@ export function renderConfiguredPlugins(config: Config): string {
     .map((p) => {
       const name = pluginName(p);
       const enabled = typeof p === 'object' && p.enabled === false ? 'disabled' : 'enabled';
-      const official = OFFICIAL_PLUGINS.find((entry) => entry.specifier === name);
+      const official = OFFICIAL_PLUGINS.find(
+        (entry) => entry.specifier === name || entry.alias === name,
+      );
       const isExternalPath = typeof p === 'object' && p.path !== undefined;
-      const suffix = official ? ` (${official.alias})` : isExternalPath ? ' (external)' : '';
+      const suffix =
+        official && official.alias !== name
+          ? ` (${official.alias})`
+          : isExternalPath
+            ? ' (external)'
+            : '';
       return `  ${`${name}${suffix}`.padEnd(44)} ${enabled}`;
     })
     .join('\n');
@@ -293,11 +301,7 @@ export function renderPluginAuditReport(config: Config): string {
   return lines.join('\n');
 }
 
-function pluginMatchesToggleSpec(p: string | PluginConfig, spec: string): boolean {
-  const name = pluginName(p);
-  if (spec === 'telegram') return name === 'telegram' || name === '@wrongstack/telegram';
-  return name === spec;
-}
+const pluginMatchesToggleSpec = pluginMatchesSpec;
 
 /** Column label for the audit report's `source` field. */
 const AUDIT_STATE_SOURCE_LABEL: Record<PluginEnablementSource, string> = {
@@ -343,7 +347,7 @@ function officialPluginState(
   config: Config,
   spec: string,
 ): 'enabled' | 'disabled' | 'not configured' {
-  const match = (config.plugins ?? []).find((p) => pluginName(p) === spec);
+  const match = (config.plugins ?? []).find((p) => pluginMatchesToggleSpec(p, spec));
   if (!match) return 'not configured';
   // Configured in `plugins[]`, so report the EFFECTIVE state rather than
   // re-deriving it from that one array — `extensions.<name>.enabled` can
@@ -366,113 +370,107 @@ async function togglePlugin(
     return errorResult(`Plugin "${spec}" is locked and cannot be toggled from the plugin menu.`);
   }
 
-  const existing = await readConfig(deps.configPath);
-  const plugins = Array.isArray(existing.plugins)
-    ? (existing.plugins as Array<string | PluginConfig>)
-    : [];
-  const idx = plugins.findIndex((p) => pluginMatchesToggleSpec(p, spec));
-  const configured = idx >= 0 ? plugins[idx] : undefined;
-  // The SAME precedence the report path uses (`effectiveAuditState` above
-  // calls it) and the loader uses. The inline form here ignored
-  // `extensions.<name>.enabled` and `features.plugins`, so with
-  // `extensions: {"wstack-prompts": {"enabled": false}}` and no `plugins[]`
-  // entry, `plugin report` correctly said disabled while `toggle` computed
-  // `enabled = true`, wrote `{enabled: false}` and printed "Disabled" — the
-  // user who meant to ENABLE it had to toggle twice.
-  //
-  // Resolve against the config FILE, not `deps.config`. `toggle` reads the
-  // file, flips one entry and writes it back, so the file is the state being
-  // toggled; the in-memory snapshot can be older (another surface edited it,
-  // or the session started before the last change) and is missing `plugins`
-  // entirely in the CLI's own callers. `deps.config` still supplies the layers
-  // the file omits — `extensions`, `features` — which is the whole reason this
-  // goes through the shared resolver.
-  const effectiveConfig = { ...deps.config, ...existing } as Config;
-  const { enabled } = resolvePluginEnablement({
-    name: spec,
-    defaultState: auditEntry?.defaultState,
-    config: effectiveConfig,
-    matches: (candidate) => pluginMatchesToggleSpec(candidate, spec),
-  });
+  return mutateConfigFile(deps.configPath, deps.backupConfig, (existing) => {
+    const plugins = Array.isArray(existing.plugins)
+      ? (existing.plugins as Array<string | PluginConfig>)
+      : [];
+    const idx = plugins.findIndex((p) => pluginMatchesToggleSpec(p, spec));
+    const configured = idx >= 0 ? plugins[idx] : undefined;
+    const effectiveConfig = { ...deps.config, ...existing } as Config;
+    const { enabled } = resolvePluginEnablement({
+      name: spec,
+      defaultState: auditEntry?.defaultState,
+      config: effectiveConfig,
+      matches: (candidate) => pluginMatchesToggleSpec(candidate, spec),
+    });
 
-  if (!configured && !auditEntry) {
-    return errorResult(
-      `Plugin "${spec}" is not configured. Use "wstack plugin add ${spec}" first.`,
-    );
-  }
-
-  const configuredExtras =
-    configured &&
-    typeof configured === 'object' &&
-    (configured.path !== undefined || configured.options !== undefined)
-      ? configured
-      : undefined;
-  let nextPlugins: Array<string | PluginConfig>;
-  let nextEnabled: boolean;
-  if (enabled) {
-    nextEnabled = false;
-    nextPlugins = plugins.filter((p) => !pluginMatchesToggleSpec(p, spec));
-    if (configuredExtras) {
-      nextPlugins.push({ ...configuredExtras, enabled: false });
-    } else if (auditEntry?.defaultState !== 'inactive') {
-      nextPlugins.push({ name: spec, enabled: false });
+    if (!configured && !auditEntry) {
+      return {
+        write: false,
+        value: errorResult(
+          `Plugin "${spec}" is not configured. Use "wstack plugin add ${spec}" first.`,
+        ),
+      };
     }
-  } else {
-    nextEnabled = true;
-    if (configuredExtras) {
+
+    const configuredExtras =
+      configured &&
+      typeof configured === 'object' &&
+      (configured.path !== undefined || configured.options !== undefined)
+        ? configured
+        : undefined;
+    let nextPlugins: Array<string | PluginConfig>;
+    let nextEnabled: boolean;
+    if (enabled) {
+      nextEnabled = false;
       nextPlugins = plugins.filter((p) => !pluginMatchesToggleSpec(p, spec));
-      nextPlugins.push({ ...configuredExtras, enabled: true });
-    } else if (auditEntry?.defaultState === 'active') {
-      nextPlugins = plugins.filter((p) => !pluginMatchesToggleSpec(p, spec));
+      if (configuredExtras) {
+        nextPlugins.push({ ...configuredExtras, enabled: false });
+      } else if (auditEntry?.defaultState !== 'inactive') {
+        nextPlugins.push({ name: spec, enabled: false });
+      }
     } else {
-      nextPlugins = plugins.filter((p) => !pluginMatchesToggleSpec(p, spec));
-      nextPlugins.push(spec);
+      nextEnabled = true;
+      if (configuredExtras) {
+        nextPlugins = plugins.filter((p) => !pluginMatchesToggleSpec(p, spec));
+        nextPlugins.push({ ...configuredExtras, enabled: true });
+      } else if (auditEntry?.defaultState === 'active') {
+        nextPlugins = plugins.filter((p) => !pluginMatchesToggleSpec(p, spec));
+      } else {
+        nextPlugins = plugins.filter((p) => !pluginMatchesToggleSpec(p, spec));
+        nextPlugins.push(spec);
+      }
     }
-  }
 
-  const features = {
-    ...(isRecord(deps.config.features) ? deps.config.features : {}),
-    ...(isRecord(existing.features) ? existing.features : {}),
-    plugins: true,
-  };
-  existing.plugins = nextPlugins;
-  existing.features = features;
-  await atomicWrite(deps.configPath, JSON.stringify(existing, null, 2), { mode: 0o600 });
-  const restartRequired = spec === 'branch-guard' && !nextEnabled ? undefined : true;
-  return {
-    code: 0,
-    level: 'info',
-    message:
-      `${nextEnabled ? 'Enabled' : 'Disabled'} "${spec}". Config written to ${deps.configPath}.` +
-      (spec === 'branch-guard' && !nextEnabled
-        ? ' The running branch-guard hook will disable itself on config update.'
-        : ''),
-    patch: { plugins: nextPlugins, features },
-    restartRequired,
-  };
+    const features = {
+      ...(isRecord(deps.config.features) ? deps.config.features : {}),
+      ...(isRecord(existing.features) ? existing.features : {}),
+      plugins: true,
+    };
+    existing.plugins = nextPlugins;
+    existing.features = features;
+    const restartRequired = spec === 'branch-guard' && !nextEnabled ? undefined : true;
+    return {
+      write: true,
+      value: {
+        code: 0,
+        level: 'info' as const,
+        message:
+          `${nextEnabled ? 'Enabled' : 'Disabled'} "${spec}". Config written to ${deps.configPath}.` +
+          (spec === 'branch-guard' && !nextEnabled
+            ? ' The running branch-guard hook will disable itself on config update.'
+            : ''),
+        patch: { plugins: nextPlugins, features },
+        restartRequired,
+      },
+    };
+  });
 }
 
 async function removePlugin(
   spec: string,
   deps: PluginManagementDeps,
 ): Promise<PluginManagementResult> {
-  const existing = await readConfig(deps.configPath);
-  const plugins = Array.isArray(existing.plugins)
-    ? (existing.plugins as Array<string | PluginConfig>)
-    : [];
-  const next = plugins.filter((p) => pluginName(p) !== spec);
-  if (next.length === plugins.length) {
-    return errorResult(`Plugin "${spec}" not in config.`);
-  }
-  existing.plugins = next;
-  await atomicWrite(deps.configPath, JSON.stringify(existing, null, 2), { mode: 0o600 });
-  return {
-    code: 0,
-    level: 'info',
-    message: `Removed "${spec}" from config.`,
-    patch: { plugins: next },
-    restartRequired: true,
-  };
+  return mutateConfigFile(deps.configPath, deps.backupConfig, (existing) => {
+    const plugins = Array.isArray(existing.plugins)
+      ? (existing.plugins as Array<string | PluginConfig>)
+      : [];
+    const next = plugins.filter((p) => !pluginMatchesToggleSpec(p, spec));
+    if (next.length === plugins.length) {
+      return { write: false, value: errorResult(`Plugin "${spec}" not in config.`) };
+    }
+    existing.plugins = next;
+    return {
+      write: true,
+      value: {
+        code: 0,
+        level: 'info' as const,
+        message: `Removed "${spec}" from config.`,
+        patch: { plugins: next },
+        restartRequired: true,
+      },
+    };
+  });
 }
 
 /**

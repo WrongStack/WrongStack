@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1005,
+      "files": 1003,
       "typeOnly": 76,
-      "runtimeOrMixed": 964
+      "runtimeOrMixed": 962
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -15162,18 +15162,6 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/src/plugin-management/config.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/runtime/src/plugin-management/llm-command.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/runtime/src/plugin-management/management.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

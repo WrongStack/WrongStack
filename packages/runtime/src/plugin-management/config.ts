@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { PluginConfig } from '@wrongstack/contracts/types';
-import { updateJsonObjectFile } from '@wrongstack/core/utils';
+import { atomicWrite, withFileLock } from '@wrongstack/core/utils';
 import type { PluginManagementDeps, PluginManagementResult } from './types.js';
 
 /**
@@ -37,6 +37,32 @@ export function pluginName(p: string | PluginConfig): string {
   return typeof p === 'string' ? p : p.name;
 }
 
+export function pluginMatchesSpec(p: string | PluginConfig, spec: string): boolean {
+  const name = pluginName(p);
+  if (spec === 'telegram' || spec === '@wrongstack/telegram') {
+    return name === 'telegram' || name === '@wrongstack/telegram';
+  }
+  return name === spec;
+}
+
+export async function mutateConfigFile<T>(
+  file: string,
+  backup: PluginManagementDeps['backupConfig'],
+  fn: (
+    existing: Record<string, unknown>,
+  ) => { write: boolean; value: T } | Promise<{ write: boolean; value: T }>,
+): Promise<T> {
+  return withFileLock(file, async () => {
+    const existing = await readConfig(file);
+    const outcome = await fn(existing);
+    if (outcome.write) {
+      await backup?.(file);
+      await atomicWrite(file, JSON.stringify(existing, null, 2), { mode: 0o600 });
+    }
+    return outcome.value;
+  });
+}
+
 function pluginEntry(spec: string, enabled: boolean, path?: string): string | PluginConfig {
   if (path !== undefined) return { name: spec, path, enabled };
   return enabled ? spec : { name: spec, enabled: false };
@@ -48,25 +74,33 @@ export async function upsertPlugin(
   deps: PluginManagementDeps,
   verb: string,
 ): Promise<PluginManagementResult> {
-  let plugins: Array<string | PluginConfig> = [];
-  let features: Record<string, unknown> = {};
-  await updateJsonObjectFile(deps.configPath, async (existing) => {
-    await deps.backupConfig?.(deps.configPath);
-    plugins = Array.isArray(existing.plugins)
-      ? (existing.plugins as Array<string | PluginConfig>)
-      : [];
-    const idx = plugins.findIndex((p) => pluginName(p) === spec);
-    const nextEntry = pluginEntry(spec, opts.enabled, opts.path);
-    if (idx >= 0) plugins[idx] = nextEntry;
-    else plugins.push(nextEntry);
-    features = {
-      ...(isRecord(deps.config.features) ? deps.config.features : {}),
-      ...(isRecord(existing.features) ? existing.features : {}),
-      plugins: true,
-    };
-    existing.plugins = plugins;
-    existing.features = features;
-  });
+  const { plugins, features } = await mutateConfigFile(
+    deps.configPath,
+    deps.backupConfig,
+    (existing) => {
+      const current = Array.isArray(existing.plugins)
+        ? (existing.plugins as Array<string | PluginConfig>)
+        : [];
+      const nextEntry = pluginEntry(spec, opts.enabled, opts.path);
+      const firstIdx = current.findIndex((p) => pluginMatchesSpec(p, spec));
+      let nextPlugins: Array<string | PluginConfig>;
+      if (firstIdx >= 0) {
+        nextPlugins = current
+          .map((p, i) => (i === firstIdx ? nextEntry : p))
+          .filter((p, i) => i === firstIdx || !pluginMatchesSpec(p, spec));
+      } else {
+        nextPlugins = [...current, nextEntry];
+      }
+      const nextFeatures = {
+        ...(isRecord(deps.config.features) ? deps.config.features : {}),
+        ...(isRecord(existing.features) ? existing.features : {}),
+        plugins: true,
+      };
+      existing.plugins = nextPlugins;
+      existing.features = nextFeatures;
+      return { write: true, value: { plugins: nextPlugins, features: nextFeatures } };
+    },
+  );
   const restartRequired = spec === 'branch-guard' && !opts.enabled ? undefined : true;
   return {
     code: 0,

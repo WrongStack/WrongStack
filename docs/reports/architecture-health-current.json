@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T21:20:17.284Z",
+  "generatedAt": "2026-11-18T21:22:44.342Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6369,
-    "testFiles": 5498,
-    "sourceLines": 1316099,
+    "testFiles": 5500,
+    "sourceLines": 1316151,
     "workspaceEdges": 250,
     "moduleEdges": 18798,
     "nonCommandSlashImports": 0,
@@ -820,7 +820,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 126,
-      "testFiles": 60,
+      "testFiles": 62,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -854,7 +854,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 60
+          "testFiles": 62
         }
       ]
     },
@@ -20552,6 +20552,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/plugin-management-lock-and-alias.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/plugin-reload-heap.test.ts",
         "projects": [
           "root-node"
@@ -20571,6 +20577,12 @@
       },
       {
         "file": "packages/runtime/tests/plugin-watch-post-unwatch.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/plugin-watch-queued-after-error.test.ts",
         "projects": [
           "root-node"
         ]

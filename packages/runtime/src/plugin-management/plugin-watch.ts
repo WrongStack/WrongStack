@@ -194,15 +194,17 @@ export class PluginDevWatchController {
       try {
         do {
           state.queued = false;
-          const integrity = await hashPluginDirectoryClosure(realEntry, [realRoot]);
-          if (this.watches.get(name) !== state) return;
-          const canonical = normalizeTrustKey(realEntry);
-          await pinPluginTrust(trustPath, canonical, canonical, integrity, name);
-          if (this.watches.get(name) !== state) return;
-          await opts.onReload(name);
+          try {
+            const integrity = await hashPluginDirectoryClosure(realEntry, [realRoot]);
+            if (this.watches.get(name) !== state) return;
+            const canonical = normalizeTrustKey(realEntry);
+            await pinPluginTrust(trustPath, canonical, canonical, integrity, name);
+            if (this.watches.get(name) !== state) return;
+            await opts.onReload(name);
+          } catch (err) {
+            opts.onError?.(name, err);
+          }
         } while (state.queued && this.watches.get(name) === state);
-      } catch (err) {
-        opts.onError?.(name, err);
       } finally {
         state.running = false;
       }
