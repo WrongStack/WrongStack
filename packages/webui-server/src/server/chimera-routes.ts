@@ -464,22 +464,41 @@ export function createChimeraRouteHandlers(deps: {
           },
         );
 
-        // Auto-sync parent report
-        const reportId = finding.originReport?.reportId;
-        if (reportId) {
+        // Auto-sync linked parent reports (origin + relinked/reopened reports)
+        const linkedReportIds: string[] = [];
+        const addLinkedReport = (id: string | undefined) => {
+          if (id && !linkedReportIds.includes(id)) linkedReportIds.push(id);
+        };
+        addLinkedReport(finding.originReport?.reportId);
+        for (const ev of await store.getEvents(findingId)) {
+          if (
+            ev.eventType === 'created' ||
+            ev.eventType === 'relinked' ||
+            ev.eventType === 'reopened'
+          ) {
+            const match = ev.reason ? /(?:^|\s)report:(\S+)/.exec(ev.reason) : null;
+            if (match?.[1]) addLinkedReport(match[1]);
+          }
+        }
+        if (linkedReportIds.length > 0) {
           try {
             if (to === 'resolved' || to === 'ignored') {
-              await syncReportCompletion(reportId, projectDir, {
-                id: 'operator',
-                kind: 'operator',
-              });
+              for (const reportId of linkedReportIds) {
+                await syncReportCompletion(reportId, projectDir, {
+                  id: 'operator',
+                  kind: 'operator',
+                });
+              }
             } else if (to === 'active') {
-              await syncReportReopen(
-                reportId,
-                projectDir,
-                { id: 'operator', kind: 'operator' },
-                reason,
-              );
+              const latestReportId = linkedReportIds.at(-1);
+              if (latestReportId) {
+                await syncReportReopen(
+                  latestReportId,
+                  projectDir,
+                  { id: 'operator', kind: 'operator' },
+                  reason,
+                );
+              }
             }
           } catch {
             // best-effort sync

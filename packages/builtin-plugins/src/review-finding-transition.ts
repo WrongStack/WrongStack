@@ -25,6 +25,15 @@ export async function loadStore(ctx: FindingCommandContext) {
   return store;
 }
 
+async function resolveLinkedReports(
+  store: Awaited<ReturnType<typeof loadStore>>,
+  finding: { id: string; originReport?: { reportId?: string | undefined } | undefined },
+): Promise<string[]> {
+  const { extractLinkedReportIds } = await import('./review-finding-store.js');
+  const events = await store.getEvents(finding.id);
+  return extractLinkedReportIds(finding, events);
+}
+
 /**
  * Resolve a finding by exact ID or unambiguous short-ID prefix (>= 8 chars).
  */
@@ -118,8 +127,8 @@ export async function transitionFinding(
 
     const lines: string[] = [`✅ Finding \`${id}\` reopened as **active**.`];
 
-    // Auto-reopen: if the parent report was completed/skipped, reopen it.
-    const reportId = finding.originReport?.reportId;
+    // Auto-reopen: if the latest linked parent report was completed/skipped, reopen it.
+    const reportId = (await resolveLinkedReports(store, finding)).at(-1);
     if (reportId) {
       try {
         const reopenResult = await syncReportReopen(
@@ -234,11 +243,11 @@ export async function transitionFinding(
 
   const lines: string[] = [`✅ Finding \`${id}\` marked as **${targetStatus}**.`];
 
-  // Auto-completion: check if the parent report can be closed.
+  // Auto-completion: check if any linked parent report can be closed.
   // originReport is typed as required, but corrupt JSONL or old-format data
   // may be missing it — guard to keep auto-completion best-effort.
-  const reportId = finding.originReport?.reportId;
-  if (reportId) {
+  const linkedReportIds = await resolveLinkedReports(store, finding);
+  for (const reportId of linkedReportIds) {
     try {
       const syncResult = await syncReportCompletion(reportId, ctx.projectDir, {
         id: 'operator',

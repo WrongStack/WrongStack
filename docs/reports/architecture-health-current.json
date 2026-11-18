@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T21:29:44.809Z",
+  "generatedAt": "2026-11-18T21:31:24.595Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6374,
-    "testFiles": 5506,
-    "sourceLines": 1316328,
+    "testFiles": 5508,
+    "sourceLines": 1316379,
     "workspaceEdges": 250,
-    "moduleEdges": 18811,
+    "moduleEdges": 18812,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -161,7 +161,7 @@
       "name": "@wrongstack/builtin-plugins",
       "dir": "packages/builtin-plugins",
       "sourceFiles": 40,
-      "testFiles": 34,
+      "testFiles": 35,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -177,7 +177,7 @@
         {
           "path": "packages/builtin-plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 34
+          "testFiles": 35
         }
       ]
     },
@@ -1175,7 +1175,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 356,
-      "testFiles": 404,
+      "testFiles": 405,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1210,7 +1210,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 404
+          "testFiles": 405
         }
       ]
     },
@@ -4659,6 +4659,12 @@
       },
       {
         "file": "packages/builtin-plugins/tests/review-finding-parser.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/builtin-plugins/tests/review-finding-relinked-report-sync.test.ts",
         "projects": [
           "root-node"
         ]
@@ -28731,6 +28737,12 @@
       },
       {
         "file": "packages/webui-server/tests/chimera-project-desktop.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/chimera-relinked-report-sync.test.ts",
         "projects": [
           "root-node"
         ]

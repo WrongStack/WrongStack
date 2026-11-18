@@ -140,6 +140,27 @@ export interface FindingStore {
   }>;
 }
 
+const LINKED_REPORT_RE = /(?:^|\s)report:(\S+)/;
+
+/** Return all report IDs linked to a finding in chronological order (origin first). */
+export function extractLinkedReportIds(
+  finding: { originReport?: { reportId?: string | undefined } | undefined },
+  events: readonly Pick<FindingLifecycleEvent, 'eventType' | 'reason'>[],
+): string[] {
+  const ids: string[] = [];
+  const add = (id: string | undefined) => {
+    if (id && !ids.includes(id)) ids.push(id);
+  };
+  add(finding.originReport?.reportId);
+  for (const ev of events) {
+    if (ev.eventType === 'created' || ev.eventType === 'relinked' || ev.eventType === 'reopened') {
+      const match = ev.reason ? LINKED_REPORT_RE.exec(ev.reason) : null;
+      if (match?.[1]) add(match[1]);
+    }
+  }
+  return ids;
+}
+
 export class JsonlFindingStore implements FindingStore {
   private readonly filePath: string;
 
@@ -344,7 +365,9 @@ export class JsonlFindingStore implements FindingStore {
     }
     if (opts?.reportId) {
       const reportId = opts.reportId;
-      entries = entries.filter((e) => e.finding.originReport.reportId === reportId);
+      entries = entries.filter((e) =>
+        extractLinkedReportIds(e.finding, e.events).includes(reportId),
+      );
     }
 
     // Sort by severity (critical first), then by age (oldest first).
