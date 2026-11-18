@@ -227,3 +227,48 @@ function parseFrame(data: unknown): Frame | undefined {
     return undefined;
   }
 }
+
+/** Timers above the platform's signed 32-bit limit must wait in bounded chunks. */
+const MAX_TIMEOUT_CHUNK_MS = 2_147_483_647;
+
+export interface CancellableTimeout {
+  cancel(): void;
+}
+
+export function scheduleTimeout(ms: number, onTimeout: () => void): CancellableTimeout {
+  let remainingMs = ms;
+  let timer: ReturnType<typeof setTimeout>;
+  const schedule = () => {
+    const chunkMs = Math.min(remainingMs, MAX_TIMEOUT_CHUNK_MS);
+    remainingMs -= chunkMs;
+    timer = setTimeout(() => {
+      if (remainingMs > 0) {
+        schedule();
+        return;
+      }
+      onTimeout();
+    }, chunkMs);
+  };
+  schedule();
+  return { cancel: () => clearTimeout(timer) };
+}
+
+/** Resolves false if cancellation cuts a reconnect delay short. */
+export function cancellableDelay(
+  ms: number,
+  onSettled: () => void,
+): CancellableTimeout & { promise: Promise<boolean> } {
+  const { promise, resolve } = Promise.withResolvers<boolean>();
+  const timer = scheduleTimeout(Number.isFinite(ms) ? Math.max(0, ms) : 0, () => {
+    onSettled();
+    resolve(true);
+  });
+  return {
+    promise,
+    cancel: () => {
+      timer.cancel();
+      onSettled();
+      resolve(false);
+    },
+  };
+}

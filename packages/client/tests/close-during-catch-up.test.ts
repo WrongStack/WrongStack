@@ -44,7 +44,111 @@ afterEach(() => {
   HandSocket.all = [];
 });
 
+describe('long reconnect delays', () => {
+  it.each([false, true])('waits the full multi-chunk delay (cancelled: %s)', async (cancel) => {
+    vi.useFakeTimers();
+    const connecting = WrongStackClient.connect({
+      url: 'ws://127.0.0.1:1',
+      WebSocket: HandSocket as never,
+      reconnect: { attempts: 1, initialDelayMs: 2_147_483_652 },
+    });
+    const first = HandSocket.all[0]!;
+    first.open();
+    first.read(start);
+    const client = await connecting;
+    try {
+      first.close(1006, 'drop');
+      await vi.advanceTimersByTimeAsync(2_147_483_647);
+      expect(HandSocket.all).toHaveLength(1);
+      if (cancel) {
+        client.close();
+        expect(vi.getTimerCount()).toBe(0);
+      }
+      await vi.advanceTimersByTimeAsync(4);
+      expect(HandSocket.all).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(HandSocket.all).toHaveLength(cancel ? 1 : 2);
+    } finally {
+      client.close();
+    }
+  });
+});
+
 describe('close() during a reconnect catch-up (F850)', () => {
+  it.each(['reconnecting', 'open'] as const)(
+    'stops notifying the earlier %s state when a listener closes',
+    async (trigger) => {
+      vi.useFakeTimers();
+      const connecting = WrongStackClient.connect({
+        url: 'ws://127.0.0.1:1',
+        WebSocket: HandSocket as never,
+        reconnect: { attempts: 1, initialDelayMs: 1 },
+      });
+      const first = HandSocket.all[0]!;
+      first.open();
+      first.read(start);
+      const client = await connecting;
+      const states: string[] = [];
+      client.onStateChange((state) => {
+        if (state === trigger) client.close();
+      });
+      client.onStateChange((state) => states.push(state));
+      try {
+        first.close(1006);
+        if (trigger === 'open') {
+          await vi.advanceTimersByTimeAsync(1);
+          const next = HandSocket.all[1]!;
+          next.open();
+          next.read(start);
+          await vi.advanceTimersByTimeAsync(0);
+        }
+        expect(client.state).toBe('closed');
+        expect(states).toEqual(trigger === 'open' ? ['reconnecting', 'closed'] : ['closed']);
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        client.close();
+      }
+    },
+  );
+
+  it.each(['session.start', 'custom.first'])(
+    'keeps the client closed when its %s listener closes the new socket',
+    async (trigger) => {
+      vi.useFakeTimers();
+      const connecting = WrongStackClient.connect({
+        url: 'ws://127.0.0.1:1',
+        WebSocket: HandSocket as never,
+        reconnect: { attempts: 1, initialDelayMs: 1 },
+      });
+      const first = HandSocket.all[0]!;
+      first.open();
+      first.read(start);
+      const client = await connecting;
+      const states: string[] = [];
+      const trailing = vi.fn();
+      client.onStateChange((state) => states.push(state));
+      client.on(trigger, () => client.close());
+      client.on('custom.trailing', trailing);
+      try {
+        first.close(1006, 'drop');
+        await vi.advanceTimersByTimeAsync(1);
+        const next = HandSocket.all[1]!;
+        next.open();
+        next.read({ type: 'custom.first' });
+        next.read({ type: 'custom.trailing' });
+        next.read(start);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(next.readyState).toBe(3);
+        expect(client.state).toBe('closed');
+        expect(states).toEqual(['reconnecting', 'closed']);
+        expect(trailing).not.toHaveBeenCalled();
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        client.close();
+      }
+    },
+  );
+
   it('disarms the catch-up timer and never delivers its held frames to the closed client', async () => {
     vi.useFakeTimers();
     const connecting = WrongStackClient.connect({

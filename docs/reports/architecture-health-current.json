@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T21:06:01.864Z",
+  "generatedAt": "2026-11-18T21:07:07.943Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6369,
-    "testFiles": 5486,
-    "sourceLines": 1315940,
+    "testFiles": 5487,
+    "sourceLines": 1315975,
     "workspaceEdges": 250,
     "moduleEdges": 18798,
     "nonCommandSlashImports": 0,
@@ -269,7 +269,7 @@
       "name": "@wrongstack/client",
       "dir": "packages/client",
       "sourceFiles": 7,
-      "testFiles": 6,
+      "testFiles": 7,
       "workspaceDependencies": [
         "@wrongstack/webui-protocol"
       ],
@@ -282,7 +282,7 @@
         {
           "path": "packages/client/tsconfig.test.json",
           "error": null,
-          "testFiles": 6
+          "testFiles": 7
         }
       ]
     },
@@ -9261,6 +9261,12 @@
       },
       {
         "file": "packages/client/tests/subscription-eviction.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/client/tests/timeout.test.ts",
         "projects": [
           "root-node"
         ]
@@ -38081,7 +38087,7 @@
     },
     {
       "file": "packages/client/src/client.ts",
-      "lines": 810,
+      "lines": 800,
       "relativeImports": 4
     },
     {
@@ -38532,14 +38538,14 @@
       "relativeImports": 4
     },
     {
-      "file": "packages/client/src/client.ts",
-      "lines": 810,
-      "relativeImports": 4
-    },
-    {
       "file": "apps/desktop-v2/src/RosterRuntimeEditor.tsx",
       "lines": 800,
       "relativeImports": 11
+    },
+    {
+      "file": "packages/client/src/client.ts",
+      "lines": 800,
+      "relativeImports": 4
     },
     {
       "file": "packages/vibeui/src/components/resource-hub.tsx",

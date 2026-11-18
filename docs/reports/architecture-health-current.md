@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-18T21:06:01.864Z
+**Generated:** 2026-11-18T21:07:07.943Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6369 |
-| Production source lines | 1315940 |
-| Test files | 5486 |
+| Production source lines | 1315975 |
+| Test files | 5487 |
 | Workspace dependency edges | 250 |
 | Relative module edges | 18798 |
 | Non-command slash imports | 0 |
@@ -33,7 +33,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/builtin-plugins | 35 | 31 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/chronicle | 54 | 47 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/cli | 638 | 706 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/bench, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/codebase-index-mcp, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/hq-next, @wrongstack/kanban, @wrongstack/kanban-mcp, @wrongstack/mailbox-mcp, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/requirement-intake-mcp, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sage-mcp, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/vibeui, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/worktree, @wrongstack/wrongtrace |
-| @wrongstack/client | 7 | 6 | @wrongstack/webui-protocol |
+| @wrongstack/client | 7 | 7 | @wrongstack/webui-protocol |
 | @wrongstack/codebase-index-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
 | @wrongstack/contracts | 132 | 6 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 193 | 202 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
@@ -114,8 +114,8 @@ None.
 | 839 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 831 | `packages/core/src/execution/design-draw.ts` |
 | 828 | `packages/builtin-plugins/src/review-claim-registry.ts` |
-| 810 | `packages/client/src/client.ts` |
 | 800 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
+| 800 | `packages/client/src/client.ts` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
 | 796 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
 | 780 | `packages/tools/src/design.ts` |

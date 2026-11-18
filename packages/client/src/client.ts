@@ -12,9 +12,11 @@ import type {
 } from './client-types.js';
 import {
   type CloseInfo,
+  cancellableDelay,
   type Frame,
   openSocket,
   SOCKET_OPEN,
+  scheduleTimeout,
   type WebSocketConstructor,
   type WebSocketLike,
 } from './connection.js';
@@ -289,7 +291,7 @@ export class WrongStackClient {
     this.closing = true;
     if (this.connection === 'reconnecting') {
       this.retryTimer?.cancel();
-      const pendingSocket = this.openingSocket;
+      const pendingSocket = this.openingSocket ?? this.socket;
       this.openingSocket = undefined;
       pendingSocket?.close(NORMAL_CLOSURE, 'client closed');
       this.finish(undefined);
@@ -479,36 +481,22 @@ export class WrongStackClient {
         ? this.options.timeoutMs
         : 15_000;
     return new Promise<Frame>((resolve, reject) => {
-      const MAX_TIMEOUT_CHUNK_MS = 2_147_483_647;
-      let remainingMs = timeoutMs;
-      let timer: ReturnType<typeof setTimeout>;
       const waiter = {
         match,
         resolve: (frame: Frame) => {
-          clearTimeout(timer);
+          timer.cancel();
           this.waiters.delete(waiter);
           resolve(frame);
         },
         reject: (error: WrongStackError) => {
-          clearTimeout(timer);
+          timer.cancel();
           this.waiters.delete(waiter);
           reject(error);
         },
       };
-      const scheduleWaiterTimeout = () => {
-        const chunkMs = Math.min(remainingMs, MAX_TIMEOUT_CHUNK_MS);
-        remainingMs -= chunkMs;
-        timer = setTimeout(() => {
-          if (remainingMs > 0) {
-            scheduleWaiterTimeout();
-            return;
-          }
-          waiter.reject(
-            new WrongStackError({ kind: 'timeout', code: 'no_answer', retryable: true }),
-          );
-        }, chunkMs);
-      };
-      scheduleWaiterTimeout();
+      const timer = scheduleTimeout(timeoutMs, () => {
+        waiter.reject(new WrongStackError({ kind: 'timeout', code: 'no_answer', retryable: true }));
+      });
       this.waiters.add(waiter);
     });
   }
@@ -714,9 +702,24 @@ export class WrongStackClient {
           this.socket.close(NORMAL_CLOSURE, 'client closed');
           return;
         }
+        if (!closed) {
+          if (typeof start.eventEpoch === 'string') {
+            for (const frame of this.frames.gate.adoptEpoch(start.eventEpoch)) {
+              if (this.closing) return;
+              this.dispatch(frame);
+            }
+          }
+          if (this.closing) return;
+          this.subscribe(this.current.sessionId, true);
+        }
+        if (this.closing) return;
+        this.receive({ type: 'session.start', payload: start });
+        for (const frame of early) {
+          if (this.closing) return;
+          this.receive(frame);
+        }
+        if (this.closing) return;
         if (closed) {
-          this.receive({ type: 'session.start', payload: start });
-          for (const frame of early) this.receive(frame);
           if (closed.code === NORMAL_CLOSURE) {
             this.finish(undefined);
             return;
@@ -728,12 +731,6 @@ export class WrongStackClient {
             retryable: true,
           });
         }
-        if (typeof start.eventEpoch === 'string') {
-          for (const frame of this.frames.gate.adoptEpoch(start.eventEpoch)) this.dispatch(frame);
-        }
-        this.subscribe(this.current.sessionId, true);
-        this.receive({ type: 'session.start', payload: start });
-        for (const frame of early) this.receive(frame);
         this.setState('open', undefined);
         return;
       } catch (error) {
@@ -759,19 +756,11 @@ export class WrongStackClient {
 
   /** Resolves `false` when `close()` cut the wait short. */
   private wait(ms: number): Promise<boolean> {
-    return new Promise<boolean>((resolve) => {
-      const timer = setTimeout(() => {
-        this.retryTimer = undefined;
-        resolve(true);
-      }, ms);
-      this.retryTimer = {
-        cancel: () => {
-          clearTimeout(timer);
-          this.retryTimer = undefined;
-          resolve(false);
-        },
-      };
+    const delay = cancellableDelay(ms, () => {
+      this.retryTimer = undefined;
     });
+    this.retryTimer = delay;
+    return delay.promise;
   }
 
   private finish(error: WrongStackError | undefined): void {
@@ -799,6 +788,7 @@ export class WrongStackClient {
   private setState(state: ConnectionState, error: WrongStackError | undefined): void {
     this.connection = state;
     for (const listener of this.stateListeners) {
+      if (this.connection !== state) break;
       try {
         listener(state, error);
       } catch {
