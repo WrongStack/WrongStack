@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T21:12:45.355Z",
+  "generatedAt": "2026-11-18T21:13:46.176Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6369,
-    "testFiles": 5492,
-    "sourceLines": 1316018,
+    "testFiles": 5493,
+    "sourceLines": 1316024,
     "workspaceEdges": 250,
     "moduleEdges": 18798,
     "nonCommandSlashImports": 0,
@@ -602,7 +602,7 @@
       "name": "@wrongstack/mcp",
       "dir": "packages/mcp",
       "sourceFiles": 74,
-      "testFiles": 103,
+      "testFiles": 104,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -616,7 +616,7 @@
         {
           "path": "packages/mcp/tsconfig.test.json",
           "error": null,
-          "testFiles": 103
+          "testFiles": 104
         }
       ]
     },
@@ -17337,6 +17337,12 @@
       },
       {
         "file": "packages/mcp/tests/structured-output.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/task-changes-ownership.test.ts",
         "projects": [
           "root-node"
         ]

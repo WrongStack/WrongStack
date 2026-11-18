@@ -1,4 +1,4 @@
-import { watch, type FSWatcher } from 'node:fs';
+import { type FSWatcher, watch } from 'node:fs';
 
 interface Listener {
   change: () => void;
@@ -19,8 +19,7 @@ export class MCPTaskChanges {
     if (!this.resync) {
       this.startWatcher();
       this.resync = setInterval(() => {
-        this.watcher?.close();
-        this.watcher = undefined;
+        this.stopWatcher();
         this.startWatcher();
         this.invalidate();
       }, 30_000);
@@ -33,13 +32,15 @@ export class MCPTaskChanges {
   }
   private startWatcher(): void {
     try {
-      this.watcher = watch(this.directory, (_event, file) => {
+      const watcher = watch(this.directory, (_event, file) => {
+        if (this.watcher !== watcher) return;
         if (!file || String(file) === 'journal.json') this.invalidate();
       });
-      this.watcher.unref();
-      this.watcher.on('error', () => {
-        this.watcher?.close();
-        this.watcher = undefined;
+      this.watcher = watcher;
+      watcher.unref();
+      watcher.on('error', () => {
+        if (this.watcher !== watcher) return;
+        this.stopWatcher();
         this.invalidate();
       });
     } catch {
@@ -51,6 +52,7 @@ export class MCPTaskChanges {
     this.timer = setTimeout(() => {
       this.timer = undefined;
       for (const listener of [...this.listeners]) {
+        if (!this.listeners.has(listener)) continue;
         try {
           listener.change();
         } catch {
@@ -60,9 +62,13 @@ export class MCPTaskChanges {
     }, 50);
     this.timer.unref?.();
   }
-  private stop(): void {
-    this.watcher?.close();
+  private stopWatcher(): void {
+    const watcher = this.watcher;
     this.watcher = undefined;
+    watcher?.close();
+  }
+  private stop(): void {
+    this.stopWatcher();
     if (this.timer) clearTimeout(this.timer);
     if (this.resync) clearInterval(this.resync);
     this.timer = undefined;
