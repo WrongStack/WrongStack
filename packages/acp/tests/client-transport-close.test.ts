@@ -49,6 +49,17 @@ async function startedChild(maxFrameChars?: number) {
 }
 
 describe('ClientTransport onClose', () => {
+  it.each([true, false])('never spawns after stop (skip marker: %s)', async (skipMarker) => {
+    spawnMock.fn.mockReset();
+    const transport = new ClientTransport({ command: 'agent', skipHandshakeMarker: skipMarker });
+    const starting = transport.start();
+    transport.stop();
+    await expect(starting).rejects.toThrow('ClientTransport is closed');
+    await expect(transport.start()).rejects.toThrow('ClientTransport is closed');
+    expect(spawnMock.fn).not.toHaveBeenCalled();
+    await expect(transport.read()).resolves.toBeNull();
+  });
+
   it('reports the exit code once and isolates a faulty listener', async () => {
     const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     const { transport, child } = await startedChild();

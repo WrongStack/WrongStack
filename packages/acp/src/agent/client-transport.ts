@@ -151,12 +151,14 @@ export class ClientTransport implements ACPClientTransport {
   }
 
   async start(): Promise<void> {
+    if (this.closed) throw new Error('ClientTransport is closed');
     if (this.child) return;
     const [{ spawn }, { buildChildEnv }, os] = await Promise.all([
       import('node:child_process'),
       import('@wrongstack/core/utils'),
       import('node:os'),
     ]);
+    if (this.closed) throw new Error('ClientTransport is closed');
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         // Reject the start promise, but first tear down the child we just
