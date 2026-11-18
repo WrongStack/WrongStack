@@ -86,6 +86,8 @@ export interface KanbanSupervisorSnapshot {
   boardId: string;
   status: KanbanSupervisorStatus;
   mode: KanbanSupervisorMode;
+  /** The automatically mirrored session board contains no tasks. */
+  emptySessionMirror?: true | undefined;
   lastAuditAt?: string | undefined;
   lastAgentRunAt?: string | undefined;
   nextAuditAt?: string | undefined;

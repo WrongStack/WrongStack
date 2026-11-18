@@ -275,6 +275,9 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
             ? 'attention'
             : 'healthy',
       mode: config.mode,
+      ...(currentBoard.kind === 'session_mirror' && currentBoard.tasks.length === 0
+        ? { emptySessionMirror: true as const }
+        : {}),
       lastAuditAt: auditedAt,
       nextAuditAt,
       reconciledTaskIds: reconciled?.tasks.map((task) => task.id) ?? [],

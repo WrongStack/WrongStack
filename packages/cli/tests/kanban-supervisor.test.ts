@@ -81,6 +81,33 @@ describe('kanban supervisor', () => {
     }
   });
 
+  it('reports only taskless session mirrors as empty', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'kanban-supervisor-mirror-'));
+    tempRoots.push(projectRoot);
+    const mirror = await createBoard(projectRoot, {
+      title: 'Boot session mirror',
+      kind: 'session_mirror',
+      supervisor: { enabled: true, mode: 'deterministic' },
+    });
+    const project = await createBoard(projectRoot, {
+      title: 'Project board',
+      supervisor: { enabled: true, mode: 'deterministic' },
+    });
+    const supervisor = createKanbanSupervisor({ projectRoot, broadcast: () => {} });
+    try {
+      const [boot] = await supervisor.auditNow(mirror.id);
+      const [projectBoard] = await supervisor.auditNow(project.id);
+      expect(boot).toMatchObject({ emptySessionMirror: true });
+      expect(projectBoard).not.toHaveProperty('emptySessionMirror');
+
+      await addTask(projectRoot, mirror.id, { title: 'Background work' });
+      const [working] = await supervisor.auditNow(mirror.id);
+      expect(working).not.toHaveProperty('emptySessionMirror');
+    } finally {
+      supervisor.dispose();
+    }
+  });
+
   it('broadcasts a board only when its audit finds something new, plus a slow heartbeat', async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'kanban-supervisor-quiet-'));
     tempRoots.push(projectRoot);
