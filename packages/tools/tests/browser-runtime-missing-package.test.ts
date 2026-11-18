@@ -6,6 +6,13 @@ import { pathToFileURL } from 'node:url';
 import { transformSync } from 'esbuild';
 import { describe, expect, it } from 'vitest';
 
+// The version the runtime provisions is the package's own @playwright/test dependency.
+const PLAYWRIGHT_VERSION = (
+  JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+    dependencies: Record<string, string>;
+  }
+).dependencies['@playwright/test']?.replace(/^\^/, '');
+
 describe('standalone binary browser provisioning', () => {
   it.each([false, true])(
     'provisions a missing package and browser (embedded Bun: %s)',
@@ -91,7 +98,7 @@ describe('standalone binary browser provisioning', () => {
         expect(output.browsers).toEqual([{ fixture: true }, { fixture: true }]);
         expect(output.calls).toHaveLength(2);
         expect(output.calls[0]).toEqual(
-          expect.arrayContaining(['--ignore-scripts', '@playwright/test@1.64.1']),
+          expect.arrayContaining(['--ignore-scripts', `@playwright/test@${PLAYWRIGHT_VERSION}`]),
         );
         expect(output.calls[1]).toEqual([expect.stringMatching(/cli\.js$/), 'install', 'chromium']);
       } finally {
