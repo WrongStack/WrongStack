@@ -124,9 +124,9 @@
       "runtimeOrMixed": 18
     },
     "@wrongstack/core/security": {
-      "files": 271,
+      "files": 272,
       "typeOnly": 26,
-      "runtimeOrMixed": 247
+      "runtimeOrMixed": 248
     },
     "@wrongstack/core/session-catalog": {
       "files": 19,
@@ -8454,6 +8454,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/fleet/src/skill-companion-policy.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/fleet/tests/acp-permission-multi-location-abort.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

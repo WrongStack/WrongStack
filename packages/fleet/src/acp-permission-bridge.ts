@@ -34,7 +34,7 @@ export interface WrongStackCall {
  * or one the policy cannot evaluate (refused — never waved through).
  */
 type Translation =
-  | { call: WrongStackCall; mcp?: boolean }
+  | { calls: WrongStackCall[]; mcp?: boolean }
   | { safe: true }
   | { refuse: string; call: WrongStackCall };
 
@@ -58,63 +58,92 @@ function mcpToolName(call: AcpPermissionRequest['toolCall']): string | undefined
  */
 function translate(req: Pick<AcpPermissionRequest, 'toolCall'>): Translation {
   const call = req.toolCall;
-  const raw = call.rawInput ?? {};
   const label = str(call.title) ?? call.kind ?? 'unknown';
+  if (
+    call.rawInput !== undefined &&
+    call.rawInput !== null &&
+    (typeof call.rawInput !== 'object' || Array.isArray(call.rawInput))
+  ) {
+    return { refuse: 'malformed tool call input', call: { tool: label, input: {} } };
+  }
+  const raw = (call.rawInput ?? {}) as Record<string, unknown>;
   const refuse = (why: string): Translation => ({
     refuse: why,
     call: { tool: label, input: raw },
   });
-  const path =
-    str(raw.file_path) ?? str(raw.path) ?? str(raw.notebook_path) ?? call.locations?.[0]?.path;
+  const rawPaths = [str(raw.file_path), str(raw.path), str(raw.notebook_path)].filter(
+    (p): p is string => p !== undefined,
+  );
+  const locPaths = (call.locations ?? [])
+    .map((loc) => str(loc?.path))
+    .filter((p): p is string => p !== undefined);
+  const paths = [...new Set([...rawPaths, ...locPaths])];
   switch (call.kind) {
     case 'execute': {
       const command = str(raw.command);
       return command
-        ? { call: { tool: 'bash', input: { command } } }
+        ? { calls: [{ tool: 'bash', input: { command } }] }
         : refuse('a command request that names no command');
     }
     case 'edit':
-      if (!path) return refuse('an edit that names no file');
+      if (paths.length === 0) return refuse('an edit that names no file');
       return typeof raw.old_string === 'string'
         ? {
-            call: {
+            calls: paths.map((path) => ({
               tool: 'edit',
               input: { path, old_string: raw.old_string, new_string: str(raw.new_string) ?? '' },
-            },
+            })),
           }
         : {
-            call: {
+            calls: paths.map((path) => ({
               tool: 'write',
               input: { path, content: typeof raw.content === 'string' ? raw.content : '' },
-            },
+            })),
           };
     case 'delete':
-      return path
-        ? { call: { tool: 'bash', input: { command: `rm ${shellQuote(path)}` } } }
+      return paths.length > 0
+        ? {
+            calls: paths.map((path) => ({
+              tool: 'bash',
+              input: { command: `rm ${shellQuote(path)}` },
+            })),
+          }
         : refuse('a delete that names no file');
     case 'move': {
-      const to = str(raw.destination) ?? str(raw.new_path) ?? call.locations?.[1]?.path;
-      return path && to
-        ? {
-            call: {
-              tool: 'bash',
-              input: { command: `mv ${shellQuote(path)} ${shellQuote(to)}` },
-            },
-          }
-        : refuse('a move that names no source or destination');
+      const from = rawPaths[0] ?? str(call.locations?.[0]?.path);
+      const to = str(raw.destination) ?? str(raw.new_path) ?? str(call.locations?.[1]?.path);
+      if (!from || !to) return refuse('a move that names no source or destination');
+      const allowed = new Set([from, to]);
+      if (
+        (call.locations?.length ?? 0) > 2 ||
+        rawPaths.some((p) => !allowed.has(p)) ||
+        locPaths.some((p) => !allowed.has(p))
+      ) {
+        return refuse('a move with ambiguous locations');
+      }
+      return {
+        calls: [
+          {
+            tool: 'bash',
+            input: { command: `mv ${shellQuote(from)} ${shellQuote(to)}` },
+          },
+        ],
+      };
     }
     case 'read':
     case 'search':
-      return path ? { call: { tool: 'read', input: { path } } } : { safe: true };
+      return paths.length > 0
+        ? { calls: paths.map((path) => ({ tool: 'read', input: { path } })) }
+        : { safe: true };
     case 'fetch': {
       // A page fetch names a URL; a web search names a query; a sandbox
       // network request names a host. All reach the network as `fetch` does.
       const host = str(raw.host);
       const url = str(raw.url) ?? (host ? `https://${host}` : undefined);
-      if (url) return { call: { tool: 'fetch', input: { url } } };
+      if (url) return { calls: [{ tool: 'fetch', input: { url } }] };
       const query = str(raw.query);
       return query
-        ? { call: { tool: 'fetch', input: { query } } }
+        ? { calls: [{ tool: 'fetch', input: { query } }] }
         : refuse('a network request that names no URL or query');
     }
     case 'think':
@@ -123,7 +152,7 @@ function translate(req: Pick<AcpPermissionRequest, 'toolCall'>): Translation {
     default: {
       const mcp = mcpToolName(call);
       return mcp
-        ? { call: { tool: mcp, input: raw }, mcp: true }
+        ? { calls: [{ tool: mcp, input: raw }], mcp: true }
         : refuse('no WrongStack counterpart to check it against');
     }
   }
@@ -189,44 +218,48 @@ export function wrongstackAcpPermissionPolicy(
     const translated = translate(req);
     if ('safe' in translated) return pick(req, true);
     if ('refuse' in translated) return refuse(req, translated.call, translated.refuse);
-    const { call } = translated;
-    let tool = opts.getTool(call.tool);
-    if (!tool && translated.mcp) {
-      if (opts.allowMcp === false) return refuse(req, call, 'MCP tools are off in this run');
-      tool = mcpToolFor(call.tool);
-    }
-    // A tool the host left out of its registry (`--restricted`, a launch
-    // allowlist) is one the user took away; the worker must not have it back.
-    if (!tool) return refuse(req, call, `${call.tool} is not available in this run`);
-    let decision: PermissionDecision;
-    try {
-      decision = await opts.evaluate(tool, call.input, {
-        projectRoot: opts.projectRoot,
-        cwd: opts.projectRoot,
-      });
-    } catch (err) {
-      // Fail closed: a policy that cannot decide must not wave a call through.
-      decision = {
-        permission: 'deny',
-        source: 'default',
-        reason: `permission check failed: ${toErrorMessage(err)}`,
-      };
-    }
-    if (decision.permission === 'auto') return pick(req, true);
-    if (decision.permission === 'confirm' && opts.confirm) {
-      let approved = false;
+    for (const call of translated.calls) {
+      let tool = opts.getTool(call.tool);
+      if (!tool && translated.mcp) {
+        if (opts.allowMcp === false) return refuse(req, call, 'MCP tools are off in this run');
+        tool = mcpToolFor(call.tool);
+      }
+      // A tool the host left out of its registry (`--restricted`, a launch
+      // allowlist) is one the user took away; the worker must not have it back.
+      if (!tool) return refuse(req, call, `${call.tool} is not available in this run`);
+      let decision: PermissionDecision;
       try {
-        approved = await opts.confirm(tool, call, {
-          toolCallId: req.toolCall.toolCallId,
-          signal: req.signal,
+        decision = await opts.evaluate(tool, call.input, {
+          projectRoot: opts.projectRoot,
+          cwd: opts.projectRoot,
         });
-      } catch {
-        approved = false;
+      } catch (err) {
+        // Fail closed: a policy that cannot decide must not wave a call through.
+        decision = {
+          permission: 'deny',
+          source: 'default',
+          reason: `permission check failed: ${toErrorMessage(err)}`,
+        };
       }
       if (req.signal.aborted) return { outcome: 'cancelled' };
-      return approved ? pick(req, true) : refuse(req, call, 'declined by the user');
+      if (decision.permission === 'auto') continue;
+      if (decision.permission === 'confirm' && opts.confirm) {
+        let approved = false;
+        try {
+          approved = await opts.confirm(tool, call, {
+            toolCallId: req.toolCall.toolCallId,
+            signal: req.signal,
+          });
+        } catch {
+          approved = false;
+        }
+        if (req.signal.aborted) return { outcome: 'cancelled' };
+        if (approved) continue;
+        return refuse(req, call, 'declined by the user');
+      }
+      // Without a way to ask, `confirm` is a question nobody can answer.
+      return refuse(req, call, decision.reason ?? decision.source);
     }
-    // Without a way to ask, `confirm` is a question nobody can answer.
-    return refuse(req, call, decision.reason ?? decision.source);
+    return pick(req, true);
   };
 }
