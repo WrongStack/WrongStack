@@ -11,14 +11,20 @@ export type SurfaceSend = (
  * Message shapes match the WebUI client's own wrappers.
  */
 export function createSageSocket(client: SurfaceClient, send: SurfaceSend): SageSocket {
-  const payload = (value: object | undefined) => ({ ...(value as Record<string, unknown>) });
+  const payload = (value: object | undefined, options?: SurfaceSendOptions) => {
+    const record = { ...(value as Record<string, unknown>) };
+    if (options?.requestId !== undefined && record['requestId'] === undefined) {
+      record['requestId'] = options.requestId;
+    }
+    return record;
+  };
   return {
     client,
     listSageMemories: (options) => send({ type: 'memory.sage.list' }, options),
     listSageMemoriesPage: (params, options) =>
-      send({ type: 'memory.sage.listPage', payload: payload(params) }, options),
+      send({ type: 'memory.sage.listPage', payload: payload(params, options) }, options),
     listMemoryCandidates: (params, options) =>
-      send({ type: 'memory.sage.listCandidates', payload: payload(params) }, options),
+      send({ type: 'memory.sage.listCandidates', payload: payload(params, options) }, options),
     searchSageBreakdown: (params, options) =>
       send(
         {
@@ -34,7 +40,7 @@ export function createSageSocket(client: SurfaceClient, send: SurfaceSend): Sage
     getSageGraph: (query, params, options) =>
       send({ type: 'memory.sage.graph', payload: { query, ...params } }, options),
     updateSage: (id, patch, options) =>
-      send({ type: 'memory.sage.update', payload: { id, ...payload(patch) } }, options),
+      send({ type: 'memory.sage.update', payload: { id, ...payload(patch, options) } }, options),
     deleteSage: (id, reason, options) =>
       send({
         type: 'memory.sage.delete',
@@ -46,12 +52,12 @@ export function createSageSocket(client: SurfaceClient, send: SurfaceSend): Sage
         },
       }),
     rememberSage: (opts, options) =>
-      send({ type: 'memory.sage.remember', payload: payload(opts) }, options),
+      send({ type: 'memory.sage.remember', payload: payload(opts, options) }, options),
     recoverSage: (opts, options) =>
-      send({ type: 'memory.sage.recover', payload: payload(opts) }, options),
+      send({ type: 'memory.sage.recover', payload: payload(opts, options) }, options),
     resolveMemoryCandidate: (opts, options) =>
-      send({ type: 'memory.sage.candidateResolve', payload: payload(opts) }, options),
+      send({ type: 'memory.sage.candidateResolve', payload: payload(opts, options) }, options),
     sageDoctor: (opts, options) =>
-      send({ type: 'memory.sage.doctor', payload: payload(opts) }, options),
+      send({ type: 'memory.sage.doctor', payload: payload(opts, options) }, options),
   };
 }

@@ -222,12 +222,25 @@ export function SetupScreen() {
 
   // Fetch models when selected provider changes
   useEffect(() => {
-    if (!selectedProvider || !wsConnected || !client) return;
+    if (!selectedProvider || !wsConnected || !client) {
+      setIsLoadingModels(false);
+      return;
+    }
     if (!Object.hasOwn(catalogModels, selectedProvider)) {
       setIsLoadingModels(true);
       client.send({ type: 'provider.models', payload: { providerId: selectedProvider } });
+    } else {
+      setIsLoadingModels(false);
+      const cached = catalogModels[selectedProvider] ?? [];
+      setSelectedModel((prev) => {
+        if (prev && cached.some((m) => m.id === prev)) return prev;
+        const [only] = cached;
+        if (cached.length === 1 && only) return only.id;
+        if (model && cached.some((m) => m.id === model)) return model;
+        return prev;
+      });
     }
-  }, [selectedProvider, wsConnected, client, catalogModels]);
+  }, [selectedProvider, wsConnected, client, catalogModels, model]);
 
   const currentModels =
     selectedProvider && Object.hasOwn(catalogModels, selectedProvider)

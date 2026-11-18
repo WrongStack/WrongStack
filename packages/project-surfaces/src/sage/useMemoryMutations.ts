@@ -1,4 +1,5 @@
-import { useCallback } from 'react';
+import { toErrorMessage } from '@wrongstack/core/utils/error';
+import { useCallback, useRef } from 'react';
 import type { useAppTranslation } from '../lib/i18n';
 import type { SageEntry } from './model-types';
 import { normalizeAnchors, splitList } from './shared';
@@ -73,11 +74,14 @@ export function useMemoryMutations({
   selectedMemory,
   updateSage,
 }: UseMemoryMutationsInput) {
+  const requestSeqRef = useRef(0);
+
   const runMutation = useCallback(
     (
       type: 'memory.sage.remember' | 'memory.sage.update',
-      send: () => void,
+      send: (requestId: string) => void,
       action: 'create' | 'update',
+      expectedMemoryId?: string,
     ) => {
       if (!draft.text.trim()) {
         setMutationError('Memory content is required.');
@@ -88,6 +92,7 @@ export function useMemoryMutations({
       setBusyAction(action);
       setMutationError(null);
       setNotice(null);
+      const requestId = `mut_${Date.now()}_${++requestSeqRef.current}`;
 
       let off = () => {};
       let timeout: ReturnType<typeof setTimeout> | null = null;
@@ -101,8 +106,21 @@ export function useMemoryMutations({
       };
 
       const onResponse = (message: {
-        payload: { memory?: SageEntry | undefined; error?: string | undefined };
+        payload: {
+          memory?: SageEntry | undefined;
+          error?: string | undefined;
+          requestId?: string | undefined;
+        };
       }) => {
+        const echoed = message.payload.requestId;
+        if (echoed !== undefined && echoed !== requestId) return;
+        if (
+          expectedMemoryId !== undefined &&
+          message.payload.memory !== undefined &&
+          message.payload.memory.id !== expectedMemoryId
+        ) {
+          return;
+        }
         if (generation !== mutationGenerationRef.current || !mountedRef.current) {
           cleanup();
           return;
@@ -148,7 +166,13 @@ export function useMemoryMutations({
         );
       }, 20_000);
       mutationCleanupRef.current = cleanup;
-      send();
+      try {
+        send(requestId);
+      } catch (err) {
+        cleanup();
+        setBusyAction(null);
+        setMutationError(toErrorMessage(err));
+      }
     },
     [client, draft.text, loadMemories, t],
   );
@@ -156,7 +180,7 @@ export function useMemoryMutations({
   const submitCreate = useCallback(() => {
     runMutation(
       'memory.sage.remember',
-      () =>
+      (requestId) =>
         rememberSage(
           {
             text: draft.text.trim(),
@@ -189,7 +213,7 @@ export function useMemoryMutations({
             supersedes: splitList(draft.supersedes),
             contradicts: splitList(draft.contradicts),
           },
-          { echoToChat: false },
+          { echoToChat: false, requestId },
         ),
       'create',
     );
@@ -197,9 +221,17 @@ export function useMemoryMutations({
 
   const submitUpdate = useCallback(() => {
     if (!selectedMemory) return;
+    const audienceRoles = splitList(draft.audienceRoles);
+    const audienceTaskTypes = splitList(draft.audienceTaskTypes);
+    const audienceModes = splitList(draft.audienceModes);
+    const includeAudience =
+      selectedMemory.audience !== undefined ||
+      audienceRoles.length > 0 ||
+      audienceTaskTypes.length > 0 ||
+      audienceModes.length > 0;
     runMutation(
       'memory.sage.update',
-      () =>
+      (requestId) =>
         updateSage(
           selectedMemory.id,
           {
@@ -215,23 +247,23 @@ export function useMemoryMutations({
             confidence: draft.confidence,
             freshness: draft.freshness,
             anchors: normalizeAnchors(draft.anchors),
-            ...(splitList(draft.audienceRoles).length ||
-            splitList(draft.audienceTaskTypes).length ||
-            splitList(draft.audienceModes).length
+            ...(includeAudience
               ? {
                   audience: {
-                    roles: splitList(draft.audienceRoles),
-                    taskTypes: splitList(draft.audienceTaskTypes),
-                    modes: splitList(draft.audienceModes),
+                    roles: audienceRoles,
+                    taskTypes: audienceTaskTypes,
+                    modes: audienceModes,
                   },
                 }
               : {}),
             supersedes: splitList(draft.supersedes),
             contradicts: splitList(draft.contradicts),
+            requestId,
           },
-          { echoToChat: false },
+          { echoToChat: false, requestId },
         ),
       'update',
+      selectedMemory.id,
     );
   }, [draft, runMutation, selectedMemory, updateSage]);
   return { submitCreate, submitUpdate };

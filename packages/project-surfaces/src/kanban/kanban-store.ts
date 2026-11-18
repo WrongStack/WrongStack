@@ -113,13 +113,14 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
   // user left survived the switch and accumulated as ghosts (their
   // verification_completed may never arrive once the board is inactive).
   setActiveBoardId: (id) =>
-    set({
+    set((state) => ({
       activeBoardId: id,
+      activeBoard: id !== null && state.activeBoard?.id === id ? state.activeBoard : null,
       queueHealth: null,
       supervisorSnapshot: null,
       verificationActivity: {},
       boardHistory: [],
-    }),
+    })),
   setError: (error) => set({ error }),
   setQueueHealth: (health) => set({ queueHealth: health }),
   handleResult: (type, payload) => {
@@ -149,15 +150,22 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
       return;
     }
     if ((type === 'kanban.supervisor.status' || type === 'kanban.supervisor.audit') && data) {
-      set({
-        supervisorSnapshot: data as KanbanSupervisorSnapshot,
-        loading: false,
-        error: null,
-      });
+      const snap = data as KanbanSupervisorSnapshot;
+      set((state) =>
+        typeof snap.boardId === 'string' && state.activeBoardId !== snap.boardId
+          ? { loading: false, error: null }
+          : { supervisorSnapshot: snap, loading: false, error: null },
+      );
       return;
     }
     if (type === 'kanban.health' && payload.data) {
-      set({ queueHealth: payload.data as KanbanQueueHealth, loading: false, error: null });
+      const health = payload.data as KanbanQueueHealth;
+      set((state) =>
+        Array.isArray(health.boardIds) &&
+        (!state.activeBoardId || !health.boardIds.includes(state.activeBoardId))
+          ? { loading: false, error: null }
+          : { queueHealth: health, loading: false, error: null },
+      );
       return;
     }
     if (type === 'kanban.workbench' && payload.data) {
@@ -294,10 +302,14 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
     if (type === 'kanban.board.history') {
       // Board history is an array of KanbanBoardHistoryEntry; store it so the
       // history panel can render the board's lifecycle.
-      set({
-        ...(Array.isArray(data) ? { boardHistory: data as KanbanBoardHistoryEntry[] } : {}),
-        loading: false,
-        error: null,
+      set((state) => {
+        if (!Array.isArray(data)) return { loading: false, error: null };
+        const entries = data as KanbanBoardHistoryEntry[];
+        const mismatched = entries.some(
+          (entry) => typeof entry?.boardId === 'string' && entry.boardId !== state.activeBoardId,
+        );
+        if (mismatched) return { loading: false, error: null };
+        return { boardHistory: entries, loading: false, error: null };
       });
       return;
     }
@@ -401,7 +413,7 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
     }
     if (isTask(data)) {
       set((state) => ({
-        ...(state.activeBoard
+        ...(state.activeBoard && state.activeBoard.id === state.activeBoardId
           ? (() => {
               const activeBoard = upsertTask(state.activeBoard, data);
               return {
@@ -417,7 +429,7 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
     }
     if (Array.isArray(data) && data.every(isColumn)) {
       set((state) => ({
-        ...(state.activeBoard
+        ...(state.activeBoard && state.activeBoard.id === state.activeBoardId
           ? (() => {
               const activeBoard = { ...state.activeBoard, columns: data };
               return {

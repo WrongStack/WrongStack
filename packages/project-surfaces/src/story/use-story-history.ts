@@ -55,9 +55,11 @@ export function useStoryHistory(sessionId: string | null, live: boolean) {
         }, REPLY_TIMEOUT_MS);
       });
       void Promise.race([
-        feed.queryChronicle(
-          { sessionId, order: 'desc', limit: 5000, ...(cursor ? { cursor } : {}) },
-          request.signal,
+        Promise.resolve().then(() =>
+          feed.queryChronicle(
+            { sessionId, order: 'desc', limit: 5000, ...(cursor ? { cursor } : {}) },
+            request.signal,
+          ),
         ),
         timeout,
       ])
@@ -114,10 +116,18 @@ export function useStoryHistory(sessionId: string | null, live: boolean) {
     const poll = setInterval(() => load(), 10000);
     return () => clearInterval(poll);
   }, [live, load]);
+  const currentSession = state.sessionId === sessionId;
+  const activeCursor = currentSession ? state.cursor : undefined;
   return {
-    ...state,
-    events: state.sessionId === sessionId ? state.events : [],
+    sessionId: currentSession ? state.sessionId : sessionId,
+    events: currentSession ? state.events : [],
+    total: currentSession ? state.total : 0,
+    loading: currentSession ? state.loading : false,
+    error: currentSession ? state.error : null,
+    cursor: activeCursor,
     refresh: () => load(),
-    loadEarlier: () => load(state.cursor),
+    loadEarlier: () => {
+      if (activeCursor) load(activeCursor);
+    },
   };
 }

@@ -40,8 +40,12 @@ const event = (id: string, actor: string, type: string): ChronicleEventView => (
   correlation: {},
   attributes: type === 'tool.executed' ? { toolName: 'read' } : { subagentId: actor, name: actor },
 });
-/** Answers the latest history query; the story applies the reply after a microtask. */
+/**
+ * Answers the latest history query. The story sends its query a microtask
+ * after the render and applies the reply after another one.
+ */
 async function reply(events: ChronicleEventView[], requestId?: string) {
+  await act(async () => {});
   const sent = harness.send.mock.calls
     .filter(([message]) => message.type === 'chronicle.query')
     .at(-1)?.[0];

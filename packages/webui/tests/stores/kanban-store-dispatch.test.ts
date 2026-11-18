@@ -113,7 +113,8 @@ describe('kanban-store outbound dispatch integration', () => {
   });
 
   it('clears loading and error on kanban.board.history result and resets boardHistory when switching boards', () => {
-    useKanbanStore.setState({ error: 'stale error', boardHistory: [] });
+    // History is kept only for the active board; a reply for another board is dropped.
+    useKanbanStore.setState({ activeBoardId: 'board-1', error: 'stale error', boardHistory: [] });
     useKanbanStore.getState().fetchBoardHistory('board-1');
     expect(useKanbanStore.getState().loading).toBe(true);
 

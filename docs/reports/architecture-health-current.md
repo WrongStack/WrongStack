@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-18T21:37:57.963Z
+**Generated:** 2026-11-18T21:40:58.029Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,14 +9,14 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6374 |
-| Production source lines | 1316545 |
-| Test files | 5514 |
+| Production source lines | 1316619 |
+| Test files | 5519 |
 | Workspace dependency edges | 250 |
 | Relative module edges | 18812 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
-| Tests without TypeScript test-project coverage | 410 |
+| Tests without TypeScript test-project coverage | 415 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
@@ -53,7 +53,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/plugin-sdk | 12 | 11 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugins | 154 | 136 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 26 | 45 | — |
-| @wrongstack/project-surfaces | 262 | 20 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers, @wrongstack/tools |
+| @wrongstack/project-surfaces | 262 | 25 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers, @wrongstack/tools |
 | @wrongstack/providers | 138 | 128 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/requirement-intake | 18 | 21 | @wrongstack/core |
 | @wrongstack/requirement-intake-mcp | 6 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/requirement-intake |
@@ -149,7 +149,7 @@ None.
 
 ## TypeScript test coverage debt
 
-- 410 test files are not included in a package TypeScript test project.
+- 415 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.

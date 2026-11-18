@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T21:37:57.963Z",
+  "generatedAt": "2026-11-18T21:40:58.029Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6374,
-    "testFiles": 5514,
-    "sourceLines": 1316545,
+    "testFiles": 5519,
+    "sourceLines": 1316619,
     "workspaceEdges": 250,
     "moduleEdges": 18812,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 410,
+    "testsWithoutTypecheck": 415,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1075
   },
@@ -734,7 +734,7 @@
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
       "sourceFiles": 262,
-      "testFiles": 20,
+      "testFiles": 25,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -19310,6 +19310,12 @@
         ]
       },
       {
+        "file": "packages/project-surfaces/tests/kanban-store-stale-board-switch.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/project-surfaces/tests/memory-detail-copy.test.tsx",
         "projects": [
           "root-node"
@@ -19317,6 +19323,12 @@
       },
       {
         "file": "packages/project-surfaces/tests/memory-manager-mark-permanent.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/memory-mutations-correlation-and-audience.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -19335,6 +19347,12 @@
       },
       {
         "file": "packages/project-surfaces/tests/provider-test-view-race.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/ranked-search-load-more-reset.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -19370,6 +19388,12 @@
         ]
       },
       {
+        "file": "packages/project-surfaces/tests/setup-screen-cached-provider-switch.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/project-surfaces/tests/setup-screen-popular-abort.test.tsx",
         "projects": [
           "root-node"
@@ -19377,6 +19401,12 @@
       },
       {
         "file": "packages/project-surfaces/tests/setup-screen-proto.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/story-history-sync-throw-and-mask.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -37166,6 +37196,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "packages/project-surfaces/tests/kanban-store-stale-board-switch.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "packages/project-surfaces/tests/memory-detail-copy.test.tsx",
         "runtimeProjects": [
           "root-node"
@@ -37174,6 +37211,13 @@
       },
       {
         "file": "packages/project-surfaces/tests/memory-manager-mark-permanent.test.tsx",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "packages/project-surfaces/tests/memory-mutations-correlation-and-audience.test.tsx",
         "runtimeProjects": [
           "root-node"
         ],
@@ -37195,6 +37239,13 @@
       },
       {
         "file": "packages/project-surfaces/tests/provider-test-view-race.test.tsx",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "packages/project-surfaces/tests/ranked-search-load-more-reset.test.tsx",
         "runtimeProjects": [
           "root-node"
         ],
@@ -37236,6 +37287,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "packages/project-surfaces/tests/setup-screen-cached-provider-switch.test.tsx",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "packages/project-surfaces/tests/setup-screen-popular-abort.test.tsx",
         "runtimeProjects": [
           "root-node"
@@ -37244,6 +37302,13 @@
       },
       {
         "file": "packages/project-surfaces/tests/setup-screen-proto.test.tsx",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "packages/project-surfaces/tests/story-history-sync-throw-and-mask.test.tsx",
         "runtimeProjects": [
           "root-node"
         ],

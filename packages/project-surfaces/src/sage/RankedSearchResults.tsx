@@ -41,6 +41,7 @@ export function RankedSearchResults({
     setPage(null);
     setError(null);
     setLoading(false);
+    setLoadingMore(false);
     if (!query || !supported) return;
     const abort = new AbortController();
     controller.current = abort;
