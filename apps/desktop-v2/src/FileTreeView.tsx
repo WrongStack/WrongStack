@@ -111,6 +111,7 @@ export function FileTreeView({
               key={node.path}
               data-tree-path={node.path}
               aria-label={node.path}
+              aria-description={status ? `Git ${String(status)}` : undefined}
               aria-level={depth + 1}
               aria-setsize={rows.length}
               aria-posinset={start + offset + 1}
@@ -154,7 +155,13 @@ export function FileTreeView({
                 <FileKindIcon name={node.name} size={14} />
               )}
               <span>{node.name}</span>
-              {Boolean(status) && <b className="file-git-status">{String(status)}</b>}
+              {Boolean(status) && (
+                <b
+                  className="file-git-status"
+                  data-git-status={String(status)}
+                  aria-hidden="true"
+                />
+              )}
             </button>
           );
         })}

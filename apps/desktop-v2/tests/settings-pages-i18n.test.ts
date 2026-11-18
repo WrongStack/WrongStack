@@ -136,7 +136,7 @@ describe('the settings pages in the display language', () => {
       'Save cloud settings',
     ])
       expect(page.text).toContain(text);
-    expect(page.labels).toEqual(expect.arrayContaining(['Check the endpoint of vertex']));
+    expect(page.labels).toEqual(expect.arrayContaining(['Check endpoint (vertex)']));
 
     await surfaceI18n.changeLanguage('tr');
     page = await mount(connection());
@@ -150,6 +150,6 @@ describe('the settings pages in the display language', () => {
       'Bulut ayarlarını kaydet',
     ])
       expect(page.text).toContain(text);
-    expect(page.labels).toEqual(expect.arrayContaining(['vertex uç noktasını denetle']));
+    expect(page.labels).toEqual(expect.arrayContaining(['Uç noktayı denetle (vertex)']));
   });
 });

@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import AxeBuilder from '@axe-core/playwright';
 import { chromium } from '@playwright/test';
 import { createServer, transformWithOxc } from 'vite';
 
@@ -31,6 +32,7 @@ window.bridge={calls:[],released:false,subscribe:()=>()=>{},snapshot:()=>state,s
   window.bridge.calls.push({type,payload});
   if(type==='files.tree'){if(mode==='held'&&!window.bridge.released)return new Promise(resolve=>pending.push(resolve));if(mode==='failed')throw Error('Explorer listing unavailable');return tree}
   if(type==='files.read'){if(payload.filePath!==${JSON.stringify(report)})throw Error('Wrong report path');return {filePath:payload.filePath,content:await fetch('/__report').then(r=>r.text())}}
+  if(type==='git.changes')return {files:[{path:${JSON.stringify(report)},status:'M',staged:false}]};
   return {files:[]};
 }};
 const noop=()=>{},save=async()=>true;
@@ -185,6 +187,72 @@ try {
     if (sample.listing === 'held') {
       assert.equal(await page.evaluate(() => window.bridge.released), false);
       assert.equal(await page.locator('.file-navigation .spin').count(), 1);
+    }
+    if (sample.listing === 'ready') {
+      const menu = page.getByRole('menu', { name: /^Actions for / });
+      const row = page.getByRole('treeitem', { name: report, exact: true });
+      const badge = row.locator('.file-git-status');
+      await badge.waitFor();
+      const fileNames = await new AxeBuilder({ page })
+        .setLegacyMode()
+        .include('.file-directory-tree')
+        .withRules(['label-content-name-mismatch'])
+        .analyze();
+      assert.deepEqual(
+        fileNames.violations.flatMap((violation) => violation.nodes.map((node) => node.target)),
+        [],
+        'Git badges must not make a file name fail voice access',
+      );
+      assert.equal(await row.getAttribute('aria-description'), 'Git M');
+      assert.equal(
+        await badge.evaluate((element) => getComputedStyle(element, '::before').content),
+        '"M"',
+      );
+      const openMenu = (clientX, clientY) =>
+        row.evaluate(
+          (item, point) =>
+            item.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, ...point })),
+          { clientX, clientY },
+        );
+      const assertMenuFits = async () => {
+        const bounds = await menu.boundingBox();
+        const { width, height } = page.viewportSize();
+        assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= width);
+        assert.ok(
+          bounds.y >= 0 && bounds.y + bounds.height <= height,
+          `File actions extend outside the viewport: ${JSON.stringify(bounds)} in ${width}x${height}`,
+        );
+      };
+      await openMenu(150, 200);
+      await menu.getByRole('menuitem', { name: /discard/i }).waitFor();
+      await assertMenuFits();
+      await page.keyboard.press('Escape');
+      await menu.waitFor({ state: 'hidden' });
+
+      await page.setViewportSize({ width: 800, height: 600 });
+      await openMenu(798, 598);
+      await menu.waitFor();
+      await page.screenshot({ path: path.join(artifacts, 'file-menu-800x600.png') });
+      await assertMenuFits();
+      await page.keyboard.press('End');
+      await menu.getByRole('menuitem', { name: 'Delete', exact: true }).evaluate((item) => {
+        if (document.activeElement !== item) throw new Error('End did not focus Delete');
+      });
+      await page.keyboard.press('Escape');
+      await menu.waitFor({ state: 'hidden' });
+      const actions = page.getByRole('button', { name: 'File actions', exact: true });
+      const actionBounds = await actions.boundingBox();
+      assert.ok(
+        actionBounds && actionBounds.x + actionBounds.width <= 800,
+        `The document toolbar clips File actions: ${JSON.stringify(actionBounds)}`,
+      );
+      await actions.click();
+      await menu.waitFor();
+      await assertMenuFits();
+      await page.keyboard.press('Escape');
+      await menu.waitFor({ state: 'hidden' });
+      await page.screenshot({ path: path.join(artifacts, 'file-toolbar-800x600.png') });
+      await page.setViewportSize({ width: sample.width, height: sample.height });
     }
     await page.screenshot({
       path: path.join(artifacts, `${sample.language}-${sample.listing}.png`),

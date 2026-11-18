@@ -14,8 +14,11 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
  * keyboard-only walkthrough. The same screens are then shown in German, whose labels are among
  * the longest of the shipped languages, and every label must fit (`native-long-labels.mjs`).
  */
-export async function exerciseNativeAccessibility({ page, project, artifactDir, rpc }) {
+export async function exerciseNativeAccessibility({ page, project, artifactDir }) {
   const { default: AxeBuilder } = await import('@axe-core/playwright');
+  // WebView2 owns a single Tauri window. Axe's default runner opens a separate
+  // page over CDP to combine results, so scan these built-in screens in place.
+  const axe = () => new AxeBuilder({ page }).setLegacyMode();
   const found = [];
   // The German labels that did not fit their box, per screen.
   const unfit = [];
@@ -49,14 +52,12 @@ export async function exerciseNativeAccessibility({ page, project, artifactDir, 
     );
     // A menu is audited on its own, so a finding names the menu and not the page under it.
     const within = (builder) => (scope ? builder.include(scope) : builder);
-    const result = await within(
-      new AxeBuilder({ page }).withTags(TAGS).disableRules(['target-size']),
-    ).analyze();
+    const result = await within(axe().withTags(TAGS).disableRules(['target-size'])).analyze();
     // Target size is checked outside the Code Atlas canvas: its cards scale with the canvas zoom,
     // and every card action is also offered at full size in the code tree and the inspector
     // (the "equivalent" exception of WCAG 2.5.8).
     const sized = await within(
-      new AxeBuilder({ page }).withRules(['target-size']).exclude('.react-flow__node'),
+      axe().withRules(['target-size']).exclude('.react-flow__node'),
     ).analyze();
     for (const violation of [...result.violations, ...sized.violations])
       found.push({
@@ -84,7 +85,13 @@ export async function exerciseNativeAccessibility({ page, project, artifactDir, 
     assert.equal(typeof text, 'string', `${lng} catalog has ${key}`);
     return text.replace(/\{\{(\w+)\}\}/g, (_, name) => values[name]);
   };
-  const VIEWS = ['files', 'changes', 'memory', 'kanban', 'atlas'];
+  const VIEWS = {
+    files: '.file-directory-tree',
+    changes: '.file-change-list',
+    memory: '[data-workbench-view="memory"]',
+    kanban: '.kanban-surface',
+    atlas: '.atlas-surface',
+  };
   const PINNED = new Set(['files', 'changes', 'memory', 'kanban']);
   const screens = async (mode, check = audit, lng = 'en') => {
     const L = (key, values) => label(lng, key, values);
@@ -96,13 +103,13 @@ export async function exerciseNativeAccessibility({ page, project, artifactDir, 
       name: L('explorer.workspace', { name: project.name }),
       exact: true,
     });
-    for (const view of VIEWS) {
+    for (const [view, ready] of Object.entries(VIEWS)) {
       if (!PINNED.has(view)) {
         const launcher = views.getByRole('button', { name: L('rail.projectTools'), exact: true });
         if ((await launcher.getAttribute('aria-expanded')) !== 'true') await launcher.click();
       }
       await views.getByRole('button', { name: L(`pages.${view}`), exact: true }).click();
-      await page.waitForLoadState('networkidle').catch(() => {});
+      await page.locator(ready).waitFor();
       await check(`${mode}-${view === 'atlas' ? 'code-atlas' : view}`);
     }
     await main.getByRole('button', { name: L('rail.settings'), exact: true }).click();
@@ -118,28 +125,14 @@ export async function exerciseNativeAccessibility({ page, project, artifactDir, 
   /**
    * The project's own tool menus: the sidebar's launcher and the overview's cards. Both are
    * audited at the window's width and at the narrow one, where the launcher sits over a
-   * narrower sidebar. The walk ends on the settings surface, which mounts the display-language
-   * sync the German pass below needs after its reload.
+   * narrower sidebar.
    */
-  /**
-   * The section the window will reopen on. The layout is saved with a debounce, so the value
-   * the next start restores lags the surface on screen by a moment; this waits for the save.
-   */
-  const savedSection = async (expected) => {
-    for (let attempt = 0; attempt < 60; attempt++) {
-      const saved = JSON.parse((await rpc('snapshot')).layout ?? '{}');
-      if (saved.section === expected) return true;
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    }
-    return false;
-  };
   const MENUS = [
     { id: 'project-overview', scope: '.project-tools-menu.overview' },
     { id: 'tools-launcher', scope: '.project-tools-menu.launcher' },
   ];
   const menus = async (mode, check = audit, lng = 'en') => {
     const L = (key, values) => label(lng, key, values);
-    const main = page.getByRole('navigation', { name: L('rail.navigation'), exact: true });
     // The project's overview page, where the tool cards are.
     await page.locator('.project-item').filter({ hasText: project.name }).click();
     const views = page.getByRole('navigation', {
@@ -164,20 +157,6 @@ export async function exerciseNativeAccessibility({ page, project, artifactDir, 
       );
     }
     await page.setViewportSize({ width: 1480, height: 960 });
-    // Back to the settings surface: the display-language sync lives there.
-    await main.getByRole('button', { name: L('rail.settings'), exact: true }).click();
-    await page
-      .getByRole('navigation', { name: L('settings.sections'), exact: true })
-      .getByRole('button', { name: L('settings.section.providers'), exact: true })
-      .click();
-    await page
-      .getByRole('heading', { name: L('providerSettings.defaultModel'), exact: true })
-      .waitFor();
-    // The German pass reloads the window; it must reopen on the surface that reads the language.
-    assert.ok(
-      await savedSection('wrongstack'),
-      'The project menus leave the settings surface saved for the next start',
-    );
   };
   const mode = () => page.evaluate(() => document.documentElement.dataset['mode']);
   if ((await mode()) === 'dark')
@@ -190,16 +169,20 @@ export async function exerciseNativeAccessibility({ page, project, artifactDir, 
   await menus('dark');
   await page.getByRole('button', { name: 'Switch to light mode', exact: true }).click();
 
-  // Long labels: the profile's display language is set to German (what the Appearance setting
-  // sends) and the window reloads into it, as it does on its next start.
+  // Wait for Appearance to apply the profile language before checking that it survives reload.
   const setLanguage = async (uiLocale) => {
-    await rpc('profile.send', {
-      message: { type: 'prefs.update', payload: { uiLocale, requestId: crypto.randomUUID() } },
+    const appearance = (lng) =>
+      page.getByRole('button', { name: label(lng, 'rail.appearance'), exact: true });
+    await appearance('en').or(appearance('de')).click();
+    await page.locator('.display-language').selectOption(uiLocale);
+    const translatedNavigation = page.getByRole('navigation', {
+      name: label(uiLocale, 'rail.navigation'),
+      exact: true,
     });
+    await translatedNavigation.waitFor({ timeout: 60000 });
     await page.reload();
-    await page
-      .getByRole('navigation', { name: label(uiLocale, 'rail.navigation'), exact: true })
-      .waitFor({ timeout: 60000 });
+    await translatedNavigation.waitFor({ timeout: 60000 });
+    assert.equal(await page.locator('html').getAttribute('lang'), uiLocale);
   };
   try {
     await setLanguage('de');

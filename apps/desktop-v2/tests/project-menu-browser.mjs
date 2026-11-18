@@ -103,6 +103,13 @@ try {
       await reveal();
       const names = () => page.locator('.project-item > span:last-child').allTextContents();
       assert.equal((await names())[0], 'Alpha');
+      await page.evaluate(() => document.fonts.ready);
+      const labelFits = (name) =>
+        page
+          .getByRole('button', { name, exact: true })
+          .locator('span:last-child')
+          .evaluate((label) => label.scrollWidth <= label.clientWidth);
+      assert.equal(await labelFits('Alpha'), true, `Short project name is clipped at ${width}px`);
       await page.getByRole('button', { name: 'Reorder Beta', exact: true }).focus();
       await page.keyboard.press('Alt+ArrowUp');
       await page.waitForFunction(

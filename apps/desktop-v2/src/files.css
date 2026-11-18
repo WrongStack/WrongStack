@@ -158,6 +158,10 @@
   font-weight: 500;
   margin-left: auto;
 }
+.file-tree-row > .file-git-status::before {
+  /* The status is exposed separately as the tree item's accessible description. */
+  content: attr(data-git-status);
+}
 .status-D,
 .status-U {
   color: var(--danger);
@@ -307,15 +311,18 @@
 }
 .file-document-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  align-content: center;
+  gap: 4px 8px;
   min-height: 38px;
-  padding: 0 13px;
+  padding: 4px 13px;
   border-bottom: 1px solid var(--border);
   font-size: 11px;
   flex-shrink: 0;
 }
 .file-document-path {
+  flex: 1 1 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -921,7 +928,9 @@
 .file-context-menu {
   position: fixed;
   z-index: 20;
-  width: 205px;
+  width: min(205px, calc(100vw - 12px));
+  max-height: calc(100dvh - 12px);
+  overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--raised);
@@ -1072,8 +1081,8 @@
     height: 15px;
   }
   .file-document-toolbar {
-    gap: 2px;
-    padding: 0 8px;
+    column-gap: 2px;
+    padding-inline: 8px;
   }
   .file-document-path {
     font-size: 11px;

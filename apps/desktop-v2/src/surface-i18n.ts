@@ -40,6 +40,9 @@ export function rememberLanguage(language: string): void {
  * own shell. One instance, so the shell and the surfaces always show the same language.
  */
 export const surfaceI18n: i18n = createInstance();
+surfaceI18n.on('languageChanged', (language: string) => {
+  if (typeof document !== 'undefined') document.documentElement.lang = language;
+});
 void surfaceI18n
   .use(initReactI18next)
   .use(

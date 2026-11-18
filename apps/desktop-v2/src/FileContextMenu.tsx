@@ -23,6 +23,23 @@ export function FileContextMenu({
   const box = useRef<HTMLDivElement>(null);
   const opener = useRef<Element | null>(null);
   useLayoutEffect(() => {
+    const menu = box.current;
+    if (!menu) return;
+    const gap = 6;
+    const position = () => {
+      menu.style.left = `${Math.max(gap, Math.min(x, innerWidth - menu.offsetWidth - gap))}px`;
+      menu.style.top = `${Math.max(gap, Math.min(y, innerHeight - menu.offsetHeight - gap))}px`;
+    };
+    position();
+    const observer = new ResizeObserver(position);
+    observer.observe(menu);
+    window.addEventListener('resize', position);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', position);
+    };
+  }, [x, y]);
+  useLayoutEffect(() => {
     opener.current = document.activeElement;
     box.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
     return () => {
@@ -67,7 +84,6 @@ export function FileContextMenu({
         role="menu"
         aria-label={label}
         tabIndex={-1}
-        style={{ left: x, top: y }}
         onKeyDown={(event) => {
           if (event.key === 'Escape' || event.key === 'Tab') {
             event.preventDefault();

@@ -268,6 +268,15 @@
   }
 }
 
+@media (620px <= width <= 800px) {
+  .explorer .project-item {
+    min-height: 32px;
+  }
+  .explorer .project-item > .project-symbol {
+    display: none;
+  }
+}
+
 .rail .compact-explorer-toggle {
   display: none;
 }

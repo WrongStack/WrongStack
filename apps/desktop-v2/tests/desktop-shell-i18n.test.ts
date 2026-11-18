@@ -115,7 +115,7 @@ describe('the shell in the display language', () => {
     const { settingsSections } = await import('../src/settings-fields');
     const field = (key: string) => {
       const found = settingsSections
-        .flatMap((section) => section.fields)
+        .flatMap<import('../src/settings-fields').SettingField>((section) => section.fields)
         .find((f) => f.key === key);
       if (!found) throw new Error(`no field ${key}`);
       return found;
@@ -162,7 +162,7 @@ describe('the shell in the display language', () => {
     const onKnown = vi.fn();
     await act(async () =>
       createRoot(document.createElement('div')).render(
-        createElement(SurfaceLanguageSync, { onKnown }),
+        createElement<{ onKnown: () => void }>(SurfaceLanguageSync, { onKnown }),
       ),
     );
     expect(onKnown).toHaveBeenCalled();
@@ -179,6 +179,19 @@ describe('the shell in the display language', () => {
       await surfaceI18n.loadNamespaces('desktop');
     });
     expect(surfaceI18n.t('desktop:rail.projects')).toBe('Projets');
+  });
+
+  it('exposes the active shell language to assistive technology', async () => {
+    document.documentElement.lang = 'en';
+    localStorage.setItem('wrongstack.desktop.language', 'fr');
+    const { surfaceI18n } = await import('../src/surface-i18n');
+    await surfaceI18n.loadNamespaces('desktop');
+    expect(surfaceI18n.t('desktop:rail.projects')).toBe('Projets');
+    expect(document.documentElement.lang).toBe('fr');
+    await surfaceI18n.changeLanguage('de');
+    expect(document.documentElement.lang).toBe('de');
+    await surfaceI18n.changeLanguage('en');
+    expect(document.documentElement.lang).toBe('en');
   });
 
   it('keeps the remembered language while the profile has not answered yet', async () => {

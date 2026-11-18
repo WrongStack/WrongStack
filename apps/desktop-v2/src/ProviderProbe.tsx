@@ -56,6 +56,7 @@ export function ProviderProbe({
   const [busy, setBusy] = useState(false),
     [outcome, setOutcome] = useState(''),
     [ok, setOk] = useState<boolean | null>(null);
+  const actionLabel = t(busy ? 'providerSettings.probe.checking' : 'providerSettings.probe.check');
   const probe = async () => {
     setBusy(true);
     setOutcome('');
@@ -85,11 +86,10 @@ export function ProviderProbe({
         type="button"
         className="button secondary small"
         disabled={busy}
-        aria-label={t('providerSettings.probe.label', { provider: providerId })}
+        aria-label={`${actionLabel} (${providerId})`}
         onClick={() => void probe()}
       >
-        <Activity size={12} />{' '}
-        {busy ? t('providerSettings.probe.checking') : t('providerSettings.probe.check')}
+        <Activity size={12} /> {actionLabel}
       </button>
       {outcome && (
         <small role="status" className={ok ? '' : 'session-error'}>

@@ -1656,7 +1656,7 @@ try {
       artifacts: artifactDir,
     };
   } else if (a11yOnly) {
-    await exerciseNativeAccessibility({ page, project: a, artifactDir, rpc });
+    await exerciseNativeAccessibility({ page, project: a, artifactDir });
     assert.deepEqual(errors, []);
     result = {
       result: 'PASS',
