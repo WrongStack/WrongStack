@@ -33,6 +33,35 @@ const restoredMessages: Message[] = Array.from({ length: 40 }, (_, index) => [
     ],
   },
 ]).flat();
+if (process.env.WRONGSTACK_PTY_TEST_RICH === '1') {
+  // Clusters that string-width and xterm.js measure differently.
+  restoredMessages.push(
+    { role: 'user', content: [{ type: 'text', text: 'Show rich content ✅ 中文 🚀' }] },
+    {
+      role: 'assistant',
+      content: [
+        {
+          type: 'text',
+          text: [
+            '## Status ✅ done ⚠️ warn',
+            '',
+            '- ⚠️ warning item with VS16 then text RIGHT-EDGE',
+            '- 🚀 rocket 👍🏽 skin tone then text RIGHT-EDGE',
+            '- 中文字符 测试 日本語 한국어 then text RIGHT-EDGE',
+            '- flag 🇹🇷 family 👨‍👩‍👧 zwj then text RIGHT-EDGE',
+            '',
+            '| col | 状态 | note |',
+            '|---|---|---|',
+            '| a ✅ | 完成 | ⚠️ x |',
+            '| bb | 进行中 | 🚀 y |',
+            '',
+            'LAST-RICH-LINE',
+          ].join('\n'),
+        },
+      ],
+    },
+  );
+}
 const events = new EventBus();
 let calls = 0;
 const agent = {

@@ -1812,6 +1812,10 @@
     "packages/tui/src/git-info.ts": [
       "branchLabel"
     ],
+    "packages/tui/src/grapheme-stable-stdout.ts": [
+      "stabilizeGraphemes",
+      "stabilizeTerminalOutput"
+    ],
     "packages/tui/src/history-archive.ts": [
       "MAX_MEMORY_ENTRIES"
     ],

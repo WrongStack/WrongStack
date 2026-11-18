@@ -11,7 +11,7 @@ import {
 import { ALT_SCREEN_OFF } from '../src/mouse.js';
 import { createExitOrchestrator } from '../src/run-tui-exits.js';
 import type { RunTuiOptions } from '../src/run-tui-options.js';
-import { BRACKETED_PASTE_OFF, SYNC_OUTPUT_OFF } from '../src/terminal-modes.js';
+import { AUTOWRAP_ON, BRACKETED_PASTE_OFF, SYNC_OUTPUT_OFF } from '../src/terminal-modes.js';
 
 vi.mock('../src/run-tui-session.js', () => ({
   setupTuiSession: () => ({
@@ -107,9 +107,13 @@ function assertSyncOffBeforeAltScreenOff(writes: readonly string[]): void {
   const syncOffIdx = combined.indexOf(SYNC_OUTPUT_OFF);
   const pasteOffIdx = combined.indexOf(BRACKETED_PASTE_OFF);
   const altOffIdx = combined.indexOf(ALT_SCREEN_OFF);
+  const autowrapOnIdx = combined.indexOf(AUTOWRAP_ON);
   expect(syncOffIdx).toBeGreaterThanOrEqual(0);
   expect(pasteOffIdx).toBeGreaterThan(syncOffIdx);
   expect(altOffIdx).toBeGreaterThan(syncOffIdx);
+  // The shell gets autowrap back before its screen is restored.
+  expect(autowrapOnIdx).toBeGreaterThanOrEqual(0);
+  expect(altOffIdx).toBeGreaterThan(autowrapOnIdx);
 }
 
 describe('createExitOrchestrator DECSET 2026 teardown across all 6 exit paths', () => {

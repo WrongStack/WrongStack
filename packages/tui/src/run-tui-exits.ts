@@ -8,7 +8,12 @@ import { ALT_SCREEN_OFF, MOUSE_OFF } from './mouse.js';
 import type { RunTuiOptions } from './run-tui-options.js';
 import { setupTuiSession } from './run-tui-session.js';
 import { createDurableTeardown } from './run-tui-teardown.js';
-import { BRACKETED_PASTE_OFF, KITTY_DELETE_ALL_IMAGES, SYNC_OUTPUT_OFF } from './terminal-modes.js';
+import {
+  AUTOWRAP_ON,
+  BRACKETED_PASTE_OFF,
+  KITTY_DELETE_ALL_IMAGES,
+  SYNC_OUTPUT_OFF,
+} from './terminal-modes.js';
 import { unsilenceTerminal } from './terminal-silence.js';
 
 /** Everything runTui needs from the exit wiring after handing it over. */
@@ -123,6 +128,9 @@ export function createExitOrchestrator(deps: ExitOrchestratorDeps): ExitOrchestr
       // Unconditionally close any DECSET 2026 synchronized frame before leaving
       // TUI modes so a mid-frame exit can never strand the terminal buffered.
       stdout.write(SYNC_OUTPUT_OFF);
+      // The shell expects autowrap; restoring it is a no-op when it was never
+      // turned off, so it is written unconditionally like the modes below.
+      stdout.write(AUTOWRAP_ON);
       stdout.write(BRACKETED_PASTE_OFF);
       // Disabling unset modes is a no-op, so this is safe even when mouse
       // tracking was never enabled — guarantees no leaked mouse reporting.

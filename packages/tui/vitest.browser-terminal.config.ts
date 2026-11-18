@@ -5,7 +5,12 @@ export default defineConfig({
   ...base,
   test: {
     ...base.test,
-    include: ['tests/browser-terminal.browser.tsx', 'tests/browser-pty.browser.ts'],
+    include: [
+      'tests/browser-terminal.browser.tsx',
+      'tests/browser-pty.browser.ts',
+      'tests/browser-graphemes.browser.tsx',
+      'tests/browser-pty-graphemes.browser.ts',
+    ],
     env: { WRONGSTACK_TUI_ICON_STYLE: 'browser', WRONGSTACK_TUI_TERMINAL: 'browser' },
     maxWorkers: 1,
   },

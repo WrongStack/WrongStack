@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1003,
+      "files": 1004,
       "typeOnly": 76,
-      "runtimeOrMixed": 962
+      "runtimeOrMixed": 963
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -16404,6 +16404,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tui/src/git-info.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tui/src/grapheme-stable-stdout.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

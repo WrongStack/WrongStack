@@ -2,6 +2,7 @@ import { isFrugalPerf } from '@wrongstack/core/utils';
 import { type RenderOptions, render } from 'ink';
 import type React from 'react';
 import { createFrameDiffStdout, tuiFrameDiffEnabled } from './frame-diff-stdout.js';
+import { createGraphemeStableStdout, resolveGraphemePolicy } from './grapheme-stable-stdout.js';
 
 /** Ink mount handle: the instance signal handlers unmount, plus the resize unsubscription. */
 export interface MountInkAppResult {
@@ -63,9 +64,14 @@ export function mountInkApp(deps: {
     // Ink repaints viewport-filling frames whole on Windows consoles; the
     // differ turns those into writes of just the rows that changed.
     const frameDiff = createFrameDiffStdout(deps.stdout, { enabled: tuiFrameDiffEnabled() });
+    // Emoji sequences are rewritten to widths every terminal agrees on before
+    // the differ remembers a row, so both see the same bytes.
+    const inkStdout = createGraphemeStableStdout(frameDiff.stream, {
+      enabled: resolveGraphemePolicy() === 'safe',
+    });
     const instance = render(
       deps.appElement,
-      tuiRenderOptions({ inkStdin: deps.inkStdin, stdout: frameDiff.stream }),
+      tuiRenderOptions({ inkStdin: deps.inkStdin, stdout: inkStdout }),
     );
     // Arm the last-resort raw Ctrl+C watcher now that Ink owns stdin —
     // attaching a 'data' listener earlier would flip the stream into
@@ -75,7 +81,14 @@ export function mountInkApp(deps: {
     // Terminal reflows visible text on resize BEFORE Ink can react, which can
     // leave ghosts below the cursor. Erase from-cursor-to-end on every resize
     // to minimize artifacts. Ink immediately re-renders at the new width.
+    let size = `${deps.stdout.columns}x${deps.stdout.rows}`;
     const onResize = (): void => {
+      // A host may report a resize that changed no cell (a browser terminal's
+      // fit addon re-sending its grid). Ink does not repaint for it, so the
+      // erase below would leave the rows under the cursor blank.
+      const next = `${deps.stdout.columns}x${deps.stdout.rows}`;
+      if (next === size) return;
+      size = next;
       // The erase below bypasses the frame differ, and the terminal reflowed.
       frameDiff.invalidate();
       try {

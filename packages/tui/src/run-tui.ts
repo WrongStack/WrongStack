@@ -18,7 +18,7 @@ import { mountInkApp } from './run-tui-mount.js';
 import type { RunTuiOptions } from './run-tui-options.js';
 import { createRunTuiTitleController } from './run-tui-title-controller.js';
 import { createSynchronizedStdout, stripTerminalGraphicsResponses } from './sync-stdout.js';
-import { BRACKETED_PASTE_ON, KITTY_DELETE_ALL_IMAGES } from './terminal-modes.js';
+import { AUTOWRAP_OFF, BRACKETED_PASTE_ON, KITTY_DELETE_ALL_IMAGES } from './terminal-modes.js';
 
 // Re-export autonomy stage types from core for backward compatibility
 export type { AutonomyStage } from '@wrongstack/contracts/types';
@@ -236,6 +236,9 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
       // terminals disable native scrollback/scrollbars for that buffer.
       stdout.write(ALT_SCREEN_ON);
       exits.markAlternateScreenActive();
+      // Autowrap off for the session; the exit orchestrator turns it back on
+      // before the normal screen is restored (see AUTOWRAP_OFF).
+      stdout.write(AUTOWRAP_OFF);
       stdout.write(BRACKETED_PASTE_ON);
       stdout.write('\x1b[2J\x1b[H');
 
