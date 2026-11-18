@@ -22,6 +22,8 @@ import { activityRows } from './session-activity-model';
 import { surfaceI18n } from './surface-i18n';
 import { StructuredToolValue } from './ToolApprovalCard';
 import { ToolInputView } from './ToolInputView';
+import { ToolKindIcon } from './ToolKindIcon';
+import { toolInputHint } from './tool-input-view';
 import { ToolOutputActions } from './ToolOutputActions';
 import './session-activity.css';
 import { LazyDetails } from './LazyDetails';
@@ -119,174 +121,186 @@ export function SessionActivity({
         <p className="quiet-state">{rows.length ? t('runLog.noMatch') : t('runLog.empty')}</p>
       )}
       <div className="activity-list">
-        {shown.flatMap((row) => [
-          row.kind === 'tool' && row.title === 'design_reference' ? (
-            <DesignExtractionCard
-              key={`design:${row.id}`}
-              row={row}
-              projectRoot={projectRoot}
-              onOpenFile={onOpenFile}
-              onOpenDesign={onOpenDesign}
-            />
-          ) : null,
-          row.kind === 'tool' && row.title === 'design_reference' ? (
-            <DesignReviewCard
-              key={`review:${row.id}`}
-              row={row}
-              projectRoot={projectRoot}
-              onOpenFile={onOpenFile}
-            />
-          ) : null,
-          <LazyDetails
-            key={row.id}
-            className={`activity-entry activity-${row.status}`}
-            summary={
-              <summary>
-                <span className="activity-entry-icon">
-                  {row.kind === 'tool' ? (
-                    <Wrench size={15} />
-                  ) : row.kind === 'reasoning' ? (
-                    <Brain size={15} />
-                  ) : row.kind === 'retry' ? (
-                    <RotateCw size={15} />
-                  ) : (
-                    <Activity size={15} />
-                  )}
-                </span>
-                <span className="activity-entry-label">
-                  <strong>
-                    {row.label ? t(row.label.key, row.label.values ?? {}) : row.title}
-                  </strong>
-                  <small>
-                    {row.agent ? `${row.agent} · ` : ''}
-                    {row.status === 'running'
-                      ? t('runLog.status.running')
-                      : row.status === 'done'
-                        ? t('runLog.status.done')
-                        : row.status === 'failed'
-                          ? t('runLog.status.failed')
-                          : row.status === 'aborted'
-                            ? t('runLog.status.aborted')
-                            : row.kind === 'retry'
-                              ? t('runLog.status.retry')
-                              : t('runLog.status.recorded')}
-                  </small>
-                </span>
-                {row.durationMs !== undefined && (
-                  <small className="activity-metric">
-                    <Clock3 size={12} />{' '}
-                    {row.kind === 'retry'
-                      ? t('runLog.wait', { ms: row.durationMs })
-                      : `${row.durationMs} ms`}
-                  </small>
-                )}
-                {row.outputBytes !== undefined && (
-                  <small className="activity-metric">
-                    {t('runLog.bytes', { bytes: row.outputBytes.toLocaleString() })}
-                  </small>
-                )}
-                {row.status === 'running' ? (
-                  <LoaderCircle size={14} className="spin" />
-                ) : row.status === 'failed' ? (
-                  <XCircle size={14} />
-                ) : row.status === 'done' ? (
-                  <CheckCircle2 size={14} />
-                ) : null}
-              </summary>
-            }
-          >
-            <div className="activity-entry-body">
-              {row.kind === 'tool' && (
-                <I18nextProvider i18n={surfaceI18n}>
-                  <div className="ws-surfaces">
-                    <ToolCallOverview
-                      message={{
-                        toolName: row.title,
-                        toolInput: row.input,
-                        toolResult: row.output,
-                        toolOutputBytes: row.outputBytes,
-                      }}
-                    />
-                  </div>
-                </I18nextProvider>
-              )}
-              {row.input !== undefined && (
-                <section className="approval-arguments" aria-label={t('runLog.inputLabel')}>
-                  <strong>{t('runLog.input')}</strong>
-                  {row.kind === 'tool' ? (
-                    <ToolInputView name={row.title} input={row.input} />
-                  ) : (
-                    <StructuredToolValue value={row.input} />
-                  )}
-                </section>
-              )}
-              {row.progress.length > 0 && (
-                <section>
-                  <h4>{t('runLog.progress')}</h4>
-                  {row.progress.map((text, i) => (
-                    <pre key={i}>{text}</pre>
-                  ))}
-                </section>
-              )}
-              {row.output && (
-                <section>
-                  {/* The actions sit beside the heading, not in it: a heading is named by its
-                      text, so "Output" must not read as "Output exit 0 Copy Save". */}
-                  <div className="activity-output-heading">
-                    <h4>
-                      {row.kind === 'reasoning'
-                        ? t('runLog.thinking')
-                        : row.kind === 'retry'
-                          ? t('runLog.retryDetails')
-                          : row.outputBytes !== undefined &&
-                              row.outputBytes > new TextEncoder().encode(row.output).length
-                            ? t('runLog.outputPreview')
-                            : t('runLog.output')}
-                    </h4>
-                    {row.kind === 'tool' && (
-                      <ToolOutputActions tool={row.title} output={row.output} />
+        {shown.flatMap((row) => {
+          // The collapsed chat row names what the call acted on; its status is the trailing icon.
+          const hint = compact && row.kind === 'tool' ? toolInputHint(row.title, row.input) : '';
+          return [
+            row.kind === 'tool' && row.title === 'design_reference' ? (
+              <DesignExtractionCard
+                key={`design:${row.id}`}
+                row={row}
+                projectRoot={projectRoot}
+                onOpenFile={onOpenFile}
+                onOpenDesign={onOpenDesign}
+              />
+            ) : null,
+            row.kind === 'tool' && row.title === 'design_reference' ? (
+              <DesignReviewCard
+                key={`review:${row.id}`}
+                row={row}
+                projectRoot={projectRoot}
+                onOpenFile={onOpenFile}
+              />
+            ) : null,
+            <LazyDetails
+              key={row.id}
+              className={`activity-entry activity-${row.status} activity-kind-${row.kind}`}
+              summary={
+                <summary>
+                  <span className="activity-entry-icon">
+                    {row.kind === 'tool' ? (
+                      compact ? (
+                        <ToolKindIcon name={row.title} size={15} />
+                      ) : (
+                        <Wrench size={15} />
+                      )
+                    ) : row.kind === 'reasoning' ? (
+                      <Brain size={15} />
+                    ) : row.kind === 'retry' ? (
+                      <RotateCw size={15} />
+                    ) : (
+                      <Activity size={15} />
                     )}
-                  </div>
-                  <div className="approval-arguments">
-                    <StructuredToolValue value={readableOutput(row.output)} />
-                  </div>
-                  {command && row.kind === 'tool' && row.title === 'image_generate' && (
-                    <GeneratedImages output={row.output} command={command} />
+                  </span>
+                  <span className="activity-entry-label">
+                    <strong>
+                      {row.label ? t(row.label.key, row.label.values ?? {}) : row.title}
+                    </strong>
+                    <small>
+                      {row.agent ? `${row.agent} · ` : ''}
+                      {hint ? (
+                        <span className="activity-entry-hint">{hint}</span>
+                      ) : row.status === 'running' ? (
+                        t('runLog.status.running')
+                      ) : row.status === 'done' ? (
+                        t('runLog.status.done')
+                      ) : row.status === 'failed' ? (
+                        t('runLog.status.failed')
+                      ) : row.status === 'aborted' ? (
+                        t('runLog.status.aborted')
+                      ) : row.kind === 'retry' ? (
+                        t('runLog.status.retry')
+                      ) : (
+                        t('runLog.status.recorded')
+                      )}
+                    </small>
+                  </span>
+                  {row.durationMs !== undefined && (
+                    <small className="activity-metric">
+                      <Clock3 size={12} />{' '}
+                      {row.kind === 'retry'
+                        ? t('runLog.wait', { ms: row.durationMs })
+                        : `${row.durationMs} ms`}
+                    </small>
                   )}
-                </section>
-              )}
-              {row.files.length > 0 && (
-                <section>
-                  <h4>{t('runLog.files')}</h4>
-                  <div className="activity-files">
-                    {row.files.map((file) => (
-                      <button type="button" key={file.path} onClick={() => onOpenFile(file.path)}>
-                        <FileCode2 size={13} />
-                        <span>{file.path}</span>
-                        <small>{file.operation}</small>
-                      </button>
+                  {row.outputBytes !== undefined && (
+                    <small className="activity-metric">
+                      {t('runLog.bytes', { bytes: row.outputBytes.toLocaleString() })}
+                    </small>
+                  )}
+                  {row.status === 'running' ? (
+                    <LoaderCircle size={14} className="spin" />
+                  ) : row.status === 'failed' ? (
+                    <XCircle size={14} />
+                  ) : row.status === 'done' ? (
+                    <CheckCircle2 size={14} />
+                  ) : null}
+                </summary>
+              }
+            >
+              <div className="activity-entry-body">
+                {row.kind === 'tool' && (
+                  <I18nextProvider i18n={surfaceI18n}>
+                    <div className="ws-surfaces">
+                      <ToolCallOverview
+                        message={{
+                          toolName: row.title,
+                          toolInput: row.input,
+                          toolResult: row.output,
+                          toolOutputBytes: row.outputBytes,
+                        }}
+                      />
+                    </div>
+                  </I18nextProvider>
+                )}
+                {row.input !== undefined && (
+                  <section className="approval-arguments" aria-label={t('runLog.inputLabel')}>
+                    <strong>{t('runLog.input')}</strong>
+                    {row.kind === 'tool' ? (
+                      <ToolInputView name={row.title} input={row.input} />
+                    ) : (
+                      <StructuredToolValue value={row.input} />
+                    )}
+                  </section>
+                )}
+                {row.progress.length > 0 && (
+                  <section>
+                    <h4>{t('runLog.progress')}</h4>
+                    {row.progress.map((text, i) => (
+                      <pre key={i}>{text}</pre>
                     ))}
-                  </div>
-                </section>
-              )}
-              {row.sage.length > 0 && (
-                <section>
-                  <h4>{t('runLog.sage')}</h4>
-                  <ul>
-                    {row.sage.map((memory, i) => (
-                      <li key={i}>{memory}</li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-              {!row.input &&
-                !row.output &&
-                !row.progress.length &&
-                !row.files.length &&
-                !row.sage.length && <p>{t('runLog.noDetails')}</p>}
-            </div>
-          </LazyDetails>,
-        ])}
+                  </section>
+                )}
+                {row.output && (
+                  <section>
+                    {/* The actions sit beside the heading, not in it: a heading is named by its
+                      text, so "Output" must not read as "Output exit 0 Copy Save". */}
+                    <div className="activity-output-heading">
+                      <h4>
+                        {row.kind === 'reasoning'
+                          ? t('runLog.thinking')
+                          : row.kind === 'retry'
+                            ? t('runLog.retryDetails')
+                            : row.outputBytes !== undefined &&
+                                row.outputBytes > new TextEncoder().encode(row.output).length
+                              ? t('runLog.outputPreview')
+                              : t('runLog.output')}
+                      </h4>
+                      {row.kind === 'tool' && (
+                        <ToolOutputActions tool={row.title} output={row.output} />
+                      )}
+                    </div>
+                    <div className="approval-arguments">
+                      <StructuredToolValue value={readableOutput(row.output)} />
+                    </div>
+                    {command && row.kind === 'tool' && row.title === 'image_generate' && (
+                      <GeneratedImages output={row.output} command={command} />
+                    )}
+                  </section>
+                )}
+                {row.files.length > 0 && (
+                  <section>
+                    <h4>{t('runLog.files')}</h4>
+                    <div className="activity-files">
+                      {row.files.map((file) => (
+                        <button type="button" key={file.path} onClick={() => onOpenFile(file.path)}>
+                          <FileCode2 size={13} />
+                          <span>{file.path}</span>
+                          <small>{file.operation}</small>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                )}
+                {row.sage.length > 0 && (
+                  <section>
+                    <h4>{t('runLog.sage')}</h4>
+                    <ul>
+                      {row.sage.map((memory, i) => (
+                        <li key={i}>{memory}</li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+                {!row.input &&
+                  !row.output &&
+                  !row.progress.length &&
+                  !row.files.length &&
+                  !row.sage.length && <p>{t('runLog.noDetails')}</p>}
+              </div>
+            </LazyDetails>,
+          ];
+        })}
       </div>
     </section>
   );

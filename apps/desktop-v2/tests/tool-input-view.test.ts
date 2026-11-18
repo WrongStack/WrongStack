@@ -5,7 +5,7 @@ import { ConversationWelcome } from '../src/ConversationWelcome';
 import { buildDesktopDesignPrompt } from '../src/design-dna-prompt';
 import { surfaceI18n } from '../src/surface-i18n';
 import { ToolInputView } from '../src/ToolInputView';
-import { toolInputView, WRITE_PREVIEW_LINES } from '../src/tool-input-view';
+import { toolInputHint, toolInputView, WRITE_PREVIEW_LINES } from '../src/tool-input-view';
 
 describe('tool-specific input views', () => {
   it('shows an edit as removed and added lines', () => {
@@ -160,5 +160,27 @@ describe('ConversationWelcome Design DNA synthesis launcher', () => {
     });
     expect(prompt).toContain('url: "https://linear.app", maxPages: 6');
     expect(prompt).toContain('files: [".design/references/<slug>/DESIGN.md"]');
+  });
+});
+
+describe('one-line input hint for a collapsed chat row', () => {
+  it('names the file, command or pattern a call acted on', () => {
+    expect(toolInputHint('edit', { path: 'a.ts', old_string: 'x', new_string: 'y' })).toBe('a.ts');
+    expect(toolInputHint('read', { path: 'a.ts' })).toBe('a.ts');
+    expect(toolInputHint('read', { path: 'a.ts', offset: 3, limit: 2 })).toBe('a.ts · lines 3–4');
+    expect(toolInputHint('exec', { command: 'git', args: ['status', '--short'] })).toBe(
+      'git status --short',
+    );
+    expect(toolInputHint('grep', { pattern: 'todo', path: 'src' })).toBe('todo · src');
+    expect(toolInputHint('fetch', { url: 'https://x.test' })).toBe('https://x.test');
+  });
+
+  it('keeps the hint to one short line and is empty when the input names nothing', () => {
+    expect(toolInputHint('bash', { command: 'echo a\n  && echo b' })).toBe('echo a && echo b');
+    const long = toolInputHint('bash', { command: 'x'.repeat(300) });
+    expect(long).toHaveLength(120);
+    expect(long.endsWith('…')).toBe(true);
+    expect(toolInputHint('mystery', { count: 3 })).toBe('');
+    expect(toolInputHint('mystery', undefined)).toBe('');
   });
 });

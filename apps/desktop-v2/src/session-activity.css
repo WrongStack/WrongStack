@@ -216,3 +216,58 @@
   margin: 6px 0;
   background: color-mix(in srgb, var(--text) 4%, transparent);
 }
+
+/* In the conversation a collapsed tool row names what it acted on (the file, command or
+   pattern) in one line; its status is the icon at the end of the row. */
+.activity-entry-hint {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--user-font-code, monospace);
+  font-size: 11px;
+}
+/* Iteration boundaries in the conversation are quiet separators between the calls, not cards
+   of their own; a failed run result keeps its card so its error stays in view. */
+.session-activity-compact .activity-kind-run:not(.activity-failed) {
+  border-color: transparent;
+  background: transparent;
+}
+.session-activity-compact .activity-kind-run:not(.activity-failed) > summary {
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding: 2px 4px;
+  color: var(--muted);
+}
+.session-activity-compact .activity-kind-run:not(.activity-failed) > summary::after {
+  content: "";
+  flex: 1 1 auto;
+  order: 1;
+  height: 1px;
+  background: var(--border);
+}
+.session-activity-compact .activity-kind-run:not(.activity-failed) > summary > * {
+  order: 2;
+}
+.session-activity-compact .activity-kind-run:not(.activity-failed) .activity-entry-icon {
+  order: 0;
+  color: var(--muted);
+}
+.session-activity-compact .activity-kind-run:not(.activity-failed) .activity-entry-label {
+  display: flex;
+  flex: none;
+  order: 0;
+  align-items: baseline;
+  gap: 6px;
+}
+.session-activity-compact .activity-kind-run:not(.activity-failed) .activity-entry-label strong {
+  font-size: 11px;
+  font-weight: 600;
+}
+.session-activity-compact .activity-kind-run:not(.activity-failed) .activity-entry-icon svg {
+  width: 12px;
+  height: 12px;
+}
+.session-activity-compact .activity-kind-tool.activity-failed {
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+}

@@ -137,3 +137,36 @@ export function toolInputView(name: string, input: unknown): ToolInputView {
   }
   return { kind: 'generic' };
 }
+
+/** Input keys that name what an unrecognised tool acts on, most telling first. */
+const HINT_KEYS = ['path', 'file', 'url', 'query', 'pattern', 'command', 'task', 'name'];
+const HINT_LIMIT = 120;
+
+/**
+ * One line naming what a tool call acted on (the file read or edited, the command run, the
+ * pattern searched), for a collapsed row in the conversation. Empty when the input names nothing.
+ */
+export function toolInputHint(name: string, input: unknown): string {
+  const view = toolInputView(name, input);
+  const value = record(input);
+  const hint =
+    view.kind === 'edit' || view.kind === 'write'
+      ? view.path
+      : view.kind === 'read'
+        ? view.range === 'whole file'
+          ? view.path
+          : `${view.path} · ${view.range}`
+        : view.kind === 'command'
+          ? view.command
+          : view.kind === 'search'
+            ? view.path
+              ? `${view.pattern} · ${view.path}`
+              : view.pattern
+            : view.kind === 'replace'
+              ? view.pattern
+              : view.kind === 'design_reference'
+                ? view.target
+                : (HINT_KEYS.map((key) => text(value[key]).trim()).find(Boolean) ?? '');
+  const line = hint.replace(/\s+/g, ' ').trim();
+  return line.length > HINT_LIMIT ? `${line.slice(0, HINT_LIMIT - 1)}…` : line;
+}

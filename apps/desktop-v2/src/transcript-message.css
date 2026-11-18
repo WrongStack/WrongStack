@@ -90,6 +90,23 @@
 .native-chat-messages .transcript-row > .chat-run-activity .activity-entry-body {
   padding: 12px 14px 14px;
 }
+.native-chat-messages
+  .transcript-row
+  > .chat-run-activity
+  .activity-kind-run:not(.activity-failed) {
+  border-color: transparent;
+  background: transparent;
+}
+.native-chat-messages
+  .transcript-row
+  > .chat-run-activity
+  .activity-kind-run:not(.activity-failed)
+  > summary {
+  padding: 2px 4px;
+}
+.native-chat-messages .transcript-row > .chat-run-activity .activity-kind-tool.activity-failed {
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+}
 @media (prefers-reduced-motion: reduce) {
   .native-chat-messages .transcript-row > .chat-run-activity > summary,
   .native-chat-messages .transcript-row > .chat-run-activity .activity-entry {
