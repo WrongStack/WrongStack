@@ -4,10 +4,79 @@
     "name": "OpenAI Codex (ChatGPT sign-in)",
     "doc": "https://developers.openai.com/codex/models",
     "models": {
+      "gpt-6.2-sol": {
+        "id": "gpt-6.2-sol",
+        "name": "GPT-6.2-Sol",
+        "description": "Fast, go-to model for coding and everyday work.",
+        "release_date": "2026-11-17",
+        "knowledge": "2026-06-01",
+        "reasoning": true,
+        "reasoning_options": [
+          {
+            "type": "effort",
+            "values": ["low", "medium", "high", "xhigh", "max"]
+          }
+        ],
+        "tool_call": true,
+        "modalities": {
+          "input": ["text", "image", "audio"],
+          "output": ["text"]
+        },
+        "limit": {
+          "context": 872000,
+          "output": 128000
+        }
+      },
+      "gpt-6.2-astra": {
+        "id": "gpt-6.2-astra",
+        "name": "GPT-6.2-Astra",
+        "description": "Our most capable model for complex coding and professional work.",
+        "release_date": "2026-11-17",
+        "knowledge": "2026-05-18",
+        "reasoning": true,
+        "reasoning_options": [
+          {
+            "type": "effort",
+            "values": ["low", "medium", "high", "xhigh", "max"]
+          }
+        ],
+        "tool_call": true,
+        "modalities": {
+          "input": ["text", "image"],
+          "output": ["text"]
+        },
+        "limit": {
+          "context": 872000,
+          "output": 128000
+        }
+      },
+      "gpt-6.1-terra": {
+        "id": "gpt-6.1-terra",
+        "name": "GPT-6.1 Terra",
+        "description": "Efficient model that excels at visual understanding and computer use.",
+        "release_date": "2026-10-26",
+        "knowledge": "2026-06-01",
+        "reasoning": true,
+        "reasoning_options": [
+          {
+            "type": "effort",
+            "values": ["low", "medium", "high", "xhigh", "max"]
+          }
+        ],
+        "tool_call": true,
+        "modalities": {
+          "input": ["text", "image"],
+          "output": ["text"]
+        },
+        "limit": {
+          "context": 872000,
+          "output": 128000
+        }
+      },
       "gpt-6.1-sol": {
         "id": "gpt-6.1-sol",
         "name": "GPT-6.1-Sol",
-        "description": "Latest workhorse model for coding and everyday work.",
+        "description": "Previous generation model for coding and everyday work.",
         "release_date": "2026-09-29",
         "knowledge": "2026-04-30",
         "reasoning": true,
@@ -30,7 +99,7 @@
       "gpt-6-astra": {
         "id": "gpt-6-astra",
         "name": "GPT-6-Astra",
-        "description": "Frontier intelligence for the most demanding work.",
+        "description": "Previous generation model for complex coding and professional work.",
         "release_date": "2026-09-04",
         "knowledge": "2026-04-30",
         "reasoning": true,
@@ -53,7 +122,7 @@
       "gpt-6-sol": {
         "id": "gpt-6-sol",
         "name": "GPT-6-Sol",
-        "description": "Previous generation workhorse model.",
+        "description": "Legacy model for coding and everyday work.",
         "release_date": "2026-09-22",
         "knowledge": "2026-04-20",
         "reasoning": true,
@@ -99,7 +168,7 @@
       "gpt-5.6-sol": {
         "id": "gpt-5.6-sol",
         "name": "GPT-5.6-Sol",
-        "description": "Older generation workhorse model.",
+        "description": "Legacy model for coding and everyday work.",
         "release_date": "2026-07-09",
         "knowledge": "2026-02-16",
         "reasoning": true,
@@ -122,7 +191,7 @@
       "gpt-5.6-terra": {
         "id": "gpt-5.6-terra",
         "name": "GPT-5.6-Terra",
-        "description": "Older balanced model for straightforward work.",
+        "description": "Legacy balanced model for agentic coding.",
         "release_date": "2026-07-09",
         "knowledge": "2026-02-16",
         "reasoning": true,
@@ -145,8 +214,31 @@
       "gpt-5.6-luna": {
         "id": "gpt-5.6-luna",
         "name": "GPT-5.6-Luna",
-        "description": "Older fast and efficient model.",
+        "description": "Legacy fast model for simpler tasks.",
         "release_date": "2026-07-09",
+        "knowledge": "2026-02-16",
+        "reasoning": true,
+        "reasoning_options": [
+          {
+            "type": "effort",
+            "values": ["low", "medium", "high", "xhigh", "max"]
+          }
+        ],
+        "tool_call": true,
+        "modalities": {
+          "input": ["text", "image"],
+          "output": ["text"]
+        },
+        "limit": {
+          "context": 872000,
+          "output": 128000
+        }
+      },
+      "gpt-daybreak-blue-latest": {
+        "id": "gpt-daybreak-blue-latest",
+        "name": "Daybreak Blue",
+        "description": "Latest frontier agentic coding model for broad defensive cybersecurity work.",
+        "release_date": "2026-08-07",
         "knowledge": "2026-02-16",
         "reasoning": true,
         "reasoning_options": [
@@ -171,10 +263,79 @@
     "id": "openai-chatgpt",
     "name": "OpenAI (ChatGPT plan)",
     "models": {
+      "gpt-6.2-sol": {
+        "id": "gpt-6.2-sol",
+        "name": "GPT-6.2-Sol",
+        "description": "Fast, go-to model for coding and everyday work.",
+        "release_date": "2026-11-17",
+        "knowledge": "2026-06-01",
+        "reasoning": true,
+        "reasoning_options": [
+          {
+            "type": "effort",
+            "values": ["low", "medium", "high", "xhigh", "max"]
+          }
+        ],
+        "tool_call": true,
+        "modalities": {
+          "input": ["text", "image", "audio"],
+          "output": ["text"]
+        },
+        "limit": {
+          "context": 872000,
+          "output": 128000
+        }
+      },
+      "gpt-6.2-astra": {
+        "id": "gpt-6.2-astra",
+        "name": "GPT-6.2-Astra",
+        "description": "Our most capable model for complex coding and professional work.",
+        "release_date": "2026-11-17",
+        "knowledge": "2026-05-18",
+        "reasoning": true,
+        "reasoning_options": [
+          {
+            "type": "effort",
+            "values": ["low", "medium", "high", "xhigh", "max"]
+          }
+        ],
+        "tool_call": true,
+        "modalities": {
+          "input": ["text", "image"],
+          "output": ["text"]
+        },
+        "limit": {
+          "context": 872000,
+          "output": 128000
+        }
+      },
+      "gpt-6.1-terra": {
+        "id": "gpt-6.1-terra",
+        "name": "GPT-6.1 Terra",
+        "description": "Efficient model that excels at visual understanding and computer use.",
+        "release_date": "2026-10-26",
+        "knowledge": "2026-06-01",
+        "reasoning": true,
+        "reasoning_options": [
+          {
+            "type": "effort",
+            "values": ["low", "medium", "high", "xhigh", "max"]
+          }
+        ],
+        "tool_call": true,
+        "modalities": {
+          "input": ["text", "image"],
+          "output": ["text"]
+        },
+        "limit": {
+          "context": 872000,
+          "output": 128000
+        }
+      },
       "gpt-6.1-sol": {
         "id": "gpt-6.1-sol",
         "name": "GPT-6.1-Sol",
-        "description": "Latest workhorse model for coding and everyday work.",
+        "description": "Previous generation model for coding and everyday work.",
         "release_date": "2026-09-29",
         "knowledge": "2026-04-30",
         "reasoning": true,
@@ -197,7 +358,7 @@
       "gpt-6-astra": {
         "id": "gpt-6-astra",
         "name": "GPT-6-Astra",
-        "description": "Frontier intelligence for the most demanding work.",
+        "description": "Previous generation model for complex coding and professional work.",
         "release_date": "2026-09-04",
         "knowledge": "2026-04-30",
         "reasoning": true,
@@ -220,7 +381,7 @@
       "gpt-6-sol": {
         "id": "gpt-6-sol",
         "name": "GPT-6-Sol",
-        "description": "Previous generation workhorse model.",
+        "description": "Legacy model for coding and everyday work.",
         "release_date": "2026-09-22",
         "knowledge": "2026-04-20",
         "reasoning": true,
@@ -266,7 +427,7 @@
       "gpt-5.6-sol": {
         "id": "gpt-5.6-sol",
         "name": "GPT-5.6-Sol",
-        "description": "Older generation workhorse model.",
+        "description": "Legacy model for coding and everyday work.",
         "release_date": "2026-07-09",
         "knowledge": "2026-02-16",
         "reasoning": true,
@@ -289,7 +450,7 @@
       "gpt-5.6-terra": {
         "id": "gpt-5.6-terra",
         "name": "GPT-5.6-Terra",
-        "description": "Older balanced model for straightforward work.",
+        "description": "Legacy balanced model for agentic coding.",
         "release_date": "2026-07-09",
         "knowledge": "2026-02-16",
         "reasoning": true,
@@ -312,8 +473,31 @@
       "gpt-5.6-luna": {
         "id": "gpt-5.6-luna",
         "name": "GPT-5.6-Luna",
-        "description": "Older fast and efficient model.",
+        "description": "Legacy fast model for simpler tasks.",
         "release_date": "2026-07-09",
+        "knowledge": "2026-02-16",
+        "reasoning": true,
+        "reasoning_options": [
+          {
+            "type": "effort",
+            "values": ["low", "medium", "high", "xhigh", "max"]
+          }
+        ],
+        "tool_call": true,
+        "modalities": {
+          "input": ["text", "image"],
+          "output": ["text"]
+        },
+        "limit": {
+          "context": 872000,
+          "output": 128000
+        }
+      },
+      "gpt-daybreak-blue-latest": {
+        "id": "gpt-daybreak-blue-latest",
+        "name": "Daybreak Blue",
+        "description": "Latest frontier agentic coding model for broad defensive cybersecurity work.",
+        "release_date": "2026-08-07",
         "knowledge": "2026-02-16",
         "reasoning": true,
         "reasoning_options": [

@@ -33,8 +33,9 @@ Both ChatGPT account catalogs — `chatgpt.com/backend-api/codex/models` (`opena
 | none (plan API) / `0.153.4` | gpt-6-astra, gpt-5.6-sol/terra/luna, gpt-5.5 |
 | `0.155.0`–`0.158.0` | + gpt-6-sol, gpt-6-luna |
 | `0.159.0`+ | + gpt-6.1-sol, and gpt-5.5's retirement notice (`upgrade`) |
+| `0.170.0` (checked 2026-11-18; absent at `0.160.0`) | + gpt-6.2-sol, gpt-6.2-astra (published minimum `0.166.0`) |
 
-WrongStack pinned `0.153.4` and the plan API was queried with no version at all, so 3 of the account's 8 models never appeared. The pin is now `CODEX_CLIENT_VERSION = '0.160.0'` (`packages/providers/src/oauth/codex-protocol.ts`), and it is sent on every catalog request for both providers. To unhide a newer rollout without waiting for a release, set `WRONGSTACK_CODEX_CLIENT_VERSION=<semver>`; compare with `npm view @openai/codex version`. Both providers were checked live with a one-shot request to `gpt-6.1-sol`.
+WrongStack pinned `0.153.4` and the plan API was queried with no version at all, so 3 of the account's 8 models never appeared. The pin is now `CODEX_CLIENT_VERSION = '0.170.0'` (`packages/providers/src/oauth/codex-protocol.ts`), and it is sent on every catalog request for both providers. To unhide a newer rollout without waiting for a release, set `WRONGSTACK_CODEX_CLIENT_VERSION=<semver>`; compare with `npm view @openai/codex version`. Both providers were checked live with a one-shot request to `gpt-6.1-sol`.
 
 ## What each surface shows, and where it comes from
 

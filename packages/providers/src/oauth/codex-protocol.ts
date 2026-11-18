@@ -83,11 +83,14 @@ export const CODEX_ORIGINATOR = 'wrongstack';
  * 0.153.4 pin served 5 of the account's 8 models and none of the retirement
  * notices (`upgrade`). The new models share the catalog traits of gpt-6-astra
  * (`use_responses_lite`, `tool_mode: code_mode_only`), which this transport
- * already drives. Compare against `npm view @openai/codex version`.
+ * already drives. On 2026-11-18 `gpt-6.2-sol` / `gpt-6.2-astra` (published
+ * minimum 0.166.0) were absent at 0.160.0 and listed at 0.170.0, with the same
+ * `use_responses_lite` / `tool_mode` traits as the 6.1 line.
+ * Compare against `npm view @openai/codex version`.
  * `WRONGSTACK_CODEX_CLIENT_VERSION` overrides the pin without a release; see
  * {@link codexClientVersion}.
  */
-export const CODEX_CLIENT_VERSION = '0.160.0';
+export const CODEX_CLIENT_VERSION = '0.170.0';
 
 const CODEX_CLIENT_VERSION_ENV = 'WRONGSTACK_CODEX_CLIENT_VERSION';
 
