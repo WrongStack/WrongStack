@@ -181,6 +181,8 @@ export class Poller {
       for (const upd of updates) {
         if (epoch !== this.chainEpoch || signal.aborted) break;
         if (upd.update_id < this.offset) continue;
+        // Reserve this delivery before a handler can restart polling and load a newer offset.
+        this.offset = upd.update_id + 1;
         if (upd.callback_query) {
           // Same poison-safety contract as the message path below: a failing
           // handler must not wedge the offset, or Telegram redelivers this
@@ -193,15 +195,10 @@ export class Poller {
               `Telegram callback handler failed: ${err instanceof Error ? err.message : String(err)}`,
             );
           }
-          this.offset = upd.update_id + 1;
-          if (epoch !== this.chainEpoch || signal.aborted) break;
           continue;
         }
         const raw = upd.message ?? upd.edited_message;
-        if (!raw?.text) {
-          this.offset = upd.update_id + 1;
-          continue;
-        }
+        if (!raw?.text) continue;
         // A failing handler must not wedge the offset: Telegram redelivers
         // every update at/after the requested offset, so failing to advance
         // past a poison update would re-fetch and re-fail it on every poll,
@@ -213,10 +210,14 @@ export class Poller {
             `Telegram processMessage failed: ${err instanceof Error ? err.message : String(err)}`,
           );
         }
-        this.offset = upd.update_id + 1;
-        if (epoch !== this.chainEpoch || signal.aborted) break;
       }
-      if (this.offsetStore && (updates.length > 0 || this.offset > this.persistedOffset)) {
+      // A stop still acknowledges the update already delivered. A successor that loaded
+      // a newer cursor has already accounted for it, so the old batch cannot write it back.
+      const ownsBatch = epoch === this.chainEpoch && !signal.aborted;
+      if (
+        this.offsetStore &&
+        (this.offset > this.persistedOffset || (ownsBatch && updates.length > 0))
+      ) {
         void this.saveOffset();
       }
     } catch (err) {

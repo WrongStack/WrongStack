@@ -267,6 +267,56 @@ describe('Poller restart contract', () => {
  * schedulePoll() now lets a superseded poll's .finally die silently.
  */
 describe('Poller supersede contract', () => {
+  it.each(['message', 'callback'] as const)(
+    'cannot overwrite the new cursor when a %s handler restarts polling',
+    async (kind) => {
+      vi.useFakeTimers();
+      let saved = 0;
+      const offsets: number[] = [];
+      const writes = vi.fn((offset: number) => {
+        saved = offset;
+      });
+      const update =
+        kind === 'message'
+          ? textUpdate(1, 'restart')
+          : ({ update_id: 1, callback_query: { id: 'fixture' } } as TelegramApiUpdate);
+      const restart = () => {
+        poller.stop();
+        saved = 100;
+        poller.start();
+      };
+      const poller = new Poller({
+        api: () =>
+          ({
+            safeBaseUrl: 'fixture',
+            getUpdates: async ({ offset }: { offset: number }) => {
+              offsets.push(offset);
+              return offsets.length === 1 ? [update] : [];
+            },
+          }) as never,
+        pollIntervalMs: 100,
+        log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() } as never,
+        controller: new AbortController(),
+        standbyRetryMs: 100,
+        offsetStore: { read: () => saved, write: writes } as never,
+        onMessageUpdate: restart,
+        onCallbackQuery: restart,
+      });
+      try {
+        poller.start();
+        await vi.advanceTimersByTimeAsync(100);
+        expect(saved).toBe(100);
+        expect(writes).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(100);
+        expect(offsets).toEqual([0, 100]);
+        expect(vi.getTimerCount()).toBe(1);
+      } finally {
+        poller.stop();
+        vi.useRealTimers();
+      }
+    },
+  );
+
   function makeSupersedeablePoller() {
     const log = { info: vi.fn(), warn: vi.fn(), debug: vi.fn(), error: vi.fn() };
     const releases: Array<(updates: TelegramApiUpdate[]) => void> = [];
