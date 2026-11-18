@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T21:26:17.648Z",
+  "generatedAt": "2026-11-18T21:27:20.869Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6369,
+    "sourceFiles": 6374,
     "testFiles": 5503,
-    "sourceLines": 1316218,
+    "sourceLines": 1316239,
     "workspaceEdges": 250,
-    "moduleEdges": 18798,
+    "moduleEdges": 18811,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -160,7 +160,7 @@
     {
       "name": "@wrongstack/builtin-plugins",
       "dir": "packages/builtin-plugins",
-      "sourceFiles": 35,
+      "sourceFiles": 40,
       "testFiles": 31,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -38157,11 +38157,6 @@
       "relativeImports": 4
     },
     {
-      "file": "packages/builtin-plugins/src/review-context-builder.ts",
-      "lines": 1532,
-      "relativeImports": 5
-    },
-    {
       "file": "packages/builtin-plugins/src/review-followup-briefing.ts",
       "lines": 877,
       "relativeImports": 5
@@ -38524,11 +38519,6 @@
       "relativeImports": 18
     },
     {
-      "file": "packages/builtin-plugins/src/review-context-builder.ts",
-      "lines": 1532,
-      "relativeImports": 5
-    },
-    {
       "file": "packages/core/src/execution/design-dna.ts",
       "lines": 1519,
       "relativeImports": 2
@@ -38762,6 +38752,11 @@
       "file": "packages/mailbox-mcp/src/adapter.ts",
       "lines": 719,
       "relativeImports": 3
+    },
+    {
+      "file": "packages/project-surfaces/src/sage/useMemoryManagerState.ts",
+      "lines": 718,
+      "relativeImports": 14
     }
   ],
   "testOnlyExports": [

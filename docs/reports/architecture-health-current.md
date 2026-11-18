@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-18T21:26:17.648Z
+**Generated:** 2026-11-18T21:27:20.869Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 48 |
-| Production source files | 6369 |
-| Production source lines | 1316218 |
+| Production source files | 6374 |
+| Production source lines | 1316239 |
 | Test files | 5503 |
 | Workspace dependency edges | 250 |
-| Relative module edges | 18798 |
+| Relative module edges | 18811 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -30,7 +30,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/acp | 58 | 68 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/agent-catalog | 44 | 14 | @wrongstack/contracts, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/bench | 32 | 66 | @wrongstack/core |
-| @wrongstack/builtin-plugins | 35 | 31 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives |
+| @wrongstack/builtin-plugins | 40 | 31 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/chronicle | 54 | 52 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/cli | 638 | 706 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/bench, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/codebase-index-mcp, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/hq-next, @wrongstack/kanban, @wrongstack/kanban-mcp, @wrongstack/mailbox-mcp, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/requirement-intake-mcp, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sage-mcp, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/vibeui, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/worktree, @wrongstack/wrongtrace |
 | @wrongstack/client | 7 | 7 | @wrongstack/webui-protocol |
@@ -92,7 +92,6 @@ None.
 |---:|---|
 | 2098 | `apps/desktop-v2/src/FileWorkspace.tsx` |
 | 1589 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
-| 1532 | `packages/builtin-plugins/src/review-context-builder.ts` |
 | 1519 | `packages/core/src/execution/design-dna.ts` |
 | 1162 | `packages/core/src/execution/design-md.ts` |
 | 1110 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
@@ -140,6 +139,7 @@ None.
 | 720 | `packages/tools/src/read.ts` |
 | 720 | `packages/webui-server/src/server/provider-routes.ts` |
 | 719 | `packages/mailbox-mcp/src/adapter.ts` |
+| 718 | `packages/project-surfaces/src/sage/useMemoryManagerState.ts` |
 
 ## Exports only tests reference
 

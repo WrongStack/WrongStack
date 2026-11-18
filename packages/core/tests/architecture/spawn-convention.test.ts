@@ -152,7 +152,7 @@ const CHILD_ENV_EXEMPT: Record<string, string> = {
   'plugins/src/test-runner-gate/test-runner.ts': REASON_PLUGIN_RUNNER,
   'builtin-plugins/src/auto-review-git.ts': REASON_PLUGIN_RUNNER,
   'builtin-plugins/src/chimera-plugin.ts': REASON_PLUGIN_RUNNER,
-  'builtin-plugins/src/review-context-builder.ts': REASON_PLUGIN_RUNNER,
+  'builtin-plugins/src/review-git-context.ts': REASON_PLUGIN_RUNNER,
   'security-scanner/src/package-audit.ts': REASON_PLUGIN_RUNNER,
   'techstack/src/advisory/native-audit-command.ts': REASON_PLUGIN_RUNNER,
   // ── Interactive user terminals ──
