@@ -34,34 +34,53 @@ function readJsonBody(req: http.IncomingMessage): Promise<Record<string, unknown
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let total = 0;
-    req.on('data', (chunk: Buffer) => {
-      total += chunk.length;
+    let tooLarge = false;
+    let settled = false;
+    req.on('data', (chunk: Buffer | string) => {
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), 'utf8');
+      total += buf.length;
       if (total > MAX_BODY_BYTES) {
-        req.destroy(new Error('Request body too large'));
-        reject(new Error('Request body exceeds 1 MiB limit'));
+        tooLarge = true;
+        chunks.length = 0;
+        if (total > MAX_BODY_BYTES * 4 && !settled) {
+          settled = true;
+          req.destroy();
+          reject(new PayloadTooLarge('Request body exceeds 1 MiB limit'));
+        }
         return;
       }
-      chunks.push(chunk);
+      if (!tooLarge) chunks.push(buf);
     });
     req.on('end', () => {
+      if (settled) return;
+      settled = true;
+      if (tooLarge) {
+        reject(new PayloadTooLarge('Request body exceeds 1 MiB limit'));
+        return;
+      }
       const raw = Buffer.concat(chunks).toString('utf8');
       if (!raw.trim()) return resolve({});
       try {
         const parsed = JSON.parse(raw) as unknown;
-        resolve(
-          parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-            ? (parsed as Record<string, unknown>)
-            : {},
-        );
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          reject(new BadRequest('Request body must be a JSON object'));
+          return;
+        }
+        resolve(parsed as Record<string, unknown>);
       } catch {
         reject(new BadRequest('Invalid JSON body'));
       }
     });
-    req.on('error', (err) => reject(err));
+    req.on('error', (err) => {
+      if (settled) return;
+      settled = true;
+      reject(err);
+    });
   });
 }
 
 class BadRequest extends Error {}
+class PayloadTooLarge extends Error {}
 
 function send(res: http.ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { 'Content-Type': 'application/json' });
@@ -163,6 +182,10 @@ export async function handleDeadCodeRequest(
         return false;
     }
   } catch (err) {
+    if (err instanceof PayloadTooLarge) {
+      send(res, 413, { error: err.message });
+      return true;
+    }
     if (err instanceof BadRequest) {
       send(res, 400, { error: err.message });
       return true;

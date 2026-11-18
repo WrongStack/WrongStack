@@ -175,27 +175,68 @@ function sessionNotFound(sessionId: string, failures: readonly string[]): string
  * cross-origin write — a second, independent barrier behind the Origin guard.
  * Bodies were previously parsed regardless of the declared type.
  */
-function readJsonBody(req: http.IncomingMessage): Promise<Record<string, unknown>> {
+class RequestBodyTooLargeError extends Error {
+  readonly statusCode = 413;
+  constructor() {
+    super('Request body too large');
+  }
+}
+
+function replyBodyError(res: http.ServerResponse, err: unknown): void {
+  const tooLarge = err instanceof RequestBodyTooLargeError;
+  res.writeHead(tooLarge ? 413 : 400, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: tooLarge ? 'Request body too large' : 'Invalid request body' }));
+}
+
+function readJsonBody(
+  req: http.IncomingMessage,
+  opts?: { allowEmptyWithoutContentType?: boolean },
+): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     const contentType = (req.headers['content-type'] ?? '').split(';')[0]?.trim().toLowerCase();
-    if (contentType !== 'application/json') {
+    const hasJsonType = contentType === 'application/json';
+    if (!hasJsonType && !opts?.allowEmptyWithoutContentType) {
       reject(new Error(`Unsupported Content-Type: ${contentType || '(absent)'}`));
       return;
     }
     let data = '';
+    let size = 0;
+    let tooLarge = false;
     // Decode across chunks: TCP may split a multibyte character between two
     // 'data' events, and a per-chunk decode turns it into U+FFFD.
     req.setEncoding('utf8');
     req.on('data', (chunk: string) => {
-      data += chunk;
-      if (data.length > 64_000) {
-        reject(new Error('Request body too large'));
-        req.destroy();
+      if (tooLarge) return;
+      size += Buffer.byteLength(chunk, 'utf8');
+      if (size > 64_000) {
+        tooLarge = true;
+        data = '';
+        return;
       }
+      data += chunk;
     });
     req.on('end', () => {
+      if (tooLarge) {
+        reject(new RequestBodyTooLargeError());
+        return;
+      }
+      if (!data.trim()) {
+        if (hasJsonType || opts?.allowEmptyWithoutContentType) {
+          resolve({});
+          return;
+        }
+      }
+      if (!hasJsonType) {
+        reject(new Error(`Unsupported Content-Type: ${contentType || '(absent)'}`));
+        return;
+      }
       try {
-        resolve(data ? (JSON.parse(data) as Record<string, unknown>) : {});
+        const parsed: unknown = JSON.parse(data);
+        if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          reject(new Error('Request body must be a JSON object'));
+          return;
+        }
+        resolve(parsed as Record<string, unknown>);
       } catch (err) {
         reject(err instanceof Error ? err : new Error(String(err)));
       }
@@ -219,9 +260,8 @@ export async function handleApiSessionMessage(
   let body: Record<string, unknown>;
   try {
     body = await readJsonBody(req);
-  } catch {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Invalid request body' }));
+  } catch (err) {
+    replyBodyError(res, err);
     return;
   }
 
@@ -387,11 +427,12 @@ export async function handleApiSessionInterrupt(
     res.end(JSON.stringify({ error: 'SessionRegistry not available' }));
     return;
   }
-  let body: Record<string, unknown> = {};
+  let body: Record<string, unknown>;
   try {
-    body = await readJsonBody(req);
-  } catch {
-    /* interrupt needs no body — ignore parse errors */
+    body = await readJsonBody(req, { allowEmptyWithoutContentType: true });
+  } catch (err) {
+    replyBodyError(res, err);
+    return;
   }
   const reason =
     typeof body['reason'] === 'string' && (body['reason'] as string).trim()
@@ -491,9 +532,8 @@ export async function handleApiFleetBroadcast(
   let body: Record<string, unknown>;
   try {
     body = await readJsonBody(req);
-  } catch {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Invalid request body' }));
+  } catch (err) {
+    replyBodyError(res, err);
     return;
   }
   const text = typeof body['text'] === 'string' ? (body['text'] as string).trim() : '';

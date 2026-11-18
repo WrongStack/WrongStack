@@ -46,6 +46,14 @@ export interface SkillsContext {
   globalSkillsDir?: string | undefined;
 }
 
+function payloadObject(msg: unknown): Record<string, unknown> | undefined {
+  if (!msg || typeof msg !== 'object') return undefined;
+  const payload = (msg as { payload?: unknown }).payload;
+  return payload && typeof payload === 'object' && !Array.isArray(payload)
+    ? (payload as Record<string, unknown>)
+    : undefined;
+}
+
 // ── Shared handlers ───────────────────────────────────────────────────
 
 /**
@@ -138,8 +146,10 @@ export async function handleSkillsContent(
     });
     return;
   }
-  const contentPayload = (msg as { payload?: { name?: string; source?: string } })?.payload;
-  if (!contentPayload?.name) {
+  const contentPayload = payloadObject(msg);
+  const rawName = contentPayload?.['name'];
+  const source = typeof contentPayload?.['source'] === 'string' ? contentPayload['source'] : '';
+  if (typeof rawName !== 'string' || !rawName.trim()) {
     send(ws, {
       type: 'skills.content',
       payload: withRequestId(msg, {
@@ -154,8 +164,8 @@ export async function handleSkillsContent(
     });
     return;
   }
+  const name = rawName;
   try {
-    const { name, source = '' } = contentPayload;
     const entries = await ctx.skillLoader.listEntries();
     const entry = entries.find((e) => e.name.toLowerCase() === name.toLowerCase());
     if (!entry) {
@@ -221,10 +231,10 @@ export async function handleSkillsContent(
     send(ws, {
       type: 'skills.content',
       payload: withRequestId(msg, {
-        name: contentPayload.name,
+        name,
         body: '',
         path: '',
-        source: contentPayload.source ?? '',
+        source,
         relatedFiles: [],
         references: [],
         error: errMessage(err),
@@ -249,8 +259,9 @@ export async function handleSkillsInstall(
     });
     return;
   }
-  const installPayload = (msg as { payload: { ref: string; global?: boolean } }).payload;
-  if (!installPayload?.ref?.trim()) {
+  const installPayload = payloadObject(msg);
+  const ref = installPayload?.['ref'];
+  if (typeof ref !== 'string' || !ref.trim()) {
     send(ws, {
       type: 'skills.installed',
       payload: {
@@ -260,9 +271,17 @@ export async function handleSkillsInstall(
     });
     return;
   }
+  const global = installPayload?.['global'];
+  if (global !== undefined && typeof global !== 'boolean') {
+    send(ws, {
+      type: 'skills.installed',
+      payload: { success: false, error: 'skills.install payload.global must be a boolean' },
+    });
+    return;
+  }
   try {
-    const results = await ctx.skillInstaller.install(installPayload.ref.trim(), {
-      global: installPayload.global,
+    const results = await ctx.skillInstaller.install(ref.trim(), {
+      global,
     });
     send(ws, {
       type: 'skills.installed',
@@ -299,17 +318,26 @@ export async function handleSkillsUninstall(
     });
     return;
   }
-  const uninstallPayload = (msg as { payload: { name: string; global?: boolean } }).payload;
-  if (!uninstallPayload?.name?.trim()) {
+  const uninstallPayload = payloadObject(msg);
+  const name = uninstallPayload?.['name'];
+  if (typeof name !== 'string' || !name.trim()) {
     send(ws, {
       type: 'skills.uninstalled',
       payload: { success: false, error: 'Skill name is required' },
     });
     return;
   }
+  const global = uninstallPayload?.['global'];
+  if (global !== undefined && typeof global !== 'boolean') {
+    send(ws, {
+      type: 'skills.uninstalled',
+      payload: { success: false, error: 'skills.uninstall payload.global must be a boolean' },
+    });
+    return;
+  }
   try {
-    await ctx.skillInstaller.uninstall(uninstallPayload.name.trim(), {
-      global: uninstallPayload.global,
+    await ctx.skillInstaller.uninstall(name.trim(), {
+      global,
     });
     send(ws, { type: 'skills.uninstalled', payload: { success: true, error: null } });
   } catch (err) {
@@ -330,11 +358,26 @@ export async function handleSkillsUpdate(
     send(ws, { type: 'skills.updated', payload: { success: false, error: 'Skills not enabled' } });
     return;
   }
-  const updatePayload = (msg as { payload?: { name?: string; global?: boolean } | undefined })
-    .payload;
+  const updatePayload = payloadObject(msg);
+  const rawName = updatePayload?.['name'];
+  if (rawName !== undefined && (typeof rawName !== 'string' || !rawName.trim())) {
+    send(ws, {
+      type: 'skills.updated',
+      payload: { success: false, error: 'Skill name must be a non-empty string when provided' },
+    });
+    return;
+  }
+  const global = updatePayload?.['global'];
+  if (global !== undefined && typeof global !== 'boolean') {
+    send(ws, {
+      type: 'skills.updated',
+      payload: { success: false, error: 'skills.update payload.global must be a boolean' },
+    });
+    return;
+  }
   try {
-    const result = await ctx.skillInstaller.update(updatePayload?.name, {
-      global: updatePayload?.global,
+    const result = await ctx.skillInstaller.update(rawName?.trim(), {
+      global,
     });
     send(ws, {
       type: 'skills.updated',
@@ -361,7 +404,7 @@ export async function handleSkillsCreate(
   ctx: SkillsContext,
   msg: unknown,
 ): Promise<void> {
-  const parsed = validateSkillsCreatePayload((msg as { payload?: unknown }).payload);
+  const parsed = validateSkillsCreatePayload(payloadObject(msg));
   if (!parsed.ok) {
     send(ws, { type: 'skills.created', payload: { success: false, error: parsed.message } });
     return;
@@ -436,7 +479,7 @@ export async function handleSkillsEdit(
     send(ws, { type: 'skills.edited', payload: { success: false, error: 'Skills not enabled' } });
     return;
   }
-  const parsed = validateSkillsEditPayload((msg as { payload?: unknown }).payload);
+  const parsed = validateSkillsEditPayload(payloadObject(msg));
   if (!parsed.ok) {
     send(ws, { type: 'skills.edited', payload: { success: false, error: parsed.message } });
     return;

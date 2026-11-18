@@ -54,6 +54,27 @@ function isAnalyzeDepth(value: unknown): value is AnalyzeDepth {
   return typeof value === 'string' && (DEPTH_VALUES as readonly string[]).includes(value);
 }
 
+async function readBoundedUtf8Body(
+  req: http.IncomingMessage,
+  maxBytes: number,
+): Promise<{ ok: true; raw: string } | { ok: false }> {
+  const chunks: Buffer[] = [];
+  let totalBytes = 0;
+  let oversized = false;
+  for await (const chunk of req) {
+    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), 'utf8');
+    totalBytes += buf.length;
+    if (totalBytes > maxBytes) {
+      oversized = true;
+      chunks.length = 0;
+      if (totalBytes > maxBytes * 4) break;
+      continue;
+    }
+    chunks.push(buf);
+  }
+  return oversized ? { ok: false } : { ok: true, raw: Buffer.concat(chunks).toString('utf8') };
+}
+
 /**
  * Read an optional JSON body carrying `AnalyzeRequestOptions`. Anything that
  * is not parseable JSON, exceeds the body limit, or contains the wrong shape
@@ -69,18 +90,11 @@ async function readAnalyzeOptions(
   | { ok: true; options: AnalyzeRequestOptions }
   | { ok: false; status: number; error: string; detail?: string }
 > {
-  let raw = '';
-  let oversized = false;
-  for await (const chunk of req) {
-    raw += Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk);
-    if (Buffer.byteLength(raw) > ANALYZE_BODY_LIMIT_BYTES) {
-      oversized = true;
-      break;
-    }
-  }
-  if (oversized) {
+  const bodyRead = await readBoundedUtf8Body(req, ANALYZE_BODY_LIMIT_BYTES);
+  if (!bodyRead.ok) {
     return { ok: false, status: 413, error: 'Request body is too large' };
   }
+  const { raw } = bodyRead;
   if (raw.trim() === '') {
     return { ok: true, options: {} };
   }
@@ -589,12 +603,14 @@ export async function handleTechStackRemediationApply(
   let expectedSnapshotId: unknown;
   let expectedItems: unknown;
   try {
-    let raw = '';
-    for await (const chunk of req) {
-      raw += Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk);
-      if (Buffer.byteLength(raw) > 64 * 1024) throw new Error('Request body is too large');
+    const bodyRead = await readBoundedUtf8Body(req, 64 * 1024);
+    if (!bodyRead.ok) throw new Error('Request body is too large');
+    const parsed: unknown = bodyRead.raw.trim() === '' ? {} : JSON.parse(bodyRead.raw);
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      sendJson(res, 400, { error: 'Request body must be a JSON object' });
+      return;
     }
-    const body = JSON.parse(raw || '{}') as {
+    const body = parsed as {
       approvedItems?: unknown;
       expectedSnapshotId?: unknown;
       expectedItems?: unknown;

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T21:31:24.595Z",
+  "generatedAt": "2026-11-18T21:33:11.219Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6374,
-    "testFiles": 5508,
-    "sourceLines": 1316379,
+    "testFiles": 5513,
+    "sourceLines": 1316516,
     "workspaceEdges": 250,
     "moduleEdges": 18812,
     "nonCommandSlashImports": 0,
@@ -1175,7 +1175,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 356,
-      "testFiles": 405,
+      "testFiles": 410,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1210,7 +1210,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 405
+          "testFiles": 410
         }
       ]
     },
@@ -28622,6 +28622,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/api-handlers-body-validation.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/api-router.gaps.test.ts",
         "projects": [
           "root-node"
@@ -29031,6 +29037,12 @@
       },
       {
         "file": "packages/webui-server/tests/custom-model-reasoning.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/deadcode-body-validation.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30578,6 +30590,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/skills-handlers-validation.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/skills-handlers.test.ts",
         "projects": [
           "root-node"
@@ -30824,6 +30842,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/techstack-body-utf8-validation.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/techstack-handlers-extended.test.ts",
         "projects": [
           "root-node"
@@ -30879,6 +30903,12 @@
       },
       {
         "file": "packages/webui-server/tests/user-instructions-handlers.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/vector-memory-body-validation.test.ts",
         "projects": [
           "root-node"
         ]

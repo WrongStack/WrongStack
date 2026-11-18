@@ -524,28 +524,38 @@ export async function handleVectorMemorySearch(
   }
 }
 
-/** Parse the JSON body of a store request. Returns null on malformed input. */
-function parseStoreBody(
-  req: http.IncomingMessage,
-): Promise<{ text?: string; tags?: string[] } | null> {
+const MAX_STORE_BODY_BYTES = 64 * 1024;
+
+/** Parse the JSON body of a store/reindex request with UTF-8 byte bounds. */
+function parseStoreBody(req: http.IncomingMessage): Promise<Record<string, unknown> | 400 | 413> {
   return new Promise((resolve) => {
-    let raw = '';
-    req.setEncoding('utf8');
-    req.on('data', (chunk: string) => {
-      raw += chunk;
-      if (raw.length > 64 * 1024) {
+    const chunks: Buffer[] = [];
+    let totalBytes = 0,
+      tooLarge = false;
+    req.on('data', (chunk: Buffer | string) => {
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), 'utf8');
+      totalBytes += buf.length;
+      if (totalBytes <= MAX_STORE_BODY_BYTES) return void chunks.push(buf);
+      tooLarge = true;
+      chunks.length = 0;
+      if (totalBytes > MAX_STORE_BODY_BYTES * 4) {
         req.destroy();
-        resolve(null);
+        resolve(413);
       }
     });
     req.on('end', () => {
+      if (tooLarge) return resolve(413);
+      const raw = Buffer.concat(chunks).toString('utf8').trim();
+      if (!raw) return resolve({});
       try {
-        resolve(raw ? (JSON.parse(raw) as { text?: string; tags?: string[] }) : {});
+        const parsed: unknown = JSON.parse(raw);
+        const isObj = Boolean(parsed) && typeof parsed === 'object' && !Array.isArray(parsed);
+        resolve(isObj ? (parsed as Record<string, unknown>) : 400);
       } catch {
-        resolve(null);
+        resolve(400);
       }
     });
-    req.on('error', () => resolve(null));
+    req.on('error', () => resolve(400));
   });
 }
 
@@ -562,9 +572,11 @@ export async function handleVectorMemoryStore(
     return;
   }
   const body = await parseStoreBody(req);
-  if (!body) {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Malformed JSON body' }));
+  if (typeof body === 'number') {
+    res.writeHead(body, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({ error: body === 413 ? 'Request body is too large' : 'Malformed JSON body' }),
+    );
     return;
   }
   const text = typeof body.text === 'string' ? body.text.trim() : '';
@@ -613,19 +625,22 @@ export async function handleVectorMemoryReindex(
     res.end(JSON.stringify({ error: 'Vector memory not enabled in this host' }));
     return;
   }
-  const body = (await parseStoreBody(req)) as { onlyMissing?: unknown } | null;
+  const body = await parseStoreBody(req);
   if (
-    !body ||
-    typeof body !== 'object' ||
-    Array.isArray(body) ||
-    (body.onlyMissing !== undefined && typeof body.onlyMissing !== 'boolean')
+    typeof body === 'number' ||
+    (body['onlyMissing'] !== undefined && typeof body['onlyMissing'] !== 'boolean')
   ) {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Send `{ onlyMissing?: boolean }`' }));
+    const status = typeof body === 'number' ? body : 400;
+    res.writeHead(status, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        error: status === 413 ? 'Request body is too large' : 'Send `{ onlyMissing?: boolean }`',
+      }),
+    );
     return;
   }
   try {
-    const result = await store.reindexAll({ onlyMissing: body.onlyMissing === true });
+    const result = await store.reindexAll({ onlyMissing: body['onlyMissing'] === true });
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     res.end(JSON.stringify({ ...result, coverage: store.embeddingCoverage() }));
   } catch (error) {
