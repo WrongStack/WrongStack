@@ -232,9 +232,13 @@ export function useDesktop() {
     [modeWriter, reportDraftFailure],
   );
   const snapshotText = useRef('');
+  // A poll can finish after the refresh that follows a menu change.
+  const refreshSequence = useRef(0);
   const refresh = useCallback(async () => {
+    const sequence = ++refreshSequence.current;
     try {
       const next = await getSnapshot();
+      if (sequence !== refreshSequence.current) return;
       // Polled every second; an unchanged registry must not re-render the whole window.
       const text = JSON.stringify(next);
       if (text !== snapshotText.current) {
@@ -282,6 +286,7 @@ export function useDesktop() {
         setRestored(true);
       }
     } catch (e) {
+      if (sequence !== refreshSequence.current) return;
       setConnected(false);
       reportError(e);
     }

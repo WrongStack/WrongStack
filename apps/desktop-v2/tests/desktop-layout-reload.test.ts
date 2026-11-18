@@ -245,6 +245,41 @@ describe('desktop selection across a window reload', () => {
     expect(desktop.getDraft('alpha')).toBe('private alpha draft');
   });
 
+  it.each(['move', 'remove', 'stale error'] as const)(
+    'keeps the action refresh when a periodic snapshot completes later (%s)',
+    async (kind) => {
+      await mount();
+      const original = desktop.snapshot;
+      const stalePoll = Promise.withResolvers<Snapshot>();
+      bridge.snapshot.mockReturnValueOnce(stalePoll.promise);
+      await act(async () => vi.advanceTimersByTimeAsync(1000));
+      expect(bridge.snapshot).toHaveBeenCalledTimes(2);
+      const newSnapshot = {
+        ...original,
+        projects:
+          kind === 'remove'
+            ? original.projects.filter((p) => p.id !== 'p-beta')
+            : [...original.projects].reverse(),
+        sessions: kind === 'remove' ? sessions.filter((s) => s.id !== 'beta') : sessions,
+      };
+      bridge.snapshot.mockResolvedValueOnce(newSnapshot);
+      await act(async () => desktop.run(async () => {}));
+      expect(desktop.snapshot).toEqual(newSnapshot);
+      await act(async () => {
+        if (kind === 'stale error') stalePoll.reject(new Error('old poll failed'));
+        else stalePoll.resolve(original);
+      });
+      expect(desktop.snapshot).toEqual(newSnapshot);
+      expect(desktop.connected).toBe(true);
+      expect(desktop.error).toBe('');
+      if (kind === 'remove') {
+        expect(desktop.project).toBeNull();
+        expect(desktop.selected).toBeNull();
+        expect(desktop.openSessionIds).toEqual(['alpha']);
+      }
+    },
+  );
+
   it('still saves through the host when session storage is unavailable', async () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw Error('Denied');

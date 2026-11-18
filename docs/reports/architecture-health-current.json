@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T06:18:19.963Z",
+  "generatedAt": "2026-11-18T06:19:29.354Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6365,
-    "testFiles": 5477,
-    "sourceLines": 1315472,
+    "testFiles": 5478,
+    "sourceLines": 1315490,
     "workspaceEdges": 250,
     "moduleEdges": 18784,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 408,
+    "testsWithoutTypecheck": 409,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1073
   },
@@ -387,7 +387,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 534,
-      "testFiles": 384,
+      "testFiles": 385,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -3099,6 +3099,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/runtime-gate-idle-restart.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/runtime-gate-ownership.test.ts",
         "projects": [
           "root-node"
         ]
@@ -36259,6 +36265,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/runtime-gate-idle-restart.test.tsx",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/runtime-gate-ownership.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

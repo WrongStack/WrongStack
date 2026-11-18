@@ -3,17 +3,19 @@ import { useEffect, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import { request } from './platform';
 
-export function RuntimeGate({
-  scope,
-  projectId,
-  children,
-  loadingTitle,
-}: {
+type RuntimeGateProps = {
   scope: 'project' | 'profile';
   projectId?: string;
   children: React.ReactNode;
   loadingTitle?: string;
-}) {
+};
+
+export function RuntimeGate(props: RuntimeGateProps) {
+  // Readiness belongs to one runtime and must reset before the new page can commit.
+  return <RuntimeGateState key={JSON.stringify([props.scope, props.projectId])} {...props} />;
+}
+
+function RuntimeGateState({ scope, projectId, children, loadingTitle }: RuntimeGateProps) {
   const { t } = useDesktopText();
   const [status, setStatus] = useState('starting');
   const [error, setError] = useState('');

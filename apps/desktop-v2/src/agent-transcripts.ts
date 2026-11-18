@@ -18,6 +18,8 @@ export interface AgentTranscript {
   status: string;
   task?: string | undefined;
   entries: AgentTranscriptEntry[];
+  /** Counts live frames independently of the retained transcript length. */
+  liveEntryCount?: number | undefined;
 }
 export type AgentTranscripts = Readonly<Record<string, AgentTranscript>>;
 
@@ -58,9 +60,15 @@ export function reduceAgentTranscripts(
   const id = text(payload['subagentId']);
   if (!id || id === 'leader') return agents;
   const name = text(payload['agentName']).trim();
-  const agent = agents[id] ?? { id, name: name || id, status: 'running', entries: [] };
+  const agent: AgentTranscript = agents[id] ?? {
+    id,
+    name: name || id,
+    status: 'running',
+    entries: [],
+  };
+  const liveEntryCount = (agent.liveEntryCount ?? 0) + 1;
   const base = {
-    id: `${id}:${agent.entries.length}:${text(payload['ts'])}`,
+    id: `${id}:live:${liveEntryCount}`,
     subagentId: id,
     agentName: name || agent.name,
     iteration: typeof payload['iteration'] === 'number' ? payload['iteration'] : 0,
@@ -72,6 +80,7 @@ export function reduceAgentTranscripts(
       ...agents,
       [id]: {
         ...agent,
+        liveEntryCount,
         name: name || agent.name,
         status,
         task: text(payload['task']) || agent.task,
@@ -89,6 +98,7 @@ export function reduceAgentTranscripts(
     ...agents,
     [id]: {
       ...agent,
+      liveEntryCount,
       name: name || agent.name,
       entries: append(agent.entries, {
         ...base,
@@ -156,6 +166,7 @@ export function hydrateAgentTranscripts(
     next = {
       ...next,
       [id]: {
+        ...known,
         id,
         name,
         status: known?.status ?? (text(session['status']) || 'completed'),

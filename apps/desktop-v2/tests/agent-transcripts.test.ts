@@ -19,6 +19,38 @@ const timeline = (payload: Record<string, unknown>) => ({
 });
 
 describe('subagent transcripts', () => {
+  it('keeps distinct, stable live row keys through truncation and overlapping replay', () => {
+    let state = { ...emptyEngineState, sessionId: 's' };
+    const add = (index: number) => {
+      state = reduceEngine(
+        state,
+        timeline({ kind: 'tool_use', toolName: 'read_file', content: String(index) }),
+      );
+      return state.agents['a1']!.entries;
+    };
+    for (let index = 0; index < 599; index++) add(index);
+    const full = add(599);
+    expect(new Set(full.map(({ id }) => id)).size).toBe(600);
+    expect(add(600).slice(0, -1)).toEqual(full.slice(1));
+    state = reduceEngine(state, {
+      type: 'session.start',
+      payload: {
+        sessionId: 's',
+        agentSessions: [
+          {
+            subagentId: 'a1',
+            transcript: [{ id: 'recorded', kind: 'tool_use', ts: 't', content: '600' }],
+          },
+        ],
+      },
+    });
+    const after = add(601);
+    expect(after).toHaveLength(600);
+    expect(new Set(after.map(({ id }) => id)).size).toBe(600);
+    expect(after.at(0)?.content).toBe('2');
+    expect(after.at(-1)?.content).toBe('601');
+  });
+
   it('folds each agent’s frames, joining streamed text of one iteration', () => {
     let state = { ...emptyEngineState, sessionId: 's' };
     for (const frame of [
