@@ -19,10 +19,12 @@ import type { MultiAgentDeps } from './host-types.js';
 export class HostLearningScheduler {
   private learningOptimizer: LearningOptimizationScheduler | null = null;
   private learningSwept = false;
+  private disposed = false;
 
   constructor(private readonly deps: MultiAgentDeps) {}
 
   getOptimizer(): LearningOptimizationScheduler | null {
+    if (this.disposed) return null;
     const settings = this.deps.configStore.get().fleet?.learning?.autoOptimize;
     if (settings?.enabled === false) return null;
     if (!this.learningOptimizer) {
@@ -51,7 +53,7 @@ export class HostLearningScheduler {
   }
 
   sweep(): void {
-    if (this.learningSwept) return;
+    if (this.disposed || this.learningSwept) return;
     this.learningSwept = true;
     if (this.deps.configStore.get().fleet?.learning?.autoOptimize?.sweepOnStart === false) return;
     try {
@@ -65,6 +67,7 @@ export class HostLearningScheduler {
     task: string,
     candidates: { role: string; name: string; summary: string }[],
   ): Promise<{ role: string; reason?: string | undefined } | null> {
+    if (this.disposed) return null;
     try {
       const config = this.deps.configStore.get() as Config;
       const target = resolveSubagentModelTarget(config, 'dispatcher');
@@ -72,6 +75,7 @@ export class HostLearningScheduler {
       const model = target?.model ?? config.model;
       if (!providerId || !model) return null;
       const provider = await buildHostSubagentProvider(this.deps, config, providerId, model);
+      if (this.disposed) return null;
       return await makeDispatchClassifier({ config, provider: provider as never, model })(
         task,
         candidates,
@@ -82,6 +86,7 @@ export class HostLearningScheduler {
   }
 
   async resolveOptimizerLlm(): Promise<LearningOptimizerLlm | undefined> {
+    if (this.disposed) return undefined;
     try {
       const config = this.deps.configStore.get() as Config;
       const target = resolveSubagentModelTarget(config, 'memory-curator');
@@ -89,6 +94,7 @@ export class HostLearningScheduler {
       const model = target?.model ?? config.model;
       if (!providerId || !model) return undefined;
       const provider = await buildHostSubagentProvider(this.deps, config, providerId, model);
+      if (this.disposed) return undefined;
       return { provider, model };
     } catch {
       return undefined;
@@ -96,6 +102,7 @@ export class HostLearningScheduler {
   }
 
   dispose(): void {
+    this.disposed = true;
     this.learningOptimizer?.dispose();
     this.learningOptimizer = null;
   }

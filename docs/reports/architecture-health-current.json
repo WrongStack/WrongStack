@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T21:19:17.708Z",
+  "generatedAt": "2026-11-18T21:20:17.284Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6369,
-    "testFiles": 5495,
-    "sourceLines": 1316065,
+    "testFiles": 5498,
+    "sourceLines": 1316099,
     "workspaceEdges": 250,
     "moduleEdges": 18798,
     "nonCommandSlashImports": 0,
@@ -409,7 +409,7 @@
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
       "sourceFiles": 63,
-      "testFiles": 15,
+      "testFiles": 18,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -430,7 +430,7 @@
         {
           "path": "packages/fleet/tsconfig.test.json",
           "error": null,
-          "testFiles": 15
+          "testFiles": 18
         }
       ]
     },
@@ -15044,6 +15044,18 @@
         ]
       },
       {
+        "file": "packages/fleet/tests/host-learning-scheduler-dispose.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/fleet/tests/host-memory-companion-terminate-and-pause.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/fleet/tests/host-model-pricing.test.ts",
         "projects": [
           "root-node"
@@ -15051,6 +15063,12 @@
       },
       {
         "file": "packages/fleet/tests/host-shadow-manager-dispose.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/fleet/tests/host-shadow-manager-release-session.test.ts",
         "projects": [
           "root-node"
         ]

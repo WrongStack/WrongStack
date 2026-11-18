@@ -379,13 +379,14 @@ export class HostShadowManager {
   requestShadowPass(reason: string, sessionId?: string | undefined): void {
     if (this.disposed) return;
     const id = this.resolve(sessionId);
+    const state = this.stateFor(id);
     // Fired from event handlers, so nothing awaits it. `runHostShadowPass`
     // only swallows FleetSpawnBudgetError; the director also refuses a spawn
     // on the cost/token caps and leader context pressure, and assignment can
     // fail. A reviewer that could not start is a missed review, not a reason
     // to raise an unhandled rejection in the host process.
     queueMicrotask(() => {
-      if (this.disposed) return;
+      if (this.disposed || this.sessions.get(id) !== state) return;
       void this.runShadowPass(reason, id).catch((error: unknown) =>
         logShadowFailure('shadow_pass_failed', id, error),
       );
@@ -405,24 +406,35 @@ export class HostShadowManager {
     }
 
     state.passInFlight = true;
+    const isLiveSession = () => !this.disposed && this.sessions.get(id) === state;
     return runHostShadowPass(
       {
-        getDirector: () => (this.disposed ? undefined : this.ctx.getDirector()),
+        getDirector: () => (isLiveSession() ? this.ctx.getDirector() : undefined),
         getLiveConfig: () => this.ctx.deps.configStore.get() as Config,
         getObservedWorkDepth: () => state.observedWorkDepth,
-        getQueuedProblem: () => state.queuedProblem,
+        getQueuedProblem: () => (isLiveSession() ? state.queuedProblem : null),
         setQueuedProblem: (value) => {
-          state.queuedProblem = value;
+          if (isLiveSession()) state.queuedProblem = value;
         },
         setPassInFlight: (value) => {
           state.passInFlight = value;
         },
         getHeartbeatIntervalMs: () => state.heartbeatIntervalMs,
         sessionId: id,
-        spawnAndAssign: (subagentConfig, task, opts) =>
-          this.ctx.spawnAndAssign(subagentConfig, task, opts),
+        spawnAndAssign: async (subagentConfig, task, opts) => {
+          const spawned = await this.ctx.spawnAndAssign(subagentConfig, task, opts);
+          if (!isLiveSession()) {
+            this.removeShadowTask(spawned.taskId);
+            this.clearShadowAgent(spawned.subagentId);
+            const currentState = this.sessions.get(id);
+            if (currentState && currentState !== state && isDisposable(currentState)) {
+              this.sessions.delete(id);
+            }
+          }
+          return spawned;
+        },
         requestShadowPass: (queued) => {
-          if (!this.disposed) this.requestShadowPass(queued, id);
+          if (isLiveSession()) this.requestShadowPass(queued, id);
         },
       },
       reason,
@@ -435,17 +447,19 @@ export class HostShadowManager {
     const coordinator = director
       ? (director as never as { coordinator: { stop: (id: string) => Promise<void> } }).coordinator
       : undefined;
-    const state = this.stateFor(sessionId);
+    const state = this.peek(sessionId);
+    const isLiveSession = () =>
+      !this.disposed && state !== undefined && this.sessions.get(sessionId) === state;
     return stopHostShadowAfterTask(
       (targetSubagentId) => coordinator?.stop(targetSubagentId) ?? Promise.resolve(),
       (targetSubagentId) => this.clearShadowAgent(targetSubagentId),
-      () => state.observedWorkDepth,
-      () => state.queuedProblem,
+      () => state?.observedWorkDepth ?? 0,
+      () => (isLiveSession() ? state!.queuedProblem : null),
       (value) => {
-        state.queuedProblem = value;
+        if (isLiveSession()) state!.queuedProblem = value;
       },
       (queued) => {
-        if (!this.disposed) this.requestShadowPass(queued, sessionId);
+        if (isLiveSession()) this.requestShadowPass(queued, sessionId);
       },
       subagentId,
     );

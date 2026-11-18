@@ -102,7 +102,12 @@ export class HostMemoryCompanion {
         ? [
             input.director.onSessionTerminate((terminatedSessionId) => {
               const session = this.sessions.get(terminatedSessionId);
-              if (session) session.resident = undefined;
+              if (session) {
+                this.sessions.set(terminatedSessionId, {
+                  probes: session.probes,
+                  paused: session.paused,
+                });
+              }
               for (const [key, job] of this.pending) {
                 if (job.sessionId === terminatedSessionId) this.pending.delete(key);
               }
@@ -346,12 +351,14 @@ export class HostMemoryCompanion {
         if (session.resident === agentId) session.resident = undefined;
         void this.input.director.terminate(agentId).catch(() => {});
       }
-      if (!this.allowed(sessionId) || this.sessions.get(sessionId) !== session) return;
+      if (session.paused || !this.allowed(sessionId) || this.sessions.get(sessionId) !== session)
+        return;
       const current = await this.withinIoBudget(memory.getSage(memoryId));
       if (!current || current.revision !== record.revision || current.contextPolicy === 'never')
         return;
       const latest = await this.withinIoBudget(snapshotter(this.input.projectRoot, current));
-      if (!this.allowed(sessionId) || this.sessions.get(sessionId) !== session) return;
+      if (session.paused || !this.allowed(sessionId) || this.sessions.get(sessionId) !== session)
+        return;
       if (latest.fingerprint !== snapshot.fingerprint) {
         this.send(
           sessionId,
@@ -369,6 +376,7 @@ export class HostMemoryCompanion {
         finalRecord.audience ||
         !['active', 'stale'].includes(finalRecord.status) ||
         (finalRecord.scope === 'session' && finalRecord.ownerSessionId !== sessionId) ||
+        session.paused ||
         !this.allowed(sessionId) ||
         this.sessions.get(sessionId) !== session
       )
@@ -410,7 +418,12 @@ export class HostMemoryCompanion {
         }),
       );
     } catch {
-      if (this.sessions.get(sessionId) === session)
+      if (
+        !cancelled &&
+        !session.paused &&
+        this.allowed(sessionId) &&
+        this.sessions.get(sessionId) === session
+      )
         this.send(
           sessionId,
           '[memory:unverifiable]',
