@@ -17,18 +17,34 @@ import { createHeadlessLaunchPlan } from './launch-plan.js';
 import { AutomationPullRequests } from './pull-request.js';
 import { AutomationJobBusy, AutomationRevisionConflict, type AutomationStore } from './store.js';
 
+export class AutomationPayloadTooLarge extends Error {
+  constructor() {
+    super('Request exceeds 128 KB');
+  }
+}
+
 export async function readAutomationBody(
   request: IncomingMessage,
+  allowEmpty = false,
 ): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = [];
   let size = 0;
+  let tooLarge = false;
   for await (const chunk of request) {
-    const bytes = Buffer.from(chunk);
+    const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     size += bytes.length;
-    if (size > 128 * 1024) throw new Error('Request exceeds 128 KB');
+    if (size > 128 * 1024) {
+      tooLarge = true;
+      chunks.length = 0;
+      if (size > 512 * 1024) break;
+      continue;
+    }
     chunks.push(bytes);
   }
-  const value: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  if (tooLarge) throw new AutomationPayloadTooLarge();
+  const text = Buffer.concat(chunks).toString('utf8');
+  if (allowEmpty && !text.trim()) return {};
+  const value: unknown = JSON.parse(text);
   if (!value || typeof value !== 'object' || Array.isArray(value))
     throw new Error('Expected an object');
   return value as Record<string, unknown>;
@@ -141,7 +157,7 @@ export async function handleAutomationManagement(
       if (operation === 'pr' && request.method === 'GET')
         reply(200, await pullRequests.inspect(runMatch[1]!));
       else if (operation !== 'pr' && request.method === 'POST') {
-        const body = await readAutomationBody(request);
+        const body = await readAutomationBody(request, operation === 'pr/check');
         if (operation === 'pr/prepare')
           reply(
             200,
@@ -190,7 +206,7 @@ export async function handleAutomationManagement(
         (request.headers['content-length'] !== undefined &&
           request.headers['content-length'] !== '0') ||
         request.headers['transfer-encoding'] !== undefined;
-      const body = hasBody ? await readAutomationBody(request) : {};
+      const body = hasBody ? await readAutomationBody(request, true) : {};
       const expectedRevision = body['expectedRevision'];
       if (
         expectedRevision !== undefined &&
@@ -289,12 +305,15 @@ export async function handleAutomationManagement(
       } else reply(201, await store.add(spec));
     } else reply(405, { error: 'Method not allowed' });
   } catch (error) {
-    reply(
-      error instanceof AutomationRevisionConflict || error instanceof AutomationJobBusy ? 409 : 400,
-      {
-        error: error instanceof Error ? error.message.slice(0, 256) : 'Automation request failed',
-      },
-    );
+    const status =
+      error instanceof AutomationPayloadTooLarge
+        ? 413
+        : error instanceof AutomationRevisionConflict || error instanceof AutomationJobBusy
+          ? 409
+          : 400;
+    reply(status, {
+      error: error instanceof Error ? error.message.slice(0, 256) : 'Automation request failed',
+    });
   }
   return true;
 }

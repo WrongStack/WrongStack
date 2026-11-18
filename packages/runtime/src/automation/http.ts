@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { timingSafeTokenEqual } from '@wrongstack/primitives';
 import { ingestGitHubEvent } from './github.js';
-import { handleAutomationManagement } from './management.js';
+import { AutomationPayloadTooLarge, handleAutomationManagement } from './management.js';
 import type { AutomationService } from './service.js';
 import { AutomationRevisionConflict } from './store.js';
 
@@ -11,12 +11,19 @@ function authorized(value: string | undefined, token: string): boolean {
 async function readBody(request: IncomingMessage): Promise<Buffer> {
   const parts: Buffer[] = [];
   let bytes = 0;
+  let tooLarge = false;
   for await (const part of request) {
     const buffer = Buffer.isBuffer(part) ? part : Buffer.from(part);
     bytes += buffer.length;
-    if (bytes > 128 * 1024) throw new Error('Request exceeds 128 KB');
+    if (bytes > 128 * 1024) {
+      tooLarge = true;
+      parts.length = 0;
+      if (bytes > 512 * 1024) break;
+      continue;
+    }
     parts.push(buffer);
   }
+  if (tooLarge) throw new AutomationPayloadTooLarge();
   return Buffer.concat(parts);
 }
 function reply(response: ServerResponse, status: number, value: unknown) {
@@ -90,11 +97,13 @@ export function createAutomationServer(
     })().catch((error) => {
       const message = error instanceof Error ? error.message : 'Automation request failed';
       const status =
-        error instanceof AutomationRevisionConflict || /Delivery ID reused/.test(message)
-          ? 409
-          : /signature|trigger is unavailable|repository does not match/.test(message)
-            ? 403
-            : 400;
+        error instanceof AutomationPayloadTooLarge
+          ? 413
+          : error instanceof AutomationRevisionConflict || /Delivery ID reused/.test(message)
+            ? 409
+            : /signature|trigger is unavailable|repository does not match/.test(message)
+              ? 403
+              : 400;
       if (!response.headersSent) reply(response, status, { error: message.slice(0, 256) });
       else response.end();
     });
