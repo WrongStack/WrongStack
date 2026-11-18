@@ -65,6 +65,10 @@ export function resolveTerminalShell(
  *   - `terminal.close`  → kill the pty
  * When a client disconnects, every pty it owns is killed (no orphan shells).
  */
+function isSocketDisconnected(ws: WebSocket): boolean {
+  return ws.readyState === 2 || ws.readyState === 3;
+}
+
 export class TerminalWebSocketHandler {
   /** ws → (terminalId → pty). */
   private readonly sessions = new Map<WebSocket, Map<string, PtyProcess>>();
@@ -74,6 +78,8 @@ export class TerminalWebSocketHandler {
    * (reconnect replay, StrictMode remount) interleaves across that await.
    */
   private readonly starting = new Map<WebSocket, Map<string, symbol>>();
+  private readonly socketOffs = new Map<WebSocket, () => void>();
+  private disposed = false;
 
   constructor(
     /** Resolves the cwd new terminals open in — tracks the live working dir. */
@@ -85,14 +91,25 @@ export class TerminalWebSocketHandler {
   ) {}
 
   addClient(ws: WebSocket): void {
+    if (this.disposed || isSocketDisconnected(ws)) return;
     if (!this.sessions.has(ws)) this.sessions.set(ws, new Map());
-    ws.on('close', () => this.disposeClient(ws));
-    ws.on('error', () => this.disposeClient(ws));
+    if (!this.socketOffs.has(ws)) {
+      const onDisconnect = () => this.disposeClient(ws);
+      ws.on('close', onDisconnect);
+      ws.on('error', onDisconnect);
+      this.socketOffs.set(ws, () => {
+        ws.off?.('close', onDisconnect);
+        ws.off?.('error', onDisconnect);
+      });
+    }
   }
 
   /** Kill every pty owned by every client (server shutdown). */
   dispose(): void {
-    for (const ws of [...this.sessions.keys()]) this.disposeClient(ws);
+    this.disposed = true;
+    for (const ws of [...new Set([...this.sessions.keys(), ...this.socketOffs.keys()])]) {
+      this.disposeClient(ws);
+    }
   }
 
   /** True if this message was a terminal.* message (handled here). */
@@ -127,8 +144,8 @@ export class TerminalWebSocketHandler {
     ws: WebSocket,
     payload: { id: string; cols?: number | undefined; rows?: number | undefined },
   ): Promise<void> {
-    const map = this.sessions.get(ws) ?? new Map<string, PtyProcess>();
-    this.sessions.set(ws, map);
+    const map = this.sessions.get(ws);
+    if (this.disposed || !map || isSocketDisconnected(ws)) return;
 
     let starting = this.starting.get(ws);
     if (!starting) {
@@ -171,7 +188,12 @@ export class TerminalWebSocketHandler {
     } finally {
       // A close, or a disconnect, while authorization was pending cancels this
       // create; the create that follows a close holds its own token.
-      cancelled = starting.get(payload.id) !== token || this.starting.get(ws) !== starting;
+      cancelled =
+        this.disposed ||
+        isSocketDisconnected(ws) ||
+        this.sessions.get(ws) !== map ||
+        starting.get(payload.id) !== token ||
+        this.starting.get(ws) !== starting;
       if (!cancelled) starting.delete(payload.id);
     }
     if (cancelled) return;
@@ -226,7 +248,7 @@ export class TerminalWebSocketHandler {
     // an object no cleanup path can still reach: the shell (and on Windows its
     // conhost/ConPTY tree) would survive `close`, `disposeClient` and the
     // server-wide `dispose()`, leaking one orphan per open/close cycle.
-    if (this.sessions.get(ws) !== map) {
+    if (this.disposed || this.sessions.get(ws) !== map || isSocketDisconnected(ws)) {
       this.logger.info?.(
         `terminal.create raced a disconnect (id=${payload.id}) — killing the orphan`,
       );
@@ -279,6 +301,8 @@ export class TerminalWebSocketHandler {
   }
 
   private disposeClient(ws: WebSocket): void {
+    this.socketOffs.get(ws)?.();
+    this.socketOffs.delete(ws);
     this.starting.delete(ws);
     const map = this.sessions.get(ws);
     if (!map) return;
