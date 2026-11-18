@@ -20,6 +20,47 @@ afterEach(() => {
 });
 
 describe('startChronicleHealthMonitor', () => {
+  it.each(['context', 'journal'] as const)(
+    'reports a failing %s sample and continues on the next tick',
+    async (source) => {
+      vi.useFakeTimers();
+      const error = new Error('sample source unavailable');
+      const emit = vi.fn();
+      const onPersistError = vi.fn();
+      const resolveContext = vi.fn(() => context('recovered'));
+      const stats = vi.fn(() => ({
+        accepted: 0,
+        persisted: 0,
+        dropped: 0,
+        quarantined: 0,
+        buffered: 0,
+      }));
+      (source === 'journal' ? stats : resolveContext).mockImplementationOnce(() => {
+        throw error;
+      });
+      const stop = startChronicleHealthMonitor({
+        events: { emit } as unknown as EventBus,
+        journal: { stats } as unknown as ChronicleEventSink,
+        context: resolveContext,
+        intervalMs: 5_000,
+        onPersistError,
+      });
+      try {
+        await vi.advanceTimersByTimeAsync(5_000);
+        expect(onPersistError).toHaveBeenCalledExactlyOnceWith(error);
+        expect(emit).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(5_000);
+        expect(emit).toHaveBeenCalledExactlyOnceWith(
+          'runtime.health.sampled',
+          expect.objectContaining({ sessionId: 'recovered' }),
+        );
+        expect(onPersistError).toHaveBeenCalledTimes(1);
+      } finally {
+        stop();
+      }
+    },
+  );
+
   it('samples a dynamic context and emits bounded runtime health data', async () => {
     vi.useFakeTimers();
     const emit = vi.fn();

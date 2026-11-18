@@ -182,6 +182,33 @@ async function waitForEvent(journal: ChronicleJournal, predicate: (type: string)
 }
 
 describe('startChronicleFileObserver', () => {
+  it('leaves only existing subscriptions after repeated native watcher setup failures', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'chronicle-watch-failure-'));
+    tempDirs.push(root);
+    const events = new EventBus();
+    const offExisting = events.on('tool.progress', () => {});
+    const options = {
+      projectRoot: root,
+      events,
+      journal: new FlakyBatchSink(0),
+      context: createChronicleContext({ installationId: 'i', machineId: 'm', projectId: 'p' }),
+    };
+    try {
+      for (const name of ['missing-one', 'missing-two']) {
+        await expect(
+          startChronicleFileObserver({ ...options, projectRoot: path.join(root, name) }),
+        ).rejects.toThrow();
+        expect(events.listenerCount('tool.progress')).toBe(1);
+      }
+      const observer = await startChronicleFileObserver(options);
+      expect(events.listenerCount('tool.progress')).toBe(2);
+      await observer.close();
+      expect(events.listenerCount('tool.progress')).toBe(1);
+    } finally {
+      offExisting();
+    }
+  });
+
   it('records external edits and deletes with previous content identity', async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), 'chronicle-files-'));
     tempDirs.push(root);

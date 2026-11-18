@@ -280,6 +280,7 @@ export async function startChronicleFileObserver(
       onError: (error) => options.onError?.(error),
     });
   } catch (error) {
+    offToolProgress?.();
     options.onError?.(error);
     throw error;
   }

@@ -82,8 +82,8 @@ export function wireRollupsToChronicle(options: ChronicleRollupAdapterOptions): 
         startedAt: now,
         updatedAt: now,
         count: 0,
-        metrics: {},
-        categories: {},
+        metrics: Object.create(null) as Bucket['metrics'],
+        categories: Object.create(null) as Record<string, number>,
         resources: new Map(),
       };
       buckets.set(key, value);
@@ -94,6 +94,7 @@ export function wireRollupsToChronicle(options: ChronicleRollupAdapterOptions): 
     target.count++;
     target.updatedAt = Date.now();
     for (const [name, value] of Object.entries(values)) {
+      if (!Number.isFinite(value)) continue;
       const metric = Object.hasOwn(target.metrics, name) ? target.metrics[name] : undefined;
       target.metrics[name] = metric
         ? {
@@ -124,14 +125,13 @@ export function wireRollupsToChronicle(options: ChronicleRollupAdapterOptions): 
     // Measured: 38-66% of rollups per signal aggregate a single sample, so the
     // collapsed shape is the common one, not the exception. Both shapes expose
     // `stats[name].last`, which is what ChronicleDashboard.tsx reads.
-    const stats = Object.fromEntries(
-      Object.entries(value.metrics).map(([name, metric]) => [
-        name,
+    const stats = Object.create(null) as Record<string, unknown>;
+    for (const [name, metric] of Object.entries(value.metrics)) {
+      stats[name] =
         metric.min === metric.max && metric.max === metric.last
           ? { sum: metric.sum, last: metric.last }
-          : metric,
-      ]),
-    );
+          : metric;
+    }
     const resources =
       value.resources.size > 0
         ? [...value.resources]
@@ -177,12 +177,11 @@ export function wireRollupsToChronicle(options: ChronicleRollupAdapterOptions): 
       ...(dimensionValue ? { agentId: dimensionValue } : {}),
       dimensions: dimensionValue && dimension ? { [dimension]: dimensionValue } : {},
     });
-    sample(
-      target,
-      Object.fromEntries(
-        Object.entries(event).filter(([, value]) => typeof value === 'number'),
-      ) as Record<string, number>,
-    );
+    const values = Object.create(null) as Record<string, number>;
+    for (const [k, v] of Object.entries(event)) {
+      if (typeof v === 'number' && Number.isFinite(v)) values[k] = v;
+    }
+    sample(target, values);
   };
   const offs = [
     options.events.on('process.output', (event) => {
@@ -376,10 +375,10 @@ export function wireRollupsToChronicle(options: ChronicleRollupAdapterOptions): 
   timer.unref?.();
   return () => {
     clearInterval(timer);
-    for (const key of [...buckets.keys()]) flush(key);
     offs.forEach((off) => {
       off();
     });
+    for (const key of [...buckets.keys()]) flush(key);
   };
 }
 function text(value: unknown): string | undefined {

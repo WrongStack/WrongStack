@@ -237,7 +237,8 @@ function ingestTokenCost(stmt: StatementCache, event: ChronicleEvent): void {
     cacheRead: tokens('usage.cacheRead'),
     cacheWrite: tokens('usage.cacheWrite'),
   };
-  const finiteCost = typeof cost === 'number' && Number.isFinite(cost) ? cost : undefined;
+  const finiteCost =
+    typeof cost === 'number' && Number.isFinite(cost) && cost >= 0 ? cost : undefined;
   const anyTokens =
     usage.input > 0 || usage.output > 0 || usage.cacheRead > 0 || usage.cacheWrite > 0;
   if (finiteCost === undefined && !anyTokens) return;
@@ -251,7 +252,8 @@ function ingestTokenCost(stmt: StatementCache, event: ChronicleEvent): void {
      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(scope_key) DO UPDATE SET
        day = excluded.day, occurred_at = excluded.occurred_at,
-       sequence = excluded.sequence, cost = excluded.cost,
+       sequence = excluded.sequence,
+       cost = CASE WHEN ? = 1 THEN excluded.cost ELSE token_cost.cost END,
        input_tokens = excluded.input_tokens, output_tokens = excluded.output_tokens,
        cache_read_tokens = excluded.cache_read_tokens,
        cache_write_tokens = excluded.cache_write_tokens,
@@ -270,6 +272,7 @@ function ingestTokenCost(stmt: StatementCache, event: ChronicleEvent): void {
     usage.cacheWrite,
     event.runtime?.providerId ?? stringAt(attributes, 'provider') ?? '',
     event.runtime?.modelId ?? stringAt(attributes, 'model') ?? '',
+    finiteCost !== undefined ? 1 : 0,
   );
 }
 

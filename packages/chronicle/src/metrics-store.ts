@@ -418,7 +418,7 @@ export class ChronicleMetricsStore {
       .prepare(
         `SELECT COALESCE(SUM(attempts),0) attempts, COALESCE(SUM(completed),0) completed, COALESCE(SUM(failed),0) failed,
         COALESCE(SUM(retries),0) retries, COALESCE(SUM(fallbacks),0) fallbacks,
-        COUNT(DISTINCT provider_id) providers, COUNT(DISTINCT model_id) models,
+        COUNT(DISTINCT NULLIF(provider_id, '')) providers, COUNT(DISTINCT NULLIF(model_id, '')) models,
         COALESCE(SUM(input_tokens),0) inputTokens, COALESCE(SUM(output_tokens),0) outputTokens,
         COALESCE(SUM(cache_read_tokens),0) cacheReadTokens, COALESCE(SUM(cache_write_tokens),0) cacheWriteTokens,
         COALESCE(SUM(duration_ms_total),0) durationTotal, COALESCE(MAX(duration_ms_max),0) durationMax,

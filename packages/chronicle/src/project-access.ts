@@ -233,35 +233,55 @@ function useSqliteStore(): boolean {
  * the import, landing *after* imported history in a chain that must stay dense.
  */
 class ChronicleSqliteEventSink implements ChronicleEventSink {
-  private readonly ready: Promise<ChronicleSqliteJournal>;
+  private sqlite: Promise<ChronicleSqliteJournal> | undefined;
+  private writes: Promise<void> = Promise.resolve();
   private last: ChronicleJournalStats | undefined;
+  private closed = false;
 
   constructor(
-    directory: string,
-    limits: Pick<ChronicleSqliteJournalOptions, 'retentionDays' | 'maxEvents' | 'maxBytes'> = {},
-  ) {
-    this.ready = (async () => {
-      await fsPromises.mkdir(directory, { recursive: true });
-      const journal = new ChronicleSqliteJournal({ directory, ...limits });
+    private readonly directory: string,
+    private readonly limits: Pick<
+      ChronicleSqliteJournalOptions,
+      'retentionDays' | 'maxEvents' | 'maxBytes'
+    > = {},
+  ) {}
+
+  private open(): Promise<ChronicleSqliteJournal> {
+    this.sqlite ??= (async () => {
+      let journal: ChronicleSqliteJournal | undefined;
       try {
-        await importLegacyChronicleJournal(journal, directory);
+        await fsPromises.mkdir(this.directory, { recursive: true });
+        journal = new ChronicleSqliteJournal({ directory: this.directory, ...this.limits });
+        await importLegacyChronicleJournal(journal, this.directory);
       } catch (error) {
-        journal.close();
+        this.sqlite = undefined;
+        journal?.close();
         throw error;
       }
       return journal;
     })();
+    return this.sqlite;
   }
 
-  async append(input: ChronicleEventInput): Promise<ChronicleEvent> {
-    const journal = await this.ready;
-    const event = await journal.append(input);
-    this.last = journal.stats();
-    return event;
+  append(input: ChronicleEventInput): Promise<ChronicleEvent> {
+    if (this.closed) {
+      return Promise.reject(new Error('Chronicle event sink is closed'));
+    }
+    const run = this.writes.then(async () => {
+      const journal = await this.open();
+      const event = await journal.append(input);
+      this.last = journal.stats();
+      return event;
+    });
+    this.writes = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
   }
 
   async flush(): Promise<void> {
-    await this.ready;
+    await this.writes;
   }
 
   stats(): ChronicleJournalStats {
@@ -269,7 +289,13 @@ class ChronicleSqliteEventSink implements ChronicleEventSink {
   }
 
   async close(): Promise<void> {
-    (await this.ready).close();
+    this.closed = true;
+    await this.writes;
+    const pending = this.sqlite;
+    this.sqlite = undefined;
+    if (!pending) return;
+    const journal = await pending.catch(() => undefined);
+    journal?.close();
   }
 }
 

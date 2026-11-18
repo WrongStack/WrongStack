@@ -21,12 +21,18 @@ export interface ChronicleDispatchHost {
   metrics(): ChronicleMetricsStore;
 }
 
-/** True when the only narrowing is a time window/page — no genuinely ad hoc
- *  filter (text/path/provider/model/session/etc.) that fixed-dimension
- *  aggregation in ChronicleMetricsStore can't answer. */
+const DAY_START_FROM_RE = /^\d{4}-\d{2}-\d{2}(?:T00:00:00(?:\.0+)?Z)?$/;
+const DAY_END_TO_RE = /^\d{4}-\d{2}-\d{2}T23:59:59\.999\d*Z$/;
+
+/** True when the only narrowing is a full-UTC-day window/page — no ad hoc
+ *  filter (text/path/provider/model/session/etc.) or sub-day timestamp that
+ *  day-bucketed aggregation in ChronicleMetricsStore can't answer. */
 function isDefaultView(query: ChronicleQuery): boolean {
   const { from, to, limit, order, cursor, ...rest } = query;
-  return Object.values(rest).every((value) => value === undefined);
+  if (!Object.values(rest).every((value) => value === undefined)) return false;
+  if (from !== undefined && !DAY_START_FROM_RE.test(from)) return false;
+  if (to !== undefined && !DAY_END_TO_RE.test(to)) return false;
+  return true;
 }
 export async function dispatchChronicle<O extends ChronicleServerOperationName>(
   host: ChronicleDispatchHost,
@@ -52,19 +58,20 @@ export async function dispatchChronicle<O extends ChronicleServerOperationName>(
     case 'query': {
       const args = rawArgs as ChronicleServerOperations['query']['args'];
       const engine = await host.queryEngine();
+      const defaultView = isDefaultView(args.query);
       // The unfiltered view reads only its page from SQLite; its summary comes from the
       // metrics store below, so streaming the whole journal for one would be thrown away.
       const result =
-        isDefaultView(args.query) && 'defaultViewPage' in engine
+        defaultView && 'defaultViewPage' in engine
           ? engine.defaultViewPage(args.query)
           : await engine.query(args.query);
-      // The default/unfiltered view (only from/to/limit/order/cursor set) is
+      // The default/unfiltered view (only full-day from/to/limit/order/cursor set) is
       // servable from the incrementally-refreshed metrics store instead of
       // the summary the query engine just computed by scanning matched
-      // events — any other filter (text/path/provider/model/session/etc.)
-      // keeps the raw-scan summary, since fixed-dimension aggregation can't
-      // answer genuinely ad hoc filters.
-      if (isDefaultView(args.query)) {
+      // events — any other filter (text/path/provider/model/session/sub-day bounds)
+      // keeps the raw-scan summary, since day-bucketed aggregation can't
+      // answer genuinely ad hoc or sub-day filters.
+      if (defaultView) {
         await host.refreshMetrics();
         result.summary = host.metrics().defaultSummary({
           ...(args.query.from ? { from: args.query.from } : {}),

@@ -233,26 +233,31 @@ function sanitize(value: unknown, key = '', depth = 0, seen = new WeakSet<object
   if (seen.has(value)) return { circular: true };
   if (depth >= 5) return { hash: digest(safeString(value)), depthLimited: true };
   seen.add(value);
-  if (Array.isArray(value)) {
-    const cap = TRUNCATED_ARRAYS.has(key) ? TRUNCATED_ARRAY_MAX : DEFAULT_ARRAY_MAX;
-    const items = value.slice(0, cap).map((item) => sanitize(item, key, depth + 1, seen));
-    return value.length > cap ? { items, total: value.length, truncated: true } : items;
+  try {
+    if (Array.isArray(value)) {
+      const cap = TRUNCATED_ARRAYS.has(key) ? TRUNCATED_ARRAY_MAX : DEFAULT_ARRAY_MAX;
+      const items = value.slice(0, cap).map((item) => sanitize(item, key, depth + 1, seen));
+      return value.length > cap ? { items, total: value.length, truncated: true } : items;
+    }
+    const output: Record<string, unknown> = {};
+    const entries = Object.entries(value as Record<string, unknown>);
+    for (const [childKey, child] of entries.slice(0, 100)) {
+      if (
+        childKey === '__proto__' ||
+        childKey === 'ctx' ||
+        childKey === 'provider' ||
+        childKey === 'resolve' ||
+        childKey === 'extend' ||
+        childKey === 'deny'
+      )
+        continue;
+      output[childKey] = sanitize(child, childKey, depth + 1, seen);
+    }
+    if (entries.length > 100) output._truncatedKeys = entries.length - 100;
+    return output;
+  } finally {
+    seen.delete(value);
   }
-  const output: Record<string, unknown> = {};
-  const entries = Object.entries(value as Record<string, unknown>);
-  for (const [childKey, child] of entries.slice(0, 100)) {
-    if (
-      childKey === 'ctx' ||
-      childKey === 'provider' ||
-      childKey === 'resolve' ||
-      childKey === 'extend' ||
-      childKey === 'deny'
-    )
-      continue;
-    output[childKey] = sanitize(child, childKey, depth + 1, seen);
-  }
-  if (entries.length > 100) output._truncatedKeys = entries.length - 100;
-  return output;
 }
 function safeString(value: unknown): string {
   try {

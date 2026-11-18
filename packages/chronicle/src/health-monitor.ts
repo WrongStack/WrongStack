@@ -25,14 +25,14 @@ export function startChronicleHealthMonitor(options: ChronicleHealthMonitorOptio
   let previousElu = performance.eventLoopUtilization();
 
   const sample = (): void => {
-    const context = typeof options.context === 'function' ? options.context() : options.context;
-    const memory = process.memoryUsage();
-    const cpu = process.cpuUsage(previousCpu);
-    previousCpu = process.cpuUsage();
-    const elu = performance.eventLoopUtilization(previousElu);
-    previousElu = performance.eventLoopUtilization();
-    const journalBeforeSample = options.journal.stats();
     try {
+      const context = typeof options.context === 'function' ? options.context() : options.context;
+      const memory = process.memoryUsage();
+      const cpu = process.cpuUsage(previousCpu);
+      previousCpu = process.cpuUsage();
+      const elu = performance.eventLoopUtilization(previousElu);
+      previousElu = performance.eventLoopUtilization();
+      const journalBeforeSample = options.journal.stats();
       options.events.emit('runtime.health.sampled', {
         sessionId: context.scope.sessionId,
         uptimeSeconds: process.uptime(),
@@ -56,8 +56,9 @@ export function startChronicleHealthMonitor(options: ChronicleHealthMonitorOptio
       });
     } catch (error) {
       options.onPersistError?.(error);
+    } finally {
+      delay.reset();
     }
-    delay.reset();
   };
 
   const timer = setInterval(sample, intervalMs);
