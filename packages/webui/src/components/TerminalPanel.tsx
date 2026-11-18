@@ -1,4 +1,5 @@
 import { FitAddon } from '@xterm/addon-fit';
+import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { Terminal } from '@xterm/xterm';
 import { safeId } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
@@ -424,11 +425,22 @@ function TerminalSession({
       cursorBlink: true,
       theme: XTERM_THEME,
       scrollback: 5000,
+      // `term.unicode` is a proposed API.
+      allowProposedApi: true,
     });
     const fit = new FitAddon();
     termRef.current = term;
     fitRef.current = fit;
     term.loadAddon(fit);
+    // xterm.js measures with Unicode 6 by default, where most emoji take one
+    // column; the TUI (string-width) and the PTY host give them two. Unicode
+    // 11 widths keep emoji rows of a TUI running here aligned.
+    try {
+      term.loadAddon(new Unicode11Addon());
+      term.unicode.activeVersion = '11';
+    } catch {
+      // Keep the default Unicode 6 widths.
+    }
     term.open(container);
     try {
       fit.fit();

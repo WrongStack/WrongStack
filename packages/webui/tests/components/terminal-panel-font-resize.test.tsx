@@ -5,7 +5,12 @@ const fixture = vi.hoisted(() => ({
   send: vi.fn(),
   font: { fontFamily: 'monospace', fontSize: 14, lineHeight: 1 },
   nextSize: { cols: 80, rows: 24 },
-  terminal: null as null | { resize(cols: number, rows: number): void },
+  terminal: null as null | {
+    resize(cols: number, rows: number): void;
+    unicode: { activeVersion: string };
+    addons: unknown[];
+    options: Record<string, unknown>;
+  },
 }));
 vi.mock('@/lib/ws-client', () => ({
   getWSClient: () => ({ send: fixture.send, on: () => () => {} }),
@@ -17,12 +22,17 @@ vi.mock('@xterm/xterm', () => ({
   Terminal: class {
     cols = 80;
     rows = 24;
-    options = {};
+    unicode = { activeVersion: '6' };
+    addons: unknown[] = [];
+    options: Record<string, unknown>;
     resizeListener?: (size: { cols: number; rows: number }) => void;
-    constructor() {
+    constructor(options: Record<string, unknown> = {}) {
+      this.options = options;
       fixture.terminal = this;
     }
-    loadAddon() {}
+    loadAddon(addon: unknown) {
+      this.addons.push(addon);
+    }
     open() {}
     focus() {}
     write() {}
@@ -54,6 +64,11 @@ vi.mock('@xterm/addon-fit', () => ({
   },
 }));
 
+vi.mock('@xterm/addon-unicode11', () => ({
+  Unicode11Addon: class Unicode11Addon {},
+}));
+
+import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { TerminalPanel } from '@/components/TerminalPanel';
 
 afterEach(() => {
@@ -83,4 +98,19 @@ it('sends a font-driven grid change to the PTY without a container resize', () =
     type: 'terminal.resize',
     payload: { id: expect.any(String), cols: 62, rows: 18 },
   });
+});
+
+it('measures with Unicode 11 widths, as the TUI and the PTY host do', () => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  render(<TerminalPanel onClose={() => {}} onDispose={() => {}} />);
+  const terminal = fixture.terminal!;
+  expect(terminal.options.allowProposedApi).toBe(true);
+  expect(terminal.addons.some((addon) => addon instanceof Unicode11Addon)).toBe(true);
+  expect(terminal.unicode.activeVersion).toBe('11');
 });
