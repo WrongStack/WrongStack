@@ -80,6 +80,12 @@ starts that project's services; WrongStack or Appearance settings starts the pro
 Mission Control, the project list, and activity do not start these runtimes speculatively.
 Settings and model pickers still open the profile engine on demand through their runtime gate.
 
+Closing Desktop windows leaves the session host up so active conversations and terminals can
+continue. Unused project and profile services stop after 15 minutes of inactivity, checked once
+per minute. A project with a supervised Kanban board keeps its services running. If Desktop
+reports an older session host after an update, use its restart notice to switch engines. The
+notice asks for confirmation before stopping live sessions.
+
 The remembered display language (or English on a fresh installation) is used
 at launch. The profile language is synchronized when settings is opened; shared project surfaces
 use the same in-memory language rather than polling an unopened profile runtime.

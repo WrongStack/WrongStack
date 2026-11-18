@@ -484,6 +484,107 @@ mod tests {
     }
 
     #[test]
+    fn deleting_the_last_supervised_board_allows_an_idle_engine_to_stop() {
+        use crate::sessions::LiveSession;
+        use std::{net::TcpListener, sync::mpsc};
+        use tungstenite::Message;
+
+        let dir = std::env::temp_dir().join(format!("desktop-project-cleanup-{}", Uuid::new_v4()));
+        let host = HostState::new(&dir).unwrap();
+        let runtime_id = "project-cleanup";
+        let (send, frames) = mpsc::channel::<(String, Vec<Value>)>();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let mut socket = tungstenite::accept(stream).unwrap();
+            while let Ok((marker, messages)) = frames.recv() {
+                for message in messages {
+                    socket
+                        .send(Message::Text(message.to_string().into()))
+                        .unwrap();
+                }
+                let ready = json!({"type":"session.start","payload":{"sessionId":marker}});
+                socket
+                    .send(Message::Text(ready.to_string().into()))
+                    .unwrap();
+            }
+            socket.close(None).unwrap();
+        });
+        let engine = Engine::connect(
+            port,
+            "fixture",
+            &dir.join("transcripts").join("project-cleanup.events.jsonl"),
+            false,
+        )
+        .unwrap();
+        host.live.lock().unwrap().insert(
+            runtime_id.into(),
+            LiveSession {
+                master: None,
+                writer: None,
+                killer: None,
+                // The fixture acknowledges the stop file by clearing this entry.
+                agent_pid: Some(u32::MAX),
+                engine: Some(Arc::clone(&engine)),
+            },
+        );
+        host.project_runtimes.lock().unwrap().insert(
+            "project".into(),
+            ProjectRuntime::new(runtime_id.into(), "running", None),
+        );
+        let idle = PROJECT_IDLE_STOP;
+        let now = Instant::now() + idle;
+        let status = |board| json!({"type":"kanban.supervisor.status","payload":{"success":true,"data":{"boardId":board,"status":"healthy"}}});
+        let deletion = |board, removed| json!({"type":"kanban.delete","payload":{"success":true,"data":{"boardId":board,"removed":removed}}});
+        let empty_mirror = json!({"type":"kanban.supervisor.status","payload":{"success":true,
+            "data":{"boardId":"boot-mirror","status":"healthy","emptySessionMirror":true}}});
+        let sweep_after = |marker: &str, messages| {
+            send.send((marker.into(), messages)).unwrap();
+            let deadline = Instant::now() + Duration::from_secs(5);
+            // The reader processes each notification before it publishes the marker.
+            while engine.identity()["sessionId"] != marker {
+                assert!(Instant::now() < deadline, "engine missed marker {marker}");
+                thread::yield_now();
+            }
+            host.sweep_idle_project_runtimes(now, idle)
+        };
+        let before_delete = sweep_after("supervised", vec![status("a"), status("b"), empty_mirror]);
+        let after_one = sweep_after("one-removed", vec![deletion("a", true)]);
+        let after_failed = sweep_after("failed-removal", vec![deletion("b", false)]);
+        let after_last = sweep_after("last-removed", vec![deletion("b", true)]);
+        let asked_to_stop = dir
+            .join("transcripts")
+            .join("project-cleanup.stop")
+            .exists();
+        host.live.lock().unwrap().remove(runtime_id);
+        host.publish_runtime_state(runtime_id, "stopped", Some(0), None)
+            .unwrap();
+        let final_status = host.runtime_status("project").unwrap()["status"].clone();
+        drop(send);
+        server.join().unwrap();
+        drop(host);
+        let _ = std::fs::remove_dir_all(&dir);
+
+        assert!(
+            before_delete.is_empty(),
+            "a supervised engine stays running"
+        );
+        assert!(after_one.is_empty(), "a remaining board keeps it running");
+        assert!(
+            after_failed.is_empty(),
+            "an unsuccessful deletion changes nothing"
+        );
+        assert_eq!(
+            after_last,
+            ["project"],
+            "a deleted board and the empty boot mirror cannot keep the engine running"
+        );
+        assert!(asked_to_stop);
+        assert_eq!(final_status, "idle");
+    }
+
+    #[test]
     fn the_sweep_keeps_services_it_cannot_see_and_an_idle_stop_reads_as_never_started() {
         let dir = std::env::temp_dir().join(format!("desktop-project-idle-{}", Uuid::new_v4()));
         std::fs::create_dir_all(dir.join("repo")).unwrap();
