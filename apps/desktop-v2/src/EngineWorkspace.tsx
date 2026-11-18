@@ -23,7 +23,7 @@ import type { AppNavigation, DesktopNavigation } from './desktop-commands';
 import { useDesktopText } from './desktop-i18n';
 import { EngineDataView } from './EngineDataView';
 import { EngineSessionPanels, isEngineSessionPanel } from './EngineSessionPanels';
-import { expireEngineInteractions } from './engine-state';
+import { sessionEngineView } from './engine-state';
 import type { EngineTab } from './engine-workspace-tabs';
 import { FallbackPicker } from './FallbackPicker';
 import { failedRun } from './failed-run-model';
@@ -128,13 +128,7 @@ export function EngineWorkspace({
 }) {
   const { state: journalState, send, command } = useEngine(id, onError);
   const writable = sessionStatus === 'running';
-  const state = useMemo(
-    () =>
-      writable
-        ? journalState
-        : { ...journalState, ...expireEngineInteractions(journalState), connected: false },
-    [writable, journalState],
-  );
+  const state = useMemo(() => sessionEngineView(journalState, writable), [writable, journalState]);
   const [savedQuestionsOpen, setSavedQuestionsOpen] = useState(false);
   const artifactRoot = designArtifactRoot(
     projectRoot,
@@ -692,6 +686,7 @@ export function EngineWorkspace({
           </div>
           <SessionInspector
             key={`${id}:${state.sessionId}`}
+            showThinkingLogs={display.showThinkingLogs}
             state={state}
             command={command}
             onLink={openLink}

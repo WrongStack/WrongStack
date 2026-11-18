@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T21:53:45.900Z",
+  "generatedAt": "2026-11-18T21:55:25.714Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6386,
-    "testFiles": 5524,
-    "sourceLines": 1317280,
+    "sourceFiles": 6389,
+    "testFiles": 5525,
+    "sourceLines": 1317411,
     "workspaceEdges": 250,
-    "moduleEdges": 18859,
+    "moduleEdges": 18872,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 390,
+    "testsWithoutTypecheck": 391,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1075
+    "testOnlyExports": 1074
   },
   "errors": [],
   "packageCycles": [],
@@ -386,8 +386,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 546,
-      "testFiles": 390,
+      "sourceFiles": 549,
+      "testFiles": 391,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -3392,6 +3392,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-todos.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-tool-summary.test.ts",
         "projects": [
           "root-node"
         ]
@@ -36888,6 +36894,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/session-tool-summary.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/session-usage-i18n.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -38429,7 +38442,7 @@
     },
     {
       "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 796,
+      "lines": 791,
       "relativeImports": 61
     },
     {
@@ -38631,7 +38644,7 @@
     },
     {
       "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 796,
+      "lines": 791,
       "relativeImports": 61
     },
     {
@@ -38859,10 +38872,6 @@
     {
       "file": "apps/desktop-v2/src/engine-state.ts",
       "name": "ACTIVITY_LIMIT"
-    },
-    {
-      "file": "apps/desktop-v2/src/engine-state.ts",
-      "name": "coalesceTextDeltas"
     },
     {
       "file": "apps/desktop-v2/src/engine-state.ts",

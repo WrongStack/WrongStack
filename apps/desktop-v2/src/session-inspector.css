@@ -228,6 +228,35 @@
   color: var(--text);
   user-select: text;
 }
+.session-tool-summary {
+  margin-bottom: 24px;
+}
+.session-tool-summary h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.session-tool-summary p {
+  margin: 4px 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.session-inspector-details .session-tool-summary dl > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 12px;
+  padding-block: 8px;
+}
+.session-tool-summary dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.session-tool-summary .session-tool-total :is(dt, dd) {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+}
 .inspector-plan .session-todos {
   margin: 0;
   padding: 16px;
@@ -313,5 +342,17 @@
   .session-inspector .agent-tabs {
     flex: none;
     min-height: 72px;
+  }
+  @container conversation (max-width: 760px) {
+    /* Keep a usable transcript when the inspector stacks above a tall composer. */
+    .session-conversation-panes {
+      overflow-y: auto;
+    }
+    .session-leader-column {
+      overflow: visible;
+    }
+    .focused-session .session-leader-column > .native-chat-messages {
+      min-height: 160px;
+    }
   }
 }

@@ -60,7 +60,6 @@
     ],
     "apps/desktop-v2/src/engine-state.ts": [
       "ACTIVITY_LIMIT",
-      "coalesceTextDeltas",
       "reduceEngine"
     ],
     "apps/desktop-v2/src/engine-stream.ts": [

@@ -5,6 +5,7 @@ import { SessionAgentRail } from './AgentTranscripts';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { SessionTodos } from './SessionTodos';
+import { SessionToolSummary } from './SessionToolSummary';
 import { surfaceI18n } from './surface-i18n';
 import './session-inspector.css';
 
@@ -20,10 +21,12 @@ export function SessionInspector({
   state,
   command,
   onLink,
+  showThinkingLogs = true,
 }: {
   state: EngineState;
   command: EngineCommand;
   onLink: (href: string) => void;
+  showThinkingLogs?: boolean;
 }) {
   const { t: words } = useTranslation('sessionInspector', { i18n: surfaceI18n });
   const id = useId();
@@ -101,11 +104,17 @@ export function SessionInspector({
             className={`session-inspector-panel inspector-${value}`}
           >
             {value === 'agents' ? (
-              <SessionAgentRail state={state} onLink={onLink} embedded />
+              <SessionAgentRail
+                state={state}
+                onLink={onLink}
+                showThinkingLogs={showThinkingLogs}
+                embedded
+              />
             ) : value === 'plan' ? (
               <SessionTodos state={state} command={command} embedded />
             ) : (
               <div className="session-inspector-details">
+                <SessionToolSummary activity={state} />
                 <p>{words('detailsHint')}</p>
                 <dl>
                   <div>

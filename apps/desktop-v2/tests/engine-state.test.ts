@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyEngineState, reduceEngine } from '../src/engine-state';
+import { emptyEngineState, reduceEngine, sessionEngineView } from '../src/engine-state';
 
 const started = () =>
   reduceEngine(emptyEngineState, {
@@ -7,6 +7,22 @@ const started = () =>
     payload: { sessionId: 'core-a', provider: 'local', model: 'test' },
   });
 describe('native agent session projection', () => {
+  it('preserves live state identity and expires read-only controls without mutating the journal', () => {
+    const state = {
+      ...reduceEngine(started(), {
+        type: 'tool.confirm_needed',
+        payload: { sessionId: 'core-a', id: 'c1', toolName: 'terminal' },
+      }),
+      running: true,
+    };
+    expect(sessionEngineView(state, true)).toBe(state);
+    const readOnly = sessionEngineView(state, false);
+    expect(readOnly).toMatchObject({ connected: false, running: false, approvals: [], inputs: [] });
+    expect(readOnly.messages).toBe(state.messages);
+    expect(readOnly.toolCalls).toBe(state.toolCalls);
+    expect(state.running).toBe(true);
+    expect(state.approvals).toHaveLength(1);
+  });
   it('keeps shared policy and session preferences when the server splits their updates', () => {
     const shared = reduceEngine(started(), {
       type: 'prefs.updated',

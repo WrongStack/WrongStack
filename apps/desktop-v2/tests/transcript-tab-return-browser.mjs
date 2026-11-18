@@ -69,7 +69,7 @@ const modules = new Map([
 const server = await createServer({
   root,
   configFile: path.join(root, 'vite.config.ts'),
-  server: { host: '127.0.0.1', port: 0, watch: { ignored: ['**/src-tauri/**', '**/dist*/**'] } },
+  server: { host: '127.0.0.1', port: 0, watch: null },
   plugins: [
     {
       name: 'transcript-tab-return-proof',
@@ -119,7 +119,7 @@ async function checkReturn(browser, url, viewport) {
   page.setDefaultTimeout(12000);
   const errors = [];
   page.on('pageerror', (error) => errors.push(String(error)));
-  await page.goto(url, { waitUntil: 'commit' });
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
   await page.locator('[data-message-id="message-99"]').waitFor();
   const nearEnd = () => {
     const view = document.querySelector('.native-chat-messages');
@@ -305,16 +305,16 @@ try {
 
   const compact = await browser.newPage({ viewport: { width: 400, height: 300 } });
   compact.setDefaultTimeout(12000);
-  await compact.goto(url, { waitUntil: 'commit' });
+  await compact.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
   const transcript = compact.locator(pane);
   await transcript.waitFor();
-  assert.ok((await transcript.boundingBox()).height >= 70);
+  assert.ok((await transcript.boundingBox()).height >= 160);
   const send = compact.getByRole('button', { name: 'Send message', exact: true });
   await send.scrollIntoViewIfNeeded();
   const button = await send.boundingBox();
   assert.ok(button.y >= 0 && button.y + button.height <= 300);
   assert.ok(
-    await compact.locator('.workspace-focused .main-content').evaluate((el) => el.scrollTop > 0),
+    await compact.locator('.session-conversation-panes').evaluate((el) => el.scrollTop > 0),
   );
   assert.equal(await compact.evaluate(() => document.documentElement.scrollWidth), 400);
   await compact.close();

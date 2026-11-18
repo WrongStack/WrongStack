@@ -16,6 +16,12 @@ import type { MemoryReviews } from './memory-reviews';
 import type { WaitingRoom } from './provider-waiting';
 import type { ServiceHealing } from './service-healing';
 
+export interface SessionToolCalls {
+  counts: ReadonlyMap<string, number>;
+  active: ReadonlyMap<string, string>;
+  anonymous: ReadonlyMap<string, { started: number; executed: number }>;
+}
+
 export interface EngineEvent {
   type: string;
   payload: Record<string, unknown>;
@@ -97,6 +103,8 @@ export interface EngineState {
   runTimeline: EngineEvent[];
   /** Each finished turn's tool events, by the id of the assistant message that ended it. */
   turnActivity: Record<string, EngineEvent[]>;
+  /** Logical call totals for the whole replayed session, independent of transcript retention. */
+  toolCalls: SessionToolCalls;
   /** Each finished turn's iterations and token use, by the id of its answer. */
   turnStats: Record<string, TurnStats>;
   /** Session token totals when the running turn started. */

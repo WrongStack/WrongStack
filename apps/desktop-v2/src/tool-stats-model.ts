@@ -1,4 +1,4 @@
-import type { EngineEvent } from './engine-state';
+import type { EngineEvent, EngineState } from './engine-state';
 import { entries, record } from './engine-values';
 
 /** Calls of one tool (or by one agent): started, finished well, failed, and their time. */
@@ -68,6 +68,14 @@ export function conversationToolStats(events: readonly EngineEvent[]): ToolStats
     { ...empty(), inFlight: 0 },
   );
   return { tools: list, agents: sorted(agents), totals };
+}
+
+/** Unique logical calls across completed turns and the live run, not lifecycle frame counts. */
+export function conversationToolCallCounts(activity: Pick<EngineState, 'toolCalls'>) {
+  const tools = [...activity.toolCalls.counts]
+    .map(([name, calls]) => ({ name, calls }))
+    .sort((a, b) => b.calls - a.calls || a.name.localeCompare(b.name));
+  return { total: tools.reduce((sum, tool) => sum + tool.calls, 0), tools };
 }
 
 /** One conversation in the project's catalog, with the tool counts the catalog keeps. */

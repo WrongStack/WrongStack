@@ -14,6 +14,7 @@ import { emptyContextUsage, reduceContextUsage, turnStats } from './context-usag
 import { appendNotice, conversationNotice } from './conversation-notices.js';
 import { reduceCouncil } from './council-decisions.js';
 import { appendDelegation, delegationRecord } from './delegations.js';
+import { coalesceTextDeltas, engineEvent } from './engine-events';
 import type { ChatMessage, EngineEvent, EngineState } from './engine-state-types';
 import { contentText, entries, record } from './engine-values.js';
 import { fleetGauge } from './fleet-gauge.js';
@@ -23,8 +24,10 @@ import { emptyMemoryReviews, foldMemoryReviews } from './memory-reviews.js';
 import { reduceWaitingRoom } from './provider-waiting.js';
 import { appendRunEvent, isRunTimelineEvent } from './run-timeline.js';
 import { serviceHealing } from './service-healing';
+import { emptySessionToolCalls, reduceSessionToolCalls } from './session-tool-calls';
 import { reduceWorktreeEvents } from './worktree-history.js';
 
+export { coalesceTextDeltas, engineEvent } from './engine-events';
 export type { ChatMessage, EngineEvent, EngineState, ProviderTestRun } from './engine-state-types';
 export { contentText, entries, record } from './engine-values.js';
 /** Recent activity frames kept for the Activity view; streamed deltas are merged first. */
@@ -63,6 +66,7 @@ export const emptyEngineState: EngineState = {
   context: emptyContextUsage,
   runTimeline: [],
   turnActivity: {},
+  toolCalls: emptySessionToolCalls,
   turnStats: {},
   runStartTotals: null,
   runStartAt: null,
@@ -80,51 +84,6 @@ export const emptyEngineState: EngineState = {
   results: {},
   error: '',
 };
-/** Normalize journal input before it reaches operations or React's state updater. */
-export function engineEvent(value: unknown): EngineEvent | null {
-  const row = record(value);
-  if (typeof row['type'] !== 'string' || !row['type']) return null;
-  const at = row['at'];
-  return {
-    type: row['type'],
-    payload: record(row['payload']),
-    ...(typeof at === 'number' && at > 0 ? { at } : {}),
-  };
-}
-/**
- * Joins runs of streamed answer text in one journal page: consecutive `provider.text_delta`
- * frames that differ only in their text become one frame with the joined text and the first
- * frame's time; `lastAt` is the run's latest time. Each delta used to copy the whole message
- * list, so reading a long conversation grew with its length squared.
- */
-export function coalesceTextDeltas(
-  events: readonly EngineEvent[],
-): { event: EngineEvent; lastAt?: number }[] {
-  const out: { event: EngineEvent; lastAt?: number; rest?: string }[] = [];
-  for (const event of events) {
-    const text = event.payload['text'];
-    if (event.type !== 'provider.text_delta' || typeof text !== 'string') {
-      out.push({ event });
-      continue;
-    }
-    const { text: _text, ...others } = event.payload;
-    const rest = JSON.stringify(others);
-    const previous = out.at(-1);
-    if (previous?.rest === rest) {
-      previous.event = {
-        ...previous.event,
-        payload: {
-          ...previous.event.payload,
-          text: `${previous.event.payload['text'] as string}${text}`,
-        },
-      };
-      if (event.at) previous.lastAt = event.at;
-      continue;
-    }
-    out.push({ event, rest, ...(event.at ? { lastAt: event.at } : {}) });
-  }
-  return out.map(({ event, lastAt }) => (lastAt ? { event, lastAt } : { event }));
-}
 /** A partial native journal page is not yet authoritative for delivery mode. */
 export function replayEngineBatch(
   state: EngineState,
@@ -160,6 +119,11 @@ export function expireEngineInteractions(
     ],
   };
 }
+/** Read-only sessions retain their journal but cannot expose live runtime controls. */
+export function sessionEngineView(state: EngineState, writable: boolean): EngineState {
+  return writable ? state : { ...state, ...expireEngineInteractions(state), connected: false };
+}
+
 export function reduceEngine(state: EngineState, input: unknown): EngineState {
   const event = engineEvent(input);
   if (!event) return state;
@@ -302,6 +266,10 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
       next.error = '';
       next.activeTextMessageId = null;
       next.runTimeline = [];
+      next.toolCalls = reduceSessionToolCalls(state.toolCalls, {
+        type: 'desktop.engine_boundary',
+        payload: {},
+      });
       next.runStartTotals = null;
       next.runStartAt = null;
       // A killed engine cannot emit a final tool result. Retain the observed process
@@ -315,6 +283,7 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
       next.leadingActivity = [];
       next.nextSteps = [];
       next.turnActivity = {};
+      next.toolCalls = emptySessionToolCalls;
       next.turnStats = {};
       next.agents = {};
       next.memoryRuns = [];
@@ -658,6 +627,7 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
     } else next.leadingActivity = appendRunEvent(state.leadingActivity, event);
   }
   if (event.type === 'provider.response') next.activeTextMessageId = null;
+  next.toolCalls = reduceSessionToolCalls(next.toolCalls, event);
   next.agents = reduceAgentTranscripts(next.agents, event.type, p);
   if (event.type === 'fleet.concurrency_update')
     next.fleetGauge = fleetGauge(p) ?? state.fleetGauge;
