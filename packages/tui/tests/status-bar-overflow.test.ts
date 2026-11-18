@@ -194,6 +194,19 @@ describe('StatusBar overflow handling (width-budget)', () => {
     }
   });
 
+  it('keeps one row per rail in a narrow pane, with a long model name', async () => {
+    // Web terminals often sit in a narrow side panel. Wrapping a chip there
+    // fits every row in the width but adds rows that push the composer up.
+    const props = { model: 'fixture/fixture/terminal-model', sessionCount: 2 };
+    const rows = (lines: string[]) => lines.filter((line) => line.trim() !== '').length;
+    const wide = rows(await frameAt(80, props));
+    for (const columns of [40, 36, 32, 30, 26, 24]) {
+      const lines = await frameAt(columns, props);
+      expect(rows(lines), `${columns} cols:\n${lines.join('\n')}`).toBe(wide);
+      for (const line of lines) expect(displayWidth(line)).toBeLessThanOrEqual(columns);
+    }
+  });
+
   it('falls back to dropping trailing chips once shortening is exhausted', async () => {
     const rails = await railsAt(60, {
       projectName: 'project-name-here',

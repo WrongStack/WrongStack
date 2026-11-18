@@ -243,7 +243,13 @@ export function SidebarSectionHeader({
 }): React.ReactElement {
   // 1 (rail) + 1 (space) + glyphWidth + 1 (space) + label
   const railAndNode = `${glyphs.railMid} ${glyph} `;
-  const left = `${railAndNode}${label}`;
+  // Ink would wrap a label wider than the card onto a second row, and the
+  // Card's truncation pass cannot see inside this component. Drop the glyph
+  // node first, then truncate the label.
+  const full = `${railAndNode}${label}`;
+  const bare = `${glyphs.railMid} ${label}`;
+  const left =
+    displayWidth(full) <= innerWidth ? full : truncateDisplay(bare, Math.max(1, innerWidth));
   const leftW = displayWidth(left);
   const badgeText = badge ?? '';
   // Pill width = 2 brackets + text. Bare badge = 1 (leading space) + text.
@@ -258,12 +264,14 @@ export function SidebarSectionHeader({
   const useBadge = usePill || fitsBare;
   const badgeW = usePill ? pillW : bareW;
   const fillCount = Math.max(0, innerWidth - leftW - (useBadge ? badgeW : 0));
+  // One leftover column reads as a stray dot glued to the label; leave it blank.
+  const leader = fillCount >= 2 ? glyphs.dividerDot.repeat(fillCount) : ' '.repeat(fillCount);
   return (
     <Box>
       <Text color={color} bold>
         {left}
       </Text>
-      <Text color={theme.borderSubtle}>{glyphs.dividerDot.repeat(fillCount)}</Text>
+      <Text color={theme.borderSubtle}>{leader}</Text>
       {useBadge ? (
         usePill ? (
           <SidebarStatusPill

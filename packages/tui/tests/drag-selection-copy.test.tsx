@@ -590,8 +590,13 @@ describe('HistoryScrollController: beginSelection / extendSelection / commitSele
 });
 
 describe('HistoryScrollController: existing copy-icon path is preserved', () => {
+  // A user card has no margin around its rail, so in a one-row viewport its
+  // only row is its text row and carries the icon. (An assistant card's icon
+  // sits on its text row, below the rail margin; see copy-registry tests.)
+  const userEntry = (id: number, text: string): HistoryEntry => ({ id, kind: 'user', text });
+
   it('hasCopyTargetAt returns true on the icon row and false off it', () => {
-    const h = mountHistory([textEntry(1, 'alpha')]);
+    const h = mountHistory([userEntry(1, 'alpha')]);
     try {
       // With viewportRows={1} the card's icon is at row 0.
       expect(h.controller.hasCopyTargetAt(0, h.copyIconCol)).toBe(true);
@@ -604,7 +609,7 @@ describe('HistoryScrollController: existing copy-icon path is preserved', () => 
 
   it('copyAtViewportCell returns the entry id and does NOT depend on selection state', async () => {
     writeClipboardTextMock.mockClear();
-    const h = mountHistory([textEntry(1, 'icon-test text')]);
+    const h = mountHistory([userEntry(1, 'icon-test text')]);
     try {
       // With viewportRows={1} the card's icon is at row 0. No beginSelection
       // was called — the icon click works in isolation.
@@ -613,7 +618,7 @@ describe('HistoryScrollController: existing copy-icon path is preserved', () => 
       expect(writeClipboardTextMock).toHaveBeenCalledWith(
         copyableTextForEntry({
           id: 1,
-          kind: 'assistant',
+          kind: 'user',
           text: 'icon-test text',
         }),
       );

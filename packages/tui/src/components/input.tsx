@@ -352,7 +352,11 @@ export const Input = memo(function Input({
   const hintW = displayWidth(bottomHint);
   const shownHint = hintW > maxHintW ? truncateDisplay(bottomHint, maxHintW) : bottomHint;
   const shownHintW = displayWidth(shownHint);
-  const fillW = Math.max(0, availW - leftBW - shownHintW - 2 - displayWidth(scrollIndicator));
+  // Columns between the hint and the corner. A truncated hint leaves exactly
+  // one: it gets a rule cell, not the gap space, so the corner still lands in
+  // the last column.
+  const restW = Math.max(0, availW - leftBW - shownHintW - 1 - displayWidth(scrollIndicator));
+  const fill = restW >= 2 ? ` ${'─'.repeat(restW - 1)}` : '─'.repeat(restW);
 
   return (
     <Box
@@ -392,8 +396,7 @@ export const Input = memo(function Input({
         <Text color={theme.textMuted}>{shownHint}</Text>
         {scrollIndicator ? <Text color={theme.textMuted}>{scrollIndicator}</Text> : null}
         <Text color={disabled ? theme.error : (accent ?? theme.brandPrimary)}>
-          {fillW > 0 ? ' ' : ''}
-          {'─'.repeat(fillW)}
+          {fill}
           {'╯'}
         </Text>
       </Text>

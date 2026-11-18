@@ -2,7 +2,7 @@ import type React from 'react';
 import { isValidElement } from 'react';
 import { Text } from '../ink.js';
 import { statuslineBackgrounds } from '../statusline-palette.js';
-import { displayWidth } from '../terminal-width.js';
+import { displayWidth, truncateDisplay } from '../terminal-width.js';
 import { type Theme, theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 
@@ -194,6 +194,19 @@ export function layoutRail(
   if (rightVisible && total() > budget) {
     rightVisible = false;
     while (keep > 1 && total() > budget) keep -= 1;
+  }
+
+  // 4. A chip still too wide at its narrowest level is cut to the room left.
+  //    Ink would otherwise wrap its tail, the `+N` marker and the end cap onto
+  //    a second row — in a narrow pane that pushes the composer up a line.
+  if (keep > 0 && total() > budget) {
+    const last = chips[keep - 1]!;
+    const room = last.widths[last.level]! - (total() - budget);
+    if (room >= 1) {
+      const cut = truncateDisplay(visibleNodeText(last.nodes[last.level]!), room);
+      last.nodes[last.level] = <Text>{cut}</Text>;
+      last.widths[last.level] = displayWidth(cut);
+    }
   }
 
   const items: RailLayoutItem[] = [];

@@ -3,6 +3,7 @@ import type { ToolResultViewMode } from '../../tool-result-view-mode.js';
 import type { CopyHit } from './copy-geometry.js';
 import { copyRegistryVisibleClip, liveToolStreamCopyHit } from './copy-geometry.js';
 import { INSPECT_COL_OFFSET, isCopyableEntry } from './copy-icon.js';
+import { railMargin } from './entry-helpers.js';
 import { viewControlColumns } from './tool-card-geometry.js';
 import { type RenderGroup, renderGroupId } from './tool-group.js';
 
@@ -56,7 +57,10 @@ export function buildCopyRegistry(opts: {
   for (const group of opts.renderGroups) {
     const gid = renderGroupId(group);
     const groupHeight = opts.heightCache.getHeight(gid) ?? 0;
-    const startRow = offset - visibleClip + pinnedSlack;
+    // The icon goes beside the card's first line of text, below its margin.
+    const leadingRows =
+      group.type === 'tool-group' ? 0 : Math.min(railMargin(group.entry.kind), groupHeight);
+    const startRow = offset - visibleClip + pinnedSlack + leadingRows;
     offset += groupHeight;
     const groupEntryIds =
       group.type === 'tool-group'

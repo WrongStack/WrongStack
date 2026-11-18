@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T19:22:24.720Z",
+  "generatedAt": "2026-11-18T19:24:38.655Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6366,
-    "testFiles": 5479,
-    "sourceLines": 1315740,
+    "testFiles": 5483,
+    "sourceLines": 1315795,
     "workspaceEdges": 250,
-    "moduleEdges": 18788,
+    "moduleEdges": 18789,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -1036,7 +1036,7 @@
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
       "sourceFiles": 516,
-      "testFiles": 450,
+      "testFiles": 454,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1065,7 +1065,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 450
+          "testFiles": 454
         }
       ]
     },
@@ -25622,6 +25622,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/copy-registry-rail-margin.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/council-entry-format.test.ts",
         "projects": [
           "root-node"
@@ -26096,6 +26102,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/input-bottom-rule-width.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/input-editing-baseline.test.ts",
         "projects": [
           "root-node"
@@ -26313,6 +26325,12 @@
       },
       {
         "file": "packages/tui/tests/markdown-inline.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/markdown-list-wrap.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -27147,6 +27165,12 @@
       },
       {
         "file": "packages/tui/tests/sidebar-scrollbar-rail.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/sidebar-section-header-width.test.tsx",
         "projects": [
           "root-node"
         ]

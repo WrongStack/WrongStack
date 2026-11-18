@@ -9,6 +9,26 @@ import type { HistoryEntry } from './types.js';
  */
 export const MAX_MEMORY_PROOF_ROWS = 4;
 
+/** Cards that open (and close) with a one-row margin around their rail. */
+const RAIL_MARGIN_KINDS: ReadonlySet<HistoryEntry['kind']> = new Set([
+  'thinking',
+  'assistant',
+  'memory-activation',
+  'error',
+  'model-switch',
+  'brain',
+  'confirm',
+]);
+
+/**
+ * Blank rows above and below a card's rail. The transcript renders cards with
+ * it and the copy registry skips it, so a card's copy icon sits beside its
+ * first line of text rather than on the blank row above it.
+ */
+export function railMargin(kind: HistoryEntry['kind']): number {
+  return RAIL_MARGIN_KINDS.has(kind) ? 1 : 0;
+}
+
 /** Shared open left-rail used by transcript cards (user, thinking, error, …). */
 export function HistoryRail({
   color,

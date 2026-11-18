@@ -368,7 +368,11 @@ function MarkdownViewImpl({
     if (bullet) {
       rows.push(
         <Box key={`b${key++}`} flexDirection="row">
-          <Text color={theme.accent}>{`${bullet[1] ?? ''}• `}</Text>
+          {/* A hanging indent: Ink shrinks every child by default, which ate
+              the marker's space and left wrapped rows one column short. */}
+          <Box flexShrink={0}>
+            <Text color={theme.accent}>{`${bullet[1] ?? ''}• `}</Text>
+          </Box>
           <InlineLine tokens={parseInline(bullet[2] ?? '')} />
         </Box>,
       );
@@ -378,7 +382,9 @@ function MarkdownViewImpl({
     if (numbered) {
       rows.push(
         <Box key={`n${key++}`} flexDirection="row">
-          <Text color={theme.accent}>{`${numbered[1] ?? ''}${numbered[2]}. `}</Text>
+          <Box flexShrink={0}>
+            <Text color={theme.accent}>{`${numbered[1] ?? ''}${numbered[2]}. `}</Text>
+          </Box>
           <InlineLine tokens={parseInline(numbered[3] ?? '')} />
         </Box>,
       );

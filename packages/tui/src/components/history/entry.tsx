@@ -22,6 +22,7 @@ import {
   HistoryRail,
   MAX_MEMORY_PROOF_ROWS,
   memoryLifecycleStyle,
+  railMargin,
 } from './entry-helpers.js';
 import { ToolEntry } from './tool-entry.js';
 import type { HistoryEntry } from './types.js';
@@ -258,7 +259,7 @@ export const Entry = React.memo(function Entry({
       if (showModelReasoning === false) return null;
       const contentWidth = assistantContentWidth(termWidth);
       return (
-        <HistoryRail color={theme.textSecondary} marginY={1}>
+        <HistoryRail color={theme.textSecondary} marginY={railMargin(entry.kind)}>
           <Text bold color={theme.textSecondary}>
             {'⟳ REASONING'}
           </Text>
@@ -277,7 +278,7 @@ export const Entry = React.memo(function Entry({
       const hasNext = steps.length > 0 && !openTodos && isFinalTurnEntry;
       return (
         <Box flexDirection="column">
-          <HistoryRail color={theme.assistant} marginY={1}>
+          <HistoryRail color={theme.assistant} marginY={railMargin(entry.kind)}>
             <AssistantBody text={stripped} termWidth={termWidth} contentWidth={contentWidth} />
           </HistoryRail>
           {hasNext && (
@@ -358,7 +359,7 @@ export const Entry = React.memo(function Entry({
       // shipped defaults rather than crashing the whole transcript render.
       const thresholds = entry.thresholds ?? MEMORY_GATE_DEFAULTS;
       return (
-        <HistoryRail color="magenta" marginY={1}>
+        <HistoryRail color="magenta" marginY={railMargin(entry.kind)}>
           <Box flexDirection="row">
             <Text bold color="magenta">
               {'🧠 INJECTOR  '}
@@ -442,7 +443,7 @@ export const Entry = React.memo(function Entry({
       );
     case 'error':
       return (
-        <HistoryRail color={theme.error} marginY={1}>
+        <HistoryRail color={theme.error} marginY={railMargin(entry.kind)}>
           <Text bold color={theme.error}>
             {'✗ ERROR'}
           </Text>
@@ -486,7 +487,7 @@ export const Entry = React.memo(function Entry({
           ? fmtRatioPct(entry.requestTokens / entry.toContext)
           : undefined;
       return (
-        <HistoryRail color={accent} marginY={1}>
+        <HistoryRail color={accent} marginY={railMargin(entry.kind)}>
           <Text bold color={accent}>
             {fallback ? '↺ FALLBACK' : '↺ MODEL'}
           </Text>
@@ -536,7 +537,7 @@ export const Entry = React.memo(function Entry({
       // Shared left indent so nested details visually nest under the header.
       const indentWidth = 2;
       return (
-        <HistoryRail color={theme.monitor.agents} marginY={1}>
+        <HistoryRail color={theme.monitor.agents} marginY={railMargin(entry.kind)}>
           <Box flexDirection="row" gap={1}>
             <Text bold color={theme.monitor.agents}>
               {'✦ BRAIN'}
@@ -613,7 +614,7 @@ export const Entry = React.memo(function Entry({
     }
     case 'confirm':
       return (
-        <HistoryRail color={theme.warn} marginY={1}>
+        <HistoryRail color={theme.warn} marginY={railMargin(entry.kind)}>
           <Text bold color={theme.warn}>
             {'⚠ CONFIRM  '}
             {entry.toolName}

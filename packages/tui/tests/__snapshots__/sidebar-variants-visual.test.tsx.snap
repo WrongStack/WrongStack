@@ -109,8 +109,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > connections at 80 
 "                                                             ╭──────────────╮  ░
                                                              ▌ ⚙ CONNECTIONS   ░
                                                              ─ 1 DOWN       ─  ░
-                                                             ▎ ⚙ SIGNAL        ░
-                                                             MATRIX            ░
+                                                             ▎ SIGNAL MATRIX   ░
                                                                                ░
                                                              ✓3 !1 ×1          ░
                                                                                ░
@@ -121,6 +120,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > connections at 80 
                                                              ✓━━Kanban IPC h…  ░
                                                              ×··Mailbox IPC …  ░
                                                              ╰──────────────╯  ░
+                                                                               ░
                                                                                ░
                                                                                ░
                                                                                ░
@@ -465,7 +465,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > goal at 120 column
                                                                                            │ ▎ ✓ PROGRESS·····⟦63%⟧ │  ░
                                                                                            │                        │  ░
                                                                                            │ ██████████████░░░░░░░░ │  ░
-                                                                                           │ ▎ ◆ DELIVERABLES·⟦1/4⟧ │  ░
+                                                                                           │ ▎ ◆ DELIVERABLES ⟦1/4⟧ │  ░
                                                                                            │ ✓ Preserve sixteen     │  ░
                                                                                            │ content columns        │  ░
                                                                                            │ ○ Render all thirteen  │  ░
