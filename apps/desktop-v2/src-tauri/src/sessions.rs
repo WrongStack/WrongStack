@@ -355,7 +355,7 @@ impl HostState {
             // The record exists before the claim: the engine may answer at once, and its
             // "running" state must find the conversation to update.
             self.claim_spare(spare, history).inspect_err(|_| {
-                let _ = self.kill(&spare.runtime_id);
+                let _ = self.kill(&spare.runtime_id, None);
             })
         } else {
             self.start_engine_with_history(&s.id, &s.workdir, true, history)
@@ -426,7 +426,7 @@ impl HostState {
                 .map(|live| live.contains_key(&runtime_id))
                 .unwrap_or(false);
             if running {
-                let _ = host.kill(&runtime_id);
+                let _ = host.kill(&runtime_id, None);
             }
         });
     }
@@ -588,27 +588,24 @@ impl HostState {
         if fork {
             return Err("Reconnecting resumes the conversation's own session".into());
         }
-        let session = self
-            .registry
-            .lock()
-            .map_err(err)?
-            .sessions()?
-            .into_iter()
-            .find(|s| s.id == id)
-            .ok_or("Unknown session")?;
-        if session.kind != "agent" {
-            return Err("Only agent conversations have an engine to reconnect".into());
-        }
-        if session.status == "running"
-            || session.status == "starting"
-            || self.live.lock().map_err(err)?.contains_key(id)
-        {
-            return Err("This conversation's engine is still running".into());
-        }
-        self.registry
-            .lock()
-            .map_err(err)?
-            .state(id, "starting", None, None)?;
+        let is_live = self.live.lock().map_err(err)?.contains_key(id);
+        let session = {
+            let registry = self.registry.lock().map_err(err)?;
+            let session = registry
+                .sessions()?
+                .into_iter()
+                .find(|s| s.id == id)
+                .ok_or("Unknown session")?;
+            if session.kind != "agent" {
+                return Err("Only agent conversations have an engine to reconnect".into());
+            }
+            if is_live || matches!(session.status.as_str(), "running" | "starting" | "stopping") {
+                return Err("This conversation's engine is still running".into());
+            }
+            // Claim the start before another request can read the same stopped record.
+            registry.state(id, "starting", None, None)?;
+            session
+        };
         // A spare already booted in this working directory resumes the conversation in about a
         // second instead of a whole engine boot; without one, or if it cannot be told, the
         // conversation boots its own engine as before.
@@ -858,9 +855,9 @@ impl HostState {
             use std::os::unix::process::CommandExt;
             command.process_group(0);
         }
+        let sink = Transcript::open(&self.dir.join("transcripts"), runtime_id)?;
         drop(reservation);
         let mut child = command.spawn().map_err(err)?;
-        let sink = Transcript::open(&self.dir.join("transcripts"), runtime_id)?;
         self.log_reader(
             runtime_id.to_owned(),
             Box::new(child.stdout.take().ok_or("Missing engine stdout")?),
@@ -1114,10 +1111,10 @@ impl HostState {
             session.agent_pid.filter(|_| session.master.is_none())
         };
         let Some(pid) = engine_pid else {
-            return self.kill(id);
+            return self.kill(id, None);
         };
         if std::fs::write(self.stop_file(id), b"").is_err() {
-            return self.kill(id);
+            return self.kill(id, Some(pid));
         }
         // The shutdown takes seconds: the conversation shows as stopping (no longer live, not
         // yet offered for reconnect) until its engine exits.
@@ -1135,7 +1132,7 @@ impl HostState {
             };
             while running() {
                 if std::time::Instant::now() > deadline {
-                    let _ = host.kill(&id);
+                    let _ = host.kill(&id, Some(pid));
                     return;
                 }
                 thread::sleep(Duration::from_millis(100));
@@ -1201,9 +1198,13 @@ impl HostState {
         }
         Ok(Value::Null)
     }
-    fn kill(&self, id: &str) -> Result<Value> {
+    fn kill(&self, id: &str, expected_pid: Option<u32>) -> Result<Value> {
         let mut live = self.live.lock().map_err(err)?;
         let session = live.get_mut(id).ok_or("Session is not running")?;
+        // A delayed stop belongs to the engine that was running when it was requested.
+        if expected_pid.is_some() && session.agent_pid != expected_pid {
+            return Ok(Value::Null);
+        }
         if !cfg!(windows) {
             if let Some(killer) = session.killer.as_mut() {
                 killer.kill().map_err(err)?;
@@ -1417,6 +1418,47 @@ mod history_tests {
         host.live.lock().unwrap().remove("engine");
         drop(host);
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_force_stop_targets_only_the_expected_engine_pid() {
+        let dir = std::env::temp_dir().join(format!("desktop-force-stop-{}", Uuid::new_v4()));
+        let host = HostState::new(&dir).unwrap();
+        let program =
+            PathBuf::from(std::env::var_os("SystemRoot").unwrap()).join("System32/PING.EXE");
+        let mut command = Command::new(program);
+        command
+            .args(["-t", "127.0.0.1"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        hide(&mut command);
+        let mut child = command.spawn().unwrap();
+        let pid = child.id();
+        host.live.lock().unwrap().insert(
+            "engine".into(),
+            LiveSession {
+                master: None,
+                writer: None,
+                killer: None,
+                agent_pid: Some(pid),
+                engine: None,
+            },
+        );
+
+        let stale_stop = host.kill("engine", Some(u32::MAX));
+        let after_stale_stop = child.try_wait();
+        let current_stop = host.kill("engine", Some(pid));
+        let after_current_stop = child.try_wait();
+        let _ = child.kill();
+        let _ = child.wait();
+        drop(host);
+        let _ = std::fs::remove_dir_all(dir);
+
+        assert!(stale_stop.is_ok());
+        assert!(after_stale_stop.unwrap().is_none());
+        assert!(current_stop.is_ok());
+        assert!(after_current_stop.unwrap().is_some());
     }
 
     #[test]
@@ -1635,7 +1677,7 @@ mod history_tests {
     }
 
     #[test]
-    fn reconnect_refuses_unknown_terminal_running_and_forked_conversations() {
+    fn reconnect_refuses_unknown_terminal_active_and_forked_conversations() {
         let dir = std::env::temp_dir().join(format!("desktop-reconnect-{}", Uuid::new_v4()));
         let project_dir = dir.join("project");
         std::fs::create_dir_all(&project_dir).unwrap();
@@ -1682,6 +1724,24 @@ mod history_tests {
             .request("session.reconnect", &resume(&running))
             .unwrap_err()
             .contains("still running"));
+        // The exit observer releases the process entry before publishing the final status.
+        let stopping = record("agent", "stopping");
+        let reconnect = host.request("session.reconnect", &resume(&stopping));
+        let status = host
+            .registry
+            .lock()
+            .unwrap()
+            .sessions()
+            .unwrap()
+            .into_iter()
+            .find(|s| s.id == stopping)
+            .unwrap()
+            .status;
+        assert_eq!(
+            status, "stopping",
+            "reconnect must wait for the old engine's final state, got {reconnect:?}"
+        );
+        assert!(reconnect.unwrap_err().contains("still running"));
         let stopped = record("agent", "interrupted");
         assert!(host
             .request(

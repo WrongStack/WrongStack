@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T21:43:17.920Z",
+  "generatedAt": "2026-11-18T21:45:03.678Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6374,
-    "testFiles": 5519,
+    "testFiles": 5520,
     "sourceLines": 1316617,
     "workspaceEdges": 250,
     "moduleEdges": 18812,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 385,
+    "testsWithoutTypecheck": 386,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1075
   },
@@ -387,7 +387,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 534,
-      "testFiles": 385,
+      "testFiles": 386,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2036,6 +2036,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/engine-spare-claim.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/engine-start-ownership.test.ts",
         "projects": [
           "root-node"
         ]
@@ -35270,6 +35276,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/engine-spare-claim.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/engine-start-ownership.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
