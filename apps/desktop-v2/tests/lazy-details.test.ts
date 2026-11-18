@@ -3,6 +3,7 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import type { EngineEvent } from '../src/engine-state';
 import { LazyDetails } from '../src/LazyDetails';
 import { LiveRunActivity, TurnTools } from '../src/TurnTools';
 import { renderOpen } from './helpers/render-open';
@@ -19,6 +20,72 @@ const events = [
 ];
 
 describe('collapsed run activity', () => {
+  it('preserves reader expansion across live updates and completion', async () => {
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    const render = async (live: boolean, updated: readonly EngineEvent[] = events) => {
+      await act(async () =>
+        root.render(
+          createElement(LiveRunActivity, {
+            events: updated,
+            live,
+            onOpenFile: () => {},
+          }),
+        ),
+      );
+    };
+    try {
+      await render(true);
+      const panel = host.querySelector('details');
+      expect(panel?.open).toBe(true);
+      if (!panel) throw new Error('Missing activity panel');
+      panel.open = false;
+      await act(async () => panel.dispatchEvent(new Event('toggle')));
+      await render(true, [...events, { type: 'iteration.started', payload: { index: 1 } }]);
+      expect(panel.open).toBe(false);
+      await render(false);
+      expect(panel.open).toBe(false);
+      panel.open = true;
+      await act(async () => panel.dispatchEvent(new Event('toggle')));
+      await render(false);
+      expect(panel.open).toBe(true);
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
+
+  it('supports controlled expansion and reports requested changes', async () => {
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    const onOpenChange = vi.fn();
+    const render = async (open: boolean) => {
+      await act(async () =>
+        root.render(
+          createElement(LazyDetails, {
+            open,
+            onOpenChange,
+            summary: createElement('summary', null, 'Controlled'),
+            children: createElement('p', null, 'Retained body'),
+          }),
+        ),
+      );
+    };
+    try {
+      await render(false);
+      const panel = host.querySelector('details');
+      if (!panel) throw new Error('Missing disclosure');
+      panel.open = true;
+      await act(async () => panel.dispatchEvent(new Event('toggle')));
+      expect(onOpenChange).toHaveBeenCalledWith(true);
+      expect(panel.open).toBe(false);
+      await render(true);
+      expect(panel.open).toBe(true);
+      expect(host.textContent).toContain('Retained body');
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
+
   it('builds no tool details until it opens, then keeps them', async () => {
     const host = document.createElement('div');
     const root = createRoot(host);

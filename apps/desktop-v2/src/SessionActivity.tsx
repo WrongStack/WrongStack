@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { type ReactNode, Suspense, useMemo, useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
+import { ActivityGroups } from './ActivityGroups';
 import { DesignExtractionCard } from './DesignExtractionCard';
 import { DesignReviewCard } from './DesignReviewCard';
 import { useDesktopText } from './desktop-i18n';
@@ -23,8 +24,9 @@ import { surfaceI18n } from './surface-i18n';
 import { StructuredToolValue } from './ToolApprovalCard';
 import { ToolInputView } from './ToolInputView';
 import { ToolKindIcon } from './ToolKindIcon';
-import { toolInputHint } from './tool-input-view';
 import { ToolOutputActions } from './ToolOutputActions';
+import { TranscriptTimestamp } from './TranscriptTimestamp';
+import { toolInputHint } from './tool-input-view';
 import './session-activity.css';
 import { LazyDetails } from './LazyDetails';
 
@@ -120,8 +122,8 @@ export function SessionActivity({
       {!shown.length && (
         <p className="quiet-state">{rows.length ? t('runLog.noMatch') : t('runLog.empty')}</p>
       )}
-      <div className="activity-list">
-        {shown.flatMap((row) => {
+      <ActivityGroups rows={shown} allRows={rows}>
+        {(row) => {
           // The collapsed chat row names what the call acted on; its status is the trailing icon.
           const hint = compact && row.kind === 'tool' ? toolInputHint(row.title, row.input) : '';
           return [
@@ -185,6 +187,7 @@ export function SessionActivity({
                       )}
                     </small>
                   </span>
+                  <TranscriptTimestamp value={row.at} />
                   {row.durationMs !== undefined && (
                     <small className="activity-metric">
                       <Clock3 size={12} />{' '}
@@ -300,8 +303,8 @@ export function SessionActivity({
               </div>
             </LazyDetails>,
           ];
-        })}
-      </div>
+        }}
+      </ActivityGroups>
     </section>
   );
 }

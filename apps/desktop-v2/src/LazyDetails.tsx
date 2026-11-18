@@ -13,27 +13,39 @@ export const EagerDetails = createContext(false);
 export function LazyDetails({
   className,
   open,
+  defaultOpen = false,
+  onOpenChange,
   summary,
   children,
 }: {
   className?: string | undefined;
-  /** Opens it from outside (a live run); left out, the reader opens and closes it. */
+  /** Controlled expansion. Omit to let the reader own this disclosure. */
   open?: boolean | undefined;
+  /** Initial expansion only; later lifecycle updates never override the reader. */
+  defaultOpen?: boolean | undefined;
+  onOpenChange?: ((open: boolean) => void) | undefined;
   /** The `<summary>` element. */
   summary: ReactNode;
   children: ReactNode;
 }) {
   const eager = useContext(EagerDetails);
-  const [built, setBuilt] = useState(open === true);
+  const [expanded, setExpanded] = useState(defaultOpen);
+  const isOpen = open ?? expanded;
+  const [built, setBuilt] = useState(isOpen);
   useEffect(() => {
-    if (open) setBuilt(true);
-  }, [open]);
+    if (isOpen) setBuilt(true);
+  }, [isOpen]);
   return (
     <details
       className={className}
-      open={open}
+      open={isOpen}
       onToggle={(event) => {
-        if (event.currentTarget.open) setBuilt(true);
+        const next = event.currentTarget.open;
+        if (next) setBuilt(true);
+        if (next === isOpen) return;
+        if (open === undefined) setExpanded(next);
+        else event.currentTarget.open = open;
+        onOpenChange?.(next);
       }}
     >
       {summary}

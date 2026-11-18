@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import { CheckCircle2, LoaderCircle, Sparkles, Wrench, XCircle } from 'lucide-react';
+import { CheckCircle2, ChevronRight, LoaderCircle, Sparkles, Wrench, XCircle } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { formatTokens, type TurnStats } from './context-usage';
 import {
@@ -12,6 +12,8 @@ import type { EngineEvent } from './engine-state';
 import { LazyDetails } from './LazyDetails';
 import { SessionActivity } from './SessionActivity';
 import { activityRows } from './session-activity-model';
+import { ToolKindIcon } from './ToolKindIcon';
+import { toolInputHint } from './tool-input-view';
 import { turnToolSummary } from './turn-tools';
 import './session-status.css';
 
@@ -46,7 +48,9 @@ export function TurnTools({
             className="chat-run-activity turn-tools"
             summary={
               <summary>
-                <Wrench size={12} /> {t('turn.workedWith', { calls: toolCalls(summary.calls, t) })}
+                <ChevronRight size={14} className="activity-chevron" aria-hidden="true" />
+                <Wrench size={12} aria-hidden="true" />{' '}
+                {t('turn.workedWith', { calls: toolCalls(summary.calls, t) })}
                 {summary.failed ? ` · ${t('turn.failed', { count: summary.failed })}` : ''} ·{' '}
                 {summary.text}
               </summary>
@@ -181,8 +185,8 @@ export function AgentWorking({
   );
 }
 /**
- * The running turn's work, open while it runs: every tool call so far, grouped by tool in the
- * summary, with thinking and retries in order.
+ * The running turn's work starts open, then respects the reader's disclosure choice through
+ * updates and completion. Calls, thinking and retries are grouped by their originating iteration.
  */
 export function LiveRunActivity({
   display = conversationAppearanceDefaults,
@@ -202,8 +206,8 @@ export function LiveRunActivity({
   live?: boolean | undefined;
 }) {
   const { t } = useDesktopText();
-  if (!activityRows(events).some((row) => display.showThinkingLogs || row.kind !== 'reasoning'))
-    return null;
+  const rows = activityRows(events);
+  if (!rows.some((row) => display.showThinkingLogs || row.kind !== 'reasoning')) return null;
   if (!display.groupToolCalls)
     return (
       <SessionActivity
@@ -218,19 +222,21 @@ export function LiveRunActivity({
       />
     );
   const summary = turnToolSummary(events);
-  const calls = new Set(
-    events
-      .filter((event) => event.type === 'tool.started' || event.type === 'tool.executed')
-      .map((event) => event.payload['id'])
-      .filter((id) => typeof id === 'string'),
-  ).size;
+  const calls = rows.filter((row) => row.kind === 'tool').length;
+  // While the run works, the closed group still says what it is doing right now: the newest
+  // call that has not finished, by tool and target.
+  const current = live
+    ? rows.findLast((row) => row.kind === 'tool' && row.status === 'running')
+    : undefined;
+  const currentHint = current ? toolInputHint(current.title, current.input) : '';
   return (
     <LazyDetails
       className="chat-run-activity"
-      open={live}
+      defaultOpen={live}
       summary={
         <summary>
-          <Wrench size={12} /> {t('turn.activity')}
+          <ChevronRight size={14} className="activity-chevron" aria-hidden="true" />
+          <strong>{t('turn.activity')}</strong>
           {calls ? (
             <span className={`turn-chip ${live ? 'live' : 'ok'}`}>
               {live ? <LoaderCircle size={11} className="spin" /> : <CheckCircle2 size={11} />}
@@ -243,7 +249,15 @@ export function LiveRunActivity({
               {t('turn.failed', { count: summary.failed })}
             </span>
           ) : null}
-          {summary.text ? <span className="turn-summary-text">{summary.text}</span> : null}
+          {current ? (
+            <span className="turn-current" title={currentHint || current.title}>
+              <ToolKindIcon name={current.title} size={12} />
+              <span className="turn-current-tool">{current.title}</span>
+              {currentHint ? <code className="turn-current-hint">{currentHint}</code> : null}
+            </span>
+          ) : summary.text ? (
+            <span className="turn-summary-text">{summary.text}</span>
+          ) : null}
         </summary>
       }
     >

@@ -241,7 +241,9 @@ details
         .activity-entry,
         .sage-editor-details,
         .tool-access-card details,
-        .composer-options
+        .composer-options,
+        .chat-run-activity,
+        .activity-iteration
       )
       > summary
   ) {
@@ -255,7 +257,9 @@ details
         .activity-entry,
         .sage-editor-details,
         .tool-access-card details,
-        .composer-options
+        .composer-options,
+        .chat-run-activity,
+        .activity-iteration
       )
       > summary
   )::-webkit-details-marker {
@@ -268,7 +272,9 @@ details
         .activity-entry,
         .sage-editor-details,
         .tool-access-card details,
-        .composer-options
+        .composer-options,
+        .chat-run-activity,
+        .activity-iteration
       )
       > summary
   )::before {
@@ -295,7 +301,9 @@ details[open]
         .activity-entry,
         .sage-editor-details,
         .tool-access-card details,
-        .composer-options
+        .composer-options,
+        .chat-run-activity,
+        .activity-iteration
       )
       > summary
   )::before {

@@ -6,7 +6,7 @@ import { surfaceI18n } from './surface-i18n';
  * "11/6/2026, 3:10:48 PM" beside Turkish words. Components re-render on a language change
  * through `useDesktopText`, which re-reads the language here.
  */
-function at(value: unknown): Date | null {
+export function timestampDate(value: unknown): Date | null {
   const date =
     value instanceof Date
       ? value
@@ -17,7 +17,7 @@ function at(value: unknown): Date | null {
 }
 
 function format(value: unknown, options: Intl.DateTimeFormatOptions): string {
-  const date = at(value);
+  const date = timestampDate(value);
   if (!date) return String(value ?? '');
   try {
     return date.toLocaleString(surfaceI18n.language || undefined, options);

@@ -68,6 +68,7 @@
 }
 .activity-entry-label {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 3px;
   min-width: 0;
   flex: 1 1 12rem;
@@ -142,9 +143,72 @@
   padding: 8px 10px;
 }
 .chat-run-activity > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   cursor: pointer;
   color: var(--muted);
   font-size: 12px;
+  list-style: none;
+}
+.chat-run-activity > summary::-webkit-details-marker,
+.activity-iteration > summary::-webkit-details-marker {
+  display: none;
+}
+.activity-chevron {
+  flex: none;
+}
+.chat-run-activity[open] > summary > .activity-chevron,
+.activity-iteration[open] > summary > .activity-chevron {
+  transform: rotate(90deg);
+}
+.activity-iteration {
+  min-width: 0;
+}
+.activity-iteration > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 2px;
+  border-bottom: 1px solid var(--border);
+  list-style: none;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 12px;
+}
+.activity-iteration-meta,
+.activity-iteration-status {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+.activity-iteration-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
+.activity-iteration-rows {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 10px 0 4px 12px;
+  border-left: 1px solid var(--border);
+}
+.chat-run-activity > summary:focus-visible,
+.activity-iteration > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.chat-run-activity > summary .turn-chip,
+.chat-run-activity > summary .turn-summary-text {
+  margin-left: 0;
+}
+.chat-run-activity > summary .turn-chip {
+  color: var(--text);
 }
 .chat-earlier {
   justify-self: center;
@@ -270,4 +334,31 @@
 }
 .session-activity-compact .activity-kind-tool.activity-failed {
   border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+}
+
+/* A running group's summary names the call in progress: tool, then its target in code type,
+   shortened rather than wrapped so the summary stays one line. */
+.chat-run-activity > summary .turn-current {
+  display: inline-flex;
+  flex: 1 1 12rem;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text);
+}
+.turn-current > svg {
+  flex: none;
+  color: var(--accent);
+}
+.turn-current-tool {
+  flex: none;
+  font-weight: 600;
+}
+.turn-current-hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font: 11px / 1.5 var(--user-font-code, monospace);
 }

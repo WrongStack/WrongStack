@@ -59,4 +59,24 @@ describe('conversation display controls', () => {
       ),
     ).toBe('');
   });
+  it('names the call in progress in a running group, and drops it once the run settles', () => {
+    const running = [
+      ...events,
+      {
+        type: 'tool.started',
+        payload: { id: 'three', name: 'bash', input: { command: 'bun   run\n test' } },
+      },
+    ];
+    const live = renderOpen(
+      createElement(LiveRunActivity, { events: running, onOpenFile: () => {} }),
+    );
+    expect(live).toContain('class="turn-current"');
+    expect(live).toContain('<code class="turn-current-hint">bun run test</code>');
+    const settled = renderOpen(
+      createElement(LiveRunActivity, { events: running, live: false, onOpenFile: () => {} }),
+    );
+    expect(settled).not.toContain('turn-current');
+    const done = renderOpen(createElement(LiveRunActivity, { events, onOpenFile: () => {} }));
+    expect(done).not.toContain('turn-current');
+  });
 });

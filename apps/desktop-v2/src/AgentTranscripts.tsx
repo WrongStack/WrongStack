@@ -7,6 +7,7 @@ import { useDesktopText } from './desktop-i18n';
 import type { EngineState } from './engine-state';
 import { MarkdownContent } from './MarkdownContent';
 import { surfaceI18n } from './surface-i18n';
+import { TranscriptTimestamp } from './TranscriptTimestamp';
 import './agent-transcripts.css';
 
 const led = (status: string) =>
@@ -35,10 +36,12 @@ export function SessionAgentRail({
   state,
   onLink,
   embedded = false,
+  showThinkingLogs = true,
 }: {
   state: RailState;
   onLink: (href: string) => void;
   embedded?: boolean;
+  showThinkingLogs?: boolean;
 }) {
   const { t } = useDesktopText();
   const { t: words } = useTranslation('sessionAgents', { i18n: surfaceI18n });
@@ -200,6 +203,7 @@ export function SessionAgentRail({
             key={`${state.sessionId}:${current.id}`}
             agent={current}
             onLink={onLink}
+            showThinkingLogs={showThinkingLogs}
           />
         </div>
       ) : (
@@ -220,9 +224,11 @@ export function SessionAgentRail({
 function AgentTranscriptView({
   agent,
   onLink,
+  showThinkingLogs,
 }: {
   agent: AgentTranscript;
   onLink: (href: string) => void;
+  showThinkingLogs: boolean;
 }) {
   const { t } = useDesktopText();
   const { t: words } = useTranslation('sessionAgents', { i18n: surfaceI18n });
@@ -258,24 +264,30 @@ function AgentTranscriptView({
                     ? t('agentTabs.failed')
                     : t('agentTabs.completed')}
               </small>
+              <TranscriptTimestamp value={step.call?.ts || step.result?.ts} />
             </summary>
             {step.call?.content && <pre>{step.call.content}</pre>}
             {step.result?.content && <pre>{step.result.content}</pre>}
           </details>
         ) : step.entry.kind === 'text' ? (
           <div key={step.entry.id} className="agent-step text">
+            <TranscriptTimestamp value={step.entry.ts} />
             <MarkdownContent text={step.entry.content} onLink={onLink} />
           </div>
         ) : step.entry.kind === 'thinking' ? (
-          <details key={step.entry.id} className="agent-step thinking">
-            <summary>
-              <Brain size={12} />
-              {t('agentTabs.thinking')}
-            </summary>
-            <pre>{step.entry.content}</pre>
-          </details>
+          showThinkingLogs && (
+            <details key={step.entry.id} className="agent-step thinking">
+              <summary>
+                <Brain size={12} />
+                {t('agentTabs.thinking')}
+                <TranscriptTimestamp value={step.entry.ts} />
+              </summary>
+              <pre>{step.entry.content}</pre>
+            </details>
+          )
         ) : (
           <p key={step.entry.id} className={`agent-step ${step.entry.kind}`}>
+            <TranscriptTimestamp value={step.entry.ts} />
             {step.entry.content}
           </p>
         ),

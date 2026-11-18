@@ -23,6 +23,7 @@ import type { EngineState } from './engine-state';
 import { HuntRoundCard } from './HuntRounds';
 import { MarkdownContent } from './MarkdownContent';
 import type { MessageAction } from './message-action';
+import { TranscriptTimestamp } from './TranscriptTimestamp';
 import { LiveRunActivity, TurnTools } from './TurnTools';
 import './transcript-message.css';
 
@@ -101,17 +102,7 @@ export function TranscriptMessage({
         <header className={user ? 'user-chat-label' : undefined}>
           <span>
             {user ? t('message.you') : 'WrongStack'}
-            {message.at && (
-              <time
-                dateTime={new Date(message.at).toISOString()}
-                title={new Date(message.at).toLocaleString()}
-              >
-                {new Date(message.at).toLocaleTimeString(undefined, {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </time>
-            )}
+            <TranscriptTimestamp value={message.at} />
           </span>
           <span className="message-actions">
             {pin && (

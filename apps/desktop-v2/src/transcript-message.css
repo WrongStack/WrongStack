@@ -42,6 +42,14 @@
     opacity: 1;
   }
 }
+/* Center the measured row, not each message separately: activity and pending controls share
+   the same reading column, including compact density where pane padding is intentionally small. */
+.native-chat-messages .transcript-row {
+  width: 100%;
+  max-width: 850px;
+  min-width: 0;
+  margin-inline: auto;
+}
 .native-chat-messages .transcript-row > .chat-message {
   padding-block: 14px;
 }

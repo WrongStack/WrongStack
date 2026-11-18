@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T21:52:36.961Z",
+  "generatedAt": "2026-11-18T21:53:45.900Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6384,
-    "testFiles": 5522,
-    "sourceLines": 1317130,
+    "sourceFiles": 6386,
+    "testFiles": 5524,
+    "sourceLines": 1317280,
     "workspaceEdges": 250,
-    "moduleEdges": 18846,
+    "moduleEdges": 18859,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 388,
+    "testsWithoutTypecheck": 390,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1075
   },
@@ -386,8 +386,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 544,
-      "testFiles": 388,
+      "sourceFiles": 546,
+      "testFiles": 390,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1332,6 +1332,18 @@
   },
   "testOwnership": {
     "runtimeAssignments": [
+      {
+        "file": "apps/desktop-v2/tests/activity-groups.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/activity-timestamps.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
       {
         "file": "apps/desktop-v2/tests/agent-mode-control-race.test.tsx",
         "projects": [
@@ -34468,6 +34480,20 @@
     "invalidRuntime": [],
     "withoutTypecheck": [
       {
+        "file": "apps/desktop-v2/tests/activity-groups.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/activity-timestamps.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/agent-mode-control-race.test.tsx",
         "runtimeProjects": [
           "root-node"
@@ -38070,6 +38096,11 @@
     {
       "from": "apps/desktop-v2/src/TranscriptMessage.tsx",
       "specifier": "./transcript-message.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/TranscriptTimestamp.tsx",
+      "specifier": "./transcript-timestamp.css",
       "syntax": "import"
     },
     {

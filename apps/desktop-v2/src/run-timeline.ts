@@ -1,7 +1,7 @@
 import { contentText, record } from './engine-values.js';
 
 /** An engine frame as the reducer sees it (structurally `EngineEvent`). */
-type EngineEvent = { type: string; payload: Record<string, unknown> };
+type EngineEvent = { type: string; payload: Record<string, unknown>; at?: number };
 
 /** Frames that make up a run's visible work: tool calls, thinking, retries and iterations. */
 export function isRunTimelineEvent(type: string): boolean {
@@ -48,7 +48,7 @@ export function appendRunEvent(
     agentOf(last) === agentOf(event)
   ) {
     const text = tail(contentText(last.payload['text']) + contentText(event.payload['text']));
-    return [...timeline.slice(0, -1), { type: last.type, payload: { ...last.payload, text } }];
+    return [...timeline.slice(0, -1), { ...last, payload: { ...last.payload, text } }];
   }
   const added = textProgress(event);
   const previous = last ? textProgress(last) : null;
@@ -63,10 +63,7 @@ export function appendRunEvent(
       ...record(last.payload['event']),
       text: tail(previous.endsWith('\n') ? previous + added : `${previous}\n${added}`),
     };
-    return [
-      ...timeline.slice(0, -1),
-      { type: last.type, payload: { ...last.payload, event: merged } },
-    ];
+    return [...timeline.slice(0, -1), { ...last, payload: { ...last.payload, event: merged } }];
   }
   const next = [...timeline, event];
   return next.length > RUN_TIMELINE_LIMIT ? next.slice(next.length - RUN_TIMELINE_LIMIT) : next;

@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import { displayLocale } from '../src/display-dates';
+import { displayLocale, displayTime } from '../src/display-dates';
 import { emptyEngineState, reduceEngine, replayEngineBatch } from '../src/engine-state';
 import { TranscriptMessage } from '../src/TranscriptMessage';
 import { dayLabel } from '../src/transcript-window';
@@ -71,8 +71,6 @@ describe('message times', () => {
     );
     expect(html).toContain('<div class="chat-day"><span>Today</span></div>');
     expect(html).toContain(`<time dateTime="${new Date(at).toISOString()}"`);
-    expect(html).toContain(
-      new Date(at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
-    );
+    expect(html).toContain(displayTime(at));
   });
 });
