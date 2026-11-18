@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T21:13:46.176Z",
+  "generatedAt": "2026-11-18T21:15:12.148Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6369,
-    "testFiles": 5493,
-    "sourceLines": 1316024,
+    "testFiles": 5494,
+    "sourceLines": 1316031,
     "workspaceEdges": 250,
     "moduleEdges": 18798,
     "nonCommandSlashImports": 0,
@@ -1218,7 +1218,7 @@
       "name": "@wrongstack/worktree",
       "dir": "packages/worktree",
       "sourceFiles": 10,
-      "testFiles": 7,
+      "testFiles": 8,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -1232,7 +1232,7 @@
         {
           "path": "packages/worktree/tsconfig.test.json",
           "error": null,
-          "testFiles": 7
+          "testFiles": 8
         }
       ]
     },
@@ -34173,6 +34173,12 @@
       },
       {
         "file": "packages/worktree/tests/worktree-hold-release-order.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/worktree/tests/worktree-hold-stale-read.test.ts",
         "projects": [
           "root-node"
         ]

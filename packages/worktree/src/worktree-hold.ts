@@ -99,8 +99,15 @@ export async function holdManagedWorktree(
 
 /** True while some live holder — this process or another — owns `dir`. */
 export async function isManagedWorktreeHeld(worktreesRoot: string, dir: string): Promise<boolean> {
-  if ((inProcessHolds.get(holdKey(dir)) ?? 0) > 0) return true;
+  const key = holdKey(dir);
+  if ((inProcessHolds.get(key) ?? 0) > 0) return true;
   const marker = await readMarker(markerPath(worktreesRoot, dir));
+  // F3: a same-process hold may have been acquired while the marker read was
+  // in flight (its count increments synchronously; the marker write is async,
+  // and an own-pid marker is ignored below). The answer must reflect live
+  // ownership at resolution time, or a sweep deletes a checkout this process
+  // is actively holding — the exact loss holds exist to prevent.
+  if ((inProcessHolds.get(key) ?? 0) > 0) return true;
   // Our own pid without an in-process hold is a marker a release failed to
   // remove; another live pid is a real holder.
   return marker !== null && marker.pid !== process.pid && isPidAlive(marker.pid);
