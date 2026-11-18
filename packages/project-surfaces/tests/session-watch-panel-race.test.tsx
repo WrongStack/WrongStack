@@ -70,10 +70,10 @@ describe('SessionWatchPanel session switch race', () => {
     });
 
     await act(async () => {
-      root!.render(<SessionWatchPanel sessionId="A" onClose={() => {}} />);
+      root!.render(<SessionWatchPanel sessionId="A" />);
     });
     await act(async () => {
-      root!.render(<SessionWatchPanel sessionId="B" onClose={() => {}} />);
+      root!.render(<SessionWatchPanel sessionId="B" />);
     });
 
     await act(async () => {

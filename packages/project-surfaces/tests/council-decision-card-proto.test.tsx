@@ -7,21 +7,25 @@ describe('CouncilDecisionCard vote distribution prototype safety', () => {
   it('renders seats whose optionId matches Object.prototype keys without throwing', () => {
     const decision: CouncilDecisionData = {
       question: 'Which method?',
-      outcome: 'approved',
-      verdict: 'toString',
+      resolution: 'approved',
+      optionId: 'toString',
       seats: [
         {
+          seatId: 'reviewer-1',
+          at: 0,
           persona: 'Reviewer-1',
           status: 'valid',
           optionId: 'toString',
           weight: 1,
-        } as CouncilDecisionData['seats'][number],
+        },
         {
+          seatId: 'reviewer-2',
+          at: 0,
           persona: 'Reviewer-2',
           status: 'valid',
           optionId: 'constructor',
           weight: 1,
-        } as CouncilDecisionData['seats'][number],
+        },
       ],
     };
 

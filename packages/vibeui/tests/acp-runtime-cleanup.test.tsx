@@ -44,7 +44,7 @@ describe('AcpRuntime request cleanup', () => {
 
     const s1 = { ...initialState(), provider: 'acp', model: 'm1' };
     await act(async () => {
-      root!.render(<AcpRuntime state={s1} send={send} subscribe={subscribe} />);
+      root!.render(<AcpRuntime state={s1} disabled={false} send={send} subscribe={subscribe} />);
     });
     const details = container!.querySelector('details')!;
     await act(async () => {

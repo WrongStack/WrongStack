@@ -32,7 +32,7 @@ vi.mock('../src/host.js', async (orig) => {
       notify: { success: () => {}, error: () => {} },
       useScrollRestore: () => () => {},
     }),
-    surfaceFetch: (...args: unknown[]) => surfaceFetchMock(...args),
+    surfaceFetch: surfaceFetchMock,
   };
 });
 

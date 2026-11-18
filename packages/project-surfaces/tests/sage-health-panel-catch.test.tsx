@@ -45,7 +45,12 @@ describe('SageHealthPanel error and finally cleanup', () => {
 
     await act(async () => {
       root!.render(
-        <SageHealthPanel active={true} client={client as never} sageDoctor={sageDoctor} />,
+        <SageHealthPanel
+          onOpenMemory={() => {}}
+          active={true}
+          client={client as never}
+          sageDoctor={sageDoctor}
+        />,
       );
     });
     await new Promise((r) => setTimeout(r, 15));

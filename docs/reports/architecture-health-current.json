@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T21:42:07.021Z",
+  "generatedAt": "2026-11-18T21:43:17.920Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -20,7 +20,7 @@
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 415,
+    "testsWithoutTypecheck": 385,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1075
   },
@@ -747,6 +747,11 @@
           "path": "packages/project-surfaces/tsconfig.json",
           "error": null,
           "testFiles": 0
+        },
+        {
+          "path": "packages/project-surfaces/tsconfig.test.json",
+          "error": null,
+          "testFiles": 25
         }
       ]
     },
@@ -1110,7 +1115,7 @@
         {
           "path": "packages/vibeui/tsconfig.test.json",
           "error": null,
-          "testFiles": 34
+          "testFiles": 39
         }
       ]
     },
@@ -37134,216 +37139,6 @@
       },
       {
         "file": "apps/desktop-v2/tests/worktree-views.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/analytics-dashboard-poll.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/analytics-dashboard-timer-leak.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/codemap-activity-proto.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/codemap-stale-refresh-cancel.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/council-decision-card-hooks.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/council-decision-card-proto.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/debug-dashboard-race.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/flow-padding.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/kanban-store-stale-board-switch.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/memory-detail-copy.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/memory-manager-mark-permanent.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/memory-mutations-correlation-and-audience.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/model-editor-search-cleanup.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/provider-key-save-race.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/provider-test-view-race.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/ranked-search-load-more-reset.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/sage-health-panel-catch.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/session-branch-pill-unhandled.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/session-story-branch-cycle.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/session-watch-panel-race.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/session-watch-panel-send-race.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/setup-screen-cached-provider-switch.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/setup-screen-popular-abort.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/setup-screen-proto.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/project-surfaces/tests/story-history-sync-throw-and-mask.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/vibeui/tests/acp-runtime-cancel-settle.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/vibeui/tests/acp-runtime-cleanup.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/vibeui/tests/runtime-controls-proto.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/vibeui/tests/session-branch-dialog-cleanup.test.tsx",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      },
-      {
-        "file": "packages/vibeui/tests/use-session-compact-disconnect.test.tsx",
         "runtimeProjects": [
           "root-node"
         ],

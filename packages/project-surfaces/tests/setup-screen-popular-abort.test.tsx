@@ -58,6 +58,7 @@ describe('SetupScreen popular providers abort guard', () => {
 
     vi.spyOn(popularMod, 'loadPopularProviders').mockImplementation((_src, signal) => {
       callCount += 1;
+      if (!signal) throw new Error('Expected a cancellable provider request');
       if (callCount === 1) {
         return new Promise((_res, rej) => {
           signal.addEventListener('abort', () => {
@@ -95,7 +96,9 @@ describe('SetupScreen popular providers abort guard', () => {
     expect(notifyError).not.toHaveBeenCalled();
 
     await act(async () => {
-      resolveSecond([{ id: 'p-test', name: 'Test Provider', description: 'Test', envVars: [] }]);
+      const provider = popularMod.DEFAULT_POPULAR_PROVIDERS[0];
+      if (!provider) throw new Error('Expected a bundled provider fixture');
+      resolveSecond([{ ...provider, id: 'p-test', name: 'Test Provider', description: 'Test' }]);
     });
     expect(refreshBtn.disabled).toBe(false);
   });

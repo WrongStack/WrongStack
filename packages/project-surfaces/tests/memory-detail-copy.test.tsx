@@ -71,6 +71,11 @@ describe('MemoryDetail clipboard copy guard', () => {
     await act(async () => {
       root!.render(
         <MemoryDetail
+          graphLoading={false}
+          graphError={null}
+          onClose={() => {}}
+          onOpenMemory={() => {}}
+          onTagSelect={() => {}}
           memory={memory}
           relatedMemories={[]}
           graphEdges={[]}

@@ -40,6 +40,7 @@ describe('CouncilDecisionCard Rules of Hooks stability', () => {
       seats: [
         {
           seatId: 's1',
+          at: 0,
           persona: 'Critic',
           status: 'valid' as const,
           optionId: 'approve',
