@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T20:36:29.660Z",
+  "generatedAt": "2026-11-18T21:03:28.409Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6368,
-    "testFiles": 5484,
-    "sourceLines": 1315874,
+    "testFiles": 5486,
+    "sourceLines": 1315886,
     "workspaceEdges": 250,
     "moduleEdges": 18796,
     "nonCommandSlashImports": 0,
@@ -314,7 +314,7 @@
       "name": "@wrongstack/contracts",
       "dir": "packages/contracts",
       "sourceFiles": 132,
-      "testFiles": 4,
+      "testFiles": 6,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/primitives"
@@ -328,7 +328,7 @@
         {
           "path": "packages/contracts/tsconfig.test.json",
           "error": null,
-          "testFiles": 4
+          "testFiles": 6
         }
       ]
     },
@@ -9315,6 +9315,18 @@
       },
       {
         "file": "packages/contracts/src/kernel/__tests__/run-controller-disposal.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/contracts/src/kernel/__tests__/run-controller-parent-disposal.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/contracts/src/kernel/__tests__/run-controller-unsubscribe-ownership.test.ts",
         "projects": [
           "root-node"
         ]

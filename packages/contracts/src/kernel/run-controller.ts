@@ -24,7 +24,7 @@ export interface RunControllerOptions {
 
 export class RunController {
   private readonly ctrl = new AbortController();
-  private readonly hooks: Array<() => void | Promise<void>> = [];
+  private readonly hooks: Array<{ fn: () => void | Promise<void> }> = [];
   private hooksDrained = false;
   private readonly errorSink: (err: unknown, where: string) => void;
   /**
@@ -65,7 +65,14 @@ export class RunController {
           void this.ensureHooksRun();
         });
       } else {
-        const onParentAbort = () => this.ctrl.abort(parent.reason);
+        const onParentAbort = () => {
+          // F1: dispose()/abort() drain hooks synchronously, but the detach
+          // hook registered below only STARTS on a microtask. Ignore parent
+          // aborts once the run has ended so the synchronous disposal window
+          // cannot flip a normally-ended run to aborted.
+          if (this.hooksDrained) return;
+          this.ctrl.abort(parent.reason);
+        };
         parent.addEventListener('abort', onParentAbort, { once: true });
         // When this run finishes normally, stop listening on the parent.
         this.onAbort(() => parent.removeEventListener('abort', onParentAbort));
@@ -117,9 +124,14 @@ export class RunController {
       })();
       return () => {};
     }
-    this.hooks.push(fn);
+    // F2: track the registration, not the function — the same fn may be
+    // registered more than once, and an unsubscribe must remove only its
+    // own registration (a repeated call is a no-op, never a theft of a
+    // sibling registration that shares the fn).
+    const registration = { fn };
+    this.hooks.push(registration);
     return () => {
-      const idx = this.hooks.indexOf(fn);
+      const idx = this.hooks.indexOf(registration);
       if (idx !== -1) this.hooks.splice(idx, 1);
     };
   }
@@ -163,7 +175,7 @@ export class RunController {
     await Promise.allSettled(
       snapshot.map((hook) =>
         Promise.resolve()
-          .then(() => hook())
+          .then(() => hook.fn())
           .catch((err: unknown) => {
             this.errorSink(err, 'RunController.dispose');
           }),
