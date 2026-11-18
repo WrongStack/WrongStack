@@ -55,6 +55,17 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.7.11
+
+- **TUI in browser terminals:** the frame stays whole in VS Code, Codespaces,
+  code-server, ttyd and the WebUI terminal, and the layout holds in narrow panes.
+- **Desktop tool calls say what they touched:** run activity is grouped by
+  iteration with the time it ran, and session details count every tool call.
+- **New ChatGPT models:** gpt-6.2-sol and gpt-6.2-astra are listed for ChatGPT
+  accounts.
+- **No stale replies:** screens across the desktop, project pages, HQ and
+  VibeUI ignore replies that arrive after they moved on.
+
 ### What's new in 1.7.10
 
 - **Faster engine starts:** a boot no longer waits up to 10 s for an
@@ -645,7 +656,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.7.10**; versions follow semver
+- Release notes: **v1.7.11**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements

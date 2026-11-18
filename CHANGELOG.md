@@ -7,6 +7,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.11] — 2026-11-19
+
+The TUI keeps its frame whole in browser terminals (VS Code, Codespaces,
+code-server, ttyd and the WebUI terminal) and holds its layout in narrow panes.
+The desktop shows what each tool call touched, groups run activity by iteration
+with the time it ran, and counts tool calls for the whole session. ChatGPT
+accounts list gpt-6.2-sol and gpt-6.2-astra. Screens across the desktop, the
+project pages, HQ and VibeUI ignore replies that arrive after they moved on,
+and server routes validate request bodies. 1.7.10 was never tagged; its changes
+are part of this release.
+
+### Added
+
+- ChatGPT accounts list gpt-6.2-sol and gpt-6.2-astra. The account catalog
+  shows them only to clients that advertise Codex 0.166.0 or newer, so the
+  advertised client version moves to 0.170.0.
+- Desktop run activity is grouped by iteration, and each group and message
+  shows when it ran.
+- Desktop session details count tool calls for the whole session, not only the
+  part of the transcript that is loaded.
+- Kanban supervisor snapshots mark an empty session mirror, so the desktop lets
+  idle project services stop when a board has nothing left to supervise or was
+  deleted.
+
+### Changed
+
+- The TUI turns autowrap off inside the alternate screen, so a row measured
+  wider by the terminal than by the TUI is clipped instead of tearing every row
+  below it. In terminals not known to draw emoji sequences the same way
+  (`WRONGSTACK_TUI_GRAPHEMES=full|safe`, `safe` by default outside WezTerm,
+  kitty, Ghostty, iTerm2, Windows Terminal and Warp) such sequences are written
+  in a form both sides measure alike.
+- The WebUI terminal panel measures characters with Unicode 11 widths, the
+  widths the TUI and the PTY host use.
+- A collapsed tool call in the desktop conversation shows its tool icon and
+  what it acted on (the file, command or pattern); iteration boundaries are
+  quiet separators.
+- Dependencies move to their latest releases, among them React Flow 13,
+  i18next 27 with react-i18next 18, Playwright 1.65.1, Biome 2.6.8, Vitest 5.1,
+  ws 8.23, jsdom 31 and Tauri 2.12.5.
+
+### Fixed
+
+- TUI layout in narrow panes: wrapped list items keep their marker, a card
+  shows one copy icon, and sidebar headers, the input rule and the status bar
+  fit the width. Invalid reported terminal sizes fall back to defaults, and
+  native terminals are no longer treated as legacy conhost.
+- Replies that arrive after their screen closed, the conversation or board
+  changed or a newer request started no longer overwrite state: desktop
+  services, history, fleet, runtime and transcripts; project Kanban, SAGE
+  memory edits, the session story, ranked search and setup; HQ views; and the
+  VibeUI branch dialog.
+- A desktop engine stops if its owner exits while it boots, project services
+  follow the session host after a restart, and the file workspace drops stale
+  reads. Desktop controls have accessible names, the page declares its
+  language, and menus fit the window.
+- ACP transports share one startup, never spawn an agent after they stop, and
+  honour handshake deadlines longer than the 32-bit timer range.
+- `close()` on the WebSocket client during catch-up ends the connection
+  cleanly, and a run's unsubscribe removes only its own abort hook.
+- Chronicle keeps its metrics accurate and releases resources when a step
+  fails; the goal phase store saves the graph as it was when the save was
+  queued.
+- The MCP task-journal watcher ignores events from a replaced watcher,
+  worktree holds are rechecked after the hold marker is read, and the Telegram
+  poller advances its offset before a handler runs.
+- Fleet checks every location an ACP permission request names and stops
+  learning, memory and shadow work after teardown.
+- Plugin config is edited under the file lock, leader gateways stop pending
+  calls when they close, and the automation API and WebUI server routes
+  validate request bodies and answer 413 when one is too large. The terminal
+  route never starts a terminal for a closed socket.
+- A relinked review finding syncs every report it belongs to; cloud config
+  sync tears down cleanly, prompts keep their line breaks and skill flags
+  parse correctly.
+
 ## [1.7.10] — 2026-11-17
 
 Desktop engines start faster and no longer outlive their purpose. A boot that

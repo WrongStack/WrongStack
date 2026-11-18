@@ -1,27 +1,27 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.7.10',
-  title: 'Engines that start fast and stop on time.',
+  version: '1.7.11',
+  title: 'Whole frames and fresh screens.',
   summary:
-    'Desktop engines start faster and no longer outlive their purpose. A boot that waited up to 10 s for the mailbox server now waits at most 1 s, project services stop after 15 minutes that no window uses them, and an engine whose session host died stops itself instead of running on.',
+    'The TUI keeps its frame whole in browser terminals and holds its layout in narrow panes. The desktop shows what each tool call touched and when its run activity happened, ChatGPT accounts gain gpt-6.2-sol and gpt-6.2-astra, and screens across the desktop, project pages, HQ and VibeUI ignore replies that arrive after they moved on.',
   socialDescription:
-    'WrongStack 1.7.10: faster desktop engine starts, project services that stop when idle, and no engines left running after their host is gone.',
+    'WrongStack 1.7.11: a TUI that stays whole in browser terminals, desktop tool calls that say what they touched, and screens that ignore stale replies.',
   cards: [
     {
-      title: 'Faster starts',
-      body: 'A boot no longer waits up to 10 s for an unresponsive mailbox server, and every start logs how long each step took.',
-      href: '/interfaces',
-      linkLabel: 'Explore the desktop',
-    },
-    {
-      title: 'Idle services stop',
-      body: 'Project services no window used for 15 minutes stop and start again on the next visit; supervised Kanban boards keep theirs.',
+      title: 'TUI everywhere',
+      body: 'Emoji no longer tear the frame in VS Code, Codespaces, code-server, ttyd or the WebUI terminal, and the layout holds in narrow panes.',
       href: '/interfaces',
       linkLabel: 'Explore the interfaces',
     },
     {
-      title: 'No orphaned engines',
-      body: 'An engine whose session host died stops itself within seconds instead of holding its memory until the next launch.',
+      title: 'Readable runs',
+      body: 'Desktop tool calls name what they touched, run activity is grouped by iteration with its time, and session details count every call.',
+      href: '/interfaces',
+      linkLabel: 'Explore the desktop',
+    },
+    {
+      title: 'Fresh screens',
+      body: 'A reply that arrives after its screen, board or request moved on is ignored instead of overwriting what you see.',
       href: '/getting-started',
       linkLabel: 'Upgrade your installation',
     },

@@ -1,6 +1,6 @@
-// Changelog — recent 1.x era (1.7.10 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
+// Changelog — recent 1.x era (1.7.11 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
 // Historical entries mirror CHANGELOG.md release notes. 1.1.0 absorbs the 1.0.38
-// bump, which was never published; 1.7.8 was never tagged either.
+// bump, which was never published; 1.7.8 and 1.7.10 were never tagged either.
 // The 1.1.5 entry summarizes the commits in v1.1.4..v1.1.5, the 1.1.6 entry
 // those in v1.1.5..v1.1.6, and the 1.1.7 entry those in v1.1.6..v1.1.7.
 // The 1.1.13, 1.1.14 and 1.1.15 entries mirror the tagged release notes; the
@@ -11,10 +11,23 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.11',
+    date: '2026-11-19',
+    tagline: 'Whole frames and fresh screens',
+    latest: true,
+    highlights: [
+      'The TUI keeps its frame whole in VS Code, Codespaces, code-server, ttyd and the WebUI terminal',
+      'TUI layout holds in narrow panes: list markers, copy icons, headers and the status bar fit',
+      'Desktop tool calls show what they touched; run activity is grouped by iteration with its time',
+      'Desktop session details count tool calls for the whole session',
+      'ChatGPT accounts list gpt-6.2-sol and gpt-6.2-astra',
+      'Screens across desktop, project pages, HQ and VibeUI ignore stale replies; routes validate bodies',
+    ],
+  },
+  {
     version: '1.7.10',
     date: '2026-11-17',
     tagline: 'Engines that start fast and stop on time',
-    latest: true,
     highlights: [
       'A desktop engine boot waits at most 1 s for the mailbox server instead of up to 10 s',
       'Each engine start logs how long every boot step took (webui.boot.timing)',
