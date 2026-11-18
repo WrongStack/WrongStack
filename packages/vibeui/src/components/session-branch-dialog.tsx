@@ -22,7 +22,10 @@ export function SessionBranchDialog({
   controller: SessionController;
 }) {
   const { state, connection, send, subscribe, switchSession, notice } = controller;
-  const [tree, setTree] = useState<VibeSessionTreeSnapshot | null>(null);
+  const [tree, setTree] = useState<{
+    sessionId: typeof state.id;
+    snapshot: VibeSessionTreeSnapshot | null;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [newName, setNewName] = useState('');
@@ -84,11 +87,11 @@ export function SessionBranchDialog({
         setError(res.error);
         return;
       }
-      setTree(parseVibeSessionTree(res.message));
+      setTree({ sessionId: state.id, snapshot: parseVibeSessionTree(res.message) });
     } finally {
       if (requestSeq.current === seq) setBusy(false);
     }
-  }, [runTreeCommand]);
+  }, [runTreeCommand, state.id]);
 
   useEffect(() => {
     if (open) {
@@ -126,7 +129,8 @@ export function SessionBranchDialog({
     }
   };
 
-  const rows = tree ? flattenVibeBranchRows(tree) : [];
+  const snapshot = tree && tree.sessionId === state.id ? tree.snapshot : null;
+  const rows = snapshot ? flattenVibeBranchRows(snapshot) : [];
 
   return (
     <Modal

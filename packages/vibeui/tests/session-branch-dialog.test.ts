@@ -92,8 +92,10 @@ function mount(controller: SessionController, open = true) {
   document.body.append(host);
   const root = createRoot(host);
   roots.push(root);
-  act(() => root.render(createElement(SessionBranchDialog, { open, onOpenChange, controller })));
-  return { onOpenChange };
+  const render = (controller: SessionController) =>
+    act(() => root.render(createElement(SessionBranchDialog, { open, onOpenChange, controller })));
+  render(controller);
+  return { onOpenChange, render };
 }
 
 const dialog = () => document.querySelector<HTMLElement>('[role="dialog"]');
@@ -121,6 +123,37 @@ function typeName(value: string) {
 const treeCommand = (sent: Sent) => ({ type: sent.type, args: sent.payload.args });
 
 describe('VibeUI session branch dialog', () => {
+  it.each(['error', 'success'] as const)(
+    'keeps branch rows scoped to the selected session while its request returns %s',
+    async (outcome) => {
+      const old = fakeController({ sessionId: 'old' });
+      const next = fakeController({ sessionId: 'next' });
+      const { render } = mount(old.controller);
+      await old.reply({ message: TREE });
+      expect(branchButton('spike-1')).toBeDefined();
+      act(() => branchButton('spike-1')!.click());
+      expect(old.listeners.size).toBe(1);
+
+      render(next.controller);
+      expect(dialog()?.textContent).toContain('Loading session tree…');
+      expect(branchButton('spike-1')).toBeUndefined();
+      await old.reply({ message: TREE });
+      expect(old.listeners.size).toBe(0);
+      expect(old.switchSession).not.toHaveBeenCalled();
+      expect(branchButton('spike-1')).toBeUndefined();
+
+      if (outcome === 'error') {
+        await next.reply({ error: 'New tree failed' });
+        expect(dialog()?.textContent).toContain('New tree failed');
+      } else {
+        await next.reply({ message: TREE.replaceAll('spike-1', 'next-branch') });
+        expect(branchButton('next-branch')).toBeDefined();
+      }
+      expect(branchButton('spike-1')).toBeUndefined();
+      expect(next.listeners.size).toBe(0);
+    },
+  );
+
   it('stays closed and sends nothing until opened', () => {
     const fake = fakeController();
     mount(fake.controller, false);
