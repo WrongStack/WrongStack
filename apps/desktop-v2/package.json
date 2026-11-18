@@ -31,7 +31,7 @@
   "dependencies": {
     "@fontsource-variable/geist": "5.3.0",
     "@monaco-editor/react": "4.7.0",
-    "@tauri-apps/api": "2.12.4",
+    "@tauri-apps/api": "2.12.5",
     "@wrongstack/contracts": "workspace:*",
     "@wrongstack/core": "workspace:*",
     "@wrongstack/kanban": "workspace:*",
@@ -60,7 +60,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.5",
-    "@tauri-apps/cli": "2.12.4",
+    "@tauri-apps/cli": "2.12.5",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

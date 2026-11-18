@@ -112,8 +112,8 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
-    "@biomejs/biome": "2.6.5",
-    "@playwright/test": "^1.64.1",
+    "@biomejs/biome": "2.6.8",
+    "@playwright/test": "^1.65.1",
     "@types/node": "^26.6.6",
     "@types/ws": "^8.18.2",
     "@vitest/coverage-istanbul": "^5.1.0",
