@@ -14,7 +14,7 @@ type PlaywrightRuntime = Pick<typeof import('@playwright/test'), 'chromium'>;
 let moduleSetup: Promise<PlaywrightRuntime> | undefined;
 let runtimeRequire = createRequire(import.meta.url);
 // Kept aligned with the tools package dependency by browser-runtime.test.ts.
-const PLAYWRIGHT_VERSION = '1.64.1';
+const PLAYWRIGHT_VERSION = '1.65.1';
 
 function javascriptRuntime(): string {
   if (process.versions['bun']) return process.execPath;

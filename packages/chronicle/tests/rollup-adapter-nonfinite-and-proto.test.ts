@@ -1,30 +1,36 @@
 import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { describe, expect, it } from 'vitest';
 import { createChronicleContext, wireRollupsToChronicle } from '../src/index.js';
+import type { ChronicleEventSink } from '../src/sink.js';
 import type { ChronicleEventInput } from '../src/types.js';
 
 describe('wireRollupsToChronicle non-finite sample guard and __proto__ own-property fidelity', () => {
   it('ignores NaN and Infinity metric samples without poisoning finite window statistics and preserves __proto__ keys', async () => {
     const appended: ChronicleEventInput[] = [];
-    const journal = {
+    const journal: ChronicleEventSink = {
       append: async (input: ChronicleEventInput) => {
         appended.push(JSON.parse(JSON.stringify(input)) as ChronicleEventInput);
         return input as never;
       },
-      stats: () => ({ eventCount: appended.length, byteSize: 0 }),
+      // Only append() matters here; the rollup wiring never reads the stats.
+      stats: () =>
+        ({ eventCount: appended.length, byteSize: 0 }) as unknown as ReturnType<
+          ChronicleEventSink['stats']
+        >,
       flush: async () => {},
     };
     const events = new EventBus();
     const context = createChronicleContext({ installationId: 'i', machineId: 'm' }, 'trace-1');
     const dispose = wireRollupsToChronicle({ events, journal, context, windowMs: 60_000 });
 
-    events.emit('ctx.pct', { sessionId: 's-nan', load: 0.25, tokens: 250 });
+    events.emit('ctx.pct', { sessionId: 's-nan', load: 0.25, tokens: 250, maxContext: 1000 });
     events.emit('ctx.pct', {
       sessionId: 's-nan',
       load: Number.NaN,
       tokens: Number.POSITIVE_INFINITY,
+      maxContext: 1000,
     });
-    events.emit('ctx.pct', { sessionId: 's-nan', load: 0.75, tokens: 750 });
+    events.emit('ctx.pct', { sessionId: 's-nan', load: 0.75, tokens: 750, maxContext: 1000 });
 
     events.emit('tool.progress', {
       sessionId: 's-proto',

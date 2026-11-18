@@ -45,9 +45,9 @@ describe('createCloudConfigSyncPlugin teardown & reload ownership fence (F531)',
       return handle;
     }) as typeof setInterval);
     vi.spyOn(globalThis, 'clearInterval').mockImplementation(((
-      handle?: ReturnType<typeof clearInterval>,
+      handle?: Parameters<typeof clearInterval>[0],
     ) => {
-      if (handle !== undefined) liveTimers.delete(handle);
+      if (handle !== undefined) liveTimers.delete(handle as ReturnType<typeof setInterval>);
       return origClearInterval(handle);
     }) as typeof clearInterval);
 

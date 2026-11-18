@@ -58,7 +58,7 @@ function makeRecord(id: string): Sage {
     scope: 'project',
     kind: 'fact',
     status: 'stale',
-    staleReason: 'source_changed',
+    staleReason: 'verification',
     text: 'Retry budget uses MAX_RETRIES = 3.',
     importance: 0.7,
     confidence: 0.8,

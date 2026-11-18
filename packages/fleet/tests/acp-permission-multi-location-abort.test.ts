@@ -44,7 +44,10 @@ describe('wrongstackAcpPermissionPolicy multi-location & abort hardening (F529)'
       name: 'write',
       capabilities: [ToolCapabilities.FS_WRITE],
     } as unknown as Tool;
-    const bashTool = { name: 'bash', capabilities: [ToolCapabilities.EXEC] } as unknown as Tool;
+    const bashTool = {
+      name: 'bash',
+      capabilities: [ToolCapabilities.SHELL_EXEC],
+    } as unknown as Tool;
 
     const policy = wrongstackAcpPermissionPolicy({
       evaluate: (tool, input, scope) => worker.evaluate(tool, input, scope as never),

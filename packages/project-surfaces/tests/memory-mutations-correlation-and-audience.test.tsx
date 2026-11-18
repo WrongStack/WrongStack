@@ -94,7 +94,7 @@ describe('useMemoryMutations reply correlation, send failure cleanup, and audien
     });
 
     let state!: {
-      busyAction: 'create' | 'update' | null;
+      busyAction: 'create' | 'update' | 'delete' | null;
       editing: boolean;
       selectedId: string | null;
       mutationError: string | null;
@@ -108,7 +108,7 @@ describe('useMemoryMutations reply correlation, send failure cleanup, and audien
       const [selectedMemory] = useState<SageEntry | null>(() =>
         makeMemory('mem_target', { audience: { roles: ['reviewer'] } }),
       );
-      const [busyAction, setBusyAction] = useState<'create' | 'update' | null>(null);
+      const [busyAction, setBusyAction] = useState<'create' | 'update' | 'delete' | null>(null);
       const [editing, setEditing] = useState(true);
       const [, setCreating] = useState(false);
       const [selectedId, setSelectedId] = useState<string | null>('mem_target');
