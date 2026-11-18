@@ -51,32 +51,40 @@ export interface LeaderGateway {
   close(): Promise<void>;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 /** Ask the session's user about one call, on the prompt its surface has. */
 async function askUser(
   host: AcpLeaderHost,
   sessionId: string,
   tool: Tool,
   input: Record<string, unknown>,
+  signal: AbortSignal,
 ): Promise<boolean> {
+  if (signal.aborted) return false;
   const suggestedPattern =
     subjectForToolInput(tool.name, input, tool.subjectKey, tool.subjectFields) ?? tool.name;
   const toolUseId = `wrongforge-${randomBytes(6).toString('hex')}`;
   if (host.confirmAwaiter) {
     const answer = await host.confirmAwaiter(tool, input, toolUseId, suggestedPattern);
+    if (signal.aborted) return false;
     return answer !== 'no' && answer !== 'deny';
   }
   if (!host.confirmThroughEvents) return false;
-  return confirmThroughEvents({
+  const approved = await confirmThroughEvents({
     events: host.events,
     sessionId,
     tool,
     input,
     toolUseId,
     suggestedPattern,
-    signal: new AbortController().signal,
+    signal,
     permission: host.permission(sessionId),
     context: host.context(sessionId),
   });
+  return !signal.aborted && approved;
 }
 
 export async function startLeaderGateway(
@@ -108,7 +116,10 @@ export async function startLeaderGateway(
   const expected = `Bearer ${token}`;
   const authorized = (req: http.IncomingMessage) =>
     timingSafeTokenEqual(req.headers.authorization, expected);
+  let closed = false;
+  const activeCalls = new Set<AbortController>();
   const send = (res: http.ServerResponse, status: number, body: unknown) => {
+    if (res.writableEnded || res.destroyed) return;
     const text = JSON.stringify(body);
     res.writeHead(status, {
       'content-type': 'application/json; charset=utf-8',
@@ -151,8 +162,11 @@ export async function startLeaderGateway(
     let size = 0;
     let tooLarge = false;
     req.on('data', (c: Buffer) => {
-      if (tooLarge) return;
       size += c.length;
+      if (tooLarge) {
+        if (size > MAX_BODY * 2) req.destroy();
+        return;
+      }
       if (size > MAX_BODY) {
         tooLarge = true;
         chunks.length = 0;
@@ -164,21 +178,35 @@ export async function startLeaderGateway(
     });
     req.on('end', () => {
       if (tooLarge) return;
-      let input: Record<string, unknown> = {};
+      if (closed) {
+        return send(res, 503, { ok: false, tool: name, error: 'gateway_closed' });
+      }
+      let raw: unknown;
       try {
-        const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}') as {
-          input?: unknown;
-        };
-        if (body.input && typeof body.input === 'object' && !Array.isArray(body.input)) {
-          input = body.input as Record<string, unknown>;
-        }
+        const text = Buffer.concat(chunks).toString('utf8').trim();
+        raw = text ? JSON.parse(text) : {};
       } catch {
         return send(res, 400, { ok: false, tool: name, error: 'invalid_json' });
       }
+      if (!isRecord(raw)) {
+        return send(res, 400, { ok: false, tool: name, error: 'invalid_json' });
+      }
+      const rawInput = raw['input'] === undefined ? {} : raw['input'];
+      if (!isRecord(rawInput)) {
+        return send(res, 400, { ok: false, tool: name, error: 'invalid_input' });
+      }
+      const input = rawInput;
+      const callAbort = new AbortController();
+      activeCalls.add(callAbort);
+      const onClose = () => {
+        if (!res.writableEnded) callAbort.abort();
+      };
+      req.on('aborted', onClose);
+      res.on('close', onClose);
       host
         .runTool(name, input, {
           sessionId,
-          approve: (t, i) => askUser(host, sessionId, t, i),
+          approve: (t, i) => askUser(host, sessionId, t, i, callAbort.signal),
           // The provider draws no card for a `wstack_*` call (its events are
           // marked external), so the session's card is settled here.
           announce: true,
@@ -192,7 +220,12 @@ export async function startLeaderGateway(
               error: 'tool_failed',
               message: toErrorMessage(err),
             }),
-        );
+        )
+        .finally(() => {
+          req.removeListener('aborted', onClose);
+          res.removeListener('close', onClose);
+          activeCalls.delete(callAbort);
+        });
     });
   });
 
@@ -214,6 +247,11 @@ export async function startLeaderGateway(
       name_prefix: 'wstack_',
     },
     tools: [...byName.keys()],
-    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+    close: () => {
+      closed = true;
+      for (const ctrl of [...activeCalls]) ctrl.abort();
+      activeCalls.clear();
+      return new Promise<void>((resolve) => server.close(() => resolve()));
+    },
   };
 }

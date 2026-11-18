@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T21:24:15.660Z",
+  "generatedAt": "2026-11-18T21:26:17.648Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6369,
-    "testFiles": 5501,
-    "sourceLines": 1316179,
+    "testFiles": 5503,
+    "sourceLines": 1316218,
     "workspaceEdges": 250,
     "moduleEdges": 18798,
     "nonCommandSlashImports": 0,
@@ -820,7 +820,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 126,
-      "testFiles": 63,
+      "testFiles": 65,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -854,7 +854,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 63
+          "testFiles": 65
         }
       ]
     },
@@ -20282,6 +20282,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/acp-leader-close-race.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/acp-leader-host-state.test.ts",
         "projects": [
           "root-node"
@@ -20643,6 +20649,12 @@
       },
       {
         "file": "packages/runtime/tests/wrongforge-leader-close-race.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/wrongforge-leader-gateway-abort-and-input.test.ts",
         "projects": [
           "root-node"
         ]

@@ -185,6 +185,7 @@ export class AcpLeaderProvider implements Provider {
    * approval instead of asking again.
    */
   private readonly fleetGrants = new Map<string, number>();
+  private closed = false;
 
   constructor(private readonly opts: AcpLeaderProviderOptions) {
     this.id = opts.id ?? ACP_LEADER_PROVIDER_ID;
@@ -430,14 +431,13 @@ export class AcpLeaderProvider implements Provider {
 
   /** The persistent agent session for this conversation, started on first use. */
   private sessionFor(key: string, agentId: string): Promise<LeaderSession> {
+    if (this.closed) return Promise.reject(new Error('ACP leader provider is closed'));
     const existing = this.sessions.get(key);
     if (existing) {
       return existing.then((leader) => {
-        if (leader.agentId === agentId) return leader;
+        if (leader.agentId === agentId && !this.closed) return leader;
         // `/model acp/<other agent>` mid-session: a different agent, a new session.
-        if (this.sessions.get(key) === existing) {
-          this.drop(key, leader);
-        }
+        if (this.sessions.get(key) === existing) this.drop(key, leader);
         return this.sessionFor(key, agentId);
       });
     }
@@ -661,6 +661,7 @@ export class AcpLeaderProvider implements Provider {
 
   /** Close every agent session (process shutdown). */
   async closeAll(): Promise<void> {
+    this.closed = true;
     const all = [...this.sessions.values()];
     this.sessions.clear();
     this.fleetGrants.clear();
