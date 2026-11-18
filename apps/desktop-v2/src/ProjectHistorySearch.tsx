@@ -38,6 +38,7 @@ export function ProjectHistorySearch({
     mounted.current = true;
     return () => {
       mounted.current = false;
+      pending.current = false;
       generation.current++;
     };
   }, []);
@@ -111,8 +112,10 @@ export function ProjectHistorySearch({
         setStatus('incomplete');
       }
     } finally {
-      pending.current = false;
-      if (mounted.current) setBusy(false);
+      if (generation.current === version) {
+        pending.current = false;
+        if (mounted.current) setBusy(false);
+      }
     }
   };
   return (
@@ -161,6 +164,8 @@ export function ProjectHistorySearch({
             className="button secondary"
             onClick={() => {
               generation.current++;
+              pending.current = false;
+              setBusy(false);
               setStatus('stopped');
             }}
           >

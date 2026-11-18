@@ -114,10 +114,22 @@ export function ProjectLiveFleet({
       if (alive.current && sequence === readSequence.current)
         setLoadError(error instanceof Error ? error.message : String(error));
     } finally {
-      reading.current = false;
-      if (alive.current && sequence === readSequence.current) setLoading(false);
+      if (sequence === readSequence.current) {
+        reading.current = false;
+        if (alive.current) setLoading(false);
+      }
     }
   }, [read, carrierId]);
+  useEffect(() => {
+    reviewTarget.current = null;
+    setSessions([]);
+    setLoaded(false);
+    setLoadError('');
+    setError('');
+    setNotice('');
+    setSelection(null);
+    setReview(null);
+  }, [projectRoot, carrierId]);
   useEffect(() => {
     alive.current = true;
     let stopped = false,
@@ -129,9 +141,11 @@ export function ProjectLiveFleet({
     void poll();
     return () => {
       alive.current = false;
+      reading.current = false;
       readSequence.current++;
       stopped = true;
       clearTimeout(timer);
+      setLoading(false);
     };
   }, [load]);
   const visible = sessions.filter((session) =>
