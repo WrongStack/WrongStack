@@ -109,6 +109,31 @@ describe('Session Catalog handshake socket ownership', () => {
     }
   });
 
+  it.each(['ENOENT', 'ECONNREFUSED'])(
+    'recovers a %s pre-bind failure when the recorded owner is alive',
+    async (code) => {
+      const { client, hello } = fixture();
+      const pending = client.callExisting('list_live', {});
+      try {
+        const first = boundary.sockets[0];
+        if (!first) throw new Error('Expected the initial connection attempt');
+        first.emit('error', Object.assign(new Error(`connect ${code}`), { code }));
+        await vi.advanceTimersByTimeAsync(75);
+        expect(boundary.sockets).toHaveLength(2);
+        const replacement = boundary.sockets[1];
+        if (!replacement) throw new Error('Expected the bounded reconnection attempt');
+        hello(replacement);
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pending).resolves.toEqual([]);
+        expect(first.destroyed).toBe(true);
+        expect(boundary.sockets).toHaveLength(2);
+      } finally {
+        await client.close();
+        await vi.runAllTimersAsync();
+      }
+    },
+  );
+
   it('ignores a retired socket error while the replacement handshake is pending', async () => {
     const { client, hello } = fixture();
     let outcome: { state: string; value?: unknown } = { state: 'pending' };
