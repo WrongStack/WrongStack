@@ -53,8 +53,8 @@ export function DraftCounter({
   draft: string;
   context: Pick<ContextUsage, 'tokens' | 'max'>;
 }) {
-  if (!draft) return null;
   const { t } = useDesktopText();
+  if (!draft) return null;
   const estimate = draftEstimate(draft, context, t);
   return (
     <span className={`draft-counter ${estimate.tone}`.trim()} title={estimate.title}>

@@ -1,6 +1,9 @@
-import { createElement } from 'react';
+// @vitest-environment jsdom
+
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DraftCounter } from '../src/DraftCounter';
 
 const render = (draft: string, tokens = 0, max = 0) =>
@@ -25,5 +28,25 @@ describe('draft counter', () => {
     expect(render(draft, 1_900, 2_000)).toContain(
       `class="draft-counter over" title="Projected 108% of the ${max}-token context: the request will likely fail or compact."`,
     );
+  });
+
+  it('updates the count as the same composer gains and loses a draft', async () => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    const report = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    try {
+      for (const draft of ['', 'hello', '', 'again!']) {
+        await act(async () =>
+          root.render(createElement(DraftCounter, { draft, context: { tokens: 0, max: 0 } })),
+        );
+        expect(host.textContent).toBe(draft ? String(draft.length) : '');
+      }
+      expect(report).not.toHaveBeenCalled();
+    } finally {
+      await act(async () => root.unmount());
+      report.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 });
