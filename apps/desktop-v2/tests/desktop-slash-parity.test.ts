@@ -22,8 +22,8 @@ vi.mock('../src/skill-model', async (original) => ({
 
 function contextWith(state: Partial<EngineState> = {}, reply: Record<string, unknown> = {}) {
   return {
-    command: vi.fn(async () => reply),
-    send: vi.fn(async () => undefined),
+    command: vi.fn<DesktopCommandContext['command']>(async () => reply),
+    send: vi.fn<DesktopCommandContext['send']>(async () => undefined),
     state: { ...emptyEngineState, ...state },
     stopHunt: vi.fn((): string | null => null),
     openHelp: vi.fn(),

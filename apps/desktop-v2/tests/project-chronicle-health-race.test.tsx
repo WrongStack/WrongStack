@@ -52,12 +52,13 @@ describe('ProjectChronicle refreshHealth generation guard', () => {
     };
 
     await act(async () => {
-      root!.render(<ProjectChronicle command={command as never} />);
+      root!.render(<ProjectChronicle command={command as never} onOpenFile={() => {}} />);
     });
 
     await act(async () => {
       root!.render(
         <ProjectChronicle
+          onOpenFile={() => {}}
           command={((...args: Parameters<typeof command>) => command(...args)) as never}
         />,
       );

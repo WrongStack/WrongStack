@@ -39,7 +39,12 @@ async function findCount(scope: 'source' | 'conversation', query: string) {
 
 const bars = () =>
   [
-    createElement(EditorFindBar, { content: 'foo', onChange: vi.fn(), onClose: vi.fn() }),
+    createElement(EditorFindBar, {
+      content: 'foo',
+      editor: () => null,
+      onChange: vi.fn(),
+      onClose: vi.fn(),
+    }),
     createElement(DraftMergeChoices, {
       mine: 'a\nb',
       stored: 'a\nc',

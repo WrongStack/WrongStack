@@ -44,11 +44,27 @@ describe('SessionUsage session switch pending guard', () => {
     });
 
     await act(async () => {
-      root!.render(<SessionUsage connected={true} sessionId="sess-1" command={command as never} />);
+      root!.render(
+        <SessionUsage
+          sessionTitle="Test conversation"
+          onBack={() => {}}
+          connected={true}
+          sessionId="sess-1"
+          command={command as never}
+        />,
+      );
     });
 
     await act(async () => {
-      root!.render(<SessionUsage connected={true} sessionId="sess-2" command={command as never} />);
+      root!.render(
+        <SessionUsage
+          sessionTitle="Test conversation"
+          onBack={() => {}}
+          connected={true}
+          sessionId="sess-2"
+          command={command as never}
+        />,
+      );
     });
 
     await act(async () => {

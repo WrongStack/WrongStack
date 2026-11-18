@@ -7,8 +7,19 @@ import type { Session } from '../src/model';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const agent = { id: 's1', kind: 'agent', title: 'Release work', status: 'idle' } as Session;
-const terminal = { id: 't1', kind: 'terminal', title: 'Shell', status: 'idle' } as Session;
+const agent: Session = {
+  id: 's1',
+  projectId: 'p1',
+  kind: 'agent',
+  title: 'Release work',
+  status: 'stopped',
+  workdir: 'D:/work/app',
+  createdAt: 0,
+  updatedAt: 0,
+  exitCode: null,
+  error: null,
+};
+const terminal: Session = { ...agent, id: 't1', kind: 'terminal', title: 'Shell' };
 
 function mount(sessions: Session[], onPrepare = vi.fn(async () => true)) {
   const onNewSession = vi.fn();

@@ -5,13 +5,13 @@ describe('WrongStack profile settings', () => {
   it('allows the engine unlimited iteration budget', () => {
     expect(
       settingsSections
-        .flatMap((section) => section.fields)
+        .flatMap<import('../src/settings-fields').SettingField>((section) => section.fields)
         .find((field) => field.key === 'maxIterations')?.min,
     ).toBe(0);
   });
   it('accepts the engine default of zero automatic continuation steps', () => {
     const field = settingsSections
-      .flatMap((section) => section.fields)
+      .flatMap<import('../src/settings-fields').SettingField>((section) => section.fields)
       .find((field) => field.key === 'autoProceedMaxIterations');
     expect(field?.min).toBe(0);
     expect(

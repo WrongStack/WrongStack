@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-// @ts-expect-error JavaScript native harness has no declaration file.
 import { ownedProcessIds } from './native-performance.mjs';
 
 describe('native performance process attribution', () => {

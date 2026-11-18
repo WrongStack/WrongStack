@@ -18,7 +18,7 @@ import {
 import { emptyEngineState } from '../src/engine-state';
 import { HuntRoundCard } from '../src/HuntRounds';
 
-const user = (text: string) => ({ role: 'user' as const, text });
+const user = (text: string) => ({ id: `user:${text}`, role: 'user' as const, text });
 // The first round as prepareHunt builds it, around a stand-in protocol.
 const firstHuntRound = (protocol: string, request: HuntRequest) =>
   prepareHunt(request, async () => ({ found: true, content: protocol }), {
@@ -138,7 +138,7 @@ describe('desktop hunt rounds', () => {
   });
 
   it('turns subagents off, reads the builtin protocol and refuses a missing one', async () => {
-    const command = vi.fn(async (type: string) =>
+    const command = vi.fn<DesktopCommandContext['command']>(async (type) =>
       type === 'prompts.content' ? { found: true, content: '  PROTOCOL  ' } : {},
     );
     const text = await prepareHunt(request, command, { subagentsAllowed: true });

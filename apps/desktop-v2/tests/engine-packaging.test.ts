@@ -102,7 +102,7 @@ describe('desktop installer bundle', () => {
       command,
       'CI must parse the signed entitlements, not just search for the key',
     ).not.toBeNull();
-    if (!command) return;
+    if (!command?.[1]) throw new Error('Expected the CI entitlement parser command');
     const entry = value ? `<key>com.apple.security.cs.allow-jit</key>${value}` : '';
     const result = spawnSync(
       process.platform === 'win32' ? 'python' : 'python3',

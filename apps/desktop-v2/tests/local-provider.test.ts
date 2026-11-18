@@ -1,6 +1,5 @@
 import { expect, it } from 'vitest';
 // The test fixture speaks to the actual native engine; keep its wire assumptions explicit.
-// @ts-expect-error JavaScript native harness has no declaration file.
 import { fixtureKey, fixtureModel, startLocalProvider } from './local-provider.mjs';
 
 it('observes real tool answers even when the engine appends a user-role context note', async () => {

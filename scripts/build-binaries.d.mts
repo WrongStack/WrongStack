@@ -9,6 +9,12 @@ export interface BinaryBuildOptions {
 /** Parse and validate standalone binary build arguments. */
 export declare function parseBinaryBuildArgs(argv: string[]): BinaryBuildOptions;
 
+/** Pack the selected workspace assets using the standalone extraction format. */
+export declare function buildAssetPack(options?: {
+  assets?: Record<string, string[]>;
+  destination?: string;
+}): string;
+
 /** Release asset name for a build target, e.g. `wstack-windows-x64.exe`. */
 export declare function outputName(target: string): string;
 

@@ -52,9 +52,11 @@ describe('SessionBrowser stale browser.live.list guard', () => {
     await act(async () => {
       root!.render(
         <SessionBrowser
+          id="browser-view"
+          onAddToPrompt={() => {}}
           state={{ sessionId: 'sess-1', running: false, results: {} } as never}
           command={command as never}
-          send={async () => ({})}
+          send={async () => {}}
         />,
       );
     });
@@ -62,9 +64,11 @@ describe('SessionBrowser stale browser.live.list guard', () => {
     await act(async () => {
       root!.render(
         <SessionBrowser
+          id="browser-view"
+          onAddToPrompt={() => {}}
           state={{ sessionId: 'sess-2', running: true, results: {} } as never}
           command={command as never}
-          send={async () => ({})}
+          send={async () => {}}
         />,
       );
     });

@@ -45,13 +45,25 @@ describe('SessionMcpTasks session switch reading guard', () => {
 
     await act(async () => {
       root!.render(
-        <SessionMcpTasks connected={true} sessionId="sess-1" command={command as never} />,
+        <SessionMcpTasks
+          onBack={() => {}}
+          pendingReviews={0}
+          connected={true}
+          sessionId="sess-1"
+          command={command as never}
+        />,
       );
     });
 
     await act(async () => {
       root!.render(
-        <SessionMcpTasks connected={true} sessionId="sess-2" command={command as never} />,
+        <SessionMcpTasks
+          onBack={() => {}}
+          pendingReviews={0}
+          connected={true}
+          sessionId="sess-2"
+          command={command as never}
+        />,
       );
     });
 

@@ -3,6 +3,7 @@ import { reviewText } from '../src/file-model';
 import {
   MAX_REVIEW_REPLIES,
   parseReviewNotes,
+  type ReviewNote,
   withReply,
   withReplyChange,
   withResolved,
@@ -14,7 +15,7 @@ const at = '2026-10-29T10:00:00.000Z';
 it('keeps a reply thread and resolution on a note', () => {
   const replied = withReply([note], 0, '  Covered by the guard.  ', at);
   expect(replied).toEqual([{ ...note, replies: [{ text: 'Covered by the guard.', at }] }]);
-  const resolved = withResolved(replied, 0, true);
+  const resolved: ReviewNote[] = withResolved(replied, 0, true);
   expect(resolved[0]!.resolved).toBe(true);
   expect(withResolved(resolved, 0, false)[0]).not.toHaveProperty('resolved');
   // Blank replies and missing notes change nothing.
@@ -48,11 +49,10 @@ it('sends open notes with their replies and leaves resolved notes out', () => {
 });
 it('edits and deletes a single reply', () => {
   const replied = withReply(withReply([note], 0, 'first', at), 0, 'second', at);
-  expect(withReplyChange(replied, 0, 1, '  changed ')[0]!.replies!.map((r) => r.text)).toEqual([
-    'first',
-    'changed',
-  ]);
-  expect(withReplyChange(replied, 0, 0, null)[0]!.replies!.map((r) => r.text)).toEqual(['second']);
+  const edited: ReviewNote[] = withReplyChange(replied, 0, 1, '  changed ');
+  expect(edited[0]!.replies!.map((r) => r.text)).toEqual(['first', 'changed']);
+  const deleted: ReviewNote[] = withReplyChange(replied, 0, 0, null);
+  expect(deleted[0]!.replies!.map((r) => r.text)).toEqual(['second']);
   // Deleting the last reply leaves no empty replies field behind.
   expect(withReplyChange(withReply([note], 0, 'only', at), 0, 0, null)[0]).toEqual(note);
   expect(() => withReplyChange(replied, 0, 0, '   ')).toThrow('cannot be empty');

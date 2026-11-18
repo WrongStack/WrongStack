@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-// @ts-expect-error -- plain ESM build script without declarations.
 import { engineSidecarPath, hostTriple } from './build-engine.mjs';
 
 export function portableDirectory(appDir: string): string {

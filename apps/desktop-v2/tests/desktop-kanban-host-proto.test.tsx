@@ -35,7 +35,7 @@ describe('desktopKanbanHost useModelCandidates own-property lookup', () => {
 
     const host = desktopKanbanHost({
       client: {
-        on: (type, fn) => {
+        on: (type: string, fn: (msg: { type: string; payload: unknown }) => void) => {
           handlers.set(type, fn as (msg: { type: string; payload: unknown }) => void);
           return () => handlers.delete(type);
         },

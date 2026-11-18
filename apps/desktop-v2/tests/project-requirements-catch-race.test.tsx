@@ -57,23 +57,13 @@ describe('ProjectRequirements sequence-safe load error handling', () => {
 
     await act(async () => {
       root!.render(
-        <ProjectRequirements
-          http={http as never}
-          refreshKey={1}
-          initialDraft={null}
-          onConsumeDraft={() => {}}
-        />,
+        <ProjectRequirements http={http as never} refreshKey={1} onStartSdd={() => {}} />,
       );
     });
 
     await act(async () => {
       root!.render(
-        <ProjectRequirements
-          http={http as never}
-          refreshKey={2}
-          initialDraft={null}
-          onConsumeDraft={() => {}}
-        />,
+        <ProjectRequirements http={http as never} refreshKey={2} onStartSdd={() => {}} />,
       );
     });
 
@@ -87,12 +77,7 @@ describe('ProjectRequirements sequence-safe load error handling', () => {
 
     await act(async () => {
       root!.render(
-        <ProjectRequirements
-          http={http as never}
-          refreshKey={3}
-          initialDraft={null}
-          onConsumeDraft={() => {}}
-        />,
+        <ProjectRequirements http={http as never} refreshKey={3} onStartSdd={() => {}} />,
       );
     });
     await act(async () => {

@@ -71,7 +71,7 @@ describe('FileWorkspace clipboard error guard', () => {
           scopeKey="/workspace"
           projectId="p1"
           command={command as never}
-          send={async () => ({})}
+          send={async () => {}}
           state={{ connected: true, sessionId: 'sess-1', messages: [], results: {} } as never}
         />,
       );
@@ -86,7 +86,9 @@ describe('FileWorkspace clipboard error guard', () => {
       fileBtn!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     });
 
-    const copyBtn = Array.from(container!.querySelectorAll('button[role="menuitem"]')).find(
+    const copyBtn = Array.from(
+      container!.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]'),
+    ).find(
       (b) => b.textContent?.toLowerCase().includes('copy') || b.textContent?.includes('copyPath'),
     );
     expect(copyBtn).toBeDefined();

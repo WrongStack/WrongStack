@@ -15,9 +15,9 @@ import { prepareSettingsPatch } from '../src/settings-save-model';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const field = (key: string) =>
-  settingsSections.flatMap((section) => section.fields).find((item) => item.key === key) as
-    | SettingField
-    | undefined;
+  settingsSections
+    .flatMap<SettingField>((section) => section.fields)
+    .find((item) => item.key === key);
 
 function row(item: SettingField, value: unknown) {
   const onChange = vi.fn();

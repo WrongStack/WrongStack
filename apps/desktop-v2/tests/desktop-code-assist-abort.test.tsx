@@ -53,7 +53,9 @@ describe('DesktopCodeAssist abort failure handling', () => {
     } as never;
 
     await act(async () => {
-      root!.render(<DesktopCodeAssist state={state} send={send as never} />);
+      root!.render(
+        <DesktopCodeAssist filePath="src/example.ts" state={state} send={send as never} />,
+      );
     });
 
     const form = container!.querySelector('form')!;

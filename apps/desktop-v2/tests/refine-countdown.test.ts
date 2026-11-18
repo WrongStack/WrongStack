@@ -39,7 +39,7 @@ describe('refinement opened on submit', () => {
   let host: HTMLElement;
   const reply = { refined: 'Fix the login bug', english: 'Fix the login bug' };
   async function open(countdown: boolean, onSend = vi.fn(async () => undefined)) {
-    const command = vi.fn(async () => reply);
+    const command = vi.fn<import('../src/engine-operations').EngineCommand>(async () => reply);
     await act(async () =>
       root.render(
         createElement(PromptRefinement, {
