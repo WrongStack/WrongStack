@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
+import { looseTranslate } from '@/i18n/loose-translate';
 import { cn } from '@/lib/utils';
 import {
   type AppNotification,
@@ -70,7 +71,10 @@ function NotificationItem({
   onRemove: () => void;
 }) {
   const { t } = useAppTranslation();
-  const timeFormatted = useMemo(() => formatRelativeTime(item.timestamp, t), [item.timestamp, t]);
+  const timeFormatted = useMemo(
+    () => formatRelativeTime(item.timestamp, looseTranslate(t)),
+    [item.timestamp, t],
+  );
   const dateFormatted = useMemo(() => new Date(item.timestamp).toLocaleString(), [item.timestamp]);
 
   return (

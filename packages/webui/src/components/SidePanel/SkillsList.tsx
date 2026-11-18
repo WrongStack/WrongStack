@@ -6,6 +6,7 @@ import { Download, FileText, Loader2, Plus, RefreshCw, Sparkles } from 'lucide-r
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
+import { looseTranslate } from '@/i18n/loose-translate';
 import { cn } from '@/lib/utils';
 import { showPanel } from '@/lib/view-navigation';
 import { useUIStore } from '@/stores/ui-store';
@@ -330,7 +331,7 @@ export function SkillsList({ className }: { className?: string }) {
                     : 'bg-background/60 text-muted-foreground hover:bg-accent',
                 )}
               >
-                {scope === 'all' ? t('common:action.all') : scopeLabelFor(t, scope)}
+                {scope === 'all' ? t('common:action.all') : scopeLabelFor(looseTranslate(t), scope)}
                 <span
                   className={cn(
                     'ml-1 font-medium',

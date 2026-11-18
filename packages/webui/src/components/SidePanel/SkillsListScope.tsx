@@ -1,4 +1,5 @@
 import { useAppTranslation } from '@/i18n';
+import { looseTranslate } from '@/i18n/loose-translate';
 import { cn } from '@/lib/utils';
 
 /** Skill record + scope bucketing shared by the Skills side panel and its dialogs. */
@@ -54,7 +55,7 @@ export function ScopeBadge({ source }: { source: string }) {
         scope === 'foreign' && 'border-warning/28 bg-warning/10 text-warning',
       )}
     >
-      {scopeLabelFor(t, scope)}
+      {scopeLabelFor(looseTranslate(t), scope)}
     </span>
   );
 }

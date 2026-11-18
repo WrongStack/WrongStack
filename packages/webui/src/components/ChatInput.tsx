@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useIsFullChrome } from '@/hooks/useChromeLevel';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
+import { looseTranslate } from '@/i18n/loose-translate';
 import { warmProviderWhileTyping } from '@/lib/provider-warm';
 import { cn } from '@/lib/utils';
 import {
@@ -78,6 +79,7 @@ export function ChatInput({
   const ws = useWebSocket();
   const { sendMessage, sendAbort, client, refineModel, updatePrefs } = ws;
   const { t } = useAppTranslation();
+  const looseT = useMemo(() => looseTranslate(t), [t]);
   const fullChrome = useIsFullChrome();
   const enhanceEnabled = useLocalPrefs((s) => s.enhanceEnabled);
 
@@ -231,7 +233,7 @@ export function ChatInput({
     setTopicCheckBusy,
     runSlashCommand: (raw) => runSlashCommandRef.current(raw),
     clearTextarea,
-    t,
+    t: looseT,
   });
 
   const runSlashCommand = useCallback(
@@ -347,13 +349,13 @@ export function ChatInput({
   return (
     <div className="flex flex-col gap-2">
       {pasteHint && (
-        <PasteHintBar pasteHint={pasteHint} onDismiss={() => setPasteHint(null)} t={t} />
+        <PasteHintBar pasteHint={pasteHint} onDismiss={() => setPasteHint(null)} t={looseT} />
       )}
       <PendingImagesBar
         pendingImages={pendingImages}
         onRemove={removeImage}
         onClearAll={clearPendingImages}
-        t={t}
+        t={looseT}
       />
 
       <QueuedMessages queue={queue} onClear={clearQueue} onRemove={removeQueued} />
@@ -517,7 +519,7 @@ export function ChatInput({
           handleSteer={handleSteer}
           handleAddQueue={handleAddQueue}
           updatePrefs={updatePrefs}
-          t={t}
+          t={looseT}
           isListening={isListening}
           isSpeechSupported={isSpeechSupported}
           onToggleSpeech={handleToggleSpeech}

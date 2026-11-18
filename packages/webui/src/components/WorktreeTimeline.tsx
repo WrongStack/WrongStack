@@ -28,6 +28,7 @@ import { useMemo, useState } from 'react';
 import { useWorktreeActions } from '@/hooks/useWorktreeActions';
 import { useWorktreeTimeline } from '@/hooks/useWorktreeTimeline';
 import { useAppTranslation } from '@/i18n';
+import { looseTranslate } from '@/i18n/loose-translate';
 import { cn } from '@/lib/utils';
 import { useWorktreeStore } from '@/stores';
 import { WorktreeDiffSummaryView } from './WorktreeDiffSummary';
@@ -124,7 +125,7 @@ export function WorktreeTimelineView({
   );
   const withSeconds = span < 10 * 60_000;
   const tr = (key: string, opts?: Record<string, unknown>) =>
-    t(`activity:worktreeTimeline.${key}`, opts);
+    looseTranslate(t)(`activity:worktreeTimeline.${key}`, opts);
 
   if (compact) {
     if (lanes.length === 0) return null;
