@@ -1,7 +1,7 @@
+import type { WorktreeManager } from '@wrongstack/worktree';
 import { describe, expect, it, vi } from 'vitest';
 import { GoalRunPersistence, prepareGoalGraphForResume } from '../src/goal-run-lifecycle.js';
 import { PhaseGraphBuilder } from '../src/phase-graph-builder.js';
-import type { WorktreeManager } from '@wrongstack/worktree';
 
 async function graph() {
   return new PhaseGraphBuilder({
@@ -73,6 +73,47 @@ describe('prepareGoalGraphForResume', () => {
 });
 
 describe('GoalRunPersistence', () => {
+  it('keeps queued run, phase and task state fixed at submission', async () => {
+    const live = await graph();
+    const phase = [...live.phases.values()][0]!;
+    const task = [...phase.taskGraph.nodes.values()][0]!;
+    const started = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const snapshots: unknown[][] = [];
+    const persistence = new GoalRunPersistence({
+      save: async (snapshot) => {
+        const savedPhase = [...snapshot.phases.values()][0]!;
+        snapshots.push([
+          snapshot.runState,
+          savedPhase.status,
+          [...savedPhase.taskGraph.nodes.values()][0]!.title,
+        ]);
+        if (snapshots.length === 1) {
+          started.resolve();
+          await release.promise;
+        }
+      },
+    });
+
+    live.runState = 'running';
+    const running = persistence.save(live);
+    await started.promise;
+    phase.status = 'paused';
+    live.runState = 'paused';
+    task.title = 'Paused task';
+    const paused = persistence.save(live);
+    phase.status = 'completed';
+    live.runState = 'completed';
+    task.title = 'Completed task';
+    const completed = persistence.save(live);
+    release.resolve();
+    await Promise.all([running, paused, completed]);
+    expect(snapshots.slice(1)).toEqual([
+      ['paused', 'paused', 'Paused task'],
+      ['completed', 'completed', 'Completed task'],
+    ]);
+  });
+
   it('writes terminal state after pending live snapshots', async () => {
     const saved = await graph();
     let releaseFirst!: () => void;

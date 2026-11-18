@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1004,
+      "files": 1005,
       "typeOnly": 76,
-      "runtimeOrMixed": 963
+      "runtimeOrMixed": 964
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -14514,6 +14514,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/goal/src/project-verifier.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/goal/tests/phase-store.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

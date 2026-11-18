@@ -236,10 +236,10 @@ export class PhaseStore {
 
   async save(graph: PhaseGraph): Promise<void> {
     const filePath = this.getFilePath(graph.id);
-    const serialized = this.serializeGraph(graph);
+    const serialized = JSON.stringify(this.serializeGraph(graph), null, 2);
 
     await withFileLock(filePath, async () => {
-      await atomicWrite(filePath, JSON.stringify(serialized, null, 2), { mode: 0o600 });
+      await atomicWrite(filePath, serialized, { mode: 0o600 });
     });
   }
 

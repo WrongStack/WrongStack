@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { withFileLock } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PhaseGraphBuilder } from '../src/phase-graph-builder.js';
 import { GoalRunLeaseBusyError, PhaseStore } from '../src/phase-store.js';
@@ -83,6 +84,40 @@ describe('PhaseStore', () => {
     const list = await store.list();
     expect(list.length).toBeGreaterThanOrEqual(1);
     expect(list.some((g) => g.title === 'List Test')).toBe(true);
+  });
+
+  it('captures nested metadata and phase ids before awaiting the save lock', async () => {
+    const graph = await new PhaseGraphBuilder({
+      title: 'Save lock',
+      phases: [
+        {
+          name: 'Work',
+          description: 'Work',
+          estimateHours: 1,
+          parallelizable: false,
+          priority: 'high',
+        },
+      ],
+    }).build();
+    const phase = [...graph.phases.values()][0]!;
+    const details = { stage: 'submitted' };
+    phase.metadata = { details };
+    graph.activePhaseIds.push(phase.id);
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const locked = withFileLock(path.join(tmpDir, `${graph.id}.json`), async () => {
+      entered.resolve();
+      await release.promise;
+    });
+    await entered.promise;
+    const writing = store.save(graph);
+    details.stage = 'mutated';
+    graph.activePhaseIds.length = 0;
+    release.resolve();
+    await Promise.all([locked, writing]);
+    const saved = await store.load(graph.id);
+    expect(saved?.phases.get(phase.id)?.metadata).toEqual({ details: { stage: 'submitted' } });
+    expect(saved?.activePhaseIds).toEqual([phase.id]);
   });
 
   it('reports failed graphs as failed in the saved-run list', async () => {

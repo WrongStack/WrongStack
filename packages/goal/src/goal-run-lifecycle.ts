@@ -8,8 +8,9 @@ export class GoalRunPersistence {
 
   constructor(private readonly store: Pick<PhaseStore, 'save'>) {}
 
-  save(graph: PhaseGraph): Promise<void> {
-    const next = this.tail.then(() => this.store.save(graph));
+  async save(graph: PhaseGraph): Promise<void> {
+    const snapshot = structuredClone(graph);
+    const next = this.tail.then(() => this.store.save(snapshot));
     this.tail = next.catch(() => undefined);
     return next;
   }
