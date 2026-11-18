@@ -608,7 +608,8 @@ export function MemoryBrowser({
                             nodes={flow.nodes}
                             edges={flow.edges}
                             fitView
-                            fitViewOptions={{ padding: 0.25, minZoom: 0.35, maxZoom: 1 }}
+                            // React Flow 13 reads a bare number as pixels; 10% per side is v12's 0.25.
+                            fitViewOptions={{ padding: '10%', minZoom: 0.35, maxZoom: 1 }}
                             nodesDraggable={false}
                             nodesConnectable={false}
                             deleteKeyCode={null}

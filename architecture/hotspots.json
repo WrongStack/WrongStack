@@ -179,7 +179,7 @@
       "relativeImports": 8
     },
     "packages/vibeui/src/components/memory-browser.tsx": {
-      "lines": 709,
+      "lines": 710,
       "relativeImports": 12
     },
     "packages/vibeui/src/components/provider-manager.tsx": {

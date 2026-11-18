@@ -19,6 +19,7 @@ import {
   Wifi,
   WifiOff,
 } from 'lucide-react';
+import { fitPadding } from '../../flow-padding.js';
 import { displayDecimal, displayLocale, useAppTranslation } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
 import { AgentRuntimeBadge } from '../../ui/AgentRuntimeBadge';
@@ -44,7 +45,7 @@ export const OFFICE_COLOR = {
   muted: 'hsl(var(--muted-foreground))',
 } as const;
 
-export const FIT_VIEW_PADDING = 0.12;
+export const FIT_VIEW_PADDING = fitPadding(0.12);
 
 export function clampCtxPct(value: number | null | undefined): number {
   return Math.min(100, Math.max(0, value ?? 0));

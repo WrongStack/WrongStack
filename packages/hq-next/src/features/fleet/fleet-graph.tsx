@@ -35,6 +35,10 @@ import { TONE_DOT } from './fleet-list';
 import { consoleHref, isLiveStatus } from './model';
 import { RuntimeBadge } from './runtime-badge';
 
+// React Flow 13 reads a bare padding number as pixels; 12 read 0.15 as a
+// fraction of the fleet's bounds. 6.5% per side keeps that framing.
+const FIT_PADDING = '6.5%';
+
 const NODE_WIDTH = 236;
 const NODE_HEIGHT = 92;
 
@@ -139,7 +143,10 @@ function Graph({
   const autoArrange = useCallback(() => {
     userArranged.current = false;
     setNodes(layoutNodes(topology, selectedId));
-    window.setTimeout(() => void fitView({ padding: 0.15, minZoom: 0.8, duration: 400 }), 50);
+    window.setTimeout(
+      () => void fitView({ padding: FIT_PADDING, minZoom: 0.8, duration: 400 }),
+      50,
+    );
   }, [topology, selectedId, setNodes, fitView]);
 
   return (
@@ -154,7 +161,7 @@ function Graph({
         Auto arrange
       </button>
       <ReactFlow
-        colorMode={theme}
+        forceColorMode={theme}
         nodes={nodes}
         edges={edges}
         nodeTypes={NODE_TYPES}
@@ -168,7 +175,7 @@ function Graph({
         }}
         fitView
         // Never open zoomed out past reading size; pan or zoom out for the rest.
-        fitViewOptions={{ padding: 0.15, minZoom: 0.8 }}
+        fitViewOptions={{ padding: FIT_PADDING, minZoom: 0.8 }}
         minZoom={0.25}
         maxZoom={1.5}
         nodesConnectable={false}

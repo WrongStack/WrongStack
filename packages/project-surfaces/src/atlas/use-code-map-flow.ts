@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 
 import '@xyflow/react/dist/style.css';
 
+import { fitPadding } from '../flow-padding.js';
 import { scaledPx } from '../lib/fonts';
 import { activityMatchesNode, indexActivitiesByNode } from './CodeMapActivityHelpers';
 import {
@@ -15,7 +16,6 @@ import {
 import { preserveFlowEdges, preserveFlowNodes } from './CodeMapFlowState';
 import { agentInitials, agentTrailColor, type CodeMapNodeData, EDGE_COLOR } from './CodeMapVisuals';
 import { activityAgentKey, type FileActivity } from './codemap-activity-store';
-
 import {
   computeBlastRadiusOverlay,
   type GraphNodeData,
@@ -287,7 +287,7 @@ export function useCodeMapFlow({
         lastFitSignature.current = fitSignature;
         // Dense canvases skip animated fit — less main-thread work mid-session.
         const duration = canvasGraph.nodes.length > 48 ? 0 : 240;
-        void fitView({ padding: 0.2, duration, maxZoom: 1.25 });
+        void fitView({ padding: fitPadding(0.2), duration, maxZoom: 1.25 });
       }, 20);
     }
 

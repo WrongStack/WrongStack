@@ -22,6 +22,7 @@ import type { FileActivity } from './codemap-activity-store';
 import { useCodeMapFlow } from './use-code-map-flow.js';
 import '@xyflow/react/dist/style.css';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { fitPadding } from '../flow-padding.js';
 import { useSurfaceHost } from '../host';
 import { useAppTranslation } from '../lib/i18n';
 import { AtlasViewTabs } from './AtlasViewTabs';
@@ -175,7 +176,12 @@ function CodeMapInner(): React.ReactElement {
   }, []);
   const handleFocusNode = useCallback(
     (node: GraphNodeData): void => {
-      void fitView({ nodes: [{ id: node.id }], duration: 240, padding: 0.45, maxZoom: 1.15 });
+      void fitView({
+        nodes: [{ id: node.id }],
+        duration: 240,
+        padding: fitPadding(0.45),
+        maxZoom: 1.15,
+      });
     },
     [fitView],
   );

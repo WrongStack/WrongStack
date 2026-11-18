@@ -23,6 +23,7 @@ import {
 import { useEffect, useMemo } from 'react';
 import '@xyflow/react/dist/style.css';
 import { Check, CircleDot, GitBranch, Loader2, RotateCcw, X } from 'lucide-react';
+import { fitPadding } from '../flow-padding.js';
 import { useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { agentInitials, priorityStyle, statusStyle } from './sdd-theme';
@@ -295,7 +296,7 @@ function FlowInner({
   // Re-fit when the task count changes (graph materialized / new wave).
   const taskCount = tasks.length;
   useEffect(() => {
-    const t = setTimeout(() => fitView({ padding: 0.18, duration: 400 }), 60);
+    const t = setTimeout(() => fitView({ padding: fitPadding(0.18), duration: 400 }), 60);
     return () => clearTimeout(t);
   }, [taskCount, fitView]);
 
@@ -305,7 +306,7 @@ function FlowInner({
       edges={edges}
       nodeTypes={nodeTypes}
       fitView
-      fitViewOptions={{ padding: 0.18 }}
+      fitViewOptions={{ padding: fitPadding(0.18) }}
       minZoom={0.2}
       maxZoom={1.6}
       proOptions={{ hideAttribution: true }}

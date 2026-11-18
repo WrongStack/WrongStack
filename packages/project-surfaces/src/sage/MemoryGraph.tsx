@@ -13,6 +13,7 @@ import { displayDecimal, useAppTranslation } from '../lib/i18n';
 import '@xyflow/react/dist/style.css';
 import { Expand } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { fitPadding } from '../flow-padding.js';
 import { scaledPx } from '../lib/fonts';
 import { cn } from '../lib/utils';
 import { Button } from '../ui/button';
@@ -155,7 +156,7 @@ function GraphCanvas({
         edges={edges}
         nodeTypes={nodeTypes}
         fitView
-        fitViewOptions={{ padding: 0.24, maxZoom: 1.05 }}
+        fitViewOptions={{ padding: fitPadding(0.24), maxZoom: 1.05 }}
         minZoom={0.4}
         maxZoom={1.5}
         nodesConnectable={false}

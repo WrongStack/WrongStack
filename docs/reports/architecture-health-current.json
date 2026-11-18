@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-18T20:14:17.621Z",
+  "generatedAt": "2026-11-18T20:23:05.050Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6366,
-    "testFiles": 5483,
-    "sourceLines": 1315807,
+    "sourceFiles": 6367,
+    "testFiles": 5484,
+    "sourceLines": 1315849,
     "workspaceEdges": 250,
-    "moduleEdges": 18789,
+    "moduleEdges": 18796,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 409,
+    "testsWithoutTypecheck": 410,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1075
   },
@@ -733,8 +733,8 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 261,
-      "testFiles": 19,
+      "sourceFiles": 262,
+      "testFiles": 20,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -19202,6 +19202,12 @@
         ]
       },
       {
+        "file": "packages/project-surfaces/tests/flow-padding.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/project-surfaces/tests/memory-detail-copy.test.tsx",
         "projects": [
           "root-node"
@@ -36973,6 +36979,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "packages/project-surfaces/tests/flow-padding.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "packages/project-surfaces/tests/memory-detail-copy.test.tsx",
         "runtimeProjects": [
           "root-node"
@@ -38236,7 +38249,7 @@
     },
     {
       "file": "packages/vibeui/src/components/memory-browser.tsx",
-      "lines": 709,
+      "lines": 710,
       "relativeImports": 12
     },
     {

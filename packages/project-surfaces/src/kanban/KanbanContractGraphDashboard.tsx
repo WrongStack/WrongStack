@@ -14,6 +14,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { fitPadding } from '../flow-padding.js';
 import { useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
@@ -123,7 +124,10 @@ function BoardContractCanvas({
         nodes={graph.nodes}
         edges={graph.edges}
         fitView
-        fitViewOptions={{ padding: expanded ? 0.1 : 0.16, maxZoom: expanded ? 1.15 : 1.05 }}
+        fitViewOptions={{
+          padding: fitPadding(expanded ? 0.1 : 0.16),
+          maxZoom: expanded ? 1.15 : 1.05,
+        }}
         minZoom={0.1}
         maxZoom={1.7}
         nodesDraggable={false}

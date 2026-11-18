@@ -7,6 +7,7 @@ import { Background, BackgroundVariant, Controls, MiniMap, ReactFlow } from '@xy
 import '@xyflow/react/dist/style.css';
 import { AlertTriangle, CheckCircle2, Maximize2, Network, ShieldCheck } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { fitPadding } from '../flow-padding.js';
 import { useAppTranslation } from '../lib/i18n';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
 import { buildContractGraphView } from './KanbanContractGraphView';
@@ -31,7 +32,10 @@ function ContractTaskCanvas({
         nodes={graph.nodes}
         edges={graph.edges}
         fitView
-        fitViewOptions={{ padding: expanded ? 0.12 : 0.2, maxZoom: expanded ? 1.15 : 0.9 }}
+        fitViewOptions={{
+          padding: fitPadding(expanded ? 0.12 : 0.2),
+          maxZoom: expanded ? 1.15 : 0.9,
+        }}
         minZoom={0.12}
         maxZoom={1.6}
         nodesDraggable={false}
