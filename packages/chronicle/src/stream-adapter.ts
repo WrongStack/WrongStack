@@ -75,10 +75,13 @@ export function wireProviderStreamsToChronicle(options: ChronicleStreamAdapterOp
     sessionId: string | undefined,
     agentId: string | undefined,
     outcome: 'success' | 'failure',
+    expectedAttemptId?: string,
   ): void => {
-    const state = states.get(key(sessionId, agentId));
+    const k = key(sessionId, agentId);
+    const state = states.get(k);
     if (!state) return;
-    states.delete(key(sessionId, agentId));
+    if (expectedAttemptId !== undefined && state.attemptId !== expectedAttemptId) return;
+    states.delete(k);
     const context = typeof options.context === 'function' ? options.context() : options.context;
     const endedAtMs = Date.now();
     const input: ChronicleEventInput = {
@@ -114,23 +117,29 @@ export function wireProviderStreamsToChronicle(options: ChronicleStreamAdapterOp
     void options.journal.append(input).catch((error) => options.onPersistError?.(error, input));
   };
   const offs = [
-    options.events.on('provider.attempt.started', (event) =>
-      states.set(key(event.sessionId, event.agentId), {
+    options.events.on('provider.attempt.started', (event) => {
+      const k = key(event.sessionId, event.agentId);
+      const existing = states.get(k);
+      if (existing && existing.attemptId !== event.attemptId) {
+        flush(existing.sessionId, existing.agentId, 'failure', existing.attemptId);
+      }
+      const parsedStartedAt = Date.parse(event.startedAt);
+      states.set(k, {
         sessionId: event.sessionId,
         ...(event.agentId ? { agentId: event.agentId } : {}),
         attemptId: event.attemptId,
         logicalRequestId: event.logicalRequestId,
         providerId: event.providerId,
         model: event.model,
-        startedAtMs: Date.parse(event.startedAt),
+        startedAtMs: Number.isFinite(parsedStartedAt) ? parsedStartedAt : Date.now(),
         textChunks: 0,
         textBytes: 0,
         thinkingChunks: 0,
         thinkingBytes: 0,
         textHash: createHash('sha256'),
         thinkingHash: createHash('sha256'),
-      }),
-    ),
+      });
+    }),
     options.events.on('provider.text_delta', (event) =>
       update(event.sessionId, event.ctx.agentId, event.text, false),
     ),
@@ -138,10 +147,10 @@ export function wireProviderStreamsToChronicle(options: ChronicleStreamAdapterOp
       update(event.sessionId, event.ctx.agentId, event.text, true),
     ),
     options.events.on('provider.attempt.completed', (event) =>
-      flush(event.sessionId, event.agentId, 'success'),
+      flush(event.sessionId, event.agentId, 'success', event.attemptId),
     ),
     options.events.on('provider.attempt.failed', (event) =>
-      flush(event.sessionId, event.agentId, 'failure'),
+      flush(event.sessionId, event.agentId, 'failure', event.attemptId),
     ),
   ];
 
@@ -157,11 +166,13 @@ export function wireProviderStreamsToChronicle(options: ChronicleStreamAdapterOp
   if (typeof reaperTimer.unref === 'function') reaperTimer.unref();
 
   return () => {
-    clearInterval(reaperTimer);
-    for (const state of [...states.values()]) flush(state.sessionId, state.agentId, 'failure');
     offs.forEach((off) => {
       off();
     });
+    clearInterval(reaperTimer);
+    for (const state of [...states.values()]) {
+      flush(state.sessionId, state.agentId, 'failure', state.attemptId);
+    }
   };
 }
 

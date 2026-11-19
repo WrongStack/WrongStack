@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T09:51:01.419Z",
+  "generatedAt": "2026-11-19T09:52:38.493Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6389,
-    "testFiles": 5530,
-    "sourceLines": 1317595,
+    "testFiles": 5531,
+    "sourceLines": 1317606,
     "workspaceEdges": 250,
     "moduleEdges": 18871,
     "nonCommandSlashImports": 0,
@@ -185,7 +185,7 @@
       "name": "@wrongstack/chronicle",
       "dir": "packages/chronicle",
       "sourceFiles": 54,
-      "testFiles": 54,
+      "testFiles": 55,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -201,7 +201,7 @@
         {
           "path": "packages/chronicle/tsconfig.test.json",
           "error": null,
-          "testFiles": 54
+          "testFiles": 55
         }
       ]
     },
@@ -5107,6 +5107,12 @@
       },
       {
         "file": "packages/chronicle/tests/store-constructor-fault.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/chronicle/tests/stream-adapter-attempt-and-nan.test.ts",
         "projects": [
           "root-node"
         ]
