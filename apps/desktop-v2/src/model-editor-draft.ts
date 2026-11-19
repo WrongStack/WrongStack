@@ -308,10 +308,10 @@ export class ModelEditorDraftStore {
       if (String(error).includes('DRAFT_CONFLICT')) {
         this.blocked = true;
         this.update({
-          review: this.read(await this.storage.get()),
           error:
-            'The draft changed before cleanup. Your editor remains open; review both versions.',
+            'The draft changed before cleanup. Review both versions before closing the editor.',
         });
+        await this.compare();
       }
       throw error;
     }

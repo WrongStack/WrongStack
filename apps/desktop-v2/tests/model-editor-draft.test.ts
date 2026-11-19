@@ -154,6 +154,46 @@ describe('native model draft ownership and lifecycle', () => {
     expect(a.snapshot().value?.draft.text['name']).toBe('Local');
     expect(a.snapshot().review?.value?.draft.text['name']).toBe('Peer during clear');
   });
+  it('keeps the cleanup conflict visible when its first comparison read fails', async () => {
+    const db = memory();
+    let race = false;
+    let failRead = false;
+    const local = new ModelEditorDraftStore(
+      {
+        get: async () => {
+          if (failRead) throw Error('Fixture cannot read the peer model draft');
+          return db.storage.get();
+        },
+        save: async (value, revision) => {
+          if (value === null && race) {
+            await db.storage.save(
+              { version: 1, providerId: 'one', editor: editor('Peer during clear') },
+              revision,
+            );
+            failRead = true;
+          }
+          return db.storage.save(value, revision);
+        },
+      },
+      'one',
+    );
+    await local.load();
+    local.edit(editor('Local editor'));
+    await local.flush();
+
+    race = true;
+    await expect(local.clear()).rejects.toThrow('DRAFT_CONFLICT');
+    expect(local.snapshot().value?.draft.text['name']).toBe('Local editor');
+    expect(local.snapshot()).toMatchObject({
+      review: null,
+      error: expect.stringContaining('Fixture cannot read the peer model draft'),
+    });
+    failRead = false;
+    await local.compare();
+    expect(local.snapshot().review?.value?.draft.text['name']).toBe('Peer during clear');
+    expect(db.writes).toHaveLength(2);
+  });
+
   it('never reports an invalid acknowledgement as saved or allows apply after a failed write', async () => {
     const db = memory(),
       a = new ModelEditorDraftStore({ ...db.storage, save: async () => 99 }, 'one');
