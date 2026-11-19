@@ -196,6 +196,14 @@ export function createProjectKanbanAssignHandler(
  * (or throws to produce a `failed` ack — the publisher's `handleCommandBatch`
  * wraps it). Best-effort: a dispatch failure never breaks the host.
  */
+const KANBAN_TRANSITION_STAGES = new Set(['backlog', 'todo', 'running', 'review', 'done']);
+const isPlainObject = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+const nonEmptyString = (v: unknown): string | undefined =>
+  typeof v === 'string' && v.trim().length > 0 ? v : undefined;
+const optionalString = (v: unknown): string | null =>
+  v === undefined ? '' : typeof v === 'string' ? v : null;
+
 export function createHqCommandDispatcher(
   controller: HqCommandController,
 ): (command: {
@@ -204,15 +212,20 @@ export function createHqCommandDispatcher(
   payload: unknown;
 }) => Promise<HqPublisherCommandResult> {
   return async (command) => {
-    const cmd = command as { commandId: string; type: string; payload: Record<string, unknown> };
+    if (command.payload !== undefined && !isPlainObject(command.payload)) {
+      return {
+        commandId: command.commandId,
+        status: 'rejected',
+        message: 'command payload must be an object',
+      };
+    }
     try {
-      const result = await dispatch(
+      return await dispatch(
         controller,
-        cmd.commandId,
-        cmd.type as HqCommand['type'],
-        cmd.payload,
+        command.commandId,
+        command.type as HqCommand['type'],
+        command.payload ?? {},
       );
-      return result;
     } catch (err) {
       return {
         commandId: command.commandId,
@@ -447,14 +460,25 @@ async function dispatch(
     }
 
     case 'spawn': {
-      const role = typeof payload['role'] === 'string' ? payload['role'] : '';
+      const role = nonEmptyString(payload['role'])?.trim();
       const task = typeof payload['task'] === 'string' ? payload['task'] : undefined;
-      const maxIterations =
-        typeof payload['maxIterations'] === 'number' ? payload['maxIterations'] : undefined;
+      const rawMax = payload['maxIterations'];
+      if (
+        rawMax !== undefined &&
+        (typeof rawMax !== 'number' || !Number.isSafeInteger(rawMax) || rawMax < 1)
+      ) {
+        return {
+          commandId,
+          status: 'rejected',
+          message: 'maxIterations must be a positive integer',
+        };
+      }
+      if (!role)
+        return { commandId, status: 'rejected', message: 'spawn requires a non-empty role' };
       if (controller.spawnAgent === undefined) {
         return { commandId, status: 'rejected', message: 'no director active' };
       }
-      const subagentId = await controller.spawnAgent(role, task, maxIterations, sessionId);
+      const subagentId = await controller.spawnAgent(role, task, rawMax, sessionId);
       return { commandId, status: 'completed', message: `spawned ${subagentId}` };
     }
 
@@ -462,11 +486,28 @@ async function dispatch(
       if (controller.kanbanTransition === undefined) {
         return { commandId, status: 'rejected', message: 'kanban control is unavailable' };
       }
+      const boardId = nonEmptyString(payload['boardId']);
+      const taskId = nonEmptyString(payload['taskId']);
+      const to = payload['to'];
+      const comment = optionalString(payload['comment']);
+      if (
+        !boardId ||
+        !taskId ||
+        typeof to !== 'string' ||
+        !KANBAN_TRANSITION_STAGES.has(to) ||
+        comment === null
+      ) {
+        return {
+          commandId,
+          status: 'rejected',
+          message: 'kanban-transition requires boardId, taskId, and a valid target stage',
+        };
+      }
       const message = await controller.kanbanTransition({
-        boardId: payload['boardId'] as string,
-        taskId: payload['taskId'] as string,
-        to: payload['to'] as 'backlog' | 'todo' | 'running' | 'review' | 'done',
-        comment: payload['comment'] as string,
+        boardId,
+        taskId,
+        to: to as 'backlog' | 'todo' | 'running' | 'review' | 'done',
+        comment,
         ...(sessionId !== undefined ? { sessionId } : {}),
       });
       return { commandId, status: 'completed', message };
@@ -476,12 +517,24 @@ async function dispatch(
       if (controller.kanbanAssign === undefined) {
         return { commandId, status: 'rejected', message: 'kanban assignment is unavailable' };
       }
+      const boardId = nonEmptyString(payload['boardId']);
+      const taskId = nonEmptyString(payload['taskId']);
+      const agentId = nonEmptyString(payload['agentId']);
+      const assignee = nonEmptyString(payload['assignee']);
+      const comment = optionalString(payload['comment']);
+      if (!boardId || !taskId || !agentId || !assignee || comment === null) {
+        return {
+          commandId,
+          status: 'rejected',
+          message: 'kanban-assign requires boardId, taskId, agentId, and assignee',
+        };
+      }
       const message = await controller.kanbanAssign({
-        boardId: payload['boardId'] as string,
-        taskId: payload['taskId'] as string,
-        agentId: payload['agentId'] as string,
-        assignee: payload['assignee'] as string,
-        comment: payload['comment'] as string,
+        boardId,
+        taskId,
+        agentId,
+        assignee,
+        comment,
         ...(sessionId !== undefined ? { sessionId } : {}),
       });
       return { commandId, status: 'completed', message };
@@ -491,10 +544,20 @@ async function dispatch(
       if (controller.kanbanDispatch === undefined) {
         return { commandId, status: 'rejected', message: 'kanban dispatch is unavailable' };
       }
+      const boardId = nonEmptyString(payload['boardId']);
+      const taskId = nonEmptyString(payload['taskId']);
+      const comment = optionalString(payload['comment']);
+      if (!boardId || !taskId || comment === null) {
+        return {
+          commandId,
+          status: 'rejected',
+          message: 'kanban-dispatch requires boardId and taskId',
+        };
+      }
       const message = await controller.kanbanDispatch({
-        boardId: payload['boardId'] as string,
-        taskId: payload['taskId'] as string,
-        comment: payload['comment'] as string,
+        boardId,
+        taskId,
+        comment,
         ...(sessionId !== undefined ? { sessionId } : {}),
       });
       return { commandId, status: 'completed', message };

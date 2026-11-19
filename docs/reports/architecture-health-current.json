@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T10:18:31.292Z",
+  "generatedAt": "2026-11-19T10:20:32.175Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6389,
-    "testFiles": 5540,
-    "sourceLines": 1317770,
+    "testFiles": 5541,
+    "sourceLines": 1317833,
     "workspaceEdges": 250,
     "moduleEdges": 18873,
     "nonCommandSlashImports": 0,
@@ -830,7 +830,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 126,
-      "testFiles": 65,
+      "testFiles": 66,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -864,7 +864,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 65
+          "testFiles": 66
         }
       ]
     },
@@ -20689,6 +20689,12 @@
       },
       {
         "file": "packages/runtime/tests/host.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/hq-command-controller-validation.test.ts",
         "projects": [
           "root-node"
         ]
