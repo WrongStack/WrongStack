@@ -43,7 +43,7 @@ exports[`reduceFrame characterization > reaches the same state at every phase bo
   "confirm": null,
   "confirmQueue": [],
   "cwd": "/work/project",
-  "diff": null,
+  "diffs": {},
   "effortLevels": [
     "low",
     "high",
@@ -55,7 +55,6 @@ exports[`reduceFrame characterization > reaches the same state at every phase bo
   "inputs": [],
   "latestVersion": "10.0.0",
   "load": 0.25,
-  "matches": [],
   "maxContext": 10000,
   "messages": [
     {
@@ -157,11 +156,19 @@ exports[`reduceFrame characterization > reaches the same state at every phase bo
   "confirm": null,
   "confirmQueue": [],
   "cwd": "/work/project",
-  "diff": {
-    "error": "Binary file — preview unavailable.",
-    "newText": "",
-    "oldText": "",
-    "path": "logo.png",
+  "diffs": {
+    "logo.png": {
+      "error": "Binary file — preview unavailable.",
+      "newText": "",
+      "oldText": "",
+      "path": "logo.png",
+    },
+    "src/a.ts": {
+      "error": "",
+      "newText": "b",
+      "oldText": "a",
+      "path": "src/a.ts",
+    },
   },
   "effortLevels": [
     "low",
@@ -195,10 +202,6 @@ exports[`reduceFrame characterization > reaches the same state at every phase bo
   "inputs": [],
   "latestVersion": "10.0.0",
   "load": 0.25,
-  "matches": [
-    "src/a.ts",
-    "src/b.ts",
-  ],
   "maxContext": 12000,
   "messages": [
     {
@@ -429,11 +432,19 @@ exports[`reduceFrame characterization > reaches the same state at every phase bo
   },
   "confirmQueue": [],
   "cwd": "/work/project",
-  "diff": {
-    "error": "Binary file — preview unavailable.",
-    "newText": "",
-    "oldText": "",
-    "path": "logo.png",
+  "diffs": {
+    "logo.png": {
+      "error": "Binary file — preview unavailable.",
+      "newText": "",
+      "oldText": "",
+      "path": "logo.png",
+    },
+    "src/a.ts": {
+      "error": "",
+      "newText": "b",
+      "oldText": "a",
+      "path": "src/a.ts",
+    },
   },
   "effortLevels": [
     "low",
@@ -499,10 +510,6 @@ exports[`reduceFrame characterization > reaches the same state at every phase bo
   ],
   "latestVersion": "10.0.0",
   "load": 0.25,
-  "matches": [
-    "src/a.ts",
-    "src/b.ts",
-  ],
   "maxContext": 12000,
   "messages": [
     {
@@ -822,11 +829,19 @@ exports[`reduceFrame characterization > reaches the same state at every phase bo
   },
   "confirmQueue": [],
   "cwd": "/work/project",
-  "diff": {
-    "error": "Binary file — preview unavailable.",
-    "newText": "",
-    "oldText": "",
-    "path": "logo.png",
+  "diffs": {
+    "logo.png": {
+      "error": "Binary file — preview unavailable.",
+      "newText": "",
+      "oldText": "",
+      "path": "logo.png",
+    },
+    "src/a.ts": {
+      "error": "",
+      "newText": "b",
+      "oldText": "a",
+      "path": "src/a.ts",
+    },
   },
   "effortLevels": [
     "low",
@@ -860,10 +875,6 @@ exports[`reduceFrame characterization > reaches the same state at every phase bo
   "inputs": [],
   "latestVersion": "10.0.0",
   "load": 0.1,
-  "matches": [
-    "src/a.ts",
-    "src/b.ts",
-  ],
   "maxContext": 12000,
   "messages": [
     {
@@ -1100,7 +1111,7 @@ exports[`reduceFrame characterization > reaches the same state at every phase bo
   "confirm": null,
   "confirmQueue": [],
   "cwd": "",
-  "diff": null,
+  "diffs": {},
   "effortLevels": undefined,
   "effortSupported": undefined,
   "fileTree": [],
@@ -1116,10 +1127,6 @@ exports[`reduceFrame characterization > reaches the same state at every phase bo
   "inputs": [],
   "latestVersion": "10.0.0",
   "load": 0,
-  "matches": [
-    "src/a.ts",
-    "src/b.ts",
-  ],
   "maxContext": 8000,
   "messages": [],
   "mode": "",

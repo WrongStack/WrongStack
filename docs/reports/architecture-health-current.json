@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T10:26:14.955Z",
+  "generatedAt": "2026-11-19T10:27:33.916Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6389,
-    "testFiles": 5542,
-    "sourceLines": 1317853,
+    "testFiles": 5543,
+    "sourceLines": 1317858,
     "workspaceEdges": 250,
     "moduleEdges": 18873,
     "nonCommandSlashImports": 0,
@@ -1107,7 +1107,7 @@
       "name": "@wrongstack/vibeui",
       "dir": "packages/vibeui",
       "sourceFiles": 99,
-      "testFiles": 39,
+      "testFiles": 40,
       "workspaceDependencies": [
         "@wrongstack/webui-protocol"
       ],
@@ -1120,7 +1120,7 @@
         {
           "path": "packages/vibeui/tsconfig.test.json",
           "error": null,
-          "testFiles": 39
+          "testFiles": 40
         }
       ]
     },
@@ -28507,6 +28507,12 @@
       },
       {
         "file": "packages/vibeui/tests/frame-reducers.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/vibeui/tests/git-diff-replies.test.ts",
         "projects": [
           "root-node"
         ]

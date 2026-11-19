@@ -80,8 +80,12 @@ export interface SessionState {
   plan: { id: string; title: string; status: string }[];
   tasks: { id: string; title: string; status: string }[];
   files: { path: string; status: string; additions: number; deletions: number }[];
-  matches: string[];
-  diff: { path: string; oldText: string; newText: string; error: string } | null;
+  /**
+   * `git.diff` replies by path. Replies can arrive out of order (the server
+   * answers each request on its own), so one slot let a late reply for an
+   * earlier file replace the one the user opened since.
+   */
+  diffs: Record<string, { path: string; oldText: string; newText: string; error: string }>;
   agents: AgentEntry[];
   confirm: Confirmation | null;
   confirmQueue: Confirmation[];
@@ -134,8 +138,7 @@ export const initialState = (): SessionState => ({
   plan: [],
   tasks: [],
   files: [],
-  matches: [],
-  diff: null,
+  diffs: {},
   agents: [],
   confirm: null,
   confirmQueue: [],

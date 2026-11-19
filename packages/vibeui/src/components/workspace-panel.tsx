@@ -37,6 +37,7 @@ export function WorkspacePanel({
   const { state, send, connection, refreshWorkspace } = controller;
   const [tab, setTab] = useState('activity');
   const [selectedPath, setSelectedPath] = useState('');
+  const selectedDiff = selectedPath ? state.diffs[selectedPath] : undefined;
   const [inspectedTool, setInspectedTool] = useState('');
   const selectedTool = state.tools.find((tool) => tool.id === inspectedTool);
   useEffect(() => {
@@ -144,10 +145,10 @@ export function WorkspacePanel({
               wide
             >
               <div className="diff-view">
-                {state.diff?.path !== selectedPath ? (
+                {!selectedDiff ? (
                   <p className="panel-hint">Loading file…</p>
-                ) : state.diff.error ? (
-                  <p role="status">{state.diff.error}</p>
+                ) : selectedDiff.error ? (
+                  <p role="status">{selectedDiff.error}</p>
                 ) : (
                   <Tabs.Root defaultValue="diff">
                     <Tabs.List className="diff-tabs" aria-label="File version">
@@ -158,7 +159,7 @@ export function WorkspacePanel({
                     <Tabs.Content value="diff">
                       <div className="file-lines">
                         <pre>
-                          {compareLines(state.diff.oldText, state.diff.newText)
+                          {compareLines(selectedDiff.oldText, selectedDiff.newText)
                             .slice(0, 2000)
                             .map((line, i) => (
                               <span className={`code-line line-${line.kind}`} key={i}>
@@ -172,7 +173,7 @@ export function WorkspacePanel({
                     </Tabs.Content>
                     <Tabs.Content value="before">
                       <CodePanel
-                        value={state.diff.oldText}
+                        value={selectedDiff.oldText}
                         label="Before"
                         language={selectedPath}
                         formatJson={false}
@@ -180,7 +181,7 @@ export function WorkspacePanel({
                     </Tabs.Content>
                     <Tabs.Content value="after">
                       <CodePanel
-                        value={state.diff.newText}
+                        value={selectedDiff.newText}
                         label="After"
                         language={selectedPath}
                         formatJson={false}

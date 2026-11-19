@@ -24,7 +24,7 @@ const sessionReset = (): Partial<SessionState> => ({
   confirm: null,
   confirmQueue: [],
   inputs: [],
-  diff: null,
+  diffs: {},
   artifacts: [],
   preview: null,
   notice: '',

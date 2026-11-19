@@ -3,6 +3,9 @@ import type { SessionState } from '../session-state';
 import { parseFileTree } from '../workspace-model';
 import type { FrameReducer, FrameReducerTable } from './types';
 
+/** Each side of a diff can be up to 2 MB, so only a few are kept. */
+const MAX_KEPT_DIFFS = 4;
+
 const PREVIEWABLE_IMAGE = /^data:image\/(?:png|jpeg|webp|gif);base64,[a-z\d+/=]+$/i;
 
 /** files.read / files.image only settle the preview the controller requested. */
@@ -49,12 +52,6 @@ export const fileReducers: FrameReducerTable = {
   }),
   'files.read': preview,
   'files.image': preview,
-  'files.list': (state, p) => ({
-    ...state,
-    matches: Array.isArray(p.files)
-      ? p.files.filter((v): v is string => typeof v === 'string').slice(0, 30)
-      : [],
-  }),
   'git.changes': (state, p) => ({
     ...state,
     files: rows(p.files).map((f) => ({
@@ -65,13 +62,17 @@ export const fileReducers: FrameReducerTable = {
     })),
     notice: text(p.error) || state.notice,
   }),
-  'git.diff': (state, p) => ({
-    ...state,
-    diff: {
-      path: text(p.path),
-      oldText: text(p.oldText),
-      newText: text(p.newText),
-      error: diffError(p),
-    },
-  }),
+  'git.diff': (state, p) => {
+    const path = text(p.path);
+    // Newest last; only the few most recently answered paths are kept.
+    const { [path]: _previous, ...others } = state.diffs;
+    const kept = Object.entries(others).slice(-(MAX_KEPT_DIFFS - 1));
+    return {
+      ...state,
+      diffs: {
+        ...Object.fromEntries(kept),
+        [path]: { path, oldText: text(p.oldText), newText: text(p.newText), error: diffError(p) },
+      },
+    };
+  },
 };
