@@ -79,6 +79,29 @@ describe('buildPruneCommand', () => {
     expect(res?.message).toContain('s1');
   });
 
+  it('dry-run ages a session by its last activity, as prune does', async () => {
+    const now = Date.now();
+    const list = vi.fn().mockResolvedValue([
+      {
+        id: 'long-lived',
+        startedAt: new Date(now - 60 * 86_400_000).toISOString(),
+        lastActivityAt: new Date(now - 86_400_000).toISOString(),
+        title: 'used yesterday',
+      },
+      {
+        id: 'idle',
+        startedAt: new Date(now - 60 * 86_400_000).toISOString(),
+        lastActivityAt: new Date(now - 59 * 86_400_000).toISOString(),
+        title: 'idle',
+      },
+    ]);
+    const cmd = buildPruneCommand(makeOpts({ sessionStore: { list, prune: vi.fn() } } as never));
+    const res = await cmd.run('--dry-run');
+    expect(res?.message).toMatch(/Would delete 1 session/);
+    expect(res?.message).toContain('idle');
+    expect(res?.message).not.toContain('long-lived');
+  });
+
   it('supports --rebuild-index', async () => {
     const rebuildIndex = vi.fn().mockResolvedValue(10);
     const cmd = buildPruneCommand(makeOpts({ sessionStore: { rebuildIndex } } as never));

@@ -92,7 +92,12 @@ export function buildPruneCommand(opts: SessionCommandHost): SlashCommand {
         // For dry-run, list sessions that would be pruned.
         const cutoff = Date.now() - maxAgeDays * 86_400_000;
         const list = await opts.sessionStore.list(1000);
-        const stale = list.filter((s) => new Date(s.startedAt).getTime() < cutoff);
+        // The store prunes by a transcript's last write, not its start: a
+        // session started long ago but used yesterday is kept, so it must not
+        // be listed here either.
+        const stale = list.filter(
+          (s) => new Date(s.lastActivityAt ?? s.startedAt).getTime() < cutoff,
+        );
         if (stale.length === 0) {
           return {
             message: color.dim(
