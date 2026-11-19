@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T10:00:28.123Z",
+  "generatedAt": "2026-11-19T10:02:55.984Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6389,
-    "testFiles": 5533,
-    "sourceLines": 1317633,
+    "testFiles": 5534,
+    "sourceLines": 1317672,
     "workspaceEdges": 250,
     "moduleEdges": 18871,
     "nonCommandSlashImports": 0,
@@ -414,7 +414,7 @@
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
       "sourceFiles": 63,
-      "testFiles": 19,
+      "testFiles": 20,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -435,7 +435,7 @@
         {
           "path": "packages/fleet/tsconfig.test.json",
           "error": null,
-          "testFiles": 19
+          "testFiles": 20
         }
       ]
     },
@@ -15199,6 +15199,12 @@
       },
       {
         "file": "packages/fleet/tests/status-broadcast-removed-timer.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/fleet/tests/wrongforge-client-malformed-and-abort.test.ts",
         "projects": [
           "root-node"
         ]

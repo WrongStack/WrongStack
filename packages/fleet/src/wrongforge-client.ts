@@ -203,12 +203,25 @@ export async function* followTask(
     if (signal.aborted) throw new WfAborted();
     let page: { status?: string; events: WfEvent[]; terminal: boolean; next_after: number };
     try {
-      page = await call(
+      const raw = await call<unknown>(
         'GET',
         `/v1/tasks/${encodeURIComponent(taskId)}/events?after=${after}&limit=${POLL_LIMIT}&wait_ms=${POLL_WAIT_MS}`,
         undefined,
         signal,
       );
+      if (
+        !raw ||
+        typeof raw !== 'object' ||
+        Array.isArray(raw) ||
+        !Array.isArray((raw as { events?: unknown }).events)
+      ) {
+        throw new WfHttpError(
+          200,
+          'invalid_response',
+          'WrongForge returned an invalid events response',
+        );
+      }
+      page = raw as { status?: string; events: WfEvent[]; terminal: boolean; next_after: number };
       failures = 0;
     } catch (err) {
       if (signal.aborted || err instanceof WfAborted) throw new WfAborted();
@@ -216,7 +229,9 @@ export async function* followTask(
       await sleep(opts.retryDelayMs ?? 2_000, signal);
       continue;
     }
-    for (const ev of page.events) yield ev;
+    for (const ev of page.events) {
+      if (ev && typeof ev === 'object') yield ev;
+    }
     if (page.status) opts.onPoll?.(page.status);
     const lastSeq = page.events.at(-1)?.seq ?? 0;
     const nextAfter = Math.max(
@@ -244,15 +259,31 @@ export async function terminalTaskRecord(
 ): Promise<WfTaskRecord> {
   let failures = 0;
   for (;;) {
+    if (signal.aborted) throw new WfAborted();
     try {
-      return (
-        await call<{ task: WfTaskRecord }>(
-          'GET',
-          `/v1/tasks/${encodeURIComponent(taskId)}`,
-          undefined,
-          signal,
-        )
-      ).task;
+      const raw = await call<unknown>(
+        'GET',
+        `/v1/tasks/${encodeURIComponent(taskId)}`,
+        undefined,
+        signal,
+      );
+      const task =
+        raw && typeof raw === 'object' && !Array.isArray(raw)
+          ? (raw as { task?: unknown }).task
+          : undefined;
+      if (
+        !task ||
+        typeof task !== 'object' ||
+        Array.isArray(task) ||
+        typeof (task as { id?: unknown }).id !== 'string'
+      ) {
+        throw new WfHttpError(
+          200,
+          'invalid_response',
+          'WrongForge returned an invalid task response',
+        );
+      }
+      return task as WfTaskRecord;
     } catch (err) {
       if (signal.aborted || err instanceof WfAborted) throw new WfAborted();
       if (++failures >= MAX_POLL_FAILURES) throw err;
@@ -296,7 +327,10 @@ export function chooseModel(
 
 /** A WrongForge task event as the progress events the fleet and leader seams consume. */
 export function toProgress(ev: WfEvent): ACPProgressEvent[] {
-  const d = ev.data;
+  const d =
+    ev?.data && typeof ev.data === 'object' && !Array.isArray(ev.data)
+      ? (ev.data as Record<string, unknown>)
+      : {};
   const str = (v: unknown) => (typeof v === 'string' ? v : '');
   const rec = (v: unknown): Record<string, unknown> | undefined =>
     v === undefined
@@ -356,7 +390,12 @@ export function toProgress(ev: WfEvent): ACPProgressEvent[] {
       ];
     }
     case 'agent.todos': {
-      const todos = Array.isArray(d['todos']) ? (d['todos'] as Array<Record<string, unknown>>) : [];
+      const todos = Array.isArray(d['todos'])
+        ? (d['todos'].filter(
+            (item): item is Record<string, unknown> =>
+              Boolean(item) && typeof item === 'object' && !Array.isArray(item),
+          ) as Array<Record<string, unknown>>)
+        : [];
       return [
         {
           type: 'plan',
