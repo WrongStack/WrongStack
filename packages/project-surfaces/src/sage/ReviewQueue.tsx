@@ -2,6 +2,7 @@
  * Dedicated review queue for hygiene/triage candidates.
  * Accept / reject / open target memory — including bulk actions.
  */
+import { toErrorMessage } from '@wrongstack/core/utils/error';
 import { AlertTriangle, Check, Loader2, RefreshCw, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SurfaceClient } from '../host';
@@ -138,17 +139,21 @@ export function ReviewQueue({
    */
   const loadReleasesRef = useRef(new Set<() => void>());
   const requestSeqRef = useRef(0);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
     const pending = pendingResolvesRef.current;
     const loads = loadReleasesRef.current;
     return () => {
+      mountedRef.current = false;
       for (const cancel of [...pending]) cancel();
       for (const release of [...loads]) release();
     };
   }, []);
 
   const load = useCallback(() => {
+    if (!mountedRef.current) return () => {};
     const generation = ++generationRef.current;
     setLoading(true);
     setError(null);
@@ -166,7 +171,7 @@ export function ReviewQueue({
     off = client.on('memory.sage.listCandidates', (message) => {
       release();
       // A superseded load just detaches; the newer load owns the state.
-      if (generation !== generationRef.current) return;
+      if (!mountedRef.current || generation !== generationRef.current) return;
       if (message.payload.error) {
         setError(String(message.payload.error));
         setCandidates([]);
@@ -188,12 +193,20 @@ export function ReviewQueue({
     });
     timeout = setTimeout(() => {
       release();
-      if (generation !== generationRef.current) return;
+      if (!mountedRef.current || generation !== generationRef.current) return;
       setLoading(false);
       setError(t('activity:memoryManager.reviewLoadTimeout'));
     }, 15_000);
     loadReleasesRef.current.add(release);
-    listCandidates({ includeResolved: false }, { echoToChat: false });
+    try {
+      listCandidates({ includeResolved: false }, { echoToChat: false });
+    } catch (err) {
+      release();
+      if (mountedRef.current && generation === generationRef.current) {
+        setLoading(false);
+        setError(toErrorMessage(err));
+      }
+    }
     return release;
   }, [client, listCandidates, t]);
 
@@ -219,11 +232,18 @@ export function ReviewQueue({
   const resolveOne = useCallback(
     (candidateId: string, action: 'accept' | 'reject') =>
       new Promise<string | null>((resolve) => {
+        if (!mountedRef.current) {
+          resolve(null);
+          return;
+        }
         requestSeqRef.current += 1;
         const requestId = `review_${Date.now()}_${requestSeqRef.current}`;
         let timer: ReturnType<typeof setTimeout> | null = null;
         let off = () => {};
+        let settled = false;
         const settle = (error: string | null) => {
+          if (settled) return;
+          settled = true;
           if (timer !== null) clearTimeout(timer);
           timer = null;
           off();
@@ -239,15 +259,19 @@ export function ReviewQueue({
         });
         pendingResolvesRef.current.add(cancel);
         timer = setTimeout(cancel, 15_000);
-        resolveCandidate(
-          {
-            candidateId,
-            action,
-            requestId,
-            reason: action === 'reject' ? 'Rejected via Memory Review tab' : undefined,
-          },
-          { echoToChat: false },
-        );
+        try {
+          resolveCandidate(
+            {
+              candidateId,
+              action,
+              requestId,
+              reason: action === 'reject' ? 'Rejected via Memory Review tab' : undefined,
+            },
+            { echoToChat: false },
+          );
+        } catch (err) {
+          settle(toErrorMessage(err));
+        }
       }),
     [client, resolveCandidate, t],
   );
@@ -269,6 +293,7 @@ export function ReviewQueue({
       setBusyId(candidateId);
       setBulkError(null);
       const error = await resolveOne(candidateId, action);
+      if (!mountedRef.current) return;
       recordOutcome(candidateId, error);
       setBusyId(null);
       load();
@@ -288,10 +313,13 @@ export function ReviewQueue({
       setBulkError(null);
       const failed: string[] = [];
       for (const id of ids) {
+        if (!mountedRef.current) return;
         const error = await resolveOne(id, action);
+        if (!mountedRef.current) return;
         recordOutcome(id, error);
         if (error !== null) failed.push(id);
       }
+      if (!mountedRef.current) return;
       setBulkBusy(false);
       // Keep failed rows selected so a retry targets exactly what did not apply.
       setSelected(new Set(failed));

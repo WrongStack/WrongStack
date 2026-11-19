@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T10:13:14.765Z",
+  "generatedAt": "2026-11-19T10:17:09.265Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6389,
-    "testFiles": 5538,
-    "sourceLines": 1317734,
+    "testFiles": 5539,
+    "sourceLines": 1317762,
     "workspaceEdges": 250,
     "moduleEdges": 18873,
     "nonCommandSlashImports": 0,
@@ -739,7 +739,7 @@
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
       "sourceFiles": 262,
-      "testFiles": 28,
+      "testFiles": 29,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -756,7 +756,7 @@
         {
           "path": "packages/project-surfaces/tsconfig.test.json",
           "error": null,
-          "testFiles": 28
+          "testFiles": 29
         }
       ]
     },
@@ -19471,6 +19471,12 @@
       },
       {
         "file": "packages/project-surfaces/tests/ranked-search-load-more-reset.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/review-queue-unmount-and-sync-throw.test.tsx",
         "projects": [
           "root-node"
         ]
