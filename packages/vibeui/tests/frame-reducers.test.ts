@@ -14,7 +14,8 @@ describe('frame reducer table', () => {
         'ctx.max_context',
         'ctx.pct',
         'files.image',
-        'files.list',
+        // `files.list` is owned by the composer (useFileMentions), which matches
+        // each reply to the query it answers.
         'files.read',
         'files.tree',
         'git.changes',

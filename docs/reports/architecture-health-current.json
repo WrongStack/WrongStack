@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T10:50:47.686Z",
+  "generatedAt": "2026-11-19T12:15:36.660Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6389,
-    "testFiles": 5551,
-    "sourceLines": 1318052,
+    "sourceFiles": 6390,
+    "testFiles": 5552,
+    "sourceLines": 1318090,
     "workspaceEdges": 250,
-    "moduleEdges": 18873,
+    "moduleEdges": 18876,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -1106,8 +1106,8 @@
     {
       "name": "@wrongstack/vibeui",
       "dir": "packages/vibeui",
-      "sourceFiles": 99,
-      "testFiles": 40,
+      "sourceFiles": 100,
+      "testFiles": 41,
       "workspaceDependencies": [
         "@wrongstack/webui-protocol"
       ],
@@ -1120,7 +1120,7 @@
         {
           "path": "packages/vibeui/tsconfig.test.json",
           "error": null,
-          "testFiles": 40
+          "testFiles": 41
         }
       ]
     },
@@ -28513,6 +28513,12 @@
       },
       {
         "file": "packages/vibeui/tests/failed-run-resume.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/vibeui/tests/file-mentions.test.tsx",
         "projects": [
           "root-node"
         ]

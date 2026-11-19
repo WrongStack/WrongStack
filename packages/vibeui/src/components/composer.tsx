@@ -16,6 +16,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { canRestoreDraft, readSavedDraft } from '../lib/component-guards';
 import { clientId } from '../lib/ids';
 import { composeMessage, draftKey } from '../lib/session';
+import { useFileMentions } from '../lib/use-file-mentions';
 import { usePanelRequests } from '../lib/use-panel-requests';
 import type { Attachment, SessionController } from '../lib/use-session';
 import { useSkillPicker } from '../lib/use-skill-picker';
@@ -39,7 +40,7 @@ export function Composer({
   /** Ask before stopping. Falls back to an immediate stop when omitted. */
   onStopRequest?: () => void;
 }) {
-  const { state, connection, ready, modelPending, send, submit, queue, removeQueued, notice } =
+  const { state, connection, ready, modelPending, submit, queue, removeQueued, notice } =
     controller;
   const [draft, setDraft] = useState('');
   const [references, setReferences] = useState<string[]>([]);
@@ -81,7 +82,6 @@ export function Composer({
   const [selectedFile, setSelectedFile] = useState(0);
   const [dismissedFiles, setDismissedFiles] = useState('');
   const fileMentionKey = `${state.id}\0${draft}`;
-  const activeFile = Math.min(selectedFile, Math.max(0, state.matches.length - 1));
   const hasDraft = Boolean(draft.trim() || references.length || images.length);
   useEffect(() => onDraftChange?.(hasDraft), [hasDraft, onDraftChange]);
   const enabled =
@@ -90,6 +90,8 @@ export function Composer({
     Boolean(state.id && state.model) &&
     !modelPending &&
     !controller.compactPending;
+  const fileMatches = useFileMentions(query, enabled, controller);
+  const activeFile = Math.min(selectedFile, Math.max(0, fileMatches.length - 1));
 
   const filesOpen =
     query !== undefined && enabled && !skills.open && dismissedFiles !== fileMentionKey;
@@ -97,7 +99,7 @@ export function Composer({
   useEffect(() => {
     if (filesOpen)
       document.getElementById(`${fileListId}-${activeFile}`)?.scrollIntoView({ block: 'nearest' });
-  }, [filesOpen, fileListId, activeFile, state.matches]);
+  }, [filesOpen, fileListId, activeFile, fileMatches]);
   const pickFile = (path: string) => {
     setReferences((items) => [...new Set([...items, path])]);
     setDraft((value) => value.replace(/@[^\s@]*$/, ''));
@@ -156,14 +158,6 @@ export function Composer({
     textarea.current?.focus();
     controller.consumeDraft(request.id);
   }, [controller.draftRequest, controller.consumeDraft, state.id, loaded, images.length, notice]);
-  useEffect(() => {
-    if (query === undefined || !enabled) return;
-    const timer = setTimeout(
-      () => send('files.list', { sessionId: state.id, query, limit: 12 }),
-      120,
-    );
-    return () => clearTimeout(timer);
-  }, [query, enabled, send, state.id]);
 
   const attachImages = async (files: File[]) => {
     if (reading) return;
@@ -366,7 +360,7 @@ export function Composer({
         {filesOpen && (
           <section className="file-picker" aria-label="Matching project files">
             <div id={fileListId} role="listbox" aria-label="Project files">
-              {state.matches.map((path, index) => (
+              {fileMatches.map((path, index) => (
                 <button
                   type="button"
                   role="option"
@@ -382,7 +376,7 @@ export function Composer({
                 </button>
               ))}
             </div>
-            {!state.matches.length && <p>No matching files. Type a project path.</p>}
+            {!fileMatches.length && <p>No matching files. Type a project path.</p>}
             <footer className="file-picker-footer">
               ↑ ↓ browse · Enter / Tab attach · Esc close
             </footer>
@@ -396,7 +390,7 @@ export function Composer({
           aria-activedescendant={
             skills.open && skills.matches.length
               ? `${skills.listId}-${skills.selected}`
-              : filesOpen && state.matches.length
+              : filesOpen && fileMatches.length
                 ? `${fileListId}-${activeFile}`
                 : undefined
           }
@@ -413,9 +407,9 @@ export function Composer({
               if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
                 event.preventDefault();
                 setSelectedFile(
-                  state.matches.length
-                    ? (activeFile + (event.key === 'ArrowDown' ? 1 : -1) + state.matches.length) %
-                        state.matches.length
+                  fileMatches.length
+                    ? (activeFile + (event.key === 'ArrowDown' ? 1 : -1) + fileMatches.length) %
+                        fileMatches.length
                     : 0,
                 );
                 return;
@@ -429,10 +423,10 @@ export function Composer({
               if (
                 !event.shiftKey &&
                 (event.key === 'Enter' || event.key === 'Tab') &&
-                state.matches.length > 0
+                fileMatches.length > 0
               ) {
                 event.preventDefault();
-                const path = state.matches[activeFile];
+                const path = fileMatches[activeFile];
                 if (path) pickFile(path);
                 return;
               }
