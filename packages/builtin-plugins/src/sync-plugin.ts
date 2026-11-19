@@ -71,13 +71,24 @@ export function createSyncPlugin(opts?: SyncPluginOptions): Plugin {
 
     teardown(api) {
       api.slashCommands.unregister('sync');
+      cloud = null;
+      configStore = undefined;
+      vault = undefined;
       api.log.info('[sync] unloaded');
     },
 
     async health() {
-      return { ok: true, message: 'CloudSync ready' };
+      return cloud
+        ? { ok: true, message: 'CloudSync ready' }
+        : { ok: false, message: 'CloudSync unavailable' };
     },
   };
+}
+
+function isValidSyncRepo(repo: string | undefined): repo is string {
+  if (!repo || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)) return false;
+  const [owner, name] = repo.split('/');
+  return owner !== '.' && owner !== '..' && name !== '.' && name !== '..';
 }
 
 async function persistSyncConfig(
@@ -140,7 +151,7 @@ function buildSyncCommand(
             };
           }
           const [repo, token, ...cats] = parts;
-          if (!repo?.includes('/')) {
+          if (!isValidSyncRepo(repo)) {
             return { message: 'Invalid repo format. Expected "owner/repo".' };
           }
 
@@ -257,24 +268,38 @@ function buildSyncCommand(
           }
 
           if (action === 'add') {
-            const catName = catRest[0] as SyncCategory;
+            const catName = catRest[0] as SyncCategory | undefined;
+            if (!catName) {
+              return { message: 'Usage: /sync categories list | add <name> | remove <name>' };
+            }
             if (!ALL_SYNC_CATEGORIES.includes(catName)) {
               return { message: `Unknown. Available: ${ALL_SYNC_CATEGORIES.join(', ')}` };
             }
             if (cfg.categories.includes(catName))
               return { message: `"${catName}" already synced.` };
-            await setSyncConfig({ ...cfg, categories: [...cfg.categories, catName] });
+            try {
+              await setSyncConfig({ ...cfg, categories: [...cfg.categories, catName] });
+            } catch (err) {
+              return { message: `Category update failed: ${toErrorMessage(err)}` };
+            }
             return { message: `Added "${catName}" to sync categories.` };
           }
 
           if (action === 'remove') {
-            const catName = catRest[0] as SyncCategory;
+            const catName = catRest[0] as SyncCategory | undefined;
+            if (!catName) {
+              return { message: 'Usage: /sync categories list | add <name> | remove <name>' };
+            }
             if (!cfg.categories.includes(catName))
               return { message: `"${catName}" not in sync categories.` };
-            await setSyncConfig({
-              ...cfg,
-              categories: cfg.categories.filter((c: SyncCategory) => c !== catName),
-            });
+            try {
+              await setSyncConfig({
+                ...cfg,
+                categories: cfg.categories.filter((c: SyncCategory) => c !== catName),
+              });
+            } catch (err) {
+              return { message: `Category update failed: ${toErrorMessage(err)}` };
+            }
             return { message: `Removed "${catName}" from sync categories.` };
           }
 
