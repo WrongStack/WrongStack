@@ -202,9 +202,11 @@ export class PluginDevWatchController {
             if (this.watches.get(name) !== state) return;
             await opts.onReload(name);
           } catch (err) {
-            opts.onError?.(name, err);
+            if (!this.disposed && this.watches.get(name) === state) {
+              opts.onError?.(name, err);
+            }
           }
-        } while (state.queued && this.watches.get(name) === state);
+        } while (state.queued && !this.disposed && this.watches.get(name) === state);
       } finally {
         state.running = false;
       }
@@ -213,7 +215,7 @@ export class PluginDevWatchController {
     const watcher = fsWatch(watchTarget, { recursive }, (_eventType, filename) => {
       if (shouldIgnoreWatchFilename(filename)) return;
       const state = this.watches.get(name);
-      if (!state) return;
+      if (!state || state.watcher !== watcher || this.disposed) return;
       if (state.timer) clearTimeout(state.timer);
       state.timer = setTimeout(() => {
         state.timer = undefined;
@@ -222,6 +224,8 @@ export class PluginDevWatchController {
       state.timer.unref?.();
     });
     watcher.on('error', (err) => {
+      const state = this.watches.get(name);
+      if (!state || state.watcher !== watcher || this.disposed) return;
       opts.onError?.(name, err);
     });
     watcher.unref?.();
