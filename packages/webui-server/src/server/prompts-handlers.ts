@@ -21,6 +21,17 @@ import { getPromptJournalEntries, type PromptJournalFilter } from '@wrongstack/c
 import type { PromptUsageStore } from '@wrongstack/core/storage';
 import { errMessage, send, withRequestId } from './ws-utils.js';
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readPayload(msg: unknown): Record<string, unknown> | undefined {
+  if (!isPlainObject(msg)) return undefined;
+  return isPlainObject(msg['payload']) ? msg['payload'] : undefined;
+}
+
+const MAX_JOURNAL_LIMIT = 500;
+
 /**
  * Normalize a client-supplied `variables` array into clean PromptVariable[].
  * Drops entries without a string `name`; carries description/required/multiline
@@ -118,10 +129,15 @@ export async function handlePromptsSearch(
     });
     return;
   }
-  const payload = (msg as { payload?: { query?: string; category?: string } }).payload ?? {};
+  const payload = readPayload(msg) ?? {};
+  const query = typeof payload['query'] === 'string' ? payload['query'] : '';
+  const category =
+    typeof payload['category'] === 'string' && payload['category']
+      ? payload['category']
+      : undefined;
   try {
-    const results = await ctx.promptLoader.search(payload.query ?? '', {
-      ...(payload.category ? { category: payload.category } : {}),
+    const results = await ctx.promptLoader.search(query, {
+      ...(category ? { category } : {}),
       limit: 50,
     });
     send(ws, {
@@ -141,7 +157,8 @@ export async function handlePromptsContent(
   ctx: PromptsContext,
   msg: unknown,
 ): Promise<void> {
-  const slug = (msg as { payload?: { slug?: string } }).payload?.slug;
+  const rawSlug = readPayload(msg)?.['slug'];
+  const slug = typeof rawSlug === 'string' && rawSlug.length > 0 ? rawSlug : undefined;
   if (!ctx.promptLoader || !slug) {
     send(ws, {
       type: 'prompts.content',
@@ -190,8 +207,12 @@ export async function handlePromptsFavorite(
   ctx: PromptsContext,
   msg: unknown,
 ): Promise<void> {
-  const payload = (msg as { payload?: { slug?: string; favorite?: boolean } }).payload;
-  if (!ctx.promptLoader || !payload?.slug) {
+  const payload = readPayload(msg);
+  const slug =
+    typeof payload?.['slug'] === 'string' && payload['slug'].length > 0
+      ? payload['slug']
+      : undefined;
+  if (!ctx.promptLoader || !slug) {
     send(ws, {
       type: 'prompts.favorite',
       payload: withRequestId(msg, { success: false, error: 'Prompt library unavailable' }),
@@ -199,7 +220,7 @@ export async function handlePromptsFavorite(
     return;
   }
   try {
-    const updated = await ctx.promptLoader.setFavorite(payload.slug, payload.favorite !== false);
+    const updated = await ctx.promptLoader.setFavorite(slug, payload?.['favorite'] !== false);
     if (!updated) {
       send(ws, {
         type: 'prompts.favorite',
@@ -228,7 +249,7 @@ export async function handlePromptsCreate(
   ctx: PromptsContext,
   msg: unknown,
 ): Promise<void> {
-  const p = (msg as { payload?: Record<string, unknown> }).payload;
+  const p = readPayload(msg);
   if (!ctx.promptLoader || !p) {
     send(ws, {
       type: 'prompts.created',
@@ -306,7 +327,8 @@ export async function handlePromptsUsed(
   ctx: PromptsContext,
   msg: unknown,
 ): Promise<void> {
-  const slug = (msg as { payload?: { slug?: string } }).payload?.slug;
+  const rawSlug = readPayload(msg)?.['slug'];
+  const slug = typeof rawSlug === 'string' && rawSlug.length > 0 ? rawSlug : undefined;
   if (!ctx.promptUsage || !slug) {
     send(ws, { type: 'prompts.used', payload: withRequestId(msg, { success: false }) });
     return;
@@ -356,11 +378,38 @@ export async function handlePromptsJournal(
     });
     return;
   }
-  const payload = (msg as { payload?: { filter?: PromptJournalFilter } | undefined }).payload;
+  const payload = readPayload(msg);
+  const rawFilter = payload?.['filter'];
+  if (rawFilter !== undefined && !isPlainObject(rawFilter)) {
+    send(ws, {
+      type: 'prompts.journal',
+      payload: withRequestId(msg, {
+        enabled: true,
+        entries: [],
+        error: 'filter must be a plain object',
+      }),
+    });
+    return;
+  }
+  const filter: PromptJournalFilter = {};
+  if (rawFilter) {
+    if (typeof rawFilter['sessionId'] === 'string') filter.sessionId = rawFilter['sessionId'];
+    if (typeof rawFilter['category'] === 'string')
+      filter.category = rawFilter['category'] as PromptJournalFilter['category'];
+    if (typeof rawFilter['date'] === 'string') filter.date = rawFilter['date'];
+    if (typeof rawFilter['month'] === 'string') filter.month = rawFilter['month'];
+    if (typeof rawFilter['since'] === 'string') filter.since = rawFilter['since'];
+    if (typeof rawFilter['until'] === 'string') filter.until = rawFilter['until'];
+  }
+  const rawLimit = rawFilter?.['limit'];
+  const limit =
+    typeof rawLimit === 'number' && Number.isFinite(rawLimit) && rawLimit >= 1
+      ? Math.min(Math.floor(rawLimit), MAX_JOURNAL_LIMIT)
+      : 200;
   try {
     const entries = await getPromptJournalEntries(projectRoot, {
-      ...(payload?.filter ?? {}),
-      limit: payload?.filter?.limit ?? 200,
+      ...filter,
+      limit,
     });
     send(ws, {
       type: 'prompts.journal',

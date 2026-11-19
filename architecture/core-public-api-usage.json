@@ -94,9 +94,9 @@
       "runtimeOrMixed": 30
     },
     "@wrongstack/core/prompts": {
-      "files": 11,
+      "files": 12,
       "typeOnly": 0,
-      "runtimeOrMixed": 11
+      "runtimeOrMixed": 12
     },
     "@wrongstack/core/quota": {
       "files": 60,
@@ -5820,6 +5820,12 @@
     {
       "specifier": "@wrongstack/core/prompts",
       "file": "packages/webui-server/src/server/standalone-prompt-journal.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/prompts",
+      "file": "packages/webui-server/tests/prompts-handlers-validation.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

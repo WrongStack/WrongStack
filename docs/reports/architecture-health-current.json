@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T10:33:38.009Z",
+  "generatedAt": "2026-11-19T10:37:28.803Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6389,
-    "testFiles": 5546,
-    "sourceLines": 1317938,
+    "testFiles": 5547,
+    "sourceLines": 1317987,
     "workspaceEdges": 250,
     "moduleEdges": 18873,
     "nonCommandSlashImports": 0,
@@ -1185,7 +1185,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 356,
-      "testFiles": 414,
+      "testFiles": 415,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1220,7 +1220,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 414
+          "testFiles": 415
         }
       ]
     },
@@ -30157,6 +30157,12 @@
       },
       {
         "file": "packages/webui-server/tests/prompt-online-agents.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/prompts-handlers-validation.test.ts",
         "projects": [
           "root-node"
         ]
