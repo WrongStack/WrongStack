@@ -76,6 +76,10 @@ type CollabPanelChrome = {
 const collabPanelChromeBySession = new Map<string, CollabPanelChrome>();
 const disposedCollabPanelSessions = new Set<string>();
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 /** Forgets a closed conversation's panel state, so reopening it starts fresh. */
 export function forgetCollabSession(sessionId: string): void {
   collabPanelChromeBySession.delete(sessionId);
@@ -116,24 +120,38 @@ export function CollabPanel({
   const [injectContent, setInjectContent] = useState('');
   const [injectIsError, setInjectIsError] = useState(false);
   const [injectReason, setInjectReason] = useState('');
-  const chromeSessionRef = useRef(sessionId);
+  const chromeSessionRef = useRef<string | null>(null);
+  const latestChromeRef = useRef<CollabPanelChrome>({
+    participants,
+    joined,
+    joinedRole,
+    error,
+    openAnnotationCount,
+    paused,
+    injectOpen,
+    injectToolUseId,
+    injectContent,
+    injectIsError,
+    injectReason,
+  });
+  latestChromeRef.current = {
+    participants,
+    joined,
+    joinedRole,
+    error,
+    openAnnotationCount,
+    paused,
+    injectOpen,
+    injectToolUseId,
+    injectContent,
+    injectIsError,
+    injectReason,
+  };
 
   useLayoutEffect(() => {
     const previous = chromeSessionRef.current;
-    if (!disposedCollabPanelSessions.has(previous)) {
-      collabPanelChromeBySession.set(previous, {
-        participants,
-        joined,
-        joinedRole,
-        error,
-        openAnnotationCount,
-        paused,
-        injectOpen,
-        injectToolUseId,
-        injectContent,
-        injectIsError,
-        injectReason,
-      });
+    if (previous !== null && previous !== sessionId && !disposedCollabPanelSessions.has(previous)) {
+      collabPanelChromeBySession.set(previous, latestChromeRef.current);
     }
 
     const parked = collabPanelChromeBySession.get(sessionId);
@@ -153,14 +171,24 @@ export function CollabPanel({
   }, [sessionId]);
 
   useEffect(() => {
+    return () => {
+      const current = chromeSessionRef.current;
+      if (current !== null && !disposedCollabPanelSessions.has(current)) {
+        collabPanelChromeBySession.set(current, latestChromeRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     const offs: Array<() => void> = [];
 
     // collab.state — full snapshot, sent on connect and every 2s.
     offs.push(
       client.on('collab.state', (msg) => {
-        const p = msg.payload as WSCollabState['payload'];
+        if (!isRecord(msg.payload)) return;
+        const p = msg.payload as unknown as WSCollabState['payload'];
         if (p.sessionId === sessionId) {
-          setParticipants(p.participants ?? []);
+          setParticipants(Array.isArray(p.participants) ? p.participants : []);
         }
       }),
     );
@@ -168,7 +196,8 @@ export function CollabPanel({
     // collab.participant.joined — incremental add.
     offs.push(
       client.on('collab.participant.joined', (msg) => {
-        const p = msg.payload as WSCollabParticipantJoined['payload'];
+        if (!isRecord(msg.payload)) return;
+        const p = msg.payload as unknown as WSCollabParticipantJoined['payload'];
         if (p.sessionId !== sessionId) return;
         setParticipants((prev) => {
           if (prev.some((x) => x.participantId === p.participantId)) return prev;
@@ -180,22 +209,25 @@ export function CollabPanel({
     // collab.participant.left — incremental remove.
     offs.push(
       client.on('collab.participant.left', (msg) => {
-        const p = msg.payload as WSCollabParticipantLeft['payload'];
+        if (!isRecord(msg.payload)) return;
+        const p = msg.payload as unknown as WSCollabParticipantLeft['payload'];
         if (p.sessionId !== sessionId) return;
         const id = p.participantId;
-        setParticipants((prev) => prev.filter((p) => p.participantId !== id));
+        setParticipants((prev) => prev.filter((item) => item.participantId !== id));
       }),
     );
 
     // Surface collab-tagged server errors (e.g. role not available).
     offs.push(
       client.on('error', (msg) => {
-        const p = msg.payload as { phase?: string; message: string };
-        if (p.phase === 'collab') {
-          setError(p.message);
-          // Optimistically mark as not joined so the user can retry.
-          setJoined(false);
-        }
+        if (!isRecord(msg.payload)) return;
+        const p = msg.payload as { phase?: unknown; sessionId?: unknown; message?: unknown };
+        if (p.phase !== 'collab') return;
+        if (typeof p.sessionId === 'string' && p.sessionId !== sessionId) return;
+        setError(typeof p.message === 'string' ? p.message : 'Collaboration error');
+        // Optimistically mark as not joined so the user can retry.
+        setJoined(false);
+        setJoinedRole(null);
       }),
     );
 
@@ -205,7 +237,8 @@ export function CollabPanel({
     // immediate visibility ("are people reviewing this?").
     offs.push(
       client.on('collab.annotation.added', (msg) => {
-        const p = msg.payload as WSCollabAnnotationAdded['payload'];
+        if (!isRecord(msg.payload)) return;
+        const p = msg.payload as unknown as WSCollabAnnotationAdded['payload'];
         if (p.sessionId !== sessionId) return;
         if (p.annotation?.resolved) return;
         setOpenAnnotationCount((c) => c + 1);
@@ -213,7 +246,8 @@ export function CollabPanel({
     );
     offs.push(
       client.on('collab.annotation.resolved', (msg) => {
-        const p = msg.payload as WSCollabAnnotationResolved['payload'];
+        if (!isRecord(msg.payload)) return;
+        const p = msg.payload as unknown as WSCollabAnnotationResolved['payload'];
         if (p.sessionId !== sessionId) return;
         setOpenAnnotationCount((c) => Math.max(0, c - 1));
       }),
@@ -224,14 +258,16 @@ export function CollabPanel({
     // resume actions are gated to controller participants.
     offs.push(
       client.on('collab.pause.granted', (msg) => {
-        const p = msg.payload as WSCollabPauseGranted['payload'];
+        if (!isRecord(msg.payload)) return;
+        const p = msg.payload as unknown as WSCollabPauseGranted['payload'];
         if (p.sessionId !== sessionId) return;
         setPaused(true);
       }),
     );
     offs.push(
       client.on('collab.pause.released', (msg) => {
-        const p = msg.payload as WSCollabPauseReleased['payload'];
+        if (!isRecord(msg.payload)) return;
+        const p = msg.payload as unknown as WSCollabPauseReleased['payload'];
         if (p.sessionId !== sessionId) return;
         setPaused(false);
       }),

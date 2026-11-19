@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T10:05:11.567Z",
+  "generatedAt": "2026-11-19T10:06:38.057Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6389,
-    "testFiles": 5535,
-    "sourceLines": 1317667,
+    "testFiles": 5536,
+    "sourceLines": 1317703,
     "workspaceEdges": 250,
     "moduleEdges": 18871,
     "nonCommandSlashImports": 0,
@@ -739,7 +739,7 @@
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
       "sourceFiles": 262,
-      "testFiles": 25,
+      "testFiles": 26,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -756,7 +756,7 @@
         {
           "path": "packages/project-surfaces/tsconfig.test.json",
           "error": null,
-          "testFiles": 25
+          "testFiles": 26
         }
       ]
     },
@@ -19387,6 +19387,12 @@
       },
       {
         "file": "packages/project-surfaces/tests/codemap-stale-refresh-cancel.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/collab-panel-remount-and-error-scope.test.tsx",
         "projects": [
           "root-node"
         ]
