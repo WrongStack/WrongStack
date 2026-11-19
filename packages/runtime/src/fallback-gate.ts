@@ -50,6 +50,8 @@ export function createFallbackGate(_events: EventBus): FallbackGateFn {
   return gateFn;
 }
 
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
 /**
  * Shared gate runner — subscribes BEFORE emitting to avoid dropping a
  * same-tick choice reply.
@@ -84,7 +86,7 @@ function runGate(
     return Promise.resolve(null);
   }
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let settled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let deadline: ReturnType<typeof setTimeout> | undefined;
@@ -145,18 +147,28 @@ function runGate(
     // Both are scheduled BEFORE emit so cleanup has them assigned on same-tick.
     const safeAutoSwitchSeconds =
       Number.isFinite(autoSwitchSeconds) && autoSwitchSeconds > 0 ? autoSwitchSeconds : 0;
-    timer = setTimeout(() => finish(null), Math.round(safeAutoSwitchSeconds * 1000));
-    deadline = setTimeout(() => finish(null), Math.round(safeAutoSwitchSeconds * 1500));
+    const countdownMs = Math.min(MAX_TIMEOUT_MS, Math.round(safeAutoSwitchSeconds * 1000));
+    const deadlineMs = Math.min(MAX_TIMEOUT_MS, Math.round(safeAutoSwitchSeconds * 1500));
+    timer = setTimeout(() => finish(null), countdownMs);
+    deadline = setTimeout(() => finish(null), deadlineMs);
 
     // ── Emit the pending event so all UI surfaces show the modal ──
-    events.emit('provider.fallback_pending', {
-      ...(sessionId ? { sessionId } : {}),
-      from,
-      status,
-      candidates,
-      autoSwitchSeconds,
-      requestId,
-      timestamp: Date.now(),
-    });
+    try {
+      events.emit('provider.fallback_pending', {
+        ...(sessionId ? { sessionId } : {}),
+        from,
+        status,
+        candidates,
+        autoSwitchSeconds,
+        requestId,
+        timestamp: Date.now(),
+      });
+    } catch (error) {
+      if (!settled) {
+        settled = true;
+        cleanup();
+      }
+      reject(error);
+    }
   });
 }
