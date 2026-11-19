@@ -178,6 +178,13 @@ describe('fmtToolOutput', () => {
     expect(result).toContain('Build succeeded');
   });
 
+  it.each(['[INFO] Build succeeded', '[worker ready]'])(
+    'preserves brackets in plain-text output: %s',
+    (output) => {
+      expect(fmtToolOutput(output)).toBe(output);
+    },
+  );
+
   it('limits to 300 chars', () => {
     const raw = 'line '.repeat(50);
     const result = fmtToolOutput(raw);

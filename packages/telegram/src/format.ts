@@ -77,24 +77,35 @@ export function fmtTokens(n: number): string {
   return n.toLocaleString('en-US');
 }
 
+function isJsonContainer(text: string): boolean {
+  const first = text.trimStart()[0];
+  if (first !== '{' && first !== '[') return false;
+  try {
+    JSON.parse(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Try to render a tool's output as a short human-readable snippet.
- * Strips JSON braces/quoting, redacts secrets, limits to ~300 chars,
- * preserves first/last lines.
+ * Strips JSON braces/quoting from JSON containers, redacts secrets,
+ * and shows up to three meaningful lines and ~300 chars.
  */
 export function fmtToolOutput(raw: string | undefined): string {
   if (!raw) return '(no output)';
-  // Redact BEFORE the JSON-stripping pass so we don't transform the
-  // redacted marker (e.g. `[REDACTED]` survives untouched).
-  const redacted = redactSecrets(raw);
-  const cleaned =
-    redacted
-      .replace(/^[{[]\s*/, '') // strip leading JSON opening
-      .replace(/\s*[}\]]$/, '') // strip trailing JSON closing
-      .replace(/"([^"]+)":/g, '$1: ') // unquote JSON keys, add space for readability
-      .replace(/\\n/g, '\n') // expand escaped newlines
-      .replace(/\\"/g, '"') // expand escaped quotes
-      .trim() || redacted;
+  const redacted = redactSecrets(raw).trim();
+  // Detect JSON from the original input, but only format the redacted copy.
+  const cleaned = isJsonContainer(raw)
+    ? redacted
+        .replace(/^[{[]\s*/, '') // strip leading JSON opening
+        .replace(/\s*[}\]]$/, '') // strip trailing JSON closing
+        .replace(/"([^"]+)":/g, '$1: ') // unquote JSON keys, add space for readability
+        .replace(/\\n/g, '\n') // expand escaped newlines
+        .replace(/\\"/g, '"') // expand escaped quotes
+        .trim() || redacted
+    : redacted;
 
   // Try to split into short lines; show the first 3 meaningful ones.
   const lines = cleaned.split('\n').filter((l) => l.trim().length > 0);
