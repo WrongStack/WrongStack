@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T10:32:22.648Z",
+  "generatedAt": "2026-11-19T10:33:38.009Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6389,
-    "testFiles": 5545,
-    "sourceLines": 1317872,
+    "testFiles": 5546,
+    "sourceLines": 1317938,
     "workspaceEdges": 250,
     "moduleEdges": 18873,
     "nonCommandSlashImports": 0,
@@ -1185,7 +1185,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 356,
-      "testFiles": 413,
+      "testFiles": 414,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1220,7 +1220,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 413
+          "testFiles": 414
         }
       ]
     },
@@ -29821,6 +29821,12 @@
       },
       {
         "file": "packages/webui-server/tests/mcp-tool-handlers.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/memory-candidate-handlers-validation.test.ts",
         "projects": [
           "root-node"
         ]

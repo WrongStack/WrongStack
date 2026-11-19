@@ -7,6 +7,15 @@ export function requiresSage(command: string): string {
   return `\`${command}\` requires the SAGE backend (Sage.enabled).`;
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readPayload(msg: unknown): Record<string, unknown> {
+  if (!isPlainObject(msg)) return {};
+  return isPlainObject(msg['payload']) ? msg['payload'] : {};
+}
+
 /**
  * List review-queue candidates (hygiene / triage proposals).
  * Request:  { type: 'memory.sage.listCandidates', payload?: { includeResolved?: boolean } }
@@ -26,7 +35,7 @@ export async function handleSageListCandidates(
     return;
   }
   try {
-    const payload = (msg as { payload?: Record<string, unknown> }).payload ?? {};
+    const payload = readPayload(msg);
     const includeResolved = payload['includeResolved'] === true;
     if (typeof Sage.listCandidates !== 'function') {
       send(ws, {
@@ -81,8 +90,12 @@ export async function handleSageCandidateResolve(
   // the `candidateId is required` validation below — not a TypeError that
   // escapes the handler and leaves the client without a response frame —
   // is the documented answer for that input.
-  const payload = (msg as { payload?: Record<string, unknown> }).payload ?? {};
-  const candidateId = payload['candidateId'] as string | undefined;
+  const payload = readPayload(msg);
+  const rawCandidateId = payload['candidateId'];
+  const candidateId =
+    typeof rawCandidateId === 'string' && rawCandidateId.trim().length > 0
+      ? rawCandidateId
+      : undefined;
   const action = payload['action'] as 'accept' | 'reject' | undefined;
   if (!candidateId) {
     send(ws, {
@@ -98,7 +111,15 @@ export async function handleSageCandidateResolve(
     });
     return;
   }
-  const reason = payload['reason'] as string | undefined;
+  const rawReason = payload['reason'];
+  if (rawReason !== undefined && typeof rawReason !== 'string') {
+    send(ws, {
+      type: 'memory.sage.candidateResolve',
+      payload: withRequestId(msg, { error: 'reason must be a string' }),
+    });
+    return;
+  }
+  const reason = rawReason;
   try {
     let candidate: { id: string; status: string } | undefined;
     let applied: boolean | undefined;
@@ -179,28 +200,73 @@ export async function handleSageBackfillRecoverable(
   if (!Sage?.backfillRecoverable) {
     send(ws, {
       type: 'memory.sage.backfillRecoverable',
-      payload: { error: requiresSage('memory.sage.backfillRecoverable') },
+      payload: withRequestId(msg, { error: requiresSage('memory.sage.backfillRecoverable') }),
     });
     return;
   }
-  const payload = (msg as { payload: Record<string, unknown> }).payload ?? {};
+  const payload = readPayload(msg);
   const apply = payload['apply'] === true;
-  // Filter passthrough is permissive: the store validates per-field. We
-  // only pass fields that are present so absent fields stay absent (the
-  // store defaults its own omission to "no filter").
-  const rawFilter = (payload['filter'] ?? {}) as Record<string, unknown>;
+  const rawFilterInput = payload['filter'];
+  if (rawFilterInput !== undefined && !isPlainObject(rawFilterInput)) {
+    send(ws, {
+      type: 'memory.sage.backfillRecoverable',
+      payload: withRequestId(msg, { error: 'filter must be a plain object' }),
+    });
+    return;
+  }
+  const rawFilter = rawFilterInput ?? {};
   const filter: {
     kinds?: string[];
     scopes?: string[];
     updatedAfter?: string;
     updatedBefore?: string;
   } = {};
-  if (Array.isArray(rawFilter['kinds'])) filter.kinds = rawFilter['kinds'] as string[];
-  if (Array.isArray(rawFilter['scopes'])) filter.scopes = rawFilter['scopes'] as string[];
-  if (typeof rawFilter['updatedAfter'] === 'string')
+  if (rawFilter['kinds'] !== undefined) {
+    if (
+      !Array.isArray(rawFilter['kinds']) ||
+      !rawFilter['kinds'].every((item) => typeof item === 'string')
+    ) {
+      send(ws, {
+        type: 'memory.sage.backfillRecoverable',
+        payload: withRequestId(msg, { error: 'filter.kinds must be an array of strings' }),
+      });
+      return;
+    }
+    filter.kinds = rawFilter['kinds'];
+  }
+  if (rawFilter['scopes'] !== undefined) {
+    if (
+      !Array.isArray(rawFilter['scopes']) ||
+      !rawFilter['scopes'].every((item) => typeof item === 'string')
+    ) {
+      send(ws, {
+        type: 'memory.sage.backfillRecoverable',
+        payload: withRequestId(msg, { error: 'filter.scopes must be an array of strings' }),
+      });
+      return;
+    }
+    filter.scopes = rawFilter['scopes'];
+  }
+  if (rawFilter['updatedAfter'] !== undefined) {
+    if (typeof rawFilter['updatedAfter'] !== 'string') {
+      send(ws, {
+        type: 'memory.sage.backfillRecoverable',
+        payload: withRequestId(msg, { error: 'filter.updatedAfter must be a string' }),
+      });
+      return;
+    }
     filter.updatedAfter = rawFilter['updatedAfter'];
-  if (typeof rawFilter['updatedBefore'] === 'string')
+  }
+  if (rawFilter['updatedBefore'] !== undefined) {
+    if (typeof rawFilter['updatedBefore'] !== 'string') {
+      send(ws, {
+        type: 'memory.sage.backfillRecoverable',
+        payload: withRequestId(msg, { error: 'filter.updatedBefore must be a string' }),
+      });
+      return;
+    }
     filter.updatedBefore = rawFilter['updatedBefore'];
+  }
   try {
     const report = await Sage.backfillRecoverable({
       dryRun: !apply,
@@ -208,17 +274,17 @@ export async function handleSageBackfillRecoverable(
     } as never);
     send(ws, {
       type: 'memory.sage.backfillRecoverable',
-      payload: {
+      payload: withRequestId(msg, {
         examined: report.examined,
         recovered: report.recovered,
         recoverable: report.recoverable,
         dryRun: !apply,
-      },
+      }),
     });
   } catch (err) {
     send(ws, {
       type: 'memory.sage.backfillRecoverable',
-      payload: { error: errMessage(err) },
+      payload: withRequestId(msg, { error: errMessage(err) }),
     });
   }
 }
