@@ -1,4 +1,4 @@
-// Changelog — recent 1.x era (1.7.12 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
+// Changelog — recent 1.x era (1.7.13 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
 // Historical entries mirror CHANGELOG.md release notes. 1.1.0 absorbs the 1.0.38
 // bump, which was never published; 1.7.8 and 1.7.10 were never tagged either.
 // The 1.1.5 entry summarizes the commits in v1.1.4..v1.1.5, the 1.1.6 entry
@@ -11,10 +11,24 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.13',
+    date: '2026-11-20',
+    tagline: 'A chat that reads as steps',
+    latest: true,
+    highlights: [
+      'Desktop tool work shows as one line per step with its target, time and result',
+      'A plan card, live command output and the files each turn changed',
+      'Approvals are an inline banner with Y/N shortcuts and details one click away',
+      'Brain, Chimera, council and fallback events share one card style',
+      'The session panel opens from an icon rail at the window edge',
+      'Bun projects get bun add, bun audit and bun outdated; the vulnerability gate audits installs where they ran',
+      'The YOLO git gate catches abbreviated long options',
+    ],
+  },
+  {
     version: '1.7.12',
     date: '2026-11-19',
     tagline: 'Safer deletes, fresher screens',
-    latest: true,
     highlights: [
       'The YOLO delete gate and command classifier catch abbreviated rm long options',
       'TUI pastes land in the open field and never fire a shortcut',

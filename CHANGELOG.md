@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.13] — 2026-11-20
+
+The desktop conversation reads as a short list of steps: one line per tool call
+with its target, time and result, a plan card with progress, the live output of a
+running command, the files a turn changed, and approvals as an inline banner with
+Y/N shortcuts. Brain decisions, Chimera reports, council votes and provider
+fallback share one card style, and the session panel opens from an icon rail. The
+built-in install, audit and outdated tools run Bun for Bun projects, the
+dependency vulnerability gate audits structured installs where they ran, and the
+YOLO git gate catches abbreviated long options.
+
+### Added
+
+- Desktop chat steps: tool work shows as one line per step (Searched, Read,
+  Edited, Ran) with its target, duration and result; the turn's latest todo call
+  is a plan card with progress; a running command shows its output tail; finished
+  turns list the files they changed with a Review changes button.
+- Desktop approvals are an inline banner that names the whole command, with
+  Allow once, Deny and Allow & remember, Y/N shortcuts, and arguments, scope and
+  remembered denial behind Details.
+- Desktop event cards for Brain decisions, Chimera reports, council votes (a vote
+  bar and seat chips, the full report one click away) and the fallback picker (a
+  countdown bar); notices, failed runs, the waiting room, queue and question
+  strips match them. The status bar shows a run pill with elapsed time and the
+  composer gets pill chips and a red Stop.
+- The desktop session panel opens from an icon rail at the window edge that
+  stays visible while the panel is collapsed.
+- The desktop project view lists engines no live session owns on Windows, and
+  each can be stopped after confirmation.
+- Hook payloads carry an optional `workingDir` when it differs from `cwd`.
+
+### Changed
+
+- Bun 1.4.5 is the pinned workspace runtime; the engines minimum stays 1.4.3.
+
+### Fixed
+
+- Security: the YOLO git gate matches risky options by their shortest
+  unambiguous prefix, so `git reset --har` or `git clean --forc` are caught.
+- Security: the dependency vulnerability gate audits `language_package`
+  installs, runs the audit at the lockfile of the directory the install used
+  (tool cwd, `cd`/`pushd` and `--prefix`), and audits more trees, never fewer,
+  when a script's control flow is unclear (#445, #446).
+- Tools: install, audit and outdated detect Bun projects and run `bun add`,
+  `bun audit --json` and `bun outdated` instead of npm (#447).
+- The provider fallback gate clamps very long auto-switch times and cleans up
+  when an emit throws.
+- Chronicle decision events survive non-finite timestamps and sinks that throw.
+- The project code map ignores branch loads that finish after a reset.
+- TUI history reads whole lines when a positioned read returns fewer bytes.
+
 ## [1.7.12] — 2026-11-19
 
 A safety and robustness release. The YOLO delete gate and the destructive-command
