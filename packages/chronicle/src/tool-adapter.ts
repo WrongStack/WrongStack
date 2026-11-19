@@ -162,7 +162,10 @@ export function wireToolsToChronicle(options: ChronicleToolAdapterOptions): () =
           toolName: event.name,
           category: event.category,
           retryable: event.retryable,
-          detail: event.detail,
+          detail:
+            event.detail !== undefined
+              ? capPreview(options.scrubber.scrub(event.detail))
+              : undefined,
           errorCode: event.errorCode,
           errorSubsystem: event.errorSubsystem,
           errorSeverity: event.errorSeverity,
@@ -175,7 +178,7 @@ export function wireToolsToChronicle(options: ChronicleToolAdapterOptions): () =
     ),
     options.events.on('tool.progress', (event) => {
       if (event.event.type !== 'file_changed') return;
-      const resource = progressResource(event);
+      const resource = progressResource(options.scrubber, event);
       persist(options, event, {
         eventType: 'file.mutation.observed',
         outcome: 'started',
@@ -245,12 +248,16 @@ function persist(
   void options.journal.append(input).catch((error) => options.onPersistError?.(error, input));
 }
 
-function progressResource(event: EventMap['tool.progress']): ChronicleResourceRef | undefined {
+function progressResource(
+  scrubber: SecretScrubber,
+  event: EventMap['tool.progress'],
+): ChronicleResourceRef | undefined {
   if (event.event.type !== 'file_changed' || !event.event.path) return undefined;
+  const scrubbedPath = scrubber.scrub(event.event.path);
   return {
     kind: 'file',
-    id: resourceId('file', event.event.path),
-    path: event.event.path,
+    id: resourceId('file', scrubbedPath),
+    path: boundPath(scrubbedPath, MODIFIED_PATH_MAX_BYTES),
     ...(event.event.line !== undefined ? { lineStart: event.event.line } : {}),
     ...(event.event.endLine !== undefined ? { lineEnd: event.event.endLine } : {}),
   };
