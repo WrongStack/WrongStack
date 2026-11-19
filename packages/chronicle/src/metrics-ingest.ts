@@ -276,7 +276,16 @@ export class ChronicleMetricsIngester {
           if (cursor > from) writeCursor.run(key, cursor);
           this.db.exec('COMMIT');
         } catch (error) {
-          this.db.exec('ROLLBACK');
+          // SQLite may have already ended the transaction when a write or the
+          // COMMIT failed (SQLITE_FULL/IOERR auto-rollback); the follow-up
+          // ROLLBACK then throws `cannot rollback - no transaction is active`,
+          // which would mask the original disk or database error. Preserve the
+          // primary error for the caller (the rebuild path propagates it).
+          try {
+            this.db.exec('ROLLBACK');
+          } catch {
+            /* preserve original error */
+          }
           throw error;
         }
         if (cursor > from) result.sourceFiles++;
@@ -344,7 +353,15 @@ export class ChronicleMetricsIngester {
           .run(key, advanced);
         this.db.exec('COMMIT');
       } catch (error) {
-        this.db.exec('ROLLBACK');
+        // Same rule as the sqlite-journal loop above: a failed write or COMMIT
+        // may already have ended the transaction, so the follow-up ROLLBACK
+        // throws `cannot rollback - no transaction is active` and would mask
+        // the original error. Best-effort rollback, primary error preserved.
+        try {
+          this.db.exec('ROLLBACK');
+        } catch {
+          /* preserve original error */
+        }
         throw error;
       }
       result.ingestedBytes += advanced - consumed;
