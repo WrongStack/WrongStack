@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.12] — 2026-11-19
+
+A safety and robustness release. The YOLO delete gate and the destructive-command
+classifier recognise abbreviated `rm` long options, pastes in the TUI land in the
+open field instead of firing shortcuts, and screens across the WebUI, VibeUI, the
+project pages and the desktop drop replies that belong to an older query, request
+or board. Server routes validate more payloads, telemetry scrubs paths, and the
+desktop gains an Agent office shortcut in the top bar.
+
+### Added
+
+- A top-bar Agent office shortcut in the desktop.
+
+### Fixed
+
+- Security: the YOLO delete gate and the destructive-command classifier treat
+  abbreviated `rm` long options (for example `--recur`) like the full spelling.
+- TUI: a paste lands in the open field and never fires a shortcut.
+- Late replies no longer replace newer state: the WebUI and VibeUI `@` file
+  pickers show only the latest query's files (file list replies now name their
+  query), an older git changes snapshot or diff no longer replaces a newer one,
+  a replayed tool start does not displace the active tool, and the project
+  pages' review queue, file memory lookup, collab panel, office and Kanban views
+  keep their own state.
+- Desktop: Atlas indexing recovers from a stale or failed job (index jobs are
+  keyed by index directory and ordered), Kanban model lists retry after a bad
+  reply, a restarted office feed owns its refresh timer, engine requests settle
+  when sending throws, a project request appends to the latest draft, draft and
+  model-draft conflicts survive a failed read, deleting a conversation removes
+  all its drafts at once, and stop, remove and reconnect no longer race.
+- Server routes validate their payloads: brain ask, memory candidates, prompts
+  (whose journal is capped) and HQ commands.
+- Chronicle scrubs the working directory, failed tool detail and changed file
+  paths, bounds process event fields, closes a stream attempt only on its own
+  events and reports a failed metrics write on its own.
+- Fleet bridges tool events with the host session and bounded input, and the
+  WrongForge client rejects malformed replies and honours aborts.
+- Skill search and import validate flags and quotes, sync rejects bad
+  repositories and reports a failed save, and hunt commands read `--rounds`
+  anywhere in their arguments.
+- `prune --dry-run` ages sessions by their last activity, plugin dev watch stays
+  quiet after unwatch, the legacy goal copy is kept until the current one loads,
+  OmniRoute quota meters resolve provider aliases, and plain Telegram tool output
+  keeps its brackets.
+
 ## [1.7.11] — 2026-11-19
 
 The TUI keeps its frame whole in browser terminals (VS Code, Codespaces,

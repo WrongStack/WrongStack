@@ -1,29 +1,29 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.7.11',
-  title: 'Whole frames and fresh screens.',
+  version: '1.7.12',
+  title: 'Safer deletes, fresher screens.',
   summary:
-    'The TUI keeps its frame whole in browser terminals and holds its layout in narrow panes. The desktop shows what each tool call touched and when its run activity happened, ChatGPT accounts gain gpt-6.2-sol and gpt-6.2-astra, and screens across the desktop, project pages, HQ and VibeUI ignore replies that arrive after they moved on.',
+    'The YOLO delete gate now catches abbreviated rm long options, pastes in the TUI land in the open field, and screens across the WebUI, VibeUI, the project pages and the desktop ignore replies that belong to an older query or request. The desktop also gains an Agent office shortcut.',
   socialDescription:
-    'WrongStack 1.7.11: a TUI that stays whole in browser terminals, desktop tool calls that say what they touched, and screens that ignore stale replies.',
+    'WrongStack 1.7.12: the YOLO delete gate catches abbreviated rm options, late replies stop overwriting what you see, and the desktop gains an Agent office shortcut.',
   cards: [
     {
-      title: 'TUI everywhere',
-      body: 'Emoji no longer tear the frame in VS Code, Codespaces, code-server, ttyd or the WebUI terminal, and the layout holds in narrow panes.',
+      title: 'Safer deletes',
+      body: 'Abbreviated rm long options are classified destructive, so YOLO mode asks before running them.',
+      href: '/getting-started',
+      linkLabel: 'Upgrade your installation',
+    },
+    {
+      title: 'Fresh screens',
+      body: 'File pickers, git changes, diffs and project pages show the answer to your latest request, never a late reply to an older one.',
       href: '/interfaces',
       linkLabel: 'Explore the interfaces',
     },
     {
-      title: 'Readable runs',
-      body: 'Desktop tool calls name what they touched, run activity is grouped by iteration with its time, and session details count every call.',
+      title: 'Agent office shortcut',
+      body: 'Open the Agent office from the desktop top bar; drafts and engine stop/reconnect hold up under failures.',
       href: '/interfaces',
       linkLabel: 'Explore the desktop',
-    },
-    {
-      title: 'Fresh screens',
-      body: 'A reply that arrives after its screen, board or request moved on is ignored instead of overwriting what you see.',
-      href: '/getting-started',
-      linkLabel: 'Upgrade your installation',
     },
   ],
 } as const;

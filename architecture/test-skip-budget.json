@@ -42,6 +42,11 @@
       "fingerprint": "a36aa62f3e4b7460"
     },
     {
+      "file": "packages/chronicle/tests/metrics-ingest-rollback-mask.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "a2c3503943a79e75"
+    },
+    {
       "file": "packages/chronicle/tests/metrics-store-sqlite-source.test.ts",
       "kind": "skipIf",
       "fingerprint": "1b4c70186dfe382c"

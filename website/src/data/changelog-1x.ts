@@ -1,4 +1,4 @@
-// Changelog — recent 1.x era (1.7.11 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
+// Changelog — recent 1.x era (1.7.12 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
 // Historical entries mirror CHANGELOG.md release notes. 1.1.0 absorbs the 1.0.38
 // bump, which was never published; 1.7.8 and 1.7.10 were never tagged either.
 // The 1.1.5 entry summarizes the commits in v1.1.4..v1.1.5, the 1.1.6 entry
@@ -11,10 +11,23 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.12',
+    date: '2026-11-19',
+    tagline: 'Safer deletes, fresher screens',
+    latest: true,
+    highlights: [
+      'The YOLO delete gate and command classifier catch abbreviated rm long options',
+      'TUI pastes land in the open field and never fire a shortcut',
+      'The @ file pickers, git changes and diffs ignore replies for an older query',
+      'Desktop drafts, Atlas indexing and engine stop/reconnect hold up under races',
+      'A top-bar Agent office shortcut in the desktop',
+      'Server routes validate more payloads; Chronicle scrubs paths in telemetry',
+    ],
+  },
+  {
     version: '1.7.11',
     date: '2026-11-19',
     tagline: 'Whole frames and fresh screens',
-    latest: true,
     highlights: [
       'The TUI keeps its frame whole in VS Code, Codespaces, code-server, ttyd and the WebUI terminal',
       'TUI layout holds in narrow panes: list markers, copy icons, headers and the status bar fit',
