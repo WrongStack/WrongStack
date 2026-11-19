@@ -8,7 +8,6 @@ import type { Context } from '@wrongstack/core/agent';
 import type { SkillRegistryAdapter } from '@wrongstack/core/skills';
 import { FOREIGN_SKILL_TOOLS, SkillInstaller, securityScoreToTier } from '@wrongstack/core/skills';
 import { color, resolveWstackPaths, toErrorMessage } from '@wrongstack/core/utils';
-import { parseFlagValue } from './skills-plugin-authoring.js';
 
 function makeInstaller(
   skillLoader: SkillLoader | undefined,
@@ -48,18 +47,48 @@ export function buildSkillSearchCommand(
       'To install a hit: /skill-install <owner/repo> (or the full install ref shown).',
     ].join('\n'),
     async run(args: string) {
-      const parts = args.trim().split(/\s+/).filter(Boolean);
-      const queryParts = parts.filter(
-        (part, index) =>
-          !part.startsWith('--') && !['--page', '--pageSize'].includes(parts[index - 1] ?? ''),
-      );
-      const query = queryParts
-        .join(' ')
-        .trim()
-        .replace(/^(["'])([\s\S]*)\1$/, '$2');
+      const tokens = tokenizeRegistryArgs(args.trim());
+      const queryParts: string[] = [];
+      let page: number | undefined;
+      let pageSize: number | undefined;
+      for (let i = 0; i < tokens.length; i++) {
+        const tok = tokens[i]!;
+        if (!tok.quoted && (tok.value === '--page' || tok.value === '--pageSize')) {
+          const next = tokens[i + 1];
+          const raw = next && (next.quoted || !next.value.startsWith('--')) ? next.value : '';
+          const parsed = parsePositiveInt(raw);
+          if (parsed === undefined) {
+            return {
+              message: `Invalid ${tok.value} value "${raw}". --page and --pageSize must be positive integers.`,
+            };
+          }
+          if (tok.value === '--page') page = parsed;
+          else pageSize = parsed;
+          i++;
+          continue;
+        }
+        if (
+          !tok.quoted &&
+          (tok.value.startsWith('--page=') || tok.value.startsWith('--pageSize='))
+        ) {
+          const eq = tok.value.indexOf('=');
+          const flag = tok.value.slice(0, eq);
+          const raw = tok.value.slice(eq + 1);
+          const parsed = parsePositiveInt(raw);
+          if (parsed === undefined) {
+            return {
+              message: `Invalid ${flag} value "${raw}". --page and --pageSize must be positive integers.`,
+            };
+          }
+          if (flag === '--page') page = parsed;
+          else pageSize = parsed;
+          continue;
+        }
+        if (!tok.quoted && tok.value.startsWith('--')) continue;
+        queryParts.push(tok.value);
+      }
+      const query = queryParts.join(' ').trim();
       if (!query) return { message: 'Usage: /skill-search <query> [--page N]' };
-      const page = parseFlagValue(parts, '--page');
-      const pageSize = parseFlagValue(parts, '--pageSize');
 
       // Use a throwaway installer just to fan out across adapters (search()
       // doesn't touch the manifest or filesystem).
@@ -72,8 +101,8 @@ export function buildSkillSearchCommand(
       });
       try {
         const perAdapter = await tmpInstaller.search(query, {
-          ...(page ? { page: Number(page) } : {}),
-          ...(pageSize ? { pageSize: Number(pageSize) } : {}),
+          ...(page !== undefined ? { page } : {}),
+          ...(pageSize !== undefined ? { pageSize } : {}),
         });
         const total = perAdapter.reduce((n, b) => n + b.results.length, 0);
         if (total === 0) {
@@ -208,14 +237,51 @@ export function buildSkillImportCommand(skillLoader?: SkillLoader): SlashCommand
       'Each subdirectory with a valid SKILL.md is imported.',
     ].join('\n'),
     async run(args: string, ctx: Context) {
-      const parts = args.trim().split(/\s+/).filter(Boolean);
-      const isGlobal = parts.includes('--global');
-      const link = parts.includes('--link');
-      const fromIdx = parts.indexOf('--from');
+      const tokens = tokenizeRegistryArgs(args.trim());
+      let isGlobal = false;
+      let link = false;
       let tool: string | undefined;
-      if (fromIdx !== -1) tool = parts[fromIdx + 1];
-      else if (parts.includes('--from-claude')) tool = 'claude';
-      const positional = parts.find((p) => !p.startsWith('--') && p !== tool);
+      let positional: string | undefined;
+      for (let i = 0; i < tokens.length; i++) {
+        const tok = tokens[i]!;
+        if (!tok.quoted && tok.value === '--global') {
+          isGlobal = true;
+          continue;
+        }
+        if (!tok.quoted && tok.value === '--link') {
+          link = true;
+          continue;
+        }
+        if (!tok.quoted && tok.value === '--from-claude') {
+          if (tool === undefined) tool = 'claude';
+          continue;
+        }
+        if (!tok.quoted && tok.value === '--from') {
+          const next = tokens[i + 1];
+          if (!next || (!next.quoted && next.value.startsWith('--'))) {
+            return {
+              message:
+                'Usage: /skill-import <src-dir> | --from <tool> | --from-claude [--global] [--link]',
+            };
+          }
+          tool = next.value;
+          i++;
+          continue;
+        }
+        if (!tok.quoted && tok.value.startsWith('--from=')) {
+          const value = tok.value.slice('--from='.length);
+          if (!value) {
+            return {
+              message:
+                'Usage: /skill-import <src-dir> | --from <tool> | --from-claude [--global] [--link]',
+            };
+          }
+          tool = value;
+          continue;
+        }
+        if (!tok.quoted && tok.value.startsWith('--')) continue;
+        if (positional === undefined) positional = tok.value;
+      }
 
       let srcDir: string | undefined;
       if (tool) {
@@ -371,4 +437,27 @@ function formatCount(n: number): string {
 
 function truncate(s: string, max: number): string {
   return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
+interface ParsedRegistryToken {
+  value: string;
+  quoted: boolean;
+}
+
+function tokenizeRegistryArgs(input: string): ParsedRegistryToken[] {
+  return (input.match(/"(?:\\.|[^"\\])*"|'[^']*'|\S+/g) ?? []).map((token) => {
+    if (token.startsWith('"') && token.endsWith('"')) {
+      return { value: token.slice(1, -1).replace(/\\(["\\])/g, '$1'), quoted: true };
+    }
+    if (token.startsWith("'") && token.endsWith("'")) {
+      return { value: token.slice(1, -1), quoted: true };
+    }
+    return { value: token, quoted: false };
+  });
+}
+
+function parsePositiveInt(raw: string): number | undefined {
+  if (!/^[1-9]\d*$/.test(raw.trim())) return undefined;
+  const n = Number(raw.trim());
+  return Number.isSafeInteger(n) && n >= 1 ? n : undefined;
 }

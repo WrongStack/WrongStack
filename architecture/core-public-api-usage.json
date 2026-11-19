@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 533,
-      "typeOnly": 399,
+      "files": 534,
+      "typeOnly": 400,
       "runtimeOrMixed": 166
     },
     "@wrongstack/core/boot": {
@@ -139,8 +139,8 @@
       "runtimeOrMixed": 6
     },
     "@wrongstack/core/skills": {
-      "files": 39,
-      "typeOnly": 5,
+      "files": 40,
+      "typeOnly": 6,
       "runtimeOrMixed": 36
     },
     "@wrongstack/core/statusline": {
@@ -354,6 +354,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/builtin-plugins/tests/skills-authoring-flag-parsing.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/builtin-plugins/tests/skills-registry-flag-and-page-validation.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -9422,6 +9428,12 @@
       "file": "packages/builtin-plugins/tests/skills-plugin.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/skills",
+      "file": "packages/builtin-plugins/tests/skills-registry-flag-and-page-validation.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/skills",

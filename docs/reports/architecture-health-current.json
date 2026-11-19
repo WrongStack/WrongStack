@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T09:19:49.794Z",
+  "generatedAt": "2026-11-19T09:44:57.371Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6389,
-    "testFiles": 5526,
-    "sourceLines": 1317439,
+    "testFiles": 5527,
+    "sourceLines": 1317528,
     "workspaceEdges": 250,
-    "moduleEdges": 18872,
+    "moduleEdges": 18871,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -161,7 +161,7 @@
       "name": "@wrongstack/builtin-plugins",
       "dir": "packages/builtin-plugins",
       "sourceFiles": 40,
-      "testFiles": 36,
+      "testFiles": 37,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -177,7 +177,7 @@
         {
           "path": "packages/builtin-plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 36
+          "testFiles": 37
         }
       ]
     },
@@ -4771,6 +4771,12 @@
       },
       {
         "file": "packages/builtin-plugins/tests/skills-plugin.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/builtin-plugins/tests/skills-registry-flag-and-page-validation.test.ts",
         "projects": [
           "root-node"
         ]
