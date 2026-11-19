@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T10:48:00.345Z",
+  "generatedAt": "2026-11-19T10:49:25.461Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6389,
-    "testFiles": 5550,
-    "sourceLines": 1318036,
+    "testFiles": 5551,
+    "sourceLines": 1318043,
     "workspaceEdges": 250,
     "moduleEdges": 18873,
     "nonCommandSlashImports": 0,
@@ -387,7 +387,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 549,
-      "testFiles": 394,
+      "testFiles": 395,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -406,7 +406,7 @@
         {
           "path": "apps/desktop-v2/tsconfig.test.json",
           "error": null,
-          "testFiles": 394
+          "testFiles": 395
         }
       ]
     },
@@ -2041,6 +2041,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/engine-interaction-lifecycle.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/engine-operations-sync-throw-leak.test.ts",
         "projects": [
           "root-node"
         ]

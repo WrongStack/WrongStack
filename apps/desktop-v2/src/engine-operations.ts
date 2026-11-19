@@ -89,16 +89,22 @@ export class EngineOperations {
       const timeoutMs = options?.timeoutMs ?? this.timeoutMs;
       const timer = this.arm(requestId, this.live ? timeoutMs : this.replayCapMs);
       this.pending.set(requestId, { replies, resolve, reject, timer, timeoutMs });
-      void this.send(type, { ...payload, requestId }).catch((error: unknown) => {
+      const onFailure = (error: unknown) => {
         const pending = this.pending.get(requestId);
         if (!pending) return;
         this.pending.delete(requestId);
         clearTimeout(pending.timer);
         reject(error instanceof Error ? error : new Error(String(error)));
-      });
+      };
+      try {
+        void Promise.resolve(this.send(type, { ...payload, requestId })).catch(onFailure);
+      } catch (error) {
+        onFailure(error);
+      }
     });
   };
   receive(event: EngineEvent): void {
+    if (!event?.payload || typeof event.payload !== 'object') return;
     const id = event.payload['requestId'];
     if (typeof id !== 'string') return;
     const pending = this.pending.get(id);
@@ -110,10 +116,11 @@ export class EngineOperations {
     else pending.resolve(event.payload);
   }
   clear(): void {
-    for (const pending of this.pending.values()) {
+    const entries = [...this.pending.values()];
+    this.pending.clear();
+    for (const pending of entries) {
       clearTimeout(pending.timer);
       pending.reject(new Error('This workspace was detached. Reopen it to check the result.'));
     }
-    this.pending.clear();
   }
 }
