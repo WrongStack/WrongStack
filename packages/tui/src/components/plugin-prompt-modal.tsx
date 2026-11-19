@@ -21,70 +21,75 @@ export function PluginPromptModal({
   const [confirmChoice, setConfirmChoice] = useState(true);
   const [textValue, setTextValue] = useState('');
 
-  useInput((input, key) => {
-    // Ink hands an SGR mouse report to every handler as plain text; a click
-    // must not type it into the input field.
-    if (input && isLeakedMouseInput(input)) return;
-    if (key.escape) {
-      onResolve(null);
-      return;
-    }
+  useInput(
+    (input, key) => {
+      // A pasted "y" must not answer a confirm prompt.
+      if (key.paste && opts.kind !== 'input') return;
+      // Ink hands an SGR mouse report to every handler as plain text; a click
+      // must not type it into the input field.
+      if (!key.paste && input && isLeakedMouseInput(input)) return;
+      if (key.escape) {
+        onResolve(null);
+        return;
+      }
 
-    if (opts.kind === 'confirm') {
-      if (key.leftArrow || key.rightArrow || key.tab) {
-        setConfirmChoice((prev) => !prev);
+      if (opts.kind === 'confirm') {
+        if (key.leftArrow || key.rightArrow || key.tab) {
+          setConfirmChoice((prev) => !prev);
+          return;
+        }
+        if (input === 'y' || input === 'Y') {
+          onResolve(true);
+          return;
+        }
+        if (input === 'n' || input === 'N') {
+          onResolve(false);
+          return;
+        }
+        if (key.return) {
+          onResolve(confirmChoice);
+        }
         return;
       }
-      if (input === 'y' || input === 'Y') {
-        onResolve(true);
+
+      if (opts.kind === 'select') {
+        if (options.length === 0) {
+          if (key.return) onResolve(null);
+          return;
+        }
+        if (key.upArrow) {
+          setSelectedIndex((prev) => (prev - 1 + options.length) % options.length);
+          return;
+        }
+        if (key.downArrow) {
+          setSelectedIndex((prev) => (prev + 1) % options.length);
+          return;
+        }
+        if (key.return) {
+          const picked = options[selectedIndex];
+          onResolve(picked ? picked.value : null);
+        }
         return;
       }
-      if (input === 'n' || input === 'N') {
-        onResolve(false);
-        return;
-      }
+
+      // kind === 'input'
       if (key.return) {
-        onResolve(confirmChoice);
-      }
-      return;
-    }
-
-    if (opts.kind === 'select') {
-      if (options.length === 0) {
-        if (key.return) onResolve(null);
+        onResolve(textValue);
         return;
       }
-      if (key.upArrow) {
-        setSelectedIndex((prev) => (prev - 1 + options.length) % options.length);
+      if (key.backspace || key.delete) {
+        setTextValue((prev) => prev.slice(0, -1));
         return;
       }
-      if (key.downArrow) {
-        setSelectedIndex((prev) => (prev + 1) % options.length);
-        return;
+      if (input && !key.ctrl && !key.meta) {
+        const clean = sanitizeTerminalText(input).replace(/[\r\n]/gu, '');
+        if (clean) {
+          setTextValue((prev) => (prev + clean).slice(0, 512));
+        }
       }
-      if (key.return) {
-        const picked = options[selectedIndex];
-        onResolve(picked ? picked.value : null);
-      }
-      return;
-    }
-
-    // kind === 'input'
-    if (key.return) {
-      onResolve(textValue);
-      return;
-    }
-    if (key.backspace || key.delete) {
-      setTextValue((prev) => prev.slice(0, -1));
-      return;
-    }
-    if (input && !key.ctrl && !key.meta) {
-      const clean = sanitizeTerminalText(input).replace(/[\r\n]/gu, '');
-      if (clean) {
-        setTextValue((prev) => (prev + clean).slice(0, 512));
-      }
-    }
-  });
+    },
+    { paste: true },
+  );
 
   const safeOwner = sanitizeTerminalText(owner);
   const safeTitle = sanitizeTerminalText(opts.title);

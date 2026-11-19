@@ -1,7 +1,8 @@
 import type React from 'react';
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { Box, Text, useInput } from '../ink.js';
+import { pickerPasteText } from '../picker-text-input.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 import { formatRefinementDuration } from './enhance-panel.js';
@@ -84,71 +85,82 @@ export function RefineFailurePanel({
   const canPick = models.length > 0;
   const canFallback = !!fallbackRef;
 
-  useInput((input, key) => {
-    if (view === 'pick') {
-      // Layered Esc: clear query first, then go back to options
-      if (key.escape) {
-        if (query) {
+  useInput(
+    (input, key) => {
+      if (key.paste) {
+        const text = pickerPasteText(input);
+        if (view === 'pick' && text) {
+          setQuery((q) => q + text);
+          setCursor(0);
+        }
+        return;
+      }
+      if (view === 'pick') {
+        // Layered Esc: clear query first, then go back to options
+        if (key.escape) {
+          if (query) {
+            setQuery('');
+            return;
+          }
+          setView('options');
           setQuery('');
+          setCursor(0);
           return;
         }
-        setView('options');
-        setQuery('');
-        setCursor(0);
+        if (key.downArrow) {
+          const n = filteredModels.length;
+          if (n > 0) setCursor((c) => Math.min(c + 1, n - 1));
+          return;
+        }
+        if (key.upArrow) {
+          setCursor((c) => Math.max(c - 1, 0));
+          return;
+        }
+        if (key.return) {
+          const chosen = filteredModels[cursor];
+          if (chosen)
+            onDecision({ kind: 'pick', providerId: chosen.providerId, model: chosen.model });
+          return;
+        }
+        // Backspace/Delete → remove last char of the search query
+        if (key.backspace || key.delete) {
+          setQuery((q) => q.slice(0, -1));
+          setCursor(0);
+          return;
+        }
+        // Printable ASCII → extend the search query
+        if (
+          input &&
+          input.length === 1 &&
+          input.charCodeAt(0) >= 0x20 &&
+          input.charCodeAt(0) < 0x7f
+        ) {
+          setQuery((q) => q + input);
+          setCursor(0);
+          return;
+        }
         return;
       }
-      if (key.downArrow) {
-        const n = filteredModels.length;
-        if (n > 0) setCursor((c) => Math.min(c + 1, n - 1));
-        return;
-      }
-      if (key.upArrow) {
-        setCursor((c) => Math.max(c - 1, 0));
-        return;
-      }
+      // Options view.
       if (key.return) {
-        const chosen = filteredModels[cursor];
-        if (chosen)
-          onDecision({ kind: 'pick', providerId: chosen.providerId, model: chosen.model });
+        onDecision({ kind: 'retry' });
         return;
       }
-      // Backspace/Delete → remove last char of the search query
-      if (key.backspace || key.delete) {
-        setQuery((q) => q.slice(0, -1));
+      if (key.escape) {
+        onDecision({ kind: 'original' });
+        return;
+      }
+      const ch = input?.toLowerCase();
+      if (ch === 'm' && canFallback) onDecision({ kind: 'fallback' });
+      else if (ch === 'p' && canPick) {
         setCursor(0);
-        return;
-      }
-      // Printable ASCII → extend the search query
-      if (
-        input &&
-        input.length === 1 &&
-        input.charCodeAt(0) >= 0x20 &&
-        input.charCodeAt(0) < 0x7f
-      ) {
-        setQuery((q) => q + input);
-        setCursor(0);
-        return;
-      }
-      return;
-    }
-    // Options view.
-    if (key.return) {
-      onDecision({ kind: 'retry' });
-      return;
-    }
-    if (key.escape) {
-      onDecision({ kind: 'original' });
-      return;
-    }
-    const ch = input?.toLowerCase();
-    if (ch === 'm' && canFallback) onDecision({ kind: 'fallback' });
-    else if (ch === 'p' && canPick) {
-      setCursor(0);
-      setQuery('');
-      setView('pick');
-    } else if (ch === 's') onDecision({ kind: 'original' });
-    else if (ch === 'e') onDecision({ kind: 'edit' });
-  });
+        setQuery('');
+        setView('pick');
+      } else if (ch === 's') onDecision({ kind: 'original' });
+      else if (ch === 'e') onDecision({ kind: 'edit' });
+    },
+    { paste: true },
+  );
 
   if (view === 'pick') {
     const total = filteredModels.length;

@@ -21,6 +21,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Box, Text } from '../ink.js';
 import { auditKanbanBoard, type KanbanAuditSummary } from '../kanban-audit.js';
 import { isLeakedMouseInput } from '../mouse.js';
+import { pickerPasteText } from '../picker-text-input.js';
 import { theme } from '../theme.js';
 import type { PromptMode } from './kanban-panel-presentation.js';
 import {
@@ -265,212 +266,224 @@ export function KanbanPanel({
   }, [projectRoot, sessionId, board?.id, selectedBoard, selectedTask]);
 
   const shortcutsEnabled = usePanelShortcutsEnabled();
-  useInput((input, key) => {
-    if (key.ctrl || key.meta) return;
-    if (prompt) {
-      if (key.escape) {
-        setPrompt(null);
+  useInput(
+    (input, key) => {
+      if (key.ctrl || key.meta) return;
+      if (key.paste) {
+        // Pasted text fills the open prompt. It never answers the delete
+        // confirmation and never reaches the letter shortcuts below.
+        const text = pickerPasteText(input);
+        if (prompt && prompt.kind !== 'confirmDeleteTask' && text) {
+          setPrompt({ ...prompt, buffer: `${prompt.buffer}${text}` });
+        }
         return;
       }
-      if (prompt.kind === 'confirmDeleteTask') {
-        if (input.toLowerCase() === 'y') void commitPrompt();
-        else if (input.toLowerCase() === 'n') setPrompt(null);
+      if (prompt) {
+        if (key.escape) {
+          setPrompt(null);
+          return;
+        }
+        if (prompt.kind === 'confirmDeleteTask') {
+          if (input.toLowerCase() === 'y') void commitPrompt();
+          else if (input.toLowerCase() === 'n') setPrompt(null);
+          return;
+        }
+        if (key.return || input === '\r' || input === '\n') {
+          void commitPrompt();
+          return;
+        }
+        if (key.backspace || key.delete) {
+          setPrompt({ ...prompt, buffer: prompt.buffer.slice(0, -1) });
+          return;
+        }
+        if (input && !key.ctrl && !key.meta && input >= ' ' && !isLeakedMouseInput(input)) {
+          setPrompt({ ...prompt, buffer: `${prompt.buffer}${input}` });
+        }
         return;
       }
-      if (key.return || input === '\r' || input === '\n') {
-        void commitPrompt();
-        return;
-      }
-      if (key.backspace || key.delete) {
-        setPrompt({ ...prompt, buffer: prompt.buffer.slice(0, -1) });
-        return;
-      }
-      if (input && !key.ctrl && !key.meta && input >= ' ' && !isLeakedMouseInput(input)) {
-        setPrompt({ ...prompt, buffer: `${prompt.buffer}${input}` });
-      }
-      return;
-    }
 
-    // Letter/space shortcuts stay inert while the composer holds a draft
-    // (broadcast useInput — the user is typing a message, not driving the
-    // board). Esc, arrows, and Tab keep working either way.
-    if (shortcutsEnabled && input === '?') {
-      setShowKeys((value) => !value);
-      return;
-    }
-    if (key.escape || (shortcutsEnabled && input === 'q')) {
-      onClose();
-      return;
-    }
-    if (shortcutsEnabled && (input === 'r' || input === 'R')) {
-      void load(selectedBoard, selectedTask);
-      return;
-    }
-    if (shortcutsEnabled && input === 'c') {
-      setPrompt({ kind: 'createBoard', buffer: '' });
-      return;
-    }
-    if (shortcutsEnabled && input === 'a' && board) {
-      setPrompt({ kind: 'addTask', buffer: '' });
-      return;
-    }
-    if (((shortcutsEnabled && input === 'n') || key.downArrow) && boards.length > 0) {
-      void load(clamp(selectedBoard + 1, 0, boards.length - 1), 0);
-      return;
-    }
-    if (((shortcutsEnabled && input === 'p') || key.upArrow) && boards.length > 0) {
-      void load(clamp(selectedBoard - 1, 0, boards.length - 1), 0);
-      return;
-    }
-    if (key.shift && key.tab && visibleTasks.length > 0) {
-      setSelectedTask((idx) => (idx - 1 + visibleTasks.length) % visibleTasks.length);
-      return;
-    }
-    if (key.tab && visibleTasks.length > 0) {
-      setSelectedTask((idx) => (idx + 1) % visibleTasks.length);
-      return;
-    }
-    if (key.rightArrow && board && activeTask) {
-      if (isManagedBoard(board)) {
-        // Managed cards advance one stage at a time via transitionTask; the
-        // comment prompt collects the required audit comment before we call.
+      // Letter/space shortcuts stay inert while the composer holds a draft
+      // (broadcast useInput — the user is typing a message, not driving the
+      // board). Esc, arrows, and Tab keep working either way.
+      if (shortcutsEnabled && input === '?') {
+        setShowKeys((value) => !value);
+        return;
+      }
+      if (key.escape || (shortcutsEnabled && input === 'q')) {
+        onClose();
+        return;
+      }
+      if (shortcutsEnabled && (input === 'r' || input === 'R')) {
+        void load(selectedBoard, selectedTask);
+        return;
+      }
+      if (shortcutsEnabled && input === 'c') {
+        setPrompt({ kind: 'createBoard', buffer: '' });
+        return;
+      }
+      if (shortcutsEnabled && input === 'a' && board) {
+        setPrompt({ kind: 'addTask', buffer: '' });
+        return;
+      }
+      if (((shortcutsEnabled && input === 'n') || key.downArrow) && boards.length > 0) {
+        void load(clamp(selectedBoard + 1, 0, boards.length - 1), 0);
+        return;
+      }
+      if (((shortcutsEnabled && input === 'p') || key.upArrow) && boards.length > 0) {
+        void load(clamp(selectedBoard - 1, 0, boards.length - 1), 0);
+        return;
+      }
+      if (key.shift && key.tab && visibleTasks.length > 0) {
+        setSelectedTask((idx) => (idx - 1 + visibleTasks.length) % visibleTasks.length);
+        return;
+      }
+      if (key.tab && visibleTasks.length > 0) {
+        setSelectedTask((idx) => (idx + 1) % visibleTasks.length);
+        return;
+      }
+      if (key.rightArrow && board && activeTask) {
+        if (isManagedBoard(board)) {
+          // Managed cards advance one stage at a time via transitionTask; the
+          // comment prompt collects the required audit comment before we call.
+          const current = stageForColumn(board, activeTask.columnId);
+          const target = current ? nextManagedStage(current) : null;
+          if (target) {
+            setPrompt({ kind: 'transitionTask', task: activeTask, to: target, buffer: '' });
+          } else {
+            setNotice('Task is already at the final stage (done).');
+          }
+        } else {
+          const nextColumn = adjacentColumn(sortedColumns, activeTask.columnId, 1);
+          if (nextColumn) {
+            void runMutation(async () => {
+              const nextBoard = await moveTask(
+                projectRoot,
+                board.id,
+                activeTask.id,
+                nextColumn.id,
+                undefined,
+                eventContext,
+              );
+              await syncSource(nextBoard, activeTask.id);
+              return `Moved to ${nextColumn.title}`;
+            });
+          }
+        }
+        return;
+      }
+      if (key.leftArrow && board && activeTask) {
+        if (isManagedBoard(board)) {
+          setNotice('Managed boards advance forward only; use the kanban tool to repair backward.');
+        } else {
+          const prevColumn = adjacentColumn(sortedColumns, activeTask.columnId, -1);
+          if (prevColumn) {
+            void runMutation(async () => {
+              const nextBoard = await moveTask(
+                projectRoot,
+                board.id,
+                activeTask.id,
+                prevColumn.id,
+                undefined,
+                eventContext,
+              );
+              await syncSource(nextBoard, activeTask.id);
+              return `Moved to ${prevColumn.title}`;
+            });
+          }
+        }
+        return;
+      }
+      if (shortcutsEnabled && (input === ' ' || input === 'D') && board && activeTask) {
+        if (isManagedBoard(board)) {
+          setNotice(
+            'Managed cards advance via → or t (transition). Use a non-managed board for direct status edits.',
+          );
+          return;
+        }
+        void runMutation(async () => {
+          const nextBoard = await updateTask(
+            projectRoot,
+            board.id,
+            activeTask.id,
+            { status: 'completed', columnId: doneColumnId(board) ?? activeTask.columnId },
+            eventContext,
+          );
+          await syncSource(nextBoard, activeTask.id);
+          return `Completed task: ${activeTask.title}`;
+        });
+        return;
+      }
+      if (shortcutsEnabled && input === 'b' && board && activeTask) {
+        if (isManagedBoard(board)) {
+          setNotice(
+            'Managed cards advance via → or t (transition); "blocked" is a status, not a lifecycle stage.',
+          );
+          return;
+        }
+        void runMutation(async () => {
+          const nextBoard = await updateTask(
+            projectRoot,
+            board.id,
+            activeTask.id,
+            { status: 'blocked' },
+            eventContext,
+          );
+          await syncSource(nextBoard, activeTask.id);
+          return `Blocked task: ${activeTask.title}`;
+        });
+        return;
+      }
+      // `t` opens the transition prompt for the active managed card. It mirrors
+      // the right-arrow path so users have an explicit shortcut regardless of
+      // the column cursor position.
+      if (shortcutsEnabled && input === 't' && board && activeTask && isManagedBoard(board)) {
         const current = stageForColumn(board, activeTask.columnId);
         const target = current ? nextManagedStage(current) : null;
-        if (target) {
-          setPrompt({ kind: 'transitionTask', task: activeTask, to: target, buffer: '' });
-        } else {
+        if (!target) {
           setNotice('Task is already at the final stage (done).');
+        } else {
+          setPrompt({ kind: 'transitionTask', task: activeTask, to: target, buffer: '' });
         }
-      } else {
-        const nextColumn = adjacentColumn(sortedColumns, activeTask.columnId, 1);
-        if (nextColumn) {
-          void runMutation(async () => {
-            const nextBoard = await moveTask(
-              projectRoot,
-              board.id,
-              activeTask.id,
-              nextColumn.id,
-              undefined,
-              eventContext,
-            );
-            await syncSource(nextBoard, activeTask.id);
-            return `Moved to ${nextColumn.title}`;
-          });
-        }
+        return;
       }
-      return;
-    }
-    if (key.leftArrow && board && activeTask) {
-      if (isManagedBoard(board)) {
-        setNotice('Managed boards advance forward only; use the kanban tool to repair backward.');
-      } else {
-        const prevColumn = adjacentColumn(sortedColumns, activeTask.columnId, -1);
-        if (prevColumn) {
-          void runMutation(async () => {
-            const nextBoard = await moveTask(
-              projectRoot,
-              board.id,
-              activeTask.id,
-              prevColumn.id,
-              undefined,
-              eventContext,
-            );
-            await syncSource(nextBoard, activeTask.id);
-            return `Moved to ${prevColumn.title}`;
-          });
-        }
+      if (shortcutsEnabled && input === 'x' && activeTask) {
+        setPrompt({ kind: 'confirmDeleteTask', task: activeTask });
+        return;
       }
-      return;
-    }
-    if (shortcutsEnabled && (input === ' ' || input === 'D') && board && activeTask) {
-      if (isManagedBoard(board)) {
-        setNotice(
-          'Managed cards advance via → or t (transition). Use a non-managed board for direct status edits.',
+      if (shortcutsEnabled && input === 'd' && board) {
+        void runMutation(
+          async () => {
+            const duplicated = await duplicateBoard(projectRoot, board.id, {
+              title: `${board.title} Copy`,
+              preserveAssignment: true,
+            });
+            return duplicated ? `Duplicated board: ${duplicated.title}` : 'Board duplicate failed';
+          },
+          { boardIndex: 0, taskIndex: selectedTask },
         );
         return;
       }
-      void runMutation(async () => {
-        const nextBoard = await updateTask(
-          projectRoot,
-          board.id,
-          activeTask.id,
-          { status: 'completed', columnId: doneColumnId(board) ?? activeTask.columnId },
-          eventContext,
-        );
-        await syncSource(nextBoard, activeTask.id);
-        return `Completed task: ${activeTask.title}`;
-      });
-      return;
-    }
-    if (shortcutsEnabled && input === 'b' && board && activeTask) {
-      if (isManagedBoard(board)) {
-        setNotice(
-          'Managed cards advance via → or t (transition); "blocked" is a status, not a lifecycle stage.',
-        );
+      if (shortcutsEnabled && input === 'C' && board && activeTask && transferTarget) {
+        void runMutation(async () => {
+          await copyTaskToBoard(projectRoot, board.id, activeTask.id, transferTarget.id, {
+            eventContext,
+          });
+          return `Copied task to ${transferTarget.title}`;
+        });
         return;
       }
-      void runMutation(async () => {
-        const nextBoard = await updateTask(
-          projectRoot,
-          board.id,
-          activeTask.id,
-          { status: 'blocked' },
-          eventContext,
-        );
-        await syncSource(nextBoard, activeTask.id);
-        return `Blocked task: ${activeTask.title}`;
-      });
-      return;
-    }
-    // `t` opens the transition prompt for the active managed card. It mirrors
-    // the right-arrow path so users have an explicit shortcut regardless of
-    // the column cursor position.
-    if (shortcutsEnabled && input === 't' && board && activeTask && isManagedBoard(board)) {
-      const current = stageForColumn(board, activeTask.columnId);
-      const target = current ? nextManagedStage(current) : null;
-      if (!target) {
-        setNotice('Task is already at the final stage (done).');
-      } else {
-        setPrompt({ kind: 'transitionTask', task: activeTask, to: target, buffer: '' });
-      }
-      return;
-    }
-    if (shortcutsEnabled && input === 'x' && activeTask) {
-      setPrompt({ kind: 'confirmDeleteTask', task: activeTask });
-      return;
-    }
-    if (shortcutsEnabled && input === 'd' && board) {
-      void runMutation(
-        async () => {
-          const duplicated = await duplicateBoard(projectRoot, board.id, {
-            title: `${board.title} Copy`,
+      if (shortcutsEnabled && input === 'T' && board && activeTask && transferTarget) {
+        void runMutation(async () => {
+          await transferTaskToBoard(projectRoot, board.id, activeTask.id, transferTarget.id, {
             preserveAssignment: true,
+            eventContext,
           });
-          return duplicated ? `Duplicated board: ${duplicated.title}` : 'Board duplicate failed';
-        },
-        { boardIndex: 0, taskIndex: selectedTask },
-      );
-      return;
-    }
-    if (shortcutsEnabled && input === 'C' && board && activeTask && transferTarget) {
-      void runMutation(async () => {
-        await copyTaskToBoard(projectRoot, board.id, activeTask.id, transferTarget.id, {
-          eventContext,
+          return `Transferred task to ${transferTarget.title}`;
         });
-        return `Copied task to ${transferTarget.title}`;
-      });
-      return;
-    }
-    if (shortcutsEnabled && input === 'T' && board && activeTask && transferTarget) {
-      void runMutation(async () => {
-        await transferTaskToBoard(projectRoot, board.id, activeTask.id, transferTarget.id, {
-          preserveAssignment: true,
-          eventContext,
-        });
-        return `Transferred task to ${transferTarget.title}`;
-      });
-    }
-  });
+      }
+    },
+    { paste: true },
+  );
 
   return (
     <MonitorShell

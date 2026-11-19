@@ -171,158 +171,165 @@ function UserInputForm({ pending, onInterrupt }: UserInputPromptProps): React.Re
     };
   }, [stdin, validation.valid, submit]);
 
-  useInput((input, key) => {
-    if (key.ctrl && input.toLowerCase() === 'c') {
-      if (!settledRef.current) {
-        settledRef.current = true;
-        pending.resolve({ requestId: pending.request.id, status: 'cancelled', answers: [] });
-      }
-      onInterrupt?.();
-      return;
-    }
-    if (settledRef.current) return;
-    if (input && isLeakedMouseInput(input)) return;
-    if (editing) {
-      if (key.escape || key.return) {
-        setEditing(false);
-        setNotice(value.text.trim() ? 'Manual answer saved.' : 'Manual answer left blank.');
+  useInput(
+    (input, key) => {
+      if (key.ctrl && input.toLowerCase() === 'c') {
+        if (!settledRef.current) {
+          settledRef.current = true;
+          pending.resolve({ requestId: pending.request.id, status: 'cancelled', answers: [] });
+        }
+        onInterrupt?.();
         return;
       }
-      if (key.ctrl && input.toLowerCase() === 'u') {
-        updateAnswer((current) => ({ ...current, text: '' }));
+      if (settledRef.current) return;
+      if (key.paste && !editing) return;
+      if (!key.paste && input && isLeakedMouseInput(input)) return;
+      if (editing) {
+        if (key.escape || key.return) {
+          setEditing(false);
+          setNotice(value.text.trim() ? 'Manual answer saved.' : 'Manual answer left blank.');
+          return;
+        }
+        if (key.ctrl && input.toLowerCase() === 'u') {
+          updateAnswer((current) => ({ ...current, text: '' }));
+          return;
+        }
+        if (key.backspace || key.delete) {
+          updateAnswer((current) => ({
+            ...current,
+            text: current.text.slice(0, previousGraphemeIndex(current.text, current.text.length)),
+          }));
+          return;
+        }
+        if (input && !key.ctrl && !key.meta) {
+          const printable = input.replace(/[\r\n\t]+/g, ' ');
+          updateAnswer((current) => ({
+            ...current,
+            selected: question.kind === 'single_select' ? [] : current.selected,
+            text: current.text + printable,
+            customSelected: true,
+            delegated: false,
+          }));
+        }
         return;
       }
-      if (key.backspace || key.delete) {
+
+      if (
+        !key.meta &&
+        ((key.ctrl && input.toLowerCase() === 's') || (!key.ctrl && input === 's'))
+      ) {
+        submit();
+        return;
+      }
+      if (key.ctrl || key.meta) return;
+      if (key.tab) {
+        changeTab(activeTabIndex + (key.shift ? -1 : 1));
+        return;
+      }
+      if (/^[1-8]$/.test(input)) {
+        const requestedTab = Number(input) - 1;
+        if (requestedTab < pending.request.tabs.length) changeTab(requestedTab);
+        return;
+      }
+      if (key.leftArrow || input === '[') {
+        changeQuestion(questionIndex - 1);
+        return;
+      }
+      if (key.rightArrow || input === ']') {
+        changeQuestion(questionIndex + 1);
+        return;
+      }
+      if (input === 'R') {
+        for (const item of allQuestions) applyRecommendation(item);
+        setNotice('All recommended answers applied.');
+        return;
+      }
+      if (input === 'D') {
+        setDraft((current) => {
+          const next = { ...current };
+          for (const item of allQuestions) {
+            const answer = current[item.id] ?? EMPTY_ANSWER;
+            if (!hasAnswer(item, answer)) {
+              next[item.id] = {
+                ...answer,
+                selected: [],
+                customSelected: false,
+                delegated: true,
+              };
+            }
+          }
+          return next;
+        });
+        setNotice('Unanswered decisions delegated to the model.');
+        return;
+      }
+      if (input === 'd') {
         updateAnswer((current) => ({
           ...current,
-          text: current.text.slice(0, previousGraphemeIndex(current.text, current.text.length)),
+          selected: [],
+          customSelected: false,
+          delegated: !current.delegated,
         }));
+        setNotice(value.delegated ? 'Delegation cleared.' : 'Decision delegated to the model.');
         return;
       }
-      if (input && !key.ctrl && !key.meta) {
-        const printable = input.replace(/[\r\n\t]+/g, ' ');
+      if (input.toLowerCase() === 'r' && hasRecommendation(question)) {
+        applyRecommendation(question);
+        return;
+      }
+      if (
+        (input.toLowerCase() === 'e' && canEditText(question)) ||
+        (key.return && question.kind === 'text')
+      ) {
         updateAnswer((current) => ({
           ...current,
           selected: question.kind === 'single_select' ? [] : current.selected,
-          text: current.text + printable,
           customSelected: true,
           delegated: false,
         }));
-      }
-      return;
-    }
-
-    if (!key.meta && ((key.ctrl && input.toLowerCase() === 's') || (!key.ctrl && input === 's'))) {
-      submit();
-      return;
-    }
-    if (key.ctrl || key.meta) return;
-    if (key.tab) {
-      changeTab(activeTabIndex + (key.shift ? -1 : 1));
-      return;
-    }
-    if (/^[1-8]$/.test(input)) {
-      const requestedTab = Number(input) - 1;
-      if (requestedTab < pending.request.tabs.length) changeTab(requestedTab);
-      return;
-    }
-    if (key.leftArrow || input === '[') {
-      changeQuestion(questionIndex - 1);
-      return;
-    }
-    if (key.rightArrow || input === ']') {
-      changeQuestion(questionIndex + 1);
-      return;
-    }
-    if (input === 'R') {
-      for (const item of allQuestions) applyRecommendation(item);
-      setNotice('All recommended answers applied.');
-      return;
-    }
-    if (input === 'D') {
-      setDraft((current) => {
-        const next = { ...current };
-        for (const item of allQuestions) {
-          const answer = current[item.id] ?? EMPTY_ANSWER;
-          if (!hasAnswer(item, answer)) {
-            next[item.id] = {
-              ...answer,
-              selected: [],
-              customSelected: false,
-              delegated: true,
-            };
-          }
-        }
-        return next;
-      });
-      setNotice('Unanswered decisions delegated to the model.');
-      return;
-    }
-    if (input === 'd') {
-      updateAnswer((current) => ({
-        ...current,
-        selected: [],
-        customSelected: false,
-        delegated: !current.delegated,
-      }));
-      setNotice(value.delegated ? 'Delegation cleared.' : 'Decision delegated to the model.');
-      return;
-    }
-    if (input.toLowerCase() === 'r' && hasRecommendation(question)) {
-      applyRecommendation(question);
-      return;
-    }
-    if (
-      (input.toLowerCase() === 'e' && canEditText(question)) ||
-      (key.return && question.kind === 'text')
-    ) {
-      updateAnswer((current) => ({
-        ...current,
-        selected: question.kind === 'single_select' ? [] : current.selected,
-        customSelected: true,
-        delegated: false,
-      }));
-      setEditing(true);
-      setNotice('');
-      return;
-    }
-    if (key.upArrow) {
-      setOptionIndex((current) => Math.max(0, current - 1));
-      return;
-    }
-    if (key.downArrow) {
-      const rows = (question.options?.length ?? 0) + (question.allowCustomResponse ? 1 : 0);
-      setOptionIndex((current) => Math.min(Math.max(0, rows - 1), current + 1));
-      return;
-    }
-    if ((input === ' ' || key.return) && question.kind !== 'text') {
-      const option = question.options?.[optionIndex];
-      if (!option && question.allowCustomResponse) {
-        updateAnswer((current) => ({
-          ...current,
-          selected: question.kind === 'single_select' ? [] : current.selected,
-          customSelected: question.kind === 'single_select' ? true : !current.customSelected,
-          delegated: false,
-        }));
-        if (key.return) setEditing(true);
-        setNotice('Manual answer selected.');
+        setEditing(true);
+        setNotice('');
         return;
       }
-      if (!option) return;
-      updateAnswer((current) => ({
-        ...current,
-        selected:
-          question.kind === 'multi_select'
-            ? current.selected.includes(option.id)
-              ? current.selected.filter((id) => id !== option.id)
-              : [...current.selected, option.id]
-            : [option.id],
-        customSelected: question.kind === 'single_select' ? false : current.customSelected,
-        delegated: false,
-      }));
-      setNotice(question.kind === 'multi_select' ? 'Selection updated.' : 'Answer selected.');
-    }
-  });
+      if (key.upArrow) {
+        setOptionIndex((current) => Math.max(0, current - 1));
+        return;
+      }
+      if (key.downArrow) {
+        const rows = (question.options?.length ?? 0) + (question.allowCustomResponse ? 1 : 0);
+        setOptionIndex((current) => Math.min(Math.max(0, rows - 1), current + 1));
+        return;
+      }
+      if ((input === ' ' || key.return) && question.kind !== 'text') {
+        const option = question.options?.[optionIndex];
+        if (!option && question.allowCustomResponse) {
+          updateAnswer((current) => ({
+            ...current,
+            selected: question.kind === 'single_select' ? [] : current.selected,
+            customSelected: question.kind === 'single_select' ? true : !current.customSelected,
+            delegated: false,
+          }));
+          if (key.return) setEditing(true);
+          setNotice('Manual answer selected.');
+          return;
+        }
+        if (!option) return;
+        updateAnswer((current) => ({
+          ...current,
+          selected:
+            question.kind === 'multi_select'
+              ? current.selected.includes(option.id)
+                ? current.selected.filter((id) => id !== option.id)
+                : [...current.selected, option.id]
+              : [option.id],
+          customSelected: question.kind === 'single_select' ? false : current.customSelected,
+          delegated: false,
+        }));
+        setNotice(question.kind === 'multi_select' ? 'Selection updated.' : 'Answer selected.');
+      }
+    },
+    { paste: true },
+  );
 
   const compact = terminalRows < 20;
   const wide = !compact && terminalColumns >= 96;

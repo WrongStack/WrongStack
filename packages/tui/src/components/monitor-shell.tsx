@@ -1,7 +1,15 @@
 import type { ReactNode } from 'react';
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTerminalSize } from '../hooks/use-terminal-size.js';
-import { Box, type DOMElement, measureElement, Text, useInput, useStdin } from '../ink.js';
+import {
+  Box,
+  type DOMElement,
+  type InputOptions,
+  measureElement,
+  Text,
+  useInput,
+  useStdin,
+} from '../ink.js';
 import { parseMouseEvents, splitTrailingMousePartial } from '../mouse.js';
 import { displayWidth, truncateDisplay } from '../terminal-width.js';
 import { theme } from '../theme.js';
@@ -17,9 +25,12 @@ const PanelInputContext = createContext(true);
 export const PanelInputProvider = PanelInputContext.Provider;
 
 /** A foreground prompt temporarily owns all keyboard input over a monitor. */
-export function usePanelInput(handler: Parameters<typeof useInput>[0]): void {
+export function usePanelInput(
+  handler: Parameters<typeof useInput>[0],
+  options?: Pick<InputOptions, 'paste'>,
+): void {
   const isActive = useContext(PanelInputContext);
-  useInput(handler, { isActive });
+  useInput(handler, { ...options, isActive });
 }
 const MonitorViewportContext = createContext<{
   columns: number;

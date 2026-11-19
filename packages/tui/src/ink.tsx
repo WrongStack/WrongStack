@@ -86,15 +86,23 @@ const PASTE_KEY: Key = {
   paste: true,
 };
 
+export type InputOptions = NonNullable<Parameters<typeof useInkInput>[1]> & {
+  /**
+   * Receive bracketed pastes as `(text, { paste: true })`. Only owners of a
+   * text field opt in: a shortcut handler that saw a paste would read a pasted
+   * "y", "d" or "Y" as a confirm / delete / approve key.
+   */
+  paste?: boolean | undefined;
+};
+
 /**
- * Keep paste as data for every input owner, including locally handled panels.
+ * Keep paste as data (its own channel, `key.paste`), never as keystrokes.
  * Ink's legacy fallback parses a paste as a key and loses its provenance;
  * xterm.js also converts pasted newlines to CR before sending them to the PTY.
+ * The composer always listens, so that fallback never reaches other handlers.
  */
-export function useInput(
-  handler: (input: string, key: Key) => void,
-  options?: Parameters<typeof useInkInput>[1],
-): void {
+export function useInput(handler: (input: string, key: Key) => void, options?: InputOptions): void {
+  const { paste = false, ...inkOptions } = options ?? {};
   useInkInput((input, key) => {
     // A PTY may coalesce the final typed characters and Return into one read.
     // Bracketed paste has its own channel below, so CR here is a submit key.
@@ -107,8 +115,10 @@ export function useInput(
       return;
     }
     handler(input, key);
-  }, options);
-  useInkPaste((text) => handler(text.replace(/\r\n?/g, '\n'), PASTE_KEY), options);
+  }, inkOptions);
+  useInkPaste((text) => handler(text.replace(/\r\n?/g, '\n'), PASTE_KEY), {
+    isActive: paste && inkOptions.isActive !== false,
+  });
 }
 
 // Ink 8 accepts generic writable streams. Terminal dimensions are optional on

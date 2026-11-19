@@ -1,3 +1,4 @@
+import { EMPTY_KEY } from '../components/input.js';
 import type { KeyRouteContext } from '../key-handler-context.js';
 import { feedPaste } from '../paste-accumulator.js';
 
@@ -20,8 +21,16 @@ export async function routePastePipeline(
   input: string,
   explicitPaste = false,
 ): Promise<boolean> {
-  const { state, dispatch, pasteAccumRef, pasteFlushTimerRef, commitPaste } = ctx;
+  const { state, dispatch, pasteAccumRef, pasteFlushTimerRef } = ctx;
   if (!input) return false;
+  // An open overlay (the /auth key prompt, settings drafts, model search) owns
+  // the keyboard, so the assembled payload goes to it first. Only when no
+  // picker takes it does it land in the composer. Routing the ASSEMBLED text
+  // keeps paste markers out of overlay fields.
+  const commitPaste = async (full: string): Promise<void> => {
+    if (ctx.tryPickerKey(full, { ...EMPTY_KEY, paste: true }, false)) return;
+    await ctx.commitPaste(full);
+  };
   // Unfocus sidebar before processing paste so the buffer receives focus.
   if (state.sidebarFocused) {
     dispatch({ type: 'toggleSidebarFocus' });

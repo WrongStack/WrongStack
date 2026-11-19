@@ -408,15 +408,15 @@ interface UnsweptEntry {
 const UNSWEPT: Record<string, UnsweptEntry> = {
   'input.tsx': {
     reason: 'drops the leak itself before forwarding a keystroke to handleKey',
-    guard: { line: 193, contains: 'isLeakedMouseInput' },
+    guard: { line: 197, contains: 'isLeakedMouseInput' },
   },
   'user-input-prompt.tsx': {
     reason: 'drops the leak itself; also owns a raw-stdin mouse parser',
-    guard: { line: 184, contains: 'isLeakedMouseInput' },
+    guard: { line: 186, contains: 'isLeakedMouseInput' },
   },
   'refine-failure-panel.tsx': {
     reason: 'single-printable-char gate: an SGR report is 9 chars and can never be typed',
-    guard: { line: 124, contains: 'input.length === 1' },
+    guard: { line: 134, contains: 'input.length === 1' },
   },
   'kanban-panel.tsx': {
     reason:
@@ -428,11 +428,11 @@ const UNSWEPT: Record<string, UnsweptEntry> = {
   },
   'session-tree-overlay.tsx': {
     reason: 'drops the leak itself before the branch-name editor appends a keystroke',
-    guard: { line: 157, contains: 'isLeakedMouseInput' },
+    guard: { line: 165, contains: 'isLeakedMouseInput' },
   },
   'plugin-prompt-modal.tsx': {
     reason: 'drops the leak itself before the text-input kind appends a keystroke',
-    guard: { line: 27, contains: 'isLeakedMouseInput' },
+    guard: { line: 30, contains: 'isLeakedMouseInput' },
   },
   'plugin-panel-overlay.tsx': {
     reason:

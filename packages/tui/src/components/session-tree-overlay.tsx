@@ -154,6 +154,14 @@ export function SessionTreeOverlay({
 
   useInput(
     (input, key) => {
+      if (key.paste) {
+        // Never a fold y/n answer or a navigation shortcut.
+        const allowed = input.replace(/[^a-zA-Z0-9._-]/g, '');
+        if (creatingBranch && allowed) {
+          setDraftBranchName((prev) => (prev + allowed).slice(0, 64));
+        }
+        return;
+      }
       if (input && isLeakedMouseInput(input)) return;
       if (foldPreviewBranch) {
         if (key.escape || input === 'n') {
@@ -278,7 +286,7 @@ export function SessionTreeOverlay({
         onArchive?.(selectedRow.branch);
       }
     },
-    { isActive: interactive },
+    { isActive: interactive, paste: true },
   );
 
   const { start, end } = useWindowedPicker({

@@ -11,6 +11,7 @@
 import { useCallback } from 'react';
 import type { KeyEvent } from '../components/input.js';
 import { tryAuthModelPickerKeys } from './use-picker-keys-auth-model.js';
+import { routePickerPaste } from './use-picker-keys-paste.js';
 import { tryToolsSettingsPickerKeys } from './use-picker-keys-tools-settings.js';
 import type { PickerKeysHost } from './use-picker-keys-types.js';
 
@@ -30,6 +31,9 @@ export function usePickerKeys(
 ): (input: string, key: KeyEvent, isEnter: boolean) => boolean {
   return useCallback(
     (input: string, key: KeyEvent, isEnter: boolean): boolean => {
+      // A paste is text for the focused field, never a shortcut or y/N answer.
+      if (key.paste) return routePickerPaste(host, input);
+
       // 1. Auth & Model & Agent mode pickers
       if (tryAuthModelPickerKeys(host, input, key, isEnter, debouncedEnter)) {
         return true;

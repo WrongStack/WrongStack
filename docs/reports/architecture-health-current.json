@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T12:15:36.660Z",
+  "generatedAt": "2026-11-19T12:48:14.520Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6390,
-    "testFiles": 5552,
-    "sourceLines": 1318090,
+    "sourceFiles": 6391,
+    "testFiles": 5555,
+    "sourceLines": 1318307,
     "workspaceEdges": 250,
-    "moduleEdges": 18876,
+    "moduleEdges": 18883,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -1045,8 +1045,8 @@
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 516,
-      "testFiles": 454,
+      "sourceFiles": 517,
+      "testFiles": 457,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1075,7 +1075,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 454
+          "testFiles": 457
         }
       ]
     },
@@ -26904,6 +26904,18 @@
         ]
       },
       {
+        "file": "packages/tui/tests/paste-opt-in-delivery.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/paste-routes-to-open-picker.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/phase-monitor.test.tsx",
         "projects": [
           "root-node"
@@ -26923,6 +26935,12 @@
       },
       {
         "file": "packages/tui/tests/picker-keys.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/picker-paste-router.test.ts",
         "projects": [
           "root-node"
         ]

@@ -168,32 +168,40 @@ export const Input = memo(function Input({
   const functionIndex = useRef(0);
   // Ink 8 owns editing keys and escape timing. Parsing them again from raw
   // reads used to duplicate Home/End and made semantics depend on packet size.
-  useInput((input, key) => {
-    if (key.eventType === 'release') return;
-    // Decode the missing F-key field on Ink's corresponding event, preserving
-    // its position among ordinary keys in the same transport read.
-    if (!input && !Object.keys(EMPTY_KEY).some((name) => key[name as keyof typeof key] === true)) {
-      const fn = pendingFunctions.current[functionIndex.current];
-      if (fn !== undefined) {
-        functionIndex.current++;
-        if (functionIndex.current === pendingFunctions.current.length) {
-          pendingFunctions.current = [];
-          functionIndex.current = 0;
+  useInput(
+    (input, key) => {
+      if (key.eventType === 'release') return;
+      // Decode the missing F-key field on Ink's corresponding event, preserving
+      // its position among ordinary keys in the same transport read.
+      if (
+        !input &&
+        !Object.keys(EMPTY_KEY).some((name) => key[name as keyof typeof key] === true)
+      ) {
+        const fn = pendingFunctions.current[functionIndex.current];
+        if (fn !== undefined) {
+          functionIndex.current++;
+          if (functionIndex.current === pendingFunctions.current.length) {
+            pendingFunctions.current = [];
+            functionIndex.current = 0;
+          }
+          onKey('', { ...EMPTY_KEY, fn });
         }
-        onKey('', { ...EMPTY_KEY, fn });
+        return;
       }
-      return;
-    }
-    if (disabled) {
-      if ((key.ctrl && ['c', 'C', 'v', 'V'].includes(input)) || key.home || key.end) {
-        onKey(input, key as KeyEvent);
+      if (disabled) {
+        if ((key.ctrl && ['c', 'C', 'v', 'V'].includes(input)) || key.home || key.end) {
+          onKey(input, key as KeyEvent);
+        }
+        return;
       }
-      return;
-    }
-    if (!key.paste && input && isLeakedMouseInput(input)) return;
-    // Preserve the established Alt/Option+Backspace word-delete alias.
-    onKey(input, key.backspace && key.meta ? { ...key, ctrl: true } : (key as KeyEvent));
-  });
+      if (!key.paste && input && isLeakedMouseInput(input)) return;
+      // Preserve the established Alt/Option+Backspace word-delete alias.
+      onKey(input, key.backspace && key.meta ? { ...key, ctrl: true } : (key as KeyEvent));
+      // The central router owns paste: it hands the text to the open picker's
+      // field (or the draft) and never to a shortcut.
+    },
+    { paste: true },
+  );
 
   const { stdin } = useStdin();
   const reportParser = useRef(new TerminalReportParser());
