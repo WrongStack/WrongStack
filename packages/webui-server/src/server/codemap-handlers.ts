@@ -56,17 +56,22 @@ export function handleCodemapIndex(
   deps: CodemapHandlerDeps,
   start: boolean,
 ): void {
-  if (start && indexJobs.get(deps.projectRoot)?.status !== 'indexing') {
+  const jobKey = codemapCacheKey(deps.projectRoot, deps.indexDir, 'index');
+  const previous = indexJobs.get(jobKey);
+  if (start && previous?.status !== 'indexing') {
     const job: NonNullable<ReturnType<typeof indexJobs.get>> = {
       status: 'indexing',
-      startedAt: Date.now(),
+      startedAt: Math.max(Date.now(), (previous?.startedAt ?? 0) + 1),
     };
-    indexJobs.set(deps.projectRoot, job);
-    void runStartupIndex({
-      projectRoot: deps.projectRoot,
-      indexDir: deps.indexDir,
-      timeoutMs: 120000,
-    })
+    indexJobs.set(jobKey, job);
+    void Promise.resolve()
+      .then(() =>
+        runStartupIndex({
+          projectRoot: deps.projectRoot,
+          indexDir: deps.indexDir,
+          timeoutMs: 120000,
+        }),
+      )
       .then((result) => {
         job.status = 'ready';
         job.finishedAt = Date.now();
@@ -80,7 +85,7 @@ export function handleCodemapIndex(
       });
   }
   res.writeHead(start ? 202 : 200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ ...indexJobs.get(deps.projectRoot), progress: getIndexState() }));
+  res.end(JSON.stringify({ ...indexJobs.get(jobKey), progress: getIndexState() }));
 }
 
 function sendJsonBody(
