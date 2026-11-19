@@ -3203,6 +3203,7 @@
     "unverified": "La modification du modèle a été acceptée, mais sa définition enregistrée n'a pas pu être vérifiée. Actualisez avant de réessayer.",
     "tiersMismatch": "Les paliers de prix enregistrés ne correspondent pas à vos modifications relues. Votre brouillon est conservé.",
     "savedNotice": "Définition du modèle enregistrée et vérifiée.",
+    "draftCleanupFailed": "Impossible de supprimer le brouillon. {{detail}}",
     "removedNotice": "Définition de modèle personnalisée supprimée et vérifiée.",
     "notReported": "Non signalé",
     "eyebrow": "SAVOIR CE QUE CHAQUE MODÈLE PEUT FAIRE",

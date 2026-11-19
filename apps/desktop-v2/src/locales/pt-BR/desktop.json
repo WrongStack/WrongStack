@@ -3203,6 +3203,7 @@
     "unverified": "A alteração do modelo foi confirmada, mas a definição salva não pôde ser verificada. Atualize antes de tentar de novo.",
     "tiersMismatch": "As faixas de preço salvas não correspondem às alterações revisadas. Seu rascunho foi mantido.",
     "savedNotice": "Definição do modelo salva e verificada.",
+    "draftCleanupFailed": "Não foi possível limpar o rascunho. {{detail}}",
     "removedNotice": "Definição de modelo personalizada removida e verificada.",
     "notReported": "Não informado",
     "eyebrow": "SAIBA O QUE CADA MODELO PODE FAZER",

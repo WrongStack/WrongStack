@@ -3203,6 +3203,7 @@
     "unverified": "Die Modelländerung wurde bestätigt, aber ihre gespeicherte Definition ließ sich nicht prüfen. Aktualisiere, bevor du es erneut versuchst.",
     "tiersMismatch": "Die gespeicherten Preisstufen stimmen nicht mit deinen geprüften Änderungen überein. Dein Entwurf bleibt erhalten.",
     "savedNotice": "Modelldefinition gespeichert und geprüft.",
+    "draftCleanupFailed": "Der Entwurf konnte nicht gelöscht werden. {{detail}}",
     "removedNotice": "Benutzerdefinierte Modelldefinition entfernt und geprüft.",
     "notReported": "Nicht gemeldet",
     "eyebrow": "WISSEN, WAS JEDES MODELL KANN",

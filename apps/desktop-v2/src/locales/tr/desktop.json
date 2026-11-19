@@ -3203,6 +3203,7 @@
     "unverified": "Model değişikliği onaylandı ama kayıtlı tanımı doğrulanamadı. Yeniden denemeden önce yenile.",
     "tiersMismatch": "Kaydedilen fiyat kademeleri incelediğin değişikliklerle eşleşmedi. Taslağın korunuyor.",
     "savedNotice": "Model tanımı kaydedildi ve doğrulandı.",
+    "draftCleanupFailed": "Taslak temizlenemedi. {{detail}}",
     "removedNotice": "Özel model tanımı kaldırıldı ve doğrulandı.",
     "notReported": "Bildirilmedi",
     "eyebrow": "HER MODELİN NE YAPABİLDİĞİNİ BİL",

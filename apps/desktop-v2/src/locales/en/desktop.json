@@ -3203,6 +3203,7 @@
     "unverified": "The model change was acknowledged but its saved definition could not be verified. Refresh before retrying.",
     "tiersMismatch": "The saved price tiers did not match your reviewed changes. Your draft is retained.",
     "savedNotice": "Model definition saved and verified.",
+    "draftCleanupFailed": "Could not clear the draft. {{detail}}",
     "removedNotice": "Custom model definition removed and verified.",
     "notReported": "Not reported",
     "eyebrow": "KNOW WHAT EACH MODEL CAN DO",

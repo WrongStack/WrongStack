@@ -3203,6 +3203,7 @@
     "unverified": "Se confirmó el cambio del modelo, pero no se pudo verificar su definición guardada. Actualiza antes de reintentar.",
     "tiersMismatch": "Los tramos de precio guardados no coinciden con tus cambios revisados. Tu borrador se conserva.",
     "savedNotice": "Definición del modelo guardada y verificada.",
+    "draftCleanupFailed": "No se pudo borrar el borrador. {{detail}}",
     "removedNotice": "Definición de modelo personalizada eliminada y verificada.",
     "notReported": "No informado",
     "eyebrow": "SABER QUÉ PUEDE HACER CADA MODELO",

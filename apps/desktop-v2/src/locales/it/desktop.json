@@ -3203,6 +3203,7 @@
     "unverified": "La modifica del modello è stata confermata ma la definizione salvata non è stata verificata. Aggiorna prima di riprovare.",
     "tiersMismatch": "I livelli di prezzo salvati non corrispondono alle modifiche revisionate. La bozza viene conservata.",
     "savedNotice": "Definizione del modello salvata e verificata.",
+    "draftCleanupFailed": "Impossibile eliminare la bozza. {{detail}}",
     "removedNotice": "Definizione personalizzata del modello rimossa e verificata.",
     "notReported": "Non segnalato",
     "eyebrow": "SAPERE COSA PUÒ FARE OGNI MODELLO",

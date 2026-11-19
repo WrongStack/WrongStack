@@ -239,7 +239,7 @@
       "relativeImports": 61
     },
     "apps/desktop-v2/src/ModelCatalogSettings.tsx": {
-      "lines": 940,
+      "lines": 963,
       "relativeImports": 20
     },
     "apps/desktop-v2/src/ProjectAgentRoster.tsx": {

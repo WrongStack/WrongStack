@@ -239,7 +239,30 @@ function ProfileModelCatalogSettings({
         )
       )
         throw Error(t('modelCatalog.tiersMismatch'));
-      if (action === 'save') await modelDraft.controller.clear();
+      if (action === 'save') {
+        try {
+          await modelDraft.controller.clear();
+        } catch (error) {
+          const retained = modelDraft.controller.snapshot();
+          if (
+            actualDefinition &&
+            !retained.dirty &&
+            !retained.error &&
+            !retained.review &&
+            sameSetting(retained.value, editor)
+          ) {
+            setEditor(makeEditor(id, actualDefinition));
+            await modelDraft.controller.flush();
+          }
+          setSelected(id);
+          await load();
+          const detail = error instanceof Error ? error.message : String(error);
+          setError(
+            `${t('modelCatalog.savedNotice')} ${t('modelCatalog.draftCleanupFailed', { detail })}`,
+          );
+          return;
+        }
+      }
       setEditorValue(null);
       setRemove(false);
       setDiscard(false);
