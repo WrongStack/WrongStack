@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T10:10:58.891Z",
+  "generatedAt": "2026-11-19T10:13:14.765Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6389,
-    "testFiles": 5537,
-    "sourceLines": 1317729,
+    "testFiles": 5538,
+    "sourceLines": 1317734,
     "workspaceEdges": 250,
     "moduleEdges": 18873,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1074
+    "testOnlyExports": 1075
   },
   "errors": [],
   "packageCycles": [],
@@ -739,7 +739,7 @@
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
       "sourceFiles": 262,
-      "testFiles": 27,
+      "testFiles": 28,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -756,7 +756,7 @@
         {
           "path": "packages/project-surfaces/tsconfig.test.json",
           "error": null,
-          "testFiles": 27
+          "testFiles": 28
         }
       ]
     },
@@ -19459,6 +19459,12 @@
       },
       {
         "file": "packages/project-surfaces/tests/provider-test-view-race.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/quota-model-omniroute-alias.test.ts",
         "projects": [
           "root-node"
         ]
@@ -38439,6 +38445,10 @@
     {
       "file": "packages/project-surfaces/src/office/OfficeMapCanvas/utils.ts",
       "name": "layoutClientXs"
+    },
+    {
+      "file": "packages/project-surfaces/src/providers/quota-model.ts",
+      "name": "omniRouteProviderOfMeter"
     },
     {
       "file": "packages/project-surfaces/src/story/StoryInsights.tsx",

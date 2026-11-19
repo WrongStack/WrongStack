@@ -331,7 +331,12 @@ function omniRouteProviderOfModel(model: string): string | undefined {
 export function omniRouteProviderOfMeter(meter: QuotaSnapshot): string | undefined {
   if (meter.via !== 'omniroute') return undefined;
   const provider = meter.meterId.split(':')[1];
-  return provider === 'agy' ? 'antigravity' : provider || undefined;
+  if (!provider) return undefined;
+  // F4: the segment is OmniRoute's RAW connection.provider, which may be an
+  // alias (`cc`, `cx`, …) exactly as a routed model id may. Resolve it through
+  // the same map the model side uses — special-casing only 'agy' left every
+  // other alias-reported account never matching the models in use.
+  return Object.hasOwn(OMNIROUTE_ALIAS, provider) ? OMNIROUTE_ALIAS[provider] : provider;
 }
 
 /**
