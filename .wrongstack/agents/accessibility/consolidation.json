@@ -1,11 +1,13 @@
 {
-  "consolidatedAt": "2026-09-30T16:56:39.707Z",
+  "consolidatedAt": "2026-11-19T21:52:48.862Z",
   "sourceEntryCount": 0,
   "sourceBytes": 397,
-  "consolidatedBytes": 598,
+  "consolidatedBytes": 941,
   "trigger": "manual",
-  "model": "muse-spark-1.3-contributor",
+  "model": "MiniMax-M3.1-Flash",
   "pruned": true,
-  "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\accessibility\\archive\\learned-2026-09-30T16-56-39-707Z.md",
-  "skills": ["react-modern"]
+  "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\accessibility\\archive\\learned-2026-11-19T21-52-48-862Z.md",
+  "skills": [
+    "react-modern"
+  ]
 }
