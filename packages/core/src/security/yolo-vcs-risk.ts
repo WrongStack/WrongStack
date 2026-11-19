@@ -59,15 +59,32 @@ export function rsyncDestination(args: readonly string[]): string | null | undef
   return positionals.length === 1 ? null : positionals[positionals.length - 1];
 }
 
+/**
+ * F8: git's parse-options accepts any UNAMBIGUOUS long-option prefix, so
+ * `git reset --har` ≡ `--hard`, `git clean --forc` ≡ `--force`, etc. (verified
+ * empirically per command in scratch repos). True when `arg` spells `--name`
+ * or a prefix of it at least `minLen` characters long — `minLen` is the
+ * shortest prefix that is unambiguous among THAT command's options (e.g.
+ * push's --delete needs "de": "d" is ambiguous with --dry-run; switch's
+ * --force has no accepted abbreviation at all because of --force-create, so
+ * callers pass the full length to keep it exact). An attached `=value` is
+ * ignored for the name match; over-matching value forms git would reject only
+ * makes the gate stricter (fail-safe). Tokens arrive lowercased.
+ */
+function gitLongOption(arg: string, name: string, minLen: number): boolean {
+  if (!arg.startsWith('--')) return false;
+  const opt = arg.slice(2).split('=', 1)[0]!;
+  return opt.length >= minLen && name.startsWith(opt);
+}
+
 export function hasGitHistoryRewrite(command: string): boolean {
   const tokens = tokenizeShell(command).map((token) => token.toLowerCase());
   for (let i = 0; i < tokens.length; i++) {
     if (commandName(tokens[i]) !== 'git') continue;
     const args = commandSegment(tokens, i + 1);
-    if (
-      args.includes('reset') &&
-      args.some((arg) => arg === '--hard' || arg.startsWith('--hard='))
-    ) {
+    // F8: reset's only h-option is --hard, so --h…--hard are all unambiguous
+    // prefixes (the =value over-match is kept, fail-safe).
+    if (args.includes('reset') && args.some((arg) => gitLongOption(arg, 'hard', 1))) {
       return true;
     }
     // Rewrites every commit in place. Pre-existing gap: the branch above only
@@ -78,8 +95,11 @@ export function hasGitHistoryRewrite(command: string): boolean {
     const cleanIdx = args.indexOf('clean');
     if (cleanIdx >= 0) {
       const cleanArgs = args.slice(cleanIdx + 1);
+      // F8: clean's only f-option is --force, so --f…--force are unambiguous.
       if (
-        cleanArgs.some((arg) => arg === '-f' || arg === '--force' || /^-[a-z]*f[a-z]*$/i.test(arg))
+        cleanArgs.some(
+          (arg) => arg === '-f' || gitLongOption(arg, 'force', 1) || /^-[a-z]*f[a-z]*$/i.test(arg),
+        )
       ) {
         return true;
       }
@@ -91,10 +111,13 @@ export function hasGitHistoryRewrite(command: string): boolean {
         pushArgs.some(
           (arg) =>
             arg === '-f' ||
+            // F8: push's --force has NO accepted abbreviation (--f…--forc are
+            // ambiguous with --force-with-lease/--force-if-includes), so it
+            // stays exact; --force-w…--force-with-lease are unambiguous (the
+            // helper also covers the =value spelling).
             arg === '--force' ||
-            arg === '--force-with-lease' ||
+            gitLongOption(arg, 'force-with-lease', 7) ||
             arg.startsWith('--force=') ||
-            arg.startsWith('--force-with-lease=') ||
             // Combined short-flag cluster (`-fv` ≡ `-f -v`): git combines
             // short flags, so an `f` anywhere in a single-dash all-letter
             // cluster is a verbatim force-push. Mirrors the cluster-aware
@@ -112,9 +135,12 @@ export function hasGitHistoryRewrite(command: string): boolean {
             // updates every remote ref and deletes the ones missing locally
             // (git-push(1)); `--delete` / `-d` (also in a cluster), `--prune`
             // and a `:ref` deletion refspec remove remote branches.
-            arg === '--mirror' ||
-            arg === '--delete' ||
-            arg === '--prune' ||
+            // F8: unambiguous prefixes — mirror: --m…; delete: --de… ("d" is
+            // ambiguous with --dry-run); prune: --pru… ("p"/"pr" collide with
+            // --porcelain/--progress/--push-option).
+            gitLongOption(arg, 'mirror', 1) ||
+            gitLongOption(arg, 'delete', 2) ||
+            gitLongOption(arg, 'prune', 3) ||
             /^-[a-z]*d[a-z]*$/i.test(arg) ||
             (arg.startsWith(':') && arg.length > 1),
         )
@@ -147,21 +173,33 @@ function discardsLocalWork(args: readonly string[]): boolean {
   }
   const sub = args[i];
   const rest = args.slice(i + 1);
-  const forceFlag = (arg: string) => arg === '--force' || /^-[a-z]*f[a-z]*$/.test(arg);
+  // F8: checkout's only f-option is --force (--f…--forc unambiguous, minLen 1);
+  // switch also has --force-create, so EVERY --force abbreviation is ambiguous
+  // there and git rejects it — switch passes the full length to stay exact.
+  const forceFlag = (arg: string, minLen: number) =>
+    gitLongOption(arg, 'force', minLen) || /^-[a-z]*f[a-z]*$/.test(arg);
   const pathspec = (arg: string) => !arg.startsWith('-') && !SHELL_OPERATORS.has(arg);
   switch (sub) {
     case 'checkout': {
       const dashDash = rest.indexOf('--');
       if (dashDash >= 0 && rest.slice(dashDash + 1).some(pathspec)) return true;
-      return rest.some(forceFlag) || rest.includes('.') || rest.includes(':/');
+      return rest.some((arg) => forceFlag(arg, 1)) || rest.includes('.') || rest.includes(':/');
     }
     case 'switch':
-      return rest.includes('--discard-changes') || rest.some(forceFlag);
+      // F8: --di…--discard-changes are unambiguous ("d" collides with --detach).
+      return (
+        rest.some((arg) => gitLongOption(arg, 'discard-changes', 2)) ||
+        rest.some((arg) => forceFlag(arg, 'force'.length))
+      );
     case 'restore': {
       // Tokens are lowercased, so `-S` (--staged) and `-s <tree>` (--source)
       // collide: only the long `--staged` counts as unstage-only (fail closed).
-      const worktree = rest.includes('--worktree') || rest.includes('-w');
-      if (rest.includes('--staged') && !worktree) return false;
+      // F8: --w…--worktree are unambiguous; --sta…--staged are ("s"/"st"
+      // collide with --source). Missing the --worktree abbreviation let
+      // `restore --staged --wor <path>` take the unstage-only exemption while
+      // git also restores (destroys) the worktree.
+      const worktree = rest.some((arg) => gitLongOption(arg, 'worktree', 1)) || rest.includes('-w');
+      if (rest.some((arg) => gitLongOption(arg, 'staged', 3)) && !worktree) return false;
       return rest.some(pathspec);
     }
     case 'stash': {
@@ -171,7 +209,12 @@ function discardsLocalWork(args: readonly string[]): boolean {
     case 'reflog':
       return rest.includes('expire') || rest.includes('delete');
     case 'gc':
-      return rest.some((arg) => arg === '--prune=now' || arg === '--prune=all');
+      // F8: gc's only p-option is --prune, so --p…--prune are unambiguous.
+      return rest.some((arg) => {
+        if (!gitLongOption(arg, 'prune', 1) || !arg.includes('=')) return false;
+        const value = arg.slice(arg.indexOf('=') + 1);
+        return value === 'now' || value === 'all';
+      });
     case 'prune':
       return true;
     default:
