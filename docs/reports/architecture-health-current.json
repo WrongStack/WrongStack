@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T10:17:09.265Z",
+  "generatedAt": "2026-11-19T10:18:31.292Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6389,
-    "testFiles": 5539,
-    "sourceLines": 1317762,
+    "testFiles": 5540,
+    "sourceLines": 1317770,
     "workspaceEdges": 250,
     "moduleEdges": 18873,
     "nonCommandSlashImports": 0,
@@ -739,7 +739,7 @@
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
       "sourceFiles": 262,
-      "testFiles": 29,
+      "testFiles": 30,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -756,7 +756,7 @@
         {
           "path": "packages/project-surfaces/tsconfig.test.json",
           "error": null,
-          "testFiles": 29
+          "testFiles": 30
         }
       ]
     },
@@ -19537,6 +19537,12 @@
       },
       {
         "file": "packages/project-surfaces/tests/surface-host-fetch-routing.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/use-memory-for-file-disable-and-null.test.tsx",
         "projects": [
           "root-node"
         ]

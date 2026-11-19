@@ -134,6 +134,7 @@ export function useMemoryForFile(options: UseMemoryForFileOptions): UseMemoryFor
 
     const unsubscribe = client.on('memory.sage.forFile', (message) => {
       if (seq !== requestSeq.current) return; // stale (re-fired)
+      if (!message?.payload || typeof message.payload !== 'object') return;
       const response = message.payload.response;
       const payloadFilePath =
         response?.filePath ??
@@ -187,7 +188,13 @@ export function useMemoryForFile(options: UseMemoryForFileOptions): UseMemoryFor
   }, [filePath, lineStart, lineEnd, limit, showSuperseded, showDeleted]);
 
   useEffect(() => {
-    if (!autoFetch) return;
+    if (!autoFetch) {
+      requestSeq.current++;
+      unsubscribeRef.current?.();
+      unsubscribeRef.current = null;
+      setLoading(false);
+      return;
+    }
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     fetchNow();
     return () => {
@@ -209,6 +216,7 @@ export function useMemoryForFile(options: UseMemoryForFileOptions): UseMemoryFor
   // Unmount-only cleanup: ensure we never leave a handler attached.
   useEffect(() => {
     return () => {
+      requestSeq.current++;
       unsubscribeRef.current?.();
       unsubscribeRef.current = null;
     };
