@@ -103,6 +103,74 @@ describe('durable form draft recovery', () => {
     expect(stored).toEqual({ revision: 3, value: { a: 2 } });
   });
 
+  it('preserves the draft when the saved version cannot be read after a clear conflict', async () => {
+    const storage = memoryStorage({ revision: 1, value: { a: 1 } });
+    const draft = new DurableFormDraft<Value>(storage, codec);
+    await draft.load();
+    const get = storage.get;
+    storage.stored.revision = 2;
+    storage.stored.value = { a: 99 };
+    storage.get = async () => {
+      throw Error('Fixture draft read failure');
+    };
+
+    await expect(draft.clear()).resolves.toBe(false);
+    expect(draft.snapshot()).toMatchObject({
+      value: { a: 1 },
+      revision: 1,
+      review: null,
+      error: expect.stringContaining('Fixture draft read failure'),
+    });
+    expect(storage.stored).toEqual({ revision: 2, value: { a: 99 } });
+
+    storage.get = get;
+    expect(await draft.clear()).toBe(false);
+    expect(draft.snapshot().review).toEqual({ value: { a: 99 }, revision: 2 });
+    expect(storage.calls).toEqual([{ value: null, expectedRevision: 1 }]);
+    expect(await draft.resolve('saved')).toBe(true);
+    expect(draft.snapshot().value).toEqual({ a: 99 });
+  });
+
+  it('reloads a missing conflict review when the next edit arrives', async () => {
+    const storage = memoryStorage({ revision: 1, value: { a: 1 } });
+    const draft = new DurableFormDraft<Value>(storage, codec);
+    await draft.load();
+    let reads = 0;
+    const get = storage.get;
+    storage.stored.revision = 2;
+    storage.stored.value = { a: 99 };
+    storage.get = async () => {
+      reads++;
+      throw Error('Fixture draft read failure');
+    };
+    draft.edit({ a: 2 });
+    await draft.flush();
+    expect(reads).toBe(1);
+    expect(draft.snapshot().review).toBeNull();
+    expect(storage.calls).toEqual([{ value: { a: 2 }, expectedRevision: 1 }]);
+
+    let release!: () => void;
+    const readGate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    storage.get = async () => {
+      reads++;
+      await readGate;
+      return get();
+    };
+    draft.edit({ a: 3 });
+    draft.edit({ a: 4 });
+    const resumed = draft.flush();
+    release();
+    await resumed;
+    expect(reads).toBe(2);
+    expect(draft.snapshot().value).toEqual({ a: 4 });
+    expect(draft.snapshot().review).toEqual({ value: { a: 99 }, revision: 2 });
+    expect(storage.calls).toHaveLength(1);
+    expect(await draft.resolve('local')).toBe(true);
+    expect(storage.stored).toEqual({ revision: 3, value: { a: 4 } });
+  });
+
   it('persists an edit made while the previous save is in flight', async () => {
     const storage = memoryStorage({ revision: 0, value: null });
     const save = storage.save;

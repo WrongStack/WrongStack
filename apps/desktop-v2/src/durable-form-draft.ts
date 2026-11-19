@@ -72,6 +72,20 @@ export class DurableFormDraft<T> {
       updatedAt: saved.updatedAt,
     };
   }
+  private async readConflictReview(): Promise<void> {
+    this.blocked = true;
+    try {
+      this.update({
+        review: this.read(await this.storage.get()),
+        error: 'The draft changed in another window. Review the saved version.',
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.update({
+        error: `Could not read the saved draft for review. Edit again to retry. ${message}`,
+      });
+    }
+  }
   load = (): Promise<void> => {
     if (this.state.ready) return Promise.resolve();
     if (this.loading) return this.loading;
@@ -94,14 +108,17 @@ export class DurableFormDraft<T> {
   };
   flush = (): Promise<void> => {
     if (this.pending) return this.pending;
-    if (
-      !this.state.ready ||
-      this.clearing ||
-      this.blocked ||
-      this.state.review ||
-      !this.state.dirty
-    )
-      return Promise.resolve();
+    if (!this.state.ready || this.clearing || this.state.review) return Promise.resolve();
+    if (this.blocked) {
+      // Keep writes blocked while refreshing the missing review after a read failure.
+      this.pending = Promise.resolve()
+        .then(() => this.readConflictReview())
+        .finally(() => {
+          this.pending = null;
+        });
+      return this.pending;
+    }
+    if (!this.state.dirty) return Promise.resolve();
     this.update({ saving: true });
     this.pending = (async () => {
       while (this.state.dirty && !this.blocked && !this.state.review) {
@@ -124,16 +141,7 @@ export class DurableFormDraft<T> {
           });
         } catch (error) {
           if (String(error).includes('DRAFT_CONFLICT')) {
-            this.blocked = true;
-            this.update({
-              error:
-                'This draft is not saved. Your values are kept here; review the saved version.',
-            });
-            try {
-              this.update({ review: this.read(await this.storage.get()) });
-            } catch (readError) {
-              this.update({ error: String(readError) });
-            }
+            await this.readConflictReview();
           } else {
             this.failedVersion = version;
             this.update({
@@ -214,16 +222,12 @@ export class DurableFormDraft<T> {
       return true;
     } catch (error) {
       if (String(error).includes('DRAFT_CONFLICT')) {
-        this.blocked = true;
-        this.update({
-          review: this.read(await this.storage.get()),
-          error: 'The draft changed in another window before cleanup. Review both versions.',
-        });
+        await this.readConflictReview();
       } else this.update({ error: String(error) });
       return false;
     } finally {
       this.clearing = false;
-      await this.flush();
+      if (!this.blocked) await this.flush();
     }
   };
 }
