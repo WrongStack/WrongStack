@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T14:06:06.868Z",
+  "generatedAt": "2026-11-19T14:08:01.364Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6391,
-    "testFiles": 5557,
-    "sourceLines": 1318328,
+    "testFiles": 5558,
+    "sourceLines": 1318337,
     "workspaceEdges": 250,
     "moduleEdges": 18883,
     "nonCommandSlashImports": 0,
@@ -1128,7 +1128,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 797,
-      "testFiles": 537,
+      "testFiles": 538,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1154,7 +1154,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 537
+          "testFiles": 538
         }
       ]
     },
@@ -31939,6 +31939,12 @@
       },
       {
         "file": "packages/webui/tests/components/file-menu-focus.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/file-picker-query.test.tsx",
         "projects": [
           "webui-jsdom"
         ]

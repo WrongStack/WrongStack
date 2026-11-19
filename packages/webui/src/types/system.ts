@@ -459,6 +459,8 @@ export interface WSFilesList {
   type: 'files.list';
   payload: {
     files: string[];
+    /** The request's query exactly as sent (absent from older engines). */
+    query?: string | undefined;
   };
 }
 

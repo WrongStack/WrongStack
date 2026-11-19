@@ -1,11 +1,12 @@
 import { expectDefined } from '@wrongstack/core/utils/expect-defined';
-import { useWebSocket } from '@/hooks/useWebSocket';
-import { cn } from '@/lib/utils';
-import { getWSClient } from '@/lib/ws-client';
-import { useAppTranslation } from '@/i18n';
-import { useConfigStore } from '@/stores';
 import { FileText, Folder } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
+import { getWSClient } from '@/lib/ws-client';
+import { useConfigStore } from '@/stores';
+
 interface FilePickerProps {
   /** Whatever the user typed after the `@` trigger (case-preserved). */
   query: string;
@@ -28,6 +29,9 @@ export function FilePicker({ query, onPick, onClose }: FilePickerProps) {
   const [index, setIndex] = useState(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wantHandle = useRef<{ resolve: (paths: string[]) => void } | null>(null);
+  // The query of the latest request. Requests are answered concurrently, so a
+  // reply for an earlier query can arrive last; each reply names its query.
+  const requested = useRef<string | undefined>(undefined);
 
   // Subscribe to the single `files.list` event for the lifetime of this
   // picker. We use the raw client.on() rather than the hook because the
@@ -36,7 +40,9 @@ export function FilePicker({ query, onPick, onClose }: FilePickerProps) {
   useEffect(() => {
     const client = getWSClient(wsUrl);
     const off = client.on('files.list', (msg) => {
-      const p = msg.payload as { files: string[] };
+      const p = msg.payload as { files: string[]; query?: string | undefined };
+      // An older engine sends no query: its reply is shown as before.
+      if (typeof p.query === 'string' && p.query !== requested.current) return;
       setFiles(p.files ?? []);
       setIndex(0);
       wantHandle.current?.resolve(p.files ?? []);
@@ -49,6 +55,7 @@ export function FilePicker({ query, onPick, onClose }: FilePickerProps) {
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
+      requested.current = query;
       ws.client.listFiles(query, 50);
     }, 80);
     return () => {
