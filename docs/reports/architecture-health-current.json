@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T12:48:14.520Z",
+  "generatedAt": "2026-11-19T14:03:08.124Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6391,
-    "testFiles": 5555,
-    "sourceLines": 1318307,
+    "testFiles": 5556,
+    "sourceLines": 1318315,
     "workspaceEdges": 250,
     "moduleEdges": 18883,
     "nonCommandSlashImports": 0,
@@ -362,7 +362,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 661,
-      "testFiles": 732,
+      "testFiles": 733,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -379,7 +379,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 732
+          "testFiles": 733
         }
       ]
     },
@@ -13327,6 +13327,12 @@
       },
       {
         "file": "packages/core/tests/security/yolo-risk.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/security/yolo-rm-long-option-abbrev.test.ts",
         "projects": [
           "root-node"
         ]

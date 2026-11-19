@@ -287,9 +287,17 @@ export function flagLetters(args: readonly string[]): Set<string> {
   for (const arg of args) {
     if (/^-[a-zA-Z]+$/.test(arg)) {
       for (const ch of arg.replace(/^-+/, '')) seen.add(ch.toLowerCase());
-    } else if (arg === '--recursive') {
+    } else if (/^--r(?:e(?:c(?:u(?:r(?:s(?:i(?:v(?:e)?)?)?)?)?)?)?)?$/.test(arg)) {
+      // F6: GNU getopt_long accepts any unambiguous long-option prefix, so
+      // `rm --rec --force ~/data` deletes exactly like `rm --recursive --force
+      // ~/data`. Matching only the exact `--recursive` let the abbreviated
+      // spellings evade the recursive-force gate (the PowerShell Remove-Item
+      // branch already binds parameter prefixes). --r…--recursive are all the
+      // unambiguous prefixes of rm's --recursive; over-matching only makes the
+      // destructive gate stricter, which is the fail-safe direction.
       seen.add('r');
-    } else if (arg === '--force') {
+    } else if (/^--f(?:o(?:r(?:c(?:e)?)?)?)?$/.test(arg)) {
+      // F6: --f…--force, the unambiguous prefixes of rm's --force (see above).
       seen.add('f');
     }
   }
