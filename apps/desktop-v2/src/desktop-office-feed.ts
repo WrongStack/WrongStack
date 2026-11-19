@@ -86,18 +86,22 @@ export function desktopOfficeFeed({
   let lastRefresh = 0;
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
   let eventSeq = 0;
-
-  const refreshMailbox = () => {
-    lastRefresh = Date.now();
-    send({ type: 'mailbox.messages', payload: { limit: 30, incompleteOnly: true } });
-    send({ type: 'mailbox.agents', payload: {} });
-  };
-  const scheduleRefresh = () => {
-    clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(refreshMailbox, MAILBOX_REFRESH_DEBOUNCE_MS);
-  };
+  let activeStop: (() => void) | undefined;
 
   const start = () => {
+    activeStop?.();
+    let stopped = false;
+    const refreshMailbox = () => {
+      if (stopped) return;
+      lastRefresh = Date.now();
+      send({ type: 'mailbox.messages', payload: { limit: 30, incompleteOnly: true } });
+      send({ type: 'mailbox.agents', payload: {} });
+    };
+    const scheduleRefresh = () => {
+      if (stopped) return;
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(refreshMailbox, MAILBOX_REFRESH_DEBOUNCE_MS);
+    };
     const offs = [
       client.on('sessions.status_update', (message) => {
         const sessions = payloadOf(message)['sessions'];
@@ -141,12 +145,27 @@ export function desktopOfficeFeed({
         client.on(type, scheduleRefresh),
       ),
     ];
-    refreshMailbox();
-    void pingFleet?.().catch(() => undefined);
-    return () => {
+    const stop = () => {
+      if (stopped) return;
+      stopped = true;
       for (const off of offs) off();
       clearTimeout(refreshTimer);
+      refreshTimer = undefined;
+      if (activeStop === stop) activeStop = undefined;
     };
+    activeStop = stop;
+    try {
+      refreshMailbox();
+      try {
+        void Promise.resolve(pingFleet?.()).catch(() => undefined);
+      } catch {
+        // Ignore synchronous pingFleet startup errors; subscriptions stay live.
+      }
+    } catch (err) {
+      stop();
+      throw err;
+    }
+    return stop;
   };
 
   const feed: OfficeFeed = {

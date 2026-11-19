@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T10:41:24.240Z",
+  "generatedAt": "2026-11-19T10:48:00.345Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6389,
-    "testFiles": 5549,
-    "sourceLines": 1318017,
+    "testFiles": 5550,
+    "sourceLines": 1318036,
     "workspaceEdges": 250,
     "moduleEdges": 18873,
     "nonCommandSlashImports": 0,
@@ -387,7 +387,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 549,
-      "testFiles": 393,
+      "testFiles": 394,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -406,7 +406,7 @@
         {
           "path": "apps/desktop-v2/tsconfig.test.json",
           "error": null,
-          "testFiles": 393
+          "testFiles": 394
         }
       ]
     },
@@ -1897,6 +1897,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/desktop-layout-reload.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/desktop-office-feed-start-ownership.test.ts",
         "projects": [
           "root-node"
         ]
