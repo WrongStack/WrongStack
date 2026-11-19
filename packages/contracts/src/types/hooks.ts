@@ -197,6 +197,12 @@ export interface HookInput {
     | undefined;
   /** Absolute working directory of the session. */
   cwd: string;
+  /**
+   * The directory tools resolve relative paths and spawn shells in, when it
+   * differs from `cwd` (`set_working_dir`, worktrees). A hook that reasons
+   * about where a tool acted starts here, not at `cwd`.
+   */
+  workingDir?: string | undefined;
   /** Active session id, when known. */
   sessionId?: string | undefined;
 }

@@ -1120,7 +1120,7 @@
       "classification": "product feature",
       "intendedOwner": "feature/plugin owner",
       "sourceFiles": 8,
-      "sourceLines": 1793
+      "sourceLines": 1800
     },
     {
       "directory": "infrastructure",

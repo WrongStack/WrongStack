@@ -1168,9 +1168,6 @@
       "isCommitCall",
       "lockfileDriftNote"
     ],
-    "packages/plugins/src/dependency-vulnerability-gate/index.ts": [
-      "isInstallCommand"
-    ],
     "packages/plugins/src/error-lens/index.ts": [
       "extractErrorLine",
       "extractFrames"

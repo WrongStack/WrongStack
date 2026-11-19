@@ -8561,7 +8561,7 @@
     },
     {
       "specifier": "@wrongstack/core/security",
-      "file": "packages/plugins/src/dependency-vulnerability-gate/index.ts",
+      "file": "packages/plugins/src/dependency-vulnerability-gate/audit-target.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

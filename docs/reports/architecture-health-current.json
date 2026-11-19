@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T15:53:04.189Z",
+  "generatedAt": "2026-11-19T17:54:40.307Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6394,
-    "testFiles": 5566,
-    "sourceLines": 1318746,
+    "sourceFiles": 6395,
+    "testFiles": 5567,
+    "sourceLines": 1319030,
     "workspaceEdges": 250,
-    "moduleEdges": 18893,
+    "moduleEdges": 18895,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1075
+    "testOnlyExports": 1074
   },
   "errors": [],
   "packageCycles": [],
@@ -693,8 +693,8 @@
     {
       "name": "@wrongstack/plugins",
       "dir": "packages/plugins",
-      "sourceFiles": 154,
-      "testFiles": 136,
+      "sourceFiles": 155,
+      "testFiles": 137,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -712,7 +712,7 @@
         {
           "path": "packages/plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 136
+          "testFiles": 137
         }
       ]
     },
@@ -18535,6 +18535,12 @@
       },
       {
         "file": "packages/plugins/tests/dep-guard.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugins/tests/dependency-vulnerability-gate-targets.test.ts",
         "projects": [
           "root-node"
         ]
@@ -38420,10 +38426,6 @@
     {
       "file": "packages/plugins/src/dep-guard/lockfile-sync.ts",
       "name": "lockfileDriftNote"
-    },
-    {
-      "file": "packages/plugins/src/dependency-vulnerability-gate/index.ts",
-      "name": "isInstallCommand"
     },
     {
       "file": "packages/plugins/src/error-lens/index.ts",

@@ -48,6 +48,8 @@ function hookTimeoutMs(entry: HookEntry): number {
 /** Minimal run-state the runner reads. `Context` structurally satisfies it. */
 export interface HookRunEnv {
   cwd: string;
+  /** Where tools resolve relative paths (`set_working_dir`); defaults to `cwd`. */
+  workingDir?: string | undefined;
   signal?: AbortSignal | undefined;
   /** Active conversation. Shared WebUI executors pass a different one per tab. */
   session?: { id: string } | undefined;
@@ -411,12 +413,17 @@ export class HookRunner {
 
   // ── internals ──────────────────────────────────────────────────────
 
-  private base(env: HookRunEnv): { cwd: string; sessionId?: string | undefined } {
+  private base(env: HookRunEnv): Pick<HookInput, 'cwd' | 'workingDir' | 'sessionId'> {
     // The executor may be shared by multiple WebUI agents. Its construction-
     // time fallback identifies only the boot conversation; the call's live
     // Context is authoritative for every cloned tab/session.
     const sessionId = env.session?.id ?? this.opts.sessionId?.();
-    return sessionId ? { cwd: env.cwd, sessionId } : { cwd: env.cwd };
+    const out: Pick<HookInput, 'cwd' | 'workingDir' | 'sessionId'> = { cwd: env.cwd };
+    // Only when it differs, so payloads (and hook stdin) stay as they were
+    // for the common case.
+    if (env.workingDir && env.workingDir !== env.cwd) out.workingDir = env.workingDir;
+    if (sessionId) out.sessionId = sessionId;
+    return out;
   }
 
   private matching(event: HookEvent, toolName: string | undefined): readonly HookEntry[] {

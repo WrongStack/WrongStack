@@ -249,7 +249,7 @@ export const pluginDetailsPart4: Record<string, PluginDetail> = {
         description: 'Audit process timeout in milliseconds.',
       },
     ],
-    hooks: ['PostToolUse (install|bash|exec)'],
+    hooks: ['PostToolUse (install|language_package|bash|exec)'],
     apiVersion: '^0.1.10',
     example:
       '{\n  "extensions": {\n    "dependency-vulnerability-gate": {\n      "severityThreshold": "high",\n      "block": true\n    }\n  }\n}',

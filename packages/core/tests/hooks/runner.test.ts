@@ -35,6 +35,26 @@ describe('HookRunner.preToolUse', () => {
     expect(seen).toEqual(['tab-session-a', 'tab-session-b']);
   });
 
+  it('carries the tools working directory only when it differs from cwd', async () => {
+    const reg = new HookRegistry();
+    const seen: Array<{ cwd: string; workingDir?: string | undefined; has: boolean }> = [];
+    reg.registerInProcess('PostToolUse', '*', (input) => {
+      seen.push({ cwd: input.cwd, workingDir: input.workingDir, has: 'workingDir' in input });
+    });
+    const runner = new HookRunner({ registry: reg });
+    const ok = { content: '', isError: false };
+
+    await runner.postToolUse('install', {}, ok, { cwd: '/work', workingDir: '/work/apps/api' });
+    await runner.postToolUse('install', {}, ok, { cwd: '/work', workingDir: '/work' });
+    await runner.postToolUse('install', {}, ok, env);
+
+    expect(seen).toEqual([
+      { cwd: '/work', workingDir: '/work/apps/api', has: true },
+      { cwd: '/work', workingDir: undefined, has: false },
+      { cwd: '/work', workingDir: undefined, has: false },
+    ]);
+  });
+
   it('supports explicit allow/deny/mutate outcomes', async () => {
     const reg = new HookRegistry();
     reg.registerInProcess('PreToolUse', '*', async (input) => ({
