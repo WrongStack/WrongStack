@@ -110,12 +110,17 @@ export function useCodeMapGraphLoader({
   /** The load whose answer the map is waiting for; a newer load or unmount supersedes it. */
   const loadToken = useRef(0);
   const firstLoad = useRef<string | null>(null);
-  useEffect(
-    () => () => {
+  const mountedRef = useRef(true);
+  const cacheEpochRef = useRef(0);
+  const loadingBranchesRef = useRef(new Set<string>());
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
       loadToken.current += 1;
-    },
-    [],
-  );
+      cacheEpochRef.current += 1;
+    };
+  }, []);
 
   // Single load path for scope changes and index invalidation — avoids racing
   // two parallel fetches that both call setGraph when an index run finishes.
@@ -128,6 +133,7 @@ export function useCodeMapGraphLoader({
       // An explicit reload starts over; an index update keeps what the tree shows (expanded
       // packages read their file lists from this cache) and refreshes it below.
       if (reloadRequested) {
+        cacheEpochRef.current += 1;
         cache.current.clear();
         stale.current.clear();
       } else for (const key of cache.current.keys()) stale.current.add(key);
@@ -189,19 +195,32 @@ export function useCodeMapGraphLoader({
   const ensureBranch = useCallback(
     async (targetScope: CodeMapScope): Promise<void> => {
       const key = scopeKey(targetScope);
-      if ((cache.current.has(key) && !stale.current.has(key)) || loadingBranches.has(key)) return;
+      if (
+        (cache.current.has(key) && !stale.current.has(key)) ||
+        loadingBranchesRef.current.has(key)
+      ) {
+        return;
+      }
+      const epoch = cacheEpochRef.current;
+      const cancelled = () => !mountedRef.current || cacheEpochRef.current !== epoch;
+      loadingBranchesRef.current.add(key);
       setLoadingBranches((current) => new Set(current).add(key));
       try {
-        await fetchGraph(targetScope);
+        await fetchGraph(targetScope, false, cancelled);
+      } catch (err) {
+        if (!cancelled()) throw err;
       } finally {
-        setLoadingBranches((current) => {
-          const next = new Set(current);
-          next.delete(key);
-          return next;
-        });
+        loadingBranchesRef.current.delete(key);
+        if (mountedRef.current) {
+          setLoadingBranches((current) => {
+            const next = new Set(current);
+            next.delete(key);
+            return next;
+          });
+        }
       }
     },
-    [fetchGraph, loadingBranches],
+    [fetchGraph],
   );
 
   useEffect(() => {
@@ -214,9 +233,13 @@ export function useCodeMapGraphLoader({
       if (symbolResolveInflight.current.has(filePath)) continue;
       symbolResolveInflight.current.add(filePath);
       started += 1;
-      void fetchGraph({ level: 'symbols', file: filePath })
+      void fetchGraph(
+        { level: 'symbols', file: filePath },
+        false,
+        () => cancelled || !mountedRef.current,
+      )
         .then((symbolGraph) => {
-          if (cancelled) return;
+          if (cancelled || !mountedRef.current) return;
           const symbol = resolveSymbolForActivity(activity, symbolGraph.nodes);
           if (!symbol) return;
           resolveActivitySymbol(activity.toolUseId!, filePath, {

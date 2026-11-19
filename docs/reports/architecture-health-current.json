@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T15:30:28.328Z",
+  "generatedAt": "2026-11-19T15:39:39.210Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6393,
-    "testFiles": 5564,
-    "sourceLines": 1318517,
+    "testFiles": 5565,
+    "sourceLines": 1318540,
     "workspaceEdges": 250,
     "moduleEdges": 18888,
     "nonCommandSlashImports": 0,
@@ -739,7 +739,7 @@
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
       "sourceFiles": 262,
-      "testFiles": 30,
+      "testFiles": 31,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -756,7 +756,7 @@
         {
           "path": "packages/project-surfaces/tsconfig.test.json",
           "error": null,
-          "testFiles": 30
+          "testFiles": 31
         }
       ]
     },
@@ -19585,6 +19585,12 @@
       },
       {
         "file": "packages/project-surfaces/tests/surface-host-fetch-routing.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/use-code-map-graph-loader-branch-race.test.tsx",
         "projects": [
           "root-node"
         ]
