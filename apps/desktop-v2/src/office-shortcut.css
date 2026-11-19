@@ -1,0 +1,21 @@
+.office-projects.notification-panel {
+  width: min(210px, 60vw);
+  overflow-y: auto;
+}
+.office-projects > button {
+  flex: none;
+  justify-content: flex-start;
+  margin: 4px 6px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+
+/* Keep the shortcut reachable even where focused chat normally hides the header. */
+@media (max-height: 760px) {
+  .workspace-focused .topbar:has(.office-shortcut) {
+    display: flex;
+    min-height: 36px;
+    padding-block: 2px;
+  }
+}

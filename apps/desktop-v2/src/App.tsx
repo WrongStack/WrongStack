@@ -7,6 +7,7 @@ import { FleetPanel } from './FleetPanel';
 import { HostBuildNotice } from './HostBuildNotice';
 import { NotificationMenu } from './NotificationMenu';
 import { useNotificationFeed } from './notification-feed';
+import { OfficeShortcut } from './OfficeShortcut';
 import { ProjectViews } from './ProjectViews';
 import { native, openProjectWindow } from './platform';
 import { RenderErrorBoundary } from './RenderErrorBoundary';
@@ -131,6 +132,7 @@ export function App() {
             >
               {vm.mode === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
+            <OfficeShortcut vm={vm} />
             <NotificationMenu
               attention={attention.length}
               onAttention={() => {
