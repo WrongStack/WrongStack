@@ -688,7 +688,7 @@ and `SessionUsage.tsx`.
 
 ## Commands and tool discipline
 
-The repository pins Bun `1.4.3` in `.bun-version`. Use the actual repository manifests and refresh
+The repository pins Bun `1.4.5` in `.bun-version`. Use the actual repository manifests and refresh
 registries before proposing/installing dependency changes. Do not switch package managers.
 
 PowerShell may block `bun.ps1`; use `C:\Users\ersin\.bun\bin\bun.exe`. Do not use `bun test`:

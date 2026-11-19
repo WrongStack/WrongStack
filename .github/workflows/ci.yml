@@ -37,7 +37,7 @@ jobs:
     steps:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.5
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           persist-credentials: false
@@ -54,7 +54,7 @@ jobs:
     steps:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.5
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
@@ -125,7 +125,7 @@ jobs:
     steps:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.5
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
@@ -185,7 +185,7 @@ jobs:
     steps:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.5
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
@@ -270,7 +270,7 @@ jobs:
     steps:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.5
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
@@ -346,7 +346,7 @@ jobs:
     steps:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.5
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           # Full history: this job runs `bun run check:architecture`, whose
@@ -481,7 +481,7 @@ jobs:
     steps:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.5
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           persist-credentials: false
@@ -547,7 +547,7 @@ jobs:
     steps:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.5
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
@@ -713,7 +713,7 @@ jobs:
     steps:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.5
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
@@ -812,7 +812,7 @@ jobs:
     steps:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.5
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
@@ -922,7 +922,7 @@ jobs:
     steps:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.5
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           persist-credentials: false
@@ -956,7 +956,7 @@ jobs:
     steps:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.5
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:
           # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
@@ -1018,7 +1018,7 @@ jobs:
     steps:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.5
       - name: All required jobs passed
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: |

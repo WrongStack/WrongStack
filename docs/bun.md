@@ -33,7 +33,7 @@ allocation stack sampling is unavailable through this backend. The isolated
 resource inspector tracks global timers plus native-reported resources. It
 cannot infer heap retention or timers created through imported `node:timers` APIs.
 
-The workspace and GitHub Actions use Bun 1.4.3, pinned in `.bun-version` and
+The workspace and GitHub Actions use Bun 1.4.5, pinned in `.bun-version` and
 `package.json`. Install Bun, then run:
 
 ```sh

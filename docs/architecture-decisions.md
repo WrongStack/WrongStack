@@ -178,7 +178,7 @@ active decisions; `/adr check-json [id]` returns the structured result.
 ```json
 "checks": [
   { "id": "manifest", "kind": "file_exists", "path": "package.json" },
-  { "id": "runtime", "kind": "json_equals", "path": "package.json", "pointer": "/packageManager", "value": "bun@1.4.3" },
+  { "id": "runtime", "kind": "json_equals", "path": "package.json", "pointer": "/packageManager", "value": "bun@1.4.5" },
   { "id": "marker", "kind": "contains_text", "path": "src/contract.ts", "text": "export interface Contract" },
   { "id": "no-marker", "kind": "excludes_text", "path": "src/contract.ts", "text": "LEGACY_CONTRACT" }
 ]

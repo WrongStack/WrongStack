@@ -4,7 +4,7 @@
 - Adjudicate Chimera file-shape claims (`one-liner`, missing EOF newline) with `[System.IO.File]::ReadAllBytes(...)` on trailing bytes; stale rendered diffs are not authoritative.
 
 ## Strict verification commands
-- Use local TypeScript (`node node_modules/typescript/bin/tsc`) and `bunx` because `packageManager` pins Bun `bun@1.4.3`; do not use `pnpm exec`.
+- Use local TypeScript (`node node_modules/typescript/bin/tsc`) and `bunx` because `packageManager` pins Bun `bun@1.4.5`; do not use `pnpm exec`.
 - Verify `packages/webui-server` “missing required property” claims with `node node_modules/typescript/bin/tsc --noEmit --pretty false -p packages/webui-server/tsconfig.json`.
 - For edited packages, run narrow `node node_modules/typescript/bin/tsc --noEmit --pretty false -p <tsconfig>` checks against `packages/webui-server/tsconfig.json`, `packages/sage/tsconfig.json`, and `packages/vibeui/tsconfig.json`, plus relevant `bunx biome check <path>` and `bunx vitest run <test>`.
 

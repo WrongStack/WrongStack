@@ -1,6 +1,6 @@
 ## Commands
 
-- From the repository root, run `cd packages/webui && bun run vitest run tests/i18n/catalog-integrity.test.ts`; never use `pnpm`, which aborts with `Unsupported package manager specification (bun@1.4.3)`.
+- From the repository root, run `cd packages/webui && bun run vitest run tests/i18n/catalog-integrity.test.ts`; never use `pnpm`, which aborts with `Unsupported package manager specification (bun@1.4.5)`.
 - Put throwaway audit helpers in `packages/webui/.temp_files/` with a `.cjs` extension, never `.js`: `packages/webui/package.json` sets `"type": "module"`, so `.js` fails with `ReferenceError: require is not defined in ES module scope`. Keep exploratory logic out of `tests/i18n/`.
 - Use `git diff` and flatten HEAD with `git show HEAD:<file>`; compare flattened dotted key sets to identify exact `ADDED` / `REMOVED` / `CHANGED` keys instead of inferring intent from line numbers.
 

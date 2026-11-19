@@ -4,7 +4,7 @@
   "version": "1.7.12",
   "license": "MIT",
   "type": "module",
-  "packageManager": "bun@1.4.3",
+  "packageManager": "bun@1.4.5",
   "engines": {
     "node": "^22.22.2 || ^24.15.0 || >=26.0.0",
     "bun": ">=1.4.3"

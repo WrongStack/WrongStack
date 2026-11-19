@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.5
       # v4 — SHA-pinned per WS-041 so the upstream owner cannot move the ref
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
         with:

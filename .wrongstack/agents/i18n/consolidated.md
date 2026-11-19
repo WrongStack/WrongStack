@@ -1,6 +1,6 @@
 ## Audit Workflow
 
-- From the repository root, run `cd packages/webui && bun run vitest run tests/i18n/catalog-integrity.test.ts`. Never use `pnpm` for this repository; it fails on the Bun package-manager pin with `Unsupported package manager specification (bun@1.4.3)`.
+- From the repository root, run `cd packages/webui && bun run vitest run tests/i18n/catalog-integrity.test.ts`. Never use `pnpm` for this repository; it fails on the Bun package-manager pin with `Unsupported package manager specification (bun@1.4.5)`.
 - Restore key parity before running custom comparisons. Read the complete missing-key output first so checks are not obscured by absent keys.
 - Treat `catalog-integrity.test.ts` as authoritative for key parity, empty strings, dangling `t()` references, and translator wiring. A passing suite does not prove that non-English values are translated and does not detect catalog keys with no source reference.
 - Build the exact change set before auditing: inspect `git diff`, obtain the baseline file with `git show HEAD:<file>`, flatten the baseline and working-tree catalogs into dotted key/value maps, and compare them to derive exact added, removed, and changed keys. Restrict custom findings to that set.
