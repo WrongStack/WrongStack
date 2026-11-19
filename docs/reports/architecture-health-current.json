@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T14:03:08.124Z",
+  "generatedAt": "2026-11-19T14:04:17.980Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6391,
-    "testFiles": 5556,
-    "sourceLines": 1318315,
+    "testFiles": 5557,
+    "sourceLines": 1318324,
     "workspaceEdges": 250,
     "moduleEdges": 18883,
     "nonCommandSlashImports": 0,
@@ -1019,7 +1019,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 402,
-      "testFiles": 397,
+      "testFiles": 398,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -1038,7 +1038,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 397
+          "testFiles": 398
         }
       ]
     },
@@ -24085,6 +24085,12 @@
       },
       {
         "file": "packages/tools/tests/danger-detect.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/danger-rm-long-option-abbrev.test.ts",
         "projects": [
           "root-node"
         ]
