@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T15:29:19.155Z",
+  "generatedAt": "2026-11-19T15:30:28.328Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6393,
-    "testFiles": 5563,
-    "sourceLines": 1318501,
+    "testFiles": 5564,
+    "sourceLines": 1318517,
     "workspaceEdges": 250,
     "moduleEdges": 18888,
     "nonCommandSlashImports": 0,
@@ -185,7 +185,7 @@
       "name": "@wrongstack/chronicle",
       "dir": "packages/chronicle",
       "sourceFiles": 54,
-      "testFiles": 56,
+      "testFiles": 57,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -201,7 +201,7 @@
         {
           "path": "packages/chronicle/tsconfig.test.json",
           "error": null,
-          "testFiles": 56
+          "testFiles": 57
         }
       ]
     },
@@ -4861,6 +4861,12 @@
       },
       {
         "file": "packages/chronicle/tests/counter-sink.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/chronicle/tests/decision-adapter-resilience.test.ts",
         "projects": [
           "root-node"
         ]

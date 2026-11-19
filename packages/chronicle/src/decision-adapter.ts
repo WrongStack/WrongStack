@@ -25,14 +25,20 @@ export function wireDecisionsToChronicle(options: ChronicleDecisionAdapterOption
     const context = typeof options.context === 'function' ? options.context() : options.context;
     const input: ChronicleEventInput = {
       eventType,
-      occurredAt: new Date(at).toISOString(),
+      occurredAt: safeIsoTimestamp(at),
       outcome,
       scope: { ...context.scope, ...(sessionId ? { sessionId } : {}) },
       correlation: context.correlation,
       resource: { kind: 'other', id: `decision:${requestId}` },
       attributes: { decisionId: requestId, ...attributes },
     };
-    void options.journal.append(input).catch((error) => options.onPersistError?.(error, input));
+    try {
+      void Promise.resolve(options.journal.append(input)).catch((error) =>
+        options.onPersistError?.(error, input),
+      );
+    } catch (error) {
+      options.onPersistError?.(error, input);
+    }
   };
   const requestAttrs = (request: BrainDecisionRequest) => ({
     source: request.source,
@@ -185,6 +191,16 @@ export function wireDecisionsToChronicle(options: ChronicleDecisionAdapterOption
     });
 }
 
-function hash(value: string | undefined): string | undefined {
-  return value ? createHash('sha256').update(value).digest('hex') : undefined;
+function safeIsoTimestamp(at: number): string {
+  if (typeof at === 'number' && Number.isFinite(at)) {
+    const date = new Date(at);
+    if (!Number.isNaN(date.getTime())) return date.toISOString();
+  }
+  return new Date().toISOString();
+}
+
+function hash(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0
+    ? createHash('sha256').update(value).digest('hex')
+    : undefined;
 }
