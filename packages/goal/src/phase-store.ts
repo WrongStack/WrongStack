@@ -415,7 +415,11 @@ export class PhaseStore {
         if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
         const legacyPath = path.join(legacyDir, entry.name);
         const currentPath = this.getFilePath(path.basename(entry.name, '.json'));
-        if (await this.pathExists(currentPath)) {
+        // F5: the legacy copy is the recovery source for an unparseable current
+        // file — load() heals from it. Mere existence is not usability: deleting
+        // the legacy copy while the current one is corrupt destroys the only
+        // valid graph. Treat the legacy as redundant only once current LOADS.
+        if (await this.loadFromPath(currentPath)) {
           await this.removeMigratedLegacyFile(legacyDir, legacyPath);
           continue;
         }
@@ -424,15 +428,6 @@ export class PhaseStore {
         await this.save(graph);
         await this.removeMigratedLegacyFile(legacyDir, legacyPath);
       }
-    }
-  }
-
-  private async pathExists(filePath: string): Promise<boolean> {
-    try {
-      await fsp.access(filePath);
-      return true;
-    } catch {
-      return false;
     }
   }
 

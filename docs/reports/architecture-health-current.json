@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T10:02:55.984Z",
+  "generatedAt": "2026-11-19T10:05:11.567Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6389,
-    "testFiles": 5534,
-    "sourceLines": 1317672,
+    "testFiles": 5535,
+    "sourceLines": 1317667,
     "workspaceEdges": 250,
     "moduleEdges": 18871,
     "nonCommandSlashImports": 0,
@@ -443,7 +443,7 @@
       "name": "@wrongstack/goal",
       "dir": "packages/goal",
       "sourceFiles": 24,
-      "testFiles": 29,
+      "testFiles": 30,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -458,7 +458,7 @@
         {
           "path": "packages/goal/tsconfig.test.json",
           "error": null,
-          "testFiles": 29
+          "testFiles": 30
         }
       ]
     },
@@ -15355,6 +15355,12 @@
       },
       {
         "file": "packages/goal/tests/phase-orchestrator.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/phase-store-legacy-migration.test.ts",
         "projects": [
           "root-node"
         ]
