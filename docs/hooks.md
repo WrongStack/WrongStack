@@ -198,6 +198,7 @@ hooks see the same shape.
     "toolName": "bash"                                  // permission only
   },
   "cwd": "/abs/project",
+  "workingDir": "/abs/project/apps/api",                // when it differs from cwd (set_working_dir)
   "sessionId": "01J..."                                 // when known
 }
 ```
