@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T14:04:17.980Z",
+  "generatedAt": "2026-11-19T14:06:06.868Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 48,
     "sourceFiles": 6391,
     "testFiles": 5557,
-    "sourceLines": 1318324,
+    "sourceLines": 1318328,
     "workspaceEdges": 250,
     "moduleEdges": 18883,
     "nonCommandSlashImports": 0,
@@ -35871,7 +35871,7 @@
     },
     {
       "file": "packages/webui-server/src/server/file-handlers.ts",
-      "lines": 712,
+      "lines": 716,
       "relativeImports": 6
     },
     {

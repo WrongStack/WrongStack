@@ -359,6 +359,27 @@ describe('file handlers integration', () => {
       expect(response.payload.files).toContain('src/b.ts');
     });
 
+    it('names the query it answers, exactly as sent', async () => {
+      // Requests are answered concurrently; clients drop replies for older queries.
+      fsSync.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
+      fsSync.writeFileSync(path.join(tempDir, 'src', 'SessionComposer.tsx'), '');
+      const ws = createMockWs();
+
+      await handleFilesList(
+        ws,
+        { type: 'files.list', payload: { query: '  SessionComp ' } },
+        tempDir,
+      );
+      await handleFilesList(ws, { type: 'files.list', payload: {} }, tempDir);
+
+      const [withQuery, withoutQuery] = ws.sent as Array<{
+        payload: { files: string[]; query?: string };
+      }>;
+      expect(withQuery?.payload.query).toBe('  SessionComp ');
+      expect(withQuery?.payload.files).toContain('src/SessionComposer.tsx');
+      expect(withoutQuery?.payload).not.toHaveProperty('query');
+    });
+
     it('respects limit parameter', async () => {
       // Create many files
       for (let i = 0; i < 10; i++) {

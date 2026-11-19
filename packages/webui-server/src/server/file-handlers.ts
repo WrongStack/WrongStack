@@ -585,7 +585,7 @@ export async function handleFilesWrite(
  *
  * Walks `projectRoot` (max depth 8), skipping hidden and heavyweight
  * dirs, then fuzzy-ranks results against `query`. Responds with
- * `{ type: 'files.list', payload: { files } }`.
+ * `{ type: 'files.list', payload: { files, query } }` (`query` as sent, when given).
  */
 export async function handleFilesList(
   ws: WebSocket,
@@ -611,6 +611,13 @@ export async function handleFilesList(
     send(ws, { type: 'files.list', payload: { files: [] } });
     return;
   }
+  // Requests are answered concurrently, so replies can arrive out of order: each
+  // reply names the query it answers, exactly as sent, for the client to match.
+  const reply = (files: string[]): void =>
+    send(ws, {
+      type: 'files.list',
+      payload: { files, ...(payload.query !== undefined ? { query: payload.query } : {}) },
+    });
   const limit = clampLimit(payload.limit, 50, 600);
 
   let listRoot: string;
@@ -626,7 +633,7 @@ export async function handleFilesList(
     realProjectRoot = await fs.realpath(projectRoot);
     realListRoot = await fs.realpath(listRoot);
   } catch {
-    send(ws, { type: 'files.list', payload: { files: [] } });
+    reply([]);
     return;
   }
 
@@ -697,10 +704,7 @@ export async function handleFilesList(
   }
 
   await walk(listRoot, '', 0, new Set([pathKey(realListRoot)]));
-  send(ws, {
-    type: 'files.list',
-    payload: { files: rankFiles(results, payload.query ?? '', limit) },
-  });
+  reply(rankFiles(results, payload.query ?? '', limit));
 }
 
 export {
