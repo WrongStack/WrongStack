@@ -228,11 +228,20 @@ export async function handleBrainAsk(
   sessionId?: string | undefined,
   requestId?: string | undefined,
 ): Promise<void> {
-  const q = question?.trim();
-  const answerSessionId = sessionId ?? ctx.getSessionId?.();
+  const q = typeof question === 'string' ? question.trim() : '';
+  const normalizedSessionId =
+    typeof sessionId === 'string' && sessionId.trim().length > 0 ? sessionId.trim() : undefined;
+  const rawFallbackSessionId = ctx.getSessionId?.();
+  const fallbackSessionId =
+    typeof rawFallbackSessionId === 'string' && rawFallbackSessionId.trim().length > 0
+      ? rawFallbackSessionId.trim()
+      : undefined;
+  const answerSessionId = normalizedSessionId ?? fallbackSessionId;
+  const normalizedRequestId =
+    typeof requestId === 'string' && requestId.length > 0 ? requestId : undefined;
   const correlation = {
     ...(answerSessionId ? { sessionId: answerSessionId } : {}),
-    ...(requestId ? { requestId } : {}),
+    ...(normalizedRequestId ? { requestId: normalizedRequestId } : {}),
   };
   const fail = (message: string) =>
     ctx.send(ws, {
