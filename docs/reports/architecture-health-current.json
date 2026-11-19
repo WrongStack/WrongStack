@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T09:49:34.110Z",
+  "generatedAt": "2026-11-19T09:51:01.419Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6389,
-    "testFiles": 5529,
-    "sourceLines": 1317570,
+    "testFiles": 5530,
+    "sourceLines": 1317595,
     "workspaceEdges": 250,
     "moduleEdges": 18871,
     "nonCommandSlashImports": 0,
@@ -185,7 +185,7 @@
       "name": "@wrongstack/chronicle",
       "dir": "packages/chronicle",
       "sourceFiles": 54,
-      "testFiles": 53,
+      "testFiles": 54,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -201,7 +201,7 @@
         {
           "path": "packages/chronicle/tsconfig.test.json",
           "error": null,
-          "testFiles": 53
+          "testFiles": 54
         }
       ]
     },
@@ -4951,6 +4951,12 @@
       },
       {
         "file": "packages/chronicle/tests/payload-codec.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/chronicle/tests/process-adapter-cwd-scrub-and-bounds.test.ts",
         "projects": [
           "root-node"
         ]

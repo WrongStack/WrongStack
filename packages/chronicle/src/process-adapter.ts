@@ -13,22 +13,47 @@ export interface ChronicleProcessAdapterOptions {
   onPersistError?: ((error: unknown, event: ChronicleEventInput) => void) | undefined;
 }
 
+const MAX_PROCESS_FIELD_BYTES = 512;
+const MAX_PROCESS_ARGS = 64;
+
+function boundUtf8(value: string, maxBytes: number): string {
+  const bytes = Buffer.from(value, 'utf8');
+  if (bytes.byteLength <= maxBytes) return value;
+  const suffix = '…';
+  const suffixBytes = Buffer.byteLength(suffix, 'utf8');
+  const budget = Math.max(0, maxBytes - suffixBytes);
+  let cut = budget;
+  while (cut > 0) {
+    const candidate = bytes.subarray(0, cut).toString('utf8');
+    if (!candidate.includes('\uFFFD') && Buffer.byteLength(candidate, 'utf8') <= budget) {
+      return `${candidate}${suffix}`;
+    }
+    cut--;
+  }
+  return suffix;
+}
+
 export function wireProcessesToChronicle(options: ChronicleProcessAdapterOptions): () => void {
   const unsubs = [
-    options.events.on('process.started', (event) =>
+    options.events.on('process.started', (event) => {
+      const cappedArgs = event.args
+        .slice(0, MAX_PROCESS_ARGS)
+        .map((arg) => boundUtf8(options.scrubber.scrub(arg), MAX_PROCESS_FIELD_BYTES));
+      const argsTruncated = Math.max(0, event.args.length - MAX_PROCESS_ARGS);
       persist(options, event, {
         eventType: 'process.started',
         outcome: 'started',
         occurredAt: event.startedAt,
         attributes: {
-          command: options.scrubber.scrub(event.command),
-          args: event.args.map((arg) => options.scrubber.scrub(arg)),
-          cwd: event.cwd,
+          command: boundUtf8(options.scrubber.scrub(event.command), MAX_PROCESS_FIELD_BYTES),
+          args: cappedArgs,
+          ...(argsTruncated > 0 ? { argsTruncated } : {}),
+          cwd: boundUtf8(options.scrubber.scrub(event.cwd), MAX_PROCESS_FIELD_BYTES),
           parentPid: event.parentPid,
           background: event.background,
         },
-      }),
-    ),
+      });
+    }),
     options.events.on('process.completed', (event) =>
       persist(options, event, {
         eventType: 'process.completed',
