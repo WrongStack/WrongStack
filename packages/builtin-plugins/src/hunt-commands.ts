@@ -165,16 +165,44 @@ function parseHuntArgs(
   rounds?: number | undefined;
   error?: string | undefined;
 } {
-  const match = args.trim().match(/^--rounds(?:\s+|=)(\S+)(?:\s+([\s\S]*))?$/);
-  if (!match) return { target: args.trim() };
-  const rounds = Number(match[1]);
-  if (!Number.isInteger(rounds) || rounds < 1 || rounds > 25) {
-    return {
-      target: '',
-      error: `Usage: /${commandName} [--rounds 1..25] ${argsHint}`,
-    };
+  const usage = `Usage: /${commandName} [--rounds 1..25] ${argsHint}`;
+  const trimmed = args.trim();
+  if (!trimmed) return { target: '' };
+
+  const tokens = trimmed.split(/\s+/);
+  const targetTokens: string[] = [];
+  let rounds: number | undefined;
+
+  const parseRoundsValue = (raw: string | undefined): number | null => {
+    if (!raw || !/^[1-9]\d*$/.test(raw)) return null;
+    const n = Number.parseInt(raw, 10);
+    return Number.isSafeInteger(n) && n >= 1 && n <= 25 ? n : null;
+  };
+
+  for (let i = 0; i < tokens.length; i += 1) {
+    const token = tokens[i]!;
+    if (token === '--rounds') {
+      if (rounds !== undefined) return { target: '', error: usage };
+      const parsed = parseRoundsValue(tokens[i + 1]);
+      if (parsed === null) return { target: '', error: usage };
+      rounds = parsed;
+      i += 1;
+      continue;
+    }
+    if (token.startsWith('--rounds=')) {
+      if (rounds !== undefined) return { target: '', error: usage };
+      const parsed = parseRoundsValue(token.slice('--rounds='.length));
+      if (parsed === null) return { target: '', error: usage };
+      rounds = parsed;
+      continue;
+    }
+    targetTokens.push(token);
   }
-  return { target: match[2]?.trim() ?? '', rounds };
+
+  return {
+    target: targetTokens.join(' '),
+    ...(rounds !== undefined ? { rounds } : {}),
+  };
 }
 
 function buildSingleHuntCommand(
