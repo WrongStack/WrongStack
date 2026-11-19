@@ -402,18 +402,26 @@ impl Registry {
     }
     /// Forgets a session: its drafts, their revisions and its row. False when it is unknown.
     pub fn remove(&self, id: &str) -> Result<bool> {
-        let keys =
-            ["draft", "draftrefs", "draftmedia", "draftmode"].map(|part| format!("{part}:{id}"));
-        self.db
-            .execute(
-                "DELETE FROM settings WHERE key IN (?1,?2,?3,?4)",
-                params![keys[0], keys[1], keys[2], keys[3]],
-            )
-            .map_err(err)?;
-        let removed = self
-            .db
+        let keys = [
+            "draft",
+            "draftrefs",
+            "draftmedia",
+            "draftmode",
+            "draftplan",
+            "draftrefine",
+        ]
+        .map(|part| format!("{part}:{id}"));
+        let tx =
+            Transaction::new_unchecked(&self.db, TransactionBehavior::Immediate).map_err(err)?;
+        tx.execute(
+            "DELETE FROM settings WHERE key IN (?1,?2,?3,?4,?5,?6)",
+            keys,
+        )
+        .map_err(err)?;
+        let removed = tx
             .execute("DELETE FROM sessions WHERE id=?1", [id])
             .map_err(err)?;
+        tx.commit().map_err(err)?;
         Ok(removed > 0)
     }
     pub fn recover(&self) -> Result<()> {
@@ -1659,6 +1667,62 @@ mod tests {
         std::fs::remove_dir_all(dir).unwrap();
     }
     #[test]
+    fn a_failed_session_delete_preserves_draft_values_and_revisions() {
+        use super::{now, Registry, Session, Uuid};
+        let dir = std::env::temp_dir().join(format!("desktop-delete-draft-{}", Uuid::new_v4()));
+        let db = Registry::open(&dir).unwrap();
+        let project = db.register(dir.to_str().unwrap()).unwrap();
+        let session = Session {
+            id: Uuid::new_v4().to_string(),
+            project_id: project.id,
+            title: "Draft rollback".into(),
+            kind: "agent".into(),
+            workdir: dir.to_string_lossy().into(),
+            status: "stopped".into(),
+            created_at: now(),
+            updated_at: now(),
+            exit_code: None,
+            error: None,
+            untitled: false,
+        };
+        let id = &session.id;
+        db.insert(&session).unwrap();
+        db.save_draft(id, "unsent draft").unwrap();
+        db.save_draft_part(id, "references", r#"[{"path":"src/app.ts"}]"#)
+            .unwrap();
+        db.save_draft_part(id, "attachments", r#"[{"id":"attachment"}]"#)
+            .unwrap();
+        db.save_draft_mode(id, "queue").unwrap();
+        let snapshot = db.draft_snapshot(id).unwrap();
+        db.db
+            .execute_batch(
+                "CREATE TEMP TRIGGER reject_session_delete BEFORE DELETE ON sessions BEGIN
+                     SELECT RAISE(ABORT, 'fixture session delete failure');
+                 END;",
+            )
+            .unwrap();
+
+        let error = db.remove(id).unwrap_err();
+        let peer = Registry::open(&dir).unwrap();
+        let preserved_row = peer.sessions().unwrap().iter().any(|row| row.id == *id);
+        let preserved_draft = peer.draft_snapshot(id).unwrap();
+        drop(peer);
+        db.db
+            .execute_batch("DROP TRIGGER reject_session_delete")
+            .unwrap();
+        assert!(
+            db.remove(id).unwrap(),
+            "normal removal works after the failure is cleared"
+        );
+        drop(db);
+        std::fs::remove_dir_all(dir).unwrap();
+
+        assert!(error.contains("fixture session delete failure"));
+        assert!(preserved_row);
+        assert_eq!(preserved_draft, snapshot);
+    }
+
+    #[test]
     fn registry_persists_projects_sessions_and_rejects_escape() {
         let dir = std::env::temp_dir().join(Uuid::new_v4().to_string());
         let project_dir = dir.join("repo");
@@ -1707,11 +1771,45 @@ mod tests {
         db.insert(&gone).unwrap();
         db.save_draft(&gone.id, "a draft that goes with its session")
             .unwrap();
+        db.save_draft_checked(&gone.id, "plan", r#"{"title":"draft plan"}"#, 0)
+            .unwrap();
+        db.save_draft_checked(&gone.id, "refine", r#"{"text":"draft review"}"#, 0)
+            .unwrap();
+        db.save_draft_checked(&b.id, "refine", r#"{"title":"keep me"}"#, 0)
+            .unwrap();
+        let stale_window = Registry::open(&dir.join("state")).unwrap();
+        let stale = stale_window.draft_snapshot(&gone.id).unwrap();
         assert!(db.remove(&gone.id).unwrap());
+        assert!(stale_window
+            .save_draft_checked(
+                &gone.id,
+                "text",
+                "delayed edit",
+                stale["revisions"]["text"].as_i64().unwrap()
+            )
+            .unwrap_err()
+            .contains("Unknown agent session"));
+        assert!(stale_window
+            .replace_draft_checked(&gone.id, &stale, &stale["revisions"])
+            .unwrap_err()
+            .contains("Unknown agent session"));
+        drop(stale_window);
         assert!(!db.remove(&gone.id).unwrap());
         assert!(db.sessions().unwrap().iter().all(|row| row.id != gone.id));
         assert_eq!(db.setting(&format!("draft:{}", gone.id)).unwrap(), None);
+        assert_eq!(
+            [
+                db.setting(&format!("draftplan:{}", gone.id)).unwrap(),
+                db.setting(&format!("draftrefine:{}", gone.id)).unwrap(),
+            ],
+            [None, None],
+            "object drafts must be removed with their owning conversation"
+        );
         assert_eq!(db.draft(&b.id).unwrap(), "second project draft");
+        assert_eq!(
+            db.draft_object(&b.id, "refine").unwrap()["value"]["title"],
+            "keep me"
+        );
         assert!(db.save_draft_mode(&a.id, "unsupported").is_err());
         let refs = r#"[{"path":"src/app.ts"}]"#;
         let media = r#"[{"id":"one","name":"image.png","mediaType":"image/png","data":"AA+/==","bytes":3}]"#;
