@@ -1,6 +1,8 @@
 #[cfg(feature = "desktop")]
 pub mod desktop;
 pub mod engine;
+#[cfg(any(feature = "desktop", all(windows, test)))]
+mod engine_cleanup;
 pub mod host;
 #[cfg(feature = "desktop")]
 mod host_restart;

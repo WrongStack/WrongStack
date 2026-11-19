@@ -1,0 +1,36 @@
+.engine-cleanup {
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 0);
+  background: var(--base);
+}
+.engine-cleanup header,
+.engine-cleanup li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.engine-cleanup h2,
+.engine-cleanup li > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.engine-cleanup p,
+.engine-cleanup code {
+  color: var(--muted);
+}
+.engine-cleanup ul {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+.engine-cleanup li {
+  border-top: 1px solid var(--border);
+  padding: 8px 0;
+}
+.engine-cleanup code {
+  display: block;
+  overflow-wrap: anywhere;
+}

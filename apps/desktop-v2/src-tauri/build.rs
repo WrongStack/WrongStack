@@ -30,6 +30,8 @@ fn main() {
             "update_install",
             "host_info",
             "host_restart",
+            "scan_orphan_engines",
+            "stop_orphan_engine",
         ]),
     ))
     .expect("Tauri build configuration");

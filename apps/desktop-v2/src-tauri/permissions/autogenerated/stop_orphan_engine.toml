@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-stop-orphan-engine"
+description = "Enables the stop_orphan_engine command without any pre-configured scope."
+commands.allow = ["stop_orphan_engine"]
+
+[[permission]]
+identifier = "deny-stop-orphan-engine"
+description = "Denies the stop_orphan_engine command without any pre-configured scope."
+commands.deny = ["stop_orphan_engine"]

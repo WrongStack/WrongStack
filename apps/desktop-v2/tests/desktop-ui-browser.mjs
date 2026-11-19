@@ -27,11 +27,25 @@ let appearance={...defaultAppearance,mode:location.pathname.endsWith('/light')?'
 const initialLayout=location.pathname.includes('/session')?JSON.stringify({project:'p1',selected:'s0',section:'fleet',openSessionIds:['s0']}):null;
 const queues=new Map(),offsets=new Map();
 window.uiCalls=[]; window.uiUnexpected=[];
+const orphan={pid:912,identity:'123',image:'C:/Desktop/hosts/fixture/wrongstack-engine.exe'};
+window.cleanup={rows:[orphan],scans:0,failScan:false,stops:[],fail:false};
 const enqueue=(id,event)=>{const queue=queues.get(id)||[];queue.push(event);queues.set(id,queue);};
 window.uiInvoke=async(command,args={})=>{
  if(command==='host_info')return {appVersion:'1.7.9',stale:false};
  if(command==='update_check')return null;
  if(command==='speech_status')return {available:false,reason:'Fixture: dictation unavailable'};
+ if(command==='scan_orphan_engines'){
+  window.cleanup.scans++;
+  if(window.cleanup.failScan)throw Error('Scan failed');
+  if(window.cleanup.holdScan)await new Promise(resolve=>{window.finishScan=resolve;});
+  return window.cleanup.rows;
+ }
+ if(command==='stop_orphan_engine'){
+  window.cleanup.stops.push(args.target);
+  if(window.cleanup.fail)throw Error('Process is no longer a confirmed orphan');
+  window.cleanup.rows=[];
+  return null;
+ }
  if(command!=='host_request')throw Error('Unexpected native command '+command);
  const {method,params}=args;window.uiCalls.push({method,params});
  if(method==='snapshot')return {projects,sessions,hostPid:1,layout:initialLayout,appearance:JSON.stringify(appearance)};
@@ -137,14 +151,18 @@ try {
           false,
           'Fleet has no page overflow',
         );
-        assert.deepEqual((await new AxeBuilder({page}).withRules(['color-contrast']).analyze()).violations, [], 'Fleet contrast');
-        const search=page.getByRole('textbox',{name:'Search sessions',exact:true});
+        assert.deepEqual(
+          (await new AxeBuilder({ page }).withRules(['color-contrast']).analyze()).violations,
+          [],
+          'Fleet contrast',
+        );
+        const search = page.getByRole('textbox', { name: 'Search sessions', exact: true });
         await search.fill('no-such-fixture-session');
-        assert.equal(await page.locator('.session-card').count(),0);
+        assert.equal(await page.locator('.session-card').count(), 0);
         await search.fill('');
-        assert.equal(await page.locator('.session-card').count(),4);
+        assert.equal(await page.locator('.session-card').count(), 4);
         await page.locator('.card-pin').first().click();
-        assert.equal(await page.locator('.card-pin').first().getAttribute('aria-pressed'),'true');
+        assert.equal(await page.locator('.card-pin').first().getAttribute('aria-pressed'), 'true');
         await page.locator('.session-card-main').first().click();
         await page.getByRole('textbox', { name: 'Message WrongStack', exact: true }).waitFor();
         await page
@@ -213,11 +231,105 @@ try {
           'true',
         );
         await page.getByRole('button', { name: 'Expand session panel', exact: true }).click();
-        assert.deepEqual((await new AxeBuilder({page}).withRules(['color-contrast']).analyze()).violations, [], 'Session contrast');
-        await page.goto(url+'/session',{waitUntil:'domcontentloaded',timeout:60000});
-        await page.getByRole('textbox',{name:'Message WrongStack',exact:true}).waitFor();
-        const restored=await page.locator('.session-view-slot').boundingBox();
-        assert.ok(restored && restored.width >= 24 && restored.x >= 0 && restored.x+restored.width <= width, 'Restored session navigation stays visible');
+        assert.deepEqual(
+          (await new AxeBuilder({ page }).withRules(['color-contrast']).analyze()).violations,
+          [],
+          'Session contrast',
+        );
+        await page.goto(url + '/session', { waitUntil: 'domcontentloaded', timeout: 60000 });
+        await page.getByRole('textbox', { name: 'Message WrongStack', exact: true }).waitFor();
+        const restored = await page.locator('.session-view-slot').boundingBox();
+        assert.ok(
+          restored &&
+            restored.width >= 24 &&
+            restored.x >= 0 &&
+            restored.x + restored.width <= width,
+          'Restored session navigation stays visible',
+        );
+        assert.equal(await page.evaluate(() => window.cleanup.scans), 0);
+        await page.evaluate(() => {
+          window.cleanup.holdScan = true;
+        });
+        await page.getByRole('tab', { name: 'Agents', exact: true }).press('End');
+        const details = page.getByRole('tabpanel', { name: 'Details', exact: true });
+        const pids = details.getByRole('status');
+        await pids.getByText('Checking engine processes…').waitFor();
+        await page.waitForFunction(() => typeof window.finishScan === 'function');
+        await page.evaluate(() => {
+          window.cleanup.holdScan = false;
+          window.finishScan();
+        });
+        await pids.getByText('912', { exact: true }).waitFor();
+        await details.getByText('Orphaned engine PIDs (desktop-wide)').waitFor();
+        const refresh = details.getByRole('button', { name: 'Refresh PIDs' });
+        await refresh.scrollIntoViewIfNeeded();
+        assert.equal(
+          await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+          false,
+        );
+        await page.evaluate(() => {
+          window.cleanup.failScan = true;
+        });
+        await refresh.press('Enter');
+        await pids.getByText('Could not scan for orphaned engines.').waitFor();
+        await page.evaluate(() => {
+          window.cleanup.failScan = false;
+          window.fixtureOrphans = window.cleanup.rows;
+          window.cleanup.rows = [];
+        });
+        await refresh.press('Enter');
+        await pids.getByText('No confirmed orphaned engines found.').waitFor();
+        await page.evaluate(() => {
+          window.cleanup.rows = window.fixtureOrphans;
+        });
+        assert.equal(await details.getByRole('button', { name: /stop/i }).count(), 0);
+
+        const office = page.locator('.topbar .office-shortcut');
+        assert.equal(await office.count(), 1, 'One Office shortcut in the focused header');
+        const shortcut = await office.boundingBox();
+        assert.ok(shortcut && shortcut.x > width / 2 && shortcut.x + shortcut.width <= width);
+        await office.press('Enter');
+        await page.locator('.office-shortcut[aria-current="page"]').waitFor();
+
+        await page.getByRole('button', { name: 'Activity', exact: true }).click();
+        const chooser = page.locator('.office-shortcut > summary');
+        await chooser.press('Enter');
+        await page
+          .locator('.office-projects')
+          .getByRole('button', { name: 'WrongStack UI' })
+          .waitFor();
+        await page.keyboard.press('Escape');
+        assert.equal(await chooser.evaluate((node) => node === document.activeElement), true);
+
+        const cleanup = page.getByRole('region', { name: 'Background engines' });
+        const scan = cleanup.getByRole('button', { name: 'Scan for orphaned engines' });
+        await scan.click();
+        await cleanup.getByRole('button', { name: 'Stop PID 912', exact: true }).click();
+        await cleanup.getByRole('button', { name: 'Cancel', exact: true }).click();
+        assert.equal(await page.evaluate(() => window.cleanup.stops.length), 0);
+        await page.evaluate(() => {
+          window.cleanup.fail = true;
+        });
+        await cleanup.getByRole('button', { name: 'Stop PID 912', exact: true }).click();
+        await cleanup.getByRole('button', { name: 'Force stop PID 912' }).click();
+        await cleanup
+          .getByRole('alert')
+          .getByText(/no longer a confirmed orphan/)
+          .waitFor();
+        await page.evaluate(() => {
+          window.cleanup.fail = false;
+        });
+        await scan.click();
+        await cleanup.getByRole('button', { name: 'Stop PID 912', exact: true }).click();
+        await cleanup.getByRole('button', { name: 'Force stop PID 912' }).click();
+        await cleanup.getByText('Stopped engine PID 912.').waitFor();
+        assert.equal(await page.evaluate(() => window.cleanup.stops.at(-1).identity), '123');
+        await scan.click();
+        await cleanup.getByText('No confirmed orphaned engines found.').waitFor();
+        assert.equal(
+          await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+          false,
+        );
         assert.deepEqual(errors, []);
         assert.deepEqual(await page.evaluate(() => window.uiUnexpected), []);
         console.log(

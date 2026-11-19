@@ -116,6 +116,16 @@ export const installUpdate = (): Promise<void> => invoke('update_install');
 export const hostInfo = (): Promise<{ appVersion: string; stale: boolean }> => invoke('host_info');
 /** Stops the conversations, replaces the session host with one of this build, reloads windows. */
 export const restartHost = (): Promise<void> => invoke('host_restart');
+
+export interface OrphanEngine {
+  pid: number;
+  identity: string;
+  image: string;
+}
+export const scanOrphanEngines = (): Promise<OrphanEngine[] | null> =>
+  invoke('scan_orphan_engines');
+export const stopOrphanEngine = (target: OrphanEngine): Promise<void> =>
+  invoke('stop_orphan_engine', { target });
 export function streamTerminal(
   id: string,
   onData: (data: Uint8Array, acknowledge: () => void) => void,

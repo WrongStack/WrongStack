@@ -86,6 +86,13 @@ per minute. A project with a supervised Kanban board keeps its services running.
 reports an older session host after an update, use its restart notice to switch engines. The
 notice asks for confirmation before stopping live sessions.
 
+The top-right **Agent office** icon opens the current project's office map, or lets you
+choose a project from Mission Control. On Windows, use **Activity → Background engines**
+to scan for engine processes whose Desktop host has exited and force-stop one by PID.
+Cleanup checks the process identity and ownership again before stopping it. It does not
+scan standalone WrongStack installs or stop engines still associated with a live host.
+The session inspector’s **Details** tab also shows the desktop-wide orphaned PIDs, read-only.
+
 The remembered display language (or English on a fresh installation) is used
 at launch. The profile language is synchronized when settings is opened; shared project surfaces
 use the same in-memory language rather than polling an unopened profile runtime.

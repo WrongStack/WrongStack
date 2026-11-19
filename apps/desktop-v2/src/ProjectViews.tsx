@@ -2,6 +2,7 @@ import { Activity, ArrowRight, Folder, FolderPlus, Plus } from 'lucide-react';
 import { AppearanceSettings } from './AppearanceSettings';
 import { useDesktopText } from './desktop-i18n';
 import { displayDateTime } from './display-dates';
+import { EngineCleanup } from './EngineCleanup';
 import { isLive } from './model';
 import { addProject, native } from './platform';
 import type { DesktopController } from './useDesktop';
@@ -68,6 +69,7 @@ export function ProjectViews({ vm }: { vm: DesktopController }) {
           </button>
         </div>
       )}
+      {section === 'activity' && native && <EngineCleanup />}
       {section === 'activity' && (
         <section className="timeline">
           {snapshot.sessions.map((s) => (

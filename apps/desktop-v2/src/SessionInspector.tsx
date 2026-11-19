@@ -1,9 +1,11 @@
 import { Info, ListTodo, PanelRightClose, PanelRightOpen, Users } from 'lucide-react';
-import { type KeyboardEvent, useId, useState } from 'react';
+import { type KeyboardEvent, useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SessionAgentRail } from './AgentTranscripts';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
+import { native, scanOrphanEngines } from './platform';
 import { SessionTodos } from './SessionTodos';
 import { SessionToolSummary } from './SessionToolSummary';
 import { surfaceI18n } from './surface-i18n';
@@ -15,6 +17,66 @@ const tabs = [
   { id: 'details', Icon: Info },
 ] as const;
 type InspectorTab = (typeof tabs)[number]['id'];
+
+function BackgroundEnginePids() {
+  const { t } = useDesktopText();
+  const [scan, setScan] = useState(0);
+  const [result, setResult] = useState<{
+    scan: number;
+    pids: number[] | null | 'error';
+  }>();
+  useEffect(() => {
+    let current = true;
+    void scanOrphanEngines().then(
+      (rows) => {
+        if (current) setResult({ scan, pids: rows?.map(({ pid }) => pid) ?? null });
+      },
+      () => {
+        if (current) setResult({ scan, pids: 'error' });
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [scan]);
+
+  const pids = result?.scan === scan ? result.pids : undefined;
+  if (pids === null) return null;
+  return (
+    <div>
+      <dt>
+        {t('engineCleanup.detailsTitle', { defaultValue: 'Orphaned engine PIDs (desktop-wide)' })}
+      </dt>
+      <dd>
+        <span role="status">
+          {pids === undefined ? (
+            t('engineCleanup.working', { defaultValue: 'Checking engine processes…' })
+          ) : pids === 'error' ? (
+            t('engineCleanup.detailsError', {
+              defaultValue: 'Could not scan for orphaned engines.',
+            })
+          ) : pids.length ? (
+            <code>{pids.join(', ')}</code>
+          ) : (
+            t('engineCleanup.empty', { defaultValue: 'No confirmed orphaned engines found.' })
+          )}
+        </span>
+      </dd>
+      <dd>
+        <button
+          type="button"
+          className="button secondary small"
+          aria-disabled={pids === undefined}
+          onClick={() => {
+            if (pids !== undefined) setScan(scan + 1);
+          }}
+        >
+          {t('engineCleanup.refreshPids', { defaultValue: 'Refresh PIDs' })}
+        </button>
+      </dd>
+    </div>
+  );
+}
 
 /** Inspection is independent of the leader transcript and never retargets its composer. */
 export function SessionInspector({
@@ -133,6 +195,7 @@ export function SessionInspector({
                     <dt>{words('connection')}</dt>
                     <dd>{words(state.connected ? 'connected' : 'offline')}</dd>
                   </div>
+                  {native && tab === 'details' && !collapsed && <BackgroundEnginePids />}
                 </dl>
               </div>
             )}

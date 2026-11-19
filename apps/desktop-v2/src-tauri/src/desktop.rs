@@ -688,7 +688,9 @@ pub fn run() {
             crate::update::update_check,
             crate::update::update_install,
             crate::host_restart::host_info,
-            crate::host_restart::host_restart
+            crate::host_restart::host_restart,
+            crate::engine_cleanup::scan_orphan_engines,
+            crate::engine_cleanup::stop_orphan_engine
         ])
         .run(tauri::generate_context!())
         .expect("WrongStack desktop runtime");
