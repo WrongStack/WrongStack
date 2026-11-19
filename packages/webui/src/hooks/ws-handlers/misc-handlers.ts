@@ -2,6 +2,7 @@ import { projectRefineResult } from '@wrongstack/core/execution/refine-decisions
 import { toast } from '@/components/Toaster';
 import { reconcileFileTabsAfterEnvChange } from '@/hooks/ws-handlers/files-mailbox-handlers';
 import { normalizedEqual } from '@/lib/core-browser-shim';
+import { isStaleGitChangesReply } from '@/lib/git-changes-request';
 import { getWSClient } from '@/lib/ws-client';
 import { chatFor, messageSessionId } from '@/lib/ws-client-utils';
 import {
@@ -367,7 +368,9 @@ export function handleGitChanges(msg: WSServerMessage) {
     dirs?: Record<string, string> | undefined;
     repoPrefix?: string | undefined;
     error?: string | undefined;
+    requestId?: string | undefined;
   };
+  if (isStaleGitChangesReply(p.requestId)) return;
   useGitChangesStore
     .getState()
     .setFiles(p.files ?? [], p.error ?? null, p.repoPrefix ?? '', p.dirs ?? {});

@@ -1,6 +1,7 @@
 import type { WSClientMessage } from '../types';
 import type { ProviderCustomModelWire } from '../types/client-message';
 import type { ContextEditorMessage, ContextEditorRemoval } from '../types/runtime';
+import { nextGitChangesRequest } from './git-changes-request';
 import type { WSSendOptions } from './ws-client-contracts';
 import {
   buildClearModelsMessage,
@@ -22,7 +23,7 @@ const domainMethods = {
   },
 
   getGitChanges(this: WsClientDomainHost) {
-    this.send({ type: 'git.changes' });
+    this.send({ type: 'git.changes', payload: { requestId: nextGitChangesRequest() } });
   },
 
   getGitHistory(

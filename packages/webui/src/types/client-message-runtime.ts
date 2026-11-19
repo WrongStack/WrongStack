@@ -176,7 +176,7 @@ export type ClientMessageRuntime =
   | { type: 'process.kill'; payload: { pid: number } & SessionScopedPayload }
   | { type: 'process.killAll'; payload?: SessionScopedPayload }
   | { type: 'git.info' }
-  | { type: 'git.changes' }
+  | { type: 'git.changes'; payload?: { requestId?: string | undefined } }
   | {
       type: 'git.history';
       payload?: { ref?: string; limit?: number; skip?: number; path?: string };

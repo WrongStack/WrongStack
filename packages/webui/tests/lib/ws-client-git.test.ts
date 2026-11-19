@@ -8,7 +8,12 @@ describe('WrongStackWebSocketClient git requests', () => {
 
     client.getGitChanges();
 
-    expect(send).toHaveBeenCalledWith({ type: 'git.changes' });
+    // Each request carries a requestId the server echoes, so an older snapshot
+    // answered last can be dropped (see lib/git-changes-request.ts).
+    expect(send).toHaveBeenCalledWith({
+      type: 'git.changes',
+      payload: { requestId: expect.stringMatching(/^git-changes-/) },
+    });
   });
 
   it('sends git.diff request with the selected repo-relative path', () => {

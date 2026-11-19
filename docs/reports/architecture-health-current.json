@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T14:08:01.364Z",
+  "generatedAt": "2026-11-19T14:09:53.405Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6391,
-    "testFiles": 5558,
-    "sourceLines": 1318337,
+    "sourceFiles": 6392,
+    "testFiles": 5559,
+    "sourceLines": 1318361,
     "workspaceEdges": 250,
-    "moduleEdges": 18883,
+    "moduleEdges": 18884,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -1127,8 +1127,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 797,
-      "testFiles": 538,
+      "sourceFiles": 798,
+      "testFiles": 539,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1154,7 +1154,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 538
+          "testFiles": 539
         }
       ]
     },
@@ -33697,6 +33697,12 @@
       },
       {
         "file": "packages/webui/tests/lib/foreground-session-id.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/lib/git-changes-request.test.ts",
         "projects": [
           "webui-jsdom"
         ]
