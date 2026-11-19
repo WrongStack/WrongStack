@@ -527,6 +527,7 @@ mod tests {
                 // The fixture acknowledges the stop file by clearing this entry.
                 agent_pid: Some(u32::MAX),
                 engine: Some(Arc::clone(&engine)),
+                stop_requested: false,
             },
         );
         host.project_runtimes.lock().unwrap().insert(

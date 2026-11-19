@@ -29,11 +29,13 @@ pub struct LiveSession {
     pub killer: Option<Box<dyn ChildKiller + Send + Sync>>,
     pub agent_pid: Option<u32>,
     pub engine: Option<Arc<Engine>>,
+    pub(crate) stop_requested: bool,
 }
 pub struct HostState {
     pub(crate) project_runtimes: Mutex<HashMap<String, crate::project_runtime::ProjectRuntime>>,
     pub registry: Mutex<Registry>,
     pub live: Mutex<HashMap<String, LiveSession>>,
+    session_changes: Mutex<HashMap<String, SessionChange>>,
     pub dir: PathBuf,
     /// The engine a later launch handed over when this host was started without one.
     adopted_engine: Mutex<Option<PathBuf>>,
@@ -46,6 +48,24 @@ pub struct HostState {
     /// Working directories a spare is being started for right now, so a second request does
     /// not start another while the first one's process is still being created.
     warming: Mutex<std::collections::HashSet<String>>,
+}
+
+enum SessionChange {
+    Reconnecting,
+    Removing,
+}
+
+struct SessionChangeGuard<'a> {
+    changes: &'a Mutex<HashMap<String, SessionChange>>,
+    id: &'a str,
+}
+
+impl Drop for SessionChangeGuard<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut changes) = self.changes.lock() {
+            changes.remove(self.id);
+        }
+    }
 }
 
 /// An engine started ahead of need for one working directory. An engine boot takes seconds
@@ -109,6 +129,7 @@ impl HostState {
             project_runtimes: Mutex::new(HashMap::new()),
             registry: Mutex::new(registry),
             live: Mutex::new(HashMap::new()),
+            session_changes: Mutex::new(HashMap::new()),
             dir: dir.into(),
             adopted_engine: Mutex::new(None),
             spares: Mutex::new(Vec::new()),
@@ -579,6 +600,25 @@ impl HostState {
             host.stop_spare(id);
         }
     }
+    fn begin_session_change<'a>(
+        &'a self,
+        id: &'a str,
+        change: SessionChange,
+    ) -> Result<SessionChangeGuard<'a>> {
+        let mut changes = self.session_changes.lock().map_err(err)?;
+        if let Some(active) = changes.get(id) {
+            return Err(match active {
+                SessionChange::Reconnecting => "This conversation's engine is still running",
+                SessionChange::Removing => "This conversation is being removed",
+            }
+            .into());
+        }
+        changes.insert(id.into(), change);
+        Ok(SessionChangeGuard {
+            changes: &self.session_changes,
+            id,
+        })
+    }
     /// Starts a stopped agent conversation's engine again on its own record and journal,
     /// resuming the WrongStack session it recorded: the conversation keeps its id, its tab and
     /// its history, and its journal continues where the stopped engine left it.
@@ -588,6 +628,7 @@ impl HostState {
         if fork {
             return Err("Reconnecting resumes the conversation's own session".into());
         }
+        let _change = self.begin_session_change(id, SessionChange::Reconnecting)?;
         let is_live = self.live.lock().map_err(err)?.contains_key(id);
         let session = {
             let registry = self.registry.lock().map_err(err)?;
@@ -718,6 +759,7 @@ impl HostState {
                 killer: Some(killer),
                 agent_pid: process_id,
                 engine: None,
+                stop_requested: false,
             },
         );
         self.registry
@@ -879,6 +921,7 @@ impl HostState {
                 killer: None,
                 agent_pid: Some(child.id()),
                 engine: None,
+                stop_requested: false,
             },
         );
         let host = Arc::clone(self);
@@ -897,11 +940,7 @@ impl HostState {
                     .map(|o| o.clone())
                     .unwrap_or_else(|_| id.clone())
             };
-            let forget = || {
-                let mut live = host.live.lock().unwrap();
-                let owner = owner();
-                live.remove(&owner);
-            };
+            let forget = || host.release_engine(&id, &owned);
             // The 90 s start deadline runs from the claim: a spare waits unclaimed for as long
             // as it is not needed.
             let expired = || {
@@ -921,6 +960,7 @@ impl HostState {
                     let mut live = host.live.lock().unwrap();
                     let unclaimed = watched.lock().map(|at| at.is_none()).unwrap_or(false);
                     if unclaimed {
+                        host.clear_engine_stop_request(&id, &id);
                         live.remove(&id);
                     }
                     unclaimed
@@ -971,6 +1011,7 @@ impl HostState {
                         break;
                     }
                     Err(e) => {
+                        host.clear_engine_stop_request(&id, &owner());
                         let _ = host.publish_runtime_state(
                             &owner(),
                             "error",
@@ -1029,14 +1070,12 @@ impl HostState {
                             .join(format!("{}.events.jsonl", owner())),
                         bind_session,
                     ) {
-                        {
-                            let mut live = host.live.lock().unwrap();
-                            if let Some(live) = live.get_mut(&owner()) {
-                                live.engine = Some(engine);
-                            }
+                        let mut live = host.live.lock().unwrap();
+                        let conversation = owner();
+                        if let Some(session) = live.get_mut(&conversation) {
+                            host.attach_ready_engine(&conversation, session, engine);
                         }
                         ready = true;
-                        let _ = host.publish_runtime_state(&owner(), "running", None, None);
                     } else if expired() {
                         let _ = child.kill();
                         let _ = child.wait();
@@ -1058,17 +1097,9 @@ impl HostState {
                     250
                 }));
             }
-            // A stop request the engine never read must not stop the next engine on this id.
-            let _ = std::fs::remove_file(host.own_stop_file(&id));
             let conversation = owner();
             if conversation != id {
-                // A spare a reconnect took over: its conversation no longer points at it, and
-                // the files it was started with go (its claim, readiness answer and logs).
-                if let Ok(mut aliases) = host.aliases.lock() {
-                    if aliases.get(&conversation) == Some(&id) {
-                        aliases.remove(&conversation);
-                    }
-                }
+                // These files are private to the retired spare.
                 let (claim, ready_file) = host.spare_files(&id);
                 let transcripts = host.dir.join("transcripts");
                 for path in [
@@ -1082,6 +1113,31 @@ impl HostState {
             }
         });
         Ok((claimed, owner))
+    }
+    fn attach_ready_engine(&self, id: &str, session: &mut LiveSession, engine: Arc<Engine>) {
+        if session.stop_requested {
+            return;
+        }
+        session.engine = Some(engine);
+        let _ = self.publish_runtime_state(id, "running", None, None);
+    }
+    fn release_engine(&self, runtime_id: &str, owner: &Mutex<String>) {
+        let mut live = self.live.lock().unwrap();
+        let conversation = owner
+            .lock()
+            .map(|id| id.clone())
+            .unwrap_or_else(|_| runtime_id.to_owned());
+        // A cold reconnect can reuse this path as soon as the conversation is released.
+        self.clear_engine_stop_request(runtime_id, &conversation);
+        live.remove(&conversation);
+    }
+    fn clear_engine_stop_request(&self, runtime_id: &str, conversation: &str) {
+        let _ = std::fs::remove_file(self.own_stop_file(runtime_id));
+        if let Ok(mut aliases) = self.aliases.lock() {
+            if aliases.get(conversation).is_some_and(|id| id == runtime_id) {
+                aliases.remove(conversation);
+            }
+        }
     }
     /// The stop file the engine started under `runtime_id` was told to watch.
     fn own_stop_file(&self, runtime_id: &str) -> PathBuf {
@@ -1105,20 +1161,22 @@ impl HostState {
     /// strictly empty journal the empty-session sweep can remove. One still running after
     /// [`ENGINE_STOP_GRACE`] is stopped hard; terminals are stopped hard at once.
     pub(crate) fn stop(self: &Arc<Self>, id: &str) -> Result<Value> {
-        let engine_pid = {
-            let live = self.live.lock().map_err(err)?;
-            let session = live.get(id).ok_or("Session is not running")?;
-            session.agent_pid.filter(|_| session.master.is_none())
-        };
-        let Some(pid) = engine_pid else {
+        let mut live = self.live.lock().map_err(err)?;
+        let session = live.get_mut(id).ok_or("Session is not running")?;
+        let Some(pid) = session.agent_pid.filter(|_| session.master.is_none()) else {
+            drop(live);
             return self.kill(id, None);
         };
+        // Keep exit and reconnect from replacing this engine during the stop request.
         if std::fs::write(self.stop_file(id), b"").is_err() {
+            drop(live);
             return self.kill(id, Some(pid));
         }
         // The shutdown takes seconds: the conversation shows as stopping (no longer live, not
         // yet offered for reconnect) until its engine exits.
+        session.stop_requested = true;
         let _ = self.publish_runtime_state(id, "stopping", None, None);
+        drop(live);
         let host = Arc::clone(self);
         let id = id.to_owned();
         thread::spawn(move || {
@@ -1172,18 +1230,20 @@ impl HostState {
     /// Forgets a session: a running one is stopped first, then its row, drafts and desktop
     /// transcript go. The WrongStack conversation an agent recorded stays in the project history.
     fn remove(self: &Arc<Self>, id: &str) -> Result<Value> {
-        if self.live.lock().map_err(err)?.contains_key(id) {
-            self.stop(id)?;
-            // The exit watcher drops the live entry and records the exit; waiting for it means
-            // nothing writes to the transcript after it is deleted. A graceful stop may take up
-            // to its grace before the hard stop.
-            let deadline = std::time::Instant::now() + ENGINE_STOP_GRACE + Duration::from_secs(10);
-            while self.live.lock().map_err(err)?.contains_key(id) {
-                if std::time::Instant::now() > deadline {
-                    return Err("The session did not stop; try again".into());
-                }
-                thread::sleep(Duration::from_millis(50));
+        let _change = self.begin_session_change(id, SessionChange::Removing)?;
+        if let Err(error) = self.stop(id) {
+            // A normal exit may beat the stop. The removal reservation holds off any reconnect.
+            if self.live.lock().map_err(err)?.contains_key(id) {
+                return Err(error);
             }
+        }
+        // Wait for the exit watcher to release the process before deleting the session.
+        let deadline = std::time::Instant::now() + ENGINE_STOP_GRACE + Duration::from_secs(10);
+        while self.live.lock().map_err(err)?.contains_key(id) {
+            if std::time::Instant::now() > deadline {
+                return Err("The session did not stop; try again".into());
+            }
+            thread::sleep(Duration::from_millis(50));
         }
         if !self.registry.lock().map_err(err)?.remove(id)? {
             return Err("Unknown session".into());
@@ -1339,6 +1399,7 @@ mod history_tests {
             killer: None,
             agent_pid: None,
             engine: None,
+            stop_requested: false,
         };
         {
             let mut spares = host.spares.lock().unwrap();
@@ -1407,17 +1468,97 @@ mod history_tests {
                 // No such process: the hard-stop fallback must never be reached in this test.
                 agent_pid: Some(u32::MAX),
                 engine: None,
+                stop_requested: false,
             },
         );
-        host.stop("engine").unwrap();
-        assert!(
-            host.stop_file("engine").exists(),
-            "the engine is asked to stop gracefully before any hard stop"
+        let stop_file = host.stop_file("engine");
+        let registry = host.registry.lock().unwrap();
+        let stopping_host = Arc::clone(&host);
+        let stopper = thread::spawn(move || stopping_host.stop("engine"));
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while !stop_file.exists() && std::time::Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(1));
+        }
+        let asked = stop_file.exists();
+        let held_during_publish = matches!(
+            host.live.try_lock(),
+            Err(std::sync::TryLockError::WouldBlock)
         );
+        drop(registry);
+        stopper.join().unwrap().unwrap();
         // The engine "exits": the grace thread sees it gone and does nothing more.
         host.live.lock().unwrap().remove("engine");
         drop(host);
         let _ = std::fs::remove_dir_all(dir);
+        assert!(
+            asked,
+            "the engine is asked to stop gracefully before any hard stop"
+        );
+        assert!(
+            held_during_publish,
+            "the live engine must remain reserved until the stop state is published"
+        );
+    }
+
+    #[test]
+    fn late_readiness_does_not_attach_a_stopping_engine() {
+        let dir = std::env::temp_dir().join(format!("desktop-stop-ready-{}", Uuid::new_v4()));
+        let host = HostState::new(&dir).unwrap();
+        let id = "stopping-engine";
+        {
+            let registry = host.registry.lock().unwrap();
+            let project = registry.register(dir.to_str().unwrap()).unwrap();
+            registry
+                .insert(&Session {
+                    id: id.into(),
+                    project_id: project.id,
+                    title: "Late readiness".into(),
+                    kind: "agent".into(),
+                    workdir: dir.to_string_lossy().into(),
+                    status: "starting".into(),
+                    created_at: now(),
+                    updated_at: now(),
+                    exit_code: None,
+                    error: None,
+                    untitled: false,
+                })
+                .unwrap();
+        }
+        host.live.lock().unwrap().insert(
+            id.into(),
+            LiveSession {
+                master: None,
+                writer: None,
+                killer: None,
+                agent_pid: Some(u32::MAX),
+                engine: None,
+                stop_requested: false,
+            },
+        );
+        host.request("session.kill", &json!({"id": id})).unwrap();
+        std::fs::remove_file(host.stop_file(id)).unwrap();
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || tungstenite::accept(listener.accept().unwrap().0));
+        let engine =
+            Engine::connect(port, "fixture", &dir.join("late.events.jsonl"), true).unwrap();
+        let socket = server.join().unwrap().unwrap();
+        let attached = {
+            let mut live = host.live.lock().unwrap();
+            let session = live.get_mut(id).unwrap();
+            host.attach_ready_engine(id, session, engine);
+            session.engine.is_some()
+        };
+        let status = host.registry.lock().unwrap().sessions().unwrap()[0]
+            .status
+            .clone();
+        host.live.lock().unwrap().remove(id);
+        drop(socket);
+        drop(host);
+        let _ = std::fs::remove_dir_all(dir);
+        assert!(!attached);
+        assert_eq!(status, "stopping");
     }
 
     #[cfg(windows)]
@@ -1443,6 +1584,7 @@ mod history_tests {
                 killer: None,
                 agent_pid: Some(pid),
                 engine: None,
+                stop_requested: false,
             },
         );
 
@@ -1550,6 +1692,7 @@ mod history_tests {
                     // No such process: a hard stop must never be reached in this test.
                     agent_pid: Some(u32::MAX),
                     engine: None,
+                    stop_requested: false,
                 },
             );
             (owner, claimed)
@@ -1597,7 +1740,13 @@ mod history_tests {
         host.stop(&conversation).unwrap();
         assert!(host.own_stop_file("spare-1").exists());
         assert!(!host.own_stop_file(&conversation).exists());
-        host.live.lock().unwrap().remove(&conversation);
+        host.release_engine("spare-1", &owner);
+        assert!(!host.live.lock().unwrap().contains_key(&conversation));
+        assert!(!host.own_stop_file("spare-1").exists());
+        assert_eq!(
+            host.stop_file(&conversation),
+            host.own_stop_file(&conversation)
+        );
 
         // A spare that cannot be told goes back and stops; the conversation boots its own engine.
         let second = record();
@@ -1672,6 +1821,69 @@ mod history_tests {
             true
         );
         assert!(host.spares.lock().unwrap().is_empty());
+        drop(host);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn removal_and_reconnect_exclude_competing_requests_for_the_same_session() {
+        let dir = std::env::temp_dir().join(format!("desktop-remove-reconnect-{}", Uuid::new_v4()));
+        let host = HostState::new(&dir).unwrap();
+        let id = "session-to-remove";
+        {
+            let registry = host.registry.lock().unwrap();
+            let project = registry.register(dir.to_str().unwrap()).unwrap();
+            registry
+                .insert(&Session {
+                    id: id.into(),
+                    project_id: project.id,
+                    title: "Session lifecycle".into(),
+                    kind: "agent".into(),
+                    workdir: dir.to_string_lossy().into(),
+                    status: "stopped".into(),
+                    created_at: now(),
+                    updated_at: now(),
+                    exit_code: None,
+                    error: None,
+                    untitled: false,
+                })
+                .unwrap();
+        }
+        let transcript = dir.join("transcripts").join(format!("{id}.jsonl"));
+        std::fs::write(&transcript, b"test transcript").unwrap();
+        let remove = || host.request("session.remove", &json!({"id": id}));
+        let reconnect = || {
+            host.request(
+                "session.reconnect",
+                &json!({"id": id, "history": {"id": "sess_ok", "mode": "resume"}}),
+            )
+        };
+        {
+            let _removing = host
+                .begin_session_change(id, SessionChange::Removing)
+                .unwrap();
+            assert!(reconnect().unwrap_err().contains("being removed"));
+            assert!(remove().unwrap_err().contains("being removed"));
+            assert!(host
+                .begin_session_change("another-session", SessionChange::Reconnecting)
+                .is_ok());
+        }
+        {
+            let _reconnecting = host
+                .begin_session_change(id, SessionChange::Reconnecting)
+                .unwrap();
+            assert!(remove().unwrap_err().contains("still running"));
+            assert!(transcript.exists());
+        }
+        assert!(host
+            .request("session.kill", &json!({"id": id}))
+            .unwrap_err()
+            .contains("Session is not running"));
+        remove().unwrap();
+        assert!(!transcript.exists());
+        assert!(reconnect().unwrap_err().contains("Unknown session"));
+        assert!(remove().unwrap_err().contains("Unknown session"));
+        assert!(remove().unwrap_err().contains("Unknown session"));
         drop(host);
         let _ = std::fs::remove_dir_all(dir);
     }
@@ -1851,6 +2063,7 @@ mod history_tests {
                 killer: None,
                 agent_pid: None,
                 engine: None,
+                stop_requested: false,
             },
         );
         let host_bg = Arc::clone(&host);
