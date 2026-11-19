@@ -30,4 +30,17 @@ describe('useRecentlyFinishedFleetAgents', () => {
     expect(result.current).not.toBe(first);
     expect(result.current.map).toBe(first.map);
   });
+
+  it('keeps an agent removed while running as stopped', () => {
+    const running = { id: 'A', status: 'running' } as SubagentView;
+    const { result, rerender } = renderHook(
+      ({ agents }) => useRecentlyFinishedFleetAgents(agents),
+      { initialProps: { agents: new Map([['A', running]]) } },
+    );
+    expect(result.current.map.has('A')).toBe(false);
+
+    rerender({ agents: new Map<string, SubagentView>() });
+
+    expect(result.current.map.get('A')?.agent.status).toBe('stopped');
+  });
 });

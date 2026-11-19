@@ -32,6 +32,8 @@ export function useRecentlyFinishedFleetAgents(
   fleetAgents: ReadonlyMap<string, SubagentView>,
 ): RecentlyFinishedFleetAgents {
   const retained = useRef<Map<string, FinishedFleetAgent>>(new Map()).current;
+  /** Non-terminal agents on the last roster, so one that vanishes can be retained. */
+  const live = useRef<Map<string, SubagentView>>(new Map()).current;
 
   return useMemo(() => {
     const now = Date.now();
@@ -43,6 +45,7 @@ export function useRecentlyFinishedFleetAgents(
     for (const agent of fleetAgents.values()) {
       seen.add(agent.id);
       if (TERMINAL_STATUSES.has(agent.status)) {
+        live.delete(agent.id);
         const prev = retained.get(agent.id);
         if (prev) {
           prev.agent = agent;
@@ -54,20 +57,19 @@ export function useRecentlyFinishedFleetAgents(
         }
       } else {
         retained.delete(agent.id);
+        live.set(agent.id, agent);
       }
     }
 
     // Record agents that vanished from the roster while we last saw them — they
     // were reaped (stopped) before reaching a terminal status. Session-stopped
     // ghosts are skipped later by `resolveClients` because no live client
-    // matches their sessionId leaf.
-    for (const [id, entry] of [...retained.entries()]) {
-      if (!seen.has(id) && !TERMINAL_STATUSES.has(entry.agent.status)) {
-        retained.set(id, {
-          agent: { ...entry.agent, status: 'stopped' },
-          finishedAt: entry.finishedAt,
-        });
-      }
+    // matches their sessionId leaf. `retained` only ever holds terminal entries,
+    // so the running ones are tracked in `live`.
+    for (const [id, agent] of [...live.entries()]) {
+      if (seen.has(id)) continue;
+      live.delete(id);
+      retained.set(id, { agent: { ...agent, status: 'stopped' }, finishedAt: now });
     }
 
     // Prune expired entries — they're past the grace window and would just be
@@ -82,5 +84,5 @@ export function useRecentlyFinishedFleetAgents(
     // until the fleet snapshot changes prevents a render -> setNodes -> render
     // loop in the React Flow topology canvas.
     return { map: retained, now };
-  }, [fleetAgents, retained]);
+  }, [fleetAgents, retained, live]);
 }
