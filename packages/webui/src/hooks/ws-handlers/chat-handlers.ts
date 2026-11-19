@@ -124,7 +124,9 @@ export function handleToolStarted(msg: WSServerMessage) {
   }
   const existingId = chat.getToolMessageId(payload.id);
   if (existingId) {
-    chat.setCurrentToolId(existingId);
+    // A replay can arrive after completion; do not displace the active tool.
+    const existing = chat.messages.find((message) => message.id === existingId);
+    if (existing && existing.toolResult === undefined) chat.setCurrentToolId(existingId);
     return;
   }
   streamCoalescer.flushAll();

@@ -221,6 +221,23 @@ describe('chat ws-handlers — iteration / deltas / tool lifecycle', () => {
       expect(chat().executions.size).toBe(1);
     });
 
+    it('does not make a completed tool current when its start is replayed', () => {
+      const completedStart = msg('tool.started', { id: 'tu1', name: 'bash', input: {} });
+      handleToolStarted(completedStart);
+      handleToolExecuted(
+        msg('tool.executed', { id: 'tu1', name: 'bash', ok: true, durationMs: 1 }),
+      );
+      handleToolStarted(msg('tool.started', { id: 'tu2', name: 'bash', input: {} }));
+      const activeBubble = messages().find((m) => m.toolUseId === 'tu2');
+      expect(activeBubble?.id).toBeDefined();
+      expect(chat().currentToolId).toBe(activeBubble?.id);
+
+      handleToolStarted(completedStart);
+
+      expect(chat().currentToolId).toBe(activeBubble?.id);
+      expect(messages()).toHaveLength(2);
+    });
+
     it('finalizes a streaming assistant bubble before the tool bubble', () => {
       const { handleTextDelta } = chatHandlerMapModule();
       handleTextDelta(msg('provider.text_delta', { text: 'thinking out loud', messageId: 'x' }));
