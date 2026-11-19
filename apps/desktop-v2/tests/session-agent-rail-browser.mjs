@@ -162,6 +162,10 @@ try {
           const rail = document.querySelector('.session-inspector').getBoundingClientRect();
           const chat = document.querySelector('.native-chat-messages').getBoundingClientRect();
           const composer = document.querySelector('.composer-host').getBoundingClientRect();
+          const icons = document.querySelector('.session-inspector-rail').getBoundingClientRect();
+          const panes = document
+            .querySelector('.session-conversation-panes')
+            .getBoundingClientRect();
           return {
             rail: { x: rail.x, y: rail.y, bottom: rail.bottom, width: rail.width },
             composer: { y: composer.y, right: composer.right, bottom: composer.bottom },
@@ -172,11 +176,22 @@ try {
               height: chat.height,
               width: chat.width,
             },
+            icons: { x: icons.x, right: icons.right, width: icons.width, height: icons.height },
+            panes: { x: panes.x, right: panes.right },
+            title: document.querySelector('.session-inspector-heading h2')?.textContent ?? '',
+            strips: document.querySelectorAll('.session-inspector-tabs').length,
             overflow: document.documentElement.scrollWidth > innerWidth,
           };
         });
         assert.equal(geometry.overflow, false, `No page overflow at ${width} ${mode}`);
         assert.ok(geometry.chat.height >= 90, `Leader remains readable at ${width}x${height}`);
+        assert.ok(geometry.title.length > 0, 'Sidebar shows a title');
+        assert.equal(geometry.strips, 0, 'No horizontal tab strip across the sidebar top');
+        assert.ok(
+          geometry.icons.right >= geometry.panes.right - 1,
+          `Icon menu sits at the far right edge: ${JSON.stringify(geometry.icons)}`,
+        );
+        assert.ok(geometry.icons.width >= 32, 'Icon menu keeps a usable target width');
         if (width > 760)
           assert.ok(geometry.rail.x >= geometry.chat.right - 1, 'Rail is on the right');
         else assert.ok(geometry.rail.bottom <= geometry.chat.y + 1, 'Rail stacks above leader');
@@ -230,7 +245,12 @@ try {
           .getByText('fixture-model', { exact: true })
           .waitFor();
         await page.getByRole('button', { name: 'Collapse session panel', exact: true }).click();
-        assert.equal(await page.getByRole('tab').count(), 0);
+        assert.equal(
+          await page.getByRole('tab').count(),
+          3,
+          'Icon rail stays visible while the sidebar is collapsed',
+        );
+        assert.equal(await page.locator('.session-inspector-rail').isVisible(), true);
         const expandedChat = await leader.boundingBox();
         assert.ok(
           width > 760
@@ -238,6 +258,18 @@ try {
             : expandedChat.height > geometry.chat.height,
           'Collapse releases space to chat',
         );
+        await page.getByRole('tab', { name: 'Plan', exact: true }).click();
+        assert.equal(
+          await page.locator('.session-inspector').getAttribute('data-collapsed'),
+          'false',
+          'Clicking a rail icon opens the sidebar',
+        );
+        assert.equal(
+          await page.getByRole('tab', { name: 'Plan', exact: true }).getAttribute('aria-selected'),
+          'true',
+        );
+        await page.getByRole('tab', { name: 'Details', exact: true }).click();
+        await page.getByRole('button', { name: 'Collapse session panel', exact: true }).click();
         await page.getByRole('button', { name: 'Expand session panel', exact: true }).focus();
         await page.keyboard.press('Enter');
         assert.equal(

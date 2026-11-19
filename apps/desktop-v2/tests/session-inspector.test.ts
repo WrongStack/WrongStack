@@ -170,6 +170,28 @@ describe('session inspector', () => {
     await surfaceI18n.changeLanguage('tr');
     const view = await mount();
     expect(view.tabs().map((tab) => tab.textContent)).toEqual(['Ajanlar', 'Plan', 'Ayrıntılar']);
-    expect(view.host.textContent).toContain('Oturum paneli');
+    expect(view.host.querySelector('.session-inspector-heading h2')?.textContent).toBe('Ajanlar');
+    expect(view.host.querySelector('.session-inspector')?.getAttribute('aria-label')).toBe(
+      'Oturum paneli',
+    );
+  });
+
+  it('keeps the icon rail visible when collapsed and opens the sidebar from any icon', async () => {
+    const view = await mount();
+    const rail = view.host.querySelector('.session-inspector-rail');
+    expect(rail).not.toBeNull();
+    expect(rail?.querySelectorAll('[role="tab"]').length).toBe(3);
+    expect(view.host.querySelector('.session-inspector-heading h2')?.textContent).toBe('Agents');
+    await view.toggle();
+    expect(view.host.querySelector<HTMLElement>('.session-inspector')?.dataset.collapsed).toBe(
+      'true',
+    );
+    expect(view.tabs().length).toBe(3);
+    await view.select(1);
+    expect(view.host.querySelector<HTMLElement>('.session-inspector')?.dataset.collapsed).toBe(
+      'false',
+    );
+    expect(view.tabs()[1]?.getAttribute('aria-selected')).toBe('true');
+    expect(view.visiblePanel()?.textContent).toContain('No plan yet');
   });
 });

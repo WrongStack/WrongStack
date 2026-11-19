@@ -94,6 +94,11 @@ export function SessionInspector({
   const id = useId();
   const [tab, setTab] = useState<InspectorTab>('agents');
   const [collapsed, setCollapsed] = useState(false);
+  /** The icon rail lives at the screen edge, so choosing a section also opens the sidebar. */
+  const open = (value: InspectorTab) => {
+    setTab(value);
+    setCollapsed(false);
+  };
   const navigate = (event: KeyboardEvent<HTMLDivElement>) => {
     const index = tabs.findIndex((item) => item.id === tab);
     const next =
@@ -101,21 +106,96 @@ export function SessionInspector({
         ? 0
         : event.key === 'End'
           ? tabs.length - 1
-          : event.key === 'ArrowRight'
+          : event.key === 'ArrowDown' || event.key === 'ArrowRight'
             ? (index + 1) % tabs.length
-            : event.key === 'ArrowLeft'
+            : event.key === 'ArrowUp' || event.key === 'ArrowLeft'
               ? (index + tabs.length - 1) % tabs.length
               : -1;
     const target = tabs[next];
     if (!target) return;
     event.preventDefault();
-    setTab(target.id);
+    open(target.id);
     event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
   };
   return (
-    <aside className="session-inspector" data-collapsed={collapsed} aria-label={words('title')}>
-      <header className="session-inspector-heading">
-        <h2 hidden={collapsed}>{words('title')}</h2>
+    <>
+      <aside className="session-inspector" data-collapsed={collapsed} aria-label={words('title')}>
+        <header className="session-inspector-heading" hidden={collapsed}>
+          <h2>{words(tab)}</h2>
+        </header>
+        <div id={`${id}-body`} className="session-inspector-body" hidden={collapsed}>
+          {tabs.map(({ id: value }) => (
+            <div
+              key={value}
+              id={`${id}-${value}-panel`}
+              role="tabpanel"
+              aria-labelledby={`${id}-${value}-tab`}
+              hidden={tab !== value}
+              className={`session-inspector-panel inspector-${value}`}
+            >
+              {value === 'agents' ? (
+                <SessionAgentRail
+                  state={state}
+                  onLink={onLink}
+                  showThinkingLogs={showThinkingLogs}
+                  embedded
+                />
+              ) : value === 'plan' ? (
+                <SessionTodos state={state} command={command} embedded />
+              ) : (
+                <div className="session-inspector-details">
+                  <SessionToolSummary activity={state} />
+                  <p>{words('detailsHint')}</p>
+                  <dl>
+                    <div>
+                      <dt>{words('session')}</dt>
+                      <dd>{state.sessionId || '—'}</dd>
+                    </div>
+                    <div>
+                      <dt>{words('provider')}</dt>
+                      <dd>{state.provider || '—'}</dd>
+                    </div>
+                    <div>
+                      <dt>{words('model')}</dt>
+                      <dd>{state.model || '—'}</dd>
+                    </div>
+                    <div>
+                      <dt>{words('connection')}</dt>
+                      <dd>{words(state.connected ? 'connected' : 'offline')}</dd>
+                    </div>
+                    {native && tab === 'details' && !collapsed && <BackgroundEnginePids />}
+                  </dl>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </aside>
+      <div className="session-inspector-rail">
+        <div
+          className="session-inspector-rail-tabs"
+          role="tablist"
+          aria-orientation="vertical"
+          aria-label={words('title')}
+          onKeyDown={navigate}
+        >
+          {tabs.map(({ id: value, Icon }) => (
+            <button
+              key={value}
+              id={`${id}-${value}-tab`}
+              type="button"
+              role="tab"
+              aria-selected={tab === value}
+              aria-controls={`${id}-${value}-panel`}
+              title={words(value)}
+              tabIndex={tab === value ? 0 : -1}
+              onClick={() => open(value)}
+            >
+              <Icon size={16} aria-hidden="true" />
+              <span className="session-inspector-rail-label">{words(value)}</span>
+            </button>
+          ))}
+        </div>
         <button
           type="button"
           className="session-inspector-toggle"
@@ -130,78 +210,8 @@ export function SessionInspector({
           ) : (
             <PanelRightClose size={16} aria-hidden="true" />
           )}
-          {collapsed && <span>{words('title')}</span>}
         </button>
-      </header>
-      <div id={`${id}-body`} className="session-inspector-body" hidden={collapsed}>
-        <div
-          className="session-inspector-tabs"
-          role="tablist"
-          aria-label={words('title')}
-          onKeyDown={navigate}
-        >
-          {tabs.map(({ id: value, Icon }) => (
-            <button
-              key={value}
-              id={`${id}-${value}-tab`}
-              type="button"
-              role="tab"
-              aria-selected={tab === value}
-              aria-controls={`${id}-${value}-panel`}
-              tabIndex={tab === value ? 0 : -1}
-              onClick={() => setTab(value)}
-            >
-              <Icon size={14} aria-hidden="true" />
-              {words(value)}
-            </button>
-          ))}
-        </div>
-        {tabs.map(({ id: value }) => (
-          <div
-            key={value}
-            id={`${id}-${value}-panel`}
-            role="tabpanel"
-            aria-labelledby={`${id}-${value}-tab`}
-            hidden={tab !== value}
-            className={`session-inspector-panel inspector-${value}`}
-          >
-            {value === 'agents' ? (
-              <SessionAgentRail
-                state={state}
-                onLink={onLink}
-                showThinkingLogs={showThinkingLogs}
-                embedded
-              />
-            ) : value === 'plan' ? (
-              <SessionTodos state={state} command={command} embedded />
-            ) : (
-              <div className="session-inspector-details">
-                <SessionToolSummary activity={state} />
-                <p>{words('detailsHint')}</p>
-                <dl>
-                  <div>
-                    <dt>{words('session')}</dt>
-                    <dd>{state.sessionId || '—'}</dd>
-                  </div>
-                  <div>
-                    <dt>{words('provider')}</dt>
-                    <dd>{state.provider || '—'}</dd>
-                  </div>
-                  <div>
-                    <dt>{words('model')}</dt>
-                    <dd>{state.model || '—'}</dd>
-                  </div>
-                  <div>
-                    <dt>{words('connection')}</dt>
-                    <dd>{words(state.connected ? 'connected' : 'offline')}</dd>
-                  </div>
-                  {native && tab === 'details' && !collapsed && <BackgroundEnginePids />}
-                </dl>
-              </div>
-            )}
-          </div>
-        ))}
       </div>
-    </aside>
+    </>
   );
 }
