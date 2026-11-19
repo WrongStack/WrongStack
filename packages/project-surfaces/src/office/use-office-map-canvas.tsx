@@ -10,6 +10,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { surfaceFetch } from '../host';
 import { useAppTranslation } from '../lib/i18n';
 import { EMPTY_TRANSCRIPT, useOfficeFeed, WEBUI_SELF } from './feed';
 import { FIT_VIEW_PADDING } from './OfficeMapCanvas/nodes.js';
@@ -134,7 +135,8 @@ export function useOfficeMapCanvas() {
     setBroadcasting(true);
     setBroadcastResult(null);
     try {
-      const res = await fetch('/api/fleet/broadcast', {
+      // Through the host: on Desktop the webview has no `/api` server.
+      const res = await surfaceFetch('/api/fleet/broadcast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),

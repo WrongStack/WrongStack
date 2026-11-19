@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { surfaceFetch } from '../host';
 
 export function useKanbanRegistrySessionIds(): string[] {
   const [registrySessionIds, setRegistrySessionIds] = useState<string[]>([]);
@@ -7,7 +8,8 @@ export function useKanbanRegistrySessionIds(): string[] {
     let cancelled = false;
     const refreshRegistry = async () => {
       try {
-        const response = await fetch('/api/sessions');
+        // Through the host: on Desktop the webview has no `/api` server.
+        const response = await surfaceFetch('/api/sessions');
         if (!response.ok) return;
         const data = (await response.json()) as unknown;
         if (!Array.isArray(data) || cancelled) return;
