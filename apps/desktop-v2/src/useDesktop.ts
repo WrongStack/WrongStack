@@ -64,6 +64,12 @@ export function useDesktop() {
   const [selected, setSelected] = useState<string | null>(null);
   const [openSessionIds, setOpenSessionIds] = useState<string[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const draftText = useRef(drafts);
+  const cacheDraftText = useCallback((id: string, text: string) => {
+    const next = { ...draftText.current, [id]: text };
+    draftText.current = next;
+    setDrafts(next);
+  }, []);
   const [draftModes, setDraftModes] = useState<Record<string, SubmitMode>>({});
   const [draftErrors, setDraftErrors] = useState<Record<string, string>>({});
   const [draftConflicts, setDraftConflicts] = useState<Record<string, boolean>>({});
@@ -380,7 +386,7 @@ export function useDesktop() {
     let active = true;
     void request<SavedDraft>('draft.get', { id: selected })
       .then((saved) => {
-        if (!active) return;
+        if (!active || Object.hasOwn(draftText.current, selected)) return;
         const { text, references, attachments, mode, revisions } = validateSavedDraft(saved);
         draftWriter.initialize(selected, revisions?.text);
         referenceWriter.initialize(selected, revisions?.references);
@@ -389,7 +395,7 @@ export function useDesktop() {
         setComposerReferences((current) => ({ ...current, [selected]: references }));
         setComposerAttachments((current) => ({ ...current, [selected]: attachments }));
         setDraftModes((current) => ({ ...current, [selected]: mode }));
-        setDrafts((current) => ({ ...current, [selected]: text }));
+        cacheDraftText(selected, text);
         setDraftErrors((current) => ({ ...current, [selected]: '' }));
         draftConflictRef.current[selected] = false;
         setDraftConflicts((current) => ({ ...current, [selected]: false }));
@@ -410,6 +416,7 @@ export function useDesktop() {
     sessionKind,
     draftRetry,
     drafts,
+    cacheDraftText,
     draftWriter,
     referenceWriter,
     attachmentWriter,
@@ -438,7 +445,7 @@ export function useDesktop() {
   };
   const getDraft = (id: string) => drafts[id] ?? '';
   const setDraft = (id: string, text: string) => {
-    setDrafts((current) => ({ ...current, [id]: text }));
+    cacheDraftText(id, text);
     if (draftConflictRef.current[id]) return Promise.resolve(false);
     return native
       ? draftWriter.write(id, text).then(
@@ -464,19 +471,21 @@ export function useDesktop() {
     if (draftConflictRef.current[id]) return false;
     projectRequestLock.current = true;
     try {
-      let current = drafts[id];
-      if (current === undefined) {
+      if (draftText.current[id] === undefined) {
         const saved = validateSavedDraft(await request<SavedDraft>('draft.get', { id }));
-        current = saved.text;
-        draftWriter.initialize(id, saved.revisions.text);
-        referenceWriter.initialize(id, saved.revisions.references);
-        attachmentWriter.initialize(id, saved.revisions.attachments);
-        modeWriter.initialize(id, saved.revisions.mode);
-        setComposerReferences((all) => ({ ...all, [id]: saved.references }));
-        setComposerAttachments((all) => ({ ...all, [id]: saved.attachments }));
-        setDraftModes((all) => ({ ...all, [id]: saved.mode }));
+        if (draftText.current[id] === undefined) {
+          draftWriter.initialize(id, saved.revisions.text);
+          referenceWriter.initialize(id, saved.revisions.references);
+          attachmentWriter.initialize(id, saved.revisions.attachments);
+          modeWriter.initialize(id, saved.revisions.mode);
+          setComposerReferences((all) => ({ ...all, [id]: saved.references }));
+          setComposerAttachments((all) => ({ ...all, [id]: saved.attachments }));
+          setDraftModes((all) => ({ ...all, [id]: saved.mode }));
+          cacheDraftText(id, saved.text);
+        }
       }
       if (!(await validateDraft(id))) return false;
+      const current = draftText.current[id] ?? '';
       const saved = await setDraft(id, current.trim() ? `${current}\n\n${text}` : text);
       // Never send automatically. The user reviews the appended instruction in chat.
       jumpToSession(target);
@@ -548,7 +557,7 @@ export function useDesktop() {
       referenceWriter.initialize(id, next.revisions.references);
       attachmentWriter.initialize(id, next.revisions.attachments);
       modeWriter.initialize(id, next.revisions.mode);
-      setDrafts((current) => ({ ...current, [id]: next.text }));
+      cacheDraftText(id, next.text);
       setComposerReferences((current) => ({ ...current, [id]: next.references }));
       setComposerAttachments((current) => ({ ...current, [id]: next.attachments }));
       setDraftModes((current) => ({ ...current, [id]: next.mode }));

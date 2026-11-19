@@ -290,6 +290,10 @@
       "lines": 898,
       "relativeImports": 10
     },
+    "apps/desktop-v2/src/useDesktop.ts": {
+      "lines": 705,
+      "relativeImports": 14
+    },
     "apps/desktop-v2/src/useFileWorkspace.ts": {
       "lines": 753,
       "relativeImports": 19

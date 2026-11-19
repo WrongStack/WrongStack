@@ -178,6 +178,71 @@ describe('desktop selection across a window reload', () => {
     expect(desktop.selected).toBe('alpha');
   });
 
+  it.each(['draft validation', 'the first draft read'] as const)(
+    'appends a project request to the latest text when %s is pending',
+    async (phase) => {
+      const request = bridge.request.getMockImplementation()!;
+      let release!: () => void;
+      const validation = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let start!: () => void;
+      const validating = new Promise<void>((resolve) => {
+        start = resolve;
+      });
+      let firstRead = true;
+      let revision = 0;
+      let savedText = 'private alpha draft';
+      bridge.request.mockImplementation(async (method: string, params: Record<string, unknown>) => {
+        if (method === 'draft.revisions') {
+          if (phase === 'draft validation') {
+            start();
+            await validation;
+          }
+          return { text: revision, references: 0, attachments: 0, mode: 0 };
+        }
+        if (
+          phase === 'the first draft read' &&
+          method === 'draft.get' &&
+          params.id === 'alpha' &&
+          firstRead
+        ) {
+          firstRead = false;
+          const old = await request(method, params);
+          start();
+          await validation;
+          return old;
+        }
+        if (method === 'draft.save') {
+          expect(params.id).toBe('alpha');
+          expect(params.expectedRevision).toBe(revision);
+          savedText = String(params.text);
+          return { revision: ++revision };
+        }
+        return request(method, params);
+      });
+      await mount();
+      if (phase === 'draft validation') await select('alpha');
+
+      let prepared!: Promise<boolean>;
+      await act(async () => {
+        prepared = desktop.prepareProjectRequest('p-alpha', 'alpha', 'Prepared project request');
+        await validating;
+      });
+      if (phase === 'the first draft read') await select('alpha');
+      await act(async () => {
+        expect(await desktop.setDraft('alpha', 'My newer unsent edit')).toBe(true);
+      });
+      expect(savedText).toBe('My newer unsent edit');
+      await act(async () => {
+        release();
+        expect(await prepared).toBe(true);
+      });
+      expect(desktop.getDraft('alpha')).toBe('My newer unsent edit\n\nPrepared project request');
+      expect(savedText).toBe(desktop.getDraft('alpha'));
+    },
+  );
+
   it('does not let an older save acknowledgement erase a newer selection', async () => {
     await mount();
     hold = true;

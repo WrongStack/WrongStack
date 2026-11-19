@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T10:49:25.461Z",
+  "generatedAt": "2026-11-19T10:50:47.686Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 48,
     "sourceFiles": 6389,
     "testFiles": 5551,
-    "sourceLines": 1318043,
+    "sourceLines": 1318052,
     "workspaceEdges": 250,
     "moduleEdges": 18873,
     "nonCommandSlashImports": 0,
@@ -35932,6 +35932,11 @@
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
       "lines": 898,
       "relativeImports": 10
+    },
+    {
+      "file": "apps/desktop-v2/src/useDesktop.ts",
+      "lines": 705,
+      "relativeImports": 14
     },
     {
       "file": "apps/desktop-v2/src/useFileWorkspace.ts",
