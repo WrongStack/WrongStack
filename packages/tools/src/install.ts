@@ -40,7 +40,7 @@ export const installTool: Tool<InstallInput, InstallOutput> = {
   name: 'install',
   category: 'Package Management',
   description:
-    'Install, update or manage packages using the detected package manager (pnpm/npm/yarn). ' +
+    'Install, update or manage packages using the detected package manager (pnpm/npm/yarn/bun). ' +
     'Strongly preferred over raw shell commands for dependency management because it is structured and safer.',
   usageHint:
     'ALWAYS USE THIS INSTEAD OF BASH FOR PACKAGE WORK:\n\n' +
@@ -260,9 +260,20 @@ export const installTool: Tool<InstallInput, InstallOutput> = {
     // equivalent is `--mode=skip-build` on the subcommand.
     const yarnBerry = pkgManager === 'yarn' && (await isYarnBerry(cwd, ctx.projectRoot));
     const args: string[] = [];
-    if (input.dry_run) args.push('--dry-run');
-    if (ignoreScripts && !yarnBerry) args.push('--ignore-scripts');
-    if (pkgManager === 'pnpm') {
+    // bun reads flags placed before its subcommand as its own runtime flags,
+    // so for bun they follow `add`/`install` instead of leading.
+    if (pkgManager !== 'bun') {
+      if (input.dry_run) args.push('--dry-run');
+      if (ignoreScripts && !yarnBerry) args.push('--ignore-scripts');
+    }
+    if (pkgManager === 'bun') {
+      // `add` for named packages; a bare `install` restores the lockfile.
+      args.push(hasPkgs ? 'add' : 'install', ...globalFlag);
+      if (input.dry_run) args.push('--dry-run');
+      if (ignoreScripts) args.push('--ignore-scripts');
+      if (hasPkgs && input.save === 'dev') args.push('--dev');
+      else if (hasPkgs && input.save === 'optional') args.push('--optional');
+    } else if (pkgManager === 'pnpm') {
       if (hasPkgs) {
         if (input.save === 'dev') args.push('-D');
         else if (input.save === 'optional') args.push('-O');
@@ -436,9 +447,10 @@ function resolveManifestPath(cwd: string, pkgManager: string): string {
   switch (pkgManager) {
     case 'pnpm':
     case 'yarn':
+    case 'bun':
     case 'npm':
       return join(cwd, 'package.json');
-    /* v8 ignore next 2 -- pkgManager is always pnpm/yarn/npm; the default is defensive. */
+    /* v8 ignore next 2 -- pkgManager is always pnpm/yarn/bun/npm; the default is defensive. */
     default:
       return join(cwd, 'package.json');
   }

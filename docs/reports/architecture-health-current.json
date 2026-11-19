@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T18:03:34.722Z",
+  "generatedAt": "2026-11-19T18:58:15.654Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6395,
-    "testFiles": 5567,
-    "sourceLines": 1319058,
+    "testFiles": 5568,
+    "sourceLines": 1319141,
     "workspaceEdges": 250,
     "moduleEdges": 18895,
     "nonCommandSlashImports": 0,
@@ -1019,7 +1019,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 402,
-      "testFiles": 398,
+      "testFiles": 399,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -1038,7 +1038,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 398
+          "testFiles": 399
         }
       ]
     },
@@ -24925,6 +24925,12 @@
       },
       {
         "file": "packages/tools/tests/pack.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/package-tools-bun.test.ts",
         "projects": [
           "root-node"
         ]

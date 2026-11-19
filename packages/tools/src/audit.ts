@@ -280,9 +280,10 @@ function parseAuditOutput(
 }
 
 /**
- * Normalize the three audit JSON shapes into one advisory list:
+ * Normalize the four audit JSON shapes into one advisory list:
  * - npm ≤6 and pnpm: `{ advisories: { <id>: { severity, module_name, title, url } } }`
  * - npm ≥7: `{ vulnerabilities: { <pkg>: { severity, via: [...] } }, metadata: {...} }`
+ * - bun: `{ <pkg>: [ { severity, title, url, … } ] }`
  */
 /**
  * yarn classic NDJSON → the npm v6 `advisories` map. yarn emits one
@@ -361,6 +362,23 @@ function extractAdvisories(data: Record<string, unknown>): AuditVulnerability[] 
           package: pkg,
           title: 'Unknown vulnerability',
           url: '',
+        });
+      }
+    }
+  }
+
+  // `bun audit --json`: neither key — each package name maps to an ARRAY of
+  // advisories (`{"minimist":[{id,url,title,severity,…}]}`).
+  if (!vulns && Object.values(data).every(Array.isArray)) {
+    for (const [pkg, list] of Object.entries(data as Record<string, unknown[]>)) {
+      for (const entry of list) {
+        const adv = (entry ?? {}) as Record<string, unknown>;
+        advisories.push({
+          severity: typeof adv['severity'] === 'string' ? (adv['severity'] as string) : 'unknown',
+          package: pkg,
+          title:
+            typeof adv['title'] === 'string' ? (adv['title'] as string) : 'Unknown vulnerability',
+          url: typeof adv['url'] === 'string' ? (adv['url'] as string) : '',
         });
       }
     }

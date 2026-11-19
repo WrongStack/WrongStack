@@ -15,14 +15,13 @@ export function sha256hex(content: string): string {
   return createHash('sha256').update(content, 'utf8').digest('hex');
 }
 /** Detected package manager for a project directory. */
-export type PackageManager = 'pnpm' | 'yarn' | 'npm';
+export type PackageManager = 'pnpm' | 'yarn' | 'bun' | 'npm';
 
 /**
  * Detect the project's package manager.
  *
  * Per directory, precedence is: `package.json#packageManager` (authoritative
- * when declared) → `pnpm-lock.yaml` → `yarn.lock` → `bun.lockb`/`bun.lock`
- * (bun is treated as npm-compatible and reported as `npm`) →
+ * when declared) → `pnpm-lock.yaml` → `yarn.lock` → `bun.lockb`/`bun.lock` →
  * `package-lock.json`/`npm-shrinkwrap.json`. When `stopAt` (usually the
  * project root) is provided and `cwd` is nested inside it, parent directories
  * are walked up to and including `stopAt` — monorepo packages rarely carry
@@ -63,9 +62,7 @@ async function detectPackageManagerInDir(dir: string): Promise<PackageManager | 
     const declared = (JSON.parse(raw) as { packageManager?: unknown } | null)?.packageManager;
     if (typeof declared === 'string') {
       const name = declared.split('@')[0] ?? '';
-      if (name === 'pnpm' || name === 'yarn') return name;
-      // bun has no first-class branch in the callers; treat as npm-compatible.
-      if (name === 'npm' || name === 'bun') return 'npm';
+      if (name === 'pnpm' || name === 'yarn' || name === 'bun' || name === 'npm') return name;
     }
   } catch {
     /* missing / unparseable package.json — fall through to lockfiles */
@@ -74,8 +71,8 @@ async function detectPackageManagerInDir(dir: string): Promise<PackageManager | 
   const lockfiles: Array<[string, PackageManager]> = [
     ['pnpm-lock.yaml', 'pnpm'],
     ['yarn.lock', 'yarn'],
-    ['bun.lockb', 'npm'],
-    ['bun.lock', 'npm'],
+    ['bun.lockb', 'bun'],
+    ['bun.lock', 'bun'],
     ['package-lock.json', 'npm'],
     ['npm-shrinkwrap.json', 'npm'],
   ];

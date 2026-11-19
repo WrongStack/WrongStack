@@ -153,9 +153,11 @@ export const outdatedTool: Tool<OutdatedInput, OutdatedOutput> = {
       }
     }
 
-    // JSON is the only parse path; npm/pnpm have no `--table` or
+    // npm/pnpm/yarn report as JSON; npm/pnpm have no `--table` or
     // `--include deprecated` flags, so no formatting options are forwarded.
-    const args: string[] = ['outdated', '--json'];
+    // `bun outdated` rejects `--json` ("has no --json flag", exit 1) and
+    // prints a table, which parseOutdatedOutput reads instead.
+    const args: string[] = manager === 'bun' ? ['outdated'] : ['outdated', '--json'];
 
     return runOutdated(manager, args, cwd, signal);
   },
@@ -318,6 +320,54 @@ function parseYarnClassicTable(output: string): OutdatedPackage[] | undefined {
   return undefined;
 }
 
+const BUN_DEP_TYPES: Record<string, string> = {
+  dev: 'devDependencies',
+  optional: 'optionalDependencies',
+  peer: 'peerDependencies',
+};
+
+/**
+ * Rows of `bun outdated`'s box table, columns read by their header
+ * (`Package`, `Current`, `Update`, `Latest`, and `Workspace` when the project
+ * has workspaces). A dev/optional/peer dependency carries the section in the
+ * Package cell: `| is-number (dev) | 6.0.0 | 6.0.0 | 7.0.0 |`.
+ * `undefined` when the output holds no such table.
+ */
+function parseBunOutdatedTable(output: string): OutdatedPackage[] | undefined {
+  let head: string[] | undefined;
+  const rows: OutdatedPackage[] = [];
+  for (const line of output.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('|') || !trimmed.endsWith('|') || /^\|[-|\s]*\|$/.test(trimmed)) {
+      continue;
+    }
+    const cells = trimmed
+      .slice(1, -1)
+      .split('|')
+      .map((cell) => cell.trim());
+    if (!head) {
+      if (cells[0] === 'Package') head = cells;
+      continue;
+    }
+    const cell = (name: string) => {
+      const value = cells[head!.indexOf(name)];
+      return value ? value : undefined;
+    };
+    const pkg = /^(\S+?)(?:\s+\((dev|optional|peer)\))?$/.exec(cell('Package') ?? '');
+    if (!pkg) continue;
+    const name = pkg[1]!;
+    rows.push({
+      name,
+      current: cell('Current') ?? 'unknown',
+      latest: cell('Latest') ?? 'unknown',
+      wanted: cell('Update') ?? 'unknown',
+      type: pkg[2] ? (BUN_DEP_TYPES[pkg[2]] ?? 'unknown') : 'dependencies',
+      location: cell('Workspace') ?? name,
+    });
+  }
+  return head ? rows : undefined;
+}
+
 function parseOutdatedOutput(
   json: string,
   exitCode: number,
@@ -353,9 +403,15 @@ function parseOutdatedOutput(
     parsedOk = true;
     packages.push(...yarnTable);
   }
+  // `bun outdated` prints a box table, never JSON.
+  const bunTable = yarnEvents ? undefined : parseBunOutdatedTable(json);
+  if (bunTable) {
+    parsedOk = true;
+    packages.push(...bunTable);
+  }
 
   try {
-    const data = (yarnEvents ? {} : JSON.parse(json)) as Record<string, unknown>;
+    const data = (yarnEvents || bunTable ? {} : JSON.parse(json)) as Record<string, unknown>;
     parsedOk ||= !yarnEvents;
     const str = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined);
     for (const name of Object.keys(data)) {

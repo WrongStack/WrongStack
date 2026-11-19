@@ -397,12 +397,20 @@ describe('detectPackageManager', () => {
     });
   });
 
-  it('treats bun lockfiles as npm-compatible', async () => {
+  it('reports bun for bun lockfiles and a bun packageManager (#447)', async () => {
+    // `npm audit` cannot read a bun lockfile, so bun must not read as npm.
     await withDir(['bun.lockb'], async (dir) => {
-      expect(await detectPackageManager(dir)).toBe('npm');
+      expect(await detectPackageManager(dir)).toBe('bun');
     });
     await withDir(['bun.lock'], async (dir) => {
-      expect(await detectPackageManager(dir)).toBe('npm');
+      expect(await detectPackageManager(dir)).toBe('bun');
+    });
+    await withDir(['package-lock.json'], async (dir) => {
+      await fsp.writeFile(
+        path.join(dir, 'package.json'),
+        JSON.stringify({ packageManager: 'bun@1.4.5' }),
+      );
+      expect(await detectPackageManager(dir)).toBe('bun');
     });
   });
 
