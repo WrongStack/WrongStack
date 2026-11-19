@@ -737,7 +737,7 @@ The following evidence supersedes pending statements above only for the named sc
 ### Source gate recovery and native boundary completion
 
 The shared checkout keeps the user's Vitest 5.1.0, jsdom 31.0.0 and existing ws 8.22.1 patch.
-A minimal managed [jsdom Window proxy patch](../patches/jsdom@31.0.0.patch) registers the real
+A minimal managed [jsdom Window proxy patch](../patches/jsdom@31.0.1.patch) registers the real
 VM global proxy with its existing EventTarget implementation. The same installed-library
 proof first passed the default non-VM control and failed both VM script modes; after the patch,
 all three modes pass listener add/dispatch/remove and still reject forged EventTarget receivers.
