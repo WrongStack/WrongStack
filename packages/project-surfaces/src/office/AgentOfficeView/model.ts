@@ -336,20 +336,40 @@ export function fallbackLogCalls(
   }));
 }
 
+/**
+ * An event with no tool-call id is keyed `${agentId}:${toolName}:${2s bucket}`
+ * (normalizeToolEvent), so its start and finish can land in different buckets.
+ */
+function hasBucketId(call: OfficeToolCall): boolean {
+  const prefix = `${call.agentId}:${call.toolName}:`;
+  return call.id.startsWith(prefix) && /^\d+$/.test(call.id.slice(prefix.length));
+}
+
 export function mergeCalls(...sources: OfficeToolCall[][]): OfficeToolCall[] {
-  const merged: OfficeToolCall[] = [];
-  for (const call of sources.flat()) {
-    const timestamp = call.completedAt ?? call.startedAt;
-    const duplicate = merged.some(
-      (candidate) =>
-        (candidate.id === call.id || candidate.toolName === call.toolName) &&
-        Math.abs((candidate.completedAt ?? candidate.startedAt) - timestamp) < 2500,
+  const merged: Array<{ call: OfficeToolCall; source: number }> = [];
+  sources.forEach((calls, source) => {
+    for (const call of calls) {
+      const timestamp = call.completedAt ?? call.startedAt;
+      // A tool name identifies one call across sources, whose ids are
+      // synthesized differently, and an id-less call split across buckets.
+      // Within one source two real ids are two calls: parallel `read_file`s
+      // must not collapse into one.
+      const duplicate = merged.some(
+        ({ call: candidate, source: from }) =>
+          (candidate.id === call.id ||
+            (candidate.toolName === call.toolName &&
+              (from !== source || hasBucketId(candidate) || hasBucketId(call)))) &&
+          Math.abs((candidate.completedAt ?? candidate.startedAt) - timestamp) < 2500,
+      );
+      if (!duplicate) merged.push({ call, source });
+    }
+  });
+  return merged
+    .map(({ call }) => call)
+    .sort(
+      (left, right) =>
+        (right.completedAt ?? right.startedAt) - (left.completedAt ?? left.startedAt),
     );
-    if (!duplicate) merged.push(call);
-  }
-  return merged.sort(
-    (left, right) => (right.completedAt ?? right.startedAt) - (left.completedAt ?? left.startedAt),
-  );
 }
 
 export function mergeMail(...sources: OfficeMailActivity[][]): OfficeMailActivity[] {

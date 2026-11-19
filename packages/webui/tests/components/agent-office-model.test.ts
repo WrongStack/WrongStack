@@ -2,10 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   AGENT_ROLE_ICONS,
   type AgentVisualRole,
-  type ClientOfficeStats,
-  type OfficeAgentModel,
-  TOOL_ICONS,
   agentVisualRole,
+  type ClientOfficeStats,
   clientOfficeStats,
   deskPersonality,
   deskWaitState,
@@ -13,9 +11,11 @@ import {
   formatUptime,
   mergeCalls,
   mergeMail,
+  type OfficeAgentModel,
   relativeTime,
   shortModelName,
   shortPath,
+  TOOL_ICONS,
 } from '../../src/components/AgentOfficeView/model';
 import type { OfficeMailActivity, OfficeToolCall } from '../../src/lib/agent-office';
 
@@ -550,17 +550,40 @@ describe('mergeCalls', () => {
 
   it('treats the window as strictly under 2500ms', () => {
     expect(
-      mergeCalls([
-        call({ id: 'a', toolName: 't', completedAt: 0 }),
-        call({ id: 'b', toolName: 't', completedAt: 2_500 }),
-      ]),
+      mergeCalls(
+        [call({ id: 'a', toolName: 't', completedAt: 0 })],
+        [call({ id: 'b', toolName: 't', completedAt: 2_500 })],
+      ),
     ).toHaveLength(2);
     expect(
-      mergeCalls([
-        call({ id: 'a', toolName: 't', completedAt: 0 }),
-        call({ id: 'b', toolName: 't', completedAt: 2_499 }),
-      ]),
+      mergeCalls(
+        [call({ id: 'a', toolName: 't', completedAt: 0 })],
+        [call({ id: 'b', toolName: 't', completedAt: 2_499 })],
+      ),
     ).toHaveLength(1);
+  });
+
+  it('keeps parallel same-name calls with distinct ids from one source', () => {
+    const out = mergeCalls([
+      call({ id: 'toolu_A', toolName: 'read_file', completedAt: 2_000 }),
+      call({ id: 'toolu_B', toolName: 'read_file', startedAt: 1_000, completedAt: undefined }),
+    ]);
+    expect(out.map((c) => c.id).sort()).toEqual(['toolu_A', 'toolu_B']);
+  });
+
+  it('still joins an id-less call split across fallback buckets in one source', () => {
+    const out = mergeCalls([
+      call({ id: 'leader:bash:1', agentId: 'leader', toolName: 'bash', completedAt: 2_001 }),
+      call({
+        id: 'leader:bash:0',
+        agentId: 'leader',
+        toolName: 'bash',
+        status: 'running',
+        startedAt: 1_999,
+        completedAt: undefined,
+      }),
+    ]);
+    expect(out.map((c) => c.id)).toEqual(['leader:bash:1']);
   });
 
   it('falls back to startedAt for an in-flight call with no completedAt', () => {
