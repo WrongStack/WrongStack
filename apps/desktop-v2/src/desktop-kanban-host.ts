@@ -57,17 +57,24 @@ export function desktopKanbanHost({
         if (Array.isArray(providers)) setSaved(providers.map(({ id, type }) => ({ id, type })));
       });
       const offModels = on('provider.models', ({ payload }) => {
-        const reply = payload as { provider?: string; models?: ProviderModelRow[] };
-        if (typeof reply?.provider === 'string')
-          setByProvider((previous) => ({
-            ...previous,
-            [reply.provider as string]: reply.models ?? [],
-          }));
+        const reply = payload as { provider?: string; models?: unknown };
+        if (typeof reply?.provider !== 'string') return;
+        const providerId = reply.provider;
+        if (!Array.isArray(reply.models)) {
+          requested.current.delete(providerId);
+          return;
+        }
+        const models = reply.models as ProviderModelRow[];
+        setByProvider((previous) => ({
+          ...previous,
+          [providerId]: models,
+        }));
       });
       request('providers.saved');
       return () => {
         offSaved();
         offModels();
+        requested.current.clear();
       };
     }, [active]);
     useEffect(() => {

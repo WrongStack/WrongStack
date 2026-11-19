@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T10:40:03.949Z",
+  "generatedAt": "2026-11-19T10:41:24.240Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6389,
-    "testFiles": 5548,
-    "sourceLines": 1318010,
+    "testFiles": 5549,
+    "sourceLines": 1318017,
     "workspaceEdges": 250,
     "moduleEdges": 18873,
     "nonCommandSlashImports": 0,
@@ -387,7 +387,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 549,
-      "testFiles": 392,
+      "testFiles": 393,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -406,7 +406,7 @@
         {
           "path": "apps/desktop-v2/tsconfig.test.json",
           "error": null,
-          "testFiles": 392
+          "testFiles": 393
         }
       ]
     },
@@ -1885,6 +1885,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/desktop-kanban-host-proto.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/desktop-kanban-host-reopen-and-error.test.ts",
         "projects": [
           "root-node"
         ]
