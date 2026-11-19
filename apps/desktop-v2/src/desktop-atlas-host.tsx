@@ -77,25 +77,43 @@ function AtlasIndexControls() {
   const building = useRef(false);
   const posting = useRef(false);
   const expectedJob = useRef<number | null>(null);
+  const activeHttpRef = useRef(http);
+  const mountedRef = useRef(true);
   useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+  useEffect(() => {
+    activeHttpRef.current = http;
+    building.current = false;
+    posting.current = false;
+    expectedJob.current = null;
+    setIndexing(false);
+    setError('');
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
       try {
         const result = record(await http('/api/codemap/status'));
         if (stopped) return;
+        const startedAt = typeof result['startedAt'] === 'number' ? result['startedAt'] : null;
         const waiting =
           posting.current ||
-          (expectedJob.current !== null && result['startedAt'] !== expectedJob.current);
+          (expectedJob.current !== null && startedAt !== null && startedAt < expectedJob.current);
         if (!waiting) {
           if (result['status'] === 'indexing') {
+            expectedJob.current = null;
             building.current = true;
             setIndexing(true);
           } else if (result['status'] === 'error') {
+            expectedJob.current = null;
             building.current = false;
             setIndexing(false);
             setError(String(result['error'] ?? t('atlasHost.indexFailed')));
           } else if (result['status'] === 'ready') {
+            expectedJob.current = null;
             setIndexing(false);
             // The map reloads in place when a build it waited for finishes.
             if (building.current) {
@@ -116,18 +134,21 @@ function AtlasIndexControls() {
     };
   }, [http]);
   const index = async () => {
+    const reqHttp = http;
     setError('');
     setIndexing(true);
     posting.current = true;
     try {
-      const result = record(await http('/api/codemap/index', 'POST', {}));
+      const result = record(await reqHttp('/api/codemap/index', 'POST', {}));
+      if (!mountedRef.current || activeHttpRef.current !== reqHttp) return;
       expectedJob.current = typeof result['startedAt'] === 'number' ? result['startedAt'] : null;
       building.current = true;
     } catch (cause) {
+      if (!mountedRef.current || activeHttpRef.current !== reqHttp) return;
       setIndexing(false);
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
-      posting.current = false;
+      if (activeHttpRef.current === reqHttp) posting.current = false;
     }
   };
   return (

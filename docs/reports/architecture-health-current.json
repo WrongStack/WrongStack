@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T10:38:47.959Z",
+  "generatedAt": "2026-11-19T10:40:03.949Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6389,
-    "testFiles": 5547,
-    "sourceLines": 1317989,
+    "testFiles": 5548,
+    "sourceLines": 1318010,
     "workspaceEdges": 250,
     "moduleEdges": 18873,
     "nonCommandSlashImports": 0,
@@ -387,7 +387,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 549,
-      "testFiles": 391,
+      "testFiles": 392,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -406,7 +406,7 @@
         {
           "path": "apps/desktop-v2/tsconfig.test.json",
           "error": null,
-          "testFiles": 391
+          "testFiles": 392
         }
       ]
     },
@@ -1843,6 +1843,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/design-studio-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/desktop-atlas-index-controls-wedge.test.ts",
         "projects": [
           "root-node"
         ]
