@@ -96,6 +96,11 @@ export function useSession() {
   const stopping = useRef('');
   const [modelPending, setModelPending] = useState(false);
   const modelTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  /**
+   * The latest `git.changes` request. Requests are answered concurrently and the
+   * server echoes each one's requestId, so an older snapshot answered last is dropped.
+   */
+  const changesRequest = useRef('');
 
   const update = useCallback((fn: (s: SessionState) => SessionState) => {
     current.current = fn(current.current);
@@ -123,7 +128,8 @@ export function useSession() {
   const refreshWorkspace = useCallback(() => {
     const sessionId = current.current.id;
     if (!sessionId) return;
-    send('git.changes', { sessionId });
+    const requestId = clientId();
+    if (send('git.changes', { sessionId, requestId })) changesRequest.current = requestId;
     send('stats.get', { sessionId });
     for (const type of ['todos.get', 'tasks.get', 'plan.get']) send(type, { sessionId });
   }, [send]);
@@ -140,6 +146,13 @@ export function useSession() {
     }
     const handle = (frame: ProtocolEnvelope) => {
       const p = record(frame.payload);
+      // A reply without a requestId (an unsolicited refresh, an older engine) still applies.
+      if (
+        frame.type === 'git.changes' &&
+        typeof p.requestId === 'string' &&
+        p.requestId !== changesRequest.current
+      )
+        return;
       if (frame.type === 'session.start' && !attemptedRestore) {
         attemptedRestore = true;
         if (

@@ -187,7 +187,7 @@
       "relativeImports": 12
     },
     "packages/vibeui/src/lib/use-session.ts": {
-      "lines": 773,
+      "lines": 786,
       "relativeImports": 8
     },
     "packages/webui/src/components/ChimeraReviewsView.tsx": {

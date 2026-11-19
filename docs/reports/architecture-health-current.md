@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-19T14:09:53.405Z
+**Generated:** 2026-11-19T14:11:09.476Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6392 |
-| Production source lines | 1318361 |
-| Test files | 5559 |
+| Production source lines | 1318374 |
+| Test files | 5560 |
 | Workspace dependency edges | 250 |
 | Relative module edges | 18884 |
 | Non-command slash imports | 0 |
@@ -67,7 +67,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/tools | 402 | 398 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 517 | 457 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 18 | 29 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
-| @wrongstack/vibeui | 100 | 41 | @wrongstack/webui-protocol |
+| @wrongstack/vibeui | 100 | 42 | @wrongstack/webui-protocol |
 | @wrongstack/webui | 798 | 539 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-protocol | 29 | 16 | @wrongstack/contracts, @wrongstack/core, @wrongstack/hq |
 | @wrongstack/webui-server | 356 | 415 | @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/worktree, @wrongstack/wrongtrace |
@@ -116,9 +116,9 @@ None.
 | 800 | `packages/client/src/client.ts` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
 | 791 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
+| 786 | `packages/vibeui/src/lib/use-session.ts` |
 | 780 | `packages/tools/src/design.ts` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
-| 773 | `packages/vibeui/src/lib/use-session.ts` |
 | 767 | `packages/acp/src/client/acp-session.ts` |
 | 763 | `packages/plugins/src/adversary-mode/index.ts` |
 | 756 | `packages/fleet/src/host-skill-companion.ts` |

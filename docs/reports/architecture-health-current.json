@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T14:09:53.405Z",
+  "generatedAt": "2026-11-19T14:11:09.476Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6392,
-    "testFiles": 5559,
-    "sourceLines": 1318361,
+    "testFiles": 5560,
+    "sourceLines": 1318374,
     "workspaceEdges": 250,
     "moduleEdges": 18884,
     "nonCommandSlashImports": 0,
@@ -1107,7 +1107,7 @@
       "name": "@wrongstack/vibeui",
       "dir": "packages/vibeui",
       "sourceFiles": 100,
-      "testFiles": 41,
+      "testFiles": 42,
       "workspaceDependencies": [
         "@wrongstack/webui-protocol"
       ],
@@ -1120,7 +1120,7 @@
         {
           "path": "packages/vibeui/tsconfig.test.json",
           "error": null,
-          "testFiles": 41
+          "testFiles": 42
         }
       ]
     },
@@ -28572,6 +28572,12 @@
         ]
       },
       {
+        "file": "packages/vibeui/tests/git-changes-replies.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/vibeui/tests/git-diff-replies.test.ts",
         "projects": [
           "root-node"
@@ -35853,7 +35859,7 @@
     },
     {
       "file": "packages/vibeui/src/lib/use-session.ts",
-      "lines": 773,
+      "lines": 786,
       "relativeImports": 8
     },
     {
@@ -36124,6 +36130,11 @@
       "relativeImports": 61
     },
     {
+      "file": "packages/vibeui/src/lib/use-session.ts",
+      "lines": 786,
+      "relativeImports": 8
+    },
+    {
       "file": "packages/tools/src/design.ts",
       "lines": 780,
       "relativeImports": 1
@@ -36132,11 +36143,6 @@
       "file": "packages/webui-server/src/server/memory-handlers.ts",
       "lines": 777,
       "relativeImports": 5
-    },
-    {
-      "file": "packages/vibeui/src/lib/use-session.ts",
-      "lines": 773,
-      "relativeImports": 8
     },
     {
       "file": "packages/acp/src/client/acp-session.ts",
