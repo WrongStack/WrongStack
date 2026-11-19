@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T14:11:09.476Z",
+  "generatedAt": "2026-11-19T14:12:23.114Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,7 +13,7 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6392,
-    "testFiles": 5560,
+    "testFiles": 5561,
     "sourceLines": 1318374,
     "workspaceEdges": 250,
     "moduleEdges": 18884,
@@ -1128,7 +1128,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 798,
-      "testFiles": 539,
+      "testFiles": 540,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1154,7 +1154,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 539
+          "testFiles": 540
         }
       ]
     },
@@ -33547,6 +33547,12 @@
       },
       {
         "file": "packages/webui/tests/lib/a11y-static-boundaries.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/lib/acp-runtime-requests.test.ts",
         "projects": [
           "webui-jsdom"
         ]
