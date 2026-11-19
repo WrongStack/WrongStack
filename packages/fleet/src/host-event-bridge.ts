@@ -4,6 +4,8 @@ import type { SubagentConfig, TokenCounter, Usage } from '@wrongstack/contracts/
 
 const BRIDGE_TEXT_CAP = 360;
 const BRIDGE_OUTPUT_CAP = 4_096;
+const BRIDGE_ARRAY_MAX_ITEMS = 20;
+const BRIDGE_ARRAY_ITEM_CAP = 120;
 /**
  * A `patch` body is kept (not just its totals) because it is the only
  * per-file evidence the call ever carries: one call can address several
@@ -14,7 +16,13 @@ const BRIDGE_OUTPUT_CAP = 4_096;
 const BRIDGE_PATCH_CAP = 64 * 1024;
 
 function compactText(value: string, cap = BRIDGE_TEXT_CAP): string {
-  return value.length <= cap ? value : `${value.slice(0, cap - 1)}…`;
+  if (value.length <= cap) return value;
+  let end = Math.max(0, cap - 1);
+  if (end > 0) {
+    const code = value.charCodeAt(end - 1);
+    if (code >= 0xd800 && code <= 0xdbff) end -= 1;
+  }
+  return `${value.slice(0, end)}…`;
 }
 
 function lineCount(value: string): number {
@@ -47,7 +55,19 @@ function patchDelta(value: string): { addedLines: number; removedLines: number }
  * metadata and size/line signals for live activity views.
  */
 export function compactBridgeToolInput(input: unknown): unknown {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+  if (Array.isArray(input)) {
+    return {
+      _arrayLength: input.length,
+      items: input.slice(0, BRIDGE_ARRAY_MAX_ITEMS).map((item) => {
+        if (typeof item === 'string') return compactText(item, BRIDGE_ARRAY_ITEM_CAP);
+        if (typeof item === 'number' || typeof item === 'boolean' || item === null) return item;
+        if (Array.isArray(item)) return `[Array(${item.length})]`;
+        if (typeof item === 'object') return '[Object]';
+        return compactText(String(item), BRIDGE_ARRAY_ITEM_CAP);
+      }),
+    };
+  }
+  if (!input || typeof input !== 'object') {
     return typeof input === 'string' ? compactText(input) : input;
   }
 
@@ -177,7 +197,7 @@ export function installSubagentEventBridge(opts: {
       phase: 'changed',
       source: 'deterministic',
       at: Date.now(),
-      sessionId: e.sessionId,
+      sessionId: hostSessionId,
       traceId: e.traceId,
       agentId: subagentId(),
       agentName: agentName(e.agentName),
