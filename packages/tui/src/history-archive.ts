@@ -136,7 +136,15 @@ export class HistoryArchive {
 
     for (const slot of slice) {
       const buf = Buffer.allocUnsafe(slot.length);
-      await handle.read(buf, 0, slot.length, slot.offset);
+      // A positioned read can return fewer bytes than requested. Decode only
+      // once the whole indexed line is present, never an unread buffer tail.
+      let read = 0;
+      while (read < buf.length) {
+        const { bytesRead } = await handle.read(buf, read, buf.length - read, slot.offset + read);
+        if (bytesRead === 0) break;
+        read += bytesRead;
+      }
+      if (read < buf.length) continue;
       const text = buf.toString('utf8').trim();
       if (!text) continue;
       try {
