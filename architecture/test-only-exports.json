@@ -212,6 +212,9 @@
     "apps/desktop-v2/src/tool-input-view.ts": [
       "WRITE_PREVIEW_LINES"
     ],
+    "apps/desktop-v2/src/ToolApprovalCard.tsx": [
+      "approvalShortcut"
+    ],
     "apps/desktop-v2/src/update-notice.ts": [
       "UPDATE_PREFS_KEY"
     ],

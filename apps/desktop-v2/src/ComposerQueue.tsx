@@ -29,10 +29,16 @@ export function ComposerQueue({
   return (
     <details className="composer-queue" ref={panel}>
       <summary>
-        <ListPlus size={14} />{' '}
-        {queue.length === 1
-          ? t('composerQueue.one')
-          : t('composerQueue.many', { number: queue.length })}
+        <span className="composer-queue-count">
+          <ListPlus size={13} />{' '}
+          {queue.length === 1
+            ? t('composerQueue.one')
+            : t('composerQueue.many', { number: queue.length })}
+        </span>
+        {/* The next prompt to run, in one line, so the queue reads without opening it. */}
+        <q className="composer-queue-next">
+          {splitReferenceMessage(queue[0]!.text).text || t('composerQueue.references')}
+        </q>
         <small>{t('composerQueue.note')}</small>
         <ChevronDown size={13} />
       </summary>

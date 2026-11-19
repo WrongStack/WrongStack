@@ -63,8 +63,11 @@ describe('chronological chat work', () => {
       expect(html.indexOf('second.ts')).toBeGreaterThan(html.indexOf('Second update.'));
       expect(html.indexOf('second.ts')).toBeLessThan(html.indexOf('Final answer.'));
       // The shared overview and lossless input both name the file; tool calls still appear once.
-      expect(html.match(/class="activity-entry activity-done activity-kind-tool"/g)?.length).toBe(2);
-      expect(html.match(/<strong>read<\/strong>/g)?.length).toBe(2);
+      expect(
+        html.match(/class="chat-step activity-entry activity-done activity-kind-tool"/g)?.length,
+      ).toBe(2);
+      // Each call leads with what it did; the file it read sits beside it.
+      expect(html.match(/<strong>Read<\/strong>/g)?.length).toBe(2);
     },
   );
 

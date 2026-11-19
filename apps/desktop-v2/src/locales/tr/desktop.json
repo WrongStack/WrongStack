@@ -878,7 +878,16 @@
     "denyTitle": "Bu isteği ve bu oturumdaki aynı denemeleri reddet",
     "deny": "Reddet",
     "allowRemember": "İzin ver ve hatırla",
-    "allowOnce": "Bir kez izin ver"
+    "allowOnce": "Bir kez izin ver",
+    "ask": {
+      "command": "Komut çalıştırılsın mı?",
+      "edit": "Dosya düzenlensin mi?",
+      "write": "Dosya yazılsın mı?",
+      "web": "Web isteğine izin verilsin mi?",
+      "tool": "{{tool}} için izin verilsin mi?"
+    },
+    "details": "Ayrıntılar",
+    "shortcuts": "Y bir kez izin verir · N reddeder"
   },
   "input": {
     "closeSaved": "Kapat",
@@ -9841,5 +9850,40 @@
     "restarting": "Yeniden başlatılıyor…",
     "cancel": "İptal",
     "failed": "Motor yeniden başlatılamadı: {{error}}"
+  },
+  "chatSteps": {
+    "step": "{{count}} adım",
+    "steps": "{{count}} adım",
+    "thinking": "Düşünüyor…",
+    "thought": "Düşündü",
+    "thoughtFor": "{{time}} düşündü",
+    "plan": "Plan",
+    "planDone": "{{total}} işin {{done}} tanesi bitti",
+    "output": "Komut çıktısı",
+    "verb": {
+      "searched": "Arandı",
+      "read": "Okundu",
+      "edited": "Düzenlendi",
+      "wrote": "Yazıldı",
+      "ran": "Çalıştırıldı",
+      "running": "Çalışıyor",
+      "fetched": "Getirildi",
+      "updatedPlan": "Plan güncellendi"
+    },
+    "fileChanged": "{{count}} dosya değişti",
+    "filesChanged": "{{count}} dosya değişti",
+    "review": "Değişiklikleri incele",
+    "changesLabel": "Bu turun değiştirdiği dosyalar"
+  },
+  "councilCard": {
+    "title": "Brain konseyi",
+    "seats": "{{total}} koltuktan {{valid}} oy",
+    "voting": "Oylanıyor…",
+    "vote": "{{count}} oy",
+    "votes": "{{count}} oy",
+    "seatVoting": "oyluyor…",
+    "noVote": "oy yok",
+    "veto": "veto",
+    "full": "Konseyin tam raporu"
   }
 }

@@ -878,7 +878,16 @@
     "denyTitle": "Nega questa richiesta e i tentativi identici in questa sessione",
     "deny": "Nega",
     "allowRemember": "Consenti e memorizza",
-    "allowOnce": "Consenti una volta"
+    "allowOnce": "Consenti una volta",
+    "ask": {
+      "command": "Consentire l'esecuzione di un comando?",
+      "edit": "Consentire la modifica di un file?",
+      "write": "Consentire la scrittura di un file?",
+      "web": "Consentire una richiesta web?",
+      "tool": "Consentire {{tool}}?"
+    },
+    "details": "Dettagli",
+    "shortcuts": "Y consente una volta · N nega"
   },
   "input": {
     "closeSaved": "Chiudi",
@@ -9841,5 +9850,40 @@
     "restarting": "Riavvio in corso…",
     "cancel": "Annulla",
     "failed": "Impossibile riavviare il motore: {{error}}"
+  },
+  "chatSteps": {
+    "step": "{{count}} passaggio",
+    "steps": "{{count}} passaggi",
+    "thinking": "Sta pensando…",
+    "thought": "Ha pensato",
+    "thoughtFor": "Ha pensato per {{time}}",
+    "plan": "Piano",
+    "planDone": "{{done}} di {{total}} completati",
+    "output": "Output del comando",
+    "verb": {
+      "searched": "Cercato",
+      "read": "Letto",
+      "edited": "Modificato",
+      "wrote": "Scritto",
+      "ran": "Eseguito",
+      "running": "In esecuzione",
+      "fetched": "Recuperato",
+      "updatedPlan": "Piano aggiornato"
+    },
+    "fileChanged": "{{count}} file modificato",
+    "filesChanged": "{{count}} file modificati",
+    "review": "Rivedi le modifiche",
+    "changesLabel": "File modificati in questo turno"
+  },
+  "councilCard": {
+    "title": "Consiglio Brain",
+    "seats": "{{valid}} di {{total}} seggi",
+    "voting": "Votazione in corso…",
+    "vote": "{{count}} voto",
+    "votes": "{{count}} voti",
+    "seatVoting": "sta votando…",
+    "noVote": "nessun voto",
+    "veto": "veto",
+    "full": "Rapporto completo del consiglio"
   }
 }

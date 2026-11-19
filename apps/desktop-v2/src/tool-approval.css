@@ -1,42 +1,3 @@
-.approval-card.tool-approval {
-  background: var(--raised);
-  border: 1px solid var(--border);
-  padding: 18px;
-}
-.tool-approval > header {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-.approval-icon {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--accent);
-  flex: none;
-}
-.tool-approval h3 {
-  margin: 4px 0;
-  font-size: 16px;
-  overflow-wrap: anywhere;
-}
-.tool-approval header p {
-  margin: 4px 0 12px;
-}
-.approval-risk {
-  margin-left: auto;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 4px 7px;
-  color: var(--muted);
-  font-size: 11px;
-}
-.approval-destructive .approval-risk {
-  color: var(--danger);
-}
 .tool-approval .approval-notice,
 .tool-approval .approval-deadline,
 .tool-approval .approval-waiting {
@@ -142,4 +103,131 @@
   .approval-arguments dl > div {
     grid-template-columns: 1fr;
   }
+}
+
+/* The approval waits in the conversation as a compact banner: what it asks and of what, the
+   decisions on the same line, and the arguments, remembered scope and remembered denial one
+   disclosure away. Risk, reason, rule and deadline stay on the banner itself. */
+.approval-card.tool-approval.approval-banner {
+  --approval-tone: hsl(var(--ws-warning));
+  max-width: 850px;
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in oklch, var(--approval-tone) 55%, var(--border));
+  border-radius: 10px;
+  background: color-mix(in oklch, var(--approval-tone) 7%, var(--raised));
+}
+.approval-card.tool-approval.approval-banner.approval-destructive {
+  --approval-tone: var(--danger);
+}
+.approval-banner-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.approval-card.tool-approval > .approval-banner-row {
+  justify-content: flex-start;
+}
+.approval-banner-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--approval-tone) 16%, transparent);
+  color: var(--approval-tone);
+}
+.approval-banner-text {
+  display: grid;
+  flex: 1 1 16rem;
+  gap: 2px;
+  min-width: 0;
+}
+.approval-banner-eyebrow {
+  color: var(--subtle);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+}
+.approval-banner-eyebrow .approval-risk {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  font-size: inherit;
+}
+.approval-destructive .approval-banner-eyebrow .approval-risk {
+  color: var(--danger);
+  font-weight: 600;
+}
+.approval-banner-title {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+.approval-banner-subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font: 12px / 1.5 var(--user-font-code, Consolas, monospace);
+}
+.approval-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.approval-banner-actions .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.approval-banner-actions .approval-key {
+  display: inline-grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border: 1px solid color-mix(in srgb, currentColor 40%, transparent);
+  border-radius: 4px;
+  font: 600 10px / 1 var(--user-font-code, Consolas, monospace);
+  opacity: 0.85;
+}
+.tool-approval.approval-banner p {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.tool-approval.approval-banner .approval-banner-reason {
+  color: var(--text);
+}
+.approval-details {
+  margin-top: 8px;
+  border-top: 1px solid color-mix(in oklch, var(--approval-tone) 25%, var(--border));
+  padding-top: 6px;
+}
+.approval-details > summary {
+  width: max-content;
+  padding: 2px 0;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.approval-details > summary:hover {
+  color: var(--text);
+}
+.approval-details[open] > summary {
+  margin-bottom: 4px;
+}
+/* A command being approved is never cut: it wraps, and a long one scrolls inside its box. */
+.approval-banner-subject.command {
+  max-height: 9.5em;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  color: var(--text);
 }

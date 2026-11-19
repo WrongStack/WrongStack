@@ -878,7 +878,16 @@
     "denyTitle": "Refuser cette demande et les nouvelles tentatives identiques dans cette session",
     "deny": "Refuser",
     "allowRemember": "Autoriser et mémoriser",
-    "allowOnce": "Autoriser une fois"
+    "allowOnce": "Autoriser une fois",
+    "ask": {
+      "command": "Autoriser l'exécution d'une commande ?",
+      "edit": "Autoriser la modification d'un fichier ?",
+      "write": "Autoriser l'écriture d'un fichier ?",
+      "web": "Autoriser une requête web ?",
+      "tool": "Autoriser {{tool}} ?"
+    },
+    "details": "Détails",
+    "shortcuts": "Y autorise une fois · N refuse"
   },
   "input": {
     "closeSaved": "Fermer",
@@ -9841,5 +9850,40 @@
     "restarting": "Redémarrage…",
     "cancel": "Annuler",
     "failed": "Le moteur n'a pas pu être redémarré : {{error}}"
+  },
+  "chatSteps": {
+    "step": "{{count}} étape",
+    "steps": "{{count}} étapes",
+    "thinking": "Réflexion…",
+    "thought": "Réflexion terminée",
+    "thoughtFor": "A réfléchi {{time}}",
+    "plan": "Plan",
+    "planDone": "{{done}} sur {{total}} terminées",
+    "output": "Sortie de la commande",
+    "verb": {
+      "searched": "Recherché",
+      "read": "Lu",
+      "edited": "Modifié",
+      "wrote": "Écrit",
+      "ran": "Exécuté",
+      "running": "En cours",
+      "fetched": "Récupéré",
+      "updatedPlan": "Plan mis à jour"
+    },
+    "fileChanged": "{{count}} fichier modifié",
+    "filesChanged": "{{count}} fichiers modifiés",
+    "review": "Examiner les modifications",
+    "changesLabel": "Fichiers modifiés par ce tour"
+  },
+  "councilCard": {
+    "title": "Conseil Brain",
+    "seats": "{{valid}} sièges sur {{total}}",
+    "voting": "Vote en cours…",
+    "vote": "{{count}} voix",
+    "votes": "{{count}} voix",
+    "seatVoting": "vote…",
+    "noVote": "pas de vote",
+    "veto": "veto",
+    "full": "Rapport complet du conseil"
   }
 }

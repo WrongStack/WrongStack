@@ -127,10 +127,12 @@ try {
           );
           const panel = page.locator('.chat-run-activity');
           await expect(panel).toHaveAttribute('open', '');
-          await expect(page.locator('.activity-iteration')).toHaveCount(2);
+          // The conversation lists the calls as one flat set of steps; iteration groups and
+          // per-call clock times belong to the full run log, not the chat.
+          await expect(page.locator('.activity-iteration')).toHaveCount(0);
           await expect(page.locator('.chat-message > header time')).toHaveCount(2);
-          await expect(page.locator('.activity-iteration > summary time')).toHaveCount(2);
-          await expect(page.locator('.activity-kind-tool > summary time')).toHaveCount(2);
+          await expect(page.locator('.chat-step.activity-kind-tool')).toHaveCount(2);
+          await expect(page.locator('.chat-step-target')).toHaveCount(2);
           await page.getByRole('tab', { name: 'Details', exact: true }).click();
           await expect(page.locator('.session-tool-total dd')).toHaveText('2');
           await expect(page.locator('.session-tool-summary dl > div')).toHaveCount(3);
@@ -148,10 +150,10 @@ try {
               }),
               overlaps: [...pane.querySelectorAll('.activity-kind-tool > summary')].some(
                 (summary) => {
-                  const hint = summary
-                    .querySelector('.activity-entry-hint')
+                  const hint = summary.querySelector('.chat-step-target')?.getBoundingClientRect();
+                  const time = summary
+                    .querySelector('.chat-step-time, .chat-step-status')
                     ?.getBoundingClientRect();
-                  const time = summary.querySelector('time')?.getBoundingClientRect();
                   return (
                     hint &&
                     time &&
@@ -181,12 +183,14 @@ try {
           await panel.locator(':scope > summary').focus();
           await page.keyboard.press('Space');
           await expect(panel).toHaveAttribute('open', '');
-          const first = page.locator('.activity-iteration').first();
+          // A step opens to its details from the keyboard and closes again.
+          const first = page.locator('.chat-step.activity-kind-tool').first();
           await first.locator(':scope > summary').focus();
           await page.keyboard.press('Enter');
+          await expect(first).toHaveAttribute('open', '');
+          await expect(first.locator('.activity-entry-body')).toBeVisible();
+          await page.keyboard.press('Enter');
           await expect(first).not.toHaveAttribute('open');
-          await expect(page.locator('.activity-iteration').last()).toHaveAttribute('open', '');
-          await first.locator(':scope > summary').click();
           await page.locator('.activity-kind-reasoning > summary').click();
           await expect(
             page.getByText('Thinking fixture: inspect the existing implementation.', {

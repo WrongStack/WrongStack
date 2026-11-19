@@ -1,4 +1,6 @@
+import { ExternalLink, ScanSearch, Sparkles } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { ChatEventCard } from './ChatEventCard';
 import { useDesktopText } from './desktop-i18n';
 import type { MessageAction } from './message-action';
 
@@ -18,36 +20,52 @@ export function ChimeraMessageCard({
   const locked = useRef(false);
   const [busy, setBusy] = useState(false);
   return (
-    <section aria-label={t('chimeraMessage.title')} data-chimera-report={reportId}>
-      <strong>
-        {t('chimeraMessage.title')} · {reportId}
-      </strong>
+    <ChatEventCard
+      tone="accent"
+      className="chat-chimera"
+      label={t('chimeraMessage.title')}
+      data={{ 'data-chimera-report': reportId }}
+      icon={<ScanSearch size={15} />}
+      title={t('chimeraMessage.title')}
+      meta={<code>{reportId}</code>}
+      actions={
+        <>
+          <button
+            type="button"
+            className="button secondary small"
+            disabled={!onOpen}
+            onClick={onOpen}
+          >
+            <ExternalLink size={12} /> {t('chimeraMessage.open')}
+          </button>
+          <button
+            type="button"
+            className="button primary small"
+            disabled={!action || 'reason' in action || busy}
+            title={action && 'reason' in action ? action.reason : t('chimeraMessage.hint')}
+            onClick={async () => {
+              if (!action || 'reason' in action || locked.current) return;
+              locked.current = true;
+              setBusy(true);
+              try {
+                await action.run();
+              } finally {
+                locked.current = false;
+                setBusy(false);
+              }
+            }}
+          >
+            <Sparkles size={12} /> {t('chimeraMessage.prepare')}
+          </button>
+        </>
+      }
+    >
       <p>{text}</p>
-      <div className="message-actions">
-        <button type="button" className="button secondary" disabled={!onOpen} onClick={onOpen}>
-          {t('chimeraMessage.open')}
-        </button>
-        <button
-          type="button"
-          className="button primary"
-          disabled={!action || 'reason' in action || busy}
-          title={action && 'reason' in action ? action.reason : t('chimeraMessage.hint')}
-          onClick={async () => {
-            if (!action || 'reason' in action || locked.current) return;
-            locked.current = true;
-            setBusy(true);
-            try {
-              await action.run();
-            } finally {
-              locked.current = false;
-              setBusy(false);
-            }
-          }}
-        >
-          {t('chimeraMessage.prepare')}
-        </button>
-        {action && 'reason' in action && <small role="status">{action.reason}</small>}
-      </div>
-    </section>
+      {action && 'reason' in action && (
+        <p className="chat-event-note" role="status">
+          {action.reason}
+        </p>
+      )}
+    </ChatEventCard>
   );
 }

@@ -78,6 +78,14 @@ export async function exerciseNativeApprovals({
       .boundingBox();
     return pane && button && button.y >= pane.y && button.y + button.height <= pane.y + pane.height;
   }, 'New approval actions follow the conversation into view');
+  // The banner names the whole command, every argument included, before anything is opened.
+  await card()
+    .locator('.approval-banner-subject')
+    .filter({ hasText: /^git .*desktopfixture\.first/ })
+    .waitFor();
+  // Arguments, the remembered scope and remembered denial sit one disclosure away.
+  const details = () => card().locator('details.approval-details');
+  await details().locator(':scope > summary').click();
   await card()
     .getByRole('region', { name: 'Command to run', exact: true })
     .getByText('git', { exact: true })
@@ -113,7 +121,7 @@ export async function exerciseNativeApprovals({
     })
     .locator('.chat-run-activity');
   const turnSummary = turnTools.locator(':scope > summary');
-  await turnSummary.filter({ hasText: /Run activity.*\d+ tool calls?/ }).waitFor();
+  await turnSummary.filter({ hasText: /\d+ steps?/ }).waitFor();
   await turnSummary.click();
   await turnTools.locator('.activity-entry').first().waitFor();
   await turnSummary.click();
@@ -124,6 +132,7 @@ export async function exerciseNativeApprovals({
   assert.match(await result('deny'), /denied|not executed|permission/i);
   await send('remember');
   await card().waitFor({ timeout: 60000 });
+  await details().locator(':scope > summary').click();
   await card()
     .getByRole('region', { name: 'Tool arguments', exact: true })
     .getByText('desktopfixture.second', { exact: true })

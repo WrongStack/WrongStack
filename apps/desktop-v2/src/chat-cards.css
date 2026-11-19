@@ -1,0 +1,501 @@
+/* The conversation's event cards (ChatEventCard): Brain decisions, reviews, model switches.
+   One shape for everything that happens beside the messages: an icon in the card's tone, a
+   title with a meta line, a badge, the decisions on the right, and the body under the title. */
+.chat-event {
+  --tone: var(--muted);
+  margin: 2px 0 12px;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--raised);
+  font-size: 13px;
+  min-width: 0;
+}
+.chat-event.tone-accent {
+  --tone: var(--accent);
+}
+.chat-event.tone-success {
+  --tone: hsl(var(--ws-success));
+}
+.chat-event.tone-warning {
+  --tone: hsl(var(--ws-warning));
+}
+.chat-event.tone-danger {
+  --tone: var(--danger);
+}
+.chat-event:not(.tone-neutral) {
+  border-color: color-mix(in oklch, var(--tone) 32%, var(--border));
+}
+/* Cards that wait on the reader carry their tone on the whole surface; settled history
+   (a denial, a finished vote) tints only its border and icon. */
+.chat-event.attention {
+  border-color: color-mix(in oklch, var(--tone) 50%, var(--border));
+  background: color-mix(in oklch, var(--tone) 6%, var(--raised));
+}
+.chat-event > .chat-event-head {
+  display: flex;
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  /* Inside a message the card's header must not take the message header's label style. */
+  letter-spacing: normal;
+  text-transform: none;
+  font-weight: 400;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  min-width: 0;
+}
+.chat-event-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--tone) 15%, transparent);
+  color: var(--tone);
+}
+.chat-event-title {
+  display: flex;
+  flex: 1 1 12rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  min-width: 0;
+}
+.chat-event .chat-event-title > strong {
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.chat-event .chat-event-title > small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.chat-event-title code {
+  font: 11.5px / 1.4 var(--user-font-code, Consolas, monospace);
+}
+.chat-event-badge {
+  flex: none;
+}
+.chat-event-actions {
+  display: inline-flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.chat-event-actions .button,
+.chat-event-actions > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chat-event-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  border: 1px solid color-mix(in oklch, var(--tone) 38%, var(--border));
+  border-radius: 999px;
+  color: var(--tone);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.chat-event-chip.pending {
+  --tone: hsl(var(--ws-warning));
+}
+.chat-event-body {
+  margin-top: 6px;
+  padding-left: 38px;
+  color: var(--text);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.chat-event-body > p {
+  margin: 4px 0;
+}
+.chat-event-note {
+  color: var(--muted);
+  font-size: 12px;
+}
+.chat-event .sr-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.chat-event-countdown {
+  display: block;
+  height: 3px;
+  margin: 8px 0 2px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: color-mix(in oklch, var(--tone) 18%, transparent);
+}
+.chat-event-countdown > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--tone);
+  transition: width 250ms linear;
+}
+
+/* Brain decisions: the question, the answer, why, and the facts behind it. */
+.chat-brain .chat-brain-question {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  color: var(--muted);
+  font-style: italic;
+}
+.chat-brain .chat-brain-question > svg {
+  flex: none;
+  margin-top: 4px;
+}
+.chat-brain .chat-brain-answer {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.chat-brain .chat-brain-reason {
+  padding-left: 10px;
+  border-left: 2px solid color-mix(in oklch, var(--tone) 45%, transparent);
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.chat-event-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 2px;
+}
+.chat-event-facts > div {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--base);
+  font-size: 11.5px;
+}
+.chat-event-facts dt {
+  color: var(--subtle);
+}
+.chat-event-facts dd {
+  margin: 0;
+  color: var(--text);
+}
+.chat-event-facts > :is(.value-high, .value-destructive, .value-critical) dd {
+  color: var(--danger);
+  font-weight: 600;
+}
+.chat-brain-meter {
+  position: relative;
+  width: 34px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: color-mix(in oklch, var(--tone) 22%, transparent);
+}
+.chat-brain-meter::after {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--confidence, 0%);
+  border-radius: inherit;
+  background: var(--tone);
+  content: "";
+}
+
+/* Model fallback: the countdown chip and the choices beside the title. */
+.chat-event.fallback-picker {
+  margin: 0 16px 8px;
+}
+.fallback-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* The rest of what can appear beside the conversation follows the same card shape. */
+.engine-workspace .conversation-notice {
+  --tone: var(--accent);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 8px 12px;
+  border: 1px solid color-mix(in oklch, var(--tone) 38%, var(--border));
+  border-radius: 10px;
+  background: color-mix(in oklch, var(--tone) 5%, var(--raised));
+}
+.engine-workspace .conversation-notice.warning {
+  --tone: hsl(var(--ws-warning));
+}
+.engine-workspace .conversation-notice.error {
+  --tone: var(--danger);
+}
+.engine-workspace .conversation-notice > svg {
+  flex: none;
+  color: var(--tone);
+}
+.engine-workspace .conversation-notice small {
+  display: block;
+  margin-top: 1px;
+}
+.engine-workspace .failed-run {
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in oklch, var(--danger) 45%, var(--border));
+  border-radius: 10px;
+  background: color-mix(in oklch, var(--danger) 7%, var(--raised));
+}
+.engine-workspace .failed-run > svg {
+  box-sizing: content-box;
+  padding: 6px;
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--danger) 15%, transparent);
+}
+.engine-workspace .failed-run > div > span {
+  color: var(--muted);
+  font: 12px / 1.5 var(--user-font-code, Consolas, monospace);
+}
+.engine-workspace .waiting-room {
+  border: 1px solid color-mix(in oklch, hsl(var(--ws-warning)) 45%, var(--border));
+  border-radius: 10px;
+  background: color-mix(in oklch, hsl(var(--ws-warning)) 5%, var(--raised));
+}
+.engine-workspace :is(.scheduled-jobs, .session-todos, .next-steps-panel, .composer-queue) {
+  border-color: var(--border);
+  border-radius: 10px;
+  background: var(--raised);
+}
+.engine-workspace .auto-continue {
+  border-color: color-mix(in oklch, var(--accent) 50%, var(--border));
+  border-radius: 10px;
+  background: color-mix(in oklch, var(--accent) 6%, var(--raised));
+}
+.engine-workspace .composer-queue > summary {
+  gap: 10px;
+  padding: 8px 12px;
+  min-width: 0;
+}
+.composer-queue-count {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--base);
+  color: var(--muted);
+  font: 11.5px / 1.5 var(--user-font-code, Consolas, monospace);
+}
+.composer-queue-next {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.engine-workspace .input-request-card {
+  padding: 18px 20px;
+  border-color: color-mix(in oklch, var(--accent) 40%, var(--border));
+  border-radius: 12px;
+}
+.engine-workspace .input-request-card h3 {
+  font-size: 17px;
+  font-weight: 600;
+}
+.engine-workspace .input-option {
+  border-radius: 8px;
+  transition: border-color 120ms ease;
+}
+.engine-workspace .input-option:has(input:checked) {
+  border-color: color-mix(in oklch, var(--accent) 60%, var(--border));
+  background: color-mix(in oklch, var(--accent) 6%, var(--base));
+}
+.engine-workspace .chat-turn-meta {
+  color: var(--subtle);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .chat-event-body {
+    padding-left: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-event-countdown > i,
+  .engine-workspace .input-option {
+    transition: none;
+  }
+}
+.engine-workspace .failed-run > .button:not(.secondary) {
+  padding: 5px 12px;
+  border: 1px solid color-mix(in oklch, var(--danger) 55%, var(--border));
+  border-radius: 7px;
+  background: color-mix(in oklch, var(--danger) 16%, transparent);
+  color: var(--text);
+  font-weight: 500;
+}
+.engine-workspace .failed-run > .button:not(.secondary):hover:not(:disabled) {
+  background: color-mix(in oklch, var(--danger) 26%, transparent);
+}
+/* Compact density gives message headers a margin (`:root[data-density] .chat-message header`);
+   a card's own header keeps none at either density. */
+:root .chat-event.chat-event > header.chat-event-head {
+  margin: 0;
+}
+
+/* Brain council: the verdict, a bar by option, and one chip per seat. */
+.chat-council {
+  --option-0: hsl(var(--ws-success));
+  --option-1: hsl(var(--ws-info));
+  --option-2: hsl(var(--ws-warning));
+  --option-3: var(--accent);
+}
+.chat-council-tally {
+  margin: 10px 0 4px;
+}
+.chat-council-bar {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--border);
+}
+.chat-council-bar > i {
+  display: block;
+  min-width: 3px;
+}
+.chat-council .option-0 {
+  --option: var(--option-0);
+}
+.chat-council .option-1 {
+  --option: var(--option-1);
+}
+.chat-council .option-2 {
+  --option: var(--option-2);
+}
+.chat-council .option-3 {
+  --option: var(--option-3);
+}
+.chat-council-bar > i {
+  background: var(--option);
+}
+.chat-council-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 7px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.chat-council-legend > li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.chat-council-legend > li::before {
+  align-self: center;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--option);
+  content: "";
+}
+.chat-council .chat-council-legend small {
+  color: var(--muted);
+}
+.chat-council-seats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 2px;
+  padding: 0;
+  list-style: none;
+}
+.chat-council-seat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--base);
+  font-size: 12px;
+}
+.chat-council .chat-council-seat > strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+.chat-council-seat > code {
+  color: var(--subtle);
+  font: 11px / 1.4 var(--user-font-code, Consolas, monospace);
+}
+.chat-council-vote {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: color-mix(in oklch, var(--tone) 14%, transparent);
+  color: var(--tone);
+  font-weight: 600;
+}
+.chat-council-vote.pending,
+.chat-council-vote.failed {
+  background: transparent;
+  color: var(--muted);
+  font-weight: 400;
+}
+.chat-council-seat.status-failed,
+.chat-council-seat.status-invalid,
+.chat-council-seat.status-cancelled {
+  opacity: 0.7;
+}
+.chat-council-veto {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: color-mix(in oklch, var(--danger) 16%, transparent);
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.chat-council-full {
+  margin-top: 8px;
+}
+.chat-council .chat-council-full > summary {
+  width: max-content;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.chat-council .chat-council-full > summary:hover {
+  color: var(--text);
+}
+.chat-council-full[open] > .ws-surfaces {
+  margin-top: 8px;
+}
+/* A conversation without a provider says so as a card in the reading column, not a strip. */
+.engine-workspace .provider-setup-banner {
+  max-width: 850px;
+  margin: 12px auto;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in oklch, hsl(var(--ws-warning)) 50%, var(--border));
+  border-radius: 10px;
+  background: color-mix(in oklch, hsl(var(--ws-warning)) 6%, var(--raised));
+  color: var(--text);
+  font-size: 13px;
+}

@@ -909,13 +909,13 @@ export function SessionComposer({
                 </button>
                 <button
                   type="button"
-                  className="composer-chip"
+                  className="composer-chip composer-stop"
                   aria-label={t('composer.stopRun')}
                   title={t('composer.stopRunTitle')}
                   disabled={sending || !state.connected}
                   onClick={() => stop()}
                 >
-                  <Square size={13} />
+                  <Square size={10} fill="currentColor" /> {t('composer.stopRun')}
                 </button>
               </>
             )}

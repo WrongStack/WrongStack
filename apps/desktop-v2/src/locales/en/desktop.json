@@ -878,7 +878,16 @@
     "denyTitle": "Deny this request and identical retries in this session",
     "deny": "Deny",
     "allowRemember": "Allow & remember",
-    "allowOnce": "Allow once"
+    "allowOnce": "Allow once",
+    "ask": {
+      "command": "Allow running a command?",
+      "edit": "Allow editing a file?",
+      "write": "Allow writing a file?",
+      "web": "Allow a web request?",
+      "tool": "Allow {{tool}}?"
+    },
+    "details": "Details",
+    "shortcuts": "Y allows once · N denies"
   },
   "input": {
     "closeSaved": "Close",
@@ -9841,5 +9850,40 @@
     "restarting": "Restarting…",
     "cancel": "Cancel",
     "failed": "The engine could not be restarted: {{error}}"
+  },
+  "chatSteps": {
+    "step": "{{count}} step",
+    "steps": "{{count}} steps",
+    "thinking": "Thinking…",
+    "thought": "Thought",
+    "thoughtFor": "Thought for {{time}}",
+    "plan": "Plan",
+    "planDone": "{{done}} of {{total}} done",
+    "output": "Command output",
+    "verb": {
+      "searched": "Searched",
+      "read": "Read",
+      "edited": "Edited",
+      "wrote": "Wrote",
+      "ran": "Ran",
+      "running": "Running",
+      "fetched": "Fetched",
+      "updatedPlan": "Updated the plan"
+    },
+    "fileChanged": "{{count}} file changed",
+    "filesChanged": "{{count}} files changed",
+    "review": "Review changes",
+    "changesLabel": "Files this turn changed"
+  },
+  "councilCard": {
+    "title": "Brain council",
+    "seats": "{{valid}} of {{total}} seats",
+    "voting": "Voting…",
+    "vote": "{{count}} vote",
+    "votes": "{{count}} votes",
+    "seatVoting": "voting…",
+    "noVote": "no vote",
+    "veto": "veto",
+    "full": "Full council report"
   }
 }

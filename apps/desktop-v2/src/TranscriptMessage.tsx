@@ -45,6 +45,7 @@ export function TranscriptMessage({
   onLink,
   onOpenFile,
   onOpenDesign,
+  onReviewChanges,
   command,
   edit,
   askAgain,
@@ -63,6 +64,8 @@ export function TranscriptMessage({
   onLink: (href: string) => void;
   onOpenFile: (path: string) => void;
   onOpenDesign?: (() => void) | undefined;
+  /** Opens the conversation's Changes view from a turn's file summary. */
+  onReviewChanges?: (() => void) | undefined;
   /** The conversation's engine, for the pictures a turn's tools saved. */
   command?: EngineCommand | undefined;
   /** Puts this prompt into the composer. */
@@ -193,6 +196,7 @@ export function TranscriptMessage({
           live={activityLive}
           onOpenFile={onOpenFile}
           onOpenDesign={onOpenDesign}
+          onReviewChanges={onReviewChanges}
           command={command}
         />
       )}

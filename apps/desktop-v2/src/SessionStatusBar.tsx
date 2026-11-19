@@ -11,6 +11,7 @@ import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { record } from './engine-values';
+import { RunStatusPill } from './RunStatusPill';
 import { SessionContextPanel } from './SessionContextPanel';
 import { inlineUsageEstimate } from './session-usage-model';
 import './session-status.css';
@@ -53,17 +54,31 @@ export function SessionStatusBar({
   const label = contextLabel(usage, percent, t);
   return (
     <div className="native-usage session-status">
-      <span>
-        {stopped
-          ? t('input.engineStopped')
-          : state.running
-            ? state.inputs.length
-              ? t('statusBar.waiting')
-              : t('statusBar.working')
-            : state.connected
-              ? t('statusBar.ready')
-              : t('statusBar.connecting')}
-      </span>
+      <RunStatusPill
+        tone={
+          stopped
+            ? 'stopped'
+            : state.running
+              ? state.inputs.length
+                ? 'waiting'
+                : 'working'
+              : state.connected
+                ? 'ready'
+                : 'connecting'
+        }
+        label={
+          stopped
+            ? t('input.engineStopped')
+            : state.running
+              ? state.inputs.length
+                ? t('statusBar.waiting')
+                : t('statusBar.working')
+              : state.connected
+                ? t('statusBar.ready')
+                : t('statusBar.connecting')
+        }
+        since={!stopped && state.running ? state.runStartAt : null}
+      />
       <button
         type="button"
         className={`context-meter context-${zone}`}

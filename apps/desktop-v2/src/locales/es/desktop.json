@@ -878,7 +878,16 @@
     "denyTitle": "Denegar esta solicitud y los reintentos idénticos en esta sesión",
     "deny": "Denegar",
     "allowRemember": "Permitir y recordar",
-    "allowOnce": "Permitir una vez"
+    "allowOnce": "Permitir una vez",
+    "ask": {
+      "command": "¿Permitir ejecutar un comando?",
+      "edit": "¿Permitir editar un archivo?",
+      "write": "¿Permitir escribir un archivo?",
+      "web": "¿Permitir una solicitud web?",
+      "tool": "¿Permitir {{tool}}?"
+    },
+    "details": "Detalles",
+    "shortcuts": "Y permite una vez · N deniega"
   },
   "input": {
     "closeSaved": "Cerrar",
@@ -9841,5 +9850,40 @@
     "restarting": "Reiniciando…",
     "cancel": "Cancelar",
     "failed": "No se pudo reiniciar el motor: {{error}}"
+  },
+  "chatSteps": {
+    "step": "{{count}} paso",
+    "steps": "{{count}} pasos",
+    "thinking": "Pensando…",
+    "thought": "Pensó",
+    "thoughtFor": "Pensó durante {{time}}",
+    "plan": "Plan",
+    "planDone": "{{done}} de {{total}} hechos",
+    "output": "Salida del comando",
+    "verb": {
+      "searched": "Buscó",
+      "read": "Leyó",
+      "edited": "Editó",
+      "wrote": "Escribió",
+      "ran": "Ejecutó",
+      "running": "Ejecutando",
+      "fetched": "Obtuvo",
+      "updatedPlan": "Actualizó el plan"
+    },
+    "fileChanged": "{{count}} archivo cambiado",
+    "filesChanged": "{{count}} archivos cambiados",
+    "review": "Revisar cambios",
+    "changesLabel": "Archivos que cambió este turno"
+  },
+  "councilCard": {
+    "title": "Consejo de Brain",
+    "seats": "{{valid}} de {{total}} escaños",
+    "voting": "Votando…",
+    "vote": "{{count}} voto",
+    "votes": "{{count}} votos",
+    "seatVoting": "votando…",
+    "noVote": "sin voto",
+    "veto": "veto",
+    "full": "Informe completo del consejo"
   }
 }

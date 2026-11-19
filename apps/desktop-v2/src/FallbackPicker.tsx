@@ -2,6 +2,7 @@ import { ArrowRightLeft } from 'lucide-react';
 import './session-todos.css';
 import { useEffect, useState } from 'react';
 import { Trans } from 'react-i18next';
+import { ChatEventCard } from './ChatEventCard';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
@@ -15,6 +16,8 @@ export interface FallbackPending {
   candidates: { providerId: string; model: string }[];
   /** When the engine switches to the first candidate by itself. */
   deadline: number;
+  /** How long the gate waits in all, for the countdown bar. */
+  totalMs: number;
 }
 
 /** The engine's `provider.fallback_pending`; null when malformed or without candidates. */
@@ -34,6 +37,7 @@ export function fallbackPending(value: unknown): FallbackPending | null {
     status: typeof row['status'] === 'number' ? row['status'] : 0,
     candidates,
     deadline: start + Math.max(0, seconds) * 1000,
+    totalMs: Math.max(0, seconds) * 1000,
   };
 }
 
@@ -64,9 +68,37 @@ export function FallbackPicker({ state, send }: { state: EngineState; send: Engi
   };
   const remaining = Math.max(0, Math.ceil((pending.deadline - now) / 1000));
   return (
-    <section className="fallback-picker" role="alert" aria-label={t('modelFallback.label')}>
+    <ChatEventCard
+      tone="warning"
+      attention
+      className="fallback-picker"
+      role="alert"
+      label={t('modelFallback.label')}
+      icon={<ArrowRightLeft size={15} />}
+      title={t('modelFallback.label')}
+      actions={
+        <span className="fallback-picker-actions">
+          <button
+            type="button"
+            className="button primary small"
+            onClick={() => choose({ autoSwitch: true })}
+          >
+            {t('modelFallback.switchNow')}
+          </button>
+          {pending.candidates.slice(1, 6).map((candidate) => (
+            <button
+              key={`${candidate.providerId}/${candidate.model}`}
+              type="button"
+              className="button secondary small"
+              onClick={() => choose({ providerId: candidate.providerId, model: candidate.model })}
+            >
+              {t('modelFallback.use', { target: `${candidate.providerId} / ${candidate.model}` })}
+            </button>
+          ))}
+        </span>
+      }
+    >
       <p>
-        <ArrowRightLeft size={14} />{' '}
         <Trans
           i18n={surfaceI18n}
           ns="desktop"
@@ -80,26 +112,16 @@ export function FallbackPicker({ state, send }: { state: EngineState; send: Engi
           components={{ strong: <strong /> }}
         />
       </p>
-      <div className="fallback-picker-actions">
-        <button
-          type="button"
-          className="button primary small"
-          onClick={() => choose({ autoSwitch: true })}
-        >
-          {t('modelFallback.switchNow')}
-        </button>
-        {pending.candidates.slice(1, 6).map((candidate) => (
-          <button
-            key={`${candidate.providerId}/${candidate.model}`}
-            type="button"
-            className="button secondary small"
-            onClick={() => choose({ providerId: candidate.providerId, model: candidate.model })}
-          >
-            {t('modelFallback.use', { target: `${candidate.providerId} / ${candidate.model}` })}
-          </button>
-        ))}
-      </div>
+      {pending.totalMs > 0 && (
+        <span className="chat-event-countdown" aria-hidden="true">
+          <i
+            style={{
+              width: `${Math.max(0, Math.min(100, ((pending.deadline - now) / pending.totalMs) * 100))}%`,
+            }}
+          />
+        </span>
+      )}
       {error && <p className="session-error">{error}</p>}
-    </section>
+    </ChatEventCard>
   );
 }

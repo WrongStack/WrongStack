@@ -128,19 +128,15 @@ export async function exerciseNativeDisplayPrefs({
     0,
   );
   const transcript = page.locator('.native-chat-messages');
-  await waitFor(
-    async () => (await transcript.textContent()).includes('Recorded display tool evidence'),
-    'Individual recorded tool entry',
-  );
+  // A collapsed step builds its details when opened: the row names the file, the output follows.
+  const tool = transcript.locator('.activity-entry').filter({ hasText: 'README.md' });
+  await waitFor(async () => (await tool.count()) > 0, 'Individual recorded tool entry');
   assert.equal(
     await transcript.locator('.chat-run-activity').count(),
     0,
     'Ungrouped tools have no turn-level collapse wrapper',
   );
   assert.equal((await transcript.textContent()).includes('Recorded display reasoning'), false);
-  const tool = transcript
-    .locator('.activity-entry')
-    .filter({ hasText: 'Recorded display tool evidence' });
   await tool.locator(':scope > summary').click();
   await tool.getByText('Recorded display tool evidence', { exact: true }).first().waitFor();
   const chat = () =>
@@ -176,9 +172,8 @@ export async function exerciseNativeDisplayPrefs({
   );
   await open();
   await transcript.locator('.chat-run-activity').first().locator(':scope > summary').click();
-  const reasoning = transcript
-    .locator('.activity-entry')
-    .filter({ hasText: 'Recorded display reasoning' });
+  // Reasoning is a quiet "Thought" line that opens to its text.
+  const reasoning = transcript.locator('.activity-kind-reasoning').first();
   await reasoning.locator(':scope > summary').click();
   await reasoning.getByText('Recorded display reasoning', { exact: true }).first().waitFor();
   await chat().click();

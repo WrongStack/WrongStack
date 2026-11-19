@@ -1941,10 +1941,12 @@ try {
     await page.getByRole('button', { name: 'Terminal A persistent native shell' }).click();
     await page.getByLabel('Session name').fill('Native UI terminal');
     await page.getByRole('button', { name: 'Create terminal session' }).click();
-    await page
-      .locator('.breadcrumb-session')
-      .getByText('Native UI terminal', { exact: true })
-      .waitFor();
+    // The top bar names only the project now, so the new session is confirmed where it is kept.
+    await waitFor(
+      async () => (await rpc('snapshot')).sessions.some((s) => s.title === 'Native UI terminal'),
+      'Terminal session created',
+      20000,
+    );
     const first = (await rpc('snapshot')).sessions.find((s) => s.title === 'Native UI terminal');
     sessions.push(first.id);
     const second = await rpc('session.open', {

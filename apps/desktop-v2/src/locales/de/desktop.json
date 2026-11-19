@@ -878,7 +878,16 @@
     "denyTitle": "Diese Anfrage und gleiche Wiederholungen in dieser Sitzung ablehnen",
     "deny": "Ablehnen",
     "allowRemember": "Erlauben & merken",
-    "allowOnce": "Einmal erlauben"
+    "allowOnce": "Einmal erlauben",
+    "ask": {
+      "command": "Befehl ausführen?",
+      "edit": "Datei bearbeiten?",
+      "write": "Datei schreiben?",
+      "web": "Webanfrage erlauben?",
+      "tool": "{{tool}} erlauben?"
+    },
+    "details": "Details",
+    "shortcuts": "Y erlaubt einmal · N lehnt ab"
   },
   "input": {
     "closeSaved": "Schließen",
@@ -9841,5 +9850,40 @@
     "restarting": "Wird neu gestartet…",
     "cancel": "Abbrechen",
     "failed": "Die Engine konnte nicht neu gestartet werden: {{error}}"
+  },
+  "chatSteps": {
+    "step": "{{count}} Schritt",
+    "steps": "{{count}} Schritte",
+    "thinking": "Denkt nach…",
+    "thought": "Nachgedacht",
+    "thoughtFor": "{{time}} nachgedacht",
+    "plan": "Plan",
+    "planDone": "{{done}} von {{total}} erledigt",
+    "output": "Befehlsausgabe",
+    "verb": {
+      "searched": "Gesucht",
+      "read": "Gelesen",
+      "edited": "Bearbeitet",
+      "wrote": "Geschrieben",
+      "ran": "Ausgeführt",
+      "running": "Läuft",
+      "fetched": "Abgerufen",
+      "updatedPlan": "Plan aktualisiert"
+    },
+    "fileChanged": "{{count}} Datei geändert",
+    "filesChanged": "{{count}} Dateien geändert",
+    "review": "Änderungen prüfen",
+    "changesLabel": "In diesem Durchgang geänderte Dateien"
+  },
+  "councilCard": {
+    "title": "Brain-Rat",
+    "seats": "{{valid}} von {{total}} Sitzen",
+    "voting": "Abstimmung…",
+    "vote": "{{count}} Stimme",
+    "votes": "{{count}} Stimmen",
+    "seatVoting": "stimmt ab…",
+    "noVote": "keine Stimme",
+    "veto": "Veto",
+    "full": "Vollständiger Ratsbericht"
   }
 }

@@ -1,6 +1,8 @@
 import type { TFunction } from 'i18next';
 import { CheckCircle2, ChevronRight, LoaderCircle, Sparkles, Wrench, XCircle } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { ChatSteps, TurnChanges } from './ChatSteps';
+import { changedFiles, stepSeconds, stepsDuration } from './chat-steps-model';
 import { formatTokens, type TurnStats } from './context-usage';
 import {
   type ConversationDisplay,
@@ -10,7 +12,6 @@ import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineEvent } from './engine-state';
 import { LazyDetails } from './LazyDetails';
-import { SessionActivity } from './SessionActivity';
 import { activityRows } from './session-activity-model';
 import { ToolKindIcon } from './ToolKindIcon';
 import { toolInputHint } from './tool-input-view';
@@ -56,18 +57,16 @@ export function TurnTools({
               </summary>
             }
           >
-            <SessionActivity
-              compact
-              showThinkingLogs={display.showThinkingLogs}
+            <ChatSteps
+              showThinking={display.showThinkingLogs}
               events={events}
               onOpenFile={onOpenFile}
               command={command}
             />
           </LazyDetails>
         ) : (
-          <SessionActivity
-            compact
-            showThinkingLogs={display.showThinkingLogs}
+          <ChatSteps
+            showThinking={display.showThinkingLogs}
             events={events}
             onOpenFile={onOpenFile}
             command={command}
@@ -196,6 +195,7 @@ export function LiveRunActivity({
   onOpenDesign,
   command,
   live = true,
+  onReviewChanges,
 }: {
   events: readonly EngineEvent[];
   projectRoot?: string | null | undefined;
@@ -204,25 +204,37 @@ export function LiveRunActivity({
   onOpenDesign?: (() => void) | undefined;
   command?: EngineCommand | undefined;
   live?: boolean | undefined;
+  /** Opens the conversation's Changes view from a finished turn's file summary. */
+  onReviewChanges?: (() => void) | undefined;
 }) {
   const { t } = useDesktopText();
   const rows = activityRows(events);
   if (!rows.some((row) => display.showThinkingLogs || row.kind !== 'reasoning')) return null;
+  const steps = (
+    <ChatSteps
+      live={live}
+      showThinking={display.showThinkingLogs}
+      events={events}
+      projectRoot={projectRoot}
+      onOpenFile={onOpenFile}
+      onOpenDesign={onOpenDesign}
+      command={command}
+    />
+  );
+  // A finished turn says which files it changed, outside its (usually closed) group.
+  const changes = live ? null : (
+    <TurnChanges files={changedFiles(rows)} onOpenFile={onOpenFile} onReview={onReviewChanges} />
+  );
   if (!display.groupToolCalls)
     return (
-      <SessionActivity
-        compact
-        settled={!live}
-        showThinkingLogs={display.showThinkingLogs}
-        events={events}
-        projectRoot={projectRoot}
-        onOpenFile={onOpenFile}
-        onOpenDesign={onOpenDesign}
-        command={command}
-      />
+      <>
+        {steps}
+        {changes}
+      </>
     );
   const summary = turnToolSummary(events);
   const calls = rows.filter((row) => row.kind === 'tool').length;
+  const duration = stepsDuration(rows);
   // While the run works, the closed group still says what it is doing right now: the newest
   // call that has not finished, by tool and target.
   const current = live
@@ -230,47 +242,49 @@ export function LiveRunActivity({
     : undefined;
   const currentHint = current ? toolInputHint(current.title, current.input) : '';
   return (
-    <LazyDetails
-      className="chat-run-activity"
-      defaultOpen={live}
-      summary={
-        <summary>
-          <ChevronRight size={14} className="activity-chevron" aria-hidden="true" />
-          <strong>{t('turn.activity')}</strong>
-          {calls ? (
-            <span className={`turn-chip ${live ? 'live' : 'ok'}`}>
-              {live ? <LoaderCircle size={11} className="spin" /> : <CheckCircle2 size={11} />}
-              {toolCalls(calls, t)}
-            </span>
-          ) : null}
-          {summary.failed ? (
-            <span className="turn-chip failed">
-              <XCircle size={11} />
-              {t('turn.failed', { count: summary.failed })}
-            </span>
-          ) : null}
-          {current ? (
-            <span className="turn-current" title={currentHint || current.title}>
-              <ToolKindIcon name={current.title} size={12} />
-              <span className="turn-current-tool">{current.title}</span>
-              {currentHint ? <code className="turn-current-hint">{currentHint}</code> : null}
-            </span>
-          ) : summary.text ? (
-            <span className="turn-summary-text">{summary.text}</span>
-          ) : null}
-        </summary>
-      }
-    >
-      <SessionActivity
-        compact
-        settled={!live}
-        showThinkingLogs={display.showThinkingLogs}
-        events={events}
-        projectRoot={projectRoot}
-        onOpenFile={onOpenFile}
-        onOpenDesign={onOpenDesign}
-        command={command}
-      />
-    </LazyDetails>
+    <>
+      <LazyDetails
+        className="chat-run-activity"
+        defaultOpen={live}
+        summary={
+          <summary>
+            <ChevronRight size={14} className="activity-chevron" aria-hidden="true" />
+            <strong className="turn-steps">
+              {calls
+                ? t(calls === 1 ? 'chatSteps.step' : 'chatSteps.steps', { count: calls })
+                : t('turn.activity')}
+              {duration !== undefined ? <small> · {stepSeconds(duration)}</small> : null}
+            </strong>
+            {live ? (
+              <LoaderCircle
+                size={12}
+                className="spin turn-steps-live"
+                aria-label={t('runLog.status.running')}
+              />
+            ) : calls && !summary.failed ? (
+              <CheckCircle2 size={12} className="turn-steps-ok" aria-hidden="true" />
+            ) : null}
+            {summary.failed ? (
+              <span className="turn-chip failed">
+                <XCircle size={11} />
+                {t('turn.failed', { count: summary.failed })}
+              </span>
+            ) : null}
+            {current ? (
+              <span className="turn-current" title={currentHint || current.title}>
+                <ToolKindIcon name={current.title} size={12} />
+                <span className="turn-current-tool">{current.title}</span>
+                {currentHint ? <code className="turn-current-hint">{currentHint}</code> : null}
+              </span>
+            ) : summary.text ? (
+              <span className="turn-summary-text">{summary.text}</span>
+            ) : null}
+          </summary>
+        }
+      >
+        {steps}
+      </LazyDetails>
+      {changes}
+    </>
   );
 }

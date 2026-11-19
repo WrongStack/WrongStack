@@ -1,0 +1,413 @@
+/* The conversation's view of a turn's work (ChatSteps): one framed card whose rows are the
+   calls, led by what they did, with the plan, a running command and small edits inline. The
+   full run log keeps its own cards (session-activity.css). */
+.chat-run-activity,
+.chat-steps:not(.chat-run-activity .chat-steps) {
+  --step-ok: hsl(var(--ws-success));
+  --step-add: light-dark(#2f7a3c, #8fd18a);
+  --step-del: light-dark(#b23b3b, #ec8f8f);
+  --step-add-bg: light-dark(oklch(0.85 0.11 145 / 0.24), oklch(0.45 0.1 145 / 0.2));
+  --step-del-bg: light-dark(oklch(0.8 0.12 25 / 0.2), oklch(0.45 0.12 25 / 0.18));
+  --step-line: color-mix(in oklch, var(--border) 75%, transparent);
+  --step-hover: color-mix(in srgb, var(--text) 3.5%, transparent);
+}
+
+/* The group: a quiet framed card whose header counts the steps and their time. */
+.chat-run-activity {
+  max-width: 850px;
+  margin: 4px 0 16px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--raised);
+  overflow: hidden;
+}
+.chat-run-activity > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 14px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  transition: color 120ms ease;
+}
+.chat-run-activity > summary:hover {
+  color: var(--text);
+}
+.chat-run-activity[open] > summary {
+  border-bottom: 1px solid var(--step-line);
+}
+.chat-run-activity > summary .turn-steps {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.chat-run-activity > summary .turn-steps small {
+  font-size: inherit;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.turn-steps-live {
+  color: var(--accent);
+  flex: none;
+}
+.turn-steps-ok {
+  color: var(--step-ok);
+  flex: none;
+}
+
+/* The rows. */
+.session-activity.chat-steps {
+  display: grid;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  gap: 0;
+}
+.chat-steps:not(.chat-run-activity .chat-steps) {
+  margin: 4px 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--raised);
+  overflow: hidden;
+}
+.chat-steps > * + * {
+  border-top: 1px solid var(--step-line);
+}
+.chat-steps > .chat-step.activity-entry {
+  border-width: 1px 0 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+.chat-steps > .chat-step.activity-entry:first-child {
+  border-top: 0;
+}
+.chat-steps > .chat-step > summary,
+.chat-steps > .chat-thought > summary,
+.chat-steps > .chat-command > header {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 7px 14px;
+  min-width: 0;
+  cursor: pointer;
+  list-style: none;
+}
+.chat-steps > .chat-thought > summary::-webkit-details-marker {
+  display: none;
+}
+.chat-steps > .chat-step > summary:hover,
+.chat-steps > .chat-thought > summary:hover {
+  background: var(--step-hover);
+}
+.chat-steps > .chat-step > summary:focus-visible,
+.chat-steps > .chat-thought > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.chat-step-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--step-line);
+  border-radius: 6px;
+  background: var(--base);
+  color: var(--muted);
+}
+/* The running command leads with the accent colour. */
+.chat-steps > .chat-command > header > .chat-step-icon {
+  color: var(--accent);
+}
+.chat-step-label {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.chat-steps .chat-step-label strong,
+.chat-steps > .chat-command > header > strong {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.chat-step-target {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font: 12px / 1.5 var(--user-font-code, Consolas, monospace);
+}
+.chat-step-agent {
+  flex: none;
+  color: var(--subtle);
+  font-size: 11px;
+}
+.chat-step-counts {
+  display: inline-flex;
+  flex: none;
+  gap: 6px;
+  font: 600 12px / 1 var(--user-font-code, Consolas, monospace);
+}
+.chat-step-counts .added {
+  color: var(--step-add);
+}
+.chat-step-counts .removed {
+  color: var(--step-del);
+}
+.chat-step-time {
+  flex: none;
+  margin-left: auto;
+  color: var(--subtle);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.chat-step-counts + .chat-step-time {
+  margin-left: 4px;
+}
+.chat-step-status {
+  flex: none;
+  margin-left: auto;
+  color: var(--muted);
+}
+.chat-step-time + .chat-step-status {
+  margin-left: 0;
+}
+.chat-step-status.done {
+  color: var(--step-ok);
+}
+.chat-step-status.failed {
+  color: var(--danger);
+}
+.chat-steps > .chat-step.activity-failed .chat-step-icon {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+  color: var(--danger);
+}
+.chat-steps > .chat-step > .activity-entry-body {
+  border-top: 1px solid var(--step-line);
+  padding: 12px 14px 14px;
+  background: color-mix(in srgb, var(--base) 55%, transparent);
+}
+.chat-steps > .chat-step-note > summary {
+  min-height: 30px;
+  color: var(--muted);
+}
+.chat-steps > .chat-step-note .chat-step-label strong {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.chat-steps > .chat-step-note.chat-step .chat-step-icon {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  background: transparent;
+}
+.chat-steps > .chat-step-note.activity-failed .chat-step-label strong,
+.chat-steps > .chat-step-note.activity-aborted .chat-step-label strong {
+  color: var(--danger);
+}
+
+/* A small edit's lines under its row. */
+.chat-step-diff {
+  padding: 4px 0;
+  background: color-mix(in srgb, var(--base) 70%, transparent);
+  font: 12px / 1.7 var(--user-font-code, Consolas, monospace);
+  overflow-x: auto;
+}
+.chat-steps > .chat-step-diff {
+  border-top: 1px dashed var(--step-line);
+}
+.chat-step-diff > div {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  min-width: max-content;
+}
+.chat-step-diff > div > span {
+  text-align: center;
+  user-select: none;
+}
+.chat-step-diff code {
+  white-space: pre;
+  padding-right: 14px;
+}
+.chat-step-diff .removed {
+  background: var(--step-del-bg);
+}
+.chat-step-diff .removed > span {
+  color: var(--step-del);
+}
+.chat-step-diff .added {
+  background: var(--step-add-bg);
+}
+.chat-step-diff .added > span {
+  color: var(--step-add);
+}
+
+/* Reasoning: a quiet line that opens to the text. */
+.chat-thought {
+  color: var(--muted);
+}
+.chat-steps > .chat-thought > summary {
+  min-height: 34px;
+  font-size: 12.5px;
+}
+.chat-steps > .chat-thought > summary em {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-style: italic;
+}
+.chat-steps > .chat-thought > summary > svg:first-child {
+  flex: none;
+  margin: 0 5px;
+}
+.chat-step-chevron {
+  flex: none;
+  transition: transform 120ms ease;
+}
+.chat-steps > .chat-thought[open] > summary .chat-step-chevron {
+  transform: rotate(90deg);
+}
+.chat-thought-text {
+  margin: 0;
+  max-height: 320px;
+  overflow: auto;
+  padding: 4px 14px 12px 46px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-style: italic;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+
+/* The plan: done, current and waiting items under a progress bar. */
+.chat-plan {
+  margin: 0;
+  padding: 12px 14px 12px;
+}
+.chat-steps > .chat-plan {
+  background: color-mix(in srgb, var(--base) 35%, transparent);
+}
+.chat-steps > .chat-plan > header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+}
+.chat-plan-title {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.chat-steps > .chat-plan > header small {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.chat-plan-bar {
+  height: 3px;
+  margin: 10px 0 8px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--step-line);
+}
+.chat-plan > .chat-plan-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--step-ok);
+  transition: width 240ms ease;
+}
+.chat-plan ol {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.chat-plan-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 26px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.chat-plan-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+}
+.chat-plan-item.completed .chat-plan-mark {
+  border-color: var(--step-ok);
+  background: var(--step-ok);
+  color: var(--base);
+}
+.chat-plan-item.completed > span:last-child {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+.chat-plan-item.in_progress .chat-plan-mark {
+  border-color: var(--accent);
+  border-radius: 50%;
+}
+.chat-plan-item.in_progress .chat-plan-mark > i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.chat-plan-item.in_progress > span:last-child {
+  color: var(--text);
+  font-weight: 500;
+}
+.chat-plan-item.pending > span:last-child {
+  color: var(--muted);
+}
+
+/* A running command and the last lines it printed. */
+.chat-steps > .chat-command > header {
+  cursor: default;
+}
+.chat-steps > .chat-command > .chat-command-output {
+  margin: 0;
+  padding: 10px 16px 12px 48px;
+  border-top: 1px solid var(--step-line);
+  background: color-mix(in oklch, var(--base) 82%, black);
+  color: color-mix(in srgb, var(--text) 82%, transparent);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 12px / 1.65 var(--user-font-code, Consolas, monospace);
+}
+:root:not([data-mode="dark"]) .chat-steps > .chat-command > .chat-command-output {
+  background: color-mix(in oklch, var(--text) 5%, var(--base));
+  color: var(--text);
+}
+
+@media (max-width: 560px) {
+  .chat-command-output,
+  .chat-thought-text {
+    padding-left: 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-run-activity > summary,
+  .chat-step-chevron,
+  .chat-plan > .chat-plan-bar > span {
+    transition: none;
+  }
+}

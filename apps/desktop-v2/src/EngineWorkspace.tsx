@@ -3,6 +3,7 @@ import { LoaderCircle, Square, X } from 'lucide-react';
 import { lazy, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ComposerFoldControls } from './ComposerFoldControls';
+import { ConversationApprovals } from './ConversationApprovals';
 import { ConversationNotices } from './ConversationNotices';
 import { useConversationShortcuts } from './ConversationShortcuts';
 import { ConversationWelcome } from './ConversationWelcome';
@@ -55,7 +56,6 @@ import { SessionInspector } from './SessionInspector';
 import { SessionRecovery } from './SessionRecovery';
 import { SessionStatusBar } from './SessionStatusBar';
 import { SessionWorklist } from './SessionWorklist';
-import { ToolApprovalCard } from './ToolApprovalCard';
 import { useTranscriptFind } from './TranscriptFind';
 import { type MessageAction, TranscriptMessage } from './TranscriptMessage';
 import { TranscriptPins } from './TranscriptPins';
@@ -533,14 +533,12 @@ export function EngineWorkspace({
                         connected={state.connected}
                       />
                     ))}
-                    {state.approvals.map((approval) => (
-                      <ToolApprovalCard
-                        key={String(approval['id'])}
-                        approval={approval}
-                        send={send}
-                        connected={state.connected}
-                      />
-                    ))}
+                    <ConversationApprovals
+                      approvals={state.approvals}
+                      send={send}
+                      connected={state.connected}
+                      shortcuts={chatActive}
+                    />
                     {state.running && (
                       <AgentWorking
                         waiting={state.inputs.length > 0}
@@ -563,6 +561,7 @@ export function EngineWorkspace({
                     onLink={openLink}
                     onOpenFile={openFile}
                     onOpenDesign={openDesign}
+                    onReviewChanges={() => setTab('changes')}
                     command={command}
                     edit={editAction(message)}
                     pin={{
