@@ -732,7 +732,7 @@ impl HostState {
         #[cfg(not(windows))]
         let shell = PathBuf::from(std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into()));
         let mut cmd = CommandBuilder::new(shell);
-        cmd.cwd(&s.workdir);
+        cmd.cwd(crate::shell_dir::shell_dir(&s.workdir));
         cmd.env("TERM", "xterm-256color");
         #[cfg(windows)]
         cmd.arg("-NoLogo");

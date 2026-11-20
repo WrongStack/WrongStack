@@ -13,6 +13,7 @@ mod project_runtime;
 pub mod registry;
 mod request_pool;
 pub mod sessions;
+mod shell_dir;
 #[cfg(feature = "desktop")]
 mod speech;
 pub mod transcript;
