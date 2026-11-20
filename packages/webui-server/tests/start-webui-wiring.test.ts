@@ -152,6 +152,9 @@ describe('standalone WebUI runtime wiring', () => {
     const maintenance = mocks.maintenance.mock.results[0]!.value;
     expect(maintenance.offSessionRenamed).toHaveBeenCalledOnce();
     expect(maintenance.stopEmptySessionCleanup.dispose).toHaveBeenCalledOnce();
+    // An engine booted unconfigured takes the saved default through model.switch's switch (#448).
+    await mocks.credentials.mock.calls[0]![0].adoptSavedDefault('local', 'm1');
+    expect(mocks.applyModelSwitch).toHaveBeenCalledWith('local', 'm1');
   });
 
   it('forwards agent routing and host paths into route dependencies', () => {
