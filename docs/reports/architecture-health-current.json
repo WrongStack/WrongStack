@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-20T22:36:34.060Z",
+  "generatedAt": "2026-11-20T23:19:17.636Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6405,
-    "testFiles": 5591,
-    "sourceLines": 1321609,
+    "testFiles": 5592,
+    "sourceLines": 1321614,
     "workspaceEdges": 251,
     "moduleEdges": 18941,
     "nonCommandSlashImports": 0,
@@ -739,7 +739,7 @@
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
       "sourceFiles": 262,
-      "testFiles": 31,
+      "testFiles": 32,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -756,7 +756,7 @@
         {
           "path": "packages/project-surfaces/tsconfig.test.json",
           "error": null,
-          "testFiles": 31
+          "testFiles": 32
         }
       ]
     },
@@ -19622,6 +19622,12 @@
       },
       {
         "file": "packages/project-surfaces/tests/sage-health-panel-catch.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/sage-health-panel-remount.test.tsx",
         "projects": [
           "root-node"
         ]

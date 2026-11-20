@@ -87,12 +87,15 @@ export function SageHealthPanel({
   const loadedRef = useRef(false);
   const seqRef = useRef(0);
   /** Cancels in-flight waits so unmount clears their listeners and timers. */
-  const pendingRef = useRef(new Set<() => void>());
+  const pendingRef = useRef(new Set<(reason?: 'unmount') => void>());
 
   useEffect(() => {
     const pending = pendingRef.current;
     return () => {
-      for (const cancel of [...pending]) cancel();
+      // A remount (React StrictMode, or a parent that keeps this state) reads the doctor
+      // again: the read cancelled here never answered, so it must not count as loaded.
+      if (pending.size > 0) loadedRef.current = false;
+      for (const cancel of [...pending]) cancel('unmount');
     };
   }, []);
 
@@ -111,7 +114,9 @@ export function SageHealthPanel({
           pendingRef.current.delete(cancel);
           resolve(result);
         };
-        const cancel = () => settle({ error: t('activity:memoryManager.healthTimeout') });
+        // An unmount settles quietly; only a read that ran out of time reports one.
+        const cancel = (reason?: 'unmount') =>
+          settle(reason === 'unmount' ? {} : { error: t('activity:memoryManager.healthTimeout') });
         off = client.on('memory.sage.doctor', (message) => {
           const echoed = message.payload.requestId;
           if (echoed !== undefined && echoed !== requestId) return;
