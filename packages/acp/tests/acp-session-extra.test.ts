@@ -831,4 +831,79 @@ describe('ACPSession — focused coverage', () => {
     expect(t.send).toHaveBeenCalled();
     await expect(session.close()).resolves.toBeUndefined();
   });
+
+  it('openSession falls back to session/load when agent advertises loadSession without sessionCapabilities.resume', async () => {
+    const session = await startSession(
+      {
+        protocolVersion: 1,
+        agentCapabilities: { loadSession: true },
+      },
+      { resumeSessionId: 'sess_prev' },
+    );
+    const t = lastTransport();
+    const openP = session.openSession();
+    await new Promise((r) => setImmediate(r));
+    const loadMsg = t.sent.find((m) => m.method === 'session/load');
+    expect(loadMsg).toBeDefined();
+    expect(t.sent.some((m) => m.method === 'session/resume')).toBe(false);
+    // Simulate replayed history during session/load; must not leak into next turn's scratch.
+    t.emit({
+      jsonrpc: '2.0',
+      method: 'session/update',
+      params: {
+        sessionId: 'sess_prev',
+        update: {
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: 'old reply' },
+        },
+      },
+    } as never as ACPMessage);
+    t.respond(loadMsg!.id!, 'session/load', {
+      configOptions: [
+        {
+          id: 'thought_level',
+          name: 'Reasoning Effort',
+          category: 'thought_level',
+          type: 'select',
+          currentValue: 'high',
+          options: [
+            { value: 'low', name: 'Low' },
+            { value: 'high', name: 'High' },
+          ],
+        },
+      ],
+    });
+    const opened = await openP;
+    expect(opened).toEqual({ sessionId: 'sess_prev', resumed: true });
+    expect(session.getConfigOptions()).toMatchObject([
+      { id: 'thought_level', currentValue: 'high' },
+    ]);
+    expect((session as any).scratch.text).toBe('');
+    await session.close();
+  });
+
+  it('forkSession captures configOptions from the session/fork response', async () => {
+    const session = await startSession();
+    const t = lastTransport();
+    const forkP = session.forkSession('sess_src' as any);
+    await new Promise((r) => setImmediate(r));
+    const forkMsg = t.sent.find((m) => m.method === 'session/fork');
+    expect(forkMsg).toBeDefined();
+    t.respond(forkMsg!.id!, 'session/fork', {
+      sessionId: 'sess_forked',
+      configOptions: [
+        {
+          id: 'model',
+          name: 'Model',
+          category: 'model',
+          type: 'select',
+          currentValue: 'openai/o3',
+          options: [{ value: 'openai/o3', name: 'o3' }],
+        },
+      ],
+    });
+    expect(await forkP).toBe('sess_forked');
+    expect(session.getConfigOptions()).toMatchObject([{ id: 'model', currentValue: 'openai/o3' }]);
+    await session.close();
+  });
 });

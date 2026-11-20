@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-20T15:54:11.053Z",
+  "generatedAt": "2026-11-20T15:58:21.546Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 48,
     "sourceFiles": 6403,
     "testFiles": 5581,
-    "sourceLines": 1321287,
+    "sourceLines": 1321300,
     "workspaceEdges": 250,
     "moduleEdges": 18937,
     "nonCommandSlashImports": 0,
@@ -35795,7 +35795,7 @@
     },
     {
       "file": "packages/acp/src/client/acp-session.ts",
-      "lines": 767,
+      "lines": 771,
       "relativeImports": 25
     },
     {
@@ -36317,7 +36317,7 @@
     },
     {
       "file": "packages/acp/src/client/acp-session.ts",
-      "lines": 767,
+      "lines": 771,
       "relativeImports": 25
     },
     {

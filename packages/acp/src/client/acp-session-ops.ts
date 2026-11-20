@@ -300,15 +300,23 @@ export async function executeCreateSession(ctx: ACPSessionOpContext): Promise<Se
     ...(ctx.opts.sessionMeta ? { _meta: ctx.opts.sessionMeta } : {}),
   };
   const resumeId = ctx.opts.resumeSessionId;
-  if (resumeId && ctx.agentCapabilities.sessionCapabilities?.resume) {
-    // An agent that no longer has the session (deleted, another machine)
-    // refuses it; a new session starts instead.
-    const resumed = await ctx
-      .sendRequest(ctx.allocId(), 'session/resume', { ...params, sessionId: resumeId })
-      .catch((err: unknown) => ({ refused: err }));
-    if (ctx.closed) throw new ACPSessionError('closed', 'session is closed');
-    if (!isJsonRpcError(resumed) && !(resumed as { refused?: unknown }).refused) {
-      return adoptSessionMode(ctx, resumeId as SessionId, resumed);
+  if (resumeId) {
+    const resumeMethod = ctx.agentCapabilities.sessionCapabilities?.resume
+      ? 'session/resume'
+      : ctx.agentCapabilities.loadSession
+        ? 'session/load'
+        : null;
+    if (resumeMethod) {
+      // An agent that no longer has the session (deleted, another machine)
+      // refuses it; a new session starts instead.
+      const resumed = await ctx
+        .sendRequest(ctx.allocId(), resumeMethod, { ...params, sessionId: resumeId })
+        .catch((err: unknown) => ({ refused: err }));
+      if (ctx.closed) throw new ACPSessionError('closed', 'session is closed');
+      if (!isJsonRpcError(resumed) && !(resumed as { refused?: unknown }).refused) {
+        if (resumeMethod === 'session/load') ctx.resetScratch();
+        return adoptSessionMode(ctx, resumeId as SessionId, resumed);
+      }
     }
   }
   const id = ctx.allocId();

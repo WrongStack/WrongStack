@@ -596,12 +596,16 @@ export class ACPSession {
       const entry: PendingRequest = {
         method,
         resolve: (value: unknown) => {
-          if (['session/new', 'session/load', 'session/resume'].includes(method))
+          if (['session/new', 'session/load', 'session/resume', 'session/fork'].includes(method))
             this.configOptions = [];
           if (
-            ['session/new', 'session/load', 'session/resume', 'session/set_config_option'].includes(
-              method,
-            ) &&
+            [
+              'session/new',
+              'session/load',
+              'session/resume',
+              'session/fork',
+              'session/set_config_option',
+            ].includes(method) &&
             value &&
             typeof value === 'object' &&
             Array.isArray((value as { configOptions?: unknown }).configOptions)

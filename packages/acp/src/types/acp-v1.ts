@@ -94,6 +94,7 @@ interface SessionCapabilities {
   list?: Record<string, unknown> | undefined;
   delete?: Record<string, unknown> | undefined;
   resume?: Record<string, unknown> | undefined;
+  fork?: Record<string, unknown> | undefined;
   additionalDirectories?: Record<string, unknown> | undefined;
 }
 

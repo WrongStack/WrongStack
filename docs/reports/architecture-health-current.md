@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-20T15:54:11.053Z
+**Generated:** 2026-11-20T15:58:21.546Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6403 |
-| Production source lines | 1321287 |
+| Production source lines | 1321300 |
 | Test files | 5581 |
 | Workspace dependency edges | 250 |
 | Relative module edges | 18937 |
@@ -119,7 +119,7 @@ None.
 | 786 | `packages/vibeui/src/lib/use-session.ts` |
 | 780 | `packages/tools/src/design.ts` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
-| 767 | `packages/acp/src/client/acp-session.ts` |
+| 771 | `packages/acp/src/client/acp-session.ts` |
 | 763 | `packages/plugins/src/adversary-mode/index.ts` |
 | 756 | `packages/fleet/src/host-skill-companion.ts` |
 | 755 | `apps/desktop-v2/src/ProjectSdd.tsx` |
