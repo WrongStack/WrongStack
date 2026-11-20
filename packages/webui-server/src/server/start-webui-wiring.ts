@@ -297,6 +297,7 @@ export function wireStandaloneWebuiRuntime(
     },
     getKanbanSupervisorDispose: () => kanbanSupervisorDispose,
     stopHostServices: () => hostServices.dispose(),
+    events: preContext.events,
     todosCheckpoint,
     stopHeapWatchdog,
     stopLiveStatusLogger,

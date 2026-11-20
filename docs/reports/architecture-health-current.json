@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-20T22:09:20.720Z",
+  "generatedAt": "2026-11-20T22:11:16.016Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6404,
-    "testFiles": 5590,
-    "sourceLines": 1321561,
+    "testFiles": 5591,
+    "sourceLines": 1321601,
     "workspaceEdges": 251,
     "moduleEdges": 18939,
     "nonCommandSlashImports": 0,
@@ -1186,7 +1186,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 356,
-      "testFiles": 415,
+      "testFiles": 416,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1221,7 +1221,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 415
+          "testFiles": 416
         }
       ]
     },
@@ -31022,6 +31022,12 @@
       },
       {
         "file": "packages/webui-server/tests/shutdown-registration-disposal.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/shutdown-session-ended-drain.test.ts",
         "projects": [
           "root-node"
         ]

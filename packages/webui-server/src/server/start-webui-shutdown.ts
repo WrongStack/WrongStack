@@ -1,5 +1,6 @@
 import type * as http from 'node:http';
 import * as path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { Logger, MemoryPort, Usage } from '@wrongstack/contracts/types';
 import type { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import type { DefaultSessionStore } from '@wrongstack/core/storage';
@@ -29,6 +30,13 @@ export function setupWebuiShutdown(options: {
   getKanbanSupervisorDispose: () => (() => void | Promise<void>) | null;
   /** HQ presence and the dependency watcher: stopped before the fleet host they use. */
   stopHostServices?: (() => void) | undefined;
+  /**
+   * The boot event bus. F15: shutdown emits `session.ended` here so the
+   * dep-watcher's in-flight audits register their teardown wait (the kernel
+   * contract: cleanup joins every waitUntil producer). Optional for legacy
+   * callers; without it the drain stays inert (the pre-F15 behavior).
+   */
+  events?: EventBus | undefined;
   todosCheckpoint: { detach: () => Promise<void> };
   stopHeapWatchdog: () => Promise<void>;
   /** Push buffered OTLP spans/metrics and stop the exporter timers. */
@@ -153,6 +161,37 @@ export function setupWebuiShutdown(options: {
       await options.stopEmptySessionCleanup.dispose();
       const disposeKanban = options.getKanbanSupervisorDispose();
       await disposeKanban?.();
+      // F15: the kernel's session.ended contract (session-events.ts) says
+      // cleanup waits for every waitUntil-registered producer. The dep-watcher's
+      // in-flight tech-stack audits register exactly there (runtime/dep-watcher
+      // consumers.ts); the CLI emits this event in execution-cleanup, but this
+      // engine never did — the drain was inert and audits were reaped at exit
+      // with their reports lost. Emit after closeChimera (its boot-bus listener
+      // is detached by dispose) and BEFORE stopHostServices unsubscribes the
+      // dep-watcher. Each registered audit wait is already bounded (45s,
+      // consumers.ts boundAuditWait); the outer deadline guards the exit path
+      // against any future producer registering unbounded work.
+      if (options.events) {
+        const ending = options.getSession();
+        const producers: Promise<void>[] = [];
+        options.events.emit('session.ended', {
+          id: ending.id,
+          sessionId: ending.id,
+          usage: options.tokenCounter.total(),
+          waitUntil: (work) => {
+            producers.push(work);
+          },
+        });
+        if (producers.length > 0) {
+          await Promise.race([
+            Promise.allSettled(producers),
+            new Promise<void>((resolve) => {
+              const timer = setTimeout(resolve, 50_000);
+              (timer as unknown as { unref?: () => void }).unref?.();
+            }),
+          ]);
+        }
+      }
       try {
         options.stopHostServices?.();
       } catch (err) {
