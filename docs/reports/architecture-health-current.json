@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-20T09:15:52.609Z",
+  "generatedAt": "2026-11-20T09:20:40.020Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 48,
     "sourceFiles": 6402,
     "testFiles": 5572,
-    "sourceLines": 1320329,
+    "sourceLines": 1320338,
     "workspaceEdges": 250,
     "moduleEdges": 18924,
     "nonCommandSlashImports": 0,
@@ -35931,7 +35931,7 @@
     },
     {
       "file": "packages/tools/src/read.ts",
-      "lines": 720,
+      "lines": 729,
       "relativeImports": 5
     },
     {
@@ -36327,6 +36327,11 @@
       "relativeImports": 11
     },
     {
+      "file": "packages/tools/src/read.ts",
+      "lines": 729,
+      "relativeImports": 5
+    },
+    {
       "file": "packages/coordination/src/multi-agent-coordinator.ts",
       "lines": 726,
       "relativeImports": 13
@@ -36335,11 +36340,6 @@
       "file": "packages/coordination/src/agent-monitor.ts",
       "lines": 724,
       "relativeImports": 1
-    },
-    {
-      "file": "packages/tools/src/read.ts",
-      "lines": 720,
-      "relativeImports": 5
     },
     {
       "file": "packages/webui-server/src/server/provider-routes.ts",

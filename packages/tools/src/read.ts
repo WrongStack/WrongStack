@@ -385,7 +385,16 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
       prior &&
       (earlyBuf === undefined || sha256hex(earlyBuf.toString('utf8')) === prior.contentHash)
     ) {
-      ctx.recordRead?.(absPath, stat.mtimeMs, 'user', ctx.lastReadHash?.(absPath));
+      // Record the hash just verified against the file, not the guard's
+      // current one: a tool write since the range was read (edit to Y, then
+      // X restored out of band) left the guard on Y, and re-recording it
+      // made every later edit fail as "modified externally" (#444).
+      ctx.recordRead?.(
+        absPath,
+        stat.mtimeMs,
+        'user',
+        prior.contentHash ?? ctx.lastReadHash?.(absPath),
+      );
       const symResult = shouldIncludeSymbols
         ? await fetchSymbolsForFile(absPath, ctx, signal)
         : undefined;

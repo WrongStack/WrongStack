@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-20T09:15:52.609Z
+**Generated:** 2026-11-20T09:20:40.020Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6402 |
-| Production source lines | 1320329 |
+| Production source lines | 1320338 |
 | Test files | 5572 |
 | Workspace dependency edges | 250 |
 | Relative module edges | 18924 |
@@ -134,9 +134,9 @@ None.
 | 733 | `packages/vibeui/src/components/provider-manager.tsx` |
 | 732 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 | 730 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
+| 729 | `packages/tools/src/read.ts` |
 | 726 | `packages/coordination/src/multi-agent-coordinator.ts` |
 | 724 | `packages/coordination/src/agent-monitor.ts` |
-| 720 | `packages/tools/src/read.ts` |
 | 720 | `packages/webui-server/src/server/provider-routes.ts` |
 | 719 | `packages/mailbox-mcp/src/adapter.ts` |
 | 718 | `packages/project-surfaces/src/sage/useMemoryManagerState.ts` |

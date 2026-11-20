@@ -77,4 +77,20 @@ describe('edit staleness guard (#444)', () => {
     await readTool.execute({ path: 'a.ts', offset: 2, limit: 1 }, ctx, opts());
     expect((await edit(ctx, 'hello', 'hi')).replacements).toBe(1);
   });
+
+  it('a suppressed re-read of restored content records that content, not the stale hash', async () => {
+    const { ctx, file } = await session();
+    await fs.writeFile(file, 'const v = 1;\n');
+    const { atime, mtime } = await fs.stat(file);
+    await readTool.execute({ path: 'a.ts' }, ctx, opts());
+    await edit(ctx, 'v = 1', 'v = 2');
+    // Restored out of band (git checkout, undo) with the size and mtime the
+    // read saw, so the re-read is rightly answered as "unchanged".
+    await fs.writeFile(file, 'const v = 1;\n');
+    await fs.utimes(file, atime, mtime);
+
+    expect((await readTool.execute({ path: 'a.ts' }, ctx, opts())).cached).toBe(true);
+    expect((await edit(ctx, 'v = 1', 'v = 3')).replacements).toBe(1);
+    expect(await fs.readFile(file, 'utf8')).toBe('const v = 3;\n');
+  });
 });
