@@ -222,6 +222,30 @@ describe('WS message dispatcher routing (Issue #31 PR 0)', () => {
     expect(doctorConfig).toHaveBeenCalledWith(ws, true);
   });
 
+  it('handlePrefsRoute: the config doctor result carries the request id (#448)', async () => {
+    // The desktop matches a reply by its request id; without one its Config
+    // Doctor always reported "The engine did not acknowledge this request".
+    const socket = fakeWs();
+    await handlePrefsRoute(
+      socket,
+      { type: 'config.doctor', payload: { apply: false, requestId: 'req-1' } },
+      {
+        getPrefs: vi.fn(),
+        updatePrefs: vi.fn(),
+        getSystemPrompt: vi.fn(),
+        doctorConfig: async (reply: WebSocket) => {
+          reply.send(JSON.stringify({ type: 'config.doctor.result', payload: { success: true } }));
+        },
+        manageSystemPromptPresets: vi.fn(),
+      },
+    );
+    const sent = JSON.parse(String(vi.mocked(socket.send).mock.calls[0]?.[0]));
+    expect(sent).toMatchObject({
+      type: 'config.doctor.result',
+      payload: { success: true, requestId: 'req-1' },
+    });
+  });
+
   it('handlePrefsRoute: returns false for foreign message type', async () => {
     const out = await handlePrefsRoute(ws, { type: FOREIGN }, {
       getPrefs: vi.fn(),

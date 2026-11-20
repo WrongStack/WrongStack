@@ -179,8 +179,11 @@ export async function handlePrefsRoute(
       return true;
     }
     case 'config.doctor': {
+      // The result carries the request's id, or a client waiting on it (the
+      // desktop's Config Doctor) never matches it and reports no answer.
+      const reply = correlatedReply(ws, msg.payload, ['config.doctor.result']).socket;
       if (!handlers.doctorConfig) {
-        send(ws, {
+        send(reply, {
           type: 'config.doctor.result',
           payload: {
             success: false,
@@ -195,7 +198,7 @@ export async function handlePrefsRoute(
         return true;
       }
       await handlers.doctorConfig(
-        ws,
+        reply,
         (msg.payload as { apply?: unknown } | undefined)?.apply === true,
       );
       return true;

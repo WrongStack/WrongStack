@@ -14,30 +14,35 @@ afterEach(() => {
 /** The engine's lock wait (persistence withFileLock default) plus its own reply time. */
 const ENGINE_LOCK_WAIT_MS = 15_000;
 
-it('waits past the engine config lock for a model switch answer', async () => {
+// Each request the engine answers only after saving the profile config, with the reply type
+// the desktop waits for. Measured on the engine with the lock held: 15005–15101 ms.
+it.each([
+  ['model.switch', 'model.switch_result'],
+  ['prefs.update', 'key.operation_result'],
+  ['tool.disable', 'tool.disabled'],
+  ['tool.enable', 'tool.enabled'],
+  ['brain.config.set', 'brain.config'],
+  ['config.doctor', 'config.doctor.result'],
+])('waits past the engine config lock for a %s answer', async (type, replyType) => {
   vi.useFakeTimers();
   let requestId = '';
   const ops = new EngineOperations(async (_type, payload) => {
     requestId = String(payload?.['requestId']);
   });
 
-  const reply = ops.request('model.switch', { provider: 'p', model: 'm' }, ['model.switch_result']);
+  const reply = ops.request(type, {}, [replyType]);
   const settled = reply.then(
     (value) => ({ value }),
     (error: Error) => ({ error: error.message }),
   );
-  await vi.advanceTimersByTimeAsync(ENGINE_LOCK_WAIT_MS + 10);
+  await vi.advanceTimersByTimeAsync(ENGINE_LOCK_WAIT_MS + 110);
   ops.receive({
-    type: 'model.switch_result',
-    payload: {
-      requestId,
-      success: false,
-      message: 'Switch failed: Timed out waiting for file lock',
-    },
+    type: replyType,
+    payload: { requestId, success: false, message: 'Timed out waiting for file lock' },
   });
 
   // The engine's own answer reaches the caller, not "did not acknowledge".
-  expect(await settled).toEqual({ error: 'Switch failed: Timed out waiting for file lock' });
+  expect(await settled).toEqual({ error: 'Timed out waiting for file lock' });
 });
 
 it('control: other requests keep the default timeout', async () => {

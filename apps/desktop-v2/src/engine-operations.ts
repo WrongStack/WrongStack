@@ -38,7 +38,14 @@ export function replyFailure(event: EngineEvent): EngineReplyError | null {
  * that file's lock first (another engine or the CLI writing it), so a request timed out at the
  * same 15 s reported "did not acknowledge" just before the engine's own answer arrived (#448).
  */
-const CONFIG_WRITE_REQUESTS: ReadonlySet<string> = new Set(['model.switch']);
+const CONFIG_WRITE_REQUESTS: ReadonlySet<string> = new Set([
+  'model.switch',
+  'prefs.update',
+  'tool.enable',
+  'tool.disable',
+  'brain.config.set',
+  'config.doctor',
+]);
 const CONFIG_WRITE_TIMEOUT_MS = 45_000;
 
 /**
