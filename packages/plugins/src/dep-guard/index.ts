@@ -209,10 +209,27 @@ function nonNegative(v: unknown, fallback: number): number {
 // Deny matching + typosquat detection
 // ---------------------------------------------------------------------------
 
-function matchesPattern(name: string, pattern: string): boolean {
+/**
+ * F18: registries fold canonical-equivalent name spellings. PyPI (PEP 503)
+ * treats runs of -_. as a single - and ignores case — `pip install Evil_Pkg`
+ * installs the SAME distribution as `evil-pkg`; crates.io folds -/_ and case
+ * likewise. npm only case-folds (its name grammar excludes _ and uppercase).
+ * Without the ecosystem's normalization a deny entry for `evil-pkg` was
+ * evaded by `pip install Evil_Pkg` / `evil.pkg` / `cargo add Evil_Crate` —
+ * the same package installed unchecked. Normalize BOTH sides so allow
+ * entries and prefix globs keep working across spellings.
+ */
+function normalizePackageName(name: string, ecosystem: Ecosystem | null): string {
+  const lower = name.toLowerCase();
+  if (ecosystem === 'PyPI' || ecosystem === 'crates.io') return lower.replace(/[-_.]+/g, '-');
+  return lower;
+}
+
+function matchesPattern(name: string, pattern: string, ecosystem: Ecosystem | null): boolean {
+  const normalized = normalizePackageName(name, ecosystem);
   if (pattern.endsWith('*'))
-    return name.toLowerCase().startsWith(pattern.slice(0, -1).toLowerCase());
-  return name.toLowerCase() === pattern.toLowerCase();
+    return normalized.startsWith(normalizePackageName(pattern.slice(0, -1), ecosystem));
+  return normalized === normalizePackageName(pattern, ecosystem);
 }
 
 /**
@@ -470,8 +487,8 @@ const plugin: Plugin = {
 
       const notes: string[] = [];
       for (const pkg of packages) {
-        const allowed = cfg.allow.some((p) => matchesPattern(pkg.name, p));
-        const denied = !allowed && cfg.deny.some((p) => matchesPattern(pkg.name, p));
+        const allowed = cfg.allow.some((p) => matchesPattern(pkg.name, p, pkg.ecosystem));
+        const denied = !allowed && cfg.deny.some((p) => matchesPattern(pkg.name, p, pkg.ecosystem));
         if (denied) {
           if (cfg.mode === 'block') {
             state.blocks += 1;
@@ -560,7 +577,8 @@ const plugin: Plugin = {
         const verdict = await registryVerdict(
           installs,
           {
-            isAllowed: (name) => cfg.allow.some((p) => matchesPattern(name, p)),
+            isAllowed: (name, ecosystem) =>
+              cfg.allow.some((p) => matchesPattern(name, p, ecosystem)),
             minPackageAgeDays: cfg.minPackageAgeDays,
             vulnerabilityCheck: cfg.vulnerabilityCheck,
             registryTimeoutMs: cfg.registryTimeoutMs,

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-20T22:01:44.841Z
+**Generated:** 2026-11-20T22:05:55.622Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6404 |
-| Production source lines | 1321525 |
-| Test files | 5587 |
+| Production source lines | 1321543 |
+| Test files | 5588 |
 | Workspace dependency edges | 251 |
 | Relative module edges | 18939 |
 | Non-command slash imports | 0 |
@@ -51,7 +51,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/persistence | 10 | 26 | — |
 | @wrongstack/plug-lsp | 52 | 62 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugin-sdk | 12 | 11 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
-| @wrongstack/plugins | 155 | 138 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
+| @wrongstack/plugins | 155 | 139 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 26 | 45 | — |
 | @wrongstack/project-surfaces | 262 | 31 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers, @wrongstack/tools |
 | @wrongstack/providers | 138 | 128 | @wrongstack/contracts, @wrongstack/core |

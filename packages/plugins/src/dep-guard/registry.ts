@@ -276,7 +276,7 @@ export async function checkPackage(
 
 export interface RegistryVerdictConfig {
   /** An `allow` entry is the user's answer to the question this would raise. */
-  isAllowed(name: string): boolean;
+  isAllowed(name: string, ecosystem: Ecosystem): boolean;
   minPackageAgeDays: number;
   vulnerabilityCheck: boolean;
   registryTimeoutMs: number;
@@ -318,7 +318,7 @@ export async function registryVerdict(
     const ecosystem = ecosystemOf(install.manager);
     if (!ecosystem) continue;
     for (const pkg of install.packages) {
-      if (cfg.isAllowed(pkg.name)) continue;
+      if (cfg.isAllowed(pkg.name, ecosystem)) continue;
       // `workspace:`, `npm:alias@x`, `link:` resolve to something other than the name.
       if (pkg.version !== null && /^[a-z]+:/i.test(pkg.version)) continue;
       const key = `${ecosystem}:${pkg.name}@${pkg.version ?? ''}`;
