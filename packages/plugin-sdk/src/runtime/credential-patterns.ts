@@ -42,7 +42,13 @@ export const CREDENTIAL_PATTERNS: readonly CredentialPattern[] = [
   // LLM provider keys
   {
     type: 'anthropic_key',
-    regex: /(?<![A-Za-z0-9])sk-ant-api\d+-[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g,
+    // F19: Admin API keys (`sk-ant-admin01-…`) grant organization-management
+    // access — broader than a regular api-series key. The api-only spelling
+    // left them in a hole between this pattern and openai_key's (?!ant)
+    // exclusion, invisible to secret-scanner and prompt-firewall (the core
+    // scrubber's broader openai pattern happened to redact them, mislabeled).
+    // Same class as the github_oauth_token addition below.
+    regex: /(?<![A-Za-z0-9])sk-ant-(?:api|admin)\d+-[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g,
   },
   {
     type: 'openai_key',

@@ -61,7 +61,9 @@ export const PATTERNS: Pattern[] = [
   // strings don't trigger false positives.
   {
     type: 'anthropic_key',
-    regex: /(?<![A-Za-z0-9])sk-ant-api\d+-[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g,
+    // F19: admin-series keys (sk-ant-admin01-…) carry org-management access;
+    // keep in step with the canonical plugin-sdk table (parity corpus).
+    regex: /(?<![A-Za-z0-9])sk-ant-(?:api|admin)\d+-[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g,
     anchor: 'sk-ant-',
   },
   {

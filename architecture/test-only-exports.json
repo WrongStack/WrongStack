@@ -1223,6 +1223,9 @@
     "packages/plugins/src/prompt-firewall/index.ts": [
       "detectSecrets"
     ],
+    "packages/plugins/src/secret-scanner/secret-scanner-redaction.ts": [
+      "redactString"
+    ],
     "packages/plugins/src/test-runner-gate/test-runner.ts": [
       "resolveTestFiles"
     ],

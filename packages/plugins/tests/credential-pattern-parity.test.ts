@@ -68,6 +68,10 @@ describe('canonical credential table', () => {
  */
 const SHARED_CORPUS: Array<[string, string]> = [
   ['anthropic', 'sk-ant-api03-ZmFrZWZha2VmYWtlZmFrZWZha2VmYWtl_AA'],
+  // F19: admin-series keys grant org-management access; the api-only pattern
+  // left them invisible to the plugin gates (core's broader openai pattern
+  // happened to redact them). The corpus keeps both lists covering them.
+  ['anthropic admin key', 'sk-ant-admin01-ZmFrZWZha2VmYWtlZmFrZWZha2VmYWtl'],
   ['github pat', `ghp_${'a'.repeat(36)}`],
   ['github pat v2', `github_pat_${'b'.repeat(50)}`],
   ['aws access key id', 'AKIAIOSFODNN7EXAMPLE'],
