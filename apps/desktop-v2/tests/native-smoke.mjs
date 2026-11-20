@@ -2472,20 +2472,23 @@ try {
         100000,
       );
       await page.locator('.session-card-main').filter({ hasText: 'Saved provider proof' }).click();
-      await page.locator(`[data-engine-session="${freshIdentity.sessionId}"]`).waitFor();
-      await page
+      const freshChat = page.locator(`[data-engine-session="${freshIdentity.sessionId}"]`);
+      await freshChat.waitFor();
+      await freshChat
         .getByRole('textbox', { name: 'Message WrongStack' })
         .fill('Confirm the saved native provider connection. Do not call tools.');
       const previousCalls = providerFixture.calls.length;
-      await page.getByRole('button', { name: 'Send message', exact: true }).click();
-      await page
+      await freshChat.getByRole('button', { name: 'Send message', exact: true }).click();
+      // Earlier conversations show the same fixture answer: only this engine's reply counts.
+      await freshChat
         .locator('.chat-message.assistant')
         .filter({ hasText: fixtureText })
         .first()
         .waitFor({ timeout: 60000 });
-      assert.ok(
-        providerFixture.calls.length > previousCalls,
+      await waitFor(
+        () => providerFixture.calls.length > previousCalls,
         'Fresh engine made an authenticated provider request',
+        30000,
       );
       console.log('PASS: new engine process decrypts and uses the saved provider');
       assert.deepEqual(errors, []);
