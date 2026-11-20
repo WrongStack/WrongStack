@@ -562,7 +562,7 @@ const cleanupOwnedProcesses = async () => {
   assert.equal(dirname(resolve(dir)).toLowerCase(), resolve(tmpdir()).toLowerCase());
   assert.ok(basename(dir).startsWith('wrongstack-desktop-v2-'));
   const code =
-    "$pattern=[regex]::Escape($env:WRONGSTACK_DESKTOP_TEST_DIR); Get-CimInstance Win32_Process -Filter \"Name='msedgewebview2.exe' OR Name='wrongstack-engine.exe' OR Name='wrongstack-session-host.exe' OR Name='bun.exe' OR Name='node.exe'\" | Where-Object { $_.CommandLine -match $pattern } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }";
+    "$pattern=[regex]::Escape($env:WRONGSTACK_DESKTOP_TEST_DIR); Get-CimInstance Win32_Process -Filter \"Name='msedgewebview2.exe' OR Name='wrongstack-engine.exe' OR Name='wrongstack-session-host.exe' OR Name='bun.exe' OR Name='node.exe'\" | Where-Object { $_.CommandLine -match $pattern } | ForEach-Object { & taskkill.exe /PID $_.ProcessId /T /F 2>$null | Out-Null }; exit 0";
   let cleanupError = '';
   const cleanup = spawn(
     join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe'),
@@ -2683,8 +2683,18 @@ try {
   // processes and detached engine daemons whose command lines name this test's unique directory.
   // A development engine runs its project daemons (SAGE, Kanban, index, Chronicle) under
   // bun/node with this directory as their project root; left running they lock it (EBUSY).
-  await cleanupOwnedProcesses();
-  await rm(dir, { recursive: true, force: true, maxRetries: 25, retryDelay: 200 });
+  // Each match is stopped with its process tree: a project-services session host's engine
+  // does not name the directory, and left alive it starts the daemons it lost again. A
+  // daemon started between a sweep and the delete gets another sweep before the next attempt.
+  for (let attempt = 1; ; attempt++) {
+    await cleanupOwnedProcesses();
+    try {
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+      break;
+    } catch (error) {
+      if (attempt >= 4 || !['EBUSY', 'EPERM'].includes(error?.code)) throw error;
+    }
+  }
 }
 await writeFile(
   join(artifactDir, 'native-result.json'),
