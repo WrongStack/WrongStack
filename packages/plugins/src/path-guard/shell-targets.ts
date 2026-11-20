@@ -58,6 +58,25 @@ const XARGS_OPTIONS = String.raw`(?:\s+(?:(?:-[adEIJLnPRSs]|--(?:arg-file|delimi
  */
 const COMMAND_BOUNDARY = String.raw`(?:^|[;&|\r\n]\s*|\{\s*|(?<![$(])\(\s*|\bxargs${XARGS_OPTIONS}\s+)`;
 
+/**
+ * F16: git's parse-options and PowerShell accept any UNAMBIGUOUS long-option
+ * (parameter) prefix — `git reset --har` ≡ `--hard`, `rm --rec` ≡
+ * `--recursive`, `Remove-Item -rec` ≡ `-Recurse` (verified empirically in the
+ * core F6/F8 rounds). Exact-equality matching let the abbreviated spellings
+ * evade the recursive-delete / reset / restore scope classification: a
+ * deletion-scope downgraded to a file target (or dropped entirely), so a
+ * recursive delete of protected descendants drew no verdict. `minLen` is the
+ * shortest unambiguous prefix for THAT command's option set (e.g. reset's
+ * --merge needs "me": "m" collides with --mixed); over-matching only makes
+ * the guard stricter (fail-safe). An attached `=value` is ignored for the
+ * name match.
+ */
+function longOptionPrefix(token: string, name: string, minLen: number): boolean {
+  if (!token.startsWith('--')) return false;
+  const opt = token.slice(2).split('=', 1)[0]!;
+  return opt.length >= minLen && name.startsWith(opt);
+}
+
 export function commandRecursivelyDeletes(command: string): boolean {
   const stripped = stripTransparentLaunchers(maskNonExecutingHeredocBodies(command));
   if (
@@ -84,9 +103,12 @@ export function commandRecursivelyDeletes(command: string): boolean {
     for (const token of tokens) {
       if (token === '--') break;
       if (tool === 'rm') {
-        if (token === '--recursive' || /^-[^-]*[rR]/.test(token)) recursive = true;
+        // F16: rm's only r-option is --recursive (--r… unambiguous).
+        if (longOptionPrefix(token, 'recursive', 1) || /^-[^-]*[rR]/.test(token)) recursive = true;
       } else if (tool === 'remove-item' || tool === 'ri') {
-        if (/^-Recurse$/i.test(token) || /^-r$/i.test(token)) recursive = true;
+        // F16: PowerShell binds any unambiguous parameter-name prefix
+        // (-rec, -recu … are -Recurse), case-insensitive, incl. :$true.
+        if (/^-(?:r|re(?:c(?:u(?:r(?:s(?:e)?)?)?)?)?)(?::\$true)?$/i.test(token)) recursive = true;
       } else if (/^\/[a-z]*s[a-z]*$/i.test(token)) {
         recursive = true;
       }
@@ -439,15 +461,25 @@ export function destructiveTargetsAtDepth(command: string, depth: number): strin
       } else if (subcommand === 'rm') {
         const writes = !tokens.includes('--cached') || tokens.includes('--worktree');
         if (writes) {
-          const recursive = tokens.some((t) => t === '--recursive' || /^-[^-]*r/.test(t));
+          // F16: git rm's only r-option is --recursive (--r… unambiguous).
+          const recursive = tokens.some(
+            (t) => longOptionPrefix(t, 'recursive', 1) || /^-[^-]*r/.test(t),
+          );
           const operands = tokens.filter((t) => t !== '--' && !t.startsWith('-'));
           targets.push(...operands.map((o) => gitTarget(recursive ? `${o}/**` : o)));
           const unresolvedFileScope = fileSourcedPathspecScope(tokens);
           if (unresolvedFileScope) targets.push(unresolvedFileScope);
         }
       } else if (subcommand === 'restore') {
-        const staged = tokens.includes('--staged') || tokens.some((t) => /^-[^-]*S/.test(t));
-        const worktree = tokens.includes('--worktree') || tokens.some((t) => /^-[^-]*W/.test(t));
+        // F16: --sta…--staged / --w…--worktree are unambiguous ("s"/"st"
+        // collide with --source). Missing --wor let a worktree-destroying
+        // restore take the unstage-only exemption (core F8 parity).
+        const staged =
+          tokens.some((t) => longOptionPrefix(t, 'staged', 3)) ||
+          tokens.some((t) => /^-[^-]*S/.test(t));
+        const worktree =
+          tokens.some((t) => longOptionPrefix(t, 'worktree', 1)) ||
+          tokens.some((t) => /^-[^-]*W/.test(t));
         if (!staged || worktree) {
           const operands: string[] = [];
           for (let index = 0; index < tokens.length; index += 1) {
@@ -489,7 +521,14 @@ export function destructiveTargetsAtDepth(command: string, depth: number): strin
         }
       } else if (
         subcommand === 'reset' &&
-        tokens.some((t) => t === '--hard' || t === '--merge' || t === '--keep')
+        // F16: reset's h/k-options are unique (--h…, --k…); --merge needs
+        // "me" ("m" collides with --mixed).
+        tokens.some(
+          (t) =>
+            longOptionPrefix(t, 'hard', 1) ||
+            longOptionPrefix(t, 'merge', 2) ||
+            longOptionPrefix(t, 'keep', 1),
+        )
       )
         targets.push(gitTarget('.'));
     }

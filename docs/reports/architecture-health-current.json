@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-20T21:59:50.660Z",
+  "generatedAt": "2026-11-20T22:01:44.841Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6404,
-    "testFiles": 5585,
-    "sourceLines": 1321464,
+    "testFiles": 5587,
+    "sourceLines": 1321525,
     "workspaceEdges": 251,
     "moduleEdges": 18939,
     "nonCommandSlashImports": 0,
@@ -362,7 +362,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 661,
-      "testFiles": 737,
+      "testFiles": 738,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -379,7 +379,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 737
+          "testFiles": 738
         }
       ]
     },
@@ -694,7 +694,7 @@
       "name": "@wrongstack/plugins",
       "dir": "packages/plugins",
       "sourceFiles": 155,
-      "testFiles": 137,
+      "testFiles": 138,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -712,7 +712,7 @@
         {
           "path": "packages/plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 137
+          "testFiles": 138
         }
       ]
     },
@@ -13345,6 +13345,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/security/yolo-catastrophic-abbrev.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/security/yolo-confirm-kinds.test.ts",
         "projects": [
           "root-node"
@@ -18842,6 +18848,12 @@
       },
       {
         "file": "packages/plugins/tests/notify-hub.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugins/tests/path-guard-long-option-abbrev.test.ts",
         "projects": [
           "root-node"
         ]

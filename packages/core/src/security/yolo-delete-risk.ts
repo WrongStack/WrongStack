@@ -214,6 +214,19 @@ function isCatastrophicDeleteTarget(rawTarget: string): boolean {
   return false;
 }
 
+/**
+ * F17: GNU getopt_long accepts any unambiguous long-option prefix. True when
+ * `arg` spells `--name` or a prefix of it at least `minLen` characters long
+ * (the shortest unambiguous prefix for that option set); an attached `=value`
+ * is ignored for the name match. Over-matching forms GNU would reject only
+ * makes the gate stricter (fail-safe). Same semantics as flagLetters (F6).
+ */
+function longOptionIs(arg: string, name: string, minLen: number): boolean {
+  if (!arg.startsWith('--')) return false;
+  const opt = arg.slice(2).split('=', 1)[0]!;
+  return opt.length >= minLen && name.startsWith(opt);
+}
+
 export function hasCatastrophicDelete(command: string): boolean {
   const tokens = tokenizeShell(command);
   for (let i = 0; i < tokens.length; i++) {
@@ -224,13 +237,15 @@ export function hasCatastrophicDelete(command: string): boolean {
     // POSIX rm -rf / Remove-Item -Recurse-style recursive force delete.
     if (token === 'rm') {
       const args = tokens.slice(i + 1);
-      const recursiveOrForce = args.some(
-        (arg) =>
-          /^-[^-]*[rf]/i.test(arg) ||
-          arg === '--recursive' ||
-          arg === '--force' ||
-          arg === '--no-preserve-root',
-      );
+      // F17: flagLetters binds the GNU long-option prefixes (F6) for r/f;
+      // --no-preserve-root is rm's only n-option (--n… unambiguous). Exact
+      // equality let `rm --rec /` / `rm --fo ~` evade the catastrophic gate
+      // (and the r-only form also slips past hasRecursiveForceDelete's r&&f).
+      const letters = flagLetters(args);
+      const recursiveOrForce =
+        letters.has('r') ||
+        letters.has('f') ||
+        args.some((arg) => longOptionIs(arg, 'no-preserve-root', 1));
       if (!recursiveOrForce) continue;
       const targets = args.filter((arg) => !arg.startsWith('-') && !SHELL_OPERATORS.has(arg));
       // `rm -rf` with no operand is a whole-cwd wipe intent.
@@ -240,9 +255,16 @@ export function hasCatastrophicDelete(command: string): boolean {
 
     if (token === 'remove-item' || token === 'ri') {
       const args = tokens.slice(i + 1);
+      // F17: PowerShell binds any unambiguous parameter prefix (-rec ≡
+      // -Recurse, -fo ≡ -Force), incl. :$true — the same patterns the
+      // recursive-force gate above uses. This is recursive-OR-force: either
+      // switch on a catastrophic target is gated.
       const recursive = args.some((arg) => {
         const a = arg.toLowerCase();
-        return a === '-recurse' || a === '-force';
+        return (
+          /^-(?:r|re(?:c(?:u(?:r(?:s(?:e)?)?)?)?)?)(?::\$true)?$/.test(a) ||
+          /^-(?:f|fo(?:r(?:c(?:e)?)?)?)(?::\$true)?$/.test(a)
+        );
       });
       if (!recursive) continue;
       const targets = args.filter((arg) => !arg.startsWith('-') && !SHELL_OPERATORS.has(arg));
