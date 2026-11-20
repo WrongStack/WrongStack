@@ -113,7 +113,17 @@ export async function exerciseNativeServiceHealing({
       },
       'Actual native automatic restart ' + phase,
       90000,
-    );
+    ).catch(async (error) => {
+      // Name what the watchdog did report, so a timeout says where the restart stopped.
+      const seen = frames
+        .filter((e) => e.type === 'connections.auto_heal_status')
+        .map((e) => `${e.payload?.serviceId}:${e.payload?.phase}:${e.payload?.message ?? ''}`);
+      const health = await call('connections.health').catch((e) => ({ error: e.message }));
+      const now = health.services?.find((s) => s.id === 'session-catalog');
+      throw Error(
+        `${error.message}; watchdog frames [${seen.join(' | ')}]; catalog now ${JSON.stringify(now ?? health)}`,
+      );
+    });
     assert(auto('restarting').length > 0, 'Automatic admission was journaled');
     const label = phase === 'restarted' ? 'Automatically restarted' : 'Automatic restart failed';
     await row('Session Catalog')
