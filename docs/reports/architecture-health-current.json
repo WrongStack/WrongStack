@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-20T22:07:34.087Z",
+  "generatedAt": "2026-11-20T22:09:20.720Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6404,
-    "testFiles": 5589,
-    "sourceLines": 1321551,
+    "testFiles": 5590,
+    "sourceLines": 1321561,
     "workspaceEdges": 251,
     "moduleEdges": 18939,
     "nonCommandSlashImports": 0,
@@ -830,7 +830,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 126,
-      "testFiles": 68,
+      "testFiles": 69,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -864,7 +864,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 68
+          "testFiles": 69
         }
       ]
     },
@@ -21002,6 +21002,12 @@
       },
       {
         "file": "packages/runtime/tests/wrongforge-leader-close-race.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/wrongforge-leader-confirm-persistence.test.ts",
         "projects": [
           "root-node"
         ]

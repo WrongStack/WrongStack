@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 535,
+      "files": 536,
       "typeOnly": 400,
-      "runtimeOrMixed": 167
+      "runtimeOrMixed": 168
     },
     "@wrongstack/core/boot": {
       "files": 6,
@@ -59,9 +59,9 @@
       "runtimeOrMixed": 17
     },
     "@wrongstack/core/infrastructure": {
-      "files": 70,
+      "files": 71,
       "typeOnly": 8,
-      "runtimeOrMixed": 65
+      "runtimeOrMixed": 66
     },
     "@wrongstack/core/kernel": {
       "files": 1,
@@ -124,9 +124,9 @@
       "runtimeOrMixed": 18
     },
     "@wrongstack/core/security": {
-      "files": 274,
+      "files": 275,
       "typeOnly": 27,
-      "runtimeOrMixed": 250
+      "runtimeOrMixed": 251
     },
     "@wrongstack/core/session-catalog": {
       "files": 19,
@@ -1706,6 +1706,12 @@
       "file": "packages/runtime/tests/vision.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/tests/wrongforge-leader-confirm-persistence.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -4956,6 +4962,12 @@
     {
       "specifier": "@wrongstack/core/infrastructure",
       "file": "packages/runtime/tests/tool-wire-budget.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/infrastructure",
+      "file": "packages/runtime/tests/wrongforge-leader-confirm-persistence.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -8706,6 +8718,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/runtime/tests/runtime-100-coverage.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/runtime/tests/wrongforge-leader-confirm-persistence.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

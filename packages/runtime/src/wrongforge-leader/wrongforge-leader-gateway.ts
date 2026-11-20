@@ -22,7 +22,7 @@ import {
 } from '@wrongstack/core/utils';
 import type { WrongForgeGatewaySpec } from '@wrongstack/fleet';
 import { timingSafeTokenEqual } from '@wrongstack/primitives';
-import { confirmThroughEvents } from '../acp-leader/acp-leader-confirm.js';
+import { confirmThroughEvents, rememberConfirmAnswer } from '../acp-leader/acp-leader-confirm.js';
 import type { AcpLeaderHost } from '../acp-leader/acp-leader-host.js';
 
 /**
@@ -70,7 +70,17 @@ async function askUser(
   if (host.confirmAwaiter) {
     const answer = await host.confirmAwaiter(tool, input, toolUseId, suggestedPattern);
     if (signal.aborted) return false;
-    return answer !== 'no' && answer !== 'deny';
+    await rememberConfirmAnswer(
+      {
+        tool,
+        input,
+        suggestedPattern,
+        permission: host.permission(sessionId),
+        context: host.context(sessionId),
+      },
+      answer,
+    );
+    return !signal.aborted && answer !== 'no' && answer !== 'deny';
   }
   if (!host.confirmThroughEvents) return false;
   const approved = await confirmThroughEvents({
