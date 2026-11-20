@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-20T16:14:55.791Z",
+  "generatedAt": "2026-11-20T16:16:25.661Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 48,
     "sourceFiles": 6404,
     "testFiles": 5583,
-    "sourceLines": 1321330,
+    "sourceLines": 1321332,
     "workspaceEdges": 251,
     "moduleEdges": 18939,
     "nonCommandSlashImports": 0,
@@ -36103,7 +36103,7 @@
     },
     {
       "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 790,
+      "lines": 792,
       "relativeImports": 61
     },
     {
@@ -36310,7 +36310,7 @@
     },
     {
       "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 790,
+      "lines": 792,
       "relativeImports": 61
     },
     {

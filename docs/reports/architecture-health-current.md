@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-20T16:14:55.791Z
+**Generated:** 2026-11-20T16:16:25.661Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6404 |
-| Production source lines | 1321330 |
+| Production source lines | 1321332 |
 | Test files | 5583 |
 | Workspace dependency edges | 251 |
 | Relative module edges | 18939 |
@@ -115,7 +115,7 @@ None.
 | 800 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
 | 800 | `packages/client/src/client.ts` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
-| 790 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
+| 792 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
 | 786 | `packages/vibeui/src/lib/use-session.ts` |
 | 780 | `packages/tools/src/design.ts` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |

@@ -518,7 +518,9 @@ export function EngineWorkspace({
                 }
                 footer={
                   <>
-                    {state.inputs.map((request) => (
+                    {/* Until the journal is read to its end a question may already be answered
+                        further on; its card would open empty and take the typed answer. */}
+                    {(state.synced ? state.inputs : []).map((request) => (
                       <InputRequestCard
                         key={request.id}
                         request={request}
