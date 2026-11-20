@@ -78,6 +78,18 @@ describe('edit staleness guard (#444)', () => {
     expect((await edit(ctx, 'hello', 'hi')).replacements).toBe(1);
   });
 
+  it('a no-op edit of an unread file is not a read: no write bypass, no guard', async () => {
+    const { ctx, file } = await session();
+    await fs.writeFile(file, 'const a = 1;\n');
+
+    expect((await edit(ctx, 'a = 1', 'a = 1')).replacements).toBe(0);
+    // The permission policy auto-approves `write` for a file the model read.
+    expect(ctx.hasRead(file)).toBe(false);
+
+    await fs.writeFile(file, 'const a = 1; // fmt\n');
+    expect((await edit(ctx, 'a = 1', 'a = 2')).replacements).toBe(1);
+  });
+
   it('a suppressed re-read of restored content records that content, not the stale hash', async () => {
     const { ctx, file } = await session();
     await fs.writeFile(file, 'const v = 1;\n');

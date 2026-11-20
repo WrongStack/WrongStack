@@ -269,7 +269,12 @@ export const editTool: Tool<EditInput, EditOutput> = {
         if (!fileLf.includes(oldLf)) {
           throw noMatchError(input.path, fileLf, oldLf);
         }
-        if (autoRead) ctx.recordRead?.(absPath, updated.mtimeMs, 'user', originalHash);
+        // Tagged 'write', like the record after an auto-read edit: the model
+        // never saw this content. A 'user' record counted as a read — the
+        // permission policy then auto-approved a later `write` of a file the
+        // model had not seen, and the staleness guard switched on for a caller
+        // that cannot `read` (the WrongForge leader, #444).
+        if (autoRead) ctx.recordRead?.(absPath, updated.mtimeMs, 'write', originalHash);
         return {
           path: absPath,
           replacements: 0,
