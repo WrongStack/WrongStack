@@ -32,6 +32,25 @@ export const flagLetters = (args: readonly string[]): Set<string> => {
   return seen;
 };
 
+/**
+ * F11: CLI long-option parsers accept any UNAMBIGUOUS prefix — git's
+ * parse-options (`git reset --har` ≡ `--hard`) and AWS CLI's argparse
+ * (`aws s3 rm --rec` ≡ `--recursive`), both verified empirically per command
+ * (core F8/F9 rounds). True when `arg` spells `--name` or a prefix of it at
+ * least `minLen` characters long — the shortest prefix unambiguous among THAT
+ * command's options (e.g. push --delete needs "de": "d" collides with
+ * --dry-run; switch --force has no accepted abbreviation because of
+ * --force-create, so callers pass the full length to keep it exact). Attached
+ * `=value` is ignored for the name match; over-matching value forms the CLI
+ * would reject only makes the classifier stricter (fail-safe). Case-sensitive:
+ * git long options are lowercase.
+ */
+export const longOptionAbbrev = (arg: string, name: string, minLen: number): boolean => {
+  if (!arg.startsWith('--')) return false;
+  const opt = arg.slice(2).split('=', 1)[0]!;
+  return opt.length >= minLen && name.startsWith(opt);
+};
+
 /** git's global options that take the NEXT argv entry as their value. */
 const GIT_GLOBAL_VALUE_OPTIONS: readonly string[] = [
   '-C',

@@ -1338,4 +1338,114 @@ describe('serverAgentTurn deterministic helpers', () => {
     ]);
     expect(turn.replay('f15-seed')).toEqual([]);
   });
+
+  it('streams provider.thinking_delta as agent_thought_chunk and provider.text_delta without duplicating final text', async () => {
+    const handlers: Record<string, (event: never) => void> = {};
+    const agent = {
+      events: {
+        on: (name: string, handler: (event: never) => void) => {
+          handlers[name] = handler;
+          return () => delete handlers[name];
+        },
+      },
+      run: vi.fn(async () => {
+        handlers['provider.thinking_delta']?.({ text: 'plan ' } as never);
+        handlers['provider.text_delta']?.({ text: 'hel' } as never);
+        handlers['provider.text_delta']?.({ text: 'lo' } as never);
+        return { text: 'hello' };
+      }),
+      teardown: vi.fn(),
+    };
+    const updates: unknown[] = [];
+    const turn = makeACPServerAgentTurn({ agentFor: async () => agent as never as Agent });
+    const res = await turn(
+      {
+        sessionId: 'stream-1',
+        prompt: [{ type: 'text', text: 'hi' }],
+        signal: new AbortController().signal,
+      },
+      (u) => updates.push(u),
+    );
+    expect(res.stopReason).toBe('end_turn');
+    expect(updates).toEqual([
+      { sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: 'plan ' } },
+      { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'hel' } },
+      { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'lo' } },
+    ]);
+  });
+
+  it('emits live usage_update from provider.response using provider maxContext', async () => {
+    const handlers: Record<string, (event: never) => void> = {};
+    const agent = {
+      ctx: { provider: { capabilities: { maxContext: 200_000 } } },
+      events: {
+        on: (name: string, handler: (event: never) => void) => {
+          handlers[name] = handler;
+          return () => delete handlers[name];
+        },
+      },
+      run: vi.fn(async () => {
+        handlers['provider.response']?.({
+          usage: { input: 1000, output: 250, cacheRead: 500, cacheWrite: 100 },
+        } as never);
+        return { finalText: 'done' };
+      }),
+      teardown: vi.fn(),
+    };
+    const updates: unknown[] = [];
+    const turn = makeACPServerAgentTurn({ agentFor: async () => agent as never as Agent });
+    const res = await turn(
+      {
+        sessionId: 'usage-1',
+        prompt: [{ type: 'text', text: 'hi' }],
+        signal: new AbortController().signal,
+      },
+      (u) => updates.push(u),
+    );
+    expect(res.usage).toEqual({ used: 1850, size: 200_000 });
+    expect(updates).toContainEqual({
+      sessionUpdate: 'usage_update',
+      used: 1850,
+      size: 200_000,
+    });
+  });
+
+  it('includes resolved tool_call.locations when tool input carries a file path and line', async () => {
+    const handlers: Record<string, (event: never) => void> = {};
+    const agent = {
+      events: {
+        on: (name: string, handler: (event: never) => void) => {
+          handlers[name] = handler;
+          return () => delete handlers[name];
+        },
+      },
+      run: vi.fn(async () => {
+        handlers['tool.started']?.({
+          id: 'tc_loc_1',
+          name: 'read',
+          input: { path: 'src/app.ts', offset: 42 },
+        } as never);
+        return { finalText: 'ok' };
+      }),
+      teardown: vi.fn(),
+    };
+    const updates: unknown[] = [];
+    const cwd = process.cwd();
+    const turn = makeACPServerAgentTurn({ agentFor: async () => agent as never as Agent });
+    await turn(
+      {
+        sessionId: 'loc-1',
+        cwd,
+        prompt: [{ type: 'text', text: 'read it' }],
+        signal: new AbortController().signal,
+      },
+      (u) => updates.push(u),
+    );
+    expect(updates[0]).toMatchObject({
+      sessionUpdate: 'tool_call',
+      toolCallId: 'tc_loc_1',
+      kind: 'read',
+      locations: [{ path: expect.stringMatching(/src[\\/]app\.ts$/), line: 42 }],
+    });
+  });
 });

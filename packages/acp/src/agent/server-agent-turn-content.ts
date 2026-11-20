@@ -48,6 +48,7 @@
  * through `RunTurnApi.sendSessionUpdate`. Nothing is sent after the session is
  * disposed, and a notice failure never reaches the event bus.
  */
+import * as path from 'node:path';
 import type { Agent, AgentInput } from '@wrongstack/core/agent';
 import { parseIncomingImages } from '@wrongstack/core/utils';
 import type { ContentBlock, PlanEntry, StopReason, ToolKind, UsageCost } from '../types/acp-v1.js';
@@ -110,6 +111,24 @@ export function toolTitle(name: string, input: unknown): string {
 
 export function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/**
+ * Extract ACP v1 `tool_call.locations` (`{ path, line? }[]`) from a tool's
+ * structured input so editors can offer "Follow Agent" / click-to-open-file.
+ */
+export function toolLocations(
+  input: unknown,
+  cwd?: string,
+): Array<{ path: string; line?: number }> | undefined {
+  if (!isRecord(input)) return undefined;
+  const rawPath = input.path ?? input.file ?? input.filePath;
+  if (typeof rawPath !== 'string' || rawPath.trim().length === 0) return undefined;
+  const resolved = path.isAbsolute(rawPath) ? rawPath : cwd ? path.resolve(cwd, rawPath) : rawPath;
+  const rawLine = input.line ?? input.offset ?? input.startLine;
+  const line =
+    typeof rawLine === 'number' && Number.isInteger(rawLine) && rawLine >= 1 ? rawLine : undefined;
+  return [{ path: resolved, ...(line !== undefined ? { line } : {}) }];
 }
 
 /**

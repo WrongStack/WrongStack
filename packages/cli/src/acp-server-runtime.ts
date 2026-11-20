@@ -25,7 +25,13 @@ import { DefaultLogger } from '@wrongstack/core/infrastructure';
 import { DefaultConfigLoader } from '@wrongstack/core/storage';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { type AcpHqTelemetry, startAcpHqTelemetry } from './acp-hq-telemetry.js';
-import { buildAcpModelOption, selectedAcpModel } from './acp-model-option.js';
+import {
+  buildAcpEffortOption,
+  buildAcpModelOption,
+  parseAcpModelValue,
+  selectedAcpEffort,
+  selectedAcpModel,
+} from './acp-model-option.js';
 import {
   type AcpServerAgentFactory,
   AcpServerConfigError,
@@ -49,10 +55,11 @@ export interface AcpServerRuntime {
    */
   composeDispose(disposeTurn: (sessionId: string) => void): (sessionId: string) => void;
   /**
-   * The model picker for a new session (`ProtocolHandlerOptions.sessionConfigOptions`):
-   * empty until a provider is configured.
+   * The model and reasoning-effort pickers for a session
+   * (`ProtocolHandlerOptions.sessionConfigOptions`): empty until a provider
+   * is configured.
    */
-  sessionConfigOptions(): Promise<SessionConfigOption[]>;
+  sessionConfigOptions(current?: readonly SessionConfigOption[]): Promise<SessionConfigOption[]>;
   /**
    * Put a session's agent on the model its picker selects
    * (`ACPServerAgentTurnOptions.applyConfigOptions`).
@@ -78,6 +85,8 @@ export interface AcpServerRuntimeOptions {
   reloadConfig?: (() => Promise<Config>) | undefined;
   /** Test seam for the model picker; defaults to `buildAcpModelOption`. */
   buildModelOption?: typeof buildAcpModelOption | undefined;
+  /** Test seam for the reasoning-effort picker; defaults to `buildAcpEffortOption`. */
+  buildEffortOption?: typeof buildAcpEffortOption | undefined;
 }
 
 interface Built {
@@ -180,6 +189,9 @@ export function createAcpServerRuntime(
         if (!built) throw new AcpServerConfigError(ACP_LOGIN_HINT);
         await built.raw.selectModel(agent, providerId, modelId);
       },
+      selectReasoningEffort(agent: Agent, effort: string | undefined): void {
+        built?.raw.selectReasoningEffort?.(agent, effort);
+      },
     },
   ) as AcpServerAgentFactory;
 
@@ -197,18 +209,31 @@ export function createAcpServerRuntime(
     },
     sessionCommands: () => commands.list(),
     runCommand: commands.run,
-    sessionConfigOptions: async () => {
+    sessionConfigOptions: async (current) => {
       if (!built) return [];
-      const option = await (options.buildModelOption ?? buildAcpModelOption)({
+      const modelOption = await (options.buildModelOption ?? buildAcpModelOption)({
         config: built.config,
         modelsRegistry: deps.modelsRegistry,
       });
-      return option ? [option] : [];
+      const activeModel =
+        (current ? selectedAcpModel(current) : null) ??
+        (modelOption ? parseAcpModelValue(modelOption.currentValue) : null);
+      const effortOption = activeModel
+        ? await (options.buildEffortOption ?? buildAcpEffortOption)({
+            config: built.config,
+            modelsRegistry: deps.modelsRegistry,
+            providerId: activeModel.providerId,
+            modelId: activeModel.modelId,
+          })
+        : undefined;
+      return [...(modelOption ? [modelOption] : []), ...(effortOption ? [effortOption] : [])];
     },
     applyConfigOptions: async (agent, configOptions) => {
       const selected = selectedAcpModel(configOptions);
-      if (!selected) return;
-      await agentFor.selectModel(agent, selected.providerId, selected.modelId);
+      if (selected) {
+        await agentFor.selectModel(agent, selected.providerId, selected.modelId);
+      }
+      agentFor.selectReasoningEffort(agent, selectedAcpEffort(configOptions));
     },
     ready: () => built !== undefined,
     describe: () => (built ? `${built.config.provider}/${built.config.model}` : undefined),

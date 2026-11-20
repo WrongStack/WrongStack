@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-20T10:57:35.841Z",
+  "generatedAt": "2026-11-20T11:06:12.363Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6402,
-    "testFiles": 5573,
-    "sourceLines": 1320418,
+    "testFiles": 5579,
+    "sourceLines": 1320998,
     "workspaceEdges": 250,
-    "moduleEdges": 18925,
+    "moduleEdges": 18926,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -93,7 +93,7 @@
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
       "sourceFiles": 58,
-      "testFiles": 68,
+      "testFiles": 69,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -109,7 +109,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 68
+          "testFiles": 69
         }
       ]
     },
@@ -209,7 +209,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 638,
-      "testFiles": 706,
+      "testFiles": 707,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -261,7 +261,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 706
+          "testFiles": 707
         }
       ]
     },
@@ -362,7 +362,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 661,
-      "testFiles": 734,
+      "testFiles": 736,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -379,7 +379,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 734
+          "testFiles": 736
         }
       ]
     },
@@ -1019,7 +1019,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 402,
-      "testFiles": 400,
+      "testFiles": 402,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -1038,7 +1038,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 400
+          "testFiles": 402
         }
       ]
     },
@@ -3972,6 +3972,12 @@
         ]
       },
       {
+        "file": "packages/acp/tests/sdk-v1-conformance.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/security-hardening.test.ts",
         "projects": [
           "root-node"
@@ -5341,6 +5347,12 @@
       },
       {
         "file": "packages/cli/tests/acp-server-runtime.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/acp-session-persistence.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13314,6 +13326,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/security/yolo-aws-long-option-abbrev.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/security/yolo-confirm-kinds.test.ts",
         "projects": [
           "root-node"
@@ -13321,6 +13339,12 @@
       },
       {
         "file": "packages/core/tests/security/yolo-credential-binding.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/security/yolo-git-force-branch.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24144,7 +24168,19 @@
         ]
       },
       {
+        "file": "packages/tools/tests/danger-force-branch.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/danger-rm-long-option-abbrev.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/danger-vcs-long-option-abbrev.test.ts",
         "projects": [
           "root-node"
         ]
@@ -35741,6 +35777,11 @@
   "nonCommandSlashImports": [],
   "hotspotCandidates": [
     {
+      "file": "packages/acp/src/agent/server-agent-turn.ts",
+      "lines": 720,
+      "relativeImports": 4
+    },
+    {
       "file": "packages/acp/src/client/acp-session.ts",
       "lines": 767,
       "relativeImports": 25
@@ -36348,6 +36389,11 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/acp/src/agent/server-agent-turn.ts",
+      "lines": 720,
+      "relativeImports": 4
+    },
+    {
       "file": "packages/webui-server/src/server/provider-routes.ts",
       "lines": 720,
       "relativeImports": 5
@@ -36356,11 +36402,6 @@
       "file": "packages/mailbox-mcp/src/adapter.ts",
       "lines": 719,
       "relativeImports": 3
-    },
-    {
-      "file": "packages/project-surfaces/src/sage/useMemoryManagerState.ts",
-      "lines": 718,
-      "relativeImports": 14
     }
   ],
   "testOnlyExports": [
@@ -36949,10 +36990,6 @@
       "name": "acpModelValue"
     },
     {
-      "file": "packages/cli/src/acp-model-option.ts",
-      "name": "parseAcpModelValue"
-    },
-    {
       "file": "packages/cli/src/acp-server-agent.ts",
       "name": "ACPClientPermissionPolicy"
     },
@@ -37215,6 +37252,10 @@
     {
       "file": "packages/cli/src/standalone-update.ts",
       "name": "standaloneAssetName"
+    },
+    {
+      "file": "packages/cli/src/subcommands/handlers/acp-server.ts",
+      "name": "createAcpSessionPersistence"
     },
     {
       "file": "packages/cli/src/subcommands/handlers/auth-local-help.ts",

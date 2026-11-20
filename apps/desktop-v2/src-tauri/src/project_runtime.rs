@@ -73,7 +73,7 @@ impl HostState {
         let mut runtimes = self.project_runtimes.lock().map_err(err)?;
         if let Some(runtime) = runtimes.get_mut(project_id) {
             runtime.last_used = Instant::now();
-            if !retry || runtime.status == "starting" || runtime.status == "running" {
+            if !retry || matches!(runtime.status.as_str(), "starting" | "running" | "stopping") {
                 return Ok(
                     json!({"projectId":project_id,"status":runtime.status,"error":runtime.error}),
                 );
@@ -163,6 +163,15 @@ impl HostState {
         now: Instant,
         idle: Duration,
     ) -> Vec<String> {
+        self.sweep_idle_project_runtimes_with_stop(now, idle, |id| self.stop(id))
+    }
+
+    fn sweep_idle_project_runtimes_with_stop(
+        &self,
+        now: Instant,
+        idle: Duration,
+        stop: impl Fn(&str) -> Result<Value>,
+    ) -> Vec<String> {
         let candidates: Vec<(String, String)> = match self.project_runtimes.lock() {
             Ok(runtimes) => runtimes
                 .iter()
@@ -196,18 +205,32 @@ impl HostState {
                     _ => continue,
                 }
             }
-            if self.stop(&runtime_id).is_err() {
-                // Its engine was already gone: the next visit starts the services again.
-                if let Ok(mut runtimes) = self.project_runtimes.lock() {
-                    if runtimes
-                        .get(&project)
-                        .is_some_and(|runtime| runtime.runtime_id == runtime_id)
-                    {
-                        runtimes.remove(&project);
-                    }
+            if stop(&runtime_id).is_ok() {
+                stopped.push(project);
+                continue;
+            }
+            // Match stop's lock order and keep the ownership check and state change together.
+            let (Ok(live), Ok(mut runtimes)) = (self.live.lock(), self.project_runtimes.lock())
+            else {
+                continue;
+            };
+            let Some(runtime) = runtimes
+                .get_mut(&project)
+                .filter(|runtime| runtime.runtime_id == runtime_id)
+            else {
+                continue;
+            };
+            match live.get(&runtime_id) {
+                Some(session) if !session.stop_requested => {
+                    // A failed stop may leave the engine running. Let the next sweep try again.
+                    runtime.idle_stop = false;
+                    runtime.status = "running".into();
+                }
+                Some(_) => {} // Another request has already started shutdown.
+                None => {
+                    runtimes.remove(&project);
                 }
             }
-            stopped.push(project);
         }
         stopped
     }
@@ -540,7 +563,7 @@ mod tests {
         let deletion = |board, removed| json!({"type":"kanban.delete","payload":{"success":true,"data":{"boardId":board,"removed":removed}}});
         let empty_mirror = json!({"type":"kanban.supervisor.status","payload":{"success":true,
             "data":{"boardId":"boot-mirror","status":"healthy","emptySessionMirror":true}}});
-        let sweep_after = |marker: &str, messages| {
+        let publish = |marker: &str, messages| {
             send.send((marker.into(), messages)).unwrap();
             let deadline = Instant::now() + Duration::from_secs(5);
             // The reader processes each notification before it publishes the marker.
@@ -548,20 +571,79 @@ mod tests {
                 assert!(Instant::now() < deadline, "engine missed marker {marker}");
                 thread::yield_now();
             }
+        };
+        let sweep_after = |marker: &str, messages| {
+            publish(marker, messages);
             host.sweep_idle_project_runtimes(now, idle)
         };
         let before_delete = sweep_after("supervised", vec![status("a"), status("b"), empty_mirror]);
         let after_one = sweep_after("one-removed", vec![deletion("a", true)]);
         let after_failed = sweep_after("failed-removal", vec![deletion("b", false)]);
-        let after_last = sweep_after("last-removed", vec![deletion("b", true)]);
+        publish("last-removed", vec![deletion("b", true)]);
+        let failed_stop = host.sweep_idle_project_runtimes_with_stop(now, idle, |id| {
+            assert_eq!(id, runtime_id);
+            assert_eq!(
+                host.runtime_status("project").unwrap()["status"],
+                "stopping"
+            );
+            Err("Fixture could not stop the engine".into())
+        });
+        let status_after_failed_stop = host.runtime_status("project").unwrap()["status"].clone();
+        let after_last = host.sweep_idle_project_runtimes(Instant::now() + idle, idle);
         let asked_to_stop = dir
             .join("transcripts")
             .join("project-cleanup.stop")
             .exists();
-        host.live.lock().unwrap().remove(runtime_id);
+        // Keep the connected engine in its stop grace period until the retry has returned.
+        std::fs::write(dir.join("frontend-disabled"), b"fixture").unwrap();
+        let retry_during_stop = host
+            .open_runtime("project", dir.to_str().unwrap(), true)
+            .unwrap();
+        let mut session = host.live.lock().unwrap().remove(runtime_id).unwrap();
         host.publish_runtime_state(runtime_id, "stopped", Some(0), None)
             .unwrap();
         let final_status = host.runtime_status("project").unwrap()["status"].clone();
+
+        let stopped_by_another_request = "project-stopped-by-another-request";
+        session.stop_requested = false;
+        host.live
+            .lock()
+            .unwrap()
+            .insert(stopped_by_another_request.into(), session);
+        host.project_runtimes.lock().unwrap().insert(
+            "project".into(),
+            ProjectRuntime::new(stopped_by_another_request.into(), "running", None),
+        );
+        host.sweep_idle_project_runtimes_with_stop(Instant::now() + idle, idle, |id| {
+            assert_eq!(id, stopped_by_another_request);
+            // Another request succeeds while the first stop's failure is still in flight.
+            host.stop(id).unwrap();
+            Err("Fixture earlier stop request failed".into())
+        });
+        let status_after_other_stop = host.runtime_status("project").unwrap()["status"].clone();
+        let session = host
+            .live
+            .lock()
+            .unwrap()
+            .remove(stopped_by_another_request)
+            .unwrap();
+        host.publish_runtime_state(stopped_by_another_request, "stopped", Some(0), None)
+            .unwrap();
+
+        let exited_id = "project-exited-during-stop";
+        host.live.lock().unwrap().insert(exited_id.into(), session);
+        host.project_runtimes.lock().unwrap().insert(
+            "project".into(),
+            ProjectRuntime::new(exited_id.into(), "running", None),
+        );
+        let raced_stop =
+            host.sweep_idle_project_runtimes_with_stop(Instant::now() + idle, idle, |id| {
+                assert_eq!(id, exited_id);
+                // The exit watcher removes the live entry before publishing the terminal state.
+                host.live.lock().unwrap().remove(id).unwrap();
+                Err("Fixture engine already exited".into())
+            });
+        let status_after_exit_race = host.runtime_status("project").unwrap()["status"].clone();
         drop(send);
         server.join().unwrap();
         drop(host);
@@ -577,12 +659,85 @@ mod tests {
             "an unsuccessful deletion changes nothing"
         );
         assert_eq!(
+            status_after_failed_stop, "running",
+            "a connected engine remains owned after its stop request fails"
+        );
+        assert!(
+            failed_stop.is_empty(),
+            "the failed stop must be tried again"
+        );
+        assert_eq!(
             after_last,
             ["project"],
             "a deleted board and the empty boot mirror cannot keep the engine running"
         );
         assert!(asked_to_stop);
+        assert_eq!(retry_during_stop["status"], "stopping");
         assert_eq!(final_status, "idle");
+        assert_eq!(status_after_other_stop, "stopping");
+        assert!(raced_stop.is_empty());
+        assert_eq!(status_after_exit_race, "idle");
+    }
+
+    #[test]
+    fn retry_waits_for_idle_stop_to_release_the_project_runtime() {
+        let dir = std::env::temp_dir().join(format!("desktop-project-retry-{}", Uuid::new_v4()));
+        let repo = dir.join("repo");
+        std::fs::create_dir_all(&repo).unwrap();
+        let host = HostState::new(&dir).unwrap();
+        let project = host
+            .registry
+            .lock()
+            .unwrap()
+            .register(repo.to_str().unwrap())
+            .unwrap();
+        // An accidental start must not launch a process during the shutdown fixture.
+        std::fs::write(dir.join("frontend-disabled"), b"fixture").unwrap();
+        let previous = "project-still-stopping";
+        let mut stopping = ProjectRuntime::new(previous.into(), "stopping", None);
+        stopping.idle_stop = true;
+        host.project_runtimes
+            .lock()
+            .unwrap()
+            .insert(project.id.clone(), stopping);
+
+        let open = |retry| {
+            host.request(
+                "project.open",
+                &json!({"projectId":project.id,"retry":retry}),
+            )
+            .unwrap()["status"]
+                .clone()
+        };
+        let normal_open = open(false);
+        // Hold the exit publication until both open requests have returned.
+        let retry_open = open(true);
+        let retained = host.project_runtimes.lock().unwrap()[&project.id]
+            .runtime_id
+            .clone();
+        host.publish_runtime_state(previous, "stopped", Some(0), None)
+            .unwrap();
+        let after_exit = host.project_runtime_status(&project.id).unwrap()["status"].clone();
+        let after_retry = if after_exit == "idle" {
+            Some(open(true))
+        } else {
+            None
+        };
+        drop(host);
+        std::fs::remove_dir_all(dir).unwrap();
+
+        assert_eq!(normal_open, "stopping", "ordinary opens already wait");
+        assert_eq!(
+            retry_open, "stopping",
+            "a retry must not start another engine before the shutdown finishes"
+        );
+        assert_eq!(retained, previous);
+        assert_eq!(after_exit, "idle");
+        assert_eq!(
+            after_retry.unwrap(),
+            "error",
+            "a new start is attempted after exit"
+        );
     }
 
     #[test]

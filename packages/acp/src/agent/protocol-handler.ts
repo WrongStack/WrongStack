@@ -435,7 +435,7 @@ export class ACPProtocolHandler {
   }
 
   private async handleSessionDelete(id: string | number, params: unknown): Promise<boolean> {
-    const p = (params ?? {}) as { sessionId?: unknown };
+    const p = (params ?? {}) as { sessionId?: unknown; cwd?: unknown };
     const sessionId = typeof p.sessionId === 'string' ? p.sessionId : null;
 
     if (!sessionId) {
@@ -444,11 +444,12 @@ export class ACPProtocolHandler {
     }
 
     const session = this.sessions.get(sessionId);
+    const deleteCwd = session?.cwd ?? (typeof p.cwd === 'string' ? p.cwd : undefined);
     session?.abort.abort();
     this.sessions.delete(sessionId);
     this.disposeSession(sessionId);
     await this.persistenceWrites.get(sessionId);
-    await this.store?.delete?.(sessionId);
+    await this.store?.delete?.(sessionId, deleteCwd);
 
     await this.sendResult(id, {});
     return false;
@@ -494,14 +495,18 @@ export class ACPProtocolHandler {
       await this.sendError(id, ACP_ERROR.INVALID_PARAMS, 'invalid cwd or cursor');
       return false;
     }
+    const requestedCwd = typeof p.cwd === 'string' ? p.cwd : undefined;
     const known = new Map<string, Partial<SessionState>>(this.sessions);
-    for (const entry of (await this.store?.list?.()) ?? []) {
+    for (const entry of (await this.store?.list?.(requestedCwd)) ?? []) {
       if (known.has(entry.id)) continue;
-      const saved = await this.store?.load(entry.id);
+      const saved = await this.store?.load(entry.id, requestedCwd);
       if (saved?.cwd) known.set(entry.id, { ...saved, id: entry.id });
     }
+    const normalizeCwd = (dir: string): string =>
+      process.platform === 'win32' ? resolve(dir).toLowerCase() : resolve(dir);
+    const filterCwd = typeof p.cwd === 'string' ? normalizeCwd(p.cwd) : undefined;
     const sessions = Array.from(known.values())
-      .filter((s) => typeof p.cwd !== 'string' || (s.cwd && resolve(s.cwd) === resolve(p.cwd)))
+      .filter((s) => filterCwd === undefined || (s.cwd && normalizeCwd(s.cwd) === filterCwd))
       .map((s) => {
         const out: { sessionId: string; cwd: string; updatedAt: string; title?: string } = {
           sessionId: s.id!,
@@ -510,7 +515,8 @@ export class ACPProtocolHandler {
         };
         if (s.title !== undefined) out.title = s.title;
         return out;
-      });
+      })
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     await this.sendResult(id, { sessions });
     return false;
   }

@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   acpModelValue,
+  buildAcpEffortOption,
   buildAcpModelOption,
   parseAcpModelValue,
+  selectedAcpEffort,
   selectedAcpModel,
 } from '../src/acp-model-option.js';
 
@@ -104,5 +106,64 @@ describe('ACP model option', () => {
       ]),
     ).toEqual({ providerId: 'openai', modelId: 'gpt-y' });
     expect(selectedAcpModel([{ ...base, id: 'model', currentValue: 'openai/gpt-y' }])).toBeNull();
+  });
+
+  it('builds a thought_level option for reasoning models and omits it for non-reasoning models', async () => {
+    const modelsRegistry = {
+      getModel: vi.fn(async (_provider: string, modelId: string) => {
+        if (modelId === 'o3') {
+          return {
+            capabilities: {
+              reasoning: true,
+              reasoningConfig: { effortSupported: true, effortLevels: ['low', 'medium', 'high'] },
+            },
+          };
+        }
+        if (modelId === 'gpt-4o') {
+          return { capabilities: { reasoning: false } };
+        }
+        return undefined;
+      }),
+    } as never;
+
+    const reasoningOpt = await buildAcpEffortOption({
+      config: {
+        provider: 'openai',
+        model: 'o3',
+        modelRuntime: { reasoning: { effort: 'high' } },
+      } as never,
+      modelsRegistry,
+    });
+    expect(reasoningOpt).toEqual({
+      id: 'thought_level',
+      name: 'Reasoning Effort',
+      description: 'Reasoning effort level for the selected model.',
+      category: 'thought_level',
+      type: 'select',
+      currentValue: 'high',
+      options: [
+        { value: 'default', name: 'Default' },
+        { value: 'low', name: 'Low' },
+        { value: 'medium', name: 'Medium' },
+        { value: 'high', name: 'High' },
+      ],
+    });
+
+    const nonReasoning = await buildAcpEffortOption({
+      config: { provider: 'openai', model: 'gpt-4o' } as never,
+      modelsRegistry,
+    });
+    expect(nonReasoning).toBeUndefined();
+  });
+
+  it('reads thought_level selection and maps default to undefined', () => {
+    const base = { name: 'Effort', type: 'select', category: 'thought_level', options: [] };
+    expect(selectedAcpEffort([{ ...base, id: 'thought_level', currentValue: 'high' }])).toBe(
+      'high',
+    );
+    expect(
+      selectedAcpEffort([{ ...base, id: 'thought_level', currentValue: 'default' }]),
+    ).toBeUndefined();
+    expect(selectedAcpEffort([])).toBeUndefined();
   });
 });

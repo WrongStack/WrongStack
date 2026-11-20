@@ -26,6 +26,7 @@ export interface RekeyProjectIdentityResult {
 
 const PROJECT_GITIGNORE_RULES = [
   '.temp_files/',
+  'acp-sessions/',
   '.wrongstack/',
   '!/.wrongstack/',
   '/.wrongstack/*',
@@ -40,6 +41,7 @@ const PROJECT_GITIGNORE_RULES = [
 const PROJECT_HGIGNORE_HEADER = '# WrongStack local state';
 const PROJECT_HGIGNORE_RULES = [
   're:(^|/)\\.temp_files/',
+  're:(^|/)acp-sessions/',
   're:(^|/)\\.wrongstack/(?!project\\.json$)',
 ] as const;
 

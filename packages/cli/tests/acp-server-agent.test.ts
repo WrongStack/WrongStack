@@ -523,4 +523,38 @@ describe('ACPClientPermissionPolicy', () => {
     expect(decision).toEqual({ permission: 'auto', source: 'default' });
     expect(requestPermission).not.toHaveBeenCalled();
   });
+
+  it('remembers allow_always and reject_always per tool and sends toolCall.kind', async () => {
+    const requestPermission = vi
+      .fn()
+      .mockResolvedValueOnce({ outcome: 'selected', optionId: 'allow_always' })
+      .mockResolvedValueOnce({ outcome: 'selected', optionId: 'reject_always' });
+    const policy = new ACPClientPermissionPolicy(requestPermission as never);
+
+    const writeTool: Tool = {
+      ...sideEffectingTool,
+      name: 'write',
+    };
+    const firstWrite = await policy.evaluate(writeTool, { path: 'a.ts' });
+    const secondWrite = await policy.evaluate(writeTool, { path: 'b.ts' });
+    expect(firstWrite).toEqual({ permission: 'auto', source: 'user' });
+    expect(secondWrite).toEqual({ permission: 'auto', source: 'user' });
+    expect(requestPermission).toHaveBeenCalledTimes(1);
+    expect(requestPermission.mock.calls[0]?.[0]).toMatchObject({
+      toolCall: { kind: 'edit' },
+    });
+
+    const bashTool: Tool = {
+      ...sideEffectingTool,
+      name: 'bash',
+    };
+    const firstBash = await policy.evaluate(bashTool, { command: 'rm -rf .' });
+    const secondBash = await policy.evaluate(bashTool, { command: 'echo hi' });
+    expect(firstBash.permission).toBe('deny');
+    expect(secondBash.permission).toBe('deny');
+    expect(requestPermission).toHaveBeenCalledTimes(2);
+    expect(requestPermission.mock.calls[1]?.[0]).toMatchObject({
+      toolCall: { kind: 'execute' },
+    });
+  });
 });

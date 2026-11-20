@@ -10,10 +10,12 @@ import {
   ACPSessionStore,
   makeACPServerAgentTurn,
   type RunTurn,
+  type SessionPersistence,
   WrongStackACPServer,
   WsBridgeTransport,
 } from '@wrongstack/acp/agent';
 import { leaderDeliveryHub } from '@wrongstack/coordination';
+import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { type AcpServerRuntime, createAcpServerRuntime } from '../../acp-server-runtime.js';
 import { createGracefulShutdown } from '../../shutdown-cleanup.js';
 import { CLI_VERSION } from '../../version.js';
@@ -38,11 +40,79 @@ function parseWsPort(flag: unknown): number | null {
   return Number.isInteger(n) && n > 0 && n < 65_536 ? n : 8889;
 }
 
+/**
+ * Cwd-aware durable ACP session persistence.
+ *
+ * ACP clients frequently spawn `wstack acp serve` from a neutral directory
+ * (such as `$HOME` or the editor's install dir) and pass the real project path
+ * in `session/new` / `session/load` / `session/list` `cwd`. Storing each
+ * session under its own `state.cwd` project dir — while falling back to the
+ * startup `projectDir` for older sessions — guarantees `session/load` finds
+ * the session regardless of which directory spawned the server process.
+ */
+export function createAcpSessionPersistence(
+  defaultProjectDir: string,
+  resolveDirForCwd: (cwd: string) => string = (cwd) =>
+    resolveWstackPaths({ projectRoot: cwd }).projectDir,
+): SessionPersistence {
+  const stores = new Map<string, ACPSessionStore>();
+  const getStore = (projectDir: string): ACPSessionStore => {
+    const key = process.platform === 'win32' ? projectDir.toLowerCase() : projectDir;
+    let store = stores.get(key);
+    if (!store) {
+      store = new ACPSessionStore({ dir: path.join(projectDir, 'acp-sessions') });
+      stores.set(key, store);
+    }
+    return store;
+  };
+  const storeForCwd = (cwd?: string): ACPSessionStore | undefined => {
+    if (!cwd || !path.isAbsolute(cwd)) return undefined;
+    try {
+      return getStore(resolveDirForCwd(cwd));
+    } catch {
+      return undefined;
+    }
+  };
+  const defaultStore = getStore(defaultProjectDir);
+
+  return {
+    async save(state, history) {
+      const target = storeForCwd(state.cwd) ?? defaultStore;
+      return target.save(state, history);
+    },
+    async load(sessionId, cwd) {
+      const target = storeForCwd(cwd);
+      if (target && target !== defaultStore) {
+        const hit = await target.load(sessionId);
+        if (hit) return hit;
+      }
+      return defaultStore.load(sessionId);
+    },
+    async list(cwd) {
+      const seen = new Map<string, { id: string; updatedAt: string }>();
+      const target = storeForCwd(cwd);
+      for (const store of target && target !== defaultStore
+        ? [target, defaultStore]
+        : [defaultStore]) {
+        for (const entry of await store.list()) {
+          if (!seen.has(entry.id)) seen.set(entry.id, entry);
+        }
+      }
+      return [...seen.values()];
+    },
+    async delete(sessionId, cwd) {
+      const target = storeForCwd(cwd);
+      if (target && target !== defaultStore) {
+        await target.delete(sessionId);
+      }
+      await defaultStore.delete(sessionId);
+    },
+  };
+}
+
 /** Durable ACP session store under the project's wstack data dir, if known. */
-function sessionStoreFor(deps: SubcommandDeps): ACPSessionStore | undefined {
-  return deps.paths?.projectDir
-    ? new ACPSessionStore({ dir: path.join(deps.paths.projectDir, 'acp-sessions') })
-    : undefined;
+function sessionStoreFor(deps: SubcommandDeps): SessionPersistence | undefined {
+  return deps.paths?.projectDir ? createAcpSessionPersistence(deps.paths.projectDir) : undefined;
 }
 
 /**
@@ -58,7 +128,7 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
 
   let turnFactory: (() => ReturnType<typeof makeACPServerAgentTurn>) | undefined;
   let echoTurn: RunTurn | undefined;
-  let store: ACPSessionStore | undefined;
+  let store: SessionPersistence | undefined;
   // Starts without a provider too: sessions answer `auth_required` until one
   // is configured (see acp-server-runtime.ts). It also owns HQ telemetry and
   // the client-supplied MCP servers each session's teardown must stop.
@@ -249,6 +319,7 @@ export async function runACPServer(deps: SubcommandDeps): Promise<number> {
           // survives a server restart (project-scoped, not in the repo).
           const store = sessionStoreFor(deps);
           return {
+            defaultCwd: deps.cwd ?? process.cwd(),
             agentVersion: CLI_VERSION,
             authGate: runtime.authGate,
             sessionConfigOptions: runtime.sessionConfigOptions,
@@ -260,7 +331,7 @@ export async function runACPServer(deps: SubcommandDeps): Promise<number> {
             ...(store ? { store } : {}),
           };
         })()
-      : { agentVersion: CLI_VERSION },
+      : { defaultCwd: deps.cwd ?? process.cwd(), agentVersion: CLI_VERSION },
   );
 
   if (!runtime) {

@@ -63,6 +63,7 @@ describe('project state guard', () => {
     const content = await fs.readFile(gitignore, 'utf8');
     expect(content).toContain('node_modules/');
     expect(content).toContain('.temp_files/');
+    expect(content).toContain('acp-sessions/');
     expect(content).toContain('.wrongstack/');
     expect(content).toContain('!/.wrongstack/project.json');
     guard.close();

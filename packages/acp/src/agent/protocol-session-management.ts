@@ -128,7 +128,7 @@ export async function handleSessionLoadOp(
   const existing = sessionId ? ctx.sessions.get(sessionId) : undefined;
 
   if (!existing && sessionId && ctx.store) {
-    const persisted = await ctx.store.load(sessionId);
+    const persisted = await ctx.store.load(sessionId, loadCwd);
     if (persisted) {
       // Another cold load may have published this id while the read waited.
       if (ctx.sessions.has(sessionId)) {
@@ -163,7 +163,7 @@ export async function handleSessionLoadOp(
       if (ctx.sessions.has(sessionId)) {
         return handleSessionLoadOp(ctx, id, params, replayHistory);
       }
-      if ((await ctx.store.load(sessionId)) === null) {
+      if ((await ctx.store.load(sessionId, loadCwd)) === null) {
         await sendSessionNotFound(ctx, id, sessionId);
         return false;
       }
@@ -201,6 +201,16 @@ export async function handleSessionLoadOp(
         await ctx.sendNotification({ sessionId, update });
       }
       if (ctx.sessions.get(sessionId) !== restored) return false;
+      if (replayHistory && restored.title !== undefined) {
+        await ctx.sendNotification({
+          sessionId,
+          update: {
+            sessionUpdate: 'session_info_update',
+            title: restored.title,
+            updatedAt: restored.updatedAt,
+          },
+        });
+      }
       if (replayHistory)
         await ctx.sendNotification({
           sessionId,
@@ -277,6 +287,7 @@ export async function handleSessionLoadOp(
         sessionId,
         update: {
           sessionUpdate: 'session_info_update',
+          ...(existing.title !== undefined ? { title: existing.title } : {}),
           updatedAt: existing.updatedAt,
         },
       });
@@ -310,8 +321,11 @@ export async function handleSessionForkOp(
 ): Promise<boolean> {
   const p = (params ?? {}) as { sessionId?: unknown; cwd?: unknown; mcpServers?: unknown };
   const sourceId = typeof p.sessionId === 'string' ? p.sessionId : null;
-  const source = sourceId ? ctx.sessions.get(sourceId) : undefined;
-  if (!sourceId || !source) {
+  const requestedCwd = typeof p.cwd === 'string' ? p.cwd : undefined;
+  const liveSource = sourceId ? ctx.sessions.get(sourceId) : undefined;
+  const persistedSource =
+    !liveSource && sourceId && ctx.store ? await ctx.store.load(sourceId, requestedCwd) : null;
+  if (!sourceId || (!liveSource && !persistedSource)) {
     await sendSessionNotFound(ctx, id, sourceId);
     return false;
   }
@@ -324,7 +338,7 @@ export async function handleSessionForkOp(
     return false;
   }
 
-  let forkCwd = source.cwd;
+  let forkCwd = liveSource?.cwd ?? persistedSource?.cwd ?? ctx.defaultCwd;
   if (typeof p.cwd === 'string') {
     const resolved = await resolveSessionCwd(p.cwd);
     if (resolved === null) {
@@ -333,7 +347,7 @@ export async function handleSessionForkOp(
     }
     forkCwd = resolved;
   }
-  if (ctx.sessions.get(sourceId) !== source) {
+  if (liveSource && ctx.sessions.get(sourceId) !== liveSource) {
     await sendSessionNotFound(ctx, id, sourceId);
     return false;
   }
@@ -343,7 +357,12 @@ export async function handleSessionForkOp(
   // own set — the fork is a continuation, and dropping the parent's tools
   // would silently change what the agent can do mid-conversation. An explicit
   // array (including `[]`) overrides the parent set, matching `session/load`.
-  const forkMcpServers = Array.isArray(p.mcpServers) ? forkRequested : source.mcpServers;
+  const sourceMcpServers = liveSource ? liveSource.mcpServers : persistedSource?.mcpServers;
+  const forkMcpServers = Array.isArray(p.mcpServers) ? forkRequested : sourceMcpServers;
+
+  const forkedConfigOptions = liveSource
+    ? structuredClone(liveSource.configOptions ?? [...ctx.configOptions])
+    : await openSessionConfigOptions(ctx, persistedSource?.configOptions);
 
   if (ctx.sessions.size >= ctx.maxSessions) {
     await ctx.sendError(
@@ -355,18 +374,23 @@ export async function handleSessionForkOp(
   }
   const now = new Date().toISOString();
   const sessionId = `sess_${ctx.allocId()}`;
+  const sourceModeId = liveSource?.modeId ?? persistedSource?.modeId ?? DEFAULT_MODE_ID;
+  const sourceTitle = liveSource ? liveSource.title : persistedSource?.title;
   const forked: SessionState = {
     id: sessionId,
     cwd: forkCwd,
     abort: new AbortController(),
-    modeId: source.modeId,
-    configOptions: structuredClone(source.configOptions ?? [...ctx.configOptions]),
+    modeId: sourceModeId,
+    configOptions: forkedConfigOptions,
     createdAt: now,
     updatedAt: now,
-    ...(source.title !== undefined ? { title: source.title } : {}),
+    ...(sourceTitle !== undefined ? { title: sourceTitle } : {}),
     ...(forkMcpServers && forkMcpServers.length > 0 ? { mcpServers: forkMcpServers } : {}),
   };
-  const history = (ctx.replayFor?.(sourceId) ?? []).map((update) => ({
+  const sourceHistory = liveSource
+    ? (ctx.replayFor?.(sourceId) ?? [])
+    : (persistedSource?.history ?? []);
+  const history = sourceHistory.map((update) => ({
     sessionUpdate: update.sessionUpdate,
     content: structuredClone(update.content),
   }));
@@ -407,6 +431,11 @@ export async function handleSessionPromptOp(
     return false;
   }
   session.prompting = true;
+
+  if (session.title === undefined) {
+    const derived = deriveSessionTitle(p.prompt as readonly ContentBlock[]);
+    if (derived) session.title = derived;
+  }
 
   if (session.abort.signal.aborted) {
     session.abort = new AbortController();
@@ -541,17 +570,21 @@ export async function handleSetConfigOptionOp(
     return false;
   }
   option.currentValue = value;
-  session.configOptions = options;
+  const nextOptions = ctx.sessionConfigOptions
+    ? await openSessionConfigOptions(ctx, options)
+    : options;
+  if (ctx.sessions.get(session.id) !== session) return false;
+  session.configOptions = nextOptions;
   session.updatedAt = new Date().toISOString();
   await ctx.sendNotification({
     sessionId,
     update: {
       sessionUpdate: 'config_option_update',
-      configOptions: options,
+      configOptions: nextOptions,
     },
   });
   if (ctx.sessions.get(session.id) === session) await ctx.persist(session);
-  await ctx.sendResult(id, { configOptions: options });
+  await ctx.sendResult(id, { configOptions: nextOptions });
   return false;
 }
 
@@ -617,6 +650,22 @@ async function reportSkippedMcpServers(
   } catch {
     // best-effort
   }
+}
+
+function deriveSessionTitle(prompt: readonly ContentBlock[]): string | undefined {
+  for (const block of prompt) {
+    if (
+      block &&
+      typeof block === 'object' &&
+      block.type === 'text' &&
+      typeof block.text === 'string'
+    ) {
+      const normalized = block.text.replace(/\s+/g, ' ').trim();
+      if (normalized.length === 0) continue;
+      return normalized.length > 80 ? `${normalized.slice(0, 77)}…` : normalized;
+    }
+  }
+  return undefined;
 }
 
 /**

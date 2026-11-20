@@ -17,9 +17,24 @@ import type {
 } from '@wrongstack/acp/agent';
 import type { Config, ModelsRegistry } from '@wrongstack/contracts/types';
 import { parseModelRef } from '@wrongstack/core/agent';
+import { WRONGFORGE_REASONING } from '@wrongstack/fleet';
+import { catalogProviderIdFor } from '@wrongstack/providers';
+import { EFFORT_KEEP, startupEffortOptions } from './picker-effort.js';
 import { buildPickableProviders } from './provider-helpers.js';
 
 export const ACP_MODEL_OPTION_ID = 'model';
+export const ACP_EFFORT_OPTION_ID = 'thought_level';
+
+const EFFORT_LABELS: Readonly<Record<string, string>> = {
+  default: 'Default',
+  none: 'None',
+  minimal: 'Minimal',
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+  xhigh: 'Extra High',
+  max: 'Max',
+};
 
 /** The option value naming a provider's model. */
 export function acpModelValue(providerId: string, modelId: string): string {
@@ -112,5 +127,77 @@ export async function buildAcpModelOption(args: {
     type: 'select',
     currentValue: current,
     options: groups,
+  };
+}
+
+/** The reasoning-effort selection among a session's config options, or undefined for default. */
+export function selectedAcpEffort(
+  configOptions: readonly SessionConfigOption[],
+): string | undefined {
+  const option = configOptions.find((o) => o.category === 'thought_level');
+  if (!option || option.currentValue === EFFORT_KEEP) return undefined;
+  return option.currentValue;
+}
+
+/**
+ * Build the session's `thought_level` (reasoning effort) config option for the
+ * given (or configured) model, or undefined when the model does not support
+ * effort control.
+ */
+export async function buildAcpEffortOption(args: {
+  config: Config;
+  modelsRegistry: ModelsRegistry;
+  providerId?: string | undefined;
+  modelId?: string | undefined;
+}): Promise<SessionConfigOption | undefined> {
+  const { config, modelsRegistry } = args;
+  const providerId = args.providerId ?? config.provider;
+  const modelId = args.modelId ?? config.model;
+  if (!providerId || !modelId) return undefined;
+
+  const catalogId = catalogProviderIdFor(providerId, config.providers?.[providerId]?.type);
+  let reasoningMeta:
+    | {
+        reasoning?: boolean | undefined;
+        reasoningConfig?: import('@wrongstack/contracts/types').ReasoningConfig | undefined;
+      }
+    | undefined;
+
+  if (catalogId === 'wrongforge') {
+    reasoningMeta = { reasoning: true, reasoningConfig: WRONGFORGE_REASONING };
+  } else {
+    try {
+      const resolved = await modelsRegistry?.getModel?.(catalogId, modelId);
+      if (resolved) {
+        reasoningMeta = {
+          reasoning: resolved.capabilities.reasoning,
+          reasoningConfig: resolved.capabilities.reasoningConfig,
+        };
+      }
+    } catch {
+      reasoningMeta = undefined;
+    }
+  }
+
+  const choices = startupEffortOptions(reasoningMeta);
+  if (choices.length === 0) return undefined;
+
+  const configuredEffort = config.modelRuntime?.reasoning?.effort;
+  const currentValue =
+    typeof configuredEffort === 'string' && choices.includes(configuredEffort as never)
+      ? configuredEffort
+      : EFFORT_KEEP;
+
+  return {
+    id: ACP_EFFORT_OPTION_ID,
+    name: 'Reasoning Effort',
+    description: 'Reasoning effort level for the selected model.',
+    category: 'thought_level',
+    type: 'select',
+    currentValue,
+    options: choices.map((value) => ({
+      value,
+      name: EFFORT_LABELS[value] ?? value,
+    })),
   };
 }

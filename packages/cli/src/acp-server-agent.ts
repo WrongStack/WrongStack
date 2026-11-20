@@ -27,13 +27,14 @@ import {
   ToolValidationError,
 } from '@wrongstack/contracts/types';
 import { Agent, Context, createDefaultPipelines } from '@wrongstack/core/agent';
-import { ToolExecutor } from '@wrongstack/core/execution';
+import { createModelRuntimeMiddleware, ToolExecutor } from '@wrongstack/core/execution';
 import { DefaultLogger, DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import { ToolRegistry } from '@wrongstack/core/registry';
 import { AutoApprovePermissionPolicy, ToolCapabilities } from '@wrongstack/core/security';
 import type { WstackPaths } from '@wrongstack/core/utils';
+import { WRONGFORGE_REASONING } from '@wrongstack/fleet';
 import type { MCPRegistry } from '@wrongstack/mcp';
-import { withCatalogCapabilities } from '@wrongstack/providers';
+import { catalogProviderIdFor, withCatalogCapabilities } from '@wrongstack/providers';
 import { createDefaultContainer, wireKanbanPorts } from '@wrongstack/runtime';
 import { connectAcpSessionMcpServers } from './acp-mcp-servers.js';
 import type { SubcommandDeps } from './subcommands/contracts.js';
@@ -99,6 +100,12 @@ export interface AcpServerAgentFactory {
    * built, leaving the agent on its current model.
    */
   selectModel(agent: Agent, providerId: string, modelId: string): Promise<void>;
+  /**
+   * Apply a per-session reasoning effort override (`thought_level` config option).
+   * Pass `undefined` or `'default'` to clear the override and fall back to the
+   * project/provider default.
+   */
+  selectReasoningEffort(agent: Agent, effort: string | undefined): void;
 }
 
 interface AcpAgentFactoryOptions {
@@ -129,6 +136,9 @@ const SAFE_CAPS = new Set<string>([
  * channel.
  */
 export class ACPClientPermissionPolicy implements PermissionPolicy {
+  private readonly alwaysAllowed = new Set<string>();
+  private readonly alwaysDenied = new Set<string>();
+
   constructor(private readonly requestPermission: RunTurnApi['requestPermission']) {}
 
   async evaluate(tool: Tool, input: unknown): Promise<PermissionDecision> {
@@ -139,18 +149,36 @@ export class ACPClientPermissionPolicy implements PermissionPolicy {
     if (isSafe) {
       return { permission: 'auto', source: 'default' };
     }
+    if (this.alwaysAllowed.has(tool.name)) {
+      return { permission: 'auto', source: 'user' };
+    }
+    if (this.alwaysDenied.has(tool.name)) {
+      return { permission: 'deny', source: 'user', reason: 'always rejected by ACP client' };
+    }
 
     const title = describeToolCall(tool.name, input);
     try {
       const outcome = await this.requestPermission({
-        toolCall: { toolCallId: `tc_${tool.name}_${Date.now()}`, title },
+        toolCall: {
+          toolCallId: `tc_${tool.name}_${Date.now()}`,
+          title,
+          kind: permissionToolKind(tool.name),
+        },
         options: [
           { optionId: 'allow_once', name: 'Allow', kind: 'allow_once' },
           { optionId: 'allow_always', name: 'Always allow', kind: 'allow_always' },
           { optionId: 'reject_once', name: 'Reject', kind: 'reject_once' },
+          { optionId: 'reject_always', name: 'Always reject', kind: 'reject_always' },
         ],
       });
       const optionId = outcome.outcome === 'selected' ? outcome.optionId : undefined;
+      if (optionId === 'allow_always') {
+        this.alwaysDenied.delete(tool.name);
+        this.alwaysAllowed.add(tool.name);
+      } else if (optionId === 'reject_always') {
+        this.alwaysAllowed.delete(tool.name);
+        this.alwaysDenied.add(tool.name);
+      }
       const allowed = typeof optionId === 'string' && optionId.startsWith('allow');
       return allowed
         ? { permission: 'auto', source: 'user' }
@@ -162,11 +190,47 @@ export class ACPClientPermissionPolicy implements PermissionPolicy {
     }
   }
 
-  async trust(): Promise<void> {}
-  async deny(): Promise<void> {}
+  async trust(rule: { tool: string; pattern: string; ttlMs?: number | undefined }): Promise<void> {
+    if (rule.tool.length > 0) {
+      this.alwaysDenied.delete(rule.tool);
+      this.alwaysAllowed.add(rule.tool);
+    }
+  }
+  async deny(rule: { tool: string; pattern: string }): Promise<void> {
+    if (rule.tool.length > 0) {
+      this.alwaysAllowed.delete(rule.tool);
+      this.alwaysDenied.add(rule.tool);
+    }
+  }
   denyOnce(): void {}
   allowOnce(): void {}
   async reload(): Promise<void> {}
+}
+
+function permissionToolKind(
+  name: string,
+): 'read' | 'edit' | 'delete' | 'move' | 'search' | 'execute' | 'fetch' | 'think' | 'other' {
+  const n = name.toLowerCase();
+  if (n.includes('read') || n.includes('cat')) return 'read';
+  if (n.includes('write') || n.includes('edit') || n.includes('apply') || n.includes('patch'))
+    return 'edit';
+  if (n.includes('delete') || n === 'rm' || n.startsWith('rm_') || n.endsWith('_rm'))
+    return 'delete';
+  if (n.includes('move') || n.includes('rename') || n.includes('mv')) return 'move';
+  if (n.includes('grep') || n.includes('glob') || n.includes('search') || n.includes('find'))
+    return 'search';
+  if (
+    n.includes('bash') ||
+    n.includes('shell') ||
+    n.includes('exec') ||
+    n.includes('run') ||
+    n.includes('terminal')
+  )
+    return 'execute';
+  if (n.includes('fetch') || n.includes('http') || n.includes('web') || n.includes('url'))
+    return 'fetch';
+  if (n.includes('think') || n.includes('plan')) return 'think';
+  return 'other';
 }
 
 function describeToolCall(name: string, input: unknown): string {
@@ -480,12 +544,35 @@ export function buildAcpServerAgentFactory(
       requireKanbanGovernance: config.tools?.kanbanGovernance ?? false,
     });
 
+    const catalogIdOf = (providerId: string): string =>
+      catalogProviderIdFor(providerId, config.providers?.[providerId]?.type);
+    const pipelines = createDefaultPipelines();
+    pipelines.request.use(
+      createModelRuntimeMiddleware({
+        getSettings: () => config.modelRuntime,
+        getReasoningConfig: () => undefined,
+        resolveReasoningConfig: async (req, bound) => {
+          const pid = bound?.id ?? context.provider?.id ?? config.provider;
+          if (!pid) return undefined;
+          const catalogId = catalogIdOf(pid);
+          if (catalogId === 'wrongforge') return WRONGFORGE_REASONING;
+          try {
+            return (await deps.modelsRegistry?.getModel?.(catalogId, req.model))?.capabilities
+              .reasoningConfig;
+          } catch {
+            return undefined;
+          }
+        },
+        getCapabilities: () => context.provider?.capabilities,
+      }),
+    );
+
     return new Agent({
       container,
       tools,
       providers: providerRegistry,
       events,
-      pipelines: createDefaultPipelines(),
+      pipelines,
       context,
       permissionPolicy,
       toolExecutor,
@@ -523,6 +610,14 @@ export function buildAcpServerAgentFactory(
       ctx.provider = next;
       ctx.model = modelId;
     });
+  };
+
+  agentFor.selectReasoningEffort = (agent: Agent, effort: string | undefined): void => {
+    if (!effort || effort === 'default') {
+      delete agent.ctx.meta['reasoningEffort'];
+    } else {
+      agent.ctx.meta['reasoningEffort'] = effort;
+    }
   };
 
   agentFor.disposeSession = (sessionId: string): void => {

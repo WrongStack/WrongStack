@@ -353,8 +353,7 @@
       "acpMcpServerToConfig"
     ],
     "packages/cli/src/acp-model-option.ts": [
-      "acpModelValue",
-      "parseAcpModelValue"
+      "acpModelValue"
     ],
     "packages/cli/src/acp-server-agent.ts": [
       "ACPClientPermissionPolicy"
@@ -511,6 +510,9 @@
     "packages/cli/src/standalone-update.ts": [
       "replaceExecutable",
       "standaloneAssetName"
+    ],
+    "packages/cli/src/subcommands/handlers/acp-server.ts": [
+      "createAcpSessionPersistence"
     ],
     "packages/cli/src/subcommands/handlers/auth-local-help.ts": [
       "LOCAL_AUTH_FLAGS",

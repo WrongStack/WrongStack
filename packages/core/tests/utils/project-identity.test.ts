@@ -58,6 +58,7 @@ describe('committed project identity', () => {
 
     const content = await fs.readFile(path.join(root, '.gitignore'), 'utf8');
     expect(content).toContain('.temp_files/\n');
+    expect(content).toContain('acp-sessions/\n');
     expect(content).toContain('.wrongstack/\n');
     expect(content).toContain('!/.wrongstack/\n');
     expect(content).toContain('/.wrongstack/*\n');
@@ -72,6 +73,7 @@ describe('committed project identity', () => {
     const content = await fs.readFile(path.join(root, '.gitignore'), 'utf8');
     expect(content).toContain('\r\n');
     expect(content).toContain('.temp_files/\r\n');
+    expect(content).toContain('acp-sessions/\r\n');
     expect(content).toContain('!/.wrongstack/project.json\r\n');
   });
 
@@ -88,13 +90,14 @@ describe('committed project identity', () => {
     // Per-line `re:` keeps the user's glob section intact.
     expect(content).toBe(
       'syntax: glob\n*.log\n\n# WrongStack local state\n' +
-        're:(^|/)\\.temp_files/\nre:(^|/)\\.wrongstack/(?!project\\.json$)\n',
+        're:(^|/)\\.temp_files/\nre:(^|/)acp-sessions/\nre:(^|/)\\.wrongstack/(?!project\\.json$)\n',
     );
-    const [temp, state] = content
+    const [temp, acpSessions, state] = content
       .split('\n')
-      .slice(-3, -1)
+      .slice(-4, -1)
       .map((line) => new RegExp(line.slice(3)));
     expect(temp?.test('app/.temp_files/x')).toBe(true);
+    expect(acpSessions?.test('app/acp-sessions/sess_1.json')).toBe(true);
     expect(state?.test('app/.wrongstack/sage.db')).toBe(true);
     expect(state?.test('app/.wrongstack/project.json')).toBe(false);
   });

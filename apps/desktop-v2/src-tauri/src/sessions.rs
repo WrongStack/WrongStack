@@ -102,6 +102,8 @@ const SPARE_STOP_GRACE: Duration = Duration::from_secs(30);
 /// How long an engine asked to stop may take for its graceful shutdown before it is stopped
 /// hard. Measured graceful stops of a resumed conversation took 4–6 s.
 const ENGINE_STOP_GRACE: Duration = Duration::from_secs(12);
+/// Avoid repeatedly invoking the OS stop command while the exit watcher is catching up.
+const ENGINE_STOP_RETRY: Duration = Duration::from_secs(1);
 
 /// The claim a spare engine waits for: a new conversation, or a recorded one to resume.
 fn spare_claim(history: Option<(&str, bool)>) -> Value {
@@ -940,7 +942,6 @@ impl HostState {
                     .map(|o| o.clone())
                     .unwrap_or_else(|_| id.clone())
             };
-            let forget = || host.release_engine(&id, &owned);
             // The 90 s start deadline runs from the claim: a spare waits unclaimed for as long
             // as it is not needed.
             let expired = || {
@@ -951,12 +952,21 @@ impl HostState {
                     .is_some_and(|at| at.elapsed() > Duration::from_secs(90))
             };
             let mut ready = false;
+            let mut startup_failure: Option<String> = None;
             loop {
-                let exited = child.try_wait();
+                if let Some(message) = startup_failure.as_deref() {
+                    if host.finish_failed_engine_start(&id, &owned, message, child.try_wait()) {
+                        break;
+                    }
+                    let _ = child.kill();
+                    thread::sleep(Duration::from_millis(250));
+                    continue;
+                }
+                let exited = child.try_wait().transpose();
                 // Decided under the live lock: a reconnect takes a spare over (and claims it)
                 // under the same lock, so an exit is either an unclaimed spare's or the
                 // conversation's, never lost between the two.
-                let unclaimed_exit = matches!(exited, Ok(Some(_))) && {
+                let unclaimed_exit = matches!(exited, Some(Ok(_))) && {
                     let mut live = host.live.lock().unwrap();
                     let unclaimed = watched.lock().map(|at| at.is_none()).unwrap_or(false);
                     if unclaimed {
@@ -966,7 +976,7 @@ impl HostState {
                     unclaimed
                 };
                 match exited {
-                    Ok(Some(_)) if unclaimed_exit => {
+                    Some(Ok(_)) if unclaimed_exit => {
                         // An unclaimed spare stopped (replaced, or the engine exited): it was
                         // never a conversation, so it leaves nothing behind.
                         if let Ok(mut spares) = host.spares.lock() {
@@ -984,43 +994,19 @@ impl HostState {
                         }
                         break;
                     }
-                    Ok(Some(code)) => {
-                        forget();
-                        let restore_error = if restoring {
-                            std::fs::read(&ready_path)
-                                .ok()
-                                .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
-                                .and_then(|value| value["error"].as_str().map(str::to_owned))
-                        } else {
-                            None
-                        };
-                        let _ = host.publish_runtime_state(
-                            &owner(),
-                            if code.success() { "stopped" } else { "error" },
-                            code.code(),
-                            if code.success() {
-                                None
-                            } else {
-                                Some(
-                                    restore_error
-                                        .as_deref()
-                                        .unwrap_or("WrongStack engine exited; inspect engine logs"),
-                                )
-                            },
-                        );
-                        break;
+                    Some(result) => {
+                        if host.finish_engine_exit(
+                            &id,
+                            &owned,
+                            result,
+                            restoring.then_some(ready_path.as_path()),
+                        ) {
+                            break;
+                        }
+                        thread::sleep(Duration::from_millis(250));
+                        continue;
                     }
-                    Err(e) => {
-                        host.clear_engine_stop_request(&id, &owner());
-                        let _ = host.publish_runtime_state(
-                            &owner(),
-                            "error",
-                            None,
-                            Some(&e.to_string()),
-                        );
-                        break;
-                    }
-                    _ => {}
+                    None => {}
                 }
                 if !ready {
                     if restoring {
@@ -1030,12 +1016,8 @@ impl HostState {
                         if let Some(message) =
                             restored.as_ref().and_then(|value| value["error"].as_str())
                         {
-                            let _ = child.kill();
-                            let _ = child.wait();
-                            forget();
-                            let _ =
-                                host.publish_runtime_state(&owner(), "error", None, Some(message));
-                            break;
+                            startup_failure = Some(message.to_owned());
+                            continue;
                         }
                         if restored
                             .as_ref()
@@ -1043,16 +1025,9 @@ impl HostState {
                             .is_none()
                         {
                             if expired() {
-                                let _ = child.kill();
-                                let _ = child.wait();
-                                forget();
-                                let _ = host.publish_runtime_state(
-                                    &owner(),
-                                    "error",
-                                    None,
-                                    Some("Recorded conversation startup timed out"),
-                                );
-                                break;
+                                startup_failure =
+                                    Some("Recorded conversation startup timed out".into());
+                                continue;
                             }
                             // A claimed spare answers within moments; check it often.
                             let quick =
@@ -1077,16 +1052,9 @@ impl HostState {
                         }
                         ready = true;
                     } else if expired() {
-                        let _ = child.kill();
-                        let _ = child.wait();
-                        forget();
-                        let _ = host.publish_runtime_state(
-                            &owner(),
-                            "error",
-                            None,
-                            Some("WrongStack engine startup timed out after 90 seconds"),
-                        );
-                        break;
+                        startup_failure =
+                            Some("WrongStack engine startup timed out after 90 seconds".into());
+                        continue;
                     }
                 }
                 // A claimed spare is polled quickly: its readiness answer is the whole wait.
@@ -1113,6 +1081,56 @@ impl HostState {
             }
         });
         Ok((claimed, owner))
+    }
+    fn finish_failed_engine_start(
+        &self,
+        runtime_id: &str,
+        owner: &Mutex<String>,
+        message: &str,
+        exit: std::io::Result<Option<std::process::ExitStatus>>,
+    ) -> bool {
+        if !matches!(exit, Ok(Some(_))) {
+            return false;
+        }
+        self.release_engine(runtime_id, owner);
+        let conversation = owner
+            .lock()
+            .map(|id| id.clone())
+            .unwrap_or_else(|_| runtime_id.to_owned());
+        let _ = self.publish_runtime_state(&conversation, "error", None, Some(message));
+        true
+    }
+    fn finish_engine_exit(
+        &self,
+        runtime_id: &str,
+        owner: &Mutex<String>,
+        result: std::io::Result<std::process::ExitStatus>,
+        restore_result: Option<&Path>,
+    ) -> bool {
+        let Ok(code) = result else {
+            // The process may still be running. Keep its ownership and pending stop request.
+            return false;
+        };
+        self.release_engine(runtime_id, owner);
+        let restore_error = restore_result
+            .and_then(|path| std::fs::read(path).ok())
+            .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+            .and_then(|value| value["error"].as_str().map(str::to_owned));
+        let conversation = owner
+            .lock()
+            .map(|id| id.clone())
+            .unwrap_or_else(|_| runtime_id.to_owned());
+        let _ = self.publish_runtime_state(
+            &conversation,
+            if code.success() { "stopped" } else { "error" },
+            code.code(),
+            (!code.success()).then(|| {
+                restore_error
+                    .as_deref()
+                    .unwrap_or("WrongStack engine exited; inspect engine logs")
+            }),
+        );
+        true
     }
     fn attach_ready_engine(&self, id: &str, session: &mut LiveSession, engine: Arc<Engine>) {
         if session.stop_requested {
@@ -1163,6 +1181,9 @@ impl HostState {
     pub(crate) fn stop(self: &Arc<Self>, id: &str) -> Result<Value> {
         let mut live = self.live.lock().map_err(err)?;
         let session = live.get_mut(id).ok_or("Session is not running")?;
+        if session.stop_requested {
+            return Ok(Value::Null);
+        }
         let Some(pid) = session.agent_pid.filter(|_| session.master.is_none()) else {
             drop(live);
             return self.kill(id, None);
@@ -1180,23 +1201,43 @@ impl HostState {
         let host = Arc::clone(self);
         let id = id.to_owned();
         thread::spawn(move || {
-            let deadline = std::time::Instant::now() + ENGINE_STOP_GRACE;
-            // Only this engine: a reconnect may start another one on the same id meanwhile.
-            let running = || {
-                host.live
-                    .lock()
-                    .map(|live| live.get(&id).and_then(|s| s.agent_pid) == Some(pid))
-                    .unwrap_or(false)
-            };
-            while running() {
-                if std::time::Instant::now() > deadline {
-                    let _ = host.kill(&id, Some(pid));
-                    return;
-                }
-                thread::sleep(Duration::from_millis(100));
-            }
+            host.enforce_engine_stop(
+                &id,
+                pid,
+                ENGINE_STOP_GRACE,
+                |id, pid| host.kill(id, Some(pid)),
+                thread::sleep,
+            );
         });
         Ok(Value::Null)
+    }
+    fn enforce_engine_stop(
+        &self,
+        id: &str,
+        pid: u32,
+        grace: Duration,
+        mut force_stop: impl FnMut(&str, u32) -> Result<Value>,
+        mut sleep: impl FnMut(Duration),
+    ) {
+        let deadline = std::time::Instant::now() + grace;
+        // Only this engine: a reconnect may start another one on the same id meanwhile.
+        let running = || {
+            self.live
+                .lock()
+                .map(|live| {
+                    live.get(id)
+                        .is_some_and(|s| s.stop_requested && s.agent_pid == Some(pid))
+                })
+                .unwrap_or(false)
+        };
+        while running() {
+            if std::time::Instant::now() >= deadline {
+                let _ = force_stop(id, pid);
+                sleep(ENGINE_STOP_RETRY);
+            } else {
+                sleep(Duration::from_millis(100));
+            }
+        }
     }
     fn read(&self, id: &str, offset: Option<u64>) -> Result<Value> {
         if !self
@@ -1329,6 +1370,208 @@ fn history_source(p: &Value) -> Result<Option<(&str, bool)>> {
 mod history_tests {
     use super::*;
 
+    #[cfg(windows)]
+    struct FixtureChild(std::process::Child);
+    #[cfg(windows)]
+    impl FixtureChild {
+        fn spawn() -> Self {
+            let ping =
+                PathBuf::from(std::env::var_os("SystemRoot").unwrap()).join("System32/ping.exe");
+            let mut command = Command::new(ping);
+            hide(&mut command);
+            Self(
+                command
+                    .args(["-t", "127.0.0.1"])
+                    .stdout(Stdio::null())
+                    .spawn()
+                    .unwrap(),
+            )
+        }
+    }
+    #[cfg(windows)]
+    impl Drop for FixtureChild {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn failed_engine_start_remains_owned_until_the_child_exits() {
+        let dir = std::env::temp_dir().join(format!("desktop-startup-stop-{}", Uuid::new_v4()));
+        let host = HostState::new(&dir).unwrap();
+        // Retrying before the fixture child exits must not launch a second process.
+        std::fs::write(dir.join("frontend-disabled"), b"fixture").unwrap();
+        let open = |retry| {
+            host.request("profile.open", &json!({"retry":retry}))
+                .unwrap()
+        };
+        let current_id = || {
+            host.project_events("@profile", 0, None, None).unwrap()["runtimeId"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        };
+        assert_eq!(open(false)["status"], "error");
+        let id = current_id();
+        let owner = Mutex::new(id.clone());
+        let mut child = FixtureChild::spawn();
+        host.live.lock().unwrap().insert(
+            id.clone(),
+            LiveSession {
+                master: None,
+                writer: None,
+                killer: None,
+                agent_pid: Some(child.0.id()),
+                engine: None,
+                stop_requested: false,
+            },
+        );
+        host.publish_runtime_state(&id, "starting", None, None)
+            .unwrap();
+
+        let message = "WrongStack engine startup timed out after 90 seconds";
+        let probe_failure = std::io::Error::other("Fixture could not confirm exit");
+        let finished_before_exit =
+            host.finish_failed_engine_start(&id, &owner, message, Err(probe_failure));
+        let before_exit = open(true);
+        let id_before_exit = current_id();
+        let tracked_before_exit = host.live.lock().unwrap().contains_key(&id);
+        let pending_exit = child.0.try_wait().unwrap();
+        assert!(pending_exit.is_none());
+        let finished_while_running =
+            host.finish_failed_engine_start(&id, &owner, message, Ok(pending_exit));
+
+        child.0.kill().unwrap();
+        let exit = child.0.wait().map(Some);
+        let finished_after_exit = host.finish_failed_engine_start(&id, &owner, message, exit);
+        let after_exit = host.runtime_status("@profile").unwrap();
+        let tracked_after_exit = host.live.lock().unwrap().contains_key(&id);
+        open(true);
+        let id_after_exit = current_id();
+        drop(host);
+        std::fs::remove_dir_all(dir).unwrap();
+
+        assert_eq!(
+            before_exit["status"], "starting",
+            "retry may not replace a child whose exit is unconfirmed"
+        );
+        assert_eq!(id_before_exit, id);
+        assert!(tracked_before_exit);
+        assert!(!finished_before_exit);
+        assert!(!finished_while_running);
+        assert!(finished_after_exit);
+        assert_eq!(after_exit["status"], "error");
+        assert_eq!(after_exit["error"], message);
+        assert!(!tracked_after_exit);
+        assert_ne!(id_after_exit, id);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_failed_engine_exit_probe_does_not_allow_project_replacement() {
+        let dir = std::env::temp_dir().join(format!("desktop-exit-probe-{}", Uuid::new_v4()));
+        let repo = dir.join("repo");
+        std::fs::create_dir_all(&repo).unwrap();
+        let host = HostState::new(&dir).unwrap();
+        let project = host
+            .registry
+            .lock()
+            .unwrap()
+            .register(repo.to_str().unwrap())
+            .unwrap();
+        // Fixture startup attempts must never create a second process.
+        std::fs::write(dir.join("frontend-disabled"), b"fixture").unwrap();
+        let open = |retry| {
+            host.request(
+                "project.open",
+                &json!({"projectId":project.id,"retry":retry}),
+            )
+            .unwrap()
+        };
+        assert_eq!(open(false)["status"], "error");
+        let current_id = || {
+            host.project_events(&project.id, 0, None, None).unwrap()["runtimeId"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        };
+        let id = current_id();
+        let owner = Mutex::new(id.clone());
+        let mut child = FixtureChild::spawn();
+        host.live.lock().unwrap().insert(
+            id.clone(),
+            LiveSession {
+                master: None,
+                writer: None,
+                killer: None,
+                agent_pid: Some(child.0.id()),
+                engine: None,
+                stop_requested: false,
+            },
+        );
+        host.publish_runtime_state(&id, "running", None, None)
+            .unwrap();
+
+        let finished = host.finish_engine_exit(
+            &id,
+            &owner,
+            Err(std::io::Error::other("Fixture exit probe failure")),
+            None,
+        );
+        let status_during_retry = open(true)["status"].clone();
+        let id_during_retry = current_id();
+        let child_still_live = child.0.try_wait().unwrap().is_none();
+
+        // Hold an accepted stop request while the next probe also fails.
+        let stop_file = host.own_stop_file(&id);
+        std::fs::write(&stop_file, b"").unwrap();
+        host.live
+            .lock()
+            .unwrap()
+            .get_mut(&id)
+            .unwrap()
+            .stop_requested = true;
+        host.publish_runtime_state(&id, "stopping", None, None)
+            .unwrap();
+        let finished_while_stopping = host.finish_engine_exit(
+            &id,
+            &owner,
+            Err(std::io::Error::other("Fixture second exit probe failure")),
+            None,
+        );
+        let status_while_stopping = open(true)["status"].clone();
+        let stop_preserved = stop_file.is_file();
+
+        child.0.kill().unwrap();
+        let code = child.0.wait().unwrap();
+        let finished_after_exit = host.finish_engine_exit(&id, &owner, Ok(code), None);
+        let still_tracked = host.live.lock().unwrap().contains_key(&id);
+        let stop_after_exit = stop_file.exists();
+        let after_exit = host.runtime_status(&project.id).unwrap()["status"].clone();
+        open(true);
+        let id_after_exit = current_id();
+        drop(host);
+        std::fs::remove_dir_all(dir).unwrap();
+
+        assert!(child_still_live);
+        assert_eq!(
+            status_during_retry, "running",
+            "a failed exit probe must not allow a new engine to start"
+        );
+        assert_eq!(id_during_retry, id);
+        assert!(!finished, "the same child must still be watched");
+        assert!(!finished_while_stopping);
+        assert_eq!(status_while_stopping, "stopping");
+        assert!(stop_preserved);
+        assert!(finished_after_exit);
+        assert!(!still_tracked);
+        assert!(!stop_after_exit);
+        assert_eq!(after_exit, if code.success() { "stopped" } else { "error" });
+        assert_ne!(id_after_exit, id);
+    }
+
     #[test]
     fn a_host_started_without_an_engine_takes_one_from_a_later_launch() {
         if std::env::var_os("WRONGSTACK_DESKTOP_ENGINE").is_some()
@@ -1454,6 +1697,78 @@ mod history_tests {
     }
 
     #[test]
+    fn force_stop_is_retried_while_the_same_engine_is_tracked() {
+        let dir = std::env::temp_dir().join(format!("desktop-stop-retry-{}", Uuid::new_v4()));
+        let host = HostState::new(&dir).unwrap();
+        let id = "stopping-engine";
+        let pid = 41;
+        let track_engine = || {
+            host.live.lock().unwrap().insert(
+                id.into(),
+                LiveSession {
+                    master: None,
+                    writer: None,
+                    killer: None,
+                    agent_pid: Some(pid),
+                    engine: None,
+                    stop_requested: true,
+                },
+            );
+        };
+        track_engine();
+        let mut attempts = 0;
+        let mut pauses = Vec::new();
+        host.enforce_engine_stop(
+            id,
+            pid,
+            Duration::ZERO,
+            |target, expected| {
+                assert_eq!((target, expected), (id, pid));
+                attempts += 1;
+                match attempts {
+                    1 => Err("Fixture force stop failed".into()),
+                    2 => Ok(Value::Null), // Acceptance still leaves the exit unconfirmed.
+                    3 => {
+                        host.live.lock().unwrap().remove(id);
+                        Ok(Value::Null)
+                    }
+                    _ => panic!("continued after the old engine exited"),
+                }
+            },
+            |delay| pauses.push(delay),
+        );
+        assert_eq!(attempts, 3, "one failure must not end the stop watchdog");
+        assert_eq!(pauses, vec![ENGINE_STOP_RETRY; 3]);
+
+        track_engine();
+        let mut attempts_before_replacement = 0;
+        host.enforce_engine_stop(
+            id,
+            pid,
+            Duration::ZERO,
+            |_, _| {
+                attempts_before_replacement += 1;
+                Err("Fixture force stop failed".into())
+            },
+            |_| host.live.lock().unwrap().get_mut(id).unwrap().agent_pid = Some(pid + 1),
+        );
+        assert_eq!(attempts_before_replacement, 1);
+
+        track_engine();
+        host.enforce_engine_stop(
+            id,
+            pid,
+            ENGINE_STOP_GRACE,
+            |_, _| panic!("graceful exit must not force termination"),
+            |_| {
+                host.live.lock().unwrap().remove(id);
+            },
+        );
+        drop(host);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn stopping_an_engine_asks_it_through_its_stop_file_first() {
         let dir = std::env::temp_dir().join(format!("desktop-stop-{}", Uuid::new_v4()));
         std::fs::create_dir_all(dir.join("transcripts")).unwrap();
@@ -1486,6 +1801,9 @@ mod history_tests {
         );
         drop(registry);
         stopper.join().unwrap().unwrap();
+        std::fs::write(&stop_file, b"existing marker").unwrap();
+        host.stop("engine").unwrap();
+        assert_eq!(std::fs::read(&stop_file).unwrap(), b"existing marker");
         // The engine "exits": the grace thread sees it gone and does nothing more.
         host.live.lock().unwrap().remove("engine");
         drop(host);

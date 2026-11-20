@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1004,
+      "files": 1005,
       "typeOnly": 76,
-      "runtimeOrMixed": 963
+      "runtimeOrMixed": 964
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -13202,6 +13202,12 @@
       "file": "packages/cli/src/subcommands/contracts.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/subcommands/handlers/acp-server.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",

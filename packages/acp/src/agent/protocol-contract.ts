@@ -269,13 +269,17 @@ export interface ProtocolHandlerOptions {
   /** Static list of config options. */
   configOptions?: readonly SessionConfigOption[] | undefined;
   /**
-   * Config options computed when a session opens (after `authGate`), appended
-   * to the static list — e.g. a model picker whose values depend on the
-   * configured providers. A cold `session/load` rebuilds them and keeps the
-   * persisted selection where it is still offered. A failing builder yields
-   * no extra options rather than failing the session.
+   * Config options computed when a session opens (after `authGate`) or when an
+   * option changes via `session/set_config_option`, appended to the static list
+   * — e.g. a model picker and model-dependent reasoning effort (`thought_level`).
+   * Receives the session's current/persisted options when available so dependent
+   * options can adapt to the selected model. A cold `session/load` rebuilds them
+   * and keeps the persisted selection where it is still offered. A failing
+   * builder yields no extra options rather than failing the session.
    */
-  sessionConfigOptions?: (() => Promise<readonly SessionConfigOption[]>) | undefined;
+  sessionConfigOptions?:
+    | ((current?: readonly SessionConfigOption[]) => Promise<readonly SessionConfigOption[]>)
+    | undefined;
   /**
    * Slash commands offered to a session, announced as
    * `available_commands_update` once it opens (new, load, resume, fork) and
@@ -333,13 +337,16 @@ export interface ProtocolHandlerOptions {
 
 /** Minimal durable-store contract the handler uses (ACPSessionStore satisfies it). */
 export interface SessionPersistence {
-  list?(): Promise<Array<{ id: string; updatedAt: string }>>;
-  delete?(sessionId: string): Promise<void>;
+  list?(cwd?: string): Promise<Array<{ id: string; updatedAt: string }>>;
+  delete?(sessionId: string, cwd?: string): Promise<void>;
   save(
     state: SessionState,
     history?: Array<{ sessionUpdate: string; content: unknown }>,
   ): Promise<unknown>;
-  load(sessionId: string): Promise<
+  load(
+    sessionId: string,
+    cwd?: string,
+  ): Promise<
     | (Partial<SessionState> & {
         history?: Array<{ sessionUpdate: string; content: unknown }> | undefined;
       })

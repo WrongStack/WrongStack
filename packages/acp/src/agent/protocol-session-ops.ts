@@ -72,7 +72,7 @@ export async function openSessionConfigOptions(
   if (!ctx.sessionConfigOptions) return structuredClone([...(persisted ?? ctx.configOptions)]);
   let dynamic: readonly SessionConfigOption[] = [];
   try {
-    dynamic = await ctx.sessionConfigOptions();
+    dynamic = await ctx.sessionConfigOptions(persisted);
   } catch {
     // A picker that cannot be built must not keep the session from opening.
   }

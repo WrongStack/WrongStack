@@ -1,4 +1,4 @@
-import { gitSubcommand, kubectlDeleteResource } from './_danger-rule-utils.js';
+import { gitSubcommand, kubectlDeleteResource, longOptionAbbrev } from './_danger-rule-utils.js';
 import type { DangerRule } from './_danger-types.js';
 
 export const VCS_INFRA_DANGER_RULES: readonly DangerRule[] = [
@@ -31,9 +31,12 @@ export const VCS_INFRA_DANGER_RULES: readonly DangerRule[] = [
       }
       return pushArgs.some(
         (a) =>
-          a === '--mirror' ||
-          a === '--delete' ||
-          a === '--prune' ||
+          // F11: unambiguous prefixes — mirror: --m…; delete: --de… ("d" is
+          // ambiguous with --dry-run); prune: --pru… ("p"/"pr" collide with
+          // --porcelain/--progress/--push-option).
+          longOptionAbbrev(a, 'mirror', 1) ||
+          longOptionAbbrev(a, 'delete', 2) ||
+          longOptionAbbrev(a, 'prune', 3) ||
           /^-[a-z]*d[a-z]*$/i.test(a) ||
           (a.startsWith(':') && a.length > 1),
       );
@@ -80,8 +83,9 @@ export const VCS_INFRA_DANGER_RULES: readonly DangerRule[] = [
   {
     id: 'git-reset-hard',
     level: 'destructive',
-    test: (cmd, args) =>
-      cmd === 'git' && args.some((a) => a === '--hard' || a.startsWith('--hard=')),
+    // F11: reset's only h-option is --hard (--h… unambiguous; the =value
+    // over-match is kept, fail-safe).
+    test: (cmd, args) => cmd === 'git' && args.some((a) => longOptionAbbrev(a, 'hard', 1)),
     reason: 'git reset --hard (discards working tree + index)',
   },
 
@@ -103,8 +107,9 @@ export const VCS_INFRA_DANGER_RULES: readonly DangerRule[] = [
       if (after.some((a) => a === '--dry-run' || /^-[a-z]*n[a-z]*$/i.test(a))) return false;
       return after.some(
         (a) =>
-          a === '--force' ||
-          a.startsWith('--force=') ||
+          // F11: clean's only f-option is --force (--f… unambiguous; the
+          // helper also covers the =value spelling).
+          longOptionAbbrev(a, 'force', 1) ||
           (/^-[a-z]+$/i.test(a) && a.toLowerCase().includes('f')),
       );
     },
@@ -136,7 +141,10 @@ export const VCS_INFRA_DANGER_RULES: readonly DangerRule[] = [
   // --discard-changes`, `restore <paths>` unless it only unstages), `stash
   // drop|clear`, and recovery-data destruction (`reflog expire|delete`,
   // `gc --prune=now|all`, `prune`) after which not even the reflog can bring
-  // discarded commits back. Branch switches, `restore --staged`, `stash`
+  // discarded commits back. F12: force branch-ref manipulation (`switch
+  // -C/--force-create`, `checkout -B`, `branch -f/-D/-M/-C` and verb+force
+  // combos) is included — it discards a branch's unique commits (core F10
+  // parity). Branch switches, `restore --staged`, `stash`
   // push/pop/list and plain `gc` stay safe.
   {
     id: 'git-discard-local-work',
@@ -152,19 +160,76 @@ export const VCS_INFRA_DANGER_RULES: readonly DangerRule[] = [
       }
       const sub = args[i];
       const rest = args.slice(i + 1);
-      const forceFlag = (a: string) => a === '--force' || /^-[a-zA-Z]*f[a-zA-Z]*$/.test(a);
+      // F11: checkout's only f-option is --force (--f… unambiguous, minLen 1);
+      // switch also has --force-create, so every --force abbreviation is
+      // ambiguous there and git rejects it — switch passes the full length.
+      const forceFlag = (a: string, minLen: number) =>
+        longOptionAbbrev(a, 'force', minLen) || /^-[a-zA-Z]*f[a-zA-Z]*$/.test(a);
       const pathspec = (a: string) => !a.startsWith('-') || a.startsWith('--pathspec-from-file');
       switch (sub) {
         case 'checkout': {
           const dashDash = rest.indexOf('--');
           if (dashDash >= 0 && rest.slice(dashDash + 1).some(pathspec)) return true;
-          return rest.some(forceFlag) || rest.includes('.') || rest.includes(':/');
+          // F12: -B[branch] (also clustered/attached) force-resets the branch;
+          // no long form exists. Args are case-sensitive, so -b (safe create)
+          // never matches.
+          if (rest.some((a) => /^-[a-zA-Z]*B/.test(a))) return true;
+          return rest.some((a) => forceFlag(a, 1)) || rest.includes('.') || rest.includes(':/');
         }
         case 'switch':
-          return rest.includes('--discard-changes') || rest.some(forceFlag);
+          // F11: --di…--discard-changes are unambiguous ("d" collides with
+          // --detach).
+          // F12: -C[branch] (also clustered/attached) or --force-c…
+          // --force-create force-resets the branch (probe-verified); -c (safe
+          // create) never matches the case-sensitive regex.
+          return (
+            rest.some((a) => /^-[a-zA-Z]*C/.test(a)) ||
+            rest.some((a) => longOptionAbbrev(a, 'force-create', 7)) ||
+            rest.some((a) => longOptionAbbrev(a, 'discard-changes', 2)) ||
+            rest.some((a) => forceFlag(a, 'force'.length))
+          );
+        case 'branch': {
+          // F12 (core F10 parity): force branch-ref manipulation discards a
+          // branch's unique commits (reflog-only recovery); move/copy also
+          // OVERWRITES an existing target. -D/-M/-C force delete/move/copy,
+          // also clustered (-fd) or attached (-Mfeat).
+          if (rest.some((a) => /^-[a-zA-Z]*[DMC]/.test(a))) return true;
+          // --force minLen 4: "for"/"f" collide with --forked/--format.
+          const force =
+            rest.some((a) => longOptionAbbrev(a, 'force', 4)) ||
+            rest.some((a) => /^-[a-zA-Z]*f/.test(a));
+          if (!force) return false;
+          // Verb + force: --delete EXACT only ("del" is ambiguous with
+          // --delete-merged), --mo…--move, --cop…--copy, or a short d/m/c in a
+          // cluster combined with f (-fd ≡ -D).
+          const verb =
+            rest.includes('--delete') ||
+            rest.some((a) => longOptionAbbrev(a, 'move', 2)) ||
+            rest.some((a) => longOptionAbbrev(a, 'copy', 3)) ||
+            rest.some((a) => /^-[a-zA-Z]*[dmc]/.test(a));
+          if (verb) return true;
+          // -f <name> [start] forces the branch ref to a new start point. List
+          // and filter modes ignore -f (probe: `branch -f --list` is harmless).
+          const listMode = rest.some(
+            (a) =>
+              a === '-a' ||
+              a === '-r' ||
+              /^(?:--list|--show-current|--all|--remotes|--contains|--no-contains|--merged|--no-merged|--points-at|--sort|--format|--column|--color|--abbrev)/.test(
+                a,
+              ),
+          );
+          return !listMode && rest.some((a) => !a.startsWith('-'));
+        }
         case 'restore': {
-          const staged = rest.some((a) => a === '--staged' || /^-[a-zA-Z]*S[a-zA-Z]*$/.test(a));
-          const worktree = rest.some((a) => a === '--worktree' || /^-[a-zA-Z]*W[a-zA-Z]*$/.test(a));
+          // F11: --sta…--staged / --w…--worktree are unambiguous prefixes
+          // ("s"/"st" collide with --source). Missing --wor let the unstage-only
+          // exemption hide a worktree-destroying restore (core F8 parity).
+          const staged =
+            rest.some((a) => longOptionAbbrev(a, 'staged', 3)) ||
+            rest.some((a) => /^-[a-zA-Z]*S[a-zA-Z]*$/.test(a));
+          const worktree =
+            rest.some((a) => longOptionAbbrev(a, 'worktree', 1)) ||
+            rest.some((a) => /^-[a-zA-Z]*W[a-zA-Z]*$/.test(a));
           if (staged && !worktree) return false;
           return rest.some(pathspec);
         }
@@ -175,14 +240,20 @@ export const VCS_INFRA_DANGER_RULES: readonly DangerRule[] = [
         case 'reflog':
           return rest.includes('expire') || rest.includes('delete');
         case 'gc':
-          return rest.some((a) => a === '--prune=now' || a === '--prune=all');
+          // F11: gc's only p-option is --prune (--p… unambiguous).
+          return rest.some((a) => {
+            if (!longOptionAbbrev(a, 'prune', 1) || !a.includes('=')) return false;
+            const value = a.slice(a.indexOf('=') + 1);
+            return value === 'now' || value === 'all';
+          });
         case 'prune':
           return true;
         default:
           return false;
       }
     },
-    reason: 'git checkout/restore/stash/reflog/gc discarding local work (not recoverable)',
+    reason:
+      'git checkout/switch/branch/restore/stash/reflog/gc discarding local work (not recoverable)',
   },
 
   // ----- package publish (destructive — public, irreversible) -----
@@ -319,10 +390,13 @@ export const VCS_INFRA_DANGER_RULES: readonly DangerRule[] = [
       }
       if (cmd === 'pulumi') return args.includes('destroy');
       if (cmd === 'aws' && args.includes('s3')) {
+        // F11: AWS CLI accepts unambiguous prefixes (verified aws-cli/2.39.7):
+        // rm --rec… ("re" → global --region), rb --f…, sync --del… ("de"/"d"
+        // → --debug, NOT --delete).
         return (
-          (args.includes('rm') && args.includes('--recursive')) ||
-          (args.includes('rb') && args.includes('--force')) ||
-          (args.includes('sync') && args.includes('--delete'))
+          (args.includes('rm') && args.some((a) => longOptionAbbrev(a, 'recursive', 3))) ||
+          (args.includes('rb') && args.some((a) => longOptionAbbrev(a, 'force', 1))) ||
+          (args.includes('sync') && args.some((a) => longOptionAbbrev(a, 'delete', 3)))
         );
       }
       const recursive = args.some((a) => a === '-r' || a === '-R' || a === '--recursive');

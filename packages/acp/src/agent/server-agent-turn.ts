@@ -62,6 +62,7 @@ import {
   promptToAgentInput,
   promptToText,
   seedAgentContext,
+  toolLocations,
   toolNameToKind,
   toolTitle,
 } from './server-agent-turn-content.js';
@@ -383,23 +384,62 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
     }, timeoutMs);
     timeouts.set(input.sessionId, timer);
 
-    // Stream the core agent's tool activity to the ACP client as
-    // tool_call / tool_call_update notifications so editors (Zed,
-    // JetBrains, …) render live tool cards + statuses instead of seeing
-    // a silent gap until the final text. We subscribe for the duration
-    // of this turn and detach in the finally block.
+    // Stream the core agent's live text, thinking, and tool activity to the
+    // ACP client so editors (Zed, JetBrains, …) render incremental output and
+    // live tool cards instead of seeing a silent gap until the final text.
     const unsub: Array<() => void> = [];
+    let streamedInIteration = false;
+    let liveUsage: { used: number; size: number } | null = null;
     // Real `Agent` always exposes `.events`; guard for Agent-like fakes.
     const bus = (agent as { events?: { on?: typeof agent.events.on } }).events;
     if (bus?.on) {
       unsub.push(
+        bus.on('provider.text_delta', (e) => {
+          if (typeof e.text === 'string' && e.text.length > 0) {
+            streamedInIteration = true;
+            emit({
+              sessionUpdate: 'agent_message_chunk',
+              content: { type: 'text', text: e.text },
+            });
+          }
+        }),
+        bus.on('provider.thinking_delta', (e) => {
+          if (typeof e.text === 'string' && e.text.length > 0) {
+            emit({
+              sessionUpdate: 'agent_thought_chunk',
+              content: { type: 'text', text: e.text },
+            });
+          }
+        }),
+        bus.on('provider.response', (e) => {
+          const u = e.usage;
+          if (!u) return;
+          const cacheWrite = u.cacheWrite ?? (u.cacheWrite5m ?? 0) + (u.cacheWrite1h ?? 0);
+          const used = u.input + u.output + (u.cacheRead ?? 0) + cacheWrite;
+          const size = (
+            agent as { ctx?: { provider?: { capabilities?: { maxContext?: number } } } }
+          ).ctx?.provider?.capabilities?.maxContext;
+          if (
+            Number.isFinite(used) &&
+            used > 0 &&
+            typeof size === 'number' &&
+            Number.isFinite(size) &&
+            size > 0
+          ) {
+            liveUsage = { used, size };
+            emit({ sessionUpdate: 'usage_update', used, size });
+          }
+        }),
         bus.on('tool.started', (e) => {
+          streamedInIteration = false;
+          const locations = toolLocations(e.input, input.cwd);
           emit({
             sessionUpdate: 'tool_call',
             toolCallId: e.id,
             title: toolTitle(e.name, e.input),
             kind: toolNameToKind(e.name),
             status: 'in_progress',
+            ...(locations ? { locations } : {}),
             ...(isRecord(e.input) ? { rawInput: e.input } : {}),
           });
         }),
@@ -450,11 +490,12 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
       });
       if (!alive()) return { stopReason: 'cancelled' };
 
-      // Stream the agent's final text back. A failed run with no text would
-      // otherwise reach the client as an empty, successful-looking end_turn
-      // (#421), so its error becomes the visible reply.
+      // Stream the agent's final text back unless it was already streamed
+      // token-by-token via `provider.text_delta`. A failed run with no text
+      // would otherwise reach the client as an empty, successful-looking
+      // end_turn (#421), so its error becomes the visible reply.
       const text = extractText(result) || (turnAbort.signal.aborted ? '' : extractRunError(result));
-      if (text) {
+      if (text && !streamedInIteration) {
         emit({
           sessionUpdate: 'agent_message_chunk',
           content: { type: 'text', text },
@@ -475,16 +516,18 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
         });
       }
 
-      // Emit usage if the agent provided one
-      const usage = extractUsage(result);
-      if (usage) {
+      // Emit usage if the agent returned it directly (mock/custom agents);
+      // real agents emit live usage_update on each `provider.response`.
+      const resultUsage = extractUsage(result);
+      if (resultUsage) {
         emit({
           sessionUpdate: 'usage_update',
-          used: usage.used,
-          size: usage.size,
-          ...(usage.cost ? { cost: usage.cost } : {}),
+          used: resultUsage.used,
+          size: resultUsage.size,
+          ...(resultUsage.cost ? { cost: resultUsage.cost } : {}),
         });
       }
+      const usage = resultUsage ?? liveUsage;
 
       const result_out: RunTurnResult = {
         // `turnAbort.signal` covers both client cancellation and the

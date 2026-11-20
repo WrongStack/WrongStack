@@ -1204,7 +1204,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 40,
-      "sourceLines": 10158
+      "sourceLines": 10241
     },
     {
       "directory": "session-catalog",
@@ -1253,7 +1253,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 97,
-      "sourceLines": 15800
+      "sourceLines": 15802
     },
     {
       "directory": "vcs",

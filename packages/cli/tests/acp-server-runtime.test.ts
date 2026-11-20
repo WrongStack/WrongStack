@@ -6,7 +6,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const built = vi.hoisted(() => ({
-  factories: [] as Array<{ config: unknown; disposed: string[]; selected: string[] }>,
+  factories: [] as Array<{
+    config: unknown;
+    disposed: string[];
+    selected: string[];
+    efforts: Array<string | undefined>;
+  }>,
   telemetryStops: 0,
   detached: [] as string[],
 }));
@@ -16,12 +21,20 @@ vi.mock('../src/acp-server-agent.js', () => {
   return {
     AcpServerConfigError,
     buildAcpServerAgentFactory: (deps: { config: unknown }) => {
-      const record = { config: deps.config, disposed: [] as string[], selected: [] as string[] };
+      const record = {
+        config: deps.config,
+        disposed: [] as string[],
+        selected: [] as string[],
+        efforts: [] as Array<string | undefined>,
+      };
       built.factories.push(record);
       return Object.assign(async (sessionId: string) => ({ sessionId }) as never, {
         disposeSession: (sessionId: string) => record.disposed.push(sessionId),
         selectModel: async (_agent: unknown, providerId: string, modelId: string) => {
           record.selected.push(`${providerId}/${modelId}`);
+        },
+        selectReasoningEffort: (_agent: unknown, effort: string | undefined) => {
+          record.efforts.push(effort);
         },
       });
     },
@@ -175,6 +188,47 @@ describe('createAcpServerRuntime', () => {
       { id: 'size', name: 'Size', type: 'select', currentValue: 'a/b', options: [] },
     ]);
     expect(built.factories[0]?.selected).toEqual(['openrouter/anthropic/claude-x']);
+  });
+
+  it('exposes thought_level alongside model and applies reasoning effort on turn', async () => {
+    const buildModelOption = vi.fn(async () => ({
+      id: 'model',
+      name: 'Model',
+      category: 'model',
+      type: 'select',
+      currentValue: 'openai/o3',
+      options: [{ value: 'openai/o3', name: 'o3' }],
+    }));
+    const buildEffortOption = vi.fn(async () => ({
+      id: 'thought_level',
+      name: 'Reasoning Effort',
+      category: 'thought_level',
+      type: 'select',
+      currentValue: 'medium',
+      options: [
+        { value: 'default', name: 'Default' },
+        { value: 'medium', name: 'Medium' },
+        { value: 'high', name: 'High' },
+      ],
+    }));
+    const runtime = createAcpServerRuntime(deps(CONFIGURED), {
+      reloadConfig: vi.fn(),
+      buildModelOption,
+      buildEffortOption,
+    });
+    const options = await runtime.sessionConfigOptions();
+    expect(options.map((o) => o.category)).toEqual(['model', 'thought_level']);
+    expect(buildEffortOption).toHaveBeenCalledWith(
+      expect.objectContaining({ providerId: 'openai', modelId: 'o3' }),
+    );
+
+    const agent = {} as never;
+    await runtime.applyConfigOptions(agent, [
+      options[0]!,
+      { ...options[1]!, currentValue: 'high' },
+    ]);
+    expect(built.factories[0]?.selected).toEqual(['openai/o3']);
+    expect(built.factories[0]?.efforts).toEqual(['high']);
   });
 
   it('still runs the turn teardown while unconfigured', () => {
