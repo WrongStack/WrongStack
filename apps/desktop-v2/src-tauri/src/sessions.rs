@@ -51,7 +51,8 @@ pub struct HostState {
 }
 
 enum SessionChange {
-    Reconnecting,
+    Opening { stop_when_started: bool },
+    Reconnecting { stop_when_started: bool },
     Removing,
 }
 
@@ -235,13 +236,8 @@ impl HostState {
             "session.remove" => self.remove(field(p, "id")?),
             "engine.send" => {
                 let id = field(p, "id")?;
-                let sent = {
-                    let live = self.live.lock().map_err(err)?;
-                    live.get(id)
-                        .and_then(|s| s.engine.as_ref())
-                        .ok_or("Engine is still starting")?
-                        .send(p["message"].clone())?
-                };
+                let sent =
+                    self.send_engine_command(id, p["message"].clone(), "Engine is still starting")?;
                 // A conversation without a name takes its first prompt's. Naming is a
                 // convenience: a failure here never fails the prompt that was sent.
                 if let Some(prompt) = sent_prompt(&p["message"]) {
@@ -279,19 +275,7 @@ impl HostState {
                 )
             }
             "engine.http" => {
-                let engine = self
-                    .live
-                    .lock()
-                    .map_err(err)?
-                    .get(field(p, "id")?)
-                    .and_then(|s| s.engine.clone())
-                    .ok_or("Engine is still starting")?;
-                engine.http(
-                    field(p, "method")?,
-                    field(p, "resource")?,
-                    &p["body"],
-                    p["operationId"].as_str(),
-                )
+                self.request_engine_http(field(p, "id")?, p, "Engine is still starting")
             }
             "engine.browser_frame" => {
                 let live = self.live.lock().map_err(err)?;
@@ -319,7 +303,52 @@ impl HostState {
             _ => Err(format!("Unknown method: {method}")),
         }
     }
+    pub(crate) fn send_engine_command(
+        &self,
+        id: &str,
+        message: Value,
+        not_ready: &str,
+    ) -> Result<Value> {
+        // Queue admission and the stop flag are serialized by the same live lock.
+        let live = self.live.lock().map_err(err)?;
+        let session = live.get(id).ok_or(not_ready)?;
+        if session.stop_requested {
+            return Err("Engine is stopping".into());
+        }
+        session.engine.as_ref().ok_or(not_ready)?.send(message)
+    }
+    pub(crate) fn request_engine_http(
+        &self,
+        id: &str,
+        params: &Value,
+        not_ready: &str,
+    ) -> Result<Value> {
+        let (engine, method) = {
+            let live = self.live.lock().map_err(err)?;
+            let session = live.get(id).ok_or(not_ready)?;
+            let engine = session.engine.as_ref().ok_or(not_ready)?;
+            let method = field(params, "method")?;
+            if session.stop_requested && matches!(method, "POST" | "PUT" | "PATCH" | "DELETE") {
+                return Err("Engine is stopping".into());
+            }
+            (Arc::clone(engine), method)
+        };
+        // Network I/O can outlast shutdown and must not hold the live lock.
+        engine.http(
+            method,
+            field(params, "resource")?,
+            &params["body"],
+            params["operationId"].as_str(),
+        )
+    }
     fn open(self: &Arc<Self>, p: &Value) -> Result<Value> {
+        self.open_with_terminal(p, |session| self.open_terminal(session))
+    }
+    fn open_with_terminal(
+        self: &Arc<Self>,
+        p: &Value,
+        start_terminal: impl FnOnce(&Session) -> Result<()>,
+    ) -> Result<Value> {
         let history = history_source(p)?;
         let kind = field(p, "kind")?;
         if history.is_some() && (kind != "agent" || p.get("workdir").is_some()) {
@@ -371,9 +400,15 @@ impl HostState {
             error: None,
             untitled,
         };
+        let _change = self.begin_session_change(
+            &s.id,
+            SessionChange::Opening {
+                stop_when_started: false,
+            },
+        )?;
         self.registry.lock().map_err(err)?.insert(&s)?;
         let result = if kind == "terminal" {
-            self.open_terminal(&s)
+            start_terminal(&s)
         } else if let Some(spare) = &spare {
             // The record exists before the claim: the engine may answer at once, and its
             // "running" state must find the conversation to update.
@@ -390,7 +425,7 @@ impl HostState {
                 .state(&s.id, "error", None, Some(&e))?;
             return Err(e);
         }
-        if kind == "agent" {
+        if !self.apply_deferred_stop(&s.id)? && kind == "agent" {
             self.refill_spare(s.workdir.clone());
         }
         Ok(json!(s))
@@ -433,25 +468,45 @@ impl HostState {
     /// gracefully and closes its boot session (a hard kill would leave a 0-byte transcript).
     /// One that is still running after [`SPARE_STOP_GRACE`] is stopped hard.
     fn stop_spare(self: &Arc<Self>, runtime_id: String) {
+        let _ = self.stop_spare_with(
+            runtime_id,
+            |host, id, pid| host.kill(id, pid),
+            thread::sleep,
+        );
+    }
+    fn stop_spare_with(
+        self: &Arc<Self>,
+        runtime_id: String,
+        mut force_stop: impl FnMut(&HostState, &str, Option<u32>) -> Result<Value> + Send + 'static,
+        sleep: impl FnMut(Duration) + Send + 'static,
+    ) -> Option<thread::JoinHandle<()>> {
+        let mut live = self.live.lock().ok()?;
+        let session = live.get_mut(&runtime_id)?;
+        let pid = session.agent_pid;
         let (claim, _) = self.spare_files(&runtime_id);
         let next = claim.with_extension("json.tmp");
         let asked = std::fs::write(&next, br#"{"stop":true}"#)
             .and_then(|()| std::fs::rename(&next, &claim))
             .is_ok();
+        // After a rollback, a prior stop watchdog is still keyed by the conversation ID.
+        session.stop_requested = true;
+        drop(live);
+        let pid = pid?;
+        let grace = if asked {
+            SPARE_STOP_GRACE
+        } else {
+            Duration::ZERO
+        };
         let host = Arc::clone(self);
-        thread::spawn(move || {
-            if asked {
-                thread::sleep(SPARE_STOP_GRACE);
-            }
-            let running = host
-                .live
-                .lock()
-                .map(|live| live.contains_key(&runtime_id))
-                .unwrap_or(false);
-            if running {
-                let _ = host.kill(&runtime_id, None);
-            }
-        });
+        Some(thread::spawn(move || {
+            host.enforce_engine_stop(
+                &runtime_id,
+                pid,
+                grace,
+                |id, pid| force_stop(&host, id, Some(pid)),
+                sleep,
+            );
+        }))
     }
     /// Tells a spare which conversation it is; from now on its start has the usual deadline.
     fn claim_spare(&self, spare: &SpareEngine, history: Option<(&str, bool)>) -> Result<()> {
@@ -471,6 +526,17 @@ impl HostState {
     /// spare watches. If the claim cannot be written, everything goes back, the spare is asked
     /// to stop, and the error is returned so the caller boots an engine of its own.
     fn adopt_spare(self: &Arc<Self>, spare: &SpareEngine, id: &str, history: &str) -> Result<()> {
+        self.adopt_spare_with_claim(spare, id, history, |next, claim| {
+            std::fs::rename(next, claim).map_err(err)
+        })
+    }
+    fn adopt_spare_with_claim(
+        self: &Arc<Self>,
+        spare: &SpareEngine,
+        id: &str,
+        history: &str,
+        publish_claim: impl FnOnce(&Path, &Path) -> Result<()>,
+    ) -> Result<()> {
         {
             let mut live = self.live.lock().map_err(err)?;
             let entry = live
@@ -490,7 +556,7 @@ impl HostState {
         let written = serde_json::to_vec(&spare_claim(Some((history, false))))
             .map_err(err)
             .and_then(|bytes| std::fs::write(&next, bytes).map_err(err))
-            .and_then(|()| std::fs::rename(&next, &claim).map_err(err));
+            .and_then(|()| publish_claim(&next, &claim));
         if let Err(error) = written {
             if let Ok(mut live) = self.live.lock() {
                 if let Some(entry) = live.remove(id) {
@@ -610,7 +676,8 @@ impl HostState {
         let mut changes = self.session_changes.lock().map_err(err)?;
         if let Some(active) = changes.get(id) {
             return Err(match active {
-                SessionChange::Reconnecting => "This conversation's engine is still running",
+                SessionChange::Opening { .. } => "This session is still opening",
+                SessionChange::Reconnecting { .. } => "This conversation's engine is still running",
                 SessionChange::Removing => "This conversation is being removed",
             }
             .into());
@@ -621,16 +688,51 @@ impl HostState {
             id,
         })
     }
+    fn apply_deferred_stop(self: &Arc<Self>, id: &str) -> Result<bool> {
+        let requested = matches!(
+            self.session_changes.lock().map_err(err)?.get(id),
+            Some(
+                SessionChange::Opening {
+                    stop_when_started: true
+                } | SessionChange::Reconnecting {
+                    stop_when_started: true
+                }
+            )
+        );
+        if requested {
+            self.stop(id)?;
+        }
+        Ok(requested)
+    }
     /// Starts a stopped agent conversation's engine again on its own record and journal,
     /// resuming the WrongStack session it recorded: the conversation keeps its id, its tab and
     /// its history, and its journal continues where the stopped engine left it.
     fn reconnect(self: &Arc<Self>, p: &Value) -> Result<Value> {
+        self.reconnect_with_engine_start(p, |session, history| {
+            self.start_engine_with_history(
+                &session.id,
+                &session.workdir,
+                true,
+                Some((history, false)),
+            )
+        })
+    }
+    fn reconnect_with_engine_start(
+        self: &Arc<Self>,
+        p: &Value,
+        start_engine: impl FnOnce(&Session, &str) -> Result<()>,
+    ) -> Result<Value> {
         let id = field(p, "id")?;
         let (history, fork) = history_source(p)?.ok_or("Missing history source")?;
         if fork {
             return Err("Reconnecting resumes the conversation's own session".into());
         }
-        let _change = self.begin_session_change(id, SessionChange::Reconnecting)?;
+        let _change = self.begin_session_change(
+            id,
+            SessionChange::Reconnecting {
+                stop_when_started: false,
+            },
+        )?;
         let is_live = self.live.lock().map_err(err)?.contains_key(id);
         let session = {
             let registry = self.registry.lock().map_err(err)?;
@@ -654,32 +756,51 @@ impl HostState {
         // conversation boots its own engine as before.
         if let Some(spare) = self.take_spare(&session.workdir) {
             if self.adopt_spare(&spare, id, history).is_ok() {
-                self.refill_spare(session.workdir.clone());
+                if !self.apply_deferred_stop(id)? {
+                    self.refill_spare(session.workdir.clone());
+                }
                 return Ok(json!({ "id": id }));
             }
         }
-        if let Err(e) =
-            self.start_engine_with_history(id, &session.workdir, true, Some((history, false)))
-        {
+        if let Err(e) = start_engine(&session, history) {
             self.registry
                 .lock()
                 .map_err(err)?
                 .state(id, "error", None, Some(&e))?;
             return Err(e);
         }
+        self.apply_deferred_stop(id)?;
         Ok(json!({ "id": id }))
     }
     fn log_reader(
         self: &Arc<Self>,
         id: String,
+        pid: Option<u32>,
         mut reader: Box<dyn Read + Send>,
         sink: Arc<Mutex<Transcript>>,
         startup: Option<SharedWriter>,
-    ) -> Result<()> {
+    ) -> thread::JoinHandle<()> {
         let host = Arc::clone(self);
         thread::spawn(move || {
+            let report_error = |error: std::io::Error| {
+                let detail = format!("Transcript IO: {error}");
+                let _ = writeln!(std::io::stderr().lock(), "{id}: {detail}");
+                let (Some(pid), Ok(live)) = (pid, host.live.lock()) else {
+                    return;
+                };
+                // A retired reader cannot put its diagnostic on a replacement process.
+                if live
+                    .get(&id)
+                    .is_some_and(|session| session.agent_pid == Some(pid))
+                {
+                    if let Ok(registry) = host.registry.lock() {
+                        let _ = registry.note_transcript_error(&id, &detail);
+                    }
+                }
+            };
             let mut buffer = [0; 32768];
             let mut handshake = CursorHandshake::default();
+            let mut sink = Some(sink);
             let result = (|| -> std::io::Result<()> {
                 loop {
                     let count = reader.read(&mut buffer)?;
@@ -700,21 +821,24 @@ impl HostState {
                             writer.flush()?;
                         }
                     }
-                    if !bytes.is_empty() {
-                        sink.lock()
-                            .map_err(|e| std::io::Error::other(e.to_string()))?
-                            .append(&bytes)?;
+                    if let Some(transcript) = sink.as_ref().filter(|_| !bytes.is_empty()) {
+                        let append = transcript
+                            .lock()
+                            .map_err(|e| std::io::Error::other(e.to_string()))
+                            .and_then(|mut transcript| transcript.append(&bytes));
+                        if let Err(error) = append {
+                            // Stop recording this stream. Keep draining the process pipe.
+                            sink = None;
+                            report_error(error);
+                        }
                     }
                 }
                 Ok(())
             })();
-            if let Err(e) = result {
-                if let Ok(r) = host.registry.lock() {
-                    let _ = r.state(&id, "error", None, Some(&format!("Transcript IO: {e}")));
-                }
+            if let Err(error) = result {
+                report_error(error);
             }
-        });
-        Ok(())
+        })
     }
     fn open_terminal(self: &Arc<Self>, s: &Session) -> Result<()> {
         let pair = native_pty_system()
@@ -743,8 +867,9 @@ impl HostState {
         let process_id = child.process_id();
         let writer = Arc::new(Mutex::new(pair.master.take_writer().map_err(err)?));
         let sink = Transcript::open(&self.dir.join("transcripts"), &s.id)?;
-        self.log_reader(
+        let _ = self.log_reader(
             s.id.clone(),
+            process_id,
             reader,
             sink,
             if cfg!(windows) {
@@ -752,7 +877,7 @@ impl HostState {
             } else {
                 None
             },
-        )?;
+        );
         self.live.lock().map_err(err)?.insert(
             s.id.clone(),
             LiveSession {
@@ -902,26 +1027,29 @@ impl HostState {
         let sink = Transcript::open(&self.dir.join("transcripts"), runtime_id)?;
         drop(reservation);
         let mut child = command.spawn().map_err(err)?;
-        self.log_reader(
+        let pid = child.id();
+        let _ = self.log_reader(
             runtime_id.to_owned(),
+            Some(pid),
             Box::new(child.stdout.take().ok_or("Missing engine stdout")?),
             Arc::clone(&sink),
             None,
-        )?;
+        );
         // Separate streams avoid corrupting concurrent JSONL/byte writes to one transcript.
-        self.log_reader(
+        let _ = self.log_reader(
             runtime_id.to_owned(),
+            Some(pid),
             Box::new(child.stderr.take().ok_or("Missing engine stderr")?),
             sink,
             None,
-        )?;
+        );
         self.live.lock().map_err(err)?.insert(
             runtime_id.to_owned(),
             LiveSession {
                 master: None,
                 writer: None,
                 killer: None,
-                agent_pid: Some(child.id()),
+                agent_pid: Some(pid),
                 engine: None,
                 stop_requested: false,
             },
@@ -1180,7 +1308,24 @@ impl HostState {
     /// [`ENGINE_STOP_GRACE`] is stopped hard; terminals are stopped hard at once.
     pub(crate) fn stop(self: &Arc<Self>, id: &str) -> Result<Value> {
         let mut live = self.live.lock().map_err(err)?;
-        let session = live.get_mut(id).ok_or("Session is not running")?;
+        let session = live.get_mut(id);
+        {
+            let mut changes = self.session_changes.lock().map_err(err)?;
+            match changes.get_mut(id) {
+                // Reconnect may replace a live spare if its claim fails.
+                Some(SessionChange::Reconnecting { stop_when_started }) => {
+                    *stop_when_started = true;
+                }
+                Some(SessionChange::Opening { stop_when_started }) if session.is_none() => {
+                    *stop_when_started = true;
+                }
+                _ if session.is_none() => return Err("Session is not running".into()),
+                _ => {}
+            }
+        }
+        let Some(session) = session else {
+            return Ok(Value::Null);
+        };
         if session.stop_requested {
             return Ok(Value::Null);
         }
@@ -1189,10 +1334,12 @@ impl HostState {
             return self.kill(id, None);
         };
         // Keep exit and reconnect from replacing this engine during the stop request.
-        if std::fs::write(self.stop_file(id), b"").is_err() {
-            drop(live);
-            return self.kill(id, Some(pid));
-        }
+        let grace = if std::fs::write(self.stop_file(id), b"").is_ok() {
+            ENGINE_STOP_GRACE
+        } else {
+            Self::kill_live_session(session)?;
+            ENGINE_STOP_RETRY
+        };
         // The shutdown takes seconds: the conversation shows as stopping (no longer live, not
         // yet offered for reconnect) until its engine exits.
         session.stop_requested = true;
@@ -1204,7 +1351,7 @@ impl HostState {
             host.enforce_engine_stop(
                 &id,
                 pid,
-                ENGINE_STOP_GRACE,
+                grace,
                 |id, pid| host.kill(id, Some(pid)),
                 thread::sleep,
             );
@@ -1306,6 +1453,9 @@ impl HostState {
         if expected_pid.is_some() && session.agent_pid != expected_pid {
             return Ok(Value::Null);
         }
+        Self::kill_live_session(session)
+    }
+    fn kill_live_session(session: &mut LiveSession) -> Result<Value> {
         if !cfg!(windows) {
             if let Some(killer) = session.killer.as_mut() {
                 killer.kill().map_err(err)?;
@@ -1369,6 +1519,311 @@ fn history_source(p: &Value) -> Result<Option<(&str, bool)>> {
 #[cfg(test)]
 mod history_tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn stopping_a_terminal_during_initial_open_reaches_its_shell() {
+        use std::sync::mpsc;
+
+        let dir = std::env::temp_dir().join(format!("desktop-stop-opening-{}", Uuid::new_v4()));
+        let host = HostState::new(&dir).unwrap();
+        let project = host
+            .registry
+            .lock()
+            .unwrap()
+            .register(dir.to_str().unwrap())
+            .unwrap();
+        let params = json!({"projectId":project.id,"kind":"terminal"});
+        let (row_visible, published) = mpsc::channel();
+        let (begin_startup, allowed) = mpsc::channel();
+        let worker_host = Arc::clone(&host);
+        let worker_params = params.clone();
+        let open = thread::spawn(move || {
+            worker_host.open_with_terminal(&worker_params, |session| {
+                row_visible.send(session.id.clone()).unwrap();
+                allowed.recv_timeout(Duration::from_secs(5)).unwrap();
+                worker_host.open_terminal(session)
+            })
+        });
+        let id = published.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert!(!host.live.lock().unwrap().contains_key(&id));
+        let stop = || host.request("session.kill", &json!({"id":id}));
+        let first_stop = stop();
+        let repeated_stop = stop();
+        begin_startup.send(()).unwrap();
+        open.join().unwrap().unwrap();
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        let stopped = loop {
+            let status = host.registry.lock().unwrap().sessions().unwrap()[0]
+                .status
+                .clone();
+            if status == "stopped" {
+                break true;
+            }
+            if first_stop.is_err() || std::time::Instant::now() >= deadline {
+                break false;
+            }
+            thread::sleep(Duration::from_millis(10));
+        };
+        let still_live = host.live.lock().unwrap().contains_key(&id);
+        host.request("session.remove", &json!({"id":id})).unwrap();
+        let unknown_stop = stop();
+
+        let mut failed_id = None;
+        let failed_open = host.open_with_terminal(&params, |session| {
+            failed_id = Some(session.id.clone());
+            assert_eq!(
+                host.request("session.kill", &json!({"id":session.id})),
+                Ok(Value::Null)
+            );
+            Err("Fixture terminal startup failed".into())
+        });
+        let failed_id = failed_id.unwrap();
+        let live_after_failure = host.live.lock().unwrap().contains_key(&failed_id);
+        let stop_after_failure = host.request("session.kill", &json!({"id":failed_id}));
+        host.request("session.remove", &json!({"id":failed_id}))
+            .unwrap();
+        drop(host);
+        let _ = std::fs::remove_dir_all(dir);
+
+        println!("EXPECTED: early stop is accepted and the shell exits");
+        println!(
+            "ACTUAL: stop {first_stop:?}, terminal stopped {stopped}, live shell {still_live}"
+        );
+        assert_eq!(first_stop, Ok(Value::Null));
+        assert_eq!(repeated_stop, Ok(Value::Null));
+        assert!(stopped);
+        assert!(!still_live);
+        assert_eq!(unknown_stop, Err("Session is not running".into()));
+        assert_eq!(failed_open, Err("Fixture terminal startup failed".into()));
+        assert!(!live_after_failure);
+        assert_eq!(stop_after_failure, Err("Session is not running".into()));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn removing_a_terminal_cannot_race_its_initial_open() {
+        use std::sync::mpsc;
+        let dir = std::env::temp_dir().join(format!("desktop-opening-terminal-{}", Uuid::new_v4()));
+        let host = HostState::new(&dir).unwrap();
+        let project = host
+            .registry
+            .lock()
+            .unwrap()
+            .register(dir.to_str().unwrap())
+            .unwrap();
+        let (registered, opened_row) = mpsc::channel();
+        let (resume, released) = mpsc::channel();
+        let worker_host = Arc::clone(&host);
+        let params = json!({"projectId":project.id,"kind":"terminal"});
+        let open_params = params.clone();
+        let open = thread::spawn(move || {
+            worker_host.open_with_terminal(&open_params, |session| {
+                registered.send(session.id.clone()).unwrap();
+                released.recv_timeout(Duration::from_secs(5)).unwrap();
+                worker_host.open_terminal(session)
+            })
+        });
+        let id = opened_row.recv_timeout(Duration::from_secs(5)).unwrap();
+        // This is the exact interval a second window can see a starting row without a process.
+        let during_open = host.request("session.remove", &json!({"id":id}));
+        resume.send(()).unwrap();
+        open.join().unwrap().unwrap();
+        let tracked = host.live.lock().unwrap().contains_key(&id);
+        let status = host
+            .registry
+            .lock()
+            .unwrap()
+            .sessions()
+            .unwrap()
+            .into_iter()
+            .find(|session| session.id == id)
+            .map(|session| session.status);
+        println!("EXPECTED: opening is reserved and the terminal keeps its row");
+        println!(
+            "ACTUAL: remove during open {during_open:?}, live shell {tracked}, row {status:?}"
+        );
+        let after_open = host.request("session.remove", &json!({"id":id}));
+        assert!(
+            !host.live.lock().unwrap().contains_key(&id),
+            "cleanup must stop the test shell"
+        );
+
+        let mut failed_id = None;
+        let failed_open = host.open_with_terminal(&params, |session| {
+            failed_id = Some(session.id.clone());
+            Err("Fixture terminal startup failed".into())
+        });
+        let after_failure = host.request("session.remove", &json!({"id":failed_id.unwrap()}));
+        drop(host);
+        let _ = std::fs::remove_dir_all(dir);
+
+        assert_eq!(during_open, Err("This session is still opening".into()));
+        assert!(tracked);
+        assert_eq!(status.as_deref(), Some("running"));
+        assert_eq!(after_open, Ok(Value::Null));
+        assert_eq!(failed_open, Err("Fixture terminal startup failed".into()));
+        assert_eq!(after_failure, Ok(Value::Null));
+    }
+
+    #[test]
+    fn transcript_write_failure_does_not_close_the_output_pipe() {
+        use std::sync::mpsc;
+
+        struct ObservedPipe {
+            reader: std::io::PipeReader,
+            reads: mpsc::Sender<()>,
+        }
+        impl Read for ObservedPipe {
+            fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+                let _ = self.reads.send(());
+                self.reader.read(buffer)
+            }
+        }
+
+        let dir = std::env::temp_dir().join(format!("desktop-transcript-pipe-{}", Uuid::new_v4()));
+        let host = HostState::new(&dir).unwrap();
+        let raw = dir.join("transcripts").join("read-only.bin");
+        let journal = dir.join("transcripts").join("read-only.jsonl");
+        std::fs::write(&raw, b"").unwrap();
+        let sink = Transcript::from_files(File::open(raw).unwrap(), File::create(journal).unwrap());
+        let (reader, mut writer) = std::io::pipe().unwrap();
+        let (mut reply_reader, reply_writer) = std::io::pipe().unwrap();
+        let startup: SharedWriter = Arc::new(Mutex::new(Box::new(reply_writer)));
+        let (reads, received) = mpsc::channel();
+        let worker = host.log_reader(
+            "failed".into(),
+            None,
+            Box::new(ObservedPipe { reader, reads }),
+            sink,
+            Some(startup),
+        );
+        received.recv_timeout(Duration::from_secs(4)).unwrap();
+        writer.write_all(b"unwritable chunk").unwrap();
+        // The next read cannot be announced until the first chunk's append has returned.
+        let next_read = received.recv_timeout(Duration::from_secs(4));
+        let second_write = writer.write_all(b"\x1b[6nlater output");
+        drop(writer);
+        worker.join().unwrap();
+        let mut reply = Vec::new();
+        reply_reader.read_to_end(&mut reply).unwrap();
+
+        let healthy = Transcript::open(&dir.join("transcripts"), "healthy").unwrap();
+        host.log_reader(
+            "healthy".into(),
+            None,
+            Box::new(std::io::Cursor::new(b"control output")),
+            healthy,
+            None,
+        )
+        .join()
+        .unwrap();
+        let recorded = std::fs::read(dir.join("transcripts").join("healthy.bin")).unwrap();
+        drop(host);
+        std::fs::remove_dir_all(dir).unwrap();
+        assert_eq!(recorded, b"control output");
+        assert!(next_read.is_ok() && second_write.is_ok(), "output must keep flowing after an append failure: read {next_read:?}, write {second_write:?}");
+        assert_eq!(reply, b"\x1b[1;1R", "the terminal handshake remains active");
+    }
+
+    #[test]
+    fn transcript_failure_preserves_the_session_exit_state() {
+        use std::sync::mpsc;
+        struct GatedReader(mpsc::Receiver<()>);
+        impl Read for GatedReader {
+            fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+                self.0.recv_timeout(Duration::from_secs(4)).unwrap();
+                Err(std::io::Error::other("fixture transcript failure"))
+            }
+        }
+        let dir = std::env::temp_dir().join(format!("desktop-transcript-state-{}", Uuid::new_v4()));
+        let host = HostState::new(&dir).unwrap();
+        let id = "conversation";
+        {
+            let registry = host.registry.lock().unwrap();
+            let project = registry.register(dir.to_str().unwrap()).unwrap();
+            registry
+                .insert(&Session {
+                    id: id.into(),
+                    project_id: project.id,
+                    title: "Transcript fixture".into(),
+                    kind: "agent".into(),
+                    workdir: dir.to_string_lossy().into(),
+                    status: "running".into(),
+                    created_at: now(),
+                    updated_at: now(),
+                    exit_code: None,
+                    error: None,
+                    untitled: false,
+                })
+                .unwrap();
+        }
+        let track = |pid| {
+            host.live.lock().unwrap().insert(
+                id.into(),
+                LiveSession {
+                    master: None,
+                    writer: None,
+                    killer: None,
+                    agent_pid: Some(pid),
+                    engine: None,
+                    stop_requested: false,
+                },
+            );
+        };
+        let spawn_reader = |pid| {
+            let (release, gate) = mpsc::channel();
+            let sink = Transcript::open(&dir.join("transcripts"), id).unwrap();
+            let reader = host.log_reader(
+                id.into(),
+                Some(pid),
+                Box::new(GatedReader(gate)),
+                sink,
+                None,
+            );
+            (release, reader)
+        };
+        let snapshot = || host.registry.lock().unwrap().sessions().unwrap().remove(0);
+        track(41);
+        let (release, reader) = spawn_reader(41);
+        // Publish the process exit before allowing the output worker to report its failure.
+        host.live.lock().unwrap().remove(id);
+        host.publish_runtime_state(id, "stopped", Some(0), None)
+            .unwrap();
+        release.send(()).unwrap();
+        reader.join().unwrap();
+        let stopped = snapshot();
+
+        let (release, old_reader) = spawn_reader(41);
+        track(42);
+        host.publish_runtime_state(id, "running", None, None)
+            .unwrap();
+        release.send(()).unwrap();
+        old_reader.join().unwrap();
+        let replacement = snapshot();
+
+        let (release, current_reader) = spawn_reader(42);
+        host.publish_runtime_state(id, "stopping", None, None)
+            .unwrap();
+        release.send(()).unwrap();
+        current_reader.join().unwrap();
+        let stopping = snapshot();
+        drop(host);
+        std::fs::remove_dir_all(dir).unwrap();
+        assert_eq!(stopped.status, "stopped");
+        assert_eq!(stopped.exit_code, Some(0));
+        assert_eq!(stopped.error, None);
+        assert_eq!(replacement.status, "running");
+        assert_eq!(
+            replacement.error, None,
+            "the old reader must not annotate a new engine"
+        );
+        assert_eq!(stopping.status, "stopping");
+        assert_eq!(
+            stopping.error.as_deref(),
+            Some("Transcript IO: fixture transcript failure")
+        );
+    }
 
     #[cfg(windows)]
     struct FixtureChild(std::process::Child);
@@ -1697,6 +2152,113 @@ mod history_tests {
     }
 
     #[test]
+    #[cfg(windows)]
+    fn discarded_spare_force_stop_retries_the_same_process() {
+        let dir =
+            std::env::temp_dir().join(format!("desktop-spare-force-retry-{}", Uuid::new_v4()));
+        let host = HostState::new(&dir).unwrap();
+        let id = "discarded-spare";
+        let mut child = FixtureChild::spawn();
+        let pid = child.0.id();
+        host.live.lock().unwrap().insert(
+            id.into(),
+            LiveSession {
+                master: None,
+                writer: None,
+                killer: None,
+                agent_pid: Some(pid),
+                engine: None,
+                // A conversation may already have asked it to stop before adoption rolled back.
+                stop_requested: true,
+            },
+        );
+        std::fs::create_dir(host.spare_files(id).0).unwrap();
+        let attempts = Arc::new(Mutex::new(Vec::new()));
+        let calls = Arc::clone(&attempts);
+        host.stop_spare_with(
+            id.into(),
+            move |host, target, expected_pid| {
+                let attempt = {
+                    let mut entries = calls.lock().unwrap();
+                    entries.push(expected_pid);
+                    entries.len()
+                };
+                if attempt == 1 {
+                    return Err("Fixture force stop failed".into());
+                }
+                assert_eq!(attempt, 2);
+                host.kill(target, expected_pid).unwrap();
+                child.0.wait().unwrap();
+                host.live.lock().unwrap().remove(target);
+                Ok(Value::Null)
+            },
+            |_| {},
+        )
+        .unwrap()
+        .join()
+        .unwrap();
+        let tracked = host.live.lock().unwrap().contains_key(id);
+        let requested = attempts.lock().unwrap().clone();
+        drop(host);
+        std::fs::remove_dir_all(dir).unwrap();
+        println!("EXPECTED: retry force stop using the discarded spare's PID");
+        println!("ACTUAL: calls {requested:?}, still tracked {tracked}");
+        assert_eq!(requested, [Some(pid), Some(pid)]);
+        assert!(!tracked);
+    }
+
+    #[test]
+    fn discarded_spare_can_exit_from_its_graceful_claim() {
+        let dir = std::env::temp_dir().join(format!("desktop-spare-grace-{}", Uuid::new_v4()));
+        let host = HostState::new(&dir).unwrap();
+        let id = "graceful-spare";
+        assert!(host
+            .stop_spare_with(
+                id.into(),
+                |_, _, _| panic!("an absent spare cannot be stopped"),
+                |_| panic!("an absent spare has no watchdog"),
+            )
+            .is_none());
+        let (claim, _) = host.spare_files(id);
+        assert!(!claim.exists());
+        host.live.lock().unwrap().insert(
+            id.into(),
+            LiveSession {
+                master: None,
+                writer: None,
+                killer: None,
+                agent_pid: Some(u32::MAX),
+                engine: None,
+                stop_requested: false,
+            },
+        );
+        let worker_host = Arc::clone(&host);
+        host.stop_spare_with(
+            id.into(),
+            |_, _, _| panic!("the spare exits during its graceful window"),
+            move |_| {
+                let stop: Value = serde_json::from_slice(&std::fs::read(&claim).unwrap()).unwrap();
+                assert_eq!(stop, json!({"stop":true}));
+                assert!(
+                    worker_host
+                        .live
+                        .lock()
+                        .unwrap()
+                        .remove(id)
+                        .unwrap()
+                        .stop_requested
+                );
+            },
+        )
+        .unwrap()
+        .join()
+        .unwrap();
+        assert!(!host.live.lock().unwrap().contains_key(id));
+        drop(host);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn force_stop_is_retried_while_the_same_engine_is_tracked() {
         let dir = std::env::temp_dir().join(format!("desktop-stop-retry-{}", Uuid::new_v4()));
         let host = HostState::new(&dir).unwrap();
@@ -1819,6 +2381,179 @@ mod history_tests {
     }
 
     #[test]
+    fn attached_engines_reject_new_commands_after_stop() {
+        use std::sync::mpsc;
+        use tungstenite::Message;
+
+        let dir = std::env::temp_dir().join(format!("desktop-stop-send-{}", Uuid::new_v4()));
+        let host = HostState::new(&dir).unwrap();
+        let id = "stopping-engine";
+        let project = host
+            .registry
+            .lock()
+            .unwrap()
+            .register(dir.to_str().unwrap())
+            .unwrap();
+        host.registry
+            .lock()
+            .unwrap()
+            .insert(&Session {
+                id: id.into(),
+                project_id: project.id.clone(),
+                title: "Test conversation".into(),
+                kind: "agent".into(),
+                workdir: dir.to_string_lossy().into(),
+                status: "running".into(),
+                created_at: now(),
+                updated_at: now(),
+                exit_code: None,
+                error: None,
+                untitled: false,
+            })
+            .unwrap();
+        // Register the runtime IDs without spawning extra children for this connection fixture.
+        std::fs::write(dir.join("frontend-disabled"), b"fixture").unwrap();
+        host.open_project_runtime(&project.id, false).unwrap();
+        host.open_profile_runtime(false).unwrap();
+        let runtime_id = |project| {
+            host.project_events(project, 0, None, None).unwrap()["runtimeId"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        };
+        let project_runtime = runtime_id(&project.id);
+        let profile_runtime = runtime_id("@profile");
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (observed, received) = mpsc::channel();
+        let (ended, finish) = mpsc::channel();
+        let server = thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(4)))
+                .unwrap();
+            let mut socket = tungstenite::accept(stream).unwrap();
+            for _ in 0..3 {
+                observed
+                    .send(socket.read().unwrap().into_text().unwrap())
+                    .unwrap();
+            }
+            finish.recv_timeout(Duration::from_secs(4)).unwrap();
+            socket
+                .send(Message::Text(
+                    json!({"type":"session_end","payload":{}})
+                        .to_string()
+                        .into(),
+                ))
+                .unwrap();
+        });
+        let engine = Engine::connect(
+            port,
+            "fixture",
+            &dir.join("transcripts").join(format!("{id}.events.jsonl")),
+            true,
+        )
+        .unwrap();
+        let runtimes = [id, project_runtime.as_str(), profile_runtime.as_str()];
+        for id in runtimes {
+            host.live.lock().unwrap().insert(
+                id.into(),
+                LiveSession {
+                    master: None,
+                    writer: None,
+                    killer: None,
+                    agent_pid: Some(u32::MAX),
+                    engine: Some(Arc::clone(&engine)),
+                    stop_requested: false,
+                },
+            );
+        }
+        for id in [&project_runtime, &profile_runtime] {
+            host.publish_runtime_state(id, "running", None, None)
+                .unwrap();
+        }
+        let commands = [
+            (
+                "engine.send",
+                json!({"id":id,"message":{"type":"user_message","payload":{"text":"fixture turn"}}}),
+            ),
+            (
+                "project.send",
+                json!({"projectId":project.id,"message":{"type":"goal.list","payload":{}}}),
+            ),
+            (
+                "profile.send",
+                json!({"message":{"type":"prefs.get","payload":{}}}),
+            ),
+        ];
+        for (method, params) in &commands {
+            host.request(method, params).unwrap();
+            let frame: Value =
+                serde_json::from_str(&received.recv_timeout(Duration::from_secs(4)).unwrap())
+                    .unwrap();
+            assert_eq!(frame["type"], params["message"]["type"]);
+        }
+
+        for id in runtimes {
+            host.request("session.kill", &json!({"id":id})).unwrap();
+        }
+        let after_stop = commands.map(|(method, params)| host.request(method, &params));
+        let writes_after_stop = ["POST", "PUT", "PATCH", "DELETE"].map(|method| {
+            [
+                host.request(
+                    "engine.http",
+                    &json!({"id":id,"method":method,"resource":"/api/fixture"}),
+                ),
+                host.request(
+                    "project.http",
+                    &json!({"projectId":project.id,"method":method,"resource":"/api/fixture"}),
+                ),
+                host.request(
+                    "profile.http",
+                    &json!({"method":method,"resource":"/api/fixture"}),
+                ),
+            ]
+        });
+        ended.send(()).unwrap();
+        server.join().unwrap();
+        let read = || {
+            host.request("engine.events", &json!({"id":id,"offset":0}))
+                .unwrap()
+        };
+        let deadline = std::time::Instant::now() + Duration::from_secs(4);
+        let terminal = loop {
+            let page = read();
+            if page["events"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|event| event["type"] == "session_end")
+            {
+                break true;
+            }
+            if std::time::Instant::now() >= deadline {
+                break false;
+            }
+            thread::yield_now();
+        };
+        host.live.lock().unwrap().clear();
+        drop(host);
+        let _ = std::fs::remove_dir_all(dir);
+        assert_eq!(
+            after_stop,
+            std::array::from_fn(|_| Err("Engine is stopping".into()))
+        );
+        for result in writes_after_stop.into_iter().flatten() {
+            assert_eq!(result, Err("Engine is stopping".into()));
+        }
+        assert!(
+            terminal,
+            "the final engine event remains readable during shutdown"
+        );
+    }
+
+    #[test]
     fn late_readiness_does_not_attach_a_stopping_engine() {
         let dir = std::env::temp_dir().join(format!("desktop-stop-ready-{}", Uuid::new_v4()));
         let host = HostState::new(&dir).unwrap();
@@ -1881,6 +2616,82 @@ mod history_tests {
 
     #[cfg(windows)]
     #[test]
+    fn force_stop_without_a_stop_file_keeps_shutdown_owned_until_exit() {
+        let dir =
+            std::env::temp_dir().join(format!("desktop-stop-file-fallback-{}", Uuid::new_v4()));
+        let host = HostState::new(&dir).unwrap();
+        let id = "stop-file-blocked";
+        let project = host
+            .registry
+            .lock()
+            .unwrap()
+            .register(dir.to_str().unwrap())
+            .unwrap();
+        host.registry
+            .lock()
+            .unwrap()
+            .insert(&Session {
+                id: id.into(),
+                project_id: project.id,
+                title: "Fallback fixture".into(),
+                kind: "agent".into(),
+                workdir: dir.to_string_lossy().into(),
+                status: "running".into(),
+                created_at: now(),
+                updated_at: now(),
+                exit_code: None,
+                error: None,
+                untitled: false,
+            })
+            .unwrap();
+        let mut child = FixtureChild::spawn();
+        host.live.lock().unwrap().insert(
+            id.into(),
+            LiveSession {
+                agent_pid: Some(child.0.id()),
+                master: None,
+                writer: None,
+                killer: None,
+                engine: None,
+                stop_requested: false,
+            },
+        );
+        // A directory at the stop marker path denies the file write without changing permissions.
+        std::fs::create_dir(host.stop_file(id)).unwrap();
+        host.request("session.kill", &json!({"id":id})).unwrap();
+        let pending = host.live.lock().unwrap()[id].stop_requested;
+        let status = host.registry.lock().unwrap().sessions().unwrap()[0]
+            .status
+            .clone();
+        let rejected = host.request(
+            "engine.send",
+            &json!({"id":id,"message":{"type":"user_message"}}),
+        );
+        let exit = child.0.wait().unwrap();
+        // Deliberately publish the real process exit after observing the accepted stop state.
+        let finalized = host.finish_engine_exit(id, &Mutex::new(id.into()), Ok(exit), None);
+        let status_after_exit = host.registry.lock().unwrap().sessions().unwrap()[0]
+            .status
+            .clone();
+        let live_after_exit = host.live.lock().unwrap().contains_key(id);
+        drop(host);
+        let _ = std::fs::remove_dir_all(dir);
+        assert_eq!(
+            status, "stopping",
+            "the fallback must publish the stop before the exit watcher runs"
+        );
+        assert!(pending);
+        assert_eq!(rejected, Err("Engine is stopping".into()));
+        assert!(finalized);
+        assert_eq!(
+            status_after_exit,
+            if exit.success() { "stopped" } else { "error" }
+        );
+        assert!(!live_after_exit);
+    }
+
+    #[cfg(windows)]
+    #[test]
     fn a_force_stop_targets_only_the_expected_engine_pid() {
         let dir = std::env::temp_dir().join(format!("desktop-force-stop-{}", Uuid::new_v4()));
         let host = HostState::new(&dir).unwrap();
@@ -1917,7 +2728,7 @@ mod history_tests {
 
         assert!(stale_stop.is_ok());
         assert!(after_stale_stop.unwrap().is_none());
-        assert!(current_stop.is_ok());
+        assert!(current_stop.is_ok(), "{current_stop:?}");
         assert!(after_current_stop.unwrap().is_some());
     }
 
@@ -1947,6 +2758,224 @@ mod history_tests {
         assert!(host.registry.lock().unwrap().sessions().unwrap().is_empty());
         drop(host);
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// How long a reconnect test waits for one step on another thread. Windows serializes
+    /// process creation inside a process, so in a loaded suite a step that spawns its fixture
+    /// can take several seconds; a hang still fails, it just takes longer to report.
+    #[cfg(windows)]
+    const RECONNECT_STEP_WAIT: Duration = Duration::from_secs(30);
+
+    #[test]
+    #[cfg(windows)]
+    fn stop_survives_failed_spare_adoption_during_reconnect() {
+        use std::sync::mpsc;
+
+        let dir = std::env::temp_dir().join(format!("desktop-stop-adopt-{}", Uuid::new_v4()));
+        let host = HostState::new(&dir).unwrap();
+        let id = "reconnecting-conversation";
+        let spare_id = "provisional-spare";
+        {
+            let registry = host.registry.lock().unwrap();
+            let project = registry.register(dir.to_str().unwrap()).unwrap();
+            registry
+                .insert(&Session {
+                    id: id.into(),
+                    project_id: project.id,
+                    kind: "agent".into(),
+                    title: "Spare rollback fixture".into(),
+                    workdir: dir.to_string_lossy().into(),
+                    status: "stopped".into(),
+                    created_at: now(),
+                    updated_at: now(),
+                    exit_code: Some(0),
+                    error: None,
+                    untitled: false,
+                })
+                .unwrap();
+        }
+        let track = |pid| LiveSession {
+            master: None,
+            writer: None,
+            killer: None,
+            agent_pid: Some(pid),
+            engine: None,
+            stop_requested: false,
+        };
+        let mut spare_child = FixtureChild::spawn();
+        let spare_pid = spare_child.0.id();
+        host.live
+            .lock()
+            .unwrap()
+            .insert(spare_id.into(), track(spare_pid));
+        let owner = Arc::new(Mutex::new(spare_id.into()));
+        let spare = SpareEngine {
+            runtime_id: spare_id.into(),
+            workdir: dir.to_string_lossy().into(),
+            engine: "fixture".into(),
+            claimed: Arc::new(Mutex::new(None)),
+            owner: Arc::clone(&owner),
+            started: std::time::Instant::now(),
+        };
+        std::fs::create_dir(host.spare_files(spare_id).0).unwrap();
+
+        let (provisional, assigned) = mpsc::channel();
+        let (release, gate) = mpsc::channel();
+        let (replacement, started) = mpsc::channel();
+        let worker_host = Arc::clone(&host);
+        let worker = thread::spawn(move || {
+            let reconnect = json!({"id":id,"history":{"id":"sess_fixture","mode":"resume"}});
+            // Keep the real claim, rollback and startup completion paths, with explicit process
+            // fixtures in place of engine boot and a gate before the failing claim rename.
+            worker_host.reconnect_with_engine_start(&reconnect, |session, history| {
+                let adopted = worker_host.adopt_spare_with_claim(
+                    &spare,
+                    &session.id,
+                    history,
+                    |next, claim| {
+                        provisional.send(()).unwrap();
+                        gate.recv_timeout(RECONNECT_STEP_WAIT).unwrap();
+                        std::fs::rename(next, claim).map_err(err)
+                    },
+                );
+                assert!(adopted.is_err(), "a directory blocks the real claim rename");
+                let cold = FixtureChild::spawn();
+                worker_host
+                    .live
+                    .lock()
+                    .unwrap()
+                    .insert(session.id.clone(), track(cold.0.id()));
+                replacement.send(cold).unwrap();
+                Ok(())
+            })
+        });
+        assigned.recv_timeout(RECONNECT_STEP_WAIT).unwrap();
+        assert_eq!(host.live.lock().unwrap()[id].agent_pid, Some(spare_pid));
+        let stop = host.request("session.kill", &json!({"id":id}));
+        let targeted_spare = host.own_stop_file(spare_id).is_file();
+        release.send(()).unwrap();
+        let mut cold = started.recv_timeout(RECONNECT_STEP_WAIT).unwrap();
+        worker.join().unwrap().unwrap();
+        let cold_stop_requested = host.live.lock().unwrap()[id].stop_requested;
+        let cold_stop_file = host.own_stop_file(id).is_file();
+        let returned_owner = owner.lock().unwrap().clone();
+
+        for child in [&mut spare_child, &mut cold] {
+            let _ = child.0.kill();
+            child.0.wait().unwrap();
+        }
+        host.release_engine(spare_id, &owner);
+        host.release_engine(id, &Mutex::new(id.into()));
+        drop(host);
+        let _ = std::fs::remove_dir_all(dir);
+
+        println!(
+            "EXPECTED: an acknowledged stop survives rollback and reaches the cold replacement"
+        );
+        println!("ACTUAL: stop {stop:?}, provisional marker {targeted_spare}, replacement flag {cold_stop_requested}, replacement marker {cold_stop_file}");
+        assert_eq!(stop, Ok(Value::Null));
+        assert_eq!(returned_owner, spare_id);
+        assert!(targeted_spare);
+        assert!(cold_stop_requested);
+        assert!(cold_stop_file);
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn stop_during_reconnect_reaches_the_replacement_engine() {
+        use std::sync::mpsc;
+
+        let dir = std::env::temp_dir().join(format!("desktop-stop-reconnect-{}", Uuid::new_v4()));
+        let host = HostState::new(&dir).unwrap();
+        let id = "reconnecting-conversation";
+        {
+            let registry = host.registry.lock().unwrap();
+            let project = registry.register(dir.to_str().unwrap()).unwrap();
+            registry
+                .insert(&Session {
+                    id: id.into(),
+                    project_id: project.id,
+                    kind: "agent".into(),
+                    title: "Reconnect fixture".into(),
+                    workdir: dir.to_string_lossy().into(),
+                    status: "stopped".into(),
+                    created_at: now(),
+                    updated_at: now(),
+                    exit_code: Some(0),
+                    error: None,
+                    untitled: false,
+                })
+                .unwrap();
+        }
+        let reconnect = json!({"id":id,"history":{"id":"sess_fixture","mode":"resume"}});
+        let (start_ready, begin) = mpsc::channel();
+        let (release, gate) = mpsc::channel();
+        let (child, started) = mpsc::channel();
+        let worker_host = Arc::clone(&host);
+        let worker = thread::spawn(move || {
+            worker_host.reconnect_with_engine_start(&reconnect, |session, _| {
+                start_ready.send(()).unwrap();
+                gate.recv_timeout(RECONNECT_STEP_WAIT).unwrap();
+                let replacement = FixtureChild::spawn();
+                worker_host.live.lock().unwrap().insert(
+                    session.id.clone(),
+                    LiveSession {
+                        master: None,
+                        writer: None,
+                        killer: None,
+                        agent_pid: Some(replacement.0.id()),
+                        engine: None,
+                        stop_requested: false,
+                    },
+                );
+                child.send(replacement).unwrap();
+                Ok(())
+            })
+        });
+        begin.recv_timeout(RECONNECT_STEP_WAIT).unwrap();
+        assert_eq!(
+            host.registry.lock().unwrap().sessions().unwrap()[0].status,
+            "starting"
+        );
+        assert!(!host.live.lock().unwrap().contains_key(id));
+        let early_stop = host.request("session.kill", &json!({"id":id}));
+        release.send(()).unwrap();
+        let mut replacement = started.recv_timeout(RECONNECT_STEP_WAIT).unwrap();
+        assert_eq!(worker.join().unwrap().unwrap()["id"], id);
+        let requested = host.live.lock().unwrap()[id].stop_requested;
+        let stop_file = host.stop_file(id);
+        let marker_written = stop_file.exists();
+        let status = host.registry.lock().unwrap().sessions().unwrap()[0]
+            .status
+            .clone();
+        assert!(replacement.0.try_wait().unwrap().is_none());
+        replacement.0.kill().unwrap();
+        let exit = replacement.0.wait().unwrap();
+        host.finish_engine_exit(id, &Mutex::new(id.into()), Ok(exit), None);
+        let live_after_exit = host.live.lock().unwrap().contains_key(id);
+        let reconnect = json!({"id":id,"history":{"id":"sess_fixture","mode":"resume"}});
+        let failed = host.reconnect_with_engine_start(&reconnect, |_, _| {
+            assert_eq!(
+                host.request("session.kill", &json!({"id":id})),
+                Ok(Value::Null)
+            );
+            Err("Fixture reconnect failed".into())
+        });
+        let failure = host.registry.lock().unwrap().sessions().unwrap().remove(0);
+        let stop_after_failure = host.request("session.kill", &json!({"id":id}));
+        drop(host);
+        let _ = std::fs::remove_dir_all(dir);
+
+        println!("EXPECTED: stop is accepted before the replacement is registered and applied to that process");
+        println!("ACTUAL: {early_stop:?}, stop flag {requested}, stop marker {marker_written}, state {status}");
+        assert_eq!(early_stop, Ok(Value::Null));
+        assert!(requested);
+        assert!(marker_written);
+        assert_eq!(status, "stopping");
+        assert!(!live_after_exit);
+        assert_eq!(failed, Err("Fixture reconnect failed".into()));
+        assert_eq!(failure.error.as_deref(), Some("Fixture reconnect failed"));
+        assert_eq!(stop_after_failure, Err("Session is not running".into()));
     }
 
     #[test]
@@ -2066,6 +3095,32 @@ mod history_tests {
             host.own_stop_file(&conversation)
         );
 
+        // Hold selection of a warm spare until Stop has arrived for the starting conversation.
+        let queued_stop = record();
+        let (owner, _) = pool("spare-queued-stop");
+        let selection_gate = host.spares.lock().unwrap();
+        let reconnect_host = Arc::clone(&host);
+        let reconnect_params = resume(&queued_stop);
+        let reconnect =
+            thread::spawn(move || reconnect_host.request("session.reconnect", &reconnect_params));
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while status(&queued_stop).as_deref() != Some("starting") {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "warm reconnect never started"
+            );
+            thread::yield_now();
+        }
+        let stop = host.request("session.kill", &json!({"id":queued_stop}));
+        drop(selection_gate);
+        reconnect.join().unwrap().unwrap();
+        let warm_status = status(&queued_stop);
+        let stopped_spare = host.own_stop_file("spare-queued-stop").is_file();
+        host.release_engine("spare-queued-stop", &owner);
+        assert_eq!(stop, Ok(Value::Null));
+        assert_eq!(warm_status.as_deref(), Some("stopping"));
+        assert!(stopped_spare);
+
         // A spare that cannot be told goes back and stops; the conversation boots its own engine.
         let second = record();
         let (owner, claimed) = pool("spare-2");
@@ -2183,12 +3238,22 @@ mod history_tests {
             assert!(reconnect().unwrap_err().contains("being removed"));
             assert!(remove().unwrap_err().contains("being removed"));
             assert!(host
-                .begin_session_change("another-session", SessionChange::Reconnecting)
+                .begin_session_change(
+                    "another-session",
+                    SessionChange::Reconnecting {
+                        stop_when_started: false
+                    },
+                )
                 .is_ok());
         }
         {
             let _reconnecting = host
-                .begin_session_change(id, SessionChange::Reconnecting)
+                .begin_session_change(
+                    id,
+                    SessionChange::Reconnecting {
+                        stop_when_started: false,
+                    },
+                )
                 .unwrap();
             assert!(remove().unwrap_err().contains("still running"));
             assert!(transcript.exists());

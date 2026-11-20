@@ -234,15 +234,6 @@ impl HostState {
         }
         stopped
     }
-    fn project_engine(&self, project_id: &str) -> Result<Arc<Engine>> {
-        let id = self.project_runtime_id(project_id)?;
-        self.live
-            .lock()
-            .map_err(err)?
-            .get(&id)
-            .and_then(|live| live.engine.clone())
-            .ok_or_else(|| "Project services are starting".into())
-    }
     /// A page of the project's journal from `offset`. A first read (`offset` 0) that asks for
     /// `recent` bytes reads only them, led by the journal's seed frames
     /// ([`Engine::recent_events`]).
@@ -325,15 +316,12 @@ impl HostState {
         {
             return Err("Conversation operations belong to an agent session".into());
         }
-        self.project_engine(project_id)?.send(message)
+        let id = self.project_runtime_id(project_id)?;
+        self.send_engine_command(&id, message, "Project services are starting")
     }
     pub(crate) fn project_http(&self, project_id: &str, params: &Value) -> Result<Value> {
-        self.project_engine(project_id)?.http(
-            params["method"].as_str().ok_or("Missing method")?,
-            params["resource"].as_str().ok_or("Missing resource")?,
-            &params["body"],
-            params["operationId"].as_str(),
-        )
+        let id = self.project_runtime_id(project_id)?;
+        self.request_engine_http(&id, params, "Project services are starting")
     }
 }
 

@@ -400,6 +400,16 @@ impl Registry {
             .map_err(err)?;
         Ok(())
     }
+    pub(crate) fn note_transcript_error(&self, id: &str, error: &str) -> Result<()> {
+        self.db
+            .execute(
+                "UPDATE sessions SET error=?2
+                 WHERE id=?1 AND status IN ('starting','running','stopping') AND error IS NULL",
+                params![id, error],
+            )
+            .map_err(err)?;
+        Ok(())
+    }
     /// Forgets a session: its drafts, their revisions and its row. False when it is unknown.
     pub fn remove(&self, id: &str) -> Result<bool> {
         let keys = [

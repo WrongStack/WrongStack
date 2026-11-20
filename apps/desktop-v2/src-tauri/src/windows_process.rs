@@ -42,7 +42,6 @@ extern "system" {
         user: *mut FileTime,
     ) -> i32;
     fn WaitForSingleObject(handle: Handle, timeout: u32) -> u32;
-    #[cfg(any(feature = "desktop", test))]
     fn TerminateProcess(handle: Handle, exit_code: u32) -> i32;
     fn CreateToolhelp32Snapshot(flags: u32, pid: u32) -> Handle;
     fn Process32FirstW(snapshot: Handle, entry: *mut ProcessEntry) -> i32;
@@ -425,45 +424,100 @@ fn owned_tree(pid: u32) -> crate::Result<Vec<Process>> {
     Ok(owned.into_values().collect())
 }
 
-pub(crate) fn stop_tree(pid: u32) -> crate::Result<()> {
-    let owned = owned_tree(pid)?;
-    if owned.is_empty() {
+fn stop_descendants_after_root_exit(root: &Process, owned: &[Process]) -> crate::Result<()> {
+    if !root.exited()? {
         return Ok(());
     }
-    let status = Command::new("taskkill")
-        .args(["/PID", &pid.to_string(), "/T", "/F"])
-        .creation_flags(0x08000000)
-        .status()
-        .map_err(crate::err)?;
-    if !status.success() {
-        // Exiting git/conhost descendants can make taskkill fail after it stopped the tree.
-        // Accept that race only after every observed owned process object has exited.
-        let deadline = Instant::now() + Duration::from_secs(2);
-        loop {
-            let mut running = Vec::new();
-            for process in &owned {
-                if !process.exited()? {
-                    running.push(process.pid);
-                }
+    // A snapshot row can outlive its PID. Recheck ancestry while the first set of
+    // process objects is held, then request termination only for matching identities.
+    let confirmed: HashMap<_, _> = owned_tree(root.pid)?
+        .into_iter()
+        .map(|process| (process.pid, process.created))
+        .collect();
+    if confirmed.get(&root.pid) != Some(&root.created) {
+        return Ok(());
+    }
+    for process in owned {
+        if process.pid == root.pid
+            || confirmed.get(&process.pid) != Some(&process.created)
+            || process.exited()?
+        {
+            continue;
+        }
+        if let Ok(Some(target)) = Process::open_with(process.pid, true) {
+            if target.created == process.created {
+                // SAFETY: the termination handle names the same verified process object.
+                // The caller confirms exit using the retained handles.
+                unsafe { TerminateProcess(target.handle.0, 1) };
             }
-            if running.is_empty() {
-                break;
-            }
-            if Instant::now() >= deadline {
-                return Err(format!(
-                    "Could not stop engine process tree; still running: {running:?}"
-                ));
-            }
-            thread::sleep(Duration::from_millis(25));
         }
     }
     Ok(())
 }
 
+pub(crate) fn stop_tree(pid: u32) -> crate::Result<()> {
+    stop_tree_with(pid, Duration::from_secs(2), |pid| {
+        Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/T", "/F"])
+            .creation_flags(0x08000000)
+            .status()
+            .map(|status| status.success())
+            .map_err(crate::err)
+    })
+}
+
+fn stop_tree_with(
+    pid: u32,
+    grace: Duration,
+    request_stop: impl FnOnce(u32) -> crate::Result<bool>,
+) -> crate::Result<()> {
+    let owned = owned_tree(pid)?;
+    let Some(root) = owned.iter().find(|process| process.pid == pid) else {
+        return Ok(());
+    };
+    // The root can exit even when the stop command fails to launch.
+    let launch_error = if root.exited()? {
+        None
+    } else {
+        request_stop(pid).err()
+    };
+    // Only the retained process objects confirm exit.
+    let deadline = Instant::now() + grace;
+    let mut descendants_checked = false;
+    loop {
+        let mut running = Vec::new();
+        for process in &owned {
+            if !process.exited()? {
+                running.push(process.pid);
+            }
+        }
+        if running.is_empty() {
+            return Ok(());
+        }
+        if !descendants_checked && !running.contains(&pid) {
+            stop_descendants_after_root_exit(root, &owned)?;
+            descendants_checked = true;
+            continue;
+        }
+        if Instant::now() >= deadline {
+            if let Some(error) = launch_error {
+                return Err(error);
+            }
+            return Err(format!(
+                "Could not stop engine process tree; still running: {running:?}"
+            ));
+        }
+        thread::sleep(Duration::from_millis(25));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::process::{Child, Stdio};
+    use std::{
+        io::{Read, Write},
+        process::{Child, Stdio},
+    };
     struct OwnedChild(Child);
     impl Drop for OwnedChild {
         fn drop(&mut self) {
@@ -486,6 +540,109 @@ mod tests {
                 .unwrap(),
         )
     }
+    fn fixture_parent(wait_for_release: bool) -> OwnedChild {
+        OwnedChild(
+            Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "windows_process::tests::process_fixture",
+                    "--nocapture",
+                ])
+                .env(
+                    "WRONGSTACK_STOP_TREE_FIXTURE_PARENT",
+                    if wait_for_release { "hold" } else { "exit" },
+                )
+                .creation_flags(0x08000000)
+                .stdin(if wait_for_release {
+                    Stdio::piped()
+                } else {
+                    Stdio::null()
+                })
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .unwrap(),
+        )
+    }
+    #[test]
+    fn stop_success_requires_observed_process_exit() {
+        let mut target = child("ping -n 30 127.0.0.1 > nul");
+        let pid = target.0.id();
+        let mut acknowledged = false;
+        let stop = stop_tree_with(pid, Duration::ZERO, |requested| {
+            assert_eq!(requested, pid);
+            acknowledged = true;
+            Ok(true)
+        });
+        let still_live = target.0.try_wait().unwrap().is_none();
+        println!("EXPECTED: a command acknowledgement is insufficient while the root lives");
+        println!("ACTUAL: stop {stop:?}, root still alive {still_live}");
+        assert!(acknowledged);
+        assert!(
+            still_live,
+            "the test never asked Windows to terminate this process"
+        );
+        assert!(stop.unwrap_err().contains("still running"));
+    }
+
+    #[test]
+    fn successful_parent_stop_still_reaps_an_observed_child() {
+        assert_parent_exit_reaps_child(Ok(true));
+    }
+
+    #[test]
+    fn failed_stop_launch_still_reaps_an_observed_child() {
+        assert_parent_exit_reaps_child(Err("Fixture stop command could not launch".into()));
+    }
+
+    #[test]
+    fn failed_stop_launch_reports_the_error_when_the_root_still_lives() {
+        let mut target = child("ping -n 30 127.0.0.1 > nul");
+        let message = "Fixture stop command could not launch";
+        let result = stop_tree_with(target.0.id(), Duration::ZERO, |_| Err(message.into()));
+
+        assert_eq!(result.unwrap_err(), message);
+        assert!(target.0.try_wait().unwrap().is_none());
+    }
+
+    fn assert_parent_exit_reaps_child(command_result: crate::Result<bool>) {
+        let mut target = fixture_parent(true);
+        let parent = target.0.id();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let descendant = loop {
+            if let Some(descendant) = owned_tree(parent).unwrap().into_iter().find(|process| {
+                process.pid != parent
+                    && image_path(process.pid).is_some_and(|image| {
+                        image
+                            .file_name()
+                            .is_some_and(|name| name.eq_ignore_ascii_case("ping.exe"))
+                    })
+            }) {
+                break descendant;
+            }
+            assert!(Instant::now() < deadline, "fixture child was not observed");
+            thread::yield_now();
+        };
+
+        let mut survived_initial_stop = false;
+        let result = stop_tree_with(parent, Duration::from_secs(2), |requested| {
+            assert_eq!(requested, parent);
+            target.0.stdin.take().unwrap().write_all(b"1").unwrap();
+            target.0.wait().unwrap();
+            survived_initial_stop = !descendant.exited().unwrap();
+            command_result
+        });
+        let still_live = !descendant.exited().unwrap();
+        if still_live {
+            let _ = stop_tree(descendant.pid);
+        }
+        println!("EXPECTED: stop succeeds and the observed descendant exits");
+        println!("ACTUAL: stop {result:?}, descendant still alive {still_live}");
+        assert!(survived_initial_stop, "the reply must model a partial stop");
+        assert!(result.is_ok(), "{result:?}");
+        assert!(!still_live);
+    }
+
     #[test]
     fn stopping_an_already_exited_owned_process_succeeds() {
         let mut target = child("exit 0");
@@ -511,21 +668,7 @@ mod tests {
     }
     #[test]
     fn an_exited_parent_does_not_hide_a_live_descendant() {
-        let mut target = OwnedChild(
-            Command::new(std::env::current_exe().unwrap())
-                .args([
-                    "--exact",
-                    "windows_process::tests::process_fixture",
-                    "--nocapture",
-                ])
-                .env("WRONGSTACK_STOP_TREE_FIXTURE_PARENT", "1")
-                .creation_flags(0x08000000)
-                .stdin(Stdio::null())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn()
-                .unwrap(),
-        );
+        let mut target = fixture_parent(false);
         target.0.wait().unwrap();
         let tree = owned_tree(target.0.id()).unwrap();
         let descendants: Vec<_> = tree
@@ -537,20 +680,42 @@ mod tests {
             "The fixture must have a real live descendant"
         );
         let result = stop_tree(target.0.id());
+        let remaining: Vec<_> = descendants
+            .iter()
+            .filter(|process| !process.exited().unwrap())
+            .map(|process| process.pid)
+            .collect();
         // Always clean the fixture descendants, including when the contract assertion fails.
         for process in descendants {
-            let _ = stop_tree(process.pid);
+            if !process.exited().unwrap() {
+                let _ = stop_tree(process.pid);
+            }
         }
+        println!("EXPECTED: an owned descendant is stopped even after its parent exits");
+        println!("ACTUAL: stop {result:?}, living descendants {remaining:?}");
         assert!(
-            result.is_err(),
-            "A dead root must not turn a surviving descendant into stop success"
+            result.is_ok() && remaining.is_empty(),
+            "The dead parent must not leave the owned descendant running"
         );
     }
     #[test]
+    fn fallback_stop_rechecks_ancestry_before_terminating_a_live_process() {
+        let mut parent = child("exit 0");
+        let mut foreign = child("ping -n 30 127.0.0.1 > nul");
+        parent.0.wait().unwrap();
+        // A stale observation alone cannot authorize even a process with a matching live PID.
+        let observed = [
+            Process::open(parent.0.id()).unwrap().unwrap(),
+            Process::open(foreign.0.id()).unwrap().unwrap(),
+        ];
+        stop_descendants_after_root_exit(&observed[0], &observed).unwrap();
+        assert!(foreign.0.try_wait().unwrap().is_none());
+    }
+    #[test]
     fn process_fixture() {
-        if std::env::var_os("WRONGSTACK_STOP_TREE_FIXTURE_PARENT").is_none() {
+        let Some(mode) = std::env::var_os("WRONGSTACK_STOP_TREE_FIXTURE_PARENT") else {
             return;
-        }
+        };
         Command::new("ping.exe")
             .args(["-n", "120", "127.0.0.1"])
             .creation_flags(0x08000000)
@@ -559,6 +724,9 @@ mod tests {
             .stderr(Stdio::null())
             .spawn()
             .unwrap();
+        if mode == "hold" {
+            std::io::stdin().read_exact(&mut [0]).unwrap();
+        }
         std::process::exit(0);
     }
 }

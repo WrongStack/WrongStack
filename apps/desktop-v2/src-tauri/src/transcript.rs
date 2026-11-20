@@ -26,10 +26,10 @@ impl Transcript {
                 .open(dir.join(format!("{id}.{extension}")))
                 .map_err(err)
         };
-        Ok(Arc::new(Mutex::new(Self {
-            raw: file("bin")?,
-            jsonl: file("jsonl")?,
-        })))
+        Ok(Self::from_files(file("bin")?, file("jsonl")?))
+    }
+    pub(crate) fn from_files(raw: File, jsonl: File) -> Arc<Mutex<Self>> {
+        Arc::new(Mutex::new(Self { raw, jsonl }))
     }
     pub fn append(&mut self, bytes: &[u8]) -> std::io::Result<()> {
         self.raw.write_all(bytes)?;
