@@ -14,7 +14,7 @@ export function nativeComposerCalls(calls) {
 }
 export const fixtureText = 'Native provider connection verified.';
 export const fixtureChimeraText =
-  '## 🦂 Chimera Review\nNative generated reviewer fixture.\n\n### Medium (1)\n1. [BUG] README.md:1 — Assist edit lacks use\n   The Native Code Assist edit lacks a use note.\n   → Add a use note.';
+  '## 🦂 Chimera Review\nNative generated reviewer fixture.\n\n### Medium (1)\n1. [BUG] native-assist.ts:1 — Assist edit lacks use\n   The Native Code Assist edit lacks a use note.\n   → Add a use note.';
 export const fixtureMarkdown = `${fixtureText}
 
 ## Native result
@@ -133,9 +133,8 @@ export async function startLocalProvider({ models = [fixtureModel], resolveToolC
       const chimeraReview = (body.messages ?? []).some(
         (message) =>
           message.role === 'system' &&
-          String(message.content).includes(
-            'You are Chimera, a high-precision post-session code quality reviewer.',
-          ),
+          // packages/core/instructions/llm/chimera-review.md; its wording after this prefix moves.
+          String(message.content).includes('You are Chimera, a high-precision'),
       );
       const topicAdvisor = (body.messages ?? []).some(
         (m) =>
@@ -487,7 +486,7 @@ export async function startLocalProvider({ models = [fixtureModel], resolveToolC
               index: 0,
               id: chimeraReadCallId,
               type: 'function',
-              function: { name: 'read', arguments: JSON.stringify({ path: 'README.md' }) },
+              function: { name: 'read', arguments: JSON.stringify({ path: 'native-assist.ts' }) },
             }
           : needsForm
             ? {
@@ -554,10 +553,17 @@ export async function startLocalProvider({ models = [fixtureModel], resolveToolC
                         type: 'function',
                         function: {
                           name: 'write',
-                          arguments: JSON.stringify({
-                            path: 'README.md',
-                            content: '# Native Code Assist edit\n',
-                          }),
+                          // The Chimera producer edits code so its auto-review reaches the
+                          // reviewer; prose docs are pre-screened in 0 tokens.
+                          arguments: JSON.stringify(
+                            chimeraLeaderUser >= 0
+                              ? {
+                                  path: 'native-assist.ts',
+                                  content:
+                                    "export const nativeAssist = 'Native Code Assist edit';\n",
+                                }
+                              : { path: 'README.md', content: '# Native Code Assist edit\n' },
+                          ),
                         },
                       }
                     : needsTier

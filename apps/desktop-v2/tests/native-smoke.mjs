@@ -841,6 +841,8 @@ try {
   assert.equal((await rpc('project.register', { root: repo1 })).id, a.id);
   await writeFile(join(repo1, '.gitignore'), '.wrongstack/\n');
   await writeFile(join(repo1, 'review-fixture.ts'), 'export const reviewed = 1;\n');
+  // Generated Chimera edits code: a prose-doc change is pre-screened without a reviewer call.
+  await writeFile(join(repo1, 'native-assist.ts'), "export const nativeAssist = 'before';\n");
   for (const args of [
     ['init', '--initial-branch=main'],
     ['config', 'user.name', 'Desktop Native Fixture'],

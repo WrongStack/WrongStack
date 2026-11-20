@@ -59,8 +59,8 @@ export async function exerciseNativeGeneratedChimera({
       60000,
     );
   };
-  const original = await readFile(join(project.root, 'README.md'), 'utf8');
-  assert(!original.includes('# Native Code Assist edit'));
+  const original = await readFile(join(project.root, 'native-assist.ts'), 'utf8');
+  assert(!original.includes('Native Code Assist edit'));
   const beforeReviews = providerFixture.calls.filter((c) => c.chimeraReview).length;
   await rpc('engine.send', {
     id: session.id,
@@ -70,7 +70,7 @@ export async function exerciseNativeGeneratedChimera({
         id: crypto.randomUUID(),
         requestId: crypto.randomUUID(),
         content:
-          '[native-code-assist-edit] [native-chimera-producer] Read README.md, then overwrite it with # Native Code Assist edit. Do not call other mutation tools.',
+          '[native-code-assist-edit] [native-chimera-producer] Read native-assist.ts, then overwrite it so nativeAssist is "Native Code Assist edit". Do not call other mutation tools.',
         timestamp: Date.now(),
       },
     },
@@ -87,8 +87,8 @@ export async function exerciseNativeGeneratedChimera({
     90000,
   );
   assert.equal(
-    await readFile(join(project.root, 'README.md'), 'utf8'),
-    '# Native Code Assist edit\n',
+    await readFile(join(project.root, 'native-assist.ts'), 'utf8'),
+    "export const nativeAssist = 'Native Code Assist edit';\n",
     'Actual tool changed the tracked file',
   );
   const leaderCalls = () =>
@@ -133,7 +133,7 @@ export async function exerciseNativeGeneratedChimera({
   assert.equal(detail.report.id, reportId);
   assert.equal(detail.report.sessionId, identity.sessionId);
   assert.equal(detail.report.rawText, fixtureChimeraText);
-  assert(detail.report.files.some((file) => file.path === 'README.md'));
+  assert(detail.report.files.some((file) => file.path === 'native-assist.ts'));
   const card = page.locator('[data-chimera-report="' + reportId + '"]');
   await card.waitFor({ timeout: 60000 });
   assert.equal(await card.count(), 1);
@@ -152,7 +152,11 @@ export async function exerciseNativeGeneratedChimera({
     async () => (await draft()).text === 'Keep the user draft while opening the generated report',
     'Generated report draft saved',
   );
-  assert(await card.getByRole('button', { name: 'Prepare follow-up', exact: true }).isDisabled());
+  // The host saves the draft before the conversation re-renders with it.
+  await waitFor(
+    () => card.getByRole('button', { name: 'Prepare follow-up', exact: true }).isDisabled(),
+    'Preparing the follow-up is blocked',
+  );
   await card.getByRole('button', { name: 'Open report', exact: true }).click();
   const hub = page.getByRole('region', { name: 'Project Chimera reviews', exact: true });
   await hub
@@ -200,7 +204,11 @@ export async function exerciseNativeGeneratedChimera({
   await waitFor(() => leaderCalls() > beforePrepare, 'Only explicit approval starts follow-up');
   await findConversationMessages(page, notice.message, 1);
   await card.getByText('Follow-up already sent.', { exact: true }).waitFor();
-  assert(await card.getByRole('button', { name: 'Prepare follow-up', exact: true }).isDisabled());
+  // The host saves the draft before the conversation re-renders with it.
+  await waitFor(
+    () => card.getByRole('button', { name: 'Prepare follow-up', exact: true }).isDisabled(),
+    'Preparing the follow-up is blocked',
+  );
   await card.scrollIntoViewIfNeeded();
   await page.screenshot({
     path: join(artifactDir, 'native-generated-chimera-follow-up.png'),
