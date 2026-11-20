@@ -192,7 +192,8 @@ export async function automationRequest<T>(
   sessionId?: string,
 ): Promise<T> {
   const cleanRoute = route.replace(/^\/+/, '');
-  const routePath = cleanRoute.split('?')[0]?.replace(/\/+$/, '') ?? '';
+  const queryAt = cleanRoute.indexOf('?');
+  const routePath = (queryAt === -1 ? cleanRoute : cleanRoute.slice(0, queryAt)).replace(/\/+$/, '');
   const resource = `/api/automation/${cleanRoute}${sessionId ? `${cleanRoute.includes('?') ? '&' : '?'}sessionId=${encodeURIComponent(sessionId)}` : ''}`;
   const response = await fetch(resource, {
     method,
