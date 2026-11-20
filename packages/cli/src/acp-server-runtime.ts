@@ -17,6 +17,7 @@ import type {
   McpServer,
   RunTurnApi,
   SessionConfigOption,
+  SessionSystemPrompt,
 } from '@wrongstack/acp/agent';
 import type { Config } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
@@ -174,12 +175,13 @@ export function createAcpServerRuntime(
       cwd: string,
       api?: RunTurnApi,
       mcpServers?: readonly McpServer[],
+      systemPrompt?: SessionSystemPrompt,
     ): Promise<Agent> => {
       if (!built) {
         const gate = await authGate();
         if (!gate.ok) throw new AcpServerConfigError(gate.message);
       }
-      return built!.wrapped(sessionId, cwd, api, mcpServers);
+      return built!.wrapped(sessionId, cwd, api, mcpServers, systemPrompt);
     },
     {
       disposeSession(sessionId: string): void {
@@ -217,7 +219,9 @@ export function createAcpServerRuntime(
       });
       const activeModel =
         (current ? selectedAcpModel(current) : null) ??
-        (modelOption ? parseAcpModelValue(modelOption.currentValue) : null);
+        (modelOption && typeof modelOption.currentValue === 'string'
+          ? parseAcpModelValue(modelOption.currentValue)
+          : null);
       const effortOption = activeModel
         ? await (options.buildEffortOption ?? buildAcpEffortOption)({
             config: built.config,

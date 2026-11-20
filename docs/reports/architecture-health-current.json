@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-20T16:18:29.744Z",
+  "generatedAt": "2026-11-20T16:34:43.311Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 48,
     "sourceFiles": 6404,
     "testFiles": 5583,
-    "sourceLines": 1321332,
+    "sourceLines": 1321439,
     "workspaceEdges": 251,
     "moduleEdges": 18939,
     "nonCommandSlashImports": 0,
@@ -35802,8 +35802,13 @@
   "nonCommandSlashImports": [],
   "hotspotCandidates": [
     {
+      "file": "packages/acp/src/agent/protocol-session-management.ts",
+      "lines": 708,
+      "relativeImports": 2
+    },
+    {
       "file": "packages/acp/src/agent/server-agent-turn.ts",
-      "lines": 720,
+      "lines": 730,
       "relativeImports": 4
     },
     {
@@ -36404,6 +36409,11 @@
       "relativeImports": 11
     },
     {
+      "file": "packages/acp/src/agent/server-agent-turn.ts",
+      "lines": 730,
+      "relativeImports": 4
+    },
+    {
       "file": "packages/tools/src/read.ts",
       "lines": 729,
       "relativeImports": 5
@@ -36417,11 +36427,6 @@
       "file": "packages/coordination/src/agent-monitor.ts",
       "lines": 724,
       "relativeImports": 1
-    },
-    {
-      "file": "packages/acp/src/agent/server-agent-turn.ts",
-      "lines": 720,
-      "relativeImports": 4
     },
     {
       "file": "packages/webui-server/src/server/provider-routes.ts",

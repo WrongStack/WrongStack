@@ -39,6 +39,11 @@ export function toWire(msg: WireMessage): ACPMessage {
 
 export const WRONGSTACK_VERSION = ACP_PACKAGE_VERSION;
 
+export interface SessionSystemPrompt {
+  mode: 'append' | 'override';
+  text: string;
+}
+
 export interface RunTurnInput {
   sessionId: string;
   /** Current session configuration, isolated from other sessions. */
@@ -61,6 +66,8 @@ export interface RunTurnInput {
    * told a successful `session/new` about work that never happened.
    */
   mcpServers?: readonly McpServer[] | undefined;
+  /** Optional client-provided system prompt (ACP v2 RFD). */
+  systemPrompt?: SessionSystemPrompt | undefined;
 }
 
 export interface RunTurnResult {
@@ -195,6 +202,8 @@ export interface SessionState {
    * different servers, and closing one must not tear down the other's.
    */
   mcpServers?: readonly McpServer[] | undefined;
+  /** Optional client-provided system prompt (ACP v2 RFD). */
+  systemPrompt?: SessionSystemPrompt | undefined;
 }
 
 /** MCP-style session mode advertised in current_mode_update. */
@@ -228,14 +237,15 @@ export interface SessionConfigOption {
    * model picker; it is never required for correctness.
    */
   category?: string | undefined;
-  type: 'select' | string;
-  currentValue: string;
-  /** Flat values, or values grouped under headers (never mixed). */
-  options: SessionConfigSelectOption[] | SessionConfigSelectGroup[];
+  type: 'select' | 'boolean' | string;
+  currentValue: string | boolean;
+  /** Flat values, or values grouped under headers (never mixed). Omitted for `boolean`. */
+  options?: SessionConfigSelectOption[] | SessionConfigSelectGroup[] | undefined;
 }
 
 /** Every selectable value of an option, flattening groups. */
 export function configOptionValues(option: SessionConfigOption): SessionConfigSelectOption[] {
+  if (!Array.isArray(option.options)) return [];
   const out: SessionConfigSelectOption[] = [];
   for (const entry of option.options) {
     if ('group' in entry && Array.isArray(entry.options)) out.push(...entry.options);

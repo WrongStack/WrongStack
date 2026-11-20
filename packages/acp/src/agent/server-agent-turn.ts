@@ -50,7 +50,12 @@
  */
 import type { Agent } from '@wrongstack/core/agent';
 import type { McpServer } from '../types/acp-v1.js';
-import type { RunTurn, RunTurnApi, RunTurnResult } from './protocol-handler.js';
+import type {
+  RunTurn,
+  RunTurnApi,
+  RunTurnResult,
+  SessionSystemPrompt,
+} from './protocol-handler.js';
 import { type RunPromptCommand, runPromptCommand } from './server-agent-commands.js';
 import {
   extractPlan,
@@ -88,6 +93,7 @@ export interface ACPServerAgentTurnOptions {
     cwd: string,
     api?: RunTurnApi,
     mcpServers?: readonly McpServer[],
+    systemPrompt?: SessionSystemPrompt,
   ) => Promise<Agent> | Agent;
   /**
    * Apply the session's current config selections (e.g. the chosen model) to
@@ -325,12 +331,15 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
     // Lazily create an agent for this session on the first turn.
     let agent = agents.get(input.sessionId);
     if (!agent) {
-      agent = await opts.agentFor(
-        input.sessionId,
-        input.cwd ?? process.cwd(),
-        api,
-        input.mcpServers,
-      );
+      agent = input.systemPrompt
+        ? await opts.agentFor(
+            input.sessionId,
+            input.cwd ?? process.cwd(),
+            api,
+            input.mcpServers,
+            input.systemPrompt,
+          )
+        : await opts.agentFor(input.sessionId, input.cwd ?? process.cwd(), api, input.mcpServers);
       if (!alive()) {
         // Disposed while the agent was being built: nothing else owns it.
         const stale = agent;
@@ -436,6 +445,7 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
           emit({
             sessionUpdate: 'tool_call',
             toolCallId: e.id,
+            name: e.name,
             title: toolTitle(e.name, e.input),
             kind: toolNameToKind(e.name),
             status: 'in_progress',

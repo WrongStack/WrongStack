@@ -17,6 +17,7 @@ import {
   errorToJsonRpc,
   openSessionConfigOptions,
   parseMcpServers,
+  parseSystemPrompt,
   resolveSessionCwd,
 } from './protocol-session-ops.js';
 
@@ -63,7 +64,7 @@ export async function handleSessionNewOp(
     );
     return false;
   }
-  const p = (params ?? {}) as { cwd?: unknown; mcpServers?: unknown };
+  const p = (params ?? {}) as { cwd?: unknown; mcpServers?: unknown; systemPrompt?: unknown };
   let cwd = ctx.defaultCwd;
   if (typeof p.cwd === 'string') {
     const resolved = await resolveSessionCwd(p.cwd);
@@ -75,6 +76,7 @@ export async function handleSessionNewOp(
   }
   const skipped: string[] = [];
   const mcpServers = parseMcpServers(p.mcpServers, (reason) => skipped.push(reason));
+  const systemPrompt = parseSystemPrompt(p.systemPrompt);
   const configOptions = await openSessionConfigOptions(ctx);
   // cwd validation yields; another request may have filled the last slot.
   if (ctx.sessions.size >= ctx.maxSessions) {
@@ -96,6 +98,7 @@ export async function handleSessionNewOp(
     createdAt: now,
     updatedAt: now,
     ...(mcpServers.length > 0 ? { mcpServers } : {}),
+    ...(systemPrompt ? { systemPrompt } : {}),
   };
   ctx.sessions.set(sessionId, state);
   ctx.onSessionNew(state);
@@ -178,6 +181,10 @@ export async function handleSessionLoadOp(
       const restoredMcpServers = Array.isArray(p.mcpServers)
         ? loadMcpServers
         : persisted.mcpServers;
+      const restoredSystemPrompt =
+        'systemPrompt' in p
+          ? parseSystemPrompt((p as { systemPrompt?: unknown }).systemPrompt)
+          : persisted.systemPrompt;
       const restored: SessionState = {
         id: sessionId,
         cwd: restoredCwd,
@@ -190,6 +197,7 @@ export async function handleSessionLoadOp(
         ...(restoredMcpServers && restoredMcpServers.length > 0
           ? { mcpServers: restoredMcpServers }
           : {}),
+        ...(restoredSystemPrompt ? { systemPrompt: restoredSystemPrompt } : {}),
       };
       ctx.sessions.set(sessionId, restored);
       ctx.seedFor?.(sessionId, persisted.history ?? []);
@@ -376,6 +384,11 @@ export async function handleSessionForkOp(
   const sessionId = `sess_${ctx.allocId()}`;
   const sourceModeId = liveSource?.modeId ?? persistedSource?.modeId ?? DEFAULT_MODE_ID;
   const sourceTitle = liveSource ? liveSource.title : persistedSource?.title;
+  const sourceSystemPrompt = liveSource ? liveSource.systemPrompt : persistedSource?.systemPrompt;
+  const forkedSystemPrompt =
+    'systemPrompt' in p
+      ? parseSystemPrompt((p as { systemPrompt?: unknown }).systemPrompt)
+      : sourceSystemPrompt;
   const forked: SessionState = {
     id: sessionId,
     cwd: forkCwd,
@@ -386,6 +399,7 @@ export async function handleSessionForkOp(
     updatedAt: now,
     ...(sourceTitle !== undefined ? { title: sourceTitle } : {}),
     ...(forkMcpServers && forkMcpServers.length > 0 ? { mcpServers: forkMcpServers } : {}),
+    ...(forkedSystemPrompt ? { systemPrompt: forkedSystemPrompt } : {}),
   };
   const sourceHistory = liveSource
     ? (ctx.replayFor?.(sourceId) ?? [])
@@ -485,6 +499,7 @@ export async function handleSessionPromptOp(
         signal: turnSignal.signal,
         cwd: session.cwd,
         ...(session.mcpServers ? { mcpServers: session.mcpServers } : {}),
+        ...(session.systemPrompt ? { systemPrompt: session.systemPrompt } : {}),
       },
       emit,
       api,
@@ -557,7 +572,6 @@ export async function handleSetConfigOptionOp(
   const p = (params ?? {}) as { sessionId?: unknown; configId?: unknown; value?: unknown };
   const sessionId = typeof p.sessionId === 'string' ? p.sessionId : null;
   const optionId = typeof p.configId === 'string' ? p.configId : null;
-  const value = typeof p.value === 'string' ? p.value : null;
   const session = sessionId ? ctx.sessions.get(sessionId) : undefined;
   const options = session?.configOptions ?? structuredClone([...ctx.configOptions]);
   const option = optionId ? options.find((o) => o.id === optionId) : undefined;
@@ -565,11 +579,17 @@ export async function handleSetConfigOptionOp(
     await sendSessionNotFound(ctx, id, sessionId);
     return false;
   }
-  if (!option || value === null || !configOptionValues(option).some((o) => o.value === value)) {
+  const validBoolean = option?.type === 'boolean' && typeof p.value === 'boolean';
+  const validSelect =
+    option !== undefined &&
+    option.type !== 'boolean' &&
+    typeof p.value === 'string' &&
+    configOptionValues(option).some((o) => o.value === p.value);
+  if (!option || (!validBoolean && !validSelect)) {
     await ctx.sendError(id, ACP_ERROR.INVALID_PARAMS, 'invalid configId or value');
     return false;
   }
-  option.currentValue = value;
+  option.currentValue = p.value as string | boolean;
   const nextOptions = ctx.sessionConfigOptions
     ? await openSessionConfigOptions(ctx, options)
     : options;

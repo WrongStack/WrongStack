@@ -16,7 +16,7 @@
  * there (see `acp-mcp-servers.ts`).
  */
 
-import type { McpServer, RunTurnApi } from '@wrongstack/acp/agent';
+import type { McpServer, RunTurnApi, SessionSystemPrompt } from '@wrongstack/acp/agent';
 import { EventBus, TOKENS } from '@wrongstack/contracts/kernel';
 import {
   type Logger,
@@ -90,6 +90,7 @@ export interface AcpServerAgentFactory {
     cwd: string,
     api?: RunTurnApi,
     mcpServers?: readonly McpServer[],
+    systemPrompt?: SessionSystemPrompt,
   ): Promise<Agent>;
   /** Stop and forget the MCP servers connected for this ACP session. */
   disposeSession(sessionId: string): void;
@@ -436,6 +437,7 @@ export function buildAcpServerAgentFactory(
     cwd: string,
     api?: RunTurnApi,
     mcpServers?: readonly McpServer[],
+    systemPrompt?: SessionSystemPrompt,
   ): Promise<Agent> {
     disposedSessions.delete(sessionId);
     const generation = (sessionGeneration.get(sessionId) ?? 0) + 1;
@@ -512,7 +514,7 @@ export function buildAcpServerAgentFactory(
     const session = createAcpSessionWriter(sessionId);
 
     const context = new Context({
-      systemPrompt: [],
+      systemPrompt: systemPrompt?.text ? [{ type: 'text', text: systemPrompt.text }] : [],
       provider,
       session,
       signal: new AbortController().signal,

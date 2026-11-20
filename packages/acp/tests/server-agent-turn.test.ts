@@ -1444,6 +1444,7 @@ describe('serverAgentTurn deterministic helpers', () => {
     expect(updates[0]).toMatchObject({
       sessionUpdate: 'tool_call',
       toolCallId: 'tc_loc_1',
+      name: 'read',
       kind: 'read',
       locations: [{ path: expect.stringMatching(/src[\\/]app\.ts$/), line: 42 }],
     });

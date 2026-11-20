@@ -52,7 +52,9 @@ export function selectedAcpModel(
   configOptions: readonly SessionConfigOption[],
 ): { providerId: string; modelId: string } | null {
   const option = configOptions.find((o) => o.id === ACP_MODEL_OPTION_ID && o.category === 'model');
-  return option ? parseAcpModelValue(option.currentValue) : null;
+  return option && typeof option.currentValue === 'string'
+    ? parseAcpModelValue(option.currentValue)
+    : null;
 }
 
 function switchedOff(config: Config): {
@@ -135,7 +137,9 @@ export function selectedAcpEffort(
   configOptions: readonly SessionConfigOption[],
 ): string | undefined {
   const option = configOptions.find((o) => o.category === 'thought_level');
-  if (!option || option.currentValue === EFFORT_KEEP) return undefined;
+  if (!option || typeof option.currentValue !== 'string' || option.currentValue === EFFORT_KEEP) {
+    return undefined;
+  }
   return option.currentValue;
 }
 

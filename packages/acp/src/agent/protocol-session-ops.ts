@@ -10,6 +10,7 @@ import {
   type RunTurnApi,
   type SessionConfigOption,
   type SessionMode,
+  type SessionSystemPrompt,
 } from './protocol-contract.js';
 
 /**
@@ -79,11 +80,44 @@ export async function openSessionConfigOptions(
   const fresh = structuredClone([...ctx.configOptions, ...dynamic]);
   for (const option of fresh) {
     const saved = persisted?.find((p) => p.id === option.id);
-    if (saved && configOptionValues(option).some((v) => v.value === saved.currentValue)) {
+    if (!saved) continue;
+    if (option.type === 'boolean') {
+      if (typeof saved.currentValue === 'boolean') option.currentValue = saved.currentValue;
+      continue;
+    }
+    if (
+      typeof saved.currentValue === 'string' &&
+      configOptionValues(option).some((v) => v.value === saved.currentValue)
+    ) {
       option.currentValue = saved.currentValue;
     }
   }
   return fresh;
+}
+
+/**
+ * Parse an optional client-provided `systemPrompt` (ACP v2 RFD).
+ * Accepts a plain string (defaults to `append`), `{ text, mode? }`, or
+ * `{ append }` / `{ override }`. Returns undefined for empty/invalid input.
+ */
+export function parseSystemPrompt(raw: unknown): SessionSystemPrompt | undefined {
+  if (typeof raw === 'string') {
+    const text = raw.trim();
+    return text.length > 0 ? { mode: 'append', text } : undefined;
+  }
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.override === 'string' && r.override.trim().length > 0) {
+    return { mode: 'override', text: r.override.trim() };
+  }
+  if (typeof r.append === 'string' && r.append.trim().length > 0) {
+    return { mode: 'append', text: r.append.trim() };
+  }
+  if (typeof r.text === 'string' && r.text.trim().length > 0) {
+    const mode = r.mode === 'override' ? 'override' : 'append';
+    return { mode, text: r.text.trim() };
+  }
+  return undefined;
 }
 
 /**

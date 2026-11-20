@@ -54,6 +54,7 @@ export type {
   SessionConfigSelectOption,
   SessionPersistence,
   SessionState,
+  SessionSystemPrompt,
 } from './protocol-contract.js';
 export { WRONGSTACK_VERSION };
 
@@ -80,6 +81,7 @@ export class ACPProtocolHandler {
   private readonly store: SessionPersistence | undefined;
 
   private initialized = false;
+  private clientProtocolVersion: number | undefined;
   private clientCapabilities: ClientCapabilities = {};
   private readonly sessions = new Map<string, SessionState>();
   private nextId = 1;
@@ -353,10 +355,14 @@ export class ACPProtocolHandler {
       protocolVersion?: unknown;
       clientCapabilities?: ClientCapabilities;
     };
+    if (typeof p.protocolVersion === 'number' && Number.isFinite(p.protocolVersion)) {
+      this.clientProtocolVersion = p.protocolVersion;
+    }
     if (p.clientCapabilities && typeof p.clientCapabilities === 'object') {
       this.clientCapabilities = p.clientCapabilities;
     }
     this.initialized = true;
+    void this.clientProtocolVersion;
     await this.sendResult(
       id,
       buildInitializeResult(this.agentName, this.agentVersion, this.clientCapabilities),

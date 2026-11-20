@@ -2,8 +2,12 @@
   "schemaVersion": 1,
   "thresholdLines": 701,
   "files": {
+    "packages/acp/src/agent/protocol-session-management.ts": {
+      "lines": 708,
+      "relativeImports": 2
+    },
     "packages/acp/src/agent/server-agent-turn.ts": {
-      "lines": 720,
+      "lines": 730,
       "relativeImports": 4
     },
     "packages/acp/src/client/acp-session.ts": {

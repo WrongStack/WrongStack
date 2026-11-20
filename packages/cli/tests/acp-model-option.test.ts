@@ -77,7 +77,7 @@ describe('ACP model option', () => {
     const option = await build({ provider: 'custom', model: 'local-1' }, [
       { id: 'openai', family: 'openai', models: ['gpt-x'] },
     ] as Providers);
-    expect(option?.options[0]).toEqual({
+    expect(option?.options?.[0]).toEqual({
       group: 'custom',
       name: 'custom',
       options: [{ value: 'custom/local-1', name: 'local-1' }],

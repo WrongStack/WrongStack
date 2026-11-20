@@ -96,7 +96,11 @@ function isFlatSelectOption(value: Record<string, unknown>): boolean {
 function isConfigOption(value: unknown): value is SessionConfigOption {
   if (!isRecord(value)) return false;
   if (typeof value['id'] !== 'string' || typeof value['name'] !== 'string') return false;
-  if (typeof value['type'] !== 'string' || typeof value['currentValue'] !== 'string') return false;
+  if (typeof value['type'] !== 'string') return false;
+  if (value['type'] === 'boolean') {
+    return typeof value['currentValue'] === 'boolean';
+  }
+  if (typeof value['currentValue'] !== 'string') return false;
   const options = value['options'];
   return Array.isArray(options) && options.every(isConfigSelectEntry);
 }
@@ -197,6 +201,17 @@ function parsePersistedSession(raw: string): PersistedSession | null {
   if (mcpServers !== undefined) {
     if (!isMcpServerList(mcpServers)) return null;
     session.mcpServers = mcpServers;
+  }
+  const systemPrompt = parsed['systemPrompt'];
+  if (systemPrompt !== undefined) {
+    if (
+      !isRecord(systemPrompt) ||
+      (systemPrompt['mode'] !== 'append' && systemPrompt['mode'] !== 'override') ||
+      typeof systemPrompt['text'] !== 'string'
+    ) {
+      return null;
+    }
+    session.systemPrompt = { mode: systemPrompt['mode'], text: systemPrompt['text'] };
   }
   const history = parsed['history'];
   if (history !== undefined) {
@@ -329,6 +344,7 @@ export class ACPSessionStore {
           ...(state.mcpServers && state.mcpServers.length > 0
             ? { mcpServers: state.mcpServers }
             : {}),
+          ...(state.systemPrompt ? { systemPrompt: state.systemPrompt } : {}),
           ...(history && history.length > 0 ? { history } : {}),
         });
         try {

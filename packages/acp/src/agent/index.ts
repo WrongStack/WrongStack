@@ -12,6 +12,7 @@ export type {
   SessionConfigSelectGroup,
   SessionConfigSelectOption,
   SessionPersistence,
+  SessionSystemPrompt,
 } from './protocol-handler.js';
 export { ACPProtocolHandler } from './protocol-handler.js';
 export type { ACPServerAgentTurnOptions } from './server-agent-turn.js';

@@ -379,4 +379,70 @@ describe('session config options built per session', () => {
     await call(5, 'session/delete', { sessionId: firstId });
     expect(deleted).toEqual([{ id: firstId, cwd: CWD }]);
   });
+
+  it('supports boolean config options and client-provided systemPrompt (append/override) across cold load', async () => {
+    const store = memoryStore();
+    const seenPrompts: Array<{ mode: string; text: string } | undefined> = [];
+    const boolOption: SessionConfigOption = {
+      id: 'auto_verify',
+      name: 'Auto Verify',
+      type: 'boolean',
+      currentValue: false,
+    };
+    const first = makeHandler({
+      store,
+      sessionConfigOptions: async () => [boolOption],
+      runTurn: async (input) => {
+        seenPrompts.push(input.systemPrompt);
+        return { stopReason: 'end_turn' };
+      },
+    });
+    await first.call(1, 'initialize', { protocolVersion: 2 });
+    const created = await first.call(2, 'session/new', {
+      cwd: CWD,
+      mcpServers: [],
+      systemPrompt: { mode: 'override', text: 'Always answer in Turkish.' },
+    });
+    const sessionId = created.result?.['sessionId'] as string;
+
+    // Toggle boolean config option to true; reject non-boolean values.
+    const bad = await first.call(3, 'session/set_config_option', {
+      sessionId,
+      configId: 'auto_verify',
+      value: 'true',
+    });
+    expect(bad.error?.code).toBe(-32602);
+
+    const toggled = await first.call(4, 'session/set_config_option', {
+      sessionId,
+      configId: 'auto_verify',
+      value: true,
+    });
+    expect(
+      ((toggled.result?.['configOptions'] ?? []) as SessionConfigOption[])[0]?.currentValue,
+    ).toBe(true);
+
+    await first.call(5, 'session/prompt', { sessionId, prompt: [{ type: 'text', text: 'hi' }] });
+    expect(seenPrompts[0]).toEqual({ mode: 'override', text: 'Always answer in Turkish.' });
+
+    // Cold load preserves both boolean option and systemPrompt.
+    const second = makeHandler({
+      store,
+      sessionConfigOptions: async () => [boolOption],
+      runTurn: async (input) => {
+        seenPrompts.push(input.systemPrompt);
+        return { stopReason: 'end_turn' };
+      },
+    });
+    await second.call(1, 'initialize', { protocolVersion: 1 });
+    const loaded = await second.call(2, 'session/load', { sessionId, cwd: CWD, mcpServers: [] });
+    expect(
+      ((loaded.result?.['configOptions'] ?? []) as SessionConfigOption[])[0]?.currentValue,
+    ).toBe(true);
+    await second.call(3, 'session/prompt', {
+      sessionId,
+      prompt: [{ type: 'text', text: 'again' }],
+    });
+    expect(seenPrompts[1]).toEqual({ mode: 'override', text: 'Always answer in Turkish.' });
+  });
 });
