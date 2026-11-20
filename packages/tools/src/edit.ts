@@ -206,9 +206,18 @@ export const editTool: Tool<EditInput, EditOutput> = {
       const updated = await fs.stat(absPath);
       const mtimeTolerance = process.platform === 'win32' ? 2000 : 1;
       const originalHash = sha256hex(original);
+      // The guard asks "did the file change since the model read it?", so it
+      // runs only when a read is recorded. A file whose only record is a tool's
+      // own write (`edit`/`write`/`patch`) is in the same state as one nobody
+      // read: it goes through the auto-read path and its ambiguity checks.
+      // Without this a later out-of-band write (a formatter, `sed -i`) blocked
+      // every edit for good where the caller reads with tools this Context
+      // never sees — the WrongForge leader route offers no `read` (#444).
+      const refreshHint =
+        'Re-read it first (a `read` of any range refreshes the record), then retry the edit.';
       // Optional call: embedders and older test fixtures may hand in a
       // duck-typed Context without hash tracking — they fall back to mtime.
-      const lastReadHash = ctx.lastReadHash?.(absPath);
+      const lastReadHash = autoRead ? undefined : ctx.lastReadHash?.(absPath);
       if (lastReadHash !== undefined) {
         // Content hash is the authoritative arbiter when available: it closes
         // the mtime tolerance window (an external write within 2 s of the read
@@ -216,16 +225,22 @@ export const editTool: Tool<EditInput, EditOutput> = {
         // mtime bumps (touch, checkout of identical content).
         if (lastReadHash !== originalHash) {
           throw new ToolValidationError({
-            message: `edit: file "${input.path}" was modified externally. Re-read it first.`,
+            message:
+              `edit: file "${input.path}" was modified externally: its content ` +
+              `(sha256 ${originalHash.slice(0, 12)}) differs from the last read ` +
+              `(sha256 ${lastReadHash.slice(0, 12)}). ${refreshHint}`,
             field: 'path',
             context: { reason: 'external_modification' },
           });
         }
-      } else {
+      } else if (!autoRead) {
         const lastReadMtime = ctx.lastReadMtime?.(absPath);
         if (lastReadMtime !== undefined && updated.mtimeMs > lastReadMtime + mtimeTolerance) {
           throw new ToolValidationError({
-            message: `edit: file "${input.path}" was modified externally. Re-read it first.`,
+            message:
+              `edit: file "${input.path}" was modified externally: its mtime ` +
+              `(${Math.round(updated.mtimeMs)}) is newer than at the last read ` +
+              `(${Math.round(lastReadMtime)}). ${refreshHint}`,
             field: 'path',
             context: { reason: 'external_modification' },
           });

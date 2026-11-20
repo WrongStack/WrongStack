@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 534,
+      "files": 535,
       "typeOnly": 400,
-      "runtimeOrMixed": 166
+      "runtimeOrMixed": 167
     },
     "@wrongstack/core/boot": {
       "files": 6,
@@ -2216,6 +2216,12 @@
       "file": "packages/tools/tests/design-reference-crawl.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/edit-stale-guard.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
