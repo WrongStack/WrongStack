@@ -398,9 +398,15 @@ export async function exerciseNativeModelCatalog({ page, rpc, waitFor, artifactD
       .getByRole('button', { name: 'Model catalog', exact: true })
       .click();
     await catalog.getByRole('button', { name: 'Refresh catalog', exact: true }).click();
+    // The host may still offer its own providers (the ACP leader when an agent such as Claude
+    // Code is installed), so the removed one must be gone, not the whole list.
+    const providerSelect = catalog.getByLabel('Catalog provider', { exact: true });
     await waitFor(
       async () =>
-        (await catalog.getByLabel('Catalog provider', { exact: true }).inputValue()) === '',
+        (await providerSelect.inputValue()) !== providerId &&
+        !(await providerSelect
+          .locator('option')
+          .evaluateAll((options, id) => options.some((option) => option.value === id), providerId)),
       'Removed provider catalog cleared',
     );
     await call('provider.add', {
@@ -412,9 +418,19 @@ export async function exerciseNativeModelCatalog({ page, rpc, waitFor, artifactD
     });
     await catalog.getByRole('button', { name: 'Refresh catalog', exact: true }).click();
     await waitFor(
-      async () =>
-        (await catalog.getByLabel('Catalog provider', { exact: true }).inputValue()) === providerId,
-      'Empty catalog discovers newly saved connection',
+      () =>
+        providerSelect
+          .locator('option')
+          .evaluateAll((options, id) => options.some((option) => option.value === id), providerId),
+      'Catalog discovers newly saved connection',
+    );
+    // A list left empty by the removal selects the new connection itself; next to a host
+    // provider it is chosen like any other.
+    if ((await providerSelect.inputValue()) !== providerId)
+      await providerSelect.selectOption(providerId);
+    await waitFor(
+      async () => (await providerSelect.inputValue()) === providerId,
+      'Newly saved connection opens in the catalog',
     );
     assert.equal((await rpc('snapshot')).sessions.length, count);
   } finally {
