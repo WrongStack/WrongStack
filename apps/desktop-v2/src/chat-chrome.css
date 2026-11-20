@@ -54,6 +54,24 @@
   font-size: 11.5px;
   letter-spacing: 0;
 }
+/* A narrow window keeps the status bar on one line (see session-status.css): a second row
+   would take its height from the conversation. The pill becomes its dot and words, no wider
+   than the plain label it replaced, and the elapsed time goes (the running turn's card still
+   shows it). */
+@media (max-width: 900px) {
+  .native-usage.session-status {
+    column-gap: 12px;
+  }
+  .native-usage > .run-status-pill {
+    gap: 6px;
+    padding: 0;
+    border-color: transparent;
+    background: none;
+  }
+  .native-usage > .run-status-pill > small {
+    display: none;
+  }
+}
 
 /* Composer controls with a value (model, effort, autonomy, mode) read as pills. */
 .native-composer .composer-toolbar .composer-chip.effort-control,
