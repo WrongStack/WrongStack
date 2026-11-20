@@ -562,7 +562,7 @@ const cleanupOwnedProcesses = async () => {
   assert.equal(dirname(resolve(dir)).toLowerCase(), resolve(tmpdir()).toLowerCase());
   assert.ok(basename(dir).startsWith('wrongstack-desktop-v2-'));
   const code =
-    "$pattern=[regex]::Escape($env:WRONGSTACK_DESKTOP_TEST_DIR); Get-CimInstance Win32_Process -Filter \"Name='msedgewebview2.exe' OR Name='wrongstack-engine.exe' OR Name='wrongstack-session-host.exe'\" | Where-Object { $_.CommandLine -match $pattern } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }";
+    "$pattern=[regex]::Escape($env:WRONGSTACK_DESKTOP_TEST_DIR); Get-CimInstance Win32_Process -Filter \"Name='msedgewebview2.exe' OR Name='wrongstack-engine.exe' OR Name='wrongstack-session-host.exe' OR Name='bun.exe' OR Name='node.exe'\" | Where-Object { $_.CommandLine -match $pattern } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }";
   let cleanupError = '';
   const cleanup = spawn(
     join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe'),
@@ -2681,6 +2681,8 @@ try {
   if (process.env.WRONGSTACK_DESKTOP_TEST_KEEP_TRANSCRIPTS === '1') await copyTranscripts();
   // WebView2 can outlive a forcibly terminated UI. Terminate only browser
   // processes and detached engine daemons whose command lines name this test's unique directory.
+  // A development engine runs its project daemons (SAGE, Kanban, index, Chronicle) under
+  // bun/node with this directory as their project root; left running they lock it (EBUSY).
   await cleanupOwnedProcesses();
   await rm(dir, { recursive: true, force: true, maxRetries: 25, retryDelay: 200 });
 }
