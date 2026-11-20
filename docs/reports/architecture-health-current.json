@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-20T16:09:14.719Z",
+  "generatedAt": "2026-11-20T16:14:55.791Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6404,
-    "testFiles": 5582,
-    "sourceLines": 1321318,
+    "testFiles": 5583,
+    "sourceLines": 1321330,
     "workspaceEdges": 251,
     "moduleEdges": 18939,
     "nonCommandSlashImports": 0,
@@ -387,7 +387,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 558,
-      "testFiles": 400,
+      "testFiles": 401,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -406,7 +406,7 @@
         {
           "path": "apps/desktop-v2/tsconfig.test.json",
           "error": null,
-          "testFiles": 400
+          "testFiles": 401
         }
       ]
     },
@@ -3098,6 +3098,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/refinement-recovery.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/render-error-boundary-reset.test.tsx",
         "projects": [
           "root-node"
         ]

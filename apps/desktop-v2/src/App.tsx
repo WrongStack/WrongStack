@@ -177,7 +177,7 @@ export function App() {
         )}
         <main className="main-content">
           <RenderErrorBoundary
-            key={`${section}:${vm.project ?? ''}:${currentSession?.id ?? ''}:${vm.projectPage}`}
+            resetKey={`${section}:${vm.project ?? ''}:${currentSession?.id ?? ''}:${vm.projectPage}`}
             onHome={() => {
               setSection('fleet');
               setSelected(null);
