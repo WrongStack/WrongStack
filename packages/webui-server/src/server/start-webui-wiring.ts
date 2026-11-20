@@ -147,6 +147,7 @@ export function wireStandaloneWebuiRuntime(
     clients,
     updateAutoCompactionMaxContext,
     adoptSavedDefault: (provider, model) => switchModelForTool(provider, model),
+    followSavedDefault: opts.followSavedDefault,
   });
 
   // WrongProxy instant-apply: rebuild the live provider when the proxy

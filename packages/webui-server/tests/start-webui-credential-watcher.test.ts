@@ -116,7 +116,11 @@ describe('setupWebuiCredentialWatcher', () => {
   });
 
   describe('an engine booted before any provider was set up (#448)', () => {
-    function boot(activeProviderId: string, saved: Record<string, unknown>) {
+    function boot(
+      activeProviderId: string,
+      saved: Record<string, unknown>,
+      followSavedDefault?: () => boolean,
+    ) {
       let notify: ((snapshot: Record<string, unknown>) => Promise<void>) | undefined;
       mocks.watchProviderConfig.mockImplementation((_path, _vault, callback) => {
         notify = callback;
@@ -150,6 +154,7 @@ describe('setupWebuiCredentialWatcher', () => {
         loadConfig: async () => saved as never,
         updateAutoCompactionMaxContext: vi.fn(async () => {}),
         adoptSavedDefault,
+        followSavedDefault,
       });
       return {
         notify: () => notify?.({ providers: saved['providers'] }),
@@ -193,6 +198,27 @@ describe('setupWebuiCredentialWatcher', () => {
 
       expect(engine.adoptSavedDefault).not.toHaveBeenCalled();
       expect(engine.context.provider.id).not.toBe('local');
+    });
+
+    it('an unclaimed spare follows a changed default; a claimed one does not', async () => {
+      let unclaimed = true;
+      const engine = boot('other', saved, () => unclaimed);
+
+      await engine.notify();
+      expect(engine.adoptSavedDefault).toHaveBeenCalledWith('local', 'm1');
+
+      unclaimed = false;
+      await engine.notify(); // the default moves on after the claim
+      expect(engine.adoptSavedDefault).toHaveBeenCalledTimes(1);
+    });
+
+    it('an unclaimed spare already on the saved default is left as it is', async () => {
+      const engine = boot('local', saved, () => true);
+      engine.context.model = 'm1';
+
+      await engine.notify();
+
+      expect(engine.adoptSavedDefault).not.toHaveBeenCalled();
     });
   });
 

@@ -50,6 +50,8 @@ async function forkSession(source: string): Promise<string> {
     await store.dispose?.();
   }
 }
+// Until a conversation claims it, a spare takes a default model saved after it booted.
+let spareUnclaimed = Boolean(spareClaimFile);
 let restoreId = resumeSource;
 if (resumeIndex >= 0) {
   if (!resumeSource || !readyFile)
@@ -74,6 +76,7 @@ await startWebUI({
   appVersion: (globalThis as Record<symbol, unknown>)[Symbol.for('wrongstack.standalone-build')]
     ? version
     : undefined,
+  ...(spareClaimFile ? { followSavedDefault: () => spareUnclaimed } : {}),
 });
 if (spareClaimFile && readyFile) {
   const { writeFile } = await import('node:fs/promises');
@@ -89,6 +92,8 @@ if (spareClaimFile && readyFile) {
   const waited = await waitForSpareClaim(spareClaimFile, {
     maxWaitMs: spareMaxAge(process.env['WRONGSTACK_DESKTOP_SPARE_MAX_AGE_MS']),
   });
+  // Claimed: from here a changed default is the user's choice for other conversations.
+  spareUnclaimed = false;
   // The host asks a spare it no longer wants to stop the same graceful way.
   const claim = waited && !waited.stop ? waited : await stopUnclaimed();
   try {

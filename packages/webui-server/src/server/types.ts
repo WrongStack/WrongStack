@@ -41,6 +41,13 @@ export interface WebUIOptions {
    * that records its boots passes it (the desktop engine logs it); nothing is printed otherwise.
    */
   reportBootTiming?: ((timing: WebuiBootTiming) => void) | undefined;
+  /**
+   * While this returns true, a saved default provider/model that changes on disk becomes this
+   * engine's own. The desktop passes it for a spare engine until a conversation claims it: the
+   * spare becomes that conversation as-is, so it has to start from the current default, not the
+   * one saved when it booted.
+   */
+  followSavedDefault?: (() => boolean) | undefined;
   /** Runtime surface label used by instance registration and memory diagnostics. */
   surface?: 'webui' | 'vibeui' | undefined;
   /** Policy authority for terminal/process/native-shell actions. */

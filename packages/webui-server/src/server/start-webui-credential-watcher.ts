@@ -55,9 +55,12 @@ export function setupWebuiCredentialWatcher(options: {
   updateAutoCompactionMaxContext: (provider: WebuiDeps['provider']) => Promise<void>;
   /**
    * Switch the engine's own session to a provider+model, the way `model.switch`
-   * does; used only while the engine still runs the setup stub.
+   * does; used while the engine still runs the setup stub, or follows the
+   * saved default (`followSavedDefault`).
    */
   adoptSavedDefault?: ((provider: string, model: string) => Promise<void>) | undefined;
+  /** True while a changed saved default should become this engine's own (an unclaimed desktop spare). */
+  followSavedDefault?: (() => boolean) | undefined;
 }): (() => void) | undefined {
   if (process.env['WRONGSTACK_DISABLE_CONFIG_WATCH'] === '1') {
     return undefined;
@@ -72,6 +75,7 @@ export function setupWebuiCredentialWatcher(options: {
     loadConfig,
     updateAutoCompactionMaxContext,
     adoptSavedDefault,
+    followSavedDefault,
   } = options;
   let lastActiveCfg = activeProviderConfigKey(state.getConfig(), deps.context.provider.id);
   let lastUiLocale: string | undefined = state.getConfig().uiLocale;
@@ -128,12 +132,16 @@ export function setupWebuiCredentialWatcher(options: {
       // setup stub. Once the saved config names a provider and model, take
       // them: a Desktop spare engine warmed before the user picked a default is
       // claimed for a new conversation as-is, and it announced "unconfigured",
-      // which the desktop shows as "Connect a provider" (#448).
+      // which the desktop shows as "Connect a provider" (#448). An unclaimed
+      // spare follows a changed default the same way, or the conversation it
+      // becomes starts on the default saved when it booted.
       if (
-        activeId === UNCONFIGURED_PROVIDER_ID &&
         adoptSavedDefault &&
         nextConfig.provider &&
-        nextConfig.model
+        nextConfig.model &&
+        (activeId === UNCONFIGURED_PROVIDER_ID ||
+          (followSavedDefault?.() === true &&
+            (nextConfig.provider !== activeId || nextConfig.model !== deps.context.model)))
       ) {
         try {
           await adoptSavedDefault(nextConfig.provider, nextConfig.model);
