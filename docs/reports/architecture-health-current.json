@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-20T22:12:37.622Z",
+  "generatedAt": "2026-11-20T22:17:01.024Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6404,
+    "sourceFiles": 6405,
     "testFiles": 5591,
-    "sourceLines": 1321602,
+    "sourceLines": 1321609,
     "workspaceEdges": 251,
-    "moduleEdges": 18939,
+    "moduleEdges": 18941,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -693,7 +693,7 @@
     {
       "name": "@wrongstack/plugins",
       "dir": "packages/plugins",
-      "sourceFiles": 155,
+      "sourceFiles": 156,
       "testFiles": 140,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -35998,11 +35998,6 @@
       "file": "packages/plugins/src/audit/index.ts",
       "lines": 716,
       "relativeImports": 0
-    },
-    {
-      "file": "packages/plugins/src/dep-guard/index.ts",
-      "lines": 717,
-      "relativeImports": 5
     },
     {
       "file": "packages/project-surfaces/src/analytics/AnalyticsDashboard.tsx",

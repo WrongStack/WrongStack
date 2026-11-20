@@ -122,10 +122,6 @@
       "lines": 716,
       "relativeImports": 0
     },
-    "packages/plugins/src/dep-guard/index.ts": {
-      "lines": 717,
-      "relativeImports": 5
-    },
     "packages/project-surfaces/src/analytics/AnalyticsDashboard.tsx": {
       "lines": 741,
       "relativeImports": 6
