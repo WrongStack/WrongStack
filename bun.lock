@@ -671,6 +671,7 @@
         "@wrongstack/hq": "workspace:*",
         "@wrongstack/persistence": "workspace:*",
         "@wrongstack/primitives": "workspace:*",
+        "@wrongstack/tools": "workspace:*",
         "@wrongstack/wrongmemory-client": "workspace:*",
       },
       "devDependencies": {

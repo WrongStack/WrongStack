@@ -475,6 +475,10 @@ const profiles = {
       '@wrongstack/core',
       '@wrongstack/core/utils',
       '@wrongstack/persistence',
+      // The daemon's symbol-span reader loads it on demand: bundling it would copy the
+      // codebase index (and break its wasm lookups relative to its own dist).
+      '@wrongstack/tools',
+      '@wrongstack/tools/codebase-index',
       '@wrongstack/wrongmemory-client',
     ],
   },

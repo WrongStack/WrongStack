@@ -14,6 +14,7 @@ import {
 } from '@wrongstack/core/utils';
 import { bindProjectEndpoint, createProjectMetadataReasserter } from '@wrongstack/persistence';
 import { WRONGSTACK_RUNTIME_VERSION } from '@wrongstack/primitives';
+import { codebaseSymbolSpanReader } from './anchors/codebase-span-reader.js';
 import { SqliteMemoryPort } from './memory-port.js';
 import { detectNinepStoreMount, ninepStoreRefusalMessage, readSelfMounts } from './mount-probe.js';
 import { dispatch as dispatchSageOperation } from './project-server-dispatch.js';
@@ -127,6 +128,8 @@ const store = new SqliteMemoryPort({
   directory: parsed.directory,
   events,
   operationContext: () => requestContext.getStore(),
+  // A symbol anchor records and rechecks its symbol's span, not only its name (#418).
+  symbolSpans: codebaseSymbolSpanReader(projectRoot),
 }) as CompleteSageStore;
 const hygiene = createHygieneRunner(store, {
   statePath: path.join(storageRoot, 'hygiene', 'maintenance.json'),

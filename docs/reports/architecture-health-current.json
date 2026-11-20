@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-20T15:58:21.546Z",
+  "generatedAt": "2026-11-20T16:02:11.527Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6403,
-    "testFiles": 5581,
-    "sourceLines": 1321300,
-    "workspaceEdges": 250,
-    "moduleEdges": 18937,
+    "sourceFiles": 6404,
+    "testFiles": 5582,
+    "sourceLines": 1321324,
+    "workspaceEdges": 251,
+    "moduleEdges": 18939,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -871,8 +871,8 @@
     {
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
-      "sourceFiles": 178,
-      "testFiles": 180,
+      "sourceFiles": 179,
+      "testFiles": 181,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -880,6 +880,7 @@
         "@wrongstack/hq",
         "@wrongstack/persistence",
         "@wrongstack/primitives",
+        "@wrongstack/tools",
         "@wrongstack/wrongmemory-client"
       ],
       "tsconfigs": [
@@ -891,7 +892,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 180
+          "testFiles": 181
         }
       ]
     },
@@ -21871,6 +21872,12 @@
       },
       {
         "file": "packages/sage/tests/symbol-span-baseline.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/symbol-span-codebase-reader.test.ts",
         "projects": [
           "root-node"
         ]
