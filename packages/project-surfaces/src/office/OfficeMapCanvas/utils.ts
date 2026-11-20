@@ -280,6 +280,7 @@ export function mapAgentStatus(raw: string | undefined): ClientStatus {
     case 'completed':
       return 'completed';
     case 'failed':
+    case 'timeout':
     case 'error':
       return 'error';
     case 'stopped':

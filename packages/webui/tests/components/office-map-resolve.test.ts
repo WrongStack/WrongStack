@@ -266,6 +266,19 @@ describe('resolveClients merge + retention fold', () => {
     });
   });
 
+  it.each([
+    ['failed', 'error'],
+    ['timeout', 'error'],
+  ] as const)('shows a recently finished %s worker as %s, not idle', (status, expected) => {
+    const recentlyFinished = new Map([
+      ['w1', { agent: fleetAgent({ status }), finishedAt: NOW - 60_000 }],
+    ]);
+
+    const [client] = resolveClients([SESSION], new Map(), [], recentlyFinished, NOW);
+
+    expect(client?.agents.find((agent) => agent.serverId === 'w1')?.status).toBe(expected);
+  });
+
   it('prunes retention entries past the grace window', () => {
     const recentlyFinished = new Map([
       [
