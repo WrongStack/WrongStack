@@ -144,7 +144,8 @@ export const VCS_INFRA_DANGER_RULES: readonly DangerRule[] = [
   // discarded commits back. F12: force branch-ref manipulation (`switch
   // -C/--force-create`, `checkout -B`, `branch -f/-D/-M/-C` and verb+force
   // combos) is included — it discards a branch's unique commits (core F10
-  // parity). Branch switches, `restore --staged`, `stash`
+  // parity). F14: `worktree remove --force` (dirty checkout deleted,
+  // uncommitted work lost — core F13 parity). Branch switches, `restore --staged`, `stash`
   // push/pop/list and plain `gc` stay safe.
   {
     id: 'git-discard-local-work',
@@ -237,6 +238,17 @@ export const VCS_INFRA_DANGER_RULES: readonly DangerRule[] = [
           const verb = rest.find((a) => !a.startsWith('-'));
           return verb === 'drop' || verb === 'clear';
         }
+        case 'worktree': {
+          // F14 (core F13 parity): `worktree remove --force` deletes the
+          // worktree checkout even when dirty — uncommitted work is lost with
+          // no reflog for it (probe-verified). Without --force git refuses a
+          // dirty worktree and a clean removal loses nothing; the other verbs
+          // (add/list/lock/unlock/move/prune/repair) discard no work. remove's
+          // only f-option is --force, so --f… is unambiguous (minLen 1).
+          const verb = rest.find((a) => !a.startsWith('-'));
+          if (verb !== 'remove') return false;
+          return rest.some((a) => forceFlag(a, 1));
+        }
         case 'reflog':
           return rest.includes('expire') || rest.includes('delete');
         case 'gc':
@@ -253,7 +265,7 @@ export const VCS_INFRA_DANGER_RULES: readonly DangerRule[] = [
       }
     },
     reason:
-      'git checkout/switch/branch/restore/stash/reflog/gc discarding local work (not recoverable)',
+      'git checkout/switch/branch/restore/stash/worktree/reflog/gc discarding local work (not recoverable)',
   },
 
   // ----- package publish (destructive — public, irreversible) -----

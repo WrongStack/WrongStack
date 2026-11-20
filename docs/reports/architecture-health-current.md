@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-20T21:55:19.049Z
+**Generated:** 2026-11-20T21:59:50.660Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6404 |
-| Production source lines | 1321439 |
-| Test files | 5583 |
+| Production source lines | 1321464 |
+| Test files | 5585 |
 | Workspace dependency edges | 251 |
 | Relative module edges | 18939 |
 | Non-command slash imports | 0 |
@@ -37,7 +37,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/codebase-index-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
 | @wrongstack/contracts | 132 | 6 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 193 | 202 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/core | 661 | 736 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/core | 661 | 737 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop-v2 | 558 | 401 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 63 | 20 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 24 | 30 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
@@ -64,7 +64,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/security-scanner | 21 | 34 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/techstack | 55 | 65 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 28 | 46 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
-| @wrongstack/tools | 402 | 402 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/tools | 402 | 403 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 517 | 458 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 18 | 29 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/vibeui | 100 | 42 | @wrongstack/webui-protocol |

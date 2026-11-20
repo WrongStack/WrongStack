@@ -169,6 +169,8 @@ export function hasGitHistoryRewrite(command: string): boolean {
  *     `switch -f|--discard-changes`, `restore <paths>` (default --worktree;
  *     `--staged` alone only unstages and stays ungated);
  *   - `stash drop|clear`;
+ *   - `worktree remove --force` (deletes a dirty checkout; uncommitted work
+ *     lost, no reflog — plain remove refuses dirty worktrees and stays safe);
  *   - recovery-data destruction: `reflog expire|delete`,
  *     `gc --prune=now|all`, `prune` — after which not even the reflog can
  *     bring discarded commits back.
@@ -215,6 +217,17 @@ function discardsLocalWork(args: readonly string[]): boolean {
     case 'stash': {
       const verb = rest.find((arg) => !arg.startsWith('-'));
       return verb === 'drop' || verb === 'clear';
+    }
+    case 'worktree': {
+      // F13: `worktree remove --force` deletes the worktree checkout even when
+      // dirty — uncommitted work is lost with no reflog for it (probe-verified).
+      // Without --force git refuses a dirty worktree and a clean removal loses
+      // nothing; the other verbs (add/list/lock/move/prune/repair) discard no
+      // work. remove's only f-option is --force, so --f… is unambiguous
+      // (minLen 1).
+      const verb = rest.find((arg) => !arg.startsWith('-'));
+      if (verb !== 'remove') return false;
+      return rest.some((arg) => forceFlag(arg, 1));
     }
     case 'reflog':
       return rest.includes('expire') || rest.includes('delete');

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-20T21:55:19.049Z",
+  "generatedAt": "2026-11-20T21:59:50.660Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6404,
-    "testFiles": 5583,
-    "sourceLines": 1321439,
+    "testFiles": 5585,
+    "sourceLines": 1321464,
     "workspaceEdges": 251,
     "moduleEdges": 18939,
     "nonCommandSlashImports": 0,
@@ -362,7 +362,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 661,
-      "testFiles": 736,
+      "testFiles": 737,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -379,7 +379,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 736
+          "testFiles": 737
         }
       ]
     },
@@ -1020,7 +1020,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 402,
-      "testFiles": 402,
+      "testFiles": 403,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -1039,7 +1039,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 402
+          "testFiles": 403
         }
       ]
     },
@@ -13411,6 +13411,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/security/yolo-worktree-remove-force.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/semantic-lint.test.ts",
         "projects": [
           "root-node"
@@ -24206,6 +24212,12 @@
       },
       {
         "file": "packages/tools/tests/danger-vcs-long-option-abbrev.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/danger-worktree-remove.test.ts",
         "projects": [
           "root-node"
         ]
