@@ -48,6 +48,26 @@ export function globalRootForConfigPath(filePath: string): string {
 }
 
 /**
+ * What is wrong with an unparsable config, without its content. Node and Bun
+ * quote a fragment of the input in a JSON.parse error (`"sk-live-ab"... is not
+ * valid JSON`), and this file holds provider keys, so only the wording before
+ * the first quote and the line/column (Node gives one) are kept.
+ */
+function describeJsonError(err: unknown): string {
+  // JSON.parse throws a SyntaxError; `errMessage` would keep the quoted input.
+  const message = String((err as SyntaxError | undefined)?.message ?? '');
+  const where = /\(line (\d+) column (\d+)\)/.exec(message);
+  const reason = message
+    .replace(/^JSON Parse error:\s*/, '')
+    .split(/["'`]/, 1)[0]
+    ?.replace(/\s+in JSON at position \d+.*$/, '')
+    .replace(/[\s,.:;]+$/, '');
+  const at = where ? ` at line ${where[1]}, column ${where[2]}` : '';
+  // A one-word remnant ("Expected" from "Expected ',' or '}'") says nothing.
+  return `not valid JSON${at}${reason && /\s/.test(reason) ? ` (${reason})` : ''}`;
+}
+
+/**
  * Write the mutated config to a single file path. Handles read/decrypt/mutate/encrypt/write.
  */
 export async function writeGlobalConfigFile(
@@ -86,11 +106,15 @@ export async function writeGlobalConfigFile(
     }
     let parsed: Record<string, unknown>;
     try {
-      parsed = JSON.parse(raw) as Record<string, unknown>;
+      // A UTF-8 BOM (PowerShell's `Set-Content -Encoding utf8`) is not
+      // corruption: every config reader strips it, and refusing it here made
+      // the settings surfaces unable to save a config the CLI reads (#448).
+      parsed = JSON.parse(raw.replace(/^﻿/, '')) as Record<string, unknown>;
     } catch (err) {
-      throw new Error(`${errorLabel}: refusing to overwrite corrupt config at ${filePath}`, {
-        cause: err,
-      });
+      throw new Error(
+        `${errorLabel}: refusing to overwrite corrupt config at ${filePath}: ${describeJsonError(err)}`,
+        { cause: err },
+      );
     }
     const decrypted = decryptConfigSecretsForRewrite(parsed, vault) as Record<string, unknown>;
     mutate(decrypted);

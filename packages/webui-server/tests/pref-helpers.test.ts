@@ -109,6 +109,46 @@ describe('WebUI preference persistence helpers', () => {
     );
   });
 
+  it('updates a config saved with a UTF-8 BOM instead of calling it corrupt (#448)', async () => {
+    // PowerShell's `Set-Content -Encoding utf8` writes a BOM; the CLI reads it.
+    await fs.writeFile(
+      configPath,
+      `﻿${JSON.stringify({ providers: { wrongforge: { type: 'wrongforge' } } })}`,
+      'utf8',
+    );
+
+    await updateGlobalConfig(
+      deps,
+      holder,
+      (config) => {
+        config.model = 'claude-sonnet-5-5';
+      },
+      'model.switch',
+    );
+
+    expect(await readConfig()).toEqual({
+      providers: { wrongforge: { type: 'wrongforge' } },
+      model: 'claude-sonnet-5-5',
+    });
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('says what is wrong with a corrupt config without quoting its content (#448)', async () => {
+    const broken = '{"providers": {"x": {"apiKey": sk-live-0123456789abcdef}}}';
+    await fs.writeFile(configPath, broken, 'utf8');
+
+    const err = await updateGlobalConfig(deps, holder, () => undefined, 'model.switch').catch(
+      (e: Error) => e,
+    );
+
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).toMatch(
+      /^model\.switch: refusing to overwrite corrupt config at .+config\.json: not valid JSON\b/,
+    );
+    expect((err as Error).message).not.toContain('sk-live');
+    expect(await fs.readFile(configPath, 'utf8')).toBe(broken);
+  });
+
   it('never persists the WebUI "auto" effort sentinel as a concrete level', async () => {
     await persistPrefsToConfig(deps, holder, {
       reasoningMode: 'on',
