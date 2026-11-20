@@ -156,9 +156,11 @@ export async function exerciseNativeApprovals({
   const activity = page.getByRole('region', { name: 'Conversation activity', exact: true });
   await activity.getByRole('heading', { name: 'Run activity', exact: true }).waitFor();
   await activity.getByRole('button', { name: 'Tools', exact: true }).click();
+  // A closed entry names only its tool (bodies render when opened); the first exec is the
+  // allowed approval, and its input below must name desktopfixture.first.
   const execution = activity
     .locator('details.activity-entry')
-    .filter({ hasText: 'desktopfixture.first' })
+    .filter({ has: page.locator('.activity-entry-label > strong', { hasText: /^exec$/ }) })
     .first();
   await execution.locator('summary').click();
   // An exec input reads as one command line that still names every argument.

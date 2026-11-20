@@ -299,13 +299,19 @@ export async function exerciseNativeComposerResources({
     'Human chat bubbles show reference chips instead of the wire contract',
   );
   await input().fill('Sticky draft that must return.');
+  // Recall stores the draft before it swaps the text in, so the value lands a moment later.
   await input().press('ArrowUp');
-  assert.equal(
-    await input().inputValue(),
-    '[native-composer-resource] Inspect the referenced project file.',
+  await waitFor(
+    async () =>
+      (await input().inputValue()) ===
+      '[native-composer-resource] Inspect the referenced project file.',
+    'ArrowUp recalls the last sent prompt',
   );
   await input().press('ArrowDown');
-  assert.equal(await input().inputValue(), 'Sticky draft that must return.');
+  await waitFor(
+    async () => (await input().inputValue()) === 'Sticky draft that must return.',
+    'ArrowDown restores the sticky draft',
+  );
   await input().fill('/unsupported-native-command');
   const beforeUnknown = providerFixture.calls.filter((call) => call.stream === true).length;
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
