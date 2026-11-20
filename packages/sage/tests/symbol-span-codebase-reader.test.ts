@@ -56,7 +56,7 @@ const CART = [
 describe('symbol anchors checked through the codebase index (#418)', () => {
   it('records the method span and goes stale when its body changes', async () => {
     const { store, file, memory } = await project(CART);
-    expect(memory.anchors[0]?.contentHash).toMatch(/^span:v1:sha256:/);
+    expect(memory.anchors[0]?.spanHash).toMatch(/^span:v1:sha256:/);
     expect([memory.anchors[0]?.lineStart, memory.anchors[0]?.lineEnd]).toEqual([5, 8]);
 
     await fs.writeFile(file, CART.replace('(sum - discount) * 1.2', 'sum * 1.2 - discount'));

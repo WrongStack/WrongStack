@@ -96,7 +96,10 @@ describe('a symbol anchor checks the symbol body it was written against (#418)',
     const { store, file } = await project(ORIGINAL);
     const memory = await rememberTax(store);
     const [anchor] = memory.anchors;
-    expect(anchor?.contentHash).toMatch(/^span:v1:sha256:[0-9a-f]{64}$/);
+    expect(anchor?.spanHash).toMatch(/^span:v1:sha256:[0-9a-f]{64}$/);
+    // Builds before #418 compare any `contentHash` with the whole file: a span hash there
+    // would read as a changed file and demote the memory on an older daemon or synced host.
+    expect(anchor?.contentHash).toBeUndefined();
     expect([anchor?.lineStart, anchor?.lineEnd]).toEqual([3, 5]);
 
     // Code added above the symbol, CRLF line endings and trailing spaces inside it.
@@ -132,7 +135,7 @@ describe('a symbol anchor checks the symbol body it was written against (#418)',
     expect(reasserted.id).toBe(memory.id);
     expect(reasserted.status).toBe('active');
     expect(reasserted.anchors).toHaveLength(1);
-    expect(reasserted.anchors[0]?.contentHash).not.toBe(memory.anchors[0]?.contentHash);
+    expect(reasserted.anchors[0]?.spanHash).not.toBe(memory.anchors[0]?.spanHash);
 
     expect((await store.verifyForPaths([file]))[0]?.status).toBe('verified');
     expect((await store.getSage(memory.id))?.status).toBe('active');
@@ -145,7 +148,7 @@ describe('a symbol anchor checks the symbol body it was written against (#418)',
     await store.verifyForPaths([file]);
 
     const confirmed = await store.updateSage(memory.id, { status: 'active' });
-    expect(confirmed.anchors[0]?.contentHash).not.toBe(memory.anchors[0]?.contentHash);
+    expect(confirmed.anchors[0]?.spanHash).not.toBe(memory.anchors[0]?.spanHash);
 
     expect((await store.verifyForPaths([file]))[0]?.status).toBe('verified');
     expect((await store.getSage(memory.id))?.status).toBe('active');
@@ -154,7 +157,7 @@ describe('a symbol anchor checks the symbol body it was written against (#418)',
   it('control: without a span source a symbol anchor is still checked by name only', async () => {
     const { store, file } = await project(ORIGINAL, null);
     const memory = await rememberTax(store);
-    expect(memory.anchors[0]?.contentHash).toBeUndefined();
+    expect(memory.anchors[0]?.spanHash).toBeUndefined();
 
     await fs.writeFile(file, REWRITTEN);
     expect((await store.verifyForPaths([file]))[0]?.status).toBe('verified');
@@ -170,7 +173,7 @@ describe('a symbol anchor checks the symbol body it was written against (#418)',
     const verify = (anchor: object, reader: SymbolSpanReader) =>
       anchorVerificationCoverage.verifyAnchor(dir, anchor as never, undefined, undefined, reader);
     // A current-version baseline of some other body.
-    const stored = { ...base, contentHash: 'span:v1:sha256:'.padEnd(79, '0') };
+    const stored = { ...base, spanHash: 'span:v1:sha256:'.padEnd(79, '0') };
 
     // Ambiguous, unsupported or failing reader: name check.
     expect((await verify(stored, async () => null)).status).toBe('verified');
@@ -182,7 +185,7 @@ describe('a symbol anchor checks the symbol body it was written against (#418)',
       ).status,
     ).toBe('verified');
     // A baseline cut by another version of the span rules is not compared.
-    expect((await verify({ ...base, contentHash: 'span:v2:sha256:abc' }, braceReader)).status).toBe(
+    expect((await verify({ ...base, spanHash: 'span:v2:sha256:abc' }, braceReader)).status).toBe(
       'verified',
     );
     // The same stored baseline with a readable span is compared.

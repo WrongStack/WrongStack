@@ -12,13 +12,7 @@ import type {
   Sage,
   VerificationStatus,
 } from '../types.js';
-import {
-  isCurrentSpanHash,
-  isSpanHash,
-  readSpan,
-  type SymbolSpanReader,
-  spanHash,
-} from './symbol-span.js';
+import { isCurrentSpanHash, readSpan, type SymbolSpanReader, spanHash } from './symbol-span.js';
 
 /** Single-anchor fallback spawn (the batch path in `batchGitBlobHashes` uses `execFile` directly). */
 const execFileAsync = promisify(execFile);
@@ -515,16 +509,15 @@ async function verifyAnchor(
 
   const body = await fs.readFile(realPath, signal ? { signal } : undefined);
   const contentHash = `sha256:${createHash('sha256').update(body).digest('hex')}`;
-  // A symbol-span baseline is not a file hash: the symbol's own span is compared below.
-  if (anchor.contentHash && !isSpanHash(anchor.contentHash) && anchor.contentHash !== contentHash) {
+  if (anchor.contentHash && anchor.contentHash !== contentHash) {
     return { anchor, status: 'stale', reason: 'File content hash changed.', contentHash };
   }
 
-  if (anchor.symbol && symbolSpans && isCurrentSpanHash(anchor.contentHash)) {
+  if (anchor.symbol && symbolSpans && isCurrentSpanHash(anchor.spanHash)) {
     const span = await readSpan(symbolSpans, realPath, anchor.symbol, signal);
     // No readable span (unsupported language, ambiguous name, reader failure): the name
     // check below decides, as it does for an anchor without a baseline.
-    if (span && spanHash(span.text) !== anchor.contentHash) {
+    if (span && spanHash(span.text) !== anchor.spanHash) {
       return { anchor, status: 'stale', reason: 'Symbol body changed.', contentHash };
     }
   }

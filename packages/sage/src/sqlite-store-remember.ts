@@ -384,7 +384,7 @@ function mergeAnchors(existing: MemoryAnchor[], incoming: MemoryAnchor[]): Memor
   for (const anchor of incoming) {
     const key = keyOf(anchor);
     const stored = merged.get(key);
-    if (stored && symbolAnchorKey(anchor) && !anchor.contentHash) continue;
+    if (stored && symbolAnchorKey(anchor) && !anchor.spanHash) continue;
     merged.set(key, anchor);
   }
   return [...merged.values()];

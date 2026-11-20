@@ -7,6 +7,7 @@ import {
   type MemoryPort,
   type MemoryStore,
 } from '@wrongstack/contracts/types';
+import { codebaseSymbolSpanReader } from './anchors/codebase-span-reader.js';
 import type { SageRetrieverLike } from './middleware/tool-call-memory.js';
 import { ProjectSageMemoryPort, type ProjectSageMemoryPortOptions } from './remote-memory-port.js';
 import type { SageServiceLike, SageSurface } from './service-contract.js';
@@ -363,7 +364,14 @@ export function createProjectSageMemoryPort(options: ProjectSageMemoryPortOption
     process.env['VITEST'] === 'true' ||
     process.env['VITEST_WORKER_ID'] !== undefined ||
     process.env['NODE_ENV'] === 'test';
-  if (explicitInline || testInline) return new SqliteMemoryPort(options);
+  if (testInline) return new SqliteMemoryPort(options);
+  // Offline recovery owns the store as the daemon would, span checks included (#418).
+  if (explicitInline) {
+    return new SqliteMemoryPort({
+      ...options,
+      symbolSpans: codebaseSymbolSpanReader(options.projectRoot),
+    });
+  }
   return new ProjectSageMemoryPort(options);
 }
 

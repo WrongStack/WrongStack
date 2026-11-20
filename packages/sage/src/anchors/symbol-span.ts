@@ -35,11 +35,6 @@ export type SymbolSpanReader = (
  */
 const SPAN_HASH_PREFIX = 'span:v1:sha256:';
 
-/** Any symbol-span baseline, whatever its version. Never a whole-file hash. */
-export function isSpanHash(hash: string | undefined): boolean {
-  return hash?.startsWith('span:') === true;
-}
-
 /** A baseline this build can compare. */
 export function isCurrentSpanHash(hash: string | undefined): boolean {
   return hash?.startsWith(SPAN_HASH_PREFIX) === true;
@@ -82,7 +77,7 @@ export function symbolAnchorKey(anchor: MemoryAnchor): string | undefined {
     : undefined;
 }
 
-export type SpanBaseline = Pick<MemoryAnchor, 'contentHash' | 'lineStart' | 'lineEnd'>;
+export type SpanBaseline = Pick<MemoryAnchor, 'spanHash' | 'lineStart' | 'lineEnd'>;
 
 /**
  * Baselines for the symbol anchors among `anchors` (normalized, project-relative paths),
@@ -101,7 +96,7 @@ export async function readSpanBaselines(
     const span = await readSpan(reader, path.resolve(projectRoot, anchor.path!), anchor.symbol!);
     if (!span) continue;
     baselines.set(key, {
-      contentHash: spanHash(span.text),
+      spanHash: spanHash(span.text),
       lineStart: span.startLine,
       lineEnd: span.endLine,
     });

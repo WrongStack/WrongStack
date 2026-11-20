@@ -127,6 +127,12 @@ export interface MemoryAnchor {
   /** Stable roster/catalog role id when type is `agent`. */
   role?: string | undefined;
   contentHash?: string | undefined;
+  /**
+   * Hash of a `symbol` anchor's own span when the memory was written (#418), compared on
+   * verification. Its own field, never `contentHash`: builds before it compare any
+   * `contentHash` with the whole file and would read a span hash as a changed file.
+   */
+  spanHash?: string | undefined;
   gitBlobHash?: string | undefined;
   lineStart?: number | undefined;
   lineEnd?: number | undefined;
