@@ -40,10 +40,13 @@ const UNCONFIGURED_CAPABILITIES: Provider['capabilities'] = {
   multipleCompletions: false,
 };
 
+/** The id of the inert provider an engine boots with when none is set up. */
+export const UNCONFIGURED_PROVIDER_ID = 'unconfigured';
+
 function makeUnconfiguredProvider(): Provider {
   const message = 'No provider configured. Complete setup before starting an agent run.';
   return {
-    id: 'unconfigured',
+    id: UNCONFIGURED_PROVIDER_ID,
     capabilities: UNCONFIGURED_CAPABILITIES,
     // biome-ignore lint/correctness/useYield: Provider.stream must be an async generator; this unconfigured stub always throws before it can yield.
     async *stream() {

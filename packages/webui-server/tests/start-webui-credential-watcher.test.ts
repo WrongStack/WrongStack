@@ -115,6 +115,87 @@ describe('setupWebuiCredentialWatcher', () => {
     expect(context.provider.capabilities.maxOutput).toBe(8192);
   });
 
+  describe('an engine booted before any provider was set up (#448)', () => {
+    function boot(activeProviderId: string, saved: Record<string, unknown>) {
+      let notify: ((snapshot: Record<string, unknown>) => Promise<void>) | undefined;
+      mocks.watchProviderConfig.mockImplementation((_path, _vault, callback) => {
+        notify = callback;
+        return { close: vi.fn() };
+      });
+      let config: Record<string, unknown> = { version: 1 };
+      const context = { provider: { id: activeProviderId }, model: '', meta: {} };
+      const adoptSavedDefault = vi.fn(async (provider: string, model: string) => {
+        context.provider = { id: provider };
+        context.model = model;
+        config = { ...config, provider, model };
+      });
+      const create = vi.fn(() => ({ id: 'rebuilt' }));
+      vi.spyOn(console, 'log').mockImplementation(() => undefined);
+      setupWebuiCredentialWatcher({
+        watchConfigPath: 'config.json',
+        vault: {} as never,
+        logger: { warn: vi.fn() } as never,
+        state: {
+          getConfig: () => config,
+          setConfig: (next: Record<string, unknown>) => {
+            config = next;
+          },
+        } as never,
+        deps: {
+          context,
+          configStore: { replace: vi.fn() },
+          providerRegistry: { has: () => true, create },
+        } as never,
+        clients: new Map(),
+        loadConfig: async () => saved as never,
+        updateAutoCompactionMaxContext: vi.fn(async () => {}),
+        adoptSavedDefault,
+      });
+      return {
+        notify: () => notify?.({ providers: saved['providers'] }),
+        adoptSavedDefault,
+        create,
+        context,
+      };
+    }
+    const saved = {
+      version: 1,
+      provider: 'local',
+      model: 'm1',
+      providers: { local: { type: 'openai', apiKey: 'k' } },
+    };
+
+    it('takes the saved provider and model once the config names them', async () => {
+      const engine = boot('unconfigured', saved);
+
+      await engine.notify();
+
+      expect(engine.adoptSavedDefault).toHaveBeenCalledWith('local', 'm1');
+      expect(engine.context.provider.id).toBe('local');
+      // The adoption's own config write reloads again: no second rebuild.
+      await engine.notify();
+      expect(engine.adoptSavedDefault).toHaveBeenCalledTimes(1);
+      expect(engine.create).not.toHaveBeenCalled();
+    });
+
+    it('waits while the saved config still names no model', async () => {
+      const engine = boot('unconfigured', { ...saved, model: undefined });
+
+      await engine.notify();
+
+      expect(engine.adoptSavedDefault).not.toHaveBeenCalled();
+    });
+
+    it('control: an engine already on a provider is not switched by a config reload', async () => {
+      const engine = boot('other', saved);
+
+      await engine.notify();
+
+      expect(engine.adoptSavedDefault).not.toHaveBeenCalled();
+      expect(engine.context.provider.id).not.toBe('local');
+    });
+  });
+
   it('refreshes config, broadcasts changes, and reloads the active provider', async () => {
     let onSnapshot: ((snapshot: Record<string, any>) => Promise<void>) | undefined;
     const close = vi.fn();

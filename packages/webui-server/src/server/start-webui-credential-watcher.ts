@@ -14,6 +14,7 @@ import { fanOutProviderRebuild } from './provider-fanout.js';
 import { projectSavedProviders } from './provider-handlers.js';
 import { routeProviderCfgThroughProxy } from './proxy-runtime.js';
 import type { WebuiDeps, WebuiMutableState } from './routes.js';
+import { UNCONFIGURED_PROVIDER_ID } from './setup-screen.js';
 import { standaloneHostProviders } from './standalone-acp-leader.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';
 import { broadcast } from './ws-utils.js';
@@ -52,6 +53,11 @@ export function setupWebuiCredentialWatcher(options: {
   /** Canonical layered config reload; omitted only by legacy/test hosts. */
   loadConfig?: (() => Promise<Config>) | undefined;
   updateAutoCompactionMaxContext: (provider: WebuiDeps['provider']) => Promise<void>;
+  /**
+   * Switch the engine's own session to a provider+model, the way `model.switch`
+   * does; used only while the engine still runs the setup stub.
+   */
+  adoptSavedDefault?: ((provider: string, model: string) => Promise<void>) | undefined;
 }): (() => void) | undefined {
   if (process.env['WRONGSTACK_DISABLE_CONFIG_WATCH'] === '1') {
     return undefined;
@@ -65,6 +71,7 @@ export function setupWebuiCredentialWatcher(options: {
     clients,
     loadConfig,
     updateAutoCompactionMaxContext,
+    adoptSavedDefault,
   } = options;
   let lastActiveCfg = activeProviderConfigKey(state.getConfig(), deps.context.provider.id);
   let lastUiLocale: string | undefined = state.getConfig().uiLocale;
@@ -117,6 +124,27 @@ export function setupWebuiCredentialWatcher(options: {
       }
 
       const activeId = deps.context.provider.id;
+      // Booted before any provider was set up, this engine still runs the inert
+      // setup stub. Once the saved config names a provider and model, take
+      // them: a Desktop spare engine warmed before the user picked a default is
+      // claimed for a new conversation as-is, and it announced "unconfigured",
+      // which the desktop shows as "Connect a provider" (#448).
+      if (
+        activeId === UNCONFIGURED_PROVIDER_ID &&
+        adoptSavedDefault &&
+        nextConfig.provider &&
+        nextConfig.model
+      ) {
+        try {
+          await adoptSavedDefault(nextConfig.provider, nextConfig.model);
+          lastActiveCfg = activeProviderConfigKey(state.getConfig(), deps.context.provider.id);
+        } catch (err) {
+          logger.warn(
+            `Saved default ${nextConfig.provider}/${nextConfig.model} not adopted: ${toErrorMessage(err)}`,
+          );
+        }
+        return;
+      }
       // An agent leader holds no credentials of its own, and a rebuilt one
       // would orphan the live agent sessions the current instance owns.
       if (isHostBuiltLeader(activeId)) return;

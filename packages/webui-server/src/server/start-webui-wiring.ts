@@ -131,6 +131,11 @@ export function wireStandaloneWebuiRuntime(
     brainMonitor,
   } = agentServices;
 
+  // The live provider+model switch `model.switch` uses. The management tools below target the
+  // tab whose leader called them; the credential watcher switches the engine's own session.
+  const sessionContextForTool = createSessionContextResolver(deps);
+  const switchModelForTool = createApplyModelSwitch(state, deps, cb, sessionContextForTool);
+
   const liveConfigLoader = new DefaultConfigLoader({ paths: configPaths, vault, logger });
   const credentialWatcherClose = setupWebuiCredentialWatcher({
     watchConfigPath: profileConfigPath,
@@ -141,6 +146,7 @@ export function wireStandaloneWebuiRuntime(
     deps,
     clients,
     updateAutoCompactionMaxContext,
+    adoptSavedDefault: (provider, model) => switchModelForTool(provider, model),
   });
 
   // WrongProxy instant-apply: rebuild the live provider when the proxy
@@ -187,8 +193,6 @@ export function wireStandaloneWebuiRuntime(
   // The leader's provider/model/fallback management tools (CLI parity). A write is persisted
   // through the serialized config writer and applied live; a model switch targets the tab whose
   // leader called the tool, through the same switch `model.switch` uses.
-  const sessionContextForTool = createSessionContextResolver(deps);
-  const switchModelForTool = createApplyModelSwitch(state, deps, cb, sessionContextForTool);
   registerEngineManagementTools({
     toolRegistry: deps.toolRegistry,
     getConfig: () => state.getConfig(),
