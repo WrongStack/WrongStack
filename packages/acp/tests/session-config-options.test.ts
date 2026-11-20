@@ -141,7 +141,7 @@ describe('session config options built per session', () => {
     const { call } = makeHandler({
       sessionConfigOptions: async () => [modelOption()],
       runTurn: async (input) => {
-        seen.push(input.configOptions?.[0]?.currentValue ?? 'none');
+        seen.push(String(input.configOptions?.[0]?.currentValue ?? 'none'));
         return { stopReason: 'end_turn' };
       },
     });
@@ -195,8 +195,9 @@ describe('session config options built per session', () => {
   it('recomputes dependent thought_level options when the model changes via session/set_config_option', async () => {
     const dynamicBuilder = vi.fn(
       async (current?: readonly SessionConfigOption[]): Promise<SessionConfigOption[]> => {
-        const selectedModel =
-          current?.find((o) => o.id === 'model')?.currentValue ?? 'openai/gpt-x';
+        const selectedModel = String(
+          current?.find((o) => o.id === 'model')?.currentValue ?? 'openai/gpt-x',
+        );
         const base = modelOption(selectedModel);
         if (selectedModel === 'openai/gpt-x') {
           return [

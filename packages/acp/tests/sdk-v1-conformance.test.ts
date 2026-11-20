@@ -265,11 +265,11 @@ describe('ACP v1 conformance with official @agentclientprotocol/sdk', () => {
 
       // Close then cold-fork the persisted session.
       await second.conn.agent.request('session/close', { sessionId });
-      const forked = await second.conn.agent.request('session/fork', {
+      const forked = (await second.conn.agent.request('session/fork', {
         sessionId,
         cwd,
         mcpServers: [],
-      });
+      })) as { sessionId: string };
       expect(forked.sessionId).not.toBe(sessionId);
 
       // Resume original without replaying history.

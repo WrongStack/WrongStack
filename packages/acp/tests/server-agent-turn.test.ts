@@ -196,7 +196,7 @@ describe('makeACPServerAgentTurn', () => {
         expect(a).toBe(agent);
         expect(sessionId).toBe('cfg');
         if (fail) throw new Error('cannot build provider x');
-        applied.push(options[0]!.currentValue);
+        applied.push(String(options[0]!.currentValue));
       },
     });
     const signal = new AbortController().signal;
