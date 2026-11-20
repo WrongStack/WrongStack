@@ -106,3 +106,23 @@ it('words a refused connection through the given words', () => {
   expect(() => buildProviderSave({ ...draft, model: ' ' }, words)).toThrow('no model');
   expect(() => buildProviderSave({ ...draft, baseUrl: 'nope' }, words)).toThrow('bad url');
 });
+
+it('lists each catalog model once, so the model picker keys stay unique', () => {
+  const state = {
+    ...emptyEngineState,
+    results: {
+      'provider.models': {
+        provider: 'local-engine',
+        models: [
+          { id: 'desktop-fixture-model', name: 'Fixture' },
+          { id: 'other-model' },
+          { id: 'desktop-fixture-model', name: 'Fixture (live)' },
+        ],
+      },
+    },
+  };
+  expect(providerModels(state, 'local-engine')).toEqual([
+    { id: 'desktop-fixture-model', name: 'Fixture' },
+    { id: 'other-model', name: 'other-model' },
+  ]);
+});

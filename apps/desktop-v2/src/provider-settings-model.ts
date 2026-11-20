@@ -72,9 +72,14 @@ export function providerModels(
 ): Array<{ id: string; name: string }> {
   const result = state.results['provider.models'];
   if (result?.['provider'] !== id) return [];
-  return entries(result['models'])
-    .filter((model) => typeof model['id'] === 'string')
-    .map((model) => ({ id: String(model['id']), name: String(model['name'] ?? model['id']) }));
+  // A catalog can name a model twice (catalog and live list); the picker keys by id, once each.
+  const models = new Map<string, { id: string; name: string }>();
+  for (const model of entries(result['models'])) {
+    const modelId = model['id'];
+    if (typeof modelId !== 'string' || models.has(modelId)) continue;
+    models.set(modelId, { id: modelId, name: String(model['name'] ?? modelId) });
+  }
+  return [...models.values()];
 }
 /** How the engine masks a stored key in `providers.saved`, to recognise a replacement. */
 export function maskedApiKey(key: string): string {
