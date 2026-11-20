@@ -34,6 +34,14 @@ export function replyFailure(event: EngineEvent): EngineReplyError | null {
 }
 
 /**
+ * Requests the engine answers only after saving the profile config. It waits up to 15 s for
+ * that file's lock first (another engine or the CLI writing it), so a request timed out at the
+ * same 15 s reported "did not acknowledge" just before the engine's own answer arrived (#448).
+ */
+const CONFIG_WRITE_REQUESTS: ReadonlySet<string> = new Set(['model.switch']);
+const CONFIG_WRITE_TIMEOUT_MS = 45_000;
+
+/**
  * Tracks acknowledgements without persisting outgoing payloads or credentials.
  *
  * A reply can only be seen once the event journal has been read up to it. A window that opens
@@ -86,7 +94,11 @@ export class EngineOperations {
   request: EngineCommand = (type, payload, replies, options) => {
     const requestId = crypto.randomUUID();
     return new Promise((resolve, reject) => {
-      const timeoutMs = options?.timeoutMs ?? this.timeoutMs;
+      const timeoutMs =
+        options?.timeoutMs ??
+        (CONFIG_WRITE_REQUESTS.has(type)
+          ? Math.max(this.timeoutMs, CONFIG_WRITE_TIMEOUT_MS)
+          : this.timeoutMs);
       const timer = this.arm(requestId, this.live ? timeoutMs : this.replayCapMs);
       this.pending.set(requestId, { replies, resolve, reject, timer, timeoutMs });
       const onFailure = (error: unknown) => {
