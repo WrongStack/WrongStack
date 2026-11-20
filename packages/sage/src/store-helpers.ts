@@ -59,18 +59,22 @@ export function normalizeSources(sources: Sage['sources']): Sage['sources'] {
 // ─── Private dedup helpers ──────────────────────────────────────────────
 
 function dedupeAnchors(anchors: MemoryAnchor[]): MemoryAnchor[] {
+  // A symbol anchor is one anchor whatever baseline it carries (#418): its span hash and lines
+  // are recorded by the store, not part of what the memory points at.
   return dedupeByKey(anchors, (anchor) =>
-    JSON.stringify([
-      anchor.type,
-      anchor.path ?? null,
-      anchor.symbol ?? null,
-      anchor.command ?? null,
-      anchor.role ?? null,
-      anchor.contentHash ?? null,
-      anchor.gitBlobHash ?? null,
-      anchor.lineStart ?? null,
-      anchor.lineEnd ?? null,
-    ]),
+    anchor.type === 'symbol' && anchor.path && anchor.symbol
+      ? JSON.stringify(['symbol', anchor.path, anchor.symbol])
+      : JSON.stringify([
+          anchor.type,
+          anchor.path ?? null,
+          anchor.symbol ?? null,
+          anchor.command ?? null,
+          anchor.role ?? null,
+          anchor.contentHash ?? null,
+          anchor.gitBlobHash ?? null,
+          anchor.lineStart ?? null,
+          anchor.lineEnd ?? null,
+        ]),
   );
 }
 

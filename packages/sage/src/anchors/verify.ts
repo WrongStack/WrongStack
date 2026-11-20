@@ -12,6 +12,13 @@ import type {
   Sage,
   VerificationStatus,
 } from '../types.js';
+import {
+  isCurrentSpanHash,
+  isSpanHash,
+  readSpan,
+  type SymbolSpanReader,
+  spanHash,
+} from './symbol-span.js';
 
 /** Single-anchor fallback spawn (the batch path in `batchGitBlobHashes` uses `execFile` directly). */
 const execFileAsync = promisify(execFile);
@@ -21,6 +28,7 @@ export async function verifyMemoryAnchors(
   memory: Sage,
   checkedAt = new Date().toISOString(),
   signal?: AbortSignal,
+  symbolSpans?: SymbolSpanReader,
 ): Promise<MemoryVerificationResult> {
   signal?.throwIfAborted();
   // D5: batch ALL git blob hashes for this memory's git anchors in ONE
@@ -32,7 +40,9 @@ export async function verifyMemoryAnchors(
     .filter((target) => isInside(projectRoot, target));
   const gitBlobCache = await batchGitBlobHashes(projectRoot, gitTargets, signal);
   const anchors = await Promise.all(
-    memory.anchors.map((anchor) => verifyAnchor(projectRoot, anchor, signal, gitBlobCache)),
+    memory.anchors.map((anchor) =>
+      verifyAnchor(projectRoot, anchor, signal, gitBlobCache, symbolSpans),
+    ),
   );
   return {
     memoryId: memory.id,
@@ -437,6 +447,7 @@ async function verifyAnchor(
   anchor: MemoryAnchor,
   signal?: AbortSignal,
   gitBlobCache?: ReadonlyMap<string, string>,
+  symbolSpans?: SymbolSpanReader,
 ): Promise<AnchorVerificationResult> {
   signal?.throwIfAborted();
   if (anchor.type === 'command') {
@@ -504,8 +515,18 @@ async function verifyAnchor(
 
   const body = await fs.readFile(realPath, signal ? { signal } : undefined);
   const contentHash = `sha256:${createHash('sha256').update(body).digest('hex')}`;
-  if (anchor.contentHash && anchor.contentHash !== contentHash) {
+  // A symbol-span baseline is not a file hash: the symbol's own span is compared below.
+  if (anchor.contentHash && !isSpanHash(anchor.contentHash) && anchor.contentHash !== contentHash) {
     return { anchor, status: 'stale', reason: 'File content hash changed.', contentHash };
+  }
+
+  if (anchor.symbol && symbolSpans && isCurrentSpanHash(anchor.contentHash)) {
+    const span = await readSpan(symbolSpans, realPath, anchor.symbol, signal);
+    // No readable span (unsupported language, ambiguous name, reader failure): the name
+    // check below decides, as it does for an anchor without a baseline.
+    if (span && spanHash(span.text) !== anchor.contentHash) {
+      return { anchor, status: 'stale', reason: 'Symbol body changed.', contentHash };
+    }
   }
 
   if (anchor.symbol) {

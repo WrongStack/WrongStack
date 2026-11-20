@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-20T15:00:48.977Z",
+  "generatedAt": "2026-11-20T15:54:11.053Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6402,
-    "testFiles": 5580,
-    "sourceLines": 1321020,
+    "sourceFiles": 6403,
+    "testFiles": 5581,
+    "sourceLines": 1321287,
     "workspaceEdges": 250,
-    "moduleEdges": 18926,
+    "moduleEdges": 18937,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -871,8 +871,8 @@
     {
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
-      "sourceFiles": 177,
-      "testFiles": 179,
+      "sourceFiles": 178,
+      "testFiles": 180,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -891,7 +891,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 179
+          "testFiles": 180
         }
       ]
     },
@@ -21870,6 +21870,12 @@
         ]
       },
       {
+        "file": "packages/sage/tests/symbol-span-baseline.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sage/tests/system-one-recall.test.ts",
         "projects": [
           "root-node"
@@ -35951,6 +35957,11 @@
       "file": "packages/runtime/src/chimera/execution-chimera-review.ts",
       "lines": 869,
       "relativeImports": 3
+    },
+    {
+      "file": "packages/sage/src/types.ts",
+      "lines": 708,
+      "relativeImports": 12
     },
     {
       "file": "packages/tools/src/codebase-index/ast-symbol-mutator.ts",

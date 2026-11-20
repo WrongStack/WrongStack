@@ -1,5 +1,7 @@
 import type { MemoryScope } from '@wrongstack/contracts/types';
 import type { HqSageRecord } from '@wrongstack/hq';
+import { readSpanBaselines } from './anchors/symbol-span.js';
+import { readSqliteSageRow } from './sqlite-store-codec.js';
 import { recordSqliteInjection, recordSqliteUse } from './sqlite-store-counters.js';
 import { clearLegacySqliteMemory } from './sqlite-store-legacy-clear.js';
 import { consolidateLegacySqliteMemory } from './sqlite-store-legacy-consolidate.js';
@@ -7,7 +9,7 @@ import { forgetLegacySqliteMemory } from './sqlite-store-legacy-forget.js';
 import { applySageHqSync } from './sqlite-store-operations.js';
 import { updateSqliteSage } from './sqlite-store-update.js';
 import { upsertSqliteMemory } from './sqlite-store-upsert.js';
-import { mergeLiveCounterFields } from './store-helpers.js';
+import { mergeLiveCounterFields, normalizeAnchors } from './store-helpers.js';
 import type { Sage, UpdateSageInput } from './types.js';
 import { DEFAULT_PERSISTENCE } from './types.js';
 
@@ -23,6 +25,7 @@ export interface SqliteMemoryMutationsHost {
   syncAnchorEdges: (memory: import('./memory-model.js').Sage) => void;
   db: import('node:sqlite').DatabaseSync;
   projectRoot: string;
+  symbolSpans: import('./types.js').SageStoreOptions['symbolSpans'];
   eventPayload: <T extends object>(
     payload: T,
   ) => T & { traceId?: string | undefined; sessionId?: string | undefined };
@@ -141,10 +144,12 @@ export async function updateSage(
   input: UpdateSageInput,
 ): Promise<Sage> {
   await this.initialize();
+  const spanBaselines = await readUpdateSpanBaselines(this, id, input);
   return this.runMutation(() => {
     return updateSqliteSage(
       {
         projectRoot: this.projectRoot,
+        spanBaselines,
         stmt: (sql) => this.stmt(sql),
         nowIso: () => this.nowIso(),
         upsertMemory: (memory) => this.upsertMemory(memory),
@@ -243,4 +248,29 @@ export async function recordUse(
       sessionId,
     );
   });
+}
+
+/**
+ * Span baselines an update records (#418), read before its mutation because reading a span is
+ * asynchronous: the anchors the update sets, or the stored anchors when it may confirm a stale
+ * memory as active. The mutation itself decides whether they apply.
+ */
+async function readUpdateSpanBaselines(
+  host: SqliteMemoryMutationsHost,
+  id: string,
+  input: UpdateSageInput,
+): Promise<ReadonlyMap<string, import('./anchors/symbol-span.js').SpanBaseline> | undefined> {
+  if (!host.symbolSpans) return undefined;
+  let anchors: Sage['anchors'] | undefined;
+  if (input.anchors !== undefined) {
+    try {
+      anchors = normalizeAnchors(host.projectRoot, input.anchors);
+    } catch {
+      return undefined; // the update rejects these anchors itself
+    }
+  } else if (input.status === 'active') {
+    const existing = readSqliteSageRow((sql) => host.stmt(sql), id);
+    if (existing?.status === 'stale') anchors = existing.anchors;
+  }
+  return anchors ? readSpanBaselines(host.projectRoot, anchors, host.symbolSpans) : undefined;
 }

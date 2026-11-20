@@ -8,7 +8,7 @@ import { readSqliteSageRow } from './sqlite-store-codec.js';
 import { MEMORY_NODE_PREFIX } from './sqlite-store-graph-helpers.js';
 import { sqliteRowsToMemories } from './sqlite-store-search-helpers.js';
 import { stampSqliteVerification } from './sqlite-store-verification-stamp.js';
-import type { MemoryVerificationResult, Sage } from './types.js';
+import type { MemoryVerificationResult, Sage, SymbolSpanReader } from './types.js';
 
 interface SqliteVerifyContext {
   projectRoot: string;
@@ -17,6 +17,7 @@ interface SqliteVerifyContext {
   runMutation: <T>(work: () => T) => Promise<T>;
   upsertMemory: (memory: Sage) => void;
   syncAnchorEdges: (memory: Sage) => void;
+  symbolSpans?: SymbolSpanReader | undefined;
 }
 
 export async function verifySqliteSage(
@@ -103,7 +104,13 @@ async function reconcileVerifiedMemories(
   const verificationRunAt = ctx.nowIso();
   for (const memory of memories) {
     signal?.throwIfAborted();
-    const result = await verifyMemoryAnchors(ctx.projectRoot, memory, verificationRunAt, signal);
+    const result = await verifyMemoryAnchors(
+      ctx.projectRoot,
+      memory,
+      verificationRunAt,
+      signal,
+      ctx.symbolSpans,
+    );
     results.push(result);
     if (result.status === 'stale' && memory.status === 'active') {
       updates.push({

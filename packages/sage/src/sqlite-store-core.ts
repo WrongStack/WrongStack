@@ -59,6 +59,7 @@ export abstract class SqliteSageStoreCore {
   protected readonly now: () => Date;
   protected readonly events: SageStoreOptions['events'];
   protected readonly operationContext: SageStoreOptions['operationContext'];
+  protected readonly symbolSpans: SageStoreOptions['symbolSpans'];
   protected traceId?: string | undefined;
   protected db!: DatabaseSync;
   protected initialized = false;
@@ -84,6 +85,7 @@ export abstract class SqliteSageStoreCore {
     this.now = opts.now ?? (() => new Date());
     this.events = opts.events;
     this.operationContext = opts.operationContext;
+    this.symbolSpans = opts.symbolSpans;
   }
 
   withTraceId(traceId: string): this {
@@ -340,6 +342,7 @@ export abstract class SqliteSageStoreCore {
     void (this.syncAnchorEdges satisfies SqliteMemoryMutationsHost['syncAnchorEdges']);
     void (this.db satisfies SqliteMemoryMutationsHost['db']);
     void (this.projectRoot satisfies SqliteMemoryMutationsHost['projectRoot']);
+    void (this.symbolSpans satisfies SqliteMemoryMutationsHost['symbolSpans']);
     void (this.eventPayload satisfies SqliteMemoryMutationsHost['eventPayload']);
     void (this.deleteSage satisfies SqliteMemoryMutationsHost['deleteSage']);
     void (this.runCounterMutation satisfies SqliteMemoryMutationsHost['runCounterMutation']);
@@ -351,6 +354,7 @@ export abstract class SqliteSageStoreCore {
     void ({
       sqliteStoreGraphHost: this.sqliteStoreGraphHost,
       projectRoot: this.projectRoot,
+      symbolSpans: this.symbolSpans,
       initialize: this.initialize,
       nowIso: this.nowIso,
       stmt: this.stmt,

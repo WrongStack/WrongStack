@@ -21,6 +21,7 @@ import type {
 export interface SqliteStoreGraphWriteHost {
   sqliteStoreGraphHost(): SqliteStoreGraphHost;
   projectRoot: string;
+  symbolSpans: SageStoreOptions['symbolSpans'];
   initialize(): Promise<void>;
   nowIso(): string;
   stmt(sql: string): ReturnType<DatabaseSync['prepare']>;
@@ -59,6 +60,7 @@ export async function rememberSage(
   return rememberSqliteSage({
     input,
     projectRoot: host.projectRoot,
+    symbolSpans: host.symbolSpans,
     initialize: () => host.initialize(),
     nowIso: () => host.nowIso(),
     stmt: (sql) => host.stmt(sql),
@@ -85,6 +87,7 @@ export async function verify(
         runMutation: (work) => host.runMutation(work),
         upsertMemory: (memory) => host.upsertMemory(memory),
         syncAnchorEdges: (memory) => host.syncAnchorEdges(memory),
+        symbolSpans: host.symbolSpans,
       },
       memoryId,
       signal,
@@ -107,6 +110,7 @@ export async function verifyForPaths(
         runMutation: (work) => host.runMutation(work),
         upsertMemory: (memory) => host.upsertMemory(memory),
         syncAnchorEdges: (memory) => host.syncAnchorEdges(memory),
+        symbolSpans: host.symbolSpans,
       },
       paths,
       signal,
@@ -155,6 +159,7 @@ export async function hygiene(
         cascadeDeleteEdges: (nodeId) => host.cascadeDeleteEdges(nodeId),
         audit: (event, data) => host.audit(event, data),
         pruneAuditLog: () => host.pruneAuditLog(),
+        symbolSpans: host.symbolSpans,
       },
       opts,
     );

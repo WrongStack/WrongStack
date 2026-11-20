@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { ulid } from '@wrongstack/core/utils';
+import { applySpanBaselines, readSpanBaselines, symbolAnchorKey } from './anchors/symbol-span.js';
 import { rejectIfUnsafeInput } from './shared/candidate-lifecycle.js';
 import { normalizeValidity, validityKey } from './shared/memory-validity.js';
 import { anchorsChanged } from './sqlite-store-anchor-diff.js';
@@ -19,12 +20,14 @@ import {
   normalizeTextKey,
   validateRememberInput,
 } from './store-helpers.js';
-import type { MemoryAnchor, RememberSageInput, Sage } from './types.js';
+import type { MemoryAnchor, RememberSageInput, Sage, SymbolSpanReader } from './types.js';
 import { DEFAULT_PERSISTENCE, legacyToSageScope, legacyTypeToKind } from './types.js';
 
 interface RememberSqliteSageContext {
   input: RememberSageInput;
   projectRoot: string;
+  /** Records each symbol anchor's span baseline (#418); absent: name-only anchors. */
+  symbolSpans?: SymbolSpanReader | undefined;
   initialize: () => Promise<void>;
   nowIso: () => string;
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
@@ -47,7 +50,11 @@ export async function rememberSqliteSage(ctx: RememberSqliteSageContext): Promis
   const legacyScope = input.legacyScope;
   const kind = input.kind ?? legacyTypeToKind(input.type);
   const tags = normalizeTags(input.tags);
-  const anchors = normalizeAnchors(ctx.projectRoot, input.anchors ?? []);
+  const normalizedAnchors = normalizeAnchors(ctx.projectRoot, input.anchors ?? []);
+  const anchors = applySpanBaselines(
+    normalizedAnchors,
+    await readSpanBaselines(ctx.projectRoot, normalizedAnchors, ctx.symbolSpans),
+  );
   const audience = normalizeAudience(input.audience);
   const sources = normalizeSources(input.sources ?? [{ type: 'user' }]);
   const quality = assessRememberQuality({
@@ -142,14 +149,7 @@ export async function rememberSqliteSage(ctx: RememberSqliteSageContext): Promis
         text: preferIncomingText ? normalizedText : existing.text,
         legacyScope: existing.legacyScope,
         tags: [...new Set([...existing.tags, ...tags])],
-        anchors: [
-          ...new Map(
-            [...existing.anchors, ...anchors].map((a) => [
-              JSON.stringify(a, Object.keys(a).sort()),
-              a,
-            ]),
-          ).values(),
-        ] as MemoryAnchor[],
+        anchors: mergeAnchors(existing.anchors, anchors),
         ...(audience ? { audience } : {}),
         sources: [
           ...new Map([...existing.sources, ...sources].map((s) => [JSON.stringify(s), s])).values(),
@@ -366,4 +366,26 @@ function relationshipsGrew(merged: Sage, existing: Sage): boolean {
   return (
     grew(merged.supersedes, existing.supersedes) || grew(merged.contradicts, existing.contradicts)
   );
+}
+
+/**
+ * The anchors of a re-remembered memory. A symbol anchor is one anchor whatever baseline it
+ * carries: an incoming one with a freshly read baseline replaces the stored one in place (this
+ * is how re-asserting a stale memory re-baselines it), and one without a baseline keeps the
+ * stored baseline. Other anchors merge on their exact content, as before.
+ */
+function mergeAnchors(existing: MemoryAnchor[], incoming: MemoryAnchor[]): MemoryAnchor[] {
+  const merged = new Map<string, MemoryAnchor>();
+  const keyOf = (anchor: MemoryAnchor) => {
+    const symbolKey = symbolAnchorKey(anchor);
+    return symbolKey ? `symbol:${symbolKey}` : JSON.stringify(anchor, Object.keys(anchor).sort());
+  };
+  for (const anchor of existing) merged.set(keyOf(anchor), anchor);
+  for (const anchor of incoming) {
+    const key = keyOf(anchor);
+    const stored = merged.get(key);
+    if (stored && symbolAnchorKey(anchor) && !anchor.contentHash) continue;
+    merged.set(key, anchor);
+  }
+  return [...merged.values()];
 }

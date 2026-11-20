@@ -1,5 +1,6 @@
 import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { MemoryPriority, MemoryScope, MemoryType } from '@wrongstack/contracts/types';
+import type { SymbolSpanReader } from './anchors/symbol-span.js';
 import type {
   MemoryAnchor,
   MemoryAudienceContext,
@@ -11,6 +12,8 @@ import type {
   SageScope,
   SageStatus,
 } from './memory-model.js';
+
+export type { SymbolSpan, SymbolSpanReader } from './anchors/symbol-span.js';
 
 export const SAGE_SCHEMA_VERSION = 1;
 
@@ -250,6 +253,12 @@ export interface SageStoreOptions {
    * but increase disk writes on every store instance.
    */
   counterFlushIntervalMs?: number | undefined;
+  /**
+   * Finds a symbol's source span. With it, a `symbol` anchor records a hash of the symbol's
+   * span when the memory is written and goes stale when that span changes (#418). Without it,
+   * a symbol anchor is checked by name only.
+   */
+  symbolSpans?: SymbolSpanReader | undefined;
 }
 
 /**

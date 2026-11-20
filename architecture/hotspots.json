@@ -138,6 +138,10 @@
       "lines": 869,
       "relativeImports": 3
     },
+    "packages/sage/src/types.ts": {
+      "lines": 708,
+      "relativeImports": 12
+    },
     "packages/tools/src/codebase-index/ast-symbol-mutator.ts": {
       "lines": 703,
       "relativeImports": 6

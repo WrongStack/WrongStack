@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { open, realpath, stat } from 'node:fs/promises';
 import * as path from 'node:path';
+import { isSpanHash } from '../anchors/symbol-span.js';
 import type { Sage } from '../types.js';
 
 export interface MemoryEvidenceSnapshot {
@@ -88,7 +89,14 @@ export async function snapshotMemoryEvidence(
       }
       files.push({ path: sourcePath, hash, text: capText(fullText, 6000) });
       if (
-        memory.anchors.some((a) => a.path === sourcePath && a.contentHash && a.contentHash !== hash)
+        // A symbol-span baseline (#418) is not a file hash and cannot be compared to one.
+        memory.anchors.some(
+          (a) =>
+            a.path === sourcePath &&
+            a.contentHash &&
+            !isSpanHash(a.contentHash) &&
+            a.contentHash !== hash,
+        )
       )
         changedAnchor = true;
     } catch {

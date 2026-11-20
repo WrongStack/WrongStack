@@ -142,7 +142,13 @@ export async function verifyHygieneMemories(inputs: {
             continue;
           }
           try {
-            const result = await verifyMemoryAnchors(ctx.projectRoot, memory, verificationRunAt);
+            const result = await verifyMemoryAnchors(
+              ctx.projectRoot,
+              memory,
+              verificationRunAt,
+              undefined,
+              ctx.symbolSpans,
+            );
             // `unknown` (e.g. git unavailable) does not force stale; only explicit
             // stale/contradicted outcomes demote the memory.
             const demote = result.status === 'stale' || result.status === 'contradicted';
@@ -166,7 +172,13 @@ export async function verifyHygieneMemories(inputs: {
         while (nextStale < staleMemories.length) {
           const memory = staleMemories[nextStale++]!;
           try {
-            const result = await verifyMemoryAnchors(ctx.projectRoot, memory, verificationRunAt);
+            const result = await verifyMemoryAnchors(
+              ctx.projectRoot,
+              memory,
+              verificationRunAt,
+              undefined,
+              ctx.symbolSpans,
+            );
             // Only an explicit `verified` reactivates; `unknown` stays stale.
             if (result.status === 'verified') reactivations.set(memory.id, memory.anchors);
           } catch {

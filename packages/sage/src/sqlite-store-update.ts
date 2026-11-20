@@ -1,4 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
+import { applySpanBaselines, type SpanBaseline } from './anchors/symbol-span.js';
 
 import { rejectIfUnsafeInput } from './shared/candidate-lifecycle.js';
 import { normalizeValidity } from './shared/memory-validity.js';
@@ -35,6 +36,11 @@ interface SqliteUpdateContext {
   audit: (event: string, data?: Record<string, unknown>) => void;
   emitUpdated: (memory: Sage) => void;
   emitDeleted: (memory: Sage, reason: string, removedEdges: number) => void;
+  /**
+   * Symbol-span baselines read before the mutation (#418), for the anchors this update sets or,
+   * when it confirms a stale memory as active, for the memory's own anchors.
+   */
+  spanBaselines?: ReadonlyMap<string, SpanBaseline> | undefined;
 }
 
 export function updateSqliteSage(
@@ -205,8 +211,19 @@ export function updateSqliteSage(
       }),
     ...(input.tags !== undefined && { tags: normalizeTags(input.tags) }),
     ...(input.anchors !== undefined && {
-      anchors: normalizeAnchors(ctx.projectRoot, input.anchors),
+      anchors: applySpanBaselines(
+        normalizeAnchors(ctx.projectRoot, input.anchors),
+        ctx.spanBaselines ?? new Map(),
+      ),
     }),
+    // Confirming a stale memory as active accepts its anchors as they are now: the symbol
+    // bodies it was demoted for become its new baseline, or it would demote again.
+    ...(input.anchors === undefined &&
+      input.status === 'active' &&
+      existing.status === 'stale' &&
+      ctx.spanBaselines?.size && {
+        anchors: applySpanBaselines(existing.anchors, ctx.spanBaselines),
+      }),
     ...(input.importance !== undefined && { importance: clamp01(input.importance) }),
     ...(input.confidence !== undefined && { confidence: clamp01(input.confidence) }),
     ...(input.freshness !== undefined && { freshness: clamp01(input.freshness) }),

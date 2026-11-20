@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
-import type { MemoryAnchor, MemoryCandidate, Sage } from './types.js';
+import type { MemoryAnchor, MemoryCandidate, Sage, SymbolSpanReader } from './types.js';
 
 /**
  * Ascending byte comparison for ISO-8601 timestamps. `localeCompare` is
@@ -111,4 +111,6 @@ export interface SqliteHygieneContext {
   cascadeDeleteEdges: (nodeId: string) => void;
   audit: (event: string, data?: Record<string, unknown>) => void;
   pruneAuditLog: () => void;
+  /** Symbol-span source for deep verification (#418); name check only without it. */
+  symbolSpans?: SymbolSpanReader | undefined;
 }
