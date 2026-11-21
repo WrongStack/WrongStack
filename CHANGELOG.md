@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.15] — 2026-11-21
+
+Claude 5 models get adaptive thinking, and sessions and projects can turn whole
+tool groups on or off. Browser automation moves into its own
+`@wrongstack/browser-tools` package. The desktop's settings become a searchable
+workspace, and a project can be moved from a dialog. This release also fixes a
+round of smaller robustness issues.
+
+### Added
+
+- Providers: Claude 5 models use adaptive thinking, and the prompt cache keeps
+  1-hour entries ahead of 5-minute ones as the API requires.
+- Tool groups: a session or project can enable or disable whole groups of tools,
+  from `/tool`, the WebUI Tools settings and per-session introspection.
+- Desktop: settings are a searchable workspace, the project page has an
+  overview, and a project can be moved from a dialog as well as by drag or
+  Alt+Up/Down.
+
+### Changed
+
+- Browser automation (the browser manager, its policy and network guard, and the
+  `browser_*` tools) lives in `@wrongstack/browser-tools`; `@wrongstack/tools`
+  re-exports it and no longer depends on Playwright directly.
+
+### Fixed
+
+- Security: `find -exec`, `-ok`, `-execdir` and `-okdir` stay blocked after `--`,
+  and the kill guard recognizes taskkill's `/PID:<n>` spelling.
+- ACP: reloading a live session with a changed `systemPrompt` applies it from the
+  next turn.
+- Files with very long names can be written and locked; the lock and
+  stale-lock names no longer exceed the filename limit.
+- Client: a fractional or very large `timeoutMs` no longer hides why a WebSocket
+  handshake was refused.
+- HTTP hooks cap the response body they read, the MCP HTTP server catches a
+  request error after its socket closes, and leaving a Codex WebSocket stream
+  early releases the connection.
+- WebUI: a short empty-session cleanup interval no longer runs two sweeps at
+  startup.
+- Website: the npm lockfile matches `package.json` again, and a test keeps them
+  in step.
+
 ## [1.7.14] — 2026-11-21
 
 A safety and steadiness release. The safety guards catch more ways around them:

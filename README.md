@@ -55,6 +55,15 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.7.15
+
+- **Claude 5 adaptive thinking**, with the prompt cache's 1-hour entries kept
+  ahead of 5-minute ones.
+- **Tool groups:** sessions and projects can turn whole groups of tools on or
+  off.
+- **Desktop:** settings are a searchable workspace, and projects can be moved
+  from a dialog.
+
 ### What's new in 1.7.14
 
 - **Tighter safety guards:** `git worktree remove --force`, abbreviated long
@@ -686,7 +695,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.7.14**; versions follow semver
+- Release notes: **v1.7.15**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements
