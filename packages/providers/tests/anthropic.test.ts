@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AnthropicProvider } from '../src/anthropic.js';
+import { resetEffortSupport } from '../src/effort-support.js';
 
 function mockFetch(json: unknown, status = 200) {
   return vi.fn().mockResolvedValue({
@@ -176,12 +177,14 @@ describe('AnthropicProvider', () => {
       },
       { signal: new AbortController().signal },
     );
-    // The conversation boundary (tool_result marker) carries the ttl…
+    // The conversation boundary (tool_result marker) carries the 1h ttl, and
+    // the earlier system marker is promoted to 1h so wire order never places
+    // 1h after an implicit 5m marker (which Anthropic rejects with 400).
+    // Unmarked system blocks remain unmarked (no forced tail marker).
     const messages = body?.['messages'] as Array<{ content: Array<Record<string, unknown>> }>;
     expect(messages[0]?.content[0]?.['cache_control']).toEqual({ type: 'ephemeral', ttl: '1h' });
-    // …and the system blocks keep their own markers untouched (no forced tail marker).
     const wireSystem = body?.['system'] as Array<Record<string, unknown>>;
-    expect(wireSystem[0]?.['cache_control']).toEqual({ type: 'ephemeral' });
+    expect(wireSystem[0]?.['cache_control']).toEqual({ type: 'ephemeral', ttl: '1h' });
     expect(wireSystem[1]?.['cache_control']).toBeUndefined();
   });
 
@@ -215,7 +218,7 @@ describe('AnthropicProvider', () => {
     expect(wireSystem[0]?.['cache_control']).toEqual({ type: 'ephemeral', ttl: '5m' });
   });
 
-  it('mixed ttl markers: exactly one ttl marker, emitted deepest after all plain markers', async () => {
+  it('promotes earlier 5m/plain markers to 1h when deepest marker uses 1h ttl', async () => {
     let body: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       body = JSON.parse(init.body ?? '{}');
@@ -260,12 +263,9 @@ describe('AnthropicProvider', () => {
       },
       { signal: new AbortController().signal },
     );
-    // Pin the documented emission contract (presets/anthropic.ts buildBody):
-    // the configured cache.ttl lands on the DEEPEST marked block — the
-    // conversation boundary, the prefix worth keeping across turn gaps — and
-    // every other marker stays a plain { type: 'ephemeral' } (Anthropic's
-    // 5-minute default). At most one ttl-bearing breakpoint exists per
-    // request by construction, so no 1h/5m pair is ever emitted to order.
+    // Anthropic rejects a 1h breakpoint placed after a 5m (or omitted-ttl)
+    // breakpoint. When cache.ttl === '1h' lands on the deepest marker, every
+    // preceding marker is promoted to 1h so TTL order is non-increasing.
     const markers: Array<{ block: Record<string, unknown>; where: string }> = [];
     const wireSystem = body?.['system'] as Array<Record<string, unknown>>;
     wireSystem.forEach((block, i) => {
@@ -282,17 +282,9 @@ describe('AnthropicProvider', () => {
         }
       });
     });
-    const ttlMarkers = markers.filter(
-      (m) => (m.block['cache_control'] as Record<string, unknown>)['ttl'] != null,
-    );
-    expect(ttlMarkers).toHaveLength(1);
-    expect(markers.indexOf(ttlMarkers[0]!)).toBe(markers.length - 1);
-    expect(ttlMarkers[0]!.where).toBe('messages[1].content[0]');
-    expect(ttlMarkers[0]!.block['cache_control']).toEqual({ type: 'ephemeral', ttl: '1h' });
+    expect(markers).toHaveLength(4);
     for (const marker of markers) {
-      if (marker !== ttlMarkers[0]) {
-        expect(marker.block['cache_control']).toEqual({ type: 'ephemeral' });
-      }
+      expect(marker.block['cache_control']).toEqual({ type: 'ephemeral', ttl: '1h' });
     }
   });
 
@@ -723,6 +715,199 @@ describe('AnthropicProvider', () => {
       { signal: new AbortController().signal },
     );
     expect(captured?.['thinking']).toEqual({ type: 'disabled' });
+  });
+
+  it('sends thinking.adaptive + output_config.effort for Claude 5 and Claude 4.6+ models', async () => {
+    let captured: Record<string, unknown> | undefined;
+    const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
+      captured = JSON.parse(init.body ?? '{}');
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+        text: async () => '',
+      };
+    }) as never as typeof fetch;
+    const p = new AnthropicProvider({ apiKey: 'k', fetchImpl });
+
+    for (const model of [
+      'claude-opus-5-5',
+      'claude-sonnet-5-5',
+      'claude-fable-5-2',
+      'claude-opus-4-6',
+      'claude-opus-4-7',
+      'anthropic/claude-opus-5-5',
+    ]) {
+      await p.complete(
+        {
+          model,
+          messages: [{ role: 'user', content: 'hi' }],
+          maxTokens: 8192,
+          temperature: 0.4,
+          topP: 0.9,
+          topK: 40,
+          reasoning: { enabled: true, effort: 'high' },
+        },
+        { signal: new AbortController().signal },
+      );
+      expect(captured?.['thinking']).toEqual({ type: 'adaptive' });
+      expect(captured?.['output_config']).toEqual({ effort: 'high' });
+      expect(captured).not.toHaveProperty('temperature');
+      expect(captured).not.toHaveProperty('top_p');
+      expect(captured).not.toHaveProperty('top_k');
+    }
+
+    // Effort-only request without explicit enabled still enables adaptive thinking
+    await p.complete(
+      {
+        model: 'claude-sonnet-5-5',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 512,
+        reasoning: { effort: 'xhigh' },
+      },
+      { signal: new AbortController().signal },
+    );
+    expect(captured?.['thinking']).toEqual({ type: 'adaptive' });
+    expect(captured?.['output_config']).toEqual({ effort: 'xhigh' });
+
+    // `minimal` maps to Anthropic's lowest valid effort (`low`)
+    await p.complete(
+      {
+        model: 'claude-fable-5-2',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 4096,
+        reasoning: { effort: 'minimal' },
+      },
+      { signal: new AbortController().signal },
+    );
+    expect(captured?.['thinking']).toEqual({ type: 'adaptive' });
+    expect(captured?.['output_config']).toEqual({ effort: 'low' });
+
+    // Enabled without explicit effort omits output_config
+    await p.complete(
+      {
+        model: 'claude-opus-5-5',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 4096,
+        reasoning: { enabled: true },
+      },
+      { signal: new AbortController().signal },
+    );
+    expect(captured?.['thinking']).toEqual({ type: 'adaptive' });
+    expect(captured).not.toHaveProperty('output_config');
+
+    // Disabled / effort: 'none' sends thinking.disabled without output_config
+    await p.complete(
+      {
+        model: 'claude-opus-5-5',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 4096,
+        reasoning: { effort: 'none' },
+      },
+      { signal: new AbortController().signal },
+    );
+    expect(captured?.['thinking']).toEqual({ type: 'disabled' });
+    expect(captured).not.toHaveProperty('output_config');
+  });
+
+  it('keeps legacy thinking.enabled + budget_tokens for Claude 4.0–4.5 and 3.7 models', async () => {
+    let captured: Record<string, unknown> | undefined;
+    const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
+      captured = JSON.parse(init.body ?? '{}');
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+        text: async () => '',
+      };
+    }) as never as typeof fetch;
+    const p = new AnthropicProvider({ apiKey: 'k', fetchImpl });
+
+    for (const model of [
+      'claude-3-7-sonnet-20250219',
+      'claude-sonnet-4-20250514',
+      'claude-opus-4-1',
+      'claude-sonnet-4-5-20250929',
+    ]) {
+      await p.complete(
+        {
+          model,
+          messages: [{ role: 'user', content: 'hi' }],
+          maxTokens: 8192,
+          reasoning: { enabled: true, effort: 'high' },
+        },
+        { signal: new AbortController().signal },
+      );
+      expect(captured?.['thinking']).toMatchObject({ type: 'enabled' });
+      expect(captured).not.toHaveProperty('output_config');
+    }
+  });
+
+  it('learns and retries without output_config.effort when a 400 rejects it', async () => {
+    resetEffortSupport();
+    const bodies: Array<Record<string, unknown>> = [];
+    const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
+      bodies.push(JSON.parse(init.body ?? '{}'));
+      if (bodies.length === 1) {
+        return {
+          ok: false,
+          status: 400,
+          text: async () =>
+            JSON.stringify({
+              type: 'error',
+              error: {
+                type: 'invalid_request_error',
+                message: 'output_config.effort: unsupported value "xhigh"',
+              },
+            }),
+        };
+      }
+      const enc = new TextEncoder();
+      const sse = [
+        `data: ${JSON.stringify({ type: 'message_start', message: { model: 'claude-opus-5-5', usage: { input_tokens: 1 } } })}\n\n`,
+        `data: ${JSON.stringify({ type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 1 } })}\n\n`,
+        `data: ${JSON.stringify({ type: 'message_stop' })}\n\n`,
+      ].join('');
+      return {
+        ok: true,
+        status: 200,
+        body: new ReadableStream({
+          start(controller) {
+            controller.enqueue(enc.encode(sse));
+            controller.close();
+          },
+        }),
+        text: async () => '',
+      };
+    }) as never as typeof fetch;
+
+    try {
+      const p = new AnthropicProvider({ apiKey: 'k', fetchImpl });
+      await p.complete(
+        {
+          model: 'claude-opus-5-5',
+          messages: [{ role: 'user', content: 'hi' }],
+          maxTokens: 4096,
+          reasoning: { enabled: true, effort: 'xhigh' },
+        },
+        { signal: new AbortController().signal },
+      );
+      expect(bodies).toHaveLength(2);
+      expect(bodies[0]?.['thinking']).toEqual({ type: 'adaptive' });
+      expect(bodies[0]?.['output_config']).toEqual({ effort: 'xhigh' });
+      expect(bodies[1]?.['thinking']).toEqual({ type: 'adaptive' });
+      expect(bodies[1]).not.toHaveProperty('output_config');
+    } finally {
+      resetEffortSupport();
+    }
   });
 
   it('does not send unsupported params (frequencyPenalty, presencePenalty, seed, logprobs)', async () => {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ANTHROPIC_MAX_BREAKPOINTS,
   capAnthropicCacheBreakpoints,
+  enforceAnthropicCacheTtlOrder,
 } from '../src/cache-breakpoint-cap.js';
 
 type Block = { type: string; text: string; cache_control?: { type: string; ttl?: string } };
@@ -169,5 +170,46 @@ describe('capAnthropicCacheBreakpoints', () => {
       );
       expect(warnings.some((w) => w.name === 'PinnedCacheBreakpointOverflow')).toBe(false);
     });
+  });
+});
+
+describe('enforceAnthropicCacheTtlOrder', () => {
+  it('promotes earlier plain and 5m markers to 1h when a later marker uses 1h', () => {
+    const tools = [ephemeral('t1')];
+    const system = [
+      ephemeral('s1'),
+      { type: 'text', text: 's2', cache_control: { type: 'ephemeral', ttl: '5m' } },
+    ];
+    const msgBlock = ttl('m1');
+    const messages = [{ role: 'user', content: [msgBlock] }];
+
+    enforceAnthropicCacheTtlOrder({ tools, system, messages });
+
+    expect(tools[0]?.cache_control).toEqual({ type: 'ephemeral', ttl: '1h' });
+    expect(system[0]?.cache_control).toEqual({ type: 'ephemeral', ttl: '1h' });
+    expect(system[1]?.cache_control).toEqual({ type: 'ephemeral', ttl: '1h' });
+    expect(msgBlock.cache_control).toEqual({ type: 'ephemeral', ttl: '1h' });
+  });
+
+  it('preserves valid 1h-before-5m ordering without upgrading trailing 5m markers', () => {
+    const system = [ttl('s1')];
+    const msgBlock = { type: 'text', text: 'm1', cache_control: { type: 'ephemeral', ttl: '5m' } };
+    const messages = [{ role: 'user', content: [msgBlock] }];
+
+    enforceAnthropicCacheTtlOrder({ system, messages });
+
+    expect(system[0]?.cache_control).toEqual({ type: 'ephemeral', ttl: '1h' });
+    expect(msgBlock.cache_control).toEqual({ type: 'ephemeral', ttl: '5m' });
+  });
+
+  it('leaves plain and 5m-only marker lists untouched', () => {
+    const system = [ephemeral('s1')];
+    const msgBlock = { type: 'text', text: 'm1', cache_control: { type: 'ephemeral', ttl: '5m' } };
+    const messages = [{ role: 'user', content: [msgBlock] }];
+
+    enforceAnthropicCacheTtlOrder({ system, messages });
+
+    expect(system[0]?.cache_control).toEqual({ type: 'ephemeral' });
+    expect(msgBlock.cache_control).toEqual({ type: 'ephemeral', ttl: '5m' });
   });
 });

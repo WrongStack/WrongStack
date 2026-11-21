@@ -172,3 +172,35 @@ export function capAnthropicCacheBreakpoints(
     if (!keep.has(i)) delete markers[i]?.block['cache_control'];
   }
 }
+
+/**
+ * Anthropic's Prompt Caching API requires cache breakpoint TTLs to be
+ * non-increasing in wire order (`tools` → `system` → `messages`): a longer
+ * TTL (`1h`) must never appear after a shorter TTL (`5m`, or an omitted `ttl`
+ * which defaults to `5m`). Violating that order returns HTTP 400.
+ *
+ * When a `1h` breakpoint sits after earlier plain/`5m` breakpoints (the common
+ * case when `cache.ttl: '1h'` is stamped on the deepest conversation boundary),
+ * every earlier marker is already a strict prefix of that `1h` cache write.
+ * Promoting preceding markers to `ttl: '1h'` restores valid wire order without
+ * dropping earlier checkpoints or changing the deepest prefix.
+ */
+export function enforceAnthropicCacheTtlOrder(body: WireBody): void {
+  if (!body || typeof body !== 'object') return;
+  const markers = collectMarkers(body);
+  if (markers.length < 2) return;
+
+  let seenLongerTtl = false;
+  for (let i = markers.length - 1; i >= 0; i--) {
+    const block = markers[i]?.block;
+    if (!block) continue;
+    const cc = block['cache_control'] as Record<string, unknown> | undefined;
+    if (!cc || typeof cc !== 'object') continue;
+    const ttl = cc['ttl'];
+    if (ttl === '1h') {
+      seenLongerTtl = true;
+    } else if (seenLongerTtl && (ttl === undefined || ttl === '5m')) {
+      block['cache_control'] = { ...cc, ttl: '1h' };
+    }
+  }
+}
