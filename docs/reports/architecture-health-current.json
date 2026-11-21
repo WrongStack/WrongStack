@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-21T11:10:29.165Z",
+  "generatedAt": "2026-11-21T14:41:31.543Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 49,
     "sourceFiles": 6409,
-    "testFiles": 5620,
-    "sourceLines": 1322752,
+    "testFiles": 5621,
+    "sourceLines": 1322756,
     "workspaceEdges": 255,
     "moduleEdges": 18946,
     "nonCommandSlashImports": 0,
@@ -292,7 +292,7 @@
       "name": "@wrongstack/client",
       "dir": "packages/client",
       "sourceFiles": 7,
-      "testFiles": 7,
+      "testFiles": 8,
       "workspaceDependencies": [
         "@wrongstack/webui-protocol"
       ],
@@ -305,7 +305,7 @@
         {
           "path": "packages/client/tsconfig.test.json",
           "error": null,
-          "testFiles": 7
+          "testFiles": 8
         }
       ]
     },
@@ -9644,6 +9644,12 @@
       },
       {
         "file": "packages/client/tests/handshake-probe-cleanup.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/client/tests/handshake-probe-timeout.test.ts",
         "projects": [
           "root-node"
         ]

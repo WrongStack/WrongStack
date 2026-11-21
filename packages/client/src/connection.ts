@@ -177,10 +177,13 @@ async function handshakeFailure(
   parsed.protocol = parsed.protocol.replace(/^ws/i, 'http');
   const probe = new URL('/ws-auth', parsed);
   const controller = new AbortController();
+  const deadline = scheduleTimeout(timeoutMs, () =>
+    controller.abort(new DOMException('The handshake probe timed out.', 'TimeoutError')),
+  );
   try {
     const response = await fetch(probe, {
       ...(effectiveToken ? { headers: { 'X-WS-Token': effectiveToken } } : {}),
-      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(timeoutMs)]),
+      signal: controller.signal,
     });
     if (response.status === 401) {
       return new WrongStackError({
@@ -205,6 +208,7 @@ async function handshakeFailure(
       retryable: true,
     });
   } finally {
+    deadline.cancel();
     // Only the status is needed; do not leave a streaming response body open.
     controller.abort();
   }
