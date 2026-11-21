@@ -1,6 +1,6 @@
 # First-Party Browser Automation
 
-WrongStack ships lazy Playwright browser tools through the normal builtin `ToolRegistry`. They are
+WrongStack ships the bundled `@wrongstack/browser-tools` workspace package through the normal builtin `ToolRegistry`. Its Playwright runtime provisions on demand. The tools are
 available to CLI, TUI, WebUI, and fleet workers without enabling the Playwright MCP
 preset. The optional MCP server remains compatible because it uses `playwright_*`; first-party
 tools use `browser_*`.

@@ -12,7 +12,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { removeProjectFixtureDirectory } from '../../core/tests/helpers/project-server-harness.js';
-import { _resetArtifactSweepForTests, BrowserArtifactStore } from '../src/browser/artifacts.js';
+import { _resetArtifactSweepForTests, BrowserArtifactStore } from '../src/artifacts.js';
 
 let root: string;
 const DAY_MS = 24 * 60 * 60 * 1000;

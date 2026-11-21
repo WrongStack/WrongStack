@@ -691,6 +691,15 @@ export type {
   ToolExecutorStrategy,
 } from './tool-executor.js';
 export { GOVERNED_TOOL_EXECUTOR_META_KEY } from './tool-executor.js';
+export {
+  isSessionToolGroup,
+  isSessionToolGroupMode,
+  QUICK_TOOL_GROUPS,
+  type SessionToolGroup,
+  type SessionToolGroupChoice,
+  type SessionToolGroupMode,
+  type SessionToolGroupState,
+} from './tool-group.js';
 export { MALFORMED_ARG_MARKERS } from './tool-markers.js';
 export type {
   UserInputAnswer,

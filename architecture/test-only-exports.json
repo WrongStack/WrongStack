@@ -307,6 +307,9 @@
       "installDependencies",
       "prepareExercise"
     ],
+    "packages/browser-tools/src/artifacts.ts": [
+      "_resetArtifactSweepForTests"
+    ],
     "packages/builtin-plugins/src/auto-review-git.ts": [
       "snapshotChangedFiles"
     ],
@@ -1526,9 +1529,6 @@
     "packages/tools/src/bash-kill-guard.ts": [
       "getBlockedKillMessage",
       "parseKillCommand"
-    ],
-    "packages/tools/src/browser/artifacts.ts": [
-      "_resetArtifactSweepForTests"
     ],
     "packages/tools/src/builtin.ts": [
       "BUILTIN_TOOL_DESCRIPTIONS"

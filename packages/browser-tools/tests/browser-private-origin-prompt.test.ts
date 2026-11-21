@@ -4,10 +4,10 @@ import { join } from 'node:path';
 import type { UserInputRequest, UserInputResponse } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { browserPrivateOrigins } from '../src/browser/policy.js';
-import { promptForPrivateOrigin } from '../src/browser/private-origin-prompt.js';
-import { LOOPBACK_ALLOWANCE } from '../src/browser/security.js';
-import { browserNavigateTool } from '../src/browser/tools.js';
+import { browserPrivateOrigins } from '../src/policy.js';
+import { promptForPrivateOrigin } from '../src/private-origin-prompt.js';
+import { LOOPBACK_ALLOWANCE } from '../src/security.js';
+import { browserNavigateTool } from '../src/tools.js';
 
 let root: string;
 beforeEach(async () => {

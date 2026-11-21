@@ -95,11 +95,12 @@ export async function checkExecKillCommand(
       const hasForce = args.some((a) => a.toUpperCase() === '/F' || a.toUpperCase() === '-F');
       const signal = hasForce ? 'FORCE' : 'TERM';
 
-      // /IM name-based kill
+      // /IM name-based kill (including colon-attached `/IM:node.exe`)
       for (let i = 0; i < args.length; i++) {
         const a = args[i]!;
-        if (a.toUpperCase() === '/IM' || a.toUpperCase() === '-IM') {
-          const nameArg = args[i + 1];
+        const attached = /^[/-]IM:(.+)$/i.exec(a)?.[1];
+        if (attached || a.toUpperCase() === '/IM' || a.toUpperCase() === '-IM') {
+          const nameArg = attached ?? args[i + 1];
           if (nameArg) {
             const result = await checkKillTarget({ name: nameArg, signal, cmd: fullCommand });
             if (result.blocked) return result;
@@ -124,11 +125,12 @@ export async function checkExecKillCommand(
         }
       }
       // /FI "IMAGENAME eq node.exe" filter-based name kill (functionally
-      // equivalent to /IM, documented taskkill idiom)
+      // equivalent to /IM, documented taskkill idiom; also accepts `/FI:...`)
       for (let i = 0; i < args.length; i++) {
         const a = args[i]!;
-        if (a.toUpperCase() === '/FI' || a.toUpperCase() === '-FI') {
-          const filterArg = args[i + 1];
+        const attached = /^[/-]FI:(.+)$/i.exec(a)?.[1];
+        if (attached || a.toUpperCase() === '/FI' || a.toUpperCase() === '-FI') {
+          const filterArg = attached ?? args[i + 1];
           if (filterArg) {
             // `/FI "PID eq <n>"` kills <n> exactly like `/PID <n>`. An
             // inequality (`ne`/`gt`/`ge`/`lt`/`le`) selects a PID SET instead,

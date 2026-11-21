@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BrowserSessionManager } from '../src/browser/manager.js';
+import { BrowserSessionManager } from '../src/manager.js';
 
 /**
  * Upload containment must use the canonical escape test, not a bare

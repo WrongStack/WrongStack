@@ -2,8 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as http from 'node:http';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { browserPrivateOrigins } from '@wrongstack/browser-tools/policy';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { browserPrivateOrigins } from '../src/browser/policy.js';
 import { withServedProjectFile } from '../src/design-reference-serve.js';
 
 let root: string;

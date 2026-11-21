@@ -9,8 +9,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { chromium } from '@playwright/test';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { BrowserSessionManager } from '../src/browser/manager.js';
-import type { BrowserFrame } from '../src/browser/types.js';
+import { BrowserSessionManager } from '../src/manager.js';
+import type { BrowserFrame } from '../src/types.js';
 
 const playwrightAvailable = (() => {
   try {

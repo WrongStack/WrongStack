@@ -94,12 +94,14 @@ export class CodexWebSocketPool {
             this.connections.delete(oldest);
           }
         }
+        let completed = false;
         try {
           yield* connection.stream(
             opts.body,
             recoveryReason ? { ...opts, prewarm: false, recoveryReason } : opts,
             parse,
           );
+          completed = true;
           return;
         } catch (error) {
           connection.close();
@@ -114,6 +116,11 @@ export class CodexWebSocketPool {
             continue;
           }
           throw error;
+        } finally {
+          if (!completed) {
+            connection.close();
+            if (this.connections.get(key) === connection) this.connections.delete(key);
+          }
         }
       }
     } finally {

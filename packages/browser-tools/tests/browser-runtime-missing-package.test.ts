@@ -6,12 +6,12 @@ import { pathToFileURL } from 'node:url';
 import { transformSync } from 'esbuild';
 import { describe, expect, it } from 'vitest';
 
-// The version the runtime provisions is the package's own @playwright/test dependency.
+// The provisioned version matches the package's Playwright development dependency.
 const PLAYWRIGHT_VERSION = (
   JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
-    dependencies: Record<string, string>;
+    devDependencies: Record<string, string>;
   }
-).dependencies['@playwright/test']?.replace(/^\^/, '');
+).devDependencies['@playwright/test']?.replace(/^\^/, '');
 
 describe('standalone binary browser provisioning', () => {
   it.each([false, true])(
@@ -61,11 +61,11 @@ describe('standalone binary browser provisioning', () => {
         // A real Node importer outside the workspace has no Playwright package.
         // Replace only process/download dependencies; keep module resolution real.
         const stubHref = JSON.stringify(pathToFileURL(stub).href);
-        const source = readFileSync(new URL('../src/browser/runtime.ts', import.meta.url), 'utf8')
+        const source = readFileSync(new URL('../src/runtime.ts', import.meta.url), 'utf8')
           .replace("'node:child_process'", stubHref)
           .replace("'node:os'", stubHref)
           .replace("'node:fs'", stubHref)
-          .replace("'../_env.js'", stubHref)
+          .replace("'@wrongstack/core/utils'", stubHref)
           .replace("'@wrongstack/core/utils/error'", stubHref);
         writeFileSync(
           join(dir, 'runtime.mjs'),

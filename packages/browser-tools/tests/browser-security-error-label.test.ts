@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertBrowserUrlAllowed } from '../src/browser/security.js';
+import { assertBrowserUrlAllowed } from '../src/security.js';
 
 /**
  * browser_open / browser_navigate refused a private target with the shared

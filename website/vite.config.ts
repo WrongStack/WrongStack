@@ -211,7 +211,7 @@ function validateProductCatalog() {
   );
   const builtinToolsBlock = sourceSection(builtinToolsSource, 'const rawBuiltinTools', '\n];');
   const browserToolsSource = fs.readFileSync(
-    path.join(repoRoot, 'packages/tools/src/browser/tools.ts'),
+    path.join(repoRoot, 'packages/browser-tools/src/tools.ts'),
     'utf8',
   );
   const browserToolsBlock = sourceSection(browserToolsSource, 'export const browserTools', '\n];');

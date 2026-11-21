@@ -1,7 +1,12 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { LEAN_BENCH_TOOL_NAMES } from '../packages/bench/src/isolation.ts';
+import { browserTools, liveBrowser } from '../packages/browser-tools/dist/index.js';
 import { measureToolSchemas } from '../packages/core/dist/utils/index.js';
+import {
+  browserTools as compatibilityBrowserTools,
+  liveBrowser as compatibilityLiveBrowser,
+} from '../packages/tools/dist/browser/index.js';
 import { builtinTools } from '../packages/tools/dist/builtin.js';
 import { createBuiltinToolCatalog } from '../packages/tools/dist/tool-catalog.js';
 import { selectBuiltinToolsForTier } from '../packages/tools/dist/tool-tier.js';
@@ -18,6 +23,9 @@ const longDescriptions: Record<string, { max: number; reason: string }> = {
   design_reference: { max: 518, reason: 'Reference extraction, comparison and inspection modes.' },
 };
 const problems: string[] = [];
+if (browserTools !== compatibilityBrowserTools || liveBrowser !== compatibilityLiveBrowser) {
+  problems.push('The browser compatibility entry must share the Browser package suite and state.');
+}
 for (const tool of catalog.tools) {
   problems.push(...tool.issues.map((issue) => `${tool.name}: ${issue}`));
   const max = longDescriptions[tool.name]?.max ?? 300;

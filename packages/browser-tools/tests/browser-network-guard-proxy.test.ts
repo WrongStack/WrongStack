@@ -1,7 +1,7 @@
 import * as http from 'node:http';
 import * as net from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
-import { BrowserNetworkGuardProxy } from '../src/browser/network-guard-proxy.js';
+import { BrowserNetworkGuardProxy } from '../src/network-guard-proxy.js';
 
 const closers: Array<() => Promise<void>> = [];
 

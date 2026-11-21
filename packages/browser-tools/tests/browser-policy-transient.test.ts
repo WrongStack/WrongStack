@@ -6,7 +6,7 @@ import {
   browserPrivateOrigins,
   setBrowserPrivateOrigin,
   withTransientPrivateOrigin,
-} from '../src/browser/policy.js';
+} from '../src/policy.js';
 
 let root: string;
 let home: string;

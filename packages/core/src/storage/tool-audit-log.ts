@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import type { EventBus } from './event-bus-port.js';
-import { SECRET_FILE_MODE } from '../security/file-permissions.js';
+import { SECRET_FILE_MODE, restrictFilePermissions } from '../security/file-permissions.js';
 import { withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
 import { expectDefined } from '../utils/expect-defined.js';
@@ -102,6 +102,8 @@ export class ToolAuditLog {
   /** Tracks writes since last fsync, per session. */
   private readonly unSyncedWrites = new Map<string, number>();
   private readonly writeChains = new Map<string, Promise<void>>();
+  /** Sessions whose audit sidecar has been owner-only hardened (once per session). */
+  private readonly hardenedSessions = new Set<string>();
   private readonly fsyncEvery: number;
 
   constructor(opts: ToolAuditLogOptions) {
@@ -193,6 +195,18 @@ export class ToolAuditLog {
           this.tailHash.set(input.sessionId, hash);
           this.tailIndex.set(input.sessionId, index + 1);
           await this._trackUnsynced(input.sessionId, fp);
+
+          // F20 (WS-045 class): on Windows `mode: 0o600` is a no-op, so the
+          // appendFile above leaves this raw-tool-I/O sidecar readable by other
+          // local accounts wherever inheritance is not already owner-only.
+          // atomicWrite-based secret writes get icacls hardening; this
+          // append-only writer did not. Harden once per session (first record)
+          // — best-effort (warned, never thrown), so no per-call icacls spawn on
+          // the hot audit path. Idempotent across processes.
+          if (!this.hardenedSessions.has(input.sessionId)) {
+            this.hardenedSessions.add(input.sessionId);
+            await restrictFilePermissions(fp, { label: 'tool-audit' });
+          }
 
           const durationMs = Date.now() - t0;
           this.events?.emit('storage.write', {

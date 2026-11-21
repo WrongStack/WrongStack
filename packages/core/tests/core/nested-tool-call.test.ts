@@ -15,6 +15,10 @@ import type { ToolUseBlock } from '@wrongstack/contracts/types/blocks';
 import type { NestedToolCallResult } from '@wrongstack/contracts/types/context';
 import type { Tool } from '@wrongstack/contracts/types/tool';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { buildCodexRequestBody } from '../../../providers/src/openai-codex-body.js';
+import { anthropicWireFormat } from '../../../providers/src/presets/anthropic.js';
+import { googleWireFormat } from '../../../providers/src/presets/google.js';
+import { openaiWireFormat } from '../../../providers/src/presets/openai.js';
 import { globTool } from '../../../tools/src/glob.js';
 import { grepTool } from '../../../tools/src/grep.js';
 import { readTool } from '../../../tools/src/read.js';
@@ -24,12 +28,14 @@ import { toolUseTool } from '../../../tools/src/tool-use.js';
 import { Agent, createDefaultPipelines } from '../../src/core/agent.js';
 import type { ToolCallPipelinePayload } from '../../src/core/agent-types.js';
 import { Context } from '../../src/core/context.js';
+import { requestScopedEntries } from '../../src/core/request-scoped-context.js';
 import { DefaultErrorHandler } from '../../src/execution/error-handler.js';
 import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
 import { DefaultLogger } from '../../src/infrastructure/logger.js';
 import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
 import { ProviderRegistry } from '../../src/registry/provider-registry.js';
+import { setSessionToolGroup } from '../../src/registry/session-tool-groups.js';
 import { ToolRegistry } from '../../src/registry/tool-registry.js';
 import { DefaultPermissionPolicy } from '../../src/security/permission-policy.js';
 import { DefaultSecretScrubber } from '../../src/security/secret-scrubber.js';
@@ -157,6 +163,99 @@ const turn = {
 const done = { content: [{ type: 'text' as const, text: 'ok' }], stopReason: 'end_turn' as const };
 
 describe('a tool call made from inside a tool', () => {
+  it.each(['native', 'auto', 'none'] as const)(
+    'keeps the Quick prefix stable for live groups on the %s request path',
+    async (cacheControl) => {
+      const use = (id: string, name: string, input: Record<string, unknown>) => ({
+        content: [{ type: 'tool_use' as const, id, name, input }],
+        stopReason: 'tool_use' as const,
+      });
+      const target: Tool = {
+        ...tool('kanban', 'auto'),
+        aliases: ['board_fixture'],
+        inputSchema: { type: 'object', properties: { contractMarker: { type: 'string' } } },
+        execute: vi.fn(async () => 'board accessed'),
+      };
+      const provider = new MockProvider([
+        use('off', 'tool_use', { tool: 'board_fixture', input: {} }),
+        done,
+        use('lookup', 'tool_search', { query: 'board_fixture' }),
+        use('on', 'tool_use', { tool: 'board_fixture', input: { contractMarker: 'valid' } }),
+        done,
+        use('off-again', 'board_fixture', {}),
+        done,
+      ]);
+      provider.capabilities.cacheControl = cacheControl;
+      const { agent, ctx, events, registry } = await buildAgent(provider, [
+        target,
+        toolSearchTool,
+        toolUseTool,
+      ]);
+      events.on('tool.confirm_needed', (event) => event.resolve('yes'));
+      ctx.meta['systemPromptVariant'] = 'quick';
+
+      await agent.run('Try the unlinked board');
+      expect(target.execute).not.toHaveBeenCalled();
+      setSessionToolGroup(ctx, 'kanban', 'on');
+      await agent.run('Look up and access the board');
+      expect(target.execute).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify(provider.receivedRequests[3]?.messages)).toContain(
+        'Deferred tool schema for kanban',
+      );
+      expect(JSON.stringify(provider.receivedRequests[4]?.messages)).not.toContain(
+        'Deferred tool schema for kanban',
+      );
+      expect(JSON.stringify(ctx.messages)).not.toContain('Deferred tool schema for kanban');
+      expect(requestScopedEntries(ctx)).toEqual([]);
+
+      // Late registrations and another toggle leave the same direct tools and key.
+      registry.register(tool('late-plugin-tool', 'auto'), 'plugin');
+      setSessionToolGroup(ctx, 'kanban', 'off');
+      await agent.run('Try the board again through its alias');
+      expect(target.execute).toHaveBeenCalledTimes(1);
+      expect(provider.receivedRequests).toHaveLength(7);
+      const stable = provider.receivedRequests[0];
+      const format = {
+        native: anthropicWireFormat,
+        auto: openaiWireFormat,
+        none: googleWireFormat,
+      }[cacheControl];
+      if (!stable) throw new Error('Missing baseline request');
+      const wireContext = { capabilities: provider.capabilities };
+      const stableWire = format.buildBody(stable, wireContext);
+      const codexOptions = {
+        capabilities: provider.capabilities,
+        policy: undefined,
+        includeReasoning: false,
+        configuredReasoningEffort: undefined,
+        reasoningEffort: 'medium',
+        textVerbosity: 'medium',
+      } as const;
+      const stableCodex =
+        cacheControl === 'auto' ? buildCodexRequestBody(stable, codexOptions) : undefined;
+      if (stableCodex) expect(stableCodex['prompt_cache_key']).toBeTruthy();
+      for (const request of provider.receivedRequests) {
+        expect(JSON.stringify(request.tools)).toBe(JSON.stringify(stable.tools));
+        expect(JSON.stringify(request.system)).toBe(JSON.stringify(stable.system));
+        expect(request.cache?.key).toBe(stable.cache?.key);
+        const wire = format.buildBody(request, wireContext);
+        expect(JSON.stringify(wire['tools'])).toBe(JSON.stringify(stableWire['tools']));
+        expect(wire['prompt_cache_key']).toBe(stableWire['prompt_cache_key']);
+        const schemaPlacement =
+          request === provider.receivedRequests[3]
+            ? expect.stringContaining('Deferred tool schema for kanban')
+            : expect.not.stringContaining('Deferred tool schema for kanban');
+        expect(JSON.stringify(wire)).toEqual(schemaPlacement);
+        if (stableCodex) {
+          const codex = buildCodexRequestBody(request, codexOptions);
+          expect(JSON.stringify(codex['tools'])).toBe(JSON.stringify(stableCodex['tools']));
+          expect(codex['prompt_cache_key']).toBe(stableCodex['prompt_cache_key']);
+          expect(JSON.stringify(codex)).toEqual(schemaPlacement);
+        }
+      }
+    },
+  );
+
   it.each(['direct', 'tool_use', 'tool_script'] as const)(
     'cannot reach a denied or disabled target through an alias via %s',
     async (route) => {

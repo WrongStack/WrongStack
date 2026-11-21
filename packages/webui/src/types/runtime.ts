@@ -1,4 +1,8 @@
-import type { UserInputRequest, UserInputResponse } from '@wrongstack/contracts/types';
+import type {
+  SessionToolGroupState,
+  UserInputRequest,
+  UserInputResponse,
+} from '@wrongstack/contracts/types';
 import type { ContextBreakdown } from '@wrongstack/core/agent';
 import type { HistoryRetention, RequestResidency } from '@wrongstack/core/utils/residency-labels';
 import type { SessionScopedPayload } from './protocol-core.js';
@@ -461,12 +465,17 @@ export interface WSToolsList {
      * suppressed.
      */
     requestId?: string | undefined;
+    sessionId?: string | undefined;
+    toolGroups?: SessionToolGroupState[] | undefined;
+    groupError?: string | undefined;
     tools: Array<{
       name: string;
       owner: string;
       description: string;
       params: string[];
       disabled: boolean;
+      direct: boolean;
+      groupDisabled?: boolean | undefined;
       mutating: boolean;
       permission: string;
     }>;

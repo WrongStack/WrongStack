@@ -95,6 +95,7 @@ export const CLIENT_CONFIGURATION_MESSAGE_TYPES = [
   'user_instructions.save',
   'tool.disable',
   'tool.enable',
+  'tools.group.set',
   'tools.list',
   'webui.shutdown',
 ] as const;

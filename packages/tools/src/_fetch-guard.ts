@@ -1,13 +1,13 @@
 import * as dns from 'node:dns/promises';
 import * as net from 'node:net';
-import { FetchError, ToolValidationError } from '@wrongstack/contracts/types';
-import { isPrivateIPv4, isPrivateIPv6 } from '@wrongstack/core/utils';
-import type { Agent } from 'undici';
 import {
   isLoopbackHostname,
   isPrivateOriginApproved,
   networkAllowHint,
-} from './browser/security.js';
+} from '@wrongstack/browser-tools/security';
+import { FetchError, ToolValidationError } from '@wrongstack/contracts/types';
+import { isPrivateIPv4, isPrivateIPv6 } from '@wrongstack/core/utils';
+import type { Agent } from 'undici';
 
 /**
  * SSRF guard machinery shared by the `fetch` and `search` tools. Split out of

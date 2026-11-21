@@ -5,7 +5,7 @@ import {
   redactBrowserText,
   resolvePinnedBrowserTarget,
   safeBrowserUrl,
-} from '../src/browser/security.js';
+} from '../src/security.js';
 
 describe('browser security boundary', () => {
   it('allows public https URLs and removes sensitive URL components from output', async () => {

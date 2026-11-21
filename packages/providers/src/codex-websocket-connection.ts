@@ -269,6 +269,7 @@ export class CodexWebSocketConnection {
     };
 
     let usedContinuation = false;
+    let responseStarted = false;
     try {
       if (opts.prewarm && !this.prewarmed) {
         await this.tryPrewarm(body, opts.signal, socket);
@@ -311,6 +312,7 @@ export class CodexWebSocketConnection {
         });
       }
       this.beginResponse(body);
+      responseStarted = true;
       socket.send(JSON.stringify({ type: 'response.create', ...requestBody }));
       for await (const event of parse(
         bodyStream,
@@ -359,6 +361,9 @@ export class CodexWebSocketConnection {
       disarmStall();
       this.activeQueue = undefined;
       this.onTurnState = undefined;
+      if (responseStarted && !this.terminalSeen) {
+        this.close();
+      }
     }
   }
 

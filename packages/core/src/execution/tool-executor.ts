@@ -22,6 +22,11 @@ import type { Context } from '../core/context.js';
 import { queueDirectoryInstructions } from '../core/project-instructions.js';
 import { spanSessionAttributes } from '../core/span-session.js';
 import {
+  isSessionToolAllowed,
+  sessionToolCatalog,
+  setSessionToolGroupGovernance,
+} from '../registry/session-tool-groups.js';
+import {
   CATALOG_GATEWAY_TOOL,
   isToolReachable,
   reachableTools,
@@ -127,6 +132,7 @@ export class ToolExecutor extends ToolExecutorCore {
     strategy: ToolExecutorStrategy,
   ): Promise<ToolBatchResult> {
     let budget = this.opts.perIterationOutputCapBytes ?? 100_000;
+    if (this.opts.requireKanbanGovernance === true) setSessionToolGroupGovernance(ctx, true);
 
     const runOne = async (use0: ToolUseBlock): Promise<ToolExecutionOutput> => {
       const start = Date.now();
@@ -134,7 +140,7 @@ export class ToolExecutor extends ToolExecutorCore {
       // A preceding call may have connected MCP, changed a plugin, or disabled
       // a tool. Discovery and nested invocation must see the executable registry
       // used by this call, including within a single sequential batch.
-      ctx.catalogTools = this.registry.list();
+      ctx.catalogTools = sessionToolCatalog(ctx, this.registry.list());
       const tool = this.registry.get(use.name);
       // Canonicalize before reachability, hooks and policy. An alias cannot
       // create a new permission subject or widen a conversation's surface.
@@ -167,6 +173,19 @@ export class ToolExecutor extends ToolExecutorCore {
             ? this.registry.get(gatewayTargetName)
             : undefined
           : tool;
+
+      if (gatewayTargetName && gatedTool && !isToolReachable(ctx, gatedTool.name)) {
+        const result = unknownToolResult({ ...use, name: gatedTool.name }, () =>
+          reachableTools(ctx).map((t) => t.name),
+        );
+        budget = this.budgetForString(result.content, budget);
+        return {
+          result,
+          tool: undefined,
+          durationMs: Date.now() - start,
+          settlement: 'unknown_tool',
+        };
+      }
 
       if (
         !areSubagentsAllowed(ctx) &&
@@ -537,7 +556,15 @@ export class ToolExecutor extends ToolExecutorCore {
     budget: number,
     preToolContext?: { text: string; contextAs: 'inline' | 'separate' },
   ): Promise<{ block: ToolResultBlock; bytes: number }> {
-    ctx.catalogTools = this.registry.list();
+    if (this.opts.requireKanbanGovernance === true) setSessionToolGroupGovernance(ctx, true);
+    ctx.catalogTools = sessionToolCatalog(ctx, this.registry.list());
+    if (!isSessionToolAllowed(ctx, tool.name)) {
+      const block = unknownToolResult(use, () => reachableTools(ctx).map((t) => t.name));
+      return {
+        block,
+        bytes: typeof block.content === 'string' ? Buffer.byteLength(block.content) : 0,
+      };
+    }
     return this.withGovernedExecutionBridge(ctx, async () => {
       const start = Date.now();
       const inputPath =

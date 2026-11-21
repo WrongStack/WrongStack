@@ -752,17 +752,17 @@
       "fingerprint": "db0bf68ab1a2242a"
     },
     {
-      "file": "packages/tools/tests/browser-live-view.test.ts",
+      "file": "packages/browser-tools/tests/browser-live-view.test.ts",
       "kind": "skipIf",
       "fingerprint": "c00bf4a075e4e470"
     },
     {
-      "file": "packages/tools/tests/browser-manager-guard-regressions.test.ts",
+      "file": "packages/browser-tools/tests/browser-manager-guard-regressions.test.ts",
       "kind": "skipIf",
       "fingerprint": "38f99c1d70b10685"
     },
     {
-      "file": "packages/tools/tests/browser-manager.test.ts",
+      "file": "packages/browser-tools/tests/browser-manager.test.ts",
       "kind": "skipIf",
       "fingerprint": "8f0a065f34a0d18f"
     },

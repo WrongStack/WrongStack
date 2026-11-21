@@ -5,10 +5,17 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { Provider } from '@wrongstack/contracts/types/provider';
 import type { Tool } from '@wrongstack/contracts/types/tool';
 import { describe, expect, it } from 'vitest';
+import { refreshAgentToolSurface } from '../../src/core/agent-tool-surface.js';
+import type { Context } from '../../src/core/context.js';
 import { loadInstructionBundle } from '../../src/core/instruction-bundle.js';
 import { renderInstructionLayer } from '../../src/core/instruction-template.js';
+import {
+  requestScopedEntries,
+  stageDeferredToolSchema,
+} from '../../src/core/request-scoped-context.js';
 import {
   isSystemInstructionVariant,
   SYSTEM_PROMPT_VARIANTS,
@@ -17,6 +24,11 @@ import {
   providerToolsForVariant,
   QUICK_BASIC_TOOL_NAMES,
 } from '../../src/registry/scout-tool-surface.js';
+import {
+  sessionToolGroupState,
+  setSessionToolGroup,
+  setSessionToolGroupGovernance,
+} from '../../src/registry/session-tool-groups.js';
 import { ToolRegistry } from '../../src/registry/tool-registry.js';
 
 const tool = (name: string): Tool => ({
@@ -33,6 +45,48 @@ const tool = (name: string): Tool => ({
 const names = (tools: readonly Tool[]) => tools.map((t) => t.name);
 
 describe('Quick variant', () => {
+  it('resolves a linked board, locks governance and drops an attachment after disabling a group', () => {
+    const board = tool('kanban');
+    const ctx = {
+      meta: { systemPromptVariant: 'quick', kanban: { boardId: 'bound-board' } },
+      tools: [tool('tool_use')],
+      catalogTools: [board],
+    };
+    expect(sessionToolGroupState(ctx, 'kanban')).toMatchObject({ mode: 'auto', enabled: true });
+    stageDeferredToolSchema(ctx, board);
+    expect(requestScopedEntries(ctx)).toHaveLength(1);
+    setSessionToolGroup(ctx, 'kanban', 'off');
+    expect(requestScopedEntries(ctx)).toEqual([]);
+    setSessionToolGroup(ctx, 'kanban', 'on');
+    expect(requestScopedEntries(ctx)).toEqual([]);
+    setSessionToolGroupGovernance(ctx, true);
+    expect(() => setSessionToolGroup(ctx, 'kanban', 'off')).toThrow('governance');
+    expect(sessionToolGroupState(ctx, 'kanban')).toMatchObject({ required: true, enabled: true });
+  });
+
+  it('keeps an unlinked Kanban and a missing code index out of the Quick discovery catalog', async () => {
+    const registry = new ToolRegistry();
+    for (const name of ['read', 'tool_search', 'tool_use', 'kanban', 'codebase-search']) {
+      registry.register(tool(name));
+    }
+    const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+    const ctx = {
+      meta: {
+        systemPromptVariant: 'quick',
+        codebaseIndexDir: path.join(projectRoot, 'missing-index'),
+      },
+      projectRoot,
+    } as unknown as Context;
+    await refreshAgentToolSurface(
+      { ctx, tools: registry, container: { safeResolve: () => undefined } },
+      { id: 'test' } as Provider,
+      'test',
+      false,
+    );
+    expect(names(ctx.catalogTools)).toEqual(['read', 'tool_search', 'tool_use']);
+    expect(names(ctx.tools)).toEqual(['read', 'tool_search', 'tool_use']);
+  });
+
   it('is a selectable variant', () => {
     expect(SYSTEM_PROMPT_VARIANTS).toContain('quick');
     expect(isSystemInstructionVariant('quick')).toBe(true);

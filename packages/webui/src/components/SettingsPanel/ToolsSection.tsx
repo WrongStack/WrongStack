@@ -1,10 +1,13 @@
+import { isSessionToolGroupMode, QUICK_TOOL_GROUPS } from '@wrongstack/contracts/types';
 import { ChevronDown, Loader2, Power, PowerOff, Search, Wrench } from 'lucide-react';
 import { type ReactElement, useCallback, useEffect, useState } from 'react';
 import { toast } from '@/components/Toaster';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
 import { toolDisplayName } from '@/lib/tool-summary';
-import type { WSServerMessage } from '@/types';
+import { SESSION_DEFAULT_LANE_ID, useSessionLanes } from '@/stores/session-lanes';
+import { useSessionStore } from '@/stores/session-store';
+import type { WSServerMessage, WSToolsList } from '@/types';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -15,6 +18,7 @@ interface ToolInfo {
   description: string;
   params: string[];
   disabled: boolean;
+  groupDisabled?: boolean | undefined;
   direct: boolean;
   mutating: boolean;
   permission: string;
@@ -44,7 +48,7 @@ function ToolRow({
     <div className="space-y-2 rounded-md border border-border/70 bg-card/70 p-3 transition-colors hover:bg-card">
       <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start">
         <div className="flex min-w-0 flex-1 items-start gap-2">
-          <StatusDot disabled={tool.disabled} direct={tool.direct} />
+          <StatusDot disabled={tool.disabled || tool.groupDisabled === true} direct={tool.direct} />
           <div className="min-w-0 flex-1">
             <code className="block truncate text-sm font-mono font-semibold" title={tool.name}>
               {toolDisplayName(tool.name)}
@@ -57,7 +61,13 @@ function ToolRow({
                 {tool.mutating ? 'mutating' : 'read-only'}
               </Badge>
               <Badge variant="outline" className="px-1.5 text-[10px]">
-                {tool.disabled ? 'disabled' : tool.direct ? 'direct' : 'lazy'}
+                {tool.disabled
+                  ? 'disabled'
+                  : tool.groupDisabled
+                    ? 'group off'
+                    : tool.direct
+                      ? 'direct'
+                      : 'lazy'}
               </Badge>
               <span className="truncate text-[11px] text-muted-foreground" title={tool.owner}>
                 {tool.owner}
@@ -110,17 +120,29 @@ function ToolRow({
 }
 
 export function ToolsSection(): ReactElement {
+  const lane = useSessionLanes((state) => state.activeSessionId);
+  const fallback = useSessionStore((state) => state.session?.id);
+  const sessionId = lane !== SESSION_DEFAULT_LANE_ID ? lane : fallback;
+  return <SessionToolsSection key={sessionId ?? ''} sessionId={sessionId} />;
+}
+
+function SessionToolsSection({ sessionId }: { sessionId: string | undefined }): ReactElement {
   const { t } = useAppTranslation();
   const { client } = useWebSocket();
   const [tools, setTools] = useState<ToolInfo[]>([]);
+  const [groups, setGroups] = useState<NonNullable<WSToolsList['payload']['toolGroups']>>([]);
+  const [projectScope, setProjectScope] = useState(false);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
   const [busyMap, setBusyMap] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const offTools = client.on('tools.list', (msg) => {
-      const p = msg.payload as { tools: ToolInfo[] };
+      const p = msg.payload as WSToolsList['payload'];
+      if (p.sessionId !== sessionId) return;
       setTools(p.tools);
+      setGroups(p.toolGroups ?? []);
+      if (p.groupError) toast.error(p.groupError);
       setLoading(false);
     });
     const handleToggleResponse = (msg: WSServerMessage) => {
@@ -132,7 +154,10 @@ export function ToolsSection(): ReactElement {
           return next;
         });
         if (p.ok) {
-          client.send({ type: 'tools.list' }, { echoToChat: false });
+          client.send(
+            { type: 'tools.list', ...(sessionId ? { payload: { sessionId } } : {}) },
+            { echoToChat: false },
+          );
         } else {
           toast.error(
             `Tool "${p.name}" ${msg.type === 'tool.disabled' ? 'disable' : 'enable'} failed.`,
@@ -147,12 +172,15 @@ export function ToolsSection(): ReactElement {
       offDisabled();
       offEnabled();
     };
-  }, [client]);
+  }, [client, sessionId]);
 
   // Fetch tools on mount
   useEffect(() => {
-    client.send({ type: 'tools.list' }, { echoToChat: false });
-  }, [client]);
+    client.send(
+      { type: 'tools.list', ...(sessionId ? { payload: { sessionId } } : {}) },
+      { echoToChat: false },
+    );
+  }, [client, sessionId]);
 
   const handleToggle = useCallback(
     (name: string, currentlyDisabled: boolean) => {
@@ -176,9 +204,9 @@ export function ToolsSection(): ReactElement {
     : tools;
   // Tools are bounded (catalog), show all without pagination.
 
-  const directCount = tools.filter((t) => !t.disabled && t.direct).length;
-  const lazyCount = tools.filter((t) => !t.disabled && !t.direct).length;
-  const disabledCount = tools.filter((t) => t.disabled).length;
+  const directCount = tools.filter((t) => !t.disabled && !t.groupDisabled && t.direct).length;
+  const lazyCount = tools.filter((t) => !t.disabled && !t.groupDisabled && !t.direct).length;
+  const disabledCount = tools.filter((t) => t.disabled || t.groupDisabled).length;
 
   return (
     <div className="space-y-4">
@@ -196,6 +224,65 @@ export function ToolsSection(): ReactElement {
           </span>
         )}
       </div>
+
+      {sessionId && groups.length > 0 && (
+        <div className="grid gap-3 rounded-md border border-border p-3 sm:grid-cols-2">
+          <label className="flex items-center gap-2 text-sm sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={projectScope}
+              onChange={(event) => setProjectScope(event.currentTarget.checked)}
+            />
+            Save changes as project defaults
+          </label>
+          {groups.map((group) => (
+            <label key={group.group} className="grid gap-1 text-sm">
+              <span>{QUICK_TOOL_GROUPS[group.group]}</span>
+              <select
+                className="rounded-md border border-input bg-background px-2 py-1.5"
+                value={
+                  group.required
+                    ? 'required'
+                    : projectScope
+                      ? (group.projectMode ?? 'auto')
+                      : group.source === 'session'
+                        ? group.mode
+                        : 'inherit'
+                }
+                disabled={group.required}
+                onChange={(event) => {
+                  const mode = event.currentTarget.value;
+                  if (mode !== 'inherit' && !isSessionToolGroupMode(mode)) return;
+                  client.send(
+                    {
+                      type: 'tools.group.set',
+                      payload: {
+                        sessionId,
+                        group: group.group,
+                        mode,
+                        ...(projectScope ? { scope: 'project' } : {}),
+                      },
+                    },
+                    { echoToChat: false },
+                  );
+                }}
+              >
+                {group.required && <option value="required">Required</option>}
+                {!projectScope && (
+                  <option value="inherit">Project default ({group.projectMode ?? 'auto'})</option>
+                )}
+                <option value="auto">Auto</option>
+                <option value="on">On</option>
+                <option value="off">Off</option>
+              </select>
+              <span className="text-xs text-muted-foreground">
+                {group.reason ??
+                  (group.enabled ? 'Available on demand' : 'Unavailable to this session')}
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
 
       <div className="relative">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

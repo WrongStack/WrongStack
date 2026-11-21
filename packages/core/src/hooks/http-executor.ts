@@ -41,6 +41,37 @@ async function isAllowedUrl(raw: string): Promise<boolean> {
   return url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]';
 }
 
+/** Read a hook response body up to `maxBytes`, cancelling the stream immediately on overflow. */
+async function readResponseTextCapped(
+  response: Response,
+  maxBytes: number,
+): Promise<string | null> {
+  const body = response.body;
+  if (!body || typeof body.getReader !== 'function') {
+    const text = await response.text();
+    return Buffer.byteLength(text, 'utf8') > maxBytes ? null : text;
+  }
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock?.();
+  }
+  return new TextDecoder().decode(Buffer.concat(chunks));
+}
+
 /** POST HookInput JSON to a native HTTP hook with deadline and cancellation. */
 export async function runHttpHookDetailed(
   spec: HttpHookSpec,
@@ -79,14 +110,15 @@ export async function runHttpHookDetailed(
       signal,
     });
     if (!response.ok) {
+      await response.body?.cancel().catch(() => undefined);
       return {
         outcome: null,
         failure: { kind: 'error', message: `HTTP hook returned ${response.status}` },
       };
     }
 
-    const text = await response.text();
-    if (Buffer.byteLength(text, 'utf8') > MAX_OUTPUT_BYTES) {
+    const text = await readResponseTextCapped(response, MAX_OUTPUT_BYTES);
+    if (text === null) {
       return {
         outcome: null,
         failure: { kind: 'invalid_output', message: 'HTTP hook response exceeded 64 KiB' },

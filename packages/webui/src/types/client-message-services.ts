@@ -1,3 +1,4 @@
+import type { SessionToolGroup, SessionToolGroupChoice } from '@wrongstack/contracts/types';
 import type { SessionScopedPayload } from './protocol-core.js';
 import type { ContextEditorMessage, ContextEditorRemoval } from './runtime.js';
 import type { SageAnchor, SageScope, SageStatus, WSMemorySageForFileRequest } from './sage.js';
@@ -372,6 +373,15 @@ export type ClientMessageServices =
       type: 'mcp.tasks.retry' | 'mcp.tasks.cancel';
       payload: { sessionId: string; requestId: string; id: string };
     }
-  | { type: 'tools.list' }
+  | { type: 'tools.list'; payload?: { sessionId?: string } }
+  | {
+      type: 'tools.group.set';
+      payload: {
+        group: SessionToolGroup;
+        mode: SessionToolGroupChoice;
+        sessionId: string;
+        scope?: 'project' | undefined;
+      };
+    }
   | { type: 'tool.enable'; payload: { name: string } }
   | { type: 'tool.disable'; payload: { name: string } };

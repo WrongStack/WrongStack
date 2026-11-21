@@ -1,9 +1,18 @@
-import type {
-  SlashCommand,
-  ToolDescriptionMode,
-  ToolResultRenderMode,
-  ToolsConfig,
+import {
+  isSessionToolGroup,
+  isSessionToolGroupMode,
+  type SlashCommand,
+  type ToolDescriptionMode,
+  type ToolResultRenderMode,
+  type ToolsConfig,
 } from '@wrongstack/contracts/types';
+import {
+  sessionToolGroupState,
+  sessionToolGroupStates,
+  setProjectToolGroup,
+  setSessionToolGroup,
+  setSessionToolGroupGovernance,
+} from '@wrongstack/core/agent';
 import { noOpVault } from '@wrongstack/core/security';
 import {
   color,
@@ -68,6 +77,7 @@ export function buildToolCommand(opts: SlashCommandContext): SlashCommand {
     '  /tool enable <name>                    Restore a disabled tool',
     '  /tool <name> disable|enable            Same as above, noun-first alias',
     '  /tool enable-all                       Restore all disabled tools',
+    '  /tool group [name] [auto|on|off|inherit] [--project]   Manage Quick tool groups',
     '',
     'Auto-thinning (off by default — enable with /settings autothin on):',
     '  /tool autothin status                  Show current config + disabled counts',
@@ -405,7 +415,7 @@ export function buildToolCommand(opts: SlashCommandContext): SlashCommand {
       'Set per-tool description mode (LLM prompt) and/or on-screen result mode. Disable/enable tools.',
     argsHint: '[<name> desc|result simple|extend | disable | enable]',
     help,
-    async run(args) {
+    async run(args, runContext) {
       if (!opts.configStore) {
         return { message: `${color.red('Error')} config store not available.` };
       }
@@ -418,6 +428,45 @@ export function buildToolCommand(opts: SlashCommandContext): SlashCommand {
       // ── Sub-command routing ──────────────────────────────────────
 
       if (sub === 'list') return { message: formatList() };
+
+      if (sub === 'group') {
+        const ctx = runContext ?? opts.context;
+        if (ctx?.meta?.['systemPromptVariant'] !== 'quick') {
+          return { message: 'Tool group settings currently apply to Quick sessions.' };
+        }
+        const [, group, mode, scope] = parts;
+        const project = scope === '--project';
+        if (
+          parts.length > 4 ||
+          (group !== undefined && !isSessionToolGroup(group)) ||
+          (mode !== undefined && mode !== 'inherit' && !isSessionToolGroupMode(mode)) ||
+          (scope !== undefined && (!project || !isSessionToolGroupMode(mode)))
+        ) {
+          return { message: 'Usage: /tool group [name] [auto|on|off|inherit] [--project]' };
+        }
+        setSessionToolGroupGovernance(ctx, getCurrentTools().kanbanGovernance === true);
+        try {
+          const states = isSessionToolGroup(group)
+            ? [
+                project && isSessionToolGroupMode(mode)
+                  ? await setProjectToolGroup(ctx, group, mode)
+                  : mode === 'inherit' || isSessionToolGroupMode(mode)
+                    ? setSessionToolGroup(ctx, group, mode)
+                    : sessionToolGroupState(ctx, group),
+              ]
+            : sessionToolGroupStates(ctx);
+          return {
+            message: states
+              .map(
+                (state) =>
+                  `${state.group}: ${state.mode}${state.source ? ` (${state.source})` : ''} · ${state.required ? 'required' : state.enabled ? 'available on demand' : 'disabled'}${state.reason ? ` (${state.reason})` : ''}`,
+              )
+              .join('\n'),
+          };
+        } catch (error) {
+          return { message: toErrorMessage(error) };
+        }
+      }
 
       // enable-all
       if (sub === 'enable-all') {

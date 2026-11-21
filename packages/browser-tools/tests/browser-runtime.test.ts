@@ -34,15 +34,15 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('automatic browser runtime setup', () => {
   it('keeps the binary fallback version aligned with the package dependency', () => {
-    const source = readFileSync(new URL('../src/browser/runtime.ts', import.meta.url), 'utf8');
+    const source = readFileSync(new URL('../src/runtime.ts', import.meta.url), 'utf8');
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-    expect(pkg.dependencies['@playwright/test']).toBe(
+    expect(pkg.devDependencies['@playwright/test']).toBe(
       `^${source.match(/PLAYWRIGHT_VERSION = '([^']+)'/)?.[1]}`,
     );
   });
 
   it('launches an installed browser without running an installer', async () => {
-    const { launchBrowserRuntime } = await import('../src/browser/runtime.js');
+    const { launchBrowserRuntime } = await import('../src/runtime.js');
     await launchBrowserRuntime(true);
     expect(mocks.launch).toHaveBeenCalledWith({ headless: true });
     expect(mocks.spawn).not.toHaveBeenCalled();
@@ -53,7 +53,7 @@ describe('automatic browser runtime setup', () => {
       if (path === '/browser/chromium')
         throw Object.assign(new Error('missing'), { code: 'ENOENT' });
     });
-    const { launchBrowserRuntime } = await import('../src/browser/runtime.js');
+    const { launchBrowserRuntime } = await import('../src/runtime.js');
     await Promise.all([launchBrowserRuntime(true), launchBrowserRuntime(false)]);
     expect(mocks.spawn).toHaveBeenCalledTimes(1);
     expect(mocks.spawn.mock.calls[0]?.[1]).toEqual([
@@ -81,7 +81,7 @@ describe('automatic browser runtime setup', () => {
       });
       return child;
     });
-    const { launchBrowserRuntime } = await import('../src/browser/runtime.js');
+    const { launchBrowserRuntime } = await import('../src/runtime.js');
     await expect(launchBrowserRuntime(true)).rejects.toThrow('download unavailable');
     expect(mocks.launch).not.toHaveBeenCalled();
     await launchBrowserRuntime(true);
@@ -89,7 +89,7 @@ describe('automatic browser runtime setup', () => {
   });
 
   it('does not download again for filesystem permission or browser launch failures', async () => {
-    const { launchBrowserRuntime } = await import('../src/browser/runtime.js');
+    const { launchBrowserRuntime } = await import('../src/runtime.js');
     mocks.access.mockRejectedValueOnce(
       Object.assign(new Error('access denied'), { code: 'EACCES' }),
     );

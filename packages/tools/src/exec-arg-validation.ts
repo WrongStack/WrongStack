@@ -22,7 +22,7 @@ const BLOCKED_ARG_PATTERNS: Record<string, RegExp[]> = {
   go: [],
   bun: [],
   docker: [],
-  // find -exec/-ok/-execdir execute arbitrary commands
+  // find -exec/-ok/-execdir/-okdir execute arbitrary commands
   find: [
     /^-exec$/,
     /^-exec;$/,
@@ -30,9 +30,12 @@ const BLOCKED_ARG_PATTERNS: Record<string, RegExp[]> = {
     /^-ok;$/,
     /^-execdir$/,
     /^-execdir;$/,
+    /^-okdir$/,
+    /^-okdir;$/,
     /^-exec=/,
     /^-ok=/,
     /^-execdir=/,
+    /^-okdir=/,
   ],
   // rm -rf / is catastrophic — block absolute paths, home, dot-dirs,
   // and glob patterns that could expand to dangerous targets.
@@ -86,7 +89,7 @@ const BLOCKED_OPTION_NAMES: Record<string, ReadonlySet<string>> = {
     '--config-env',
     '-C',
   ]),
-  find: new Set(['-exec', '-ok', '-execdir']),
+  find: new Set(['-exec', '-ok', '-execdir', '-okdir']),
 };
 
 /** `--opt=value` → `--opt`; everything else unchanged. */
@@ -178,7 +181,9 @@ export function validateArgs(
   const blockedOptions = BLOCKED_OPTION_NAMES[cmd];
   if (blockedOptions) {
     for (const [index, arg] of args.entries()) {
-      if (arg === '--') break; // everything after `--` is a positional operand
+      // In `find`, `--` only terminates leading [-H|-L|-P] flags; primaries like
+      // `-exec` / `-okdir` still execute after `--`.
+      if (arg === '--' && cmd !== 'find') break;
       if (cmd === 'git' && options.validatedGitArgumentIndexes?.has(index)) continue;
       if (blockedOptions.has(optionName(arg))) {
         return `Blocked option "${optionName(arg)}" for command "${cmd}"`;
@@ -190,12 +195,10 @@ export function validateArgs(
   if (!blocked) return null;
 
   for (const [index, arg] of args.entries()) {
-    // After `--` git/find read pathspecs, so an option-shaped operand is not an
-    // option and the scan stops. `rm`'s patterns are the opposite: they name the
-    // PATHS being deleted, and `--` is exactly how those arrive when they could
-    // be mistaken for options — `rm -rf -- /` is `rm -rf /`. Scanning on past
-    // `--` for rm is what keeps its path block from being a one-token bypass.
-    if (arg === '--' && !PATH_OPERAND_COMMANDS.has(cmd)) break;
+    // After `--` git reads pathspecs, so an option-shaped operand is not an
+    // option and the scan stops. `find` primaries still execute after `--`, and
+    // `rm`'s patterns match the PATHS being deleted (`rm -rf -- /`).
+    if (arg === '--' && cmd !== 'find' && !PATH_OPERAND_COMMANDS.has(cmd)) break;
     if (cmd === 'git' && options.validatedGitArgumentIndexes?.has(index)) continue;
     // The rm path patterns are written with `/`; Windows also separates with
     // `\`, so `..\outside`, `\\host\share` and `\Windows` walked past every

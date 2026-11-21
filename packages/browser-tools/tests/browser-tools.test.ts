@@ -15,7 +15,7 @@ import {
   browserTools,
   browserTypeTool,
   browserUploadTool,
-} from '../src/browser/tools.js';
+} from '../src/tools.js';
 
 describe('first-party browser tool contract', () => {
   it('registers unique browser-prefixed tools with normal capability metadata', () => {
@@ -103,7 +103,7 @@ describe('first-party browser tool contract', () => {
 
   it('supports bulk enabling and disabling of the browser suite', async () => {
     const { BROWSER_TOOL_NAMES, enableBrowserSuite, disableBrowserSuite, isBrowserSuiteEnabled } =
-      await import('../src/browser/tools.js');
+      await import('../src/tools.js');
     expect(BROWSER_TOOL_NAMES).toHaveLength(16);
 
     const disabledSet = new Set<string>();

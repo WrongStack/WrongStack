@@ -31,7 +31,6 @@ import {
 } from '@wrongstack/core/design';
 import { ToolCapabilities } from '@wrongstack/core/security';
 import { atomicWrite } from '@wrongstack/core/utils';
-import { managerFor, owner } from './browser/tools.js';
 import { withServedProjectFile } from './design-reference-serve.js';
 
 /**
@@ -162,6 +161,7 @@ async function measure<T extends { v: 1 }>(
   stagePrefix = '',
   viewportHeight: number = VIEWPORT_HEIGHT,
 ): Promise<Measured<T>> {
+  const { managerFor, owner } = await import('@wrongstack/browser-tools/tools');
   const manager = managerFor(ctx);
   const ownerId = owner(ctx);
   const out: Measured<T> = { raws: [], runtime: [], screenshots: [], images: [] };

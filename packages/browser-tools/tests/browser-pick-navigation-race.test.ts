@@ -1,7 +1,7 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { BrowserSessionManager } from '../src/browser/manager.js';
+import { BrowserSessionManager } from '../src/manager.js';
 
 function deferred() {
   let resolve!: () => void;

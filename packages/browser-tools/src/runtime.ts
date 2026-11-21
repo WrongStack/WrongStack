@@ -6,8 +6,8 @@ import { homedir } from 'node:os';
 import { basename, delimiter, dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { Browser } from '@playwright/test';
+import { buildChildEnv } from '@wrongstack/core/utils';
 import { toErrorMessage } from '@wrongstack/core/utils/error';
-import { buildChildEnv } from '../_env.js';
 
 let installation: Promise<void> | undefined;
 type PlaywrightRuntime = Pick<typeof import('@playwright/test'), 'chromium'>;

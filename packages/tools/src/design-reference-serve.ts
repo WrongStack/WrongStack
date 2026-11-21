@@ -2,8 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import * as path from 'node:path';
+import { withTransientPrivateOrigin } from '@wrongstack/browser-tools/policy';
 import { ToolValidationError } from '@wrongstack/contracts/types';
-import { withTransientPrivateOrigin } from './browser/policy.js';
 
 /**
  * Measure a project HTML file without a dev server: serve the project root on

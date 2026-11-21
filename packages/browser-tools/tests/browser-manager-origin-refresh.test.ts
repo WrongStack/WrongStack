@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { type BrowserLauncher, BrowserSessionManager } from '../src/browser/manager.js';
-import { browserPrivateOrigins } from '../src/browser/policy.js';
+import { type BrowserLauncher, BrowserSessionManager } from '../src/manager.js';
+import { browserPrivateOrigins } from '../src/policy.js';
 
 /**
  * Regression (2026-10-20 session): /browser allow ran in another process (the

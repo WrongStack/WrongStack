@@ -1,3 +1,5 @@
+import { browserPrivateOrigins } from '@wrongstack/browser-tools/policy';
+import { isPrivateOriginApproved, networkAllowHint } from '@wrongstack/browser-tools/security';
 import type { Tool, ToolStreamEvent } from '@wrongstack/contracts/types';
 import {
   activeLimits,
@@ -10,8 +12,6 @@ import {
 import { ALLOW_PRIVATE, assertNotPrivate, guardedFetch } from './_fetch-guard.js';
 import { getTurndown } from './_turndown.js';
 import { capBytesWithNotice } from './_util.js';
-import { browserPrivateOrigins } from './browser/policy.js';
-import { isPrivateOriginApproved, networkAllowHint } from './browser/security.js';
 
 export type FetchFormat = 'markdown' | 'text' | 'raw';
 

@@ -5,7 +5,6 @@ import { type Tool, ToolValidationError } from '@wrongstack/contracts/types';
 import { ToolCapabilities } from '@wrongstack/core/security';
 import { isBinaryBuffer } from './_util.js';
 import type { ArtifactPresentation } from './artifact-presentation.js';
-import { liveBrowser } from './browser/tools.js';
 
 export interface PresentArtifactInput {
   path?: string | undefined;
@@ -68,6 +67,7 @@ export const presentArtifactTool: Tool<PresentArtifactInput, ArtifactPresentatio
         !/^[\w-]{1,128}$/.test(input.browserSessionId)
       )
         throw invalid('choose a file or browser session');
+      const { liveBrowser } = await import('@wrongstack/browser-tools/tools');
       const sessions = await liveBrowser.sessions(ctx.projectRoot);
       const browser = sessions.find(
         (item) =>

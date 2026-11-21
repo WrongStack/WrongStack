@@ -1,7 +1,7 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BrowserSessionManager } from '../src/browser/manager.js';
+import { BrowserSessionManager } from '../src/manager.js';
 
 /**
  * Failure-path cleanup for BrowserSessionManager.open().

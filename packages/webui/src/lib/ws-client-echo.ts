@@ -16,6 +16,7 @@ export const CHAT_ECHO_RESPONSE_BY_REQUEST: Partial<
   'memory.sage.update': 'memory.sage.update',
   'skills.list': 'skills.list',
   'stats.get': 'stats.get',
+  'tools.group.set': 'tools.list',
   'tools.list': 'tools.list',
 };
 

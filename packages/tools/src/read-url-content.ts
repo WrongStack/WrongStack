@@ -1,3 +1,4 @@
+import { browserPrivateOrigins } from '@wrongstack/browser-tools/policy';
 import {
   activeLimits,
   positiveLimit,
@@ -8,7 +9,6 @@ import {
 import { guardedFetch } from './_fetch-guard.js';
 import { getTurndown } from './_turndown.js';
 import { capBytesWithNotice } from './_util.js';
-import { browserPrivateOrigins } from './browser/policy.js';
 
 export interface ReadUrlContentInput {
   /** Target web page URL to read. */

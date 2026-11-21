@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { browserPrivateOrigins, setBrowserPrivateOrigin } from '../src/browser/policy.js';
-import { runBrowserPolicyCommand } from '../src/browser/policy-command.js';
+import { browserPrivateOrigins, setBrowserPrivateOrigin } from '../src/policy.js';
+import { runBrowserPolicyCommand } from '../src/policy-command.js';
 import {
   assertBrowserUrlAllowed,
   isPrivateOriginApproved,
@@ -12,7 +12,7 @@ import {
   networkAllowHint,
   parsePrivateOriginAllowlist,
   resolvePinnedBrowserTarget,
-} from '../src/browser/security.js';
+} from '../src/security.js';
 
 let root: string;
 beforeEach(async () => {

@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 536,
-      "typeOnly": 400,
-      "runtimeOrMixed": 168
+      "files": 538,
+      "typeOnly": 399,
+      "runtimeOrMixed": 171
     },
     "@wrongstack/core/boot": {
       "files": 6,
@@ -104,9 +104,9 @@
       "runtimeOrMixed": 59
     },
     "@wrongstack/core/registry": {
-      "files": 214,
+      "files": 215,
       "typeOnly": 84,
-      "runtimeOrMixed": 139
+      "runtimeOrMixed": 140
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1006,
+      "files": 1007,
       "typeOnly": 77,
-      "runtimeOrMixed": 964
+      "runtimeOrMixed": 965
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -270,6 +270,24 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/acp/tests/session-commands.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/browser-tools/src/private-origin-prompt.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/browser-tools/src/tools.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/browser-tools/tests/browser-private-origin-prompt.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -686,6 +704,12 @@
       "file": "packages/cli/src/slash-commands/todos.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/src/slash-commands/tool.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -1895,18 +1919,6 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
-      "file": "packages/tools/src/browser/private-origin-prompt.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/tools/src/browser/tools.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/src/codebase-index/indexer.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -2093,6 +2105,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/src/tool-search.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/src/write.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -2112,12 +2130,6 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/tests/bash-timeout-hermetic.test.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/tools/tests/browser-private-origin-prompt.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -2946,8 +2958,8 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/introspection-routes.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -7409,6 +7421,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/webui-server/tests/introspection-per-session.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/webui-server/tests/introspection-routes.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -7664,6 +7682,12 @@
       "file": "packages/acp/tests/trust-boundary-permission.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/browser-tools/src/tools.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/security",
@@ -8760,12 +8784,6 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/telegram/src/tools/telegram-send.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/security",
-      "file": "packages/tools/src/browser/tools.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -11820,6 +11838,66 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/bench/tests/trace-eval.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/browser-tools/src/artifacts.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/browser-tools/src/manager.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/browser-tools/src/policy.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/browser-tools/src/private-origin-prompt.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/browser-tools/src/runtime.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/browser-tools/src/security.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/browser-tools/src/tools.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/browser-tools/tests/browser-loopback-allowance.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/browser-tools/tests/browser-manager-origin-refresh.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/browser-tools/tests/browser-policy.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -15839,42 +15917,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/browser/artifacts.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/browser/manager.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/browser/policy.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/browser/private-origin-prompt.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/browser/security.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/browser/tools.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/clarify.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -16314,24 +16356,6 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/tests/background-log.test.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/tests/browser-loopback-allowance.test.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/tests/browser-manager-origin-refresh.test.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/tests/browser-policy.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -17693,6 +17717,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils/error",
+      "file": "packages/browser-tools/src/runtime.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/error",
       "file": "packages/cli/src/webui-server-lifecycle.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -17760,12 +17790,6 @@
     {
       "specifier": "@wrongstack/core/utils/error",
       "file": "packages/techstack/src/store/sqlite.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils/error",
-      "file": "packages/tools/src/browser/runtime.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
