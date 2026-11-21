@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-21T14:45:59.086Z
+**Generated:** 2026-11-21T14:48:27.490Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 49 |
 | Production source files | 6409 |
-| Production source lines | 1322769 |
-| Test files | 5622 |
+| Production source lines | 1322784 |
+| Test files | 5623 |
 | Workspace dependency edges | 255 |
 | Relative module edges | 18946 |
 | Non-command slash imports | 0 |
@@ -27,7 +27,7 @@ PASS — no blocking architecture-health errors.
 
 | Package | Sources | Tests | Workspace dependencies |
 |---|---:|---:|---|
-| @wrongstack/acp | 58 | 70 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
+| @wrongstack/acp | 58 | 71 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/agent-catalog | 44 | 15 | @wrongstack/contracts, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/bench | 32 | 67 | @wrongstack/core |
 | @wrongstack/browser-tools | 14 | 20 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
@@ -139,8 +139,8 @@ None.
 | 729 | `packages/tools/src/read.ts` |
 | 726 | `packages/coordination/src/multi-agent-coordinator.ts` |
 | 724 | `packages/coordination/src/agent-monitor.ts` |
+| 723 | `packages/acp/src/agent/protocol-session-management.ts` |
 | 720 | `packages/webui-server/src/server/provider-routes.ts` |
-| 719 | `packages/mailbox-mcp/src/adapter.ts` |
 
 ## Exports only tests reference
 

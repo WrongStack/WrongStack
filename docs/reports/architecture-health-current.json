@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-21T14:45:59.086Z",
+  "generatedAt": "2026-11-21T14:48:27.490Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 49,
     "sourceFiles": 6409,
-    "testFiles": 5622,
-    "sourceLines": 1322769,
+    "testFiles": 5623,
+    "sourceLines": 1322784,
     "workspaceEdges": 255,
     "moduleEdges": 18946,
     "nonCommandSlashImports": 0,
@@ -93,7 +93,7 @@
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
       "sourceFiles": 58,
-      "testFiles": 70,
+      "testFiles": 71,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -109,7 +109,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 70
+          "testFiles": 71
         }
       ]
     },
@@ -4070,6 +4070,12 @@
       },
       {
         "file": "packages/acp/tests/session-config-options.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/acp/tests/session-load-system-prompt.test.ts",
         "projects": [
           "root-node"
         ]
@@ -36061,7 +36067,7 @@
   "hotspotCandidates": [
     {
       "file": "packages/acp/src/agent/protocol-session-management.ts",
-      "lines": 708,
+      "lines": 723,
       "relativeImports": 2
     },
     {
@@ -36687,14 +36693,14 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/acp/src/agent/protocol-session-management.ts",
+      "lines": 723,
+      "relativeImports": 2
+    },
+    {
       "file": "packages/webui-server/src/server/provider-routes.ts",
       "lines": 720,
       "relativeImports": 5
-    },
-    {
-      "file": "packages/mailbox-mcp/src/adapter.ts",
-      "lines": 719,
-      "relativeImports": 3
     }
   ],
   "testOnlyExports": [

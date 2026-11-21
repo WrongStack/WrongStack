@@ -274,13 +274,28 @@ export async function handleSessionLoadOp(
     const mcpChanged =
       Array.isArray(p.mcpServers) &&
       JSON.stringify(existing.mcpServers ?? []) !== JSON.stringify(loadMcpServers);
-    if (cwdChanged || mcpChanged) {
+    // The client's current systemPrompt rides the same contract (the cold
+    // branch above already reads it): an explicit value replaces the session's,
+    // an explicit empty/invalid one clears it. The live agent was built with
+    // the old prompt, so a change disposes it and the next turn rebuilds.
+    const loadSystemPrompt =
+      'systemPrompt' in p
+        ? parseSystemPrompt((p as { systemPrompt?: unknown }).systemPrompt)
+        : undefined;
+    const promptChanged =
+      'systemPrompt' in p &&
+      JSON.stringify(existing.systemPrompt ?? null) !== JSON.stringify(loadSystemPrompt ?? null);
+    if (cwdChanged || mcpChanged || promptChanged) {
       ctx.disposeFor?.(sessionId!);
       ctx.seedFor?.(sessionId!, replay ?? []);
     }
     existing.cwd = nextCwd;
     if (Array.isArray(p.mcpServers)) existing.mcpServers = loadMcpServers;
-    if (cwdChanged || mcpChanged) {
+    if ('systemPrompt' in p) {
+      if (loadSystemPrompt) existing.systemPrompt = loadSystemPrompt;
+      else delete existing.systemPrompt;
+    }
+    if (cwdChanged || mcpChanged || promptChanged) {
       await ctx.persist(existing, replay);
     }
     if (replayHistory && replay) {

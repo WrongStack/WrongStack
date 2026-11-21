@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 538,
-      "typeOnly": 399,
+      "files": 539,
+      "typeOnly": 400,
       "runtimeOrMixed": 171
     },
     "@wrongstack/core/boot": {
@@ -270,6 +270,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/acp/tests/session-commands.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/acp/tests/session-load-system-prompt.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
