@@ -128,12 +128,33 @@ describe('ownerless empty session cleanup', () => {
     expect(resolveEmptySessionCleanupInterval('2500')).toBe(2_500);
   });
 
+  it.each([1_000, 30_000, 30_001])(
+    'scans once at the first due time (%i ms interval)',
+    async (intervalMs) => {
+      vi.useFakeTimers();
+      const fixture = context({ ids: [] });
+      const scheduled = scheduleOwnerlessEmptySessionCleanup(fixture.ctx, intervalMs);
+      try {
+        const firstDue = Math.min(intervalMs, 30_000);
+        await vi.advanceTimersByTimeAsync(firstDue - 1);
+        expect(fixture.store.list).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(1);
+        expect(fixture.store.list, 'duplicate scans at the first due time').toHaveBeenCalledTimes(
+          1,
+        );
+        const nextDue = intervalMs === firstDue ? 2 * intervalMs : intervalMs;
+        await vi.advanceTimersByTimeAsync(nextDue - firstDue);
+        expect(fixture.store.list).toHaveBeenCalledTimes(2);
+      } finally {
+        await scheduled.dispose();
+      }
+    },
+  );
+
   it('runs on the configured interval without overlapping and can be disposed', async () => {
     vi.useFakeTimers();
     const fixture = context({ ids: [] });
-    // Hold the first sweep open across the first interval tick: the startup
-    // sweep and the tick coincide for a 1s interval, and the in-flight guard
-    // must collapse them into ONE sweep instead of running a second.
+    // Hold the first sweep open across the next interval tick.
     let releaseFirstSweep: (() => void) | undefined;
     fixture.store.list.mockImplementationOnce(
       () =>
@@ -143,7 +164,7 @@ describe('ownerless empty session cleanup', () => {
     );
     const scheduled = scheduleOwnerlessEmptySessionCleanup(fixture.ctx, 1_000);
 
-    await vi.advanceTimersByTimeAsync(1_000);
+    await vi.advanceTimersByTimeAsync(2_000);
     expect(fixture.store.list).toHaveBeenCalledTimes(1);
 
     releaseFirstSweep?.();

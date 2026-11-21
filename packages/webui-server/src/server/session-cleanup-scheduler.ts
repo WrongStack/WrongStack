@@ -195,8 +195,8 @@ export function scheduleOwnerlessEmptySessionCleanup(
   // dies long before the first interval tick — without this sweep the empty
   // sessions each short run left behind (its own boot session, tabs the user
   // closed without typing) were never cleaned until some later run happened
-  // to stay alive a full interval. A user-configured interval shorter than
-  // the startup delay wins, so an aggressive cadence is never made lazier.
+  // to stay alive a full interval. When the first interval tick is already
+  // due by the startup deadline, that tick serves as the startup sweep.
   const runSafe = () => {
     void runNow().catch((error) => {
       ctx.logger.error('Empty session cleanup sweep failed unexpectedly', {
@@ -206,8 +206,9 @@ export function scheduleOwnerlessEmptySessionCleanup(
       });
     });
   };
-  const startupTimer = setTimeout(runSafe, Math.min(STARTUP_SWEEP_DELAY_MS, intervalMs));
-  startupTimer.unref?.();
+  const startupTimer =
+    intervalMs > STARTUP_SWEEP_DELAY_MS ? setTimeout(runSafe, STARTUP_SWEEP_DELAY_MS) : undefined;
+  startupTimer?.unref?.();
   const timer = setInterval(runSafe, intervalMs);
   timer.unref?.();
   return {
