@@ -1,6 +1,6 @@
 import { ArrowRight, Pin, PinOff, Terminal, Workflow } from 'lucide-react';
 import { useDesktopText } from './desktop-i18n';
-import { ageParts, isLive, type Session, sessionStatus } from './model';
+import { ageParts, isLive, type Session, sessionStatus, sessionTitle } from './model';
 
 export function Metric({
   icon,
@@ -49,14 +49,22 @@ export function SessionCard({
   const { t } = useDesktopText();
   const live = isLive(s);
   const ago = ageParts(s.updatedAt);
-  const actionLabel = t(s.kind === 'agent' && live ? 'fleetView.openWorkspace' : live ? 'fleetView.attachSession' : 'fleetView.viewTranscript');
+  const title = sessionTitle(s, t('workbench.untitled'));
+  const actionLabel = t(
+    s.kind === 'agent' && live
+      ? 'fleetView.openWorkspace'
+      : live
+        ? 'fleetView.attachSession'
+        : 'fleetView.viewTranscript',
+  );
   return (
     <article className={`session-card ${selected ? 'selected' : ''} ${pinned ? 'pinned' : ''}`}>
       {/* Cards sit under their project's heading; the folder stays in the tooltip. */}
       <button
         type="button"
         className="session-card-main"
-        aria-label={`${actionLabel}: ${s.title}`}
+        aria-label={`${actionLabel}: ${title}`}
+        aria-current={selected ? 'page' : undefined}
         title={`${s.title} · ${name} · ${s.workdir.replace(/^\\\\\?\\/, '')}`}
         onClick={s.kind === 'agent' && live ? onLaunch : onOpen}
       >
@@ -70,7 +78,7 @@ export function SessionCard({
           <span className="card-kind">
             {s.kind === 'agent' ? 'WrongStack' : t('fleetView.card.terminal')}
           </span>
-          <h3>{s.title}</h3>
+          <h3>{title}</h3>
           <span className={`status-pill ${s.status}`}>
             <span className={`status-dot ${s.status}`} />
             {t(`fleetView.status.${sessionStatus(s)}`)}
@@ -87,7 +95,9 @@ export function SessionCard({
           onClick={onTogglePin}
         >
           {pinned ? <PinOff size={13} /> : <Pin size={13} />}
-          {pinned ? t('fleetView.unpin') : t('fleetView.pin')}
+          <span className="card-pin-label">
+            {pinned ? t('fleetView.unpin') : t('fleetView.pin')}
+          </span>
         </button>
         <span className="card-age">{t(`fleetView.age.${ago.unit}`, { n: ago.n })}</span>
       </footer>

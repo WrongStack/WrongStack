@@ -675,18 +675,38 @@
 }
 .sessions-region .session-card-main {
   min-width: 0;
-  padding: 16px 12px;
+  padding: 10px 8px;
 }
 .sessions-region .session-card-title {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) clamp(70px, 18%, 110px) 14px;
+  align-items: center;
+  gap: 8px;
   margin: 0;
 }
 .sessions-region .session-card-title h3 {
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 550;
+}
+.sessions-region .session-card-title .session-icon {
+  width: 26px;
+  height: 26px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+}
+.sessions-region .session-icon svg {
+  width: 16px;
+  height: 16px;
 }
 .sessions-region .session-card .status-pill {
   border: 0;
   background: transparent;
   color: var(--muted);
+  margin: 0;
+  padding-inline: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 .session-card-open {
   flex: none;
@@ -704,8 +724,19 @@
   text-align: right;
 }
 .sessions-region .card-pin {
-  min-width: 32px;
+  display: grid;
+  place-items: center;
+  width: 32px;
   min-height: 32px;
+  padding: 0;
+}
+.card-pin-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 @container fleet (max-width: 600px) {
   .metrics-strip.fleet-kpis {
@@ -742,10 +773,10 @@
     gap: 0;
   }
   .sessions-region .session-card-main {
-    padding: 12px 8px 6px;
+    padding: 8px 8px 0;
   }
   .sessions-region .session-card > footer {
-    padding: 0 8px 8px 36px;
-    justify-content: space-between;
+    padding: 0 8px 4px 42px;
+    justify-content: flex-end;
   }
 }

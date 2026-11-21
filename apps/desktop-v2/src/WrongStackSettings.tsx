@@ -29,8 +29,9 @@ import {
   Users,
   WandSparkles,
   Wrench,
+  X,
 } from 'lucide-react';
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AvailabilitySettings } from './AvailabilitySettings';
 import { unavailableAutonomyModes } from './autonomy-model';
 import { availabilityIssue } from './availability-model';
@@ -52,6 +53,7 @@ import './settings-management.css';
 import { FallbackPolicySettings, RoutingPolicySettings } from './ModelPolicySettings';
 import { LimitsPolicySettings, TierPolicySettings } from './ResourcePolicySettings';
 import { prepareSettingsPatch, sameSetting } from './settings-save-model';
+import { settingsSearchWords } from './settings-search-words';
 import './settings-policy.css';
 import { BackgroundServices } from './BackgroundServices';
 import { BrainDecisions } from './BrainDecisions';
@@ -93,6 +95,95 @@ const SETTINGS_GROUP_KEY = {
   Diagnostics: 'diagnostics',
 } as const;
 
+const settingsNavigation = [
+  { id: 'setup', title: 'Quick setup', Icon: Rocket, group: 'Models' },
+  { id: 'providers', title: 'Providers & models', Icon: KeyRound, group: 'Models' },
+  { id: 'models', title: 'Model catalog', Icon: Library, group: 'Models' },
+  { id: 'model-visibility', title: 'Model visibility', Icon: Eye, group: 'Models' },
+  {
+    id: 'availability',
+    title: 'Model availability',
+    Icon: CalendarDays,
+    group: 'Models',
+  },
+  { id: 'routing', title: 'Fallbacks & agent defaults', Icon: Bot, group: 'Models' },
+  { id: 'model-routing', title: 'Model routing', Icon: Route, group: 'Models' },
+  { id: 'cost-tiers', title: 'Cost tiers', Icon: Coins, group: 'Models' },
+  {
+    id: 'execution',
+    title: 'Execution & permissions',
+    Icon: ShieldCheck,
+    group: 'Conversations',
+  },
+  {
+    id: 'refinement',
+    title: 'Prompt refinement',
+    Icon: WandSparkles,
+    group: 'Conversations',
+  },
+  {
+    id: 'context',
+    title: 'Context & reasoning',
+    Icon: Lightbulb,
+    group: 'Conversations',
+  },
+  {
+    id: 'instructions',
+    title: 'Global instructions',
+    Icon: FileText,
+    group: 'Conversations',
+  },
+  {
+    id: 'resource-limits',
+    title: 'Resource limits',
+    Icon: SlidersHorizontal,
+    group: 'Conversations',
+  },
+  {
+    id: 'reviews',
+    title: 'Review policy',
+    Icon: ClipboardCheck,
+    group: 'Conversations',
+  },
+  { id: 'capabilities', title: 'Capabilities', Icon: Puzzle, group: 'Agents & tools' },
+  {
+    id: 'tool-access',
+    title: 'Tool availability',
+    Icon: Wrench,
+    group: 'Agents & tools',
+  },
+  { id: 'fleet', title: 'Fleet & companions', Icon: Users, group: 'Agents & tools' },
+  { id: 'brain', title: 'Brain policy', Icon: Brain, group: 'Agents & tools' },
+  { id: 'skills', title: 'Profile skills', Icon: BookOpen, group: 'Agents & tools' },
+  { id: 'integrations', title: 'Connected tools', Icon: Plug, group: 'Agents & tools' },
+  {
+    id: 'notifications',
+    title: 'HQ, proxy & Telegram',
+    Icon: Send,
+    group: 'Agents & tools',
+  },
+  {
+    id: 'health',
+    title: 'Provider diagnostics',
+    Icon: Stethoscope,
+    group: 'Diagnostics',
+  },
+  { id: 'quota', title: 'Plan quota', Icon: Gauge, group: 'Diagnostics' },
+  { id: 'model-tests', title: 'Model tests', Icon: FlaskConical, group: 'Diagnostics' },
+  {
+    id: 'terminal-display',
+    title: 'Terminal display',
+    Icon: SquareTerminal,
+    group: 'Diagnostics',
+  },
+  {
+    id: 'logging',
+    title: 'Logs & diagnostics',
+    Icon: ListChecks,
+    group: 'Diagnostics',
+  },
+] as const;
+
 export function WrongStackSettings({ vm }: { vm: DesktopController }) {
   return (
     <RuntimeGate scope="profile">
@@ -104,7 +195,14 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
   const { state, send, command } = useProfileEngine(vm.reportError);
   const [search, setSearch] = useState('');
   const [loaded, setLoaded] = useState(false);
-  const { t } = useDesktopText();
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const operation = useRef(false);
+  const detail = useRef<HTMLElement>(null);
+  const searchInput = useRef<HTMLInputElement>(null);
+  const navigation = useRef<'focus' | 'scroll' | null>(null);
+  const { t, i18n } = useDesktopText();
+  const searchWords = settingsSearchWords(i18n.resolvedLanguage ?? i18n.language ?? 'en');
   const [modelsOpened, setModelsOpened] = useState(false);
   const [brainOpened, setBrainOpened] = useState(false);
   const [instructionDraft, setInstructionDraft] = useState<InstructionDraft>({
@@ -118,12 +216,19 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
   useRequestedSettingsSection((wanted) => {
-    if (wanted === 'brain') setBrainOpened(true);
-    setSection(wanted);
+    openSection(wanted, true);
   });
   useReportSettingsSection(section);
+  useLayoutEffect(() => {
+    const target = detail.current;
+    if (!target || !navigation.current) return;
+    const scroll = target.closest('.main-content');
+    if (scroll) scroll.scrollTop = 0;
+    if (navigation.current === 'focus') target.focus({ preventScroll: true });
+    navigation.current = null;
+  }, [section, state.connected]);
   useEffect(() => {
-    if (!state.connected) return;
+    if (!state.connected || loaded) return;
     let active = true;
     void command('prefs.get', {}, ['prefs.updated'])
       .then((prefs) => {
@@ -135,12 +240,15 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
         }
       })
       .catch((error: unknown) => {
-        if (active) setError(String(error instanceof Error ? error.message : error));
+        if (active) setError(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     return () => {
       active = false;
     };
-  }, [state.connected, command]);
+  }, [state.connected, command, loaded, loadAttempt]);
   const dirty = changedSettings(base, draft);
   const fields = settingsSections.find((item) => item.id === section);
   const advanced: Record<string, { title: string; description: string }> = {
@@ -197,6 +305,36 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
       description: 'Registered tool catalog, permission metadata, enable and disable tools.',
     },
   };
+  const sections = settingsNavigation.map((item) => ({
+    ...item,
+    english: item.title,
+    title: t(`settings.section.${item.id}`),
+    group: t(`settings.groups.${SETTINGS_GROUP_KEY[item.group]}`),
+  }));
+  const needle = search.trim().toLocaleLowerCase();
+  const shown = sections.filter((item) => {
+    if (!needle) return true;
+    const registered = settingsSections.find((entry) => entry.id === item.id);
+    const words =
+      registered?.fields.map(
+        (field) =>
+          `${field.label} ${field.description} ${t(`fields.${field.key}.label`, { defaultValue: '' })} ${t(`fields.${field.key}.description`, { defaultValue: '' })}`,
+      ) ?? [];
+    const description = advanced[item.id]?.description ?? '';
+    return [
+      item.title,
+      item.english,
+      item.group,
+      description,
+      t(`advanced.${item.id}`, { defaultValue: '' }),
+      ...words,
+    ]
+      .join(' ')
+      .toLocaleLowerCase()
+      .includes(needle);
+  });
+  const currentSection = sections.find((item) => item.id === section) ?? sections[0]!;
+  const pickerSections = sections.filter((item) => item.id === section || shown.includes(item));
   const heading = fields ?? advanced[section];
   // Registry sections and the hand-built ones name their words under different catalog keys.
   const headingText = heading && {
@@ -212,6 +350,8 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
     setNotice('');
   };
   const save = async () => {
+    if (operation.current || !Object.keys(dirty).length) return;
+    operation.current = true;
     setBusy(true);
     setError('');
     setNotice('');
@@ -266,6 +406,34 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error));
     } finally {
+      operation.current = false;
+      setBusy(false);
+    }
+  };
+  const reload = async () => {
+    if (operation.current) return;
+    if (!loaded) {
+      setLoading(true);
+      setError('');
+      setLoadAttempt((attempt) => attempt + 1);
+      return;
+    }
+    operation.current = true;
+    setBusy(true);
+    try {
+      const {
+        requestId: _requestId,
+        sessionId: _sessionId,
+        ...saved
+      } = await command('prefs.get', {}, ['prefs.updated']);
+      setBase(saved);
+      setDraft(saved);
+      setError('');
+      setNotice('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      operation.current = false;
       setBusy(false);
     }
   };
@@ -290,11 +458,45 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
         <h2>{t('settings.loading')}</h2>
       </div>
     );
-  const openSection = (id: string) => {
+  function openSection(id: string, focusContent = false) {
+    if (id === section) {
+      if (focusContent) detail.current?.focus();
+      return;
+    }
+    navigation.current = focusContent ? 'focus' : 'scroll';
     if (id === 'models') setModelsOpened(true);
     if (id === 'brain') setBrainOpened(true);
     setSection(id);
+  }
+  const clearSearch = () => {
+    setSearch('');
+    searchInput.current?.focus();
   };
+  const feedback = (
+    <>
+      {error && (
+        <div className="session-error settings-feedback-error" role="alert">
+          <span>{localizedText(error, 'settingsMessage', t)}</span>
+          <button
+            type="button"
+            className="button secondary small"
+            disabled={busy || (!loaded && loading)}
+            onClick={() => void reload()}
+          >
+            {loaded ? t('settings.saveBar.reloadSaved') : t('gate.retry')}
+          </button>
+        </div>
+      )}
+      <div className={notice ? 'studio-notice settings-notice' : 'settings-notice'} role="status">
+        {notice && (
+          <>
+            <Check size={13} aria-hidden="true" />
+            {localizedText(notice, 'settingsMessage', t)}
+          </>
+        )}
+      </div>
+    </>
+  );
   return (
     <section className="wrongstack-settings" aria-label={t('rail.settings')}>
       {/* The header row already names this page; only the way back gets a row of its own. */}
@@ -318,185 +520,66 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
       )}
       <div className="settings-workspace">
         <nav className="settings-navigation" aria-label={t('settings.sections')}>
-          <label className="settings-search">
-            <Search size={14} />
+          <div className="settings-search">
+            <Search size={15} aria-hidden="true" />
             <input
+              ref={searchInput}
               aria-label={t('settings.search')}
               placeholder={t('settings.find')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape' && search) {
+                  e.stopPropagation();
+                  clearSearch();
+                }
+              }}
             />
-          </label>
-          {(
-            [
-              { id: 'setup', title: 'Quick setup', Icon: Rocket, group: 'Models' },
-              { id: 'providers', title: 'Providers & models', Icon: KeyRound, group: 'Models' },
-              { id: 'models', title: 'Model catalog', Icon: Library, group: 'Models' },
-              { id: 'model-visibility', title: 'Model visibility', Icon: Eye, group: 'Models' },
-              {
-                id: 'availability',
-                title: 'Model availability',
-                Icon: CalendarDays,
-                group: 'Models',
-              },
-              { id: 'routing', title: 'Fallbacks & agent defaults', Icon: Bot, group: 'Models' },
-              { id: 'model-routing', title: 'Model routing', Icon: Route, group: 'Models' },
-              { id: 'cost-tiers', title: 'Cost tiers', Icon: Coins, group: 'Models' },
-              {
-                id: 'execution',
-                title: 'Execution & permissions',
-                Icon: ShieldCheck,
-                group: 'Conversations',
-              },
-              {
-                id: 'refinement',
-                title: 'Prompt refinement',
-                Icon: WandSparkles,
-                group: 'Conversations',
-              },
-              {
-                id: 'context',
-                title: 'Context & reasoning',
-                Icon: Lightbulb,
-                group: 'Conversations',
-              },
-              {
-                id: 'instructions',
-                title: 'Global instructions',
-                Icon: FileText,
-                group: 'Conversations',
-              },
-              {
-                id: 'resource-limits',
-                title: 'Resource limits',
-                Icon: SlidersHorizontal,
-                group: 'Conversations',
-              },
-              {
-                id: 'reviews',
-                title: 'Review policy',
-                Icon: ClipboardCheck,
-                group: 'Conversations',
-              },
-              { id: 'capabilities', title: 'Capabilities', Icon: Puzzle, group: 'Agents & tools' },
-              {
-                id: 'tool-access',
-                title: 'Tool availability',
-                Icon: Wrench,
-                group: 'Agents & tools',
-              },
-              { id: 'fleet', title: 'Fleet & companions', Icon: Users, group: 'Agents & tools' },
-              { id: 'brain', title: 'Brain policy', Icon: Brain, group: 'Agents & tools' },
-              { id: 'skills', title: 'Profile skills', Icon: BookOpen, group: 'Agents & tools' },
-              { id: 'integrations', title: 'Connected tools', Icon: Plug, group: 'Agents & tools' },
-              {
-                id: 'notifications',
-                title: 'HQ, proxy & Telegram',
-                Icon: Send,
-                group: 'Agents & tools',
-              },
-              {
-                id: 'health',
-                title: 'Provider diagnostics',
-                Icon: Stethoscope,
-                group: 'Diagnostics',
-              },
-              { id: 'quota', title: 'Plan quota', Icon: Gauge, group: 'Diagnostics' },
-              { id: 'model-tests', title: 'Model tests', Icon: FlaskConical, group: 'Diagnostics' },
-              {
-                id: 'terminal-display',
-                title: 'Terminal display',
-                Icon: SquareTerminal,
-                group: 'Diagnostics',
-              },
-              {
-                id: 'logging',
-                title: 'Logs & diagnostics',
-                Icon: ListChecks,
-                group: 'Diagnostics',
-              },
-            ] as const
-          )
-            .map((item) => ({
-              ...item,
-              english: item.title,
-              title: t(`settings.section.${item.id}`),
-              group: t(`settings.groups.${SETTINGS_GROUP_KEY[item.group]}`),
-            }))
-            .filter(
-              (item) =>
-                !search.trim() ||
-                (
-                  item.title +
-                  ' ' +
-                  item.english +
-                  ' ' +
-                  (settingsSections
-                    .find((s) => s.id === item.id)
-                    ?.fields.map(
-                      (f) =>
-                        `${f.label} ${f.description} ${t(`fields.${f.key}.label`, { defaultValue: '' })} ${t(`fields.${f.key}.description`, { defaultValue: '' })}`,
-                    )
-                    .join(' ') ?? '') +
-                  ' ' +
-                  (advanced[item.id]?.description ?? '')
-                )
-                  .toLowerCase()
-                  .includes(search.toLowerCase()),
-            )
-            .map(({ id, title, Icon, group }, index, shown) => (
-              <Fragment key={id}>
-                {index === 0 && (
-                  <SettingsSectionSelect
-                    sections={shown}
-                    section={section}
-                    onSelect={openSection}
-                  />
-                )}
-                {shown[index - 1]?.group !== group && (
-                  <small className="settings-nav-group">{group}</small>
-                )}
-                <button
-                  type="button"
-                  aria-current={section === id ? 'page' : undefined}
-                  onClick={() => openSection(id)}
-                >
-                  <Icon size={16} />
-                  <span>{title}</span>
-                </button>
-              </Fragment>
-            ))}
-        </nav>
-        <div className="settings-detail">
-          {error && (
-            <div className="session-error" role="alert">
-              {localizedText(error, 'settingsMessage', t)}
+            {search && (
+              <button type="button" aria-label={searchWords.clear} onClick={clearSearch}>
+                <X size={15} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+          <SettingsSectionSelect
+            sections={pickerSections}
+            section={section}
+            onSelect={openSection}
+          />
+          <p className="settings-search-status" role="status">
+            {!shown.length && searchWords.empty}
+          </p>
+          {shown.map(({ id, title, Icon, group }, index) => (
+            <Fragment key={id}>
+              {shown[index - 1]?.group !== group && (
+                <small className="settings-nav-group">{group}</small>
+              )}
               <button
                 type="button"
-                className="button secondary small"
-                disabled={busy}
-                onClick={() => {
-                  setLoaded(false);
-                  void command('prefs.get', {}, ['prefs.updated'])
-                    .then((values) => {
-                      const { requestId: _, sessionId: __, ...saved } = values;
-                      setBase(saved);
-                      setDraft(saved);
-                      setError('');
-                    })
-                    .catch((e) => setError(String(e)))
-                    .finally(() => setLoaded(true));
-                }}
+                aria-current={section === id ? 'page' : undefined}
+                onClick={() => openSection(id, true)}
               >
-                {t('settings.saveBar.reloadSaved')}
+                <Icon size={16} aria-hidden="true" />
+                <span>{title}</span>
               </button>
-            </div>
-          )}
-          {notice && (
-            <div className="studio-notice" role="status">
-              <Check size={13} />
-              {notice}
-            </div>
+            </Fragment>
+          ))}
+        </nav>
+        <section
+          className="settings-detail"
+          aria-label={currentSection.title}
+          tabIndex={-1}
+          ref={detail}
+        >
+          <div className="settings-category">
+            <currentSection.Icon size={14} aria-hidden="true" />
+            {currentSection.group}
+          </div>
+          {(!loaded || !heading || section === 'brain') && feedback}
+          {!heading && Object.keys(dirty).length > 0 && (
+            <p className="settings-draft-note">
+              {t('settings.saveBar.unsaved', { count: Object.keys(dirty).length })}
+            </p>
           )}
           {loaded && modelsOpened && (
             <div hidden={section !== 'models'}>
@@ -511,7 +594,11 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
             </div>
           )}
           {!loaded ? (
-            <p className="quiet-state">Loading saved profile settings…</p>
+            loading && (
+              <p className="quiet-state" role="status">
+                {t('settings.loading')}
+              </p>
+            )
           ) : section === 'providers' ? (
             <ProviderSettings
               state={state}
@@ -651,7 +738,11 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                   )}
                 </fieldset>
                 <div className="settings-save-bar">
-                  <span className="settings-save-summary">
+                  <div className="settings-save-feedback">{feedback}</div>
+                  <span
+                    className="settings-save-summary"
+                    data-dirty={Object.keys(dirty).length > 0}
+                  >
                     {Object.keys(dirty).length
                       ? t('settings.saveBar.unsaved', { count: Object.keys(dirty).length })
                       : t('settings.saveBar.allSaved')}
@@ -662,6 +753,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                     disabled={busy || !Object.keys(dirty).length}
                     onClick={() => {
                       setDraft(base);
+                      setError('');
                       setNotice('');
                     }}
                   >
@@ -670,9 +762,9 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                   <button
                     type="submit"
                     className="button primary"
-                    disabled={busy || !Object.keys(dirty).length}
+                    aria-disabled={busy || !Object.keys(dirty).length}
                   >
-                    <Save size={14} />
+                    <Save size={14} aria-hidden="true" />
                     {busy ? t('settings.saveBar.saving') : t('settings.saveBar.save')}
                   </button>
                 </div>
@@ -680,7 +772,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
               {section === 'capabilities' && <PluginInstaller command={command} />}
             </>
           ) : null}
-        </div>
+        </section>
       </div>
     </section>
   );

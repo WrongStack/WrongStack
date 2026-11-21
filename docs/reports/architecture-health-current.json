@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-21T14:48:27.490Z",
+  "generatedAt": "2026-11-21T14:49:37.880Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 49,
-    "sourceFiles": 6409,
-    "testFiles": 5623,
-    "sourceLines": 1322784,
+    "sourceFiles": 6410,
+    "testFiles": 5624,
+    "sourceLines": 1323075,
     "workspaceEdges": 255,
-    "moduleEdges": 18946,
+    "moduleEdges": 18947,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -409,8 +409,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 558,
-      "testFiles": 401,
+      "sourceFiles": 559,
+      "testFiles": 402,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -429,7 +429,7 @@
         {
           "path": "apps/desktop-v2/tsconfig.test.json",
           "error": null,
-          "testFiles": 401
+          "testFiles": 402
         }
       ]
     },
@@ -3566,6 +3566,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/settings-tools-i18n.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/settings-workspace.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -35612,6 +35618,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/main.tsx",
+      "specifier": "./settings-workspace.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/MarkdownContent.tsx",
       "specifier": "./syntax-highlight.css",
       "syntax": "import"
@@ -35697,6 +35708,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/ProfileModelPicker.tsx",
+      "specifier": "./profile-model-picker.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/ProjectAgentRoster.tsx",
       "specifier": "./project-agent-roster.css",
       "syntax": "import"
@@ -35779,6 +35795,11 @@
     {
       "from": "apps/desktop-v2/src/ProjectToolsMenu.tsx",
       "specifier": "./project-tools.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/ProjectWorkspace.tsx",
+      "specifier": "./project-overview.css",
       "syntax": "import"
     },
     {
@@ -36449,6 +36470,11 @@
       "file": "apps/desktop-v2/src/useFileWorkspace.ts",
       "lines": 753,
       "relativeImports": 19
+    },
+    {
+      "file": "apps/desktop-v2/src/WrongStackSettings.tsx",
+      "lines": 780,
+      "relativeImports": 47
     }
   ],
   "hotspots": [
@@ -36588,6 +36614,11 @@
       "relativeImports": 8
     },
     {
+      "file": "apps/desktop-v2/src/WrongStackSettings.tsx",
+      "lines": 780,
+      "relativeImports": 47
+    },
+    {
       "file": "packages/tools/src/design.ts",
       "lines": 780,
       "relativeImports": 1
@@ -36696,11 +36727,6 @@
       "file": "packages/acp/src/agent/protocol-session-management.ts",
       "lines": 723,
       "relativeImports": 2
-    },
-    {
-      "file": "packages/webui-server/src/server/provider-routes.ts",
-      "lines": 720,
-      "relativeImports": 5
     }
   ],
   "testOnlyExports": [

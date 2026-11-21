@@ -1,0 +1,115 @@
+.modal:has(.profile-model-picker) {
+  width: min(760px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  padding: clamp(16px, 3vw, 24px);
+}
+.profile-model-picker > p {
+  margin: 6px 0 16px;
+}
+.model-picker-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.profile-model-picker .model-picker-filters > label {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+}
+.model-picker-query {
+  position: relative;
+  display: block;
+}
+.model-picker-query > svg {
+  position: absolute;
+  inset-inline-start: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.modal .model-picker-filters :is(input, select) {
+  margin: 0;
+  min-width: 0;
+  min-height: 36px;
+}
+.modal .model-picker-query > input {
+  padding-inline-start: 34px;
+}
+.profile-model-picker .composer-model-recents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 0 0;
+  margin: 0 0 14px;
+  min-width: 0;
+  border: 0;
+}
+.profile-model-picker .composer-model-recents button {
+  display: flex;
+  min-width: 0;
+  max-width: min(210px, 100%);
+  align-items: baseline;
+  gap: 6px;
+}
+.profile-model-picker .composer-model-recents button :is(span, small) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-model-picker .composer-model-list {
+  display: block;
+  max-height: min(350px, 43dvh);
+  overscroll-behavior: contain;
+  border-block: 1px solid var(--border);
+  scrollbar-gutter: stable;
+}
+.profile-model-picker .composer-model-list > button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-block-end: 1px solid var(--border);
+  border-radius: 0;
+  padding: 9px 10px;
+  background: transparent;
+  color: var(--text);
+}
+.profile-model-picker .composer-model-list > button:last-child {
+  border-block-end: 0;
+}
+.profile-model-picker .composer-model-list > button:hover {
+  background: var(--base);
+}
+.profile-model-picker .composer-model-list > button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  box-shadow: inset 2px 0 var(--accent);
+}
+.profile-model-picker .composer-model-list > button:focus-visible {
+  outline-offset: -2px;
+}
+.model-picker-row-copy,
+.model-picker-row-state {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.model-picker-row-state {
+  justify-items: end;
+}
+.model-picker-row-state > svg {
+  color: var(--accent);
+}
+.profile-model-picker > footer {
+  margin-top: 12px;
+}
+@media (max-width: 460px) {
+  .model-picker-filters {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+}

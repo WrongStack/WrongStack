@@ -19,6 +19,7 @@
     "test": "bun --bun run vitest run --config vitest.config.ts",
     "test:render-recovery": "bun tests/render-recovery-browser.mjs",
     "test:follow-ups": "bun tests/follow-ups-layout-browser.mjs",
+    "test:settings-browser": "bun tests/settings-workspace-browser.mjs",
     "test:native": "cargo test --manifest-path src-tauri/Cargo.toml --no-default-features",
     "test:native-ui": "bun tests/native-smoke.mjs",
     "test:native-update": "bun tests/native-engine-update.mjs",

@@ -309,6 +309,10 @@
     "apps/desktop-v2/src/useFileWorkspace.ts": {
       "lines": 753,
       "relativeImports": 19
+    },
+    "apps/desktop-v2/src/WrongStackSettings.tsx": {
+      "lines": 780,
+      "relativeImports": 47
     }
   }
 }

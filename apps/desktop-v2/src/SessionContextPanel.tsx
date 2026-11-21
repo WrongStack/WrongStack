@@ -133,177 +133,186 @@ export function SessionContextPanel({
             <X size={18} />
           </button>
         </header>
-        <p>{t('contextPanel.body')}</p>
-        {error && (
-          <p className="composer-error" role="alert">
-            {error}
-          </p>
-        )}
-        {compaction && (
-          <section className="compaction-outcome" aria-label={t('contextPanel.result')}>
-            {compaction.request && (
-              <p>
-                {t('contextPanel.fullRequest', {
-                  before: compaction.request.before.toLocaleString(displayLocale()),
-                  after: compaction.request.after.toLocaleString(displayLocale()),
-                })}
-              </p>
-            )}
-            {compaction.reductions.length > 0 ? (
-              <ul>
-                {compaction.reductions.map((reduction) => (
-                  <li key={reduction.phase}>
-                    {t('contextPanel.reduction', {
-                      label: t(`contextPanel.phase.${reduction.phase}`, {
-                        defaultValue: reductionLabels[reduction.phase] ?? reduction.phase,
-                      }),
-                      saved: reduction.saved.toLocaleString(displayLocale()),
-                    })}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              compaction.saved === 0 && <p>{t('contextPanel.nothing')}</p>
-            )}
-            {compaction.quality && !compaction.quality.ok && (
-              <p role="alert">
-                {t('contextPanel.qualityFlag', { issues: compaction.quality.issues.join('; ') })}
-              </p>
-            )}
-            {compaction.digest && (
-              <details>
-                <summary>{t('contextPanel.digest')}</summary>
-                <pre>{compaction.digest}</pre>
-                {compaction.digestTruncated && <small>{t('contextPanel.digestShort')}</small>}
-              </details>
-            )}
-          </section>
-        )}
-        {notice && (
-          <p className="composer-notice" role="status">
-            {notice}
-          </p>
-        )}
-        {usage && <ContextUsageSummary usage={usage} />}
-        {loading ? (
-          <p role="status">
-            <LoaderCircle size={14} className="spin" /> {t('contextPanel.reading')}
-          </p>
-        ) : !snapshot ? (
-          <p>{t('contextPanel.unavailable')}</p>
-        ) : (
-          <>
-            <div className="context-summary">
-              <div>
-                <strong>{total.toLocaleString(displayLocale())}</strong>
-                <span>{t('contextPanel.currentTokens')}</span>
-              </div>
-              <div>
-                <strong>
-                  {maxContext > 0
-                    ? maxContext.toLocaleString(displayLocale())
-                    : t('contextPanel.notReported')}
-                </strong>
-                <span>{t('contextPanel.window')}</span>
-              </div>
-              <div>
-                <strong>{String(snapshot['mode'] ?? t('contextPanel.defaultMode'))}</strong>
-                <span>{t('contextPanel.mode')}</span>
-              </div>
-            </div>
-            <section aria-label={t('contextPanel.sections')}>
-              {[
-                [t('contextPanel.section.system'), Number(snapshot['systemPrompt'] ?? 0)],
-                [t('contextPanel.section.tools'), Number(tools['total'] ?? 0)],
-                [t('contextPanel.section.messages'), Number(messages['total'] ?? 0)],
-              ].map(([label, count]) => (
-                <div className="context-token-row" key={String(label)}>
-                  <span>{label}</span>
-                  <meter
-                    min={0}
-                    max={Math.max(1, total)}
-                    value={Number(count)}
-                    aria-label={String(label)}
-                  />
-                  <strong>~{Number(count).toLocaleString(displayLocale())}</strong>
-                </div>
-              ))}
-            </section>
-            <details>
-              <summary>
-                {t('contextPanel.section.tools')} · {String(tools['count'] ?? 0)}
-              </summary>
-              <div className="context-entries">
-                {entries(tools['breakdown']).map((tool, i) => (
-                  <div key={i}>
-                    <span>{String(tool['name'] ?? t('contextPanel.toolFallback'))}</span>
-                    <strong>
-                      ~
-                      {Number(tool['tokens'] ?? tool['total'] ?? 0).toLocaleString(displayLocale())}
-                    </strong>
-                  </div>
-                ))}
-              </div>
-            </details>
-            <details>
-              <summary>
-                {t('contextPanel.section.messages')} · {String(messages['count'] ?? 0)}
-              </summary>
-              <div className="context-entries">
-                {entries(messages['breakdown']).map((message, i) => (
-                  <div key={i}>
-                    <span>
-                      <small>{String(message['role'] ?? t('contextPanel.messageFallback'))}</small>{' '}
-                      {String(message['preview'] ?? '')}
-                    </span>
-                    <strong>
-                      ~{Number(message['tokens'] ?? 0).toLocaleString(displayLocale())}
-                    </strong>
-                  </div>
-                ))}
-              </div>
-            </details>
-            <ContextResidency residency={snapshot['residency']} retention={snapshot['retention']} />
-            <ContextModes command={command} onChanged={() => void refresh()} />
-            <section>
-              <button
-                type="button"
-                className="button secondary"
-                disabled={busy}
-                onClick={() => {
-                  setBusy(true);
-                  setError('');
-                  void command('context.editor.open', { includeReadonlyContent: true }, [
-                    'context.editor.snapshot',
-                  ])
-                    .then((result) =>
-                      setInstructions(
-                        contentText(record(result['readonlyContent'])['systemPrompt']),
-                      ),
-                    )
-                    .catch((e) => setError(String(e instanceof Error ? e.message : e)))
-                    .finally(() => setBusy(false));
-                }}
-              >
-                {t('contextPanel.readInstructions')}
-              </button>
-              <button
-                type="button"
-                className="button secondary"
-                disabled={busy}
-                onClick={() => setEditing(true)}
-              >
-                {t('contextPanel.edit')}
-              </button>
-              {instructions !== null && (
-                <div className="context-instructions">
-                  <MarkdownContent text={instructions || t('contextPanel.noInstructions')} />
-                </div>
+        <div className="context-inspector-body">
+          <p>{t('contextPanel.body')}</p>
+          {error && (
+            <p className="composer-error" role="alert">
+              {error}
+            </p>
+          )}
+          {compaction && (
+            <section className="compaction-outcome" aria-label={t('contextPanel.result')}>
+              {compaction.request && (
+                <p>
+                  {t('contextPanel.fullRequest', {
+                    before: compaction.request.before.toLocaleString(displayLocale()),
+                    after: compaction.request.after.toLocaleString(displayLocale()),
+                  })}
+                </p>
+              )}
+              {compaction.reductions.length > 0 ? (
+                <ul>
+                  {compaction.reductions.map((reduction) => (
+                    <li key={reduction.phase}>
+                      {t('contextPanel.reduction', {
+                        label: t(`contextPanel.phase.${reduction.phase}`, {
+                          defaultValue: reductionLabels[reduction.phase] ?? reduction.phase,
+                        }),
+                        saved: reduction.saved.toLocaleString(displayLocale()),
+                      })}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                compaction.saved === 0 && <p>{t('contextPanel.nothing')}</p>
+              )}
+              {compaction.quality && !compaction.quality.ok && (
+                <p role="alert">
+                  {t('contextPanel.qualityFlag', { issues: compaction.quality.issues.join('; ') })}
+                </p>
+              )}
+              {compaction.digest && (
+                <details>
+                  <summary>{t('contextPanel.digest')}</summary>
+                  <pre>{compaction.digest}</pre>
+                  {compaction.digestTruncated && <small>{t('contextPanel.digestShort')}</small>}
+                </details>
               )}
             </section>
-          </>
-        )}
-        <SessionMemoryInjections runs={memoryRuns} context={memoryContext} />
+          )}
+          {notice && (
+            <p className="composer-notice" role="status">
+              {notice}
+            </p>
+          )}
+          {usage && <ContextUsageSummary usage={usage} />}
+          {loading ? (
+            <p role="status">
+              <LoaderCircle size={14} className="spin" /> {t('contextPanel.reading')}
+            </p>
+          ) : !snapshot ? (
+            <p>{t('contextPanel.unavailable')}</p>
+          ) : (
+            <>
+              <div className="context-summary">
+                <div>
+                  <strong>{total.toLocaleString(displayLocale())}</strong>
+                  <span>{t('contextPanel.currentTokens')}</span>
+                </div>
+                <div>
+                  <strong>
+                    {maxContext > 0
+                      ? maxContext.toLocaleString(displayLocale())
+                      : t('contextPanel.notReported')}
+                  </strong>
+                  <span>{t('contextPanel.window')}</span>
+                </div>
+                <div>
+                  <strong>{String(snapshot['mode'] ?? t('contextPanel.defaultMode'))}</strong>
+                  <span>{t('contextPanel.mode')}</span>
+                </div>
+              </div>
+              <section className="context-breakdown" aria-label={t('contextPanel.sections')}>
+                {[
+                  [t('contextPanel.section.system'), Number(snapshot['systemPrompt'] ?? 0)],
+                  [t('contextPanel.section.tools'), Number(tools['total'] ?? 0)],
+                  [t('contextPanel.section.messages'), Number(messages['total'] ?? 0)],
+                ].map(([label, count]) => (
+                  <div className="context-token-row" key={String(label)}>
+                    <span>{label}</span>
+                    <meter
+                      min={0}
+                      max={Math.max(1, total)}
+                      value={Number(count)}
+                      aria-label={String(label)}
+                    />
+                    <strong>~{Number(count).toLocaleString(displayLocale())}</strong>
+                  </div>
+                ))}
+              </section>
+              <details>
+                <summary>
+                  {t('contextPanel.section.tools')} · {String(tools['count'] ?? 0)}
+                </summary>
+                <div className="context-entries">
+                  {entries(tools['breakdown']).map((tool, i) => (
+                    <div key={i}>
+                      <span>{String(tool['name'] ?? t('contextPanel.toolFallback'))}</span>
+                      <strong>
+                        ~
+                        {Number(tool['tokens'] ?? tool['total'] ?? 0).toLocaleString(
+                          displayLocale(),
+                        )}
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+              </details>
+              <details>
+                <summary>
+                  {t('contextPanel.section.messages')} · {String(messages['count'] ?? 0)}
+                </summary>
+                <div className="context-entries">
+                  {entries(messages['breakdown']).map((message, i) => (
+                    <div key={i}>
+                      <span>
+                        <small>
+                          {String(message['role'] ?? t('contextPanel.messageFallback'))}
+                        </small>{' '}
+                        {String(message['preview'] ?? '')}
+                      </span>
+                      <strong>
+                        ~{Number(message['tokens'] ?? 0).toLocaleString(displayLocale())}
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+              </details>
+              <ContextResidency
+                residency={snapshot['residency']}
+                retention={snapshot['retention']}
+              />
+              <ContextModes command={command} onChanged={() => void refresh()} />
+              <section className="context-instruction-actions">
+                <button
+                  type="button"
+                  className="button secondary"
+                  disabled={busy}
+                  onClick={() => {
+                    setBusy(true);
+                    setError('');
+                    void command('context.editor.open', { includeReadonlyContent: true }, [
+                      'context.editor.snapshot',
+                    ])
+                      .then((result) =>
+                        setInstructions(
+                          contentText(record(result['readonlyContent'])['systemPrompt']),
+                        ),
+                      )
+                      .catch((e) => setError(String(e instanceof Error ? e.message : e)))
+                      .finally(() => setBusy(false));
+                  }}
+                >
+                  {t('contextPanel.readInstructions')}
+                </button>
+                <button
+                  type="button"
+                  className="button secondary"
+                  disabled={busy}
+                  onClick={() => setEditing(true)}
+                >
+                  {t('contextPanel.edit')}
+                </button>
+                {instructions !== null && (
+                  <div className="context-instructions">
+                    <MarkdownContent text={instructions || t('contextPanel.noInstructions')} />
+                  </div>
+                )}
+              </section>
+            </>
+          )}
+          <SessionMemoryInjections runs={memoryRuns} context={memoryContext} />
+        </div>
         <footer>
           <button
             type="button"
@@ -339,7 +348,7 @@ export function SessionContextPanel({
           </button>
           <button
             type="button"
-            className="button secondary"
+            className="button secondary context-clear-action"
             disabled={busy || running}
             onClick={() => setConfirmClear(true)}
           >

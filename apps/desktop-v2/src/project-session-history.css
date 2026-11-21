@@ -1,5 +1,5 @@
 .project-history {
-  padding: 44px min(5vw, 60px);
+  padding: clamp(16px, 3vw, 36px);
   color: var(--text);
   min-width: 0;
 }
@@ -11,8 +11,8 @@
   margin-bottom: 28px;
 }
 .history-heading h1 {
-  font-size: 40px;
-  letter-spacing: -1.4px;
+  font-size: clamp(24px, 3vw, 33px);
+  letter-spacing: -0.035em;
   margin: 10px 0;
 }
 .history-heading p,
@@ -87,11 +87,11 @@
 .history-catalog {
   display: flex;
   flex-direction: column;
-  gap: 10px;
   min-width: 0;
   max-height: 80vh;
   overflow: auto;
-  padding-right: 3px;
+  border-block: 1px solid var(--border);
+  scrollbar-gutter: stable;
 }
 .history-catalog > button {
   text-align: left;
@@ -99,17 +99,23 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--raised);
+  border: 0;
+  border-block-end: 1px solid var(--border);
+  background: transparent;
   color: var(--text);
   font-size: 12px;
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.history-catalog > button:hover {
+  background: var(--raised);
+}
+.history-catalog > button:focus-visible {
+  outline-offset: -2px;
+}
 .history-catalog > button[aria-current="page"] {
-  border-color: var(--accent);
   background: var(--accent-soft);
+  box-shadow: inset 2px 0 var(--accent);
 }
 .history-row-title {
   display: flex;
@@ -135,11 +141,9 @@
   min-width: 0;
 }
 .history-selection {
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  padding: 24px;
-  background: var(--raised);
-  margin-bottom: 20px;
+  border-block-end: 1px solid var(--border);
+  padding: 0 0 16px;
+  margin-bottom: 16px;
   overflow-wrap: anywhere;
 }
 .history-selection h2 {
@@ -159,9 +163,8 @@
   gap: 15px;
   align-items: center;
   justify-content: center;
-  min-height: 430px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  min-height: clamp(150px, 33dvh, 280px);
+  border-block: 1px solid var(--border);
   color: var(--muted);
   padding: 30px;
   text-align: center;

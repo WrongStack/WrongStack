@@ -1,7 +1,7 @@
 /* Transcript and composer share one primary column; inspection has its own surface. */
 .session-conversation-panes {
-  --session-rail: 48px;
-  grid-template-columns: minmax(0, 1fr) clamp(300px, 30%, 380px) var(--session-rail);
+  --session-rail: 44px;
+  grid-template-columns: minmax(0, 1fr) clamp(264px, 28%, 336px) var(--session-rail);
 }
 .session-conversation-panes:has(> .session-inspector[data-collapsed="true"]) {
   grid-template-columns: minmax(0, 1fr) 0 var(--session-rail);
@@ -28,7 +28,10 @@
   background: var(--base);
 }
 /* An open, bounded menu may extend into the transcript, never under a clipping ancestor. */
-.session-leader-column:has(.composer-options[open]) {
+.session-leader-column:has(
+  .composer-options[open],
+  .session-model-controls .acp-runtime-controls[open]
+) {
   overflow: visible;
 }
 .session-inspector {
@@ -228,6 +231,7 @@
 }
 .session-inspector .agent-tabs > button[aria-pressed="true"] {
   background: var(--base);
+  box-shadow: inset 2px 0 var(--accent);
 }
 .session-inspector .agent-row-heading {
   flex-wrap: nowrap;
@@ -275,7 +279,11 @@
   margin: 16px 0 0;
 }
 .session-inspector-details dl > div {
-  padding: 12px 0;
+  display: grid;
+  grid-template-columns: minmax(76px, 0.8fr) minmax(0, 1.2fr);
+  align-items: baseline;
+  gap: 12px;
+  padding: 9px 0;
   border-top: 1px solid var(--border);
 }
 .session-inspector-details dt {
@@ -283,7 +291,7 @@
   font-size: 12px;
 }
 .session-inspector-details dd {
-  margin: 4px 0 0;
+  margin: 0;
   color: var(--text);
   user-select: text;
 }

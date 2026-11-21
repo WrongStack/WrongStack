@@ -142,7 +142,9 @@ describe('sidebar project management', () => {
     await drag(button('Reorder Gamma'), 'dragstart', data);
     const hover = await drag(button('Alpha'), 'dragover', data);
     expect(hover.defaultPrevented).toBe(true);
-    expect(button('Alpha').dataset.drop).toBe('before');
+    expect(button('Alpha').closest('.project-branch-heading')?.getAttribute('data-drop')).toBe(
+      'before',
+    );
     expect(bridge.request).not.toHaveBeenCalled();
     await drag(button('Alpha'), 'drop', data);
     expect(bridge.request).toHaveBeenLastCalledWith('project-menu.move', {
@@ -150,7 +152,9 @@ describe('sidebar project management', () => {
       target: 'Alpha',
       after: false,
     });
-    expect(button('Alpha').dataset.drop).toBeUndefined();
+    expect(
+      button('Alpha').closest('.project-branch-heading')?.getAttribute('data-drop'),
+    ).toBeNull();
     await drag(button('Reorder Alpha'), 'dragstart', data);
     await drag(button('Gamma'), 'drop', data, 1);
     expect(bridge.request).toHaveBeenLastCalledWith('project-menu.move', {
@@ -173,9 +177,9 @@ describe('sidebar project management', () => {
     await drag(button('Beta'), 'drop', data);
     expect(errors.map(String)).toEqual(['Error: Write failed']);
     expect(Array.from(host.querySelectorAll('.project-item')).map((b) => b.textContent)).toEqual([
-      'AAlpha',
-      'BBeta',
-      'GGamma',
+      'Alpha',
+      'Beta',
+      'Gamma',
     ]);
   });
   it('supports keyboard reordering, honors boundaries, and disables changes while saving', async () => {
@@ -204,7 +208,12 @@ describe('sidebar project management', () => {
     });
     vm = { ...vm, pending: true };
     await render();
-    expect(button('Reorder Beta').disabled).toBe(true);
+    expect(button('Reorder Beta').getAttribute('aria-disabled')).toBe('true');
+    bridge.request.mockClear();
+    await key('Reorder Beta', 'ArrowDown');
+    await click('Reorder Beta');
+    expect(bridge.request).not.toHaveBeenCalled();
+    expect(host.querySelector('dialog')).toBeNull();
     expect(button('Remove project Beta').disabled).toBe(true);
   });
   it('localizes the new management controls with the shell display language', async () => {

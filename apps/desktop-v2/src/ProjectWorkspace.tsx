@@ -4,8 +4,10 @@ import {
   BookOpen,
   Boxes,
   Brain,
+  Folder,
   KanbanSquare,
   Network,
+  Plus,
   Settings,
   Terminal,
   Workflow,
@@ -16,7 +18,7 @@ import { projectHttp } from './engine-http';
 import { entries, record } from './engine-values';
 import { FileWorkspace } from './FileWorkspace';
 import { MailboxUnread } from './MailboxUnread';
-import { isLive, type Project } from './model';
+import { isLive, type Project, sessionStatus, sessionTitle, sortSessions } from './model';
 import { ProjectAgentWorkspace } from './ProjectAgentWorkspace';
 import { ProjectAnalytics } from './ProjectAnalytics';
 import { ProjectAtlas } from './ProjectAtlas';
@@ -42,6 +44,7 @@ import { Metric } from './SessionCard';
 import { SkillLibrary } from './SkillLibrary';
 import type { DesktopController } from './useDesktop';
 import { useProjectEngine } from './useEngine';
+import './project-overview.css';
 
 const AutomationWorkspace = lazy(() =>
   import('./AutomationWorkspace').then((module) => ({ default: module.AutomationWorkspace })),
@@ -438,6 +441,23 @@ function ProjectOverview({
   const live = sessions.filter(isLive).length;
   return (
     <section className="project-overview">
+      <header className="overview-identity">
+        <div>
+          <h1>{project.name}</h1>
+          <span>
+            <Folder size={14} aria-hidden="true" />
+            <code>{project.root}</code>
+          </span>
+        </div>
+        <button
+          type="button"
+          className="button primary"
+          disabled={vm.pending}
+          onClick={() => vm.newSession(project.id)}
+        >
+          <Plus size={15} aria-hidden="true" /> {t('fleetView.newSession')}
+        </button>
+      </header>
       <div className="metrics-strip fleet-kpis project-kpis">
         <Metric
           icon={<Activity size={14} />}
@@ -465,99 +485,76 @@ function ProjectOverview({
           note={t('overview.kpi.packages')}
         />
       </div>
-      <div className="project-destination-grid">
-        <button
-          type="button"
-          className="project-destination destination-memory"
-          onClick={() => vm.setProjectPage('memory')}
-        >
-          <div className="destination-art memory-art" aria-hidden="true">
-            <svg viewBox="0 0 360 150">
-              <title>{t('overview.memory.art')}</title>
-              <path d="M54 86L126 40L196 82L285 38M126 40L155 125L196 82L301 119M54 86L155 125" />
-              <circle cx="54" cy="86" r="15" />
-              <circle cx="126" cy="40" r="21" />
-              <circle cx="196" cy="82" r="28" />
-              <circle cx="155" cy="125" r="12" />
-              <circle cx="285" cy="38" r="12" />
-              <circle cx="301" cy="119" r="17" />
-            </svg>
-            <Brain size={24} />
+      <section className="project-session-summary">
+        <header>
+          <div>
+            <h2>{t('overview.sessions.title')}</h2>
+            <p>{t('overview.sessions.active', { count: sessions.filter(isLive).length })}</p>
           </div>
-          <div className="destination-copy">
-            <h2>
-              {t('pages.memory')}
-              <ArrowRight size={18} />
-            </h2>
-            <p>{t('overview.memory.body')}</p>
-            <strong>
-              {memories === null
-                ? t('overview.memory.loading')
-                : t('overview.memory.count', { count: memories })}
-            </strong>
-          </div>
-        </button>
-        <button
-          type="button"
-          className="project-destination destination-kanban"
-          onClick={() => vm.setProjectPage('kanban')}
-        >
-          <div className="destination-art board-art" aria-hidden="true">
-            {[3, 2, 2].map((count, index) => (
-              <div key={index} className="board-art-column">
-                <i className="board-art-line" />
-                {Array.from({ length: count }, (_, card) => (
-                  <span key={card}>
-                    <b />
-                    <b />
+          <button
+            type="button"
+            className="button secondary small"
+            onClick={() => vm.newSession(project.id, 'terminal')}
+          >
+            <Terminal size={13} />
+            {t('overview.sessions.terminal')}
+          </button>
+        </header>
+        {sessions.length ? (
+          <div className="project-session-rows">
+            {sortSessions(sessions, [])
+              .slice(0, 8)
+              .map((session) => (
+                <button type="button" key={session.id} onClick={() => vm.jumpToSession(session)}>
+                  {session.kind === 'terminal' ? (
+                    <Terminal size={16} aria-hidden="true" />
+                  ) : (
+                    <Workflow size={16} aria-hidden="true" />
+                  )}
+                  <strong>{sessionTitle(session, t('workbench.untitled'))}</strong>
+                  <span className="overview-session-state">
+                    <i className={`status-dot ${session.status}`} aria-hidden="true" />
+                    {t(`fleetView.status.${sessionStatus(session)}`)}
                   </span>
-                ))}
-              </div>
-            ))}
-          </div>
-          <div className="destination-copy">
-            <h2>
-              {t('pages.kanban')}
-              <ArrowRight size={18} />
-            </h2>
-            <p>{t('overview.kanban.body')}</p>
-            <strong>{t('overview.kanban.count', { tasks, boards: boards.length })}</strong>
-          </div>
-        </button>
-        <button
-          type="button"
-          className="project-destination destination-atlas"
-          onClick={() => vm.setProjectPage('atlas')}
-        >
-          <div className="destination-art atlas-art" aria-hidden="true">
-            <svg viewBox="0 0 360 150">
-              <title>{t('overview.atlas.art')}</title>
-              <path d="M68 55L180 34L292 60M68 55L84 116L180 98L292 60L270 129M180 34L180 98L270 129" />
-              {[
-                [68, 55],
-                [180, 34],
-                [292, 60],
-                [84, 116],
-                [180, 98],
-                [270, 129],
-              ].map(([x, y], index) => (
-                <rect x={x! - 12} y={y! - 10} width={24} height={20} rx={4} key={index} />
+                  <ArrowRight size={14} aria-hidden="true" />
+                </button>
               ))}
-            </svg>
-            <Network size={25} />
           </div>
-          <div className="destination-copy">
-            <h2>
-              {t('pages.atlas')}
-              <ArrowRight size={18} />
-            </h2>
-            <p>{t('overview.atlas.body')}</p>
-            <strong>
-              {packages === null
-                ? t('overview.atlas.ready')
-                : t('overview.atlas.count', { count: packages })}
-            </strong>
+        ) : (
+          <div className="project-no-sessions">
+            <Workflow size={20} />
+            <span>{t('overview.sessions.empty')}</span>
+            <button type="button" onClick={() => vm.newSession(project.id)}>
+              {t('overview.sessions.start')}
+              <ArrowRight size={13} />
+            </button>
           </div>
+        )}
+      </section>
+      <div className="overview-tool-links">
+        <button type="button" onClick={() => vm.setProjectPage('memory')}>
+          <Brain size={18} aria-hidden="true" />
+          <span>
+            <strong>{t('pages.memory')}</strong>
+            <small>{t('overview.memory.body')}</small>
+          </span>
+          <ArrowRight size={14} aria-hidden="true" />
+        </button>
+        <button type="button" onClick={() => vm.setProjectPage('kanban')}>
+          <KanbanSquare size={18} aria-hidden="true" />
+          <span>
+            <strong>{t('pages.kanban')}</strong>
+            <small>{t('overview.kanban.body')}</small>
+          </span>
+          <ArrowRight size={14} aria-hidden="true" />
+        </button>
+        <button type="button" onClick={() => vm.setProjectPage('atlas')}>
+          <Network size={18} aria-hidden="true" />
+          <span>
+            <strong>{t('pages.atlas')}</strong>
+            <small>{t('overview.atlas.body')}</small>
+          </span>
+          <ArrowRight size={14} aria-hidden="true" />
         </button>
       </div>
       <ProjectToolsMenu
@@ -586,44 +583,6 @@ function ProjectOverview({
           </section>
         }
       />
-      <section className="project-session-summary">
-        <header>
-          <div>
-            <h2>{t('overview.sessions.title')}</h2>
-            <p>{t('overview.sessions.active', { count: sessions.filter(isLive).length })}</p>
-          </div>
-          <button
-            type="button"
-            className="button secondary small"
-            onClick={() => vm.newSession(project.id, 'terminal')}
-          >
-            <Terminal size={13} />
-            {t('overview.sessions.terminal')}
-          </button>
-        </header>
-        {sessions.length ? (
-          <div className="project-session-rows">
-            {sessions.slice(0, 8).map((session) => (
-              <button type="button" key={session.id} onClick={() => vm.jumpToSession(session)}>
-                <span className={`status-dot ${session.status}`} />
-                {session.kind === 'terminal' ? <Terminal size={15} /> : <Workflow size={15} />}
-                <strong>{session.title}</strong>
-                <span>{t(`status.${session.status}`, { defaultValue: session.status })}</span>
-                <ArrowRight size={14} />
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="project-no-sessions">
-            <Workflow size={20} />
-            <span>{t('overview.sessions.empty')}</span>
-            <button type="button" onClick={() => vm.newSession(project.id)}>
-              {t('overview.sessions.start')}
-              <ArrowRight size={13} />
-            </button>
-          </div>
-        )}
-      </section>
     </section>
   );
 }

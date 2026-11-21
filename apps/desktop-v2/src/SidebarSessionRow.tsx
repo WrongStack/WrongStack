@@ -51,6 +51,7 @@ export function SidebarSessionRow({
       <button
         type="button"
         className={`tree-session ${chosen ? 'chosen' : ''}`}
+        aria-current={chosen ? 'page' : undefined}
         onClick={() => onOpen(session)}
       >
         <span className={`status-dot ${session.status}`} />

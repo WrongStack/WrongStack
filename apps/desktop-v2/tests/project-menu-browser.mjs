@@ -128,6 +128,41 @@ try {
       await page.waitForFunction(
         () => document.querySelector('.project-item > span:last-child')?.textContent === 'Alpha',
       );
+      const grip = page.getByRole('button', { name: 'Reorder Beta', exact: true });
+      await grip.press('Enter');
+      const reorder = page.getByRole('dialog', { name: 'Reorder project' });
+      const position = reorder.getByRole('combobox', { name: 'New position' });
+      await position.waitFor();
+      assert.match(await reorder.textContent(), /D:\/fixture\/Beta/);
+      const save = reorder.getByRole('button', { name: 'Move project' });
+      assert.equal(await save.isDisabled(), true);
+      await position.selectOption('p0');
+      await page.keyboard.press('Escape');
+      assert.equal((await names())[0], 'Alpha', 'Cancelling leaves the order unchanged');
+      assert.ok(await grip.evaluate((node) => node === document.activeElement));
+      await grip.click();
+      await position.selectOption('p0');
+      await page.evaluate(() => {
+        window.failSave = true;
+      });
+      await save.click();
+      await reorder.getByRole('alert').getByText('Fixture write failed').waitFor();
+      assert.equal(
+        await position.inputValue(),
+        'p0',
+        'Failed writes preserve the intended position',
+      );
+      assert.equal((await names())[0], 'Alpha', 'Failed writes leave the order unchanged');
+      await save.click();
+      await reorder.waitFor({ state: 'hidden' });
+      assert.equal((await names())[0], 'Beta');
+      assert.ok(await grip.evaluate((node) => node === document.activeElement));
+      await page.getByRole('status').getByText('Beta moved.').waitFor();
+      await grip.press('Alt+ArrowDown');
+      await page.waitForFunction(
+        () => document.querySelector('.project-item > span:last-child')?.textContent === 'Alpha',
+      );
+
       await page.getByRole('button', { name: 'Remove project Alpha', exact: true }).click();
       await page.getByRole('dialog').waitFor();
       assert.match(

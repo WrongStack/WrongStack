@@ -84,8 +84,10 @@ export function PluginToggles({
           <div className="setting-row setting-toggle" key={entry.name}>
             <div>
               <label htmlFor={`plugin-${entry.name}`}>{pluginLabel(entry.name)}</label>
-              <p>{entry.summary}</p>
-              {!entry.canDisable && <small>{t('pluginToggles.alwaysOn')}</small>}
+              <p id={`plugin-${entry.name}-description`}>{entry.summary}</p>
+              {!entry.canDisable && (
+                <small id={`plugin-${entry.name}-required`}>{t('pluginToggles.alwaysOn')}</small>
+              )}
             </div>
             <div className="setting-control">
               <button
@@ -94,6 +96,7 @@ export function PluginToggles({
                 role="switch"
                 aria-checked={on}
                 aria-label={pluginLabel(entry.name)}
+                aria-describedby={`plugin-${entry.name}-description${entry.canDisable ? '' : ` plugin-${entry.name}-required`}`}
                 className="settings-switch"
                 disabled={!entry.canDisable}
                 onClick={() => change('pluginsEnabled', { ...decided, [entry.name]: !on })}

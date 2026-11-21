@@ -207,7 +207,13 @@ export async function exerciseNativeSettingsPolicy({ page, rpc, waitFor, artifac
       'Explicit settings reload',
     );
     await go('Execution & permissions');
-    await page.getByLabel('Iteration budget', { exact: true }).fill('0');
+    const iterations = page.getByLabel('Iteration budget', { exact: true });
+    // A fresh profile is already unlimited. Save a finite budget first so zero tests a real edit.
+    const finiteBudget = (await prefs()).maxIterations === 8 ? 9 : 8;
+    await iterations.fill(String(finiteBudget));
+    await saved();
+    assert.equal((await prefs()).maxIterations, finiteBudget, 'Finite iteration budget persists');
+    await iterations.fill('0');
     await saved();
     assert.equal((await prefs()).maxIterations, 0, 'Unlimited iterations persist');
   } catch (error) {

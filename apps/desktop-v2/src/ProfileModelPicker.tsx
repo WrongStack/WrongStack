@@ -1,4 +1,4 @@
-import { Columns3, LoaderCircle, RefreshCw, Search, Settings2, X } from 'lucide-react';
+import { Check, Columns3, LoaderCircle, RefreshCw, Search, Settings2, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
@@ -25,6 +25,7 @@ import { providerChoices } from './provider-settings-model';
 import { RuntimeGate } from './RuntimeGate';
 import { useProfileEngine } from './useEngine';
 import './composer-dialog.css';
+import './profile-model-picker.css';
 import { AgentRuntimeBadge } from '@wrongstack/project-surfaces/ui/AgentRuntimeBadge';
 
 interface Props {
@@ -249,7 +250,7 @@ function LiveProfileModelPicker({
     }
   };
   return (
-    <section className="composer-dialog" aria-label={t('modelPicker.label')}>
+    <section className="composer-dialog profile-model-picker" aria-label={t('modelPicker.label')}>
       <header>
         <div>
           <span className="eyebrow">{t('modelPicker.eyebrow')}</span>
@@ -266,25 +267,39 @@ function LiveProfileModelPicker({
         </button>
       </header>
       <p>{description ?? t('modelPicker.description')}</p>
-      <label>
-        {t('modelPicker.provider')}
-        <select
-          aria-label={providerLabel ?? t('modelPicker.providerLabel')}
-          value={provider}
-          disabled={!ready || switching}
-          onChange={(event) => setProvider(event.target.value)}
-        >
-          {!choices.some((item) => item.id === provider) && (
-            <option value={provider}>{t('modelPicker.unavailable', { provider })}</option>
-          )}
-          {choices.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-              {item.saved ? t('modelPicker.saved') : ''}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="model-picker-filters">
+        <label>
+          {t('modelPicker.provider')}
+          <select
+            aria-label={providerLabel ?? t('modelPicker.providerLabel')}
+            value={provider}
+            disabled={!ready || switching}
+            onChange={(event) => setProvider(event.target.value)}
+          >
+            {!choices.some((item) => item.id === provider) && (
+              <option value={provider}>{t('modelPicker.unavailable', { provider })}</option>
+            )}
+            {choices.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+                {item.saved ? t('modelPicker.saved') : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="composer-model-search">
+          {searchLabel ?? t('modelPicker.searchLabel')}
+          <span className="model-picker-query">
+            <Search size={15} aria-hidden="true" />
+            <input
+              aria-label={searchLabel ?? t('modelPicker.searchLabel')}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t('modelPicker.placeholder')}
+            />
+          </span>
+        </label>
+      </div>
       {ready && quickRecents.length > 0 && (
         <fieldset className="composer-model-recents">
           <legend>{t('modelPicker.recent')}</legend>
@@ -297,21 +312,12 @@ function LiveProfileModelPicker({
               aria-pressed={item.provider === session.provider && item.model === session.model}
               onClick={() => void choose(item.model, item.provider)}
             >
-              {item.model}
-              <small>{item.provider}</small>
+              <span title={item.model}>{item.model}</span>
+              <small title={item.provider}>{item.provider}</small>
             </button>
           ))}
         </fieldset>
       )}
-      <label className="composer-model-search search-field">
-        <Search size={15} />
-        <input
-          aria-label={searchLabel ?? t('modelPicker.searchLabel')}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={t('modelPicker.placeholder')}
-        />
-      </label>
       {error && (
         <p role="alert" className="composer-error">
           {error}
@@ -371,19 +377,25 @@ function LiveProfileModelPicker({
                   executionRole="agent"
                   showName={false}
                 />
-                <strong>{model.name}</strong>
-                {comparing && compared.some((entry) => entry.key === comparedKey(model.id)) && (
-                  <span>{t('modelPicker.comparing')}</span>
-                )}
-                {modelListed(policy.favoriteModels, provider, model.id) && (
-                  <span>{t('modelPicker.favorite')}</span>
-                )}
-                <small>{model.id}</small>
-                {modelDetailLine(model, details) && (
-                  <small className="composer-model-details">
-                    {modelDetailLine(model, details)}
-                  </small>
-                )}
+                <span className="model-picker-row-copy">
+                  <strong>{model.name}</strong>
+                  {model.name !== model.id && <small>{model.id}</small>}
+                  {modelDetailLine(model, details) && (
+                    <small className="composer-model-details">
+                      {modelDetailLine(model, details)}
+                    </small>
+                  )}
+                </span>
+                <span className="model-picker-row-state">
+                  {(comparing
+                    ? compared.some((entry) => entry.key === comparedKey(model.id))
+                    : provider === session.provider && model.id === session.model) && (
+                    <Check size={16} aria-hidden="true" />
+                  )}
+                  {modelListed(policy.favoriteModels, provider, model.id) && (
+                    <small>{t('modelPicker.favorite')}</small>
+                  )}
+                </span>
               </button>
             ))
           ) : (

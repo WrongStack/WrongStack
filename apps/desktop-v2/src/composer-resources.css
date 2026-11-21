@@ -338,22 +338,70 @@
   display: inline-flex;
   padding: 2px;
 }
+.modal[open]:has(.context-inspector) {
+  width: min(780px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  display: flex;
+  overflow: hidden;
+}
+.composer-dialog.context-inspector {
+  --context-gutter: clamp(14px, 3vw, 24px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+}
+.context-inspector > header,
+.context-inspector > footer {
+  flex: none;
+  padding: 12px var(--context-gutter);
+}
+.context-inspector > header {
+  align-items: center;
+  border-block-end: 1px solid var(--border);
+}
+.composer-dialog.context-inspector > header h2 {
+  margin-top: 3px;
+}
+.context-inspector-body {
+  min-height: 0;
+  padding: 4px var(--context-gutter) 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.context-inspector > footer {
+  justify-content: flex-start;
+  gap: 6px;
+  margin: 0;
+  border-block-start: 1px solid var(--border);
+}
+.context-clear-action {
+  margin-inline-start: auto;
+}
 .context-summary {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
-  margin: 18px 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block: 1px solid var(--border);
+  margin: 16px 0 12px;
 }
 .context-summary > div {
-  display: grid;
-  gap: 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 15px;
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+.context-summary > div:where(:not(:first-child)) {
+  border-inline-start: 1px solid var(--border);
 }
 .context-summary strong {
-  font-size: 19px;
-  font-weight: 500;
+  font-size: clamp(14px, 2.3vw, 21px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 .context-summary span {
   color: var(--muted);
@@ -361,7 +409,7 @@
 }
 .context-token-row {
   display: grid;
-  grid-template-columns: 160px 1fr 65px;
+  grid-template-columns: minmax(80px, 1fr) minmax(38px, 2fr) minmax(60px, auto);
   align-items: center;
   gap: 15px;
   padding: 10px 0;
@@ -375,10 +423,24 @@
 .context-token-row strong {
   text-align: right;
 }
-.context-inspector > details {
-  margin: 15px 0;
-  padding: 12px 0;
-  border-top: 1px solid var(--border);
+.context-breakdown {
+  padding-bottom: 8px;
+}
+.context-inspector-body > details {
+  border-block-start: 1px solid var(--border);
+}
+.context-inspector-body > :where(details) > summary {
+  padding: 10px 0;
+}
+.context-instruction-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 10px;
+}
+:where(.context-instruction-actions) > .context-instructions {
+  flex-basis: 100%;
+  min-width: 0;
 }
 .context-inspector summary {
   cursor: pointer;
@@ -413,10 +475,14 @@
   margin-top: 15px;
 }
 .context-clear-confirm {
-  padding: 20px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  margin-top: 20px;
+  flex: none;
+  padding: 12px var(--context-gutter) 16px;
+  border-block-start: 1px solid var(--danger);
+  background: var(--raised);
+}
+.context-clear-confirm h3,
+.context-clear-confirm p {
+  margin: 0 0 8px;
 }
 .context-clear-confirm button {
   margin-right: 10px;
@@ -436,13 +502,6 @@
   }
   .composer-dialog.resource-dialog .resource-toolbar {
     gap: 6px;
-  }
-  .context-summary {
-    grid-template-columns: 1fr;
-  }
-  .context-token-row {
-    grid-template-columns: 120px 1fr 55px;
-    gap: 8px;
   }
   .composer-mention-popup header small {
     display: none;

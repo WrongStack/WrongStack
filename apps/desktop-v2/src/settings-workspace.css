@@ -1,0 +1,332 @@
+/* Settings use the Desktop theme and native controls. Keep this scope out of chat and project forms. */
+:is(.wrongstack-settings, .appearance-settings) {
+  --settings-field-edge: color-mix(in srgb, var(--text) 46%, var(--border));
+  --settings-field-fill: var(--raised);
+  --settings-field-radius: var(--radius-sm, 6px);
+}
+.settings-focused .main-content {
+  scroll-padding-block: 12px 96px;
+}
+.wrongstack-settings .settings-workspace {
+  gap: clamp(18px, 3vw, 42px);
+}
+.wrongstack-settings .settings-navigation {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--sidebar);
+  max-block-size: max(160px, calc(100dvh - 120px));
+  scroll-padding-block: 48px 8px;
+}
+.wrongstack-settings .settings-navigation > button {
+  min-height: 36px;
+  font-size: 13px;
+  line-height: 1.35;
+  position: relative;
+  overflow-wrap: anywhere;
+}
+.wrongstack-settings .settings-navigation > :where(button) > svg {
+  flex: none;
+}
+.wrongstack-settings .settings-navigation > [aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  inset-block: 9px;
+  inset-inline-start: 0;
+  width: 2px;
+  background: currentColor;
+}
+
+.wrongstack-settings .settings-search {
+  min-height: 36px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 3px 7px;
+  margin: 0 0 4px;
+  gap: 6px;
+  background: var(--raised);
+  border-color: var(--settings-field-edge);
+  border-radius: var(--settings-field-radius);
+}
+.wrongstack-settings .settings-search > svg {
+  flex: none;
+}
+.wrongstack-settings .settings-search:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.wrongstack-settings .settings-search > input {
+  min-height: 28px;
+  outline: none;
+  font-size: 13px;
+}
+.wrongstack-settings .settings-search > button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm, 6px);
+}
+.settings-search-status {
+  margin: 0;
+  padding: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.settings-search-status:empty,
+.settings-notice:empty {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.settings-category {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-block-end: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+}
+.wrongstack-settings .settings-section-heading {
+  border-bottom: 1px solid var(--border);
+  margin-block-end: 16px;
+  padding-block-end: 15px;
+}
+.wrongstack-settings .settings-section-heading h2 {
+  font-size: clamp(22px, 2vw, 28px);
+  font-weight: 600;
+  line-height: 1.18;
+}
+.wrongstack-settings .settings-section-heading p,
+.wrongstack-settings .setting-row p {
+  line-height: 1.55;
+  max-inline-size: 66ch;
+}
+.wrongstack-settings .setting-row {
+  gap: clamp(12px, 2.5vw, 28px);
+}
+.wrongstack-settings .setting-row > div:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.wrongstack-settings .setting-row p {
+  font-size: 13px;
+}
+.wrongstack-settings .setting-row small {
+  color: var(--muted);
+}
+.wrongstack-settings .setting-row label {
+  line-height: 1.35;
+}
+.wrongstack-settings .setting-toggle label {
+  cursor: pointer;
+}
+/* Match field edges and state cues even in specialist sections with their own layouts. */
+:is(.settings-detail, .appearance-settings)
+  :is(
+    input:not(
+      [type="checkbox"],
+      [type="radio"],
+      [type="range"],
+      [type="file"],
+      [type="color"],
+      [type="hidden"]
+    ),
+    select,
+    textarea
+  ):not([class*="monaco"], .monaco-editor *) {
+  max-inline-size: 100%;
+  border-color: var(--settings-field-edge);
+  border-radius: var(--settings-field-radius);
+  background-color: var(--settings-field-fill);
+  font-size: max(13px, 0.8125rem);
+}
+:is(.settings-detail, .appearance-settings)
+  :is(input, select, textarea):not(.monaco-editor *):user-invalid {
+  border-color: var(--danger);
+}
+:is(.settings-detail, .appearance-settings, .settings-navigation)
+  :is(button, input, select, textarea, summary):not(
+    .monaco-editor *,
+    .settings-search > input
+  ):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.wrongstack-settings .setting-control :is(input, select) {
+  min-height: 38px;
+}
+.wrongstack-settings .setting-control .settings-number {
+  gap: 7px;
+}
+.wrongstack-settings .settings-save-bar {
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-block: 12px;
+  box-shadow: 0 -6px 13px color-mix(in srgb, var(--base) 75%, transparent);
+}
+.settings-save-feedback {
+  display: contents;
+}
+.settings-save-feedback > *:not(:empty) {
+  flex-basis: 100%;
+  margin: 0;
+}
+.settings-save-feedback > :empty {
+  position: absolute;
+}
+.settings-feedback-error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.settings-save-bar .button[aria-disabled="true"] {
+  opacity: 0.56;
+  cursor: not-allowed;
+  filter: none;
+}
+.settings-save-bar .button {
+  min-height: 36px;
+  white-space: normal;
+}
+.wrongstack-settings .settings-save-summary,
+.settings-draft-note {
+  font-size: 13px;
+  color: var(--muted);
+}
+.settings-save-summary[data-dirty="true"],
+.settings-draft-note {
+  font-weight: 600;
+  color: var(--text);
+}
+.settings-draft-note {
+  border-inline-start: 2px solid var(--accent);
+  padding-inline-start: 10px;
+}
+.appearance-settings .appearance-section {
+  min-width: 0;
+  padding-block: 22px;
+}
+.appearance-settings :is(.appearance-modes, .theme-choices) {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 122px), 1fr));
+  gap: 9px;
+}
+.appearance-settings .display-language {
+  min-width: 0;
+  max-width: 100%;
+}
+.appearance-settings :is(.appearance-modes, .theme-choices) > button {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+.appearance-settings :is(.appearance-modes, .theme-choices) > [aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  box-shadow: none;
+}
+/* Button switches and checkbox-backed switches share geometry without changing semantics. */
+:is(.settings-detail, .appearance-settings)
+  :is(
+    .settings-switch,
+    :is(
+        .policy-toggle,
+        .refinement-policy-toggle,
+        .fleet-policy-switch,
+        .conversation-appearance-toggles label,
+        .jev-toggle
+      )
+      > input[type="checkbox"]
+  ) {
+  height: 24px;
+  border-color: var(--settings-field-edge);
+}
+:is(.settings-detail, .appearance-settings)
+  :is(
+    .policy-toggle,
+    .refinement-policy-toggle,
+    .fleet-policy-switch,
+    .conversation-appearance-toggles label,
+    .jev-toggle
+  )
+  > input[type="checkbox"]::before {
+  top: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.settings-detail, .appearance-settings)
+    :is(.settings-switch, .settings-switch-thumb, input[type="checkbox"]),
+  :is(.settings-detail, .appearance-settings) input[type="checkbox"]::before {
+    transition: none;
+  }
+}
+@media (forced-colors: active) {
+  .wrongstack-settings .settings-switch-thumb {
+    background: ButtonText;
+    forced-color-adjust: none;
+  }
+  :is(.settings-detail, .appearance-settings)
+    :is(
+      .policy-toggle,
+      .refinement-policy-toggle,
+      .fleet-policy-switch,
+      .conversation-appearance-toggles label,
+      .jev-toggle
+    )
+    > input[type="checkbox"] {
+    appearance: auto;
+    width: 24px;
+  }
+  :is(.settings-detail, .appearance-settings) input[type="checkbox"]::before {
+    content: none;
+  }
+}
+@media (max-width: 1000px) {
+  .wrongstack-settings .settings-navigation {
+    max-block-size: none;
+    overflow: visible;
+    scrollbar-gutter: auto;
+  }
+  .wrongstack-settings .settings-search {
+    position: static;
+    margin: 0;
+  }
+  .settings-navigation .settings-section-select {
+    min-height: 38px;
+    border-color: var(--settings-field-edge);
+    border-radius: var(--settings-field-radius);
+  }
+  .settings-search-status:empty {
+    position: absolute;
+  }
+}
+@media (max-width: 590px) {
+  .wrongstack-settings .setting-row:not(.setting-toggle) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .wrongstack-settings .setting-row:not(.setting-toggle) .setting-control {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+  .wrongstack-settings .settings-save-summary {
+    flex-basis: 100%;
+  }
+  .settings-focused .main-content {
+    scroll-padding-bottom: 120px;
+  }
+}
+@media (max-height: 600px) {
+  .workspace-shell.settings-focused {
+    min-height: 0;
+  }
+}

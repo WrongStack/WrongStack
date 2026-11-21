@@ -20,6 +20,7 @@ import './skills.css';
 // Last: the application shell overrides the older sidebar and header rules.
 import './shell.css';
 import './controls.css';
+import './settings-workspace.css';
 
 applyAppearance(
   cachedAppearance(),

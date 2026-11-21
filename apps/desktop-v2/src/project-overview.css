@@ -1,0 +1,121 @@
+.project-overview {
+  container: project-overview / inline-size;
+}
+.overview-identity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  padding-block: 8px 18px;
+  border-block-end: 1px solid var(--border);
+}
+.overview-identity > div {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.overview-identity h1 {
+  font-size: clamp(22px, 3vw, 32px);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  margin: 0 0 7px;
+  overflow-wrap: anywhere;
+}
+.overview-identity > div > span {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  color: var(--muted);
+  font-size: 12px;
+}
+.overview-identity svg {
+  flex: none;
+  align-self: center;
+}
+.overview-identity code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.project-overview .project-kpis {
+  margin-block: 16px 24px;
+}
+.project-overview .project-session-summary {
+  margin: 0 0 24px;
+}
+.project-overview .project-session-summary > header {
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-bottom: 10px;
+}
+.overview-tool-links {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 24px;
+  border-block: 1px solid var(--border);
+}
+.overview-tool-links > button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  padding: 12px;
+  text-align: start;
+  color: var(--muted);
+}
+.overview-tool-links > button:hover {
+  background: var(--raised);
+}
+.overview-tool-links > button + button {
+  border-inline-start: 1px solid var(--border);
+}
+.overview-tool-links > button > span {
+  display: grid;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+.overview-tool-links strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.overview-tool-links small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.project-overview .project-session-rows {
+  border-block-start: 1px solid var(--border);
+}
+.project-overview .project-session-rows > button {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) minmax(64px, max-content) 14px;
+  gap: 8px;
+  padding: 10px 8px;
+  min-height: 40px;
+}
+.project-overview .project-session-rows > button:hover {
+  background: var(--raised);
+}
+.project-overview .project-session-rows strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.project-session-rows .overview-session-state {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  gap: 6px;
+  text-align: end;
+}
+@container project-overview (max-width: 540px) {
+  .overview-tool-links {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .overview-tool-links > button + button {
+    border-inline-start: 0;
+    border-block-start: 1px solid var(--border);
+  }
+}

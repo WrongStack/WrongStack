@@ -132,7 +132,8 @@
   background: var(--sidebar);
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 0;
+  border-inline-end: 1px solid var(--border);
   max-height: 760px;
   overflow: auto;
 }
@@ -140,20 +141,29 @@
   display: grid;
   gap: 7px;
 }
+.model-catalog-list > label {
+  margin-bottom: 10px;
+}
+.model-catalog-list > small {
+  margin-bottom: 8px;
+}
 .model-catalog-list button {
   display: grid;
   text-align: left;
-  gap: 6px;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--raised);
+  gap: 4px;
+  padding: 10px;
+  border: 0;
+  border-block-end: 1px solid var(--border);
+  background: transparent;
   color: var(--text);
   overflow-wrap: anywhere;
 }
+.model-catalog-list button:hover {
+  background: var(--raised);
+}
 .model-catalog-list button[aria-pressed="true"] {
-  border-color: var(--accent);
   background: var(--accent-soft);
+  box-shadow: inset 2px 0 var(--accent);
 }
 .model-catalog-list small,
 .model-catalog-list span {
@@ -175,14 +185,14 @@
 .model-metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin: 24px 0;
+  gap: 0 20px;
+  margin: 20px 0;
+  border-block-start: 1px solid var(--border);
 }
 .model-metrics > div {
-  padding: 13px;
-  background: var(--sidebar);
-  border-radius: 8px;
-  border: 1px solid var(--border);
+  min-width: 0;
+  padding: 11px 0;
+  border-block-end: 1px solid var(--border);
 }
 .model-metrics dt,
 .model-info dt {

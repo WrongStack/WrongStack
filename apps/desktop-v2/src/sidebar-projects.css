@@ -1,3 +1,45 @@
+.explorer .project-branch {
+  margin-bottom: 4px;
+}
+.explorer .project-branch-heading {
+  position: relative;
+  min-height: 36px;
+  border-radius: var(--radius-sm, 5px);
+}
+.explorer .project-branch-heading[data-selected="true"] {
+  background: var(--accent-soft);
+  box-shadow: inset 2px 0 var(--accent);
+}
+.explorer .project-branch-heading .project-item {
+  min-height: 36px;
+  padding: 6px 3px;
+  gap: 6px;
+  text-align: start;
+}
+.explorer .project-branch-heading .project-item.selected {
+  background: transparent;
+  color: var(--text);
+}
+.project-folder-icon {
+  flex: none;
+  color: var(--muted);
+}
+.project-branch-heading[data-selected="true"] .project-folder-icon {
+  color: var(--accent);
+}
+.explorer .project-branch .tree-session::before {
+  inset-inline-start: 12px;
+}
+.explorer .project-branch .tree-session-row > .tree-session {
+  min-height: 31px;
+  padding-block: 5px;
+  padding-inline-start: 25px;
+}
+@media (620px <= width <= 800px) {
+  .project-folder-icon {
+    display: none;
+  }
+}
 .project-drag-handle,
 .project-remove {
   display: grid;
@@ -25,11 +67,90 @@
 .project-remove:disabled {
   opacity: 0.45;
 }
-.project-item[data-drop="before"] {
-  box-shadow: inset 0 2px var(--accent);
+.project-branch-heading[data-drop]::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  height: 2px;
+  background: var(--accent);
+  pointer-events: none;
 }
-.project-item[data-drop="after"] {
-  box-shadow: inset 0 -2px var(--accent);
+.project-branch-heading[data-drop="before"]::after {
+  top: 0;
+}
+.project-branch-heading[data-drop="after"]::after {
+  bottom: 0;
+}
+.project-menu-status:not(:empty) {
+  display: block;
+  overflow-wrap: anywhere;
+  padding: 5px 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.modal:has(.project-order-dialog) {
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: clamp(16px, 4vw, 24px);
+}
+.project-order-dialog {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.project-order-dialog h2,
+.project-order-help,
+.project-order-error {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.project-order-help,
+.project-order-dialog label {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.project-order-identity {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+  padding: 10px 0;
+  border-block: 1px solid var(--border);
+}
+.project-order-identity > svg {
+  flex: none;
+  color: var(--muted);
+}
+.project-order-identity > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.project-order-identity code {
+  color: var(--muted);
+  font-size: 12px;
+}
+.project-order-dialog label {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+.modal .project-order-dialog select {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  margin: 0;
+}
+.project-order-error {
+  padding: 8px 10px;
+  border-inline-start: 2px solid var(--danger);
+  background: var(--danger-soft);
+  color: var(--text);
+  font-size: 13px;
+}
+.project-order-dialog .session-remove-actions {
+  flex-wrap: wrap;
 }
 .project-menu-sr {
   position: absolute;

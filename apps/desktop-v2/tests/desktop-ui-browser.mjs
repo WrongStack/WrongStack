@@ -23,6 +23,10 @@ const now=Date.now();
 const projects=[{id:'p1',name:'WrongStack UI',root:'D:/fixture/ui',createdAt:now},{id:'p2',name:'Unicode 検証 '+ 'long-project-'.repeat(5),root:'D:/fixture/unicode',createdAt:now}];
 const titles=['Review the session workspace','Verify keyboard navigation','Investigate a failed build','Unicode 検証 '+ 'long-session-'.repeat(6)];
 const sessions=titles.map((title,i)=>({id:'s'+i,projectId:i===3?'p2':'p1',title,kind:'agent',workdir:projects[i===3?1:0].root,status:i===2?'error':i===1?'interrupted':'running',createdAt:now-600000,updatedAt:now-60000*i,exitCode:null,error:i===2?'Fixture: build exited with a diagnostic':null}));
+const acp=location.search.includes('acp');
+const model=acp?'fixture-agent':'Fixture model';
+let runtime={};
+const longModel='review-model-with-a-long-qualified-name';
 let appearance={...defaultAppearance,mode:location.pathname.endsWith('/light')?'light':'dark'};
 const initialLayout=location.pathname.includes('/session')?JSON.stringify({project:'p1',selected:'s0',section:'fleet',openSessionIds:['s0']}):null;
 const queues=new Map(),offsets=new Map();
@@ -54,21 +58,39 @@ window.uiInvoke=async(command,args={})=>{
  if(method==='draft.object'||method==='form-draft.get')return {value:null,revision:0};
  if(method==='draft.save'||method==='form-draft.save')return {revision:(params.expectedRevision||0)+1};
  if(method==='engine.http'||method==='project.http')return {status:200,body:{}};
- if(method==='engine.status'||method==='project.status')return {running:true,offset:0};
+ if(method==='engine.status')return {running:true,offset:0};
+ if(method==='project.status')return {status:'running',error:null};
+ if(method==='project.open')return null;
  if(method==='engine.start'||method==='project.start')return null;
- if(method==='engine.events'){
+ if(method==='profile.open')return null;
+ if(method==='profile.status')return {status:'running',error:null};
+ if(method==='profile.events'||method==='engine.events'){
   const id=params.id;let events=queues.get(id)||[];queues.set(id,[]);
-  if(params.offset===0)events=[{type:'session.start',payload:{sessionId:id,provider:'fixture',model:'Fixture model',reset:true,protocolCapabilities:['session.user-ack'],replayMessages:[{role:'user',content:'Review the workspace layout and keep the important controls easy to reach.'},{role:'assistant',content:'The session layout is ready for review.\\n\\n- Keep the leader conversation primary.\\n- Inspect delegated work without changing the input destination.\\n- Verify the plan and keyboard navigation.'}],agentSessions:Array.from({length:5},(_,i)=>({subagentId:'worker'+i,agentName:i===0?'Accessibility review':i===1?'Unicode 検証 '+ 'long-name-'.repeat(10):'Layout review '+i,status:i%2?'running':'completed',task:'Check responsive layout and keyboard access',transcript:[{id:'entry'+i,kind:'text',content:'Verified the session boundary and reviewed the layout.',iteration:1}]}))}},{type:'prefs.updated',payload:{autonomy:'off',enhanceEnabled:false,uiLocale:'en'}},...events];
+  if(params.offset===0)events=[{type:'session.start',payload:{sessionId:id,provider:acp?'acp':'fixture',model,reset:true,protocolCapabilities:['session.user-ack'],replayMessages:[{role:'user',content:'Review the workspace layout and keep the important controls easy to reach.'},{role:'assistant',content:'The session layout is ready for review.\\n\\n- Keep the leader conversation primary.\\n- Inspect delegated work without changing the input destination.\\n- Verify the plan and keyboard navigation.'}],agentSessions:Array.from({length:5},(_,i)=>({subagentId:'worker'+i,agentName:i===0?'Accessibility review':i===1?'Unicode 検証 '+ 'long-name-'.repeat(10):'Layout review '+i,status:i%2?'running':'completed',task:'Check responsive layout and keyboard access',transcript:[{id:'entry'+i,kind:'text',content:'Verified the session boundary and reviewed the layout.',iteration:1}]}))}},{type:'prefs.updated',payload:{autonomy:'off',enhanceEnabled:false,uiLocale:'en'}},...events];
   const offset=(offsets.get(id)||0)+events.length;offsets.set(id,offset);return {offset,events,hasMore:false};
  }
- if(method==='engine.send'){
+ if(method==='profile.send'||method==='engine.send'){
   const {type,payload}=params.message;const requestId=payload.requestId;
   if(type==='todos.get')enqueue(params.id,{type:'todos.updated',payload:{requestId,todos:[{id:'layout',content:'Verify the session layout',status:'in_progress'},{id:'keyboard',content:'Check keyboard navigation',status:'pending'}]}});
-  else if(type==='prefs.get')enqueue(params.id,{type:'prefs.updated',payload:{requestId,autonomy:'off',enhanceEnabled:false}});
+  else if(type==='prefs.get')enqueue(params.id,{type:'prefs.updated',payload:{requestId,autonomy:'off',enhanceEnabled:false,acpRuntime:runtime,favoriteModels:[],disabledModels:[],disabledProviders:[]}});
+  else if(type==='prefs.update'){
+   runtime=payload.acpRuntime||runtime;
+   enqueue(params.id,{type:'key.operation_result',payload:{requestId,success:true}});
+  }
+  else if(type==='context.debug')enqueue(params.id,{type,payload:{requestId,total:3500,systemPrompt:500,tools:{total:1000,count:30,breakdown:Array.from({length:30},(_,i)=>({name:'workspace-tool-'+i,tokens:33}))},messages:{total:2000,count:1,breakdown:[{role:'user',preview:'Review session workspace',tokens:2000}]},mode:'adaptive'}});
+  else if(type==='providers.list')enqueue(params.id,{type:'provider.catalog',payload:{requestId,providers:[{id:acp?'acp':'fixture',name:acp?'ACP agents':'Fixture provider'}]}});
+  else if(type==='providers.saved')enqueue(params.id,{type,payload:{requestId,providers:[]}});
+  else if(type==='provider.models')enqueue(params.id,{type,payload:{requestId,provider:payload.providerId,models:[{id:model,name:acp?'Fixture agent':model},{id:longModel,name:'Review model'}]}});
+  else if(type==='acp.config_options' && window.failAcpOptions){
+   window.failAcpOptions=false;
+   enqueue(params.id,{type,payload:{requestId,ok:false,error:'Fixture agent unavailable'}});
+  }
+  else if(type==='acp.config_options')enqueue(params.id,{type,payload:{requestId,ok:true,options:[{id:'model',name:'Model',category:'model',currentValue:payload.values?.model||'default',options:[{value:'default',name:'Default'},{value:longModel,name:longModel}]}]}});
   else if(requestId)enqueue(params.id,{type:'key.operation_result',payload:{requestId,success:true}});
   return null;
  }
- if(method==='project.events')return {offset:1,events:[],hasMore:false};
+ if(method==='project.events')return {offset:1,events:params.offset===0?[{type:'session.start',payload:{sessionId:'carrier-'+params.projectId,provider:'fixture',model:'Fixture model'}}]:[],hasMore:false};
+ if(method==='project.send')return null;
  window.uiUnexpected.push(method);throw Error('Unexpected host method '+method);
 };
 createRoot(document.getElementById('root')).render(<App/>);`;
@@ -76,6 +98,29 @@ const server = await createServer({
   root,
   cacheDir,
   configFile: join(root, 'vite.config.ts'),
+  // Lazy route imports must not trigger a dependency-optimizer reload mid-interaction.
+  optimizeDeps: {
+    noDiscovery: true,
+    include: [
+      'react',
+      'react/jsx-runtime',
+      'react/jsx-dev-runtime',
+      'react-dom',
+      'react-dom/client',
+      'i18next',
+      'i18next-resources-to-backend',
+      'react-i18next',
+      'lucide-react',
+      'clsx',
+      'react-markdown',
+      'rehype-highlight',
+      'remark-gfm',
+      'tailwind-merge',
+      'virtua',
+      '@xyflow/react',
+      '@monaco-editor/react',
+    ],
+  },
   server: { host: '127.0.0.1', port: 0, strictPort: false, watch: null },
   plugins: [
     {
@@ -113,6 +158,7 @@ const server = await createServer({
 });
 let browser;
 let page;
+let pageErrors = [];
 try {
   await mkdir(artifacts, { recursive: true });
   await server.listen();
@@ -129,7 +175,7 @@ try {
     for (const mode of ['dark', 'light']) {
       for (const [width, height] of [
         [1440, 900],
-        [900, 650],
+        [800, 600],
         [390, 800],
         [1280, 480],
       ]) {
@@ -140,8 +186,15 @@ try {
         page = await context.newPage();
         page.setDefaultTimeout(20000);
         const errors = [];
+        pageErrors = errors;
         page.on('pageerror', (error) => errors.push(String(error)));
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        page.on('console', (message) => {
+          if (message.type() === 'error') errors.push(message.text());
+        });
+        await page.goto(width === 800 ? `${url}?acp` : url, {
+          waitUntil: 'domcontentloaded',
+          timeout: 60000,
+        });
         await page.locator('.session-card').first().waitFor();
         if (mode === 'light')
           await page.getByRole('button', { name: 'Switch to light mode', exact: true }).click();
@@ -194,6 +247,66 @@ try {
             `${selector} stays reachable at ${width}x${height}: ${JSON.stringify(box)}`,
           );
         }
+        const modelButton = page.locator('.model-selector');
+        await modelButton.click();
+        const picker = page.locator('.profile-model-picker');
+        await picker.locator('button[aria-pressed="true"]').first().waitFor();
+        const modelSearch = picker.getByRole('textbox');
+        await modelSearch.fill('no-result-model');
+        assert.equal(await picker.locator('.composer-model-list > button').count(), 0);
+        await modelSearch.fill('Review model');
+        assert.equal(await picker.locator('.composer-model-list > button').count(), 1);
+        await modelSearch.fill('');
+        await page.screenshot({ path: join(artifacts, `${mode}-${width}-${height}-models.png`) });
+        await page.keyboard.press('Escape');
+        await picker.waitFor({ state: 'hidden' });
+        assert.ok(await modelButton.evaluate((el) => el === document.activeElement));
+
+        const contextMenu = page.locator('.composer-options > summary');
+        await contextMenu.press('Enter');
+        await page
+          .locator('.composer-options')
+          .getByRole('button', { name: /context/i })
+          .click();
+        const contextDialog = page.locator('.context-inspector');
+        await contextDialog.locator('.context-summary').getByText('3,500').waitFor();
+        await contextDialog.locator('details > summary').first().click();
+        const footer = contextDialog.locator(':scope > footer');
+        const footerBox = await footer.boundingBox();
+        assert.ok(footerBox && footerBox.y + footerBox.height <= height);
+        await footer.getByRole('button', { name: 'Clear provider context' }).click();
+        await contextDialog
+          .getByRole('heading', { name: 'Clear this provider context?' })
+          .waitFor();
+        await contextDialog.getByRole('button', { name: 'Keep context' }).click();
+        await page.screenshot({ path: join(artifacts, `${mode}-${width}-${height}-context.png`) });
+        await page.keyboard.press('Escape');
+        await contextDialog.waitFor({ state: 'hidden' });
+
+        if (width === 800) {
+          const trigger = page.locator('.session-model-controls .acp-runtime-controls > summary');
+          const composer = page.locator('.native-composer');
+          const before = await composer.boundingBox();
+          await page.evaluate(() => {
+            window.failAcpOptions = true;
+          });
+          await trigger.press('Enter');
+          const runtimePanel = page.locator('.session-model-controls .acp-runtime-controls');
+          await runtimePanel.getByRole('alert').getByText('Fixture agent unavailable').waitFor();
+          await runtimePanel.getByRole('button', { name: 'Refresh', exact: true }).click();
+          const acpModel = page.getByRole('combobox', { name: 'ACP Model', exact: true });
+          await acpModel.waitFor();
+          const acpBox = await acpModel.boundingBox();
+          assert.ok(acpBox && before && acpBox.y >= 0 && acpBox.y + acpBox.height < before.y);
+          assert.deepEqual(await composer.boundingBox(), before, 'ACP options do not resize input');
+          const value = 'review-model-with-a-long-qualified-name';
+          await acpModel.selectOption(value);
+          await trigger.getByText(value, { exact: false }).waitFor();
+          await page.screenshot({ path: join(artifacts, `${mode}-${width}-${height}-acp.png`) });
+          await trigger.press('Enter');
+          await acpModel.waitFor({ state: 'hidden' });
+        }
+
         const options = page.locator('.composer-options > summary');
         await options.focus();
         await page.keyboard.press('Enter');
@@ -330,6 +443,24 @@ try {
           await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
           false,
         );
+        if (width < 620 && !(await page.locator('.explorer').isVisible()))
+          await page.getByRole('button', { name: 'Projects and sessions', exact: true }).click();
+        const project = page.locator('.project-item').filter({ hasText: 'WrongStack UI' });
+        await project.click();
+        const overview = page.locator('.project-overview');
+        await overview.getByRole('heading', { name: 'WrongStack UI', exact: true }).waitFor();
+        await overview.getByText('D:/fixture/ui', { exact: true }).waitFor();
+        assert.equal(await project.getAttribute('aria-current'), 'location');
+        assert.equal(
+          await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+          false,
+        );
+        await page.screenshot({ path: join(artifacts, `${mode}-${width}-${height}-project.png`) });
+        await overview
+          .locator('.project-session-rows')
+          .getByRole('button', { name: /Review the session workspace/ })
+          .click();
+        await page.getByRole('textbox', { name: 'Message WrongStack', exact: true }).waitFor();
         assert.deepEqual(errors, []);
         assert.deepEqual(await page.evaluate(() => window.uiUnexpected), []);
         console.log(
@@ -341,6 +472,7 @@ try {
   }
 } catch (error) {
   if (page && !page.isClosed()) {
+    if (pageErrors.length) console.error(pageErrors);
     await page.screenshot({ path: join(artifacts, 'failure.png') });
     console.error(
       await page.evaluate(() => ({

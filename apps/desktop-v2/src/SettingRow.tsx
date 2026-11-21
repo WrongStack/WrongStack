@@ -27,8 +27,9 @@ export function SettingRow({
     const own = field.optionLabels?.[option];
     return own
       ? text(`options.${option}`, own)
-      : t(`options.${option}`, { defaultValue: option[0]!.toUpperCase() + option.slice(1) });
+      : t(`options.${option}`, { defaultValue: option.charAt(0).toUpperCase() + option.slice(1) });
   };
+  const id = `setting-${field.key}`;
   const options = field.options ?? [];
   // A numeric select stores a number; show the option that equals it.
   const selected = field.numeric
@@ -38,20 +39,33 @@ export function SettingRow({
     : typeof value === 'string'
       ? value
       : '';
+  const unavailableReason = unavailableOptions?.get(selected);
+  const description = [
+    `${id}-description`,
+    value === undefined ? `${id}-unset` : '',
+    unavailableReason ? `${id}-unavailable` : '',
+    field.unit ? `${id}-unit` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const control = { id, 'aria-describedby': description };
   return (
     <div className={`setting-row setting-${field.kind}`}>
       <div>
-        <label htmlFor={`setting-${field.key}`}>{label}</label>
-        <p>{text('description', field.description)}</p>
+        <label htmlFor={id}>{label}</label>
+        <p id={`${id}-description`}>{text('description', field.description)}</p>
         {value === undefined && (
-          <small>{field.unsetNote ? text('unset', field.unsetNote) : t('row.unreported')}</small>
+          <small id={`${id}-unset`}>
+            {field.unsetNote ? text('unset', field.unsetNote) : t('row.unreported')}
+          </small>
         )}
+        {unavailableReason && <small id={`${id}-unavailable`}>{unavailableReason}</small>}
       </div>
       <div className="setting-control">
         {field.kind === 'toggle' ? (
           <button
             type="button"
-            id={`setting-${field.key}`}
+            {...control}
             role="switch"
             aria-checked={value === true}
             aria-label={label}
@@ -62,7 +76,7 @@ export function SettingRow({
           </button>
         ) : field.kind === 'select' ? (
           <select
-            id={`setting-${field.key}`}
+            {...control}
             value={selected}
             onChange={(event) =>
               onChange(field.numeric ? Number(event.target.value) : event.target.value)
@@ -85,7 +99,7 @@ export function SettingRow({
         ) : field.kind === 'number' ? (
           <span className="settings-number">
             <input
-              id={`setting-${field.key}`}
+              {...control}
               type="number"
               min={field.min ?? 0}
               max={field.max}
@@ -104,11 +118,15 @@ export function SettingRow({
                 )
               }
             />
-            {field.unit && <span>{t(`units.${field.unit}`, { defaultValue: field.unit })}</span>}
+            {field.unit && (
+              <span id={`${id}-unit`}>
+                {t(`units.${field.unit}`, { defaultValue: field.unit })}
+              </span>
+            )}
           </span>
         ) : field.kind === 'text' || field.kind === 'secret' ? (
           <input
-            id={`setting-${field.key}`}
+            {...control}
             type={field.kind === 'secret' ? 'password' : 'text'}
             autoComplete="off"
             spellCheck={false}
@@ -125,7 +143,7 @@ export function SettingRow({
           />
         ) : (
           <textarea
-            id={`setting-${field.key}`}
+            {...control}
             rows={5}
             value={Array.isArray(value) ? value.join('\n') : ''}
             onChange={(event) =>
