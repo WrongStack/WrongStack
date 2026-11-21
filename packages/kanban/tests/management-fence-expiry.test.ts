@@ -23,6 +23,7 @@ describe('assertManagementWrite lease expiry validation', () => {
 
       expect(() =>
         assertManagementWrite(board, [task], {
+          sessionId: 'session-test',
           expectedManagementToken: 'tok-1',
           expectedManagementTaskVersions: { t1: managementTaskVersion(board, task) },
         }),

@@ -360,7 +360,7 @@ describe('resolveClients merge + retention fold', () => {
         fleetAgent({
           id: 'leader',
           sessionId: 'session-a',
-          status: 'streaming',
+          status: 'running',
           tokensIn: 4000,
           currentTool: 'edit_file',
         }),
@@ -371,7 +371,7 @@ describe('resolveClients merge + retention fold', () => {
     const resolvedA = clients.find((c) => c.sessionId === sessionA.sessionId);
     const resolvedB = clients.find((c) => c.sessionId === sessionB.sessionId);
 
-    expect(resolvedA?.agents[0]).toMatchObject({ status: 'streaming', tokensIn: 4000 });
+    expect(resolvedA?.agents[0]).toMatchObject({ status: 'active', tokensIn: 4000 });
     expect(resolvedB?.status).toBe('idle');
     expect(resolvedB?.agents[0]).toMatchObject({ status: 'idle', tokensIn: 0 });
     expect(resolvedB?.agents[0]?.currentTool).toBeUndefined();

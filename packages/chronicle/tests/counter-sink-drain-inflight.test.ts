@@ -39,7 +39,7 @@ describe('createChronicleCounterSink drain/dispose inflight barrier', () => {
         scope: { sessionId },
         correlation: {},
         attributes: { toolName: 'read' },
-      }) as ChronicleEventInput;
+      }) as unknown as ChronicleEventInput;
 
     await sink.append(event('s1'));
     const drain1 = sink.drain();

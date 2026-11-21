@@ -10,7 +10,7 @@ function makeHandle(worktreesRoot: string, ownerId: string, slug: string): Workt
     dir: `${worktreesRoot}/${slug}`,
     branch: `wstack/ap/${slug}`,
     createdAt: new Date().toISOString(),
-  } as WorktreeHandle;
+  } as unknown as WorktreeHandle;
 }
 
 describe('cleanupAllManaged concurrent handle ownership', () => {

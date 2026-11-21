@@ -45,7 +45,7 @@ vi.mock('../src/advisory/osv.js', () => ({
 
 import { runEnrichPhase } from '../src/service/enrich-phase.js';
 
-function makeSnapshot() {
+function makeSnapshot(): Parameters<typeof runEnrichPhase>[0] {
   return {
     id: 'snap-1',
     projectId: 'proj-1',
@@ -71,7 +71,7 @@ function makeSnapshot() {
       },
     ],
     findings: [],
-  };
+  } as unknown as Parameters<typeof runEnrichPhase>[0];
 }
 
 function makeDynamicSignal(): AbortSignal {
