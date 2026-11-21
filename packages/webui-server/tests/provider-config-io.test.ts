@@ -12,7 +12,9 @@ vi.mock('@wrongstack/core/security', () => ({
   encryptConfigSecrets: mockEncrypt,
 }));
 
-vi.mock('@wrongstack/contracts/types', () => ({
+// Partial: core modules this file loads read other contract values (QUICK_TOOL_GROUPS).
+vi.mock('@wrongstack/contracts/types', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/contracts/types')>()),
   ConfigError: class extends Error {
     constructor(opts: any) {
       super(opts.message);

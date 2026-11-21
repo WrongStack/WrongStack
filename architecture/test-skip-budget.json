@@ -37,6 +37,21 @@
       "fingerprint": "9ffd9ab4ee25c955"
     },
     {
+      "file": "packages/browser-tools/tests/browser-live-view.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "c00bf4a075e4e470"
+    },
+    {
+      "file": "packages/browser-tools/tests/browser-manager-guard-regressions.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "38f99c1d70b10685"
+    },
+    {
+      "file": "packages/browser-tools/tests/browser-manager.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "8f0a065f34a0d18f"
+    },
+    {
       "file": "packages/chronicle/tests/counter-sink-token-cost.test.ts",
       "kind": "skipIf",
       "fingerprint": "a36aa62f3e4b7460"
@@ -752,21 +767,6 @@
       "fingerprint": "db0bf68ab1a2242a"
     },
     {
-      "file": "packages/browser-tools/tests/browser-live-view.test.ts",
-      "kind": "skipIf",
-      "fingerprint": "c00bf4a075e4e470"
-    },
-    {
-      "file": "packages/browser-tools/tests/browser-manager-guard-regressions.test.ts",
-      "kind": "skipIf",
-      "fingerprint": "38f99c1d70b10685"
-    },
-    {
-      "file": "packages/browser-tools/tests/browser-manager.test.ts",
-      "kind": "skipIf",
-      "fingerprint": "8f0a065f34a0d18f"
-    },
-    {
       "file": "packages/tools/tests/codebase-go-py-toolchain-parsers.test.ts",
       "kind": "skipIf",
       "fingerprint": "1d7cc13f3647510a"
@@ -780,6 +780,21 @@
       "file": "packages/tools/tests/codebase-index-worker.test.ts",
       "kind": "skipIf",
       "fingerprint": "a2cc64c19da47cef"
+    },
+    {
+      "file": "packages/tools/tests/exec-kill-guard-taskkill-colon.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "46f769764605dbf3"
+    },
+    {
+      "file": "packages/tools/tests/exec-kill-guard-taskkill-colon.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "5f3621f64dd98ccd"
+    },
+    {
+      "file": "packages/tools/tests/exec-kill-guard-taskkill-colon.test.ts",
+      "kind": "skip",
+      "fingerprint": "8335a6dad6a0e4b1"
     },
     {
       "file": "packages/tools/tests/exec-kill-guard.test.ts",

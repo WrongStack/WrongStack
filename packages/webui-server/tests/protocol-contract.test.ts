@@ -54,7 +54,8 @@ describe('surface protocol contract', () => {
     // +1: plugin.ui.prompt_response (answer to a plugin api.ui.prompt modal).
     // +4: design.draw / design.kept / design.photos / design.snapshot (Design Studio).
     // +2: btw.add / btw.get (a BTW note delivered as a same-session user instruction).
-    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(321);
+    // +1: tools.group.set (turn a session's tool group on or off).
+    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(322);
     expect(CLIENT_MESSAGE_TYPES).toContain('acp.config_options');
     expect(CLIENT_MESSAGE_TYPES).toEqual(expect.arrayContaining(['mcp.tools', 'mcp.tool.call']));
     expect(CLIENT_MESSAGE_TYPES).toEqual(

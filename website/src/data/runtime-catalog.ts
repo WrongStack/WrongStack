@@ -439,7 +439,7 @@ export const toolCatalog = [
   {
     name: 'tool_search',
     summary:
-      'Search the full tool catalog by name or description, including tools whose schemas were withheld from this request to save tokens. Results include each matching tool input schema; use it before concluding a capability is unavailable, then invoke the local tool with tool_use instead of searching MCP.',
+      'Search available tools by name or description, including deferred tools. Look up the exact name to load its input schema, then invoke the tool with tool_use.',
     permission: 'auto',
     mutating: false,
     category: 'Discovery & index',
