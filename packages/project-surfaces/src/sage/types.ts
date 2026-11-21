@@ -81,6 +81,8 @@ export interface SageAnchor {
   command?: string | undefined;
   role?: string | undefined;
   contentHash?: string | undefined;
+  /** Hash of a symbol anchor's span when the memory was written. */
+  spanHash?: string | undefined;
   gitBlobHash?: string | undefined;
   lineStart?: number | undefined;
   lineEnd?: number | undefined;
