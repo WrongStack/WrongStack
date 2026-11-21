@@ -18,6 +18,22 @@ import {
  */
 const OWNER_ONLY_DIR_MAX_ENTRIES = 200;
 
+/** Keep auxiliary filenames within the component limit without changing ordinary paths. */
+function siblingPathFor(targetPath: string, prefix: string, suffix: string): string {
+  const base = path.basename(targetPath);
+  const name = `${prefix}${base}${suffix}`;
+  // NTFS counts UTF-16 code units; POSIX filesystems generally count UTF-8 bytes.
+  const length = process.platform === 'win32' ? name.length : Buffer.byteLength(name, 'utf8');
+  const boundedBase =
+    length <= 255
+      ? base
+      : createHash('sha256')
+          // Case aliases of one Windows target must still contend on one lock.
+          .update(process.platform === 'win32' ? base.toUpperCase() : base)
+          .digest('hex');
+  return path.join(path.dirname(targetPath), `${prefix}${boundedBase}${suffix}`);
+}
+
 export interface AtomicWriteOptions {
   mode?: number | undefined;
   encoding?: BufferEncoding | undefined;
@@ -239,15 +255,7 @@ export function createPersistencePrimitives(
   }
 
   function tempPathFor(targetPath: string): string {
-    const base = path.basename(targetPath);
-    const suffix = `.${randomBytes(6).toString('hex')}.tmp`;
-    // A valid basename can exceed the 255-byte component limit once decorated.
-    // Hash only oversized prefixes; retain the random suffix and exclusive open.
-    const prefix =
-      Buffer.byteLength(`.${base}${suffix}`, 'utf8') <= 255
-        ? base
-        : createHash('sha256').update(base).digest('hex');
-    return path.join(path.dirname(targetPath), `.${prefix}${suffix}`);
+    return siblingPathFor(targetPath, '.', `.${randomBytes(6).toString('hex')}.tmp`);
   }
 
   async function atomicWrite(
@@ -328,7 +336,7 @@ export function createPersistencePrimitives(
     opts: FileLockOptions = {},
   ): Promise<T> {
     const dir = path.dirname(targetPath);
-    const lockPath = path.join(dir, `.${path.basename(targetPath)}.lock`);
+    const lockPath = siblingPathFor(targetPath, '.', '.lock');
     const timeoutMs =
       typeof opts.timeoutMs === 'number' && Number.isFinite(opts.timeoutMs)
         ? Math.max(0, opts.timeoutMs)
@@ -517,7 +525,11 @@ async function breakStaleLock(
   lockPath: string,
   observed: { ino: number; dev: number; birthtimeMs: number },
 ): Promise<void> {
-  const grave = `${lockPath}.stale-${process.pid}-${randomBytes(6).toString('hex')}`;
+  const grave = siblingPathFor(
+    lockPath,
+    '',
+    `.stale-${process.pid}-${randomBytes(6).toString('hex')}`,
+  );
   try {
     await fs.rename(lockPath, grave);
   } catch {
