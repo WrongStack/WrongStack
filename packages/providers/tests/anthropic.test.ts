@@ -860,7 +860,7 @@ describe('AnthropicProvider', () => {
         return {
           ok: false,
           status: 400,
-          text: async () =>
+          text: async (): Promise<string> =>
             JSON.stringify({
               type: 'error',
               error: {
@@ -885,7 +885,7 @@ describe('AnthropicProvider', () => {
             controller.close();
           },
         }),
-        text: async () => '',
+        text: async (): Promise<string> => '',
       };
     }) as never as typeof fetch;
 
