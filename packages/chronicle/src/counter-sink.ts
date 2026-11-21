@@ -237,14 +237,24 @@ export function createChronicleCounterSink(
   timer.unref?.();
 
   const drain = async (): Promise<void> => {
+    let firstError: unknown;
+    let hasError = false;
     while (buckets.size > 0 || inflightEmits.size > 0) {
       if (buckets.size > 0) {
-        await emit([...buckets.keys()]);
+        try {
+          await emit([...buckets.keys()]);
+        } catch (err) {
+          if (!hasError) {
+            firstError = err;
+            hasError = true;
+          }
+        }
       }
       if (inflightEmits.size > 0) {
         await Promise.allSettled([...inflightEmits]);
       }
     }
+    if (hasError) throw firstError;
   };
 
   const route = (input: ChronicleEventInput): ChronicleRouting =>

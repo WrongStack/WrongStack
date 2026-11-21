@@ -40,19 +40,37 @@ export function registerAcpSteerInbox(
   const sessionId = ctx.sessionId;
   if (!sessionId) return undefined;
   const name = ctx.config.name;
-  return hub.register({
+  let disposed = false;
+  const unregister = hub.register({
     sessionId,
     agentId: ctx.subagentId,
     ...(name && name !== ctx.subagentId ? { aliases: [name] } : {}),
     // A steer interrupts the worker's generation; peer chatter must not.
     ignorePeerBroadcasts: true,
     deliver: (note) => {
-      steer(steerMessage(note)).then(
+      if (disposed) return;
+      let pending: Promise<AcpSteerOutcome>;
+      try {
+        pending = steer(steerMessage(note));
+      } catch (err: unknown) {
+        if (!disposed) onUndelivered(toErrorMessage(err));
+        return;
+      }
+      pending.then(
         (outcome) => {
+          if (disposed) return;
           if (outcome !== 'injected') onUndelivered(outcome);
         },
-        (err: unknown) => onUndelivered(toErrorMessage(err)),
+        (err: unknown) => {
+          if (disposed) return;
+          onUndelivered(toErrorMessage(err));
+        },
       );
     },
   });
+  return () => {
+    if (disposed) return;
+    disposed = true;
+    unregister();
+  };
 }

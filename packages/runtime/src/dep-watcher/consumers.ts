@@ -301,15 +301,8 @@ export function setupDepWatcherConsumers(deps: SetupDepWatcherConsumersDeps): vo
           let handoff: ((work: Promise<unknown>) => void) | undefined;
           if (multiAgentHost.getDirector?.()) {
             trackAudit(
-              new Promise<void>((resolve) => {
-                handoff = (work) => {
-                  resolve(
-                    work.then(
-                      () => undefined,
-                      () => undefined,
-                    ),
-                  );
-                };
+              new Promise<unknown>((resolve) => {
+                handoff = resolve;
               }),
             );
           }

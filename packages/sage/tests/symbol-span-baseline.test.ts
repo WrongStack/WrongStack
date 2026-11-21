@@ -191,4 +191,20 @@ describe('a symbol anchor checks the symbol body it was written against (#418)',
     // The same stored baseline with a readable span is compared.
     expect((await verify(stored, braceReader)).status).toBe('stale');
   });
+
+  it('re-baselines when a concurrent demote-to-stale commits just before confirm-as-active', async () => {
+    const { store, file } = await project(ORIGINAL);
+    const memory = await rememberTax(store);
+    await fs.writeFile(file, REWRITTEN);
+
+    const [, confirmed] = await Promise.all([
+      store.updateSage(memory.id, { status: 'stale' }),
+      store.updateSage(memory.id, { status: 'active' }),
+    ]);
+
+    expect(confirmed.status).toBe('active');
+    expect(confirmed.anchors[0]?.spanHash).not.toBe(memory.anchors[0]?.spanHash);
+    expect((await store.verifyForPaths([file]))[0]?.status).toBe('verified');
+    expect((await store.getSage(memory.id))?.status).toBe('active');
+  });
 });

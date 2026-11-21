@@ -164,8 +164,8 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1005,
-      "typeOnly": 76,
+      "files": 1006,
+      "typeOnly": 77,
       "runtimeOrMixed": 964
     },
     "@wrongstack/core/utils/child-env": {
@@ -15740,6 +15740,12 @@
       "file": "packages/security-scanner/src/skill-generator.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/security-scanner/tests/gitignore-updater-write-failure.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/utils",

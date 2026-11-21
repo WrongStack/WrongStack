@@ -138,13 +138,21 @@ export class InMemoryAgentBridge implements AgentBridge {
         timer,
       });
 
-      msg.timestamp = Date.now();
-      this.transport.send(msg, msg.to ?? this.coordinatorId).catch((e) => {
+      const failSend = (e: unknown): void => {
         clearTimeout(timer);
         this.inflightGuards.delete(correlationId);
         this.pendingRequests.delete(correlationId);
         reject(e);
-      });
+      };
+
+      msg.timestamp = Date.now();
+      try {
+        void Promise.resolve(this.transport.send(msg, msg.to ?? this.coordinatorId)).catch(
+          failSend,
+        );
+      } catch (e) {
+        failSend(e);
+      }
     });
   }
 

@@ -110,6 +110,9 @@ export class WrongMemoryClient {
 
   private static async connectOnce(root: string, opts: ConnectOptions): Promise<WrongMemoryClient> {
     const discovery = loadDiscovery(root);
+    if (typeof discovery.info.endpoint !== 'string' || discovery.info.endpoint.trim().length === 0) {
+      throw new WrongMemoryError('UNAVAILABLE', 'discovery metadata is missing a non-empty endpoint');
+    }
     const credential: Credential = opts.grantId
       ? { kind: 'grant', grantId: opts.grantId, secret: readGrantSecret(root, opts.grantId) }
       : { kind: 'host', token: discovery.token };

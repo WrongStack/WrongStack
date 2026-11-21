@@ -181,9 +181,9 @@ export async function handlePrefsRoute(
     case 'config.doctor': {
       // The result carries the request's id, or a client waiting on it (the
       // desktop's Config Doctor) never matches it and reports no answer.
-      const reply = correlatedReply(ws, msg.payload, ['config.doctor.result']).socket;
+      const reply = correlatedReply(ws, msg.payload, ['config.doctor.result']);
       if (!handlers.doctorConfig) {
-        send(reply, {
+        send(reply.socket, {
           type: 'config.doctor.result',
           payload: {
             success: false,
@@ -197,10 +197,27 @@ export async function handlePrefsRoute(
         });
         return true;
       }
-      await handlers.doctorConfig(
-        reply,
-        (msg.payload as { apply?: unknown } | undefined)?.apply === true,
-      );
+      try {
+        await handlers.doctorConfig(
+          reply.socket,
+          (msg.payload as { apply?: unknown } | undefined)?.apply === true,
+        );
+      } catch (error) {
+        if (!reply.replied) {
+          send(reply.socket, {
+            type: 'config.doctor.result',
+            payload: {
+              success: false,
+              applied: false,
+              changed: false,
+              changes: [],
+              configPath: '',
+              backupPath: undefined,
+              error: errMessage(error),
+            },
+          });
+        }
+      }
       return true;
     }
     default:

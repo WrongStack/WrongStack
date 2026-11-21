@@ -103,6 +103,8 @@ export function closeBackgroundLogFd(log: BackgroundLog | undefined): void {
 
 /** The last `maxLines` lines of a log, reading at most its last 64 KiB. */
 export function tailBackgroundLog(file: string, maxLines: number): string[] {
+  if (!Number.isFinite(maxLines) || maxLines <= 0) return [];
+  const limit = Math.floor(maxLines);
   let fd: number | undefined;
   try {
     fd = fs.openSync(file, 'r');
@@ -114,7 +116,7 @@ export function tailBackgroundLog(file: string, maxLines: number): string[] {
     if (lines.at(-1) === '') lines.pop();
     // A cut at the 64 KiB boundary leaves a partial first line.
     if (size > length) lines.shift();
-    return lines.slice(-maxLines);
+    return lines.slice(-limit);
   } catch {
     return [];
   } finally {

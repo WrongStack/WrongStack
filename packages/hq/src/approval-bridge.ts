@@ -443,18 +443,20 @@ export function createApprovalRegistry(
       // An explicit `Infinity` is still the opt-out — the helper returns
       // undefined for a non-finite TTL, and an absent field already means
       // "never lapses" everywhere else in the protocol.
+      let pendingGrantedUntil: number | undefined;
       if (isPersistentApproval(decision)) {
-        const grantedUntil = approvalGrantExpiry(
+        pendingGrantedUntil = approvalGrantExpiry(
           decision,
           Date.now(),
           grantTtlMs ?? DEFAULT_ALWAYS_APPROVAL_TTL_MS,
         );
-        if (grantedUntil !== undefined) grantExpiries.set(toolUseId, grantedUntil);
+        if (pendingGrantedUntil !== undefined) grantExpiries.set(toolUseId, pendingGrantedUntil);
       }
       busAnnouncedId = undefined;
       try {
         approval.resolve(decision);
       } finally {
+        grantExpiries.delete(toolUseId);
         resolvingIds.delete(toolUseId);
         if (pending.get(toolUseId) === approval) {
           pending.delete(toolUseId);
@@ -464,8 +466,6 @@ export function createApprovalRegistry(
       // `tool.confirm_resolved` synchronously, the listener above already
       // announced it — announcing again would double-report one decision.
       if (wasRegistered && busAnnouncedId !== toolUseId) {
-        const grantedUntil = grantExpiries.get(toolUseId);
-        grantExpiries.delete(toolUseId);
         notify({
           kind: 'resolved',
           toolUseId,
@@ -473,7 +473,7 @@ export function createApprovalRegistry(
           sessionId: approval.sessionId,
           decision,
           source: 'user',
-          ...(grantedUntil !== undefined ? { grantedUntil } : {}),
+          ...(pendingGrantedUntil !== undefined ? { grantedUntil: pendingGrantedUntil } : {}),
         });
       }
       return true;

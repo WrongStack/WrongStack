@@ -233,6 +233,13 @@ function resolveCommandExecutable(command: string): ResolvedExecutable {
       cursor = cursor.slice(cursor.indexOf(raw) + raw.length).trim();
       continue;
     }
+    if (token === '--') {
+      // POSIX end-of-options delimiter: wrapper flags stop here and the next
+      // token is unambiguously the target executable (not a flag argument).
+      cursor = cursor.slice(cursor.indexOf(raw) + raw.length).trim();
+      const next = firstTokenInfo(cursor);
+      return { executable: next?.token, skippedFlag, demandFetch, wrapper: first.token };
+    }
     if (token.startsWith('-')) {
       cursor = cursor.slice(cursor.indexOf(raw) + raw.length).trim();
       if (valueFlags.has(token)) {

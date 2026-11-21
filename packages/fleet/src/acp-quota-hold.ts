@@ -48,7 +48,11 @@ export async function runWithQuotaHold<T>(
         typeof err.backoffMs === 'number' && Number.isFinite(err.backoffMs) && err.backoffMs > 0
           ? err.backoffMs
           : DEFAULT_HOLD_MS;
-      holds.set(agentId, { until: now() + holdMs, error: err });
+      const nextUntil = now() + holdMs;
+      const existing = holds.get(agentId);
+      if (!existing || nextUntil > existing.until) {
+        holds.set(agentId, { until: nextUntil, error: err });
+      }
     }
     throw err;
   }

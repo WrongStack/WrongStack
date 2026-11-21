@@ -45,6 +45,9 @@ export function loadDiscovery(root: string): Discovery {
     }
     const info = parsed as EndpointInfo;
     const token = readFileSync(p.tokenFile, 'utf8').trim();
+    if (token.length === 0) {
+      throw new Error('host token is empty');
+    }
     return { info, token };
   } catch (e) {
     throw new WrongMemoryError('UNAVAILABLE', `cannot read discovery metadata: ${(e as Error).message}`);

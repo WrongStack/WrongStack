@@ -76,9 +76,15 @@ export interface WrongTraceClientInternal extends WrongTraceClient {
 export async function _httpJson<T>(
   baseUrl: string,
   path: string,
-  init?: { method?: string; body?: unknown; timeoutMs?: number; acceptStatus?: number[] },
+  init?: {
+    method?: string;
+    body?: unknown;
+    timeoutMs?: number;
+    acceptStatus?: number[];
+    fetchImpl?: typeof fetch;
+  },
 ): Promise<T | null> {
-  const fetchImpl = globalThis.fetch;
+  const fetchImpl = init?.fetchImpl ?? globalThis.fetch;
   if (typeof fetchImpl !== 'function') return null;
   const controller = new AbortController();
   const rawTimeout = init?.timeoutMs ?? DEFAULT_TRANSPORT_TIMEOUT_MS;
@@ -115,11 +121,18 @@ export async function _httpJson<T>(
   }
 }
 
-const httpJson = _httpJson;
-
 export async function createWrongTraceClient(
   opts: WrongTraceClientOptions = {},
 ): Promise<WrongTraceClientInternal> {
+  const httpJson = <T>(
+    baseUrl: string,
+    path: string,
+    init?: { method?: string; body?: unknown; timeoutMs?: number; acceptStatus?: number[] },
+  ): Promise<T | null> =>
+    _httpJson<T>(baseUrl, path, {
+      ...init,
+      ...(opts.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}),
+    });
   const discovery = await discover(opts);
   const mcp = createMcpTransport(opts.mcpTools);
   const ipc: IpcTransport = createIpcTransport(discovery.socketPath);

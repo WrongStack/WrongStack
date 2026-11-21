@@ -34,7 +34,9 @@ interface ProcessRow {
  * never throws: a leftover daemon must not fail the benchmark.
  */
 export async function reapProcessesUnder(roots: readonly string[]): Promise<number> {
-  const needles = roots.map(normalize).filter((root) => root.length > 0);
+  const needles = roots
+    .map((root) => normalize(root).replace(/\/+$/, ''))
+    .filter((root) => root.length > 0);
   if (needles.length === 0) return 0;
   let rows: ProcessRow[];
   try {
@@ -47,7 +49,7 @@ export async function reapProcessesUnder(roots: readonly string[]): Promise<numb
   for (const row of rows) {
     if (row.pid === process.pid) continue;
     const line = normalize(row.commandLine);
-    if (!needles.some((needle) => line.includes(needle))) continue;
+    if (!needles.some((needle) => commandLineNamesRoot(line, needle))) continue;
     try {
       process.kill(row.pid);
       killed++;
@@ -57,6 +59,24 @@ export async function reapProcessesUnder(roots: readonly string[]): Promise<numb
     }
   }
   return killed;
+}
+
+function isPathBoundary(ch: string | undefined): boolean {
+  return ch === undefined || ch === '/' || /[\s"'=,:;)\]}]/.test(ch);
+}
+
+/** Match `needle` only on path/argument boundaries so `task-1` never kills `task-10`. */
+function commandLineNamesRoot(line: string, needle: string): boolean {
+  let from = 0;
+  while (from <= line.length - needle.length) {
+    const idx = line.indexOf(needle, from);
+    if (idx === -1) return false;
+    const before = idx > 0 ? line[idx - 1] : undefined;
+    const after = line[idx + needle.length];
+    if (isPathBoundary(before) && isPathBoundary(after)) return true;
+    from = idx + 1;
+  }
+  return false;
 }
 
 /** Case- and separator-insensitive form for matching paths inside command lines. */

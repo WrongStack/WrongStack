@@ -161,16 +161,22 @@ export function resolveClients(
     const agents: ResolvedAgent[] = [];
     let anyRunning = false;
 
+    const sessionKey = sessionLeaf(s.sessionId);
     for (const a of s.agents) {
-      const fleet = fleetAgents.get(a.id);
+      const candidateFleet = fleetAgents.get(a.id);
+      const fleet =
+        candidateFleet &&
+        (!candidateFleet.sessionId || sessionLeaf(candidateFleet.sessionId) === sessionKey)
+          ? candidateFleet
+          : undefined;
       const status = mapAgentStatus(fleet?.status ?? a.status);
       // HQ downgrades stale worker telemetry to idle. Keep an idle leader as
       // the session anchor, but do not turn expired workers into office desks.
       if (a.id !== 'leader' && (fleet?.status ?? a.status) === 'idle') {
-        rendered.add(a.id);
+        if (fleet) rendered.add(a.id);
         continue;
       }
-      rendered.add(a.id);
+      if (fleet || !candidateFleet) rendered.add(a.id);
       if (status === 'active' || status === 'streaming') anyRunning = true;
       agents.push({
         officeId: `${clientId}__agent-${a.id}`,

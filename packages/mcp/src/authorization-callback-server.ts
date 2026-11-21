@@ -99,6 +99,14 @@ export async function startMcpOAuthCallbackServer(
     });
   });
 
+  if (options.signal?.aborted) {
+    server.closeAllConnections?.();
+    server.close(() => undefined);
+    throw options.signal.reason instanceof Error
+      ? options.signal.reason
+      : new Error('MCP OAuth callback wait was aborted');
+  }
+
   const address = server.address() as AddressInfo | null;
   if (!address) {
     server.close();

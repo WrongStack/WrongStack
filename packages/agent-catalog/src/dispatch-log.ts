@@ -388,7 +388,7 @@ export function summarizeDispatchLog(projectRoot?: string): DispatchSummary {
     }
     if (entry.rosterMiss) summary.totals.rosterMisses += 1;
     const seenAlt = new Set<string>();
-    for (const alternative of entry.alternatives ?? []) {
+    for (const alternative of Array.isArray(entry.alternatives) ? entry.alternatives : []) {
       if (
         typeof alternative === 'string' &&
         alternative !== entry.role &&
@@ -405,7 +405,9 @@ export function summarizeDispatchLog(projectRoot?: string): DispatchSummary {
   // outcome — that one still counts for its role, just not by source.
   for (const outcome of outcomes) {
     const spawn = spawnsById.get(outcome.subagentId);
-    const role = spawn?.role ?? outcome.role;
+    const role =
+      spawn?.role ??
+      (typeof outcome.role === 'string' && outcome.role.length > 0 ? outcome.role : undefined);
     if (!role) continue;
     summary.totals.outcomes += 1;
     const row = accumulator(role);
@@ -417,8 +419,11 @@ export function summarizeDispatchLog(projectRoot?: string): DispatchSummary {
     ) {
       row.costUsd += outcome.costUsd;
     }
-    if (outcome.model) {
-      const label = outcome.provider ? `${outcome.provider}/${outcome.model}` : outcome.model;
+    if (typeof outcome.model === 'string' && outcome.model.length > 0) {
+      const label =
+        typeof outcome.provider === 'string' && outcome.provider.length > 0
+          ? `${outcome.provider}/${outcome.model}`
+          : outcome.model;
       row.models[label] = (Object.hasOwn(row.models, label) ? row.models[label]! : 0) + 1;
     }
     if (spawn && Object.hasOwn(summary.totals.outcomesBySource, spawn.source)) {

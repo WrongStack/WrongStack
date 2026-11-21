@@ -54,6 +54,7 @@ function protectManagedBranches(
 
 export async function cleanupAllManaged(ctx: ManagedOpsContext): Promise<{ removed: number }> {
   const root = resolve(ctx.worktreesRoot);
+  const preExistingHandles = new Map(ctx.handles);
   let removed = 0;
   const failedDirs = new Set<string>();
   const survivingBranches = new Set<string>();
@@ -129,8 +130,8 @@ export async function cleanupAllManaged(ctx: ManagedOpsContext): Promise<{ remov
       protectManagedBranches(survivingBranches, h);
     }
   }
-  for (const h of ctx.handles.values()) {
-    if (failedDirs.has(managedPathKey(h.dir))) {
+  for (const [ownerId, h] of ctx.handles) {
+    if (preExistingHandles.get(ownerId) !== h || failedDirs.has(managedPathKey(h.dir))) {
       survivingBranches.add(h.branch);
     }
   }
@@ -158,19 +159,15 @@ export async function cleanupAllManaged(ctx: ManagedOpsContext): Promise<{ remov
     }
   }
   await ctx.runGit(['worktree', 'prune'], ctx.projectRoot).catch(() => undefined);
-  // Drop in-memory handles whose checkouts actually came off disk; preserve
-  // handles and slugs for checkouts whose removal failed.
-  if (failedDirs.size === 0) {
-    ctx.handles.clear();
-    ctx.usedSlugs.clear();
-  } else {
-    ctx.usedSlugs.clear();
-    for (const [ownerId, h] of [...ctx.handles]) {
-      if (failedDirs.has(managedPathKey(h.dir))) {
-        ctx.usedSlugs.add(h.slug);
-      } else {
-        ctx.handles.delete(ownerId);
-      }
+  // Drop only in-memory handles that existed when the sweep started and whose
+  // checkouts actually came off disk; preserve failed removals and any handles
+  // registered concurrently while the sweep was in flight.
+  for (const [ownerId, h] of preExistingHandles) {
+    if (failedDirs.has(managedPathKey(h.dir))) continue;
+    if (ctx.handles.get(ownerId) === h) {
+      ctx.handles.delete(ownerId);
+      const slugStillLive = [...ctx.handles.values()].some((other) => other.slug === h.slug);
+      if (!slugStillLive) ctx.usedSlugs.delete(h.slug);
     }
   }
   ctx.emit('worktree.released', {

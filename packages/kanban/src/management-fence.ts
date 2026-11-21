@@ -64,7 +64,13 @@ export function assertManagementWrite(
     throw new StaleWriteError(`Kanban manager: ${reason}`);
   };
   const lease = board.management?.lease;
-  if (!lease || lease.token !== context.expectedManagementToken || lease.expiresAt <= Date.now())
+  if (
+    !lease ||
+    lease.token !== context.expectedManagementToken ||
+    typeof lease.expiresAt !== 'number' ||
+    !Number.isFinite(lease.expiresAt) ||
+    lease.expiresAt <= Date.now()
+  )
     refuse('management lease expired or changed; nothing was written.');
   if (
     board.supervisor?.enabled === false ||

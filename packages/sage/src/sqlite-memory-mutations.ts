@@ -270,7 +270,11 @@ async function readUpdateSpanBaselines(
     }
   } else if (input.status === 'active') {
     const existing = readSqliteSageRow((sql) => host.stmt(sql), id);
-    if (existing?.status === 'stale') anchors = existing.anchors;
+    // Read baselines before runMutation even if existing is not yet 'stale':
+    // a concurrent demotion queued ahead of this update can flip it to 'stale'
+    // before updateSqliteSage acquires the lock, and updateSqliteSage still
+    // gates application on existing.status === 'stale' inside runMutation.
+    if (existing && existing.status !== 'deleted') anchors = existing.anchors;
   }
   return anchors ? readSpanBaselines(host.projectRoot, anchors, host.symbolSpans) : undefined;
 }
