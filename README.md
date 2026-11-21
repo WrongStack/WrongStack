@@ -55,6 +55,15 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.7.14
+
+- **Tighter safety guards:** `git worktree remove --force`, abbreviated long
+  options and registry-folded package names no longer slip past the gates, and
+  Anthropic admin keys are redacted.
+- **Steadier desktop:** project views keep their page and open file, reloaded
+  conversations show their questions once, and stops reach the right engine.
+- **SAGE symbol anchors** can check the symbol body they were written against.
+
 ### What's new in 1.7.13
 
 - **Desktop chat as steps:** one line per tool call with its target, time and
@@ -677,7 +686,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.7.13**; versions follow semver
+- Release notes: **v1.7.14**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements

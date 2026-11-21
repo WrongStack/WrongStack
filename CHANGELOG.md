@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.14] — 2026-11-21
+
+A safety and steadiness release. The safety guards catch more ways around them:
+`git worktree remove --force`, abbreviated long options on delete, reset and
+restore commands, package names spelled the way PyPI and crates.io fold them, and
+Anthropic admin API keys. In the desktop, moving between project views keeps the
+page and its open file, a reloaded conversation shows its questions once its
+history is read, and a stop reaches the right engine through reconnects. SAGE
+symbol anchors can check the symbol body they were written against.
+
+### Added
+
+- SAGE: a symbol anchor can record the symbol body it was written against, and
+  the SAGE daemon checks it against the symbol's current span.
+- ACP: boolean session config options, a session `systemPrompt`, and
+  `tool_call.name`.
+
+### Fixed
+
+- Security: the YOLO gate and the destructive-command rules treat
+  `git worktree remove --force` as discarding local work.
+- Security: abbreviated long options (`rm --rec`, `Remove-Item -rec`,
+  `git reset --har`, `git restore --wor`) no longer slip past the catastrophic
+  delete gate or the path guard's delete, reset and restore checks.
+- Security: dep-guard allow and deny entries match PyPI and crates.io package
+  names the way those registries fold case, `-`, `_` and `.`.
+- Security: Anthropic admin API keys (`sk-ant-admin…`) are detected by the secret
+  scanner and prompt firewall and redacted by the scrubber.
+- Desktop: moving between project views keeps the page and its open file instead
+  of reopening it, and in-flight requests are no longer dropped.
+- Desktop: a reloaded conversation shows its pending questions only once its
+  history is read, so an answered question never comes back empty.
+- Desktop: a stop reaches the right process through reconnects, a failed spare
+  adoption and a terminal that is still opening; attached engines refuse new
+  commands after a stop, process trees are stopped by verified identity, and a
+  transcript write failure no longer closes the output pipe.
+- Desktop: settings and model switches wait past the engine's config lock,
+  Config Doctor gets its answer, a spare engine starts from the latest saved
+  default, project engines stay owned until shutdown completes, and a terminal
+  opens in the project path rather than its `\\?\` form.
+- ACP: resume falls back to `session/load`, and a fork captures its config
+  options.
+- Edit: a file the agent only wrote itself can be edited, a suppressed re-read
+  records the content it verified, and a no-op edit of an unread file does not
+  count as a read.
+- WebUI: settings save a config that starts with a UTF-8 BOM, an engine booted
+  unconfigured takes the saved default, and shutdown ends the session so
+  in-flight dependency audits finish.
+- A WrongForge leader keeps an always-allow answer and refuses once the turn is
+  aborted.
+- Agent office: a worker that timed out shows as an error, not idle.
+- SAGE health reads the doctor again when its panel remounts instead of showing
+  a timeout, and the desktop model picker lists each catalog model once.
+
 ## [1.7.13] — 2026-11-20
 
 The desktop conversation reads as a short list of steps: one line per tool call

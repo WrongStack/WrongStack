@@ -1,29 +1,29 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.7.13',
-  title: 'A chat that reads as steps.',
+  version: '1.7.14',
+  title: 'Tighter guards, steadier desktop.',
   summary:
-    'The desktop conversation shows each tool call as one line with its target, time and result, a plan card, live command output and the files a turn changed. Approvals are an inline banner with Y/N shortcuts, Brain, Chimera, council and fallback events share one card style, and Bun projects get bun add, audit and outdated.',
+    'The safety gates now catch git worktree remove --force, abbreviated long options on delete, reset and restore, and package names spelled the way PyPI and crates.io fold them; Anthropic admin keys are redacted. The desktop keeps your page and open file between project views, shows a reloaded conversation\'s questions once, and sends a stop to the right engine.',
   socialDescription:
-    'WrongStack 1.7.13: the desktop chat reads as steps with inline approvals and event cards, and Bun projects get bun install, audit and outdated.',
+    'WrongStack 1.7.14: safety guards catch abbreviated options and forced worktree removal, and the desktop keeps your page, questions and stops on track.',
   cards: [
     {
-      title: 'Chat as steps',
-      body: 'Searched, Read, Edited, Ran: one line per step with its target and time, a plan card with progress and the files each turn changed.',
+      title: 'Tighter guards',
+      body: 'Forced worktree removal, abbreviated long options and registry-folded package names are caught; Anthropic admin keys are redacted.',
+      href: '/getting-started',
+      linkLabel: 'Upgrade your installation',
+    },
+    {
+      title: 'Steadier desktop',
+      body: 'Project views keep their page and open file, reloaded conversations show their questions once, and stops reach the right engine.',
       href: '/interfaces',
       linkLabel: 'Explore the desktop',
     },
     {
-      title: 'Inline approvals',
-      body: 'A banner names the whole command; allow or deny with Y and N, with arguments and remembered scope one click away.',
+      title: 'Checked symbol anchors',
+      body: 'A SAGE memory anchored to a symbol can check the body it was written against, so a changed function is noticed.',
       href: '/interfaces',
       linkLabel: 'Explore the interfaces',
-    },
-    {
-      title: 'Bun projects',
-      body: 'Install, audit and outdated run Bun for Bun projects, and the vulnerability gate audits each install where it ran.',
-      href: '/getting-started',
-      linkLabel: 'Upgrade your installation',
     },
   ],
 } as const;

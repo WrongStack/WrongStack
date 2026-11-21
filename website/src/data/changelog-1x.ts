@@ -1,4 +1,4 @@
-// Changelog — recent 1.x era (1.7.13 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
+// Changelog — recent 1.x era (1.7.14 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
 // Historical entries mirror CHANGELOG.md release notes. 1.1.0 absorbs the 1.0.38
 // bump, which was never published; 1.7.8 and 1.7.10 were never tagged either.
 // The 1.1.5 entry summarizes the commits in v1.1.4..v1.1.5, the 1.1.6 entry
@@ -11,10 +11,23 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.14',
+    date: '2026-11-21',
+    tagline: 'Tighter guards, steadier desktop',
+    latest: true,
+    highlights: [
+      'The safety gates catch git worktree remove --force and abbreviated long options',
+      'dep-guard matches PyPI and crates.io names the way the registries fold them',
+      'Anthropic admin API keys are detected and redacted',
+      'Desktop project views keep their page and open file',
+      'Reloaded conversations show their questions once, and stops reach the right engine',
+      'SAGE symbol anchors can check the symbol body they were written against',
+    ],
+  },
+  {
     version: '1.7.13',
     date: '2026-11-20',
     tagline: 'A chat that reads as steps',
-    latest: true,
     highlights: [
       'Desktop tool work shows as one line per step with its target, time and result',
       'A plan card, live command output and the files each turn changed',
