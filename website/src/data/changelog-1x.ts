@@ -22,6 +22,7 @@ export const changelog1x: ChangelogEntry[] = [
       'Desktop project views keep their page and open file',
       'Reloaded conversations show their questions once, and stops reach the right engine',
       'SAGE symbol anchors can check the symbol body they were written against',
+      'A robustness round across ACP, fleet, HQ, MCP, Kanban and the dependency watcher',
     ],
   },
   {
