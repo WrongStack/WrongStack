@@ -404,6 +404,30 @@ describe('edit tool', () => {
       expect(await fs.readFile(path.join(sb.dir, 'h.py'), 'utf8')).toBe(file);
     });
 
+    it('indent-insensitive tiers refuse an indentation scale change (F981)', async () => {
+      // The model reproduces a 2-space Python block in 4-space style: same
+      // nesting ranks, but not a uniform shift. Accepting it spliced the
+      // needle's 4/8-space scale over the file's 2/4-space block and left
+      // "  return True" at a level no open block uses — CPython raised
+      // IndentationError on a file the tool reported as successfully edited
+      // (Python is not syntax-checked). The edit must be refused instead.
+      const file = 'def handler(event):\n  if event.ok:\n    process(event)\n  return True\n';
+      await fs.writeFile(path.join(sb.dir, 'h.py'), file);
+      await readTool.execute({ path: 'h.py' }, sb.ctx, { signal: newSignal() });
+      await expect(
+        editTool.execute(
+          {
+            path: 'h.py',
+            old_string: 'def handler(event):\n    if event.ok:\n        process(event)',
+            new_string: 'def handler(event):\n    if event.ok:\n        handle(event)',
+          },
+          sb.ctx,
+          { signal: newSignal() },
+        ),
+      ).rejects.toThrow(/no match/);
+      expect(await fs.readFile(path.join(sb.dir, 'h.py'), 'utf8')).toBe(file);
+    });
+
     it('block-anchor fuzzy match repairs a slightly-wrong interior line', async () => {
       const file =
         'export function greet(name) {\n' +

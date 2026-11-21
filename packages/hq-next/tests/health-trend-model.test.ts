@@ -53,4 +53,16 @@ describe('healthTrend', () => {
     expect(fullInWords(5.4)).toBe('in about 5 days');
     expect(healthTrend([point(0, 40), point(5, 39)]).diskSummary).toContain('over 5 hours');
   });
+
+  it('words a sub-hour span as minutes, not "1 hours"', () => {
+    // HQ keeps one reading every 15 minutes, so the first trend anyone sees
+    // spans 15 minutes. It used to read "over 1 hours": the count was clamped
+    // to 1 but the plural was chosen from the unclamped 0.
+    expect(healthTrend([point(0, 40), point(0.25, 39)]).diskSummary).toBe(
+      'Free space went from 40 GB to 39 GB over 15 minutes.',
+    );
+    expect(healthTrend([point(0, 40), point(1 / 60, 39)]).diskSummary).toContain('over 1 minute.');
+    expect(healthTrend([point(0, 40), point(1, 39)]).diskSummary).toContain('over 1 hour.');
+    expect(healthTrend([point(0, 40), point(59.8 / 60, 39)]).diskSummary).toContain('over 1 hour.');
+  });
 });

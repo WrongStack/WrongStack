@@ -297,14 +297,14 @@ describe('pruneSessionBoards second stage (archived boards)', () => {
     expect(await getBoard(tmpDir, id)).toBeTruthy();
   });
 
-  it('purges a legacy board still tagged session_mirror after archiving', async () => {
+  it.each([{ ttlMs: 1000 }, {}])('purges a legacy archived mirror (%j)', async (archivePolicy) => {
     // Boards written before the kind rewrite kept `session_mirror` with an
     // `archivedAt` stamp; they must reach the same second stage.
     const id = await createSessionBoard({
       kind: 'session_mirror',
       retention: {
         mode: 'archive_after_ttl',
-        ttlMs: 1000,
+        ...archivePolicy,
         archivedAt: '2020-01-01T00:00:00.000Z',
         purgeAfterArchiveMs: 86_400_000,
       },
@@ -313,5 +313,6 @@ describe('pruneSessionBoards second stage (archived boards)', () => {
     const result = await pruneSessionBoards(tmpDir, { now: '2026-08-01T00:00:00.000Z' });
 
     expect(result.deleted).toContain(id);
+    expect(await getBoard(tmpDir, id)).toBeNull();
   });
 });

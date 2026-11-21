@@ -45,6 +45,23 @@ const CATASTROPHIC_WIN_SUBDIRS = new Set([
   'users',
 ]);
 
+/**
+ * PowerShell switch-parameter spellings: any unambiguous prefix of `-Recurse`
+ * or `-Force`, with the explicit `:$true` value form (`-Recurse:$true` ≡
+ * `-Recurse`). `:$false` disables the switch and is deliberately not matched.
+ * Shared by every Remove-Item spelling so the alias branches cannot drift.
+ */
+const POWERSHELL_RECURSE_SWITCH = /^-(?:r|re(?:c(?:u(?:r(?:s(?:e)?)?)?)?)?)(?::\$true)?$/;
+const POWERSHELL_FORCE_SWITCH = /^-(?:f|fo(?:r(?:c(?:e)?)?)?)(?::\$true)?$/;
+
+/** Recursive-OR-force: on Remove-Item either switch deletes a directory tree. */
+function hasPowerShellRecurseOrForce(args: readonly string[]): boolean {
+  return args.some((arg) => {
+    const lower = arg.toLowerCase();
+    return POWERSHELL_RECURSE_SWITCH.test(lower) || POWERSHELL_FORCE_SWITCH.test(lower);
+  });
+}
+
 export function pathLooksInsideProject(rawPath: string, projectRoot: string | undefined): boolean {
   if (!projectRoot) return false;
   // A Windows-absolute target (drive letter + separator) can never be inside
@@ -110,9 +127,17 @@ export function hasRecursiveForceDelete(command: string, projectRoot: string | u
       }
     }
 
-    // In PowerShell `del` and `erase` are Remove-Item aliases too (the cmd.exe
-    // `/s` form is handled below); only their PowerShell parameters reach here.
-    if (token === 'remove-item' || token === 'ri' || token === 'del' || token === 'erase') {
+    // In PowerShell `del`, `erase` and `rd` are Remove-Item aliases too (the
+    // cmd.exe `/s` form is handled below); only their PowerShell parameters
+    // reach here. `rd` was missing, so `rd -Recurse -Force C:\Windows` — the
+    // same wipe as the Remove-Item spelling — classified as safe.
+    if (
+      token === 'remove-item' ||
+      token === 'ri' ||
+      token === 'del' ||
+      token === 'erase' ||
+      token === 'rd'
+    ) {
       const args = commandSegment(tokens, i + 1).map((arg) => arg.toLowerCase());
       // PowerShell switch parameters accept an explicit boolean value spelling:
       // `-Recurse:$true` ≡ `-Recurse` and `-Force:$true` ≡ `-Force` (switch ON);
@@ -121,10 +146,8 @@ export function hasRecursiveForceDelete(command: string, projectRoot: string | u
       // exempt; `-WhatIf:$false` re-enables execution and is NOT exempt.
       // PowerShell also binds any unambiguous parameter-name PREFIX: `-rec`,
       // `-recu` … are -Recurse and `-fo`, `-forc` are -Force.
-      const recurse = args.some((arg) =>
-        /^-(?:r|re(?:c(?:u(?:r(?:s(?:e)?)?)?)?)?)(?::\$true)?$/.test(arg),
-      );
-      const force = args.some((arg) => /^-(?:f|fo(?:r(?:c(?:e)?)?)?)(?::\$true)?$/.test(arg));
+      const recurse = args.some((arg) => POWERSHELL_RECURSE_SWITCH.test(arg));
+      const force = args.some((arg) => POWERSHELL_FORCE_SWITCH.test(arg));
       const dryRun = args.some((arg) => /^-whatif(?::\$true)?$/.test(arg));
       if (recurse && force && !dryRun) {
         const targets = args.filter((arg) => !arg.startsWith('-') && !SHELL_OPERATORS.has(arg));
@@ -259,13 +282,7 @@ export function hasCatastrophicDelete(command: string): boolean {
       // -Recurse, -fo ≡ -Force), incl. :$true — the same patterns the
       // recursive-force gate above uses. This is recursive-OR-force: either
       // switch on a catastrophic target is gated.
-      const recursive = args.some((arg) => {
-        const a = arg.toLowerCase();
-        return (
-          /^-(?:r|re(?:c(?:u(?:r(?:s(?:e)?)?)?)?)?)(?::\$true)?$/.test(a) ||
-          /^-(?:f|fo(?:r(?:c(?:e)?)?)?)(?::\$true)?$/.test(a)
-        );
-      });
+      const recursive = hasPowerShellRecurseOrForce(args);
       if (!recursive) continue;
       const targets = args.filter((arg) => !arg.startsWith('-') && !SHELL_OPERATORS.has(arg));
       if (targets.some(isCatastrophicDeleteTarget)) return true;
@@ -276,7 +293,11 @@ export function hasCatastrophicDelete(command: string): boolean {
     // never a leading slash).
     if (token === 'rmdir' || token === 'rd') {
       const args = tokens.slice(i + 1);
-      const recursive = args.some((arg) => arg.toLowerCase() === '/s');
+      // cmd's `/s` and PowerShell's `-Recurse`/`-Force` are the same recursive
+      // delete: `rd` is a Remove-Item alias in PowerShell, so its parameter
+      // spelling must gate identically to the Remove-Item branch above.
+      const recursive =
+        args.some((arg) => arg.toLowerCase() === '/s') || hasPowerShellRecurseOrForce(args);
       if (!recursive) continue;
       const targets = args.filter(
         (arg) => !arg.startsWith('-') && !arg.startsWith('/') && !SHELL_OPERATORS.has(arg),

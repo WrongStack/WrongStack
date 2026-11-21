@@ -14,9 +14,10 @@
  *                                 beyond exact (trailing blanks never carry
  *                                 meaning in the languages we edit).
  *   3. `whitespace-normalized`  — whole-line window match ignoring leading
- *                                 AND trailing whitespace per line. The
- *                                 replacement is re-indented to the file's
- *                                 actual indentation.
+ *                                 AND trailing whitespace per line, accepted
+ *                                 only when the window is a uniform indent
+ *                                 shift of the needle. The replacement is
+ *                                 re-indented to the file's actual indentation.
  *   4. `fuzzy`                  — block-anchor match: first and last lines
  *                                 must match (trimmed), interior lines are
  *                                 compared by Levenshtein similarity. Only a
@@ -143,7 +144,6 @@ export function findLadderMatches(fileLf: string, oldLf: string): LadderResult |
 
   const fileTrimmed = fileTrimEnd.map((l) => l.trimStart());
   const needleTrimmed = needleTrimEnd.map((l) => l.trimStart());
-  const needleShape = indentShape(needleLines);
   const normalized = windowScan(
     fileTrimmed,
     needleTrimmed,
@@ -152,9 +152,9 @@ export function findLadderMatches(fileLf: string, oldLf: string): LadderResult |
     (a, b) => a === b,
     needleEndsWithNewline,
   ).filter((m) =>
-    sameShape(
-      indentShape(fileLines.slice(m.startLine - 1, m.startLine - 1 + needleLines.length)),
-      needleShape,
+    sameIndentShift(
+      fileLines.slice(m.startLine - 1, m.startLine - 1 + needleLines.length),
+      needleLines,
     ),
   );
   if (normalized.length > 0) return { tier: 'whitespace-normalized', matches: normalized };
@@ -237,12 +237,11 @@ function fuzzyScan(
   if (needleInterior.length > FUZZY_MAX_INTERIOR_CHARS) return undefined;
 
   const fileTrimmed = fileLines.map((l) => l.trim());
-  const needleShape = indentShape(needleLines);
   const candidates: Array<{ match: LadderMatch; score: number }> = [];
   for (let i = 0; i + n <= fileLines.length; i++) {
     if ((fileTrimmed[i] as string) !== firstNeedle) continue;
     if ((fileTrimmed[i + n - 1] as string) !== lastNeedle) continue;
-    if (!sameShape(indentShape(fileLines.slice(i, i + n)), needleShape)) continue;
+    if (!sameIndentShift(fileLines.slice(i, i + n), needleLines)) continue;
     const windowInterior = fileTrimmed.slice(i + 1, i + n - 1).join('\n');
     if (windowInterior.length > FUZZY_MAX_INTERIOR_CHARS) continue;
     const maxLen = Math.max(needleInterior.length, windowInterior.length);
@@ -277,19 +276,34 @@ function fuzzyScan(
 }
 
 /**
- * Indentation SHAPE of a block: each non-blank line's depth rank among the
- * block's distinct indentation widths (a tab counts 4). The indent-insensitive
- * tiers compare lines with leading whitespace stripped and re-indent the
- * replacement by the first line's delta only, so they are sound only for a
- * uniform shift — which keeps the shape (as do 2-vs-4 spaces and tabs). A
- * different nesting does not: in Python/YAML it is a different program, and
- * accepting it wrote the needle's structure over the file's (a statement
- * silently moved out of its `if`).
+ * Indentation widths of a block's non-blank lines (a tab counts 4). Blank
+ * lines carry no indentation; the trimmed-line tiers match them 1:1, so the
+ * remaining widths correspond line for line.
  */
-function indentShape(lines: readonly string[]): number[] {
-  const widths = lines.filter((l) => l.trim() !== '').map(indentWidth);
-  const ranks = [...new Set(widths)].sort((a, b) => a - b);
-  return widths.map((w) => ranks.indexOf(w));
+function indentWidths(lines: readonly string[]): number[] {
+  return lines.filter((l) => l.trim() !== '').map(indentWidth);
+}
+
+/**
+ * The indent-insensitive tiers re-indent the replacement by the FIRST line's
+ * delta only, so a match is sound only when EVERY line moves by that same
+ * delta — a uniform shift (a whole block reproduced one level too shallow or
+ * too deep, spaces and tabs alike at equal width). Comparing indentation
+ * ranks is not enough: a 2-space block and its 4-space hallucination have the
+ * same nesting ranks ([0,2,4] vs [0,4,8] both rank [0,1,2]), but the deltas
+ * are not constant, and splicing the needle's scale over the file's leaves
+ * the surrounding lines at indentation levels the new block never opens — an
+ * IndentationError in Python, a different document in YAML. A different
+ * nesting fails this check too: a constant delta preserves the order and
+ * equality of the widths.
+ */
+function sameIndentShift(fileWindow: readonly string[], needleLines: readonly string[]): boolean {
+  const fileWidths = indentWidths(fileWindow);
+  const needleWidths = indentWidths(needleLines);
+  if (fileWidths.length !== needleWidths.length) return false;
+  if (fileWidths.length === 0) return true;
+  const delta = (fileWidths[0] as number) - (needleWidths[0] as number);
+  return fileWidths.every((width, i) => width - (needleWidths[i] as number) === delta);
 }
 
 function indentWidth(line: string): number {
@@ -300,10 +314,6 @@ function indentWidth(line: string): number {
     else break;
   }
   return width;
-}
-
-function sameShape(a: readonly number[], b: readonly number[]): boolean {
-  return a.length === b.length && a.every((rank, i) => rank === b[i]);
 }
 
 /** Normalized similarity in [0, 1]: 1 − levenshtein / max-length. */

@@ -42,6 +42,39 @@ describe('_edit-match', () => {
       expect(findLadderMatches('if (x) {\n  y();\n}\n', '  }')).toBeUndefined();
     });
 
+    it('refuses an indentation SCALE change: same nesting ranks, different widths', () => {
+      // F981: a 2-space block and its 4-space hallucination have identical
+      // nesting ranks ([0,2,4] vs [0,4,8] both rank [0,1,2]), but the deltas
+      // [0,-2,-4] are not a uniform shift. The first-line-only re-indent
+      // cannot repair the scale, and splicing it over the file left the
+      // continuation line ("  return True") at a level no open block uses —
+      // CPython: IndentationError. The match must be refused, not applied.
+      const file = 'def handler(event):\n  if event.ok:\n    process(event)\n  return True\n';
+      const needle = 'def handler(event):\n    if event.ok:\n        process(event)';
+      expect(findLadderMatches(file, needle)).toBeUndefined();
+    });
+
+    it('refuses a scale change through the fuzzy tier too', () => {
+      // Interior typo keeps the trimmed-line tier from matching; the anchors
+      // stay trim-exact, so before the fix the fuzzy tier admitted the same
+      // non-uniform scale change and corrupted the file the same way.
+      const file = 'def handler(event):\n  if event.ok:\n    process(event)\n  return True\n';
+      const needle = 'def handler(event):\n    if event.ok :\n        process(event)';
+      expect(findLadderMatches(file, needle)).toBeUndefined();
+    });
+
+    it('still admits a uniform shift with a deeper first line', () => {
+      // The documented tier-3 feature: the whole block sits one level deeper
+      // in the file, every line by the SAME delta (+4), internal scale intact.
+      const file =
+        'def handler(event):\n    if event.ok:\n        process(event)\n    return True\n';
+      const needle = 'if event.ok:\n    process(event)';
+      const res = findLadderMatches(file, needle);
+      expect(res?.tier).toBe('whitespace-normalized');
+      expect(res?.matches).toHaveLength(1);
+      expect(res?.matches[0]?.startLine).toBe(2);
+    });
+
     it('fuzzy tier requires matching first/last anchors', () => {
       const file = 'start() {\n  middle(1);\n  extra();\n}\n';
       // Last line differs → no anchor → no fuzzy match.

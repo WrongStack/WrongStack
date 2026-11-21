@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-21T15:05:12.363Z",
+  "generatedAt": "2026-11-21T21:25:45.256Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 49,
     "sourceFiles": 6410,
-    "testFiles": 5624,
-    "sourceLines": 1323075,
+    "testFiles": 5626,
+    "sourceLines": 1323128,
     "workspaceEdges": 255,
     "moduleEdges": 18947,
     "nonCommandSlashImports": 0,
@@ -385,7 +385,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 663,
-      "testFiles": 740,
+      "testFiles": 741,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -402,7 +402,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 740
+          "testFiles": 741
         }
       ]
     },
@@ -996,7 +996,7 @@
       "name": "@wrongstack/techstack",
       "dir": "packages/techstack",
       "sourceFiles": 55,
-      "testFiles": 66,
+      "testFiles": 67,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1012,7 +1012,7 @@
         {
           "path": "packages/techstack/tsconfig.test.json",
           "error": null,
-          "testFiles": 66
+          "testFiles": 67
         }
       ]
     },
@@ -13591,6 +13591,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/security/yolo-remove-item-rd-alias.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/security/yolo-risk-extra.test.ts",
         "projects": [
           "root-node"
@@ -22976,6 +22982,12 @@
       },
       {
         "file": "packages/techstack/tests/adapters/npm-local-spec-not-version.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/techstack/tests/adapters/npm-lock-v1-nested-instances.test.ts",
         "projects": [
           "root-node"
         ]

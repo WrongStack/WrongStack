@@ -162,11 +162,23 @@ export function parseNpmLockVersions(lockContent: string): {
 
   try {
     const lock = JSON.parse(lockContent);
-    // npm v3: lock.dependencies
-    const deps = lock.dependencies ?? {};
-    for (const [name, info] of Object.entries(deps)) {
-      const depInfo = info as { version?: string };
-      if (depInfo.version && !isLocalSpec(depInfo.version)) {
+    // npm v1/v2: lock.dependencies, a RECURSIVE map keyed by package name.
+    // A dependency that could not be hoisted (a version conflict, or anything
+    // beneath one) appears only under its parent's own `dependencies`, so
+    // walking the top level alone dropped those instances from `versions`.
+    // The adapter's `includeTransitive` pass reports every instance precisely
+    // because OSV is queried per purl — a nested `c@2.0.0` that only exists
+    // there was silently unaudited while the hoisted `c@1.0.0` was reported.
+    // Iterative so a hostile/deep lockfile cannot exhaust the stack.
+    const pendingDependencyMaps: unknown[] = [lock.dependencies];
+    while (pendingDependencyMaps.length > 0) {
+      const level = pendingDependencyMaps.pop();
+      if (!level || typeof level !== 'object' || Array.isArray(level)) continue;
+      for (const [name, info] of Object.entries(level)) {
+        if (!info || typeof info !== 'object') continue;
+        const depInfo = info as { version?: unknown; dependencies?: unknown };
+        if (depInfo.dependencies !== undefined) pendingDependencyMaps.push(depInfo.dependencies);
+        if (typeof depInfo.version !== 'string' || isLocalSpec(depInfo.version)) continue;
         // Strip version prefixes like ^, ~, >= (an all-non-digit value strips
         // to empty and is not a version either).
         const cleanVersion = depInfo.version.replace(/^[^0-9]+/, '');

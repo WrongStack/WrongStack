@@ -164,7 +164,7 @@ export interface PruneSessionBoardsResult {
  *   queries by the board-kind filter.
  * - `delete_after_ttl`: board permanently deleted via `deleteBoard`.
  *
- * Boards with `retention.mode: 'keep'` or no TTL set are always skipped.
+ * Unarchived session mirrors with `retention.mode: 'keep'` or no TTL are skipped.
  * Non-session boards are never touched.
  *
  * ## The second stage
@@ -235,13 +235,13 @@ export async function pruneSessionBoards(
     }
 
     const retention = summary.retention;
-    if (!retention || retention.mode === 'keep' || !isRetentionDuration(retention.ttlMs)) {
+    if (!retention || retention.mode === 'keep') {
       result.skipped.push(summary.id);
       continue;
     }
 
     // Already archived but still carrying `session_mirror` — a board written
-    // before the kind rewrite existed. Treated the same as the branch above.
+    // before the kind rewrite existed. The purge window starts at archivedAt.
     if (retention.archivedAt) {
       const archivedAtMs = Date.parse(retention.archivedAt);
       if (
@@ -254,6 +254,11 @@ export async function pruneSessionBoards(
       } else {
         result.archivedRetained.push(summary.id);
       }
+      continue;
+    }
+
+    if (!isRetentionDuration(retention.ttlMs)) {
+      result.skipped.push(summary.id);
       continue;
     }
 

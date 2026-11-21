@@ -28,8 +28,13 @@ export interface HealthTrend {
 }
 
 function span(ms: number): string {
+  // HQ keeps a point every 15 minutes, so a sub-hour span is the first trend
+  // anyone sees. Word it in minutes, and pick the plural from the number that
+  // is actually printed (the clamped one), or 15 minutes reads "1 hours".
+  const minutes = Math.max(1, Math.round(ms / 60_000));
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'}`;
   const hours = Math.round(ms / (60 * 60_000));
-  if (hours < 48) return `${Math.max(1, hours)} hour${hours === 1 ? '' : 's'}`;
+  if (hours < 48) return `${hours} hour${hours === 1 ? '' : 's'}`;
   const days = Math.round(ms / DAY_MS);
   return `${days} day${days === 1 ? '' : 's'}`;
 }
