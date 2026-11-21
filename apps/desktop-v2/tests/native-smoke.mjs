@@ -593,6 +593,18 @@ const cleanupOwnedProcesses = async () => {
     30000,
   );
 };
+// A daemon started between a sweep and the delete gets another sweep before the next attempt.
+const removeTestDirectory = async () => {
+  for (let attempt = 1; ; attempt++) {
+    await cleanupOwnedProcesses();
+    try {
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+      return;
+    } catch (error) {
+      if (attempt >= 4 || !['EBUSY', 'EPERM'].includes(error?.code)) throw error;
+    }
+  }
+};
 const restartForModelDrafts = async (cold, beforeLaunch) => {
   const previous = { uiPid: child.pid, hostPid: (await rpc('snapshot')).hostPid };
   const previousToken = endpoint.token;
@@ -2687,17 +2699,8 @@ try {
   // A development engine runs its project daemons (SAGE, Kanban, index, Chronicle) under
   // bun/node with this directory as their project root; left running they lock it (EBUSY).
   // Each match is stopped with its process tree: a project-services session host's engine
-  // does not name the directory, and left alive it starts the daemons it lost again. A
-  // daemon started between a sweep and the delete gets another sweep before the next attempt.
-  for (let attempt = 1; ; attempt++) {
-    await cleanupOwnedProcesses();
-    try {
-      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
-      break;
-    } catch (error) {
-      if (attempt >= 4 || !['EBUSY', 'EPERM'].includes(error?.code)) throw error;
-    }
-  }
+  // does not name the directory, and left alive it starts the daemons it lost again.
+  await removeTestDirectory();
 }
 await writeFile(
   join(artifactDir, 'native-result.json'),
