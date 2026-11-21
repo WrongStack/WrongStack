@@ -19,7 +19,11 @@ import type {
 } from '@wrongstack/contracts/types';
 import { safeParse } from '@wrongstack/core/utils';
 import { parseToolInput } from '../_tool-input.js';
-import { capAnthropicCacheBreakpoints } from '../cache-breakpoint-cap.js';
+import {
+  capAnthropicCacheBreakpoints,
+  enforceAnthropicCacheTtlOrder,
+} from '../cache-breakpoint-cap.js';
+import { isEffortRejected } from '../effort-support.js';
 import { providerErrorFromStreamPayload } from '../error-parse.js';
 import { capabilitiesForFamily } from '../family-capabilities.js';
 import { documentInputFallback, imageInputFallback } from '../media-input-policy.js';
@@ -201,32 +205,46 @@ export const anthropicWireFormat = defineWireFormat<AnthropicStreamState>({
       if (req.reasoning.enabled === false || req.reasoning.effort === 'none') {
         body['thinking'] = { type: 'disabled' };
       } else if (req.reasoning.enabled === true || req.reasoning.effort !== undefined) {
-        // An effort-only request (no explicit `enabled`) means the caller
-        // wants thinking at that level — the Anthropic wire has no effort
-        // enum, only a budget, so treating effort as "enable + size" is the
-        // only way the setting can take effect. Previously such requests
-        // sent no thinking field at all and the user's effort was a no-op
-        // (only OpenCode Go's Qwen path worked around it, locally).
-        // `effort: 'none'` is handled above: it canonically means OFF, not
-        // "enable with the smallest budget".
-        const budget = deriveThinkingBudget(maxOutput, req.reasoning.effort);
-        if (budget !== undefined) {
-          body['thinking'] = {
-            type: 'enabled',
-            budget_tokens: budget,
-          };
+        if (usesAdaptiveThinking(req.model)) {
+          body['thinking'] = { type: 'adaptive' };
+          const effort = toAnthropicEffort(req.reasoning.effort);
+          if (
+            effort !== undefined &&
+            !isEffortRejected(ctx?.providerId ?? 'anthropic', req.model)
+          ) {
+            body['output_config'] = { effort };
+          }
           // Anthropic requires temperature to be 1.0 (or omitted) and top_p/top_k
-          // to be unset when thinking is enabled. Leaving a non-1.0 temperature or
-          // top_p will cause Anthropic to reject the request with 400 invalid_request.
+          // to be unset when thinking is active.
           delete body['temperature'];
           delete body['top_p'];
           delete body['top_k'];
+        } else {
+          // Legacy extended thinking (Claude 3.7 / 4.0–4.5 and third-party
+          // Anthropic-compatible proxies): no effort enum, only budget_tokens.
+          // An effort-only request still enables thinking with a sized budget.
+          const budget = deriveThinkingBudget(maxOutput, req.reasoning.effort);
+          if (budget !== undefined) {
+            body['thinking'] = {
+              type: 'enabled',
+              budget_tokens: budget,
+            };
+            // Anthropic requires temperature to be 1.0 (or omitted) and top_p/top_k
+            // to be unset when thinking is enabled. Leaving a non-1.0 temperature or
+            // top_p will cause Anthropic to reject the request with 400 invalid_request.
+            delete body['temperature'];
+            delete body['top_p'];
+            delete body['top_k'];
+          }
         }
       }
     }
     // Enforce Anthropic's global 4-breakpoint ceiling across tools+system+
     // messages. No-op when ≤4 markers; drops redundant middle breakpoints only.
     capAnthropicCacheBreakpoints(body);
+    // Enforce Anthropic's non-increasing TTL order (1h before 5m) across the
+    // surviving breakpoints so a deepest 1h marker never follows an implicit 5m.
+    enforceAnthropicCacheTtlOrder(body);
     return body;
   },
   createStreamState: (fallbackModel, providerId) => ({
@@ -400,6 +418,35 @@ export const anthropicWireFormat = defineWireFormat<AnthropicStreamState>({
     return [];
   },
 });
+
+/**
+ * Whether an Anthropic model uses adaptive thinking (`thinking: { type: 'adaptive' }`
+ * + `output_config: { effort }`) instead of legacy `thinking: { type: 'enabled', budget_tokens }`.
+ *
+ * Starting with Claude 4.6+ (deprecated `enabled`) and Opus 4.7+ / Claude 5+
+ * (hard 400 `"thinking.type.enabled is not supported"`), Anthropic moved thinking
+ * to `{ type: 'adaptive' }` steered by `output_config.effort`. Older Claude
+ * models (3.7, 4.0–4.5) and third-party Anthropic-compatible proxies keep the
+ * legacy `enabled` + `budget_tokens` wire shape.
+ */
+function usesAdaptiveThinking(model: string): boolean {
+  const normalized = model.trim().toLowerCase();
+  return /(?:^|[/.:])claude-(?:[a-z]+-)?(?:(?:[5-9]|[1-9]\d)|4[.-](?:[6-9]|[1-9]\d))(?:$|[.-])/.test(
+    normalized,
+  );
+}
+
+/**
+ * Map canonical `ReasoningEffort` onto Anthropic's `output_config.effort`.
+ * Anthropic accepts `low | medium | high | xhigh | max`; `minimal` maps to `low`.
+ */
+function toAnthropicEffort(
+  effort: ReasoningEffort | undefined,
+): 'low' | 'medium' | 'high' | 'xhigh' | 'max' | undefined {
+  if (effort === undefined || effort === 'none') return undefined;
+  if (effort === 'minimal') return 'low';
+  return effort;
+}
 
 /**
  * Derive a thinking budget_tokens value for Anthropic's extended thinking.

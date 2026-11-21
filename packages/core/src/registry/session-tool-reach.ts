@@ -22,11 +22,16 @@
  */
 
 import type { Tool } from '@wrongstack/contracts/types/tool';
+import { isSessionToolAllowed } from './session-tool-groups.js';
 
 /** The tool that calls withheld catalog tools; its presence opens the catalog. */
 export const CATALOG_GATEWAY_TOOL = 'tool_use';
 
 interface ToolReachContext {
+  readonly meta?: Readonly<Record<string, unknown>> | undefined;
+  readonly projectRoot?: string | undefined;
+  readonly currentKanbanBoardId?: string | undefined;
+  readonly eventSessionId?: (() => string) | undefined;
   readonly tools?: readonly Tool[] | undefined;
   readonly catalogTools?: readonly Tool[] | undefined;
 }
@@ -53,5 +58,8 @@ export function reachableTools(ctx: ToolReachContext): readonly Tool[] {
 
 /** Whether this conversation may call `name`. */
 export function isToolReachable(ctx: ToolReachContext, name: string): boolean {
-  return reachesCatalog(ctx) || surfaceOf(ctx).some((tool) => tool.name === name);
+  return (
+    isSessionToolAllowed(ctx, name) &&
+    (reachesCatalog(ctx) || surfaceOf(ctx).some((tool) => tool.name === name))
+  );
 }

@@ -325,26 +325,25 @@ export function parseAuthFlags(args: string[]): AuthFlags {
       key = a.slice(0, eq);
       inlineVal = a.slice(eq + 1);
     }
-    if (key === '--alias') {
+    const takeValue = (): string | undefined => {
+      if (inlineVal !== undefined) return inlineVal;
       const next = args[i + 1];
-      const v =
-        inlineVal !== undefined
-          ? inlineVal
-          : next !== undefined && !next.startsWith('-')
-            ? args[++i]
-            : '';
-      out.alias = v ?? '';
+      if (next === undefined || next.startsWith('-')) return undefined;
+      return args[++i];
+    };
+    if (key === '--alias') {
+      out.alias = takeValue() ?? '';
     } else if (key === '--label') {
-      const v = inlineVal !== undefined ? inlineVal : args[++i];
+      const v = takeValue();
       if (v) out.label = v;
     } else if (key === '--family') {
-      const v = inlineVal !== undefined ? inlineVal : args[++i];
+      const v = takeValue();
       if (v) out.family = v as AuthFlags['family'];
     } else if (key === '--base-url') {
-      const v = inlineVal !== undefined ? inlineVal : args[++i];
+      const v = takeValue();
       if (v) out.baseUrl = v;
     } else if (key === '--env') {
-      const v = inlineVal !== undefined ? inlineVal : args[++i];
+      const v = takeValue();
       if (v)
         out.envVars = v
           .split(',')

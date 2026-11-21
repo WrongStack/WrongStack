@@ -434,7 +434,7 @@ function bestRawProvider(
 }
 
 const KNOWN_VISION_MODEL_RE =
-  /(?:^|[/:_-])(?:llava|bakllava|moondream|pixtral|minicpm-v|internvl|molmo|paligemma|idefics|fuyu|cogvlm|qwen[0-9.]*-vl|deepseek-vl|yi-vl|kimi-vl|kimi-k2\.5|glm-4(?:\.\d+)?v|gemma-?3(?:-[0-9]+b|-it|:)|gpt-4o|gpt-4\.1|gpt-4-turbo|gpt-5|claude-3|claude-(?:sonnet|opus|haiku)-4|gemini-(?:1\.5|2|3)|grok-(?:2-vision|4))(?:$|[/:._-])|(?:^|[/:_-])(?:vl|vision)(?:$|[/:._-])/i;
+  /(?:^|[/:_-])(?:llava|bakllava|moondream|pixtral|minicpm-v|internvl|molmo|paligemma|idefics|fuyu|cogvlm|qwen[0-9.]*-vl|deepseek-vl|yi-vl|kimi-vl|kimi-k2\.5|glm-4(?:\.\d+)?v|gemma-?3(?:-[0-9]+b|-it|:)|gpt-4o|gpt-4\.1|gpt-4-turbo|gpt-5|claude-3|claude-(?:sonnet|opus|haiku|fable)-[45]|gemini-(?:1\.5|2|3)|grok-(?:2-vision|4))(?:$|[/:._-])|(?:^|[/:_-])(?:vl|vision)(?:$|[/:._-])/i;
 
 function inferKnownVisionModelId(modelId: string): true | undefined {
   if (!modelId) return undefined;

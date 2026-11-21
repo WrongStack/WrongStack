@@ -129,6 +129,20 @@
         "typescript": "^7.0.2",
       },
     },
+    "packages/browser-tools": {
+      "name": "@wrongstack/browser-tools",
+      "version": "1.7.14",
+      "dependencies": {
+        "@wrongstack/contracts": "workspace:*",
+        "@wrongstack/core": "workspace:*",
+        "@wrongstack/primitives": "workspace:*",
+      },
+      "devDependencies": {
+        "@playwright/test": "^1.65.1",
+        "@types/node": "^26.6.6",
+        "typescript": "^7.0.2",
+      },
+    },
     "packages/builtin-plugins": {
       "name": "@wrongstack/builtin-plugins",
       "version": "1.7.10",
@@ -765,9 +779,9 @@
       "dependencies": {
         "@jitl/quickjs-singlefile-mjs-release-sync": "^0.32.0",
         "@msgpack/msgpack": "^3.1.3",
-        "@playwright/test": "^1.65.1",
         "@typescript/typescript6": "^6.0.2",
         "@wrongstack/agent-catalog": "workspace:*",
+        "@wrongstack/browser-tools": "workspace:*",
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/coordination": "workspace:*",
         "@wrongstack/core": "workspace:*",
@@ -1783,6 +1797,8 @@
     "@wrongstack/agent-catalog": ["@wrongstack/agent-catalog@workspace:packages/agent-catalog"],
 
     "@wrongstack/bench": ["@wrongstack/bench@workspace:packages/bench"],
+
+    "@wrongstack/browser-tools": ["@wrongstack/browser-tools@workspace:packages/browser-tools"],
 
     "@wrongstack/builtin-plugins": ["@wrongstack/builtin-plugins@workspace:packages/builtin-plugins"],
 

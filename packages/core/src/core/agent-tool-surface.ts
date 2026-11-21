@@ -3,6 +3,10 @@ import { TOKENS } from '@wrongstack/contracts/kernel/tokens';
 import type { Provider } from '@wrongstack/contracts/types/provider';
 import type { BuildContext, SystemPromptBuilder } from '@wrongstack/contracts/types/system-prompt';
 import { providerToolsForVariant } from '../registry/scout-tool-surface.js';
+import {
+  sessionToolCatalog,
+  setSessionToolGroupGovernance,
+} from '../registry/session-tool-groups.js';
 import type { ToolRegistry } from '../registry/tool-registry.js';
 import type { Context } from './context.js';
 
@@ -20,8 +24,10 @@ export async function refreshAgentToolSurface(
 ): Promise<void> {
   const ctx = agent.ctx;
   const meta = ctx.meta ?? {};
+  const config = agent.container?.safeResolve?.(TOKENS.ConfigStore)?.get?.();
+  if (config) setSessionToolGroupGovernance(ctx, config.tools?.kanbanGovernance === true);
   const tools = providerToolsForVariant(agent.tools, meta['systemPromptVariant'], meta, provider);
-  const catalogTools = agent.tools.list();
+  const catalogTools = sessionToolCatalog(ctx, agent.tools.list());
   const changed = ctx.tools !== tools;
   ctx.tools = tools;
   ctx.catalogTools = catalogTools;

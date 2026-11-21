@@ -77,6 +77,9 @@ afterEach(() => {
 });
 
 const DEAD_PID = 2_147_483_646; // never a live pid
+// The race is about ordering, not the wait limit: B waits while A holds the lock, and on a
+// loaded runner the default limit can run out first. A hang still fails at the test timeout.
+const RACE_WAIT_MS = 60_000;
 
 function staleStore(): string {
   const dir = mkdtempSync(path.join(tmpdir(), 'review-claim-lock-race-'));
@@ -98,22 +101,30 @@ it('breaking a stale lock never displaces a fresh holder (gated race)', async ()
   const order: string[] = [];
   const releaseA = g.deferred();
   const b = actor.run('B', () =>
-    withStoreLock(dir, async () => {
-      holders++;
-      maxHolders = Math.max(maxHolders, holders);
-      order.push('B');
-      holders--;
-    }),
+    withStoreLock(
+      dir,
+      async () => {
+        holders++;
+        maxHolders = Math.max(maxHolders, holders);
+        order.push('B');
+        holders--;
+      },
+      RACE_WAIT_MS,
+    ),
   );
   const a = actor.run('A', () =>
-    withStoreLock(dir, async () => {
-      holders++;
-      maxHolders = Math.max(maxHolders, holders);
-      order.push('A');
-      g.aInCs.resolve();
-      await releaseA.promise;
-      holders--;
-    }),
+    withStoreLock(
+      dir,
+      async () => {
+        holders++;
+        maxHolders = Math.max(maxHolders, holders);
+        order.push('A');
+        g.aInCs.resolve();
+        await releaseA.promise;
+        holders--;
+      },
+      RACE_WAIT_MS,
+    ),
   );
   await g.bOpenAfterRename.promise;
   expect(g.bOpenOk).toBe(false);

@@ -65,8 +65,8 @@ const fake = vi.hoisted(() => {
   return { state, raw };
 });
 
-vi.mock('../src/browser/tools.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../src/browser/tools.js')>();
+vi.mock('@wrongstack/browser-tools/tools', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@wrongstack/browser-tools/tools')>();
   return {
     ...actual,
     managerFor: () => ({

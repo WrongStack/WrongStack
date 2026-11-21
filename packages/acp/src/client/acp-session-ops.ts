@@ -309,11 +309,12 @@ export async function executeCreateSession(ctx: ACPSessionOpContext): Promise<Se
     if (resumeMethod) {
       // An agent that no longer has the session (deleted, another machine)
       // refuses it; a new session starts instead.
+      const refused = Symbol('resume_refused');
       const resumed = await ctx
         .sendRequest(ctx.allocId(), resumeMethod, { ...params, sessionId: resumeId })
-        .catch((err: unknown) => ({ refused: err }));
+        .catch(() => refused);
       if (ctx.closed) throw new ACPSessionError('closed', 'session is closed');
-      if (!isJsonRpcError(resumed) && !(resumed as { refused?: unknown }).refused) {
+      if (resumed !== refused && !isJsonRpcError(resumed)) {
         if (resumeMethod === 'session/load') ctx.resetScratch();
         return adoptSessionMode(ctx, resumeId as SessionId, resumed);
       }
@@ -372,6 +373,10 @@ export async function executeOpenSession(
   if (ctx.closed) throw new ACPSessionError('closed', 'session is closed');
   if (ctx.sessionId) return { sessionId: ctx.sessionId, resumed: false };
   const sessionId = await create();
+  if (ctx.closed) {
+    ctx.setSessionId(null);
+    throw new ACPSessionError('closed', 'session is closed');
+  }
   ctx.setSessionId(sessionId);
   return { sessionId, resumed: sessionId === ctx.opts.resumeSessionId };
 }
@@ -383,7 +388,9 @@ async function adoptSessionMode(
   result: unknown,
 ): Promise<SessionId> {
   const want = ctx.opts.initialModeId;
-  const modes = (result as { modes?: { currentModeId?: unknown; availableModes?: unknown } }).modes;
+  const modes = (
+    result as { modes?: { currentModeId?: unknown; availableModes?: unknown } } | null | undefined
+  )?.modes;
   const offered =
     Array.isArray(modes?.availableModes) &&
     modes.availableModes.some((m) => (m as { id?: unknown } | null)?.id === want);

@@ -3,9 +3,9 @@ import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { setBrowserPrivateOrigin } from '@wrongstack/browser-tools/policy';
 import type { Context } from '@wrongstack/core/agent';
 import { describe, expect, it, vi } from 'vitest';
-import { setBrowserPrivateOrigin } from '../src/browser/policy.js';
 import { fetchTool } from '../src/fetch.js';
 import { readUrlContentTool } from '../src/read-url-content.js';
 

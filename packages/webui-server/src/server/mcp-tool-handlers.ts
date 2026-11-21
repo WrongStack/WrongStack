@@ -4,6 +4,7 @@ import {
   type Context,
   isToolReachable,
   providerToolsForVariant,
+  sessionToolCatalog,
 } from '@wrongstack/core/agent';
 import type { TrustBoundary } from '@wrongstack/core/security';
 import { mcpQualifiedToolName, toErrorMessage } from '@wrongstack/core/utils';
@@ -155,7 +156,7 @@ function refreshSurface(agent: Agent): void {
     meta,
     agent.ctx.provider,
   );
-  agent.ctx.catalogTools = agent.tools.list();
+  agent.ctx.catalogTools = sessionToolCatalog(agent.ctx, agent.tools.list());
 }
 
 /**

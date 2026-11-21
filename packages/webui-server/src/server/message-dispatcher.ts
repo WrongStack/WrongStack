@@ -600,6 +600,8 @@ export function createMessageDispatcher(
       // Answer `diag.get` / `stats.get` / `side_effects.list` from the agent
       // that owns the ASKING session, not the one the runtime last switched to.
       getAgent: (sessionId?: string) => deps.getAgent?.(sessionId),
+      peekAgent: (sessionId) =>
+        deps.hasSession?.(sessionId) ? deps.getAgent?.(sessionId) : undefined,
       modelsRegistry: deps.modelsRegistry,
       configStore: deps.configStore,
       updateGlobalConfig: opts.updateGlobalConfig,

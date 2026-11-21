@@ -4,6 +4,14 @@ export {
   SCOUT_DIRECT_TOOL_NAMES,
 } from '../registry/scout-tool-surface.js';
 export {
+  sessionToolCatalog,
+  sessionToolGroupState,
+  sessionToolGroupStates,
+  setProjectToolGroup,
+  setSessionToolGroup,
+  setSessionToolGroupGovernance,
+} from '../registry/session-tool-groups.js';
+export {
   isToolReachable,
   reachableTools,
   reachesCatalog,
@@ -137,6 +145,7 @@ export {
 } from './project-instructions.js';
 export { runProviderWithRetry } from './provider-runner.js';
 export { setQueuedMessagesSnapshot } from './queued-messages.js';
+export { stageDeferredToolSchema } from './request-scoped-context.js';
 export { isSealedAgent, SEALED_AGENT_META_KEY, sealedSubagentRefusal } from './sealed-agent.js';
 export {
   buildSessionNoteBlock,

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-21T09:00:24.435Z",
+  "generatedAt": "2026-11-21T11:10:29.165Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -11,12 +11,12 @@
     ]
   },
   "summary": {
-    "packages": 48,
-    "sourceFiles": 6405,
-    "testFiles": 5592,
-    "sourceLines": 1321621,
-    "workspaceEdges": 251,
-    "moduleEdges": 18941,
+    "packages": 49,
+    "sourceFiles": 6409,
+    "testFiles": 5620,
+    "sourceLines": 1322752,
+    "workspaceEdges": 255,
+    "moduleEdges": 18946,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -93,7 +93,7 @@
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
       "sourceFiles": 58,
-      "testFiles": 69,
+      "testFiles": 70,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -109,7 +109,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 69
+          "testFiles": 70
         }
       ]
     },
@@ -117,7 +117,7 @@
       "name": "@wrongstack/agent-catalog",
       "dir": "packages/agent-catalog",
       "sourceFiles": 44,
-      "testFiles": 14,
+      "testFiles": 15,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/persistence",
@@ -132,7 +132,7 @@
         {
           "path": "packages/agent-catalog/tsconfig.test.json",
           "error": null,
-          "testFiles": 14
+          "testFiles": 15
         }
       ]
     },
@@ -140,7 +140,7 @@
       "name": "@wrongstack/bench",
       "dir": "packages/bench",
       "sourceFiles": 32,
-      "testFiles": 66,
+      "testFiles": 67,
       "workspaceDependencies": [
         "@wrongstack/core"
       ],
@@ -153,7 +153,30 @@
         {
           "path": "packages/bench/tsconfig.test.json",
           "error": null,
-          "testFiles": 66
+          "testFiles": 67
+        }
+      ]
+    },
+    {
+      "name": "@wrongstack/browser-tools",
+      "dir": "packages/browser-tools",
+      "sourceFiles": 14,
+      "testFiles": 20,
+      "workspaceDependencies": [
+        "@wrongstack/contracts",
+        "@wrongstack/core",
+        "@wrongstack/primitives"
+      ],
+      "tsconfigs": [
+        {
+          "path": "packages/browser-tools/tsconfig.json",
+          "error": null,
+          "testFiles": 0
+        },
+        {
+          "path": "packages/browser-tools/tsconfig.test.json",
+          "error": null,
+          "testFiles": 20
         }
       ]
     },
@@ -185,7 +208,7 @@
       "name": "@wrongstack/chronicle",
       "dir": "packages/chronicle",
       "sourceFiles": 54,
-      "testFiles": 57,
+      "testFiles": 58,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -201,7 +224,7 @@
         {
           "path": "packages/chronicle/tsconfig.test.json",
           "error": null,
-          "testFiles": 57
+          "testFiles": 58
         }
       ]
     },
@@ -209,7 +232,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 638,
-      "testFiles": 707,
+      "testFiles": 708,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -261,7 +284,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 707
+          "testFiles": 708
         }
       ]
     },
@@ -313,7 +336,7 @@
     {
       "name": "@wrongstack/contracts",
       "dir": "packages/contracts",
-      "sourceFiles": 132,
+      "sourceFiles": 133,
       "testFiles": 6,
       "workspaceDependencies": [
         "@wrongstack/kanban",
@@ -336,7 +359,7 @@
       "name": "@wrongstack/coordination",
       "dir": "packages/coordination",
       "sourceFiles": 193,
-      "testFiles": 202,
+      "testFiles": 203,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -354,15 +377,15 @@
         {
           "path": "packages/coordination/tsconfig.test.json",
           "error": null,
-          "testFiles": 202
+          "testFiles": 203
         }
       ]
     },
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 661,
-      "testFiles": 738,
+      "sourceFiles": 663,
+      "testFiles": 740,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -379,7 +402,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 738
+          "testFiles": 740
         }
       ]
     },
@@ -414,7 +437,7 @@
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
       "sourceFiles": 63,
-      "testFiles": 20,
+      "testFiles": 21,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -435,7 +458,7 @@
         {
           "path": "packages/fleet/tsconfig.test.json",
           "error": null,
-          "testFiles": 20
+          "testFiles": 21
         }
       ]
     },
@@ -487,7 +510,7 @@
       "name": "@wrongstack/hq",
       "dir": "packages/hq",
       "sourceFiles": 73,
-      "testFiles": 51,
+      "testFiles": 52,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -503,7 +526,7 @@
         {
           "path": "packages/hq/tsconfig.test.json",
           "error": null,
-          "testFiles": 51
+          "testFiles": 52
         }
       ]
     },
@@ -511,7 +534,7 @@
       "name": "@wrongstack/hq-next",
       "dir": "packages/hq-next",
       "sourceFiles": 193,
-      "testFiles": 68,
+      "testFiles": 69,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -528,7 +551,7 @@
         {
           "path": "packages/hq-next/tsconfig.test.json",
           "error": null,
-          "testFiles": 68
+          "testFiles": 69
         }
       ]
     },
@@ -536,7 +559,7 @@
       "name": "@wrongstack/kanban",
       "dir": "packages/kanban",
       "sourceFiles": 108,
-      "testFiles": 104,
+      "testFiles": 105,
       "workspaceDependencies": [
         "@wrongstack/persistence",
         "@wrongstack/primitives"
@@ -550,7 +573,7 @@
         {
           "path": "packages/kanban/tsconfig.test.json",
           "error": null,
-          "testFiles": 104
+          "testFiles": 105
         }
       ]
     },
@@ -607,7 +630,7 @@
       "name": "@wrongstack/mcp",
       "dir": "packages/mcp",
       "sourceFiles": 74,
-      "testFiles": 104,
+      "testFiles": 106,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -621,7 +644,7 @@
         {
           "path": "packages/mcp/tsconfig.test.json",
           "error": null,
-          "testFiles": 104
+          "testFiles": 106
         }
       ]
     },
@@ -671,7 +694,7 @@
       "name": "@wrongstack/plugin-sdk",
       "dir": "packages/plugin-sdk",
       "sourceFiles": 12,
-      "testFiles": 11,
+      "testFiles": 12,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -686,7 +709,7 @@
         {
           "path": "packages/plugin-sdk/tsconfig.test.json",
           "error": null,
-          "testFiles": 11
+          "testFiles": 12
         }
       ]
     },
@@ -764,7 +787,7 @@
       "name": "@wrongstack/providers",
       "dir": "packages/providers",
       "sourceFiles": 138,
-      "testFiles": 128,
+      "testFiles": 130,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -778,7 +801,7 @@
         {
           "path": "packages/providers/tsconfig.test.json",
           "error": null,
-          "testFiles": 128
+          "testFiles": 130
         }
       ]
     },
@@ -830,7 +853,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 126,
-      "testFiles": 69,
+      "testFiles": 70,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -864,7 +887,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 69
+          "testFiles": 70
         }
       ]
     },
@@ -951,7 +974,7 @@
       "name": "@wrongstack/security-scanner",
       "dir": "packages/security-scanner",
       "sourceFiles": 21,
-      "testFiles": 34,
+      "testFiles": 35,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -965,7 +988,7 @@
         {
           "path": "packages/security-scanner/tsconfig.test.json",
           "error": null,
-          "testFiles": 34
+          "testFiles": 35
         }
       ]
     },
@@ -973,7 +996,7 @@
       "name": "@wrongstack/techstack",
       "dir": "packages/techstack",
       "sourceFiles": 55,
-      "testFiles": 65,
+      "testFiles": 66,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -989,7 +1012,7 @@
         {
           "path": "packages/techstack/tsconfig.test.json",
           "error": null,
-          "testFiles": 65
+          "testFiles": 66
         }
       ]
     },
@@ -1019,10 +1042,11 @@
     {
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
-      "sourceFiles": 402,
-      "testFiles": 403,
+      "sourceFiles": 389,
+      "testFiles": 386,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
+        "@wrongstack/browser-tools",
         "@wrongstack/contracts",
         "@wrongstack/coordination",
         "@wrongstack/core",
@@ -1039,7 +1063,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 403
+          "testFiles": 386
         }
       ]
     },
@@ -1129,7 +1153,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 798,
-      "testFiles": 540,
+      "testFiles": 541,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1155,7 +1179,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 540
+          "testFiles": 541
         }
       ]
     },
@@ -1186,7 +1210,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 356,
-      "testFiles": 416,
+      "testFiles": 417,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1221,7 +1245,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 416
+          "testFiles": 417
         }
       ]
     },
@@ -1229,7 +1253,7 @@
       "name": "@wrongstack/worktree",
       "dir": "packages/worktree",
       "sourceFiles": 10,
-      "testFiles": 8,
+      "testFiles": 9,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -1243,7 +1267,7 @@
         {
           "path": "packages/worktree/tsconfig.test.json",
           "error": null,
-          "testFiles": 8
+          "testFiles": 9
         }
       ]
     },
@@ -1251,7 +1275,7 @@
       "name": "@wrongstack/wrongmemory-client",
       "dir": "packages/wrongmemory-client",
       "sourceFiles": 6,
-      "testFiles": 3,
+      "testFiles": 4,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -1262,7 +1286,7 @@
         {
           "path": "packages/wrongmemory-client/tsconfig.test.json",
           "error": null,
-          "testFiles": 3
+          "testFiles": 4
         }
       ]
     },
@@ -1270,7 +1294,7 @@
       "name": "@wrongstack/wrongtrace",
       "dir": "packages/wrongtrace",
       "sourceFiles": 11,
-      "testFiles": 12,
+      "testFiles": 13,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -1281,7 +1305,7 @@
         {
           "path": "packages/wrongtrace/tsconfig.test.json",
           "error": null,
-          "testFiles": 12
+          "testFiles": 13
         }
       ]
     },
@@ -3853,6 +3877,12 @@
         ]
       },
       {
+        "file": "packages/acp/tests/acp-session-ops-audit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/acp-session.test.ts",
         "projects": [
           "root-node"
@@ -4178,6 +4208,12 @@
       },
       {
         "file": "packages/agent-catalog/tests/directive-lift.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/agent-catalog/tests/dispatch-log-malformed.test.ts",
         "projects": [
           "root-node"
         ]
@@ -4519,6 +4555,12 @@
         ]
       },
       {
+        "file": "packages/bench/tests/sandbox-reaper-prefix.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/bench/tests/sandbox-reaper.test.ts",
         "projects": [
           "root-node"
@@ -4640,6 +4682,126 @@
       },
       {
         "file": "packages/bench/tests/transcript-mine.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-artifact-retention.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-doctor-script.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-live-view.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-loopback-allowance.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-manager-guard-regressions.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-manager-open-cleanup.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-manager-origin-refresh.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-manager-shared-launch.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-manager-upload-containment.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-manager.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-network-guard-proxy.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-pick-navigation-race.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-policy-transient.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-policy.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-private-origin-prompt.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-runtime-missing-package.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-runtime.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-security-error-label.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-security.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-tools.test.ts",
         "projects": [
           "root-node"
         ]
@@ -4886,6 +5048,12 @@
       },
       {
         "file": "packages/chronicle/tests/chronicle-stop-drain.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/chronicle/tests/counter-sink-drain-inflight.test.ts",
         "projects": [
           "root-node"
         ]
@@ -5444,6 +5612,12 @@
       },
       {
         "file": "packages/cli/tests/architecture/leader-auto-wake-single-controller.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/arg-parser-auth-flags.test.ts",
         "projects": [
           "root-node"
         ]
@@ -9583,6 +9757,12 @@
         ]
       },
       {
+        "file": "packages/coordination/tests/agent-bridge-sync-throw.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/coordination/tests/agent-bridge.test.ts",
         "projects": [
           "root-node"
@@ -12499,6 +12679,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/http-hook-body-cap.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/infrastructure/context-manager.test.ts",
         "projects": [
           "root-node"
@@ -12938,6 +13124,12 @@
       },
       {
         "file": "packages/core/tests/registry/provider-registry.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/registry/session-tool-groups.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15223,6 +15415,12 @@
         ]
       },
       {
+        "file": "packages/fleet/tests/acp-steer-and-quota-audit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/fleet/tests/architecture-decision-acp.test.ts",
         "projects": [
           "root-node"
@@ -16111,6 +16309,12 @@
         ]
       },
       {
+        "file": "packages/hq-next/tests/scope-offline-machine.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq-next/tests/session-history-model.test.ts",
         "projects": [
           "root-node"
@@ -16172,6 +16376,12 @@
       },
       {
         "file": "packages/hq/tests/approval-bridge.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/approval-grant-expiry-leak.test.ts",
         "projects": [
           "root-node"
         ]
@@ -16777,6 +16987,12 @@
         ]
       },
       {
+        "file": "packages/kanban/tests/management-fence-expiry.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/management-goal-metric-version.test.ts",
         "projects": [
           "root-node"
@@ -17377,6 +17593,12 @@
         ]
       },
       {
+        "file": "packages/mcp/tests/oauth-callback-abort-race.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/mcp/tests/operations.test.ts",
         "projects": [
           "root-node"
@@ -17510,6 +17732,12 @@
       },
       {
         "file": "packages/mcp/tests/server-defensive-branches.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/server-http-catch-after-destroy.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18380,6 +18608,12 @@
       },
       {
         "file": "packages/plugin-sdk/tests/runtime-sandbox.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugin-sdk/tests/safe-json-getter.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19819,6 +20053,18 @@
         ]
       },
       {
+        "file": "packages/providers/tests/codex-token-validation.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/codex-websocket-early-break.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/providers/tests/codex-websocket-live.test.ts",
         "projects": [
           "root-node"
@@ -20786,6 +21032,12 @@
       },
       {
         "file": "packages/runtime/tests/container.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/dep-watcher-handoff-outcome.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22501,6 +22753,12 @@
         ]
       },
       {
+        "file": "packages/security-scanner/tests/gitignore-updater-write-failure.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/security-scanner/tests/gitignore-updater.test.ts",
         "projects": [
           "root-node"
@@ -22790,6 +23048,12 @@
       },
       {
         "file": "packages/techstack/tests/engine-analyze.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/techstack/tests/enrich-phase-abort.test.ts",
         "projects": [
           "root-node"
         ]
@@ -23467,6 +23731,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/background-log-tail-boundary.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/background-log.test.ts",
         "projects": [
           "root-node"
@@ -23540,126 +23810,6 @@
       },
       {
         "file": "packages/tools/tests/bash.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-artifact-retention.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-doctor-script.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-live-view.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-loopback-allowance.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-manager-guard-regressions.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-manager-open-cleanup.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-manager-origin-refresh.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-manager-shared-launch.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-manager-upload-containment.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-manager.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-network-guard-proxy.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-pick-navigation-race.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-policy-transient.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-policy.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-private-origin-prompt.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-runtime-missing-package.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-runtime.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-security-error-label.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-security.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/tools/tests/browser-tools.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24379,6 +24529,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/exec-arg-validation-find-bypass.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/exec-autonomy.test.ts",
         "projects": [
           "root-node"
@@ -24392,6 +24548,12 @@
       },
       {
         "file": "packages/tools/tests/exec-kill-guard-group-kill.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/exec-kill-guard-taskkill-colon.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31027,6 +31189,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/shutdown-and-prefs-audit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/shutdown-registration-disposal.test.ts",
         "projects": [
           "root-node"
@@ -32720,6 +32888,12 @@
       },
       {
         "file": "packages/webui/tests/components/quick-model-switcher.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/quick-tool-groups.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -34753,6 +34927,12 @@
         ]
       },
       {
+        "file": "packages/worktree/tests/cleanup-concurrent-handle.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/worktree/tests/git-worktree-list-alias.test.ts",
         "projects": [
           "root-node"
@@ -34807,6 +34987,12 @@
         ]
       },
       {
+        "file": "packages/wrongmemory-client/tests/discovery-validation.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/wrongmemory-client/tests/discovery.test.ts",
         "projects": [
           "root-node"
@@ -34826,6 +35012,12 @@
       },
       {
         "file": "packages/wrongtrace/src/__tests__/baseurl-and-activity-order.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/wrongtrace/src/__tests__/client-fetch-impl.test.ts",
         "projects": [
           "root-node"
         ]
@@ -35907,8 +36099,8 @@
     },
     {
       "file": "packages/contracts/src/types/index.ts",
-      "lines": 707,
-      "relativeImports": 75
+      "lines": 716,
+      "relativeImports": 76
     },
     {
       "file": "packages/coordination/src/agent-monitor.ts",
@@ -36053,7 +36245,7 @@
     {
       "file": "packages/tools/src/design-reference.ts",
       "lines": 853,
-      "relativeImports": 2
+      "relativeImports": 1
     },
     {
       "file": "packages/tools/src/design.ts",
@@ -36330,7 +36522,7 @@
     {
       "file": "packages/tools/src/design-reference.ts",
       "lines": 853,
-      "relativeImports": 2
+      "relativeImports": 1
     },
     {
       "file": "packages/webui/src/components/DesignGalleryView.tsx",
@@ -36989,6 +37181,10 @@
     {
       "file": "packages/bench/src/suites/polyglot.ts",
       "name": "prepareExercise"
+    },
+    {
+      "file": "packages/browser-tools/src/artifacts.ts",
+      "name": "_resetArtifactSweepForTests"
     },
     {
       "file": "packages/builtin-plugins/src/auto-review-git.ts",
@@ -39277,10 +39473,6 @@
     {
       "file": "packages/tools/src/bash-kill-guard.ts",
       "name": "parseKillCommand"
-    },
-    {
-      "file": "packages/tools/src/browser/artifacts.ts",
-      "name": "_resetArtifactSweepForTests"
     },
     {
       "file": "packages/tools/src/builtin.ts",

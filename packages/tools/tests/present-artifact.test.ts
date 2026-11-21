@@ -1,9 +1,9 @@
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { liveBrowser } from '@wrongstack/browser-tools/tools';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { parseArtifactPresentation } from '../src/artifact-presentation.js';
-import { liveBrowser } from '../src/browser/tools.js';
 import { presentArtifactTool } from '../src/present-artifact.js';
 
 const roots: string[] = [];

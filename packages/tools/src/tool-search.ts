@@ -1,4 +1,5 @@
 import type { Tool } from '@wrongstack/contracts/types';
+import { stageDeferredToolSchema } from '@wrongstack/core/agent';
 import { toolDiscoveryMetadata } from './tool-discovery-metadata.js';
 
 export interface ToolSearchInput {
@@ -35,6 +36,7 @@ export interface ToolSearchOutput {
     mutating: boolean;
     /** True when the schema was left out; search the exact name to get it. */
     schemaOmitted?: true | undefined;
+    schemaRevision?: string | undefined;
   }[];
   total: number;
   truncated: boolean;
@@ -62,15 +64,14 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
   name: 'tool_search',
   category: 'Meta',
   description:
-    'Search the catalog of available tools by name or description. Use this to discover which tool to use for a task, ' +
-    'including tools whose schemas were withheld from this request to save tokens. Results include the exact input schema needed by tool_use.',
+    'Search available tools by name or description, including deferred tools. Look up the exact name to load its input schema, then invoke the tool with tool_use.',
   usageHint:
     'SELF-DISCOVERY TOOL:\n\n' +
     '- Use when you need to find the right tool for a job.\n' +
     '- `query` searches names and descriptions.\n' +
     '- You can filter by `tags` (category, capability, or name terms), `permission`, or `mutating`.\n' +
-    '- The catalog searched here is the full registry, not just the tools listed in this request.\n' +
-    '- The first 3 results include `inputSchema`; for another result, search its exact name to get the schema.\n' +
+    '- Search includes the tools this session can reach through the catalog.\n' +
+    '- Search the exact name for `inputSchema`. Quick attaches it to the next request. Other profiles may include schemas on the first three results.\n' +
     '- Once you find the right tool name, invoke it with `tool_use`.\n' +
     'Call this before concluding a capability is unavailable.',
   permission: 'auto',
@@ -113,6 +114,7 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
     const limit = Math.max(1, Math.min(Math.floor(rawLimit), 100));
     const tools = ctx.catalogTools ?? ctx.tools;
     const query = input.query?.toLowerCase() ?? '';
+    const quick = ctx.meta?.['systemPromptVariant'] === 'quick';
     const scores = new Map<Tool, number>();
 
     const filtered = tools.filter((t: Tool) => {
@@ -159,12 +161,15 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
 
     // Best match first; ties keep registry order.
     if (query) filtered.sort((x, y) => (scores.get(y) ?? 0) - (scores.get(x) ?? 0));
+    const best = filtered[0];
+    const exact = quick && best && scores.get(best) === 2_000 ? best : undefined;
+    const schemaRevision = exact ? stageDeferredToolSchema(ctx, exact) : undefined;
     // Full schemas only for the leading matches: a 20-result answer carrying
     // every schema and usage hint cost ~29 KB of context, most of it for tools
     // the model never calls. The rest stay identifiable by name and a short
     // description; searching the exact name returns that tool's schema.
     const results = filtered.slice(0, limit).map((t: Tool, index: number) =>
-      index < SCHEMA_RESULTS
+      !quick && index < SCHEMA_RESULTS
         ? {
             name: t.name,
             description: t.description,
@@ -183,6 +188,7 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
             permission: t.permission,
             mutating: t.mutating,
             schemaOmitted: true as const,
+            ...(t === exact && schemaRevision ? { schemaRevision } : {}),
           },
     );
 
@@ -217,9 +223,11 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
               )}. Search the exact suggested name to get its schema, then call it with tool_use.`
           : results.length === 0 && query
             ? `No tools matched "${input.query}". ${totalAvailable} tools are available; try a broader query, or call tool_search with no query and limit up to 100.`
-            : results.length > SCHEMA_RESULTS
-              ? `Schemas are included for the first ${SCHEMA_RESULTS} results; call tool_search with another tool's exact name to get its inputSchema.`
-              : undefined;
+            : quick && !exact && results.length > 0
+              ? 'Search an exact tool name to load its input schema for the next request.'
+              : !quick && results.length > SCHEMA_RESULTS
+                ? `Schemas are included for the first ${SCHEMA_RESULTS} results; call tool_search with another tool's exact name to get its inputSchema.`
+                : undefined;
 
     return {
       tools: results,
@@ -293,6 +301,8 @@ function renderToolSearch(output: ToolSearchOutput, input: ToolSearchInput): str
   ].join('');
   const lines = output.tools.map((tool, index) => {
     const flags = `${tool.permission}${tool.mutating ? ', mutating' : ''}`;
+    if (tool.schemaRevision)
+      return `${index + 1}. ${tool.name} [${flags}] — input schema revision ${tool.schemaRevision} attached for the next request.`;
     if (tool.schemaOmitted) return `${index + 1}. ${tool.name} [${flags}] — ${tool.description}`;
     // The exact-name lookup is the "give me everything" call: usage verbatim.
     // Beside a ranked list, one bounded line.

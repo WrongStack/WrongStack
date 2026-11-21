@@ -23,7 +23,7 @@ and evidence contract.
 `bun packages/webui/tests/competitive-improvements-browser-smoke.mjs` checks the
 real forms and context/image composer flow at desktop and phone widths, using a
 fixture API/transport. The real DOM picker is covered by
-`packages/tools/tests/browser-live-view.test.ts`; the independent Docker proof is
+`packages/browser-tools/tests/browser-live-view.test.ts`; the independent Docker proof is
 `bun packages/runtime/scripts/automation-verification-smoke.ts --image <trusted-image-with-git>`.
 
 In **Settings > MCP Servers > MCP tasks**, inspect tasks saved for the open

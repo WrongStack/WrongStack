@@ -233,17 +233,23 @@ describe('execTool', () => {
       }
     });
 
-    it('keeps git/find option-name scanning stopped at `--` (pathspecs, not options)', async () => {
+    it('keeps git option-name scanning stopped at `--` (pathspecs, not options)', async () => {
       for (const [command, args] of [
         ['git', ['log', '--', '-c']],
         ['git', ['log', '--', '--exec']],
-        ['find', ['.', '--', '-exec']],
       ] as const) {
         const outcome = await settle(
           execTool.execute({ command, args: [...args] }, makeCtx(), makeOpts()),
         );
         expect(outcome.error?.message ?? '').not.toMatch(/Blocked (option|argument)/);
       }
+    });
+
+    it('keeps blocking find command primaries after `--` (it only ends -H/-L/-P)', async () => {
+      const outcome = await settle(
+        execTool.execute({ command: 'find', args: ['.', '--', '-exec'] }, makeCtx(), makeOpts()),
+      );
+      expect(outcome.error?.message ?? '').toMatch(/Blocked option "-exec"/);
     });
   });
 

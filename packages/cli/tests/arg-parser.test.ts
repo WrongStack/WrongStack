@@ -354,11 +354,12 @@ describe('parseAuthFlags', () => {
     expect(r.envVars).toEqual(['A_KEY', 'B_KEY']);
   });
 
-  it('greedy consumption: a flag will consume the next token even if it starts with --', () => {
+  it('a value flag never takes the next flag as its value', () => {
     const r = parseAuthFlags(['--label', '--family', 'fam']);
-    // --label consumes "--family" as its value; "fam" becomes positional.
-    expect(r.label).toBe('--family');
-    expect(r.positional).toEqual(['fam']);
+    // --label has no value of its own; --family keeps "fam".
+    expect(r.label).toBeUndefined();
+    expect(r.family).toBe('fam');
+    expect(r.positional).toEqual([]);
   });
 
   it('ignores unknown bare flags but keeps positional words', () => {

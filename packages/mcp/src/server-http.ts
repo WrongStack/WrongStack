@@ -236,7 +236,9 @@ export async function handleHttpRequest(
       })
       .catch((err) => {
         log?.warn?.(`MCP http handler error: ${toErrorMessage(err)}`);
-        send(500, JSON.stringify({ error: 'internal error' }));
+        if (!res.destroyed && !res.headersSent && !res.writableEnded) {
+          send(500, JSON.stringify({ error: 'internal error' }));
+        }
       });
   });
 }

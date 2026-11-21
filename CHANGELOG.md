@@ -60,6 +60,17 @@ symbol anchors can check the symbol body they were written against.
 - Agent office: a worker that timed out shows as an error, not idle.
 - SAGE health reads the doctor again when its panel remounts instead of showing
   a timeout, and the desktop model picker lists each catalog model once.
+- Robustness: ACP sessions refuse creation and resume on a closed session, the
+  dispatch log and Codex token replies tolerate malformed data, the bench sandbox
+  reaper matches process names on a boundary, Chronicle keeps counter errors while
+  draining, fleet steering and transport survive synchronous failures and quota
+  holds last their full time, HQ recognises offline machine scopes and clears
+  expired approval grants, an aborted MCP OAuth callback server closes, Kanban
+  validates management leases, and the dependency watcher, tech-stack enrichment,
+  worktree cleanup, background log tails, WrongMemory discovery and WrongTrace
+  requests handle aborts, failed writes and concurrent handles.
+- The Agent office keeps one session's fleet status off another session's agent
+  with the same id.
 
 ## [1.7.13] — 2026-11-20
 

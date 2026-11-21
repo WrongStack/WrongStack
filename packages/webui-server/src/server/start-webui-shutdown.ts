@@ -205,6 +205,11 @@ export function setupWebuiShutdown(options: {
       await options.stopHeapWatchdog();
       await options.stopTelemetryExport?.().catch(() => undefined);
       options.getCredentialWatcherClose()?.();
+      try {
+        options.getProxyInstantApplyDispose()?.();
+      } catch (err) {
+        options.logger.warn(`proxy instant-apply disposal failed: ${toErrorMessage(err)}`);
+      }
       if (options.disposeRealtimeHandlers) {
         options.disposeRealtimeHandlers();
       }

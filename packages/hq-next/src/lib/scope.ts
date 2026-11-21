@@ -112,7 +112,9 @@ export function machineIdsForScope(scope: FleetScope, snapshot: HqSnapshot | nul
 export function effectiveScope(scope: FleetScope, snapshot: HqSnapshot | null): FleetScope {
   if (scope.kind === 'all' || snapshot === null) return ALL_SCOPE;
   if (scope.kind === 'machine') {
-    const known = [...keysByMachineId(snapshot).values()].includes(scope.id);
+    const known =
+      [...keysByMachineId(snapshot).values()].includes(scope.id) ||
+      (snapshot.offlineMachines ?? []).some((machine) => machine.key === scope.id);
     return known ? scope : ALL_SCOPE;
   }
   if (scope.kind === 'label') {

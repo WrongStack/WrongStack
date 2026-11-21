@@ -342,4 +342,38 @@ describe('resolveClients merge + retention fold', () => {
     const workerHits = (clients[0]?.agents ?? []).filter((a) => a.serverId === 'w1');
     expect(workerHits).toHaveLength(1);
   });
+
+  it('does not overlay one session fleet telemetry onto another session sharing the same agent id', () => {
+    const sessionA: LiveSession = {
+      sessionId: '2026-11-21/session-a',
+      clientType: 'webui',
+      agents: [{ id: 'leader', name: 'Leader A', status: 'running', tokensIn: 100 }],
+    };
+    const sessionB: LiveSession = {
+      sessionId: '2026-11-21/session-b',
+      clientType: 'tui',
+      agents: [{ id: 'leader', name: 'Leader B', status: 'idle', tokensIn: 0 }],
+    };
+    const fleetAgents = new Map<string, SubagentView>([
+      [
+        'leader',
+        fleetAgent({
+          id: 'leader',
+          sessionId: 'session-a',
+          status: 'running',
+          tokensIn: 4000,
+          currentTool: 'edit_file',
+        }),
+      ],
+    ]);
+
+    const clients = resolveClients([sessionA, sessionB], fleetAgents);
+    const resolvedA = clients.find((c) => c.sessionId === sessionA.sessionId);
+    const resolvedB = clients.find((c) => c.sessionId === sessionB.sessionId);
+
+    expect(resolvedA?.agents[0]).toMatchObject({ status: 'active', tokensIn: 4000 });
+    expect(resolvedB?.status).toBe('idle');
+    expect(resolvedB?.agents[0]).toMatchObject({ status: 'idle', tokensIn: 0 });
+    expect(resolvedB?.agents[0]?.currentTool).toBeUndefined();
+  });
 });

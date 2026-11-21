@@ -43,13 +43,13 @@ export function safeJsonStringify(value: unknown, indent?: number): string {
         ) {
           stack.pop();
         }
-        const raw =
-          typeof this === 'object' &&
-          this !== null &&
-          typeof (this as Record<string, unknown>)[key] === 'object' &&
-          (this as Record<string, unknown>)[key] !== null
-            ? ((this as Record<string, unknown>)[key] as object)
-            : val;
+        // Recover pre-toJSON identity for own data properties without re-invoking getters.
+        const descriptor =
+          typeof this === 'object' && this !== null
+            ? Object.getOwnPropertyDescriptor(this, key)
+            : undefined;
+        const rawVal: unknown = descriptor && 'value' in descriptor ? descriptor.value : val;
+        const raw = typeof rawVal === 'object' && rawVal !== null ? (rawVal as object) : val;
         if (
           stack.some(
             (entry) =>

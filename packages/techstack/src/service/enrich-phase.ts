@@ -72,6 +72,9 @@ export async function runEnrichPhase(
             }
           : { privateOrUnresolved: true };
       } catch (error) {
+        if (options.signal?.aborted) {
+          throw new DOMException('TechStack job cancelled', 'AbortError');
+        }
         const unresolved =
           error instanceof RegistryNotFoundError || error instanceof RegistryAuthError;
         registryStatus = unresolved
@@ -118,6 +121,9 @@ export async function runEnrichPhase(
           }
         }
       } catch {
+        if (options.signal?.aborted) {
+          throw new DOMException('TechStack job cancelled', 'AbortError');
+        }
         // Registry evidence still produces a useful deterministic snapshot.
       }
       for (const dependency of dependencies) {

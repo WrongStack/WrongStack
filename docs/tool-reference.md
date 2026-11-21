@@ -5828,7 +5828,7 @@ WRONGSTACK TOOLFLOW — compose several tool calls in one step:
 
 ## tool_search
 
-Search the full tool catalog by name or description, including tools whose schemas were withheld from this request to save tokens. Results include each matching tool input schema; use it before concluding a capability is unavailable, then invoke the local tool with tool_use instead of searching MCP.
+Search available tools by name or description, including deferred tools. Look up the exact name to load its input schema, then invoke the tool with tool_use.
 
 Permission: `auto`; mutating: `false`; icon: `meta`; color: `#cbd5e1`.
 
@@ -5839,8 +5839,8 @@ SELF-DISCOVERY TOOL:
 - Use when you need to find the right tool for a job.
 - `query` searches names and descriptions.
 - You can filter by `tags` (category, capability, or name terms), `permission`, or `mutating`.
-- The catalog searched here is the full registry, not just the tools listed in this request.
-- The first 3 results include `inputSchema`; for another result, search its exact name to get the schema.
+- Search includes the tools this session can reach through the catalog.
+- Search the exact name for `inputSchema`. Quick attaches it to the next request. Other profiles may include schemas on the first three results.
 - Once you find the right tool name, invoke it with `tool_use`.
 Call this before concluding a capability is unavailable.
 

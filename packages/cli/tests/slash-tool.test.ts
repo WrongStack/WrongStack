@@ -5,7 +5,7 @@ import type { Config, Tool } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import { ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultConfigStore } from '@wrongstack/core/storage';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildToolCommand } from '../src/slash-commands/tool.js';
 
 let tmp: string;
@@ -82,6 +82,40 @@ afterEach(async () => {
 });
 
 describe('buildToolCommand', () => {
+  it('sets Kanban for the active Quick context without writing global config', async () => {
+    const { command, globalConfig } = makeCommand();
+    const active = { meta: { systemPromptVariant: 'quick' } } as unknown as Context;
+    const other = { meta: { systemPromptVariant: 'quick' } } as unknown as Context;
+    expect((await command.run('group kanban on', active))?.message).toContain(
+      'available on demand',
+    );
+    expect((await command.run('group kanban', other))?.message).toContain('disabled');
+    expect((await command.run('group kanban off', active))?.message).toContain('disabled');
+    await expect(fs.stat(globalConfig)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('saves a group default for future Quick sessions and supports returning to Auto', async () => {
+    const { command } = makeCommand();
+    vi.stubEnv('WRONGSTACK_HOME', path.join(tmp, 'user-state'));
+    try {
+      const projectRoot = path.join(tmp, 'project');
+      const context = () =>
+        ({ projectRoot, meta: { systemPromptVariant: 'quick' } }) as unknown as Context;
+      expect((await command.run('group browser on --project', context()))?.message).toContain(
+        'on (project)',
+      );
+      expect((await command.run('group browser', context()))?.message).toContain(
+        'available on demand',
+      );
+      expect((await command.run('group browser auto --project', context()))?.message).toContain(
+        'auto · disabled',
+      );
+      expect((await command.run('group browser', context()))?.message).toContain('auto · disabled');
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it('persists and applies a simple tool description mode', async () => {
     const { command, toolRegistry, configStore, globalConfig } = makeCommand();
 

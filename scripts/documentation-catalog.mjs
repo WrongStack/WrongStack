@@ -56,7 +56,7 @@ const tools = JSON.parse(read('architecture/tool-catalog.json'))
 if (JSON.stringify(sourceToolNames) !== JSON.stringify(tools)) {
   throw new Error('Built-in catalog artifact is stale; run bun run tools:catalog:write');
 }
-const browserCount = array('packages/tools/src/browser/tools.ts', 'browserTools').length;
+const browserCount = array('packages/browser-tools/src/tools.ts', 'browserTools').length;
 const rawTools = array(builtinFile, 'rawBuiltinTools');
 // The one spread must remain the browser suite; changed source shapes require review.
 const spreads = rawTools.filter(ts.isSpreadElement);

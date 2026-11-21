@@ -166,6 +166,7 @@ export function createWebuiRouteContexts({
     // agent for a stale id can evict a live tab's.
     getAgent: (sessionId?: string) =>
       peekSessionAgent?.(sessionId) ?? (sessionId ? getSessionAgent(sessionId) : opts.agent),
+    ...(peekSessionAgent ? { peekAgent: peekSessionAgent } : {}),
     modelsRegistry: opts.modelsRegistry,
     configStore: introspectionConfigStore,
     getConfig: () => {

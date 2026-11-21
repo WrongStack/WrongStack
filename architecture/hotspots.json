@@ -43,8 +43,8 @@
       "relativeImports": 4
     },
     "packages/contracts/src/types/index.ts": {
-      "lines": 707,
-      "relativeImports": 75
+      "lines": 716,
+      "relativeImports": 76
     },
     "packages/coordination/src/agent-monitor.ts": {
       "lines": 724,
@@ -160,7 +160,7 @@
     },
     "packages/tools/src/design-reference.ts": {
       "lines": 853,
-      "relativeImports": 2
+      "relativeImports": 1
     },
     "packages/tools/src/design.ts": {
       "lines": 780,

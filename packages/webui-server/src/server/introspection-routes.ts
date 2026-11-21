@@ -1,5 +1,19 @@
-import type { Config, ConfigStore, ModelsRegistry } from '@wrongstack/contracts/types';
-import type { Agent } from '@wrongstack/core/agent';
+import {
+  type Config,
+  type ConfigStore,
+  isSessionToolGroup,
+  isSessionToolGroupMode,
+  type ModelsRegistry,
+} from '@wrongstack/contracts/types';
+import {
+  type Agent,
+  providerToolsForVariant,
+  sessionToolCatalog,
+  sessionToolGroupStates,
+  setProjectToolGroup,
+  setSessionToolGroup,
+  setSessionToolGroupGovernance,
+} from '@wrongstack/core/agent';
 import { exportToolCatalog, runBrowserPolicyCommand } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
 import { resolveProviderModelMetadata } from './model-catalog.js';
@@ -26,6 +40,8 @@ export interface IntrospectionRouteContext {
    * omit it and keep exactly their old behaviour.
    */
   getAgent?: ((sessionId?: string) => Agent | undefined) | undefined;
+  /** Non-creating lookup for live tool-group changes. */
+  peekAgent?: ((sessionId: string) => Agent | undefined) | undefined;
   modelsRegistry?: ModelsRegistry | undefined;
   configStore?: ConfigStore | undefined;
   /** Durable active-profile writer; ConfigStore.update only changes memory. */
@@ -54,8 +70,8 @@ interface ToolEntryLike {
   owner: string;
 }
 
-function toolEntries(ctx: IntrospectionRouteContext): ToolEntryLike[] {
-  const registry = ctx.agent.tools as unknown as {
+function toolEntries(agent: Agent): ToolEntryLike[] {
+  const registry = agent.tools as unknown as {
     list?: () => ToolLike[];
     listForProvider?: () => ToolLike[];
     listWithOwner?: () => ToolEntryLike[];
@@ -128,7 +144,14 @@ export async function handleIntrospectionRoute(
   // runtime happens to be sitting on. Resolved without calling
   // `getSessionId()`: this function also sees message types it does not
   // handle, and must not require host accessors to answer them.
-  const agent = ctx.getAgent?.(messageSessionId(message)) ?? ctx.agent;
+  const namedSession = messageSessionId(message);
+  const asksForTools = message.type === 'tools.list' || message.type === 'tools.group.set';
+  if (asksForTools && !sessionAllowed(ctx, ws, message)) return true;
+  const namedAgent =
+    asksForTools && namedSession && ctx.peekAgent
+      ? ctx.peekAgent(namedSession)
+      : ctx.getAgent?.(namedSession);
+  const agent = namedAgent ?? ctx.agent;
   const actx = agent.ctx;
   const config = ctx.getConfig();
   /** The id to stamp a reply with — the asking tab's, falling back to the runtime's. */
@@ -264,20 +287,59 @@ export async function handleIntrospectionRoute(
       });
       return true;
     }
+    case 'tools.group.set':
     case 'tools.list': {
-      const registry = ctx.agent.tools as unknown as {
+      const setGroup = message.type === 'tools.group.set';
+      const sessionAvailable =
+        namedAgent !== undefined || !namedSession || namedSession === ctx.getSessionId();
+      const quick = sessionAvailable && actx.meta?.['systemPromptVariant'] === 'quick';
+      let groupError: string | undefined;
+      if (quick) setSessionToolGroupGovernance(actx, config.tools?.kanbanGovernance === true);
+      if (setGroup) {
+        const { group, mode, scope } = (message.payload ?? {}) as {
+          group?: unknown;
+          mode?: unknown;
+          scope?: unknown;
+        };
+        try {
+          if (!quick) throw new Error('Select an active Quick session to change tool groups.');
+          if (!isSessionToolGroup(group)) throw new Error('Select a known Quick tool group.');
+          if (scope === 'project' && isSessionToolGroupMode(mode)) {
+            await setProjectToolGroup(actx, group, mode);
+          } else if (scope === undefined && (mode === 'inherit' || isSessionToolGroupMode(mode))) {
+            setSessionToolGroup(actx, group, mode);
+          } else {
+            throw new Error('Select a valid tool group mode and scope.');
+          }
+        } catch (error) {
+          groupError = errMessage(error);
+        }
+      }
+      const registry = agent.tools as unknown as {
         isDisabled?: (name: string) => boolean;
         isExposedToProvider?: (name: string) => boolean;
       };
-      const tools = toolEntries(ctx).map(({ tool, owner }) => {
+      const available = quick
+        ? new Set(sessionToolCatalog(actx, agent.tools.list()).map((tool) => tool.name))
+        : undefined;
+      const direct = quick
+        ? new Set(
+            providerToolsForVariant(agent.tools, 'quick', actx.meta, actx.provider).map(
+              (tool) => tool.name,
+            ),
+          )
+        : undefined;
+      const tools = toolEntries(agent).map(({ tool, owner }) => {
         const schema = tool.inputSchema ?? {};
+        const disabled = registry.isDisabled?.(tool.name) ?? false;
         return {
           name: tool.name,
           owner,
           description: tool.description ?? '',
           params: schema.properties ? Object.keys(schema.properties) : [],
-          disabled: registry.isDisabled?.(tool.name) ?? false,
-          direct: registry.isExposedToProvider?.(tool.name) ?? true,
+          disabled,
+          ...(!disabled && available && !available.has(tool.name) ? { groupDisabled: true } : {}),
+          direct: direct?.has(tool.name) ?? registry.isExposedToProvider?.(tool.name) ?? true,
           mutating: !!tool.mutating,
           permission: tool.permission ?? 'auto',
         };
@@ -292,6 +354,9 @@ export async function handleIntrospectionRoute(
         type: 'tools.list',
         payload: withRequestId(message.payload, {
           tools,
+          ...(namedSession ? { sessionId: namedSession } : {}),
+          ...(quick ? { toolGroups: sessionToolGroupStates(actx) } : {}),
+          ...(groupError ? { groupError } : {}),
           ...(includeCatalog ? { catalog: catalog ?? null } : {}),
         }),
       });

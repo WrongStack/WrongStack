@@ -1,3 +1,4 @@
+import { ToolRegistry } from '@wrongstack/core/registry';
 import { describe, expect, it } from 'vitest';
 import type { WebSocket } from 'ws';
 import {
@@ -67,6 +68,56 @@ function makeContext() {
 }
 
 describe('introspection answers about the asking session', () => {
+  it('changes a Quick group on the selected tab and rejects a missing tab', async () => {
+    const { ctx, sent } = makeContext();
+    const registry = new ToolRegistry();
+    for (const name of ['kanban', 'tool_search', 'tool_use']) {
+      registry.register({
+        name,
+        inputSchema: {},
+        description: name,
+        permission: 'auto',
+        mutating: false,
+        async execute() {},
+      });
+    }
+    for (const sessionId of ['tab-1', 'tab-2']) {
+      const agent = ctx.getAgent?.(sessionId);
+      if (!agent) throw new Error('Missing fixture agent');
+      Object.assign(agent, { tools: registry });
+      Object.assign(agent.ctx, { meta: { systemPromptVariant: 'quick' } });
+    }
+    await handleIntrospectionRoute(ctx, ws, {
+      type: 'tools.group.set',
+      payload: { sessionId: 'missing', group: 'kanban', mode: 'on' },
+    });
+    expect(sent.at(-1)?.payload).toHaveProperty('groupError');
+    await handleIntrospectionRoute(ctx, ws, {
+      type: 'tools.group.set',
+      payload: { sessionId: 'tab-2', group: 'kanban', mode: 'on', requestId: 'group-update' },
+    });
+    expect(sent.at(-1)?.payload).toMatchObject({
+      sessionId: 'tab-2',
+      requestId: 'group-update',
+      toolGroups: expect.arrayContaining([
+        expect.objectContaining({ group: 'kanban', mode: 'on', enabled: true, required: false }),
+      ]),
+    });
+    await handleIntrospectionRoute(ctx, ws, {
+      type: 'tools.list',
+      payload: { sessionId: 'tab-1' },
+    });
+    expect(sent.at(-1)?.payload).toMatchObject({
+      sessionId: 'tab-1',
+      toolGroups: expect.arrayContaining([
+        expect.objectContaining({ group: 'kanban', mode: 'auto', enabled: false, required: false }),
+      ]),
+      tools: expect.arrayContaining([
+        expect.objectContaining({ name: 'kanban', groupDisabled: true, direct: false }),
+      ]),
+    });
+  });
+
   it('stats.get reports the ASKING tab’s numbers, not the runtime’s', async () => {
     const { ctx, sent } = makeContext();
     await handleIntrospectionRoute(ctx, ws, {

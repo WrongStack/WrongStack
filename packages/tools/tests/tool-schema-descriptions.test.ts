@@ -1,5 +1,5 @@
+import { browserTools } from '@wrongstack/browser-tools/tools';
 import { describe, expect, it } from 'vitest';
-import { browserTools } from '../src/browser/tools.js';
 import { builtinTools } from '../src/builtin.js';
 import { clarifyTool } from '../src/clarify.js';
 import { KANBAN_INPUT_SCHEMA } from '../src/kanban-tool-schema.js';

@@ -213,8 +213,8 @@ export interface CodexTokens {
 }
 
 interface TokenEndpointResponse {
-  access_token?: string;
-  refresh_token?: string;
+  access_token?: unknown;
+  refresh_token?: unknown;
   expires_in?: number;
   id_token?: string;
 }
@@ -307,7 +307,12 @@ export async function readCodexTokenResponse(
     });
   }
   const refresh = json?.refresh_token ?? currentRefreshToken;
-  if (!json?.access_token || !refresh) {
+  if (
+    typeof json?.access_token !== 'string' ||
+    json.access_token.trim().length === 0 ||
+    typeof refresh !== 'string' ||
+    refresh.trim().length === 0
+  ) {
     throw new ParseError({
       message: `Codex token ${op} response missing fields`,
       source: 'openai-codex-token-response',

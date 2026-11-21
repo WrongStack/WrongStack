@@ -6,11 +6,7 @@
  * are tested separately. Memory tools (remember/forget/search/related) are also
  * factory functions that require MemoryStore injection and are excluded.
  */
-import { describe, expect, it } from 'vitest';
 
-// --- Static tools (no runtime injection required) ---
-import { auditTool } from '../src/audit.js';
-import { bashTool } from '../src/bash.js';
 import {
   browserClickTool,
   browserCloseTool,
@@ -28,7 +24,11 @@ import {
   browserTypeTool,
   browserUploadTool,
   browserWaitTool,
-} from '../src/browser/tools.js';
+} from '@wrongstack/browser-tools/tools';
+import { describe, expect, it } from 'vitest';
+// --- Static tools (no runtime injection required) ---
+import { auditTool } from '../src/audit.js';
+import { bashTool } from '../src/bash.js';
 import { clarifyTool } from '../src/clarify.js';
 import {
   codebaseAstReplaceTool,

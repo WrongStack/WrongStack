@@ -537,6 +537,16 @@ const profiles = {
   // imports nothing: the core subpaths the protocol's main entry loads stay
   // out of a client process.
   '@wrongstack/client': standard(['@wrongstack/webui-protocol']),
+  '@wrongstack/browser-tools': {
+    entries: entryMap(['src/index.ts', 'src/policy.ts', 'src/security.ts', 'src/tools.ts']),
+    splitting: true,
+    external: [
+      '@playwright/test',
+      '@wrongstack/contracts',
+      '@wrongstack/core',
+      '@wrongstack/primitives',
+    ],
+  },
   '@wrongstack/tools': {
     entries: toolEntries,
     // Same reason as `@wrongstack/core`: 58 subpath entries with splitting OFF
@@ -555,6 +565,7 @@ const profiles = {
     // chunks there needs no per-resolver special casing.
     chunkNames: '[name]-[hash]',
     external: [
+      '@wrongstack/browser-tools',
       '@typescript/typescript6',
       '@wrongstack/core',
       '@wrongstack/kanban',

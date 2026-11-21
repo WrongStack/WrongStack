@@ -6,13 +6,14 @@ tools in an individual session or verified external-service availability.
 
 ## Workspace packages
 
-46 packages, 2 applications, plus the private website.
+47 packages, 2 applications, plus the private website.
 
 | Package | Manifest | Publication |
 |---|---|---|
 | `@wrongstack/acp` | [packages/acp/package.json](../packages/acp/package.json) | private |
 | `@wrongstack/agent-catalog` | [packages/agent-catalog/package.json](../packages/agent-catalog/package.json) | private |
 | `@wrongstack/bench` | [packages/bench/package.json](../packages/bench/package.json) | private |
+| `@wrongstack/browser-tools` | [packages/browser-tools/package.json](../packages/browser-tools/package.json) | private |
 | `@wrongstack/builtin-plugins` | [packages/builtin-plugins/package.json](../packages/builtin-plugins/package.json) | private |
 | `@wrongstack/chronicle` | [packages/chronicle/package.json](../packages/chronicle/package.json) | private |
 | `@wrongstack/cli` | [packages/cli/package.json](../packages/cli/package.json) | private |
