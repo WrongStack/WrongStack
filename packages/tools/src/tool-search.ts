@@ -429,6 +429,25 @@ function termAlternatives(term: string): string[] {
 }
 
 /**
+ * A name reduced to its words, so either separator convention compares equal.
+ *
+ * The catalog mixes both (`codebase-search` in codebase-index/,
+ * `architecture_decisions` at the root) and a caller types whichever style it
+ * is used to. Compared literally, `codebase_search` was neither the name, nor
+ * a name segment (`_` is not a segment separator), nor a substring of either —
+ * the tool scored 0 and tool_search answered "No tools matched" for a tool
+ * that exists, while the space-separated spelling of the same words matched.
+ * Only the exact-name tier uses this; the word scoring below is unchanged.
+ */
+function nameKey(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/**
  * How well a tool answers a query. An exact tool name wins, then the whole
  * query found in the name or description. Otherwise the query is split into
  * words; each word counts through its plural/verb forms and catalog synonyms,
@@ -440,8 +459,11 @@ function termAlternatives(term: string): string[] {
 function queryScore(t: Tool, query: string): number {
   const name = t.name.toLowerCase();
   const description = t.description.toLowerCase();
-  if (t.aliases?.some((alias) => alias.toLowerCase() === query.trim())) return 2_000;
-  if (name === query.trim()) return 2_000;
+  const wanted = nameKey(query);
+  if (wanted.length > 0) {
+    if (nameKey(name) === wanted) return 2_000;
+    if (t.aliases?.some((alias) => nameKey(alias) === wanted)) return 2_000;
+  }
   if (name.includes(query) || description.includes(query)) return 1_000;
   const nameSegments = new Set(name.split(/[^a-z0-9]+/).filter(Boolean));
   const text = [

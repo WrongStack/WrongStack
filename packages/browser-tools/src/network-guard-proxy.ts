@@ -140,6 +140,10 @@ export class BrowserNetworkGuardProxy {
     try {
       const authority = request.url ?? '';
       const target = await this.resolve(`https://${authority}`);
+      // The browser may have dropped the socket while DNS and the candidate
+      // probe ran. Its `close` has already fired, so the listener below would
+      // never tear down a tunnel dialled now.
+      if (client.destroyed) return;
       const upstream = net.connect({
         host: target.address,
         family: target.family,
@@ -183,6 +187,9 @@ export class BrowserNetworkGuardProxy {
       }
       websocketUrl.protocol = 'http:';
       const target = await this.resolve(websocketUrl.toString());
+      // Same as CONNECT: a browser socket closed during resolution never fires
+      // the `close` listener registered below.
+      if (client.destroyed) return;
       const headers = sanitizeHeaders(request.headers, true);
       headers.host = target.url.host;
       upstream = http.request({

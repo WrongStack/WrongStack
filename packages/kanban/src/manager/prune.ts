@@ -1,4 +1,4 @@
-import { deleteBoard, listBoardSummaries, mutateBoard, readBoard, writeBoard } from '../storage.js';
+import { deleteBoard, listBoardSummaries, mutateBoard } from '../storage.js';
 import type { KanbanTask } from '../types.js';
 import { nowIso, stampAtomicityAssessment } from './_internal.js';
 
@@ -278,29 +278,36 @@ export async function pruneSessionBoards(
       await deleteBoard(projectRoot, summary.id);
       result.deleted.push(summary.id);
     } else {
-      // archive_after_ttl: load the full board, mark as archived, persist.
-      const board = await readBoard(projectRoot, summary.id);
-      if (!board) {
-        result.skipped.push(summary.id);
-        continue;
-      }
-      const retention = board.retention;
-      if (!retention || retention.mode === 'keep' || !isRetentionDuration(retention.ttlMs))
-        continue;
-      board.kind = 'archive';
-      board.retention = {
-        mode: retention.mode,
-        ttlMs: retention.ttlMs,
-        // Carried through: dropping it here would strip the board's own purge
-        // policy at the exact moment it enters the state that policy governs.
-        ...(retention.purgeAfterArchiveMs !== undefined
-          ? { purgeAfterArchiveMs: retention.purgeAfterArchiveMs }
-          : {}),
-        archivedAt: now,
-      };
-      board.updatedAt = now;
-      await writeBoard(projectRoot, board);
-      result.archived.push(summary.id);
+      // archive_after_ttl: mark as archived inside the board's own atomic
+      // read-modify-write. A separate readBoard + unconditional writeBoard
+      // overwrote any update committed in between (a resumed session's todo
+      // mirror write fires alongside this session-start prune), and archived a
+      // board that update had just refreshed. Re-check the TTL on the board
+      // read under the lock, not on the listing snapshot.
+      const archivedNow = await mutateBoard(projectRoot, summary.id, (board) => {
+        const retention = board.retention;
+        if ((board.kind ?? 'project') !== 'session_mirror' || retention?.archivedAt) return false;
+        if (!retention || retention.mode === 'keep' || !isRetentionDuration(retention.ttlMs))
+          return false;
+        const boardUpdatedMs = Date.parse(board.updatedAt);
+        if (!Number.isFinite(boardUpdatedMs) || nowMs - boardUpdatedMs < retention.ttlMs)
+          return false;
+        board.kind = 'archive';
+        board.retention = {
+          mode: retention.mode,
+          ttlMs: retention.ttlMs,
+          // Carried through: dropping it here would strip the board's own purge
+          // policy at the exact moment it enters the state that policy governs.
+          ...(retention.purgeAfterArchiveMs !== undefined
+            ? { purgeAfterArchiveMs: retention.purgeAfterArchiveMs }
+            : {}),
+          archivedAt: now,
+        };
+        board.updatedAt = now;
+        return true;
+      });
+      if (archivedNow?.result) result.archived.push(summary.id);
+      else result.skipped.push(summary.id);
     }
   }
 

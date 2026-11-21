@@ -28,6 +28,11 @@ export function normalizeOpenAI(stop: string | null | undefined): StopReason {
     case 'function_call':
       return 'tool_use';
     case 'length':
+    // DeepSeek: generation was interrupted (out of inference resources, or
+    // aborted). The reply is cut off, not finished — read as `end_turn` a
+    // truncated answer looked complete.
+    case 'insufficient_system_resource':
+    case 'aborted':
       return 'max_tokens';
     case 'content_filter':
       return 'refusal';
@@ -49,6 +54,10 @@ export function normalizeGemini(stop: string | null | undefined): StopReason {
     case 'SPII':
     case 'MALICIOUS':
     case 'hallucination':
+    // Image-output twins of SAFETY / PROHIBITED_CONTENT / RECITATION.
+    case 'IMAGE_SAFETY':
+    case 'IMAGE_PROHIBITED_CONTENT':
+    case 'IMAGE_RECITATION':
       return 'refusal';
     case 'stop':
     case 'STOP':

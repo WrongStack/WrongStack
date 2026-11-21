@@ -171,7 +171,7 @@
       "relativeImports": 3
     },
     "packages/tools/src/read.ts": {
-      "lines": 729,
+      "lines": 755,
       "relativeImports": 5
     },
     "packages/tui/src/reducers/panel-pickers.ts": {
@@ -183,7 +183,7 @@
       "relativeImports": 6
     },
     "packages/vector-memory/src/store.ts": {
-      "lines": 748,
+      "lines": 758,
       "relativeImports": 8
     },
     "packages/vibeui/src/components/memory-browser.tsx": {

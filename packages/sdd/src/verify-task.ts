@@ -271,14 +271,42 @@ export function makeAcceptanceCriteriaVerifier(
         `judge unavailable: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
       );
     }
-    const match = text.match(/VERDICT:\s*(PASS|FAIL)(?:\s*[—-]\s*(.*))?/i);
-    if (!match) return inconclusive('judge returned no parseable verdict');
-    if (match[1]!.toUpperCase() === 'PASS') return { ok: true };
+    const verdict = parseJudgeVerdict(text);
+    if (!verdict) return inconclusive('judge returned no parseable verdict');
+    if (verdict.verdict === 'PASS') return { ok: true };
     return {
       ok: false,
-      reason: `acceptance criteria not met: ${match[2]?.trim() || 'judge rejected the result'}`,
+      reason: `acceptance criteria not met: ${verdict.reason || 'judge rejected the result'}`,
     };
   };
+}
+
+/**
+ * The judge's verdict: the LAST verdict written on its own line.
+ *
+ * The prompt asks for one line, but a judge often restates the required format
+ * first — and that restatement contains `VERDICT: PASS`. Reading the first
+ * token therefore read the echo as the answer and accepted work the judge had
+ * just rejected. A verdict on its own line is the conclusion; an inline mention
+ * is the echo, or a hypothetical ("had they passed, the answer would be
+ * VERDICT: PASS"). With no verdict on its own line, the last mention is the
+ * best remaining reading.
+ */
+function parseJudgeVerdict(
+  text: string,
+): { verdict: 'PASS' | 'FAIL'; reason?: string | undefined } | undefined {
+  const pattern = /VERDICT:\s*(PASS|FAIL)(?:\s*[—-]\s*(.*))?/gi;
+  let last: { verdict: 'PASS' | 'FAIL'; reason?: string | undefined } | undefined;
+  let ownLine: { verdict: 'PASS' | 'FAIL'; reason?: string | undefined } | undefined;
+  for (let match = pattern.exec(text); match !== null; match = pattern.exec(text)) {
+    const verdict = match[1]!.toUpperCase() as 'PASS' | 'FAIL';
+    const reason = match[2]?.trim();
+    const parsed = { verdict, ...(reason ? { reason } : {}) };
+    last = parsed;
+    // Only whitespace (and markdown list/emphasis markers) may precede it.
+    if (/(?:^|\n)[\s>*_-]*$/.test(text.slice(0, match.index))) ownLine = parsed;
+  }
+  return ownLine ?? last;
 }
 
 /**

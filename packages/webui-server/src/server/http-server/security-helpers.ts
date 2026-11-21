@@ -30,7 +30,9 @@ export function injectWsConfig(html: string, opts: { publicWsUrl?: string | unde
   if (!opts.publicWsUrl || out.includes('name="wrongstack-ws-url"')) return out;
   const tag = `<meta name="wrongstack-ws-url" content="${escapeHtmlAttr(opts.publicWsUrl)}" />`;
   if (out.includes('</head>')) {
-    return out.replace('</head>', `  ${tag}\n  </head>`);
+    // A function replacer: as a replacement string, `$'`/`$&` in the URL would be
+    // expanded and the page would advertise a different WebSocket URL.
+    return out.replace('</head>', () => `  ${tag}\n  </head>`);
   }
   return `${tag}\n${out}`;
 }

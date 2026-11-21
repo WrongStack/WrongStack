@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { getToolImages, isFsError, isToolValidationError } from '@wrongstack/contracts/types';
+import { ToolExecutor } from '@wrongstack/core/execution';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readTool } from '../src/read.js';
 import { mkSandbox, newSignal, type Sandbox } from './fixtures.js';
@@ -638,5 +639,92 @@ describe('read tool', () => {
         readTool.execute({ path: 'abort2.txt' }, sb.ctx, { signal: ctrl.signal }),
       ).rejects.toMatchObject({ name: 'AbortError' });
     });
+  });
+});
+
+/**
+ * The read tool records the range it RETURNED, but the executor elides the
+ * middle of any result above the inline preview budget before the model sees
+ * it. Recording those lines as shown made a later read of the elided middle
+ * answer "requested lines X-Y were already shown" — a claim that is false, and
+ * the advice in the same message ("Use offset/limit for a new range") is
+ * exactly the call that gets refused. Summary mode already refuses to record a
+ * content range for output it did not display; content mode must do the same
+ * once the executor will not deliver the payload in full.
+ */
+describe('read range record after elided output', () => {
+  let sb: Sandbox;
+  beforeEach(async () => {
+    sb = await mkSandbox();
+  });
+  afterEach(async () => {
+    await sb.cleanup();
+  });
+
+  const LINE_COUNT = 900;
+  const LINE_BODY = 'const answer = compute(alpha, beta, gamma, delta); // padding';
+
+  function makeExecutor(): ToolExecutor {
+    const registry = {
+      get: (name: string) => (name === 'read' ? readTool : undefined),
+      list: () => [readTool],
+    };
+    return new ToolExecutor(registry as never, {
+      permissionPolicy: {
+        evaluate: async () => ({ permission: 'auto', source: 'default' }),
+      } as never,
+      secretScrubber: { scrub: (value: string) => value } as never,
+      perIterationOutputCapBytes: 200_000,
+      maxToolTimeoutMs: 30_000,
+    });
+  }
+
+  async function readThroughExecutor(
+    input: Record<string, unknown>,
+    ctx: Sandbox['ctx'],
+    id: string,
+  ): Promise<string> {
+    const result = await makeExecutor().executeBatch(
+      [{ type: 'tool_use', id, name: 'read', input } as never],
+      ctx as never,
+      'sequential',
+    );
+    const block = result.outputs[0]?.result as { content?: unknown } | undefined;
+    expect(typeof block?.content).toBe('string');
+    return block?.content as string;
+  }
+
+  it('returns an elided middle range instead of claiming it was already shown', async () => {
+    const body = Array.from({ length: LINE_COUNT }, (_, index) => `${LINE_BODY} ${index + 1}`);
+    await fs.writeFile(path.join(sb.dir, 'large.txt'), body.join('\n'));
+    // The executor reads ctx.signal; the sandbox context omits it (the direct
+    // read tests pass a signal per call). Share one meta object across reads.
+    const ctx = { ...sb.ctx, signal: new AbortController().signal } as Sandbox['ctx'];
+
+    const first = await readThroughExecutor({ path: 'large.txt' }, ctx, 'read-first');
+    // Control: the production executor really did withhold the middle.
+    expect(first).toContain('artifact middle omitted');
+    expect(first).not.toContain('400→');
+    // The payload handed to the executor crossed its inline budget (> 24 KiB),
+    // so the middle was withheld by production code, not by the fixture.
+    expect(Buffer.byteLength(body.join('\n'), 'utf8')).toBeGreaterThan(24 * 1024);
+
+    const middle = await readThroughExecutor(
+      { path: 'large.txt', offset: 400, limit: 5 },
+      ctx,
+      'read-middle',
+    );
+    expect(middle).not.toContain('were already shown');
+    expect(middle).toContain('400→');
+  });
+
+  it('still suppresses a repeated read that was delivered in full', async () => {
+    await fs.writeFile(path.join(sb.dir, 'small.txt'), 'first\nsecond\nthird\n');
+    const first = await readTool.execute({ path: 'small.txt' }, sb.ctx, { signal: newSignal() });
+    expect(first.text).toContain('1→first');
+
+    const second = await readTool.execute({ path: 'small.txt' }, sb.ctx, { signal: newSignal() });
+    expect(second.text).toContain('unchanged since previous read');
+    expect(second.text).not.toContain('1→first');
   });
 });

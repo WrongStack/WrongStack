@@ -242,7 +242,7 @@ export function parseYarnLockVersions(lockContent: string): {
   const versions = new Map<string, string[]>();
   const specs = new Map<string, string>();
   const linked = new Set<string>();
-  let current: Array<{ name: string; range: string }> = [];
+  let current: Array<{ name: string; range: string; real?: string }> = [];
   for (const line of lockContent.split(/\r?\n/)) {
     if (!line.trim() || line.startsWith('#')) continue;
     if (!/^\s/.test(line) && line.trimEnd().endsWith(':')) {
@@ -250,8 +250,15 @@ export function parseYarnLockVersions(lockContent: string): {
         .trimEnd()
         .slice(0, -1)
         .split(',')
-        .map((spec) => splitYarnSpec(spec.trim().replace(/^"|"$/g, '')))
-        .filter((spec): spec is { name: string; range: string } => spec !== undefined);
+        .map((raw) => {
+          const spec = raw.trim().replace(/^"|"$/g, '');
+          const parsed = splitYarnSpec(spec);
+          // An npm alias (`ts5@npm:typescript@5.9.3`) installs the REAL
+          // package named after `npm:`; the alias is only the install name.
+          const real = /^(?:@[^/@]+\/)?[^@]+@npm:((?:@[^/@]+\/)?[^@]+)@/.exec(spec)?.[1];
+          return parsed && real ? { ...parsed, real } : parsed;
+        })
+        .filter((spec): spec is { name: string; range: string; real?: string } => !!spec);
       continue;
     }
     const version = /^\s+version:?\s+"?([^"\s]+)"?\s*$/.exec(line)?.[1];
@@ -265,13 +272,17 @@ export function parseYarnLockVersions(lockContent: string): {
       current = [];
       continue;
     }
-    for (const { name, range } of current) {
+    for (const { name, range, real } of current) {
       // berry lists the project's own workspaces (`app@workspace:.`, version
       // `0.0.0-use.local`) and local links beside registry packages.
       if (/^(?:workspace|link|portal|file):/.test(range)) continue;
       specs.set(`${name}@${range}`, version);
-      const existing = versions.get(name);
-      if (!existing) versions.set(name, [version]);
+      // `versions` feeds the transitive pass: keyed by an alias it reported
+      // `pkg:npm/ts5@5.9.3`, a package that does not exist. `specs` stays
+      // keyed by the alias spec the manifest looks up.
+      const key = real ?? name;
+      const existing = versions.get(key);
+      if (!existing) versions.set(key, [version]);
       else if (!existing.includes(version)) existing.push(version);
     }
     current = [];

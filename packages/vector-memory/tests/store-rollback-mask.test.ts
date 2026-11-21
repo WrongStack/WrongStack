@@ -1,25 +1,46 @@
 import { mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const roots: string[] = [];
+
+/**
+ * Controls the faulting database. `vi.hoisted` so the `vi.mock` factory below
+ * (hoisted above the imports) can read the same object.
+ */
+const fault = vi.hoisted(() => ({
+  failWrites: true,
+  failCommits: false,
+  primary: 'PRIMARY: provider metadata write failed',
+}));
 
 vi.mock('@wrongstack/persistence', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@wrongstack/persistence')>();
 
   class FaultingDatabase {
     exec(sql: string): void {
-      if (sql.trim() === 'ROLLBACK') {
-        throw new Error('SECONDARY: no transaction is active');
-      }
+      const statement = sql.trim().toUpperCase();
+      // SQLite can end the transaction when a write or COMMIT fails; the
+      // follow-up ROLLBACK then throws `cannot rollback - no transaction is
+      // active`. That is the error a caller must never see in place of the
+      // primary failure.
+      if (statement === 'ROLLBACK') throw new Error('SECONDARY: no transaction is active');
+      if (statement.startsWith('COMMIT') && fault.failCommits) throw new Error(fault.primary);
     }
 
-    prepare(): { run: () => never } {
+    prepare(): {
+      run: () => { changes: number };
+      get: () => undefined;
+      all: () => unknown[];
+    } {
       return {
         run: () => {
-          throw new Error('PRIMARY: provider metadata write failed');
+          if (fault.failWrites) throw new Error(fault.primary);
+          return { changes: 1 };
         },
+        get: () => undefined,
+        all: () => [],
       };
     }
   }
@@ -36,6 +57,28 @@ function projectRoot(label: string): string {
   return root;
 }
 
+const provider = {
+  id: 'proof-provider',
+  dimensions: 4,
+  embed: async () => [new Float32Array([1, 2, 3, 4])],
+};
+
+/** A store whose constructor succeeds, so a later transaction can fail. */
+function healthyStore(label: string): VectorMemoryStore {
+  fault.failWrites = false;
+  try {
+    return new VectorMemoryStore({ projectRoot: projectRoot(label), provider });
+  } finally {
+    fault.failWrites = true;
+  }
+}
+
+beforeEach(() => {
+  fault.failWrites = true;
+  fault.failCommits = false;
+  fault.primary = 'PRIMARY: provider metadata write failed';
+});
+
 afterEach(() => {
   for (const root of roots.splice(0)) {
     rmSync(root, { recursive: true, force: true });
@@ -48,11 +91,7 @@ describe('VectorMemoryStore transaction failure reporting', () => {
       () =>
         new VectorMemoryStore({
           projectRoot: projectRoot('victim'),
-          provider: {
-            id: 'proof-provider',
-            dimensions: 4,
-            embed: async () => [new Float32Array(4)],
-          },
+          provider,
         }),
     ).toThrow('PRIMARY: provider metadata write failed');
   });
@@ -65,5 +104,21 @@ describe('VectorMemoryStore transaction failure reporting', () => {
           provider: undefined as never,
         }),
     ).toThrow('provider is required');
+  });
+
+  it('preserves the remember() commit error when rollback also fails', async () => {
+    const store = healthyStore('remember');
+    fault.failCommits = true;
+    fault.primary = 'PRIMARY: entries commit failed';
+    await expect(store.remember({ text: 'a memory that failed to commit' })).rejects.toThrow(
+      'PRIMARY: entries commit failed',
+    );
+  });
+
+  it('preserves the forget() commit error when rollback also fails', async () => {
+    const store = healthyStore('forget');
+    fault.failCommits = true;
+    fault.primary = 'PRIMARY: delete commit failed';
+    await expect(store.forget('entry-1')).rejects.toThrow('PRIMARY: delete commit failed');
   });
 });

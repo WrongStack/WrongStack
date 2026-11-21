@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-21T21:25:45.256Z",
+  "generatedAt": "2026-11-21T22:51:12.896Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 49,
     "sourceFiles": 6410,
-    "testFiles": 5626,
-    "sourceLines": 1323128,
+    "testFiles": 5632,
+    "sourceLines": 1323314,
     "workspaceEdges": 255,
     "moduleEdges": 18947,
     "nonCommandSlashImports": 0,
@@ -161,7 +161,7 @@
       "name": "@wrongstack/browser-tools",
       "dir": "packages/browser-tools",
       "sourceFiles": 14,
-      "testFiles": 20,
+      "testFiles": 21,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -176,7 +176,7 @@
         {
           "path": "packages/browser-tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 20
+          "testFiles": 21
         }
       ]
     },
@@ -559,7 +559,7 @@
       "name": "@wrongstack/kanban",
       "dir": "packages/kanban",
       "sourceFiles": 108,
-      "testFiles": 105,
+      "testFiles": 106,
       "workspaceDependencies": [
         "@wrongstack/persistence",
         "@wrongstack/primitives"
@@ -573,7 +573,7 @@
         {
           "path": "packages/kanban/tsconfig.test.json",
           "error": null,
-          "testFiles": 105
+          "testFiles": 106
         }
       ]
     },
@@ -787,7 +787,7 @@
       "name": "@wrongstack/providers",
       "dir": "packages/providers",
       "sourceFiles": 138,
-      "testFiles": 130,
+      "testFiles": 132,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -801,7 +801,7 @@
         {
           "path": "packages/providers/tsconfig.test.json",
           "error": null,
-          "testFiles": 130
+          "testFiles": 132
         }
       ]
     },
@@ -996,7 +996,7 @@
       "name": "@wrongstack/techstack",
       "dir": "packages/techstack",
       "sourceFiles": 55,
-      "testFiles": 67,
+      "testFiles": 68,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1012,7 +1012,7 @@
         {
           "path": "packages/techstack/tsconfig.test.json",
           "error": null,
-          "testFiles": 67
+          "testFiles": 68
         }
       ]
     },
@@ -1210,7 +1210,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 356,
-      "testFiles": 417,
+      "testFiles": 418,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1245,7 +1245,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 417
+          "testFiles": 418
         }
       ]
     },
@@ -4754,6 +4754,12 @@
       },
       {
         "file": "packages/browser-tools/tests/browser-manager.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-network-guard-proxy-abort.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17089,6 +17095,12 @@
         ]
       },
       {
+        "file": "packages/kanban/tests/prune-archive-concurrent-update.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/prune-session-boards.test.ts",
         "projects": [
           "root-node"
@@ -20221,6 +20233,12 @@
         ]
       },
       {
+        "file": "packages/providers/tests/google-thought-tokens-usage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/providers/tests/google.test.ts",
         "projects": [
           "root-node"
@@ -20594,6 +20612,12 @@
       },
       {
         "file": "packages/providers/tests/sse.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/stop-reason-interrupted-finish.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22976,6 +23000,12 @@
       },
       {
         "file": "packages/techstack/tests/adapters/gradle-swift.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/techstack/tests/adapters/manifest-quoting-and-sections.test.ts",
         "projects": [
           "root-node"
         ]
@@ -29863,6 +29893,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/git-discard-project-root.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/git-handlers.test.ts",
         "projects": [
           "root-node"
@@ -36310,7 +36346,7 @@
     },
     {
       "file": "packages/tools/src/read.ts",
-      "lines": 729,
+      "lines": 755,
       "relativeImports": 5
     },
     {
@@ -36325,7 +36361,7 @@
     },
     {
       "file": "packages/vector-memory/src/store.ts",
-      "lines": 748,
+      "lines": 758,
       "relativeImports": 8
     },
     {
@@ -36651,6 +36687,11 @@
       "relativeImports": 5
     },
     {
+      "file": "packages/vector-memory/src/store.ts",
+      "lines": 758,
+      "relativeImports": 8
+    },
+    {
       "file": "packages/fleet/src/host-skill-companion.ts",
       "lines": 756,
       "relativeImports": 3
@@ -36659,6 +36700,11 @@
       "file": "apps/desktop-v2/src/ProjectSdd.tsx",
       "lines": 755,
       "relativeImports": 14
+    },
+    {
+      "file": "packages/tools/src/read.ts",
+      "lines": 755,
+      "relativeImports": 5
     },
     {
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
@@ -36674,11 +36720,6 @@
       "file": "packages/coordination/src/sqlite-mailbox.ts",
       "lines": 748,
       "relativeImports": 14
-    },
-    {
-      "file": "packages/vector-memory/src/store.ts",
-      "lines": 748,
-      "relativeImports": 8
     },
     {
       "file": "packages/tools/src/process-registry.ts",
@@ -36719,11 +36760,6 @@
       "file": "packages/acp/src/agent/server-agent-turn.ts",
       "lines": 730,
       "relativeImports": 4
-    },
-    {
-      "file": "packages/tools/src/read.ts",
-      "lines": 729,
-      "relativeImports": 5
     },
     {
       "file": "packages/coordination/src/multi-agent-coordinator.ts",

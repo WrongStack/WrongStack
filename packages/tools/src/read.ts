@@ -5,6 +5,7 @@ import {
   type Tool,
   ToolValidationError,
 } from '@wrongstack/contracts/types';
+import { activeLimits, positiveLimit } from '@wrongstack/contracts/types/config/limits';
 import {
   detectImageMediaType,
   MAX_INCOMING_IMAGE_BYTES,
@@ -521,16 +522,22 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     const numbered = parts.join('\n');
 
     ctx.recordRead?.(absPath, stat.mtimeMs, 'user', contentHash);
-    rememberReadRange(
-      ctx,
-      absPath,
-      stat.mtimeMs,
-      stat.size,
-      total,
-      offset,
-      offset + slice.length - 1,
-      contentHash,
-    );
+    // Record the range only when the executor will deliver it verbatim; above
+    // the inline budget it elides the middle (see
+    // INLINE_TOOL_OUTPUT_DEFAULT_BYTES). `recordRead` above still records the
+    // hash the edit-staleness guard needs.
+    if (Buffer.byteLength(numbered, 'utf8') <= inlineToolOutputBudgetBytes()) {
+      rememberReadRange(
+        ctx,
+        absPath,
+        stat.mtimeMs,
+        stat.size,
+        total,
+        offset,
+        offset + slice.length - 1,
+        contentHash,
+      );
+    }
 
     const symResult = shouldIncludeSymbols
       ? await fetchSymbolsForFile(absPath, ctx, signal)
@@ -635,6 +642,25 @@ function getReadRangeRecord(
   absPath: string,
 ): ReadRangeRecord | undefined {
   return getReadRanges(ctx)[absPath];
+}
+
+/**
+ * Inline preview budget for a tool result. Above it the executor elides the
+ * middle of the payload before the model ever sees it —
+ * `maybePersistLargeToolOutput` in core's tool-executor-support, which sizes
+ * itself from `limits.toolOutputPreviewBytes` with this same 24 KiB default.
+ *
+ * A range record only saves tokens by refusing a repeated read, so it must
+ * describe what was DELIVERED. Recording a payload the executor will elide
+ * claimed "requested lines X-Y were already shown" for lines the model never
+ * received, and refused the very `offset/limit` call the message suggests —
+ * the mistake summary mode already avoids by not recording content ranges.
+ * Under-claiming costs a re-read; over-claiming hides content for good.
+ */
+const INLINE_TOOL_OUTPUT_DEFAULT_BYTES = 24 * 1024;
+
+function inlineToolOutputBudgetBytes(): number {
+  return positiveLimit(activeLimits().toolOutputPreviewBytes) ?? INLINE_TOOL_OUTPUT_DEFAULT_BYTES;
 }
 
 const MTIME_TOLERANCE_MS = process.platform === 'win32' ? 2000 : 1;

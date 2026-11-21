@@ -548,7 +548,12 @@ export class VectorMemoryStore {
       }
       this.db.exec('COMMIT');
     } catch (e) {
-      this.db.exec('ROLLBACK');
+      try {
+        this.db.exec('ROLLBACK');
+      } catch {
+        // SQLite can end the transaction when a write or COMMIT fails.
+        // Preserve the primary database error instead of masking it.
+      }
       throw e;
     }
 
@@ -599,7 +604,12 @@ export class VectorMemoryStore {
       this.db.exec('COMMIT');
       return info.changes > 0;
     } catch (e) {
-      this.db.exec('ROLLBACK');
+      try {
+        this.db.exec('ROLLBACK');
+      } catch {
+        // SQLite can end the transaction when a write or COMMIT fails.
+        // Preserve the primary database error instead of masking it.
+      }
       throw e;
     }
   }

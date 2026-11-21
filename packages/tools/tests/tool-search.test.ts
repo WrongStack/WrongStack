@@ -438,6 +438,63 @@ describe('toolSearchTool model-facing output', () => {
   });
 });
 
+describe('toolSearchTool separator conventions', () => {
+  // The shipped catalog mixes both styles — 'codebase-search'
+  // (codebase-index/codebase-search-tool.ts) beside 'architecture_decisions'
+  // (architecture-decisions.ts) — so a caller types whichever it is used to.
+  // The exact-name tier compared separators literally: the other spelling was
+  // neither the name, nor a name segment, nor a substring of either, so the
+  // tool scored 0 and the search answered "No tools matched" for a tool that
+  // exists, while the same words separated by spaces matched.
+  const t = (name: string, description: string, extra: Record<string, unknown> = {}) => ({
+    name,
+    description,
+    permission: 'auto',
+    mutating: false,
+    inputSchema: { type: 'object', properties: {} },
+    ...extra,
+  });
+
+  it('finds a hyphenated tool when the caller spells its name with underscores', async () => {
+    const ctx = makeCtx([
+      t('codebase-search', 'Search indexed declarations.'),
+      t('grep', 'Search file contents.'),
+    ]);
+    const result = await executeToolSearch({ query: 'codebase_search' }, ctx);
+    expect(result.tools[0]?.name).toBe('codebase-search');
+    // An exact-name hit is a leading result, so its schema comes with it.
+    expect(result.tools[0]?.inputSchema).toBeDefined();
+  });
+
+  it('finds an underscore-named tool when the caller spells its name with hyphens', async () => {
+    const ctx = makeCtx([t('architecture_decisions', 'Read project ADRs.')]);
+    const result = await executeToolSearch({ query: 'architecture-decisions' }, ctx);
+    expect(result.tools.map((tool) => tool.name)).toEqual(['architecture_decisions']);
+  });
+
+  it('compares aliases across separator styles too', async () => {
+    const ctx = makeCtx([t('canonical', 'Canonical tool.', { aliases: ['old_name'] })]);
+    const result = await executeToolSearch({ query: 'old-name' }, ctx);
+    expect(result.tools[0]?.name).toBe('canonical');
+  });
+
+  it('does not treat a partially qualified MCP name as the registered name', async () => {
+    const ctx = makeCtx([
+      {
+        name: 'mcp__github__search',
+        description: 'Search GitHub repositories.',
+        permission: 'confirm',
+        mutating: true,
+      },
+    ]);
+    // The name-equality tier compares whole names, so this still belongs to the
+    // MCP rescue path rather than becoming a direct (wrong-name) rank hit.
+    const result = await executeToolSearch({ query: 'github-search' }, ctx);
+    expect(result.tools).toEqual([]);
+    expect(result.mcpSuggestions?.[0]?.name).toBe('mcp__github__search');
+  });
+});
+
 describe('toolSearchTool MCP suggestions', () => {
   const mcp = (name: string, description: string) => ({
     name,

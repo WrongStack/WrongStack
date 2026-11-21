@@ -194,9 +194,12 @@ function parsePyprojectDeps(
       }
     }
 
+    // Only a group's `.dependencies` table lists packages. The group's own
+    // table (`[tool.poetry.group.docs]` / `optional = true`) holds settings,
+    // and reading it inventoried `optional` as `pkg:pypi/optional`.
     if (
       section.name === 'tool.poetry.dependencies' ||
-      section.name.startsWith('tool.poetry.group.')
+      /^tool\.poetry\.group\..+\.dependencies$/.test(section.name)
     ) {
       const scope: DependencyScope =
         section.name === 'tool.poetry.dependencies' ? 'runtime' : 'development';
@@ -367,6 +370,13 @@ export function parsePoetryLock(
   for (const raw of content.split('\n')) {
     const line = raw.trim();
     if (line.startsWith('[')) inPoetrySource = line === '[package.source]';
+    // A new entry owns the keys that follow. uv omits `version` for a
+    // dynamic-version project, so without this reset that entry's
+    // `source = { editable = "." }` was filed under the PREVIOUS package.
+    if (line === '[[package]]') {
+      currentName = undefined;
+      recorded = undefined;
+    }
     const nameMatch = line.match(/^name\s*=\s*"([^"]+)"/);
     if (nameMatch) {
       currentName = nameMatch[1]!;

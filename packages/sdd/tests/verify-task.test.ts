@@ -314,6 +314,39 @@ describe('makeAcceptanceCriteriaVerifier', () => {
     });
   });
 
+  // The prompt asks for one line, but a judge often restates the required
+  // format first — and that restatement contains `VERDICT: PASS`. Scanning the
+  // reply for the FIRST verdict token read the echo as the answer and accepted
+  // work the judge had just rejected.
+  it('reads the verdict the judge concluded, not an echoed instruction', async () => {
+    const echoThenFail = makeAcceptanceCriteriaVerifier({
+      run: async () =>
+        'Answer with exactly one line: "VERDICT: PASS" or "VERDICT: FAIL — <short reason>".\n' +
+        'VERDICT: FAIL — the tests were never run',
+    });
+    const failed = await echoThenFail({ task: criteriaTask(), result: withResult, cwd });
+    expect(failed.ok).toBe(false);
+    expect(failed.reason).toContain('the tests were never run');
+
+    const echoThenPass = makeAcceptanceCriteriaVerifier({
+      run: async () =>
+        'Answer with exactly one line: "VERDICT: PASS" or "VERDICT: FAIL".\nVERDICT: PASS',
+    });
+    expect(await echoThenPass({ task: criteriaTask(), result: withResult, cwd })).toEqual({
+      ok: true,
+    });
+  });
+
+  it('does not let a hypothetical verdict after the conclusion override it', async () => {
+    const failThenHypothetical = makeAcceptanceCriteriaVerifier({
+      run: async () =>
+        'VERDICT: FAIL — the tests were never run. Had they run and passed, the answer would be VERDICT: PASS.',
+    });
+    const out = await failThenHypothetical({ task: criteriaTask(), result: withResult, cwd });
+    expect(out.ok).toBe(false);
+    expect(out.reason).toContain('the tests were never run');
+  });
+
   // WS-023 (inverted). This asserted that a judge error or an unparseable
   // verdict passes the task. The justification in the source was "the command
   // verifier remaining the deterministic backstop" — but that backstop is

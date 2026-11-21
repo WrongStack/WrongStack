@@ -48,7 +48,10 @@ export function spanHash(text: string): string {
   const lines = text
     .replace(/\r\n?/g, '\n')
     .split('\n')
-    .map((line) => line.replace(/\s+$/, ''));
+    // trimEnd strips exactly what /\s+$/ did (WhiteSpace + LineTerminator), so stored
+    // baselines keep their hash, but in linear time: on V8 the regex backtracks
+    // quadratically over a long whitespace run that ends in a non-space character.
+    .map((line) => line.trimEnd());
   while (lines.length > 0 && lines[0] === '') lines.shift();
   while (lines.length > 0 && lines.at(-1) === '') lines.pop();
   return `${SPAN_HASH_PREFIX}${createHash('sha256').update(lines.join('\n')).digest('hex')}`;

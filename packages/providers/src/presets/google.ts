@@ -57,6 +57,8 @@ export interface GoogleStreamState {
   providerId?: string | undefined;
   /** A thought-summary run is open on the thinking channel. */
   thinkingOpen?: boolean | undefined;
+  /** Last seen `usageMetadata.thoughtsTokenCount` (already included in `usage.output`). */
+  thoughtsTokens?: number | undefined;
 }
 
 export const googleWireFormat = defineWireFormat<GoogleStreamState>({
@@ -113,6 +115,7 @@ export const googleWireFormat = defineWireFormat<GoogleStreamState>({
         promptTokenCount?: number | undefined;
         candidatesTokenCount?: number | undefined;
         cachedContentTokenCount?: number | undefined;
+        thoughtsTokenCount?: number | undefined;
       };
       promptFeedback?: { blockReason?: string | undefined } | undefined;
       error?: unknown;
@@ -201,9 +204,17 @@ export const googleWireFormat = defineWireFormat<GoogleStreamState>({
       // and broke the disjointness the comment above promises.
       const retainedCacheRead = cached || state.usage.cacheRead || 0;
       const promptTotal = nonNegative(u.promptTokenCount, state.usage.input + retainedCacheRead);
+      // `candidatesTokenCount` excludes thinking: Gemini reports it apart as
+      // `thoughtsTokenCount` (totalTokenCount = prompt + thoughts + candidates),
+      // billed as output. Count it in `output` like every other wire counts
+      // reasoning; retain each part across chunks that omit it.
+      const priorThoughts = state.thoughtsTokens ?? 0;
+      const thoughts = nonNegative(u.thoughtsTokenCount, priorThoughts);
+      const candidates = nonNegative(u.candidatesTokenCount, state.usage.output - priorThoughts);
+      state.thoughtsTokens = thoughts;
       state.usage = {
         input: Math.max(0, promptTotal - retainedCacheRead),
-        output: nonNegative(u.candidatesTokenCount, state.usage.output),
+        output: candidates + thoughts,
         cacheRead: cached || state.usage.cacheRead,
       };
     }

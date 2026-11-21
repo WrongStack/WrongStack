@@ -63,11 +63,16 @@ export function isAgentAvailable(
   };
   const start = parseTime(schedule.start);
   const end = parseTime(schedule.end);
+  // Equal bounds are the whole listed day, as in the model-availability calendar
+  // (core/model-availability-calendar.ts). Validation accepts them, and reading
+  // them as an empty window refused every spawn of an `enforce` agent.
   const inWindow =
-    start <= end
-      ? schedule.days.includes(day) && current >= start && current < end
-      : (schedule.days.includes(day) && current >= start) ||
-        (schedule.days.includes((day + 6) % 7) && current < end);
+    start === end
+      ? schedule.days.includes(day)
+      : start < end
+        ? schedule.days.includes(day) && current >= start && current < end
+        : (schedule.days.includes(day) && current >= start) ||
+          (schedule.days.includes((day + 6) % 7) && current < end);
   return {
     allowed: inWindow,
     localTime: `${weekday} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${schedule.timezone}`,

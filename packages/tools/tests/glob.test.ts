@@ -288,4 +288,37 @@ describe('glob tool', () => {
       expect(out.files.length).toBe(0);
     });
   });
+
+  // The schema says `path` "defaults to project root" and the usage hint says
+  // returned paths are "relative to the project root". The default base and the
+  // relativizer instead used `ctx.cwd`, which is only the root by coincidence:
+  // a nested working dir (worktrees / set_working_dir) sent the walk into one
+  // subdirectory, and a server launched elsewhere walked — unvalidated — a
+  // directory outside the root that an explicit `path` would have been refused
+  // for (safeResolveReal).
+  it('searches the documented project root when the session cwd is nested', async () => {
+    const project = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-glob-root-'));
+    const nested = path.join(project, 'pkg');
+    await fs.mkdir(path.join(nested, 'src'), { recursive: true });
+    await fs.writeFile(path.join(project, 'top.ts'), '');
+    await fs.writeFile(path.join(nested, 'src', 'a.ts'), '');
+    try {
+      const ctx = { ...sb.ctx, projectRoot: project, cwd: nested };
+      const out = await globTool.execute({ pattern: '**/*.ts' }, ctx as any, {
+        signal: newSignal(),
+      });
+      expect(out.files.slice().sort()).toEqual([path.join('pkg', 'src', 'a.ts'), 'top.ts'].sort());
+    } finally {
+      await fs.rm(project, { recursive: true, force: true });
+    }
+  });
+
+  it('never walks outside the project root through the default base', async () => {
+    await fs.writeFile(path.join(outsideRoot, 'secret.txt'), '');
+    const ctx = { ...sb.ctx, projectRoot: sb.dir, cwd: outsideRoot };
+    const out = await globTool.execute({ pattern: '*.txt' }, ctx as any, {
+      signal: newSignal(),
+    });
+    expect(out.files).toEqual([]);
+  });
 });

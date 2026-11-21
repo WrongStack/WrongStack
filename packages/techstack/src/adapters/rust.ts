@@ -162,17 +162,19 @@ function extractTomlDeps(sectionLines: string[]): Array<{
       const name = entry.key;
       const inner = tableMatch[1];
       if (inner === undefined) continue;
-      const versionMatch = inner.match(/version\s*=\s*"([^"]+)"/);
+      // TOML strings are basic (`"1.0"`) or literal (`'1.0'`); Cargo accepts both.
+      const versionMatch = inner.match(/version\s*=\s*(?:"([^"]+)"|'([^']+)')/);
       const sourceType = /\bgit\s*=/.test(inner)
         ? 'git'
         : /\bpath\s*=/.test(inner)
           ? 'path'
           : 'registry';
       const workspace = /\bworkspace\s*=\s*true\b/.test(inner);
-      const crate = /(?:^|[,\s])package\s*=\s*"([^"]+)"/.exec(inner)?.[1];
+      const crateMatch = /(?:^|[,\s])package\s*=\s*(?:"([^"]+)"|'([^']+)')/.exec(inner);
+      const crate = crateMatch?.[1] ?? crateMatch?.[2];
       deps.push({
         name,
-        version: versionMatch?.[1],
+        version: versionMatch?.[1] ?? versionMatch?.[2],
         sourceType,
         ...(workspace ? { workspace } : {}),
         ...(crate ? { crate } : {}),
@@ -181,9 +183,10 @@ function extractTomlDeps(sectionLines: string[]): Array<{
     }
 
     // Simple key = "value"
-    const simpleMatch = entry.value.match(/^"([^"]*)"$/);
+    const simpleMatch = entry.value.match(/^(?:"([^"]*)"|'([^']*)')$/);
     if (simpleMatch) {
-      deps.push({ name: entry.key, version: simpleMatch[1] || undefined, sourceType: 'registry' });
+      const version = simpleMatch[1] ?? simpleMatch[2];
+      deps.push({ name: entry.key, version: version || undefined, sourceType: 'registry' });
     }
   }
   return deps;
@@ -353,7 +356,8 @@ function findCargoWorkspaceRoot(start: string, stopAt: string | undefined): stri
   for (;;) {
     try {
       const manifest = readFileSync(resolveIn(dir, 'Cargo.toml'), 'utf-8');
-      if (/^\s*\[workspace\]\s*$/m.test(manifest)) return dir;
+      // The header may carry a trailing comment (`[workspace]  # members`).
+      if (/^\s*\[workspace\]\s*(?:#.*)?$/m.test(manifest)) return dir;
     } catch {
       // No manifest here — keep walking.
     }

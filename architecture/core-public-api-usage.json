@@ -39,9 +39,9 @@
       "runtimeOrMixed": 17
     },
     "@wrongstack/core/execution": {
-      "files": 112,
+      "files": 113,
       "typeOnly": 25,
-      "runtimeOrMixed": 101
+      "runtimeOrMixed": 102
     },
     "@wrongstack/core/execution/refine-decisions": {
       "files": 2,
@@ -4278,6 +4278,12 @@
     {
       "specifier": "@wrongstack/core/execution",
       "file": "packages/tools/tests/builtin-executor-smoke.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
+      "file": "packages/tools/tests/read.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

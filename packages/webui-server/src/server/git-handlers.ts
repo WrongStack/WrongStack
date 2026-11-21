@@ -561,6 +561,17 @@ export async function handleGitDiscard(
     send(ws, { type: 'git.action_result', payload: { action: 'discard', ok: false, error } });
     return;
   }
+  // The project directory itself (`.`, or the repo-relative project dir that an
+  // untracked project shows as) is the whole project: the same sweep the empty
+  // list above refuses, and `git clean` would delete every untracked file.
+  const root = nodePath.resolve(projectRoot || '.');
+  if (safe.some((p) => nodePath.resolve(root, p) === root)) {
+    send(ws, {
+      type: 'git.action_result',
+      payload: { action: 'discard', ok: false, error: 'Explicit path required for discard' },
+    });
+    return;
+  }
 
   // Restore tracked changes (both staged index AND worktree) back to HEAD per
   // path, unstage any staged-new (`A `) entries absent from HEAD, then clean

@@ -169,9 +169,18 @@ export function parseMcpServers(raw: unknown, onSkipped?: (reason: string) => vo
       onSkipped?.(`"${name}": stdio server has no command`);
       continue;
     }
-    const args = Array.isArray(e.args)
-      ? e.args.filter((a): a is string => typeof a === 'string')
-      : undefined;
+    // Filtering out a non-string arg would launch the server with an argv the
+    // client never sent (`--port 5432` becoming a bare `--port`): report the
+    // entry instead, like every other malformed one.
+    if (
+      e.args !== undefined &&
+      e.args !== null &&
+      (!Array.isArray(e.args) || e.args.some((a) => typeof a !== 'string'))
+    ) {
+      onSkipped?.(`"${name}": args must be an array of strings`);
+      continue;
+    }
+    const args = Array.isArray(e.args) ? (e.args as string[]) : undefined;
     const env = parseNameValuePairs(e.env);
     // ACP 1.14 rejects duplicate env names: which value wins is undefined, so
     // the server would start with an environment nobody chose.

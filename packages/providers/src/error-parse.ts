@@ -303,15 +303,6 @@ export function retryAfterMsFromBody(body: ProviderErrorBody): number | undefine
     if (delta !== undefined) return delta;
   }
 
-  // 2. Relative hours: "...reached for X hour(s)..."
-  const hoursRe =
-    /(?:usage|quota|rate|limit).{0,20}(?:reached|exceeded|exhausted).{0,20}(?:for|every|per)\s*(\d+)\s*hours?/i;
-  const hoursMatch = hoursRe.exec(text);
-  if (hoursMatch) {
-    const hours = Number.parseInt(hoursMatch[1] ?? '', 10);
-    if (hours >= 1 && hours <= 24) return hours * 3_600_000;
-  }
-
   // 3. Relative duration: "retry after X seconds/minutes/hours", "retry_after X",
   //    "try again in X seconds", "please retry in X minutes", "back in X seconds/minutes", "wait X ms"
   // Do not backtrack into a decimal prefix (1.5h30m → 1 second); leave the
@@ -352,6 +343,18 @@ export function retryAfterMsFromBody(body: ProviderErrorBody): number | undefine
       total += Number.parseFloat(part[1] ?? '') * scale;
     }
     if (total > 0 && total <= 24 * 3_600_000) return Math.round(total);
+  }
+
+  // 2. Relative hours: "...reached for X hour(s)..."
+  //    Checked AFTER the explicit retry instructions (3/3b): its `per`/`every`
+  //    arm also reads a rate WINDOW ("100 requests per 1 hour"), which must not
+  //    override the provider's own "retry after 30 seconds" in the same text.
+  const hoursRe =
+    /(?:usage|quota|rate|limit).{0,20}(?:reached|exceeded|exhausted).{0,20}(?:for|every|per)\s*(\d+)\s*hours?/i;
+  const hoursMatch = hoursRe.exec(text);
+  if (hoursMatch) {
+    const hours = Number.parseInt(hoursMatch[1] ?? '', 10);
+    if (hours >= 1 && hours <= 24) return hours * 3_600_000;
   }
 
   // 4. Compound duration after a "reset" verb: "quota will reset after 2h7m23s",

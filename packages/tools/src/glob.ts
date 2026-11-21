@@ -92,7 +92,15 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
     // resolves to a real path inside the project root (or `~/.wrongstack`).
     // Throws on escape, matching how single-file tools (`read`, `edit`,
     // `write`) reject out-of-root paths: the caller named the base explicitly.
-    const base = input.path ? await safeResolveReal(input.path, ctx) : ctx.cwd;
+    // The documented default base is the PROJECT ROOT, not the process or
+    // session cwd: `cwd` is only the root by coincidence (a server started
+    // elsewhere, a nested working dir from worktrees / set_working_dir), and
+    // — unlike an explicit `path` — it never passed safeResolveReal's
+    // containment check, so defaulting to it walked and reported files
+    // outside the project. Started in a subdirectory, it silently searched
+    // that subdirectory alone.
+    const root = ctx.projectRoot || ctx.cwd;
+    const base = input.path ? await safeResolveReal(input.path, ctx) : root;
     if (input.path) {
       // A missing base used to walk nothing and return `files: []` — a
       // misleading "no matches" for what is really a wrong path.
@@ -268,7 +276,7 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
     // one of up to 5000 result lines and carries no information the agent
     // does not already have. Anything outside the root (`~/.wrongstack`)
     // stays absolute — see `makeRootRelativizer`.
-    const relativize = makeRootRelativizer(ctx.cwd);
+    const relativize = makeRootRelativizer(root);
     return { files: results.map((r) => relativize(r.rel)), truncated };
   },
 };
