@@ -62,8 +62,8 @@ export function AcpRuntimeControls({
       }}
     >
       <summary className="cursor-pointer">
-        {t('activity:acp.runtimeTitle', { defaultValue: 'ACP · Model / effort' })}
-        {Object.keys(values).length ? ` · ${Object.values(values).join(' / ')}` : ''}
+        <span>{t('activity:acp.runtimeTitle', { defaultValue: 'ACP · Model / effort' })}</span>
+        {Object.keys(values).length > 0 && <span> · {Object.values(values).join(' / ')}</span>}
       </summary>
       <div className="grid min-w-0 gap-2 pt-2">
         <small>
