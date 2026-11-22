@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-21T22:51:12.896Z",
+  "generatedAt": "2026-11-22T11:27:43.224Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,7 +13,7 @@
   "summary": {
     "packages": 49,
     "sourceFiles": 6410,
-    "testFiles": 5632,
+    "testFiles": 5633,
     "sourceLines": 1323314,
     "workspaceEdges": 255,
     "moduleEdges": 18947,
@@ -410,7 +410,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 559,
-      "testFiles": 402,
+      "testFiles": 403,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -429,7 +429,7 @@
         {
           "path": "apps/desktop-v2/tsconfig.test.json",
           "error": null,
-          "testFiles": 402
+          "testFiles": 403
         }
       ]
     },
@@ -2690,6 +2690,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/model-catalog-editor.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/model-catalog-sibling-keys.test.ts",
         "projects": [
           "root-node"
         ]

@@ -371,7 +371,7 @@ function ProfileModelCatalogSettings({
       )}
       {providerId && !editor && (
         <LegacyModelDraftNotice
-          key={providerId}
+          key={`legacy-draft:${providerId}`}
           providerId={providerId}
           profileName={profile.name}
           controller={modelDraft.controller}
@@ -383,7 +383,7 @@ function ProfileModelCatalogSettings({
       )}
       {registrySearch && (
         <CatalogModelSearch
-          key={providerId}
+          key={`registry-search:${providerId}`}
           providerId={providerId}
           command={command}
           existing={Object.keys(definitions)}
