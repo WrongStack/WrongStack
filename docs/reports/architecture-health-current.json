@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T13:53:40.999Z",
+  "generatedAt": "2026-11-22T13:55:57.503Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 49,
     "sourceFiles": 6411,
-    "testFiles": 5635,
-    "sourceLines": 1323443,
+    "testFiles": 5637,
+    "sourceLines": 1323484,
     "workspaceEdges": 255,
     "moduleEdges": 18948,
     "nonCommandSlashImports": 0,
@@ -630,7 +630,7 @@
       "name": "@wrongstack/mcp",
       "dir": "packages/mcp",
       "sourceFiles": 74,
-      "testFiles": 106,
+      "testFiles": 108,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -644,7 +644,7 @@
         {
           "path": "packages/mcp/tsconfig.test.json",
           "error": null,
-          "testFiles": 106
+          "testFiles": 108
         }
       ]
     },
@@ -17455,6 +17455,12 @@
         ]
       },
       {
+        "file": "packages/mcp/tests/authorization-endpoint-query.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/mcp/tests/authorization-manager-cancel-ownership.test.ts",
         "projects": [
           "root-node"
@@ -17798,6 +17804,12 @@
       },
       {
         "file": "packages/mcp/tests/server-invalid-id.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/server-stdio-line-cap.test.ts",
         "projects": [
           "root-node"
         ]

@@ -148,10 +148,12 @@ export function validateMcpAuthorizationServerMetadata(
   const authorizationEndpoint = secureOAuthUrl(
     requiredString(metadata['authorizationEndpoint'], 'authorizationEndpoint'),
     'authorization endpoint',
+    true,
   ).toString();
   const tokenEndpoint = secureOAuthUrl(
     requiredString(metadata['tokenEndpoint'], 'tokenEndpoint'),
     'token endpoint',
+    true,
   ).toString();
   const issuerParameterSupported = optionalBoolean(
     metadata['authorizationResponseIssuerParameterSupported'],
@@ -188,9 +190,11 @@ export function createMcpAuthorizationRequest(
   const codeVerifier = base64Url(randomBytes(32));
   const codeChallenge = base64Url(createHash('sha256').update(codeVerifier).digest());
   const state = base64Url(randomBytes(32));
+  // `searchParams.set` keeps the endpoint's own query (RFC 6749 §3.1: retained).
   const authorizationUrl = secureOAuthUrl(
     options.authorizationServer.authorizationEndpoint,
     'authorization endpoint',
+    true,
   );
   authorizationUrl.searchParams.set('response_type', 'code');
   authorizationUrl.searchParams.set('client_id', clientId);

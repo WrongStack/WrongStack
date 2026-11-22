@@ -57,46 +57,56 @@ export function serveStdio(server: MCPServer, opts: ServeStdioOptions = {}): Ser
       });
   };
 
+  const overflow = () => {
+    bufferTooLarge = true;
+    buffer = '';
+    bufferBytes = 0;
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        event: 'mcp_server.line_buffer_overflow',
+        message: `stdio line exceeded ${HTTP_BODY_CAP} bytes — aborting stream`,
+        timestamp: new Date().toISOString(),
+      }),
+    );
+    // Pause and tear down further reads so the caller sees a clean end.
+    // `destroy()` is called WITHOUT an error so the stream's 'error' event
+    // isn't emitted (PassThrough/mocked streams would otherwise emit
+    // unhandled 'error' that callers must drain).
+    try {
+      (stdin as { pause?: () => void }).pause?.();
+      (stdin as { destroy?: () => void }).destroy?.();
+    } catch {
+      /* ignore */
+    }
+    onEnd();
+  };
+
   const onData = (chunk: Buffer | string) => {
     // A misbehaving peer that streams bytes forever without `\n` would
     // otherwise balloon `buffer` indefinitely. Mirror the HTTP body cap
     // (`HTTP_BODY_CAP` below) — once exceeded, abandon the line, drop the
     // unread tail, and shut down so the caller can react.
+    //
+    // The cap bounds ONE line, so it is checked per complete line and on the
+    // unterminated tail after complete lines are consumed (as `SSEReader`
+    // does). Checked on the whole buffer first, the read that finished a
+    // near-cap request together with the next pipelined request crossed the
+    // cap and tore the stream down without answering either.
     if (bufferTooLarge) return;
     const text = typeof chunk === 'string' ? chunk : decoder.decode(chunk, { stream: true });
     buffer += text;
     bufferBytes += Buffer.byteLength(text, 'utf8');
-    if (bufferBytes > HTTP_BODY_CAP) {
-      bufferTooLarge = true;
-      buffer = '';
-      bufferBytes = 0;
-      console.error(
-        JSON.stringify({
-          level: 'error',
-          event: 'mcp_server.line_buffer_overflow',
-          message: `stdio line exceeded ${HTTP_BODY_CAP} bytes without newline — aborting stream`,
-          timestamp: new Date().toISOString(),
-        }),
-      );
-      // Pause and tear down further reads so the caller sees a clean end.
-      // `destroy()` is called WITHOUT an error so the stream's 'error' event
-      // isn't emitted (PassThrough/mocked streams would otherwise emit
-      // unhandled 'error' that callers must drain).
-      try {
-        (stdin as { pause?: () => void }).pause?.();
-        (stdin as { destroy?: () => void }).destroy?.();
-      } catch {
-        /* ignore */
-      }
-      onEnd();
-      return;
-    }
     let start = 0;
     let idx = buffer.indexOf('\n', start);
     while (idx !== -1) {
       let end = idx;
       if (end > start && buffer.charCodeAt(end - 1) === 13 /* \r */) end--;
       const line = buffer.slice(start, end);
+      if (Buffer.byteLength(line, 'utf8') > HTTP_BODY_CAP) {
+        overflow();
+        return;
+      }
       start = idx + 1;
       idx = buffer.indexOf('\n', start);
       if (!line.trim()) continue;
@@ -131,6 +141,7 @@ export function serveStdio(server: MCPServer, opts: ServeStdioOptions = {}): Ser
       bufferBytes -= Buffer.byteLength(buffer.slice(0, start), 'utf8');
       buffer = buffer.slice(start);
     }
+    if (bufferBytes > HTTP_BODY_CAP) overflow();
   };
 
   let resolveDone!: () => void;

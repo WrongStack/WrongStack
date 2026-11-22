@@ -134,18 +134,15 @@ export function protectedResourceMetadataUrls(resource: string): string[] {
 /** RFC 8414 + OIDC discovery order required by the MCP authorization spec. */
 export function authorizationServerMetadataUrls(issuer: string): string[] {
   const url = secureOAuthUrl(issuer, 'authorization server issuer');
-  const suffix = url.pathname === '/' ? '' : url.pathname;
+  // RFC 8414 §3.1: a terminating "/" of the issuer path is removed before the
+  // well-known segment is inserted (the appended OIDC form already did this).
+  const suffix = url.pathname === '/' ? '' : url.pathname.replace(/\/$/, '');
   const candidates = [
     new URL(`/.well-known/oauth-authorization-server${suffix}`, url.origin).toString(),
     new URL(`/.well-known/openid-configuration${suffix}`, url.origin).toString(),
   ];
   if (suffix) {
-    candidates.push(
-      new URL(
-        `${suffix.replace(/\/$/, '')}/.well-known/openid-configuration`,
-        url.origin,
-      ).toString(),
-    );
+    candidates.push(new URL(`${suffix}/.well-known/openid-configuration`, url.origin).toString());
   }
   return candidates;
 }
@@ -195,10 +192,12 @@ export function parseAuthorizationServerMetadata(
   const authorizationEndpoint = secureOAuthUrl(
     requiredString(metadata['authorization_endpoint'], 'authorization_endpoint'),
     'authorization endpoint',
+    true,
   ).toString();
   const tokenEndpoint = secureOAuthUrl(
     requiredString(metadata['token_endpoint'], 'token_endpoint'),
     'token endpoint',
+    true,
   ).toString();
   const issuerParameterSupported = optionalBoolean(
     metadata['authorization_response_iss_parameter_supported'],
@@ -413,7 +412,12 @@ export function optionalStringArray(value: unknown, field: string, maxItems: num
   return value === undefined || value === null ? [] : boundedStringArray(value, field, maxItems);
 }
 
-export function secureOAuthUrl(value: string, label: string): URL {
+/**
+ * `allowQuery` is for endpoint URLs: RFC 6749 §3.1/§3.2 let the authorization
+ * and token endpoints carry a query component that MUST be retained (Azure AD
+ * B2C names its policy as `?p=…`). An issuer (RFC 8414 §2) never has one.
+ */
+export function secureOAuthUrl(value: string, label: string, allowQuery = false): URL {
   let url: URL;
   try {
     url = new URL(value);
@@ -423,10 +427,10 @@ export function secureOAuthUrl(value: string, label: string): URL {
   if (url.protocol !== 'https:' && !isLoopbackHttp(url)) {
     throw new Error(`MCP ${label} must use HTTPS (except loopback development)`);
   }
-  if (url.username || url.password || url.search || url.hash) {
+  if (url.username || url.password || (url.search && !allowQuery) || url.hash) {
     throw new Error(`MCP ${label} must not contain credentials, query, or fragment components`);
   }
-  if (url.pathname === '/') return new URL(url.origin);
+  if (url.pathname === '/' && !url.search) return new URL(url.origin);
   return url;
 }
 
@@ -471,7 +475,9 @@ export async function requestPinnedJson(
   },
 ): Promise<unknown | undefined> {
   const label = options.label ?? 'discovery';
-  const url = secureOAuthUrl(rawUrl, `${label} URL`);
+  // The request path below already forwards `url.search`; a token endpoint may
+  // carry a query (RFC 6749 §3.2), and callers validate their own URLs first.
+  const url = secureOAuthUrl(rawUrl, `${label} URL`, true);
   const target = await resolvePinnedAddress(url, options);
   const timeoutMs = options.timeoutMs ?? 10_000;
   const maxBytes = options.maxResponseBytes ?? 64 * 1024;

@@ -17,6 +17,7 @@ import { describe, expect, it } from 'vitest';
 import {
   assertTransportAddressAllowed,
   classifyTransportAddress,
+  validateTransportUrl,
 } from '../src/transport-security.js';
 
 const IMDS_COMPRESSED = 'fd00:ec2::254';
@@ -52,5 +53,36 @@ describe('ISATAP-shaped interface IDs under a private IPv6 prefix', () => {
     expect(() =>
       assertTransportAddressAllowed('fd00::200:5efe:808:808', 6, 'isatap.example', false),
     ).toThrow();
+  });
+});
+
+describe('IPv6 loopback is `loopback` regardless of spelling', () => {
+  // Regression (bug-hunt round 7): the loopback rule was an exact `=== "::1"`
+  // compare. `0:0:0:0:0:0:0:1` — the identical 128-bit address — fell through
+  // to the IPv4-compatible branch, classified `private`, and was then refused
+  // by validateTransportUrl (`http://` is loopback-only) and by the dial-time
+  // guard. Proven red before the fix; the classifier's own contract lists
+  // `loopback` as "127/8, ::1; the documented local topology, always allowed".
+  it('classifies the canonical compressed form as loopback (control)', () => {
+    expect(classifyTransportAddress('::1', 6)).toBe('loopback');
+  });
+
+  it('classifies the expanded and zero-padded forms of the SAME address as loopback', () => {
+    expect(classifyTransportAddress('0:0:0:0:0:0:0:1', 6)).toBe('loopback');
+    expect(classifyTransportAddress('0000:0000:0000:0000:0000:0000:0000:0001', 6)).toBe('loopback');
+  });
+
+  it('accepts plain http on the expanded loopback literal, like the compressed form', () => {
+    expect(() => validateTransportUrl('http://[0:0:0:0:0:0:0:1]:3344/mcp')).not.toThrow();
+  });
+
+  it('does not widen the class: other addresses keep their previous verdict', () => {
+    // The fix may only reclassify the exact loopback address; anything else
+    // would relax a security gate rather than repair a spelling dependence.
+    expect(classifyTransportAddress('::2', 6)).toBe('private');
+    expect(classifyTransportAddress('fc00::1', 6)).toBe('private');
+    expect(classifyTransportAddress('fd00::200:5efe:7f00:1', 6)).toBe('private');
+    expect(classifyTransportAddress('fd00:ec2:0:0:0:0:0:254', 6)).toBe('blocked');
+    expect(() => validateTransportUrl('http://[::2]:3344/mcp')).toThrow(/loopback/);
   });
 });

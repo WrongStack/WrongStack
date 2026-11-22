@@ -135,6 +135,26 @@ function isImdsIpv6Literal(v6: string): boolean {
 }
 
 /**
+ * `::1` matched by VALUE, not by spelling — the same principle as
+ * {@link isImdsIpv6Literal} above. `0:0:0:0:0:0:0:1` and
+ * `0000:0000:0000:0000:0000:0000:0000:0001` are the SAME 128-bit loopback
+ * address as the compressed literal, so an exact string compare let one
+ * spelling classify as `loopback` — the one class `http://` is allowed on and
+ * the one `assertTransportAddressAllowed` never refuses — while the others
+ * fell through to the IPv4-compatible branch and became `private`:
+ * `validateTransportUrl` then rejected a legitimate local endpoint over plain
+ * http, and the dial-time guard refused it unless private networks were opted
+ * in. Comparing the eight 16-bit groups keeps the verdict spelling-independent.
+ * An address `expandIPv6` cannot canonicalize keeps its existing verdict.
+ */
+function isLoopbackIpv6(v6: string): boolean {
+  if (v6 === '::1') return true;
+  const groups = expandIPv6(v6);
+  if (groups === null) return false;
+  return groups.every((group, index) => (index === 7 ? group === 1 : group === 0));
+}
+
+/**
  * Classify one resolved address under MCP transport policy:
  *  - `blocked`  — link-local / IMDS (169.254/16, fe80::/10, fd00:ec2::254);
  *                 never a valid MCP target, regardless of opt-in.
@@ -152,7 +172,7 @@ export function classifyTransportAddress(address: string, family: number): Trans
   }
   if (family === 6) {
     const v6 = address.toLowerCase();
-    if (v6 === '::1') return 'loopback';
+    if (isLoopbackIpv6(v6)) return 'loopback';
     // fe80::/10 (zone suffixes like %eth0 still start fe8-feb) is a prefix
     // regex, so no spelling of link-local escapes it. The AWS IPv6 IMDS
     // literal must hold that same line, so it is compared by its 16-bit
