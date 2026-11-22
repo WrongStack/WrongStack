@@ -11,7 +11,7 @@
       "relativeImports": 4
     },
     "packages/acp/src/client/acp-session.ts": {
-      "lines": 771,
+      "lines": 799,
       "relativeImports": 25
     },
     "packages/builtin-plugins/src/auto-review-plugin.ts": {

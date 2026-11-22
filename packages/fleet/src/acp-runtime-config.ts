@@ -31,7 +31,10 @@ export function inspectAcpRuntime(
     return Promise.reject(new Error('ACP agent is not enabled in the installed agent list'));
   const cmd = resolveAcpAgentCommand(agentId, config.acp?.agents);
   if (!cmd) return Promise.reject(new Error(`Unknown ACP agent: ${agentId}`));
-  const desiredValues = { ...config.modelRuntime?.acp?.[agentId], ...values };
+  const desiredValues =
+    Object.keys(values).length > 0
+      ? { ...values }
+      : { ...(config.modelRuntime?.acp?.[agentId] ?? {}) };
   const key = createHash('sha256')
     .update(JSON.stringify([agentId, projectRoot, cmd, desiredValues]))
     .digest('hex');

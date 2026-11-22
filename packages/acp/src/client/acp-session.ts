@@ -25,7 +25,7 @@ import { ACP_PACKAGE_VERSION } from '../version.js';
 import { cancelLateAcpSession } from './acp-late-session.js';
 import { prepareAcpLaunch } from './acp-launch-compat.js';
 import { type PendingRequest, rejectPendingRequests, type State } from './acp-request-state.js';
-import { acpRuntimeOptions } from './acp-runtime-options.js';
+import { acpLegacyModelOption, acpRuntimeOptions } from './acp-runtime-options.js';
 import {
   type AcpSessionAuthHost,
   authenticate as delegateAuthenticate,
@@ -56,6 +56,7 @@ import {
   executeResumeSession,
   executeSetConfigOption,
   executeSetMode,
+  executeSetModel,
   executeSetProvider,
   executeSteer,
 } from './acp-session-ops.js';
@@ -109,9 +110,16 @@ export class ACPSession {
   private closed = false;
   private disposeLaunch: (() => Promise<void>) | undefined;
   private configOptions: AcpRuntimeOption[] = [];
+  private legacyModelOption: AcpRuntimeOption | undefined;
 
   getConfigOptions(): AcpRuntimeOption[] {
     return structuredClone(this.configOptions);
+  }
+
+  private mergeLegacyModelOption(options: AcpRuntimeOption[]): AcpRuntimeOption[] {
+    if (!this.legacyModelOption) return options;
+    if (options.some((x) => x.category === 'model' || x.id === 'model')) return options;
+    return [structuredClone(this.legacyModelOption), ...options];
   }
 
   // Agent-provided info from the initialize handshake
@@ -419,6 +427,14 @@ export class ACPSession {
   }
 
   async setConfigOption(sessionId: SessionId, configId: string, value: string): Promise<void> {
+    if (this.legacyModelOption && configId === this.legacyModelOption.id) {
+      await executeSetModel(this.opContext(), sessionId, value);
+      this.legacyModelOption = { ...this.legacyModelOption, currentValue: value };
+      this.configOptions = this.configOptions.map((opt) =>
+        opt.id === configId ? { ...opt, currentValue: value } : opt,
+      );
+      return;
+    }
     return executeSetConfigOption(this.opContext(), sessionId, configId, value);
   }
 
@@ -596,8 +612,10 @@ export class ACPSession {
       const entry: PendingRequest = {
         method,
         resolve: (value: unknown) => {
-          if (['session/new', 'session/load', 'session/resume', 'session/fork'].includes(method))
+          if (['session/new', 'session/load', 'session/resume', 'session/fork'].includes(method)) {
             this.configOptions = [];
+            this.legacyModelOption = undefined;
+          }
           if (
             [
               'session/new',
@@ -605,14 +623,22 @@ export class ACPSession {
               'session/resume',
               'session/fork',
               'session/set_config_option',
+              'session/set_model',
             ].includes(method) &&
             value &&
-            typeof value === 'object' &&
-            Array.isArray((value as { configOptions?: unknown }).configOptions)
+            typeof value === 'object'
           ) {
-            this.configOptions = acpRuntimeOptions(
-              (value as { configOptions: unknown }).configOptions,
-            );
+            const response = value as { configOptions?: unknown; models?: unknown };
+            if (response.models !== undefined) {
+              this.legacyModelOption = acpLegacyModelOption(response.models);
+            }
+            if (Array.isArray(response.configOptions)) {
+              this.configOptions = this.mergeLegacyModelOption(
+                acpRuntimeOptions(response.configOptions),
+              );
+            } else if (this.legacyModelOption && this.configOptions.length === 0) {
+              this.configOptions = [structuredClone(this.legacyModelOption)];
+            }
           }
           resolve(value);
         },
@@ -685,7 +711,9 @@ export class ACPSession {
         params?.sessionId === this.sessionId &&
         params.update?.sessionUpdate === 'config_option_update'
       )
-        this.configOptions = acpRuntimeOptions(params.update.configOptions);
+        this.configOptions = this.mergeLegacyModelOption(
+          acpRuntimeOptions(params.update.configOptions),
+        );
     }
     handleMessageFromHost.call(this.acpSessionMessagesHost(), msg);
   }

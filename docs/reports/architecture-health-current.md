@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-22T14:30:44.205Z
+**Generated:** 2026-11-22T14:46:35.238Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 49 |
 | Production source files | 6411 |
-| Production source lines | 1323762 |
+| Production source lines | 1324022 |
 | Test files | 5661 |
 | Workspace dependency edges | 255 |
 | Relative module edges | 18948 |
@@ -116,12 +116,12 @@ None.
 | 800 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
 | 800 | `packages/client/src/client.ts` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
+| 799 | `packages/acp/src/client/acp-session.ts` |
 | 792 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
 | 786 | `packages/vibeui/src/lib/use-session.ts` |
 | 781 | `apps/desktop-v2/src/WrongStackSettings.tsx` |
 | 780 | `packages/tools/src/design.ts` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
-| 771 | `packages/acp/src/client/acp-session.ts` |
 | 763 | `packages/plugins/src/adversary-mode/index.ts` |
 | 758 | `packages/vector-memory/src/store.ts` |
 | 756 | `packages/fleet/src/host-skill-companion.ts` |

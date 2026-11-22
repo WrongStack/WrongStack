@@ -15,6 +15,31 @@ const applied = new WeakMap<
   AcpRuntimeSession,
   { original: AcpRuntimeValues; requested: AcpRuntimeValues }
 >();
+const ALLOWED_CATEGORIES = new Set([
+  'model',
+  'thought_level',
+  'model_config',
+  'reasoning',
+  'reasoning_effort',
+  'effort',
+  'thinking',
+]);
+
+const ALLOWED_IDS = new Set([
+  'provider',
+  'model',
+  'effort',
+  'reasoning_effort',
+  'thought_level',
+  'thinking',
+  'thinking_level',
+  'reasoning',
+]);
+
+function isModelCategoryOrId(category: string | undefined, id: string): boolean {
+  return category === 'model' || id === 'model';
+}
+
 /** Permission and automation modes are deliberately outside model configuration. */
 export function acpRuntimeOptions(input: unknown): AcpRuntimeOption[] {
   if (!Array.isArray(input)) return [];
@@ -31,11 +56,9 @@ export function acpRuntimeOptions(input: unknown): AcpRuntimeOption[] {
     )
       return [];
     if (acpRuntimeValuesError({ [raw.id]: raw.currentValue })) return [];
-    if (
-      !['model', 'thought_level', 'model_config'].includes(String(raw.category)) &&
-      raw.id !== 'provider'
-    )
-      return [];
+    const category = typeof raw.category === 'string' ? raw.category : undefined;
+    if (category === 'mode') return [];
+    if (!ALLOWED_CATEGORIES.has(String(category)) && !ALLOWED_IDS.has(raw.id)) return [];
     const options = raw.options
       .slice(0, 4096)
       .flatMap((group) =>
@@ -53,17 +76,56 @@ export function acpRuntimeOptions(input: unknown): AcpRuntimeOption[] {
       .map((value) => ({ value: value.value as string, name: value.name as string }));
     if (!options.length) return [];
     seen.add(raw.id);
+    const inferredCategory =
+      category ??
+      (raw.id === 'model' ? 'model' : raw.id === 'provider' ? undefined : 'thought_level');
     return [
       {
         id: raw.id,
         name: typeof raw.name === 'string' ? raw.name : raw.id,
-        category: typeof raw.category === 'string' ? raw.category : undefined,
+        category: inferredCategory,
         description: typeof raw.description === 'string' ? raw.description : undefined,
         currentValue: raw.currentValue,
         options,
       },
     ];
   });
+}
+
+/**
+ * Parse ACP's legacy `models` session block (`{ currentModelId, availableModels }`)
+ * into a canonical `AcpRuntimeOption` so agents that use `session/set_model`
+ * instead of `configOptions` still expose a working model selector.
+ */
+export function acpLegacyModelOption(input: unknown): AcpRuntimeOption | undefined {
+  if (!record(input)) return undefined;
+  const currentModelId =
+    typeof input['currentModelId'] === 'string' && input['currentModelId'].length > 0
+      ? input['currentModelId']
+      : undefined;
+  const available = Array.isArray(input['availableModels']) ? input['availableModels'] : [];
+  if (!available.length) return undefined;
+  const options: { value: string; name: string }[] = [];
+  const seen = new Set<string>();
+  for (const item of available.slice(0, 4096)) {
+    if (!record(item)) continue;
+    const rawId = item['modelId'] ?? item['id'];
+    if (typeof rawId !== 'string' || !rawId || rawId.length > 2000 || seen.has(rawId)) continue;
+    seen.add(rawId);
+    const rawName =
+      typeof item['name'] === 'string' && item['name'].length > 0 ? item['name'] : rawId;
+    options.push({ value: rawId, name: rawName.slice(0, 2000) });
+  }
+  if (!options.length) return undefined;
+  const currentValue = currentModelId ?? options[0]!.value;
+  if (acpRuntimeValuesError({ model: currentValue })) return undefined;
+  return {
+    id: 'model',
+    name: 'Model',
+    category: 'model',
+    currentValue,
+    options,
+  };
 }
 
 /** Apply dependencies first, and re-read the agent's revised vocabulary after every change. */
@@ -83,7 +145,7 @@ export async function applyAcpRuntimeValues(
   const rank = (id: string) =>
     id === 'provider'
       ? 0
-      : session.getConfigOptions().find((x) => x.id === id)?.category === 'model'
+      : isModelCategoryOrId(session.getConfigOptions().find((x) => x.id === id)?.category, id)
         ? 1
         : 2;
   const replacingModel = Object.keys(values).some(

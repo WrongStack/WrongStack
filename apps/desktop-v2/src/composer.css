@@ -569,7 +569,11 @@
   background: var(--base);
   color: var(--text);
 }
-.session-model-controls .acp-runtime-controls > div > div {
+.session-model-controls .acp-runtime-controls .acp-option-desc {
+  color: var(--muted);
+  font-size: 11px;
+}
+.session-model-controls .acp-runtime-controls > div > div:last-child {
   flex-wrap: wrap;
   border-block-start: 1px solid var(--border);
   padding-top: 8px;
@@ -577,4 +581,26 @@
 .session-model-controls .acp-runtime-controls button {
   min-height: 32px;
   padding: 3px 8px;
+}
+.session-model-controls .acp-runtime-controls .acp-effort-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  border: 0;
+  padding: 2px 0 0;
+}
+.session-model-controls .acp-runtime-controls .acp-effort-pills button {
+  min-height: 26px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 5px);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+}
+.session-model-controls .acp-runtime-controls .acp-effort-pills button[aria-pressed="true"] {
+  border-color: var(--accent, var(--text));
+  background: color-mix(in srgb, var(--accent, var(--text)) 14%, transparent);
+  color: var(--text);
 }

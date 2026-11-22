@@ -38,7 +38,25 @@ for await (const line of createInterface({ input: process.stdin })) {
   let result: unknown = {};
   if (msg.method === 'initialize')
     result = { protocolVersion: 1, agentCapabilities: {}, authMethods: [] };
-  if (msg.method === 'session/new') result = { sessionId: 'fixture', configOptions: options() };
+  if (msg.method === 'session/new') {
+    result =
+      process.env.ACP_LEGACY_MODELS === '1'
+        ? {
+            sessionId: 'fixture',
+            models: {
+              currentModelId: model,
+              availableModels: [
+                { modelId: 'fast', name: 'Fast' },
+                { modelId: 'deep', name: 'Deep' },
+              ],
+            },
+          }
+        : { sessionId: 'fixture', configOptions: options() };
+  }
+  if (msg.method === 'session/set_model') {
+    model = msg.params.modelId;
+    result = {};
+  }
   if (msg.method === 'session/set_config_option') {
     if (msg.params.configId === 'engine') {
       model = msg.params.value;

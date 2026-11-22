@@ -71,3 +71,76 @@ it('shows agent errors and never saves a rejected configuration', async () => {
   expect((await screen.findByRole('alert')).textContent).toBe('Agent login required');
   expect(save).not.toHaveBeenCalled();
 });
+
+it('renders quick-select effort pills and applies effort selections cleanly', async () => {
+  const withEfforts: AcpRuntimeOptionsResult = {
+    agentId: 'fixture',
+    applied: {},
+    options: [
+      snapshot.options[0]!,
+      {
+        id: 'thought',
+        name: 'Effort',
+        category: 'thought_level',
+        currentValue: 'low',
+        options: [
+          { value: 'low', name: 'Low' },
+          { value: 'medium', name: 'Medium' },
+          { value: 'high', name: 'High' },
+        ],
+      },
+    ],
+  };
+  const request = vi
+    .fn()
+    .mockResolvedValueOnce(withEfforts)
+    .mockResolvedValueOnce({
+      ...withEfforts,
+      options: [withEfforts.options[0]!, { ...withEfforts.options[1]!, currentValue: 'high' }],
+    });
+  const save = vi.fn();
+  const { container } = render(
+    <AcpRuntimeControls agentId="fixture" request={request} onChange={save} />,
+  );
+  container.querySelector('details')!.open = true;
+  fireEvent(container.querySelector('details')!, new Event('toggle'));
+  const highBtn = await screen.findByRole('button', { name: 'High' });
+  fireEvent.click(highBtn);
+  await waitFor(() => expect(save).toHaveBeenCalledWith({ thought: 'high' }));
+  expect((screen.getByLabelText('ACP Effort') as HTMLSelectElement).value).toBe('high');
+});
+
+it('clears stale model and effort when switching ACP provider', async () => {
+  const providerSnapshot: AcpRuntimeOptionsResult = {
+    agentId: 'fixture',
+    applied: {},
+    options: [
+      {
+        id: 'provider',
+        name: 'Provider',
+        currentValue: 'anthropic',
+        options: [
+          { value: 'anthropic', name: 'Anthropic' },
+          { value: 'openai', name: 'OpenAI' },
+        ],
+      },
+      snapshot.options[0]!,
+      snapshot.options[1]!,
+    ],
+  };
+  const request = vi.fn().mockResolvedValue(providerSnapshot);
+  const save = vi.fn();
+  const { container } = render(
+    <AcpRuntimeControls
+      agentId="fixture"
+      values={{ provider: 'anthropic', engine: 'fast', thought: 'low' }}
+      request={request}
+      onChange={save}
+    />,
+  );
+  container.querySelector('details')!.open = true;
+  fireEvent(container.querySelector('details')!, new Event('toggle'));
+  await screen.findByLabelText('ACP Provider');
+  fireEvent.change(screen.getByLabelText('ACP Provider'), { target: { value: 'openai' } });
+  await waitFor(() => expect(save).toHaveBeenCalledWith({ provider: 'openai' }));
+});

@@ -267,10 +267,11 @@ export class AcpLeaderProvider implements Provider {
     const selectedRuntime = hostContext?.meta?.['acpRuntime'] as
       | import('@wrongstack/contracts/types/acp-runtime').AcpRuntimeSelections
       | undefined;
-    const desiredRuntime = {
-      ...this.config().modelRuntime?.acp?.[agentId],
-      ...selectedRuntime?.[agentId],
-    };
+    const sessionOverride = selectedRuntime?.[agentId];
+    const desiredRuntime =
+      sessionOverride && Object.keys(sessionOverride).length > 0
+        ? { ...sessionOverride }
+        : { ...(this.config().modelRuntime?.acp?.[agentId] ?? {}) };
     if (Object.keys(desiredRuntime).length || leader.runtimeConfigured) {
       leader.runtimeConfigured = true;
       await acp.applyAcpRuntimeValues(leader.session, desiredRuntime);

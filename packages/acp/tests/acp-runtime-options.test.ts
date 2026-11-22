@@ -81,12 +81,50 @@ describe('ACP runtime configuration over real stdio', () => {
           options: [{ group: 'p', options: [{ value: 'a', name: 'A' }] }],
         },
         {
+          id: 'reasoning_effort',
+          name: 'Reasoning Effort',
+          type: 'select',
+          currentValue: 'medium',
+          options: [
+            { value: 'low', name: 'Low' },
+            { value: 'medium', name: 'Medium' },
+          ],
+        },
+        {
           id: 'mode',
           type: 'select',
           currentValue: 'all',
           options: [{ value: 'all', name: 'All' }],
         },
       ]),
-    ).toMatchObject([{ id: 'model', options: [{ value: 'a', name: 'A' }] }]);
+    ).toMatchObject([
+      { id: 'model', category: 'model', options: [{ value: 'a', name: 'A' }] },
+      {
+        id: 'reasoning_effort',
+        category: 'thought_level',
+        options: [
+          { value: 'low', name: 'Low' },
+          { value: 'medium', name: 'Medium' },
+        ],
+      },
+    ]);
+  });
+
+  it('supports legacy ACP models + session/set_model over real stdio', async () => {
+    const session = await start({ ACP_LEGACY_MODELS: '1' });
+    expect(session.getConfigOptions()).toMatchObject([
+      {
+        id: 'model',
+        category: 'model',
+        currentValue: 'fast',
+        options: [
+          { value: 'fast', name: 'Fast' },
+          { value: 'deep', name: 'Deep' },
+        ],
+      },
+    ]);
+    const updated = await applyAcpRuntimeValues(session, { model: 'deep' });
+    expect(updated[0]?.currentValue).toBe('deep');
+    expect(session.getConfigOptions()[0]?.currentValue).toBe('deep');
   });
 });

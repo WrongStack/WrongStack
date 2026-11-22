@@ -239,6 +239,26 @@ export async function executeSetConfigOption(
   }
 }
 
+export async function executeSetModel(
+  ctx: ACPSessionOpContext,
+  sessionId: SessionId,
+  modelId: string,
+): Promise<void> {
+  if (ctx.closed) throw new ACPSessionError('closed', 'session is closed');
+  const id = ctx.allocId();
+  const result = await ctx.sendRequest(id, 'session/set_model', {
+    sessionId,
+    modelId,
+  });
+  if (isJsonRpcError(result)) {
+    throw new ACPSessionError(
+      'prompt_failed',
+      `session/set_model failed: ${result.message}`,
+      result,
+    );
+  }
+}
+
 export async function executeListProviders(
   ctx: ACPSessionOpContext,
 ): Promise<{ providers: unknown[]; currentProviderId: string | null }> {

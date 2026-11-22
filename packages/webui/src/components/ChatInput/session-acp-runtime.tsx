@@ -12,7 +12,9 @@ export function SessionAcpRuntime({ agentId }: { agentId: string }) {
       values={settings?.[agentId]}
       request={requestAcpRuntime}
       onChange={async (values) => {
-        await saveSessionAcpRuntime({ ...settings, [agentId]: values }, sessionId);
+        const next = { ...settings, [agentId]: values };
+        await saveSessionAcpRuntime(next, sessionId);
+        useLocalPrefs.getState().set({ acpRuntime: next });
       }}
     />
   );
