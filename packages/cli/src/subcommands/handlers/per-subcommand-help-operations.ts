@@ -70,6 +70,16 @@ export const OPERATIONS_HELP_ENTRIES: Record<string, PerSubcommandHelp> = {
     usage: 'wstack acp [server|list|config|sync|spawn|parallel|probe|bench] [...]',
     subcommands: [
       { name: 'server / serve', description: 'Start WrongStack as an ACP stdio server (default).' },
+      {
+        name: 'serve --mode <id>',
+        description:
+          'Start new sessions in default, plan (read-only), auto-edit (edits unasked) or yolo; clients switch with session/set_mode.',
+      },
+      {
+        name: 'serve --yolo',
+        description:
+          'Same as --mode yolo: act without asking, like `wstack --yolo`; destructive calls still ask.',
+      },
       { name: 'list', description: 'List available ACP agents from the cache.' },
       {
         name: 'config <id> [--json]',
