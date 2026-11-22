@@ -55,6 +55,16 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.7.16
+
+- **ACP session modes:** `default`, `plan`, `auto-edit` and `yolo` through
+  `session/set_mode`, `wstack acp serve --yolo` / `--mode`, and permission
+  prompts that say what "always" covers.
+- **MCP server instructions** reach the system prompt, over ACP and with
+  `--mcp-config`.
+- **Code Intelligence** moves into `@wrongstack/codebase`, and each MCP server
+  is its own Quick tool group.
+
 ### What's new in 1.7.15
 
 - **Claude 5 adaptive thinking**, with the prompt cache's 1-hour entries kept
@@ -695,7 +705,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.7.15**; versions follow semver
+- Release notes: **v1.7.16**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements

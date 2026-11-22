@@ -7,6 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.16] — 2026-11-22
+
+Editors and orchestrators that drive WrongStack over ACP can now choose how much
+it does unasked: four session modes, a start flag, and permission prompts whose
+"always" answers say what they cover. MCP servers' own `initialize` instructions
+reach the model. Code Intelligence moves into its own `@wrongstack/codebase`
+package, each MCP server becomes its own Quick tool group, and a round of guard
+and robustness fixes closes more ways around the safety gates.
+
+### Added
+
+- ACP: sessions offer the modes `default`, `plan` (read-only), `auto-edit`
+  (edits project files unasked) and `yolo` (acts unasked, like `wstack --yolo`)
+  through `session/set_mode`, with a `current_mode_update` on every change.
+  `auto-edit` and `yolo` follow the project policy `--yolo` runs under, so deny
+  rules, `autonomy.yoloConfirm` and the locked destructive kinds still ask.
+- ACP: `wstack acp serve --yolo` and `--mode <id>` choose the mode new sessions
+  start in.
+- ACP: permission requests name what "always" covers ("Always allow file edits
+  (write) in this session"); for a call the project policy still guards it
+  covers that exact call only.
+- ACP: `session/set_model`, and a clearer model and reasoning-effort picker.
+- MCP: each server's `initialize` instructions are added to the system prompt,
+  for the servers an ACP client passes in `mcpServers` and for `--mcp-config`
+  servers in the terminal.
+- Tools: each MCP server is its own Quick tool group (`mcp:<server>`); a
+  server-specific Off wins, and an explicit parent Off disables every server.
+
+### Changed
+
+- Code Intelligence (parsers, index store, workers, project daemon and the
+  tree-sitter grammars) moves into `@wrongstack/codebase`;
+  `packages/tools/src/codebase-index` keeps re-export shims, so existing imports
+  keep working.
+
+### Fixed
+
+- ACP: `wstack acp serve --help` prints the help instead of starting the
+  server, a session saved in the old `code` mode loads in the first offered
+  mode, and an always-allowed `bash` no longer runs a later destructive command
+  unasked.
+- Guards: kill guards resolve pipeline-fed kills (`Get-Process | Stop-Process`,
+  `.Kill()`), CIM `Terminate` and `pkill`/`killall` on Windows; branch-guard
+  checks the repository `-C`, `--git-dir` or `--work-tree` selects; dep-guard
+  strips pip extras; license-audit-gate follows quoted `cd` targets; a `dir/*`
+  deny covers the directory itself; `bash -e -c` keeps its destructive banner;
+  PowerShell `rd` gets the recursive-delete checks.
+- Redaction: joined quoted pieces and PowerShell `''` pairs stay one secret
+  value, browser text redaction covers every `Authorization` scheme, and two
+  hand-written error messages now go through redaction.
+- Storage: the chronicle journal, HQ event log and replay sidecar are
+  owner-only on Windows.
+- Timers past 2^31-1 ms (fleet companions, the governance launcher, SAGE,
+  WrongMemory, coordination and goal tasks) no longer fire at once.
+- Text cuts in SAGE, delegation excerpts, SDD and conversation excerpts keep
+  surrogate pairs whole.
+- An append after a crash-torn line ends that line first (sessions, the
+  dispatch log, the HQ event log); one unreadable prompt-journal day skips only
+  itself.
+- MCP: RFC 8414 issuer paths and endpoint queries survive discovery, and an
+  over-long stdio line ends the stream cleanly.
+- Desktop: settings open Quick setup only once the engine reports it is
+  needed, the memory library takes only the reply to its own request, and the
+  model catalog no longer logs a duplicate-key warning.
+- `tree` defaults to the project root, index workers no longer keep a process
+  alive, names like `constructor` no longer resolve to `Object.prototype`, TOML
+  literal strings are read as strings, re-opening an LSP document no longer
+  fences out a read in flight, and HQ refuses an alert budget past its cap.
+
 ## [1.7.15] — 2026-11-21
 
 Claude 5 models get adaptive thinking, and sessions and projects can turn whole

@@ -1,4 +1,4 @@
-// Changelog — recent 1.x era (1.7.15 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
+// Changelog — recent 1.x era (1.7.16 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
 // Historical entries mirror CHANGELOG.md release notes. 1.1.0 absorbs the 1.0.38
 // bump, which was never published; 1.7.8 and 1.7.10 were never tagged either.
 // The 1.1.5 entry summarizes the commits in v1.1.4..v1.1.5, the 1.1.6 entry
@@ -11,10 +11,23 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.16',
+    date: '2026-11-22',
+    tagline: 'ACP session modes, MCP instructions',
+    latest: true,
+    highlights: [
+      'ACP sessions offer default, plan, auto-edit and yolo modes',
+      'wstack acp serve --yolo and --mode pick the start mode',
+      'Permission prompts say what "always" covers',
+      "MCP servers' initialize instructions reach the system prompt",
+      'Code Intelligence moves into @wrongstack/codebase',
+      'Each MCP server is its own Quick tool group',
+    ],
+  },
+  {
     version: '1.7.15',
     date: '2026-11-21',
     tagline: 'Adaptive thinking, tool groups, searchable settings',
-    latest: true,
     highlights: [
       'Claude 5 models use adaptive thinking',
       'Sessions and projects can turn whole tool groups on or off',

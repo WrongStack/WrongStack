@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/codebase",
-  "version": "1.7.15",
+  "version": "1.7.16",
   "private": true,
   "license": "MIT",
   "description": "WrongStack Code Intelligence parsers, index store, workers, and project daemon.",

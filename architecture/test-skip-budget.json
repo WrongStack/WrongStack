@@ -782,6 +782,36 @@
       "fingerprint": "a2cc64c19da47cef"
     },
     {
+      "file": "packages/tools/tests/exec-kill-guard-cim-terminate.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "0e27f263ceaeb275"
+    },
+    {
+      "file": "packages/tools/tests/exec-kill-guard-cim-terminate.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "4f3bf34e4a32c862"
+    },
+    {
+      "file": "packages/tools/tests/exec-kill-guard-cim-terminate.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "cd543f74b6e8f0d6"
+    },
+    {
+      "file": "packages/tools/tests/exec-kill-guard-cim-terminate.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "f36b5b0dd0f00b5f"
+    },
+    {
+      "file": "packages/tools/tests/exec-kill-guard-cim-terminate.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "f4963e55d486b645"
+    },
+    {
+      "file": "packages/tools/tests/exec-kill-guard-cim-terminate.test.ts",
+      "kind": "skip",
+      "fingerprint": "21bec18b0f54e156"
+    },
+    {
       "file": "packages/tools/tests/exec-kill-guard-taskkill-colon.test.ts",
       "kind": "conditional-skip",
       "fingerprint": "46f769764605dbf3"
