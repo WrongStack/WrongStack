@@ -31,7 +31,14 @@ const hoisted = vi.hoisted(() => {
     static terminateRejects = false;
     private handlers = new Map<string, Array<(...a: unknown[]) => void>>();
     postMessage = vi.fn();
-    unref = vi.fn();
+    /** Order of ref/unref/listener calls, as a real Worker would see them. */
+    calls: string[] = [];
+    unref = vi.fn(() => {
+      this.calls.push('unref');
+    });
+    ref = vi.fn(() => {
+      this.calls.push('ref');
+    });
     terminate = vi.fn(async () => {
       if (FakeWorker.terminateRejects) throw new Error('terminate failed');
     });
@@ -40,6 +47,7 @@ const hoisted = vi.hoisted(() => {
       FakeWorker.instances.push(this);
     }
     on(event: string, fn: (...a: unknown[]) => void): this {
+      this.calls.push(`on:${event}`);
       const list = this.handlers.get(event) ?? [];
       list.push(fn);
       this.handlers.set(event, list);
@@ -127,6 +135,22 @@ describe('worker RPC round-trip', () => {
     expect(req.op).toBe('search');
     respond(w, { type: 'response', id: req.id, ok: true, result: { results: [], total: 0 } });
     await expect(p).resolves.toEqual({ results: [], total: 0 });
+  });
+
+  // A real Worker is re-ref'd by attaching a 'message' listener: unref() before
+  // on('message') was undone and every process that ran one op could never
+  // exit. The host unrefs after its listeners, refs only while a reply is owed.
+  it('unrefs after attaching listeners and holds the worker only while a reply is owed', async () => {
+    const p = searchCodebaseIndex(SEARCH_ARGS);
+    await tick();
+    const w = lastWorker();
+    const firstUnref = w.calls.indexOf('unref');
+    expect(firstUnref).toBeGreaterThan(w.calls.indexOf('on:message'));
+    expect(w.calls.at(-1)).toBe('ref');
+    const req = lastRequest(w);
+    respond(w, { type: 'response', id: req.id, ok: true, result: { results: [], total: 0 } });
+    await expect(p).resolves.toEqual({ results: [], total: 0 });
+    expect(w.calls.at(-1)).toBe('unref');
   });
 
   it('reuses the same worker across calls', async () => {

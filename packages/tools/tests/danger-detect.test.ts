@@ -330,6 +330,36 @@ describe('an inline interpreter payload is read as the command it is', () => {
   });
 });
 
+// A flag that is NOT a payload flag for this host, sitting in front of the real
+// one, used to END the scan: `-e` is node/perl/ruby/python's eval flag, but for
+// a POSIX shell it is errexit and takes no value at all, so
+// `bash -e -c "rm -rf build"` read `-c` as `-e`'s operand, found no command line
+// in it, and returned no pairs. No cmd-keyed rule saw `rm`, and the banner said
+// `caution` for the very command `bash -c` reports as `destructive` — the same
+// shape-variance class as the clustered `-lc` spelling above: the flag's
+// POSITION must not decide the classification.
+describe('a non-payload flag before the real payload flag does not end the scan', () => {
+  it.each([
+    ['bash', ['-e', '-c', 'rm -rf ./build'], 'destructive'],
+    ['sh', ['-e', '-c', 'rm -rf ./build'], 'destructive'],
+    ['zsh', ['-E', '-c', 'rm -rf ./build'], 'destructive'],
+    ['bash', ['-e', '-c', 'git reset --hard'], 'destructive'],
+    ['bash', ['-e', '-c', 'npm publish'], 'destructive'],
+    // The re-read must stay honest: a harmless payload behind the same flags is
+    // still only the interpreter's own `inline-eval` caution.
+    ['bash', ['-e', '-c', 'ls -la'], 'caution'],
+    ['node', ['-e', '1+1'], 'caution'],
+  ])('%s %j → %s', (cmd, args, level) => {
+    expect(detectDanger(cmd, args).level).toBe(level);
+  });
+
+  it('exposes the payload rule, not just the interpreter caution', () => {
+    const r = detectDanger('bash', ['-e', '-c', 'rm -rf ./build']);
+    expect(r.reasons).toContain('recursive force-delete');
+    expect(r.reasons).toContain('inline script evaluation (-c / -e / --eval)');
+  });
+});
+
 describe('detectDanger — rm / rmdir recursive force', () => {
   it('flags `rm -rf ./build` as destructive', () => {
     const r = detectDanger('rm', ['-rf', './build']);

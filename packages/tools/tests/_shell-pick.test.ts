@@ -139,6 +139,23 @@ describe('pickShell — auto-detect (Codex-style commands)', () => {
     expect(pickShell(win, '$arr -contains "x"', envFrom({}))).toBe('pwsh');
   });
 
+  it('detects the split family on LITERAL operands, without a $ variable', () => {
+    // Every case above carries a `$` variable, which the variable tell catches
+    // on its own — so the operator table was never actually exercised for the
+    // split family, and the documented `-split` was missing from it (while a
+    // non-existent `-osplit` stood in its place). A literal operand has no
+    // `$variable` and no cmdlet, so only the operator regex can recognise it;
+    // without it the command was routed to cmd.exe, which answers
+    // "'-split' is not recognized…".
+    expect(pickShell(win, "'a,b' -split ','", envFrom({}))).toBe('pwsh');
+    expect(pickShell(win, "'a,b' -isplit ','", envFrom({}))).toBe('pwsh');
+    expect(pickShell(win, "'a;b' -csplit ';'", envFrom({}))).toBe('pwsh');
+    expect(pickShell(win, "'a,b' -join ','", envFrom({}))).toBe('pwsh');
+    // A double-dash CLI flag is not the operator: the left boundary must be a
+    // real one, so `--split` still belongs to cmd.
+    expect(pickShell(win, 'tool --split x', envFrom({}))).toBe('cmd');
+  });
+
   it('detects .ps1 references', () => {
     expect(pickShell(win, './scripts/build.ps1 -Config Release', envFrom({}))).toBe('pwsh');
   });

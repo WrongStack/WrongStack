@@ -49,10 +49,29 @@ describe('treeTool', () => {
     expect(subdirLine!.startsWith('│   ')).toBe(true);
   });
 
-  it('defaults to cwd', async () => {
+  it('defaults to the project root', async () => {
     const ctx = makeCtx();
     const result = await treeTool.execute({}, ctx, makeOpts());
     expect(result.path).toBe(tmpDir);
+  });
+
+  it('roots the default tree at projectRoot, not a nested session cwd', async () => {
+    // The schema promises "defaults to project root". Rooting the walk at
+    // `ctx.cwd` meant a session working in a subdirectory (worktrees,
+    // set_working_dir, a daemon started elsewhere) silently treed only that
+    // subdirectory — and, unlike an explicit `path`, the default never passed
+    // safeResolveReal's containment check. `glob` was fixed to this rule; the
+    // fixture above cannot show it because cwd and projectRoot are the same dir.
+    await fs.writeFile(path.join(tmpDir, 'root-level.txt'), '');
+    const nested = path.join(tmpDir, 'nested-cwd');
+    await fs.mkdir(nested);
+    await fs.writeFile(path.join(nested, 'nested-only.txt'), '');
+
+    const nestedCtx = { cwd: nested, tools: [], projectRoot: tmpDir } as any;
+    const result = await treeTool.execute({}, nestedCtx, makeOpts());
+    expect(result.path).toBe(tmpDir);
+    expect(result.tree).toContain('root-level.txt');
+    expect(result.tree).toContain('nested-only.txt');
   });
 
   // The option tests below used to run against an EMPTY tmpDir and only check

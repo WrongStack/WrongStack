@@ -122,13 +122,15 @@ export class ParserWorkerPool {
       for (let i = 0; i < this.maxWorkers; i++) {
         try {
           const w = new Worker(url, { name: `wstack-parser-${i}` });
-          w.unref();
           w.on('message', (msg: ParserWorkerResponse) => this.handleMessage(msg));
           w.on('error', (err) => this.handleError(err, w));
           // Not every death raises an `error` event (process abort, stack
           // overflow in native code) — `exit` is the reliable backstop.
           // retireByReference is idempotent, so double-firing is safe.
           w.on('exit', () => this.retireByReference(w));
+          // After the listeners: attaching a 'message' listener re-refs the
+          // worker, which undid an earlier unref and kept the process alive.
+          w.unref();
           this.workers.push({ worker: w, workerId: w.threadId, busy: false });
         } catch {
           // If we can't spawn all workers, use what we got.
@@ -190,6 +192,9 @@ export class ParserWorkerPool {
       for (let i = 0; i < workerCount; i++) {
         const pw = this.workers[i]!;
         pw.busy = true;
+        // Held while it owes a chunk: an idle pool is unref'd, but a pending
+        // batch must keep the process alive until the reply arrives.
+        pw.worker.ref();
         pendingChunks.set(pw.workerId, chunks[i]!);
         pw.worker.postMessage({ type: 'parse', id: batchId, files: chunks[i]! });
       }
@@ -222,17 +227,24 @@ export class ParserWorkerPool {
 
     // Give workers a moment to shut down gracefully, then terminate.
     await Promise.allSettled(
-      workers.map((w) =>
-        Promise.race([
+      workers.map((w) => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        return Promise.race([
           new Promise<void>((resolve) => {
             w.once('exit', () => resolve());
           }),
-          new Promise<void>((resolve) => setTimeout(() => resolve(), 2000)),
+          new Promise<void>((resolve) => {
+            // Referenced while shutdown awaits (the caller resumes after it),
+            // cleared below once the worker has exited: left pending, it held
+            // the process open for the full grace period.
+            timer = setTimeout(() => resolve(), 2000);
+          }),
         ]).then(() => {
+          clearTimeout(timer);
           if (!w.threadId) return;
           return w.terminate().catch(() => {});
-        }),
-      ),
+        });
+      }),
     );
   }
 
@@ -244,8 +256,14 @@ export class ParserWorkerPool {
     // answered. The old code freed "the first busy worker" by elimination,
     // which mis-attributed completion when several workers were in flight.
     const worker = this.workers.find((w) => w.workerId === msg.workerId);
-    if (worker) worker.busy = false;
     batch.pendingChunks.delete(msg.workerId);
+    if (worker) {
+      worker.busy = false;
+      // Released only once no in-flight batch still owes a chunk from it:
+      // overlapping batches share the singleton pool's workers.
+      const stillOwed = [...this.pending.values()].some((p) => p.pendingChunks.has(msg.workerId));
+      if (!stillOwed) worker.worker.unref();
+    }
 
     batch.accumulated.push(...msg.results);
     // Per-file errors (msg.errors) stay ABSENT from results on purpose: the

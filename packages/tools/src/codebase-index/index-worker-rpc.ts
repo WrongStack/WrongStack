@@ -76,8 +76,6 @@ export function ensureWorker(): Worker | null {
   }
   try {
     const w = new Worker(url, { name: 'wstack-codebase-index' });
-    // The worker must never keep the process alive on its own.
-    w.unref();
     w.on('message', (msg: WorkerToHost) => {
       if (msg.type === 'progress') {
         pending.get(msg.id)?.onProgress?.(msg.current, msg.total);
@@ -108,6 +106,11 @@ export function ensureWorker(): Worker | null {
       worker = null;
       failAllPending(new Error('codebase-index worker exited'));
     });
+    // The worker must never keep the process alive on its own. Unref'd AFTER
+    // the listeners: attaching 'message' re-refs a Worker, which undid an
+    // earlier unref and kept every process that ran one op alive forever.
+    // `dispatchLocal` refs it while an RPC is pending.
+    w.unref();
     worker = w;
     return w;
   } catch {
@@ -261,6 +264,7 @@ function dispatchLocal<O extends OpName>(
     const cleanup = () => {
       clearTimeout(timer);
       opts.signal?.removeEventListener('abort', onAbort);
+      if (pending.size === 0) w.unref();
     };
     pending.set(id, {
       resolve: (v) => {
@@ -273,6 +277,8 @@ function dispatchLocal<O extends OpName>(
       },
       onProgress: opts.onProgress,
     });
+    // Held while a reply is owed (the watchdog timer is unref'd).
+    w.ref();
 
     w.postMessage({ type: 'request', id, op, args } satisfies HostToWorker);
   });

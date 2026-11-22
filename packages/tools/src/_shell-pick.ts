@@ -143,8 +143,13 @@ export function looksLikePowerShell(command: string): boolean {
   // on each side to avoid matching inside paths like `C:\foo-eq\bar`.
   // Note: -f is excluded here because it is a universal CLI flag (`rm -f`,
   // `git checkout -f`); the PowerShell string format operator is detected below.
+  // The split family is `-split` plus its case variants `-isplit` / `-csplit`
+  // (`-osplit` is not a PowerShell operator). The plain `-split` used to be
+  // missing, so `'a,b' -split ','` — no `$variable` and no cmdlet to catch it —
+  // stayed unrecognised and was routed to cmd.exe, which answers
+  // "'-split' is not recognized…".
   if (
-    /(?:^|[\s[({,;])(?:-eq|-ne|-lt|-gt|-le|-ge|-like|-notlike|-match|-notmatch|-contains|-notcontains|-in|-notin|-and|-or|-not|-band|-bor|-bxor|-replace|-isplit|-csplit|-osplit|-join|-is|-as)(?:$|[\s\])},;])/i.test(
+    /(?:^|[\s[({,;])(?:-eq|-ne|-lt|-gt|-le|-ge|-like|-notlike|-match|-notmatch|-contains|-notcontains|-in|-notin|-and|-or|-not|-band|-bor|-bxor|-replace|-split|-isplit|-csplit|-join|-is|-as)(?:$|[\s\])},;])/i.test(
       trimmed,
     )
   ) {

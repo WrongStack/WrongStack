@@ -115,7 +115,15 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
     return final;
   },
   async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<TreeOutput>> {
-    const basePath = input.path ? await safeResolveReal(input.path, ctx) : ctx.cwd;
+    // The documented default base is the PROJECT ROOT, not the session cwd:
+    // `cwd` is only the root by coincidence (a daemon started elsewhere, a
+    // nested working dir from worktrees / set_working_dir), and — unlike an
+    // explicit `path` — it never passed safeResolveReal's containment check.
+    // `glob` was fixed to this rule (874488d0a); `tree` still rooted its default
+    // at `cwd`, so a session working in a subdirectory silently treed only that
+    // subdirectory while the schema promised the project root.
+    const root = ctx.projectRoot || ctx.cwd;
+    const basePath = input.path ? await safeResolveReal(input.path, ctx) : root;
     const maxDepth =
       typeof input.depth === 'number' && Number.isFinite(input.depth) && input.depth >= 0
         ? Math.floor(input.depth)

@@ -97,8 +97,14 @@ export function inlinePayloadPairs(
     }
     const payload = args[i + 1];
     // Only a payload that actually looks like a command LINE is worth
-    // re-reading: a single bare token is already visible to every rule.
-    if (payload === undefined || !/\s/.test(payload.trim())) return [];
+    // re-reading: a single bare token is already visible to every rule. It must
+    // not END the scan, though — `-e` is node/perl/ruby/python's eval flag, but
+    // for a shell it is errexit and takes no value at all, so
+    // `bash -e -c "rm -rf build"` read `-c` as the operand of `-e`, found no
+    // command line in it, and returned no pairs: no cmd-keyed rule ever saw
+    // `rm` and the banner dropped from 'destructive' to 'caution'. Keep looking
+    // for the flag that actually carries the line.
+    if (payload === undefined || !/\s/.test(payload.trim())) continue;
     return splitPayload(payload).map(([head = '', ...rest]) => ({ cmd: head, args: rest }));
   }
   return [];
