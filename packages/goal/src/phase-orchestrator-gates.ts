@@ -153,7 +153,8 @@ export async function runPhaseVerifyGate(
         context: [
           `Phase id: ${phase.id}`,
           `Consecutive verification failures: ${consecutiveFailures}`,
-          `Latest verifier output:\n${(verdict.output ?? 'verification failed').slice(-1200)}`,
+          // keepTail, not slice(): a raw cut could open on a lone low surrogate.
+          `Latest verifier output:\n${keepTail(verdict.output ?? 'verification failed', 1200)}`,
         ].join('\n'),
         risk: 'low',
         fallback: 'continue',

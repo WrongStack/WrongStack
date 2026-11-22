@@ -257,9 +257,22 @@ export class PhaseStore {
     const entries = await this.list();
     const summaries: GoalSummary[] = [];
     for (const entry of entries) {
-      const graph = await this.load(entry.id);
+      // Same per-file contract as list(): the id comes from file content and a
+      // persisted graph may lack fields, so one unusable file is skipped
+      // instead of failing the whole catalog.
+      let graph: PhaseGraph | null;
+      try {
+        graph = await this.load(entry.id);
+      } catch {
+        continue;
+      }
       if (!graph) continue;
-      summaries.push(summarizeGoal(graph, await this.goalRunOwner(graph)));
+      const ownerId = await this.goalRunOwner(graph);
+      try {
+        summaries.push(summarizeGoal(graph, ownerId));
+      } catch {
+        // Skip invalid files
+      }
     }
     return summaries;
   }

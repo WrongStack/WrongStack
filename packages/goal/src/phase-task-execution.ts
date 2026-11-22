@@ -4,6 +4,10 @@ import { toErrorMessage } from '@wrongstack/core/utils';
 import type { WorktreeHandle } from '@wrongstack/worktree';
 import type { NormalizedGoalOptions } from './phase-orchestrator-types.js';
 import type { PhaseEventMap, PhaseEventName, PhaseExecutionContext, PhaseNode } from './types.js';
+
+/** Largest delay setTimeout honours (2^31-1 ms); see goal-runner's max-run timer. */
+const MAX_TIMER_DELAY_MS = 2_147_483_647;
+
 export interface PhaseTaskExecutionHost {
   getExecutableTasks(phase: PhaseNode): TaskNode[];
   stopped: boolean;
@@ -96,10 +100,24 @@ export async function executeSingleTask(
   const result = await Promise.race([
     taskPromise,
     new Promise<typeof timedOut>((resolve) => {
-      const timer = setTimeout(() => {
-        timeoutController.abort();
-        resolve(timedOut);
-      }, timeoutMs);
+      // setTimeout clamps a delay past 2^31-1 ms (and Infinity) to ~1 ms, which
+      // timed every task out at once. Re-arm in ceiling-sized chunks instead;
+      // Infinity never runs out, so it never fires.
+      let remainingMs = timeoutMs;
+      let timer: ReturnType<typeof setTimeout>;
+      const arm = (): void => {
+        const delay = Math.min(remainingMs, MAX_TIMER_DELAY_MS);
+        timer = setTimeout(() => {
+          remainingMs -= delay;
+          if (remainingMs > 0) {
+            arm();
+            return;
+          }
+          timeoutController.abort();
+          resolve(timedOut);
+        }, delay);
+      };
+      arm();
       // Let the timer be freed if the task finishes first.
       taskPromise.then(() => clearTimeout(timer)).catch(() => clearTimeout(timer));
     }),
