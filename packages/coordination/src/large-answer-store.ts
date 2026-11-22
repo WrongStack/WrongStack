@@ -75,7 +75,7 @@ export class LargeAnswerStore {
     const bytes = Buffer.byteLength(serialized, 'utf8');
 
     if (size <= this.sizeThreshold) {
-      return { summary: serialized.slice(0, 500), inline: true };
+      return { summary: serialized, inline: true };
     }
 
     // Stable key derived from content hash — same value always gets same key

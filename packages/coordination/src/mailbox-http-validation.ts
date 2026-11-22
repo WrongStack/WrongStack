@@ -19,7 +19,11 @@ import type {
   MailboxQuery,
   MailboxSendInput,
 } from './mailbox-types.js';
-import { MAILBOX_TYPE_PROPERTIES, normalizeRecipient } from './mailbox-types.js';
+import {
+  MAILBOX_TYPE_PROPERTIES,
+  mailboxIdentityBase,
+  normalizeRecipient,
+} from './mailbox-types.js';
 
 export const MAILBOX_HTTP_MAX_AGE_CEILING_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -231,7 +235,9 @@ const RESERVED_READER_IDS = new Set([
 ]);
 
 function validateReaderId(id: string): void {
-  const base = id.split('@')[0]!.toLowerCase();
+  // The canonical base (split on `@` or `#`, trimmed): `leader#x` and
+  // ` leader` are the leader to every other mailbox predicate.
+  const base = mailboxIdentityBase(id);
   if (RESERVED_READER_IDS.has(base)) {
     throw validationError(`"readerId" must not use reserved internal agent id "${base}"`);
   }
@@ -289,7 +295,7 @@ export function validateSend(
   }
   const from = actorId ?? requireString(object, 'from');
   if (actorId === undefined) {
-    const fromBase = from.split('@')[0]!.toLowerCase();
+    const fromBase = mailboxIdentityBase(from);
     if (RESERVED_FROM_IDS.has(fromBase)) {
       throw validationError(
         `field "from" must not use reserved internal agent id "${fromBase}" - external agents must use their own identity`,

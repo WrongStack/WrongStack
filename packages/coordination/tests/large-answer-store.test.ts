@@ -9,12 +9,24 @@ describe('LargeAnswerStore', () => {
     expect(s.size).toBe(0);
   });
 
-  it('returns small string values inline (truncated to 500 chars)', () => {
+  it('returns small string values inline', () => {
     const s = new LargeAnswerStore(2000);
     const r = s.storeAnswer('short answer');
     expect(r.inline).toBe(true);
     expect(r.summary).toBe('short answer');
     expect(r.key).toBeUndefined();
+  });
+
+  it('returns a below-threshold answer inline in full (F1158)', () => {
+    // ask_subagent hands `summary` back as the answer and stores nothing for
+    // inline results, so any cut here would be unrecoverable.
+    const s = new LargeAnswerStore(2000);
+    const answer = `${'A'.repeat(1200)} -- CONCLUSION: the root cause is X`;
+    const r = s.storeAnswer(answer);
+    expect(r).toEqual({ summary: answer, inline: true });
+    const atThreshold = 'T'.repeat(2000);
+    expect(s.storeAnswer(atThreshold)).toEqual({ summary: atThreshold, inline: true });
+    expect(s.size).toBe(0);
   });
 
   it('serializes and inlines small objects below the threshold', () => {

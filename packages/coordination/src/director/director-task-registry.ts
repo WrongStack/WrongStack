@@ -237,10 +237,14 @@ export class DirectorTaskRegistry {
           }),
       };
       if (opts?.timeoutMs !== undefined) {
-        entry.timer = setTimeout(() => {
-          this.anyWaiters.delete(entry);
-          resolve({ completed: [], pending: [...taskIds], timedOut: true });
-        }, opts.timeoutMs);
+        // Above 2^31-1 ms setTimeout fires after ~1 ms (Node and Bun).
+        entry.timer = setTimeout(
+          () => {
+            this.anyWaiters.delete(entry);
+            resolve({ completed: [], pending: [...taskIds], timedOut: true });
+          },
+          Math.min(opts.timeoutMs, 2_147_483_647),
+        );
       }
       this.anyWaiters.add(entry);
     });

@@ -140,7 +140,12 @@ export function buildDelegationResultExcerpt(
     text = partial?.lastAssistantText ?? '';
   }
   text = text.trim();
-  return text.length > maxChars ? `${text.slice(0, maxChars - 1)}…` : text;
+  if (text.length <= maxChars) return text;
+  // Never cut a surrogate pair: this excerpt reaches the leader's provider.
+  let end = maxChars - 1;
+  const last = end > 0 ? text.charCodeAt(end - 1) : 0;
+  if (last >= 0xd800 && last <= 0xdbff) end--;
+  return `${text.slice(0, end)}…`;
 }
 
 /**

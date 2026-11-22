@@ -8,6 +8,9 @@ import type { DefaultMultiAgentCoordinator } from './multi-agent-coordinator.js'
  */
 const BUSY_REARM_FLOOR_MS = 1_000;
 
+/** Above 2^31-1 ms setTimeout fires after ~1 ms (Node and Bun). */
+const MAX_TIMER_DELAY_MS = 2_147_483_647;
+
 export class DirectorIdleRetirement {
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
   constructor(
@@ -24,6 +27,7 @@ export class DirectorIdleRetirement {
   arm(subagentId: string, delayMs: number | undefined): void {
     this.clear(subagentId);
     if (delayMs === undefined) return;
+    const timerDelayMs = Math.min(delayMs, MAX_TIMER_DELAY_MS);
     const timer = setTimeout(() => {
       this.timers.delete(subagentId);
       const entry = this.getCoordinator()
@@ -53,7 +57,7 @@ export class DirectorIdleRetirement {
         return;
       }
       void this.remove(subagentId).catch((err) => this.onError(err));
-    }, delayMs);
+    }, timerDelayMs);
     if (typeof timer.unref === 'function') timer.unref();
     this.timers.set(subagentId, timer);
   }
