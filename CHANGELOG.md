@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.17] — 2026-11-23
+
+The desktop installers are back. 1.7.16 shipped its standalone binaries but no
+desktop installers: the desktop engine build still looked for the Tree-sitter
+grammars in `@wrongstack/tools` after they moved to `@wrongstack/codebase`.
+Desktop users move from 1.7.15 straight to 1.7.17 and get everything in 1.7.16.
+
+### Fixed
+
+- Desktop: the engine asset pack takes the Tree-sitter grammars from
+  `@wrongstack/codebase`, so the installers build on every platform again.
+- ACP: `auto-edit` resolves symlinks before treating a path as inside the
+  project, and a link whose target does not exist yet asks instead of being
+  approved.
+- Release checks: the WASM package smoke packs `@wrongstack/codebase`, and the
+  LSP server's stale-connection guard has a deterministic test.
+
 ## [1.7.16] — 2026-11-22
 
 Editors and orchestrators that drive WrongStack over ACP can now choose how much

@@ -1,4 +1,4 @@
-// Changelog — recent 1.x era (1.7.16 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
+// Changelog — recent 1.x era (1.7.17 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
 // Historical entries mirror CHANGELOG.md release notes. 1.1.0 absorbs the 1.0.38
 // bump, which was never published; 1.7.8 and 1.7.10 were never tagged either.
 // The 1.1.5 entry summarizes the commits in v1.1.4..v1.1.5, the 1.1.6 entry
@@ -11,10 +11,20 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.17',
+    date: '2026-11-23',
+    tagline: 'Desktop installers are back',
+    latest: true,
+    highlights: [
+      'Desktop installers build on every platform again',
+      'Desktop users get all of 1.7.16: ACP session modes and MCP server instructions',
+      'auto-edit resolves symlinks before approving a project path',
+    ],
+  },
+  {
     version: '1.7.16',
     date: '2026-11-22',
     tagline: 'ACP session modes, MCP instructions',
-    latest: true,
     highlights: [
       'ACP sessions offer default, plan, auto-edit and yolo modes',
       'wstack acp serve --yolo and --mode pick the start mode',

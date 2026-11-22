@@ -1,11 +1,11 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.7.16',
-  title: 'ACP session modes, MCP instructions.',
+  version: '1.7.17',
+  title: 'Desktop installers are back.',
   summary:
-    "Editors and orchestrators that drive WrongStack over ACP choose how much it does unasked: default, plan, auto-edit or yolo, from session/set_mode or a start flag, with permission prompts that say what 'always' covers. MCP servers' own instructions reach the model, Code Intelligence moves into its own package, and a round of guard fixes closes more ways around the safety gates.",
+    "The desktop installers are back on every platform, with all of 1.7.16: ACP clients choose how much WrongStack does unasked (default, plan, auto-edit or yolo), MCP servers' own instructions reach the model, and Code Intelligence has its own package.",
   socialDescription:
-    "WrongStack 1.7.16: ACP clients choose a session mode, MCP servers' own instructions reach the model, and Code Intelligence gets its own package.",
+    "WrongStack 1.7.17: the desktop installers are back, with 1.7.16's ACP session modes and MCP server instructions.",
   cards: [
     {
       title: 'ACP session modes',
