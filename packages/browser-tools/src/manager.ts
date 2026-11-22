@@ -338,8 +338,10 @@ export class BrowserSessionManager {
     signal: AbortSignal,
   ): Promise<void> {
     const session = this.requireOwned(id, ownerId);
+    // Floor at 1 ms: Playwright reads `timeout: 0` as "no timeout", so a
+    // `timeoutMs: 0` wait for an absent selector never settled.
     const timeout = Math.min(
-      Math.max(input.timeoutMs ?? this.operationTimeoutMs, 0),
+      Math.max(input.timeoutMs ?? this.operationTimeoutMs, 1),
       this.operationTimeoutMs,
     );
     await this.runPageOperation(session, signal, () =>

@@ -100,10 +100,39 @@ const SEPARATOR = /^[=:,\s]$/;
  * `lastIndex` state can leak between the profiles that use them.
  */
 const SHORT_FLAG_TOKEN_PATTERN = /(?<![-\w])-t(?:[=\s]+)?[^\s,-]{8,}/g;
+/**
+ * A single-quoted shell word. `''` inside it stays part of the value: PowerShell
+ * reads it as an escaped apostrophe and POSIX sh concatenates the adjacent
+ * quoted strings, so `'it''s secret'` is one argument either way. Stopping at
+ * the first pair printed the rest of the secret after `[REDACTED]`.
+ */
+const SINGLE_QUOTED = String.raw`'(?:[^'\n]|'')*'`;
+/**
+ * A secret value as one shell word. A quoted piece keeps its spaces
+ * (`--password="hunter two"` was cut at the space before) and PowerShell's `''`.
+ * Quoted and unquoted pieces that touch
+ * (`'a'"b c"`, `"a"'b c'`, `a"b c"`) are a single argument; stopping after the
+ * first piece printed the rest of the secret after `[REDACTED]`. `bare` is the
+ * pattern's own unquoted character. After the first piece a quote opens a
+ * quoted piece only when neither a space nor a shell metacharacter follows it,
+ * so `echo "TOKEN=x" && echo "y"` and `echo "TOKEN=x"; echo "y"` keep the rest
+ * of the line, and a shell metacharacter ends the word (`$env:KEY = 'x'; run`
+ * keeps its `;`).
+ */
+function shellWordValue(bare: string): string {
+  // May open on an unclosed quote; stops before a later quote so `next` can take it.
+  const unquoted = `${bare}(?:(?!["'])${bare})*`;
+  const opens = String.raw`(?=[^\s"';&|<>()])`;
+  const next = String.raw`"${opens}[^"\n]*"|'${opens}(?:[^'\n]|'')*'`;
+  const more = `(?![;&|<>()])${bare}`;
+  return String.raw`(?:"[^"\n]*"|${SINGLE_QUOTED}|${unquoted})(?:${next}|${more})*`;
+}
 // A quoted password is taken whole (`-p "hunter two"`), like the long flags'
-// QUOTED_VALUE below; the bare class alone printed the tail after the space.
-const SHORT_FLAG_SECRET_PATTERN =
-  /(?<![-\w])-(?:password|p|a)(?:[=\s]+)?(?:"[^"\n]*"|'[^'\n]*'|[^\s,-]+)/gi;
+// value; the bare class alone printed the tail after the space.
+const SHORT_FLAG_SECRET_PATTERN = new RegExp(
+  String.raw`(?<![-\w])-(?:password|p|a)(?:[=\s]+)?${shellWordValue(String.raw`[^\s,-]`)}`,
+  'gi',
+);
 /**
  * Short-flag patterns for the OUTBOUND profile (`telegram` notifications).
  *
@@ -121,8 +150,10 @@ const SHORT_FLAG_SECRET_PATTERN =
  * accepted cost here; see the outbound tests.
  */
 const OUTBOUND_SHORT_FLAG_TOKEN_PATTERN = /(?<![-\w])-t(?:[=\s]+)?[^\s,]+/g;
-const OUTBOUND_SHORT_FLAG_SECRET_PATTERN =
-  /(?<![-\w])-(?:password|p|a)(?:[=\s]+)?(?:"[^"\n]*"|'[^'\n]*'|[^\s,]+)/gi;
+const OUTBOUND_SHORT_FLAG_SECRET_PATTERN = new RegExp(
+  String.raw`(?<![-\w])-(?:password|p|a)(?:[=\s]+)?${shellWordValue(String.raw`[^\s,]`)}`,
+  'gi',
+);
 /** Shared: high-entropy value behind a secret-looking flag name. */
 const HIGH_ENTROPY_FLAG_PATTERN =
   /--[\w-]*(?:token|key|secret|password|passwd|auth|credential)[\w-]*[=\s,:]\s*[A-Za-z0-9+/=]{32,}/g;
@@ -148,7 +179,10 @@ const AUTHORIZATION_HEADER_PATTERN = new RegExp(
  */
 const COOKIE_HEADER_PATTERN =
   /\bCookie\s*:\s*[^\s=;"']+\s*=\s*(?:"[^"\n]*"|'[^'\n]*'|[^\s"';]*)(?:;\s*[^\s=;"']+\s*=\s*(?:"[^"\n]*"|'[^'\n]*'|[^\s"';]*))*/gi;
-const COOKIE_FLAG_PATTERN = /--cookie(?![\w-])[=\s]+(?:"[^"\n]*"|'[^'\n]*'|[^\s]+)/gi;
+const COOKIE_FLAG_PATTERN = new RegExp(
+  String.raw`--cookie(?![\w-])[=\s]+${shellWordValue(String.raw`\S`)}`,
+  'gi',
+);
 // Curl's short alias is sensitive only with inline cookie data, not a filename
 // or an ordinary `git checkout -b branch` argument.
 const SHORT_COOKIE_FLAG_PATTERN =
@@ -176,8 +210,9 @@ const URL_USERINFO_TOKEN_PATTERN =
  * stays readable.
  */
 // Commas are credential data, not delimiters within a user:password argument.
+// The single-quoted branch keeps `''` pairs (see SINGLE_QUOTED).
 const USER_CREDENTIAL_PATTERN =
-  /(?<![-\w])(?:-u|--(?:[\w-]+-)?user)(?:[=\s]+)?(?:"[^"\n]*:[^"\n]*"|'[^'\n]*:[^'\n]*'|[^\s"']*:[^\s]+)/g;
+  /(?<![-\w])(?:-u|--(?:[\w-]+-)?user)(?:[=\s]+)?(?:"[^"\n]*:[^"\n]*"|'(?:[^'\n:]|'')*:(?:[^'\n]|'')*'|[^\s"']*:[^\s]+)/g;
 
 /**
  * Shared: a JSON field holding a secret (`curl -d '{"password":"…"}'`,
@@ -207,27 +242,25 @@ const JSON_SECRET_FIELD_PATTERN =
 const KEYWORDS =
   'token|password|passwd|pwd|secret|api[-_]?key|api[-_]?secret|auth|credential|private[-_]?key|access[-_]?key|github[-_]?token|gh[-_]?token|bearer|jwt|oauth|pin|pincode|passphrase|access[-_]?token';
 
-/**
- * A quoted value, tried before the bare one. Without it a quoted secret that
- * contains a space (`--password="hunter two"`) was cut at the space and its
- * tail printed verbatim (`--password=[REDACTED] two"`). PowerShell encodes an
- * apostrophe inside single quotes as two apostrophes; keep that pair in the value.
- */
-const QUOTED_VALUE = `"[^"\\n]*"|'(?:[^'\\n]|'')*'`;
-
 /** Shared by `tools` (`/ps` output, crash dumps) and `core` telemetry. */
 const COMMAND_PATTERNS: readonly RegExp[] = [
   // --flag=value, --flag "value", --flag,value (value captured up to the next
   // space, or the whole quoted value).
   // `\s*` after the separator: `--password   hunter2` must not match only the
   // first space and leave the value to be printed.
-  new RegExp(`--(?:[\\w-]+-)?(?:${KEYWORDS})(?:[=\\s,:]\\s*(?:${QUOTED_VALUE}|[^\\s]*))?`, 'gi'),
+  new RegExp(
+    `--(?:[\\w-]+-)?(?:${KEYWORDS})(?:[=\\s,:]\\s*(?:${shellWordValue(String.raw`\S`)})?)?`,
+    'gi',
+  ),
   SHORT_FLAG_TOKEN_PATTERN,
   SHORT_FLAG_SECRET_PATTERN,
   // env var–style secrets: TOKEN=x, API_KEY=y, TOKEN:z, PASSWORD="x y", …
   // `ACCESS_KEY`/`SECRET_KEY` are the cloud spellings (`AWS_SECRET_ACCESS_KEY=… aws s3 ls`,
   // `S3_SECRET_KEY`); without them the most common inline credential printed verbatim.
-  /(?:TOKEN|API[-_]?KEY|API[-_]?SECRET|AUTH_TOKEN|GITHUB_TOKEN|GH_TOKEN|BEARER|JWT|OAUTH|CREDENTIAL|SECRET|SECRET_KEY|ACCESS_KEY|PRIVATE_KEY|PASSWORD|PASSWD|PASSPHRASE)\s*[=:]\s*(?:"[^"\n]*"|'[^'\n]*'|[^\s,]+)/gi,
+  new RegExp(
+    String.raw`(?:TOKEN|API[-_]?KEY|API[-_]?SECRET|AUTH_TOKEN|GITHUB_TOKEN|GH_TOKEN|BEARER|JWT|OAUTH|CREDENTIAL|SECRET|SECRET_KEY|ACCESS_KEY|PRIVATE_KEY|PASSWORD|PASSWD|PASSPHRASE)\s*[=:]\s*${shellWordValue(String.raw`[^\s,]`)}`,
+    'gi',
+  ),
   HIGH_ENTROPY_FLAG_PATTERN,
   AUTHORIZATION_HEADER_PATTERN,
   COOKIE_HEADER_PATTERN,
@@ -243,7 +276,7 @@ const COMMAND_PATTERNS: readonly RegExp[] = [
 const OUTBOUND_PATTERNS: readonly RegExp[] = [
   // Same named long flags plus DATABASE_URL / CONNECTION_STRING spellings.
   new RegExp(
-    `--(?:[\\w-]+-)?(?:${KEYWORDS}|database[-_]?url|connection[-_]?string)(?:[=\\s,:]\\s*(?:${QUOTED_VALUE}|[^\\s]*))?`,
+    `--(?:[\\w-]+-)?(?:${KEYWORDS}|database[-_]?url|connection[-_]?string)(?:[=\\s,:]\\s*(?:${shellWordValue(String.raw`\S`)})?)?`,
     'gi',
   ),
   // Glued short forms match here too, closing the `curl -tSECRET` /
@@ -259,7 +292,10 @@ const OUTBOUND_PATTERNS: readonly RegExp[] = [
   // is also why the separator admits surrounding whitespace, as the command
   // profile's does: `PASSWORD: hunter2` and `PASSWORD = hunter2` used to reach
   // the phone verbatim while `/ps` redacted them.
-  /(?:TOKEN|API[-_]?KEY|API[-_]?SECRET|AUTH_TOKEN|GITHUB_TOKEN|GH_TOKEN|BEARER|JWT|OAUTH|CREDENTIAL|SECRET|SECRET_KEY|ACCESS_KEY|PRIVATE_KEY|PASSWORD|PASSWD|PASSPHRASE|DATABASE_URL|CONNECTION_STRING)\s*[=:]\s*(?:"[^"\n]*"|'[^'\n]*'|[^\s,]+)/gi,
+  new RegExp(
+    String.raw`(?:TOKEN|API[-_]?KEY|API[-_]?SECRET|AUTH_TOKEN|GITHUB_TOKEN|GH_TOKEN|BEARER|JWT|OAUTH|CREDENTIAL|SECRET|SECRET_KEY|ACCESS_KEY|PRIVATE_KEY|PASSWORD|PASSWD|PASSPHRASE|DATABASE_URL|CONNECTION_STRING)\s*[=:]\s*${shellWordValue(String.raw`[^\s,]`)}`,
+    'gi',
+  ),
   HIGH_ENTROPY_FLAG_PATTERN,
   AUTHORIZATION_HEADER_PATTERN,
   COOKIE_HEADER_PATTERN,

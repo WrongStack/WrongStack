@@ -114,6 +114,21 @@ describe('browser security boundary', () => {
     expect(redacted).not.toContain('key123');
   });
 
+  it('redacts the credential of every Authorization scheme, not only Basic/Bearer (F1255)', () => {
+    for (const [input, secret] of [
+      ['Authorization: token ghp_realsecret123', 'ghp_realsecret123'],
+      ['Authorization: Digest username="bob", response="6629fae49393a053"', '6629fae49393a053'],
+      ['authorization=AWS4-HMAC-SHA256 Credential=AKID/x, Signature=fe5f80f77d5f', 'fe5f80f77d5f'],
+      ['Proxy-Authorization: Negotiate YIIGhgYJKoZIhvcS', 'YIIGhgYJKoZIhvcS'],
+    ] as const) {
+      expect(redactBrowserText(input)).not.toContain(secret);
+      expect(redactBrowserText(input)).toContain('[REDACTED]');
+    }
+    expect(redactBrowserText('authorization flow finished in 12ms')).toBe(
+      'authorization flow finished in 12ms',
+    );
+  });
+
   it('redacts compound credential names (GITHUB_TOKEN, db_password, stripe-secret)', () => {
     const redacted = redactBrowserText(
       'GITHUB_TOKEN=ghp_abcdef {"db_password": "hunter2"} x-stripe-secret: sk_live_x',

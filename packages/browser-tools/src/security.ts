@@ -99,9 +99,18 @@ export async function resolvePinnedBrowserTarget(
   try {
     records = await lookup(hostname);
   } catch (error) {
-    throw new Error(
-      `browser: DNS resolution failed for "${hostname}": ${error instanceof Error ? error.message : String(error)}`,
-    );
+    // RFC 6761 §6.3: localhost names are loopback. Windows getaddrinfo (and
+    // glibc without nss-myhostname) answer ENOTFOUND for `app.localhost`,
+    // which Chromium resolves itself, so the approved name was unreachable.
+    if (normalizedHost !== 'localhost' && !normalizedHost.endsWith('.localhost')) {
+      throw new Error(
+        `browser: DNS resolution failed for "${hostname}": ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    records = [
+      { address: '127.0.0.1', family: 4 },
+      { address: '::1', family: 6 },
+    ];
   }
   if (records.length === 0) throw new Error(`browser: DNS returned no addresses for "${hostname}"`);
 
@@ -248,6 +257,13 @@ export function redactBrowserText(text: string): string {
       // and would leave every later pair in the clear. Quoted values are
       // handled whole by the generic rule.
       .replace(/\b(set[-_ ]?cookie|cookie)([ \t]*[:=][ \t]*)(?!["'])[^\r\n]+/gi, '$1$2[REDACTED]')
+      // Same for an unquoted Authorization value: only Basic/Bearer were
+      // matched as scheme + credential, so `token ghp_…` (GitHub), Digest and
+      // AWS SigV4 kept everything after the scheme word in the clear.
+      .replace(
+        /\b((?:proxy[-_ ]?)?authorization)([ \t]*[:=][ \t]*)(?!["'])[^\r\n]+/gi,
+        '$1$2[REDACTED]',
+      )
       // The optional `prefix_` segments cover compound names (GITHUB_TOKEN,
       // db_password, stripe-secret): `_` is a word character, so a bare `\b`
       // before the name never matched them and their values passed through.

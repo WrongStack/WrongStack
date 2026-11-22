@@ -76,6 +76,39 @@ describe('loopback allowance', () => {
     expect((lan as Error).message).not.toContain('/browser allow loopback');
   });
 
+  it('pins an approved *.localhost name to loopback when the OS resolver does not know it (F1258)', async () => {
+    // Windows getaddrinfo (and glibc without nss-myhostname) answer ENOTFOUND
+    // for `app.localhost`; RFC 6761 makes every localhost name loopback.
+    const enotfound = async (host: string) => {
+      throw Object.assign(new Error(`getaddrinfo ENOTFOUND ${host}`), { code: 'ENOTFOUND' });
+    };
+    await expect(
+      resolvePinnedBrowserTarget('http://app.localhost:5173/', {
+        allowedPrivateOrigins: loopback,
+        lookup: enotfound,
+      }),
+    ).resolves.toMatchObject({
+      address: '127.0.0.1',
+      candidates: [
+        { address: '127.0.0.1', family: 4 },
+        { address: '::1', family: 6 },
+      ],
+    });
+    // Unapproved localhost names and unknown public names still fail.
+    await expect(
+      resolvePinnedBrowserTarget('http://app.localhost:5173/', {
+        allowedPrivateOrigins: [],
+        lookup: enotfound,
+      }),
+    ).rejects.toThrow('blocked localhost target');
+    await expect(
+      resolvePinnedBrowserTarget('http://missing.example/', {
+        allowedPrivateOrigins: loopback,
+        lookup: enotfound,
+      }),
+    ).rejects.toThrow('DNS resolution failed');
+  });
+
   it('pins a loopback-approved name only to loopback addresses (no rebinding)', async () => {
     const lookup = async () => [{ address: '10.0.0.5', family: 4 }];
     await expect(
