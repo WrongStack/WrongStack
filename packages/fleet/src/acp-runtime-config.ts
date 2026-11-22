@@ -59,7 +59,43 @@ export function inspectAcpRuntime(
       });
       await session.openSession();
       const options = await applyAcpRuntimeValues(session, desiredValues);
-      return { agentId, options, applied: { ...values } };
+      const caps = session.getCapabilities();
+      const commands = session
+        .getAvailableCommands()
+        .slice(0, 64)
+        .map((c) => ({
+          name: c.name.slice(0, 100),
+          ...(c.description ? { description: c.description.slice(0, 300) } : {}),
+        }));
+      const modes = session
+        .getAvailableModes()
+        .slice(0, 32)
+        .map((m) => ({
+          id: m.id.slice(0, 100),
+          name: m.name.slice(0, 200),
+          ...(m.description ? { description: m.description.slice(0, 300) } : {}),
+        }));
+      const currentModeId = session.getCurrentModeId();
+      const capabilities = {
+        ...(caps.promptCapabilities?.image ? { image: true } : {}),
+        ...(caps.promptCapabilities?.audio ? { audio: true } : {}),
+        ...(caps.promptCapabilities?.embeddedContext ? { embeddedContext: true } : {}),
+        ...(caps.loadSession ? { loadSession: true } : {}),
+        ...(caps.sessionCapabilities?.resume ? { resume: true } : {}),
+        ...(caps.sessionCapabilities?.fork ? { fork: true } : {}),
+        ...(caps.sessionCapabilities?.list ? { list: true } : {}),
+        ...(caps.sessionCapabilities?.additionalDirectories ? { additionalDirectories: true } : {}),
+        ...(session.canSteer() ? { steering: true } : {}),
+      };
+      return {
+        agentId,
+        options,
+        applied: { ...values },
+        ...(commands.length > 0 ? { commands } : {}),
+        ...(modes.length > 0 ? { modes } : {}),
+        ...(currentModeId ? { currentModeId } : {}),
+        ...(Object.keys(capabilities).length > 0 ? { capabilities } : {}),
+      };
     } finally {
       clearTimeout(deadline);
       try {

@@ -9,10 +9,34 @@ export interface AcpRuntimeOption {
   currentValue: string;
   options: Array<{ value: string; name: string }>;
 }
+export interface AcpRuntimeCommand {
+  name: string;
+  description?: string | undefined;
+}
+export interface AcpRuntimeMode {
+  id: string;
+  name: string;
+  description?: string | undefined;
+}
+export interface AcpRuntimeCapabilitiesSummary {
+  image?: boolean | undefined;
+  audio?: boolean | undefined;
+  embeddedContext?: boolean | undefined;
+  loadSession?: boolean | undefined;
+  resume?: boolean | undefined;
+  fork?: boolean | undefined;
+  list?: boolean | undefined;
+  additionalDirectories?: boolean | undefined;
+  steering?: boolean | undefined;
+}
 export interface AcpRuntimeOptionsResult {
   agentId: string;
   options: AcpRuntimeOption[];
   applied: AcpRuntimeValues;
+  commands?: AcpRuntimeCommand[] | undefined;
+  modes?: AcpRuntimeMode[] | undefined;
+  currentModeId?: string | null | undefined;
+  capabilities?: AcpRuntimeCapabilitiesSummary | undefined;
 }
 
 const forbidden = new Set(['__proto__', 'prototype', 'constructor']);

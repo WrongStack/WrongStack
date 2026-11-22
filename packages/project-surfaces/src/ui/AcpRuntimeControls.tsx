@@ -255,6 +255,55 @@ export function AcpRuntimeControls({
             })}
           </span>
         )}
+        {result?.capabilities && Object.values(result.capabilities).some(Boolean) && (
+          <div className="flex flex-wrap gap-1 pt-0.5 text-[10px] text-muted-foreground">
+            {result.capabilities.image && (
+              <span className="rounded border border-border/50 px-1.5 py-0.5">Vision</span>
+            )}
+            {result.capabilities.audio && (
+              <span className="rounded border border-border/50 px-1.5 py-0.5">Audio</span>
+            )}
+            {result.capabilities.embeddedContext && (
+              <span className="rounded border border-border/50 px-1.5 py-0.5">Context</span>
+            )}
+            {result.capabilities.resume && (
+              <span className="rounded border border-border/50 px-1.5 py-0.5">Resume</span>
+            )}
+            {result.capabilities.fork && (
+              <span className="rounded border border-border/50 px-1.5 py-0.5">Fork</span>
+            )}
+            {result.capabilities.steering && (
+              <span className="rounded border border-border/50 px-1.5 py-0.5">Steer</span>
+            )}
+            {result.capabilities.additionalDirectories && (
+              <span className="rounded border border-border/50 px-1.5 py-0.5">Multi-dir</span>
+            )}
+          </div>
+        )}
+        {result?.modes && result.modes.length > 0 && (
+          <div className="grid gap-1 text-[11px] text-muted-foreground">
+            <span>
+              Modes:{' '}
+              {result.modes
+                .map((m) => (m.id === result.currentModeId ? `${m.name} (active)` : m.name))
+                .join(' · ')}
+            </span>
+          </div>
+        )}
+        {result?.commands && result.commands.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
+            <span>Commands:</span>
+            {result.commands.slice(0, 12).map((cmd) => (
+              <code
+                key={cmd.name}
+                title={cmd.description}
+                className="rounded border border-border/50 px-1 py-0.5 font-mono text-[10px]"
+              >
+                /{cmd.name.replace(/^\//, '')}
+              </code>
+            ))}
+          </div>
+        )}
         {error && (
           <span role="alert" className="text-destructive">
             {error}

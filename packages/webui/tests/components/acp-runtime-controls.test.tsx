@@ -144,3 +144,32 @@ it('clears stale model and effort when switching ACP provider', async () => {
   fireEvent.change(screen.getByLabelText('ACP Provider'), { target: { value: 'openai' } });
   await waitFor(() => expect(save).toHaveBeenCalledWith({ provider: 'openai' }));
 });
+
+it('displays advertised ACP capabilities, modes, and native slash commands', async () => {
+  const richSnapshot: AcpRuntimeOptionsResult = {
+    ...snapshot,
+    capabilities: { image: true, embeddedContext: true, resume: true, steering: true },
+    modes: [
+      { id: 'default', name: 'Default' },
+      { id: 'plan', name: 'Plan' },
+    ],
+    currentModeId: 'plan',
+    commands: [
+      { name: 'compact', description: 'Compact session context' },
+      { name: 'review', description: 'Review current diff' },
+    ],
+  };
+  const request = vi.fn().mockResolvedValue(richSnapshot);
+  const { container } = render(
+    <AcpRuntimeControls agentId="fixture" request={request} onChange={vi.fn()} />,
+  );
+  container.querySelector('details')!.open = true;
+  fireEvent(container.querySelector('details')!, new Event('toggle'));
+  await screen.findByText('Vision');
+  expect(screen.getByText('Context')).toBeTruthy();
+  expect(screen.getByText('Resume')).toBeTruthy();
+  expect(screen.getByText('Steer')).toBeTruthy();
+  expect(screen.getByText(/Plan \(active\)/)).toBeTruthy();
+  expect(screen.getByText('/compact')).toBeTruthy();
+  expect(screen.getByText('/review')).toBeTruthy();
+});
