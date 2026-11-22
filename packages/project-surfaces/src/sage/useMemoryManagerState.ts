@@ -160,6 +160,7 @@ export function useMemoryManagerState(sharedSearch?: SharedMemorySearch) {
     (cursor: string | null, includeStats: boolean) => {
       const isAppend = cursor !== null;
       const generation = ++listGenerationRef.current;
+      const requestId = `sage-list-${generation}-${Math.random().toString(36).slice(2, 10)}`;
       listCleanupRef.current?.();
       setLoadError(null);
       if (isAppend) {
@@ -181,11 +182,11 @@ export function useMemoryManagerState(sharedSearch?: SharedMemorySearch) {
       };
 
       off = client.on('memory.sage.listPage', (message) => {
-        if (generation !== listGenerationRef.current || !mountedRef.current) {
-          cleanup();
-          return;
-        }
+        // The server echoes the request's id: a reply to another request is not this page.
+        if (message.payload.requestId && message.payload.requestId !== requestId) return;
+        const outdated = generation !== listGenerationRef.current || !mountedRef.current;
         cleanup();
+        if (outdated) return;
         if (message.payload.error) {
           setLoadError(message.payload.error);
         } else {
@@ -254,7 +255,7 @@ export function useMemoryManagerState(sharedSearch?: SharedMemorySearch) {
           ...(kindFilter !== 'all' ? { kind: kindFilter } : {}),
           ...(includeStats ? {} : { includeStats: false }),
         },
-        { echoToChat: false },
+        { echoToChat: false, requestId },
       );
     },
     [client, kindFilter, listSageMemoriesPage, listQuery, showDeleted, statusFilter],

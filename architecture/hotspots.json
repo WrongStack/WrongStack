@@ -131,7 +131,7 @@
       "relativeImports": 0
     },
     "packages/project-surfaces/src/sage/useMemoryManagerState.ts": {
-      "lines": 718,
+      "lines": 719,
       "relativeImports": 14
     },
     "packages/requirement-intake/src/service.ts": {

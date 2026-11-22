@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T14:46:35.238Z",
+  "generatedAt": "2026-11-22T14:57:09.185Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 49,
     "sourceFiles": 6411,
-    "testFiles": 5661,
-    "sourceLines": 1324022,
+    "testFiles": 5662,
+    "sourceLines": 1324023,
     "workspaceEdges": 255,
     "moduleEdges": 18948,
     "nonCommandSlashImports": 0,
@@ -1153,7 +1153,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 798,
-      "testFiles": 541,
+      "testFiles": 542,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1179,7 +1179,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 541
+          "testFiles": 542
         }
       ]
     },
@@ -32821,6 +32821,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/memory-manager-stale-list-reply.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/memory-manager.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -36470,7 +36476,7 @@
     },
     {
       "file": "packages/project-surfaces/src/sage/useMemoryManagerState.ts",
-      "lines": 718,
+      "lines": 719,
       "relativeImports": 14
     },
     {
