@@ -21,7 +21,8 @@ export default workflowPlugin({
             if (typeof manifest.name !== 'string') throw new Error(`Package name missing: ${path}`);
             return {
               name: manifest.name,
-              dir: dirname(path).replaceAll('\\', '/'),
+              // Same `./` normalization as changedFiles below (F1117).
+              dir: dirname(path).replaceAll('\\', '/').replace(/^\.\//, ''),
               dependencies: Object.keys({
                 ...object(manifest.dependencies ?? {}),
                 ...object(manifest.devDependencies ?? {}),

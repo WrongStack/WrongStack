@@ -134,10 +134,21 @@ export function isOscillating(recent: string[], windowSize: number): boolean {
   return window[0] !== window[1];
 }
 
+/**
+ * Digest a payload for the "did this change?" comparison in
+ * {@link gitDiffFingerprint}.
+ *
+ * The whole string is hashed. Stopping at a fixed prefix made every payload
+ * that agreed for its first megabyte fingerprint identically, so a genuinely
+ * rewritten large file read as a mutating step without progress and the streak
+ * blocked the run — the same false-repeat class this module exists to prevent.
+ * The work is linear over a string the caller already materialised (the diff is
+ * bounded by the spawn's `maxBuffer`, an untracked body was just read into
+ * memory), and a bounded sample cannot promise that a change reaches the digest.
+ */
 export function hashString(value: string): string {
   let h = 5381;
-  const cap = Math.min(value.length, 1_000_000);
-  for (let i = 0; i < cap; i++) {
+  for (let i = 0; i < value.length; i++) {
     h = ((h << 5) + h + value.charCodeAt(i)) | 0;
   }
   return String(h >>> 0);

@@ -84,7 +84,9 @@ export function extractVersionSections(
         relevant.push(`## ${section.header}\n${section.body}`);
       }
     }
-    return relevant.length > 0 ? relevant : [changelog];
+    // An empty upgrade range is an answer, not a parse failure: falling back to
+    // the whole changelog attributed every listed release to it (F1116).
+    return relevant.length > 0 || compareVersions(from, to) <= 0 ? relevant : [changelog];
   }
   for (const section of sections) {
     if (section.version === toNv) {

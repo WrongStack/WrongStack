@@ -84,7 +84,12 @@ export function mergeIntoChangelog(existing: string | null, block: string): stri
   }
 
   const startIndex = m.index + m[0].length;
-  const nextSectionMatch = /^##\s+\[?[0-9v]/im.exec(existing.slice(startIndex));
+  // A link-reference definition (`[Unreleased]: https://…`, the Keep a
+  // Changelog footer) also ends the body: with no release below, the footer
+  // was otherwise parsed as Unreleased content and glued onto a bullet (F1119).
+  const nextSectionMatch = /^(?:##\s+\[?[0-9v]|\[[^\]\n]+\]:\s*\S)/im.exec(
+    existing.slice(startIndex),
+  );
   const endIndex = nextSectionMatch ? startIndex + nextSectionMatch.index : existing.length;
 
   const currentUnreleased = existing.slice(startIndex, endIndex);

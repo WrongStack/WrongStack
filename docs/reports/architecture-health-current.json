@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T14:24:08.771Z",
+  "generatedAt": "2026-11-22T14:27:27.292Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 49,
     "sourceFiles": 6411,
-    "testFiles": 5658,
-    "sourceLines": 1323693,
+    "testFiles": 5660,
+    "sourceLines": 1323743,
     "workspaceEdges": 255,
     "moduleEdges": 18948,
     "nonCommandSlashImports": 0,
@@ -717,7 +717,7 @@
       "name": "@wrongstack/plugins",
       "dir": "packages/plugins",
       "sourceFiles": 156,
-      "testFiles": 144,
+      "testFiles": 146,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -735,7 +735,7 @@
         {
           "path": "packages/plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 144
+          "testFiles": 146
         }
       ]
     },
@@ -18853,6 +18853,12 @@
         ]
       },
       {
+        "file": "packages/plugins/tests/changelog-writer-link-refs.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plugins/tests/changelog-writer.test.ts",
         "projects": [
           "root-node"
@@ -19010,6 +19016,12 @@
       },
       {
         "file": "packages/plugins/tests/evidence-analyzer-bounds.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugins/tests/evidence-analyzer-multiline-rules.test.ts",
         "projects": [
           "root-node"
         ]

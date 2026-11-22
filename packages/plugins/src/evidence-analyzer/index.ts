@@ -73,9 +73,11 @@ function redactExcerpt(line: string): string {
  * two words and missing the third. Run over the whole 1 MB input, one crafted
  * line froze the host's event loop indefinitely — these tools are `auto`, and
  * the evidence can be a log file a repository ships (NV-2, security-check
- * 2026-09-26). No rule can span a newline (none uses the `s` flag, and `.`
- * stops at `\n`), so matching line by line loses nothing; a longer line is cut
- * into windows so a single call is bounded by the window, not the input.
+ * 2026-09-26). Rules are matched line by line (`.` stops at `\n`); a longer
+ * line is cut into windows so a single call is bounded by the window, not the
+ * input. A rule written to span lines (`[\s\S]` or the `s` flag) is matched
+ * over the whole input with the same windows — line by line it could never
+ * fire on a pretty-printed manifest or a multi-line file list (F1115).
  */
 export const EVIDENCE_MATCH_WINDOW = 1024;
 /** How far a later window reaches back so a boundary-straddling match is seen whole. */
@@ -107,11 +109,16 @@ export function analyzeEvidence(
   }
   const findings: EvidenceFinding[] = [];
   const deadline = now() + EVIDENCE_ANALYZE_BUDGET_MS;
+  const lineAt = (index: number) => {
+    const next = starts[index + 1];
+    return content.slice(starts[index], next === undefined ? content.length : next - 1);
+  };
   for (const rule of profile.rules) {
     const matcher = new RegExp(rule.pattern.source, rule.pattern.flags.replace('g', '') + 'g');
-    for (let lineIndex = 0; lineIndex < starts.length; lineIndex++) {
-      const next = starts[lineIndex + 1];
-      const line = content.slice(starts[lineIndex], next === undefined ? content.length : next - 1);
+    const spansLines =
+      rule.pattern.flags.includes('s') || /\[\\s\\S\]|\[\\S\\s\]/.test(rule.pattern.source);
+    for (let segment = 0; segment < (spansLines ? 1 : starts.length); segment++) {
+      const line = spansLines ? content : lineAt(segment);
       // End offset (exclusive) of the last reported match on this line. A single
       // global matchAll never begins a match before the previous one ended, so
       // tracking this end reproduces single-pass semantics across overlapping
@@ -140,11 +147,12 @@ export function analyzeEvidence(
           // double-count one logical finding.
           if (absStart < reportedEnd) continue;
           reportedEnd = absStart + match[0].length;
+          const lineIndex = spansLines ? lineIndexOf(starts, absStart) : segment;
           findings.push({
             rule: rule.label,
             severity: rule.severity,
             line: lineIndex + 1,
-            excerpt: redactExcerpt(line.trim()).slice(0, 240),
+            excerpt: redactExcerpt(lineAt(lineIndex).trim()).slice(0, 240),
             advice: rule.advice,
           });
           if (findings.length >= maxFindings) return { findings, partial: false };
@@ -153,6 +161,18 @@ export function analyzeEvidence(
     }
   }
   return { findings, partial: false };
+}
+
+/** Index of the line containing `offset`, by binary search over line starts. */
+function lineIndexOf(starts: readonly number[], offset: number): number {
+  let low = 0;
+  let high = starts.length - 1;
+  while (low < high) {
+    const mid = (low + high + 1) >> 1;
+    if (starts[mid]! <= offset) low = mid;
+    else high = mid - 1;
+  }
+  return low;
 }
 
 async function jevReview(

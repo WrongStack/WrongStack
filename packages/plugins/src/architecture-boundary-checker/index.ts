@@ -23,9 +23,12 @@ export default workflowPlugin({
       required: ['files', 'forbidden'],
       async run(input, context) {
         const graph = await importGraph(context.root, strings(input.files));
+        // Same spelling normalization importGraph applies to the files (F1118).
+        const prefix = (value: unknown) =>
+          str(value).replaceAll('\\', '/').replace(/^\.\//, '').replace(/\/$/, '');
         const rules = rows(input.forbidden).map((rule) => ({
-          from: str(rule.from).replace(/\/$/, ''),
-          to: str(rule.to).replace(/\/$/, ''),
+          from: prefix(rule.from),
+          to: prefix(rule.to),
         }));
         const within = (path: string, prefix: string) =>
           path === prefix || path.startsWith(`${prefix}/`);
