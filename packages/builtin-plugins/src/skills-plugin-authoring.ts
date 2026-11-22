@@ -305,7 +305,9 @@ async function runFromPrompt(
   });
   // Splice the extracted body into the skeleton's Overview.
   const withBody = draft.body
-    ? body.replace('## Overview\n', `## Overview\n\n${draft.body}\n`)
+    ? // A function replacer: as a replacement string, `$'`/`$&` in the prompt
+      // (bash `IFS=$'\n'`, sed docs) were expanded and corrupted the skill.
+      body.replace('## Overview\n', () => `## Overview\n\n${draft.body}\n`)
     : body;
   const paths = resolveWstackPaths({ projectRoot: ctx.projectRoot });
   const skillsDir = isGlobal ? paths.globalSkills : paths.inProjectSkills;

@@ -296,7 +296,10 @@ function parsePipfileDeps(
       const entry = parseTomlKeyValue(line);
       if (!entry) continue;
       const value = entry.value;
-      const stringValue = /^"([^"]*)"$/.exec(value)?.[1];
+      // A TOML literal string ('…') is as much a string as a basic one ("…");
+      // matching only double quotes dropped `requests = '*'` entirely.
+      const quoted = /^"([^"]*)"$|^'([^']*)'$/.exec(value);
+      const stringValue = quoted ? (quoted[1] ?? quoted[2]) : undefined;
       let constraint: string | undefined;
       if (stringValue !== undefined) {
         constraint = stringValue;

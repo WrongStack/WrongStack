@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T14:21:05.587Z",
+  "generatedAt": "2026-11-22T14:24:08.771Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 49,
     "sourceFiles": 6411,
-    "testFiles": 5657,
-    "sourceLines": 1323651,
+    "testFiles": 5658,
+    "sourceLines": 1323693,
     "workspaceEdges": 255,
     "moduleEdges": 18948,
     "nonCommandSlashImports": 0,
@@ -671,7 +671,7 @@
       "name": "@wrongstack/plug-lsp",
       "dir": "packages/plug-lsp",
       "sourceFiles": 52,
-      "testFiles": 62,
+      "testFiles": 63,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -686,7 +686,7 @@
         {
           "path": "packages/plug-lsp/tsconfig.test.json",
           "error": null,
-          "testFiles": 62
+          "testFiles": 63
         }
       ]
     },
@@ -18440,6 +18440,12 @@
       },
       {
         "file": "packages/plug-lsp/tests/unit/document-tracker-lifecycle.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plug-lsp/tests/unit/document-tracker-noop-open-fence.test.ts",
         "projects": [
           "root-node"
         ]

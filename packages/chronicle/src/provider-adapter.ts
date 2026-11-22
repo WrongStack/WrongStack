@@ -86,7 +86,24 @@ function persist(
     runtime: { providerId: event.providerId, modelId: event.model },
     attributes: providerAttributes(event, seenToolManifests),
   };
-  void options.journal.append(input).catch((error) => options.onPersistError?.(error, input));
+  // Building this event marked its tools manifestHash as seen. If the event
+  // never becomes durable, later attempts would carry only `namesRef` to a
+  // name list that was never persisted — release the hash so the next attempt
+  // carries the names again.
+  const carriedHash = seenToolManifests ? carriedToolNamesHash(input.attributes) : undefined;
+  void options.journal.append(input).catch((error) => {
+    if (carriedHash !== undefined) seenToolManifests?.delete(carriedHash);
+    options.onPersistError?.(error, input);
+  });
+}
+
+/** The manifestHash whose full `names` list this event's manifest carries, if any. */
+function carriedToolNamesHash(attributes: Record<string, unknown> | undefined): string | undefined {
+  const manifest = attributes?.['promptManifest'];
+  if (!isManifest(manifest)) return undefined;
+  const tools = manifest['tools'];
+  if (!isManifest(tools) || typeof tools['manifestHash'] !== 'string') return undefined;
+  return Array.isArray(tools['names']) ? tools['manifestHash'] : undefined;
 }
 
 function providerAttributes(

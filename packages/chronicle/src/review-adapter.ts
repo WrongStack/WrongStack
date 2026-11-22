@@ -85,7 +85,10 @@ export function wireReviewFindingsToChronicle(options: ChronicleReviewAdapterOpt
       if (payload.status !== 'success') return;
 
       const context = typeof options.context === 'function' ? options.context() : options.context;
-      const sessionId = payload.sessionId ?? payload.bundle?.cwd;
+      // Never fall back to `bundle.cwd`: an absolute path is not a session id
+      // and must not enter the envelope. Without one, the context's session
+      // (already in `context.scope`) stands.
+      const sessionId = payload.sessionId;
       const agentId = payload.bundle?.fileProvenance?.find((e) => e.agentId)?.agentId;
       const taskId = payload.bundle?.kanbanCard?.id;
       const provider = payload.bundle?.config?.provider;

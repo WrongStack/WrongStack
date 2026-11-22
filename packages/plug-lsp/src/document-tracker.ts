@@ -168,7 +168,12 @@ export class DocumentTracker {
     const absPath = this.resolve(filePath);
     const languageId = this.detectLanguage(absPath);
     if (!languageId) return false;
-    const operation = this.beginDocumentOperation(absPath);
+    // Re-opening with the text already tracked (what the LSP tools pass back)
+    // publishes nothing new, so it must not fence out an in-flight read: a
+    // fileWritten() started by an edit then lost its newer disk content and
+    // tracker and server both stayed on the pre-edit text.
+    const unchanged = knownText !== undefined && this.docs.get(absPath)?.text === knownText;
+    const operation = unchanged ? undefined : this.beginDocumentOperation(absPath);
     try {
       const read =
         knownText !== undefined
@@ -176,7 +181,10 @@ export class DocumentTracker {
             ? knownText
             : null
           : await this.readTrackable(absPath, 'file');
-      if (generation !== this.generation || !this.isCurrentDocumentOperation(absPath, operation))
+      if (
+        generation !== this.generation ||
+        (operation !== undefined && !this.isCurrentDocumentOperation(absPath, operation))
+      )
         return false;
       if (read === null) {
         this.evict(absPath);
@@ -220,7 +228,7 @@ export class DocumentTracker {
       this.enforceBudget();
       return this.docs.has(absPath);
     } finally {
-      this.finishDocumentOperation(absPath, operation);
+      if (operation !== undefined) this.finishDocumentOperation(absPath, operation);
     }
   }
 

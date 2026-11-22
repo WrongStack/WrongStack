@@ -31,6 +31,13 @@ export class Connection {
   private readonly pending = new Map<number, Pending>();
   private readonly events = new EventEmitter();
   /**
+   * Transport-close handlers live apart from `events`: that emitter is keyed by
+   * server-chosen method names, so a server message whose method was `close`
+   * ran every close handler (a ready server went `failed`) while the transport
+   * was still open.
+   */
+  private readonly closeHandlers = new Set<() => void>();
+  /**
    * Receive state is a two-phase machine instead of one growing buffer.
    *
    * The old shape — `buffer = Buffer.concat([buffer, chunk])` per 'data'
@@ -109,8 +116,8 @@ export class Connection {
   }
 
   onClose(handler: () => void): () => void {
-    this.events.on('close', handler);
-    return () => this.events.off('close', handler);
+    this.closeHandlers.add(handler);
+    return () => this.closeHandlers.delete(handler);
   }
 
   close(): void {
@@ -129,7 +136,9 @@ export class Connection {
     this.bodyReceived = 0;
     this.bodyExpected = -1;
     this.failAll(err);
-    this.events.emit('close');
+    const closeHandlers = [...this.closeHandlers];
+    this.closeHandlers.clear();
+    for (const handler of closeHandlers) handler();
     this.events.removeAllListeners();
   }
 
