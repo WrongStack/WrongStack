@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-22T18:07:48.119Z
+**Generated:** 2026-11-22T18:15:10.949Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 50 |
 | Production source files | 6488 |
-| Production source lines | 1325830 |
-| Test files | 5681 |
+| Production source lines | 1326055 |
+| Test files | 5682 |
 | Workspace dependency edges | 259 |
-| Relative module edges | 18952 |
+| Relative module edges | 18953 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -27,7 +27,7 @@ PASS — no blocking architecture-health errors.
 
 | Package | Sources | Tests | Workspace dependencies |
 |---|---:|---:|---|
-| @wrongstack/acp | 58 | 72 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
+| @wrongstack/acp | 58 | 73 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/agent-catalog | 44 | 15 | @wrongstack/contracts, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/bench | 32 | 67 | @wrongstack/core |
 | @wrongstack/browser-tools | 14 | 22 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
@@ -104,6 +104,7 @@ None.
 | 957 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
 | 903 | `packages/codebase/src/infra-parser.ts` |
 | 898 | `apps/desktop-v2/src/SkillLibrary.tsx` |
+| 881 | `packages/acp/src/client/acp-session.ts` |
 | 878 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
 | 877 | `packages/builtin-plugins/src/review-followup-briefing.ts` |
 | 869 | `packages/runtime/src/chimera/execution-chimera-review.ts` |
@@ -117,7 +118,6 @@ None.
 | 800 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
 | 800 | `packages/client/src/client.ts` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
-| 799 | `packages/acp/src/client/acp-session.ts` |
 | 792 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
 | 786 | `packages/vibeui/src/lib/use-session.ts` |
 | 781 | `apps/desktop-v2/src/WrongStackSettings.tsx` |
@@ -130,6 +130,7 @@ None.
 | 755 | `packages/tools/src/read.ts` |
 | 754 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
 | 753 | `apps/desktop-v2/src/useFileWorkspace.ts` |
+| 751 | `packages/runtime/src/acp-leader/acp-leader-provider.ts` |
 | 748 | `packages/coordination/src/sqlite-mailbox.ts` |
 | 744 | `packages/tools/src/process-registry.ts` |
 | 744 | `packages/webui-server/src/server/completion-handlers.ts` |
@@ -141,7 +142,6 @@ None.
 | 730 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
 | 730 | `packages/acp/src/agent/server-agent-turn.ts` |
 | 726 | `packages/coordination/src/multi-agent-coordinator.ts` |
-| 725 | `packages/plugins/src/branch-guard/index.ts` |
 
 ## Exports only tests reference
 

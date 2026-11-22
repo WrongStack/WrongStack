@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T18:07:48.119Z",
+  "generatedAt": "2026-11-22T18:15:10.949Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 50,
     "sourceFiles": 6488,
-    "testFiles": 5681,
-    "sourceLines": 1325830,
+    "testFiles": 5682,
+    "sourceLines": 1326055,
     "workspaceEdges": 259,
-    "moduleEdges": 18952,
+    "moduleEdges": 18953,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -93,7 +93,7 @@
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
       "sourceFiles": 58,
-      "testFiles": 72,
+      "testFiles": 73,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -109,7 +109,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 72
+          "testFiles": 73
         }
       ]
     },
@@ -3903,6 +3903,12 @@
       },
       {
         "file": "packages/acp/tests/acp-session-auth.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/acp/tests/acp-session-client-features.test.ts",
         "projects": [
           "root-node"
         ]
@@ -36459,7 +36465,7 @@
     },
     {
       "file": "packages/acp/src/client/acp-session.ts",
-      "lines": 799,
+      "lines": 881,
       "relativeImports": 25
     },
     {
@@ -36631,6 +36637,11 @@
       "file": "packages/requirement-intake/src/service.ts",
       "lines": 716,
       "relativeImports": 17
+    },
+    {
+      "file": "packages/runtime/src/acp-leader/acp-leader-provider.ts",
+      "lines": 751,
+      "relativeImports": 7
     },
     {
       "file": "packages/runtime/src/chimera/execution-chimera-review.ts",
@@ -36910,6 +36921,11 @@
       "relativeImports": 10
     },
     {
+      "file": "packages/acp/src/client/acp-session.ts",
+      "lines": 881,
+      "relativeImports": 25
+    },
+    {
       "file": "apps/desktop-v2/src/ProjectDesignStudio.tsx",
       "lines": 878,
       "relativeImports": 12
@@ -36975,11 +36991,6 @@
       "relativeImports": 12
     },
     {
-      "file": "packages/acp/src/client/acp-session.ts",
-      "lines": 799,
-      "relativeImports": 25
-    },
-    {
       "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
       "lines": 792,
       "relativeImports": 61
@@ -37040,6 +37051,11 @@
       "relativeImports": 19
     },
     {
+      "file": "packages/runtime/src/acp-leader/acp-leader-provider.ts",
+      "lines": 751,
+      "relativeImports": 7
+    },
+    {
       "file": "packages/coordination/src/sqlite-mailbox.ts",
       "lines": 748,
       "relativeImports": 14
@@ -37093,11 +37109,6 @@
       "file": "packages/coordination/src/multi-agent-coordinator.ts",
       "lines": 726,
       "relativeImports": 13
-    },
-    {
-      "file": "packages/plugins/src/branch-guard/index.ts",
-      "lines": 725,
-      "relativeImports": 1
     }
   ],
   "testOnlyExports": [

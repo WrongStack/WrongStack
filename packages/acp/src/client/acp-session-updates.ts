@@ -1,12 +1,15 @@
 import type { ACPMessage } from '../types/acp-messages.js';
 import type {
   AnySessionUpdate,
+  AvailableCommand,
   PlanEntry,
   ToolCallContent,
+  ToolCallLocation,
   ToolCallStatus,
   ToolKind,
   UsageCost,
 } from '../types/acp-v1.js';
+import { acpRuntimeOptions } from './acp-runtime-options.js';
 import { extractText, isRecord } from './acp-session-content.js';
 import type {
   ACPCapturedDiff,
@@ -103,10 +106,39 @@ export function handleAcpSessionUpdate(
       }
       return;
     }
-    case 'available_commands_update':
-    case 'current_mode_update':
-    case 'config_option_update':
-    case 'session_info_update':
+    case 'available_commands_update': {
+      if (Array.isArray(u.availableCommands)) {
+        const commands = u.availableCommands.filter(
+          (c): c is AvailableCommand =>
+            isRecord(c) && typeof c['name'] === 'string' && c['name'].length > 0,
+        );
+        emitProgress({ type: 'commands', commands });
+      }
+      return;
+    }
+    case 'current_mode_update': {
+      const modeId =
+        typeof u.currentModeId === 'string'
+          ? u.currentModeId
+          : typeof u.modeId === 'string'
+            ? u.modeId
+            : undefined;
+      if (modeId) emitProgress({ type: 'mode', modeId });
+      return;
+    }
+    case 'config_option_update': {
+      const options = acpRuntimeOptions(u.configOptions);
+      emitProgress({ type: 'config_options', options });
+      return;
+    }
+    case 'session_info_update': {
+      emitProgress({
+        type: 'session_info',
+        ...(u.title !== undefined ? { title: u.title as string | null } : {}),
+        ...(u.updatedAt !== undefined ? { updatedAt: u.updatedAt as string | null } : {}),
+      });
+      return;
+    }
     case 'user_message_chunk':
     case 'next_edit_suggestions':
     case 'elicitation':
@@ -145,6 +177,25 @@ function captureToolCall(
   const toolCallId = typeof u.toolCallId === 'string' ? u.toolCallId : '';
   if (!toolCallId) return;
   const prev = scratch.toolCalls.get(toolCallId);
+  const locations = Array.isArray(u.locations)
+    ? (u.locations.filter(
+        (loc): loc is ToolCallLocation =>
+          isRecord(loc) && typeof loc['path'] === 'string' && loc['path'].length > 0,
+      ) as ToolCallLocation[])
+    : undefined;
+  const terminalIds = Array.isArray(u.content)
+    ? (u.content as ToolCallContent[])
+        .filter(
+          (c): c is Extract<ToolCallContent, { type: 'terminal' }> =>
+            isRecord(c) && c['type'] === 'terminal' && typeof c['terminalId'] === 'string',
+        )
+        .map((c) => c.terminalId)
+    : undefined;
+  const mergedTerminals =
+    terminalIds && terminalIds.length > 0
+      ? Array.from(new Set([...(prev?.terminalIds ?? []), ...terminalIds]))
+      : prev?.terminalIds;
+
   const record: ACPCapturedToolCall = {
     toolCallId,
     title: typeof u.title === 'string' ? u.title : (prev?.title ?? toolCallId),
@@ -156,6 +207,12 @@ function captureToolCall(
     rawInput: isRecord(u.rawInput) ? u.rawInput : prev?.rawInput,
     rawOutput: isRecord(u.rawOutput) ? u.rawOutput : prev?.rawOutput,
     output: toolOutputText(u) ?? prev?.output,
+    ...(locations && locations.length > 0
+      ? { locations }
+      : prev?.locations
+        ? { locations: prev.locations }
+        : {}),
+    ...(mergedTerminals && mergedTerminals.length > 0 ? { terminalIds: mergedTerminals } : {}),
   };
   scratch.toolCalls.set(toolCallId, record);
   if (scratch.text) scratch.messageBreak = true;

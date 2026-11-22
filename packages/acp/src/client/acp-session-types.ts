@@ -1,3 +1,4 @@
+import type { AcpRuntimeOption } from '@wrongstack/contracts/types/acp-runtime';
 import type {
   TrustActor,
   TrustAuthContext,
@@ -6,9 +7,11 @@ import type {
 } from '@wrongstack/core/security';
 import type {
   AnySessionUpdate,
+  AvailableCommand,
   McpServer,
   PlanEntry,
   StopReason,
+  ToolCallLocation,
   ToolCallStatus,
   ToolKind,
   UsageCost,
@@ -73,6 +76,11 @@ export interface ACPSessionOptions {
    * the session, a new session starts. `openSession()` says which happened.
    */
   resumeSessionId?: string | undefined;
+  /**
+   * Extra workspace roots forwarded on `session/new`, `session/load`, and
+   * `session/resume` when the agent advertises `sessionCapabilities.additionalDirectories`.
+   */
+  additionalDirectories?: string[] | undefined;
 }
 
 export interface ACPCapturedDiff {
@@ -94,6 +102,10 @@ export interface ACPCapturedToolCall {
    * those shapes, which `rawOutput` (an object only) never held.
    */
   output?: string | undefined;
+  /** File locations touched or referenced by the tool call (`{ path, line }`). */
+  locations?: ToolCallLocation[] | undefined;
+  /** Terminal ids attached to the tool call via `{ type: 'terminal', terminalId }`. */
+  terminalIds?: string[] | undefined;
 }
 
 export interface ACPSessionRunResult {
@@ -137,6 +149,14 @@ export type ACPProgressEvent =
   | { type: 'rate_limit'; info: Record<string, unknown> }
   /** Emitted by the subagent runner once a turn ends: what the turn consumed. */
   | { type: 'turn_usage'; tokens?: ACPTokenUsage | undefined; costUsd: number }
+  | { type: 'commands'; commands: AvailableCommand[] }
+  | { type: 'mode'; modeId: string }
+  | { type: 'config_options'; options: AcpRuntimeOption[] }
+  | {
+      type: 'session_info';
+      title?: string | null | undefined;
+      updatedAt?: string | null | undefined;
+    }
   | { type: 'raw'; update: AnySessionUpdate };
 
 export type ACPSessionErrorKind =

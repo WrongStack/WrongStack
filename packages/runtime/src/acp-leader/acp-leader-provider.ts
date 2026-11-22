@@ -21,6 +21,7 @@ import type {
   AgentContextUsage,
   Capabilities,
   Config,
+  ContentBlock as CoreContentBlock,
   Provider,
   ProviderFactory,
   Request,
@@ -29,7 +30,7 @@ import type {
   SubagentRunContext,
   Tool,
 } from '@wrongstack/contracts/types';
-import { ProviderError } from '@wrongstack/contracts/types';
+import { documentAsText, ProviderError } from '@wrongstack/contracts/types';
 import { type Context, consumeBtwNotes } from '@wrongstack/core/agent';
 import { subjectForToolInput } from '@wrongstack/core/utils';
 import {
@@ -285,7 +286,7 @@ export class AcpLeaderProvider implements Provider {
           })
         : undefined;
     const turn = leader.session
-      .prompt([acp.textContent(this.promptText(leader, req))], opts.signal, onProgress)
+      .prompt(this.promptBlocks(acp, leader, req), opts.signal, onProgress)
       .then(
         (result) => {
           blocks.close();
@@ -312,6 +313,56 @@ export class AcpLeaderProvider implements Provider {
       stopReminders?.();
       await turn;
     }
+  }
+
+  /**
+   * Build the ACP prompt content blocks: the text turn plus any attached images
+   * or documents from the latest user message, gated by the agent's advertised
+   * `promptCapabilities` (with text fallback for PDFs when embeddedContext is absent).
+   */
+  private promptBlocks(
+    acp: AcpModule,
+    leader: LeaderSession,
+    req: Request,
+  ): Parameters<ACPSession['prompt']>[0] {
+    const out: Parameters<ACPSession['prompt']>[0] = [
+      acp.textContent(this.promptText(leader, req)),
+    ];
+    const lastUser = [...req.messages].reverse().find((m) => m.role === 'user');
+    if (!lastUser || typeof lastUser.content === 'string') return out;
+    const promptCaps = leader.session.getCapabilities?.().promptCapabilities;
+    for (const block of lastUser.content as CoreContentBlock[]) {
+      if (block.type === 'image' && promptCaps?.image === true) {
+        if (block.source.type === 'base64' && block.source.data) {
+          out.push({
+            type: 'image',
+            data: block.source.data,
+            mimeType: block.source.media_type ?? 'image/png',
+          });
+        } else if (block.source.type === 'url' && block.source.url) {
+          out.push({
+            type: 'image',
+            data: '',
+            mimeType: block.source.media_type ?? 'image/png',
+            uri: block.source.url,
+          });
+        }
+      } else if (block.type === 'document') {
+        if (promptCaps?.embeddedContext === true) {
+          out.push({
+            type: 'resource',
+            resource: {
+              uri: `file:///${encodeURIComponent(block.name ?? 'document.pdf')}`,
+              mimeType: block.source.media_type,
+              blob: block.source.data,
+            },
+          });
+        } else {
+          out.push(acp.textContent(documentAsText(block).text));
+        }
+      }
+    }
+    return out;
   }
 
   /** The turn's prompt; an agent joining a conversation under way gets the turns before it. */

@@ -349,7 +349,7 @@ export type ToolCallContent =
     }
   | { type: 'terminal'; terminalId: TerminalId };
 
-interface ToolCallLocation {
+export interface ToolCallLocation {
   path: string;
   /** 1-based per the spec's argument requirements. */
   line?: number | undefined;
@@ -405,7 +405,7 @@ interface AvailableCommandInput {
   hint: string;
 }
 
-interface AvailableCommand {
+export interface AvailableCommand {
   name: string;
   description: string;
   input?: AvailableCommandInput | undefined;

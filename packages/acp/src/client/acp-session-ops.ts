@@ -32,6 +32,18 @@ export interface ACPSessionOpContext {
   closeSession: () => Promise<void>;
 }
 
+function additionalDirectoriesParam(
+  ctx: ACPSessionOpContext,
+): { additionalDirectories: string[] } | Record<string, never> {
+  if (
+    !ctx.agentCapabilities.sessionCapabilities?.additionalDirectories ||
+    !ctx.opts.additionalDirectories?.length
+  ) {
+    return {};
+  }
+  return { additionalDirectories: [...ctx.opts.additionalDirectories] };
+}
+
 export async function executeLoadSession(
   ctx: ACPSessionOpContext,
   sessionId: SessionId,
@@ -61,6 +73,7 @@ export async function executeLoadSession(
       sessionId,
       cwd: cwd ?? ctx.opts.cwd ?? ctx.opts.projectRoot,
       mcpServers: servers,
+      ...additionalDirectoriesParam(ctx),
     });
   } catch (err) {
     ctx.setSessionId(previousSessionId);
@@ -107,6 +120,7 @@ export async function executeResumeSession(
       sessionId,
       cwd: cwd ?? ctx.opts.cwd ?? ctx.opts.projectRoot,
       mcpServers: servers,
+      ...additionalDirectoriesParam(ctx),
     });
   } catch (err) {
     ctx.setSessionId(previousSessionId);
@@ -317,6 +331,7 @@ export async function executeCreateSession(ctx: ACPSessionOpContext): Promise<Se
   const params = {
     cwd: ctx.opts.cwd ?? ctx.opts.projectRoot,
     mcpServers: servers,
+    ...additionalDirectoriesParam(ctx),
     ...(ctx.opts.sessionMeta ? { _meta: ctx.opts.sessionMeta } : {}),
   };
   const resumeId = ctx.opts.resumeSessionId;

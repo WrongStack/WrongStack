@@ -11,7 +11,7 @@
       "relativeImports": 4
     },
     "packages/acp/src/client/acp-session.ts": {
-      "lines": 799,
+      "lines": 881,
       "relativeImports": 25
     },
     "packages/builtin-plugins/src/auto-review-plugin.ts": {
@@ -149,6 +149,10 @@
     "packages/requirement-intake/src/service.ts": {
       "lines": 716,
       "relativeImports": 17
+    },
+    "packages/runtime/src/acp-leader/acp-leader-provider.ts": {
+      "lines": 751,
+      "relativeImports": 7
     },
     "packages/runtime/src/chimera/execution-chimera-review.ts": {
       "lines": 869,

@@ -16,10 +16,12 @@ import {
   ACP_PROTOCOL_VERSION,
   type AgentCapabilities,
   type AuthMethod,
+  type AvailableCommand,
   type ContentBlock,
   type McpServer,
   type SessionId,
   type SessionInfo,
+  type SessionMode,
 } from '../types/acp-v1.js';
 import { ACP_PACKAGE_VERSION } from '../version.js';
 import { cancelLateAcpSession } from './acp-late-session.js';
@@ -111,9 +113,32 @@ export class ACPSession {
   private disposeLaunch: (() => Promise<void>) | undefined;
   private configOptions: AcpRuntimeOption[] = [];
   private legacyModelOption: AcpRuntimeOption | undefined;
+  private availableModes: SessionMode[] = [];
+  private currentModeId: string | null = null;
+  private availableCommands: AvailableCommand[] = [];
+  private sessionInfo: {
+    title?: string | null | undefined;
+    updatedAt?: string | null | undefined;
+  } = {};
 
   getConfigOptions(): AcpRuntimeOption[] {
     return structuredClone(this.configOptions);
+  }
+
+  getAvailableModes(): SessionMode[] {
+    return structuredClone(this.availableModes);
+  }
+
+  getCurrentModeId(): string | null {
+    return this.currentModeId;
+  }
+
+  getAvailableCommands(): AvailableCommand[] {
+    return structuredClone(this.availableCommands);
+  }
+
+  getSessionInfo(): { title?: string | null | undefined; updatedAt?: string | null | undefined } {
+    return { ...this.sessionInfo };
   }
 
   private mergeLegacyModelOption(options: AcpRuntimeOption[]): AcpRuntimeOption[] {
@@ -423,7 +448,8 @@ export class ACPSession {
   }
 
   async setMode(sessionId: SessionId, modeId: string): Promise<void> {
-    return executeSetMode(this.opContext(), sessionId, modeId);
+    await executeSetMode(this.opContext(), sessionId, modeId);
+    this.currentModeId = modeId;
   }
 
   async setConfigOption(sessionId: SessionId, configId: string, value: string): Promise<void> {
@@ -615,6 +641,8 @@ export class ACPSession {
           if (['session/new', 'session/load', 'session/resume', 'session/fork'].includes(method)) {
             this.configOptions = [];
             this.legacyModelOption = undefined;
+            this.availableModes = [];
+            this.currentModeId = null;
           }
           if (
             [
@@ -628,7 +656,27 @@ export class ACPSession {
             value &&
             typeof value === 'object'
           ) {
-            const response = value as { configOptions?: unknown; models?: unknown };
+            const response = value as {
+              configOptions?: unknown;
+              models?: unknown;
+              modes?: { currentModeId?: unknown; availableModes?: unknown } | null;
+              initialMode?: { currentModeId?: unknown; availableModes?: unknown } | null;
+            };
+            const modeState = response.modes ?? response.initialMode;
+            if (modeState && typeof modeState === 'object') {
+              if (Array.isArray(modeState.availableModes)) {
+                this.availableModes = modeState.availableModes.filter(
+                  (m): m is SessionMode =>
+                    !!m &&
+                    typeof m === 'object' &&
+                    typeof (m as { id?: unknown }).id === 'string' &&
+                    typeof (m as { name?: unknown }).name === 'string',
+                );
+              }
+              if (typeof modeState.currentModeId === 'string') {
+                this.currentModeId = modeState.currentModeId;
+              }
+            }
             if (response.models !== undefined) {
               this.legacyModelOption = acpLegacyModelOption(response.models);
             }
@@ -705,15 +753,49 @@ export class ACPSession {
   private handleMessage(msg: ACPMessage): void {
     if (msg.method === 'session/update') {
       const params = msg.params as
-        | { sessionId?: string; update?: { sessionUpdate?: string; configOptions?: unknown } }
+        | {
+            sessionId?: string;
+            update?: {
+              sessionUpdate?: string;
+              configOptions?: unknown;
+              availableCommands?: unknown;
+              currentModeId?: unknown;
+              modeId?: unknown;
+              title?: string | null;
+              updatedAt?: string | null;
+            };
+          }
         | undefined;
-      if (
-        params?.sessionId === this.sessionId &&
-        params.update?.sessionUpdate === 'config_option_update'
-      )
-        this.configOptions = this.mergeLegacyModelOption(
-          acpRuntimeOptions(params.update.configOptions),
-        );
+      if (params?.sessionId === this.sessionId && params.update) {
+        if (params.update.sessionUpdate === 'config_option_update') {
+          this.configOptions = this.mergeLegacyModelOption(
+            acpRuntimeOptions(params.update.configOptions),
+          );
+        } else if (
+          params.update.sessionUpdate === 'available_commands_update' &&
+          Array.isArray(params.update.availableCommands)
+        ) {
+          this.availableCommands = params.update.availableCommands.filter(
+            (c): c is AvailableCommand =>
+              !!c &&
+              typeof c === 'object' &&
+              typeof (c as { name?: unknown }).name === 'string' &&
+              ((c as { name: string }).name.length ?? 0) > 0,
+          );
+        } else if (params.update.sessionUpdate === 'current_mode_update') {
+          const nextMode =
+            typeof params.update.currentModeId === 'string'
+              ? params.update.currentModeId
+              : typeof params.update.modeId === 'string'
+                ? params.update.modeId
+                : null;
+          if (nextMode) this.currentModeId = nextMode;
+        } else if (params.update.sessionUpdate === 'session_info_update') {
+          if (params.update.title !== undefined) this.sessionInfo.title = params.update.title;
+          if (params.update.updatedAt !== undefined)
+            this.sessionInfo.updatedAt = params.update.updatedAt;
+        }
+      }
     }
     handleMessageFromHost.call(this.acpSessionMessagesHost(), msg);
   }
