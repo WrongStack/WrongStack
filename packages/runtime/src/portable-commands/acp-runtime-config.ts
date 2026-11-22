@@ -46,14 +46,15 @@ export async function configureAcpRuntime(
         prior,
       );
       const option = current.options.find((x) => x.id === parts[0]);
-      if (option?.category === 'model' || option?.id === 'provider')
+      if (option?.id === 'provider') {
+        base = {};
+      } else if (option?.category === 'model' || option?.id === 'model') {
         base = Object.fromEntries(
           Object.entries(prior).filter(([id]) =>
-            current.options.some(
-              (x) => x.id === id && (x.category === 'model' || x.id === 'provider'),
-            ),
+            current.options.some((x) => x.id === id && x.id === 'provider'),
           ),
         );
+      }
     }
     const next =
       parts[0] === 'reset'
