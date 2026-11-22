@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import type { Request, Response } from '@wrongstack/contracts/types/provider';
 import { hashRequest } from '../replay/hash.js';
-import { SECRET_FILE_MODE } from '../security/file-permissions.js';
+import { restrictFilePermissions, SECRET_FILE_MODE } from '../security/file-permissions.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
 import { safeParse } from '../utils/safe-json.js';
@@ -96,6 +96,8 @@ export class ReplayLogStore {
   private readonly diskSize = new Map<string, number>();
   /** Whether the on-disk file ends with a newline (or is empty). */
   private readonly diskEndsWithNewline = new Map<string, boolean>();
+  /** Sessions whose replay sidecar has been owner-only hardened (once per session). */
+  private readonly hardenedSessions = new Set<string>();
   private readonly maxEntries: number;
   private static readonly MAX_CACHED_SESSIONS = 32;
 
@@ -163,6 +165,17 @@ export class ReplayLogStore {
             if (needsLeadingNewline) offset += 1;
             await fs.mkdir(path.dirname(fp), { recursive: true });
             await fs.appendFile(fp, payload, { encoding: 'utf8', mode: SECRET_FILE_MODE });
+            // F22 (WS-045 class, F20 sibling): on Windows `mode: 0o600` is a
+            // no-op, so this append-only replay sidecar — raw request/response
+            // pairs — stayed readable by other local accounts wherever
+            // inheritance was not already owner-only. The rare eviction path
+            // rewrites via atomicWrite (which hardens), but a session under the
+            // entry cap is only ever appended here. Harden once per session,
+            // best-effort (warned, never thrown); no per-call icacls spawn.
+            if (!this.hardenedSessions.has(input.sessionId)) {
+              this.hardenedSessions.add(input.sessionId);
+              await restrictFilePermissions(fp, { label: 'replay-log' });
+            }
             cache.set(hash, { entry, offset, length: lineBytes });
             this.diskCount.set(input.sessionId, currentCount + 1);
             this.diskSize.set(input.sessionId, offset + lineBytes);

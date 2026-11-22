@@ -124,9 +124,9 @@
       "runtimeOrMixed": 18
     },
     "@wrongstack/core/security": {
-      "files": 275,
+      "files": 277,
       "typeOnly": 27,
-      "runtimeOrMixed": 251
+      "runtimeOrMixed": 253
     },
     "@wrongstack/core/session-catalog": {
       "files": 19,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1010,
+      "files": 1012,
       "typeOnly": 77,
-      "runtimeOrMixed": 968
+      "runtimeOrMixed": 970
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -7787,6 +7787,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/chronicle/tests/journal-hardening.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/acp-server-agent.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8592,6 +8598,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/hq/src/persistence/timeseries-store.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/hq/tests/event-log-hardening.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -12137,6 +12149,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/chronicle/tests/journal-hardening.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/acp-server-agent.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -14892,6 +14910,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/hq/tests/auth-store.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/hq/tests/event-log-hardening.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

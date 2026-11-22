@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { SECRET_FILE_MODE } from '@wrongstack/core/security';
+import { restrictFilePermissions, SECRET_FILE_MODE } from '@wrongstack/core/security';
 import { withFileLock } from '@wrongstack/core/utils';
 import { GENESIS_HASH, hashValue } from './event-hash.js';
 import {
@@ -111,6 +111,8 @@ export class ChronicleJournal {
   private lastSequence = 0;
   private lastHash: string = GENESIS_HASH;
   private lastAutoPurgeAt = 0;
+  /** Partition paths already owner-only hardened (once per partition). */
+  private readonly hardenedPartitions = new Set<string>();
 
   constructor(options: ChronicleJournalOptions) {
     this.basePath = path.resolve(options.filePath);
@@ -444,6 +446,16 @@ export class ChronicleJournal {
         const serialized = recorded.map((e) => JSON.stringify(e)).join('\n') + '\n';
         await fs.appendFile(cp, serialized, { encoding: 'utf8', mode: SECRET_FILE_MODE });
         this.partitionSizeBytes += Buffer.byteLength(serialized);
+        // F21 (WS-045 class, F20 sibling): on Windows `mode: 0o600` is a no-op,
+        // so this append-only event journal — which carries tool inputs/outputs
+        // — stayed readable by other local accounts wherever inheritance was not
+        // already owner-only. Harden once per partition (first batch), best-effort
+        // (warned, never thrown); rotation produces a new path that is hardened on
+        // its first batch. No per-batch icacls spawn on the hot append path.
+        if (!this.hardenedPartitions.has(cp)) {
+          this.hardenedPartitions.add(cp);
+          await restrictFilePermissions(cp, { label: 'chronicle-journal' });
+        }
       });
       const last = recorded[recorded.length - 1]!;
       this.lastSequence = last.sequence;

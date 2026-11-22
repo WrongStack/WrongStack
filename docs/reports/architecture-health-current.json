@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T16:27:38.034Z",
+  "generatedAt": "2026-11-22T16:29:35.843Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 50,
     "sourceFiles": 6485,
-    "testFiles": 5670,
-    "sourceLines": 1325167,
+    "testFiles": 5674,
+    "sourceLines": 1325206,
     "workspaceEdges": 259,
     "moduleEdges": 18946,
     "nonCommandSlashImports": 0,
@@ -208,7 +208,7 @@
       "name": "@wrongstack/chronicle",
       "dir": "packages/chronicle",
       "sourceFiles": 54,
-      "testFiles": 58,
+      "testFiles": 59,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -224,7 +224,7 @@
         {
           "path": "packages/chronicle/tsconfig.test.json",
           "error": null,
-          "testFiles": 58
+          "testFiles": 59
         }
       ]
     },
@@ -403,7 +403,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 663,
-      "testFiles": 742,
+      "testFiles": 744,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -420,7 +420,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 742
+          "testFiles": 744
         }
       ]
     },
@@ -528,7 +528,7 @@
       "name": "@wrongstack/hq",
       "dir": "packages/hq",
       "sourceFiles": 73,
-      "testFiles": 53,
+      "testFiles": 54,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -544,7 +544,7 @@
         {
           "path": "packages/hq/tsconfig.test.json",
           "error": null,
-          "testFiles": 53
+          "testFiles": 54
         }
       ]
     },
@@ -5175,6 +5175,12 @@
       },
       {
         "file": "packages/chronicle/tests/identity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/chronicle/tests/journal-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13262,6 +13268,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/replay/replay-log-store-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/replay/replay-provider-runner.test.ts",
         "projects": [
           "root-node"
@@ -14763,6 +14775,12 @@
       },
       {
         "file": "packages/core/tests/storage/tool-audit-log-extra.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/tool-audit-log-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -16587,6 +16605,12 @@
       },
       {
         "file": "packages/hq/tests/event-log-bulk-utf8-seam.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/event-log-hardening.test.ts",
         "projects": [
           "root-node"
         ]
