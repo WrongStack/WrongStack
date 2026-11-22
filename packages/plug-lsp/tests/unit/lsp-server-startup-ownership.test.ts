@@ -209,6 +209,24 @@ describe('LSP startup retains only its own lifecycle', () => {
     await value.server.shutdown();
   });
 
+  it('ignores a connection close that arrives after its child was replaced', async () => {
+    // A restart swaps `child` before the old transport finishes closing; on
+    // Windows that ordering happens in the restart-race test, on Linux it does
+    // not, so the guard is pinned here directly.
+    const value = harness();
+    const started = value.server.start();
+    await value.initializing;
+    value.release();
+    await started;
+    expect(value.server.state).toBe('ready');
+    (value.server as unknown as { child: unknown }).child = { replaced: true };
+    value.child.stdout.emit('close');
+    expect(value.server.state).toBe('ready');
+    (value.server as unknown as { child: unknown }).child = value.child;
+    await value.server.shutdown();
+    expect(value.server.state).toBe('exited');
+  });
+
   it('still starts a live child and shuts it down normally', async () => {
     const value = harness();
     const started = value.server.start();
