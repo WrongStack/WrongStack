@@ -177,18 +177,33 @@ export function readIdentifierAt(
     // anchor remap could be a neighbouring identifier.
     const col = byteColumnToIndex(row, character - 1);
     if (col === undefined) return undefined;
-    // Expand to word characters (unicode letters/digits/_/$).
-    let start = col;
-    let end = col;
-    const isId = (ch: string) => /[\p{L}\p{N}_$]/u.test(ch);
-    if (!isId(row[col] ?? '')) {
+    // Expand to word characters (unicode letters/digits/_/$) over CODE POINTS,
+    // not UTF-16 code units: an astral letter is one identifier character but
+    // two units, so testing a lone surrogate half with `\p{L}` reads it as a
+    // non-letter. The identifier was then truncated at that point (`ca𐐀ll` →
+    // `ca`, which `remapSymbolAnchors` may match against a different, real
+    // symbol) or unreadable when the astral letter started it.
+    const chars = Array.from(row);
+    // UTF-16 index → code-point index. A byte column that lands between an
+    // astral character's two units belongs to that character.
+    let at = 0;
+    let units = 0;
+    while (at < chars.length && units + chars[at]!.length <= col) {
+      units += chars[at]!.length;
+      at++;
+    }
+    const isId = (ch: string | undefined): boolean =>
+      ch !== undefined && /[\p{L}\p{N}_$]/u.test(ch);
+    let start = at;
+    let end = at;
+    if (!isId(chars[at])) {
       // Cursor may sit just after the identifier.
-      if (col > 0 && isId(row[col - 1] ?? '')) start = col - 1;
+      if (at > 0 && isId(chars[at - 1])) start = at - 1;
       else return undefined;
     }
-    while (start > 0 && isId(row[start - 1] ?? '')) start--;
-    while (end < row.length && isId(row[end] ?? '')) end++;
-    const id = row.slice(start, end);
+    while (start > 0 && isId(chars[start - 1])) start--;
+    while (end < chars.length && isId(chars[end])) end++;
+    const id = chars.slice(start, end).join('');
     return id.length > 0 ? id : undefined;
   } catch {
     return undefined;

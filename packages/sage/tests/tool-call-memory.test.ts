@@ -1151,6 +1151,29 @@ describe('SageToolCallMiddleware — retrieval budget', () => {
     expect(traces).toHaveLength(1);
   });
 
+  it('clamps a budget above the 32-bit timer limit instead of expiring after 1ms', async () => {
+    const store = await storeWithFileMemory('src/file.ts');
+    const timeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+    try {
+      const mw = createSageToolCallMiddleware({
+        memory: store,
+        repeatCooldownMs: 0,
+        retrievalTimeoutMs: 2 ** 31,
+      });
+      const payload = makePayload();
+      await mw.handler(payload as never, async (p) => p);
+
+      const budgetDelays = timeoutSpy.mock.calls
+        .map((call) => call[1])
+        .filter((delay): delay is number => typeof delay === 'number' && delay > 1_000_000);
+      expect(budgetDelays.length).toBeGreaterThan(0);
+      expect(budgetDelays.every((delay) => delay <= 2_147_483_647)).toBe(true);
+      expect(memoryEvidenceText(payload)).toContain('Memory for src/file.ts');
+    } finally {
+      timeoutSpy.mockRestore();
+    }
+  });
+
   it('leaves retrieval unbounded when the budget is zero', async () => {
     const store = await storeWithFileMemory('src/file.ts');
     const mw = createSageToolCallMiddleware({

@@ -72,6 +72,9 @@ function asRepoPath(token: string, roots: ReadonlySet<string>): string | undefin
   // `foo.ts:buildProvider` → the file; a trailing slash names a directory.
   candidate = candidate
     .replace(/#L\d+(?:-L?\d+)?$/i, '')
+    // `docs/guide.md#setup`: a heading fragment names a place in the file, as a
+    // line fragment does. Only after an extension, so `c#/x.cs` is untouched.
+    .replace(/(\.[a-z0-9]+)#[^/#]*$/i, '$1')
     .replace(/:[\w$.-]+(?::\d+(?:-\d+)?)?$/, '')
     .replace(/[),.;:]+$/, '')
     .replace(/\/+$/, '');

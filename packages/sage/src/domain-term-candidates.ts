@@ -267,7 +267,10 @@ export function extractCandidatesFromMessage(
     );
     const m = stream.match(sentenceRegex);
     if (m?.[1]) {
-      cand.definition = m[1].trim().slice(0, 240);
+      const definition = m[1].trim();
+      // Persisted to domain-terms.md: never cut a surrogate pair in half.
+      const last = definition.charCodeAt(239);
+      cand.definition = definition.slice(0, last >= 0xd800 && last <= 0xdbff ? 239 : 240);
       cand.confidence = Math.min(1, cand.confidence + 0.1);
     }
   }

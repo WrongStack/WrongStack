@@ -42,6 +42,16 @@ function asString(value: unknown): string {
 }
 
 /**
+ * First `max` UTF-16 units, dropping a surrogate pair the cut would split: the
+ * result is persisted as memory text and anchors and later injected to models.
+ */
+function sliceWhole(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const last = text.charCodeAt(max - 1);
+  return text.slice(0, last >= 0xd800 && last <= 0xdbff ? max - 1 : max);
+}
+
+/**
  * After tool execution, optionally remember successful command outcomes or
  * error signatures. Fail-open: never blocks the tool pipeline.
  */
@@ -76,12 +86,12 @@ export function createSageOutcomeCaptureMiddleware(
             type: 'tool_result' as const,
             sessionId: nextPayload.ctx.session?.id,
             toolUseId: nextPayload.toolUse.id,
-            ...(command ? { command: command.slice(0, 200) } : {}),
+            ...(command ? { command: sliceWhole(command, 200) } : {}),
           },
         ];
 
         if (opts.errorPatterns && isError && output.trim()) {
-          const signature = output.replace(/\s+/g, ' ').trim().slice(0, 200);
+          const signature = sliceWhole(output.replace(/\s+/g, ' ').trim(), 200);
           const key = `err:${signature.slice(0, 80)}`;
           if (allowKey(key, maxPerHour)) {
             await surface.rememberSage({
@@ -91,7 +101,7 @@ export function createSageOutcomeCaptureMiddleware(
               importance: 0.55,
               confidence: 0.6,
               tags: ['auto-capture', 'error_pattern', name],
-              anchors: command ? [{ type: 'command', command: command.slice(0, 200) }] : [],
+              anchors: command ? [{ type: 'command', command: sliceWhole(command, 200) }] : [],
               sources,
             });
           }
@@ -107,17 +117,17 @@ export function createSageOutcomeCaptureMiddleware(
         ]);
         // A command outcome without a command says nothing reusable.
         if (opts.toolOutcomes && !isError && commandTools.has(name) && command) {
-          const summary = output.replace(/\s+/g, ' ').trim().slice(0, 160);
+          const summary = sliceWhole(output.replace(/\s+/g, ' ').trim(), 160);
           const key = `ok:${command.slice(0, 100)}`;
           if (summary && allowKey(key, maxPerHour)) {
             await surface.rememberSage({
-              text: `Successful ${name}: \`${command.slice(0, 120)}\` → ${summary}`,
+              text: `Successful ${name}: \`${sliceWhole(command, 120)}\` → ${summary}`,
               kind: 'tool_outcome',
               scope: 'project',
               importance: 0.45,
               confidence: 0.7,
               tags: ['auto-capture', 'tool_outcome', name],
-              anchors: [{ type: 'command', command: command.slice(0, 200) }],
+              anchors: [{ type: 'command', command: sliceWhole(command, 200) }],
               sources,
             });
           }

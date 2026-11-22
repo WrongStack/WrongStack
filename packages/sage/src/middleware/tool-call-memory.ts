@@ -125,9 +125,13 @@ const DEFAULT_RETRIEVAL_TIMEOUT_MS = 5_000;
 function withRetrievalBudget<T>(work: Promise<T>, timeoutMs: number): Promise<T> {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return work;
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error(`SAGE retrieval exceeded its ${timeoutMs}ms budget`));
-    }, timeoutMs);
+    // Timers coerce a delay above 2^31-1 ms to 1 ms: clamp so a huge budget stays huge.
+    const timer = setTimeout(
+      () => {
+        reject(new Error(`SAGE retrieval exceeded its ${timeoutMs}ms budget`));
+      },
+      Math.min(timeoutMs, 2_147_483_647),
+    );
     timer.unref?.();
     work.then(
       (value) => {

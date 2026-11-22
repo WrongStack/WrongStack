@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { WrongMemoryError } from '@wrongstack/wrongmemory-client';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   type AutoSageMemoryPort,
   createSageMemoryPortForService,
@@ -601,6 +601,28 @@ describe('WrongMemoryPort mapping', () => {
     expect(report.maintenance).toMatchObject({ owner: 'daemon', scheduled: false });
     expect(await surface.readAudit!(5)).toEqual([{ schemaVersion: 1, event: 'e', at: 't' }]);
     expect(client.last('memory.audit').params).toEqual({ limit: 5 });
+  });
+
+  it('clamps a relay interval above the 32-bit timer limit instead of polling every 1ms', async () => {
+    const intervalSpy = vi.spyOn(globalThis, 'setInterval');
+    try {
+      const { port } = setup(
+        (m) =>
+          m === 'events.since'
+            ? { daemonInstanceId: 'd_1', generation: 1, resync: false, events: [] }
+            : undefined,
+        {
+          events: { emit: () => undefined },
+          relayIntervalMs: 2 ** 31,
+        },
+      );
+      await port.initialize();
+      await port.dispose();
+      const delays = intervalSpy.mock.calls.map((call) => call[1]);
+      expect(delays).toEqual([2_147_483_647]);
+    } finally {
+      intervalSpy.mockRestore();
+    }
   });
 
   it("relays other connections' changes, never its own, from events.since", async () => {

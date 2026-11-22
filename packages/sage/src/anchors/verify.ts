@@ -466,7 +466,8 @@ async function verifyAnchor(
       .stat(customRolePath)
       .then((stat) => stat.isDirectory())
       .catch(() => false);
-    return FLEET_ROSTER[role] || customRoleExists
+    // Own keys only: `constructor` passes the role pattern and would read Object.prototype.
+    return Object.hasOwn(FLEET_ROSTER, role) || customRoleExists
       ? { anchor, status: 'verified', reason: `Agent role "${role}" is available.` }
       : { anchor, status: 'stale', reason: `Agent role "${role}" is not in the roster.` };
   }

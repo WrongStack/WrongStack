@@ -144,7 +144,7 @@ const MAX_REQUEST_CHARS = 2000;
 const MAX_EMPTY_EVIDENCE = 32;
 
 function positive(value: number | undefined, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
+  return Number.isFinite(value) && value! > 0 ? Math.min(value!, 2_147_483_647) : fallback;
 }
 
 function hash(text: string): string {

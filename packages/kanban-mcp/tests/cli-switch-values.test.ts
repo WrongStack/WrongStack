@@ -19,6 +19,13 @@ describe('kanban-mcp: privilege switches with an inline value', () => {
     expect(parse(['--writable=yes-please']).writable).toBe(false);
   });
 
+  it('a later --http=false / --http=0 returns an earlier --http to stdio (F1256)', () => {
+    expect(parse(['--http', '--http=false']).transport).toBe('stdio');
+    expect(parse(['--http', '--http=0']).transport).toBe('stdio');
+    expect(parse(['--http=false', '--http']).transport).toBe('http');
+    expect(parse(['--http', '--http=yes-please']).transport).toBe('http');
+  });
+
   it('--destructive=false grants neither destructive nor writable', () => {
     expect(parse(['--destructive=false'])).toMatchObject({ destructive: false, writable: false });
     expect(parse(['--destructive'])).toMatchObject({ destructive: true, writable: true });

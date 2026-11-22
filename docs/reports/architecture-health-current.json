@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T16:29:35.843Z",
+  "generatedAt": "2026-11-22T16:32:01.233Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 50,
     "sourceFiles": 6485,
-    "testFiles": 5674,
-    "sourceLines": 1325206,
+    "testFiles": 5678,
+    "sourceLines": 1325315,
     "workspaceEdges": 259,
     "moduleEdges": 18946,
     "nonCommandSlashImports": 0,
@@ -455,7 +455,7 @@
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
       "sourceFiles": 63,
-      "testFiles": 21,
+      "testFiles": 24,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -476,7 +476,7 @@
         {
           "path": "packages/fleet/tsconfig.test.json",
           "error": null,
-          "testFiles": 21
+          "testFiles": 24
         }
       ]
     },
@@ -507,7 +507,7 @@
       "name": "@wrongstack/governance",
       "dir": "packages/governance",
       "sourceFiles": 45,
-      "testFiles": 38,
+      "testFiles": 39,
       "workspaceDependencies": [
         "@wrongstack/persistence"
       ],
@@ -520,7 +520,7 @@
         {
           "path": "packages/governance/tsconfig.test.json",
           "error": null,
-          "testFiles": 38
+          "testFiles": 39
         }
       ]
     },
@@ -15554,6 +15554,12 @@
         ]
       },
       {
+        "file": "packages/fleet/tests/explore-companion-timer-overflow.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/fleet/tests/host-acp-runner-gateway.test.ts",
         "projects": [
           "root-node"
@@ -15620,7 +15626,19 @@
         ]
       },
       {
+        "file": "packages/fleet/tests/memory-companion-timer-overflow.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/fleet/tests/skill-companion-outcomes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/fleet/tests/skill-companion-timer-overflow.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15855,6 +15873,12 @@
       },
       {
         "file": "packages/governance/tests/daemon-control.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/governance/tests/daemon-launcher-timeout-overflow.test.ts",
         "projects": [
           "root-node"
         ]

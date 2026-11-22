@@ -18,7 +18,7 @@
  * creation *inside* it from data that no inspection of the archive's entries
  * would reveal. That is worth fixing, and worth not overstating.
  */
-import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -161,5 +161,78 @@ describe('extractTar no longer desynchronises (WS-056)', () => {
     ]);
     await extractTar(archive, dest);
     expect(await readdir(join(dest, 'dir'))).toEqual(['a.txt']);
+  });
+});
+
+describe('extractTar keeps zero-byte regular files (F1170)', () => {
+  it('creates an empty regular file instead of silently dropping it', async () => {
+    // Empty files are ordinary repo content (`__init__.py`, `py.typed`,
+    // `.gitkeep`); the `size > 0` guard skipped them, so the installed skill
+    // silently differed from its repository.
+    const archive = Buffer.concat([
+      header({ name: 'top/scripts/', typeflag: '5' }),
+      header({ name: 'top/scripts/__init__.py', size: 0 }),
+      header({ name: 'top/scripts/run.py', size: 5 }),
+      body(Buffer.from('print')),
+      Buffer.alloc(1024, 0),
+    ]);
+    await extractTar(archive, dest);
+    expect((await readdir(join(dest, 'scripts'))).sort()).toEqual(['__init__.py', 'run.py']);
+    const empty = await stat(join(dest, 'scripts', '__init__.py'));
+    expect(empty.isFile()).toBe(true);
+    expect(empty.size).toBe(0);
+  });
+
+  it('still treats an old-style NUL-typeflag entry ending in / as a directory', async () => {
+    const archive = Buffer.concat([
+      header({ name: 'top/legacy/', typeflag: '\0' }),
+      Buffer.alloc(1024, 0),
+    ]);
+    await extractTar(archive, dest);
+    expect((await stat(join(dest, 'legacy'))).isDirectory()).toBe(true);
+  });
+});
+
+describe('extractTar honours pax path headers (F1185)', () => {
+  /** One pax record: `<len> key=value\n`, where <len> counts itself. */
+  function paxRecord(key: string, value: string): string {
+    const rest = ` ${key}=${value}\n`;
+    let len = Buffer.byteLength(rest);
+    while (Buffer.byteLength(`${len}${rest}`) !== len) len = Buffer.byteLength(`${len}${rest}`);
+    return `${len}${rest}`;
+  }
+
+  it('extracts a long-named file under its pax path instead of dropping it', async () => {
+    // git archive (GitHub's tarball producer) stores a path no ustar name/prefix
+    // split fits in a pax 'x' header and writes "<sha>.data" as the ustar name.
+    const longName = `${'a'.repeat(110)}.md`;
+    const pax = Buffer.from(paxRecord('path', `top/refs/${longName}`));
+    const archive = Buffer.concat([
+      header({ name: 'pax_global_header', size: 0, typeflag: 'g' }),
+      header({ name: 'PaxHeader', size: pax.length, typeflag: 'x' }),
+      body(pax),
+      header({ name: `${'0'.repeat(40)}.data`, size: 4 }),
+      body(Buffer.from('long')),
+      header({ name: 'top/refs/short.md', size: 5 }),
+      body(Buffer.from('short')),
+      Buffer.alloc(1024, 0),
+    ]);
+    await extractTar(archive, dest);
+    expect((await readdir(join(dest, 'refs'))).sort()).toEqual([longName, 'short.md'].sort());
+    expect((await stat(join(dest, 'refs', longName))).size).toBe(4);
+  });
+
+  it('keeps the zip-slip guard for a pax path', async () => {
+    const pax = Buffer.from(paxRecord('path', 'top/../escaped.md'));
+    const inner = join(dest, 'inner');
+    const archive = Buffer.concat([
+      header({ name: 'PaxHeader', size: pax.length, typeflag: 'x' }),
+      body(pax),
+      header({ name: 'top/harmless.md', size: 3 }),
+      body(Buffer.from('evl')),
+      Buffer.alloc(1024, 0),
+    ]);
+    await extractTar(archive, inner);
+    expect(await readdir(dest)).toEqual([]);
   });
 });

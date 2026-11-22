@@ -310,6 +310,9 @@ function stripTopDir(p: string): string {
  */
 async function extractTar(buf: Buffer, destDir: string): Promise<void> {
   let offset = 0;
+  // git archive (GitHub's producer) stores a path that no ustar name/prefix
+  // split fits in a pax 'x' header; its `path` record names the next entry.
+  let paxPath: string | null = null;
 
   while (offset + 512 <= buf.length) {
     // Check for end-of-archive (two consecutive zero blocks)
@@ -322,8 +325,17 @@ async function extractTar(buf: Buffer, destDir: string): Promise<void> {
     const size = readTarSize(buf, offset + 124);
     const typeflag = buf[offset + 156] ?? 0;
 
-    // Full path: prefix/name (ustar) or just name
-    const fullPath = prefix ? `${prefix}/${name}` : name;
+    if (typeflag === 0x78) {
+      const dataEnd = offset + 512 + size;
+      if (dataEnd > buf.length) break; // truncated archive
+      paxPath = readPaxPath(buf.subarray(offset + 512, dataEnd));
+      offset += 512 + Math.ceil(size / 512) * 512;
+      continue;
+    }
+
+    // Full path: pax path, else prefix/name (ustar) or just name
+    const fullPath = paxPath ?? (prefix ? `${prefix}/${name}` : name);
+    paxPath = null;
     // Strip the top-level directory (GitHub tarballs have owner-repo-sha/)
     const relPath = stripTopDir(fullPath);
 
@@ -350,7 +362,9 @@ async function extractTar(buf: Buffer, destDir: string): Promise<void> {
         }
       }
 
-      if ((typeflag === 0x30 || typeflag === 0 || typeflag === 0x00) && size > 0) {
+      // Zero-byte files (`__init__.py`, `.gitkeep`) are regular files too; an
+      // empty entry ending in `/` is the old-style directory handled above.
+      if ((typeflag === 0x30 || typeflag === 0) && (size > 0 || !relPath.endsWith('/'))) {
         // Regular file
         const dir = path.dirname(destPath);
         await fs.mkdir(dir, { recursive: true });
@@ -364,6 +378,23 @@ async function extractTar(buf: Buffer, destDir: string): Promise<void> {
     // Advance: 512-byte header + data padded to 512-byte boundary
     offset += 512 + Math.ceil(size / 512) * 512;
   }
+}
+
+/** The `path` record of a pax extended header (newline-ended `<len> key=value` records). */
+function readPaxPath(data: Buffer): string | null {
+  let found: string | null = null;
+  let pos = 0;
+  while (pos < data.length) {
+    const space = data.indexOf(0x20, pos);
+    if (space === -1) break;
+    const len = Number.parseInt(data.subarray(pos, space).toString('ascii'), 10);
+    if (!Number.isSafeInteger(len) || len <= space + 1 - pos || pos + len > data.length) break;
+    const record = data.subarray(space + 1, pos + len - 1).toString('utf8');
+    const eq = record.indexOf('=');
+    if (eq > 0 && record.slice(0, eq) === 'path') found = record.slice(eq + 1);
+    pos += len;
+  }
+  return found;
 }
 
 /**

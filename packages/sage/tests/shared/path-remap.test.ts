@@ -115,4 +115,33 @@ describe('path-remap', () => {
     // line 1, character pointing into oldName
     expect(readIdentifierAt(file, 1, 18)).toBe('oldName');
   });
+
+  // An astral letter is ONE identifier character but TWO UTF-16 units. Walking
+  // code units tested a lone surrogate with `\p{L}`, read it as a non-letter,
+  // and returned a truncated identifier (`ca𐐀ll` → `ca`, which
+  // remapSymbolAnchors can match against a different real symbol) or nothing
+  // at all when the astral letter started the identifier. `character` is the
+  // tool-input convention: a 1-based BYTE column (plug-lsp humanToLSP).
+  it('keeps astral letters inside an identifier', () => {
+    const astral = '\u{10400}'; // DESERET CAPITAL LETTER LONG I — \p{L}, 4 bytes
+    const file = path.join(os.tmpdir(), `sage-id-astral-${Date.now()}.ts`);
+    fs.writeFileSync(file, `const ca${astral}ll = 1;\n`, 'utf8');
+    tempFiles.push(file);
+    // byte column 9 is the astral letter itself (6 for `const `, 2 for `ca`).
+    expect(readIdentifierAt(file, 1, 9)).toBe(`ca${astral}ll`);
+    // Byte columns inside the character's 4 bytes belong to that character.
+    expect(readIdentifierAt(file, 1, 10)).toBe(`ca${astral}ll`);
+  });
+
+  it('keeps an identifier that starts with an astral letter', () => {
+    const astral = '\u{10400}';
+    const file = path.join(os.tmpdir(), `sage-id-astral-first-${Date.now()}.ts`);
+    fs.writeFileSync(file, `const ${astral} = 1;\n`, 'utf8');
+    tempFiles.push(file);
+    expect(readIdentifierAt(file, 1, 7)).toBe(astral);
+    // A byte column past the identifier and its trailing space (on `=`) is
+    // still not part of any identifier: 6 bytes for `const `, 4 for the astral
+    // letter, 1 for the space, so `=` starts at 1-based byte column 12.
+    expect(readIdentifierAt(file, 1, 12)).toBeUndefined();
+  });
 });

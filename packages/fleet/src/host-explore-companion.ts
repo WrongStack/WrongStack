@@ -171,7 +171,8 @@ export function createHostExploreCompanion(
         taskId,
         done,
         resolve,
-        timer: setTimeout(() => settle(job, true), probeTimeoutMs),
+        // A timer above 2^31-1 ms (~24.8 days) fires at once; cap it there.
+        timer: setTimeout(() => settle(job, true), Math.min(probeTimeoutMs, 2_147_483_647)),
       };
       job.timer.unref?.();
       active = job;

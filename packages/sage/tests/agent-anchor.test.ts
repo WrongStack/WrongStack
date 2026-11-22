@@ -3,8 +3,11 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { verifyMemoryAnchors } from '../src/anchors/verify.js';
-import { isSqliteAvailable, SqliteSageStore } from '../src/sqlite-store.js';
-import { SqliteSageStore as SageStore } from '../src/sqlite-store.js';
+import {
+  isSqliteAvailable,
+  SqliteSageStore as SageStore,
+  SqliteSageStore,
+} from '../src/sqlite-store.js';
 
 describe('SAGE agent relationships', () => {
   let projectRoot = '';
@@ -78,6 +81,25 @@ describe('SAGE agent relationships', () => {
       status: 'stale',
       reason: 'Agent anchor has an invalid role.',
     });
+  });
+
+  it('does not verify an agent role that only names an Object.prototype member', async () => {
+    const store = makeStore();
+    const memory = await store.rememberSage({
+      text: 'The constructor agent owns the bootstrap checklist for this repository.',
+      anchors: [{ type: 'agent', role: 'constructor' }],
+    });
+
+    const result = await verifyMemoryAnchors(projectRoot, memory);
+    expect(result.anchors[0]).toMatchObject({
+      status: 'stale',
+      reason: 'Agent role "constructor" is not in the roster.',
+    });
+
+    fs.mkdirSync(path.join(projectRoot, '.wrongstack', 'agents', 'constructor'), {
+      recursive: true,
+    });
+    expect((await verifyMemoryAnchors(projectRoot, memory)).anchors[0]?.status).toBe('verified');
   });
 
   it.skipIf(!isSqliteAvailable())('keeps SQLite agent anchor edges in sync', async () => {

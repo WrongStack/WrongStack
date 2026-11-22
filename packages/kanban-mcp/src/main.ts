@@ -150,7 +150,7 @@ export function parseArgs(
         if (parseSwitch(parsed.transport === 'stdio')) parsed.transport = 'stdio';
         break;
       case '--http':
-        if (parseSwitch(parsed.transport === 'http')) parsed.transport = 'http';
+        parsed.transport = parseSwitch(parsed.transport === 'http') ? 'http' : 'stdio';
         break;
       case '--port': {
         const next = value();

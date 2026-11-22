@@ -196,7 +196,7 @@ export function parseArgs(
         if (parseSwitch(false)) parsed.transport = 'stdio';
         break;
       case '--http':
-        if (parseSwitch(false)) parsed.transport = 'http';
+        parsed.transport = parseSwitch(parsed.transport === 'http') ? 'http' : 'stdio';
         break;
       case '--port': {
         const v = value();

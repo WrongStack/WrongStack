@@ -244,6 +244,20 @@ describe('SageDomainTermExtractor — detection', () => {
     expect(found?.definition).toContain('runtime projection');
   });
 
+  it('caps a long definition without splitting a surrogate pair', () => {
+    const result = ex.extractFromConversation({
+      messages: [
+        {
+          role: 'user',
+          text: `\`SddBoardProjector\` is ${'y'.repeat(239)}\u{1F525} and more context.`,
+        },
+      ],
+    });
+    const definition = result.find((r) => r.term === 'SddBoardProjector')?.definition ?? '';
+    expect(definition).toBe('y'.repeat(239));
+    expect(definition).not.toMatch(/[\ud800-\udbff](?![\udc00-\udfff])/);
+  });
+
   it('captures definitions after question-mark sentence boundaries', () => {
     const result = ex.extractFromConversation({
       messages: [

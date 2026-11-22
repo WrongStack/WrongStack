@@ -101,7 +101,11 @@ export class WrongMemoryPort extends WrongMemorySageOps implements MemoryPort {
     if (this.disposed) return;
     const interval = this.options.relayIntervalMs ?? 2_000;
     if (this.options.events && interval > 0 && !this.relayTimer) {
-      this.relayTimer = setInterval(() => void this.relayChanges(), interval);
+      // Timers coerce a delay above 2^31-1 ms to 1 ms: clamp so "rarely" never means "constantly".
+      this.relayTimer = setInterval(
+        () => void this.relayChanges(),
+        Math.min(interval, 2_147_483_647),
+      );
       this.relayTimer.unref?.();
       void this.relayChanges();
     }

@@ -375,14 +375,18 @@ export function launchGovernanceProjectDaemonWithRuntime(
         false,
       );
     };
-    const timer = setTimeout(() => {
-      fail(
-        new GovernanceDaemonLaunchError(
-          'startup_timeout',
-          `Governance daemon bootstrap exceeded ${timeoutMs}ms.`,
-        ),
-      );
-    }, timeoutMs);
+    // Node fires a delay above 2^31-1 ms after ~1 ms; validation allows any safe integer.
+    const timer = setTimeout(
+      () => {
+        fail(
+          new GovernanceDaemonLaunchError(
+            'startup_timeout',
+            `Governance daemon bootstrap exceeded ${timeoutMs}ms.`,
+          ),
+        );
+      },
+      Math.min(2_147_483_647, timeoutMs),
+    );
 
     child.on('message', onMessage);
     child.once('error', onError);

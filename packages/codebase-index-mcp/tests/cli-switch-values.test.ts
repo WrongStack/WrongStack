@@ -27,6 +27,13 @@ describe('codebase-index-mcp: privilege switches with an inline value', () => {
     expect(parse(['--watch=yes-please']).watch).toBe(false);
   });
 
+  it('a later --http=false / --http=0 returns an earlier --http to stdio (F1256)', () => {
+    expect(parse(['--http', '--http=false']).transport).toBe('stdio');
+    expect(parse(['--http', '--http=0']).transport).toBe('stdio');
+    expect(parse(['--http=false', '--http']).transport).toBe('http');
+    expect(parse(['--http', '--http=yes-please']).transport).toBe('http');
+  });
+
   it('allows later --writable=false / --watch=0 to clear an earlier switch, honors --http=false / --help=false, and rejects non-object tool args (F120)', async () => {
     expect(parse(['--writable', '--writable=false']).writable).toBe(false);
     expect(parse(['--watch', '--watch=0']).watch).toBe(false);

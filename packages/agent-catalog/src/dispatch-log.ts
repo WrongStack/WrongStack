@@ -32,8 +32,12 @@
 
 import {
   appendFileSync,
+  closeSync,
+  fstatSync,
   mkdirSync,
+  openSync,
   readFileSync,
+  readSync,
   renameSync,
   statSync,
   writeFileSync,
@@ -192,8 +196,33 @@ export function recordDispatchOutcome(entry: DispatchOutcomeEntry, projectRoot?:
 }
 
 function appendLine(filePath: string, line: string): void {
-  appendFileSync(filePath, line, 'utf8');
+  // A writer killed mid-append leaves a last line without its newline; glued
+  // onto that fragment, this record would be skipped with it at read time.
+  appendFileSync(filePath, endsWithNewline(filePath) ? line : `\n${line}`, 'utf8');
   rotateIfLarge(filePath);
+}
+
+/** True for a missing or empty file, or one whose last byte is `\n`. */
+function endsWithNewline(filePath: string): boolean {
+  let fd: number | undefined;
+  try {
+    fd = openSync(filePath, 'r');
+    const size = fstatSync(fd).size;
+    if (size === 0) return true;
+    const last = Buffer.alloc(1);
+    readSync(fd, last, 0, 1, size - 1);
+    return last[0] === 0x0a;
+  } catch {
+    return true;
+  } finally {
+    if (fd !== undefined) {
+      try {
+        closeSync(fd);
+      } catch {
+        // Nothing to recover; the append below reopens the file.
+      }
+    }
+  }
 }
 
 /**

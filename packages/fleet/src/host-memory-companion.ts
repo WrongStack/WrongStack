@@ -313,11 +313,15 @@ export class HostMemoryCompanion {
         },
         settle: resolve,
       };
-      timeout = setTimeout(() => {
-        resolve(undefined);
-        if (session.resident === agentId) session.resident = undefined;
-        void this.input.director.terminate(agentId).catch(() => {});
-      }, probeTimeoutMs);
+      // A timer above 2^31-1 ms (~24.8 days) fires at once; cap it there.
+      timeout = setTimeout(
+        () => {
+          resolve(undefined);
+          if (session.resident === agentId) session.resident = undefined;
+          void this.input.director.terminate(agentId).catch(() => {});
+        },
+        Math.min(probeTimeoutMs, 2_147_483_647),
+      );
       timeout.unref?.();
     });
     try {

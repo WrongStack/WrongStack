@@ -188,6 +188,24 @@ describe('summarizeDispatchLog', () => {
     expect(summary.roles[0]?.role).toBe('verifier');
   });
 
+  it('starts the next record on its own line after a torn final line (F1242)', () => {
+    const root = newRoot();
+    recordDispatch(entry({ role: 'verifier' }), root);
+    writeFileSync(dispatchLogPath(root), `${readFileSync(dispatchLogPath(root), 'utf8')}{"role":`, {
+      encoding: 'utf8',
+    });
+    recordDispatch(entry({ role: 'executor' }), root);
+
+    const summary = summarizeDispatchLog(root);
+    expect(summary.entries).toBe(2);
+    expect(summary.roles.map((row) => row.role).sort()).toEqual(['executor', 'verifier']);
+    // A clean log gains no blank lines from the guard.
+    const clean = newRoot();
+    recordDispatch(entry(), clean);
+    recordDispatch(entry(), clean);
+    expect(readFileSync(dispatchLogPath(clean), 'utf8')).not.toContain('\n\n');
+  });
+
   it('reports the observed time window', () => {
     const root = newRoot();
     recordDispatch(entry({ at: '2026-09-01T00:00:00.000Z' }), root);

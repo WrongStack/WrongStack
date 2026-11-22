@@ -294,6 +294,13 @@ describe('F45 regressions', () => {
     ).toEqual(['packages/core/src/gone.ts']);
   });
 
+  it('strips markdown heading fragments like line fragments in stale path detection (F1243)', () => {
+    touch('docs/guide.md');
+    const checker = createStalePathChecker(projectRoot);
+    expect(checker.stalePaths('Follow `docs/guide.md#setup` first.')).toEqual([]);
+    expect(checker.stalePaths('Follow `docs/gone.md#setup` first.')).toEqual(['docs/gone.md']);
+  });
+
   it('preserves multi-block markdown fences and non-markdown code blocks in unwrapWholeDocumentFence', () => {
     const multiBlock =
       '```markdown\n# Example A\n```\n\nMiddle explanation.\n\n```ts\nconst x = 1;\n```';

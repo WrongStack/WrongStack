@@ -19,6 +19,13 @@ describe('mailbox-mcp: privilege switches with an inline value', () => {
     expect(parse(['--writable=yes-please']).writable).toBe(false);
   });
 
+  it('a later --http=false / --http=0 returns an earlier --http to stdio (F1256)', () => {
+    expect(parse(['--http', '--http=false']).transport).toBe('stdio');
+    expect(parse(['--http', '--http=0']).transport).toBe('stdio');
+    expect(parse(['--http=false', '--http']).transport).toBe('http');
+    expect(parse(['--http', '--http=yes-please']).transport).toBe('http');
+  });
+
   it('--admin=false grants neither admin nor writable', () => {
     expect(parse(['--admin=false'])).toMatchObject({ admin: false, writable: false });
     expect(parse(['--admin'])).toMatchObject({ admin: true, writable: true });

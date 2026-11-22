@@ -221,6 +221,34 @@ describe('sage middleware 100% coverage suite', () => {
       expect(remembered[0]?.text).toContain('Error: Cannot find module foo');
     });
 
+    it('does not split a surrogate pair at the persisted error-signature cut', async () => {
+      const remembered: Array<{ text: string }> = [];
+      const mw = createSageOutcomeCaptureMiddleware({
+        memory: makePort({
+          rememberSage: vi.fn(async (input) => {
+            remembered.push(input as { text: string });
+            return makeMemory('err-surrogate', input);
+          }),
+        }),
+        errorPatterns: true,
+      });
+      const payload: ToolCallPipelinePayload = {
+        toolUse: { type: 'tool_use', id: 's', name: 'bash', input: { command: 'npm run sur' } },
+        ctx: {} as any,
+        result: {
+          type: 'tool_result',
+          tool_use_id: 's',
+          content: `${'q'.repeat(199)}\u{1F525} surrogate failure`,
+          is_error: true,
+        },
+      };
+
+      await mw.handler(payload, async (p) => p);
+      expect(remembered).toHaveLength(1);
+      expect(remembered[0]?.text.endsWith('q')).toBe(true);
+      expect(remembered[0]?.text).not.toMatch(/[\ud800-\udbff](?![\udc00-\udfff])/);
+    });
+
     it('returns early when both toolOutcomes and errorPatterns are disabled or surface missing', async () => {
       const mw = createSageOutcomeCaptureMiddleware({
         memory: makePort({}),
