@@ -148,15 +148,19 @@ describe('ACP session modes: permission decisions', () => {
     mkdirSync(path.join(ROOT, 'src'), { recursive: true });
     // A junction needs no privilege on Windows; elsewhere it is a plain dir symlink.
     symlinkSync(OUTSIDE, path.join(ROOT, 'escape'), 'junction');
-    const ask = client('reject_once');
+    // A dangling link: its outside target does not exist yet, so realpath fails on it.
+    symlinkSync(path.join(OUTSIDE, 'not-yet'), path.join(ROOT, 'dangling'), 'junction');
+    const ask = client('reject_once', 'reject_once');
     const policy = new ACPClientPermissionPolicy(ask, {
       mode: () => 'auto-edit',
       arbiter: arbiterSaying({ permission: 'auto', source: 'yolo' }),
     });
     await policy.evaluate(write, { path: 'escape/new/a.ts' }, ctx);
     expect(ask).toHaveBeenCalledTimes(1);
+    await policy.evaluate(write, { path: 'dangling/a.ts' }, ctx);
+    expect(ask).toHaveBeenCalledTimes(2);
     expect((await policy.evaluate(write, { path: 'src/new/a.ts' }, ctx)).permission).toBe('auto');
-    expect(ask).toHaveBeenCalledTimes(1);
+    expect(ask).toHaveBeenCalledTimes(2);
   });
 
   it('auto-edit asks for a write the project policy still guards', async () => {

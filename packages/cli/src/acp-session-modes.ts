@@ -318,6 +318,10 @@ async function realpathOfDeepestAncestor(target: string): Promise<string> {
     } catch (err) {
       const parent = path.dirname(probe);
       if ((err as NodeJS.ErrnoException).code !== 'ENOENT' || parent === probe) throw err;
+      // ENOENT on an entry that exists is a dangling link: a write through it
+      // creates its target, wherever that is. Refuse; the caller asks.
+      const entry = await fsp.lstat(probe).catch(() => undefined);
+      if (entry) throw new Error(`unresolvable link: ${probe}`);
       tail.push(path.basename(probe));
       probe = parent;
     }
