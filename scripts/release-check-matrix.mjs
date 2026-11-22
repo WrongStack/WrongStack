@@ -208,7 +208,7 @@ const GATES = [
   },
   {
     id: 'tools-package-smoke',
-    label: '@wrongstack/tools extracted-package WASM smoke',
+    label: '@wrongstack/codebase extracted-package WASM smoke',
     cmd: 'bun scripts/check-tools-package-smoke.mjs',
     prereq: 'build',
   },

@@ -72,7 +72,7 @@ All remaining scripts are **Wired** — see the tables below.
 | `lib/publishable-packages.mjs` | Wired (lib) | Workspace member discovery (`workspaceMemberDirs`). npm publishing is retired, so it no longer carries a publish inventory. | `build.mjs`, `lib/deploy-bun-workspace.mjs`, `check-package-contracts.mjs` |
 | `release-check-matrix.mjs` | Wired | Runs *every* release gate and reports one pass/fail matrix (profiles `release`, `release-fast`, `local`). | `release:check`, `release:fast`, `ci:local` |
 | `check-package-contracts.mjs` | Wired | Verifies each workspace package's (except `website`) `main`/`types`/`bin`/`exports` targets exist after a build. | `ci.yml`, release matrix |
-| `check-tools-package-smoke.mjs` | Wired | Packs `@wrongstack/tools` and checks the vendored Tree-sitter WASM grammars load from the tarball. | release matrix |
+| `check-tools-package-smoke.mjs` | Wired | Packs `@wrongstack/codebase` (which owns the grammars `@wrongstack/tools` re-exports) and checks the vendored Tree-sitter WASM grammars load from the tarball. | release matrix |
 | `check-build-lineage.mjs` | Wired | `--assert-clean` / `--write` / `--verify` for the build-artifact manifest (stale or foreign `dist` detection). | `check:clean-dist`, `check:build-manifest`, `write:build-manifest` |
 | `lib/build-lineage.mjs` | Wired (lib) | Manifest creation/validation used by the above. | `check-build-lineage.mjs` |
 | `check-dist-hidden-files.mjs` | Wired | Fails if a `dist/` contains dotfiles (CI uploads `dist` with `include-hidden-files`). | `check:dist-hidden` |
