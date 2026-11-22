@@ -90,7 +90,9 @@ export function buildEngine({ skipBuild = false, triple = hostTriple() } = {}) {
       core: ['package.json', 'skills', 'design-kits', 'instructions', 'data'],
       'agent-catalog': ['package.json', 'instructions'],
       cli: ['package.json', 'data'],
-      tools: ['package.json', 'dist/wasm'],
+      tools: ['package.json'],
+      // The Tree-sitter grammars ship with @wrongstack/codebase, as in build-binaries.mjs.
+      codebase: ['package.json', 'dist/wasm'],
       bench: ['package.json', 'fixtures', 'subsets'],
     },
   });
