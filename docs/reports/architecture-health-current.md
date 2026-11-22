@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-22T18:18:16.191Z
+**Generated:** 2026-11-22T18:38:48.683Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 50 |
 | Production source files | 6488 |
-| Production source lines | 1326164 |
+| Production source lines | 1326215 |
 | Test files | 5682 |
 | Workspace dependency edges | 259 |
 | Relative module edges | 18953 |
@@ -123,6 +123,7 @@ None.
 | 781 | `apps/desktop-v2/src/WrongStackSettings.tsx` |
 | 780 | `packages/tools/src/design.ts` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
+| 774 | `packages/runtime/src/acp-leader/acp-leader-provider.ts` |
 | 763 | `packages/plugins/src/adversary-mode/index.ts` |
 | 758 | `packages/vector-memory/src/store.ts` |
 | 756 | `packages/fleet/src/host-skill-companion.ts` |
@@ -130,7 +131,6 @@ None.
 | 755 | `packages/tools/src/read.ts` |
 | 754 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
 | 753 | `apps/desktop-v2/src/useFileWorkspace.ts` |
-| 751 | `packages/runtime/src/acp-leader/acp-leader-provider.ts` |
 | 748 | `packages/coordination/src/sqlite-mailbox.ts` |
 | 744 | `packages/tools/src/process-registry.ts` |
 | 744 | `packages/webui-server/src/server/completion-handlers.ts` |

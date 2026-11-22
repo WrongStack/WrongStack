@@ -415,6 +415,29 @@ export class AcpLeaderProvider implements Provider {
         case 'message':
           on.text?.(event.text);
           return;
+        case 'thought': {
+          const host = acpLeaderHost();
+          const ctx = host?.context(sessionId);
+          if (host && ctx && event.text) {
+            host.events.emit('provider.thinking_delta', {
+              sessionId,
+              ctx,
+              text: event.text,
+            });
+          }
+          return;
+        }
+        case 'plan': {
+          const ctx = acpLeaderHost()?.context(sessionId);
+          if (ctx) {
+            ctx.todos = event.entries.map((entry, idx) => ({
+              id: `acp-plan-${idx + 1}`,
+              content: entry.content,
+              status: entry.status,
+            }));
+          }
+          return;
+        }
         case 'tool_call':
         case 'tool_call_update': {
           if (event.type === 'tool_call') on.toolCall?.();

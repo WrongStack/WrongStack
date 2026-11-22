@@ -262,6 +262,34 @@ export function AcpRuntime({
       {result && !result.options.length && (
         <p>This agent does not expose model or effort settings through ACP.</p>
       )}
+      {result?.capabilities && Object.values(result.capabilities).some(Boolean) && (
+        <div className="acp-capabilities">
+          {result.capabilities.image && <span>Vision</span>}
+          {result.capabilities.audio && <span>Audio</span>}
+          {result.capabilities.embeddedContext && <span>Context</span>}
+          {result.capabilities.resume && <span>Resume</span>}
+          {result.capabilities.fork && <span>Fork</span>}
+          {result.capabilities.steering && <span>Steer</span>}
+          {result.capabilities.additionalDirectories && <span>Multi-dir</span>}
+        </div>
+      )}
+      {result?.modes && result.modes.length > 0 && (
+        <small>
+          Modes:{' '}
+          {result.modes
+            .map((m) => (m.id === result.currentModeId ? `${m.name} (active)` : m.name))
+            .join(' · ')}
+        </small>
+      )}
+      {result?.commands && result.commands.length > 0 && (
+        <small>
+          Commands:{' '}
+          {result.commands
+            .slice(0, 12)
+            .map((c) => `/${c.name.replace(/^\//, '')}`)
+            .join(' ')}
+        </small>
+      )}
       {error && <p role="alert">{error}</p>}
       <button type="button" disabled={busy || disabled} onClick={() => void load(values)}>
         Refresh

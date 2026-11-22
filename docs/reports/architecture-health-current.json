@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T18:18:16.191Z",
+  "generatedAt": "2026-11-22T18:38:48.683Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 50,
     "sourceFiles": 6488,
     "testFiles": 5682,
-    "sourceLines": 1326164,
+    "sourceLines": 1326215,
     "workspaceEdges": 259,
     "moduleEdges": 18953,
     "nonCommandSlashImports": 0,
@@ -36640,7 +36640,7 @@
     },
     {
       "file": "packages/runtime/src/acp-leader/acp-leader-provider.ts",
-      "lines": 751,
+      "lines": 774,
       "relativeImports": 7
     },
     {
@@ -37016,6 +37016,11 @@
       "relativeImports": 5
     },
     {
+      "file": "packages/runtime/src/acp-leader/acp-leader-provider.ts",
+      "lines": 774,
+      "relativeImports": 7
+    },
+    {
       "file": "packages/plugins/src/adversary-mode/index.ts",
       "lines": 763,
       "relativeImports": 5
@@ -37049,11 +37054,6 @@
       "file": "apps/desktop-v2/src/useFileWorkspace.ts",
       "lines": 753,
       "relativeImports": 19
-    },
-    {
-      "file": "packages/runtime/src/acp-leader/acp-leader-provider.ts",
-      "lines": 751,
-      "relativeImports": 7
     },
     {
       "file": "packages/coordination/src/sqlite-mailbox.ts",
