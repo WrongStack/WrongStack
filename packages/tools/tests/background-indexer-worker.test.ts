@@ -69,7 +69,7 @@ vi.mock('node:fs', async (orig) => {
   const actual = await orig<typeof import('node:fs')>();
   return { ...actual, existsSync: () => true, default: { ...actual, existsSync: () => true } };
 });
-vi.mock('../src/codebase-index/index-service.js', () => ({
+vi.mock('../../codebase/src/index-service.js', () => ({
   indexService: (...a: Parameters<typeof indexServiceMock>) => indexServiceMock(...a),
   searchService: vi.fn(async () => ({ results: [], total: 0 })),
   statsService: vi.fn(async () => ({ totalSymbols: 0 })),

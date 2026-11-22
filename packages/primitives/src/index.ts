@@ -99,3 +99,4 @@ export {
   type ToolCapability,
   WIDE_SUBAGENT_CAPABILITIES,
 } from './tool-capabilities.js';
+export { resolveWin32Command } from './win32-resolve.js';

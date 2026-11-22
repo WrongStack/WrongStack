@@ -30,6 +30,7 @@ export default defineConfig({
       // tools package, and root Vitest must not require a prebuilt dist/.
       '@wrongstack/tools': path.resolve(__dirname, './packages/tools/src'),
       '@wrongstack/browser-tools': path.resolve(__dirname, './packages/browser-tools/src'),
+      '@wrongstack/codebase': path.resolve(__dirname, './packages/codebase/src'),
       '@wrongstack/providers/definitions': path.resolve(
         __dirname,
         './packages/providers/src/provider-definitions.ts',
@@ -323,7 +324,7 @@ export default defineConfig({
         'packages/tools/src/shim/**/*.ts',
         // Worker-thread bootstrap is exercised through the parser pool. V8
         // coverage from the child worker is not merged into the parent suite.
-        'packages/tools/src/codebase-index/parser-worker-script.ts',
+        'packages/codebase/src/parser-worker-script.ts',
       ],
       // Aggregate ratchet: keep the expanded TS/TSX inventory covered without
       // pretending the existing workspace is already at 100% per file.

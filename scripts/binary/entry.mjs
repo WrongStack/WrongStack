@@ -60,7 +60,7 @@ async function runDaemon(name) {
       await import('../../packages/sage/dist/project-server.js');
       return;
     case 'codebase-index':
-      await import('../../packages/tools/dist/codebase-index/project-server.js');
+      await import('../../packages/codebase/dist/project-server.js');
       return;
     // These guard on "am I main", which the binary disables; call explicitly.
     case 'governance': {

@@ -42,6 +42,14 @@
       "lines": 800,
       "relativeImports": 4
     },
+    "packages/codebase/src/background-indexer.ts": {
+      "lines": 715,
+      "relativeImports": 17
+    },
+    "packages/codebase/src/infra-parser.ts": {
+      "lines": 903,
+      "relativeImports": 2
+    },
     "packages/contracts/src/types/index.ts": {
       "lines": 716,
       "relativeImports": 76
@@ -149,14 +157,6 @@
     "packages/tools/src/codebase-index/ast-symbol-mutator.ts": {
       "lines": 703,
       "relativeImports": 6
-    },
-    "packages/tools/src/codebase-index/background-indexer.ts": {
-      "lines": 715,
-      "relativeImports": 17
-    },
-    "packages/tools/src/codebase-index/infra-parser.ts": {
-      "lines": 903,
-      "relativeImports": 2
     },
     "packages/tools/src/design-reference.ts": {
       "lines": 853,

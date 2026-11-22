@@ -43,35 +43,35 @@ The codebase index service is organized into seven distinct architectural layers
 └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.1 IPC Server & Service Lifecycle ([`project-server.ts`](../../packages/tools/src/codebase-index/project-server.ts))
+### 1.1 IPC Server & Service Lifecycle ([`project-server.ts`](../../packages/codebase/src/project-server.ts))
 - **Election & Socket Primitive:** One detached process runs per resolved project index directory. OS-level socket/named-pipe binding acts as the election lock (`EADDRINUSE` causes secondary candidates to exit gracefully).
 - **Security & Authorization:** Uses a random 128-bit hex `authToken` stored in an owner-only metadata file (`0600` permissions on `server.json`). Incoming requests must prove knowledge of the token to query or modify the index.
 - **Client Lease & Idle Management:** Applies a 45-second heartbeat lease per connected socket. The daemon automatically shuts down after 5 minutes of inactivity (`WRONGSTACK_INDEX_SERVER_IDLE_MS`).
 - **External Tree Watcher:** Owns and debounces project file events (`watchProjectTree`), consolidating file system updates across multiple open clients (TUI, WebUI, CLI, subagents).
 - **In-Memory Caching:** Utilizes a `GenerationLruCache` keyed by index generation ID to serve query responses (search, stats, package/file/symbol graphs, incoming/outgoing call sites) instantly.
 
-### 1.2 Execution Dispatch & Resilience ([`background-indexer.ts`](../../packages/tools/src/codebase-index/background-indexer.ts))
+### 1.2 Execution Dispatch & Resilience ([`background-indexer.ts`](../../packages/codebase/src/background-indexer.ts))
 - **Process Mutex Chain:** Enforces a single promise-chain mutex (`withMutex`) for write operations to serialize SQLite writes and prevent WAL lock collisions.
 - **Micro-Batching & Debounce:** Per-file edits are debounced over 400ms and aggregated using `setImmediate` event loop ticks into single multi-file index runs.
-- **Circuit Breaker:** Monitored via [`circuit-breaker.ts`](../../packages/tools/src/codebase-index/circuit-breaker.ts). Repeated failures or timeouts open the circuit, failing fast with structured feedback rather than locking the worker.
+- **Circuit Breaker:** Monitored via [`circuit-breaker.ts`](../../packages/codebase/src/circuit-breaker.ts). Repeated failures or timeouts open the circuit, failing fast with structured feedback rather than locking the worker.
 - **Multi-Tier Execution Fallback:** Operations route through:
   1. Detached IPC Project Server (Production default)
-  2. Worker Thread ([`worker.ts`](../../packages/tools/src/codebase-index/worker.ts))
+  2. Worker Thread ([`worker.ts`](../../packages/codebase/src/worker.ts))
   3. In-Process Inline Execution (Fallback for source-tree tests or constrained runtimes)
 
-### 1.3 Discovery & Index Orchestrator ([`indexer.ts`](../../packages/tools/src/codebase-index/indexer.ts))
+### 1.3 Discovery & Index Orchestrator ([`indexer.ts`](../../packages/codebase/src/indexer.ts))
 - **Fast Git Discovery:** Calls `git ls-files` and `git status` for root Git repositories to bypass thousands of recursive `fs.readdir` and `stat` calls.
 - **Parallel Processing:** Executes parallel file `stat`, read, and parse phases using `Promise.allSettled`. Batch width dynamically scales with CPU parallelism (`resolveParallelBatch`).
 - **Transaction Commit Batching:** Aggregates database writes into a single SQLite transaction (`commitBatch`) per batch of 20 files, reducing disk `fsync` operations by ~95%.
 - **Post-Indexing Relation Pass:** Executes `resolveProjectRelations` to derive ecosystem manifests (`package.json`, `go.mod`, `Cargo.toml`), tag files with package labels, and resolve cross-file import specifiers (`ModuleResolver`).
 
-### 1.4 Parser & Symbol Extraction Stack ([`parser-dispatch.ts`](../../packages/tools/src/codebase-index/parser-dispatch.ts))
+### 1.4 Parser & Symbol Extraction Stack ([`parser-dispatch.ts`](../../packages/codebase/src/parser-dispatch.ts))
 - **Lazy Module Imports:** Compiler APIs (such as `@typescript/typescript6`, ~9MB JS / ~26MB heap) are dynamically imported via `import(...)` only when a file matching their extension is encountered.
-- **First-Class AST Parsers:** TypeScript/JavaScript ([`ts-parser.ts`](../../packages/tools/src/codebase-index/ts-parser.ts)), Go ([`go-parser.ts`](../../packages/tools/src/codebase-index/go-parser.ts)), Python ([`py-parser.ts`](../../packages/tools/src/codebase-index/py-parser.ts)), Rust ([`rs-parser.ts`](../../packages/tools/src/codebase-index/rs-parser.ts)), JSON ([`json-parser.ts`](../../packages/tools/src/codebase-index/json-parser.ts)), and YAML ([`yaml-parser.ts`](../../packages/tools/src/codebase-index/yaml-parser.ts)).
-- **Regex Fallback Extractor:** [`generic-parser.ts`](../../packages/tools/src/codebase-index/generic-parser.ts) and [`import-extractor.ts`](../../packages/tools/src/codebase-index/import-extractor.ts) extract recall-oriented symbols and import paths for secondary languages (C, C++, Java, C#, PHP, Ruby, Swift, Shell, SQL, Markdown, etc.).
+- **First-Class AST Parsers:** TypeScript/JavaScript ([`ts-parser.ts`](../../packages/codebase/src/ts-parser.ts)), Go ([`go-parser.ts`](../../packages/codebase/src/go-parser.ts)), Python ([`py-parser.ts`](../../packages/codebase/src/py-parser.ts)), Rust ([`rs-parser.ts`](../../packages/codebase/src/rs-parser.ts)), JSON ([`json-parser.ts`](../../packages/codebase/src/json-parser.ts)), and YAML ([`yaml-parser.ts`](../../packages/codebase/src/yaml-parser.ts)).
+- **Regex Fallback Extractor:** [`generic-parser.ts`](../../packages/codebase/src/generic-parser.ts) and [`import-extractor.ts`](../../packages/codebase/src/import-extractor.ts) extract recall-oriented symbols and import paths for secondary languages (C, C++, Java, C#, PHP, Ruby, Swift, Shell, SQL, Markdown, etc.).
 - **Language Scoping:** `Ref.lang` stamps referencing languages into SQLite (`lang_family`), scoping symbol target resolution to prevent cross-language name collisions (e.g. `New()`, `main()`, `validate()`).
 
-### 1.5 SQLite Storage & Schema ([`writer.ts`](../../packages/tools/src/codebase-index/writer.ts) & [`schema.ts`](../../packages/tools/src/codebase-index/schema.ts))
+### 1.5 SQLite Storage & Schema ([`writer.ts`](../../packages/codebase/src/writer.ts) & [`schema.ts`](../../packages/codebase/src/schema.ts))
 - **Database Location:** Stores SQLite databases out-of-tree under `~/.wrongstack/projects/<hash>/codebase-index/index.db`.
 - **Engine & Pragmas:** `node:sqlite` (`DatabaseSync`) in WAL mode, using `repairMissingColumns()` for self-healing schema migrations without requiring full rebuilds on minor column additions.
 - **FTS5 Integration:** `symbols_fts` virtual table using `unicode61` tokenizer, running native `MATCH` and `-bm25(symbols_fts)` ranking, backed by an in-process BM25 memory fallback for runtimes compiled without SQLite FTS5.
@@ -121,7 +121,7 @@ CREATE TABLE refs (
 
 | Area | Current Implementation | Limitation / Bottleneck | Refactoring Target |
 |---|---|---|---|
-| **Multi-Language Parsing** | Regex heuristics ([`generic-parser.ts`](../../packages/tools/src/codebase-index/generic-parser.ts)) for 30+ languages | High false-positive rate, struggles with multi-line signatures, macros, templates, and comments | WebAssembly `tree-sitter` universal AST parser |
+| **Multi-Language Parsing** | Regex heuristics ([`generic-parser.ts`](../../packages/codebase/src/generic-parser.ts)) for 30+ languages | High false-positive rate, struggles with multi-line signatures, macros, templates, and comments | WebAssembly `tree-sitter` universal AST parser |
 | **Incremental Invalidation** | `mtimeMs` timestamp checking | Git branch switching, `touch`, or formatting updates trigger full re-parsing even when code content is byte-identical | Fast 64-bit content hashing (`xxHash64` / `BLAKE3`) |
 | **Search Capabilities** | Keyword-exact BM25 / FTS5 search | Cannot find symbols by conceptual intent (e.g. searching "user authentication handler" won't match `verifySession()`) | Hybrid Retrieval: FTS5 Trigram + Vector Embeddings |
 | **FTS Tokenization** | `unicode61` tokenization | CamelCase splitting handled in JS; substring/partial matches degrade to `LIKE '%query%'` table scans | SQLite FTS5 `trigram` tokenizer configuration |
@@ -205,13 +205,13 @@ export class TreeSitterExtractor {
 Prevent redundant re-indexing triggered by `mtimeMs` updates when source code content has not changed.
 
 #### Schema & Logic Modifications
-1. Update [`writer-schema.ts`](../../packages/tools/src/codebase-index/writer-schema.ts) table definition:
+1. Update [`writer-schema.ts`](../../packages/codebase/src/writer-schema.ts) table definition:
    ```sql
    ALTER TABLE files ADD COLUMN content_hash TEXT NOT NULL DEFAULT '';
    CREATE INDEX IF NOT EXISTS idx_f_content_hash ON files(content_hash);
    ```
 
-2. Update incremental checking in [`indexer.ts`](../../packages/tools/src/codebase-index/indexer.ts):
+2. Update incremental checking in [`indexer.ts`](../../packages/codebase/src/indexer.ts):
    - Fast 64-bit non-cryptographic hash (e.g. `xxhash64`) computed over the file content buffer.
    - If `existingMeta.content_hash === currentContentHash`, update `mtime_ms` in `files` and skip re-parsing entirely.
 
@@ -224,7 +224,7 @@ Enable both exact identifier matching (via SQLite FTS5 Trigram) and conceptual s
 
 #### Implementation Details
 1. **Trigram FTS5 Tokenizer Configuration:**
-   Modify [`writer-schema.ts`](../../packages/tools/src/codebase-index/writer-schema.ts) to utilize the trigram tokenizer for sub-string and camelCase indexing without requiring table scans:
+   Modify [`writer-schema.ts`](../../packages/codebase/src/writer-schema.ts) to utilize the trigram tokenizer for sub-string and camelCase indexing without requiring table scans:
    ```sql
    CREATE VIRTUAL TABLE IF NOT EXISTS symbols_fts USING fts5(
      text,
@@ -246,7 +246,7 @@ Enable both exact identifier matching (via SQLite FTS5 Trigram) and conceptual s
 Offload graph traversal algorithms (incoming calls, outgoing calls, dead code detection) from JavaScript memory loops to native SQLite execution.
 
 #### Implementation Details
-Replace the in-memory BFS in [`dead-code-scan.ts`](../../packages/tools/src/dead-code/tools.ts) and [`writer-graph-reader.ts`](../../packages/tools/src/codebase-index/writer-graph-reader.ts) with SQL recursive queries:
+Replace the in-memory BFS in [`dead-code-scan.ts`](../../packages/tools/src/dead-code/tools.ts) and [`writer-graph-reader.ts`](../../packages/codebase/src/writer-graph-reader.ts) with SQL recursive queries:
 
 ```sql
 -- Recursive Incoming Call Tree (Native SQL Execution)
@@ -293,7 +293,7 @@ Ensure full initial re-indexing passes (`runStartupIndex`) do not block the Proj
 Reduce IPC serialization overhead between clients and the Project Server for massive payload exchanges.
 
 #### Implementation Details
-- Update [`project-server-protocol.ts`](../../packages/tools/src/codebase-index/project-server-protocol.ts).
+- Update [`project-server-protocol.ts`](../../packages/codebase/src/project-server-protocol.ts).
 - Introduce optional binary framing negotiation during the client handshake (`hello` frame).
 - Swap JSON serialization for `MessagePack` (`@msgpack/msgpack`), cutting payload sizes by ~40% and payload encoding/decoding latency by ~60%.
 

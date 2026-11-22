@@ -30,7 +30,7 @@ import { describe, expect, it } from 'vitest';
  * means. Its byte-size field is subsumed by sha256.
  */
 
-const WASM_DIR = fileURLToPath(new URL('../src/codebase-index/wasm/', import.meta.url));
+const WASM_DIR = fileURLToPath(new URL('../../codebase/src/wasm/', import.meta.url));
 const MANIFEST = path.join(WASM_DIR, 'checksums.json');
 
 function listWasmFiles(dir: string, base = dir): string[] {

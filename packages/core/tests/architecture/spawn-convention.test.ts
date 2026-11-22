@@ -124,14 +124,14 @@ const CHILD_ENV_EXEMPT: Record<string, string> = {
   'kanban/src/server/client.ts': REASON_TRUSTED_DAEMON,
   'kanban/src/verification/verification-process.ts': REASON_TRUSTED_DAEMON,
   'governance/src/daemon-launcher.ts': REASON_TRUSTED_DAEMON,
-  'tools/src/codebase-index/project-server-launch.ts': REASON_TRUSTED_DAEMON,
+  'codebase/src/project-server-launch.ts': REASON_TRUSTED_DAEMON,
   'tools/src/process-registry.ts': REASON_TRUSTED_DAEMON,
   'core/src/skills/skill-generator.ts': REASON_TRUSTED_DAEMON,
   // ── Internal parser/toolchain workers ──
-  'tools/src/codebase-index/index-source-files.ts': REASON_INTERNAL_WORKER,
+  'codebase/src/index-source-files.ts': REASON_INTERNAL_WORKER,
   // Shared `runToolchainChild` — go/py parsers and parser-batch spawn through it.
-  'tools/src/codebase-index/toolchain-scripts.ts': REASON_INTERNAL_WORKER,
-  'tools/src/codebase-index/py-parser.ts': REASON_INTERNAL_WORKER,
+  'codebase/src/toolchain-scripts.ts': REASON_INTERNAL_WORKER,
+  'codebase/src/py-parser.ts': REASON_INTERNAL_WORKER,
   'sage/src/anchors/verify.ts': REASON_INTERNAL_WORKER,
   'sage/src/domain-term-extractor.ts': REASON_INTERNAL_WORKER,
   // ── Plugin runners (official dev tooling) ──

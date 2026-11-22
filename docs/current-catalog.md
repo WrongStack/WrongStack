@@ -6,7 +6,7 @@ tools in an individual session or verified external-service availability.
 
 ## Workspace packages
 
-47 packages, 2 applications, plus the private website.
+48 packages, 2 applications, plus the private website.
 
 | Package | Manifest | Publication |
 |---|---|---|
@@ -18,6 +18,7 @@ tools in an individual session or verified external-service availability.
 | `@wrongstack/chronicle` | [packages/chronicle/package.json](../packages/chronicle/package.json) | private |
 | `@wrongstack/cli` | [packages/cli/package.json](../packages/cli/package.json) | private |
 | `@wrongstack/client` | [packages/client/package.json](../packages/client/package.json) | private |
+| `@wrongstack/codebase` | [packages/codebase/package.json](../packages/codebase/package.json) | private |
 | `@wrongstack/codebase-index-mcp` | [packages/codebase-index-mcp/package.json](../packages/codebase-index-mcp/package.json) | private |
 | `@wrongstack/contracts` | [packages/contracts/package.json](../packages/contracts/package.json) | private |
 | `@wrongstack/coordination` | [packages/coordination/package.json](../packages/coordination/package.json) | private |

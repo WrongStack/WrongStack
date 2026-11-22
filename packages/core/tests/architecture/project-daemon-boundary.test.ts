@@ -70,10 +70,10 @@ const DAEMONS: readonly DaemonSpec[] = [
   },
   {
     name: 'codebase-index',
-    endpointModule: 'packages/tools/src/codebase-index/project-server-endpoint.ts',
-    accessModule: 'packages/tools/src/codebase-index/index-worker-rpc.ts',
+    endpointModule: 'packages/codebase/src/project-server-endpoint.ts',
+    accessModule: 'packages/codebase/src/index-worker-rpc.ts',
     inlineEnv: 'WRONGSTACK_INDEX_INLINE',
-    serverModule: 'packages/tools/src/codebase-index/project-server.ts',
+    serverModule: 'packages/codebase/src/project-server.ts',
   },
   {
     name: 'kanban',

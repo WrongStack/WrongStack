@@ -24,10 +24,8 @@ const probeState = vi.hoisted(() => ({ mode: 'real' as 'real' | 'eperm' | 'enoen
 
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
-  const isEntrypointProbe = (value: unknown): boolean => {
-    const s = String(value);
-    return s.includes('codebase-index') && s.includes('project-server');
-  };
+  const isEntrypointProbe = (value: unknown): boolean =>
+    path.basename(String(value)) === 'project-server.js';
   const statError = (code: string): NodeJS.ErrnoException => {
     const error = new Error(`transient stat failure (${code})`) as NodeJS.ErrnoException;
     error.code = code;
@@ -46,7 +44,7 @@ vi.mock('node:fs', async (importOriginal) => {
 });
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const stateSrc = path.resolve(here, '../src/codebase-index/project-server-client-state.ts');
+const stateSrc = path.resolve(here, '../../codebase/src/project-server-client-state.ts');
 // resolveProjectServerUrl() probes candidates relative to the state module's
 // own URL; its FIRST candidate is this exact path.
 const firstCandidate = path.resolve(path.dirname(stateSrc), './project-server.js');

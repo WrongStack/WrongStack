@@ -1,0 +1,325 @@
+{
+  "name": "@wrongstack/codebase",
+  "version": "1.7.15",
+  "private": true,
+  "license": "MIT",
+  "description": "WrongStack Code Intelligence parsers, index store, workers, and project daemon.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": [
+    "./dist/parser-worker-script.js",
+    "./dist/project-server.js",
+    "./dist/worker.js"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schema": {
+      "types": "./dist/schema.d.ts",
+      "import": "./dist/schema.js"
+    },
+    "./bm25": {
+      "types": "./dist/bm25.d.ts",
+      "import": "./dist/bm25.js"
+    },
+    "./circuit-breaker": {
+      "types": "./dist/circuit-breaker.d.ts",
+      "import": "./dist/circuit-breaker.js"
+    },
+    "./content-hash": {
+      "types": "./dist/content-hash.d.ts",
+      "import": "./dist/content-hash.js"
+    },
+    "./ecosystem-bridge": {
+      "types": "./dist/ecosystem-bridge.d.ts",
+      "import": "./dist/ecosystem-bridge.js"
+    },
+    "./fingerprint": {
+      "types": "./dist/fingerprint.d.ts",
+      "import": "./dist/fingerprint.js"
+    },
+    "./graph-rank": {
+      "types": "./dist/graph-rank.d.ts",
+      "import": "./dist/graph-rank.js"
+    },
+    "./languages": {
+      "types": "./dist/languages.d.ts",
+      "import": "./dist/languages.js"
+    },
+    "./lsp-kind": {
+      "types": "./dist/lsp-kind.d.ts",
+      "import": "./dist/lsp-kind.js"
+    },
+    "./module-roots": {
+      "types": "./dist/module-roots.d.ts",
+      "import": "./dist/module-roots.js"
+    },
+    "./ref-binding-pass": {
+      "types": "./dist/ref-binding-pass.d.ts",
+      "import": "./dist/ref-binding-pass.js"
+    },
+    "./sqlite-runtime": {
+      "types": "./dist/sqlite-runtime.d.ts",
+      "import": "./dist/sqlite-runtime.js"
+    },
+    "./vector-search": {
+      "types": "./dist/vector-search.d.ts",
+      "import": "./dist/vector-search.js"
+    },
+    "./writer-concepts": {
+      "types": "./dist/writer-concepts.d.ts",
+      "import": "./dist/writer-concepts.js"
+    },
+    "./writer-graph-decorate": {
+      "types": "./dist/writer-graph-decorate.d.ts",
+      "import": "./dist/writer-graph-decorate.js"
+    },
+    "./writer-helpers": {
+      "types": "./dist/writer-helpers.d.ts",
+      "import": "./dist/writer-helpers.js"
+    },
+    "./writer-rank": {
+      "types": "./dist/writer-rank.d.ts",
+      "import": "./dist/writer-rank.js"
+    },
+    "./writer-refs": {
+      "types": "./dist/writer-refs.d.ts",
+      "import": "./dist/writer-refs.js"
+    },
+    "./writer-schema": {
+      "types": "./dist/writer-schema.d.ts",
+      "import": "./dist/writer-schema.js"
+    },
+    "./writer-search-helpers": {
+      "types": "./dist/writer-search-helpers.d.ts",
+      "import": "./dist/writer-search-helpers.js"
+    },
+    "./writer-store-pool": {
+      "types": "./dist/writer-store-pool.d.ts",
+      "import": "./dist/writer-store-pool.js"
+    },
+    "./writer-vectors": {
+      "types": "./dist/writer-vectors.d.ts",
+      "import": "./dist/writer-vectors.js"
+    },
+    "./writer": {
+      "types": "./dist/writer.d.ts",
+      "import": "./dist/writer.js"
+    },
+    "./wrongindex/owner-lock": {
+      "types": "./dist/wrongindex/owner-lock.d.ts",
+      "import": "./dist/wrongindex/owner-lock.js"
+    },
+    "./atlas-export": {
+      "types": "./dist/atlas-export.d.ts",
+      "import": "./dist/atlas-export.js"
+    },
+    "./atlas-projection": {
+      "types": "./dist/atlas-projection.d.ts",
+      "import": "./dist/atlas-projection.js"
+    },
+    "./background-indexer": {
+      "types": "./dist/background-indexer.d.ts",
+      "import": "./dist/background-indexer.js"
+    },
+    "./binary-frame": {
+      "types": "./dist/binary-frame.d.ts",
+      "import": "./dist/binary-frame.js"
+    },
+    "./context-retrieval": {
+      "types": "./dist/context-retrieval.d.ts",
+      "import": "./dist/context-retrieval.js"
+    },
+    "./generic-parser": {
+      "types": "./dist/generic-parser.d.ts",
+      "import": "./dist/generic-parser.js"
+    },
+    "./gitignore": {
+      "types": "./dist/gitignore.d.ts",
+      "import": "./dist/gitignore.js"
+    },
+    "./go-parser": {
+      "types": "./dist/go-parser.d.ts",
+      "import": "./dist/go-parser.js"
+    },
+    "./graph-adjacency-cache": {
+      "types": "./dist/graph-adjacency-cache.d.ts",
+      "import": "./dist/graph-adjacency-cache.js"
+    },
+    "./graph-rank-pass": {
+      "types": "./dist/graph-rank-pass.d.ts",
+      "import": "./dist/graph-rank-pass.js"
+    },
+    "./import-extractor": {
+      "types": "./dist/import-extractor.d.ts",
+      "import": "./dist/import-extractor.js"
+    },
+    "./index-service": {
+      "types": "./dist/index-service.d.ts",
+      "import": "./dist/index-service.js"
+    },
+    "./index-source-files": {
+      "types": "./dist/index-source-files.d.ts",
+      "import": "./dist/index-source-files.js"
+    },
+    "./index-worker-rpc": {
+      "types": "./dist/index-worker-rpc.d.ts",
+      "import": "./dist/index-worker-rpc.js"
+    },
+    "./indexer": {
+      "types": "./dist/indexer.d.ts",
+      "import": "./dist/indexer.js"
+    },
+    "./indexer-run-state": {
+      "types": "./dist/indexer-run-state.d.ts",
+      "import": "./dist/indexer-run-state.js"
+    },
+    "./infra-parser": {
+      "types": "./dist/infra-parser.d.ts",
+      "import": "./dist/infra-parser.js"
+    },
+    "./json-parser": {
+      "types": "./dist/json-parser.d.ts",
+      "import": "./dist/json-parser.js"
+    },
+    "./module-resolver": {
+      "types": "./dist/module-resolver.d.ts",
+      "import": "./dist/module-resolver.js"
+    },
+    "./parser-batch": {
+      "types": "./dist/parser-batch.d.ts",
+      "import": "./dist/parser-batch.js"
+    },
+    "./parser-dispatch": {
+      "types": "./dist/parser-dispatch.d.ts",
+      "import": "./dist/parser-dispatch.js"
+    },
+    "./parser-worker-pool": {
+      "types": "./dist/parser-worker-pool.d.ts",
+      "import": "./dist/parser-worker-pool.js"
+    },
+    "./parser-worker-script": {
+      "types": "./dist/parser-worker-script.d.ts",
+      "import": "./dist/parser-worker-script.js"
+    },
+    "./perf-metrics": {
+      "types": "./dist/perf-metrics.d.ts",
+      "import": "./dist/perf-metrics.js"
+    },
+    "./project-server": {
+      "types": "./dist/project-server.d.ts",
+      "import": "./dist/project-server.js"
+    },
+    "./project-server-cache": {
+      "types": "./dist/project-server-cache.d.ts",
+      "import": "./dist/project-server-cache.js"
+    },
+    "./project-server-client": {
+      "types": "./dist/project-server-client.d.ts",
+      "import": "./dist/project-server-client.js"
+    },
+    "./project-server-client-state": {
+      "types": "./dist/project-server-client-state.d.ts",
+      "import": "./dist/project-server-client-state.js"
+    },
+    "./project-server-endpoint": {
+      "types": "./dist/project-server-endpoint.d.ts",
+      "import": "./dist/project-server-endpoint.js"
+    },
+    "./project-server-framing": {
+      "types": "./dist/project-server-framing.d.ts",
+      "import": "./dist/project-server-framing.js"
+    },
+    "./project-server-launch": {
+      "types": "./dist/project-server-launch.d.ts",
+      "import": "./dist/project-server-launch.js"
+    },
+    "./project-server-operations": {
+      "types": "./dist/project-server-operations.d.ts",
+      "import": "./dist/project-server-operations.js"
+    },
+    "./project-server-protocol": {
+      "types": "./dist/project-server-protocol.d.ts",
+      "import": "./dist/project-server-protocol.js"
+    },
+    "./project-server-query-cache": {
+      "types": "./dist/project-server-query-cache.d.ts",
+      "import": "./dist/project-server-query-cache.js"
+    },
+    "./project-server-types": {
+      "types": "./dist/project-server-types.d.ts",
+      "import": "./dist/project-server-types.js"
+    },
+    "./project-server-watcher": {
+      "types": "./dist/project-server-watcher.d.ts",
+      "import": "./dist/project-server-watcher.js"
+    },
+    "./py-parser": {
+      "types": "./dist/py-parser.d.ts",
+      "import": "./dist/py-parser.js"
+    },
+    "./rs-parser": {
+      "types": "./dist/rs-parser.d.ts",
+      "import": "./dist/rs-parser.js"
+    },
+    "./toolchain-scripts": {
+      "types": "./dist/toolchain-scripts.d.ts",
+      "import": "./dist/toolchain-scripts.js"
+    },
+    "./ts-parser": {
+      "types": "./dist/ts-parser.d.ts",
+      "import": "./dist/ts-parser.js"
+    },
+    "./wal-maintenance": {
+      "types": "./dist/wal-maintenance.d.ts",
+      "import": "./dist/wal-maintenance.js"
+    },
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.js"
+    },
+    "./worker-protocol": {
+      "types": "./dist/worker-protocol.d.ts",
+      "import": "./dist/worker-protocol.js"
+    },
+    "./wrongindex/client": {
+      "types": "./dist/wrongindex/client.d.ts",
+      "import": "./dist/wrongindex/client.js"
+    },
+    "./wrongindex/publication": {
+      "types": "./dist/wrongindex/publication.d.ts",
+      "import": "./dist/wrongindex/publication.js"
+    },
+    "./wrongindex/service": {
+      "types": "./dist/wrongindex/service.d.ts",
+      "import": "./dist/wrongindex/service.js"
+    },
+    "./yaml-parser": {
+      "types": "./dist/yaml-parser.d.ts",
+      "import": "./dist/yaml-parser.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map"
+  ],
+  "scripts": {
+    "build": "bun ../../scripts/build-package.mjs",
+    "typecheck": "bun ../../scripts/bun-typecheck.mjs --noEmit"
+  },
+  "dependencies": {
+    "@msgpack/msgpack": "^3.1.3",
+    "@typescript/typescript6": "^6.0.2",
+    "@wrongstack/core": "workspace:*",
+    "@wrongstack/persistence": "workspace:*",
+    "@wrongstack/primitives": "workspace:*",
+    "web-tree-sitter": "0.27.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}

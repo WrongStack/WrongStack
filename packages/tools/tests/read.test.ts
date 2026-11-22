@@ -24,7 +24,7 @@ const mockSymbols = vi.hoisted(() => ({
 const mockSearch = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<unknown>>());
 mockSearch.mockResolvedValue(mockSymbols);
 
-vi.mock('../src/codebase-index/background-indexer.js', () => ({
+vi.mock('../../codebase/src/background-indexer.js', () => ({
   getIndexState: () => mockIndexState,
   searchCodebaseIndex: mockSearch,
 }));

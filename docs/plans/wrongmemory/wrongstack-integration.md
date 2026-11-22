@@ -91,7 +91,7 @@ No heavyweight full-corpus scan is required on every host boot. Validate profile
 | [WebUI unified search contract](../unified-sage-search-backend-contract.md) | Preserve exclusion of all session records and corpus-specific scores/cursors |
 | [WebUI service restarts](../../../packages/webui-server/src/server/connections/service-action-restarts.ts) | Restart project connection/lease rather than accidentally terminate the global daemon |
 | [Memory Companion](../../../packages/fleet/src/host-memory-companion.ts) | Keep host-owned read-only review; obtain current records/evidence from adapter; preserve revision/source freshness |
-| [Codebase ecosystem bridge](../../../packages/tools/src/codebase-index/ecosystem-bridge.ts) | Route path/symbol remap through the selected memory owner; coordinate later WrongIndex events |
+| [Codebase ecosystem bridge](../../../packages/codebase/src/ecosystem-bridge.ts) | Route path/symbol remap through the selected memory owner; coordinate later WrongIndex events |
 | [HQ sync projection](../../../packages/sage/src/sqlite-store-hq-sync.ts) | Preserve export/apply semantics through trusted internal capability; not default MCP |
 
 M0 also searches every direct `SqliteSageStore`, `createSqliteMemoryPort`, legacy import, doctor/maintenance, clear/purge, and container consumer. This map is a concrete start, not proof that no other call sites exist.

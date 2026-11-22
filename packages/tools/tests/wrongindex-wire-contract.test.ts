@@ -43,7 +43,7 @@ const errorCodes = (wire['enums']['ErrorCode'] as { code: string; retryable: boo
   (c) => c.code,
 );
 const adapterSources = ['client.ts', 'service.ts', 'owner-lock.ts'].map((f) =>
-  fs.readFileSync(new URL(`../src/codebase-index/wrongindex/${f}`, import.meta.url), 'utf8'),
+  fs.readFileSync(new URL(`../../codebase/src/wrongindex/${f}`, import.meta.url), 'utf8'),
 );
 
 /** Same keys, and the same JSON type under each key. */

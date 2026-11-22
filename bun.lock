@@ -244,6 +244,22 @@
         "ws": "^8.23.0",
       },
     },
+    "packages/codebase": {
+      "name": "@wrongstack/codebase",
+      "version": "1.7.15",
+      "dependencies": {
+        "@msgpack/msgpack": "^3.1.3",
+        "@typescript/typescript6": "^6.0.2",
+        "@wrongstack/core": "workspace:*",
+        "@wrongstack/persistence": "workspace:*",
+        "@wrongstack/primitives": "workspace:*",
+        "web-tree-sitter": "0.27.2",
+      },
+      "devDependencies": {
+        "@types/node": "^26.6.6",
+        "typescript": "^7.0.2",
+      },
+    },
     "packages/codebase-index-mcp": {
       "name": "@wrongstack/codebase-index-mcp",
       "version": "1.7.10",
@@ -778,10 +794,10 @@
       "version": "1.7.10",
       "dependencies": {
         "@jitl/quickjs-singlefile-mjs-release-sync": "^0.32.0",
-        "@msgpack/msgpack": "^3.1.3",
         "@typescript/typescript6": "^6.0.2",
         "@wrongstack/agent-catalog": "workspace:*",
         "@wrongstack/browser-tools": "workspace:*",
+        "@wrongstack/codebase": "workspace:*",
         "@wrongstack/contracts": "workspace:*",
         "@wrongstack/coordination": "workspace:*",
         "@wrongstack/core": "workspace:*",
@@ -789,15 +805,14 @@
         "@wrongstack/persistence": "workspace:*",
         "@wrongstack/primitives": "workspace:*",
         "quickjs-emscripten-core": "^0.32.0",
-        "tree-sitter-wasm": "2.0.4",
         "turndown": "^7.2.5",
         "undici": "^8.12.4",
         "unpdf": "2.2.1",
-        "web-tree-sitter": "0.27.2",
       },
       "devDependencies": {
         "@types/node": "^26.6.6",
         "typescript": "^7.0.2",
+        "web-tree-sitter": "0.27.2",
       },
     },
     "packages/tui": {
@@ -1808,6 +1823,8 @@
 
     "@wrongstack/client": ["@wrongstack/client@workspace:packages/client"],
 
+    "@wrongstack/codebase": ["@wrongstack/codebase@workspace:packages/codebase"],
+
     "@wrongstack/codebase-index-mcp": ["@wrongstack/codebase-index-mcp@workspace:packages/codebase-index-mcp"],
 
     "@wrongstack/contracts": ["@wrongstack/contracts@workspace:packages/contracts"],
@@ -2531,8 +2548,6 @@
     "tough-cookie": ["tough-cookie@6.0.2", "", { "dependencies": { "tldts": "^7.0.5" } }, "sha512-exgYmnmL/sJpR3upZfXG5PoatXQii55xAiXGXzY+sROLZ/Y+SLcp9PgJNI9Vz37HpQ74WvDcLT8eqm+kV3FzrA=="],
 
     "tr46": ["tr46@7.0.0", "", { "dependencies": { "punycode": "^2.3.1" } }, "sha512-BcDSDW+SIGWVOns1Zm6Yg91q9AEj7eaID0QDY9oIqJD1A8dscNwMcl9Sms2DeuWCNov1X0/oXanHGYQBSLwZsg=="],
-
-    "tree-sitter-wasm": ["tree-sitter-wasm@2.0.4", "", {}, "sha512-U83TRmp3oC3DtFA7bMka+o9jtOjZDZpW5/Y5oLzVtSzkcBllQWaYwtQIeTh14aRzZ7feTweBMSFk8NAqwQWmkg=="],
 
     "trim-lines": ["trim-lines@3.0.1", "", {}, "sha512-kRj8B+YHZCc9kQYdWfJB2/oUl9rA99qbowYYBtr4ui4mZyAQ2JpvVBd/6U2YloATfqBhBTSMhTpgBHtU0Mf3Rg=="],
 

@@ -80,7 +80,7 @@ const emptyContext = {
 };
 let contextValue = { ...emptyContext };
 
-vi.mock('../src/codebase-index/background-indexer.js', () => ({
+vi.mock('../../codebase/src/background-indexer.js', () => ({
   getIndexState: () => state,
   isIndexing: () => isIndexingValue,
   codebaseIndexStats: async () => {

@@ -9,7 +9,7 @@ import {
 import { ServerQueryCaches } from '../src/codebase-index/project-server-query-cache.js';
 import type { ClientState } from '../src/codebase-index/project-server-types.js';
 
-vi.mock('../src/codebase-index/index-service.js', () => ({
+vi.mock('../../codebase/src/index-service.js', () => ({
   indexService: vi.fn().mockImplementation(async (_args, opts) => {
     opts?.onProgress?.(1, 10);
     return { totalFiles: 10, parsedFiles: 10, indexedFiles: 10, durationMs: 50 };

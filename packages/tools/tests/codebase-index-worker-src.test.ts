@@ -15,7 +15,7 @@ vi.mock('node:worker_threads', async (orig) => ({
   ...(await orig<typeof import('node:worker_threads')>()),
   parentPort: port,
 }));
-vi.mock('../src/codebase-index/index-service.js', () => ({
+vi.mock('../../codebase/src/index-service.js', () => ({
   indexService: (...a: Parameters<typeof indexService>) => indexService(...a),
   searchService: (...a: Parameters<typeof searchService>) => searchService(...a),
   statsService: (...a: Parameters<typeof statsService>) => statsService(...a),

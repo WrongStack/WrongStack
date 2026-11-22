@@ -31,8 +31,8 @@ vi.mock('node:fs/promises', async (orig) => {
 });
 
 const parserCfg: { throw?: boolean } = {};
-vi.mock('../src/codebase-index/ts-parser.js', async (orig) => {
-  const actual = await orig<typeof import('../src/codebase-index/ts-parser.js')>();
+vi.mock('../../codebase/src/ts-parser.js', async (orig) => {
+  const actual = await orig<typeof import('../../codebase/src/ts-parser.js')>();
   return {
     ...actual,
     parseSymbols: (input: Parameters<typeof actual.parseSymbols>[0]) => {

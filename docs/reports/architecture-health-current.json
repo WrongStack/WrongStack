@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T14:57:09.185Z",
+  "generatedAt": "2026-11-22T16:21:29.386Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -11,18 +11,18 @@
     ]
   },
   "summary": {
-    "packages": 49,
-    "sourceFiles": 6411,
+    "packages": 50,
+    "sourceFiles": 6485,
     "testFiles": 5662,
-    "sourceLines": 1324023,
-    "workspaceEdges": 255,
-    "moduleEdges": 18948,
+    "sourceLines": 1324786,
+    "workspaceEdges": 259,
+    "moduleEdges": 18946,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1076
+    "testOnlyExports": 1041
   },
   "errors": [],
   "packageCycles": [],
@@ -306,6 +306,24 @@
           "path": "packages/client/tsconfig.test.json",
           "error": null,
           "testFiles": 8
+        }
+      ]
+    },
+    {
+      "name": "@wrongstack/codebase",
+      "dir": "packages/codebase",
+      "sourceFiles": 115,
+      "testFiles": 0,
+      "workspaceDependencies": [
+        "@wrongstack/core",
+        "@wrongstack/persistence",
+        "@wrongstack/primitives"
+      ],
+      "tsconfigs": [
+        {
+          "path": "packages/codebase/tsconfig.json",
+          "error": null,
+          "testFiles": 0
         }
       ]
     },
@@ -742,7 +760,7 @@
     {
       "name": "@wrongstack/primitives",
       "dir": "packages/primitives",
-      "sourceFiles": 26,
+      "sourceFiles": 27,
       "testFiles": 45,
       "workspaceDependencies": [],
       "tsconfigs": [
@@ -1042,11 +1060,12 @@
     {
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
-      "sourceFiles": 389,
+      "sourceFiles": 347,
       "testFiles": 386,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/browser-tools",
+        "@wrongstack/codebase",
         "@wrongstack/contracts",
         "@wrongstack/coordination",
         "@wrongstack/core",
@@ -36365,6 +36384,16 @@
       "relativeImports": 4
     },
     {
+      "file": "packages/codebase/src/background-indexer.ts",
+      "lines": 715,
+      "relativeImports": 17
+    },
+    {
+      "file": "packages/codebase/src/infra-parser.ts",
+      "lines": 903,
+      "relativeImports": 2
+    },
+    {
       "file": "packages/contracts/src/types/index.ts",
       "lines": 716,
       "relativeImports": 76
@@ -36498,16 +36527,6 @@
       "file": "packages/tools/src/codebase-index/ast-symbol-mutator.ts",
       "lines": 703,
       "relativeImports": 6
-    },
-    {
-      "file": "packages/tools/src/codebase-index/background-indexer.ts",
-      "lines": 715,
-      "relativeImports": 17
-    },
-    {
-      "file": "packages/tools/src/codebase-index/infra-parser.ts",
-      "lines": 903,
-      "relativeImports": 2
     },
     {
       "file": "packages/tools/src/design-reference.ts",
@@ -36757,7 +36776,7 @@
       "relativeImports": 14
     },
     {
-      "file": "packages/tools/src/codebase-index/infra-parser.ts",
+      "file": "packages/codebase/src/infra-parser.ts",
       "lines": 903,
       "relativeImports": 2
     },
@@ -39751,152 +39770,12 @@
       "name": "BUILTIN_TOOL_DESCRIPTIONS"
     },
     {
-      "file": "packages/tools/src/codebase-index/background-indexer.ts",
-      "name": "resetIndexStateForTesting"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/background-indexer.ts",
-      "name": "setIndexReady"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/bm25.ts",
-      "name": "FTS_SIGNATURE_MAX_CHARS"
-    },
-    {
       "file": "packages/tools/src/codebase-index/codebase-targeted-test-tool.ts",
       "name": "parseTestCounts"
     },
     {
       "file": "packages/tools/src/codebase-index/codebase-targeted-test-tool.ts",
       "name": "selectTestRunner"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/content-hash.ts",
-      "name": "parseContentHash"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/content-hash.ts",
-      "name": "xxhash64Hex"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/generic-parser.ts",
-      "name": "GENERIC_MAX_FILE_CHARS"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/generic-parser.ts",
-      "name": "GENERIC_MAX_SYMBOLS_DEFAULT"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/go-parser.ts",
-      "name": "maskGoNonCode"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/go-parser.ts",
-      "name": "parseGoWithoutToolchain"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/graph-rank-pass.ts",
-      "name": "createImplicitVisibility"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/json-parser.ts",
-      "name": "JSON_MAX_SYMBOLS_DEFAULT"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/lsp-kind.ts",
-      "name": "isLspKind"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/lsp-kind.ts",
-      "name": "LSPSymbolKind"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/project-server-endpoint.ts",
-      "name": "PROJECT_INDEX_SERVER_CLOSED_MESSAGE"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/project-server-endpoint.ts",
-      "name": "projectIndexServerKey"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/project-server-operations.ts",
-      "name": "isShareableFullIndex"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/project-server-operations.ts",
-      "name": "preservesQueryCaches"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/project-server-operations.ts",
-      "name": "runFullIndex"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/project-server-watcher.ts",
-      "name": "isDirectoryWatchCandidate"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/rs-parser.ts",
-      "name": "maskRustNonCode"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/toolchain-scripts.ts",
-      "name": "__privateScriptPathsForTest"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/tree-sitter-parser.ts",
-      "name": "loadTreeSitterLanguage"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/vector-search.ts",
-      "name": "buildRankMap"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/vector-search.ts",
-      "name": "RRF_K"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/vector-search.ts",
-      "name": "VECTOR_DIMENSIONS"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/writer-refs.ts",
-      "name": "FAMILY_MATCH_SQL"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/wrongindex/client.ts",
-      "name": "BASELINE_PROFILE_ID"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/wrongindex/client.ts",
-      "name": "FrameReader"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/wrongindex/owner-lock.ts",
-      "name": "OWNER_INFO_FILE"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/wrongindex/owner-lock.ts",
-      "name": "OWNER_LOCK_FILE"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/wrongindex/owner-lock.ts",
-      "name": "readWrongIndexOwner"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/wrongindex/owner-lock.ts",
-      "name": "withWrongIndexWriteDelegation"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/wrongindex/publication.ts",
-      "name": "getWrongIndexPublication"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/wrongindex/service.ts",
-      "name": "resetWrongIndexConnection"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/wrongindex/service.ts",
-      "name": "toIndexResult"
     },
     {
       "file": "packages/tools/src/design-reference.ts",

@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1009,
+      "files": 1010,
       "typeOnly": 77,
-      "runtimeOrMixed": 967
+      "runtimeOrMixed": 968
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -1253,6 +1253,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/codebase/src/indexer.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/coordination/src/agent-coordination-default.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -1920,12 +1926,6 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/src/bash.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/tools/src/codebase-index/indexer.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -8339,6 +8339,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/codebase/src/project-server-lifecycle.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/coordination/src/agent-monitor.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8796,12 +8802,6 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/telegram/src/tools/telegram-send.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/security",
-      "file": "packages/tools/src/codebase-index/project-server-lifecycle.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14327,6 +14327,102 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/codebase/src/gitignore.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/codebase/src/index-source-files.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/codebase/src/indexer-batch-commit.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/codebase/src/indexer-batch-read.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/codebase/src/indexer-symbol-ownership.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/codebase/src/indexer.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/codebase/src/json-parser.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/codebase/src/project-server-watcher.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/codebase/src/project-server.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/codebase/src/rs-parser.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/codebase/src/sqlite-runtime.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/codebase/src/writer-helpers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/codebase/src/writer-pragmas.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/codebase/src/writer-search.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/codebase/src/wrongindex/client.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/codebase/src/yaml-parser.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/coordination/src/agent-monitor.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -16002,96 +16098,6 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/codebase-index/codebase-targeted-test-tool.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/gitignore.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/index-source-files.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/indexer-batch-commit.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/indexer-batch-read.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/indexer-symbol-ownership.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/indexer.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/json-parser.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/project-server-watcher.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/project-server.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/rs-parser.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/sqlite-runtime.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/writer-helpers.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/writer-pragmas.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/writer-search.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/yaml-parser.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

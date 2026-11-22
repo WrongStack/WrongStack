@@ -132,7 +132,7 @@ const CHRONICLE_ARGS = (root: string): string[] => [
 const CASES: HarnessCase[] = [
   {
     name: 'codebase-index',
-    moduleUrl: '../../../tools/src/codebase-index/project-server.ts',
+    moduleUrl: '../../../codebase/src/project-server.ts',
     args: (root) => ['--project-root', root, '--index-dir', path.join(root, '.index')],
     endpoint: (root) => projectIndexServerEndpoint(root, path.join(root, '.index')),
     metadataPath: (root) => projectIndexServerMetadataPath(root, path.join(root, '.index')),
@@ -144,7 +144,7 @@ const CASES: HarnessCase[] = [
     watch: 'configure',
     start: (root, nonce, shortIdle) =>
       importDaemonInstance(
-        '../../../tools/src/codebase-index/project-server.ts',
+        '../../../codebase/src/project-server.ts',
         ['--project-root', root, '--index-dir', path.join(root, '.index')],
         nonce,
         shortIdle ? 'WRONGSTACK_INDEX_SERVER_IDLE_MS' : null,

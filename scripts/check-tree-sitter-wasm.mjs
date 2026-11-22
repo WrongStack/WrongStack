@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // Tree-sitter grammar integrity gate (security report Phase 4, item 20 /
 // VF-30). The vendored grammar set under
-// `packages/tools/src/codebase-index/wasm/` (13 grammars + the
+// `packages/codebase/src/wasm/` (13 grammars + the
 // tree-sitter-runtime.wasm engine) is executed as native-adjacent code by
 // every indexed parse. Nothing previously verified that the committed bytes
 // are the bytes that were reviewed when the set was vendored — a tampered or
@@ -27,7 +27,7 @@ import { fileURLToPath } from 'node:url';
 
 const WASM_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  '../packages/tools/src/codebase-index/wasm',
+  '../packages/codebase/src/wasm',
 );
 const MANIFEST = path.join(WASM_DIR, 'checksums.json');
 

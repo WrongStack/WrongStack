@@ -115,18 +115,18 @@ Repository HEAD at inspection: `ad9f79dbc2aad903b0348e65abd7449273ec1a1c`. The c
 | Concern | Current source |
 |---|---|
 | Path identity and checkout-specific storage | [wstack-paths.ts](../../../packages/persistence/src/wstack-paths.ts) |
-| Index path overrides | [writer-helpers.ts](../../../packages/tools/src/codebase-index/writer-helpers.ts) |
-| SQLite DDL | [writer-schema.ts](../../../packages/tools/src/codebase-index/writer-schema.ts) |
-| Schema initialization and destructive mismatch behavior | [writer-init.ts](../../../packages/tools/src/codebase-index/writer-init.ts) |
-| Schema version, symbol/ref shapes | [schema.ts](../../../packages/tools/src/codebase-index/schema.ts) |
-| Pragmas | [writer-pragmas.ts](../../../packages/tools/src/codebase-index/writer-pragmas.ts) |
-| Atomic updates | [writer-transactions.ts](../../../packages/tools/src/codebase-index/writer-transactions.ts) |
-| Current daemon and event watcher | [project-server.ts](../../../packages/tools/src/codebase-index/project-server.ts), [project-server-watcher.ts](../../../packages/tools/src/codebase-index/project-server-watcher.ts) |
-| Endpoint identity and build metadata | [project-server-endpoint.ts](../../../packages/tools/src/codebase-index/project-server-endpoint.ts) |
-| Spawn and termination | [project-server-launch.ts](../../../packages/tools/src/codebase-index/project-server-launch.ts) |
-| IPC request/response shapes | [worker-protocol.ts](../../../packages/tools/src/codebase-index/worker-protocol.ts), [project-server-protocol.ts](../../../packages/tools/src/codebase-index/project-server-protocol.ts) |
-| Parser dispatch | [parser-dispatch.ts](../../../packages/tools/src/codebase-index/parser-dispatch.ts) |
-| Incremental commit and finalization | [indexer-batch-commit.ts](../../../packages/tools/src/codebase-index/indexer-batch-commit.ts), [indexer-finalize.ts](../../../packages/tools/src/codebase-index/indexer-finalize.ts) |
+| Index path overrides | [writer-helpers.ts](../../../packages/codebase/src/writer-helpers.ts) |
+| SQLite DDL | [writer-schema.ts](../../../packages/codebase/src/writer-schema.ts) |
+| Schema initialization and destructive mismatch behavior | [writer-init.ts](../../../packages/codebase/src/writer-init.ts) |
+| Schema version, symbol/ref shapes | [schema.ts](../../../packages/codebase/src/schema.ts) |
+| Pragmas | [writer-pragmas.ts](../../../packages/codebase/src/writer-pragmas.ts) |
+| Atomic updates | [writer-transactions.ts](../../../packages/codebase/src/writer-transactions.ts) |
+| Current daemon and event watcher | [project-server.ts](../../../packages/codebase/src/project-server.ts), [project-server-watcher.ts](../../../packages/codebase/src/project-server-watcher.ts) |
+| Endpoint identity and build metadata | [project-server-endpoint.ts](../../../packages/codebase/src/project-server-endpoint.ts) |
+| Spawn and termination | [project-server-launch.ts](../../../packages/codebase/src/project-server-launch.ts) |
+| IPC request/response shapes | [worker-protocol.ts](../../../packages/codebase/src/worker-protocol.ts), [project-server-protocol.ts](../../../packages/codebase/src/project-server-protocol.ts) |
+| Parser dispatch | [parser-dispatch.ts](../../../packages/codebase/src/parser-dispatch.ts) |
+| Incremental commit and finalization | [indexer-batch-commit.ts](../../../packages/codebase/src/indexer-batch-commit.ts), [indexer-finalize.ts](../../../packages/codebase/src/indexer-finalize.ts) |
 | Startup, edits, external events | [CLI wiring](../../../packages/cli/src/wiring/codebase-index.ts) |
 | Existing independent MCP entry | [MCP package](../../../packages/codebase-index-mcp/package.json) |
 

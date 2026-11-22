@@ -1,9 +1,14 @@
-/** Built-dist detached-daemon benchmark. Run after `pnpm --filter @wrongstack/tools build`. */
+/** Built-dist detached-daemon benchmark. Run after `bun run --filter '@wrongstack/tools...' build`. */
 import * as fs from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import {
+import { assertPairingValid, captureLoad, isStrictPairing } from './bench-pairing.js';
+
+// Resolve the published dependency graph, including Codebase's compiled daemon.
+// Vitest's workspace aliases would replace it with source and omit the daemon.
+const {
   CircuitOpenError,
   checkCodebaseIndexServerHealth,
   getCodebaseIndexPerfSnapshot,
@@ -12,8 +17,9 @@ import {
   runStartupIndex,
   shutdownCodebaseIndexHost,
   shutdownCodebaseIndexServer,
-} from '../dist/codebase-index/index.js';
-import { assertPairingValid, captureLoad, isStrictPairing } from './bench-pairing.js';
+} = createRequire(import.meta.url)(
+  '../dist/codebase-index/index.js',
+) as typeof import('../dist/codebase-index/index.js');
 
 /**
  * `bench-pairing` already says what a loaded box means for this suite: an

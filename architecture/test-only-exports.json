@@ -1533,84 +1533,9 @@
     "packages/tools/src/builtin.ts": [
       "BUILTIN_TOOL_DESCRIPTIONS"
     ],
-    "packages/tools/src/codebase-index/background-indexer.ts": [
-      "resetIndexStateForTesting",
-      "setIndexReady"
-    ],
-    "packages/tools/src/codebase-index/bm25.ts": [
-      "FTS_SIGNATURE_MAX_CHARS"
-    ],
     "packages/tools/src/codebase-index/codebase-targeted-test-tool.ts": [
       "parseTestCounts",
       "selectTestRunner"
-    ],
-    "packages/tools/src/codebase-index/content-hash.ts": [
-      "parseContentHash",
-      "xxhash64Hex"
-    ],
-    "packages/tools/src/codebase-index/generic-parser.ts": [
-      "GENERIC_MAX_FILE_CHARS",
-      "GENERIC_MAX_SYMBOLS_DEFAULT"
-    ],
-    "packages/tools/src/codebase-index/go-parser.ts": [
-      "maskGoNonCode",
-      "parseGoWithoutToolchain"
-    ],
-    "packages/tools/src/codebase-index/graph-rank-pass.ts": [
-      "createImplicitVisibility"
-    ],
-    "packages/tools/src/codebase-index/json-parser.ts": [
-      "JSON_MAX_SYMBOLS_DEFAULT"
-    ],
-    "packages/tools/src/codebase-index/lsp-kind.ts": [
-      "isLspKind",
-      "LSPSymbolKind"
-    ],
-    "packages/tools/src/codebase-index/project-server-endpoint.ts": [
-      "PROJECT_INDEX_SERVER_CLOSED_MESSAGE",
-      "projectIndexServerKey"
-    ],
-    "packages/tools/src/codebase-index/project-server-operations.ts": [
-      "isShareableFullIndex",
-      "preservesQueryCaches",
-      "runFullIndex"
-    ],
-    "packages/tools/src/codebase-index/project-server-watcher.ts": [
-      "isDirectoryWatchCandidate"
-    ],
-    "packages/tools/src/codebase-index/rs-parser.ts": [
-      "maskRustNonCode"
-    ],
-    "packages/tools/src/codebase-index/toolchain-scripts.ts": [
-      "__privateScriptPathsForTest"
-    ],
-    "packages/tools/src/codebase-index/tree-sitter-parser.ts": [
-      "loadTreeSitterLanguage"
-    ],
-    "packages/tools/src/codebase-index/vector-search.ts": [
-      "buildRankMap",
-      "RRF_K",
-      "VECTOR_DIMENSIONS"
-    ],
-    "packages/tools/src/codebase-index/writer-refs.ts": [
-      "FAMILY_MATCH_SQL"
-    ],
-    "packages/tools/src/codebase-index/wrongindex/client.ts": [
-      "BASELINE_PROFILE_ID",
-      "FrameReader"
-    ],
-    "packages/tools/src/codebase-index/wrongindex/owner-lock.ts": [
-      "OWNER_INFO_FILE",
-      "OWNER_LOCK_FILE",
-      "readWrongIndexOwner",
-      "withWrongIndexWriteDelegation"
-    ],
-    "packages/tools/src/codebase-index/wrongindex/publication.ts": [
-      "getWrongIndexPublication"
-    ],
-    "packages/tools/src/codebase-index/wrongindex/service.ts": [
-      "resetWrongIndexConnection",
-      "toIndexResult"
     ],
     "packages/tools/src/design-reference.ts": [
       "selectReferenceSubpages"

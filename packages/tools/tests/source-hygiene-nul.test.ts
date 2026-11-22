@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 // readers: diffs become unreviewable and formatters skip the file. Write
 // separators as the \u0000 escape sequence instead (sweep r2-nul-source-sweep,
 // 2026-09-15).
-const FILES = ['../src/codebase-index/writer-mutations.ts'];
+const FILES = ['../../codebase/src/writer-mutations.ts'];
 
 describe('source hygiene: no raw NUL bytes', () => {
   for (const rel of FILES) {

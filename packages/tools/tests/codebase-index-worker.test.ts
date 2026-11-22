@@ -11,6 +11,7 @@
 import { execFile } from 'node:child_process';
 import * as fsSync from 'node:fs';
 import * as fs from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -45,6 +46,8 @@ if (snapshotArtifactDirectory !== undefined) {
   distEntry = path.join(snapshotArtifactDirectory, 'dist', 'codebase-index', 'index.js');
 }
 const execFileAsync = promisify(execFile);
+// Exercise the package exports instead of redirecting Codebase to src via Vite.
+const requireBuilt = createRequire(import.meta.url);
 
 // Bun currently returns EBUSY immediately even with fs.rm's maxRetries.
 // Preserve the existing 20-retry, 50ms linear backoff explicitly.
@@ -270,9 +273,7 @@ describe.skipIf(!distReady || snapshotArtifactDirectory === undefined)(
     });
 
     it('indexes, searches, graphs, and shuts down through one project server', async () => {
-      api = (await import(
-        /* @vite-ignore */ `file://${distEntry.replace(/\\/g, '/')}`
-      )) as never as DistIndexApi;
+      api = requireBuilt(distEntry) as DistIndexApi;
 
       const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-worker-'));
       const indexDir = path.join(tmpDir, '.codebase-index');
@@ -581,9 +582,7 @@ describe.skipIf(!distReady || snapshotArtifactDirectory === undefined)(
     }, 90_000);
 
     it('serves stale cached answers over real IPC while a refresh publishes', async () => {
-      const staleApi = (await import(
-        /* @vite-ignore */ `file://${distEntry.replace(/\\/g, '/')}`
-      )) as DistIndexApi;
+      const staleApi = requireBuilt(distEntry) as DistIndexApi;
       const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-stale-'));
       const indexDir = path.join(tmpDir, '.codebase-index');
       const primeQuery = { projectRoot: tmpDir, indexDir, query: 'alphaMethod', limit: 5 };

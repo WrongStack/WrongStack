@@ -50,7 +50,7 @@ describe('rs-parser', () => {
     // working tree written to. Indexing reads a repository; nothing more.
     const { readFile } = await import('node:fs/promises');
     const source = await readFile(
-      new URL('../src/codebase-index/rs-parser.ts', import.meta.url),
+      new URL('../../codebase/src/rs-parser.ts', import.meta.url),
       'utf8',
     );
     // Comments stripped first — the file documents *why* the native path is

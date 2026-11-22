@@ -1,0 +1,222 @@
+import { createHash } from 'node:crypto';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import {
+  isStandaloneBinary,
+  privateEndpointKey,
+  standaloneBinaryBuildId,
+} from '@wrongstack/persistence';
+import { resolveIndexDir } from './writer.js';
+
+export const PROJECT_INDEX_SERVER_PROTOCOL_VERSION = 1;
+const PROJECT_INDEX_SERVER_METADATA_FILE = 'server.json';
+const PROJECT_INDEX_SERVER_STDERR_FILE = 'server.err.log';
+/** Keep only the tail; a daemon that crash-loops must not fill the disk. */
+export const PROJECT_INDEX_SERVER_STDERR_MAX_BYTES = 64 * 1024;
+/**
+ * Short directory name that owns the per-project Unix socket on Linux.
+ *
+ * The directory is created `0o700` by `bindProjectEndpoint`: on
+ * multi-user Linux `/tmp` the kernel's sticky bit otherwise lets a local
+ * attacker pre-bind a predictable socket name (project paths are guessable
+ * via the public `buildId` handshake), hijacking clients whose `bind()` hits
+ * EADDRINUSE. macOS is unaffected because each user already has a private
+ * TMPDIR, so the subdirectory adds no extra ownership boundary there.
+ *
+ * The name is kept short to stay under the 103-byte `sun_path` cap on macOS
+ * (48 bytes of `/var/folders/<xx>/<30 chars>/T` + 8 + 24 + 5 = 85 bytes).
+ */
+const PROJECT_INDEX_SERVER_SOCKET_DIR = `wsci-v${PROJECT_INDEX_SERVER_PROTOCOL_VERSION}`;
+
+let buildIdCache:
+  | {
+      file: string;
+      mtimeMs: number;
+      size: number;
+      buildId: string;
+    }
+  | undefined;
+
+/**
+ * Content identity for the actual server artifact.
+ *
+ * Package versions do not change during a local rebuild, so the handshake
+ * hashes the resolved `project-server.js` itself. The stat guard avoids
+ * re-reading the bundle on every reconnect while still noticing a rebuild in a
+ * long-lived client process.
+ */
+export function projectIndexServerBuildId(entrypoint: string | URL): string {
+  // The artifact identity is the file content, which a Vite query suffix does
+  // not change. The standalone binary is client and daemon at once, and its embedded
+  // modules have no file of their own: the executable is the artifact.
+  if (isStandaloneBinary()) return standaloneBinaryBuildId();
+  const file = serverArtifactPath(entrypoint);
+  try {
+    const stat = fs.statSync(file);
+    if (
+      buildIdCache?.file === file &&
+      buildIdCache.mtimeMs === stat.mtimeMs &&
+      buildIdCache.size === stat.size
+    ) {
+      return buildIdCache.buildId;
+    }
+    const buildId = createHash('sha256').update(fs.readFileSync(file)).digest('hex').slice(0, 24);
+    buildIdCache = { file, mtimeMs: stat.mtimeMs, size: stat.size, buildId };
+    return buildId;
+  } catch {
+    // Both sides resolve the same artifact path. This fallback keeps exotic
+    // read-only packagers usable, though normal builds always take the hash.
+    return `unreadable:${path.basename(file)}`;
+  }
+}
+
+/**
+ * When the server artifact was built (its mtime), or null when unknown.
+ *
+ * `buildId` only says two builds differ, not which is newer. Two different
+ * installations on one project — the standalone binary and a repo `dist` run,
+ * observed 2026-09-26 — each treated the other's daemon as stale and replaced
+ * it, killing a dozen daemons in ten minutes and leaving the losing surface
+ * stuck on "build mismatch". Ordering by build time makes the newest build win
+ * once: an older client accepts a newer same-protocol daemon instead of
+ * fighting it.
+ */
+export function projectIndexServerBuiltAt(entrypoint: string | URL): number | null {
+  try {
+    const file = isStandaloneBinary() ? process.execPath : serverArtifactPath(entrypoint);
+    return Math.trunc(fs.statSync(file).mtimeMs);
+  } catch {
+    return null;
+  }
+}
+
+function serverArtifactPath(entrypoint: string | URL): string {
+  // Vite query-suffixed imports (`project-server.ts?case=…`) surface in
+  // import.meta.url; fileURLToPath rejects the query, so strip it.
+  const href = entrypoint instanceof URL ? entrypoint.href : entrypoint;
+  const cleanHref = href.split(/[?#]/, 1)[0] ?? href;
+  return cleanHref.startsWith('file:') ? fileURLToPath(cleanHref) : path.resolve(cleanHref);
+}
+
+function normalizeLocalPath(value: string): string {
+  const resolved = path.resolve(value);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+/**
+ * Local project identity used by the index transport.
+ *
+ * The index directory is authoritative rather than the cross-machine project
+ * id: worktrees and local clones may share a project id while requiring
+ * physically separate SQLite indexes.
+ */
+export function projectIndexServerKey(projectRoot: string, indexDir?: string): string {
+  const resolvedIndexDir = normalizeLocalPath(resolveIndexDir(projectRoot, indexDir));
+  return createHash('sha256').update(resolvedIndexDir).digest('hex').slice(0, 24);
+}
+
+/**
+ * Deterministic per-project local IPC endpoint.
+ *
+ * The Unix layout places the socket inside a short `wsci-v1/` subdirectory of
+ * the temp dir: macOS's per-user TMPDIR is ~48 bytes of
+ * `/var/folders/<xx>/<30 chars>/T`, and `sun_path` caps the whole socket path
+ * at 104 bytes including the NUL on macOS/BSD (108 on Linux). The previous
+ * `wrongstack-codebase-index-v1/<key>.sock` subdirectory layout came to ~107
+ * bytes there, so `bind()` failed with ENAMETOOLONG inside a detached child
+ * whose stderr was discarded — clients saw only a 10s connect timeout. The
+ * short `wsci-v1/` subdirectory stays well under both limits (85 bytes on the
+ * worst-case macOS TMPDIR) and restores the `0o700` ownership boundary the
+ * flat layout lost on multi-user Linux `/tmp`. The pipe name keeps the long
+ * prefix because named pipes have no such limit.
+ */
+export function projectIndexServerEndpoint(projectRoot: string, indexDir?: string): string {
+  // H-9: the name carries a per-user secret — see privateEndpointKey.
+  const key = privateEndpointKey(projectIndexServerKey(projectRoot, indexDir));
+  if (process.platform === 'win32') {
+    return `\\\\.\\pipe\\wrongstack-codebase-index-v${PROJECT_INDEX_SERVER_PROTOCOL_VERSION}-${key}`;
+  }
+  // Derivation stays pure: clients need the endpoint VALUE to report or
+  // degrade on an unbindable path (`resolveProjectIndexDaemonAvailability`,
+  // connection-state probes). The hard length assert lives at bind time in
+  // `bindProjectEndpoint` (@wrongstack/persistence), platform-aware via the
+  // shared helper.
+  return path.join(os.tmpdir(), PROJECT_INDEX_SERVER_SOCKET_DIR, `${key}.sock`);
+}
+
+export function projectIndexServerMetadataPath(projectRoot: string, indexDir?: string): string {
+  return path.join(
+    path.resolve(resolveIndexDir(projectRoot, indexDir)),
+    PROJECT_INDEX_SERVER_METADATA_FILE,
+  );
+}
+
+/**
+ * Where a detached daemon's stderr is kept.
+ *
+ * The daemon used to be spawned with `stdio: 'ignore'`, so when it died the
+ * only trace was the client's `codebase-index server connection closed` —
+ * a message that names the symptom and no cause. Node writes an uncaught
+ * exception's stack to stderr before exiting, and V8 writes its fatal
+ * out-of-memory message there too (which no JS handler can intercept), so
+ * keeping the stream is what makes a dead daemon explain itself.
+ */
+export function projectIndexServerStderrPath(projectRoot: string, indexDir?: string): string {
+  return path.join(
+    path.resolve(resolveIndexDir(projectRoot, indexDir)),
+    PROJECT_INDEX_SERVER_STDERR_FILE,
+  );
+}
+
+/**
+ * The tail of a daemon's stderr, condensed to one line for an error message.
+ *
+ * Returns null when there is nothing useful: no file, an empty one, or only
+ * whitespace. Reads at most the last `PROJECT_INDEX_SERVER_STDERR_MAX_BYTES`
+ * so a large file cannot be pulled into memory here.
+ */
+export function readProjectIndexServerStderrTail(path_: string, maxLines = 4): string | null {
+  let raw: string;
+  try {
+    const { size } = fs.statSync(path_);
+    const start = Math.max(0, size - PROJECT_INDEX_SERVER_STDERR_MAX_BYTES);
+    const fd = fs.openSync(path_, 'r');
+    try {
+      const length = size - start;
+      if (length <= 0) return null;
+      const buffer = Buffer.alloc(length);
+      fs.readSync(fd, buffer, 0, length, start);
+      raw = buffer.toString('utf8');
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    return null;
+  }
+  const lines = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  if (lines.length === 0) return null;
+  return lines.slice(-maxLines).join(' | ');
+}
+
+/** The base close message. Kept as a PREFIX so existing substring matchers
+ * (and anyone grepping logs for it) keep working when a reason is appended. */
+export const PROJECT_INDEX_SERVER_CLOSED_MESSAGE = 'codebase-index server connection closed';
+
+/**
+ * Compose the error a closed connection rejects with.
+ *
+ * A closed socket has two very different causes — an orderly shutdown and the
+ * daemon dying — and they used to be reported identically. When the daemon
+ * left something on stderr, that text is the whole difference between a
+ * failure someone can act on and one that reads as a flake.
+ */
+export function formatProjectIndexServerCloseError(tail: string | null): string {
+  return tail
+    ? `${PROJECT_INDEX_SERVER_CLOSED_MESSAGE} (server stderr: ${tail})`
+    : PROJECT_INDEX_SERVER_CLOSED_MESSAGE;
+}

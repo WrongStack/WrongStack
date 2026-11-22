@@ -20,7 +20,7 @@ process.env['WRONGSTACK_INDEX_INLINE'] = '1';
 // factory. background-indexer.ts calls indexService(args, hooks) from
 // index-service.js — NOT runIndexer from indexer.js directly.
 const { indexServiceMock } = vi.hoisted(() => ({ indexServiceMock: vi.fn() }));
-vi.mock('../src/codebase-index/index-service.js', () => ({
+vi.mock('../../codebase/src/index-service.js', () => ({
   indexService: indexServiceMock,
   searchService: vi.fn(),
   statsService: vi.fn(),

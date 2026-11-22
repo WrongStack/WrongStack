@@ -38,7 +38,7 @@ it('probe: in-process tools daemon lifecycle', { timeout: 60_000 }, async () => 
       '--index-dir',
       indexDir,
     ];
-    const daemonModule = '../src/codebase-index/project-server.js?probe=1';
+    const daemonModule = '../../codebase/src/project-server.js?probe=1';
     await import(daemonModule);
   } finally {
     process.argv = realArgv;

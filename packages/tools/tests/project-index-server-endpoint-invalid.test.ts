@@ -61,7 +61,7 @@ vi.mock('node:fs', async (orig) => {
 // path. We never want to take that branch in this suite — the `endpoint-invalid`
 // detection runs first — but keep the import chain honest.
 const { indexServiceMock } = vi.hoisted(() => ({ indexServiceMock: vi.fn() }));
-vi.mock('../src/codebase-index/index-service.js', () => ({
+vi.mock('../../codebase/src/index-service.js', () => ({
   indexService: indexServiceMock,
   searchService: vi.fn(async () => ({ results: [], total: 0 })),
   statsService: vi.fn(async () => ({ totalSymbols: 0 })),

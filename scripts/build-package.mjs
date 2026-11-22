@@ -190,11 +190,10 @@ const toolEntries = entryMap([
   'src/e2e.ts',
   'src/codebase-index/index.ts',
   'src/dead-code/index.ts',
+  // Compatibility launchers. Codebase owns the runnable artifacts and the
+  // resolvers used by the host, daemon and worker pool.
   'src/codebase-index/worker.ts',
   'src/codebase-index/project-server.ts',
-  // Emitted standalone so the parser pool can spawn it from dist — without
-  // this entry the pool's script probe finds nothing in built installs and
-  // bulk parsing silently falls back to inline.
   'src/codebase-index/parser-worker-script.ts',
 ]);
 
@@ -547,15 +546,25 @@ const profiles = {
       '@wrongstack/primitives',
     ],
   },
+  '@wrongstack/codebase': {
+    entries: () =>
+      entryMap(
+        Object.keys(packageJson.exports).map((subpath) =>
+          subpath === '.' ? 'src/index.ts' : `src/${subpath.slice(2)}.ts`,
+        ),
+      ),
+    // Keep the store pool, ownership state and circuit breaker shared across
+    // subpaths. The parser resolves its WASM relative to the dist root.
+    splitting: true,
+    chunkNames: '[name]-[hash]',
+    external: ['@wrongstack/core', '@wrongstack/persistence', 'node:sqlite', 'web-tree-sitter'],
+    postBuild: copyCodebaseWasm,
+  },
   '@wrongstack/tools': {
     entries: toolEntries,
-    // Same reason as `@wrongstack/core`: 58 subpath entries with splitting OFF
-    // gave every entry its own copy of `indexStorePool`, `indexCircuitBreaker`,
-    // `languageProfileRegistry`, the project-server `connections` map and the
-    // process registry — 12 independent copies of what the source treats as
-    // one process-wide singleton. Splitting collapses them into one chunk.
+    // Subpath entries share state such as the language profile and process
+    // registries. Codebase shares its own state through its package chunks.
     splitting: true,
-    postBuild: copyToolsWasm,
     // Chunks live at the dist ROOT, not in a subdirectory. Several modules
     // locate sibling artifacts (daemon entry points, worker scripts, the
     // `instructions/` tree) with `new URL(rel, import.meta.url)`, and once
@@ -566,6 +575,7 @@ const profiles = {
     chunkNames: '[name]-[hash]',
     external: [
       '@wrongstack/browser-tools',
+      '@wrongstack/codebase',
       '@typescript/typescript6',
       '@wrongstack/core',
       '@wrongstack/kanban',
@@ -654,10 +664,8 @@ const profiles = {
   },
 };
 
-function copyToolsWasm() {
-  const source = join(packageRoot, 'src/codebase-index/wasm');
-  // The split tree-sitter parser chunk is emitted at dist/ (chunkNames is
-  // root-level), so its import.meta.url resolves ./wasm from dist/wasm.
+function copyCodebaseWasm() {
+  const source = join(packageRoot, 'src/wasm');
   const target = join(packageRoot, 'dist/wasm');
   if (!existsSync(source)) {
     throw new Error(`Missing vendored tree-sitter WASM directory: ${source}`);

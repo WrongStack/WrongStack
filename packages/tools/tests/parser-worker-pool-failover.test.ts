@@ -94,7 +94,7 @@ afterEach(async () => {
 // Each runs in a child process that reports how long the process stayed up
 // after its last awaited step.
 const poolModule = fileURLToPath(
-  new URL('../src/codebase-index/parser-worker-pool.ts', import.meta.url),
+  new URL('../../codebase/src/parser-worker-pool.ts', import.meta.url),
 );
 const holdDir = fsSync.mkdtempSync(path.join(os.tmpdir(), 'ws-parser-pool-hold-'));
 afterAll(() => fsSync.rmSync(holdDir, { recursive: true, force: true }));

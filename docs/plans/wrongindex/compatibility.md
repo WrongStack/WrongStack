@@ -31,7 +31,7 @@ Current indexed file paths are tied to the actual checkout and may be absolute; 
 
 ## 3. Baseline table inventory
 
-The source of truth is [writer-schema.ts](../../../packages/tools/src/codebase-index/writer-schema.ts), [writer-init.ts](../../../packages/tools/src/codebase-index/writer-init.ts), and actual fixture introspection. The following inventory makes the implementation work explicit:
+The source of truth is [writer-schema.ts](../../../packages/codebase/src/writer-schema.ts), [writer-init.ts](../../../packages/codebase/src/writer-init.ts), and actual fixture introspection. The following inventory makes the implementation work explicit:
 
 | Table | Columns / important contract |
 |---|---|
@@ -64,7 +64,7 @@ This list is a minimum export checklist, not a declaration that these are the on
 
 ### 3.2 SQLite runtime contract
 
-Current pragmas include WAL, synchronous NORMAL, busy timeout 15,000 ms, foreign keys ON, memory temp store, configured cache/mmap sizes, journal size limit 64 MiB, and WAL autocheckpoint 1,000 pages. See [writer-pragmas.ts](../../../packages/tools/src/codebase-index/writer-pragmas.ts).
+Current pragmas include WAL, synchronous NORMAL, busy timeout 15,000 ms, foreign keys ON, memory temp store, configured cache/mmap sizes, journal size limit 64 MiB, and WAL autocheckpoint 1,000 pages. See [writer-pragmas.ts](../../../packages/codebase/src/writer-pragmas.ts).
 
 WrongIndex must inspect effective values and runtime support rather than swallowing every configuration error. Cap aggregate cache/mmap commitments across all active projects. NORMAL durability is an explicit accepted policy, not a guarantee against every power-loss scenario.
 
@@ -201,7 +201,7 @@ Proposed configuration shape; not existing WrongStack flags:
 | Vector search | BLOB decode, dimensions, provider consistency, similarity thresholds |
 | Higher-level tools | Skeleton, read symbol, repo map, impact/diff/flow/atlas consume compatible data and keep their external contracts |
 
-The existing [worker protocol](../../../packages/tools/src/codebase-index/worker-protocol.ts) is the starting operation inventory. Whole-file source reads and AST mutation remain WrongStack responsibilities unless separately designed; an index service must not silently become a file-editing authority.
+The existing [worker protocol](../../../packages/codebase/src/worker-protocol.ts) is the starting operation inventory. Whole-file source reads and AST mutation remain WrongStack responsibilities unless separately designed; an index service must not silently become a file-editing authority.
 
 ## 9. Cache coherence
 
