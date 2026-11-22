@@ -123,6 +123,38 @@ function labelsField(labels: readonly string[]): { labels?: readonly string[] } 
   return labels.length > 0 ? { labels } : {};
 }
 
+/**
+ * A stored entry with an observation made before the load finished folded
+ * over it, as `observe()` would have folded it had the entry been loaded.
+ */
+function foldStored(stored: HqKnownMachine, observed: HqKnownMachine): HqKnownMachine {
+  const projects = new Map(stored.projects.map((project) => [project.projectId, project]));
+  for (const project of observed.projects) {
+    projects.delete(project.projectId);
+    projects.set(project.projectId, project);
+  }
+  const hostname = observed.hostname ?? stored.hostname;
+  const lastVersion = observed.lastVersion ?? stored.lastVersion;
+  return {
+    key: observed.key,
+    ...(hostname !== undefined ? { hostname } : {}),
+    machineIds: [...new Set([...stored.machineIds, ...observed.machineIds])].slice(
+      -MAX_IDS_PER_MACHINE,
+    ),
+    projects: [...projects.values()].slice(-MAX_PROJECTS_PER_MACHINE),
+    ...(lastVersion !== undefined ? { lastVersion } : {}),
+    ...labelsField(observed.labels ?? stored.labels ?? []),
+    firstSeenAt:
+      Date.parse(stored.firstSeenAt) < Date.parse(observed.firstSeenAt)
+        ? stored.firstSeenAt
+        : observed.firstSeenAt,
+    lastSeenAt:
+      Date.parse(observed.lastSeenAt) > Date.parse(stored.lastSeenAt)
+        ? observed.lastSeenAt
+        : stored.lastSeenAt,
+  };
+}
+
 /** What a live snapshot says about one machine. */
 interface Sighting {
   hostname: string | undefined;
@@ -238,8 +270,12 @@ export class HqMachineRoster {
     for (const candidate of entries) {
       const entry = parseEntry(candidate);
       if (entry === null || this.expired(entry, now)) continue;
-      // An observation made before the load finished is newer: keep it.
-      if (!this.machines.has(entry.key)) this.machines.set(entry.key, entry);
+      // An observation made before the load finished is newer, but it was
+      // folded with no `previous`: keeping it as-is dropped the operator's
+      // labels, the first sighting and the older history, and persistAfterLoad
+      // then wrote that loss to disk (F1091). Fold the stored entry under it.
+      const observed = this.machines.get(entry.key);
+      this.machines.set(entry.key, observed === undefined ? entry : foldStored(entry, observed));
     }
     this.enforceCap();
   }

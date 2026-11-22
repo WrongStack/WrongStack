@@ -397,21 +397,35 @@ export function summarizeHqToolArgs(value: unknown, options: HqRedactOptions = {
 
   const entries = Object.entries(value as Record<string, unknown>);
   const summary: Record<string, unknown> = {};
+  // Keys are model-produced tool arguments: a plain `summary[key] =` turns a
+  // "__proto__" key into a prototype write (dropped, or a null prototype),
+  // so define them as own data like `visitValue` does (F1095).
+  const put = (key: string, value: unknown): void => {
+    Object.defineProperty(summary, key, {
+      value,
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
+  };
   for (const [key, item] of entries.slice(0, 20)) {
     if (isSensitiveKey(key)) {
-      summary[key] = SENSITIVE_FIELD_REPLACEMENT;
+      put(key, SENSITIVE_FIELD_REPLACEMENT);
     } else if (!policy.rawContent && isRawContentKey(key)) {
-      summary[key] = RAW_CONTENT_REPLACEMENT;
+      put(key, RAW_CONTENT_REPLACEMENT);
     } else if (typeof item === 'string') {
-      summary[key] = isPathKey(key)
-        ? redactPath(item, options.projectRoot, policy)
-        : summarizeString(item, 120, true);
+      put(
+        key,
+        isPathKey(key)
+          ? redactPath(item, options.projectRoot, policy)
+          : summarizeString(item, 120, true),
+      );
     } else if (Array.isArray(item)) {
-      summary[key] = `[array:${item.length}]`;
+      put(key, `[array:${item.length}]`);
     } else if (item !== null && typeof item === 'object') {
-      summary[key] = '[object]';
+      put(key, '[object]');
     } else {
-      summary[key] = item;
+      put(key, item);
     }
   }
   if (entries.length > 20) summary.__truncatedKeys = entries.length - 20;

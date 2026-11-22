@@ -429,4 +429,14 @@ describe('HQ redaction covers built-in tool input fields', () => {
     expect(Object.hasOwn(res.value as object, '__proto__')).toBe(true);
     expect((res.value as Record<string, unknown>).safe).toBe('ok');
   });
+
+  it('keeps a "__proto__" tool argument as plain data in the summary', () => {
+    const opts = { policy: { toolArgs: 'summary' as const } };
+    const withString = summarizeHqToolArgs(JSON.parse('{"a":"b","__proto__":"x"}'), opts) as object;
+    expect(Object.getOwnPropertyDescriptor(withString, '__proto__')?.value).toBe('x');
+    const withNull = summarizeHqToolArgs(JSON.parse('{"__proto__":null,"a":"b"}'), opts) as object;
+    expect(Object.getPrototypeOf(withNull)).toBe(Object.prototype);
+    expect(Object.getOwnPropertyDescriptor(withNull, '__proto__')?.value).toBeNull();
+    expect((withNull as Record<string, unknown>).a).toBe('b');
+  });
 });

@@ -22,7 +22,15 @@
  * @module hq/auth-audit
  */
 
-import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  closeSync,
+  fstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readSync,
+} from 'node:fs';
 import * as path from 'node:path';
 
 /** Scope of the token the event is about. */
@@ -143,10 +151,34 @@ export function appendHqAuthAudit(
 ): void {
   try {
     mkdirSync(dataDir, { recursive: true });
-    const line = `${JSON.stringify(entry)}\n`;
-    appendFileSync(hqAuthAuditPath(dataDir), line, { encoding: 'utf8', flag: 'a' });
+    const file = hqAuthAuditPath(dataDir);
+    // An append interrupted part-way (crash, ENOSPC — swallowed below) leaves
+    // a fragment with no newline. Appending straight after it glued this
+    // complete entry onto the fragment and lost it too (F1094).
+    const line = `${endsMidLine(file) ? '\n' : ''}${JSON.stringify(entry)}\n`;
+    appendFileSync(file, line, { encoding: 'utf8', flag: 'a' });
   } catch (err) {
     options?.onError?.(err instanceof Error ? err : new Error(String(err)));
+  }
+}
+
+/** True when `file` exists, is non-empty and its last byte is not a newline. */
+function endsMidLine(file: string): boolean {
+  let fd: number;
+  try {
+    fd = openSync(file, 'r');
+  } catch {
+    return false;
+  }
+  try {
+    const size = fstatSync(fd).size;
+    if (size === 0) return false;
+    const last = Buffer.alloc(1);
+    return readSync(fd, last, 0, 1, size - 1) === 1 && last[0] !== 0x0a;
+  } catch {
+    return false;
+  } finally {
+    closeSync(fd);
   }
 }
 

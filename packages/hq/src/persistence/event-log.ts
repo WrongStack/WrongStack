@@ -408,7 +408,8 @@ async function readRecentEvents(
           // the carry from the previous (newer) slice so the window-boundary
           // line is decoded once. All subsequent lines in the slice are
           // processed standalone.
-          const text = Buffer.concat([prefixRead, ...carry]).toString('utf8');
+          const joined = Buffer.concat([prefixRead, ...carry]);
+          const text = joined.toString('utf8');
           carry = [];
           const lines = text.split('\n');
           for (let index = lines.length - 1; index >= 1; index--) {
@@ -425,10 +426,14 @@ async function readRecentEvents(
           const boundary = lines[0] ?? '';
           if (boundary !== priorSeam && acceptText(boundary)) return out;
           if (readOffset === 0) break;
-          // Save the boundary line text in its buffer form so the next slice
-          // can stitch with it at the byte level (preserving any multibyte
-          // UTF-8 split character at the new seam).
-          carry = [Buffer.from(boundary, 'utf8')];
+          // Carry the boundary line's ORIGINAL bytes so the next slice can
+          // stitch with it at the byte level. Re-encoding the decoded `boundary`
+          // string instead turned a character split at `readOffset` into U+FFFD
+          // before the stitch could complete it (F1090). A newline byte never
+          // occurs inside a UTF-8 sequence, so the first 0x0a ends the line.
+          // `Buffer.from` copies, so the 8 MiB window is not pinned.
+          const firstNewline = joined.indexOf(0x0a);
+          carry = [Buffer.from(firstNewline === -1 ? joined : joined.subarray(0, firstNewline))];
           priorSeam = boundary;
           sliceEnd = readOffset;
         }

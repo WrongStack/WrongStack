@@ -117,6 +117,27 @@ describe('parseHqAlertThresholds', () => {
     expect(Object.getPrototypeOf(budgets)).toBe(Object.prototype);
     expect(Object.getOwnPropertyDescriptor(budgets, '__proto__')?.value).toBe(4);
   });
+
+  it('refuses more budgets than it keeps instead of dropping the excess', () => {
+    const many = (n: number, prefix: string): Record<string, number> =>
+      Object.fromEntries(Array.from({ length: n }, (_, i) => [`${prefix}${i}`, 5]));
+    const atCap = parseHqAlertThresholds({ projectDailyBudgetsUsd: many(200, 'p-') });
+    expect(atCap.ok && Object.keys(atCap.thresholds.projectDailyBudgetsUsd ?? {})).toHaveLength(
+      200,
+    );
+    expect(parseHqAlertThresholds({ projectDailyBudgetsUsd: many(201, 'p-') })).toMatchObject({
+      ok: false,
+    });
+    expect(
+      parseHqAlertThresholds({ machineDailyBudgetsUsd: many(201, 'host:lab-') }),
+    ).toMatchObject({ ok: false });
+    // Zero means "off" and is not counted against the cap.
+    expect(
+      parseHqAlertThresholds({
+        projectDailyBudgetsUsd: { ...many(200, 'p-'), 'p-off': 0 },
+      }),
+    ).toMatchObject({ ok: true });
+  });
 });
 
 describe('HqTimeseriesStore.spendSince', () => {

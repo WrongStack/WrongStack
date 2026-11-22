@@ -277,4 +277,33 @@ describe('HqMachineRoster load ordering', () => {
       await fs.rm(dataDir, { recursive: true, force: true });
     }
   });
+
+  it('keeps stored labels and first sighting of a machine that reconnects before the load finished', async () => {
+    const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hq-roster-order-'));
+    try {
+      const first = new HqMachineRoster({ dataDir });
+      first.observe(snapshot(T0, [client({ clientId: 'a', hostname: 'lab' })]), T0);
+      first.setLabels('host:lab', ['gpu', 'prod'], T0);
+      first.observe(snapshot(T0 + 1, []), T0 + 1);
+      await first.drain();
+
+      // A restart: the machine's client reconnects before load() resolves.
+      const second = new HqMachineRoster({ dataDir });
+      const loading = second.load(T0 + 2);
+      second.observe(snapshot(T0 + 2, [client({ clientId: 'a', hostname: 'lab' })]), T0 + 2);
+      await loading;
+      await second.drain();
+      expect(second.labelMap()).toEqual({ 'host:lab': ['gpu', 'prod'] });
+
+      const third = new HqMachineRoster({ dataDir });
+      await third.load(T0 + 3);
+      third.observe(snapshot(T0 + 3, []), T0 + 3);
+      await third.drain();
+      const entry = third.offline(T0 + 3).find((machine) => machine.key === 'host:lab');
+      expect(entry?.labels).toEqual(['gpu', 'prod']);
+      expect(entry?.firstSeenAt).toBe(new Date(T0).toISOString());
+    } finally {
+      await fs.rm(dataDir, { recursive: true, force: true });
+    }
+  });
 });

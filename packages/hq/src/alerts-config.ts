@@ -40,6 +40,7 @@ import {
 } from '@wrongstack/persistence';
 
 import {
+  HQ_MAX_BUDGETS_PER_SCOPE,
   MACHINE_BUDGET_KEY,
   PROJECT_BUDGET_KEY,
   rejectedBudgetEntries,
@@ -345,6 +346,21 @@ export function parseHqAlertThresholds(
     return {
       ok: false,
       error: `Invalid budget for ${[...badProjects, ...badMachines].slice(0, 5).join(', ')}: use a number of zero or more.`,
+    };
+  }
+  // Past the cap too: `sanitizeBudgetMap` keeps only the first
+  // HQ_MAX_BUDGETS_PER_SCOPE positive budgets, so the rest would vanish behind
+  // the same "Saved" (F1092). Zero means off and is not counted.
+  const overCap = [record.projectDailyBudgetsUsd, record.machineDailyBudgetsUsd].some(
+    (raw) =>
+      typeof raw === 'object' &&
+      raw !== null &&
+      Object.values(raw).filter((value) => (value as number) > 0).length > HQ_MAX_BUDGETS_PER_SCOPE,
+  );
+  if (overCap) {
+    return {
+      ok: false,
+      error: `At most ${HQ_MAX_BUDGETS_PER_SCOPE} project and ${HQ_MAX_BUDGETS_PER_SCOPE} machine budgets can be set.`,
     };
   }
   const projects = sanitizeBudgetMap(record.projectDailyBudgetsUsd, PROJECT_BUDGET_KEY);

@@ -1,7 +1,12 @@
-import { logHqAuthAudit, hqAuthAuditPath, type HqAuthAuditEntry } from '@wrongstack/hq';
 import { readFileSync } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import {
+  type HqAuthAuditEntry,
+  hqAuthAuditPath,
+  logHqAuthAudit,
+  readHqAuthAuditTail,
+} from '@wrongstack/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 let tmpHome: string;
@@ -148,5 +153,14 @@ describe('HQ auth-audit — JSONL append-only log', () => {
     const raw = readFileSync(hqAuthAuditPath(dataDir), 'utf8');
     expect(raw).not.toContain(tokenString);
     expect(raw).toContain('uuid-only');
+  });
+
+  it('starts a fresh line after an interrupted append, so only the torn entry is lost', async () => {
+    const { appendFileSync } = await import('node:fs');
+    logHqAuthAudit(dataDir, { kind: 'create', scope: 'browser', tokenId: 'tok-1', at: 1 });
+    // What a crash or ENOSPC part-way through an append leaves behind.
+    appendFileSync(hqAuthAuditPath(dataDir), '{"at":2,"kind":"cre');
+    logHqAuthAudit(dataDir, { kind: 'revoke', scope: 'browser', tokenId: 'tok-3', at: 3 });
+    expect(readHqAuthAuditTail(dataDir).map((entry) => entry.tokenId)).toEqual(['tok-3', 'tok-1']);
   });
 });
