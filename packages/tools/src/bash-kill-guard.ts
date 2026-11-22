@@ -171,7 +171,12 @@ export function parseKillCommand(command: string): KillCommand | null {
   const powerShellKill = /^(?:stop-process|spps)\s|^kill\s+-(?:id|pid|name|nam|na)(?=[:\s])/i.test(
     normalized,
   );
-  if (isWin || powerShellCommand !== null || powerShellKill) {
+  // `pkill`/`killall` are POSIX name-kill verbs. The bash tool can run them
+  // through Git Bash/WSL on a Windows host, and this guard documents coverage
+  // for both — but they were only parsed on the POSIX branch, so on win32 the
+  // name was never resolved and `killall -9 <runtime>` was allowed.
+  const posixNameKillHead = /^(?:pkill|killall)\b/i.test(normalized);
+  if (!posixNameKillHead && (isWin || powerShellCommand !== null || powerShellKill)) {
     return parseWindowsKillCommand(command, normalized);
   }
 
@@ -277,6 +282,37 @@ async function getProtectedEntries(): Promise<PersistentProcessEntry[]> {
   }
 
   return entries;
+}
+
+/**
+ * A kill verb that takes its targets from a PIPELINE — `Get-Process bun |
+ * Stop-Process -Force` stops every process the pipe carries while the verb
+ * itself names no PID. The parsers only ever see the verb, so the target set
+ * came back empty and the guard failed open. Returns the upstream selector
+ * (`''` when it names every process), or null when the command is not
+ * pipeline-fed or the verb names its own target.
+ */
+export function pipelineKillSelector(command: string): string | null {
+  const segments = command.replace(/\s+/g, ' ').trim().split('|');
+  for (let i = 1; i < segments.length; i++) {
+    const verb = (segments[i] ?? '').trim();
+    // PowerShell method invocation on the piped process object —
+    // `Get-Process bun | % { $_.Kill() }` (also `foreach`/`ForEach-Object`)
+    // terminates every process the pipe carries, yet no kill VERB appears, so
+    // neither layer recognized it and the command was allowed. Treated like the
+    // verb form: the target set is the upstream selector.
+    const methodKill = /^(?:%|foreach-object\b|foreach\b)[\s\S]*\.\s*kill\s*\(/i.test(verb);
+    if (!methodKill && !/^(?:stop-process|spps|kill)\b/i.test(verb)) continue;
+    // An explicit target on the verb is already covered by the normal path.
+    if (!methodKill && /(?:^|\s)-(?:id|pid|name|nam|na|inputobject)\b/i.test(verb)) return null;
+    // Only a process SELECTOR makes the target set implicit; `foo || kill`
+    // names nothing and is left to the existing (erroring) path.
+    const upstream = (segments[i - 1] ?? '').trim();
+    const selector = /\b(?:get-process|gps|ps)\b\s*(?:-name\s+)?(.*)$/i.exec(upstream)?.[1]?.trim();
+    if (selector === undefined) return null;
+    return selector.replace(/^['"]|['"]$/g, '');
+  }
+  return null;
 }
 
 /**
@@ -390,8 +426,30 @@ function launcherPayloads(normalized: string): string[] {
  * Main entry point: Check if a bash command contains a kill operation targeting protected PIDs.
  * Returns a result indicating whether to block and why.
  */
+/**
+ * True when a pipeline selector picks this runtime. PowerShell's list form
+ * (`Get-Process -Name node,bun`, `Get-Process node, bun`) selects several
+ * processes, so every entry is tested; an empty selector means "everything".
+ */
+export function pipelineSelectorTargetsThisRuntime(selector: string): boolean {
+  if (selector === '') return true;
+  return selector
+    .split(/[,\s]+/)
+    .filter(Boolean)
+    .some((part) => nameTargetsCurrentRuntime(part));
+}
+
 export async function checkAndBlockKillCommand(command: string): Promise<KillCheckResult> {
   const normalized = command.replace(/\s+/g, ' ').trim();
+  // A pipeline-fed kill verb (`Get-Process bun | Stop-Process -Force`) names no
+  // PID of its own: the pipe supplies every target. Resolve the selector and map
+  // it onto the same runtime/protected decision instead of failing open on an
+  // empty target set (a kill guard that cannot resolve its targets must not
+  // silently allow the command).
+  const pipelineSelector = pipelineKillSelector(normalized);
+  if (pipelineSelector !== null && pipelineSelectorTargetsThisRuntime(pipelineSelector)) {
+    return { blocked: true, reason: getBlockedKillMessage(process.pid, 'FORCE') };
+  }
   // The whole command first, then every sequenced segment, so `true; kill <pid>`
   // cannot hide the kill behind a harmless leading command. A launcher payload
   // is checked the same way: its quotes hide its separators from a split of the

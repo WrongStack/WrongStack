@@ -248,6 +248,18 @@ function escapesRoot(value: string): boolean {
   );
 }
 
+/** The scope forms plan validation matches: a path, `dir/**`, `dir/*`, `**`, `*`. */
+function isSupportedScopePattern(normalized: string): boolean {
+  if (normalized === '**' || normalized === '*') return true;
+  const prefix = normalized.endsWith('/**')
+    ? normalized.slice(0, -3)
+    : normalized.endsWith('/*')
+      ? normalized.slice(0, -2)
+      : normalized;
+  // Brace sets (`{a,b}`) are glob syntax too; `[id]` stays literal (Next.js route dirs).
+  return !/[*?{}]/.test(prefix);
+}
+
 function allowedPathCoveredByDenied(normalizedAllowed: string, normalizedDenied: string): boolean {
   if (normalizedAllowed === normalizedDenied || normalizedDenied === '**') return true;
   if (normalizedDenied === '*') {
@@ -380,6 +392,16 @@ export function validateTaskContractV1(contract: TaskContractV1): ContractValida
   }
   for (const deniedPath of contract.autonomy.deniedPaths) {
     const normalizedDenied = normalizePath(deniedPath);
+    if (!isSupportedScopePattern(normalizedDenied)) {
+      // Plan validation implements only these forms; any other glob was
+      // compared literally there, so it denied nothing (fail open).
+      issues.push({
+        code: 'required_value_missing',
+        path: 'autonomy.deniedPaths',
+        message: `Path "${deniedPath}" must be a path, "dir/**", "dir/*", "**" or "*".`,
+      });
+      continue;
+    }
     if (escapesRoot(deniedPath) || !normalizedDenied || normalizedDenied === '.') {
       issues.push({
         code: 'required_value_missing',

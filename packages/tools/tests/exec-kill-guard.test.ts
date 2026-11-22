@@ -585,4 +585,50 @@ describe('exec-kill-guard', () => {
       expect(result.blocked).toBe(false);
     });
   });
+
+  /**
+   * `pkill`/`killall` are POSIX name-kill verbs, but exec can run them through
+   * Git Bash/WSL on Windows and the guard documents coverage for both. Sending
+   * every Windows command to the Windows branch left the name unresolved, so
+   * `pkill -9 <runtime>` was allowed. Mirrors the Layer-1 gate.
+   */
+  describe('POSIX name-kill verbs on every host', () => {
+    // Resolved INSIDE each test: this file's beforeEach re-points
+    // process.execPath at node.exe, so a collection-time value names a
+    // different binary than the guard sees when it runs.
+    const currentImage = () =>
+      (process.execPath.split(/[\\/]/).pop() ?? '').toLowerCase().replace(/\.exe$/, '');
+
+    it('blocks pkill and killall that select this runtime', async () => {
+      expect((await checkExecKillCommand('pkill', ['-9', currentImage()])).blocked).toBe(true);
+      expect((await checkExecKillCommand('killall', ['-9', currentImage()])).blocked).toBe(true);
+    });
+
+    it('keeps an unrelated POSIX name kill allowed', async () => {
+      expect((await checkExecKillCommand('killall', ['-9', 'some-other-daemon'])).blocked).toBe(
+        false,
+      );
+    });
+  });
+
+  describe('piped process-object method invocation', () => {
+    const currentImage = () =>
+      (process.execPath.split(/[\\/]/).pop() ?? '').toLowerCase().replace(/\.exe$/, '');
+
+    it('blocks %/ForEach-Object/foreach { $_.Kill() } on the piped runtime', async () => {
+      for (const verb of ['%', 'ForEach-Object', 'foreach']) {
+        const command = `Get-Process ${currentImage()} | ${verb} { $_.Kill() }`;
+        expect((await checkExecKillCommand('pwsh', ['-Command', command])).blocked, command).toBe(
+          true,
+        );
+      }
+    });
+
+    it('still allows a read-only pipeline', async () => {
+      expect(
+        (await checkExecKillCommand('pwsh', ['-Command', 'Get-Process | Select-Object -First 1']))
+          .blocked,
+      ).toBe(false);
+    });
+  });
 });

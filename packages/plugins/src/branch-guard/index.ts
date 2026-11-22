@@ -177,9 +177,10 @@ async function runGit(
 async function getCurrentBranch(
   cwd: string | undefined,
   signal: AbortSignal,
+  globalArgs: readonly string[] = [],
 ): Promise<string | null> {
   try {
-    const branch = (await runGit(['branch', '--show-current'], cwd, signal)).trim();
+    const branch = (await runGit([...globalArgs, 'branch', '--show-current'], cwd, signal)).trim();
     return branch || null;
   } catch (err) {
     if (signal.aborted) throw err;
@@ -218,6 +219,30 @@ interface GitCommandMatch {
    * the op runs there — not on the branch current when the hook fires.
    */
   onBranch?: string | undefined;
+  /**
+   * Git global options that select WHICH repository the op runs in (`-C`,
+   * `--git-dir`, `--work-tree`). Without them, `git -C ../main-worktree commit`
+   * was judged against the session checkout's branch and a protected-branch
+   * commit in another worktree went through.
+   */
+  repoArgs?: string[] | undefined;
+}
+
+/**
+ * The repository-selecting global options in a `git …` global-options head, as
+ * argv the same way the command spelled them (`-C <dir>`, `--git-dir[=]<dir>`,
+ * `--work-tree[=]<dir>`). `-C` composes, so every occurrence is kept in order.
+ */
+function gitRepoArgs(head: string): string[] {
+  const args: string[] = [];
+  const unquote = (value: string): string => value.replace(/^['"]|['"]$/g, '');
+  for (const m of head.matchAll(/\s-C\s+("[^"]*"|'[^']*'|\S+)/g)) {
+    args.push('-C', unquote(m[1] ?? ''));
+  }
+  for (const m of head.matchAll(/\s(--git-dir|--work-tree)(?:=|\s+)("[^"]*"|'[^']*'|\S+)/g)) {
+    args.push(m[1] ?? '', unquote(m[2] ?? ''));
+  }
+  return args.filter((arg) => arg !== '');
 }
 
 /**
@@ -330,9 +355,16 @@ async function detectGitOpsInCommand(
     op?: GitCommandMatch['type'];
     to?: string;
     verify?: boolean;
+    repoArgs?: string[];
   }> = [];
   for (const m of cmd.matchAll(GIT_OP_RE)) {
-    events.push({ at: m.index ?? 0, op: m[1] as GitCommandMatch['type'] });
+    const op = m[1] as GitCommandMatch['type'];
+    // Global options before the op decide WHICH repository it runs in.
+    events.push({
+      at: m.index ?? 0,
+      op,
+      repoArgs: gitRepoArgs(m[0].slice(0, m[0].lastIndexOf(op))),
+    });
   }
   for (const m of cmd.matchAll(GIT_SWITCH_RE)) {
     const head = m[0].slice(0, m[0].lastIndexOf(m[1] ?? '', m[0].length - (m[2] ?? '').length));
@@ -371,7 +403,7 @@ async function detectGitOpsInCommand(
         previous = onBranch ?? null;
         onBranch = e.to;
       }
-    } else if (e.op) ops.push({ type: e.op, snippet, onBranch });
+    } else if (e.op) ops.push({ type: e.op, snippet, onBranch, repoArgs: e.repoArgs });
   }
   return ops;
 }
@@ -509,15 +541,22 @@ const plugin: Plugin = {
       if (blockable.length === 0) return;
 
       // Each op runs on the branch an earlier in-command switch moved to, else
-      // on the current branch (unknown current branch — don't block on it).
-      const current = blockable.some((op) => op.onBranch === undefined)
+      // on the branch of the repository ITS OWN global options select, else on
+      // the current branch (unknown current branch — don't block on it).
+      const current = blockable.some((op) => op.onBranch === undefined && !op.repoArgs?.length)
         ? await getCurrentBranch(cwd, runtime.signal)
         : null;
       const protectedSet = new Set(cfg.branches);
       let gitOp: GitCommandMatch | undefined;
       let branch = '';
       for (const op of blockable) {
-        const on = op.onBranch ?? current;
+        // `-C`/`--git-dir`/`--work-tree` move the op to another checkout: ask
+        // git about THAT repository, not the one the hook started in.
+        const on =
+          op.onBranch ??
+          (op.repoArgs?.length
+            ? await getCurrentBranch(cwd, runtime.signal, op.repoArgs)
+            : current);
         if (on && protectedSet.has(on)) {
           gitOp = op;
           branch = on;

@@ -201,6 +201,19 @@ function valueOptionsFor(manager: string): ReadonlySet<string> {
   return VALUE_OPTIONS.js;
 }
 
+/** Package managers whose specs may carry PEP 508 extras: `evil-pkg[security]`. */
+const EXTRAS_MANAGERS: ReadonlySet<string> = new Set(['pip', 'pip3', 'uv']);
+
+/**
+ * Extras are not part of the distribution name: `pip install evil-pkg[security]`
+ * installs `evil-pkg[security]`. Kept in the name, every name-keyed check
+ * (deny/allow, typosquat, registry lookup, license audit) compared against a
+ * spelling no config entry contains — a deny-list bypass in block mode.
+ */
+function withoutExtras(name: string, manager: string): string {
+  return EXTRAS_MANAGERS.has(manager) ? name.replace(/\[[^\]]*\]$/, '') : name;
+}
+
 /**
  * Parse a shell command for dependency installs. Returns one entry
  * per install segment found (compound commands can contain several).
@@ -255,7 +268,8 @@ export function parseInstallCommands(command: string): ParsedInstall[] {
           version = cleaned.slice(at + 1) || null;
         }
       }
-      if (name) packages.push({ name, version });
+      const bare = withoutExtras(name, manager);
+      if (bare) packages.push({ name: bare, version });
     }
     out.push({ manager, packages });
     m = INSTALL_RE.exec(command);

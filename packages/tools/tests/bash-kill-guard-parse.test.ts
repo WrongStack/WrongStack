@@ -470,3 +470,37 @@ describe('parseKillCommand', () => {
     expect(parseKillCommand('npm install kill-package')).toBeNull();
   });
 });
+
+/**
+ * `killall`/`pkill` are POSIX name-kill verbs, but a bash tool can run them
+ * through Git Bash/WSL on a Windows host and the guard documents coverage for
+ * both. Routing every Windows command to the Windows parser left the name
+ * unresolved, so `killall -9 <runtime>` was allowed on win32.
+ */
+describe('POSIX name-kill verbs are evaluated on every host', () => {
+  const image = (process.execPath.split(/[\\/]/).pop() ?? '').toLowerCase().replace(/\.exe$/, '');
+  const guard = () => import('../src/bash-kill-guard.js').then((m) => m.checkAndBlockKillCommand);
+
+  it('blocks killall and pkill that select this runtime', async () => {
+    expect((await (await guard())(`killall -9 ${image}`)).blocked).toBe(true);
+    expect((await (await guard())(`pkill -9 -f ${image}`)).blocked).toBe(true);
+  });
+
+  // Piped process-object method invocation names no kill VERB, so this layer
+  // found no kill command and allowed `Get-Process <runtime> | % { $_.Kill() }`,
+  // which terminates every process the pipe carries. Resolved INSIDE the test:
+  // a collection-time image would name a different binary than the guard sees.
+  it('blocks %/ForEach-Object/foreach { $_.Kill() } on the piped runtime', async () => {
+    const runtimeImage = (process.execPath.split(/[\\/]/).pop() ?? '')
+      .toLowerCase()
+      .replace(/\.exe$/, '');
+    for (const verb of ['%', 'ForEach-Object', 'foreach']) {
+      const command = `Get-Process ${runtimeImage} | ${verb} { $_.Kill() }`;
+      expect((await (await guard())(command)).blocked, command).toBe(true);
+    }
+  });
+
+  it('keeps an unrelated POSIX name kill allowed', async () => {
+    expect((await (await guard())('killall -9 some-other-daemon')).blocked).toBe(false);
+  });
+});

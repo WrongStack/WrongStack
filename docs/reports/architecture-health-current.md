@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-22T16:23:41.545Z
+**Generated:** 2026-11-22T16:25:42.495Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 50 |
 | Production source files | 6485 |
-| Production source lines | 1324908 |
-| Test files | 5662 |
+| Production source lines | 1325113 |
+| Test files | 5667 |
 | Workspace dependency edges | 259 |
 | Relative module edges | 18946 |
 | Non-command slash imports | 0 |
@@ -53,7 +53,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/persistence | 10 | 27 | — |
 | @wrongstack/plug-lsp | 52 | 63 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugin-sdk | 12 | 12 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
-| @wrongstack/plugins | 156 | 146 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
+| @wrongstack/plugins | 156 | 148 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 27 | 45 | — |
 | @wrongstack/project-surfaces | 262 | 32 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers, @wrongstack/tools |
 | @wrongstack/providers | 138 | 132 | @wrongstack/contracts, @wrongstack/core |
@@ -66,7 +66,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/security-scanner | 21 | 35 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/techstack | 55 | 68 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 28 | 46 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
-| @wrongstack/tools | 347 | 386 | @wrongstack/agent-catalog, @wrongstack/browser-tools, @wrongstack/codebase, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/tools | 347 | 389 | @wrongstack/agent-catalog, @wrongstack/browser-tools, @wrongstack/codebase, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 517 | 458 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 18 | 29 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/vibeui | 100 | 42 | @wrongstack/webui-protocol |
@@ -135,13 +135,13 @@ None.
 | 744 | `packages/webui-server/src/server/completion-handlers.ts` |
 | 741 | `packages/builtin-plugins/src/auto-review-plugin.ts` |
 | 741 | `packages/project-surfaces/src/analytics/AnalyticsDashboard.tsx` |
+| 739 | `packages/tools/src/bash-kill-guard.ts` |
 | 733 | `packages/vibeui/src/components/provider-manager.tsx` |
 | 732 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 | 730 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
 | 730 | `packages/acp/src/agent/server-agent-turn.ts` |
 | 726 | `packages/coordination/src/multi-agent-coordinator.ts` |
-| 724 | `packages/coordination/src/agent-monitor.ts` |
-| 723 | `packages/acp/src/agent/protocol-session-management.ts` |
+| 725 | `packages/plugins/src/branch-guard/index.ts` |
 
 ## Exports only tests reference
 

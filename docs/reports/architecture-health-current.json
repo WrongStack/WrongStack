@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T16:23:41.545Z",
+  "generatedAt": "2026-11-22T16:25:42.495Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 50,
     "sourceFiles": 6485,
-    "testFiles": 5662,
-    "sourceLines": 1324908,
+    "testFiles": 5667,
+    "sourceLines": 1325113,
     "workspaceEdges": 259,
     "moduleEdges": 18946,
     "nonCommandSlashImports": 0,
@@ -735,7 +735,7 @@
       "name": "@wrongstack/plugins",
       "dir": "packages/plugins",
       "sourceFiles": 156,
-      "testFiles": 146,
+      "testFiles": 148,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -753,7 +753,7 @@
         {
           "path": "packages/plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 146
+          "testFiles": 148
         }
       ]
     },
@@ -1061,7 +1061,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 347,
-      "testFiles": 386,
+      "testFiles": 389,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/browser-tools",
@@ -1082,7 +1082,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 386
+          "testFiles": 389
         }
       ]
     },
@@ -18854,6 +18854,12 @@
         ]
       },
       {
+        "file": "packages/plugins/tests/branch-guard-cross-repo-worktree.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plugins/tests/branch-guard-extra.test.ts",
         "projects": [
           "root-node"
@@ -19155,6 +19161,12 @@
       },
       {
         "file": "packages/plugins/tests/injection-shield.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugins/tests/license-audit-gate-cd-quoted-dir.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24806,6 +24818,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/exec-kill-guard-cim-terminate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/exec-kill-guard-group-kill.test.ts",
         "projects": [
           "root-node"
@@ -25179,6 +25197,18 @@
       },
       {
         "file": "packages/tools/tests/kanban-worklist-integration.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/kill-guard-pipeline-method-kill.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/kill-guard-pipeline-selector.test.ts",
         "projects": [
           "root-node"
         ]
@@ -36494,6 +36524,11 @@
       "relativeImports": 0
     },
     {
+      "file": "packages/plugins/src/branch-guard/index.ts",
+      "lines": 725,
+      "relativeImports": 1
+    },
+    {
       "file": "packages/project-surfaces/src/analytics/AnalyticsDashboard.tsx",
       "lines": 741,
       "relativeImports": 6
@@ -36522,6 +36557,11 @@
       "file": "packages/sage/src/types.ts",
       "lines": 708,
       "relativeImports": 12
+    },
+    {
+      "file": "packages/tools/src/bash-kill-guard.ts",
+      "lines": 739,
+      "relativeImports": 5
     },
     {
       "file": "packages/tools/src/codebase-index/ast-symbol-mutator.ts",
@@ -36941,6 +36981,11 @@
       "relativeImports": 6
     },
     {
+      "file": "packages/tools/src/bash-kill-guard.ts",
+      "lines": 739,
+      "relativeImports": 5
+    },
+    {
       "file": "packages/vibeui/src/components/provider-manager.tsx",
       "lines": 733,
       "relativeImports": 6
@@ -36966,14 +37011,9 @@
       "relativeImports": 13
     },
     {
-      "file": "packages/coordination/src/agent-monitor.ts",
-      "lines": 724,
+      "file": "packages/plugins/src/branch-guard/index.ts",
+      "lines": 725,
       "relativeImports": 1
-    },
-    {
-      "file": "packages/acp/src/agent/protocol-session-management.ts",
-      "lines": 723,
-      "relativeImports": 2
     }
   ],
   "testOnlyExports": [

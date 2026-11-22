@@ -294,7 +294,9 @@ describe('parseInstallCommands', () => {
       { name: 'foo', version: '~=1.0' },
     ]);
     expect(parseInstallCommands('pip install "foo[bar]>=1.0"')[0]?.packages).toEqual([
-      { name: 'foo[bar]', version: '>=1.0' },
+      // PEP 508 extras are not part of the distribution name: the deny/allow,
+      // typosquat, registry and license checks all key on this value.
+      { name: 'foo', version: '>=1.0' },
     ]);
     expect(parseInstallCommands('cargo add foo@^1.0')[0]?.packages).toEqual([
       { name: 'foo', version: '^1.0' },

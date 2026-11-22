@@ -130,6 +130,10 @@
       "lines": 716,
       "relativeImports": 0
     },
+    "packages/plugins/src/branch-guard/index.ts": {
+      "lines": 725,
+      "relativeImports": 1
+    },
     "packages/project-surfaces/src/analytics/AnalyticsDashboard.tsx": {
       "lines": 741,
       "relativeImports": 6
@@ -153,6 +157,10 @@
     "packages/sage/src/types.ts": {
       "lines": 708,
       "relativeImports": 12
+    },
+    "packages/tools/src/bash-kill-guard.ts": {
+      "lines": 739,
+      "relativeImports": 5
     },
     "packages/tools/src/codebase-index/ast-symbol-mutator.ts": {
       "lines": 703,

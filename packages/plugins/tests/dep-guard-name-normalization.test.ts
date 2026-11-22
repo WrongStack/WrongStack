@@ -99,6 +99,25 @@ describe('dep-guard deny/allow binds canonical-equivalent names (F18)', () => {
     expect((await run('npm i react', { deny: ['evil-pkg'] }))?.decision).not.toBe('block');
   });
 
+  it('extras never bypass a deny entry', async () => {
+    // `pip install evil-pkg[security]` / `uv add evil-pkg[cli]` install the
+    // distribution the deny list names. When extras stayed in the parsed name
+    // the deny entry matched nothing and the install ran unchecked.
+    expect((await run('pip install evil-pkg[security]', { deny: ['evil-pkg'] }))?.decision).toBe(
+      'block',
+    );
+    expect((await run('pip install Evil_Pkg[dev]==1.0', { deny: ['evil-pkg'] }))?.decision).toBe(
+      'block',
+    );
+    expect((await run('uv add evil-pkg[cli]', { deny: ['evil-pkg'] }))?.decision).toBe('block');
+    // Prefix globs stay effective through the extras spelling.
+    expect((await run('pip install evil-pkg[x]', { deny: ['evil-*'] }))?.decision).toBe('block');
+    // Control: extras on an unrelated package are still not blocked.
+    expect(
+      (await run('pip install benign-pkg[security]', { deny: ['evil-pkg'] }))?.decision,
+    ).not.toBe('block');
+  });
+
   it('registry isAllowed skips the allow-listed equivalent spelling (no registry ask)', async () => {
     const fetchMock = vi.fn(async () => new Response('{}', { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);

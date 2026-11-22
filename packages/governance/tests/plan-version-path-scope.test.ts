@@ -203,4 +203,38 @@ describe('plan path scope with dot segments', () => {
     });
     expect(blankReadOnly.valid).toBe(false);
   });
+
+  it('refuses deniedPaths globs the plan matcher cannot match instead of denying nothing (F1240)', async () => {
+    const { validateTaskContractV1 } = await import('../src/index.js');
+    const target = 'packages/governance/secrets/key.pem';
+    expect(
+      valid(target, contract(['packages/governance/**'], ['packages/governance/**/*.pem'])),
+    ).toBe(false);
+    expect(valid('prod.env', contract(['**'], ['*.env']))).toBe(false);
+    expect(valid('config/prod.env', contract(['**'], ['config/{prod,staging}.env']))).toBe(false);
+    expect(valid('app/[id]/secret.txt', contract(['**'], ['app/[id]/secret.txt']))).toBe(false);
+
+    const refused = validateTaskContractV1(contract(['**'], ['secrets/key.pe?']));
+    expect(refused.valid).toBe(false);
+    if (!refused.valid) {
+      expect(refused.issues.some((i) => i.path === 'autonomy.deniedPaths')).toBe(true);
+    }
+    for (const denied of [
+      'packages/governance/secrets/**',
+      'packages/governance/secrets/*',
+      'packages/governance/secrets/key.pem',
+    ]) {
+      expect(validateTaskContractV1(contract(['packages/governance/**'], [denied])).valid).toBe(
+        true,
+      );
+    }
+  });
+
+  it('treats the directory a dir/* deny names as overlapping it, like every higher ancestor (F1241)', () => {
+    const denied = contract(['packages/governance/**'], ['packages/governance/secrets/*']);
+    expect(valid('packages/governance/secrets', denied)).toBe(false);
+    expect(valid('packages/governance/secrets/', denied)).toBe(false);
+    expect(valid('packages/governance', denied)).toBe(false);
+    expect(valid('packages/governance/secretsx', denied)).toBe(true);
+  });
 });

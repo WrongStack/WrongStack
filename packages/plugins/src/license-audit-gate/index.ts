@@ -205,9 +205,17 @@ function auditTargets(command: string, cwd: string): AuditTarget[] {
       if (segment.endsWith(')')) closes++;
       segment = segment.slice(0, -1).trim();
     }
-    const cd = /^(?:cd|pushd)\s+(?:--\s+)?(\S+)$/.exec(segment);
-    if (cd?.[1]) {
-      dir = resolve(dir, unquote(cd[1]));
+    // A `cd` target may be quoted, and a quoted path may contain spaces
+    // (`cd "my app"`). Capturing `\S+` matched neither: the segment fell
+    // through as "not a cd", the audit kept the original directory, and a
+    // disallowed package installed into that sub-package passed whenever the
+    // root held an allowed copy — the exact failure mode this function exists
+    // to prevent. A quoted run is one target; two bare words are not a `cd`
+    // at all (both shells reject it), so they stay ignored.
+    const cd = /^(?:cd|pushd)\s+(?:--\s+)?(?:"([^"]*)"|'([^']*)'|(\S+))$/.exec(segment);
+    const cdTarget = cd?.[1] ?? cd?.[2] ?? cd?.[3];
+    if (cdTarget) {
+      dir = resolve(dir, unquote(cdTarget));
     } else {
       for (const entry of parseInstallCommands(segment)) {
         if (!AUDITABLE_MANAGERS.has(entry.manager)) continue;

@@ -219,7 +219,9 @@ function pathOverlapsDeniedPattern(value: string, pattern: string): boolean {
   if (pathMatchesPattern(value, pattern)) return true;
   const path = normalizePath(value);
   const deniedPrefix = deniedPatternPrefix(pattern);
-  return deniedPrefix.length > 0 && deniedPrefix.startsWith(`${path}/`);
+  // The directory a `dir/*` deny names holds the denied entries, as any higher
+  // ancestor does; `dir/**` already covers `dir` itself through the match above.
+  return deniedPrefix.length > 0 && (path === deniedPrefix || deniedPrefix.startsWith(`${path}/`));
 }
 
 function pathIsAllowed(contract: TaskContractV1, value: string): boolean {

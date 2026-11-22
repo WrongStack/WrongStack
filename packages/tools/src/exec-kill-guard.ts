@@ -26,7 +26,11 @@ import {
   pidFilterMatches,
   splitShellSequence,
 } from './bash-kill-detect.js';
-import { wildcardNameMatches } from './bash-kill-guard.js';
+import {
+  pipelineKillSelector,
+  pipelineSelectorTargetsThisRuntime,
+  wildcardNameMatches,
+} from './bash-kill-guard.js';
 import { getPersistentProcessRegistry } from './process-registry-persistent.js';
 
 const isWin = os.platform() === 'win32';
@@ -56,6 +60,16 @@ export async function checkExecKillCommand(
     .replace(/^.*[\\/]/, '')
     .replace(/\.exe$/, '');
   const fullCommand = [cmdLower, ...args].join(' ').replace(/\s+/g, ' ').trim();
+  // Mirror of bash-kill-guard's pipeline rule: `Get-Process bun | Stop-Process
+  // -Force` (here as a `-Command` payload) names no PID of its own, so an empty
+  // target set must not read as "this is not a kill".
+  const pipelineSelector = pipelineKillSelector(fullCommand);
+  if (pipelineSelector !== null && pipelineSelectorTargetsThisRuntime(pipelineSelector)) {
+    return {
+      blocked: true,
+      reason: 'Blocked: pipeline-fed Stop-Process would terminate this WrongStack process.',
+    };
+  }
   // cmd expands %ComSpec% to its own path (PowerShell does the same for
   // $env:ComSpec), so `cmd /c %ComSpec% /c taskkill …` runs the kill in a
   // nested interpreter of the same kind. Treat the variable as the launcher it
@@ -89,7 +103,13 @@ export async function checkExecKillCommand(
   }
 
   // On Windows, check for taskkill, Stop-Process, wmic kill
-  if (isWin) {
+  // `pkill`/`killall` are POSIX name-kill verbs: the exec tool can run them
+  // through Git Bash/WSL on a Windows host, and the guard documents coverage
+  // for both. Routing them to the Windows parser (which has no branch for them)
+  // left the name unresolved and `pkill -9 <runtime>` allowed. Mirror of the
+  // same gate in bash-kill-guard.
+  const posixNameKillVerb = cmdLower === 'pkill' || cmdLower === 'killall';
+  if (isWin && !posixNameKillVerb) {
     // taskkill /IM node.exe or taskkill /F /PID 1234
     if (cmdLower === 'taskkill' || cmdLower === 'taskkill.exe') {
       const hasForce = args.some((a) => a.toUpperCase() === '/F' || a.toUpperCase() === '-F');
@@ -169,6 +189,48 @@ export async function checkExecKillCommand(
       // If it's taskkill with /IM but we didn't match a specific name,
       // still be conservative if it targets processes broadly
       return { blocked: false };
+    }
+
+    // CIM/WMI method invocation — the modern spelling of
+    // `wmic process … call terminate`: `Get-CimInstance Win32_Process -Filter
+    // "ProcessId=123" | Invoke-CimMethod -MethodName Terminate`. Layer 1 blocks
+    // it only through its kill-shaped fallback, so this layer returned allow and
+    // `exec pwsh -Command <that>` terminated the running process. Evaluated
+    // against the same protected set as the wmic/taskkill branches.
+    const terminateMethod =
+      /\b(?:Invoke-CimMethod|Invoke-WmiMethod)\b[^\n]*\bTerminate\b/i.test(fullCommand) ||
+      /\bRemove-CimInstance\b[^\n]*\bWin32_Process\b/i.test(fullCommand);
+    if (terminateMethod) {
+      let resolvedTarget = false;
+      const pidFilter = /ProcessId\s*=\s*['"]?(\d+)/i.exec(fullCommand);
+      if (pidFilter?.[1]) {
+        resolvedTarget = true;
+        const result = await checkKillTarget({
+          pid: parseInt(pidFilter[1], 10),
+          signal: 'FORCE',
+          cmd: fullCommand,
+        });
+        if (result.blocked) return result;
+      }
+      const nameFilter = /\bName\s*=\s*['"]?([A-Za-z0-9_.*-]+)/i.exec(fullCommand);
+      if (nameFilter?.[1]) {
+        resolvedTarget = true;
+        const result = await checkKillTarget({
+          name: nameFilter[1],
+          signal: 'FORCE',
+          cmd: fullCommand,
+        });
+        if (result.blocked) return result;
+      }
+      // Only an UNRESOLVED target is blocked here: a resolved but unrelated PID
+      // or name is an ordinary allowed operation, as in every other branch.
+      // Layer 1 treats kill-shaped text it cannot parse as blocked; mirror it.
+      if (!resolvedTarget) {
+        return {
+          blocked: true,
+          reason: `Blocked: CIM/WMI process termination with an unresolved target (${fullCommand.slice(0, 80)}).`,
+        };
+      }
     }
 
     // Shell indirection: inspect the command after cmd /c or PowerShell
