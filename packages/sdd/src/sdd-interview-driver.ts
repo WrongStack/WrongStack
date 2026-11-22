@@ -437,13 +437,17 @@ export class SddInterviewDriver {
     valid.forEach((task, i) => {
       const node = addTaskToTracker(tracker, task);
       created.push({ nodeId: node.id, task });
-      if (typeof task.id === 'string' && task.id.trim()) {
-        refMap.set(task.id.trim().toLowerCase(), node.id);
-      }
       refMap.set(`t${i + 1}`, node.id);
       refMap.set(String(i + 1), node.id);
       refMap.set(normalizeTaskRef(String(task.title)), node.id);
     });
+    // Declared ids are what `dependsOn` names; registered last so a later
+    // task's positional or title alias can never shadow one.
+    for (const { nodeId, task } of created) {
+      if (typeof task.id === 'string' && task.id.trim()) {
+        refMap.set(task.id.trim().toLowerCase(), nodeId);
+      }
+    }
     for (const { nodeId, task } of created) {
       const deps = Array.isArray(task.dependsOn) ? task.dependsOn : [];
       for (const ref of deps) {

@@ -7,6 +7,7 @@
  * folded into the project context the questioning prompt receives. Nothing
  * here rewrites or summarizes the original request — it only routes it.
  */
+import { truncate } from '@wrongstack/core/utils';
 import type { RequirementIntakeRecord } from '@wrongstack/requirement-intake';
 import type { SddInterviewDriver } from './sdd-interview-driver.js';
 
@@ -18,7 +19,8 @@ function deriveTitle(value: string): string {
     .find(Boolean);
   if (!firstLine) return 'New SDD Project';
   const sentence = firstLine.split(/(?<=[.!?])\s/)[0]!;
-  return sentence.length <= 64 ? sentence : `${sentence.slice(0, 63).trimEnd()}…`;
+  // `truncate` backs off a split surrogate pair; re-trim before the ellipsis.
+  return sentence.length <= 64 ? sentence : `${truncate(sentence, 64).slice(0, -1).trimEnd()}…`;
 }
 
 export interface IntakeInterviewKickoff {

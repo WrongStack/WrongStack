@@ -147,9 +147,18 @@ export interface LlmConflictResolverOptions {
   io?: ConflictFileIO;
 }
 
-/** Strip a single surrounding ``` code fence (any/no language) if present. */
-function unfence(text: string): string {
-  const m = text.match(/^[\s\S]*?```[^\n]*\n([\s\S]*)\n```[\s\S]*$/);
+/**
+ * Strip a single surrounding ``` code fence (any/no language) if present.
+ * Prose around a fence is tolerated only when `original` has no fence lines of
+ * its own: otherwise an unwrapped Markdown reply would lose everything before
+ * its first and after its last inner code block.
+ */
+function unfence(text: string, original: string): string {
+  const wrapped = text.match(/^\s*```[^\n]*\n([\s\S]*)\n```\s*$/);
+  if (wrapped?.[1] !== undefined) return wrapped[1];
+  const m = /^\s*```/m.test(original)
+    ? null
+    : text.match(/^[\s\S]*?```[^\n]*\n([\s\S]*)\n```[\s\S]*$/);
   return m?.[1] !== undefined ? m[1] : text.trim();
 }
 
@@ -201,7 +210,7 @@ export function makeLlmConflictResolver(opts: LlmConflictResolverOptions) {
       } catch {
         return false;
       }
-      const resolved = unfence(out ?? '');
+      const resolved = unfence(out ?? '', content);
       if (!resolved.trim() || hasConflictMarkers(resolved)) return false;
       // Content-drop guard: a resolution far smaller than the original almost
       // certainly lost real work — abort rather than write it.

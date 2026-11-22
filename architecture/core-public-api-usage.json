@@ -154,9 +154,9 @@
       "runtimeOrMixed": 197
     },
     "@wrongstack/core/tasking": {
-      "files": 47,
+      "files": 48,
       "typeOnly": 20,
-      "runtimeOrMixed": 29
+      "runtimeOrMixed": 30
     },
     "@wrongstack/core/typesafe": {
       "files": 33,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1007,
+      "files": 1009,
       "typeOnly": 77,
-      "runtimeOrMixed": 965
+      "runtimeOrMixed": 967
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -11381,6 +11381,12 @@
     },
     {
       "specifier": "@wrongstack/core/tasking",
+      "file": "packages/sdd/tests/sdd-board-projector-surrogate.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/tasking",
       "file": "packages/sdd/tests/sdd-board-projector.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -15696,6 +15702,18 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/sdd/src/decompose-task.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/sdd/src/intake-kickoff.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/sdd/src/sdd-board-projector.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

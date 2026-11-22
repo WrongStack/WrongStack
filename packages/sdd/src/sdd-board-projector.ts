@@ -17,6 +17,7 @@ import type { EventBus, EventMap } from '@wrongstack/contracts/kernel';
 import type { SecretScrubber, TaskGraph } from '@wrongstack/contracts/types';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import type { TaskTracker } from '@wrongstack/core/tasking';
+import { truncate } from '@wrongstack/core/utils';
 import {
   buildBoardSnapshot,
   type SddBoardFeedEntry,
@@ -45,7 +46,7 @@ function summarizeToolInput(input: unknown, scrubber: SecretScrubber): string | 
     const value = record[key];
     if (typeof value === 'string' && value.trim()) {
       const compact = scrubber.scrub(value).replace(/\s+/g, ' ').trim();
-      return compact.length > 240 ? `${compact.slice(0, 239)}…` : compact;
+      return truncate(compact, 240);
     }
   }
   if (typeof record['command'] === 'string' || typeof record['cmd'] === 'string') {
@@ -374,7 +375,7 @@ export class SddBoardProjector {
   private titleOf(taskId: string): string {
     const t = this.o.graph.nodes.get(taskId)?.title;
     if (!t) return '';
-    return ` (${t.length > 40 ? `${t.slice(0, 39)}…` : t})`;
+    return ` (${truncate(t, 40)})`;
   }
 
   private assigneeOf(taskId: string): string | undefined {

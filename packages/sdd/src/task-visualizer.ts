@@ -93,7 +93,10 @@ export function renderTaskGraph(
 
   // Legend
   lines.push('');
-  lines.push('Legend: ● done ◐ in-progress ○ pending ⊗ blocked ✗ failed ◒ review');
+  const s = STATUS_ICON;
+  lines.push(
+    `Legend: ${s.completed} done ${s.in_progress} in-progress ${s.pending} pending ${s.blocked} blocked ${s.failed} failed ${s.review} review`,
+  );
 
   return lines.join('\n');
 }
