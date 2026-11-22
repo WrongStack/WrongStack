@@ -311,8 +311,8 @@
       "relativeImports": 19
     },
     "apps/desktop-v2/src/WrongStackSettings.tsx": {
-      "lines": 780,
-      "relativeImports": 47
+      "lines": 781,
+      "relativeImports": 48
     }
   }
 }

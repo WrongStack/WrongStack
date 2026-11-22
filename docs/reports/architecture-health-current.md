@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-22T11:27:43.224Z
+**Generated:** 2026-11-22T12:31:23.443Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 49 |
-| Production source files | 6410 |
-| Production source lines | 1323314 |
-| Test files | 5633 |
+| Production source files | 6411 |
+| Production source lines | 1323340 |
+| Test files | 5634 |
 | Workspace dependency edges | 255 |
-| Relative module edges | 18947 |
+| Relative module edges | 18948 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -39,7 +39,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/contracts | 133 | 6 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 193 | 203 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 663 | 741 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 559 | 403 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 560 | 404 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 63 | 21 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 24 | 30 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 38 | @wrongstack/persistence |
@@ -118,7 +118,7 @@ None.
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
 | 792 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
 | 786 | `packages/vibeui/src/lib/use-session.ts` |
-| 780 | `apps/desktop-v2/src/WrongStackSettings.tsx` |
+| 781 | `apps/desktop-v2/src/WrongStackSettings.tsx` |
 | 780 | `packages/tools/src/design.ts` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
 | 771 | `packages/acp/src/client/acp-session.ts` |

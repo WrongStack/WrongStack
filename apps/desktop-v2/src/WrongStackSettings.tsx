@@ -83,6 +83,7 @@ import {
   settingValue,
   writeOnlySettings,
 } from './settings-fields';
+import { useInitialSettingsSection } from './settings-initial-section';
 import { useReportSettingsSection, useRequestedSettingsSection } from './settings-section-request';
 import type { DesktopController } from './useDesktop';
 import { useProfileEngine } from './useEngine';
@@ -209,7 +210,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
     document: null,
     text: '',
   });
-  const [section, setSection] = useState(() => (state.needsSetup ? 'setup' : 'providers')),
+  const [section, setSection] = useInitialSettingsSection(state),
     [base, setBase] = useState<Record<string, unknown>>({}),
     [draft, setDraft] = useState<Record<string, unknown>>({}),
     [busy, setBusy] = useState(false),
