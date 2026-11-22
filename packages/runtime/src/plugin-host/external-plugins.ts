@@ -539,6 +539,8 @@ async function summarizePluginSourceForDiff(
     const entries = await readdir(parentDir, { withFileTypes: true });
     const summaries: string[] = [];
     let totalLines = 0;
+    // Only the first 8 names are listed; the count must cover every file summed.
+    let fileCount = 0;
     for (const ent of entries) {
       if (!ent.isFile() || !/\.(m?ts|c?ts|m?js|cjs|json)$/i.test(ent.name)) continue;
       const filePath = join(parentDir, ent.name);
@@ -547,11 +549,12 @@ async function summarizePluginSourceForDiff(
       const text = await readFile(filePath, 'utf8');
       const lineCount = text.split(/\r?\n/).length;
       totalLines += lineCount;
+      fileCount += 1;
       if (summaries.length < 8) {
         summaries.push(`${relative(parentDir, filePath)} (${lineCount}L)`);
       }
     }
-    return `Directory closure (${summaries.length} files, ${totalLines} total lines): ${summaries.join(', ')}`;
+    return `Directory closure (${fileCount} files, ${totalLines} total lines): ${summaries.join(', ')}`;
   } catch {
     return `Entry: ${entryPath}`;
   }

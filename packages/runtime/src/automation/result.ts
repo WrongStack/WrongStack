@@ -143,9 +143,20 @@ function decodeGitPath(raw: string): string {
       const escaped = raw[++i]!;
       bytes.push(
         Buffer.from(
-          ({ t: '\t', n: '\n', r: '\r', '\\': '\\', '"': '"' } as Record<string, string>)[
-            escaped
-          ] ?? escaped,
+          // Every escape Git's quote_c_style writes, including \a \b \v \f.
+          (
+            {
+              a: '\x07',
+              b: '\b',
+              t: '\t',
+              n: '\n',
+              v: '\v',
+              f: '\f',
+              r: '\r',
+              '\\': '\\',
+              '"': '"',
+            } as Record<string, string>
+          )[escaped] ?? escaped,
         ),
       );
     } else {

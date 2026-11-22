@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T14:05:59.531Z",
+  "generatedAt": "2026-11-22T14:10:30.600Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 49,
     "sourceFiles": 6411,
-    "testFiles": 5644,
-    "sourceLines": 1323535,
+    "testFiles": 5649,
+    "sourceLines": 1323575,
     "workspaceEdges": 255,
     "moduleEdges": 18948,
     "nonCommandSlashImports": 0,
@@ -853,7 +853,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 126,
-      "testFiles": 70,
+      "testFiles": 75,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -887,7 +887,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 70
+          "testFiles": 75
         }
       ]
     },
@@ -20971,6 +20971,18 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/acp-leader-earlier-conversation-surrogate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/acp-leader-host-binding-approved-throw.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/acp-leader-host-state.test.ts",
         "projects": [
           "root-node"
@@ -21038,6 +21050,12 @@
       },
       {
         "file": "packages/runtime/tests/automation-reenable-schedule.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/automation-result-cquote-escapes.test.ts",
         "projects": [
           "root-node"
         ]
@@ -21277,6 +21295,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/plugin-trust-repin-diff-count.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/plugin-watch-dispose.test.ts",
         "projects": [
           "root-node"
@@ -21338,6 +21362,12 @@
       },
       {
         "file": "packages/runtime/tests/tree-command.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/ts-module-loader-lazy-import.test.ts",
         "projects": [
           "root-node"
         ]

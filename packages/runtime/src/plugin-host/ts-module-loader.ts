@@ -264,6 +264,9 @@ async function importTypeScriptViaNodeFallback(
 
   const visited = new Map<string, string>();
   const pendingWrites: Promise<void>[] = [];
+  // A rewritten `import('./…')` resolves inside tempDir whenever the plugin
+  // runs it, usually after this load returned; deleting tempDir then breaks it.
+  let keepClosure = false;
 
   const emitLocalModule = async (sourcePath: string): Promise<string> => {
     const canonical = resolve(sourcePath);
@@ -317,6 +320,7 @@ async function importTypeScriptViaNodeFallback(
       specifierPattern,
       (_full, prefix: string, spec: string, suffix: string) => {
         const mapped = rewriteTable.get(spec);
+        if (mapped?.startsWith('./') && prefix.includes('(')) keepClosure = true;
         return mapped ? `${prefix}${mapped}${suffix}` : `${prefix}${spec}${suffix}`;
       },
     );
@@ -327,12 +331,17 @@ async function importTypeScriptViaNodeFallback(
     return outName;
   };
 
+  let loaded = false;
   try {
     const entryRelOut = await emitLocalModule(normalizedEntry);
     await Promise.all(pendingWrites);
-    return await import(pathToFileURL(resolve(tempDir, entryRelOut)).href);
+    const mod = await import(pathToFileURL(resolve(tempDir, entryRelOut)).href);
+    loaded = true;
+    return mod;
   } finally {
-    await rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
+    if (!loaded || !keepClosure) {
+      await rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
+    }
   }
 }
 

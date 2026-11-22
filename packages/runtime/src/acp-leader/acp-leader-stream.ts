@@ -249,7 +249,13 @@ export function earlierConversation(
   if (lines.length === 0) return undefined;
   let body = lines.join('\n\n');
   const trimmed = body.length > maxChars;
-  if (trimmed) body = body.slice(body.length - maxChars);
+  if (trimmed) {
+    // As clip() does at its end: never keep the low half of a split surrogate pair.
+    let start = body.length - maxChars;
+    const first = body.charCodeAt(start);
+    if (first >= 0xdc00 && first <= 0xdfff) start += 1;
+    body = body.slice(start);
+  }
   return [
     '<earlier-conversation>',
     'The conversation in this session before you joined it, from WrongStack. Text only: tool',

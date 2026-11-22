@@ -72,14 +72,25 @@ export function createAcpLeaderHost(opts: AcpLeaderHostOptions): AcpLeaderHost {
           settle(content, false, 'declined');
           return { content, isError: true };
         }
-        result = (
-          await agent.toolExecutor.executeTool(
-            tool,
-            approved,
-            agent.ctx,
-            agent.perIterationOutputCapBytes,
-          )
-        ).block;
+        try {
+          result = (
+            await agent.toolExecutor.executeTool(
+              tool,
+              approved,
+              agent.ctx,
+              agent.perIterationOutputCapBytes,
+            )
+          ).block;
+        } catch (err) {
+          // executeTool rethrows a tool's exception; as core's confirmed re-run does,
+          // answer with an error result so the announced card is still settled.
+          result = {
+            type: 'tool_result',
+            tool_use_id: use.id,
+            content: `Tool "${name}" threw: ${err instanceof Error ? err.message : String(err)}`,
+            is_error: true,
+          };
+        }
       }
       if (!result) {
         const content = `${name} returned no result.`;
