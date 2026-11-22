@@ -102,6 +102,17 @@ export async function exerciseNativeConversation({
   assert.equal(await card.getByRole('radio', { name: 'React', exact: true }).isChecked(), true);
   assert.equal(await card.getByRole('checkbox', { name: 'Chat', exact: true }).isChecked(), true);
   await page.setViewportSize({ width: 800, height: 640 });
+  // Measure once the shell (min-height: 100vh) has taken the new viewport; an early read
+  // saw it 28px short of the window.
+  await waitFor(
+    () =>
+      page.evaluate(() => {
+        const shell = document.getElementById('root')?.firstElementChild;
+        return !!shell && shell.getBoundingClientRect().bottom >= innerHeight - 1;
+      }),
+    'Shell fills the compact viewport',
+    10000,
+  );
   const questionPane = await page.locator('.native-chat-messages').boundingBox();
   assert.ok(
     questionPane.height >= 200,

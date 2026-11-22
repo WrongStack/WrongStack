@@ -96,7 +96,8 @@ export async function exerciseNativeProfileModelPolicy({
     const modelButton = (id) =>
       picker
         .locator('.composer-model-list > button')
-        .filter({ has: page.locator('small', { hasText: id }) });
+        // The id is the row title when it is also the name, otherwise the line under it.
+        .filter({ has: page.getByText(id, { exact: true }) });
     await modelButton(alt).waitFor();
     assert.ok(
       (await picker.locator('.composer-model-list > button').first().innerText()).includes(alt),
