@@ -12,6 +12,7 @@
  * policy would still confirm goes to the client as a permission request.
  */
 
+import * as path from 'node:path';
 import type { RunTurnApi, WrongStackACPServerOptions } from '@wrongstack/acp/agent';
 import type { PermissionDecision, PermissionPolicy, Tool } from '@wrongstack/contracts/types';
 import type { AgentContext } from '@wrongstack/contracts/types/context';
@@ -162,7 +163,7 @@ export class ACPClientPermissionPolicy implements PermissionPolicy {
     }
     if (verdict?.permission === 'auto') {
       if (mode === 'yolo') return { permission: 'auto', source: 'yolo' };
-      if (mode === 'auto-edit' && isProjectEdit(tool))
+      if (mode === 'auto-edit' && isProjectEdit(tool) && editsInsideProject(input, ctx))
         return { permission: 'auto', source: 'default' };
     }
     return this.ask(tool, input, exactKey, verdict?.reason);
@@ -262,6 +263,38 @@ function isProjectEdit(tool: Tool): boolean {
     caps.every((c) => c === ToolCapabilities.FS_WRITE || SAFE_CAPS.has(c)) &&
     permissionToolKind(tool.name) !== 'delete'
   );
+}
+
+const PATH_KEYS = ['path', 'file', 'file_path', 'filePath'] as const;
+
+/**
+ * Every path the call names resolves inside the session's project root. A call
+ * whose target cannot be read (no path field) is not an auto-edit: it asks.
+ */
+function editsInsideProject(input: unknown, ctx: AgentContext | undefined): boolean {
+  const root = ctx?.projectRoot;
+  if (!root || !input || typeof input !== 'object') return false;
+  const targets: string[] = [];
+  const collect = (record: Record<string, unknown>): void => {
+    for (const key of PATH_KEYS) {
+      const value = record[key];
+      if (typeof value === 'string' && value.length > 0) targets.push(value);
+    }
+  };
+  collect(input as Record<string, unknown>);
+  for (const list of ['edits', 'files'] as const) {
+    const items = (input as Record<string, unknown>)[list];
+    if (!Array.isArray(items)) continue;
+    for (const item of items) {
+      if (item && typeof item === 'object') collect(item as Record<string, unknown>);
+    }
+  }
+  if (targets.length === 0) return false;
+  const base = path.resolve(root);
+  return targets.every((target) => {
+    const rel = path.relative(base, path.resolve(ctx.cwd ?? base, target));
+    return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+  });
 }
 
 function stableJson(value: unknown): string {

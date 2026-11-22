@@ -165,8 +165,8 @@
     },
     "@wrongstack/core/utils": {
       "files": 1012,
-      "typeOnly": 77,
-      "runtimeOrMixed": 970
+      "typeOnly": 76,
+      "runtimeOrMixed": 971
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -12174,8 +12174,8 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/acp-server-agent.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",

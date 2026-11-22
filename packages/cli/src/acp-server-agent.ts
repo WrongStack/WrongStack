@@ -30,7 +30,7 @@ import { createModelRuntimeMiddleware, ToolExecutor } from '@wrongstack/core/exe
 import { DefaultLogger, DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import { ToolRegistry } from '@wrongstack/core/registry';
 import { AutoApprovePermissionPolicy } from '@wrongstack/core/security';
-import type { WstackPaths } from '@wrongstack/core/utils';
+import { resolveWstackPaths, type WstackPaths } from '@wrongstack/core/utils';
 import { WRONGFORGE_REASONING } from '@wrongstack/fleet';
 import { type MCPRegistry, mcpServerInstructionsSection } from '@wrongstack/mcp';
 import { catalogProviderIdFor, withCatalogCapabilities } from '@wrongstack/providers';
@@ -313,7 +313,8 @@ export function buildAcpServerAgentFactory(
     try {
       return createProjectPermissionPolicy({
         projectRoot: cwd,
-        trustFile: wpaths.projectTrust,
+        // The session's own project trust file, as `wstack --yolo` in that directory reads.
+        trustFile: resolveWstackPaths({ projectRoot: cwd }).projectTrust,
         config,
         permission: { yolo: true },
       })();

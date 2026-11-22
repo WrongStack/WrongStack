@@ -33,7 +33,13 @@ const tool = (name: string, capabilities: string[]): Tool =>
 const write = tool('write', [ToolCapabilities.FS_WRITE]);
 const bash = tool('bash', [ToolCapabilities.SHELL_ARBITRARY]);
 const read = tool('read', [ToolCapabilities.FS_READ]);
-const ctx = { meta: {}, session: { id: 's1' } } as unknown as AgentContext;
+const ROOT = path.resolve(tmpdir(), 'acp-modes-project');
+const ctx = {
+  meta: {},
+  session: { id: 's1' },
+  cwd: ROOT,
+  projectRoot: ROOT,
+} as unknown as AgentContext;
 
 function arbiterSaying(decision: PermissionDecision): PermissionPolicy {
   return { evaluate: vi.fn(async () => decision) } as unknown as PermissionPolicy;
@@ -117,6 +123,20 @@ describe('ACP session modes: permission decisions', () => {
     expect(ask).not.toHaveBeenCalled();
     expect((await policy.evaluate(bash, { command: 'npm test' }, ctx)).permission).toBe('deny');
     expect(ask).toHaveBeenCalledTimes(1);
+  });
+
+  it('auto-edit asks for a write outside the project or without a readable target', async () => {
+    const ask = client('reject_once', 'reject_once', 'reject_once');
+    const policy = new ACPClientPermissionPolicy(ask, {
+      mode: () => 'auto-edit',
+      arbiter: arbiterSaying({ permission: 'auto', source: 'yolo' }),
+    });
+    await policy.evaluate(write, { path: '../elsewhere/a.ts' }, ctx);
+    await policy.evaluate(write, { path: path.resolve(tmpdir(), 'other', 'a.ts') }, ctx);
+    await policy.evaluate(write, { content: 'no target' }, ctx);
+    expect(ask).toHaveBeenCalledTimes(3);
+    await policy.evaluate(write, { edits: [{ path: 'src/a.ts' }, { path: 'src/b.ts' }] }, ctx);
+    expect(ask).toHaveBeenCalledTimes(3);
   });
 
   it('auto-edit asks for a write the project policy still guards', async () => {
