@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 539,
+      "files": 543,
       "typeOnly": 400,
-      "runtimeOrMixed": 171
+      "runtimeOrMixed": 175
     },
     "@wrongstack/core/boot": {
       "files": 6,
@@ -2045,6 +2045,18 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/src/management/mcp-control.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/src/management/mcp-use.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/src/next-steps-tool.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -2360,6 +2372,18 @@
       "file": "packages/tools/tests/lint.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/management/mcp-control.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/management/mcp-use.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",

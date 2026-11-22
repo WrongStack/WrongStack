@@ -14,6 +14,7 @@
 
 import type { Config, MCPServerConfig } from '@wrongstack/contracts/types/config';
 import type { JSONSchema, Tool } from '@wrongstack/contracts/types/tool';
+import { isSessionMcpServerAllowed } from '@wrongstack/core/agent';
 import { allServers, resolveMcpServerConfig } from '@wrongstack/core/infrastructure';
 import { ToolCapabilities } from '@wrongstack/core/security';
 import {
@@ -89,7 +90,7 @@ export function createMcpControlTool(opts: CreateMcpControlToolOptions): Tool {
         type: 'string',
         enum: ['list', 'search', 'tools', 'enable', 'disable', 'restart', 'activate', 'deactivate'],
         description:
-          "The management action to perform. `tools` lists a server's tool names and input schemas (for mcp_use) without starting it. activate/deactivate toggle tool registration ephemerally without disconnecting.",
+          "The management action to perform. `tools` lists a server's tools without starting it. In Quick, activate the server and use tool_search for exact schemas. activate/deactivate toggle tool registration without disconnecting.",
       },
       /** Filter for `search`. Matches server name or description case-insensitively. */
       query: {
@@ -121,22 +122,36 @@ export function createMcpControlTool(opts: CreateMcpControlToolOptions): Tool {
     riskTier: 'destructive',
     capabilities: [ToolCapabilities.CONFIG_MUTATE],
     inputSchema,
-    async execute(raw) {
+    async execute(raw, ctx) {
       const input = raw as {
         action: string;
         query?: string | undefined;
         server?: string | undefined;
       };
-      return mcpControlDispatch(input, { getConfig, configPath, registry });
+      return mcpControlDispatch(input, {
+        getConfig,
+        configPath,
+        registry,
+        ...(ctx?.meta?.['systemPromptVariant'] === 'quick'
+          ? { allowServer: (name: string) => isSessionMcpServerAllowed(ctx, name) }
+          : {}),
+      });
     },
   };
 }
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
 
+interface McpControlDispatchDeps {
+  getConfig: () => Config;
+  configPath: string;
+  registry: MCPRegistryHandle;
+  allowServer?: ((name: string) => boolean) | undefined;
+}
+
 async function mcpControlDispatch(
   input: { action: string; query?: string | undefined; server?: string | undefined },
-  deps: { getConfig: () => Config; configPath: string; registry: MCPRegistryHandle },
+  deps: McpControlDispatchDeps,
 ): Promise<string> {
   const { action, query, server } = input;
 
@@ -144,6 +159,9 @@ async function mcpControlDispatch(
   // returned error string was recorded (and shown) as success.
   const need = (verb: string): string => {
     if (!server) throw new Error(`\`server\` is required for ${verb}.`);
+    if (deps.allowServer && !deps.allowServer(server)) {
+      throw new Error('This MCP server is disabled for the current Quick session.');
+    }
     return server;
   };
   switch (action) {
@@ -172,13 +190,9 @@ async function mcpControlDispatch(
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 
-async function renderList(deps: {
-  getConfig: () => Config;
-  configPath: string;
-  registry: MCPRegistryHandle;
-}): Promise<string> {
-  const configured = await getConfiguredMcpServers(deps);
-  const live = deps.registry.describe();
+async function renderList(deps: McpControlDispatchDeps): Promise<string> {
+  const configured = permittedServers(await getConfiguredMcpServers(deps), deps.allowServer);
+  const live = deps.registry.describe().filter((server) => deps.allowServer?.(server.name) ?? true);
   const runOnly = runOnlyServers(live, configured);
 
   if (Object.keys(configured).length === 0 && runOnly.length === 0) {
@@ -208,12 +222,9 @@ async function renderList(deps: {
   return lines.join('\n');
 }
 
-async function renderSearch(
-  query: string,
-  deps: { getConfig: () => Config; configPath: string; registry: MCPRegistryHandle },
-): Promise<string> {
-  const configured = await getConfiguredMcpServers(deps);
-  const all = allServers();
+async function renderSearch(query: string, deps: McpControlDispatchDeps): Promise<string> {
+  const configured = permittedServers(await getConfiguredMcpServers(deps), deps.allowServer);
+  const all = permittedServers(allServers(), deps.allowServer);
   const q = query.toLowerCase();
 
   const configuredNames = new Set(Object.keys(configured));
@@ -231,8 +242,8 @@ async function renderSearch(
         name.toLowerCase().includes(q) || (cfg.description ?? '').toLowerCase().includes(q),
     );
 
-  const runOnly = runOnlyServers(deps.registry.describe(), configured).filter((s) =>
-    s.name.toLowerCase().includes(q),
+  const runOnly = runOnlyServers(deps.registry.describe(), configured).filter(
+    (s) => (deps.allowServer?.(s.name) ?? true) && s.name.toLowerCase().includes(q),
   );
 
   const lines: string[] = [];
@@ -288,7 +299,16 @@ function runOnlyLine(server: ReturnType<MCPRegistryHandle['describe']>[number]):
   return `  ${bold(server.name)}  ${dim('this run only')}  ${badge(server.state)} (${server.toolCount} tools) — use \`activate\` to expose its tools`;
 }
 
-async function renderTools(name: string, deps: { registry: MCPRegistryHandle }): Promise<string> {
+function permittedServers<T>(
+  servers: Record<string, T>,
+  allow?: (name: string) => boolean,
+): Record<string, T> {
+  return allow
+    ? Object.fromEntries(Object.entries(servers).filter(([name]) => allow(name)))
+    : servers;
+}
+
+async function renderTools(name: string, deps: McpControlDispatchDeps): Promise<string> {
   if (!deps.registry.describeTools) {
     throw new Error('This registry cannot describe MCP tools.');
   }
@@ -301,14 +321,18 @@ async function renderTools(name: string, deps: { registry: MCPRegistryHandle }):
   if (tools.length === 0) {
     return `Server "${name}" has not published any tools yet (it may still be connecting).`;
   }
-  const lines = [`Tools on "${name}" — call with mcp_use({ server: "${name}", tool, input }):`];
+  const lines = deps.allowServer
+    ? [
+        `Tools on "${name}". Activate the server, then use tool_search with the exact registered name to load one schema.`,
+      ]
+    : [`Tools on "${name}" — call with mcp_use({ server: "${name}", tool, input }):`];
   for (const tool of tools) {
     lines.push('');
     lines.push(`- ${tool.name}${tool.description ? ` — ${tool.description}` : ''}`);
     // The whole schema: the model builds `mcp_use` input from it, so a cut
     // one produced invalid calls with no way to see the rest. A huge listing
     // is spooled losslessly by the tool executor like any large output.
-    lines.push(`  input schema: ${JSON.stringify(tool.inputSchema)}`);
+    if (!deps.allowServer) lines.push(`  input schema: ${JSON.stringify(tool.inputSchema)}`);
   }
   return lines.join('\n');
 }

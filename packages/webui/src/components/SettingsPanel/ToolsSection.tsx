@@ -1,4 +1,8 @@
-import { isSessionToolGroupMode, QUICK_TOOL_GROUPS } from '@wrongstack/contracts/types';
+import {
+  isMcpSessionToolGroup,
+  isSessionToolGroupMode,
+  QUICK_TOOL_GROUPS,
+} from '@wrongstack/contracts/types';
 import { ChevronDown, Loader2, Power, PowerOff, Search, Wrench } from 'lucide-react';
 import { type ReactElement, useCallback, useEffect, useState } from 'react';
 import { toast } from '@/components/Toaster';
@@ -237,7 +241,11 @@ function SessionToolsSection({ sessionId }: { sessionId: string | undefined }): 
           </label>
           {groups.map((group) => (
             <label key={group.group} className="grid gap-1 text-sm">
-              <span>{QUICK_TOOL_GROUPS[group.group]}</span>
+              <span>
+                {isMcpSessionToolGroup(group.group)
+                  ? `MCP · ${group.group.slice(4)}`
+                  : QUICK_TOOL_GROUPS[group.group]}
+              </span>
               <select
                 className="rounded-md border border-input bg-background px-2 py-1.5"
                 value={

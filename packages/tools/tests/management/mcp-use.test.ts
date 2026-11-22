@@ -3,9 +3,10 @@ import {
   GOVERNED_TOOL_EXECUTOR_META_KEY,
   type GovernedToolExecutor,
 } from '@wrongstack/contracts/types/tool-executor';
-import { describe, expect, it, vi } from 'vitest';
+import { setSessionToolGroup } from '@wrongstack/core/agent';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import { ToolCapabilities } from '@wrongstack/core/security';
+import { describe, expect, it, vi } from 'vitest';
 import type { MCPRegistryHandle } from '../../src/management/mcp-control.js';
 import { createMcpUseTool } from '../../src/management/mcp-use.js';
 
@@ -72,6 +73,20 @@ const run = (
 };
 
 describe('createMcpUseTool', () => {
+  it('rejects a blocked Quick server before looking up or activating the server', async () => {
+    const registry = fakeRegistry();
+    const tool = createMcpUseTool({ registry, toolRegistry: fakeToolRegistry() });
+    const ctx = { meta: { systemPromptVariant: 'quick' } };
+    setSessionToolGroup(ctx, 'mcp:filesystem', 'on');
+    await expect(
+      tool.execute({ server: 'github', tool: 'read', input: {} }, ctx as never, {
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toThrow('disabled for the current Quick session');
+    expect(registry.describe).not.toHaveBeenCalled();
+    expect(registry.activateServer).not.toHaveBeenCalled();
+  });
+
   it('exposes mcp_use metadata', () => {
     const tool = createMcpUseTool({ registry: fakeRegistry(), toolRegistry: fakeToolRegistry() });
     expect(tool.name).toBe('mcp_use');

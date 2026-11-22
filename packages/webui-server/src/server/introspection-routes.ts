@@ -355,7 +355,18 @@ export async function handleIntrospectionRoute(
         payload: withRequestId(message.payload, {
           tools,
           ...(namedSession ? { sessionId: namedSession } : {}),
-          ...(quick ? { toolGroups: sessionToolGroupStates(actx) } : {}),
+          ...(quick
+            ? {
+                toolGroups: sessionToolGroupStates(actx, [
+                  ...Object.keys(config.mcpServers ?? {}),
+                  ...agent.tools
+                    .list()
+                    .flatMap((tool) =>
+                      tool.mcpServerName === undefined ? [] : [tool.mcpServerName],
+                    ),
+                ]),
+              }
+            : {}),
           ...(groupError ? { groupError } : {}),
           ...(includeCatalog ? { catalog: catalog ?? null } : {}),
         }),

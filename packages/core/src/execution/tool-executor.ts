@@ -149,7 +149,7 @@ export class ToolExecutor extends ToolExecutorCore {
       // Registered is not the same as offered: a conversation reaches only its
       // own surface (see session-tool-reach). Both misses answer with the
       // tools it CAN call, never the whole registry it would then try.
-      if (!tool || !isToolReachable(ctx, use.name)) {
+      if (!tool || !isToolReachable(ctx, use.name, tool)) {
         const result = unknownToolResult(use, () => reachableTools(ctx).map((t) => t.name));
         budget = this.budgetForString(result.content, budget);
         return {
@@ -174,7 +174,7 @@ export class ToolExecutor extends ToolExecutorCore {
             : undefined
           : tool;
 
-      if (gatewayTargetName && gatedTool && !isToolReachable(ctx, gatedTool.name)) {
+      if (gatewayTargetName && gatedTool && !isToolReachable(ctx, gatedTool.name, gatedTool)) {
         const result = unknownToolResult({ ...use, name: gatedTool.name }, () =>
           reachableTools(ctx).map((t) => t.name),
         );
@@ -558,7 +558,7 @@ export class ToolExecutor extends ToolExecutorCore {
   ): Promise<{ block: ToolResultBlock; bytes: number }> {
     if (this.opts.requireKanbanGovernance === true) setSessionToolGroupGovernance(ctx, true);
     ctx.catalogTools = sessionToolCatalog(ctx, this.registry.list());
-    if (!isSessionToolAllowed(ctx, tool.name)) {
+    if (!isSessionToolAllowed(ctx, tool)) {
       const block = unknownToolResult(use, () => reachableTools(ctx).map((t) => t.name));
       return {
         block,

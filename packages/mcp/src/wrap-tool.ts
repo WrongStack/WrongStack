@@ -80,6 +80,7 @@ export function wrapMCPTool(
   const qualifiedName = mcpQualifiedToolName(serverName, mcpTool.name);
   const tool: Tool = {
     name: qualifiedName,
+    mcpServerName: serverName,
     description: mcpTool.description ?? `${qualifiedName} (MCP tool)`,
     usageHint: `Tool provided by MCP server "${serverName}". ${mcpTool.description ?? ''}`,
     permission,

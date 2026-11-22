@@ -4,6 +4,7 @@ export {
   SCOUT_DIRECT_TOOL_NAMES,
 } from '../registry/scout-tool-surface.js';
 export {
+  isSessionMcpServerAllowed,
   sessionToolCatalog,
   sessionToolGroupState,
   sessionToolGroupStates,

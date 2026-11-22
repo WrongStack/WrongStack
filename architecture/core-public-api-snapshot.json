@@ -118,6 +118,7 @@
         "export { fenceIfUntrusted, isSkillHiddenFromPrompt } from './system-prompt-skill-bodies.js';",
         "export { formatModelRef, type ModelRef, normalizeModelRef, parseModelRef, } from './model-ref.js';",
         "export { isSealedAgent, SEALED_AGENT_META_KEY, sealedSubagentRefusal } from './sealed-agent.js';",
+        "export { isSessionMcpServerAllowed, sessionToolCatalog, sessionToolGroupState, sessionToolGroupStates, setProjectToolGroup, setSessionToolGroup, setSessionToolGroupGovernance, } from '../registry/session-tool-groups.js';",
         "export { isToolReachable, reachableTools, reachesCatalog, } from '../registry/session-tool-reach.js';",
         "export { keepsOwnContext } from './agent-owned-context.js';",
         "export { markUserInputObserver, userInputObserverCount } from '../hooks/user-input-observers.js';",
@@ -125,7 +126,6 @@
         "export { readUserInstructions, type UserInstructionsDocument, userInstructionsFile, writeUserInstructions, } from './project-instructions.js';",
         "export { resolveOwningSessionId } from './context-session-id.js';",
         "export { runProviderWithRetry } from './provider-runner.js';",
-        "export { sessionToolCatalog, sessionToolGroupState, sessionToolGroupStates, setProjectToolGroup, setSessionToolGroup, setSessionToolGroupGovernance, } from '../registry/session-tool-groups.js';",
         "export { setQueuedMessagesSnapshot } from './queued-messages.js';",
         "export { stageDeferredToolSchema } from './request-scoped-context.js';",
         "export { type AgentInit, type AgentInput, type AgentPipelines, createDefaultPipelines, installPipelineErrorBoundaries, type ToolCallPipelinePayload, } from './agent-types.js';",
@@ -1094,7 +1094,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 82,
-      "sourceLines": 17579
+      "sourceLines": 17580
     },
     {
       "directory": "design",
@@ -1185,7 +1185,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime composition",
       "sourceFiles": 13,
-      "sourceLines": 2317
+      "sourceLines": 2373
     },
     {
       "directory": "replay",

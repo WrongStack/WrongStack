@@ -29,6 +29,13 @@ Language servers, Design and media, ToolFlow, Vector memory, Model utilities,
 MCP integrations and Telegram. They are off in Auto. Run `/tool group` for
 their command names and effective state.
 
+For MCP, `/tool group mcp:github on --project` enables one server while the
+parent group is set to Auto. Setting the parent `mcp` to On enables servers
+that inherit it, and a server-specific Off still takes precedence. An
+explicit parent Off disables every server. In Quick, list tools with
+`mcp_control`, activate an allowed server if needed, then use an exact
+`tool_search` lookup for one schema.
+
 Use `--project` or the **Save changes as project defaults** checkbox to apply a
 choice to future Quick sessions in this project. Existing session overrides
 take precedence. Use `inherit` to return a session to its project default.

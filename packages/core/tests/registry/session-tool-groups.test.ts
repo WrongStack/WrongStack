@@ -3,6 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Tool } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  requestScopedEntries,
+  stageDeferredToolSchema,
+} from '../../src/core/request-scoped-context.js';
 import { providerToolsForVariant } from '../../src/registry/scout-tool-surface.js';
 import {
   sessionToolCatalog,
@@ -116,5 +120,37 @@ describe('Quick tool group defaults', () => {
       'browser_open',
     );
     expect(JSON.stringify(providerToolsForVariant(registry, 'quick'))).toBe(direct);
+  });
+
+  it('uses the registered server identity for late tools and lets an explicit parent Off win', async () => {
+    const projectRoot = join(root, 'project');
+    const ctx = quick(projectRoot);
+    const gateway = tool('mcp_use');
+    const selected = { ...tool('mcp__team__prod__inspect'), mcpServerName: 'team__prod' };
+    const sibling = { ...tool('mcp__team__prod__other'), mcpServerName: 'team' };
+    await setProjectToolGroup(ctx, 'mcp:team__prod', 'on');
+    const fresh = quick(projectRoot);
+    expect(sessionToolCatalog(fresh, [gateway, selected, sibling])).toEqual([gateway, selected]);
+    setSessionToolGroup(fresh, 'mcp', 'on');
+    setSessionToolGroup(fresh, 'mcp:team', 'off');
+    expect(sessionToolCatalog(fresh, [gateway, selected, sibling])).toEqual([gateway, selected]);
+    setSessionToolGroup(fresh, 'mcp', 'off');
+    expect(sessionToolCatalog(fresh, [gateway, selected, sibling])).toEqual([]);
+  });
+
+  it('invalidates a pending MCP schema across a parent Off and On', () => {
+    const selected = { ...tool('mcp__fixture__lookup'), mcpServerName: 'fixture' };
+    const ctx = {
+      ...quick(join(root, 'project')),
+      tools: [tool('tool_use')],
+      catalogTools: [selected],
+    };
+    setSessionToolGroup(ctx, 'mcp:fixture', 'on');
+    stageDeferredToolSchema(ctx, selected);
+    expect(requestScopedEntries(ctx)).toHaveLength(1);
+    setSessionToolGroup(ctx, 'mcp', 'off');
+    expect(requestScopedEntries(ctx)).toEqual([]);
+    setSessionToolGroup(ctx, 'mcp', 'on');
+    expect(requestScopedEntries(ctx)).toEqual([]);
   });
 });

@@ -13,7 +13,8 @@ export const QUICK_TOOL_GROUPS = {
   telegram: 'Telegram',
 } as const;
 
-export type SessionToolGroup = keyof typeof QUICK_TOOL_GROUPS;
+export type McpSessionToolGroup = `mcp:${string}`;
+export type SessionToolGroup = keyof typeof QUICK_TOOL_GROUPS | McpSessionToolGroup;
 export type SessionToolGroupMode = 'auto' | 'on' | 'off';
 export type SessionToolGroupChoice = SessionToolGroupMode | 'inherit';
 
@@ -28,7 +29,14 @@ export interface SessionToolGroupState {
 }
 
 export function isSessionToolGroup(value: unknown): value is SessionToolGroup {
-  return typeof value === 'string' && Object.hasOwn(QUICK_TOOL_GROUPS, value);
+  return (
+    typeof value === 'string' &&
+    (Object.hasOwn(QUICK_TOOL_GROUPS, value) || isMcpSessionToolGroup(value))
+  );
+}
+
+export function isMcpSessionToolGroup(value: string): value is McpSessionToolGroup {
+  return value.startsWith('mcp:') && value.length > 4;
 }
 
 export function isSessionToolGroupMode(value: unknown): value is SessionToolGroupMode {

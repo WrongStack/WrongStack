@@ -1,9 +1,10 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { setSessionToolGroup } from '@wrongstack/core/agent';
+import { ToolCapabilities } from '@wrongstack/core/security';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Config } from '../../../core/src/index.js';
-import { ToolCapabilities } from '@wrongstack/core/security';
 import { createMcpControlTool, type MCPRegistryHandle } from '../../src/management/mcp-control.js';
 
 function fakeConfig(overrides: Partial<Config> = {}): Config {
@@ -59,6 +60,39 @@ describe('createMcpControlTool', () => {
 
   afterEach(async () => {
     await fs.rm(tmp, { recursive: true, force: true });
+  });
+
+  it('shows only allowed Quick servers and leaves their schemas to exact discovery', async () => {
+    registry = fakeRegistry({
+      describe: () => [
+        { name: 'selected-server', state: 'connected', enabled: true, toolCount: 1 },
+        { name: 'hidden-server', state: 'connected', enabled: true, toolCount: 1 },
+      ],
+      describeTools: vi.fn(() => [
+        {
+          name: 'lookup',
+          inputSchema: { type: 'object', properties: { uniqueFixtureKey: { type: 'string' } } },
+        },
+      ]),
+    });
+    tool = createMcpControlTool({ getConfig, configPath, registry });
+    const ctx = { meta: { systemPromptVariant: 'quick' } };
+    setSessionToolGroup(ctx, 'mcp:selected-server', 'on');
+    const opts = { signal: new AbortController().signal };
+    const list = await tool.execute({ action: 'list' }, ctx as never, opts);
+    expect(list).toContain('selected-server');
+    expect(list).not.toContain('hidden-server');
+    await expect(
+      tool.execute({ action: 'tools', server: 'hidden-server' }, ctx as never, opts),
+    ).rejects.toThrow('disabled for the current Quick session');
+    expect(registry.describeTools).not.toHaveBeenCalled();
+    const tools = await tool.execute(
+      { action: 'tools', server: 'selected-server' },
+      ctx as never,
+      opts,
+    );
+    expect(tools).toContain('lookup');
+    expect(tools).not.toContain('uniqueFixtureKey');
   });
 
   it('has name "mcp_control"', () => {

@@ -107,6 +107,8 @@ export type ToolStreamEvent<O = unknown> = ToolProgressEvent | ToolFinalEvent<O>
 
 export interface Tool<I = unknown, O = unknown> {
   name: string;
+  /** Host identity for MCP policy. Qualified names are not reversible. */
+  mcpServerName?: string | undefined;
   description: string;
   /** Backward-compatible names; never create extra provider schemas. */
   aliases?: readonly string[] | undefined;

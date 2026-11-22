@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T16:21:29.386Z",
+  "generatedAt": "2026-11-22T16:23:41.545Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 50,
     "sourceFiles": 6485,
     "testFiles": 5662,
-    "sourceLines": 1324786,
+    "sourceLines": 1324908,
     "workspaceEdges": 259,
     "moduleEdges": 18946,
     "nonCommandSlashImports": 0,
@@ -36395,7 +36395,7 @@
     },
     {
       "file": "packages/contracts/src/types/index.ts",
-      "lines": 716,
+      "lines": 718,
       "relativeImports": 76
     },
     {

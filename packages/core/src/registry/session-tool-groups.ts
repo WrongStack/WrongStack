@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  isMcpSessionToolGroup,
   QUICK_TOOL_GROUPS,
   type SessionToolGroup,
   type SessionToolGroupChoice,
@@ -113,10 +114,10 @@ const groupTools = {
   'model-utilities': ['council', 'llm', 'jev', 'jev_status'],
   mcp: ['mcp_control', 'mcp_use'],
   telegram: ['telegram_read', 'telegram_send', 'telegram_approve'],
-} satisfies Record<SessionToolGroup, readonly string[]>;
+} satisfies Record<keyof typeof QUICK_TOOL_GROUPS, readonly string[]>;
 
-const groups = Object.keys(QUICK_TOOL_GROUPS) as SessionToolGroup[];
-const groupByTool = new Map(
+const groups = Object.keys(QUICK_TOOL_GROUPS) as (keyof typeof QUICK_TOOL_GROUPS)[];
+const groupByTool = new Map<string, SessionToolGroup>(
   groups.flatMap((group) => groupTools[group].map((name) => [name, group] as const)),
 );
 
@@ -136,7 +137,10 @@ const preferences = new WeakMap<
   }
 >();
 const governance = new WeakMap<SessionToolGroupContext, boolean>();
-const revisions = new WeakMap<SessionToolGroupContext, Partial<Record<SessionToolGroup, object>>>();
+const revisions = new WeakMap<SessionToolGroupContext, Partial<Record<SessionToolGroup, number>>>();
+type ProjectModes = ReturnType<typeof projectToolGroupDefaults>;
+type Modes = NonNullable<ProjectModes>;
+type ToolIdentity = Pick<Tool, 'name' | 'mcpServerName'>;
 
 function currentModes(ctx: SessionToolGroupContext) {
   const stored = preferences.get(ctx);
@@ -147,16 +151,21 @@ function currentModes(ctx: SessionToolGroupContext) {
     : undefined;
 }
 
-function groupOf(name: string): SessionToolGroup | undefined {
+function groupOf({ name, mcpServerName }: ToolIdentity): SessionToolGroup | undefined {
+  if (mcpServerName !== undefined) return `mcp:${mcpServerName}`;
   return groupByTool.get(name) ?? (name.startsWith('mcp__') ? 'mcp' : undefined);
 }
 
 export function sessionToolGroupRevision(
   ctx: SessionToolGroupContext,
-  name: string,
-): object | undefined {
-  const group = groupOf(name);
-  return group ? revisions.get(ctx)?.[group] : undefined;
+  tool: ToolIdentity,
+): string | undefined {
+  const group = groupOf(tool);
+  if (!group) return undefined;
+  const rev = revisions.get(ctx);
+  return isMcpSessionToolGroup(group)
+    ? `${rev?.mcp ?? 0}:${rev?.[group] ?? 0}`
+    : String(rev?.[group] ?? 0);
 }
 
 export function setSessionToolGroupGovernance(
@@ -166,14 +175,23 @@ export function setSessionToolGroupGovernance(
   governance.set(ctx, required);
 }
 
+function configuredMode(
+  project: ProjectModes,
+  session: Modes | undefined,
+  group: SessionToolGroup,
+) {
+  return session?.[group] ?? project?.[group] ?? (project === null ? 'off' : 'auto');
+}
+
 function groupState(
   ctx: SessionToolGroupContext,
   group: SessionToolGroup,
-  project: ReturnType<typeof projectToolGroupDefaults>,
-  sessionMode: SessionToolGroupMode | undefined,
+  project: ProjectModes,
+  session: Modes | undefined,
 ): SessionToolGroupState {
+  const sessionMode = session?.[group];
   const projectMode = project?.[group];
-  const mode = sessionMode ?? projectMode ?? (project === null ? 'off' : 'auto');
+  const mode = configuredMode(project, session, group);
   const required = group === 'kanban' && governance.get(ctx) === true;
   const source: SessionToolGroupState['source'] = sessionMode
     ? 'session'
@@ -187,6 +205,11 @@ function groupState(
       enabled: true,
       reason: 'Kanban governance requires board access.',
     };
+  if (isMcpSessionToolGroup(group)) {
+    const parent = configuredMode(project, session, 'mcp');
+    if (parent === 'off') return { ...base, enabled: false, reason: 'MCP integrations are off.' };
+    return { ...base, enabled: mode === 'on' || (mode === 'auto' && parent === 'on') };
+  }
   if (mode !== 'auto')
     return {
       ...base,
@@ -204,6 +227,14 @@ function groupState(
         : undefined);
     return { ...base, enabled: typeof board === 'string' && board.length > 0 };
   }
+  if (group === 'mcp') {
+    return {
+      ...base,
+      enabled: Object.keys({ ...project, ...session }).some(
+        (key) => isMcpSessionToolGroup(key) && configuredMode(project, session, key) === 'on',
+      ),
+    };
+  }
   if (group !== 'codebase') return { ...base, enabled: false };
   const override = ctx.meta?.['codebaseIndexDir'];
   const indexDir =
@@ -218,18 +249,23 @@ export function sessionToolGroupState(
   ctx: SessionToolGroupContext,
   group: SessionToolGroup,
 ): SessionToolGroupState {
-  return groupState(
-    ctx,
-    group,
-    projectToolGroupDefaults(ctx.projectRoot),
-    currentModes(ctx)?.[group],
-  );
+  return groupState(ctx, group, projectToolGroupDefaults(ctx.projectRoot), currentModes(ctx));
 }
 
-export function sessionToolGroupStates(ctx: SessionToolGroupContext): SessionToolGroupState[] {
+export function sessionToolGroupStates(
+  ctx: SessionToolGroupContext,
+  servers: readonly string[] = [],
+): SessionToolGroupState[] {
   const project = projectToolGroupDefaults(ctx.projectRoot);
   const session = currentModes(ctx);
-  return groups.map((group) => groupState(ctx, group, project, session?.[group]));
+  const serverGroups = new Set(
+    [...servers.map((name) => `mcp:${name}`), ...Object.keys({ ...project, ...session })].filter(
+      isMcpSessionToolGroup,
+    ),
+  );
+  return [...groups, ...[...serverGroups].sort()].map((group) =>
+    groupState(ctx, group, project, session),
+  );
 }
 
 export function setSessionToolGroup(
@@ -251,7 +287,8 @@ export function setSessionToolGroup(
       projectRoot: ctx.projectRoot,
       modes,
     });
-    revisions.set(ctx, { ...revisions.get(ctx), [group]: {} });
+    const previous = revisions.get(ctx);
+    revisions.set(ctx, { ...previous, [group]: (previous?.[group] ?? 0) + 1 });
   }
   return sessionToolGroupState(ctx, group);
 }
@@ -281,21 +318,39 @@ export async function setProjectToolGroup(
   return sessionToolGroupState(ctx, group);
 }
 
-export function isSessionToolAllowed(ctx: SessionToolGroupContext, name: string): boolean {
+export function isSessionMcpServerAllowed(ctx: SessionToolGroupContext, server: string): boolean {
+  return (
+    ctx?.meta?.['systemPromptVariant'] !== 'quick' ||
+    sessionToolGroupState(ctx, `mcp:${server}`).enabled
+  );
+}
+
+export function isSessionToolAllowed(ctx: SessionToolGroupContext, tool: ToolIdentity): boolean {
   if (ctx.meta?.['systemPromptVariant'] !== 'quick') return true;
-  const group = groupOf(name);
+  if (tool.mcpServerName === undefined && tool.name.startsWith('mcp__')) {
+    return (
+      configuredMode(projectToolGroupDefaults(ctx.projectRoot), currentModes(ctx), 'mcp') === 'on'
+    );
+  }
+  const group = groupOf(tool);
   return !group || sessionToolGroupState(ctx, group).enabled;
 }
 
 export function sessionToolCatalog(ctx: SessionToolGroupContext, tools: Tool[]): Tool[] {
   if (ctx.meta?.['systemPromptVariant'] !== 'quick') return tools;
-  const off = new Set(
-    sessionToolGroupStates(ctx)
-      .filter((state) => !state.enabled)
-      .map((state) => state.group),
-  );
-  return tools.filter(({ name }) => {
-    const group = groupOf(name);
-    return !group || !off.has(group);
+  const project = projectToolGroupDefaults(ctx.projectRoot);
+  const session = currentModes(ctx);
+  const enabled = new Map<SessionToolGroup, boolean>();
+  return tools.filter((tool) => {
+    if (tool.mcpServerName === undefined && tool.name.startsWith('mcp__')) {
+      return configuredMode(project, session, 'mcp') === 'on';
+    }
+    const group = groupOf(tool);
+    if (!group) return true;
+    const cached = enabled.get(group);
+    if (cached !== undefined) return cached;
+    const visible = groupState(ctx, group, project, session).enabled;
+    enabled.set(group, visible);
+    return visible;
   });
 }

@@ -692,8 +692,10 @@ export type {
 } from './tool-executor.js';
 export { GOVERNED_TOOL_EXECUTOR_META_KEY } from './tool-executor.js';
 export {
+  isMcpSessionToolGroup,
   isSessionToolGroup,
   isSessionToolGroupMode,
+  type McpSessionToolGroup,
   QUICK_TOOL_GROUPS,
   type SessionToolGroup,
   type SessionToolGroupChoice,

@@ -57,9 +57,10 @@ export function reachableTools(ctx: ToolReachContext): readonly Tool[] {
 }
 
 /** Whether this conversation may call `name`. */
-export function isToolReachable(ctx: ToolReachContext, name: string): boolean {
+export function isToolReachable(ctx: ToolReachContext, name: string, tool?: Tool): boolean {
+  const identity = tool ?? ctx.catalogTools?.find((entry) => entry.name === name) ?? { name };
   return (
-    isSessionToolAllowed(ctx, name) &&
+    isSessionToolAllowed(ctx, identity) &&
     (reachesCatalog(ctx) || surfaceOf(ctx).some((tool) => tool.name === name))
   );
 }

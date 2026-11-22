@@ -4,6 +4,7 @@ import {
   GOVERNED_TOOL_EXECUTOR_META_KEY,
   type GovernedToolExecutor,
 } from '@wrongstack/contracts/types/tool-executor';
+import { isSessionMcpServerAllowed } from '@wrongstack/core/agent';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import { ToolCapabilities } from '@wrongstack/core/security';
 import { mcpQualifiedToolName, mcpServerToolPrefix } from '@wrongstack/core/utils';
@@ -90,11 +91,16 @@ export function createMcpUseTool(opts: CreateMcpUseToolOptions): Tool {
       };
 
       const { server: serverName, tool: toolName, input: toolInput } = input;
+      if (!isSessionMcpServerAllowed(ctx, serverName)) {
+        throw new Error('This MCP server is disabled for the current Quick session.');
+      }
 
       // Validate server exists. Lookup failures THROW so the executor records
       // a failed call — a plain string return was recorded as success, which
       // hid every misrouted call from failure accounting and retry logic.
-      const servers = registry.describe();
+      const servers = registry
+        .describe()
+        .filter((server) => isSessionMcpServerAllowed(ctx, server.name));
       const serverInfo = servers.find((s) => s.name === serverName);
       if (!serverInfo) {
         throw new Error(

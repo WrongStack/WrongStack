@@ -40,7 +40,10 @@ it('displays Quick group settings for its own session and locks required Kanban'
           payload: {
             sessionId,
             tools: [],
-            toolGroups: [{ group: 'kanban', mode: 'auto', enabled: required, required }],
+            toolGroups: [
+              { group: 'kanban', mode: 'auto', enabled: required, required },
+              { group: 'mcp:selected-server', mode: 'auto', enabled: false, required: false },
+            ],
           },
         });
       });
@@ -52,6 +55,16 @@ it('displays Quick group settings for its own session and locks required Kanban'
     fireEvent.change(screen.getByRole('combobox', { name: /Kanban/ }), { target: { value: 'on' } });
     expect(mock.send).toHaveBeenLastCalledWith(
       { type: 'tools.group.set', payload: { sessionId: 'quick-tab', group: 'kanban', mode: 'on' } },
+      { echoToChat: false },
+    );
+    fireEvent.change(screen.getByRole('combobox', { name: /MCP · selected-server/ }), {
+      target: { value: 'on' },
+    });
+    expect(mock.send).toHaveBeenLastCalledWith(
+      {
+        type: 'tools.group.set',
+        payload: { sessionId: 'quick-tab', group: 'mcp:selected-server', mode: 'on' },
+      },
       { echoToChat: false },
     );
     fireEvent.click(screen.getByRole('checkbox', { name: 'Save changes as project defaults' }));

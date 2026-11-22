@@ -454,7 +454,10 @@ export function buildToolCommand(opts: SlashCommandContext): SlashCommand {
                     ? setSessionToolGroup(ctx, group, mode)
                     : sessionToolGroupState(ctx, group),
               ]
-            : sessionToolGroupStates(ctx);
+            : sessionToolGroupStates(ctx, [
+                ...Object.keys(opts.configStore.get().mcpServers ?? {}),
+                ...(opts.mcpRegistry?.describe().map((server) => server.name) ?? []),
+              ]);
           return {
             message: states
               .map(

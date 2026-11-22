@@ -51,7 +51,7 @@
       "relativeImports": 2
     },
     "packages/contracts/src/types/index.ts": {
-      "lines": 716,
+      "lines": 718,
       "relativeImports": 76
     },
     "packages/coordination/src/agent-monitor.ts": {

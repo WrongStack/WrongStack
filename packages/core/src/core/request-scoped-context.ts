@@ -27,7 +27,7 @@ const deferred = new WeakMap<
     {
       block: TextBlock;
       tool: Tool;
-      groupRevision: object | undefined;
+      groupRevision: string | undefined;
       sessionId: string | undefined;
     }
   >
@@ -51,8 +51,8 @@ export function requestScopedEntries(ctx: object): readonly RequestLayoutTailEnt
       .filter(
         ({ tool, groupRevision, sessionId }) =>
           sessionId === session.eventSessionId?.() &&
-          groupRevision === sessionToolGroupRevision(session, tool.name) &&
-          isToolReachable(session, tool.name) &&
+          groupRevision === sessionToolGroupRevision(session, tool) &&
+          isToolReachable(session, tool.name, tool) &&
           (session.catalogTools ?? session.tools ?? []).includes(tool),
       )
       .map(({ block }) => ({ block, source: 'tool-schema' })),
@@ -71,7 +71,7 @@ export function stageDeferredToolSchema(ctx: SchemaContext, tool: Tool): string 
   schemas.set(tool.name, {
     tool,
     sessionId: ctx.eventSessionId?.(),
-    groupRevision: sessionToolGroupRevision(ctx, tool.name),
+    groupRevision: sessionToolGroupRevision(ctx, tool),
     block: {
       type: 'text',
       text: `Deferred tool schema for ${tool.name} (revision ${revision}). Call it through tool_use with input matching this schema.\n${tool.description}\n${schema}`,
