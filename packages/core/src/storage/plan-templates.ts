@@ -117,7 +117,8 @@ export function listPlanTemplates(): PlanTemplate[] {
 }
 
 export function getPlanTemplate(name: string): PlanTemplate | undefined {
-  return templates[name];
+  // Own keys only: `constructor`/`toString` resolved to Object.prototype members.
+  return Object.hasOwn(templates, name) ? templates[name] : undefined;
 }
 
 export function formatPlanTemplates(): string {

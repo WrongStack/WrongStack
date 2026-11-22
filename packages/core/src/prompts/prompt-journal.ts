@@ -246,7 +246,7 @@ export async function recordPromptJournalEntry(
 
     // 1. Session JSONL file: YYYY-MM/YYYY-MM-DD/session-<leaf>.jsonl
     const sessionJsonlFile = path.join(dayDir, `session-${sessionFileId(sessionId)}.jsonl`);
-    await fs.appendFile(sessionJsonlFile, JSON.stringify(entry) + '\n', 'utf8');
+    await appendJsonlLine(sessionJsonlFile, JSON.stringify(entry) + '\n');
 
     // 2. Session Markdown file: YYYY-MM/YYYY-MM-DD/session-<leaf>.md
     const sessionMdFile = path.join(dayDir, `session-${sessionFileId(sessionId)}.md`);
@@ -271,6 +271,31 @@ export async function recordPromptJournalEntry(
   }
 
   return entry;
+}
+
+/**
+ * Append one JSONL line, first ending a crash-torn last line. Appending onto
+ * a partial line glued this entry to it and the reader skipped both as one
+ * malformed line (same tail-byte rule as `FileMemoryBackend.remember`).
+ */
+async function appendJsonlLine(file: string, line: string): Promise<void> {
+  let prefix = '';
+  try {
+    const handle = await fs.open(file, 'r');
+    try {
+      const { size } = await handle.stat();
+      if (size > 0) {
+        const tail = Buffer.alloc(1);
+        const { bytesRead } = await handle.read(tail, 0, 1, size - 1);
+        if (bytesRead === 1 && tail[0] !== 0x0a) prefix = '\n';
+      }
+    } finally {
+      await handle.close();
+    }
+  } catch {
+    // Missing (first entry) or unreadable: append as before.
+  }
+  await fs.appendFile(file, prefix + line, 'utf8');
 }
 
 /**
@@ -466,7 +491,10 @@ export async function getPromptJournalEntries(
       if (filter.since && month < filter.since.slice(0, 7)) continue;
 
       const monthDir = path.join(basePromptsDir, month);
-      const days = await fs.readdir(monthDir);
+      // One unreadable month/day/file skips only itself: the outer catch is
+      // for a missing journal, and it used to blank the whole history.
+      const days = await fs.readdir(monthDir).catch(() => null);
+      if (!days) continue;
 
       for (const day of days) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
@@ -475,7 +503,8 @@ export async function getPromptJournalEntries(
         if (filter.since && day < filter.since.slice(0, 10)) continue;
 
         const dayDir = path.join(monthDir, day);
-        const files = await fs.readdir(dayDir);
+        const files = await fs.readdir(dayDir).catch(() => null);
+        if (!files) continue;
 
         const jsonlFiles = files.filter((f) => f.startsWith('session-') && f.endsWith('.jsonl'));
 
@@ -485,7 +514,8 @@ export async function getPromptJournalEntries(
           if (filter.sessionId && sId !== sessionFileId(filter.sessionId)) continue;
 
           const filePath = path.join(dayDir, jsonlFile);
-          const content = await fs.readFile(filePath, 'utf8');
+          const content = await fs.readFile(filePath, 'utf8').catch(() => null);
+          if (content === null) continue;
           const lines = content.split('\n');
 
           for (const line of lines) {

@@ -26,6 +26,14 @@ describe('plan-templates', () => {
     expect(tpl).toBeUndefined();
   });
 
+  it('returns undefined for names inherited from Object.prototype (F1174)', () => {
+    // `/plan template use constructor` skipped the "Unknown template" guard and
+    // crashed iterating `Object.items`.
+    for (const name of ['constructor', 'toString', 'hasOwnProperty', '__proto__']) {
+      expect(getPlanTemplate(name)).toBeUndefined();
+    }
+  });
+
   it('formatPlanTemplates renders categories', () => {
     const out = formatPlanTemplates();
     expect(out).toContain('new-feature');

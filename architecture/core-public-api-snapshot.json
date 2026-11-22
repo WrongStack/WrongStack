@@ -1171,7 +1171,7 @@
       "classification": "product feature",
       "intendedOwner": "plugin/runtime implementation",
       "sourceFiles": 4,
-      "sourceLines": 726
+      "sourceLines": 756
     },
     {
       "directory": "quota",
@@ -1234,7 +1234,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 129,
-      "sourceLines": 29892
+      "sourceLines": 29895
     },
     {
       "directory": "tasking",

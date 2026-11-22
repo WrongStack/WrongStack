@@ -96,7 +96,9 @@ export function validateBranchName(
 
 export function resolveBranch(tree: SessionTreeSnapshot, ref: string): SessionBranchDescriptor {
   const trimmed = ref.trim();
-  const direct = tree.branches[trimmed];
+  // Own keys only: `branches` is a plain object, and a branch NAMED
+  // `constructor` (a valid BRANCH_NAME_PATTERN name) resolved to Object.
+  const direct = Object.hasOwn(tree.branches, trimmed) ? tree.branches[trimmed] : undefined;
   if (direct) return direct;
   const byName = Object.values(tree.branches).find((b) => b.name === trimmed);
   if (byName) return byName;

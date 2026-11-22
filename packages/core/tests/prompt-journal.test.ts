@@ -316,6 +316,68 @@ describe('Hierarchical Prompt Journal & Trace Logger', () => {
     }
   });
 
+  it('starts a new JSONL line after a crash-torn tail instead of gluing onto it (F1172)', async () => {
+    // A crash mid-append leaves a partial line with no newline. Appending
+    // straight onto it made the next entry part of that malformed line, so the
+    // reader skipped a complete, valid prompt along with the torn bytes.
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pj-torn-'));
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const dayDir = path.join(tempDir, '.wrongstack', 'prompts', today.slice(0, 7), today);
+      await fs.mkdir(dayDir, { recursive: true });
+      const file = path.join(dayDir, 'session-sess_torn.jsonl');
+      await fs.writeFile(file, '{"id":"pmt_partial","times', 'utf8');
+      const first = await recordPromptJournalEntry({
+        projectRoot: tempDir,
+        sessionId: 'sess_torn',
+        category: 'raw_user',
+        content: 'after the crash',
+      });
+      const second = await recordPromptJournalEntry({
+        projectRoot: tempDir,
+        sessionId: 'sess_torn',
+        category: 'raw_user',
+        content: 'next prompt',
+      });
+      const ids = (await getPromptJournalEntries(tempDir, { sessionId: 'sess_torn' })).map(
+        (entry) => entry.id,
+      );
+      expect(ids).toEqual([first.id, second.id]);
+      // The torn bytes stay on their own line; complete lines are not padded.
+      const lines = (await fs.readFile(file, 'utf8')).split('\n');
+      expect(lines[0]).toBe('{"id":"pmt_partial","times');
+      expect(lines).toHaveLength(4);
+      expect(lines[3]).toBe('');
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps listing the readable history when one session file or day cannot be read (F1173)', async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pj-bad-file-'));
+    try {
+      for (const sessionId of ['sess_a', 'sess_b']) {
+        await recordPromptJournalEntry({
+          projectRoot: tempDir,
+          sessionId,
+          category: 'raw_user',
+          content: `prompt in ${sessionId}`,
+        });
+      }
+      const base = path.join(tempDir, '.wrongstack', 'prompts');
+      const today = new Date().toISOString().slice(0, 10);
+      // Unreadable as a file (EISDIR) — one bad entry, not a missing journal.
+      await fs.mkdir(path.join(base, today.slice(0, 7), today, 'session-zz.jsonl'));
+      // A day-shaped name that is not a directory (ENOTDIR on readdir).
+      await fs.writeFile(path.join(base, today.slice(0, 7), '1999-01-01'), 'x', 'utf8');
+      const entries = await getPromptJournalEntries(tempDir);
+      expect(entries.map((entry) => entry.sessionId).sort()).toEqual(['sess_a', 'sess_b']);
+      expect(await getPromptJournalEntries(path.join(tempDir, 'missing'))).toEqual([]);
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('sanitizes Windows-illegal filename characters in sessionId and escapes pipes in index.md (F102)', async () => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'prompt-journal-f102-'));
     try {
