@@ -1,3 +1,4 @@
+import { toErrorMessage } from '@wrongstack/core/utils/error';
 import type {
   KanbanBoundaryAccess,
   KanbanBoundaryPolicy,
@@ -83,9 +84,7 @@ export function KanbanBoundaryEditor({
       setError(
         cause instanceof BoundarySelectorError
           ? t(SELECTOR_ERROR_KEYS[cause.reason], { line: cause.line })
-          : cause instanceof Error
-            ? cause.message
-            : String(cause),
+          : toErrorMessage(cause),
       );
     }
   };

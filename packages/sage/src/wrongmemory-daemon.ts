@@ -5,7 +5,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
-import { buildChildEnv } from '@wrongstack/core/utils';
+import { buildChildEnv, toErrorMessage } from '@wrongstack/core/utils';
 import {
   type ConnectOptions,
   METHODS,
@@ -169,11 +169,6 @@ export async function startWrongMemoryDaemon(
       await new Promise((r) => setTimeout(r, 100));
     }
   } while (Date.now() < deadline);
-  const failure =
-    spawnError instanceof Error
-      ? spawnError.message
-      : last instanceof Error
-        ? last.message
-        : String(last);
+  const failure = toErrorMessage(spawnError ?? last);
   throw new WrongMemoryError('UNAVAILABLE', `daemon did not become ready: ${failure}`);
 }

@@ -174,9 +174,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils/error": {
-      "files": 27,
+      "files": 28,
       "typeOnly": 0,
-      "runtimeOrMixed": 27
+      "runtimeOrMixed": 28
     },
     "@wrongstack/core/utils/expect-defined": {
       "files": 16,
@@ -17838,6 +17838,12 @@
     {
       "specifier": "@wrongstack/core/utils/error",
       "file": "packages/project-surfaces/src/atlas/use-code-map-graph-loader.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/error",
+      "file": "packages/project-surfaces/src/kanban/KanbanBoundaryEditor.tsx",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
