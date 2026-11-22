@@ -69,6 +69,7 @@ import { makeConfirmAwaiter } from '../permission-prompt.js';
 import { installVibeProtocol } from '../vibe-protocol-wiring.js';
 import { installDesignStudio } from './design-studio.js';
 import type { HqPublisherRef } from './hq-telemetry.js';
+import { setPromptMcpRegistry } from './mcp-instructions-contributor.js';
 import { registerMcpObservability } from './metrics.js';
 import { createAgent, setupCompaction } from './pipeline.js';
 import { setupPlugins } from './plugins.js';
@@ -540,6 +541,7 @@ export async function setupLifecycleAndPlugins(
     // outside any call lands on the root session.
     elicitationHandler: (request) => elicitViaUserInput(request, context, { openUrl: openBrowser }),
   });
+  setPromptMcpRegistry(mcpRegistry);
   // `--mcp-config` servers (normalized at boot) always start — naming them on
   // the command line is the opt-in. `features.mcp` and `--strict-mcp-config`
   // only decide whether the configured servers join them.

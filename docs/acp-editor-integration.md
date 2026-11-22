@@ -153,6 +153,41 @@ as by you, so nothing that writes your settings or files runs unasked. A
 command's exchange stays in the conversation: it is replayed on load and the
 model sees it on the next turn.
 
+### Session modes and permissions
+
+Every session offers four modes through standard `session/set_mode`
+(`modes.availableModes` in the `session/new` / `session/load` result, and a
+`current_mode_update` whenever the mode changes):
+
+| Mode id | Name | Gated tool calls |
+| --- | --- | --- |
+| `default` | Default | Asks before file edits, shell commands and other gated actions. |
+| `plan` | Plan | Read-only: refuses writes and commands without asking. |
+| `auto-edit` | Auto-edit | Edits project files unasked; asks before shell commands and destructive actions. |
+| `yolo` | YOLO | Acts unasked, like `wstack --yolo`; still asks before the destructive kinds and calls your deny rules forbid. |
+
+`auto-edit` and `yolo` use the same project policy as `wstack --yolo` (trust and
+directory deny rules, `autonomy.yoloConfirm`, the locked destructive kinds), so
+whatever that policy would still confirm comes to the editor as a permission
+request. A mode changed during a turn applies to the turn's next tool call.
+`wstack acp serve --yolo` or `--mode <id>` picks the mode new sessions start in;
+a loaded session keeps its saved mode while it is still offered.
+
+Every permission request offers `allow_once`, `allow_always`, `reject_once` and
+`reject_always`. "Always" lasts for the session and covers the tool, named in
+the option ("Always allow file edits (write) in this session"); for a call the
+project policy still guards, such as a destructive command, "Always allow" covers
+that exact call only.
+
+### Client-supplied MCP servers
+
+The stdio, HTTP and SSE servers in `mcpServers` (`session/new`, `session/load`,
+`session/fork`) are connected for the session with their command, args and
+env, as `--mcp-config` connects them in the terminal. Their tools reach the
+model with the descriptions from `tools/list`, and each server's `initialize`
+`instructions` are added to the system prompt under "MCP server instructions"
+(the terminal does the same for `--mcp-config` servers).
+
 A client that advertises `clientCapabilities.fs.{readTextFile,writeTextFile}`
 and/or `terminal: true` lets WrongStack operate on the **editor's** filesystem
 and terminal (see §5).

@@ -168,6 +168,10 @@ export {
   serveStdio,
   toContentBlocks,
 } from './server.js';
+export { MCP_INSTRUCTIONS_MAX_CHARS, mcpServerInstructionsSection } from './server-instructions.js';
+export type { MCPTaskReceipt } from './task-journal.js';
+export { type MCPTask, MCPTaskError, type MCPTaskOptions } from './task-protocol.js';
+export type { MCPTaskRecoveryResult } from './task-recovery.js';
 export {
   createVaultBackedMcpAuthorizationProviderFactory,
   type MCPAuthorizationStateEvent,
@@ -184,6 +188,3 @@ export {
   StreamableHTTPTransport,
 } from './transport.js';
 export { type MCPToolCallObserver, wrapMCPTool } from './wrap-tool.js';
-export { type MCPTask, MCPTaskError, type MCPTaskOptions } from './task-protocol.js';
-export type { MCPTaskReceipt } from './task-journal.js';
-export type { MCPTaskRecoveryResult } from './task-recovery.js';

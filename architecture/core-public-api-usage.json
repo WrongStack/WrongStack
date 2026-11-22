@@ -104,9 +104,9 @@
       "runtimeOrMixed": 59
     },
     "@wrongstack/core/registry": {
-      "files": 215,
+      "files": 216,
       "typeOnly": 84,
-      "runtimeOrMixed": 140
+      "runtimeOrMixed": 141
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -124,9 +124,9 @@
       "runtimeOrMixed": 18
     },
     "@wrongstack/core/security": {
-      "files": 277,
+      "files": 279,
       "typeOnly": 27,
-      "runtimeOrMixed": 253
+      "runtimeOrMixed": 255
     },
     "@wrongstack/core/session-catalog": {
       "files": 19,
@@ -6473,6 +6473,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/cli/tests/acp-mcp-instructions.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/tests/acp-server-agent.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
@@ -7799,6 +7805,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/acp-session-modes.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/auth-menu/auth-menu-audit.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8100,6 +8112,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/cli/tests/acp-server-agent.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/tests/acp-session-modes.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

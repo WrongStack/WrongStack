@@ -3,7 +3,7 @@
   "thresholdLines": 701,
   "files": {
     "packages/acp/src/agent/protocol-session-management.ts": {
-      "lines": 723,
+      "lines": 724,
       "relativeImports": 2
     },
     "packages/acp/src/agent/server-agent-turn.ts": {

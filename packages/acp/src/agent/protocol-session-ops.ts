@@ -49,6 +49,20 @@ function supportsTerminalAuth(clientCapabilities: ClientCapabilities): boolean {
 export const DEFAULT_MODE_ID = 'code';
 export const DEFAULT_MAX_SESSIONS = 64;
 
+/**
+ * The mode a session opens in: `requested` while this server still offers it,
+ * else the first offered mode. A persisted mode from an older build (`code`)
+ * or a removed one must not be reported as `currentModeId` outside
+ * `availableModes`.
+ */
+export function offeredModeId(
+  modes: readonly SessionMode[],
+  requested: string | undefined,
+): string {
+  if (requested !== undefined && modes.some((m) => m.id === requested)) return requested;
+  return modes[0]?.id ?? DEFAULT_MODE_ID;
+}
+
 export const DEFAULT_MODES: readonly SessionMode[] = [
   {
     id: DEFAULT_MODE_ID,
@@ -251,9 +265,11 @@ export function createRunTurnApi(
   clientCapabilities: ClientCapabilities,
   request: (method: string, params: unknown) => Promise<unknown>,
   sendSessionUpdate?: (update: unknown) => Promise<boolean>,
+  currentModeId?: () => string | undefined,
 ): RunTurnApi {
   return {
     clientCapabilities,
+    ...(currentModeId ? { currentModeId } : {}),
     requestPermission: async (req) => {
       const res = await request('session/request_permission', {
         sessionId,

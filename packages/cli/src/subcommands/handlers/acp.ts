@@ -33,17 +33,21 @@ export const acpCmd: SubcommandHandler = async (args, deps) => {
     return authCmd(args.slice(loginIndex + 1), deps);
   }
 
-  if (!sub || sub === 'server' || sub === 'serve') {
+  // `wstack acp serve --help` prints this help; it must not start the server.
+  const wantsHelp = deps.flags?.['help'] === true || deps.flags?.['h'] === true;
+  if ((!sub || sub === 'server' || sub === 'serve') && !wantsHelp) {
     return runACPServer(deps);
   }
 
-  if (sub === 'help') {
+  if (sub === 'help' || wantsHelp) {
     deps.renderer.write(`\
 wstack acp — ACP (Agent Client Protocol) integration
 
 Usage:
   wstack acp              Start WrongStack as an ACP server (blocks)
-  wstack acp server       Same as above
+  wstack acp serve [--yolo | --mode <id>]
+                        Same, starting new sessions in that mode
+  wstack acp server       Same as \`wstack acp serve\`
   wstack acp list         List available ACP agents
   wstack acp config <id>  Read an agent's model/effort options (--json supported)
   wstack acp sync         Pull the official agentclientprotocol/registry into cache
@@ -72,6 +76,24 @@ ACP Mode:
     (default)        stdio JSON-RPC (the usual editor-spawned-subprocess mode)
     --ws[=port]      serve over WebSocket on 127.0.0.1:<port> (default 8889) —
                      full-duplex, so updates/permission prompts stream live.
+
+  Session modes (ACP \`session/set_mode\`; the flag picks the mode new sessions start in):
+    --mode default     Ask before file edits, shell commands and other gated actions
+    --mode plan        Read-only: never writes files or runs commands
+    --mode auto-edit   Edit project files without asking; ask before shell commands
+                       and destructive actions
+    --mode yolo        Act without asking, like \`wstack --yolo\`; still ask before the
+                       destructive kinds and calls your deny rules forbid
+    --yolo             Same as --mode yolo
+  Permission requests offer allow once, always allow, reject once and always
+  reject. "Always" lasts for the session and covers that tool (for example
+  "Always allow file edits (write) in this session"); for a call the project
+  policy still guards, such as a destructive command, it covers that exact call.
+
+  MCP servers: the servers a client passes in \`session/new\` / \`session/load\`
+  (\`mcpServers\`) are connected for that session, as \`--mcp-config\` connects
+  them in the terminal. Their tools reach the model with their own descriptions,
+  and each server's \`initialize\` instructions are added to the system prompt.
 
 spawn:
   Spawns a named ACP agent (claude-code, gemini-cli, codex-cli, copilot,

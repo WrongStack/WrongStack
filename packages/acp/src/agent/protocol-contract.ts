@@ -164,6 +164,12 @@ export interface RunTurnApi {
    * own `RunTurnApi` may omit it.
    */
   sendSessionUpdate?(update: unknown): Promise<boolean>;
+  /**
+   * The session's current mode (`session/set_mode`), read at call time so a
+   * mode changed during a turn applies to the turn's next tool call. Optional:
+   * embedders that build their own `RunTurnApi` may omit it.
+   */
+  currentModeId?(): string | undefined;
 }
 
 /**

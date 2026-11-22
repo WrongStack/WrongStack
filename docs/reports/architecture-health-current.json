@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T17:03:47.481Z",
+  "generatedAt": "2026-11-22T17:46:21.512Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 50,
-    "sourceFiles": 6485,
-    "testFiles": 5678,
-    "sourceLines": 1325309,
+    "sourceFiles": 6488,
+    "testFiles": 5681,
+    "sourceLines": 1325664,
     "workspaceEdges": 259,
-    "moduleEdges": 18946,
+    "moduleEdges": 18952,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1041
+    "testOnlyExports": 1040
   },
   "errors": [],
   "packageCycles": [],
@@ -93,7 +93,7 @@
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
       "sourceFiles": 58,
-      "testFiles": 71,
+      "testFiles": 72,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -109,7 +109,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 71
+          "testFiles": 72
         }
       ]
     },
@@ -231,8 +231,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 638,
-      "testFiles": 708,
+      "sourceFiles": 640,
+      "testFiles": 710,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -284,7 +284,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 708
+          "testFiles": 710
         }
       ]
     },
@@ -647,7 +647,7 @@
     {
       "name": "@wrongstack/mcp",
       "dir": "packages/mcp",
-      "sourceFiles": 74,
+      "sourceFiles": 75,
       "testFiles": 108,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -3818,6 +3818,12 @@
         ]
       },
       {
+        "file": "packages/acp/tests/acp-agent-session-modes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/acp-bench.test.ts",
         "projects": [
           "root-node"
@@ -5528,6 +5534,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/acp-mcp-instructions.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/acp-mcp-servers.test.ts",
         "projects": [
           "root-node"
@@ -5589,6 +5601,12 @@
       },
       {
         "file": "packages/cli/tests/acp-server-runtime.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/acp-session-modes.test.ts",
         "projects": [
           "root-node"
         ]
@@ -36431,7 +36449,7 @@
   "hotspotCandidates": [
     {
       "file": "packages/acp/src/agent/protocol-session-management.ts",
-      "lines": 723,
+      "lines": 724,
       "relativeImports": 2
     },
     {
@@ -37670,10 +37688,6 @@
     {
       "file": "packages/cli/src/acp-model-option.ts",
       "name": "acpModelValue"
-    },
-    {
-      "file": "packages/cli/src/acp-server-agent.ts",
-      "name": "ACPClientPermissionPolicy"
     },
     {
       "file": "packages/cli/src/acp-server-runtime.ts",

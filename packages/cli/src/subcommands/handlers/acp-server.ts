@@ -17,6 +17,7 @@ import {
 import { leaderDeliveryHub } from '@wrongstack/coordination';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { type AcpServerRuntime, createAcpServerRuntime } from '../../acp-server-runtime.js';
+import { acpSessionModes, resolveAcpStartMode, type SessionMode } from '../../acp-session-modes.js';
 import { createGracefulShutdown } from '../../shutdown-cleanup.js';
 import { CLI_VERSION } from '../../version.js';
 import { WebSocketServer } from '../../ws-runtime.js';
@@ -121,7 +122,11 @@ function sessionStoreFor(deps: SubcommandDeps): SessionPersistence | undefined {
  * the agent streams `session/update` and makes `session/request_permission`
  * callbacks live during a turn. One handler + transport per connection.
  */
-async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promise<number> {
+async function runACPWebSocketServer(
+  deps: SubcommandDeps,
+  port: number,
+  modes: readonly SessionMode[],
+): Promise<number> {
   const host = '127.0.0.1';
   // `--echo` over WS: a no-provider connectivity test, mirroring stdio `--echo`.
   const echo = deps.flags?.echo === true || deps.flags?.echo === 'true';
@@ -221,6 +226,7 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
       defaultCwd: deps.cwd ?? process.cwd(),
       agentVersion: CLI_VERSION,
       runTurn: connectionTurn ?? echoTurn!,
+      modes,
       ...(connectionTurn && runtime
         ? {
             authGate: runtime.authGate,
@@ -291,9 +297,16 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
 }
 
 export async function runACPServer(deps: SubcommandDeps): Promise<number> {
+  const start = resolveAcpStartMode(deps.flags);
+  if ('error' in start) {
+    deps.renderer.writeError(`${start.error}
+`);
+    return 2;
+  }
+  const modes = acpSessionModes(start.modeId);
   const wsPort = parseWsPort(deps.flags?.ws);
   if (wsPort !== null) {
-    return runACPWebSocketServer(deps, wsPort);
+    return runACPWebSocketServer(deps, wsPort, modes);
   }
   // `--echo` keeps the no-op connectivity-smoke-test path that the default
   // runTurn provided before this server was wired to a real Agent. Useful for
@@ -328,10 +341,11 @@ export async function runACPServer(deps: SubcommandDeps): Promise<number> {
             replayFor: turn.replay,
             seedFor: turn.seed,
             disposeFor: runtime.composeDispose(turn.dispose),
+            modes,
             ...(store ? { store } : {}),
           };
         })()
-      : { defaultCwd: deps.cwd ?? process.cwd(), agentVersion: CLI_VERSION },
+      : { defaultCwd: deps.cwd ?? process.cwd(), agentVersion: CLI_VERSION, modes },
   );
 
   if (!runtime) {

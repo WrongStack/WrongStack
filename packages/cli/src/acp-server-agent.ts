@@ -20,7 +20,6 @@ import type { McpServer, RunTurnApi, SessionSystemPrompt } from '@wrongstack/acp
 import { EventBus, TOKENS } from '@wrongstack/contracts/kernel';
 import {
   type Logger,
-  type PermissionDecision,
   type PermissionPolicy,
   type SessionWriter,
   type Tool,
@@ -30,13 +29,21 @@ import { Agent, Context, createDefaultPipelines } from '@wrongstack/core/agent';
 import { createModelRuntimeMiddleware, ToolExecutor } from '@wrongstack/core/execution';
 import { DefaultLogger, DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import { ToolRegistry } from '@wrongstack/core/registry';
-import { AutoApprovePermissionPolicy, ToolCapabilities } from '@wrongstack/core/security';
+import { AutoApprovePermissionPolicy } from '@wrongstack/core/security';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { WRONGFORGE_REASONING } from '@wrongstack/fleet';
-import type { MCPRegistry } from '@wrongstack/mcp';
+import { type MCPRegistry, mcpServerInstructionsSection } from '@wrongstack/mcp';
 import { catalogProviderIdFor, withCatalogCapabilities } from '@wrongstack/providers';
-import { createDefaultContainer, wireKanbanPorts } from '@wrongstack/runtime';
+import {
+  createDefaultContainer,
+  createProjectPermissionPolicy,
+  wireKanbanPorts,
+} from '@wrongstack/runtime';
 import { connectAcpSessionMcpServers } from './acp-mcp-servers.js';
+import { ACPClientPermissionPolicy } from './acp-session-modes.js';
+
+export { ACPClientPermissionPolicy } from './acp-session-modes.js';
+
 import type { SubcommandDeps } from './subcommands/contracts.js';
 import { setupProvider } from './wiring/provider.js';
 import { buildProviderForId, resolveProviderCfgWithProxy } from './wiring/provider-runtime.js';
@@ -112,135 +119,6 @@ export interface AcpServerAgentFactory {
 interface AcpAgentFactoryOptions {
   /** Caller-supplied logger; a minimal stderr logger is created when omitted. */
   logger?: Logger | undefined;
-}
-
-/** Capabilities considered safe to auto-approve without asking the client. */
-const SAFE_CAPS = new Set<string>([
-  ToolCapabilities.FS_READ,
-  ToolCapabilities.NET_OUTBOUND,
-  ToolCapabilities.COORDINATION_FLEET_READ,
-]);
-
-/**
- * Permission policy that routes side-effecting tool calls to the connected
- * ACP client via `session/request_permission` (the v1-correct behavior),
- * while auto-approving read-only/safe tools. This replaces the blanket
- * auto-approve so an editor driving WrongStack-as-agent gets a real
- * permission prompt before file writes / shell commands run.
- *
- * Exported for direct regression testing of the malformed-response path —
- * `acp-server-agent.test.ts` injects a response whose `optionId` is missing
- * (which previously threw a TypeError at `outcome.optionId.startsWith(...)`
- * and was misattributed to "no permission channel" by the surrounding
- * try/catch). Production callers go through `buildAcpServerAgentFactory`,
- * which constructs this internally when the client exposes a permission
- * channel.
- */
-export class ACPClientPermissionPolicy implements PermissionPolicy {
-  private readonly alwaysAllowed = new Set<string>();
-  private readonly alwaysDenied = new Set<string>();
-
-  constructor(private readonly requestPermission: RunTurnApi['requestPermission']) {}
-
-  async evaluate(tool: Tool, input: unknown): Promise<PermissionDecision> {
-    const caps = tool.capabilities ?? [];
-    // Safe iff every declared capability is in the safe set (and at least
-    // one exists). A tool with no declared caps is treated as unsafe.
-    const isSafe = caps.length > 0 && caps.every((c) => SAFE_CAPS.has(c));
-    if (isSafe) {
-      return { permission: 'auto', source: 'default' };
-    }
-    if (this.alwaysAllowed.has(tool.name)) {
-      return { permission: 'auto', source: 'user' };
-    }
-    if (this.alwaysDenied.has(tool.name)) {
-      return { permission: 'deny', source: 'user', reason: 'always rejected by ACP client' };
-    }
-
-    const title = describeToolCall(tool.name, input);
-    try {
-      const outcome = await this.requestPermission({
-        toolCall: {
-          toolCallId: `tc_${tool.name}_${Date.now()}`,
-          title,
-          kind: permissionToolKind(tool.name),
-        },
-        options: [
-          { optionId: 'allow_once', name: 'Allow', kind: 'allow_once' },
-          { optionId: 'allow_always', name: 'Always allow', kind: 'allow_always' },
-          { optionId: 'reject_once', name: 'Reject', kind: 'reject_once' },
-          { optionId: 'reject_always', name: 'Always reject', kind: 'reject_always' },
-        ],
-      });
-      const optionId = outcome.outcome === 'selected' ? outcome.optionId : undefined;
-      if (optionId === 'allow_always') {
-        this.alwaysDenied.delete(tool.name);
-        this.alwaysAllowed.add(tool.name);
-      } else if (optionId === 'reject_always') {
-        this.alwaysAllowed.delete(tool.name);
-        this.alwaysDenied.add(tool.name);
-      }
-      const allowed = typeof optionId === 'string' && optionId.startsWith('allow');
-      return allowed
-        ? { permission: 'auto', source: 'user' }
-        : { permission: 'deny', source: 'user', reason: 'rejected by ACP client' };
-    } catch {
-      // No client channel or the request timed out. Fail safe: deny the
-      // side-effecting tool rather than silently running it.
-      return { permission: 'deny', source: 'deny', reason: 'no permission channel' };
-    }
-  }
-
-  async trust(rule: { tool: string; pattern: string; ttlMs?: number | undefined }): Promise<void> {
-    if (rule.tool.length > 0) {
-      this.alwaysDenied.delete(rule.tool);
-      this.alwaysAllowed.add(rule.tool);
-    }
-  }
-  async deny(rule: { tool: string; pattern: string }): Promise<void> {
-    if (rule.tool.length > 0) {
-      this.alwaysAllowed.delete(rule.tool);
-      this.alwaysDenied.add(rule.tool);
-    }
-  }
-  denyOnce(): void {}
-  allowOnce(): void {}
-  async reload(): Promise<void> {}
-}
-
-function permissionToolKind(
-  name: string,
-): 'read' | 'edit' | 'delete' | 'move' | 'search' | 'execute' | 'fetch' | 'think' | 'other' {
-  const n = name.toLowerCase();
-  if (n.includes('read') || n.includes('cat')) return 'read';
-  if (n.includes('write') || n.includes('edit') || n.includes('apply') || n.includes('patch'))
-    return 'edit';
-  if (n.includes('delete') || n === 'rm' || n.startsWith('rm_') || n.endsWith('_rm'))
-    return 'delete';
-  if (n.includes('move') || n.includes('rename') || n.includes('mv')) return 'move';
-  if (n.includes('grep') || n.includes('glob') || n.includes('search') || n.includes('find'))
-    return 'search';
-  if (
-    n.includes('bash') ||
-    n.includes('shell') ||
-    n.includes('exec') ||
-    n.includes('run') ||
-    n.includes('terminal')
-  )
-    return 'execute';
-  if (n.includes('fetch') || n.includes('http') || n.includes('web') || n.includes('url'))
-    return 'fetch';
-  if (n.includes('think') || n.includes('plan')) return 'think';
-  return 'other';
-}
-
-function describeToolCall(name: string, input: unknown): string {
-  if (input && typeof input === 'object') {
-    const r = input as Record<string, unknown>;
-    const arg = r.path ?? r.file ?? r.command ?? r.pattern;
-    if (typeof arg === 'string') return `${name}: ${arg}`;
-  }
-  return name;
 }
 
 /**
@@ -429,6 +307,21 @@ export function buildAcpServerAgentFactory(
   // Agent) because teardown is driven by `session/close`, which reaches this
   // module through `disposeSession` rather than through the Agent.
   const sessionMcp = new Map<string, MCPRegistry>();
+  // A broken `.wrongstack/directory-rules.json` leaves no arbiter: `yolo` and
+  // `auto-edit` then ask for every gated call rather than guess.
+  const yoloArbiter = (cwd: string): PermissionPolicy | undefined => {
+    try {
+      return createProjectPermissionPolicy({
+        projectRoot: cwd,
+        trustFile: wpaths.projectTrust,
+        config,
+        permission: { yolo: true },
+      })();
+    } catch (err) {
+      logger.warn(`ACP: permission rules for ${cwd} are unreadable; every gated call asks`, err);
+      return undefined;
+    }
+  };
   const sessionGeneration = new Map<string, number>();
   const disposedSessions = new Set<string>();
 
@@ -470,6 +363,7 @@ export function buildAcpServerAgentFactory(
       sessionMcp.delete(sessionId);
       void previous.stopAll().catch(() => {});
     }
+    let mcpInstructions: string | undefined;
     if (mcpServers && mcpServers.length > 0 && !disposedSessions.has(sessionId)) {
       const mcp = await connectAcpSessionMcpServers({
         servers: mcpServers,
@@ -486,6 +380,8 @@ export function buildAcpServerAgentFactory(
           });
         } else {
           sessionMcp.set(sessionId, mcp);
+          // The servers' own `initialize` instructions, as `--mcp-config` gives them.
+          mcpInstructions = mcpServerInstructionsSection(mcp);
         }
       }
     }
@@ -495,8 +391,13 @@ export function buildAcpServerAgentFactory(
     // to the client for approval. Without a channel (tests, --echo) fall
     // back to the headless auto-approve, matching the subagent posture in
     // fleet/host.ts.
+    // The session mode (`session/set_mode`) is read at each call; `yolo` and
+    // `auto-edit` ask the policy `wstack --yolo` runs under (see acp-session-modes.ts).
     const permissionPolicy: PermissionPolicy = api?.requestPermission
-      ? new ACPClientPermissionPolicy(api.requestPermission)
+      ? new ACPClientPermissionPolicy(api.requestPermission, {
+          mode: () => api.currentModeId?.(),
+          arbiter: yoloArbiter(cwd),
+        })
       : new AutoApprovePermissionPolicy();
 
     const tokenCounter = new DefaultTokenCounter({
@@ -514,7 +415,10 @@ export function buildAcpServerAgentFactory(
     const session = createAcpSessionWriter(sessionId);
 
     const context = new Context({
-      systemPrompt: systemPrompt?.text ? [{ type: 'text', text: systemPrompt.text }] : [],
+      systemPrompt: [
+        ...(systemPrompt?.text ? [{ type: 'text' as const, text: systemPrompt.text }] : []),
+        ...(mcpInstructions ? [{ type: 'text' as const, text: mcpInstructions }] : []),
+      ],
       provider,
       session,
       signal: new AbortController().signal,

@@ -13,8 +13,8 @@ import {
 } from './protocol-contract.js';
 import {
   createRunTurnApi,
-  DEFAULT_MODE_ID,
   errorToJsonRpc,
+  offeredModeId,
   openSessionConfigOptions,
   parseMcpServers,
   parseSystemPrompt,
@@ -93,7 +93,7 @@ export async function handleSessionNewOp(
     id: sessionId,
     cwd,
     abort: new AbortController(),
-    modeId: ctx.modes[0]?.id ?? DEFAULT_MODE_ID,
+    modeId: offeredModeId(ctx.modes, undefined),
     configOptions,
     createdAt: now,
     updatedAt: now,
@@ -189,7 +189,7 @@ export async function handleSessionLoadOp(
         id: sessionId,
         cwd: restoredCwd,
         abort: new AbortController(),
-        modeId: persisted.modeId ?? DEFAULT_MODE_ID,
+        modeId: offeredModeId(ctx.modes, persisted.modeId),
         configOptions: restoredConfig,
         createdAt: persisted.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -397,7 +397,7 @@ export async function handleSessionForkOp(
   }
   const now = new Date().toISOString();
   const sessionId = `sess_${ctx.allocId()}`;
-  const sourceModeId = liveSource?.modeId ?? persistedSource?.modeId ?? DEFAULT_MODE_ID;
+  const sourceModeId = offeredModeId(ctx.modes, liveSource?.modeId ?? persistedSource?.modeId);
   const sourceTitle = liveSource ? liveSource.title : persistedSource?.title;
   const sourceSystemPrompt = liveSource ? liveSource.systemPrompt : persistedSource?.systemPrompt;
   const forkedSystemPrompt =
@@ -486,6 +486,7 @@ export async function handleSessionPromptOp(
       await ctx.sendNotification({ sessionId, update });
       return true;
     },
+    () => ctx.sessions.get(sessionId)?.modeId,
   );
 
   let result: RunTurnResult;

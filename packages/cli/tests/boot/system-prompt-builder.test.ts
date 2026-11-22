@@ -30,6 +30,9 @@ import { describe, expect, it, vi } from 'vitest';
  */
 
 const { bindSystemPromptBuilder } = await import('../../src/boot/system-prompt-builder.js');
+const { mcpInstructionsContributor } = await import(
+  '../../src/wiring/mcp-instructions-contributor.js'
+);
 
 import type { TokenSavingTier } from '@wrongstack/contracts/types';
 
@@ -190,8 +193,8 @@ describe('bindSystemPromptBuilder (PR 5 of #29)', () => {
     // contributor: `makeAutonomyPromptContributor({...})`.
     // We assert that the helper preserves that shape and now
     // additionally wires the WrongTrace observability
-    // contributor: the builder receives a two-element
-    // contributors array.
+    // contributor, then the connected MCP servers' own
+    // instructions: a three-element contributors array.
     // (The contributors themselves are functions typed as
     // `SystemPromptContributor = (ctx) => Promise<TextBlock[]>`,
     // so the helper has no public surface to assert against
@@ -202,8 +205,9 @@ describe('bindSystemPromptBuilder (PR 5 of #29)', () => {
       const { capturedFactory } = makeDeps({ autonomyMode: mode });
       const builder = capturedFactory();
       const contributors = builder.opts.contributors ?? [];
-      expect(contributors).toHaveLength(2);
+      expect(contributors).toHaveLength(3);
       expect(contributors.every((c) => typeof c === 'function')).toBe(true);
+      expect(contributors.at(-1)).toBe(mcpInstructionsContributor);
     }
   });
 });

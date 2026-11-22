@@ -52,6 +52,8 @@ export interface WrongStackACPServerOptions {
   sessionConfigOptions?: ProtocolHandlerOptions['sessionConfigOptions'];
   /** Slash commands per session; see `ProtocolHandlerOptions.sessionCommands`. */
   sessionCommands?: ProtocolHandlerOptions['sessionCommands'];
+  /** Session modes; the first is the one a new session opens in. See `ProtocolHandlerOptions.modes`. */
+  modes?: ProtocolHandlerOptions['modes'];
   /**
    * Transport mode. 'stdio' (default) communicates over stdin/stdout.
    * When a number is provided, the server listens as an HTTP server on
@@ -120,6 +122,7 @@ export class WrongStackACPServer {
       ...(opts.authGate ? { authGate: opts.authGate } : {}),
       ...(opts.sessionConfigOptions ? { sessionConfigOptions: opts.sessionConfigOptions } : {}),
       ...(opts.sessionCommands ? { sessionCommands: opts.sessionCommands } : {}),
+      ...(opts.modes ? { modes: opts.modes } : {}),
       ...(opts.replayFor ? { replayFor: opts.replayFor } : {}),
       ...(opts.seedFor ? { seedFor: opts.seedFor } : {}),
       ...(opts.disposeFor ? { disposeFor: opts.disposeFor } : {}),

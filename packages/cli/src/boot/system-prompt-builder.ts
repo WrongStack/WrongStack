@@ -92,6 +92,7 @@ interface PathJoiner {
  * is typed against.
  */
 import type { DomainGlossaryListProvider as DomainGlossaryAdapter } from '../wiring/domain-glossary.js';
+import { mcpInstructionsContributor } from '../wiring/mcp-instructions-contributor.js';
 
 interface BindSystemPromptBuilderDeps {
   /**
@@ -225,16 +226,23 @@ export function bindSystemPromptBuilder(deps: BindSystemPromptBuilderDeps): void
         // Plan, contributors and glossary: the host-owned sections, shared
         // with the standalone engine behind WebUI/desktop so both surfaces
         // compose the same prompt from the same state.
-        ...createHostSystemPromptSections({
-          goalPath: deps.paths.projectGoal,
-          projectSessionsDir: deps.paths.projectSessions,
-          getSessionId: () => deps.sessionRef.current?.id,
-          getProcessAutonomy: () => deps.autonomyModeRef.current,
-          tokenSavingMode: deps.tokenSavingMode,
-          projectRoot: deps.projectRoot,
-          atlas: deps.atlas,
-          domainGlossary: deps.domainGlossary,
-        }),
+        ...withMcpInstructions(
+          createHostSystemPromptSections({
+            goalPath: deps.paths.projectGoal,
+            projectSessionsDir: deps.paths.projectSessions,
+            getSessionId: () => deps.sessionRef.current?.id,
+            getProcessAutonomy: () => deps.autonomyModeRef.current,
+            tokenSavingMode: deps.tokenSavingMode,
+            projectRoot: deps.projectRoot,
+            atlas: deps.atlas,
+            domainGlossary: deps.domainGlossary,
+          }),
+        ),
       }),
   );
+}
+
+/** The host sections plus the connected MCP servers' own instructions. */
+function withMcpInstructions<T extends { contributors: readonly unknown[] }>(sections: T): T {
+  return { ...sections, contributors: [...sections.contributors, mcpInstructionsContributor] };
 }
