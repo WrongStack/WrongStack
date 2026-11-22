@@ -7,14 +7,14 @@
  * project policy `wstack --yolo` runs under; most cases stub that arbiter, and
  * one runs the real one to prove a destructive command still asks.
  */
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import type { PermissionDecision, PermissionPolicy, Tool } from '@wrongstack/contracts/types';
 import type { AgentContext } from '@wrongstack/contracts/types/context';
 import { ToolCapabilities } from '@wrongstack/core/security';
 import { createProjectPermissionPolicy } from '@wrongstack/runtime';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import {
   ACPClientPermissionPolicy,
   acpSessionModes,
@@ -33,7 +33,12 @@ const tool = (name: string, capabilities: string[]): Tool =>
 const write = tool('write', [ToolCapabilities.FS_WRITE]);
 const bash = tool('bash', [ToolCapabilities.SHELL_ARBITRARY]);
 const read = tool('read', [ToolCapabilities.FS_READ]);
-const ROOT = path.resolve(tmpdir(), 'acp-modes-project');
+// A real directory: auto-edit follows symlinks, so the root must exist.
+const ROOT = mkdtempSync(path.join(tmpdir(), 'acp-modes-project-'));
+const OUTSIDE = mkdtempSync(path.join(tmpdir(), 'acp-modes-outside-'));
+afterAll(() => {
+  for (const dir of [ROOT, OUTSIDE]) rmSync(dir, { recursive: true, force: true });
+});
 const ctx = {
   meta: {},
   session: { id: 's1' },
@@ -137,6 +142,21 @@ describe('ACP session modes: permission decisions', () => {
     expect(ask).toHaveBeenCalledTimes(3);
     await policy.evaluate(write, { edits: [{ path: 'src/a.ts' }, { path: 'src/b.ts' }] }, ctx);
     expect(ask).toHaveBeenCalledTimes(3);
+  });
+
+  it('auto-edit asks for a write through a link that leaves the project', async () => {
+    mkdirSync(path.join(ROOT, 'src'), { recursive: true });
+    // A junction needs no privilege on Windows; elsewhere it is a plain dir symlink.
+    symlinkSync(OUTSIDE, path.join(ROOT, 'escape'), 'junction');
+    const ask = client('reject_once');
+    const policy = new ACPClientPermissionPolicy(ask, {
+      mode: () => 'auto-edit',
+      arbiter: arbiterSaying({ permission: 'auto', source: 'yolo' }),
+    });
+    await policy.evaluate(write, { path: 'escape/new/a.ts' }, ctx);
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect((await policy.evaluate(write, { path: 'src/new/a.ts' }, ctx)).permission).toBe('auto');
+    expect(ask).toHaveBeenCalledTimes(1);
   });
 
   it('auto-edit asks for a write the project policy still guards', async () => {

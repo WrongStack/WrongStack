@@ -12,6 +12,7 @@
  * policy would still confirm goes to the client as a permission request.
  */
 
+import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { RunTurnApi, WrongStackACPServerOptions } from '@wrongstack/acp/agent';
 import type { PermissionDecision, PermissionPolicy, Tool } from '@wrongstack/contracts/types';
@@ -163,7 +164,7 @@ export class ACPClientPermissionPolicy implements PermissionPolicy {
     }
     if (verdict?.permission === 'auto') {
       if (mode === 'yolo') return { permission: 'auto', source: 'yolo' };
-      if (mode === 'auto-edit' && isProjectEdit(tool) && editsInsideProject(input, ctx))
+      if (mode === 'auto-edit' && isProjectEdit(tool) && (await editsInsideProject(input, ctx)))
         return { permission: 'auto', source: 'default' };
     }
     return this.ask(tool, input, exactKey, verdict?.reason);
@@ -268,10 +269,13 @@ function isProjectEdit(tool: Tool): boolean {
 const PATH_KEYS = ['path', 'file', 'file_path', 'filePath'] as const;
 
 /**
- * Every path the call names resolves inside the session's project root. A call
- * whose target cannot be read (no path field) is not an auto-edit: it asks.
+ * Every path the call names resolves, symlinks followed, inside the session's
+ * project root. A client-backed write (`fs/write_text_file`) skips the write
+ * tool's own realpath check, so a link inside the project pointing out of it
+ * must ask here. A call whose target cannot be read (no path field) or resolved
+ * is not an auto-edit: it asks.
  */
-function editsInsideProject(input: unknown, ctx: AgentContext | undefined): boolean {
+async function editsInsideProject(input: unknown, ctx: AgentContext | undefined): Promise<boolean> {
   const root = ctx?.projectRoot;
   if (!root || !input || typeof input !== 'object') return false;
   const targets: string[] = [];
@@ -290,11 +294,34 @@ function editsInsideProject(input: unknown, ctx: AgentContext | undefined): bool
     }
   }
   if (targets.length === 0) return false;
-  const base = path.resolve(root);
-  return targets.every((target) => {
-    const rel = path.relative(base, path.resolve(ctx.cwd ?? base, target));
-    return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
-  });
+  try {
+    const base = await fsp.realpath(path.resolve(root));
+    for (const target of targets) {
+      const real = await realpathOfDeepestAncestor(path.resolve(ctx.cwd ?? root, target));
+      const rel = path.relative(base, real);
+      if (rel === '' || rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel))
+        return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The realpath of `target`'s deepest existing ancestor, with the missing tail re-attached. */
+async function realpathOfDeepestAncestor(target: string): Promise<string> {
+  const tail: string[] = [];
+  let probe = target;
+  for (;;) {
+    try {
+      return path.join(await fsp.realpath(probe), ...tail.reverse());
+    } catch (err) {
+      const parent = path.dirname(probe);
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT' || parent === probe) throw err;
+      tail.push(path.basename(probe));
+      probe = parent;
+    }
+  }
 }
 
 function stableJson(value: unknown): string {
