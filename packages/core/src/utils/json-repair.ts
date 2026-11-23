@@ -33,6 +33,11 @@ function repairTruncated(s: string): string {
   // the open-container stack, whether we are inside a string, a dangling escape,
   // and where the last significant (non-trailing-whitespace) character sits.
   const stack: ('{' | '[')[] = [];
+  // Per open container: the keys already seen in an object (null for arrays),
+  // and where its current member starts. Used only to recognise a dangling
+  // REPEATED key, whose invented value would erase the complete field.
+  const objectKeys: (Set<string> | null)[] = [];
+  const memberStarts: number[] = [];
   let inString = false;
   let escaped = false;
   let sawKey = false; // have we seen any string (i.e. real content) yet?
@@ -40,6 +45,10 @@ function repairTruncated(s: string): string {
   let prevSig = ''; // last significant char seen outside of a string
   let contentEnd = 0; // index just past the last significant char
   let stringStart = 0; // index of the opening quote of the latest string
+  let closedStringRaw = ''; // content of the most recently closed string
+  let closedStringWasKey = false;
+  /** The key of the dangling `"k":` at the cut repeats an earlier member. */
+  let danglingKeyIsDuplicate = false;
 
   for (let i = 0; i < s.length; i++) {
     const ch = expectDefined(s[i]);
@@ -55,6 +64,8 @@ function repairTruncated(s: string): string {
       }
       if (ch === '"') {
         inString = false;
+        closedStringRaw = s.slice(stringStart + 1, i);
+        closedStringWasKey = isKey;
         prevSig = '"';
         continue;
       }
@@ -69,16 +80,30 @@ function repairTruncated(s: string): string {
       isKey = stack[stack.length - 1] === '{' && (prevSig === '{' || prevSig === ',');
       prevSig = '"';
     } else if (ch === ':') {
+      const keys = objectKeys[objectKeys.length - 1];
+      if (keys && closedStringWasKey) {
+        const key = decodeKeyName(closedStringRaw);
+        danglingKeyIsDuplicate = keys.has(key);
+        keys.add(key);
+      }
+      closedStringWasKey = false;
       isKey = false;
       prevSig = ':';
     } else if (ch === '{' || ch === '[') {
       stack.push(ch);
+      objectKeys.push(ch === '{' ? new Set<string>() : null);
+      memberStarts.push(i + 1);
       prevSig = ch;
     } else if (ch === '}' || ch === ']') {
       stack.pop();
+      objectKeys.pop();
+      memberStarts.pop();
       isKey = false;
       prevSig = ch;
     } else {
+      if (ch === ',' && memberStarts.length > 0) {
+        memberStarts[memberStarts.length - 1] = i + 1;
+      }
       prevSig = ch;
     }
   }
@@ -117,8 +142,16 @@ function repairTruncated(s: string): string {
     result += ':null';
     isKey = false;
   } else if (prevSig === ':') {
-    // A key with no value (e.g. `{"k":`) — complete it to null.
-    result += 'null';
+    if (danglingKeyIsDuplicate && memberStarts.length > 0) {
+      // A repeated key with no value at the cut: completing it to `null` wins
+      // over the earlier, complete member in JSON.parse and erases it — the
+      // same harm the mid-name branch above avoids. Drop the dangling member.
+      result = s.slice(0, memberStarts[memberStarts.length - 1] as number).trimEnd();
+      if (result.endsWith(',')) result = result.slice(0, -1).trimEnd();
+    } else {
+      // A key with no value (e.g. `{"k":`) — complete it to null.
+      result += 'null';
+    }
   } else if (prevSig === ',') {
     // A trailing comma (e.g. `{"a": 1,` or `[1, 2,`) — strip it so closing
     // braces/brackets produce valid JSON.
@@ -172,6 +205,20 @@ function completeTrailingScalar(result: string): string {
 }
 
 const VALID_ESCAPE = new Set(['"', '\\', '/', 'b', 'f', 'n', 'r', 't', 'u']);
+
+/**
+ * The string value a key's raw source denotes. `.slice` between the quotes is
+ * exact only for unescaped keys; `"\u0061"` and `"a"` are the same member to
+ * JSON.parse, and a duplicate missed here is one whose invented value erases
+ * the complete field. Malformed escapes fall back to the raw text.
+ */
+function decodeKeyName(raw: string): string {
+  try {
+    return JSON.parse(`"${raw}"`) as string;
+  } catch {
+    return raw;
+  }
+}
 
 /** Length of a trailing incomplete Unicode escape (\u, \uX, \uXX, \uXXX), or 0 if none. */
 function trailingIncompleteUnicodeLength(str: string): number {

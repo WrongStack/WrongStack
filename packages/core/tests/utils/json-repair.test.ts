@@ -185,4 +185,21 @@ describe('completePartialObject', () => {
     expect(JSON.parse(completePartialObject('{"n":5,"n'))).toEqual({ n: 5 });
     expect(JSON.parse(completePartialObject('{"pa'))).toEqual({});
   });
+
+  it('drops a dangling repeated key with no value instead of nulling the complete field', () => {
+    // The key is complete, only its value was cut. Completing it to null made
+    // the duplicate win in JSON.parse and erase the earlier, complete member —
+    // the same harm the mid-name branch above avoids.
+    expect(JSON.parse(completePartialObject('{"a": 1, "a":'))).toEqual({ a: 1 });
+    expect(JSON.parse(completePartialObject('{"a": 1, "a": '))).toEqual({ a: 1 });
+    // Nested objects track their own keys.
+    expect(JSON.parse(completePartialObject('{"outer": {"a": 1, "a":'))).toEqual({
+      outer: { a: 1 },
+    });
+    // `"\u0061"` is the same member as `"a"` to JSON.parse.
+    expect(JSON.parse(completePartialObject('{"a": 1, "\\u0061":'))).toEqual({ a: 1 });
+    // A first member has nothing to repeat, so the documented null completion stays.
+    expect(JSON.parse(completePartialObject('{"b":'))).toEqual({ b: null });
+    expect(JSON.parse(completePartialObject('{"a": 1, "b":'))).toEqual({ a: 1, b: null });
+  });
 });
