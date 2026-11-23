@@ -94,7 +94,7 @@ export function mineReplayCases(jsonl: string, sessionId: string): ReplayCase[] 
     | { kind: 'tool'; turn: number; block: Block }
     | { kind: 'text'; turn: number; text: string };
   const items: Item[] = [];
-  const results = new Map<string, string>();
+  const results = new Map<string, { text: string; isError: boolean }>();
   const goals: string[] = [];
   let turn = -1;
   for (const line of jsonl.split('\n')) {
@@ -111,7 +111,10 @@ export function mineReplayCases(jsonl: string, sessionId: string): ReplayCase[] 
     } else if (event.type === 'tool_result' && typeof event.id === 'string') {
       const content = event.content;
       const text = typeof content === 'string' ? content : JSON.stringify(content ?? '');
-      results.set(event.id, text.slice(0, MAX_RESULT_CHARS));
+      results.set(event.id, {
+        text: text.slice(0, MAX_RESULT_CHARS),
+        isError: event.isError === true,
+      });
     } else if (event.type === 'message_appended' && turn >= 0) {
       const message = event.message as { role?: string; content?: unknown } | undefined;
       if (message?.role !== 'assistant' || !Array.isArray(message.content)) continue;
@@ -135,7 +138,13 @@ export function mineReplayCases(jsonl: string, sessionId: string): ReplayCase[] 
       const next = items[j]!;
       if (next.kind === 'text') following.push(next.text);
       else if (EDIT_TOOLS.has(String(next.block.name).toLowerCase())) {
-        edited.push(...inputPaths(next.block.input));
+        // A failed edit wrote nothing. A result-less edit (legacy/in-flight
+        // logs) keeps the previous behaviour; only an explicit failure is
+        // excluded, so `editTouched` does not credit a memory for a write that
+        // never happened.
+        if (results.get(next.block.id as string)?.isError !== true) {
+          edited.push(...inputPaths(next.block.input));
+        }
       }
     }
     cases.push({
@@ -145,7 +154,7 @@ export function mineReplayCases(jsonl: string, sessionId: string): ReplayCase[] 
       toolUseId,
       toolName: String(item.block.name),
       input: item.block.input ?? {},
-      result: results.get(toolUseId) ?? '',
+      result: results.get(toolUseId)?.text ?? '',
       followingText: following.join('\n'),
       editedPaths: [...new Set(edited)],
       userGoal: goals[item.turn] ?? '',

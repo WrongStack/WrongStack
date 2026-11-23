@@ -58,6 +58,39 @@ describe('mineReplayCases', () => {
     expect(nextTurn!.userGoal).toBe('Now the docs');
   });
 
+  it('does not count a failed edit as a written path', () => {
+    const log = [
+      line({ type: 'user_input', content: [{ type: 'text', text: 'Fix the loader' }] }),
+      line({
+        type: 'message_appended',
+        message: {
+          role: 'assistant',
+          content: [{ type: 'tool_use', id: 't1', name: 'read', input: { path: 'src/a.ts' } }],
+        },
+      }),
+      line({ type: 'tool_result', id: 't1', content: 'export const a = 1;', isError: false }),
+      line({
+        type: 'message_appended',
+        message: {
+          role: 'assistant',
+          content: [
+            { type: 'tool_use', id: 't2', name: 'edit', input: { path: 'src/failed.ts' } },
+            { type: 'tool_use', id: 't3', name: 'write', input: { path: 'src/written.ts' } },
+          ],
+        },
+      }),
+      line({ type: 'tool_result', id: 't2', content: 'stale guard: file changed', isError: true }),
+      line({ type: 'tool_result', id: 't3', content: 'wrote 1 file', isError: false }),
+      line({
+        type: 'message_appended',
+        message: { role: 'assistant', content: [{ type: 'text', text: 'Done.' }] },
+      }),
+    ].join('\n');
+
+    const read = mineReplayCases(log, 's1')[0]!;
+    expect(read.editedPaths).toEqual(['src/written.ts']);
+  });
+
   it('skips malformed lines instead of failing the session', () => {
     expect(mineReplayCases(`not json\n${sessionLog()}`, 's1')).toHaveLength(3);
   });
