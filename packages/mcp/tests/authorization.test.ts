@@ -663,6 +663,47 @@ describe('MCP authorization primitives', () => {
     ).toThrow(/exactly one issuer/);
   });
 
+  it('accepts the iss an origin-only issuer sends verbatim after discovery normalized it (F1420)', () => {
+    // Discovery stores `https://auth.example.com` as `https://auth.example.com/`;
+    // the server echoes its metadata value, without the slash (RFC 9207 §2.4).
+    const authorizationServer = parseAuthorizationServerMetadata(
+      {
+        issuer: 'https://auth.example.com',
+        authorization_endpoint: 'https://auth.example.com/authorize',
+        token_endpoint: 'https://auth.example.com/token',
+        code_challenge_methods_supported: ['S256'],
+        authorization_response_iss_parameter_supported: true,
+      },
+      'https://auth.example.com',
+    );
+    const session = createMcpAuthorizationRequest({
+      authorizationServer,
+      clientId: 'wrongstack-public-client',
+      redirectUri: 'http://127.0.0.1:43123/callback',
+      resource: 'https://mcp.example.com/mcp',
+    });
+    const callback = (iss: string) =>
+      `http://127.0.0.1:43123/callback?code=auth-code&state=${session.state}&iss=${encodeURIComponent(iss)}`;
+
+    expect(parseMcpAuthorizationCallback(callback('https://auth.example.com'), session)).toBe(
+      'auth-code',
+    );
+    expect(parseMcpAuthorizationCallback(callback('https://auth.example.com/'), session)).toBe(
+      'auth-code',
+    );
+    for (const foreign of [
+      'https://auth.example.com.attacker.example',
+      'https://auth.example.com/tenant',
+      'https://auth.example.com?x=1',
+      'http://auth.example.com',
+      'not a url',
+    ]) {
+      expect(() => parseMcpAuthorizationCallback(callback(foreign), session)).toThrow(
+        /issuer mismatch/,
+      );
+    }
+  });
+
   it('validates redirect URIs, scopes, and PKCE inputs', () => {
     const authorizationServer = {
       issuer: 'https://auth.example.com',

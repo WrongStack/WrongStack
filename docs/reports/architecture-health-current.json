@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T00:21:23.862Z",
+  "generatedAt": "2026-11-23T00:22:49.837Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 50,
     "sourceFiles": 6490,
-    "testFiles": 5721,
-    "sourceLines": 1327185,
+    "testFiles": 5723,
+    "sourceLines": 1327272,
     "workspaceEdges": 259,
-    "moduleEdges": 18972,
+    "moduleEdges": 18974,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -648,7 +648,7 @@
       "name": "@wrongstack/mcp",
       "dir": "packages/mcp",
       "sourceFiles": 75,
-      "testFiles": 109,
+      "testFiles": 111,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -662,7 +662,7 @@
         {
           "path": "packages/mcp/tsconfig.test.json",
           "error": null,
-          "testFiles": 109
+          "testFiles": 111
         }
       ]
     },
@@ -18062,6 +18062,12 @@
         ]
       },
       {
+        "file": "packages/mcp/tests/registry-placeholder-url-authorization.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/mcp/tests/registry-restart-generation.test.ts",
         "projects": [
           "root-node"
@@ -18171,6 +18177,12 @@
       },
       {
         "file": "packages/mcp/tests/sse-reader-callback-ownership.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/stdio-connect-dead-child.test.ts",
         "projects": [
           "root-node"
         ]

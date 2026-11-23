@@ -284,12 +284,13 @@ export async function attemptConnectSlot(
     let client: MCPClient | undefined;
     let boundDisconnect: (() => void) | undefined;
     try {
+      // `${VAR}` placeholders resolve here, per connect — never into the
+      // stored config (see config-env.ts).
+      const expanded = expandMcpEnvPlaceholders(slot.cfg);
       client = new MCPClient({
         name: slot.cfg.name,
         transport: slot.cfg.transport,
-        // `${VAR}` placeholders resolve here, per connect — never into the
-        // stored config (see config-env.ts).
-        ...expandMcpEnvPlaceholders(slot.cfg),
+        ...expanded,
         bearerTokenEnv: slot.cfg.bearerTokenEnv,
         startupTimeoutMs: slot.cfg.startupTimeoutMs,
         protocolMode: slot.cfg.protocolMode,
@@ -297,7 +298,11 @@ export async function attemptConnectSlot(
         cwd: ctx.cwd,
         allowPrivateNetworks: slot.cfg.allowPrivateNetworks,
         passthroughEnv: slot.cfg.passthroughEnv,
-        authorizationProvider: ctx.authorizationProviderFactory?.(slot.cfg),
+        // The provider must pin the resource the transport actually dials.
+        authorizationProvider: ctx.authorizationProviderFactory?.({
+          ...slot.cfg,
+          url: expanded.url,
+        }),
         elicitation: slotElicitation(ctx, slot),
       });
       if (slot.cfg.transport === 'stdio') {

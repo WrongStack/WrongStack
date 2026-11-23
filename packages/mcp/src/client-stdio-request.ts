@@ -101,6 +101,14 @@ export function sendStdioRequest(
       }
       self.pending.delete(id);
       detach();
+      // Lifecycle "Timeouts": the sender SHOULD cancel what it stopped waiting
+      // for, or the server keeps running it. `initialize` MUST NOT be cancelled.
+      if (!modern && method !== 'initialize')
+        void self
+          .notify('notifications/cancelled', { requestId: id, reason: 'request timed out' })
+          .catch(() => {
+            /* best-effort — the child may already be gone */
+          });
       reject(
         new Error(
           `MCP "${self.opts.name}" request "${method}" timed out after ${effectiveTimeoutMs}ms`,

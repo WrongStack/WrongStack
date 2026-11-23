@@ -104,9 +104,9 @@
       "runtimeOrMixed": 59
     },
     "@wrongstack/core/registry": {
-      "files": 216,
+      "files": 217,
       "typeOnly": 84,
-      "runtimeOrMixed": 141
+      "runtimeOrMixed": 142
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -6918,6 +6918,12 @@
     {
       "specifier": "@wrongstack/core/registry",
       "file": "packages/mcp/tests/registry-lazy.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/mcp/tests/registry-placeholder-url-authorization.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

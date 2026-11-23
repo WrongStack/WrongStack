@@ -22,6 +22,7 @@ import type {
 import {
   beginRegistryAuthorization,
   completeRegistryAuthorization,
+  configuredAuthorizationResource,
   loginRegistryAuthorization,
   type MCPRegistryAuthorizationBeginInput,
   requireAuthorizationManager,
@@ -91,18 +92,30 @@ export class MCPRegistry extends MCPRegistryRuntime {
 
   async authorizationStatus(name: string): Promise<MCPAuthorizationStatus> {
     const manager = requireAuthorizationManager(this.authorizationManager);
-    const cfg = this.requireHttpServerConfig(name);
-    return manager.status(name, cfg.url!);
+    const cfg = this.requireHttpServerConfig(name, 'raw');
+    const status = await manager.status(name, cfg.url!);
+    return {
+      ...status,
+      resource: configuredAuthorizationResource(
+        this.servers,
+        this.disabledServers,
+        name,
+        status.resource,
+      ),
+    };
   }
 
   async disconnectAuthorization(name: string): Promise<boolean> {
     const manager = requireAuthorizationManager(this.authorizationManager);
-    const cfg = this.requireHttpServerConfig(name);
+    const cfg = this.requireHttpServerConfig(name, 'raw');
     return manager.disconnect(name, cfg.url!);
   }
 
-  private requireHttpServerConfig(name: string): MCPServerConfig {
-    return requireHttpServerConfig(this.servers, this.disabledServers, name);
+  private requireHttpServerConfig(
+    name: string,
+    onUnsetVariable: 'throw' | 'raw' = 'throw',
+  ): MCPServerConfig {
+    return requireHttpServerConfig(this.servers, this.disabledServers, name, onUnsetVariable);
   }
 
   async start(cfg: MCPServerConfig): Promise<void> {

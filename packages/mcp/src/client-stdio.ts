@@ -233,7 +233,12 @@ export async function connectStdio(host: ClientStdioHost): Promise<void> {
   }
   const revision = host.toolCatalogRevision;
   const tools = (await listAllTools((params) => host.request('tools/list', params))) ?? [];
-  if (host.state !== 'connecting' || host.child !== child) return;
+  // A later tools/list page failing is swallowed by listAllTools, so a child
+  // that died (or a close) mid-pagination lands here. Resolving would report a
+  // dead connection as connected; the caller's catch closes and marks it failed.
+  if (host.state !== 'connecting' || host.child !== child) {
+    throw new Error(`MCP "${host.opts.name}" connection ended during tool discovery`);
+  }
   if (revision === host.toolCatalogRevision) {
     host._tools = tools;
     // Cache tools so reconnect can re-register without re-discovering

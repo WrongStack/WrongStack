@@ -144,6 +144,38 @@ describe('MCPClient', () => {
     expect((c as never as { pending: Map<unknown, unknown> }).pending.size).toBe(0);
   });
 
+  it('cancels a timed-out stdio request on the server, but never initialize (F1423)', async () => {
+    const frames: Array<{ id?: number; method?: string; params?: { requestId?: number } }> = [];
+    const c = new MCPClient({
+      name: 'timeout-cancel',
+      transport: 'stdio',
+      command: 'noop',
+      requestTimeoutMs: 20,
+    });
+    (c as never as { child: unknown }).child = {
+      stdin: {
+        destroyed: false,
+        writable: true,
+        write: (chunk: string) => {
+          for (const line of chunk.split('\n').filter(Boolean)) frames.push(JSON.parse(line));
+          return true;
+        },
+      },
+    };
+    const request = (method: string) =>
+      (c as never as { request: (m: string, p: unknown) => Promise<unknown> }).request(method, {});
+
+    await expect(request('tools/call')).rejects.toThrow(/timed out/);
+    const callId = frames.find((f) => f.method === 'tools/call')?.id;
+    expect(
+      frames.filter((f) => f.method === 'notifications/cancelled').map((f) => f.params?.requestId),
+    ).toEqual([callId]);
+
+    frames.length = 0;
+    await expect(request('initialize')).rejects.toThrow(/timed out/);
+    expect(frames.map((f) => f.method)).toEqual(['initialize']);
+  });
+
   it('close on idle client is a no-op', async () => {
     const c = new MCPClient({ name: 'idle', transport: 'stdio', command: 'noop' });
     await expect(c.close()).resolves.toBeUndefined();

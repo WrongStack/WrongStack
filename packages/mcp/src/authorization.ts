@@ -251,7 +251,17 @@ export function parseMcpAuthorizationCallback(
   if (session.requireIssuerParameter && returnedIssuers.length !== 1) {
     throw new Error('MCP OAuth callback must contain exactly one issuer parameter');
   }
-  if (returnedIssuers.length > 0 && returnedIssuers.some((issuer) => issuer !== session.issuer)) {
+  // Discovery stores the issuer normalized (an origin-only `https://as` becomes
+  // `https://as/`), while the server echoes its metadata value verbatim, so
+  // compare both in that same normalized form (RFC 9207 §2.4).
+  const expectedIssuer = normalizedIssuer(session.issuer);
+  if (
+    returnedIssuers.length > 0 &&
+    returnedIssuers.some((issuer) => {
+      const returned = normalizedIssuer(issuer);
+      return returned === undefined || returned !== expectedIssuer;
+    })
+  ) {
     throw new Error('MCP OAuth callback issuer mismatch');
   }
   const oauthErrors = callback.searchParams.getAll('error');
@@ -376,6 +386,15 @@ function boundedCredential(value: string, label: string): string {
     throw new Error(`MCP OAuth ${label} is empty, oversized, or invalid`);
   }
   return value;
+}
+
+/** An issuer in the form discovery stores it; anything unparseable never matches. */
+function normalizedIssuer(value: string): string | undefined {
+  try {
+    return secureOAuthUrl(value, 'authorization server issuer').toString();
+  } catch {
+    return undefined;
+  }
 }
 
 function boundedErrorCode(value: string): string {
