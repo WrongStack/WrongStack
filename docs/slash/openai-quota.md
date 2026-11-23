@@ -4,7 +4,11 @@
 command and the WebUI quota panel. Sign in to `openai-codex` once with the same
 ChatGPT account/workspace; keep `openai-chatgpt` as the active model provider.
 The Codex credential is used only for quota reads because the direct OAuth token
-cannot access ChatGPT's usage endpoints.
+cannot access ChatGPT's usage endpoints. When the profile has no `openai-codex`
+sign-in, the CLI and WebUI hosts fall back to the official Codex CLI's login
+(`$CODEX_HOME/auth.json`, default `~/.codex/auth.json`). That fallback is
+read-only: an expired or rejected token is skipped and never refreshed, so the
+Codex CLI stays signed in.
 
 WrongStack reads `/backend-api/wham/usage/chatpass/apps` and requires exactly one
 entry matching the direct account's issued OAuth client ID. Only after that

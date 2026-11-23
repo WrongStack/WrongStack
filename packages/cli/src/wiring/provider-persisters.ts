@@ -6,6 +6,7 @@ import {
   matchesActiveProviderCredential,
   setAccountQuotaReporting,
   setChatGPTQuotaProviders,
+  setCodexCliQuotaFallback,
   setOAuthTokenPersister,
   setProviderModelPersister,
   setSubscriptionRefreshTransaction,
@@ -42,6 +43,9 @@ export function installProviderPersisters(args: {
   // never makes an account call it did not ask for.
   setAccountQuotaReporting(true);
   setChatGPTQuotaProviders(() => loadConfigProviders(profileConfigPath, args.vault));
+  // A direct ChatGPT sign-in cannot read its own usage; the Codex CLI's login
+  // on this machine can (read-only, never refreshed).
+  setCodexCliQuotaFallback(true);
   setSubscriptionRefreshTransaction(
     createSubscriptionRefreshTransaction((mutator) =>
       mutateConfigProviders(profileConfigPath, args.vault, mutator),

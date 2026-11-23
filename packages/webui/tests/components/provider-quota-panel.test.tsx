@@ -108,6 +108,7 @@ describe('ProviderQuotaPanel (side panel)', () => {
     expect(screen.getByText('16%')).toBeTruthy();
     expect(screen.getByText('14%')).toBeTruthy();
     expect(screen.queryByText(/sign in to OpenAI Codex with the same/)).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Open ChatGPT Usage' })).toBeNull();
   });
   it('shows ChatGPT Usage instead of an endless reading state for direct ChatGPT', () => {
     useModel('openai-chatgpt', 'gpt-6.1-sol');

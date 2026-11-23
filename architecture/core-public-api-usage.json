@@ -99,8 +99,8 @@
       "runtimeOrMixed": 12
     },
     "@wrongstack/core/quota": {
-      "files": 60,
-      "typeOnly": 1,
+      "files": 61,
+      "typeOnly": 2,
       "runtimeOrMixed": 59
     },
     "@wrongstack/core/registry": {
@@ -6014,6 +6014,12 @@
       "file": "packages/providers/src/codex-account-catalog.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/quota",
+      "file": "packages/providers/src/codex-cli-quota.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/quota",

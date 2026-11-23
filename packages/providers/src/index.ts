@@ -57,6 +57,7 @@ export {
 export {
   readConfiguredProviderAccountQuota,
   setChatGPTQuotaProviders,
+  setCodexCliQuotaFallback,
 } from './configured-account-quota.js';
 export {
   isEffortRejected,

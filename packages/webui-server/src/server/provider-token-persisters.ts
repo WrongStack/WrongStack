@@ -5,6 +5,7 @@ import {
   matchesActiveProviderCredential,
   setAccountQuotaReporting,
   setChatGPTQuotaProviders,
+  setCodexCliQuotaFallback,
   setOAuthTokenPersister,
   setProviderModelPersister,
   setSubscriptionRefreshTransaction,
@@ -21,6 +22,9 @@ export function installWebuiProviderPersisters(args: {
   // Post-turn plan-quota reads (Kimi Code, OpenCode Go, OpenRouter); host-only.
   setAccountQuotaReporting(true);
   setChatGPTQuotaProviders(args.load);
+  // A direct ChatGPT sign-in cannot read its own usage; the Codex CLI's login
+  // on this machine can (read-only, never refreshed).
+  setCodexCliQuotaFallback(true);
   setSubscriptionRefreshTransaction(createSubscriptionRefreshTransaction(args.mutate));
   setOAuthTokenPersister((id, creds, source) => {
     void args

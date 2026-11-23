@@ -1303,6 +1303,9 @@
     "packages/providers/src/chatgpt-account-quota.ts": [
       "parseChatGPTAppQuota"
     ],
+    "packages/providers/src/codex-cli-quota.ts": [
+      "parseCodexCliAuth"
+    ],
     "packages/providers/src/error-parse.ts": [
       "retryAfterMsFromBody"
     ],

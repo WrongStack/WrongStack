@@ -258,7 +258,7 @@ export function QuotaCardView({
           }
         />
       ))}
-      {card.vendor === 'chatgpt' && (
+      {card.vendor === 'chatgpt' && !hasReading && (
         <a
           href="https://chatgpt.com/settings/usage"
           target="_blank"

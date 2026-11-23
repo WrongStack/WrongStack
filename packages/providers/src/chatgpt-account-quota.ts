@@ -67,7 +67,10 @@ export function parseChatGPTAppQuota(
 
 /** The direct token cannot read WHAM. A Codex credential must find this exact registration. */
 export async function readChatGPTQuota(
-  this: CodexAccountCatalogHost,
+  this: Pick<
+    CodexAccountCatalogHost,
+    'baseUrl' | 'fetchImpl' | 'access' | 'accountId' | 'ensureFreshToken' | 'doRefresh'
+  >,
   providerId: string,
   clientId: string,
   opts: { signal?: AbortSignal | undefined; timeoutMs?: number } = {},
