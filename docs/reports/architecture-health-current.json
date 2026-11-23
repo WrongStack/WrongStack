@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T13:09:13.331Z",
+  "generatedAt": "2026-11-23T13:11:13.786Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 50,
     "sourceFiles": 6492,
-    "testFiles": 5743,
-    "sourceLines": 1327781,
+    "testFiles": 5744,
+    "sourceLines": 1327785,
     "workspaceEdges": 259,
-    "moduleEdges": 18983,
+    "moduleEdges": 18984,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -403,7 +403,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 664,
-      "testFiles": 762,
+      "testFiles": 763,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -420,7 +420,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 762
+          "testFiles": 763
         }
       ]
     },
@@ -15603,6 +15603,12 @@
       },
       {
         "file": "packages/core/tests/utils/tool-output-serializer.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/utils/tool-output-size-signals.test.ts",
         "projects": [
           "root-node"
         ]

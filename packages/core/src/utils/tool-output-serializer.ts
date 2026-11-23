@@ -1,3 +1,4 @@
+import { estimateTextTokens } from './token-estimate.js';
 import {
   clipInline,
   DEFAULT_LIST_LIMIT,
@@ -201,7 +202,10 @@ export function sizeSignals(
     return { outputBytes: 0, outputTokens: 0, outputLines: undefined };
   }
   const outputBytes = Buffer.byteLength(content, 'utf8');
-  const outputTokens = Math.max(1, Math.round(outputBytes / 3.5));
+  // Canonical chars-based estimator (3.5 chars/token, ceiling) so the chip and
+  // the model-facing evidence digest agree with the context bar and compaction.
+  // A UTF-8 byte basis made short ASCII under-count and CJK over-count.
+  const outputTokens = estimateTextTokens(content);
   let outputLines: number | undefined;
   if (toolName === 'read') {
     READ_LINE_PREFIX_RE.lastIndex = 0;
