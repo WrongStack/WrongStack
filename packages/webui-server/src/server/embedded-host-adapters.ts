@@ -16,6 +16,7 @@ import type { Agent, Context } from '@wrongstack/core/agent';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
 import { resolveWstackPaths, toErrorMessage, wstackGlobalRoot } from '@wrongstack/core/utils';
 import { makeProviderFromConfig, withCatalogCapabilities } from '@wrongstack/providers';
+import { isHostBuiltLeader } from '@wrongstack/runtime/acp-leader-host';
 import type { WebSocket } from 'ws';
 import { recordConversationPrimary } from './conversation-fallback.js';
 import {
@@ -121,13 +122,20 @@ export async function applyEmbeddedModelSwitch(
         }),
       );
     });
-    const nextProvider = ctx.modelsRegistry
-      ? await withCatalogCapabilities(ctx.modelsRegistry, providerId, builtProvider, {
-          ...routedConfig,
-          type: routedConfig.type ?? providerId,
-          model: modelId,
-        })
-      : builtProvider;
+    // An agent leader (ACP, WrongForge) has no catalog entry: the overlay would
+    // hand it the unsupported-family defaults (`streaming: false`), and every
+    // leader turn would go to `complete()` — WrongForge's one-step, tool-less
+    // side path. Boot and the CLI's `/model` switch skip it the same way.
+    const agentLeader =
+      isHostBuiltLeader(providerId) || isHostBuiltLeader(routedConfig.type ?? undefined);
+    const nextProvider =
+      ctx.modelsRegistry && !agentLeader
+        ? await withCatalogCapabilities(ctx.modelsRegistry, providerId, builtProvider, {
+            ...routedConfig,
+            type: routedConfig.type ?? providerId,
+            model: modelId,
+          })
+        : builtProvider;
     const catalogId =
       providerConfig.type && providerConfig.type !== providerId ? providerConfig.type : providerId;
     const resolved = await ctx.modelsRegistry?.getModel(catalogId, modelId).catch(() => undefined);

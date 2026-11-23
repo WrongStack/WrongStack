@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T15:04:54.590Z",
+  "generatedAt": "2026-11-23T18:40:03.381Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 50,
     "sourceFiles": 6492,
-    "testFiles": 5771,
-    "sourceLines": 1328365,
+    "testFiles": 5772,
+    "sourceLines": 1328373,
     "workspaceEdges": 259,
     "moduleEdges": 18987,
     "nonCommandSlashImports": 0,
@@ -1229,7 +1229,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 357,
-      "testFiles": 424,
+      "testFiles": 425,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1264,7 +1264,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 424
+          "testFiles": 425
         }
       ]
     },
@@ -30597,6 +30597,12 @@
       },
       {
         "file": "packages/webui-server/tests/embedded-message-router.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/embedded-model-switch-agent-leader.test.ts",
         "projects": [
           "root-node"
         ]
