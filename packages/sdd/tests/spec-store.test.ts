@@ -1,3 +1,4 @@
+import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -87,6 +88,68 @@ describe('SpecStore', () => {
     const store = new SpecStore({ baseDir: dir });
     const list = await store.list();
     expect(list).toEqual([]);
+  });
+
+  it('treats a schema-invalid spec file as absent', async () => {
+    const store = new SpecStore({ baseDir: dir });
+    const valid = await store.createDraft('Valid');
+    await fsp.writeFile(
+      path.join(dir, 'bad.json'),
+      JSON.stringify({
+        id: 'bad',
+        title: 'Bad',
+        version: '1.0.0',
+        status: 'draft',
+        createdAt: 1,
+        updatedAt: 1,
+      }),
+    );
+
+    expect(await store.load('bad')).toBeNull();
+    await fsp.rm(path.join(dir, '_index.json'), { force: true });
+    expect((await store.list()).map((entry) => entry.id)).toEqual([valid.id]);
+  });
+
+  it('rejects a malformed requirement element', async () => {
+    const store = new SpecStore({ baseDir: dir });
+    const valid = await store.createDraft('Valid');
+    await fsp.writeFile(
+      path.join(dir, 'bad-requirement.json'),
+      JSON.stringify({ ...valid, id: 'bad-requirement', requirements: [null] }),
+    );
+
+    expect(await store.load('bad-requirement')).toBeNull();
+  });
+
+  it('does not return a file whose stored id differs from its name', async () => {
+    const store = new SpecStore({ baseDir: dir });
+    const valid = await store.createDraft('Valid');
+    await fsp.writeFile(
+      path.join(dir, 'other.json'),
+      JSON.stringify({ ...valid, id: 'different-id' }),
+    );
+
+    expect(await store.load('other')).toBeNull();
+  });
+
+  it('keeps loading a valid spec with requirements', async () => {
+    const store = new SpecStore({ baseDir: dir });
+    const valid = await store.createDraft('Valid');
+    await store.save({
+      ...valid,
+      requirements: [
+        {
+          id: 'REQ-1',
+          type: 'functional',
+          priority: 'high',
+          description: 'Do the thing',
+          acceptanceCriteria: ['it works'],
+        },
+      ],
+    });
+
+    const loaded = await store.load(valid.id);
+    expect(loaded?.requirements[0]?.id).toBe('REQ-1');
   });
 
   // Regression for H-6 (PATH-001): the WS frame `specId` arrived via

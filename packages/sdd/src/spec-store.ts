@@ -1,7 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Specification, SpecStatus } from '@wrongstack/contracts/types';
+import type {
+  SpecApiEndpoint,
+  Specification,
+  SpecRequirement,
+  SpecSection,
+  SpecStatus,
+} from '@wrongstack/contracts/types';
 import { atomicWrite, ensureDir, withFileLock } from '@wrongstack/core/utils';
 
 export interface SpecStoreOptions {
@@ -21,6 +27,104 @@ export interface SpecIndexEntry {
 interface SpecIndex {
   version: 1;
   entries: SpecIndexEntry[];
+}
+
+const SPEC_STATUSES: ReadonlySet<string> = new Set<SpecStatus>([
+  'draft',
+  'review',
+  'approved',
+  'implemented',
+  'deprecated',
+]);
+const SPEC_REQUIREMENT_TYPES: ReadonlySet<string> = new Set([
+  'functional',
+  'non-functional',
+  'security',
+  'performance',
+  'ux',
+]);
+const SPEC_PRIORITIES: ReadonlySet<string> = new Set(['critical', 'high', 'medium', 'low']);
+const SPEC_SECTION_TYPES: ReadonlySet<string> = new Set([
+  'overview',
+  'requirements',
+  'architecture',
+  'api',
+  'data',
+  'security',
+  'acceptance',
+]);
+const SPEC_API_METHODS: ReadonlySet<string> = new Set(['GET', 'POST', 'PUT', 'DELETE', 'PATCH']);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
+function isSpecRequirement(value: unknown): value is SpecRequirement {
+  if (!isRecord(value)) return false;
+  if (typeof value['id'] !== 'string' || value['id'].trim().length === 0) return false;
+  if (typeof value['type'] !== 'string' || !SPEC_REQUIREMENT_TYPES.has(value['type'])) return false;
+  if (typeof value['priority'] !== 'string' || !SPEC_PRIORITIES.has(value['priority']))
+    return false;
+  if (typeof value['description'] !== 'string') return false;
+  if (!isStringArray(value['acceptanceCriteria'])) return false;
+  if (value['blockedBy'] !== undefined && !isStringArray(value['blockedBy'])) return false;
+  if (value['implements'] !== undefined && !isStringArray(value['implements'])) return false;
+  return true;
+}
+
+function isSpecSection(value: unknown, depth = 0): value is SpecSection {
+  if (depth > 64 || !isRecord(value)) return false;
+  if (typeof value['type'] !== 'string' || !SPEC_SECTION_TYPES.has(value['type'])) return false;
+  if (typeof value['title'] !== 'string' || typeof value['content'] !== 'string') return false;
+  if (typeof value['level'] !== 'number' || !Number.isFinite(value['level'])) return false;
+  const children = value['children'];
+  if (
+    children !== undefined &&
+    (!Array.isArray(children) || !children.every((child) => isSpecSection(child, depth + 1)))
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function isSpecApiEndpoint(value: unknown): value is SpecApiEndpoint {
+  if (!isRecord(value)) return false;
+  if (typeof value['method'] !== 'string' || !SPEC_API_METHODS.has(value['method'])) return false;
+  if (typeof value['path'] !== 'string' || typeof value['description'] !== 'string') return false;
+  if (value['request'] !== undefined && !isRecord(value['request'])) return false;
+  if (value['response'] !== undefined && !isRecord(value['response'])) return false;
+  if (value['auth'] !== undefined && typeof value['auth'] !== 'boolean') return false;
+  return true;
+}
+
+function isSpecification(value: unknown): value is Specification {
+  if (!isRecord(value)) return false;
+  if (typeof value['id'] !== 'string' || value['id'].trim().length === 0) return false;
+  if (typeof value['title'] !== 'string' || typeof value['version'] !== 'string') return false;
+  if (typeof value['status'] !== 'string' || !SPEC_STATUSES.has(value['status'])) return false;
+  if (typeof value['overview'] !== 'string') return false;
+  if (!Array.isArray(value['sections']) || !value['sections'].every((s) => isSpecSection(s)))
+    return false;
+  if (
+    !Array.isArray(value['requirements']) ||
+    !value['requirements'].every((r) => isSpecRequirement(r))
+  )
+    return false;
+  if (
+    value['apiEndpoints'] !== undefined &&
+    (!Array.isArray(value['apiEndpoints']) || !value['apiEndpoints'].every(isSpecApiEndpoint))
+  ) {
+    return false;
+  }
+  if (value['dependencies'] !== undefined && !isStringArray(value['dependencies'])) return false;
+  if (typeof value['createdAt'] !== 'number' || !Number.isFinite(value['createdAt'])) return false;
+  if (typeof value['updatedAt'] !== 'number' || !Number.isFinite(value['updatedAt'])) return false;
+  if (value['metadata'] !== undefined && !isRecord(value['metadata'])) return false;
+  return true;
 }
 
 /**
@@ -54,7 +158,13 @@ export class SpecStore {
     const filePath = this.filePath(id);
     try {
       const raw = await fsp.readFile(filePath, 'utf8');
-      return JSON.parse(raw) as Specification;
+      const parsed: unknown = JSON.parse(raw);
+      // A spec file is user-visible and hand-editable. Valid JSON with the
+      // wrong shape is as unusable as invalid JSON: returning it as a
+      // Specification let `SpecVersioning.diff` crash on a missing
+      // `requirements` array and let an id-mismatched file answer for another
+      // spec. Treat both as absent, exactly like a parse failure.
+      return isSpecification(parsed) && parsed.id === id ? parsed : null;
     } catch {
       return null;
     }
