@@ -21,6 +21,7 @@ import { createHash } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { SessionEvent } from '@wrongstack/contracts/types/session';
+import { restrictFilePermissions } from '../security/file-permissions.js';
 
 interface RedoEntry {
   /** Journal bytes the rewind kept. */
@@ -90,6 +91,9 @@ async function writeStack(dir: string, stack: RedoEntry[]): Promise<void> {
   const tmp = path.join(dir, 'stack.json.tmp');
   await fsp.writeFile(tmp, JSON.stringify(stack), { mode: 0o600 });
   await fsp.rename(tmp, path.join(dir, 'stack.json'));
+  // F39 (WS-045 class): on Windows `mode: 0o600` is a no-op; the rename replaces
+  // the file each time, so re-apply owner-only permissions (best-effort).
+  await restrictFilePermissions(path.join(dir, 'stack.json'), { label: 'redo-stack' });
 }
 
 /** Drop every stashed rewind (a new prompt or `/clear` invalidates them). */
@@ -170,6 +174,10 @@ export async function stashRewoundTail(opts: {
   } finally {
     await source.close();
   }
+  // F39 (WS-045 class): the stashed tail is verbatim transcript content and
+  // `mode: 0o600` is a Windows no-op. Each tail is a new file — harden it
+  // (best-effort, warned not thrown).
+  await restrictFilePermissions(path.join(dir, tailFile), { label: 'redo-stash' });
 
   const transcripts: RedoEntry['transcripts'] = [];
   for (const [i, from] of opts.transcriptPaths.entries()) {

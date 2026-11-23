@@ -3,6 +3,7 @@ import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import type { PluginAPI } from '@wrongstack/contracts/types/plugin';
+import { restrictFilePermissions } from '@wrongstack/core/security';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   CLAIM_STORE_LOCK_TIMEOUT,
@@ -14,6 +15,9 @@ import {
 } from './review-claim-store-lock.js';
 import { JsonlReportStore } from './review-report-store.js';
 import type { ReviewContextBundle, ReviewFileEntry, ReviewSkippedFile } from './review-types.js';
+
+/** Ledger paths already owner-only hardened on the append path. F61 (WS-045). */
+const hardenedLedgers = new Set<string>();
 
 export { breakStaleLock } from './review-claim-store-lock.js';
 
@@ -237,7 +241,14 @@ async function compactLedger(
     }
   }
   const tmp = `${claimsFilePath(storeDir)}.tmp-${randomUUID()}`;
-  await fsp.writeFile(tmp, lines.length > 0 ? `${lines.join('\n')}\n` : '', 'utf8');
+  await fsp.writeFile(tmp, lines.length > 0 ? `${lines.join('\n')}\n` : '', {
+    encoding: 'utf8',
+    mode: 0o600,
+  });
+  // F61 (WS-045 class): the ledger holds session ids and claim keys; the write
+  // had NO mode and 0o600 is a Windows no-op. Harden the temp before publish —
+  // rename preserves the ACL (best-effort).
+  await restrictFilePermissions(tmp, { label: 'review-claims' });
   // Windows rename can hit transient EPERM/EBUSY from file locks/AV scanners;
   // retry briefly, then fall back to copy+unlink (session-registry precedent).
   let replaced = false;
@@ -254,6 +265,9 @@ async function compactLedger(
         await fsp.copyFile(tmp, claimsFilePath(storeDir)).catch(async (copyErr) => {
           throw copyErr;
         });
+        // F61: copyFile gives the destination the inherited ACL, not the
+        // hardened temp's — re-apply owner-only explicitly (best-effort).
+        await restrictFilePermissions(claimsFilePath(storeDir), { label: 'review-claims' });
         await fsp.unlink(tmp).catch(() => undefined);
         replaced = true;
       } else {
@@ -304,7 +318,18 @@ async function acquireClaims(
         );
       }
       if (lines.length > 0) {
-        await fsp.appendFile(claimsFilePath(storeDir), `${lines.join('\n')}\n`, 'utf8');
+        await fsp.appendFile(claimsFilePath(storeDir), `${lines.join('\n')}\n`, {
+          encoding: 'utf8',
+          mode: 0o600,
+        });
+        // F61 (WS-045 class): the append had NO mode at all (umask default
+        // 0644 on POSIX; inherited ACL on Windows). Harden once per ledger
+        // path (best-effort); compaction publishes an already-hardened temp.
+        const ledgerPath = claimsFilePath(storeDir);
+        if (!hardenedLedgers.has(ledgerPath)) {
+          hardenedLedgers.add(ledgerPath);
+          await restrictFilePermissions(ledgerPath, { label: 'review-claims' });
+        }
         try {
           if ((await ledgerLineCount(storeDir)) > maxLedgerLines) {
             await compactLedger(storeDir, active);
@@ -355,7 +380,18 @@ async function releaseSharedClaims(
         }
       }
       if (lines.length > 0) {
-        await fsp.appendFile(claimsFilePath(storeDir), `${lines.join('\n')}\n`, 'utf8');
+        await fsp.appendFile(claimsFilePath(storeDir), `${lines.join('\n')}\n`, {
+          encoding: 'utf8',
+          mode: 0o600,
+        });
+        // F61 (WS-045 class): the append had NO mode at all (umask default
+        // 0644 on POSIX; inherited ACL on Windows). Harden once per ledger
+        // path (best-effort); compaction publishes an already-hardened temp.
+        const ledgerPath = claimsFilePath(storeDir);
+        if (!hardenedLedgers.has(ledgerPath)) {
+          hardenedLedgers.add(ledgerPath);
+          await restrictFilePermissions(ledgerPath, { label: 'review-claims' });
+        }
       }
     },
     waitMs,

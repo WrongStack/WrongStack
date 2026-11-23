@@ -45,6 +45,7 @@ import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { isPidAlive } from '@wrongstack/core/utils';
+import { restrictFilePermissions } from '@wrongstack/persistence';
 
 export const MAILBOX_BRIDGE_LOCK_FILENAME = '.mailbox-bridge.lock';
 export const MAILBOX_BRIDGE_TOKEN_FILENAME = '.mailbox.token';
@@ -450,6 +451,11 @@ async function atomicWriteString(targetPath: string, content: string): Promise<v
     await fsp.unlink(tmp).catch(() => undefined);
     throw err;
   }
+  // F43 (WS-045 class): the lock carries the bearer token and `mode: 0o600` is
+  // a Windows no-op, so the lock/token files stayed readable by other local
+  // accounts where inheritance was not owner-only. Every atomic replacement
+  // re-applies owner-only permissions (best-effort, warned not thrown).
+  await restrictFilePermissions(targetPath, { label: 'mailbox-bridge' });
 }
 
 async function atomicWriteJson(targetPath: string, value: unknown): Promise<void> {

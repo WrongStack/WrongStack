@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { appendFile, mkdir } from 'node:fs/promises';
 import { dirname, relative } from 'node:path';
+import { restrictFilePermissions } from '@wrongstack/core/security';
 import {
   filesField,
   projectPath,
@@ -10,6 +11,10 @@ import {
   strings,
   workflowPlugin,
 } from '../workflow-runtime/index.js';
+
+/** Journal paths already owner-only hardened. F45 (WS-045). */
+const hardenedJournals = new Set<string>();
+
 export default workflowPlugin({
   name: 'decision-journal',
   description:
@@ -47,6 +52,14 @@ export default workflowPlugin({
         };
         await mkdir(dirname(path), { recursive: true });
         await appendFile(path, `${JSON.stringify(record)}\n`, { encoding: 'utf8', mode: 0o600 });
+        // F45 (WS-045 class): on Windows `mode: 0o600` is a no-op, so the
+        // decision journal stayed readable by other local accounts where
+        // inheritance was not owner-only. Harden once per journal path
+        // (best-effort, warned not thrown).
+        if (!hardenedJournals.has(path)) {
+          hardenedJournals.add(path);
+          await restrictFilePermissions(path, { label: 'decision-journal' });
+        }
         return record;
       },
     },

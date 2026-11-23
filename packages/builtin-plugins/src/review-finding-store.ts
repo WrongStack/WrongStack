@@ -9,7 +9,7 @@
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import { SECRET_FILE_MODE } from '@wrongstack/core/security';
+import { restrictFilePermissions, SECRET_FILE_MODE } from '@wrongstack/core/security';
 import { atomicWrite, withFileLock } from '@wrongstack/core/utils';
 import type {
   ChimeraFinding,
@@ -163,9 +163,22 @@ export function extractLinkedReportIds(
 
 export class JsonlFindingStore implements FindingStore {
   private readonly filePath: string;
+  /** Whether the active finding log has been owner-only hardened (reset on compaction). */
+  private hardened = false;
 
   constructor(projectDir: string) {
     this.filePath = resolveFindingStorePath(projectDir);
+  }
+
+  // F27 (WS-045 class): on Windows `mode: 0o600` is a no-op, so the append-only
+  // finding log — code snippets/descriptions that may carry secrets — stayed
+  // readable by other local accounts where inheritance was not owner-only.
+  // Harden once per active file (best-effort, warned not thrown); compaction
+  // rewrites via atomicWrite (which hardens) and resets the flag.
+  private async hardenOnce(): Promise<void> {
+    if (this.hardened) return;
+    this.hardened = true;
+    await restrictFilePermissions(this.filePath, { label: 'review-findings' });
   }
 
   get storePath(): string {
@@ -259,6 +272,7 @@ export class JsonlFindingStore implements FindingStore {
           result.created++;
         }
       }
+      await this.hardenOnce();
       return result;
     });
   }
@@ -315,6 +329,7 @@ export class JsonlFindingStore implements FindingStore {
         { encoding: 'utf8', mode: SECRET_FILE_MODE },
       );
 
+      await this.hardenOnce();
       return { ...entry.finding };
     });
   }
@@ -495,6 +510,8 @@ export class JsonlFindingStore implements FindingStore {
       await atomicWrite(this.filePath, lines.join(LINE_SEPARATOR) + LINE_SEPARATOR, {
         mode: 0o600,
       });
+      // Compaction replaced the file; harden the new one on the next append.
+      this.hardened = false;
 
       return { removed, removedNonTerminal, eventsFolded };
     });

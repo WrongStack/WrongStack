@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T23:50:23.990Z",
+  "generatedAt": "2026-11-23T00:19:45.266Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 50,
     "sourceFiles": 6488,
-    "testFiles": 5683,
-    "sourceLines": 1326246,
+    "testFiles": 5721,
+    "sourceLines": 1326668,
     "workspaceEdges": 259,
-    "moduleEdges": 18953,
+    "moduleEdges": 18963,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -93,7 +93,7 @@
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
       "sourceFiles": 58,
-      "testFiles": 73,
+      "testFiles": 74,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -109,7 +109,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 73
+          "testFiles": 74
         }
       ]
     },
@@ -184,7 +184,7 @@
       "name": "@wrongstack/builtin-plugins",
       "dir": "packages/builtin-plugins",
       "sourceFiles": 40,
-      "testFiles": 38,
+      "testFiles": 41,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -200,7 +200,7 @@
         {
           "path": "packages/builtin-plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 38
+          "testFiles": 41
         }
       ]
     },
@@ -232,7 +232,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 640,
-      "testFiles": 710,
+      "testFiles": 714,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -284,7 +284,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 710
+          "testFiles": 714
         }
       ]
     },
@@ -377,7 +377,7 @@
       "name": "@wrongstack/coordination",
       "dir": "packages/coordination",
       "sourceFiles": 193,
-      "testFiles": 207,
+      "testFiles": 210,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -395,7 +395,7 @@
         {
           "path": "packages/coordination/tsconfig.test.json",
           "error": null,
-          "testFiles": 207
+          "testFiles": 210
         }
       ]
     },
@@ -403,7 +403,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 663,
-      "testFiles": 744,
+      "testFiles": 761,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -420,7 +420,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 744
+          "testFiles": 761
         }
       ]
     },
@@ -528,7 +528,7 @@
       "name": "@wrongstack/hq",
       "dir": "packages/hq",
       "sourceFiles": 73,
-      "testFiles": 54,
+      "testFiles": 56,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -544,7 +544,7 @@
         {
           "path": "packages/hq/tsconfig.test.json",
           "error": null,
-          "testFiles": 54
+          "testFiles": 56
         }
       ]
     },
@@ -577,7 +577,7 @@
       "name": "@wrongstack/kanban",
       "dir": "packages/kanban",
       "sourceFiles": 108,
-      "testFiles": 106,
+      "testFiles": 107,
       "workspaceDependencies": [
         "@wrongstack/persistence",
         "@wrongstack/primitives"
@@ -591,7 +591,7 @@
         {
           "path": "packages/kanban/tsconfig.test.json",
           "error": null,
-          "testFiles": 106
+          "testFiles": 107
         }
       ]
     },
@@ -735,7 +735,7 @@
       "name": "@wrongstack/plugins",
       "dir": "packages/plugins",
       "sourceFiles": 156,
-      "testFiles": 148,
+      "testFiles": 149,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -753,7 +753,7 @@
         {
           "path": "packages/plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 148
+          "testFiles": 149
         }
       ]
     },
@@ -871,7 +871,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 126,
-      "testFiles": 75,
+      "testFiles": 77,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -905,7 +905,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 75
+          "testFiles": 77
         }
       ]
     },
@@ -965,7 +965,7 @@
       "name": "@wrongstack/sdd",
       "dir": "packages/sdd",
       "sourceFiles": 45,
-      "testFiles": 55,
+      "testFiles": 56,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -984,7 +984,7 @@
         {
           "path": "packages/sdd/tsconfig.test.json",
           "error": null,
-          "testFiles": 55
+          "testFiles": 56
         }
       ]
     },
@@ -1061,7 +1061,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 347,
-      "testFiles": 389,
+      "testFiles": 391,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/browser-tools",
@@ -1082,7 +1082,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 389
+          "testFiles": 391
         }
       ]
     },
@@ -1229,7 +1229,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 356,
-      "testFiles": 418,
+      "testFiles": 419,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1264,7 +1264,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 418
+          "testFiles": 419
         }
       ]
     },
@@ -3872,6 +3872,12 @@
         ]
       },
       {
+        "file": "packages/acp/tests/acp-launch-compat-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/acp-launch-compat.test.ts",
         "projects": [
           "root-node"
@@ -4958,6 +4964,12 @@
         ]
       },
       {
+        "file": "packages/builtin-plugins/tests/review-claim-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/builtin-plugins/tests/review-claim-registry-stamp-failure.test.ts",
         "projects": [
           "root-node"
@@ -5018,6 +5030,12 @@
         ]
       },
       {
+        "file": "packages/builtin-plugins/tests/review-finding-store-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/builtin-plugins/tests/review-finding-store.test.ts",
         "projects": [
           "root-node"
@@ -5043,6 +5061,12 @@
       },
       {
         "file": "packages/builtin-plugins/tests/review-report-scope-drift-dotdot.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/builtin-plugins/tests/review-report-store-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -5750,6 +5774,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/auth-menu-audit-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/auth-menu-audit-sinks.test.ts",
         "projects": [
           "root-node"
@@ -6207,6 +6237,12 @@
       },
       {
         "file": "packages/cli/tests/config-doctor-typesafe.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/config-history-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -7844,6 +7880,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/provider-status-wiring-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/provider-status-wiring.test.ts",
         "projects": [
           "root-node"
@@ -8655,6 +8697,12 @@
       },
       {
         "file": "packages/cli/tests/slash-plugin.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/slash-profile-copy-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -9866,6 +9914,12 @@
         ]
       },
       {
+        "file": "packages/coordination/tests/agent-monitor-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/coordination/tests/agent-monitor.test.ts",
         "projects": [
           "root-node"
@@ -10460,6 +10514,12 @@
         ]
       },
       {
+        "file": "packages/coordination/tests/knowledge-graph-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/coordination/tests/knowledge-graph.test.ts",
         "projects": [
           "root-node"
@@ -10899,6 +10959,12 @@
       },
       {
         "file": "packages/coordination/tests/session-subagent-policy.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/single-instance-mailbox-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -11396,6 +11462,18 @@
         ]
       },
       {
+        "file": "packages/core/tests/boot-config-migration-copy-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/boot-config-migration-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/boot-flags.test.ts",
         "projects": [
           "root-node"
@@ -11433,6 +11511,18 @@
       },
       {
         "file": "packages/core/tests/boot/cleanup-stale-projects.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/brain/brain-ledger-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/brain/brain-trace-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -12806,6 +12896,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/infrastructure/logger-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/infrastructure/logger.test.ts",
         "projects": [
           "root-node"
@@ -13155,6 +13251,12 @@
       },
       {
         "file": "packages/core/tests/plugin/teardown-capability.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/plugin/trust-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13814,6 +13916,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/session-catalog/session-registry-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/session-registry-cross-process.test.ts",
         "projects": [
           "root-node"
@@ -14138,6 +14246,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/storage/create-session-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/storage/director-state-extra.test.ts",
         "projects": [
           "root-node"
@@ -14252,6 +14366,18 @@
         ]
       },
       {
+        "file": "packages/core/tests/storage/memory-backend-copy-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/memory-backend-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/storage/memory-backend.test.ts",
         "projects": [
           "root-node"
@@ -14277,6 +14403,18 @@
       },
       {
         "file": "packages/core/tests/storage/memory-project-agents-symlink.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/move-session-copy-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/move-session-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14403,6 +14541,12 @@
       },
       {
         "file": "packages/core/tests/storage/session-catalog-worktree-identity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/session-checkpoint-cas-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14654,6 +14798,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/storage/session-store-index-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/storage/session-store-list-limit.test.ts",
         "projects": [
           "root-node"
@@ -14757,6 +14907,12 @@
       },
       {
         "file": "packages/core/tests/storage/session-writer-internals.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/session-writer-redo-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14936,6 +15092,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/typesafe/activity-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/utils/ascii-fallback.test.ts",
         "projects": [
           "root-node"
@@ -14979,6 +15141,12 @@
       },
       {
         "file": "packages/core/tests/utils/config-backup-collision.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/utils/config-backup-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -16814,6 +16982,12 @@
         ]
       },
       {
+        "file": "packages/hq/tests/simple-log-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/tests/timeseries-oversized-load.test.ts",
         "projects": [
           "root-node"
@@ -16827,6 +17001,12 @@
       },
       {
         "file": "packages/hq/tests/timeseries-scope.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/timeseries-store-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17331,6 +17511,12 @@
       },
       {
         "file": "packages/kanban/tests/sqlite-storage-rollback-mask.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/storage-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19047,6 +19233,12 @@
       },
       {
         "file": "packages/plugins/tests/credential-pattern-parity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugins/tests/decision-journal-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -21374,6 +21566,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/docker-workspace-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/docker-workspace.test.ts",
         "projects": [
           "root-node"
@@ -21525,6 +21723,12 @@
       },
       {
         "file": "packages/runtime/tests/plugin-watch-queued-after-error.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/pull-request-git-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22863,6 +23067,12 @@
       },
       {
         "file": "packages/sdd/tests/sdd-board-projector.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sdd/tests/sdd-board-store-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -25622,6 +25832,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/patch-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/patch-spawn.test.ts",
         "projects": [
           "root-node"
@@ -25743,6 +25959,12 @@
       },
       {
         "file": "packages/tools/tests/project-kit-advisor.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/project-kit-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31136,6 +31358,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/provider-status-persistence-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/provider-status-persistence.test.ts",
         "projects": [
           "root-node"
@@ -36481,7 +36709,7 @@
     },
     {
       "file": "packages/builtin-plugins/src/review-claim-registry.ts",
-      "lines": 828,
+      "lines": 864,
       "relativeImports": 4
     },
     {
@@ -36526,7 +36754,7 @@
     },
     {
       "file": "packages/coordination/src/agent-monitor.ts",
-      "lines": 724,
+      "lines": 736,
       "relativeImports": 1
     },
     {
@@ -36947,6 +37175,11 @@
       "relativeImports": 3
     },
     {
+      "file": "packages/builtin-plugins/src/review-claim-registry.ts",
+      "lines": 864,
+      "relativeImports": 4
+    },
+    {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
       "lines": 853,
       "relativeImports": 17
@@ -36975,11 +37208,6 @@
       "file": "packages/core/src/execution/design-draw.ts",
       "lines": 831,
       "relativeImports": 1
-    },
-    {
-      "file": "packages/builtin-plugins/src/review-claim-registry.ts",
-      "lines": 828,
-      "relativeImports": 4
     },
     {
       "file": "apps/desktop-v2/src/RosterRuntimeEditor.tsx",
@@ -37092,6 +37320,11 @@
       "relativeImports": 5
     },
     {
+      "file": "packages/coordination/src/agent-monitor.ts",
+      "lines": 736,
+      "relativeImports": 1
+    },
+    {
       "file": "packages/vibeui/src/components/provider-manager.tsx",
       "lines": 733,
       "relativeImports": 6
@@ -37110,11 +37343,6 @@
       "file": "packages/acp/src/agent/server-agent-turn.ts",
       "lines": 730,
       "relativeImports": 4
-    },
-    {
-      "file": "packages/coordination/src/multi-agent-coordinator.ts",
-      "lines": 726,
-      "relativeImports": 13
     }
   ],
   "testOnlyExports": [

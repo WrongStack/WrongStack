@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
-import { createPersistencePrimitives } from '@wrongstack/persistence';
+import { createPersistencePrimitives, restrictFilePermissions } from '@wrongstack/persistence';
 import { redactSecrets } from '@wrongstack/primitives';
 import { assertKitId, KIT_HISTORY_DIRECTORY, kitPath, loadKit } from './catalog.js';
 import { runKitProcess, STDERR_TAIL_LIMIT } from './runner.js';
@@ -105,6 +105,10 @@ export async function executeKit(options: {
     const target = path.join(snapshot, file);
     await mkdir(path.dirname(target), { recursive: true });
     await writeFile(target, body, { flag: 'wx', mode: 0o600 });
+    // F54 (WS-045 class): kit sources are project content and `mode: 0o600` is
+    // a Windows no-op. Each snapshot file is a fresh exclusive create — harden
+    // it (best-effort).
+    await restrictFilePermissions(target, { label: 'kit-snapshot' });
   }
   const record: KitRunRecord = {
     runId,

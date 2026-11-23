@@ -19,7 +19,7 @@
       "relativeImports": 7
     },
     "packages/builtin-plugins/src/review-claim-registry.ts": {
-      "lines": 828,
+      "lines": 864,
       "relativeImports": 4
     },
     "packages/builtin-plugins/src/review-followup-briefing.ts": {
@@ -55,7 +55,7 @@
       "relativeImports": 76
     },
     "packages/coordination/src/agent-monitor.ts": {
-      "lines": 724,
+      "lines": 736,
       "relativeImports": 1
     },
     "packages/coordination/src/multi-agent-coordinator.ts": {

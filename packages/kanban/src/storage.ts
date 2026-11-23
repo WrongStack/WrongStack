@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { restrictFilePermissions } from '@wrongstack/persistence';
 import { requireSessionId } from '@wrongstack/primitives';
 import { normalizeBoard, summarizeBoard } from './board-normalize.js';
 import { STALE_WRITE_PREFIX, StaleWriteError } from './manager/lifecycle-error.js';
@@ -262,6 +263,14 @@ function rememberEventLogState(filePath: string, state: KanbanEventLogState): vo
   }
 }
 
+/** Kanban files already owner-only hardened (cleared on trim rewrite). F37 (WS-045). */
+const hardenedKanbanFiles = new Set<string>();
+async function hardenKanbanOnce(filePath: string): Promise<void> {
+  if (hardenedKanbanFiles.has(filePath)) return;
+  hardenedKanbanFiles.add(filePath);
+  await restrictFilePermissions(filePath, { label: 'kanban' });
+}
+
 export async function appendKanbanEvent(
   projectRoot: string,
   boardId: string,
@@ -277,6 +286,7 @@ export async function appendKanbanEvent(
     // WS-035: board events carry task content; create owner-only (0600)
     // rather than inheriting the umask default of 0644.
     await fs.appendFile(filePath, line, { encoding: 'utf8', mode: 0o600 });
+    await hardenKanbanOnce(filePath);
     // Trim the event log to prevent unbounded growth (best-effort).
     await trimKanbanEventLog(filePath, Buffer.byteLength(line));
   });
@@ -316,6 +326,9 @@ async function trimKanbanEventLog(filePath: string, appendedBytes: number): Prom
     const trimmed = lines.slice(-EVENT_LOG_TRIM_TO);
     const body = `${trimmed.join('\n')}\n`;
     await atomicWrite(filePath, body, { encoding: 'utf8' });
+    // F37: kanban's local atomicWrite does not harden; the trim rewrite replaced
+    // the file, so re-apply owner-only permissions (Windows mode is a no-op).
+    await restrictFilePermissions(filePath, { label: 'kanban' });
     rememberEventLogState(filePath, {
       size: Buffer.byteLength(body),
       lineCount: trimmed.length,
@@ -382,6 +395,7 @@ export async function appendBoardHistory(
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     const line = `${JSON.stringify(entry)}\n`;
     await fs.appendFile(filePath, line, { encoding: 'utf8', mode: 0o600 });
+    await hardenKanbanOnce(filePath);
     await trimKanbanEventLog(filePath, Buffer.byteLength(line));
   });
 }

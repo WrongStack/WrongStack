@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { restrictFilePermissions } from '@wrongstack/core/security';
 import { buildChildEnv } from '@wrongstack/core/utils';
 
 export function automationGit(root: string, args: string[], index?: string): Promise<Buffer> {
@@ -68,6 +69,9 @@ export async function materializeAutomationPatch(
     const index = path.join(temporary, 'index');
     const patchFile = path.join(temporary, 'changes.patch');
     await writeFile(patchFile, patch, { mode: 0o600 });
+    // F53 (WS-045 class): the patch is project source content and `mode:
+    // 0o600` is a Windows no-op. Harden before git applies it (best-effort).
+    await restrictFilePermissions(patchFile, { label: 'automation-patch' });
     await automationGit(root, ['read-tree', commit], index);
     await automationGit(
       root,

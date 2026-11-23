@@ -34,7 +34,7 @@ import { access, appendFile, mkdir, rename, stat } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { createInterface } from 'node:readline';
 import type { EventBus } from '@wrongstack/contracts/kernel/events';
-import { SECRET_FILE_MODE } from '../security/file-permissions.js';
+import { restrictFilePermissions, SECRET_FILE_MODE } from '../security/file-permissions.js';
 import type { BrainArbiter, BrainDecision, BrainDecisionRequest } from './brain.js';
 import { emitBrainTierTransition, markDecisionTier } from './brain-telemetry.js';
 
@@ -193,6 +193,8 @@ export class BrainDecisionLedger {
   private static readonly ROTATE_CHECK_EVERY = 100;
   private writesSinceRotateCheck = 0;
   private dirReady = false;
+  /** Whether the active ledger file has been owner-only hardened (reset on rotation). */
+  private hardened = false;
 
   private maxMemoryEntries: number;
   private retryWindowMs: number;
@@ -566,6 +568,15 @@ export class BrainDecisionLedger {
         }
         await this.maybeRotate();
         await appendFile(this.opts.filePath, line, { encoding: 'utf8', mode: SECRET_FILE_MODE });
+        // F29 (WS-045 class): on Windows `mode: 0o600` is a no-op, so this
+        // append-only ledger — model reasoning detail that may echo secrets —
+        // stayed readable by other local accounts where inheritance was not
+        // owner-only. Harden once per active file (best-effort, warned not
+        // thrown); rotation resets the flag so the new file is hardened.
+        if (!this.hardened) {
+          this.hardened = true;
+          await restrictFilePermissions(this.opts.filePath, { label: 'brain-ledger' });
+        }
       })
       .catch(() => {
         // Ledger persistence is best-effort — never destabilize the host.
@@ -591,6 +602,8 @@ export class BrainDecisionLedger {
       const info = await stat(this.opts.filePath);
       if (info.size < BrainDecisionLedger.MAX_FILE_BYTES) return;
       await rename(this.opts.filePath, `${this.opts.filePath}.1`);
+      // Rotation replaced the file; harden the new one on the next append.
+      this.hardened = false;
     } catch {
       // Missing file or a locked rename — rotation retries on a later check.
     }

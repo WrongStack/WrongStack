@@ -38,7 +38,7 @@ import { dirname } from 'node:path';
 import { createInterface } from 'node:readline';
 import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import { scrubErrorText } from '../security/error-sanitize.js';
-import { SECRET_FILE_MODE } from '../security/file-permissions.js';
+import { restrictFilePermissions, SECRET_FILE_MODE } from '../security/file-permissions.js';
 import type { BrainDecision, BrainDecisionRequest } from './brain.js';
 import type { BrainDecisionTier } from './brain-telemetry.js';
 
@@ -262,6 +262,8 @@ export class BrainTraceRecorder {
   private static readonly MAX_PENDING_WRITES = 1_000;
   private static readonly MAX_PENDING_WRITE_BYTES = 8 * 1024 * 1024;
   private readyDirectory: string | undefined;
+  /** Trace destination already owner-only hardened. F40 (WS-045). */
+  private hardenedFile: string | undefined;
 
   private content: BrainTraceContentMode;
   private maxOpenRecords: number;
@@ -498,6 +500,14 @@ export class BrainTraceRecorder {
         // WS-035: under `content: 'full'` every trace row holds the question and
         // context verbatim. Create owner-only.
         await appendFile(filePath, line, { encoding: 'utf8', mode: SECRET_FILE_MODE });
+        // F40 (WS-045 class): on Windows the mode is a no-op, so the trace file
+        // stayed readable by other local accounts where inheritance was not
+        // owner-only. Harden once per destination (writes are serialized on
+        // writeChain; reconfigure to a new filePath hardens the new file).
+        if (this.hardenedFile !== filePath) {
+          this.hardenedFile = filePath;
+          await restrictFilePermissions(filePath, { label: 'brain-trace' });
+        }
       })
       .catch(() => {
         // Tracing is best-effort — it must never destabilize the host.

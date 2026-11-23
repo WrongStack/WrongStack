@@ -8,6 +8,7 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { restrictFilePermissions } from '@wrongstack/core/security';
 import { atomicWrite, withFileLock } from '@wrongstack/core/utils';
 import { BestEffortBatchQueue } from '../write-queues.js';
 import { countNonEmptyLines, readTailNonEmptyLines } from './jsonl-io.js';
@@ -35,6 +36,8 @@ export class HqSimpleLog<T> {
   private readonly writer: BestEffortBatchQueue<T>;
   private lineCount = 0;
   private counted = false;
+  /** Append path already owner-only hardened. F49 (WS-045). */
+  private hardened = false;
   private hydration: Promise<void> | undefined;
 
   constructor(opts: HqSimpleLogOptions) {
@@ -60,8 +63,16 @@ export class HqSimpleLog<T> {
     await fs.appendFile(
       this.filePath,
       records.map((record) => JSON.stringify(record)).join('\n') + '\n',
-      { encoding: 'utf8' },
+      { encoding: 'utf8', mode: 0o600 },
     );
+    // F49 (WS-045 class): the append had NO mode at all (umask default 0644 on
+    // POSIX; inherited ACL on Windows). Command-audit/alert records carry
+    // command text and session context. Harden once per instance (best-effort);
+    // the rotation rewrite uses atomicWrite, which hardens on its own.
+    if (!this.hardened) {
+      this.hardened = true;
+      await restrictFilePermissions(this.filePath, { label: 'hq-log' });
+    }
     this.lineCount += records.length;
     if (this.lineCount < this.maxLines) return;
     await withFileLock(this.filePath, async () => {

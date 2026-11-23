@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { restrictDirPermissions, restrictFilePermissions } from './security/file-permissions.js';
 import { atomicWrite } from './utils/atomic-write.js';
 import { safeParse } from './utils/safe-json.js';
 import { writeErr } from './utils/term.js';
@@ -127,6 +128,20 @@ export const PROFILE_STATE_PAIRS: ReadonlyArray<{
 ];
 
 /**
+ * F56 (WS-045 copy-time class): on Windows fs.cp gives copied children the
+ * destination's inherited ACL, not the source's owner-only ACL. Harden the
+ * whole copied tree (best-effort — the caller's catch never blocks boot).
+ */
+async function hardenCopiedTree(root: string): Promise<void> {
+  await restrictDirPermissions(root, { label: 'profile-migration' });
+  for (const entry of await fs.readdir(root, { withFileTypes: true })) {
+    const full = path.join(root, entry.name);
+    if (entry.isDirectory()) await hardenCopiedTree(full);
+    else if (entry.isFile()) await restrictFilePermissions(full, { label: 'profile-migration' });
+  }
+}
+
+/**
  * Migrate legacy profile-owned files and directories from the global root
  * into the active profile's directory. Runs after migrateLegacyConfig() so the
  * active profile name is resolved from the now-migrated root bootstrap.
@@ -194,9 +209,15 @@ export async function migrateProfileFiles(wpaths: WstackPaths): Promise<void> {
     try {
       if (srcIsDir) {
         await fs.cp(src, dst, { recursive: true, errorOnExist: false, force: false });
+        await hardenCopiedTree(dst);
       } else {
         const content = await fs.readFile(src);
         await fs.writeFile(dst, content, { mode: 0o600 });
+        // F41 (WS-045 class): on Windows `mode: 0o600` is a no-op, so copied
+        // profile state (memory.md, sync.json, …) stayed readable by other
+        // local accounts where inheritance was not owner-only. Harden the copy
+        // (best-effort — the surrounding catch never blocks boot).
+        await restrictFilePermissions(dst, { label: 'profile-migration' });
       }
     } catch {
       // best-effort — never block boot

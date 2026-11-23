@@ -1,5 +1,6 @@
 import * as path from 'node:path';
 import type { Config, SlashCommand } from '@wrongstack/contracts/types';
+import { restrictDirPermissions, restrictFilePermissions } from '@wrongstack/core/security';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { atomicWrite, color, readJsonObjectFile } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
@@ -327,7 +328,7 @@ async function copyProfile(
   const destPath = wpaths.profileConfig(safe);
   const srcDir = path.dirname(srcPath);
   const destDir = path.dirname(destPath);
-  const { access, cp } = await import('node:fs/promises');
+  const { access, cp, readdir } = await import('node:fs/promises');
   try {
     await access(destDir);
     const msg = `Profile "${safe}" already exists. Use a different name.`;
@@ -340,6 +341,19 @@ async function copyProfile(
   // Clone the complete profile tree.
   try {
     await cp(srcDir, destDir, { recursive: true, errorOnExist: true, force: false });
+    // F59 (WS-045 copy-time class): on Windows cp gives copied children the
+    // destination's inherited ACL, not the source's owner-only ACL — the
+    // cloned profile (config, memory, skills, sync state) would stay readable
+    // by other local accounts. Harden the whole clone (best-effort).
+    const hardenTree = async (dir: string): Promise<void> => {
+      await restrictDirPermissions(dir, { label: 'profile-copy' });
+      for (const entry of await readdir(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) await hardenTree(full);
+        else if (entry.isFile()) await restrictFilePermissions(full, { label: 'profile-copy' });
+      }
+    };
+    await hardenTree(destDir);
   } catch (err) {
     const msg = `${color.red('✗')} Failed to copy profile: ${err instanceof Error ? err.message : String(err)}`;
     renderer.writeWarning(msg);

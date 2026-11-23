@@ -1,6 +1,7 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Logger, LogLevel } from '@wrongstack/contracts/types/logger';
+import { restrictFilePermissions } from '../security/file-permissions.js';
 import { color } from '../utils/color.js';
 import { redactText, redactValue } from '../utils/redaction.js';
 import { writeErr } from '../utils/term.js';
@@ -84,6 +85,8 @@ export class DefaultLogger implements Logger {
   private parent: DefaultLogger | null = null;
   private pendingFileWrites = 0;
   private pendingFileBytes = 0;
+  /** Whether the active log file has been owner-only hardened (reset on rotation). */
+  private hardened = false;
 
   private get root(): DefaultLogger {
     return this.parent ? this.parent.root : this;
@@ -198,6 +201,8 @@ export class DefaultLogger implements Logger {
         try {
           await fsp.rm(`${file}.1`, { force: true });
           await fsp.rename(file, `${file}.1`);
+          // Rotation replaced the file; harden the new one on the next append.
+          this.root.hardened = false;
         } catch {
           // file locked, or raced by another process — ignore
         }
@@ -242,7 +247,19 @@ export class DefaultLogger implements Logger {
         root.pendingFileBytes += bytes;
         this.enqueueRotate(this.file);
         this._tail = this._tail
-          .then(() => fsp.appendFile(this.file!, line, { mode: 0o600 }))
+          .then(async () => {
+            await fsp.appendFile(this.file!, line, { mode: 0o600 });
+            // F32 (WS-045 class): on Windows `mode: 0o600` is a no-op, so this
+            // log file — lines may carry secrets despite best-effort scrubbing —
+            // stayed readable by other local accounts where inheritance was not
+            // owner-only. Harden once per active file (best-effort, warned not
+            // thrown); rotation resets the flag.
+            const rootLogger = this.root;
+            if (!rootLogger.hardened) {
+              rootLogger.hardened = true;
+              await restrictFilePermissions(this.file!, { label: 'log' });
+            }
+          })
           .catch(() => undefined)
           .finally(() => {
             root.pendingFileWrites = Math.max(0, root.pendingFileWrites - 1);

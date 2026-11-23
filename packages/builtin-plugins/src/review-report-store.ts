@@ -16,7 +16,7 @@
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import { SECRET_FILE_MODE } from '@wrongstack/core/security';
+import { restrictFilePermissions, SECRET_FILE_MODE } from '@wrongstack/core/security';
 import { atomicWrite, withFileLock } from '@wrongstack/core/utils';
 import type {
   ReviewReport,
@@ -158,6 +158,18 @@ export class JsonlReportStore implements ReportStore {
     return this.filePath;
   }
 
+  // F28 (WS-045 class): on Windows `mode: 0o600` is a no-op, so the append-only
+  // report log — rawText holds the full review report, possibly secrets — stayed
+  // readable by other local accounts where inheritance was not owner-only.
+  // Harden once per active file (best-effort, warned not thrown); compaction
+  // rewrites via atomicWrite (which hardens) and resets the flag.
+  private hardened = false;
+  private async hardenOnce(): Promise<void> {
+    if (this.hardened) return;
+    this.hardened = true;
+    await restrictFilePermissions(this.filePath, { label: 'review-reports' });
+  }
+
   // ── Persist (create or reopen) ───────────────────────────────────
 
   async persist(input: PersistReportInput): Promise<ReviewReport> {
@@ -184,6 +196,7 @@ export class JsonlReportStore implements ReportStore {
           encoding: 'utf8',
           mode: SECRET_FILE_MODE,
         });
+        await this.hardenOnce();
         return updated;
       }
 
@@ -226,6 +239,7 @@ export class JsonlReportStore implements ReportStore {
         JSON.stringify({ __reportEvent: 1, data: createdEvent }) +
         NL;
       await fsp.appendFile(this.filePath, lines, { encoding: 'utf8', mode: SECRET_FILE_MODE });
+      await this.hardenOnce();
       return report;
     });
   }
@@ -268,6 +282,7 @@ export class JsonlReportStore implements ReportStore {
         mode: SECRET_FILE_MODE,
       });
 
+      await this.hardenOnce();
       return { ...entry.report };
     });
   }
@@ -292,6 +307,7 @@ export class JsonlReportStore implements ReportStore {
         `${JSON.stringify({ __report: 1, data: updated })}${NL}`,
         { encoding: 'utf8', mode: SECRET_FILE_MODE },
       );
+      await this.hardenOnce();
       return updated;
     });
   }
@@ -320,6 +336,7 @@ export class JsonlReportStore implements ReportStore {
         mode: SECRET_FILE_MODE,
       });
 
+      await this.hardenOnce();
       return materialized;
     });
   }
@@ -461,6 +478,8 @@ export class JsonlReportStore implements ReportStore {
       );
 
       await atomicWrite(this.filePath, lines.join(NL) + NL, { mode: 0o600 });
+      // Compaction replaced the file; harden the new one on the next append.
+      this.hardened = false;
       return { removed, removedNonTerminal, eventsFolded };
     });
   }

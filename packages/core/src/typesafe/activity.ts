@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { appendFile, mkdir, rename, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { FetchError } from '@wrongstack/contracts/types/errors';
+import { restrictFilePermissions } from '../security/file-permissions.js';
 import { resolveWstackPaths } from '../utils/wstack-paths.js';
 import type { TypeSafeBreaker } from './breaker.js';
 
@@ -74,6 +75,9 @@ function tailEntry(entry: JevActivity): JevActivity {
 }
 
 /** Serialized by recordJevActivity; split for filesystem regression coverage. */
+/** Activity targets already owner-only hardened (cleared on rotation). F36 (WS-045). */
+const hardenedActivityTargets = new Set<string>();
+
 export async function appendJevActivity(target: string, entry: JevActivity): Promise<void> {
   await mkdir(dirname(target), { recursive: true });
   const size = await stat(target).then(
@@ -83,8 +87,19 @@ export async function appendJevActivity(target: string, entry: JevActivity): Pro
       throw error;
     },
   );
-  if (size > 5 * 1024 * 1024) await rename(target, `${target}.1`);
+  if (size > 5 * 1024 * 1024) {
+    await rename(target, `${target}.1`);
+    hardenedActivityTargets.delete(target);
+  }
   await appendFile(target, `${JSON.stringify(entry)}\n`, { mode: 0o600 });
+  // F36 (WS-045 class): on Windows `mode: 0o600` is a no-op, so this activity
+  // log stayed readable by other local accounts where inheritance was not
+  // owner-only. Harden once per target (best-effort, warned not thrown);
+  // rotation clears the flag so the new file is hardened.
+  if (!hardenedActivityTargets.has(target)) {
+    hardenedActivityTargets.add(target);
+    await restrictFilePermissions(target, { label: 'jev-activity' });
+  }
 }
 
 export function recordJevActivity(entry: JevActivity): void {

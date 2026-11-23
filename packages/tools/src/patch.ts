@@ -5,6 +5,7 @@ import * as path from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import type { Tool } from '@wrongstack/contracts/types';
 import { PartialWriteError, ToolValidationError } from '@wrongstack/contracts/types';
+import { restrictFilePermissions } from '@wrongstack/core/security';
 import { buildChildEnv, toErrorMessage } from '@wrongstack/core/utils';
 import { isValidUtf8, resolveRealInsideRoot, safeResolveReal, sha256hex } from './_util.js';
 import { enqueueReindex } from './codebase-index/background-indexer.js';
@@ -196,6 +197,10 @@ export const patchTool: Tool<PatchInput, PatchOutput> = {
       });
       const patchFile = path.join(tmpDir, 'in.diff');
       await fs.writeFile(patchFile, input.patch, { mode: 0o600 });
+      // F52 (WS-045 class): the diff is project source content, `mode: 0o600`
+      // is a Windows no-op, and the dir chmod 0700 above is one too. Harden the
+      // temp diff before the engine reads it (best-effort).
+      await restrictFilePermissions(patchFile, { label: 'patch-diff' });
 
       const args = [`-p${strip}`, '--merge', ...(dryRun ? ['--dry-run'] : []), '-i', patchFile];
 

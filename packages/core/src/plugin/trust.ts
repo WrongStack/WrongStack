@@ -28,6 +28,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { ERROR_CODES, FsError } from '@wrongstack/contracts/types/errors';
+import { restrictFilePermissions } from '../security/file-permissions.js';
 import { withFileLock } from '../utils/atomic-write.js';
 
 export interface PluginTrustEntry {
@@ -400,6 +401,11 @@ export async function writePluginTrustStore(
   const tmp = `${storePath}.tmp`;
   await writeFile(tmp, `${JSON.stringify(store, null, 2)}\n`, { mode: 0o600 });
   await rename(tmp, storePath);
+  // F26 (WS-045 class): on Windows `mode: 0o600` is a no-op, so this
+  // security-relevant trust store stayed readable by other local accounts where
+  // inheritance was not owner-only. Harden the final path after the rename
+  // (best-effort, warned not thrown).
+  await restrictFilePermissions(storePath, { label: 'plugin-trust' });
 }
 
 /**

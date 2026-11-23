@@ -9,6 +9,7 @@ import type {
   SessionSummary,
   SessionWriter,
 } from '@wrongstack/contracts/types/session';
+import { restrictFilePermissions } from '../../security/file-permissions.js';
 import type { SessionCatalogProjectClient } from '../../session-catalog/client.js';
 import { withFileLock } from '../../utils/atomic-write.js';
 import { toErrorMessage } from '../../utils/index.js';
@@ -141,6 +142,9 @@ export async function executeCreateSession(
           encoding: 'utf8',
           mode: 0o600,
         });
+        // F46 (WS-045 class): on Windows `mode: 0o600` is a no-op; harden the
+        // index after the create row (best-effort).
+        await restrictFilePermissions(host.indexFile, { label: 'session-index' });
       } finally {
         // Drop the parsed snapshot whether or not the append reported
         // success. A rejection does not prove nothing landed (a short write,
@@ -173,6 +177,10 @@ export async function executeCreateSession(
     emitSessionStoreError(host.events, id, file, 'create', toErrorMessage(err), false);
     throw new Error(`Failed to open session file: ${toErrorMessage(err)}`, { cause: err });
   }
+  // F46 (WS-045 class): the journal is the verbatim transcript and `mode:
+  // 0o600` is a Windows no-op. Creation is not a hot path (a reused id
+  // truncates), so harden on every create (best-effort).
+  await restrictFilePermissions(file, { label: 'session-journal' });
   // Re-invalidate AFTER the open/hygiene: a concurrent list() between the
   // first invalidation and here could have rebuilt the manifest from the
   // prior session's artifacts.

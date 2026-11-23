@@ -124,9 +124,9 @@
       "runtimeOrMixed": 18
     },
     "@wrongstack/core/security": {
-      "files": 279,
+      "files": 291,
       "typeOnly": 27,
-      "runtimeOrMixed": 255
+      "runtimeOrMixed": 267
     },
     "@wrongstack/core/session-catalog": {
       "files": 19,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1012,
-      "typeOnly": 76,
-      "runtimeOrMixed": 971
+      "files": 1015,
+      "typeOnly": 77,
+      "runtimeOrMixed": 973
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -7709,6 +7709,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/acp/src/client/acp-launch-compat.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/acp/src/client/acp-session-types.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -7752,6 +7758,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/builtin-plugins/src/perf-command.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/builtin-plugins/src/review-claim-registry.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -7997,6 +8009,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/slash-commands/profile.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/slash-commands/refiner.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8088,6 +8106,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/wiring/command-host-state.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/wiring/provider-status.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -8615,6 +8639,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/hq/src/persistence/simple-log.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/hq/src/persistence/timeseries-store.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8622,6 +8652,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/hq/tests/event-log-hardening.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/hq/tests/timeseries-store-hardening.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -8658,6 +8694,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/plugins/src/adversary-mode/policy.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/plugins/src/decision-journal/index.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -8747,7 +8789,19 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/runtime/src/automation/pull-request-git.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/runtime/src/container.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/runtime/src/docker-workspace.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -8843,6 +8897,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/sdd/src/sdd-board-store.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/security-scanner/src/redaction-diagnostic.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8898,6 +8958,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/tools/src/management/session-rename.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/tools/src/patch.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -9144,6 +9210,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/src/server/provider-config-standalone.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/src/server/provider-status-persistence.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14099,6 +14171,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/provider-status-wiring-hardening.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/tests/provider-status-wiring.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -14220,6 +14298,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/tests/slash-nextsteps-mode.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/slash-profile-copy-hardening.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14946,6 +15030,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/hq/tests/session-bridge.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/hq/tests/timeseries-store-hardening.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

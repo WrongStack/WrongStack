@@ -1,6 +1,7 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { restrictFilePermissions } from '@wrongstack/core/security';
 import type { McpServer } from '../types/acp-v1.js';
 import type { ACPSessionOptions } from './acp-session-types.js';
 
@@ -57,6 +58,10 @@ export function prepareAcpLaunch(
       const file = join(directory, 'mcp.json');
       try {
         await writeFile(file, JSON.stringify(copilotMcpConfig(servers)), { mode: 0o600 });
+        // F48 (WS-045 class): server env values and headers routinely carry
+        // API keys/bearers, and `mode: 0o600` is a Windows no-op. Harden before
+        // the adapter is pointed at the file (best-effort).
+        await restrictFilePermissions(file, { label: 'acp-mcp-config' });
       } catch (error) {
         await rm(directory, { recursive: true, force: true });
         throw error;

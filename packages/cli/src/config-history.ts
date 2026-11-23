@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { ERROR_CODES, FsError } from '@wrongstack/contracts/types';
-import { isSecretField } from '@wrongstack/core/security';
+import { isSecretField, restrictFilePermissions } from '@wrongstack/core/security';
 import { atomicWrite, toErrorMessage, withFileLock, writeErr } from '@wrongstack/core/utils';
 import type { HomeDirFn } from './config-history-support.js';
 import {
@@ -327,12 +327,17 @@ export async function appendHistory(
     diffSummary: diffSummary(oldCfg, newCfg),
   };
 
+  const entryPath = path.join(historyDir(homeFn, targetConfigPath), `${id}.json`);
   try {
-    await fs.writeFile(
-      path.join(historyDir(homeFn, targetConfigPath), `${id}.json`),
-      JSON.stringify(entry, null, 2),
-      { encoding: 'utf8', mode: 0o600 },
-    );
+    await fs.writeFile(entryPath, JSON.stringify(entry, null, 2), {
+      encoding: 'utf8',
+      mode: 0o600,
+    });
+    // F30 (WS-045 class): on Windows `mode: 0o600` is a no-op, so this config
+    // history entry stayed readable by other local accounts where inheritance
+    // was not owner-only. Each entry is a new file; harden it after the write
+    // (best-effort, warned not thrown).
+    await restrictFilePermissions(entryPath, { label: 'config-history' });
   } catch (err) {
     throw new FsError({
       message: toErrorMessage(err),

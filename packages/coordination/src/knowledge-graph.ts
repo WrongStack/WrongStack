@@ -21,7 +21,7 @@
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import { SECRET_FILE_MODE } from '@wrongstack/core/security';
+import { restrictFilePermissions, SECRET_FILE_MODE } from '@wrongstack/core/security';
 import { atomicWrite, withFileLock } from '@wrongstack/core/utils';
 
 // ── Core types ────────────────────────────────────────────────────────────
@@ -211,6 +211,8 @@ export class KnowledgeGraph {
   private readonly compactEveryWrites: number;
   private writesSinceCompaction = 0;
   private graphDirReady: Promise<void> | undefined;
+  /** Whether the active graph log has been owner-only hardened (reset on compaction). */
+  private hardened = false;
 
   /**
    * Stable per-node insertion sequence. `nodes` (a Map) preserves insertion
@@ -586,11 +588,21 @@ export class KnowledgeGraph {
     const line = `${JSON.stringify(record)}\n`;
     await withFileLock(this.graphFilePath, async () => {
       await fsp.appendFile(this.graphFilePath, line, { encoding: 'utf8', mode: SECRET_FILE_MODE });
+      // F33 (WS-045 class): on Windows `mode: 0o600` is a no-op, so this graph
+      // log — project knowledge that may carry sensitive detail — stayed
+      // readable by other local accounts where inheritance was not owner-only.
+      // Harden once per active file (best-effort, warned not thrown); compaction
+      // rewrites via atomicWrite (which hardens) and resets the flag.
+      if (!this.hardened) {
+        this.hardened = true;
+        await restrictFilePermissions(this.graphFilePath, { label: 'knowledge-graph' });
+      }
       this.writesSinceCompaction++;
       if (this.writesSinceCompaction < this.compactEveryWrites) return;
       try {
         await this._compactLogLocked();
         this.writesSinceCompaction = 0;
+        this.hardened = false;
       } catch {
         // The append itself is durable. Keep the counter above the threshold
         // so the next write retries compaction without failing graph updates.

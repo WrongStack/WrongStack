@@ -25,6 +25,10 @@ import type {
   SessionMoveTarget,
   SessionSummary,
 } from '@wrongstack/contracts/types';
+import {
+  restrictDirPermissions,
+  restrictFilePermissions,
+} from '../../security/file-permissions.js';
 import { sessionScopedPath } from '../../utils/session-scoped-path.js';
 import { clearRedoStash } from '../session-writer-redo.js';
 import { SESSION_SIDECAR_SUFFIXES } from './delete-session-artifacts.js';
@@ -149,6 +153,12 @@ export async function executeAdoptMovedSession(
     await fsp.writeFile(host.sessionPath(id, '.summary.json'), JSON.stringify(summary), {
       mode: 0o600,
     });
+    // F44 (WS-045 class): on Windows `mode: 0o600` is a no-op, so the rewritten
+    // summary stayed readable by other local accounts where inheritance was
+    // not owner-only. Harden the rewrite (best-effort).
+    await restrictFilePermissions(host.sessionPath(id, '.summary.json'), {
+      label: 'session-summary',
+    });
   }
   if (host.catalogClient) {
     await host.catalogClient.call('upsert_summary', {
@@ -216,6 +226,15 @@ async function copySessionFiles(
     }
     paths.push(to);
     await fsp.cp(from, to, { recursive, errorOnExist: true, force: false });
+    // F57 (WS-045 copy-time class): on Windows fsp.cp gives copied children the
+    // destination's inherited ACL, not the source's owner-only ACL — the moved
+    // transcript would stay readable by other local accounts. Harden the copy
+    // (best-effort).
+    if (recursive) {
+      await hardenCopiedTree(to);
+    } else {
+      await restrictFilePermissions(to, { label: 'session-move' });
+    }
   };
   try {
     await copy(transcript, targetTranscript);
@@ -241,5 +260,15 @@ async function exists(p: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+/** F57: harden a recursively copied session directory (see the copy helper). */
+async function hardenCopiedTree(root: string): Promise<void> {
+  await restrictDirPermissions(root, { label: 'session-move' });
+  for (const entry of await fsp.readdir(root, { withFileTypes: true })) {
+    const full = path.join(root, entry.name);
+    if (entry.isDirectory()) await hardenCopiedTree(full);
+    else if (entry.isFile()) await restrictFilePermissions(full, { label: 'session-move' });
   }
 }

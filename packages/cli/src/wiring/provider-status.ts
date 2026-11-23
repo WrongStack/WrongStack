@@ -4,6 +4,7 @@ import * as fs from 'node:fs/promises';
 import type { EventBus } from '@wrongstack/contracts/kernel';
 import { ProviderModelStatusTracker } from '@wrongstack/coordination';
 import type { FallbackProfileManager } from '@wrongstack/core/agent';
+import { restrictFilePermissions } from '@wrongstack/core/security';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { atomicWrite, toErrorMessage, withFileLock } from '@wrongstack/core/utils';
 
@@ -38,6 +39,8 @@ export async function setupProviderStatus(input: ProviderStatusInput) {
   // which provider/model, which error, blocked or reopened, until when.
   const auditFile = input.paths.profileProviderAudit(input.paths.profileName);
   const AUDIT_ROTATE_BYTES = 5 * 1024 * 1024;
+  /** Audit file already owner-only hardened (reset on rotation). F51 (WS-045). */
+  let auditHardened = false;
   type ProviderAuditEvent = {
     providerId: string;
     model: string;
@@ -77,11 +80,20 @@ export async function setupProviderStatus(input: ProviderStatusInput) {
           const stat = await fs.stat(auditFile);
           if (stat.size > AUDIT_ROTATE_BYTES) {
             await fs.rename(auditFile, `${auditFile}.1`);
+            auditHardened = false;
           }
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
         }
         await fs.appendFile(auditFile, `${line}\n`, { mode: 0o600 });
+        // F51 (WS-045 class): on Windows `mode: 0o600` is a no-op, so this
+        // audit trail — error messages, session/agent ids — stayed readable by
+        // other local accounts where inheritance was not owner-only. Harden
+        // once (best-effort); rotation clears the flag for the new file.
+        if (!auditHardened) {
+          auditHardened = true;
+          await restrictFilePermissions(auditFile, { label: 'provider-status-audit' });
+        }
       });
     } catch (error) {
       // The audit trail must never break the runtime.

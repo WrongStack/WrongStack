@@ -4,6 +4,7 @@ import type {
   ProviderModelStatus,
   ProviderStatusTrackerPort,
 } from '@wrongstack/contracts/types/provider-status';
+import { restrictFilePermissions } from '@wrongstack/core/security';
 import { atomicWrite, withFileLock } from '@wrongstack/core/utils';
 
 /** Bind standalone manual health controls to the same profile files used by the CLI. */
@@ -14,6 +15,7 @@ export function createProviderStatusPersistence(
   const statusFile = path.join(path.dirname(profileConfigPath), 'provider-status.json');
   const auditFile = path.join(path.dirname(profileConfigPath), 'provider-status-audit.jsonl');
   let pending: Promise<void> | undefined;
+  let auditHardened = false;
   const read = async () => {
     try {
       const value: unknown = JSON.parse(await fs.readFile(statusFile, 'utf8'));
@@ -92,6 +94,14 @@ export function createProviderStatusPersistence(
         `${JSON.stringify({ ts: now, providerId, model, from: before?.state ?? 'healthy', to: current?.state ?? 'healthy', reason, error: before?.lastErrorKind ? { kind: before.lastErrorKind, status: before.lastErrorStatus, message: before.lastErrorMessage, sessionId: before.lastSessionId, agentId: before.lastAgentId } : null })}\n`,
         { mode: 0o600 },
       );
+      // F38 (WS-045 class): on Windows `mode: 0o600` is a no-op, so this audit
+      // log — error messages, session/agent ids — stayed readable by other local
+      // accounts where inheritance was not owner-only. Harden once per instance
+      // (best-effort, warned not thrown).
+      if (!auditHardened) {
+        auditHardened = true;
+        await restrictFilePermissions(auditFile, { label: 'provider-status-audit' });
+      }
     });
   };
   return { prepare, persistControl, auditFile };

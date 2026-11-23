@@ -1087,7 +1087,7 @@
       "classification": "agent-domain service",
       "intendedOwner": "Core decision arbiter, exported via the coordination subpath",
       "sourceFiles": 14,
-      "sourceLines": 4179
+      "sourceLines": 4202
     },
     {
       "directory": "core",
@@ -1129,7 +1129,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused infrastructure package",
       "sourceFiles": 7,
-      "sourceLines": 2163
+      "sourceLines": 2180
     },
     {
       "directory": "models",
@@ -1164,7 +1164,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 13,
-      "sourceLines": 3761
+      "sourceLines": 3767
     },
     {
       "directory": "prompts",
@@ -1213,7 +1213,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "project-scoped ownership and catalog subsystem",
       "sourceFiles": 20,
-      "sourceLines": 5789
+      "sourceLines": 5798
     },
     {
       "directory": "skills",
@@ -1234,7 +1234,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 129,
-      "sourceLines": 29908
+      "sourceLines": 29985
     },
     {
       "directory": "tasking",
@@ -1248,14 +1248,14 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused TypeSafe integration",
       "sourceFiles": 15,
-      "sourceLines": 2631
+      "sourceLines": 2646
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 97,
-      "sourceLines": 15802
+      "sourceLines": 15809
     },
     {
       "directory": "vcs",

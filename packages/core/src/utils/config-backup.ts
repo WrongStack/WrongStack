@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { restrictFilePermissions } from '../security/file-permissions.js';
 import { slugify } from './slug.js';
 
 /**
@@ -71,6 +72,12 @@ export async function backupConfigFile(filePath: string, paths: ConfigBackupPath
           encoding: 'utf8',
           flag: 'wx',
         });
+        // F25 (WS-045 class): on Windows `mode: 0o600` is a no-op, so this
+        // config snapshot — full config content, possibly API keys — stayed
+        // readable by other local accounts where inheritance was not owner-only.
+        // Each snapshot is a new file; harden it after the write. Best-effort
+        // (warned, never thrown) inside the already best-effort backup.
+        await restrictFilePermissions(backupFile, { label: 'config-backup' });
         return;
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;

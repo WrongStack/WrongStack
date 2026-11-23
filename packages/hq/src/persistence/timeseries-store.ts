@@ -9,7 +9,7 @@
 import { statSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { SECRET_FILE_MODE } from '@wrongstack/core/security';
+import { restrictFilePermissions, SECRET_FILE_MODE } from '@wrongstack/core/security';
 import { atomicWrite, withFileLock } from '@wrongstack/core/utils';
 import { BestEffortLatestQueue } from '../write-queues.js';
 import { countNonEmptyLines, readJsonlLines } from './jsonl-io.js';
@@ -86,6 +86,8 @@ export class HqTimeseriesStore {
   private diskLineCount: number | undefined;
   private loaded = false;
   private loadPromise: Promise<void> | undefined;
+  /** Whether the active timeseries file has been owner-only hardened (reset on compaction). */
+  private hardened = false;
 
   constructor(opts: HqTimeseriesStoreOptions) {
     this.filePath = path.join(opts.dataDir, 'timeseries.jsonl');
@@ -224,6 +226,16 @@ export class HqTimeseriesStore {
     await withFileLock(this.filePath, async () => {
       this.diskLineCount ??= await countNonEmptyLines(this.filePath);
       await fs.appendFile(this.filePath, lines, { encoding: 'utf8', mode: SECRET_FILE_MODE });
+      // F24 (WS-045 class, F20 sibling): on Windows `mode: 0o600` is a no-op, so
+      // this append-only timeseries log — per-project/machine cost telemetry —
+      // stayed readable by other local accounts wherever inheritance was not
+      // already owner-only. Compaction rewrites via atomicWrite (which hardens),
+      // but the common append path did not. Harden once per active file,
+      // best-effort (warned, never thrown); no per-flush icacls spawn.
+      if (!this.hardened) {
+        this.hardened = true;
+        await restrictFilePermissions(this.filePath, { label: 'hq-timeseries' });
+      }
       this.diskLineCount += snapshot.samples.length;
       const compactAt = Math.max(this.maxBuckets + 1, this.maxBuckets * 4);
       if (this.diskLineCount >= compactAt) {
@@ -249,6 +261,8 @@ export class HqTimeseriesStore {
           { mode: 0o600 },
         );
         this.diskLineCount = retained.length;
+        // Compaction replaced the file; harden the new one on the next flush.
+        this.hardened = false;
       }
     });
     for (const [timestamp, version] of snapshot.versions) {

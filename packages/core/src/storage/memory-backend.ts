@@ -7,7 +7,7 @@ import {
   type MemoryPriority,
   type MemoryType,
 } from '@wrongstack/contracts/types/memory';
-import { SECRET_FILE_MODE } from '../security/file-permissions.js';
+import { restrictFilePermissions, SECRET_FILE_MODE } from '../security/file-permissions.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import type { WstackPaths } from '../utils/wstack-paths.js';
 
@@ -294,6 +294,8 @@ export class FileMemoryBackend implements MemoryBackend {
   private readonly indexCache = new Map<string, InvertedIndex>();
   /** File mtime cache for invalidation. */
   private readonly mtimeCache = new Map<string, number>();
+  /** Memory files already owner-only hardened on the append path. F42 (WS-045). */
+  private readonly hardenedFiles = new Set<string>();
 
   constructor(opts: FileMemoryBackendOptions) {
     this.files = {
@@ -427,6 +429,14 @@ export class FileMemoryBackend implements MemoryBackend {
       } finally {
         await handle.close();
       }
+      // F42 (WS-045 class): on Windows SECRET_FILE_MODE is a no-op, so this
+      // user-content memory file stayed readable by other local accounts where
+      // inheritance was not owner-only. Harden once per file (best-effort);
+      // rewrite paths use atomicWrite, which hardens on its own.
+      if (!this.hardenedFiles.has(file)) {
+        this.hardenedFiles.add(file);
+        await restrictFilePermissions(file, { label: 'memory' });
+      }
     });
     this.invalidateCache(file);
   }
@@ -541,6 +551,11 @@ export class FileMemoryBackend implements MemoryBackend {
     const backup = `${file}.bak.${Date.now()}`;
     try {
       await fs.copyFile(file, backup);
+      // F58 (WS-045 copy-time class): on Windows copyFile gives the backup the
+      // destination's inherited ACL, not the source's owner-only ACL — the
+      // backup of user memory content would stay readable by other local
+      // accounts. Harden it (best-effort).
+      await restrictFilePermissions(backup, { label: 'memory-backup' });
       await pruneConsolidateBackups(file);
     } catch {
       /* best-effort */

@@ -16,7 +16,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { createInterface } from 'node:readline';
 import type { EventBus } from '@wrongstack/contracts/kernel/events';
-import { SECRET_FILE_MODE } from '@wrongstack/core/security';
+import { restrictFilePermissions, SECRET_FILE_MODE } from '@wrongstack/core/security';
 import { expectDefined } from '@wrongstack/core/utils';
 import type { FleetBus } from './fleet-bus.js';
 
@@ -107,6 +107,8 @@ export class AgentMonitorService {
   private _writeQueueBytes = 0;
   /** Transcript dirs already created — avoids a mkdir syscall per append. */
   private readonly _ensuredDirs = new Set<string>();
+  /** Transcript files already owner-only hardened. F47 (WS-045). */
+  private readonly _hardenedTranscripts = new Set<string>();
   private _writeDrain: Promise<void> | null = null;
   private static readonly _MAX_QUEUED_WRITES = 1_000;
   private static readonly _MAX_QUEUED_WRITE_BYTES = 8 * 1024 * 1024;
@@ -666,8 +668,18 @@ export class AgentMonitorService {
     const filePath = path.join(dir, 'transcript.jsonl');
     try {
       await fs.appendFile(filePath, line, { encoding: 'utf8', mode: SECRET_FILE_MODE });
+      // F47 (WS-045 class): on Windows SECRET_FILE_MODE is a no-op, so subagent
+      // transcripts stayed readable by other local accounts where inheritance
+      // was not owner-only. Harden once per file (best-effort).
+      if (!this._hardenedTranscripts.has(filePath)) {
+        this._hardenedTranscripts.add(filePath);
+        await restrictFilePermissions(filePath, { label: 'agent-transcript' });
+      }
     } catch (error) {
       this._ensuredDirs.delete(dir);
+      // A failed append may mean the file/dir vanished; the next append
+      // recreates the file and must harden it again.
+      this._hardenedTranscripts.delete(filePath);
       throw error;
     }
   }

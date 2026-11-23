@@ -30,7 +30,7 @@
 
 import { appendFileSync } from 'node:fs';
 import type { SecretScrubber } from '@wrongstack/contracts/types';
-import { DefaultSecretScrubber } from '@wrongstack/core/security';
+import { DefaultSecretScrubber, restrictFilePermissions } from '@wrongstack/core/security';
 
 /**
  * Discriminated union of every event the auth-menu local flow
@@ -139,15 +139,24 @@ function defaultStderrSink(): AuthAuditSink {
  * error so the caller can surface it.
  */
 export function fileAuditSink(path: string): AuthAuditSink {
+  let hardened = false;
   return {
     write(line: string) {
       // `mode` is applied only when this append CREATES the file; an existing
       // file keeps whatever permissions it already has. Without it the default
-      // is 0o666 & ~umask — world-readable on a normal POSIX box — and this is
+      // is 0o666 & ~umask - world-readable on a normal POSIX box - and this is
       // an authentication audit trail: who signed in, against which provider,
       // and when. Roughly thirty-five other credential-adjacent writers in the
       // repo pass 0o600; this was the one that did not.
       appendFileSync(path, `${line}\n`, { encoding: 'utf8', mode: 0o600 });
+      // F31 (WS-045 class): on Windows `mode: 0o600` is a no-op, so this audit
+      // trail stayed readable by other local accounts where inheritance was not
+      // owner-only. Harden once, best-effort and fire-and-forget so the sync
+      // sink contract (durable on exit, never throws here) is preserved.
+      if (!hardened) {
+        hardened = true;
+        void restrictFilePermissions(path, { label: 'auth-audit' });
+      }
     },
   };
 }

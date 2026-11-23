@@ -17,6 +17,7 @@ import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import { hostname } from 'node:os';
 import * as path from 'node:path';
+import { restrictFilePermissions } from '../security/file-permissions.js';
 import { isPidAlive } from '../utils/pid.js';
 import type { SessionRegistryEntry } from './session-registry-types.js';
 
@@ -205,13 +206,18 @@ export async function writeAtomicFile(
     // Write + fsync BEFORE the rename: without the fsync, a system crash
     // can journal the rename metadata while the data blocks were never
     // flushed, leaving a zero-filled (all-NUL) registry file on reboot.
-    const handle = await fs.open(tmp, 'w');
+    const handle = await fs.open(tmp, 'w', 0o600);
     try {
       await handle.writeFile(JSON.stringify(registry, null, 2), 'utf8');
       await handle.sync().catch(() => undefined);
     } finally {
       await handle.close();
     }
+    // F60 (WS-045 class): the registry holds session ids, project roots and
+    // agent entries; the open had NO mode and `mode: 0o600` is a Windows no-op
+    // anyway. Harden the temp BEFORE publish — rename preserves the ACL
+    // (best-effort).
+    await restrictFilePermissions(tmp, { label: 'session-registry' });
     tmpPersisted = true;
     // Cross-platform atomic publish:
     //   1. POSIX: rename(2) is atomic; if the destination exists it is
@@ -240,6 +246,9 @@ export async function writeAtomicFile(
         // destination so readers don't see zero-filled data on a crash,
         // then drop the temp file.
         await fs.copyFile(tmp, filePath);
+        // F60: copyFile gives the destination the inherited ACL, not the
+        // hardened temp's — re-apply owner-only explicitly (best-effort).
+        await restrictFilePermissions(filePath, { label: 'session-registry' });
         try {
           const destHandle = await fs.open(filePath, 'r+');
           try {

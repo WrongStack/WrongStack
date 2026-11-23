@@ -1,5 +1,6 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import { restrictFilePermissions } from '@wrongstack/core/security';
 import { atomicWrite, ensureDir, withFileLock } from '@wrongstack/core/utils';
 import type { SddBoardSnapshot } from './board-types.js';
 
@@ -71,6 +72,8 @@ export class SddBoardStore {
   private readonly controlFileIO: SddBoardControlFileIO;
   private readonly eventChains = new Map<string, Promise<void>>();
   private readonly eventWritesSinceCheck = new Map<string, number>();
+  /** Event/control files already owner-only hardened (cleared on compaction). */
+  private readonly hardenedFiles = new Set<string>();
   private readonly controlDrains = new Map<
     string,
     Promise<Array<{ ts: number; type: string; payload?: unknown }>>
@@ -164,6 +167,11 @@ export class SddBoardStore {
     await withFileLock(filePath, () =>
       fsp.appendFile(filePath, `${JSON.stringify(command)}\n`, { mode: 0o600 }),
     );
+    // F34 (WS-045 class): harden the control log too (Windows mode no-op).
+    if (!this.hardenedFiles.has(filePath)) {
+      this.hardenedFiles.add(filePath);
+      await restrictFilePermissions(filePath, { label: 'sdd-board-control' });
+    }
   }
 
   /** Read + truncate the legacy control queue for one-time migration. */
@@ -225,6 +233,15 @@ export class SddBoardStore {
     await this.ensureBaseDir();
     await withFileLock(filePath, async () => {
       await fsp.appendFile(filePath, `${JSON.stringify(event)}\n`, { mode: 0o600 });
+      // F34 (WS-045 class): on Windows `mode: 0o600` is a no-op, so this event
+      // log — spec/design data that may carry sensitive detail — stayed readable
+      // by other local accounts where inheritance was not owner-only. Harden
+      // once per active file (best-effort, warned not thrown); compaction
+      // rewrites via atomicWrite (which hardens) and clears the flag.
+      if (!this.hardenedFiles.has(filePath)) {
+        this.hardenedFiles.add(filePath);
+        await restrictFilePermissions(filePath, { label: 'sdd-board-events' });
+      }
 
       const writes = (this.eventWritesSinceCheck.get(filePath) ?? 0) + 1;
       if (writes < this.eventSizeCheckEvery) {
@@ -236,6 +253,7 @@ export class SddBoardStore {
       const stat = await fsp.stat(filePath);
       if (stat.size <= this.eventMaxBytes) return;
       await this.compactEventTail(filePath, stat.size);
+      this.hardenedFiles.delete(filePath);
     });
   }
 

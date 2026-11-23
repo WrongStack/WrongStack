@@ -4,6 +4,7 @@ import { cp, lstat, mkdtemp, readdir, realpath, rm } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ProviderConfig } from '@wrongstack/contracts/types';
+import { restrictFilePermissions } from '@wrongstack/core/security';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import type {
   EnvironmentImages,
@@ -471,6 +472,9 @@ export async function runDockerWorkspace(
       const { writeFile } = await import('node:fs/promises');
       const providerFile = path.join(snapshot, '.wrongstack-provider-config.json');
       await writeFile(providerFile, JSON.stringify(options.providerConfigs), { mode: 0o600 });
+      // F55 (WS-045 class): provider configs carry API keys and `mode: 0o600`
+      // is a Windows no-op. Harden before docker cp (best-effort).
+      await restrictFilePermissions(providerFile, { label: 'docker-provider-config' });
       await run(['cp', providerFile, `${name}:/tmp/wrongstack-provider-config.json`]);
       await run([
         'exec',
@@ -509,6 +513,9 @@ export async function runDockerWorkspace(
       const patchPath = path.join(snapshot, '.wrongstack-previous.patch');
       const { writeFile } = await import('node:fs/promises');
       await writeFile(patchPath, options.initialPatch, { mode: 0o600 });
+      // F55 (WS-045 class): the previous patch is project source content and
+      // `mode: 0o600` is a Windows no-op. Harden before docker cp (best-effort).
+      await restrictFilePermissions(patchPath, { label: 'docker-previous-patch' });
       await run(['cp', patchPath, `${name}:/tmp/wrongstack-previous.patch`]);
       await run([
         'exec',

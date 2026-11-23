@@ -1,6 +1,6 @@
 import * as fsp from 'node:fs/promises';
 import type { SessionSummary } from '@wrongstack/contracts/types/session';
-import { SECRET_FILE_MODE } from '../../security/file-permissions.js';
+import { restrictFilePermissions, SECRET_FILE_MODE } from '../../security/file-permissions.js';
 import { atomicWrite, ensureDir, withFileLock } from '../../utils/atomic-write.js';
 import { compareSessionSummaries } from '../session-summary.js';
 import { applySessionIndexLines, readFileRange } from './index-reader.js';
@@ -10,6 +10,14 @@ export const COMPACT_EVERY = 30;
 
 /** Shared empty set for files that cannot contain tombstones (missing/unreadable). */
 const NO_DELETED_IDS: ReadonlySet<string> = new Set<string>();
+
+/** Index files already owner-only hardened (cleared on compaction). F35 (WS-045). */
+const hardenedIndexFiles = new Set<string>();
+async function hardenIndexOnce(indexFile: string): Promise<void> {
+  if (hardenedIndexFiles.has(indexFile)) return;
+  hardenedIndexFiles.add(indexFile);
+  await restrictFilePermissions(indexFile, { label: 'session-index' });
+}
 
 export async function appendToIndexStrict(
   dir: string,
@@ -25,11 +33,13 @@ export async function appendToIndexStrict(
     await invalidateShard(summary.id);
     const line = JSON.stringify(summary) + '\n';
     await fsp.appendFile(indexFile, line, { encoding: 'utf8', mode: SECRET_FILE_MODE });
+    await hardenIndexOnce(indexFile);
     const res = onAppended();
     shouldCompact = res.shouldCompact;
   });
   if (shouldCompact) {
     await withFileLock(indexFile, () => compactInner());
+    hardenedIndexFiles.delete(indexFile);
   }
 }
 
@@ -45,6 +55,7 @@ export async function writeTombstone(
     await withFileLock(indexFile, async () => {
       const line = JSON.stringify({ action: 'delete', id }) + '\n';
       await fsp.appendFile(indexFile, line, { encoding: 'utf8', mode: SECRET_FILE_MODE });
+      await hardenIndexOnce(indexFile);
       onTombstone();
       await invalidateShard(id);
     });

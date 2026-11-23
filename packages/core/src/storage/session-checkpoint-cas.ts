@@ -6,6 +6,7 @@ import type {
   WorkspaceCheckpointRef,
   WorkspaceMaterializationResult,
 } from '@wrongstack/contracts/types/session';
+import { restrictFilePermissions } from '../security/file-permissions.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
 import { openVcs, type VcsKind, type VcsOptions } from '../vcs/vcs-adapter.js';
@@ -357,6 +358,11 @@ export class SessionCheckpointCas {
       await handle.sync();
       await handle.close();
       handle = undefined;
+      // F50 (WS-045 class): checkpoint blobs are verbatim workspace content and
+      // `mode: 0o600` is a Windows no-op. Harden the temp BEFORE the link — a
+      // hard link shares the file's ACL, so the published object is covered
+      // too (best-effort).
+      await restrictFilePermissions(temp, { label: 'checkpoint-cas' });
       try {
         await fsp.link(temp, target);
       } catch (err) {
