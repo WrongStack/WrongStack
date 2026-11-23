@@ -1,11 +1,11 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.7.17',
+  version: '1.7.18',
   title: 'Desktop installers are back.',
   summary:
-    "The desktop installers are back on every platform, with all of 1.7.16: ACP clients choose how much WrongStack does unasked (default, plan, auto-edit or yolo), MCP servers' own instructions reach the model, and Code Intelligence has its own package.",
+    "The desktop installers are back on every platform, with all of 1.7.16: ACP session modes, MCP server instructions and the Code Intelligence package. Quick sessions pin their tool surface and shell, and state files are owner-only on Windows.",
   socialDescription:
-    "WrongStack 1.7.17: the desktop installers are back, with 1.7.16's ACP session modes and MCP server instructions.",
+    "WrongStack 1.7.18: desktop installers are back, Quick sessions pin their tool surface, and state files are owner-only on Windows.",
   cards: [
     {
       title: 'ACP session modes',

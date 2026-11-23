@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.18] — 2026-11-23
+
+1.7.17 was prepared but never published; its fixes ship here. The desktop
+installers are back on every platform: 1.7.16 had none, because the desktop
+engine build still looked for the Tree-sitter grammars in `@wrongstack/tools`.
+Quick sessions pin their tool surface and shell for the life of the
+conversation, the remaining state files are owner-only on Windows, and a round
+of provider, MCP, TUI and parser fixes.
+
+### Added
+
+- Quick: a session records its tool schema version and its direct shell (pwsh
+  or bash), so a running conversation's tool surface never shifts; a fork keeps
+  its source's choice. A tool can send a smaller declaration in Quick, and
+  `tool_search` answers `kanban:<action>` with a single-operation schema.
+- Binaries: `bun scripts/build-binaries.mjs --codebase-mcp` builds a standalone
+  `wstack-codebase-index-mcp` executable.
+
+### Fixed
+
+- Desktop: the installers build again: the engine asset pack takes the
+  grammars from `@wrongstack/codebase`, and the engine follows the shared
+  standalone runtime.
+- Windows: config backups, the plugin trust store, logs, session journals,
+  registries and checkpoints, the memory backend, config history, provider
+  status and other state files are hardened to owner-only after each write.
+- ACP: `auto-edit` resolves symlinks before treating a path as inside the
+  project, and a link whose target does not exist yet asks.
+- Providers: Gemini schema type lists become `nullable` or `anyOf`, Mistral
+  skips a reasoning level the model already refused, and a huge stream timeout
+  no longer fires at once.
+- MCP: the authorization callback matches an origin-only issuer, OAuth
+  authorizes the URL the transport dials, a timed-out stdio request sends
+  `notifications/cancelled`, and a child that dies mid `tools/list` fails the
+  connect.
+- TUI: rewind pairs checkpoints from the newest message, a message the queue
+  rejects keeps its text in an error notice, `/kanban audit all` scans the
+  project, and git status follows a `/project` switch.
+- WebUI: searches fold Unicode case, a case-only rename works, code map
+  communities no longer merge two `index.ts` hubs, and Kanban replies reach the
+  board that asked.
+- Code Intelligence: a gitignore BOM, `constructor`-named files, CRLF Makefiles
+  and long-form compose `depends_on` are read correctly.
+- Chronicle: a crash-torn journal tail starts the next event on a fresh line,
+  and legacy import reports an unparseable line instead of aborting.
+- Security scanner: findings keep their category, null model entries no longer
+  crash skill generation, and secret patterns match quoted keys.
+
 ## [1.7.17] — 2026-11-23
 
 The desktop installers are back. 1.7.16 shipped its standalone binaries but no
