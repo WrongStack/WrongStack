@@ -19,6 +19,11 @@ export function patternIsLikelyCatastrophic(source: string): boolean {
     hasAlt: boolean;
     hasQuant: boolean;
     tokens: FrameToken[];
+    /**
+     * Lookahead/lookbehind bodies consume no input: their literals cannot be
+     * the mandatory separator that disambiguates a repeated group.
+     */
+    zeroWidth: boolean;
   }
   const stack: Frame[] = [];
   let pendingLiteral: string | null = null;
@@ -92,15 +97,21 @@ export function patternIsLikelyCatastrophic(source: string): boolean {
     }
     if (ch === '(') {
       flushPending();
-      stack.push({ hasAlt: false, hasQuant: false, tokens: [] });
+      const frame: Frame = { hasAlt: false, hasQuant: false, tokens: [], zeroWidth: false };
+      stack.push(frame);
       // Skip group markers so `?` in `(?:`/`(?=` is not read as a quantifier.
       if (source[i + 1] === '?') {
-        if (source[i + 2] === ':' || source[i + 2] === '=' || source[i + 2] === '!') i += 2;
-        else if (source[i + 2] === '<') {
+        if (source[i + 2] === ':') i += 2;
+        else if (source[i + 2] === '=' || source[i + 2] === '!') {
+          frame.zeroWidth = true;
+          i += 2;
+        } else if (source[i + 2] === '<') {
           // Lookbehind `(?<=`/`(?<!` or a named group `(?<name>`: skip the whole
           // marker, or the name and `>` would be read as literal separators.
-          if (source[i + 3] === '=' || source[i + 3] === '!') i += 3;
-          else {
+          if (source[i + 3] === '=' || source[i + 3] === '!') {
+            frame.zeroWidth = true;
+            i += 3;
+          } else {
             const close = source.indexOf('>', i + 3);
             i = close === -1 ? i + 2 : close;
           }
@@ -119,9 +130,12 @@ export function patternIsLikelyCatastrophic(source: string): boolean {
         if (frame.hasAlt) parent.hasAlt = true;
         if (frame.hasQuant) parent.hasQuant = true;
         // Its literals stay mandatory unless the group itself is optional.
+        // Lookaround bodies are zero-width: their literals are assertions, not
+        // consumed separators, so they must not disambiguate the parent.
         const next = source[i + 1];
         const optionalGroup = frame.hasAlt || next === '?' || next === '*' || next === '{';
         for (const tok of frame.tokens) {
+          if (frame.zeroWidth && tok.kind === 'literal') continue;
           if (tok.kind === 'quant' || !optionalGroup) {
             parent.tokens.push(tok);
           }

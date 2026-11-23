@@ -53,4 +53,14 @@ describe('patternIsLikelyCatastrophic nested groups', () => {
     expect(patternIsLikelyCatastrophic('^(a+\\1a?)+$')).toBe(true);
     expect(patternIsLikelyCatastrophic('^(\\p{L}+a?)+$')).toBe(true);
   });
+
+  it('does not treat lookaround content as a consumed separator', () => {
+    // The `b` is only asserted by the negative lookaround; on `aaaa…c` it never
+    // occurs, so the repeated `a+` still partitions one run exponentially.
+    expect(patternIsLikelyCatastrophic('^(?:a+(?!b))+$')).toBe(true);
+    expect(patternIsLikelyCatastrophic('^(?:(?<!b)a+)+$')).toBe(true);
+
+    // A real consumed separator still disambiguates the repeated atom.
+    expect(patternIsLikelyCatastrophic('^(?:a+(?!b)-)+$')).toBe(false);
+  });
 });
