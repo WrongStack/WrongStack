@@ -48,7 +48,7 @@ async function fixture() {
 }
 
 const hardenedEnding = (suffix: string) =>
-  icaclsCalls.some((c) => c.file === 'icacls' && c.args[0].endsWith(suffix));
+  icaclsCalls.some((c) => c.file === 'icacls' && (c.args[0] ?? '').endsWith(suffix));
 
 describe('docker workspace credential/patch snapshot owner-only hardening (F55)', () => {
   it('hardens the provider config and previous patch before docker cp', async () => {
@@ -71,7 +71,7 @@ describe('docker workspace credential/patch snapshot owner-only hardening (F55)'
       image: 'trusted:1',
       command: 'check-pass',
       runner,
-      providerConfigs: { openai: { apiKey: 'sk-secret' } },
+      providerConfigs: { openai: { type: 'openai', apiKey: 'sk-secret' } },
       initialPatch: '--- a/original.txt\n+++ b/original.txt\n@@ -1 +1 @@\n-unchanged\n+changed\n',
     });
     // Valid-input control: the workspace run still completes.

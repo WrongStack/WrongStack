@@ -74,8 +74,8 @@ describe('kit source snapshot owner-only hardening (F54)', () => {
     const snapshotCalls = icaclsCalls.filter(
       (c) =>
         c.file === 'icacls' &&
-        c.args[0].startsWith(historyRoot) &&
-        c.args[0].includes(`${path.sep}source${path.sep}`),
+        (c.args[0] ?? '').startsWith(historyRoot) &&
+        (c.args[0] ?? '').includes(`${path.sep}source${path.sep}`),
     );
     expect(snapshotCalls.length, 'each snapshot file is hardened').toBeGreaterThanOrEqual(
       Object.keys(template.files).length,

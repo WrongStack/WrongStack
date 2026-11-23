@@ -61,7 +61,10 @@ describe('redo stash owner-only hardening (F39)', () => {
     await stashRewoundTail(stashOpts('{"type":"prompt"}\n'.length));
     const stashDir = `${journal}.redo`;
     const tails = icaclsCalls.filter(
-      (c) => c.file === 'icacls' && c.args[0].startsWith(stashDir) && c.args[0].endsWith('.jsonl'),
+      (c) =>
+        c.file === 'icacls' &&
+        (c.args[0] ?? '').startsWith(stashDir) &&
+        (c.args[0] ?? '').endsWith('.jsonl'),
     );
     expect(tails.length, 'the cut tail file is hardened').toBe(1);
     expect(hardened(path.join(stashDir, 'stack.json')), 'stack.json is hardened').toBe(true);
@@ -75,7 +78,9 @@ describe('redo stash owner-only hardening (F39)', () => {
       icaclsCalls
         .filter(
           (c) =>
-            c.file === 'icacls' && c.args[0].startsWith(stashDir) && c.args[0].endsWith('.jsonl'),
+            c.file === 'icacls' &&
+            (c.args[0] ?? '').startsWith(stashDir) &&
+            (c.args[0] ?? '').endsWith('.jsonl'),
         )
         .map((c) => c.args[0]),
     );

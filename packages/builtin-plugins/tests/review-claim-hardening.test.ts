@@ -77,7 +77,8 @@ describe('review claim ledger owner-only hardening (F61)', () => {
     const second = await emitReviewIfChanged(api, bundle('v2'), { storeDir, maxLedgerLines: 1 });
     expect(second, 'second claim emits').not.toBeNull();
     const tmpCalls = icaclsCalls.filter(
-      (c) => c.file === 'icacls' && c.args[0].startsWith(`${claimsFilePath(storeDir)}.tmp-`),
+      (c) =>
+        c.file === 'icacls' && (c.args[0] ?? '').startsWith(`${claimsFilePath(storeDir)}.tmp-`),
     );
     expect(tmpCalls.length, 'compaction temp is hardened').toBe(1);
     // Valid-input control: the compacted ledger still holds the live claim.

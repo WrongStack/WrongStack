@@ -56,7 +56,7 @@ describe('patch temp diff owner-only hardening (F52)', () => {
     expect(result.applied).toBeGreaterThanOrEqual(1);
     expect(await fs.readFile(file, 'utf8')).toContain('updated');
     const diffCalls = icaclsCalls.filter(
-      (c) => c.file === 'icacls' && c.args[0].endsWith('in.diff'),
+      (c) => c.file === 'icacls' && (c.args[0] ?? '').endsWith('in.diff'),
     );
     expect(diffCalls.length, 'patch issues icacls for the temp diff').toBe(1);
   });

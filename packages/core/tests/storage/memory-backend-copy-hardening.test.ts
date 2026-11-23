@@ -63,7 +63,7 @@ describe('memory consolidate backup copy-time hardening (F58)', () => {
     expect(removed).toBe(1);
     expect(await backend.list('project-memory', file)).toHaveLength(1);
     const backupCalls = icaclsCalls.filter(
-      (c) => c.file === 'icacls' && c.args[0].startsWith(`${file}.bak.`),
+      (c) => c.file === 'icacls' && (c.args[0] ?? '').startsWith(`${file}.bak.`),
     );
     expect(backupCalls.length, 'consolidate issues icacls for the backup').toBe(1);
   });

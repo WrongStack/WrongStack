@@ -68,8 +68,8 @@ describe('session registry owner-only hardening (F60)', () => {
     const tmpCalls = icaclsCalls.filter(
       (c) =>
         c.file === 'icacls' &&
-        c.args[0].startsWith(path.join(dir, '.session-registry.json.')) &&
-        c.args[0].endsWith('.tmp'),
+        (c.args[0] ?? '').startsWith(path.join(dir, '.session-registry.json.')) &&
+        (c.args[0] ?? '').endsWith('.tmp'),
     );
     expect(tmpCalls.length, 'writeAtomicFile issues icacls for the temp').toBe(1);
   });

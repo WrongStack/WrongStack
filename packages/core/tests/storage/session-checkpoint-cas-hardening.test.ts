@@ -67,14 +67,14 @@ function makeCas() {
     rootDir: casRoot,
     projectRoot: project,
     vcs: {
-      runner: (_binary: string, args: readonly string[], cwd: string) => runGit([...args], cwd),
+      runner: (_binary: string, args: readonly string[]) => runGit([...args]),
     },
   });
 }
 
 const objectHardeningCount = () =>
   icaclsCalls.filter(
-    (c) => c.file === 'icacls' && c.args[0].startsWith(path.join(casRoot, 'objects')),
+    (c) => c.file === 'icacls' && (c.args[0] ?? '').startsWith(path.join(casRoot, 'objects')),
   ).length;
 
 describe('checkpoint CAS owner-only hardening (F50)', () => {

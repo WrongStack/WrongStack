@@ -76,7 +76,7 @@ describe('automation patch owner-only hardening (F53)', () => {
     // Valid-input control: materialization still produces the change set.
     expect(result.changes.map((c) => c.path)).toContain('a.txt');
     const patchCalls = icaclsCalls.filter(
-      (c) => c.file === 'icacls' && c.args[0].endsWith('changes.patch'),
+      (c) => c.file === 'icacls' && (c.args[0] ?? '').endsWith('changes.patch'),
     );
     expect(patchCalls.length, 'materialize issues icacls for the temp patch').toBe(1);
   }, 60_000);

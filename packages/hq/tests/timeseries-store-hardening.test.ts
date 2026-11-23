@@ -28,13 +28,13 @@ function win32Seam(
   execImpl?: (file: string, args: readonly string[]) => Promise<{ stdout: string; stderr: string }>,
 ) {
   _filePermOps.platform = 'win32';
-  _filePermOps.userInfo = () => ({
+  _filePermOps.userInfo = (() => ({
     username: 'tester',
     uid: -1,
     gid: -1,
     homedir: 'C:\\Users\\tester',
     shell: null,
-  });
+  })) as unknown as typeof _filePermOps.userInfo;
   _filePermOps.execFileAsync =
     execImpl ??
     (async (file, args) => {
@@ -100,7 +100,7 @@ describe('HqTimeseriesStore owner-only hardening (F24)', () => {
   });
 
   it('POSIX: applies chmod 0o600 instead of icacls', async () => {
-    _filePermOps.platform = 'posix';
+    _filePermOps.platform = 'linux';
     _filePermOps.execFileAsync = undefined;
     _filePermOps.chmod = async (p, mode) => {
       chmodCalls.push({ path: p, mode });
