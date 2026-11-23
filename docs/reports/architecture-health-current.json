@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T00:30:13.218Z",
+  "generatedAt": "2026-11-23T00:32:00.335Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 50,
     "sourceFiles": 6492,
-    "testFiles": 5736,
-    "sourceLines": 1327525,
+    "testFiles": 5740,
+    "sourceLines": 1327528,
     "workspaceEdges": 259,
     "moduleEdges": 18983,
     "nonCommandSlashImports": 0,
@@ -1061,7 +1061,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 348,
-      "testFiles": 391,
+      "testFiles": 395,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/browser-tools",
@@ -1082,7 +1082,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 391
+          "testFiles": 395
         }
       ]
     },
@@ -24698,6 +24698,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/codebase-index-languages-prototype-names.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/codebase-index-languages.test.ts",
         "projects": [
           "root-node"
@@ -25292,6 +25298,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/gitignore-bom.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/gitignore-differential.test.ts",
         "projects": [
           "root-node"
@@ -25359,6 +25371,18 @@
       },
       {
         "file": "packages/tools/tests/index-service-piggyback.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/infra-parser-compose-depends-on-long.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/infra-parser-makefile-crlf.test.ts",
         "projects": [
           "root-node"
         ]
@@ -36834,7 +36858,7 @@
     },
     {
       "file": "packages/codebase/src/infra-parser.ts",
-      "lines": 903,
+      "lines": 904,
       "relativeImports": 2
     },
     {
@@ -37241,7 +37265,7 @@
     },
     {
       "file": "packages/codebase/src/infra-parser.ts",
-      "lines": 903,
+      "lines": 904,
       "relativeImports": 2
     },
     {

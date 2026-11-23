@@ -232,7 +232,7 @@ export function parseInfraArtifact(opts: {
   } else if (kind === 'docker-compose') {
     let inServices = false;
     let currentService = '';
-    let inDependsOn = false;
+    let depIndent = -1; // dependency-name indent; deeper keys are condition/restart/required
     // Indent units come from the file: 2 and 4 spaces are both common.
     let serviceIndent = -1;
     let propIndent = -1;
@@ -246,7 +246,7 @@ export function parseInfraArtifact(opts: {
       if (indent === 0) {
         inServices = /^services\s*:/.test(trimmed);
         currentService = '';
-        inDependsOn = false;
+        depIndent = -1;
         serviceIndent = -1;
         propIndent = -1;
         continue;
@@ -259,7 +259,7 @@ export function parseInfraArtifact(opts: {
         const svcMatch = /^([A-Za-z0-9_.-]+)\s*:/.exec(trimmed);
         if (svcMatch?.[1]) {
           currentService = svcMatch[1];
-          inDependsOn = false;
+          depIndent = -1;
           propIndent = -1;
           symbols.push(
             makeSym({
@@ -277,7 +277,7 @@ export function parseInfraArtifact(opts: {
       }
 
       if (currentService && indent === propIndent) {
-        inDependsOn = /^depends_on\s*:/.test(trimmed);
+        depIndent = /^depends_on\s*:/.test(trimmed) ? Number.POSITIVE_INFINITY : -1;
         const imageMatch = /^image\s*:\s*['"]?([^\s'"]+)/.exec(trimmed);
         if (imageMatch?.[1]) {
           refs.push({
@@ -292,11 +292,12 @@ export function parseInfraArtifact(opts: {
         continue;
       }
 
-      if (currentService && inDependsOn && indent >= propIndent) {
+      if (currentService && depIndent >= 0 && indent > propIndent) {
+        if (depIndent === Number.POSITIVE_INFINITY) depIndent = indent;
         const listDep = /^-\s*([A-Za-z0-9_.-]+)/.exec(trimmed);
         const mapDep = /^([A-Za-z0-9_.-]+)\s*:/.exec(trimmed);
         const target = listDep?.[1] ?? mapDep?.[1];
-        if (target && target !== 'condition') {
+        if (target && indent === depIndent) {
           refs.push({
             fromId: 0,
             toName: target,
@@ -538,7 +539,7 @@ export function parseInfraArtifact(opts: {
     }
   } else if (kind === 'makefile') {
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i] ?? '';
+      const line = (lines[i] ?? '').replace(/\r$/, ''); // CRLF: `(.*)$` below cannot cross a CR
       if (!line || line.startsWith('\t') || line.trimStart().startsWith('#')) continue;
       const lineNo = i + 1;
       const targetMatch = /^([A-Za-z_][\w.-]*)\s*:(?!=)\s*(.*)$/.exec(line);

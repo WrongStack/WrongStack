@@ -47,7 +47,7 @@
       "relativeImports": 17
     },
     "packages/codebase/src/infra-parser.ts": {
-      "lines": 903,
+      "lines": 904,
       "relativeImports": 2
     },
     "packages/contracts/src/types/index.ts": {

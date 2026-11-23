@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-23T00:30:13.218Z
+**Generated:** 2026-11-23T00:32:00.335Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 50 |
 | Production source files | 6492 |
-| Production source lines | 1327525 |
-| Test files | 5736 |
+| Production source lines | 1327528 |
+| Test files | 5740 |
 | Workspace dependency edges | 259 |
 | Relative module edges | 18983 |
 | Non-command slash imports | 0 |
@@ -66,7 +66,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/security-scanner | 21 | 35 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/techstack | 55 | 68 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 28 | 46 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
-| @wrongstack/tools | 348 | 391 | @wrongstack/agent-catalog, @wrongstack/browser-tools, @wrongstack/codebase, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/tools | 348 | 395 | @wrongstack/agent-catalog, @wrongstack/browser-tools, @wrongstack/codebase, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 517 | 460 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 18 | 29 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/vibeui | 100 | 42 | @wrongstack/webui-protocol |
@@ -102,7 +102,7 @@ None.
 | 966 | `apps/desktop-v2/src/ProjectChimera.tsx` |
 | 963 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
 | 957 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
-| 903 | `packages/codebase/src/infra-parser.ts` |
+| 904 | `packages/codebase/src/infra-parser.ts` |
 | 898 | `apps/desktop-v2/src/SkillLibrary.tsx` |
 | 881 | `packages/acp/src/client/acp-session.ts` |
 | 878 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |

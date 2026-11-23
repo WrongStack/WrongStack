@@ -128,7 +128,8 @@ export function detectLang(file: string): SymbolLang | null {
     return 'ts';
   }
 
-  const special = SPECIAL_FILENAMES[lowerBase];
+  // Own keys only: a file named `constructor` / `__proto__` must not read Object.prototype.
+  const special = Object.hasOwn(SPECIAL_FILENAMES, lowerBase) ? SPECIAL_FILENAMES[lowerBase] : null;
   if (special) return special;
 
   const dot = lowerBase.lastIndexOf('.');

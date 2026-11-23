@@ -99,8 +99,9 @@ const ANCESTOR_MEMO_LIMIT = 50_000;
 export function compileGitignore(lines: string[]): IgnoreMatcher {
   const rules: Rule[] = [];
 
-  for (const raw of lines) {
-    let line = raw.replace(/\r$/, '');
+  for (const [index, raw] of lines.entries()) {
+    // git skips a leading UTF-8 BOM; kept, it glued onto rule 1 and never matched.
+    let line = (index === 0 ? raw.replace(/^\uFEFF/, '') : raw).replace(/\r$/, '');
     if (!line.trim() || line.startsWith('#')) continue;
     line = line.trimEnd();
 
