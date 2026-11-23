@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { restrictFilePermissions } from '../security/file-permissions.js';
+import { restrictFilePermissions } from '@wrongstack/persistence';
 import { slugify } from './slug.js';
 
 /**
