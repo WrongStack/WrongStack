@@ -78,6 +78,25 @@ function assertPlanMutationInvariants(previous: PlanFile, updated: PlanFile): vo
 }
 
 /**
+ * Shape check for one persisted plan item. The schema gate below already
+ * rejected a non-array `items`; a non-object element (a hand-edited or
+ * corrupted file) passed it and then crashed `formatPlan`/`mutatePlan` with a
+ * raw TypeError. Validate only the fields those paths dereference, so a
+ * legacy plan carrying extra or absent timestamps stays loadable.
+ */
+function isPlanItem(value: unknown): value is PlanItem {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const item = value as Record<string, unknown>;
+  return (
+    typeof item['id'] === 'string' &&
+    item['id'].trim().length > 0 &&
+    typeof item['title'] === 'string' &&
+    typeof item['status'] === 'string' &&
+    (item['details'] === undefined || typeof item['details'] === 'string')
+  );
+}
+
+/**
  * Read the plan file; null when it doesn't exist. With `strict`, any other
  * read error is thrown instead: a read-modify-write that took "unreadable"
  * for "empty" saved over every plan item.
@@ -125,7 +144,7 @@ export async function loadPlan(
     if (options?.strict) throw err;
     return null;
   }
-  if (parsed?.version !== 1 || !Array.isArray(parsed.items)) {
+  if (parsed?.version !== 1 || !Array.isArray(parsed.items) || !parsed.items.every(isPlanItem)) {
     events?.emit('storage.read', {
       sessionId: '~boot~',
       store: 'plan',

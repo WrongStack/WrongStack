@@ -239,6 +239,24 @@ describe('plan-store', () => {
     }
   });
 
+  it('loadPlan rejects a non-object plan item as an invalid schema', async () => {
+    // A hand-edited/corrupted file with `items: [null]` used to pass the
+    // version/array gate; formatPlan then threw a raw TypeError, and a strict
+    // mutatePlan threw TypeError instead of its controlled SessionError.
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-plan-'));
+    const file = path.join(dir, 'bad-item.json');
+    try {
+      await fs.writeFile(file, JSON.stringify({ version: 1, sessionId: 's', items: [null] }));
+      expect(await loadPlan(file)).toBeNull();
+      await expect(loadPlan(file, undefined, { strict: true })).rejects.toThrow(/schema/);
+      await expect(mutatePlan(file, 's', (plan) => plan)).rejects.toMatchObject({
+        code: 'SESSION_WRITE_FAILED',
+      });
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it('removePlanItem matches by title (case-insensitive partial)', () => {
     let plan = emptyPlan('s');
     ({ plan } = addPlanItem(plan, 'Fix bug in auth module'));
