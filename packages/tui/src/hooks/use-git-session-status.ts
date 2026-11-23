@@ -61,9 +61,14 @@ export function useGitSessionStatus({
   hiddenItems = [],
 }: GitSessionStatusOptions): GitInfo | null {
   const [gitInfo, setGitInfo] = useState<GitInfo | null>(null);
-  const previousBranchRef = useRef<string | null>(null);
+  const previousBranchRef = useRef<{ branch: string; detached: boolean } | null>(null);
 
   const gitHidden = hiddenItems.includes('git');
+  // `/project` switches in place: it reassigns `agent.ctx.cwd` without a new
+  // `ctx` or a remount. Keying the poll on the cwd re-points the watcher, and
+  // a branch seen in another repository is no baseline for a "switch".
+  const cwd = agent.ctx.cwd;
+  const baselineCwdRef = useRef(cwd);
 
   // Reset the branch baseline when the gate activates: a branch switch that
   // happened while the chip was hidden must not fire a stale notice on re-show.
@@ -76,6 +81,10 @@ export function useGitSessionStatus({
     // the user hides it via /statusline, skip the poll entirely — no child
     // processes, no branch-switch notices — until it is visible again.
     if (gitHidden) return;
+    if (baselineCwdRef.current !== cwd) {
+      baselineCwdRef.current = cwd;
+      previousBranchRef.current = null;
+    }
     let cancelled = false;
 
     // Change gate. A tick that finds nothing changed still pays two process
@@ -93,7 +102,7 @@ export function useGitSessionStatus({
     let dirty = true;
     let watcher: ProjectWatchSubscription | undefined;
     try {
-      watcher = watchProjectTree(agent.ctx.cwd, ({ filename }) => {
+      watcher = watchProjectTree(cwd, ({ filename }) => {
         // A null filename is a watcher-buffer overflow: the OS dropped events
         // and cannot say which. Assume the worst and refresh.
         if (filename === null || gitPollNeedsRefresh(filename)) dirty = true;
@@ -105,19 +114,25 @@ export function useGitSessionStatus({
     }
 
     const refresh = () => {
-      readGitInfo(agent.ctx.cwd)
+      readGitInfo(cwd)
         .then((info) => {
           if (cancelled) return;
           setGitInfo((previous) => (sameGitInfo(previous, info) ? previous : info));
           if (!info?.branch) return;
           const previous = previousBranchRef.current;
-          if (previous !== null && previous !== info.branch) {
+          // Detached on both sides is a commit or checkout by SHA (a rebase step), not a
+          // branch switch: the short OID moved, no branch did (F1360).
+          if (
+            previous !== null &&
+            previous.branch !== info.branch &&
+            !(previous.detached && info.detached)
+          ) {
             const message: Message = {
               role: 'user',
               content: [
                 {
                   type: 'text',
-                  text: `[system] Git branch switched: ⎇ ${previous} → ⎇ ${info.branch}. The working tree is now on branch "${info.branch}". Any file changes from the previous branch are no longer visible.`,
+                  text: `[system] Git branch switched: ⎇ ${previous.branch} → ⎇ ${info.branch}. The working tree is now on branch "${info.branch}". Any file changes from the previous branch are no longer visible.`,
                 },
               ],
             };
@@ -130,7 +145,7 @@ export function useGitSessionStatus({
               .then(({ getSessionRegistry }) => getSessionRegistry()?.updateAgents([]))
               .catch(() => undefined);
           }
-          previousBranchRef.current = info.branch;
+          previousBranchRef.current = { branch: info.branch, detached: info.detached === true };
         })
         .catch(() => {
           if (!cancelled) setGitInfo(null);
@@ -156,7 +171,7 @@ export function useGitSessionStatus({
     // `gitHidden` must be a dep: toggling the chip in /statusline has to
     // re-run this effect to start (or stop) the poll. Without it the gate
     // is evaluated once on mount and the chip toggle does nothing.
-  }, [agent.ctx, gitHidden]);
+  }, [agent.ctx, cwd, gitHidden]);
 
   useEffect(() => {
     if (!getLiveSessions) return;

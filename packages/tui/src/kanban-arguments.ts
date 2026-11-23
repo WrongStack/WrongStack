@@ -191,9 +191,10 @@ export function parseKanbanArgs(raw: string): ParsedKanbanArgs {
   }
   if (head === 'audit' || head === 'clean' || head === 'cleaner') {
     // `audit` runs against every board when no argument is supplied;
-    // `audit <query>` runs against one board (id / title / tag).
+    // `audit <query>` runs against one board (id / title / tag). `audit all`
+    // is the documented spelling of the project-wide scan.
     const boardQuery = tokens.slice(1).join(' ').trim();
-    return { kind: 'audit', boardQuery };
+    return { kind: 'audit', boardQuery: boardQuery.toLowerCase() === 'all' ? '' : boardQuery };
   }
   // Unknown subcommand — show the usage text so users discover the right
   // command shape instead of getting a silent "command not found".

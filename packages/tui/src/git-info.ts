@@ -10,6 +10,8 @@ export interface GitInfo {
   deleted: number;
   /** Count of untracked files in the working tree. */
   untracked: number;
+  /** HEAD is detached: `branch` is a short OID (or `detached`), not a branch name. */
+  detached?: boolean;
 }
 
 /**
@@ -80,7 +82,8 @@ export async function readGitInfo(cwd: string): Promise<GitInfo | null> {
     deleted = 0;
   }
 
-  return { branch: branchLabel(branchHead, branchOid), added, deleted, untracked };
+  const detached = !branchHead || branchHead === '(detached)';
+  return { branch: branchLabel(branchHead, branchOid), added, deleted, untracked, detached };
 }
 
 /**

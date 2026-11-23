@@ -983,6 +983,27 @@ describe('/kanban audit — dispatch routing', () => {
     expect(msg).toContain('missing-description');
   });
 
+  // F1332: USAGE documents `/kanban audit [boardId|all]`; `all` used to be
+  // looked up as a board name and answered "No kanban board matches".
+  it('treats `audit all` as the documented project-wide scan', async () => {
+    mockListBoards.mockResolvedValue([
+      summary('b-1', 'Alpha', { updatedAt: NOW }),
+      summary('b-2', 'Beta', { updatedAt: NOW }),
+    ]);
+    mockGetBoard.mockImplementation(async (_root: string, id: string) =>
+      board(
+        id,
+        id === 'b-1' ? 'Alpha' : 'Beta',
+        [column('todo', 'To Do', 0)],
+        [task('t1', 'todo', `t-${id}`, 'pending')],
+      ),
+    );
+    const cmd = createKanbanSlashCommand(makeDeps());
+    const msg = ((await cmd.run('audit all')) as { message?: string }).message ?? '';
+    expect(msg).not.toMatch(/No kanban board matches/);
+    expect(msg).toMatch(/2 boards scanned/);
+  });
+
   it('does not truncate queries longer than 8 characters to an 8-char ID prefix before title/tag checks (F663)', async () => {
     mockListBoards.mockResolvedValue([
       summary('sprint-2-alpha', 'Alpha Board', { updatedAt: NOW }),

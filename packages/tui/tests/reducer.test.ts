@@ -1,3 +1,4 @@
+import { QUEUE_MAX_ITEM_BYTES, QUEUE_MAX_ITEMS } from '@wrongstack/core/storage';
 import { describe, expect, it } from 'vitest';
 import {
   nextInputWordStart,
@@ -1117,6 +1118,35 @@ describe('TUI reducer', () => {
     expect(s.queue.map((q) => q.id)).toEqual([1, 2]);
     expect(s.queue.map((q) => q.displayText)).toEqual(['first', 'second']);
     expect(s.nextQueueId).toBe(3);
+  });
+
+  // F1331: the busy-time submit path shows the message as "(queued)" and
+  // clears the draft before dispatching enqueue, so a budget rejection must
+  // be reported — it used to return the state unchanged and lose the message.
+  it('enqueue past the queue budget reports the message it did not queue', () => {
+    let s = initial();
+    for (let i = 0; i < QUEUE_MAX_ITEMS; i++) {
+      s = reducer(s, { type: 'enqueue', item: { displayText: `q${i}`, blocks: [] } });
+    }
+    const full = s;
+    s = reducer(s, { type: 'enqueue', item: { displayText: 'deploy the fix', blocks: [] } });
+    expect(s.queue).toBe(full.queue);
+    const errors = s.entries.filter((e) => e.kind === 'error');
+    expect(errors).toHaveLength(1);
+    expect((errors[0] as { text: string }).text).toContain('Queue is full');
+    expect((errors[0] as { text: string }).text).toContain('NOT queued');
+    expect((errors[0] as { text: string }).text).toContain('deploy the fix');
+  });
+
+  it('enqueue of an item over the per-item byte budget says it is too large', () => {
+    const s = reducer(initial(), {
+      type: 'enqueue',
+      item: { displayText: 'x'.repeat(QUEUE_MAX_ITEM_BYTES), blocks: [] },
+    });
+    expect(s.queue).toEqual([]);
+    const errors = s.entries.filter((e) => e.kind === 'error');
+    expect(errors).toHaveLength(1);
+    expect((errors[0] as { text: string }).text).toMatch(/^Message too large to queue/);
   });
 
   it('dequeueFirst removes the head (FIFO)', () => {

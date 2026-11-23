@@ -28,6 +28,11 @@ function sameStart(a: string, b: string): boolean {
  * pasted block shows as a placeholder) matches nothing; then, when every
  * message has a checkpoint, the n-th message is paired with the n-th.
  * Steering notes (`↯ …`) are folded into a running turn and have none.
+ *
+ * Pairing runs from the newest end. Both lists keep only their newest tail
+ * (display-history and checkpoint retention have separate budgets), so their
+ * oldest items need not correspond: walking from the start paired the first
+ * message still on screen with the oldest retained checkpoint of the same text.
  */
 export function checkpointForMessage(
   entries: readonly HistoryEntry[],
@@ -41,19 +46,19 @@ export function checkpointForMessage(
   const target = messages.findIndex((e) => e.id === entryId);
   if (target < 0) return undefined;
 
-  let next = 0;
-  for (let i = 0; i < messages.length; i++) {
+  let next = checkpoints.length - 1;
+  for (let i = messages.length - 1; i >= target; i--) {
     const message = messages[i];
     if (!message) continue;
     let found = -1;
-    for (let c = next; c < checkpoints.length; c++) {
+    for (let c = next; c >= 0; c--) {
       const checkpoint = checkpoints[c];
       if (checkpoint && sameStart(message.text, checkpoint.promptPreview)) {
         found = c;
         break;
       }
     }
-    if (found >= 0) next = found + 1;
+    if (found >= 0) next = found - 1;
     if (i === target) {
       if (found >= 0) return found;
       break;

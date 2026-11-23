@@ -1,4 +1,8 @@
-import { type PersistedQueueItem, retainPersistedQueueItems } from '@wrongstack/core/storage';
+import {
+  type PersistedQueueItem,
+  QUEUE_MAX_ITEMS,
+  retainPersistedQueueItems,
+} from '@wrongstack/core/storage';
 import type { Action } from '../app-action-type.js';
 import type { QueueItem, State } from '../app-state.js';
 import { retainTuiHistory, TUI_RESUME_HISTORY_BUDGET } from '../history-retention.js';
@@ -95,7 +99,30 @@ export function reduceComposer(state: State, action: ComposerAction): State {
       // Reject the newest item when the shared queue budget is exhausted.
       // Keeping the existing FIFO prefix avoids silently discarding work the
       // user already queued and keeps the persisted/in-memory contracts equal.
-      if (retainPersistedQueueItems(persisted).length !== candidate.length) return state;
+      if (retainPersistedQueueItems(persisted).length !== candidate.length) {
+        // The sender already showed the message as "(queued)" and cleared the
+        // draft, so a silent rejection lost it. Say it was not queued.
+        let preview = action.item.displayText;
+        if (preview.length > 200) {
+          const last = preview.charCodeAt(199);
+          const end = last >= 0xd800 && last <= 0xdbff ? 199 : 200;
+          preview = `${preview.slice(0, end)}…`;
+        }
+        const reason =
+          state.queue.length >= QUEUE_MAX_ITEMS
+            ? 'Queue is full — this message was NOT queued; send it again once the queue drains'
+            : 'Message too large to queue — it was NOT queued; send it once the agent is idle';
+        const notice = {
+          id: state.nextId,
+          kind: 'error' as const,
+          text: `${reason}:\n${preview}`,
+        };
+        return {
+          ...state,
+          entries: retainTuiHistory([...state.entries, notice], state.historyBudget),
+          nextId: state.nextId + 1,
+        };
+      }
       return {
         ...state,
         queue: candidate,

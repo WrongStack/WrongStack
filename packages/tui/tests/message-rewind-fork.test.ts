@@ -57,6 +57,30 @@ describe('checkpointForMessage', () => {
     const entries = [user(1, 'a'), user(2, 'b', { queued: true })];
     expect(checkpointForMessage(entries, [cp(0, 'a')], 2)).toBeUndefined();
   });
+
+  // F1330: history retention (400 entries / 1 MB) and checkpoint retention
+  // (200) drop different prefixes. Pairing from the oldest end matched the
+  // first message still on screen to the oldest checkpoint of the same text,
+  // so Enter in the rewind overlay took back extra turns.
+  it('pairs from the newest end when older messages left the screen', () => {
+    const entries = [
+      {
+        id: -41,
+        kind: 'info',
+        text: '… 40 earlier TUI entries omitted (full session remains on disk).',
+      } as HistoryEntry,
+      user(41, 'continue'),
+    ];
+    const checkpoints = [cp(0, 'continue'), cp(1, 'fix X'), cp(2, 'continue')];
+    expect(checkpointForMessage(entries, checkpoints, 41)).toBe(2);
+  });
+
+  it('does not lend a message a newer checkpoint after its own was retired', () => {
+    const entries = [user(1, 'fix A'), user(2, 'fix B'), user(3, 'fix A')];
+    const checkpoints = [cp(1, 'fix B'), cp(2, 'fix A')];
+    expect(checkpointForMessage(entries, checkpoints, 3)).toBe(1);
+    expect(checkpointForMessage(entries, checkpoints, 1)).toBeUndefined();
+  });
 });
 
 describe('restoreRewoundPrompt', () => {

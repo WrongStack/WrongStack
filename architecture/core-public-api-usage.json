@@ -149,9 +149,9 @@
       "runtimeOrMixed": 30
     },
     "@wrongstack/core/storage": {
-      "files": 222,
+      "files": 223,
       "typeOnly": 62,
-      "runtimeOrMixed": 197
+      "runtimeOrMixed": 198
     },
     "@wrongstack/core/tasking": {
       "files": 48,
@@ -10986,6 +10986,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/tui/tests/helpers/browser-pty-app.tsx",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/tui/tests/reducer.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
