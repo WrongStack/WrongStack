@@ -317,10 +317,14 @@ export function startHeapWatchdog(opts: HeapWatchdogOptions = {}): () => Promise
     const diagnosticStats = { ...extras, ...runtimeStats };
     const memoryDiagnosis = flightRecorder.observe(s, diagnosticStats);
     // Threshold callbacks — critical first so a single giant jump surfaces
-    // the stronger message, not both.
+    // the stronger message, not both. A threshold is an EDGE for the log
+    // cadence: only the tick that fires it may force a line, not every later
+    // sample that remains above the level.
+    let fired = false;
     if (s.load >= criticalAt && criticalArmed) {
       criticalArmed = false;
       warnArmed = false;
+      fired = true;
       opts.onWarn?.(
         'critical',
         `Heap critical: ${Math.round(s.heapUsed / MB)} MB of ~${Math.round(s.heapLimit / MB)} MB V8 limit (${Math.round(s.load * 100)}%). ` +
@@ -329,6 +333,7 @@ export function startHeapWatchdog(opts: HeapWatchdogOptions = {}): () => Promise
       );
     } else if (s.load >= warnAt && warnArmed) {
       warnArmed = false;
+      fired = true;
       opts.onWarn?.(
         'warn',
         `Heap high: ${Math.round(s.heapUsed / MB)} MB of ~${Math.round(s.heapLimit / MB)} MB V8 limit (${Math.round(s.load * 100)}%). ` +
@@ -343,9 +348,8 @@ export function startHeapWatchdog(opts: HeapWatchdogOptions = {}): () => Promise
     // Periodic diagnostic line; also force one on every fired threshold so
     // the crossing itself is always on disk even between log intervals.
     const due = Date.now() - lastLogAt >= logEveryMs;
-    const crossed = s.load >= warnAt;
     const captured = typeof memoryDiagnosis['memoryCaptureReason'] === 'string';
-    if (due || crossed || captured) {
+    if (due || fired || captured) {
       lastLogAt = Date.now();
       // Put canonical fields last so a buggy collector cannot overwrite pid,
       // timestamps or memory readings with stale values.
