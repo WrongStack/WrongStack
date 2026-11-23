@@ -5,6 +5,7 @@ import {
   compactToolDefinitionForWire,
   findSemanticBoundary,
   normalizeTopLevelToolSchema,
+  SCHEMA_DESCRIPTION_MAX_CHARS,
 } from '../../src/utils/tool-wire-compact.js';
 
 describe('compactDescription', () => {
@@ -465,5 +466,55 @@ describe('normalizeTopLevelToolSchema', () => {
     (schema['properties'] as Record<string, unknown>)['self'] = schema;
     const out = compactSchemaDescriptions(schema);
     expect(out['type']).toBe('object');
+  });
+});
+
+describe('compactSchemaDescriptions data keywords', () => {
+  // The wire contract: "Tool schemas remain structurally intact: validation
+  // keywords, property names, required fields, enum values, and nested shapes
+  // are preserved. The only reduction is on human prose annotations."
+  it('preserves enum, const and default values that carry a description field', () => {
+    const long = 'd'.repeat(SCHEMA_DESCRIPTION_MAX_CHARS + 500);
+    const enumMember = { description: long, strategy: 'fast' };
+    const constValue = { description: long, mode: 'exact' };
+    const defaultValue = { description: long, retries: 3 };
+    const out = compactSchemaDescriptions({
+      type: 'object',
+      properties: {
+        strategy: { type: 'object', enum: [enumMember] },
+        lock: { const: constValue },
+        options: {
+          type: 'object',
+          properties: { note: { type: 'string', description: long } },
+          default: defaultValue,
+        },
+        description: { type: 'string' },
+      },
+    });
+    const properties = out['properties'] as Record<string, Record<string, unknown>>;
+    expect(((properties['strategy']?.['enum'] ?? []) as unknown[])[0]).toEqual(enumMember);
+    expect(properties['lock']?.['const']).toEqual(constValue);
+    expect(properties['options']?.['default']).toEqual(defaultValue);
+
+    // Annotation prose on a property schema is still compacted ...
+    const options = properties['options'] as {
+      properties: Record<string, { description?: string }>;
+    };
+    expect(options.properties['note']?.description?.length).toBeLessThan(long.length);
+    // ... and a property NAMED description keeps its schema shape.
+    expect(properties['description']).toEqual({ type: 'string' });
+  });
+
+  it('leaves the top-level combinator flattening untouched', () => {
+    // normalizeTopLevelToolSchema is shared by every provider wire converter;
+    // the data-keyword fix above must not change it.
+    const result = normalizeTopLevelToolSchema({
+      allOf: [
+        { type: 'object', properties: { a: { type: 'string' } }, required: ['a'] },
+        { type: 'object', properties: { b: { type: 'string' } }, required: ['b'] },
+      ],
+    });
+    expect(result['type']).toBe('object');
+    expect(result['required']).toEqual(['a', 'b']);
   });
 });

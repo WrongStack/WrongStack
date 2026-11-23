@@ -138,16 +138,33 @@ export function compactSchemaDescriptions(
   return isRecord(compact) ? compact : { type: 'object', properties: {} };
 }
 
+/**
+ * Keywords whose value is DATA the schema validates against, not a schema.
+ *
+ * Descending into them must rewrite nothing: an `enum`/`const`/`default` (or
+ * an `examples` entry) that happens to be an object with a `description`
+ * member is a VALUE, and truncating that string changes what the schema
+ * allows — the wire contract is that only `description` ANNOTATIONS shrink.
+ */
+const DATA_KEYWORDS: ReadonlySet<string> = new Set([
+  'const',
+  'enum',
+  'default',
+  'examples',
+  'example',
+]);
+
 function compactSchemaNode(
   node: unknown,
   maxDescriptionChars: number,
   seen = new WeakSet<object>(),
+  inData = false,
 ): unknown {
   if (Array.isArray(node)) {
     if (seen.has(node)) return [];
     seen.add(node);
     try {
-      return node.map((item) => compactSchemaNode(item, maxDescriptionChars, seen));
+      return node.map((item) => compactSchemaNode(item, maxDescriptionChars, seen, inData));
     } finally {
       seen.delete(node);
     }
@@ -160,9 +177,9 @@ function compactSchemaNode(
     for (const [key, value] of Object.entries(node)) {
       Object.defineProperty(out, key, {
         value:
-          key === 'description' && typeof value === 'string'
+          key === 'description' && typeof value === 'string' && !inData
             ? compactDescription(value, maxDescriptionChars)
-            : compactSchemaNode(value, maxDescriptionChars, seen),
+            : compactSchemaNode(value, maxDescriptionChars, seen, inData || DATA_KEYWORDS.has(key)),
         enumerable: true,
         configurable: true,
         writable: true,
