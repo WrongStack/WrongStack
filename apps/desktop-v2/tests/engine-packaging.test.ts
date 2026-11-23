@@ -19,13 +19,19 @@ describe('native engine standalone bootstrap', () => {
       'utf8',
     );
     const entry = createEngineEntry(canonical);
-    expect(entry).toContain("await import('../engine/main.ts')");
+    expect(entry).toContain("runMain: () => import('../engine/main.ts')");
     expect(entry).toContain(
       "await import('../../../packages/core/dist/session-catalog/project-server.js')",
     );
     expect(entry).toContain("'./assets.pack'");
-    expect(entry).toContain("BUN_BE_BUN: '1'");
-    expect(entry).not.toContain("await import('../../packages/cli/dist/index.js')");
+    // Asset extraction, daemon and script dispatch live in the shared runtime.
+    expect(entry).toContain("from '../../../scripts/binary/runtime.mjs'");
+    const runtime = readFileSync(
+      new URL('../../../scripts/binary/runtime.mjs', import.meta.url),
+      'utf8',
+    );
+    expect(runtime).toContain("BUN_BE_BUN: '1'");
+    expect(entry).not.toContain("import('../../packages/cli/dist/index.js')");
   });
   it('rejects a changed canonical entry instead of silently producing a CLI sidecar', () => {
     expect(() => createEngineEntry('export {};')).toThrow(/bootstrap contract changed/);

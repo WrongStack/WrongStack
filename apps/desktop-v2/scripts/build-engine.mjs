@@ -58,14 +58,20 @@ export function engineSidecarPath(triple, dir = appDir) {
 }
 
 export function createEngineEntry(source) {
-  const cliImport = "await import('../../packages/cli/dist/index.js');";
+  // The staged entry lives in apps/desktop-v2/.engine-stage/, so every path the
+  // canonical entry (scripts/binary/entry.mjs) resolves relative to itself moves.
+  const cliImport = "runMain: () => import('../../packages/cli/dist/index.js'),";
   const packImport = "'../../dist-bin/.stage/assets.pack'";
-  if (source.split(cliImport).length !== 2 || source.split(packImport).length !== 2) {
-    throw new Error('Standalone bootstrap contract changed; review the desktop engine adapter.');
+  const runtimeImport = "from './runtime.mjs';";
+  for (const marker of [cliImport, packImport, runtimeImport]) {
+    if (source.split(marker).length !== 2) {
+      throw new Error('Standalone bootstrap contract changed; review the desktop engine adapter.');
+    }
   }
   return source
-    .replace(cliImport, "await import('../engine/main.ts');")
+    .replace(cliImport, "runMain: () => import('../engine/main.ts'),")
     .replace(packImport, "'./assets.pack'")
+    .replace(runtimeImport, "from '../../../scripts/binary/runtime.mjs';")
     .replaceAll("'../../packages/", "'../../../packages/");
 }
 
