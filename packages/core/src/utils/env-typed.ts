@@ -58,9 +58,13 @@ export function envInt(
 ): number {
   if (!env || typeof env !== 'object') return options.default;
   const raw = env[key];
-  if (raw === undefined || raw === '') return options.default;
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed)) return options.default;
+  if (raw === undefined) return options.default;
+  const trimmed = raw.trim();
+  if (trimmed === '') return options.default;
+  // Strict numeric parse: `parseInt` accepts trailing junk ("30s" -> 30) and
+  // silently truncates fractions ("12.9" -> 12), hiding the misconfiguration.
+  const parsed = Number(trimmed);
+  if (!Number.isInteger(parsed)) return options.default;
   if (options.min !== undefined && parsed < options.min) return options.default;
   if (options.max !== undefined && parsed > options.max) return options.default;
   return parsed;
@@ -77,8 +81,11 @@ export function envFloat(
 ): number {
   if (!env || typeof env !== 'object') return options.default;
   const raw = env[key];
-  if (raw === undefined || raw === '') return options.default;
-  const parsed = Number.parseFloat(raw);
+  if (raw === undefined) return options.default;
+  const trimmed = raw.trim();
+  if (trimmed === '') return options.default;
+  // Strict numeric parse: `parseFloat` accepts trailing junk ("3.14ms" -> 3.14).
+  const parsed = Number(trimmed);
   if (!Number.isFinite(parsed)) return options.default;
   if (options.min !== undefined && parsed < options.min) return options.default;
   if (options.max !== undefined && parsed > options.max) return options.default;

@@ -80,6 +80,26 @@ describe('envFloat', () => {
   });
 });
 
+describe('envInt/envFloat strict numeric parsing', () => {
+  it('falls back for trailing non-numeric text', () => {
+    expect(envInt('TEST_VAR', { default: 100 }, { TEST_VAR: '30s' })).toBe(100);
+    expect(envFloat('TEST_VAR', { default: 1.5 }, { TEST_VAR: '3.14ms' })).toBe(1.5);
+  });
+
+  it('does not truncate a fractional value for envInt', () => {
+    expect(envInt('TEST_VAR', { default: 100 }, { TEST_VAR: '12.9' })).toBe(100);
+  });
+
+  it('treats whitespace-only numeric values as unset', () => {
+    expect(envInt('TEST_VAR', { default: 100 }, { TEST_VAR: '   ' })).toBe(100);
+    expect(envFloat('TEST_VAR', { default: 1.5 }, { TEST_VAR: '   ' })).toBe(1.5);
+  });
+
+  it('does not accept a locale decimal comma as a partial float', () => {
+    expect(envFloat('TEST_VAR', { default: 1.5 }, { TEST_VAR: '1,5' })).toBe(1.5);
+  });
+});
+
 describe('envString', () => {
   it('returns undefined for unset', () => {
     expect(envString('TEST_UNSET', {})).toBeUndefined();
