@@ -30,6 +30,7 @@ import {
   restrictFilePermissions,
 } from '../../security/file-permissions.js';
 import { sessionScopedPath } from '../../utils/session-scoped-path.js';
+import { ensureShardDir } from './paths.js';
 import { clearRedoStash } from '../session-writer-redo.js';
 import { SESSION_SIDECAR_SUFFIXES } from './delete-session-artifacts.js';
 import { executeRehydrate, type SessionArchiveHost } from './session-archive.js';
@@ -215,7 +216,10 @@ async function copySessionFiles(
   if (await exists(targetTranscript)) {
     throw new Error(`The target project already has a session ${id}.`);
   }
-  await fsp.mkdir(path.dirname(targetTranscript), { recursive: true });
+  // F78 (WS-045 directory-hardening-on-creation): reuse the shared hardened
+  // ensureShardDir (F67) instead of a raw mkdir — the target shard must be
+  // owner-only exactly like a locally-created session's.
+  await ensureShardDir(toDir, id);
   const paths: string[] = [];
   const copy = async (from: string, to: string, recursive = false): Promise<void> => {
     if (!(await exists(from))) return;

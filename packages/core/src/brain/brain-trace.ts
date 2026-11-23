@@ -38,7 +38,11 @@ import { dirname } from 'node:path';
 import { createInterface } from 'node:readline';
 import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import { scrubErrorText } from '../security/error-sanitize.js';
-import { restrictFilePermissions, SECRET_FILE_MODE } from '../security/file-permissions.js';
+import {
+  restrictDirPermissions,
+  restrictFilePermissions,
+  SECRET_FILE_MODE,
+} from '../security/file-permissions.js';
 import type { BrainDecision, BrainDecisionRequest } from './brain.js';
 import type { BrainDecisionTier } from './brain-telemetry.js';
 
@@ -496,6 +500,10 @@ export class BrainTraceRecorder {
         if (this.readyDirectory !== dirname(filePath)) {
           await mkdir(dirname(filePath), { recursive: true });
           this.readyDirectory = dirname(filePath);
+          // F68 (WS-045 directory-hardening-on-creation): trace rows hold the
+          // question/context verbatim; harden the dir when prepared so every
+          // trace file inherits owner-only (best-effort).
+          await restrictDirPermissions(this.readyDirectory, { label: 'brain-trace' });
         }
         // WS-035: under `content: 'full'` every trace row holds the question and
         // context verbatim. Create owner-only.

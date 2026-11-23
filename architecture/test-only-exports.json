@@ -999,6 +999,9 @@
       "mapMailboxAgentToHqSummary",
       "mapMailboxMessageToHqSummary"
     ],
+    "packages/hq/src/notify-config.ts": [
+      "writeHqNotifyConfig"
+    ],
     "packages/hq/src/protocol/core.ts": [
       "KNOWN_HQ_CLIENT_FRAME_TYPES"
     ],

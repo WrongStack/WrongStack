@@ -4,7 +4,7 @@ import { cp, lstat, mkdtemp, readdir, realpath, rm } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ProviderConfig } from '@wrongstack/contracts/types';
-import { restrictFilePermissions } from '@wrongstack/core/security';
+import { restrictDirPermissions, restrictFilePermissions } from '@wrongstack/core/security';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import type {
   EnvironmentImages,
@@ -318,6 +318,11 @@ export async function runDockerWorkspace(
   const runner = options.runner ?? systemDocker;
   const tempBase = await realpath(os.tmpdir());
   const snapshot = await mkdtemp(path.join(tempBase, 'wrongstack-docker-'));
+  // F63 (WS-045 directory-hardening-on-creation): the snapshot later holds
+  // provider API keys and patches; `mode` bits are Windows no-ops. Harden the
+  // directory AT CREATION so every child — copied or written later — inherits
+  // owner-only (best-effort).
+  await restrictDirPermissions(snapshot, { label: 'docker-workspace' });
   const run = async (args: string[], duration = 30_000, onOutput?: (text: string) => void) => {
     options.signal?.throwIfAborted();
     const result = await runner(args, {
@@ -575,9 +580,14 @@ export async function runDockerWorkspace(
       const { mkdir, rename } = await import('node:fs/promises');
       const captureParent = path.dirname(path.resolve(options.conversationDirectory));
       await mkdir(captureParent, { recursive: true, mode: 0o700 });
+      // F63: mode 0o700 is a Windows no-op; the capture tree receives the
+      // container's session state (transcripts, config). Harden at creation.
+      await restrictDirPermissions(captureParent, { label: 'docker-workspace' });
       // The dispatcher serializes runs of one subject. Stage into a fresh owned
       // directory, so a partial copy cannot overwrite its last good checkpoint.
       const staged = await mkdtemp(path.join(captureParent, '.wrongstack-conversation-'));
+      // F63: children copied out of the container inherit this directory's ACL.
+      await restrictDirPermissions(staged, { label: 'docker-workspace' });
       try {
         const copied = await runner(['cp', `${name}:/home/node/.wrongstack/.`, staged], {
           timeoutMs: 120_000,

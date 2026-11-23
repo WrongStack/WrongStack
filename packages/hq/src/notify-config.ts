@@ -19,6 +19,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import {
   atomicWrite,
+  restrictDirPermissions,
   restrictFilePermissions,
   SECRET_FILE_MODE,
   withFileLock,
@@ -260,6 +261,11 @@ export async function writeHqNotifyConfig(
     updatedAt: new Date().toISOString(),
   };
   await fs.mkdir(dataDir, { recursive: true });
+  // F72 (WS-045 directory-hardening-on-creation): the dataDir root holds event
+  // logs, timeseries, kanban/sage snapshots and notify config; harden it so
+  // children created by paths that do not harden inherit owner-only
+  // (best-effort).
+  await restrictDirPermissions(dataDir, { label: 'hq-data' });
   await atomicWrite(target, `${JSON.stringify(payload, null, 2)}\n`, { mode: SECRET_FILE_MODE });
   await restrictFilePermissions(target, { label: 'hq-notify-config' });
 }

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { atomicWrite } from '@wrongstack/core/utils';
+import { restrictDirPermissions } from '@wrongstack/core/security';
 import {
   compareHqSageRecords,
   type HqSageRecord,
@@ -14,6 +15,8 @@ export class HqSageStore {
   private readonly chains = new Map<string, Promise<unknown>>();
   private readonly cache = new Map<string, HqSageSnapshotPayload>();
   private readonly reads = new Map<string, Promise<HqSageSnapshotPayload>>();
+  /** Sage dir already owner-only hardened. F70 (WS-045). */
+  private dirHardened = false;
   constructor(private readonly dataDir: string) {}
 
   private file(projectId: string): string {
@@ -100,7 +103,15 @@ export class HqSageStore {
         }
         if (changed) {
           const snapshot = { projectId: payload.projectId, records: [...records.values()] };
-          await fs.mkdir(path.dirname(this.file(payload.projectId)), { recursive: true });
+          const sageDir = path.dirname(this.file(payload.projectId));
+          await fs.mkdir(sageDir, { recursive: true });
+          // F70 (WS-045 directory-hardening-on-creation): sage records are
+          // agent learning/memory data; harden the dir once so future children
+          // inherit owner-only (best-effort). The file hardens via atomicWrite.
+          if (!this.dirHardened) {
+            this.dirHardened = true;
+            await restrictDirPermissions(sageDir, { label: 'hq-sage' });
+          }
           await atomicWrite(this.file(payload.projectId), JSON.stringify(snapshot), {
             mode: 0o600,
           });

@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import type { Logger, LogLevel } from '@wrongstack/contracts/types/logger';
 // From persistence directly: infrastructure/ sits below security/ in the core layer
 // ratchet, and security/file-permissions only re-exports it.
-import { restrictFilePermissions } from '@wrongstack/persistence';
+import { restrictDirPermissions, restrictFilePermissions } from '@wrongstack/persistence';
 import { color } from '../utils/color.js';
 import { redactText, redactValue } from '../utils/redaction.js';
 import { writeErr } from '../utils/term.js';
@@ -126,6 +126,10 @@ export class DefaultLogger implements Logger {
       this._tail = this._tail
         .then(async () => {
           await fsp.mkdir(dir, { recursive: true });
+          // F73 (WS-045 directory-hardening-on-creation): harden the log dir
+          // in the same chained preparation so future children inherit
+          // owner-only (best-effort; the catch below keeps mkdir semantics).
+          await restrictDirPermissions(dir, { label: 'log' });
         })
         .catch(() => undefined);
     }

@@ -6,7 +6,7 @@ import type {
   WorkspaceCheckpointRef,
   WorkspaceMaterializationResult,
 } from '@wrongstack/contracts/types/session';
-import { restrictFilePermissions } from '../security/file-permissions.js';
+import { restrictDirPermissions, restrictFilePermissions } from '../security/file-permissions.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
 import { openVcs, type VcsKind, type VcsOptions } from '../vcs/vcs-adapter.js';
@@ -105,6 +105,8 @@ export class SessionCheckpointCas {
   private readonly rootDir: string;
   private readonly projectRoot: string;
   private readonly vcs: VcsOptions;
+  /** Objects shard dirs already owner-only hardened. F66 (WS-045). */
+  private readonly hardenedObjectDirs = new Set<string>();
 
   constructor(opts: SessionCheckpointCasOptions) {
     this.rootDir = path.resolve(opts.rootDir);
@@ -334,7 +336,15 @@ export class SessionCheckpointCas {
 
   private async putBlob(hash: string, content: Buffer): Promise<void> {
     const target = this.objectPath(hash);
-    await fsp.mkdir(path.dirname(target), { recursive: true });
+    const objectDir = path.dirname(target);
+    await fsp.mkdir(objectDir, { recursive: true });
+    // F66 (WS-045 directory-hardening-on-creation): blobs are verbatim
+    // workspace content; harden the shard dir once so every object — including
+    // ones published by other paths — inherits owner-only (best-effort).
+    if (!this.hardenedObjectDirs.has(objectDir)) {
+      this.hardenedObjectDirs.add(objectDir);
+      await restrictDirPermissions(objectDir, { label: 'checkpoint-cas' });
+    }
     try {
       const existing = await fsp.readFile(target);
       if (sha256(existing) !== hash) throw new Error(`Corrupt CAS object collision: ${hash}`);

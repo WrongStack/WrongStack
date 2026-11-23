@@ -21,7 +21,7 @@ import { createHash } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { SessionEvent } from '@wrongstack/contracts/types/session';
-import { restrictFilePermissions } from '../security/file-permissions.js';
+import { restrictDirPermissions, restrictFilePermissions } from '../security/file-permissions.js';
 
 interface RedoEntry {
   /** Journal bytes the rewind kept. */
@@ -153,6 +153,11 @@ export async function stashRewoundTail(opts: {
   const stack = await readStack(dir);
   const id = `${Date.now()}-${stack.length}`;
   await fsp.mkdir(dir, { recursive: true });
+  // F65 (WS-045 directory-hardening-on-creation): the stash holds verbatim
+  // transcript tails. Harden the directory AT CREATION so every child —
+  // including replacements by paths we do not control — inherits owner-only
+  // (best-effort). Rewinds are rare; no per-write cost concern.
+  await restrictDirPermissions(dir, { label: 'redo-stash' });
   const tailFile = `${id}.jsonl`;
   const source = await fsp.open(opts.journalPath, 'r');
   let keptSha: string;

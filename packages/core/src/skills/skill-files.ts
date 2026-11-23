@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { restrictDirPermissions, restrictFilePermissions } from '../security/file-permissions.js';
 import { SKILL_LIMITS } from './limits.js';
 
 /** Collect a portable skill package, without following directory links or escaping its root. */
@@ -46,6 +47,10 @@ export async function replaceSkillDirectory(
   const parent = path.dirname(target);
   await fs.mkdir(parent, { recursive: true });
   const stage = await fs.mkdtemp(path.join(parent, '.skill-stage-'));
+  // F76 (WS-045 directory-hardening-on-creation): the staging dir is renamed
+  // into place as the installed skill dir; harden it so future children
+  // inherit owner-only (best-effort).
+  await restrictDirPermissions(stage, { label: 'skill-install' });
   const backup = `${stage}-previous`;
   let backedUp = false;
   try {
@@ -69,6 +74,11 @@ export async function replaceSkillDirectory(
         throw new Error('Skill file escapes staging directory');
       await fs.mkdir(path.dirname(output), { recursive: true });
       await fs.copyFile(path.join(source, file), output);
+      // F62 (WS-045 copy-time class): on Windows copyFile gives the copy the
+      // destination's inherited ACL, not the source's. Skill content is
+      // user-authored instruction material — harden each staged copy
+      // (best-effort); the rename into place carries the ACL with it.
+      await restrictFilePermissions(output, { label: 'skill-install' });
     }
     try {
       await fs.rename(target, backup);

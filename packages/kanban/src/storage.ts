@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { restrictFilePermissions } from '@wrongstack/persistence';
+import { restrictDirPermissions, restrictFilePermissions } from '@wrongstack/persistence';
 import { requireSessionId } from '@wrongstack/primitives';
 import { normalizeBoard, summarizeBoard } from './board-normalize.js';
 import { STALE_WRITE_PREFIX, StaleWriteError } from './manager/lifecycle-error.js';
@@ -265,6 +265,13 @@ function rememberEventLogState(filePath: string, state: KanbanEventLogState): vo
 
 /** Kanban files already owner-only hardened (cleared on trim rewrite). F37 (WS-045). */
 const hardenedKanbanFiles = new Set<string>();
+/** Kanban dirs already owner-only hardened. F74 (WS-045). */
+const hardenedKanbanDirs = new Set<string>();
+async function hardenKanbanDirOnce(dir: string): Promise<void> {
+  if (hardenedKanbanDirs.has(dir)) return;
+  hardenedKanbanDirs.add(dir);
+  await restrictDirPermissions(dir, { label: 'kanban' });
+}
 async function hardenKanbanOnce(filePath: string): Promise<void> {
   if (hardenedKanbanFiles.has(filePath)) return;
   hardenedKanbanFiles.add(filePath);
@@ -282,6 +289,7 @@ export async function appendKanbanEvent(
   const filePath = getKanbanEventsPath(projectRoot, boardId);
   await withFileLock(filePath, async () => {
     await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await hardenKanbanDirOnce(path.dirname(filePath));
     const line = `${JSON.stringify(event)}\n`;
     // WS-035: board events carry task content; create owner-only (0600)
     // rather than inheriting the umask default of 0644.
@@ -393,6 +401,7 @@ export async function appendBoardHistory(
   const filePath = getBoardHistoryPath(projectRoot);
   await withFileLock(filePath, async () => {
     await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await hardenKanbanDirOnce(path.dirname(filePath));
     const line = `${JSON.stringify(entry)}\n`;
     await fs.appendFile(filePath, line, { encoding: 'utf8', mode: 0o600 });
     await hardenKanbanOnce(filePath);

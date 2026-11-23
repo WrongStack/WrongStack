@@ -124,9 +124,9 @@
       "runtimeOrMixed": 18
     },
     "@wrongstack/core/security": {
-      "files": 291,
+      "files": 293,
       "typeOnly": 27,
-      "runtimeOrMixed": 267
+      "runtimeOrMixed": 269
     },
     "@wrongstack/core/session-catalog": {
       "files": 19,
@@ -8645,6 +8645,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/hq/src/kanban-store.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/hq/src/persistence/event-log.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8658,6 +8664,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/hq/src/persistence/timeseries-store.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/hq/src/sage-store.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

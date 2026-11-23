@@ -55,6 +55,8 @@ export async function migrateLegacyConfig(wpaths: WstackPaths): Promise<void> {
   }
 
   await fs.mkdir(path.dirname(profileFp), { recursive: true });
+  // F77: same profile-dir creation on the legacy-config path — harden here too.
+  await hardenProfileDirOnce(path.dirname(profileFp));
 
   // Copy legacy content into the profile config, stripping bootstrap-only fields.
   const profileContent = { ...result.value };
@@ -127,6 +129,14 @@ export const PROFILE_STATE_PAIRS: ReadonlyArray<{
   })),
 ];
 
+/** Profile dirs already owner-only hardened. F77 (WS-045). */
+const hardenedProfileDirs = new Set<string>();
+async function hardenProfileDirOnce(dir: string): Promise<void> {
+  if (hardenedProfileDirs.has(dir)) return;
+  hardenedProfileDirs.add(dir);
+  await restrictDirPermissions(dir, { label: 'profile' });
+}
+
 /**
  * F56 (WS-045 copy-time class): on Windows fs.cp gives copied children the
  * destination's inherited ACL, not the source's owner-only ACL. Harden the
@@ -168,6 +178,11 @@ export async function migrateProfileFiles(wpaths: WstackPaths): Promise<void> {
   // Ensure the profile directory exists so the copy targets are writable.
   try {
     await fs.mkdir(path.join(wpaths.profilesDir, profileName), { recursive: true });
+    // F77 (WS-045 directory-hardening-on-creation): the profile holds config,
+    // memory, sync state and history; harden at creation so children inherit
+    // owner-only (best-effort — the catch never blocks boot). Once per dir:
+    // the idempotent second migration run issues no further hardening.
+    await hardenProfileDirOnce(path.join(wpaths.profilesDir, profileName));
   } catch {
     return;
   }

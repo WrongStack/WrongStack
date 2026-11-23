@@ -55,7 +55,7 @@
       "relativeImports": 76
     },
     "packages/coordination/src/agent-monitor.ts": {
-      "lines": 736,
+      "lines": 761,
       "relativeImports": 1
     },
     "packages/coordination/src/multi-agent-coordinator.ts": {
@@ -157,6 +157,10 @@
     "packages/runtime/src/chimera/execution-chimera-review.ts": {
       "lines": 869,
       "relativeImports": 3
+    },
+    "packages/runtime/src/docker-workspace.ts": {
+      "lines": 703,
+      "relativeImports": 4
     },
     "packages/sage/src/types.ts": {
       "lines": 708,

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { appendFile, mkdir, rename, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { FetchError } from '@wrongstack/contracts/types/errors';
-import { restrictFilePermissions } from '../security/file-permissions.js';
+import { restrictDirPermissions, restrictFilePermissions } from '../security/file-permissions.js';
 import { resolveWstackPaths } from '../utils/wstack-paths.js';
 import type { TypeSafeBreaker } from './breaker.js';
 
@@ -77,9 +77,17 @@ function tailEntry(entry: JevActivity): JevActivity {
 /** Serialized by recordJevActivity; split for filesystem regression coverage. */
 /** Activity targets already owner-only hardened (cleared on rotation). F36 (WS-045). */
 const hardenedActivityTargets = new Set<string>();
+/** Activity dirs already owner-only hardened. F75 (WS-045). */
+const hardenedActivityDirs = new Set<string>();
 
 export async function appendJevActivity(target: string, entry: JevActivity): Promise<void> {
   await mkdir(dirname(target), { recursive: true });
+  // F75 (WS-045 directory-hardening-on-creation): harden the activity dir once
+  // so future children inherit owner-only (best-effort).
+  if (!hardenedActivityDirs.has(dirname(target))) {
+    hardenedActivityDirs.add(dirname(target));
+    await restrictDirPermissions(dirname(target), { label: 'jev-activity' });
+  }
   const size = await stat(target).then(
     (s) => s.size,
     (error: NodeJS.ErrnoException) => {

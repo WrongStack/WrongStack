@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { atomicWrite } from '@wrongstack/core/utils';
+import { restrictDirPermissions } from '@wrongstack/core/security';
 import {
   type HqKanbanSnapshotPayload,
   isHqKanbanSnapshotPayload,
@@ -16,6 +17,8 @@ export class HqKanbanStore {
   private readonly cache = new Map<string, HqKanbanSnapshotPayload>();
   private readonly writers = new Map<string, BestEffortLatestQueue<HqKanbanSnapshotPayload>>();
   private readonly mergeChains = new Map<string, Promise<HqKanbanSnapshotPayload>>();
+  /** Kanban dir already owner-only hardened. F69 (WS-045). */
+  private dirHardened = false;
 
   constructor(dataDir: string) {
     this.dirPath = path.join(dataDir, 'kanban');
@@ -135,6 +138,13 @@ export class HqKanbanStore {
     if (writer === undefined) {
       writer = new BestEffortLatestQueue(async (snapshot) => {
         await fs.mkdir(this.dirPath, { recursive: true });
+        // F69 (WS-045 directory-hardening-on-creation): board snapshots carry
+        // task content; harden the dir once so future children inherit
+        // owner-only (best-effort). The snapshot file hardens via atomicWrite.
+        if (!this.dirHardened) {
+          this.dirHardened = true;
+          await restrictDirPermissions(this.dirPath, { label: 'hq-kanban' });
+        }
         await atomicWrite(this.filePath(projectId), JSON.stringify(snapshot), { mode: 0o600 });
       });
       this.writers.set(projectId, writer);

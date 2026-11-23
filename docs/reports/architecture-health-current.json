@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T13:17:08.013Z",
+  "generatedAt": "2026-11-23T13:19:38.202Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,16 +13,16 @@
   "summary": {
     "packages": 50,
     "sourceFiles": 6492,
-    "testFiles": 5745,
-    "sourceLines": 1327842,
+    "testFiles": 5761,
+    "sourceLines": 1327988,
     "workspaceEdges": 259,
-    "moduleEdges": 18984,
+    "moduleEdges": 18987,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1040
+    "testOnlyExports": 1041
   },
   "errors": [],
   "packageCycles": [],
@@ -377,7 +377,7 @@
       "name": "@wrongstack/coordination",
       "dir": "packages/coordination",
       "sourceFiles": 193,
-      "testFiles": 210,
+      "testFiles": 211,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -395,7 +395,7 @@
         {
           "path": "packages/coordination/tsconfig.test.json",
           "error": null,
-          "testFiles": 210
+          "testFiles": 211
         }
       ]
     },
@@ -403,7 +403,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 664,
-      "testFiles": 763,
+      "testFiles": 773,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -420,7 +420,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 763
+          "testFiles": 773
         }
       ]
     },
@@ -528,7 +528,7 @@
       "name": "@wrongstack/hq",
       "dir": "packages/hq",
       "sourceFiles": 73,
-      "testFiles": 56,
+      "testFiles": 59,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -544,7 +544,7 @@
         {
           "path": "packages/hq/tsconfig.test.json",
           "error": null,
-          "testFiles": 56
+          "testFiles": 59
         }
       ]
     },
@@ -577,7 +577,7 @@
       "name": "@wrongstack/kanban",
       "dir": "packages/kanban",
       "sourceFiles": 108,
-      "testFiles": 107,
+      "testFiles": 108,
       "workspaceDependencies": [
         "@wrongstack/persistence",
         "@wrongstack/primitives"
@@ -591,7 +591,7 @@
         {
           "path": "packages/kanban/tsconfig.test.json",
           "error": null,
-          "testFiles": 107
+          "testFiles": 108
         }
       ]
     },
@@ -871,7 +871,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 126,
-      "testFiles": 77,
+      "testFiles": 78,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -905,7 +905,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 77
+          "testFiles": 78
         }
       ]
     },
@@ -9914,6 +9914,12 @@
         ]
       },
       {
+        "file": "packages/coordination/tests/agent-monitor-dir-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/coordination/tests/agent-monitor-hardening.test.ts",
         "projects": [
           "root-node"
@@ -11468,6 +11474,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/boot-config-migration-dir-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/boot-config-migration-hardening.test.ts",
         "projects": [
           "root-node"
@@ -11517,6 +11529,12 @@
       },
       {
         "file": "packages/core/tests/brain/brain-ledger-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/brain/brain-trace-dir-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -12896,6 +12914,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/infrastructure/logger-dir-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/infrastructure/logger-hardening.test.ts",
         "projects": [
           "root-node"
@@ -14024,6 +14048,18 @@
         ]
       },
       {
+        "file": "packages/core/tests/skills/skill-files-dir-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/skills/skill-files-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/skills/skill-files.test.ts",
         "projects": [
           "root-node"
@@ -14414,6 +14450,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/storage/move-session-dir-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/storage/move-session-hardening.test.ts",
         "projects": [
           "root-node"
@@ -14541,6 +14583,12 @@
       },
       {
         "file": "packages/core/tests/storage/session-catalog-worktree-identity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/session-checkpoint-cas-dir-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14768,6 +14816,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/storage/session-shard-dir-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/storage/session-sidecar-scan.test.ts",
         "projects": [
           "root-node"
@@ -14907,6 +14961,12 @@
       },
       {
         "file": "packages/core/tests/storage/session-writer-internals.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/session-writer-redo-dir-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15087,6 +15147,12 @@
       },
       {
         "file": "packages/core/tests/typesafe-rest-probe.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/typesafe/activity-dir-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -16886,6 +16952,12 @@
         ]
       },
       {
+        "file": "packages/hq/tests/kanban-store-dir-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/tests/kanban-sync.test.ts",
         "projects": [
           "root-node"
@@ -16905,6 +16977,12 @@
       },
       {
         "file": "packages/hq/tests/mailbox-mapper.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/notify-config-dir-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -16965,6 +17043,12 @@
       },
       {
         "file": "packages/hq/tests/sage-protocol.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/sage-store-dir-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17529,6 +17613,12 @@
       },
       {
         "file": "packages/kanban/tests/sqlite-storage-rollback-mask.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/storage-dir-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -21621,6 +21711,12 @@
       },
       {
         "file": "packages/runtime/tests/docker-workspace-checkpoint-cleanup.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/docker-workspace-dir-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -36898,7 +36994,7 @@
     },
     {
       "file": "packages/coordination/src/agent-monitor.ts",
-      "lines": 736,
+      "lines": 761,
       "relativeImports": 1
     },
     {
@@ -37025,6 +37121,11 @@
       "file": "packages/runtime/src/chimera/execution-chimera-review.ts",
       "lines": 869,
       "relativeImports": 3
+    },
+    {
+      "file": "packages/runtime/src/docker-workspace.ts",
+      "lines": 703,
+      "relativeImports": 4
     },
     {
       "file": "packages/sage/src/types.ts",
@@ -37409,6 +37510,11 @@
       "relativeImports": 5
     },
     {
+      "file": "packages/coordination/src/agent-monitor.ts",
+      "lines": 761,
+      "relativeImports": 1
+    },
+    {
       "file": "packages/vector-memory/src/store.ts",
       "lines": 758,
       "relativeImports": 8
@@ -37467,11 +37573,6 @@
       "file": "packages/tools/src/bash-kill-guard.ts",
       "lines": 739,
       "relativeImports": 5
-    },
-    {
-      "file": "packages/coordination/src/agent-monitor.ts",
-      "lines": 736,
-      "relativeImports": 1
     },
     {
       "file": "packages/vibeui/src/components/provider-manager.tsx",
@@ -39318,6 +39419,10 @@
     {
       "file": "packages/hq/src/mailbox-mapper.ts",
       "name": "mapMailboxMessageToHqSummary"
+    },
+    {
+      "file": "packages/hq/src/notify-config.ts",
+      "name": "writeHqNotifyConfig"
     },
     {
       "file": "packages/hq/src/protocol/core.ts",

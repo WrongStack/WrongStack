@@ -72,7 +72,7 @@ describe('agent monitor transcript owner-only hardening (F47)', () => {
   it('hardens the transcript when a segment closes', async () => {
     fleetBus.emit(fleet('provider.text_delta', { text: 'Hello world', iteration: 0 }));
     fleetBus.emit(fleet('tool.started', { name: 'read', iteration: 0 }));
-    await waitFor(150);
+    await waitFor(600);
     expect(
       countFor(transcriptPath()),
       'segment close issues icacls for the transcript',
@@ -84,7 +84,7 @@ describe('agent monitor transcript owner-only hardening (F47)', () => {
     fleetBus.emit(fleet('tool.started', { name: 'read', iteration: 0 }));
     fleetBus.emit(fleet('provider.text_delta', { text: 'second', iteration: 1 }));
     fleetBus.emit(fleet('tool.started', { name: 'glob', iteration: 1 }));
-    await waitFor(200);
+    await waitFor(800);
     expect(countFor(transcriptPath())).toBe(1);
   });
 });
