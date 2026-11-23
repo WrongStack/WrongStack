@@ -233,6 +233,12 @@ The catalog check now runs the production Quick resolver against the built-in re
 
 Both version 2 profiles meet the 2,800-token target for built-in declarations. CI checks count, bytes and estimated tokens. It also compares separate SHA-256 fingerprints of the ordered declarations and usage hints, so equal-size edits and order changes still get reviewed. These figures cover the shared built-in projection before provider wrapping. [Budget and fingerprints](../architecture/tool-schema-budget.json), [maintenance contract](../docs/tool-governance.md#schema-economics)
 
+### Kanban on demand in medium
+
+New journals using medium defer the Kanban declaration when `tool_search` and `tool_use` are both on the provider surface. The canonical board tool stays in the catalog and uses its existing permission and execution rules. The system prompt points to `kanban` for operations and an action such as `kanban:get_task` to attach its schema for one request. Earlier journals and explicit launch allowlists keep their direct declaration. Resume, fork and both clear paths preserve the journal's projection version.
+
+The built-in medium projection fell from 57 schemas, 86,396 bytes and 24,023 estimated tokens to 56 schemas, 63,297 bytes and 17,435 estimated tokens. These figures measure shared schema serialization. The local Responses fixture compares the final tool declarations, instructions and cache routing key across requests and resume. [Budget](../architecture/tool-schema-budget.json), [wire regression](../packages/cli/tests/codex-prompt-prefix-stability.test.ts)
+
 ## Appendix A. Official plugin tools
 
 The source inventory contains 119 distinct declared names across 90 owners in `packages/plugins/src`. It covers direct registrations and the evidence-analyzer and workflow factories. Each row uses the existing plugin as the opt-in unit, except for already-default hooks whose diagnostic tools should become host-only. “Deferred” describes the proposed agent surface when that plugin group is enabled. Disable a plugin group to suppress all of its agent tools. [Plugin manifest](../packages/plugins/src/manifest/index.ts), [evidence analyzer](../packages/plugins/src/evidence-analyzer/index.ts), [workflow factory](../packages/plugins/src/workflow-runtime/index.ts)

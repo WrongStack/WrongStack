@@ -322,17 +322,18 @@ export async function handleIntrospectionRoute(
       const available = quick
         ? new Set(sessionToolCatalog(actx, agent.tools.list()).map((tool) => tool.name))
         : undefined;
-      const direct = quick
-        ? new Set(
-            providerToolSurfaceForVariant(
-              agent.tools,
-              'quick',
-              actx.meta,
-              actx.provider,
-              actx.activeRunSessionWriter ?? actx.session,
-            ).tools.map((tool) => tool.name),
-          )
-        : undefined;
+      const direct =
+        quick || (sessionAvailable && agent.tools.providerToolTier === 'medium')
+          ? new Set(
+              providerToolSurfaceForVariant(
+                agent.tools,
+                actx.meta?.['systemPromptVariant'],
+                actx.meta,
+                actx.provider,
+                actx.activeRunSessionWriter ?? actx.session,
+              ).tools.map((tool) => tool.name),
+            )
+          : undefined;
       const tools = toolEntries(agent).map(({ tool, owner }) => {
         const schema = tool.inputSchema ?? {};
         const disabled = registry.isDisabled?.(tool.name) ?? false;

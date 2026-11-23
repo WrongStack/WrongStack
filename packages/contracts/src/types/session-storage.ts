@@ -225,6 +225,7 @@ export interface SessionWriter {
   /** Original session start timestamp, used by resumed surfaces to keep uptime stable. */
   readonly startedAt?: string | undefined;
   readonly quickToolSchemaVersion?: number | undefined;
+  readonly providerToolSchemaVersion?: number | undefined;
   readonly quickShellTool?: SessionMetadata['quickShellTool'];
   /**
    * Session-level trace ID for correlating storage events with agent

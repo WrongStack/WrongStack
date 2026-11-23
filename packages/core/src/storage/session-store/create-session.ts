@@ -193,6 +193,7 @@ export async function executeCreateSession(
       startedAt,
       {
         ...meta,
+        providerToolSchemaVersion: meta.providerToolSchemaVersion ?? 1,
         quickToolSchemaVersion: meta.quickToolSchemaVersion ?? 2,
         // Only a newly created session gets a platform-derived shell. A fork
         // supplies the source version and keeps the source's recorded choice.

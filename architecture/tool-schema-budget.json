@@ -33,6 +33,11 @@
       "wireBytes": 5304,
       "estimatedTokens": 1448
     },
+    "mediumV1": {
+      "count": 56,
+      "wireBytes": 63297,
+      "estimatedTokens": 17435
+    },
     "quickLegacy": {
       "count": 11,
       "wireBytes": 14544,

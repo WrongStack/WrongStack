@@ -80,6 +80,7 @@ type SessionEventVariant =
       /** Checkout directory (a linked git worktree differs from the project root). */
       checkout?: string | undefined;
       quickToolSchemaVersion?: number | undefined;
+      providerToolSchemaVersion?: number | undefined;
       quickShellTool?: SessionMetadata['quickShellTool'];
     }
   | {
@@ -90,6 +91,7 @@ type SessionEventVariant =
       provider: string;
       checkout?: string | undefined;
       quickToolSchemaVersion?: number | undefined;
+      providerToolSchemaVersion?: number | undefined;
       quickShellTool?: SessionMetadata['quickShellTool'];
     }
   | {

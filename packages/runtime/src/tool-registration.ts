@@ -194,7 +194,7 @@ export function registerCanonicalHostTools(
     if (options.browser?.enabled) {
       for (const name of BROWSER_TOOL_NAMES) directNames.add(name);
     }
-    options.registry.setProviderToolNames([...directNames]);
+    options.registry.setProviderToolNames([...directNames], options.tier);
     options.registry.setProviderToolExclusions(undefined);
   } else {
     options.registry.setProviderToolNames(undefined);

@@ -1,5 +1,6 @@
 import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import type {
+  ConcreteTokenSavingTier,
   DisabledToolMeta,
   ToolDescriptionMode,
   ToolDescriptionModeConfig,
@@ -51,6 +52,7 @@ export class ToolRegistry extends ToolRegistryStorage {
    * only these names. This keeps lazy tools discoverable by tool_search/tool_use.
    */
   private _providerToolNames: Set<string> | undefined;
+  private _providerToolTier: ConcreteTokenSavingTier | undefined;
   /**
    * Names kept off the provider surface while the catalog is otherwise exposed
    * whole. A name predicate, so a tool registered later (an MCP server that
@@ -540,9 +542,15 @@ export class ToolRegistry extends ToolRegistryStorage {
   }
 
   /** Replace the direct provider surface. Pass `undefined` to expose the catalog. */
-  setProviderToolNames(names: readonly string[] | undefined): void {
+  setProviderToolNames(names: readonly string[] | undefined, tier?: ConcreteTokenSavingTier): void {
     this._providerToolNames = names ? new Set(names) : undefined;
+    this._providerToolTier = tier;
     this._version++;
+  }
+
+  get providerToolTier(): ConcreteTokenSavingTier | undefined {
+    // A launch allowlist takes precedence over tier-specific session changes.
+    return this._restriction?.only ? undefined : this._providerToolTier;
   }
 
   /**
@@ -658,6 +666,7 @@ export class ToolRegistry extends ToolRegistryStorage {
     this.descriptionModes.clear();
     this._disabled.clear();
     this._providerToolNames = undefined;
+    this._providerToolTier = undefined;
     this._providerExcluded = undefined;
     this._version++;
   }
@@ -685,6 +694,7 @@ export class ToolRegistry extends ToolRegistryStorage {
     copy._providerToolNames = this._providerToolNames
       ? new Set(this._providerToolNames)
       : undefined;
+    copy._providerToolTier = this._providerToolTier;
     copy._providerExcluded = this._providerExcluded ? new Set(this._providerExcluded) : undefined;
     // Subagent registries are clones: a launch restriction must reach them too.
     copy._restriction = this._restriction;

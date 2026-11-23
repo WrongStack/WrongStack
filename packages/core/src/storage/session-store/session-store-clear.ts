@@ -49,14 +49,14 @@ export async function executeClearSessionHistory(params: ClearSessionHistoryPara
   try {
     fileStaged = await moveAside(file, fileBackup);
     metaStaged = await moveAside(meta, metaBackup);
-    const quickToolPins = fileStaged ? await readQuickToolPins(fileBackup) : {};
+    const toolSchemaPins = fileStaged ? await readToolSchemaPins(fileBackup) : {};
     const record = `${JSON.stringify({
       type: 'session_start',
       ts: new Date().toISOString(),
       id: canonical,
       model: 'unknown',
       provider: 'unknown',
-      ...quickToolPins,
+      ...toolSchemaPins,
     })}\n`;
     await atomicWrite(file, record);
     if (catalogClient) {
@@ -106,21 +106,25 @@ export async function executeClearSessionHistory(params: ClearSessionHistoryPara
   }
 }
 
-async function readQuickToolPins(
+async function readToolSchemaPins(
   file: string,
-): Promise<Pick<SessionMetadata, 'quickToolSchemaVersion' | 'quickShellTool'>> {
+): Promise<
+  Pick<SessionMetadata, 'quickToolSchemaVersion' | 'quickShellTool' | 'providerToolSchemaVersion'>
+> {
   const reader = createTranscriptLineReader(file);
   try {
     for await (const line of reader.lines) {
       if (!line.trim()) continue;
       const header = JSON.parse(line);
       if (header?.type === 'session_start') {
-        const { quickToolSchemaVersion, quickShellTool } = header;
+        const { quickToolSchemaVersion, quickShellTool, providerToolSchemaVersion } = header;
         return {
           quickToolSchemaVersion:
             typeof quickToolSchemaVersion === 'number' ? quickToolSchemaVersion : undefined,
           quickShellTool:
             quickShellTool === 'bash' || quickShellTool === 'pwsh' ? quickShellTool : undefined,
+          providerToolSchemaVersion:
+            typeof providerToolSchemaVersion === 'number' ? providerToolSchemaVersion : undefined,
         };
       }
       break;

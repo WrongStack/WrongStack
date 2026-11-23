@@ -101,7 +101,10 @@ export class DefaultSystemPromptBuilder
     // identity always leads. User-owned layers (bundled/global/explicit file)
     // keep full override.
     const layer1 = this.buildIdentity(instructions, tplCtx, ctx);
-    const layer2 = await this.buildToolUsage(ctx.tools, ctx, tplCtx);
+    const toolUsage = await this.buildToolUsage(ctx.tools, ctx, tplCtx);
+    const layer2 = ctx.kanbanDeferred
+      ? `${toolUsage}\n\nFor persistent project work, search \`kanban\` for board operations. Search \`kanban:<action>\` for one input schema, then call it with \`tool_use\`. Prefer the existing project board.`
+      : toolUsage;
     const layer3 = await this.buildEnvironment(ctx);
     const layer3WithDir = `${layer3}\n- Project root: ${ctx.projectRoot}`;
     const layer4 = lean ? leanSkillPointer(ctx) : await this.buildMemoryAndSkills();

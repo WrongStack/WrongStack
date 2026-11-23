@@ -316,6 +316,7 @@ export async function loadSessionDataFromFile(params: {
     startedAt: sessionStartEvent?.ts ?? new Date(0).toISOString(),
     quickToolSchemaVersion: sessionStartEvent?.quickToolSchemaVersion,
     quickShellTool: sessionStartEvent?.quickShellTool,
+    providerToolSchemaVersion: sessionStartEvent?.providerToolSchemaVersion,
     endedAt: sessionEndEvent?.ts,
     model: sessionModel,
     provider: sessionProvider,

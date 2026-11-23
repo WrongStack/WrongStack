@@ -118,6 +118,16 @@ projection. The estimates cover built-in declarations before provider-specific
 wrapping. Host tools, required-playbook additions, system prompt rendering and
 provider token accounting have their own scope.
 
+The `mediumV1` budget covers new journals using the medium tier. Its enabled
+Kanban tool is deferred while both discovery gateways are offered. The
+system prompt points to the on-demand route. Search
+`kanban` for the operation menu, then `kanban:<action>` to attach one input
+schema to the next request. Call the action through `tool_use`.
+`kanban:*` explicitly loads the complete declaration. The journal records the
+projection version at creation. Earlier journals, explicit launch allowlists
+and surfaces missing either discovery gateway retain their tier-selected
+declarations. Quick keeps its own group settings and versioned declarations.
+
 Quick fingerprints the ordered declarations and their usage hints separately for
 unversioned journals, version 1 and each version 2 shell. CI detects changes to
 wording and serialization order even when the resulting payload fits the budget.

@@ -106,6 +106,45 @@ describe('toolSearchTool', () => {
     expect(schema.properties?.action?.enum).toContain('create_board');
   });
 
+  it('defers only the Kanban schema on a versioned medium surface', async () => {
+    const tools = [
+      { name: 'tool_search', description: 'search tools', permission: 'auto', mutating: false },
+      { name: 'tool_use', description: 'call tools', permission: 'auto', mutating: true },
+    ];
+    const ctx = {
+      ...makeCtx(tools),
+      catalogTools: [kanbanTool, ...tools],
+      meta: { systemPromptVariant: 'pro' },
+      session: { providerToolSchemaVersion: 1 },
+    };
+    const browse = await executeToolSearch({}, ctx);
+    expect(browse.tools[0]).toMatchObject({ name: 'kanban', schemaOmitted: true });
+    expect(browse.tools[0]?.inputSchema).toBeUndefined();
+    expect(browse.hint).toContain('kanban:<action>');
+    const menu = await executeToolSearch({ query: 'kanban' }, ctx);
+    expect(menu.hint).toContain('get_task');
+    expect(requestScopedEntries(ctx)).toEqual([]);
+
+    const lookup = { query: 'kanban:get_task' };
+    const result = await executeToolSearch(lookup, ctx);
+    expect(result.tools[0]?.schemaRevision).toEqual(expect.any(String));
+    expect(toolSearchTool.serialize!(result, lookup)).not.toContain('"taskId"');
+    const attachment = requestScopedEntries(ctx)[0]?.block.text ?? '';
+    expect(attachment).toContain('Deferred tool schema for kanban:get_task');
+    expect(
+      JSON.parse(attachment.slice(attachment.indexOf('\n') + 1)).properties.action.enum,
+    ).toEqual(['get_task']);
+    clearRequestScopedBlocks(ctx);
+    const direct = await executeToolSearch(
+      { query: 'kanban' },
+      {
+        ...ctx,
+        tools: [...tools, kanbanTool],
+      },
+    );
+    expect(direct.tools[0]?.inputSchema).toBe(kanbanTool.inputSchema);
+  });
+
   it('lists Kanban operations in Quick and stages only the selected operation', async () => {
     const ctx = { ...makeCtx([kanbanTool]), meta: { systemPromptVariant: 'quick' } };
     setSessionToolGroup(ctx, 'kanban', 'on');

@@ -68,6 +68,40 @@ function makeContext() {
 }
 
 describe('introspection answers about the asking session', () => {
+  it('shows Kanban as deferred only for the versioned medium tab', async () => {
+    const { ctx, sent } = makeContext();
+    const registry = new ToolRegistry();
+    const names = ['kanban', 'tool_search', 'tool_use'];
+    for (const name of names) {
+      registry.register({
+        name,
+        inputSchema: {},
+        description: name,
+        permission: 'auto',
+        mutating: false,
+        async execute() {},
+      });
+    }
+    registry.setProviderToolNames(names, 'medium');
+    for (const [id, direct] of [
+      ['tab-1', true],
+      ['tab-2', false],
+    ] as const) {
+      const agent = ctx.getAgent?.(id);
+      if (!agent?.ctx.session) throw new Error('Missing fixture session');
+      Object.assign(agent, { tools: registry });
+      Object.assign(agent.ctx.session, { providerToolSchemaVersion: direct ? undefined : 1 });
+      await handleIntrospectionRoute(ctx, ws, {
+        type: 'tools.list',
+        payload: { sessionId: id },
+      });
+      expect(sent.at(-1)?.payload).toMatchObject({
+        sessionId: id,
+        tools: expect.arrayContaining([expect.objectContaining({ name: 'kanban', direct })]),
+      });
+    }
+  });
+
   it('changes a Quick group on the selected tab and rejects a missing tab', async () => {
     const { ctx, sent } = makeContext();
     const registry = new ToolRegistry();

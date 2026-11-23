@@ -299,6 +299,10 @@ export class FileSessionWriter implements SessionWriter {
     return this.meta.quickShellTool;
   }
 
+  get providerToolSchemaVersion(): number | undefined {
+    return this.meta.providerToolSchemaVersion;
+  }
+
   private async writeSessionStartLazy(): Promise<void> {
     // Keep the lifecycle preamble in the same retryable buffer as every other
     // reconstruct event. Writing it through a separate one-shot append meant
@@ -317,6 +321,7 @@ export class FileSessionWriter implements SessionWriter {
         ? { quickToolSchemaVersion: this.quickToolSchemaVersion }
         : {}),
       ...(this.quickShellTool ? { quickShellTool: this.quickShellTool } : {}),
+      providerToolSchemaVersion: this.providerToolSchemaVersion,
       seq: preambleSeq,
     });
   }

@@ -27,13 +27,14 @@ export async function refreshAgentToolSurface(
   const config = agent.container?.safeResolve?.(TOKENS.ConfigStore)?.get?.();
   if (config) setSessionToolGroupGovernance(ctx, config.tools?.kanbanGovernance === true);
   const variant = meta['systemPromptVariant'];
-  const { tools, quickShellTool } = providerToolSurfaceForVariant(
+  const surface = providerToolSurfaceForVariant(
     agent.tools,
     variant,
     meta,
     provider,
     ctx.activeRunSessionWriter ?? ctx.session,
   );
+  const { tools } = surface;
   const catalogTools = sessionToolCatalog(ctx, agent.tools.list());
   const changed = ctx.tools !== tools;
   ctx.tools = tools;
@@ -48,9 +49,8 @@ export async function refreshAgentToolSurface(
   ctx.systemPrompt = await builder.build({
     cwd: ctx.cwd,
     projectRoot: ctx.projectRoot,
-    tools,
+    ...surface,
     catalogTools,
-    quickShellTool,
     provider: provider.id,
     model,
     onlineAgents,

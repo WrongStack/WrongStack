@@ -41,7 +41,7 @@ import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultPermissionPolicy, DefaultSecretScrubber } from '@wrongstack/core/security';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
 import { diffCacheProbe, fingerprintCacheProbe, OpenAICodexProvider } from '@wrongstack/providers';
-import { clarifyTool } from '@wrongstack/tools';
+import { clarifyTool, kanbanTool } from '@wrongstack/tools';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { removeProjectFixtureDirectory } from '../../core/tests/helpers/project-server-harness.js';
 import { OpenAIResponsesProvider } from '../../providers/src/openai-responses.js';
@@ -155,7 +155,8 @@ async function runSession(
   owningSessionId?: string,
   providerId = 'openai-codex',
   withChurningMiddleware = false,
-  quickSession?: SessionWriter,
+  projectedSession?: SessionWriter,
+  variant: 'quick' | 'pro' = 'quick',
 ): Promise<Request[]> {
   const container = new Container();
   container.bind(TOKENS.Logger, () => new DefaultLogger({ level: 'error', stderr: false }));
@@ -187,10 +188,17 @@ async function runSession(
   const tools = new ToolRegistry();
   tools.register(fakeTool('read', `file body\n${'line of source\n'.repeat(40)}`) as never);
   tools.register(fakeTool('bash', `command output\n${'stdout line\n'.repeat(40)}`) as never);
-  if (quickSession) {
+  if (projectedSession) {
     tools.register(clarifyTool);
     for (const name of ['pwsh', 'tool_search', 'tool_use']) {
       tools.register(fakeTool(name, 'ok') as never);
+    }
+    if (variant === 'pro') {
+      tools.register(kanbanTool);
+      tools.setProviderToolNames(
+        tools.list().map((tool) => tool.name),
+        'medium',
+      );
     }
   }
 
@@ -198,7 +206,8 @@ async function runSession(
   const events = new EventBus();
   const sessionStore = new DefaultSessionStore({ dir: path.join(tmp, 'sessions') });
   const session =
-    quickSession ?? (await sessionStore.create({ id: '', model: 'gpt-5.4', provider: providerId }));
+    projectedSession ??
+    (await sessionStore.create({ id: '', model: 'gpt-5.4', provider: providerId }));
 
   const ctx = new Context({
     systemPrompt: [{ type: 'text', text: 'placeholder — replaced by the first refresh' }],
@@ -211,7 +220,7 @@ async function runSession(
     model: 'gpt-5.4',
   } as never);
   if (owningSessionId) ctx.meta['sessionId'] = owningSessionId;
-  if (quickSession) ctx.meta['systemPromptVariant'] = 'quick';
+  if (projectedSession) ctx.meta['systemPromptVariant'] = variant;
 
   const pipelines = createDefaultPipelines();
   if (withChurningMiddleware) pipelines.request.use(churningMemoryMiddleware() as never);
@@ -241,7 +250,7 @@ async function runSession(
     // A failed run would leave a short, misleadingly stable history.
     expect(result.status).toBe('done');
   }
-  if (quickSession) {
+  if (projectedSession) {
     expect(ctx.catalogTools?.find((tool) => tool.name === 'clarify')?.inputSchema).toEqual(
       clarifyTool.inputSchema,
     );
@@ -318,12 +327,14 @@ describe('openai-codex prompt prefix stability', () => {
     const store = new DefaultSessionStore({ dir: path.join(tmp, 'sessions') });
     vi.stubEnv('WRONGSTACK_SHELL', 'pwsh.exe');
     const session = await store.create({ id: '', model: 'gpt-5.4', provider: providerId });
+    expect(session.providerToolSchemaVersion).toBe(1);
     const selectedShell = process.platform === 'win32' ? 'pwsh' : 'bash';
     expect(session.quickShellTool).toBe(selectedShell);
     const fresh = await runSession(tmp, undefined, providerId, false, session);
     await session.close();
     vi.stubEnv('WRONGSTACK_SHELL', 'cmd');
     const resumed = await store.resume(session.id);
+    expect(resumed.writer.providerToolSchemaVersion).toBe(1);
     const afterResume = await runSession(tmp, undefined, providerId, false, resumed.writer);
     await resumed.writer.close();
 
@@ -340,6 +351,7 @@ describe('openai-codex prompt prefix stability', () => {
       })}\n`,
     );
     const reopenedLegacy = await store.resume(legacy.id);
+    expect(reopenedLegacy.writer.providerToolSchemaVersion).toBeUndefined();
     const legacyRequests = await runSession(
       tmp,
       undefined,
@@ -382,13 +394,54 @@ describe('openai-codex prompt prefix stability', () => {
     );
     const fork = await store.fork(session.id);
     expect(fork.data.metadata.quickShellTool).toBe(selectedShell);
+    expect(fork.data.metadata.providerToolSchemaVersion).toBe(1);
+    const legacyFork = await store.fork(legacy.id);
+    expect(legacyFork.data.metadata.providerToolSchemaVersion).toBe(0);
     await store.clearHistory(session.id);
     const afterClear = await store.resume(session.id);
     expect(afterClear.writer.quickToolSchemaVersion).toBe(session.quickToolSchemaVersion);
     expect(afterClear.writer.quickShellTool).toBe(selectedShell);
+    expect(afterClear.writer.providerToolSchemaVersion).toBe(1);
     await afterClear.writer.clearSession();
     await afterClear.writer.close();
-    expect((await store.load(session.id)).metadata.quickShellTool).toBe(selectedShell);
+    expect((await store.load(session.id)).metadata).toMatchObject({
+      quickShellTool: selectedShell,
+      providerToolSchemaVersion: 1,
+    });
+  });
+
+  it('keeps the medium wire surface pinned across requests and resume', async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'medium-schema-resume-'));
+    const providerId = 'openai-chatgpt';
+    const store = new DefaultSessionStore({ dir: path.join(tmp, 'sessions') });
+    const session = await store.create({ id: '', model: 'gpt-5.4', provider: providerId });
+    const fresh = await runSession(tmp, undefined, providerId, false, session, 'pro');
+    await session.close();
+    const resumed = await store.resume(session.id);
+    const reopened = await runSession(tmp, undefined, providerId, false, resumed.writer, 'pro');
+    await resumed.writer.close();
+
+    const legacy = await store.create({
+      id: '',
+      model: 'gpt-5.4',
+      provider: providerId,
+      providerToolSchemaVersion: 0,
+    });
+    const legacyRequests = await runSession(tmp, undefined, providerId, false, legacy, 'pro');
+    await legacy.close();
+
+    const bodies = await wireBodies([...fresh, ...reopened], providerId);
+    const [legacyBody] = await wireBodies(legacyRequests.slice(0, 1), providerId);
+    const tools = new Set(bodies.map((body) => JSON.stringify(body['tools'])));
+    expect(tools.size).toBe(1);
+    expect([...tools][0]).toContain('"name":"tool_search"');
+    expect([...tools][0]).not.toContain('"name":"kanban"');
+    expect(JSON.stringify(legacyBody?.['tools'])).toContain('"name":"kanban"');
+    const instructions = new Set(bodies.map((body) => body['instructions']));
+    expect(instructions.size).toBe(1);
+    expect([...instructions][0]).toContain('kanban:<action>');
+    expect(legacyBody?.['instructions']).not.toContain('kanban:<action>');
+    expect(new Set(bodies.map((body) => body['prompt_cache_key'])).size).toBe(1);
   });
 
   it('keeps instructions, tools and the cache key byte-identical across turns', async () => {

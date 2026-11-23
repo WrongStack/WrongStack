@@ -114,10 +114,18 @@ const QUICK_REQUIRED_SKILLS_DIRECT_TOOL_NAMES: ReadonlySet<string> = new Set([
 const SCOUT_DELEGATION_NAMES: ReadonlySet<string> = new Set(SCOUT_DELEGATION_TOOL_NAMES);
 const soloFallbacks = new WeakMap<Tool[], Tool[]>();
 const projectedQuickTools = new WeakMap<Tool[], Tool[]>();
+const deferredKanbanSurfaces = new WeakMap<Tool[], Tool[]>();
 const quickShellSurfaces = {
   bash: new WeakMap<Tool[], Tool[]>(),
   pwsh: new WeakMap<Tool[], Tool[]>(),
 };
+
+function hasLazyToolGateways(tools: readonly Tool[]): boolean {
+  return (
+    tools.some((tool) => tool.name === 'tool_search') &&
+    tools.some((tool) => tool.name === 'tool_use')
+  );
+}
 
 function quickShellTool(
   tools: readonly Tool[],
@@ -126,8 +134,7 @@ function quickShellTool(
   if (
     (pinned === 'bash' || pinned === 'pwsh') &&
     tools.some((tool) => tool.name === pinned) &&
-    tools.some((tool) => tool.name === 'tool_search') &&
-    tools.some((tool) => tool.name === 'tool_use')
+    hasLazyToolGateways(tools)
   ) {
     return pinned;
   }
@@ -188,10 +195,7 @@ function scoutTools(
   learned?: unknown,
 ): Tool[] {
   const selected = registry.listWithin(scoutNames(subagentsAllowed, learned));
-  if (
-    selected.some((tool) => tool.name === 'tool_search') &&
-    selected.some((tool) => tool.name === 'tool_use')
-  ) {
+  if (hasLazyToolGateways(selected)) {
     // A learned tool can be spawn-capable; a solo session is never offered one.
     return subagentsAllowed ? selected : withoutSpawnTools(selected);
   }
@@ -244,13 +248,35 @@ export function providerToolsForVariant(
 
 /** The direct request surface and its shell guidance for a specific journal. */
 export function providerToolSurfaceForVariant(
-  registry: Parameters<typeof providerToolsForVariant>[0],
+  registry: Parameters<typeof providerToolsForVariant>[0] &
+    Partial<Pick<ToolRegistry, 'providerToolTier'>>,
   variant: unknown,
   meta: Parameters<typeof providerToolsForVariant>[2],
   provider: Parameters<typeof providerToolsForVariant>[3],
-  session?: Pick<SessionMetadata, 'quickToolSchemaVersion' | 'quickShellTool'>,
-): { tools: Tool[]; quickShellTool?: SessionMetadata['quickShellTool'] } {
+  session?: Pick<
+    SessionMetadata,
+    'quickToolSchemaVersion' | 'quickShellTool' | 'providerToolSchemaVersion'
+  >,
+): {
+  tools: Tool[];
+  quickShellTool?: SessionMetadata['quickShellTool'];
+  kanbanDeferred?: true | undefined;
+} {
   const direct = providerToolsForVariant(registry, variant, meta, provider);
+  if (
+    variant !== 'quick' &&
+    variant !== 'scout' &&
+    registry.providerToolTier === 'medium' &&
+    session?.providerToolSchemaVersion === 1 &&
+    hasLazyToolGateways(direct)
+  ) {
+    const cached = deferredKanbanSurfaces.get(direct);
+    if (cached) return { tools: cached, kanbanDeferred: true };
+    const tools = direct.filter((tool) => tool.name !== 'kanban');
+    if (tools.length === direct.length) return { tools: direct };
+    deferredKanbanSurfaces.set(direct, tools);
+    return { tools, kanbanDeferred: true };
+  }
   const version = variant === 'quick' ? session?.quickToolSchemaVersion : undefined;
   if (version !== 1 && version !== 2) return { tools: direct };
   const shell = version === 2 ? quickShellTool(direct, session?.quickShellTool) : undefined;

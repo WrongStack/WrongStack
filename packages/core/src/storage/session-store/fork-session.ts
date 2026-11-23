@@ -98,6 +98,7 @@ export async function forkSession(
     provider: activeIdentity?.provider,
     quickToolSchemaVersion: activeIdentity?.quickToolSchemaVersion ?? 0,
     quickShellTool: activeIdentity?.quickShellTool,
+    providerToolSchemaVersion: activeIdentity?.providerToolSchemaVersion ?? 0,
   });
 
   try {

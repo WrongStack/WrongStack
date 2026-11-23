@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T13:19:38.202Z",
+  "generatedAt": "2026-11-23T13:22:02.957Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 50,
     "sourceFiles": 6492,
     "testFiles": 5761,
-    "sourceLines": 1327988,
+    "sourceLines": 1328065,
     "workspaceEdges": 259,
     "moduleEdges": 18987,
     "nonCommandSlashImports": 0,
@@ -37053,8 +37053,13 @@
       "relativeImports": 2
     },
     {
+      "file": "packages/core/src/registry/tool-registry.ts",
+      "lines": 705,
+      "relativeImports": 7
+    },
+    {
       "file": "packages/core/src/storage/file-session-writer.ts",
-      "lines": 717,
+      "lines": 722,
       "relativeImports": 12
     },
     {

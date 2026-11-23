@@ -214,6 +214,7 @@ export async function executeClearSession(ctx: ClearSessionContext): Promise<voi
       ? { quickToolSchemaVersion: ctx.meta.quickToolSchemaVersion }
       : {}),
     ...(ctx.meta.quickShellTool ? { quickShellTool: ctx.meta.quickShellTool } : {}),
+    providerToolSchemaVersion: ctx.meta.providerToolSchemaVersion,
   })}\n`;
   await ctx.handle.close();
   await atomicWrite(ctx.filePath, record, { mode: 0o600 });

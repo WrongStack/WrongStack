@@ -117,16 +117,24 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
     const tools = ctx.catalogTools ?? ctx.tools;
     const query = input.query?.toLowerCase() ?? '';
     const quick = ctx.meta?.['systemPromptVariant'] === 'quick';
+    const session = ctx.activeRunSessionWriter ?? ctx.session;
+    const deferredKanban =
+      quick ||
+      (session?.providerToolSchemaVersion === 1 &&
+        ctx.tools.some((tool) => tool.name === 'tool_search') &&
+        ctx.tools.some((tool) => tool.name === 'tool_use') &&
+        !ctx.tools.some((tool) => tool.name === 'kanban'));
+    const compactResult = (tool: Tool) => quick || (deferredKanban && isBuiltinKanban(tool));
     const actionQuery =
-      quick && query.trim().startsWith('kanban:')
+      deferredKanban && query.trim().startsWith('kanban:')
         ? query.trim().slice('kanban:'.length).trim()
         : undefined;
     const scores = new Map<Tool, number>();
 
     const filtered = tools.filter((t: Tool) => {
-      const builtinKanban = t.name === 'kanban' && t.inputSchema === KANBAN_INPUT_SCHEMA;
+      const builtinKanban = isBuiltinKanban(t);
       if (actionQuery !== undefined && !builtinKanban) return false;
-      if (quick && builtinKanban && !isToolReachable(ctx, t.name, t)) return false;
+      if (deferredKanban && builtinKanban && !isToolReachable(ctx, t.name, t)) return false;
       if (query) {
         const score = actionQuery === undefined ? queryScore(t, query) : 2_000;
         if (score === 0) return false;
@@ -171,8 +179,8 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
     // Best match first; ties keep registry order.
     if (query) filtered.sort((x, y) => (scores.get(y) ?? 0) - (scores.get(x) ?? 0));
     const best = filtered[0];
-    const exact = quick && best && scores.get(best) === 2_000 ? best : undefined;
-    const exactKanban = exact?.name === 'kanban' && exact.inputSchema === KANBAN_INPUT_SCHEMA;
+    const exact = best && compactResult(best) && scores.get(best) === 2_000 ? best : undefined;
+    const exactKanban = exact && isBuiltinKanban(exact);
     const operation =
       exactKanban && actionQuery !== undefined ? kanbanActionSchema(actionQuery) : undefined;
     const showActions = exactKanban && !operation && actionQuery !== '*';
@@ -190,8 +198,8 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
     // every schema and usage hint cost ~29 KB of context, most of it for tools
     // the model never calls. The rest stay identifiable by name and a short
     // description; searching the exact name returns that tool's schema.
-    const results = filtered.slice(0, limit).map((t: Tool, index: number) =>
-      !quick && index < SCHEMA_RESULTS
+    const results: ToolSearchOutput['tools'] = filtered.slice(0, limit).map((t, index) =>
+      !compactResult(t) && index < SCHEMA_RESULTS
         ? {
             name: t.name,
             description: t.description,
@@ -248,9 +256,13 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
             ? `No tools matched "${input.query}". ${totalAvailable} tools are available; try a broader query, or call tool_search with no query and limit up to 100.`
             : quick && !exact && results.length > 0
               ? 'Search an exact tool name to load its input schema for the next request.'
-              : !quick && results.length > SCHEMA_RESULTS
-                ? `Schemas are included for the first ${SCHEMA_RESULTS} results; call tool_search with another tool's exact name to get its inputSchema.`
-                : undefined;
+              : deferredKanban &&
+                  !exactKanban &&
+                  results.some((tool) => tool.name === 'kanban' && tool.schemaOmitted)
+                ? 'Search "kanban" to list board operations, then "kanban:<action>" to load one input schema.'
+                : !quick && results.length > SCHEMA_RESULTS
+                  ? `Schemas are included for the first ${SCHEMA_RESULTS} results; call tool_search with another tool's exact name to get its inputSchema.`
+                  : undefined;
 
     return {
       tools: results,
@@ -263,6 +275,10 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
   },
   serialize: (output, input) => renderToolSearch(output, input ?? {}),
 };
+
+function isBuiltinKanban(tool: Tool): boolean {
+  return tool.name === 'kanban' && tool.inputSchema === KANBAN_INPUT_SCHEMA;
+}
 
 /** Words that carry no signal about which tool is meant. */
 const QUERY_STOP_WORDS = new Set([

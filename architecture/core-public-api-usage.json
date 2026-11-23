@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 544,
+      "files": 545,
       "typeOnly": 400,
-      "runtimeOrMixed": 176
+      "runtimeOrMixed": 177
     },
     "@wrongstack/core/boot": {
       "files": 6,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1015,
+      "files": 1016,
       "typeOnly": 77,
-      "runtimeOrMixed": 973
+      "runtimeOrMixed": 974
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -1736,6 +1736,12 @@
       "file": "packages/runtime/tests/light-subagent-factory.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/tests/tool-registration.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -15786,6 +15792,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/src/wrongforge-leader/wrongforge-leader-provider.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/tests/tool-registration.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

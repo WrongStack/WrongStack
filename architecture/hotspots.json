@@ -102,8 +102,12 @@
       "lines": 1162,
       "relativeImports": 2
     },
+    "packages/core/src/registry/tool-registry.ts": {
+      "lines": 705,
+      "relativeImports": 7
+    },
     "packages/core/src/storage/file-session-writer.ts": {
-      "lines": 717,
+      "lines": 722,
       "relativeImports": 12
     },
     "packages/fleet/src/host-skill-companion.ts": {

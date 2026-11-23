@@ -10,6 +10,8 @@ export interface SessionMetadata {
   model?: string | undefined;
   provider?: string | undefined;
   startedAt: string;
+  /** Provider-tier tool projection selected when the journal is created. */
+  providerToolSchemaVersion?: number | undefined;
   /** Provider tool projection pinned when the session was created. */
   quickToolSchemaVersion?: number | undefined;
   /** Shell whose schema is sent directly in Quick. */

@@ -53,6 +53,12 @@ const lean = LEAN_BENCH_TOOL_NAMES;
 measurements['lean'] = measureToolSchemas(builtinTools.filter((tool) => lean.includes(tool.name)));
 const registry = new ToolRegistry();
 registry.registerAllOrThrow(builtinTools, 'builtin');
+const mediumNames = selectBuiltinToolsForTier('medium', builtinTools).map((tool) => tool.name);
+registry.setProviderToolNames(mediumNames, 'medium');
+const { tools: mediumV1 } = providerToolSurfaceForVariant(registry, 'pro', undefined, undefined, {
+  providerToolSchemaVersion: 1,
+});
+measurements['mediumV1'] = measureToolSchemas(mediumV1);
 const quickProfiles = {
   quickLegacy: undefined,
   quickV1: { quickToolSchemaVersion: 1 },

@@ -1,8 +1,10 @@
 import { Container, EventBus } from '@wrongstack/contracts/kernel';
 import type { MemoryStore, Tool } from '@wrongstack/contracts/types';
+import { isToolReachable, providerToolSurfaceForVariant } from '@wrongstack/core/agent';
 import { DefaultLogger } from '@wrongstack/core/infrastructure';
 import { DefaultPluginAPI } from '@wrongstack/core/plugin';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import { measureToolSchemas } from '@wrongstack/core/utils';
 import { LegacyMemoryPortAdapter } from '@wrongstack/sage';
 import { builtinToolsPack } from '@wrongstack/tools';
 import { toolSearchTool } from '@wrongstack/tools/tool-search';
@@ -49,6 +51,48 @@ function legacyMemoryStore(): MemoryStore {
 }
 
 describe('canonical host tool registration', () => {
+  it('defers Kanban for new medium journals and preserves the legacy and explicit surfaces', () => {
+    const registry = new ToolRegistry();
+    registerCanonicalHostTools({ registry, tier: 'medium' });
+    const session = { providerToolSchemaVersion: 1 };
+    const select = (journal?: typeof session) =>
+      providerToolSurfaceForVariant(registry, 'pro', {}, undefined, journal).tools;
+    const legacy = select();
+    const current = select(session);
+    expect(legacy.some((tool) => tool.name === 'kanban')).toBe(true);
+    expect(current).toEqual(legacy.filter((tool) => tool.name !== 'kanban'));
+    expect(select(session)).toBe(current);
+    expect(isToolReachable({ tools: current, catalogTools: registry.list() }, 'kanban')).toBe(true);
+    expect(
+      measureToolSchemas(legacy).estimatedTokens - measureToolSchemas(current).estimatedTokens,
+    ).toBe(measureToolSchemas([registry.get('kanban')!]).estimatedTokens);
+    const provider = {
+      selectToolsForRequest: (tools: Tool[]) => tools.filter((tool) => tool.name !== 'tool_search'),
+    };
+    expect(
+      providerToolSurfaceForVariant(registry, 'pro', {}, provider, session).tools.some(
+        (tool) => tool.name === 'kanban',
+      ),
+    ).toBe(true);
+
+    registry.disable('tool_search');
+    expect(select(session).some((tool) => tool.name === 'kanban')).toBe(true);
+    registry.enable('tool_search');
+    registry.disable('tool_use');
+    expect(select(session).some((tool) => tool.name === 'kanban')).toBe(true);
+    registry.enable('tool_use');
+    registry.setSessionRestriction({ only: ['kanban'] });
+    expect(select(session).some((tool) => tool.name === 'kanban')).toBe(true);
+
+    const full = new ToolRegistry();
+    registerCanonicalHostTools({ registry: full, tier: 'off' });
+    expect(
+      providerToolSurfaceForVariant(full, 'pro', {}, undefined, session).tools.some(
+        (tool) => tool.name === 'kanban',
+      ),
+    ).toBe(true);
+  });
+
   it('keeps the normal leader direct surface bounded while retaining lazy tools', () => {
     const registry = new ToolRegistry();
     const context = { ...coordinationTool, name: 'context_manager' };
