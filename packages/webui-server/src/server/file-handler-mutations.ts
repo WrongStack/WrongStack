@@ -189,6 +189,23 @@ export async function handleFilesDelete(
 
 // ── files.rename ──────────────────────────────────────────────────────
 
+/**
+ * True when `from` and `to` differ only in letter case and name the same existing entry — a
+ * case-only rename on a case-insensitive filesystem, where `to` "exists" because it is `from`.
+ */
+async function isCaseOnlyRename(from: string, to: string): Promise<boolean> {
+  if (from === to || from.toLowerCase() !== to.toLowerCase()) return false;
+  try {
+    const [a, b] = await Promise.all([
+      fs.stat(from, { bigint: true }),
+      fs.stat(to, { bigint: true }),
+    ]);
+    return a.ino !== 0n && a.dev === b.dev && a.ino === b.ino;
+  } catch {
+    return false;
+  }
+}
+
 interface FilesRenamePayload {
   oldPath: string;
   newPath: string;
@@ -265,7 +282,8 @@ export async function handleFilesRename(
     return;
   }
 
-  if (oldStat.isDirectory() && isPathInside(realOld, realNew)) {
+  const caseOnly = await isCaseOnlyRename(realOld, realNew);
+  if (oldStat.isDirectory() && !caseOnly && isPathInside(realOld, realNew)) {
     send(ws, {
       type: 'files.renamed',
       payload: withSessionEcho(
@@ -281,9 +299,15 @@ export async function handleFilesRename(
     return;
   }
 
-  try {
-    // Destination must NOT exist — rename should not overwrite.
-    await fs.access(realNew);
+  // Destination must NOT exist — rename should not overwrite. A case-only rename's
+  // destination is the source itself, so it does not count as taken.
+  if (
+    !caseOnly &&
+    (await fs.access(realNew).then(
+      () => true,
+      () => false,
+    ))
+  ) {
     send(ws, {
       type: 'files.renamed',
       payload: withSessionEcho(
@@ -297,8 +321,6 @@ export async function handleFilesRename(
       ),
     });
     return;
-  } catch {
-    // ENOENT expected — destination is free.
   }
 
   try {

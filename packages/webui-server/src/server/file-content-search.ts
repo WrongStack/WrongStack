@@ -5,6 +5,7 @@ import type { WebSocket } from 'ws';
 import { resolveFileInsideProject, withSessionEcho } from './file-handler-helpers.js';
 import { isHiddenEntry, SKIP_DIRS } from './file-picker.js';
 import { resolveWorkingDirInsideProject } from './path-containment.js';
+import { foldCaseSameLength } from './search-fold.js';
 import { errMessage, messageSessionId, send } from './ws-utils.js';
 
 const MAX_FILE_BYTES = 1024 * 1024;
@@ -51,7 +52,7 @@ export async function handleFileContentSearch(
           : 200,
       ),
     );
-    const needle = matchCase ? query : query.toLowerCase();
+    const needle = matchCase ? query : foldCaseSameLength(query);
     const queryLength = query.length;
     const ignored = await loadGitignoreMatcher(projectRoot);
     const hits: Hit[] = [];
@@ -150,7 +151,7 @@ export async function handleFileContentSearch(
               break;
             }
             const line = lines[index]!;
-            const column = (matchCase ? line : line.toLowerCase()).indexOf(needle);
+            const column = (matchCase ? line : foldCaseSameLength(line)).indexOf(needle);
             if (column < 0) continue;
             const start = Math.max(0, column - 100);
             const end = Math.min(line.length, Math.max(column + queryLength + 100, start + 300));

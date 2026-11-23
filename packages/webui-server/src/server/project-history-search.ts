@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { SessionStore, SessionSummary } from '@wrongstack/contracts/types';
+import { foldCaseSameLength } from './search-fold.js';
 import { findTranscriptMatches, transcriptRevision } from './session-transcript.js';
 import { errMessage } from './ws-utils.js';
 
@@ -12,7 +13,8 @@ export async function searchProjectHistory(
   if (!raw || typeof raw !== 'object' || Array.isArray(raw))
     throw Error('Invalid conversation search.');
   const options = raw as Record<string, unknown>;
-  const query = typeof options['query'] === 'string' ? options['query'].trim().toLowerCase() : '';
+  const query =
+    typeof options['query'] === 'string' ? foldCaseSameLength(options['query'].trim()) : '';
   if (query.length < 2 || query.length > 500)
     throw Error('Enter 2–500 characters to search conversations.');
   const role = options['role'] ?? '';

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T00:25:30.951Z",
+  "generatedAt": "2026-11-23T00:26:49.473Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 50,
-    "sourceFiles": 6490,
-    "testFiles": 5726,
-    "sourceLines": 1327359,
+    "sourceFiles": 6491,
+    "testFiles": 5730,
+    "sourceLines": 1327417,
     "workspaceEdges": 259,
-    "moduleEdges": 18975,
+    "moduleEdges": 18979,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -1228,8 +1228,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 356,
-      "testFiles": 419,
+      "sourceFiles": 357,
+      "testFiles": 423,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1264,7 +1264,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 419
+          "testFiles": 423
         }
       ]
     },
@@ -30386,6 +30386,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/file-content-search-casefold.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/file-content-search.test.ts",
         "projects": [
           "root-node"
@@ -30405,6 +30411,12 @@
       },
       {
         "file": "packages/webui-server/tests/file-picker.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/file-rename-case-only.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30591,6 +30603,12 @@
       },
       {
         "file": "packages/webui-server/tests/governance-runtime.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/history-search-casefold.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32259,6 +32277,12 @@
       },
       {
         "file": "packages/webui-server/tests/worktree-routes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/worktree-underroot-case.test.ts",
         "projects": [
           "root-node"
         ]

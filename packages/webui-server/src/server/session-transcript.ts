@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { ContentBlock, Message } from '@wrongstack/contracts/types';
+import { foldCaseSameLength } from './search-fold.js';
 
 const TEXT_CHUNK = 16000;
 type Row = Record<string, unknown>;
@@ -56,7 +57,7 @@ export function findTranscriptMatches(messages: readonly Message[], query: strin
     if (role && message.role !== role) return;
     for (const block of blocks(message)) {
       const text = blockText(block);
-      const match = text.toLowerCase().indexOf(query);
+      const match = foldCaseSameLength(text).indexOf(query);
       if (match < 0) continue;
       matching++;
       if (hits.length < 3) {
@@ -123,7 +124,7 @@ function projectBlock(block: ContentBlock, index: number, budget: { left: number
       inputPreview: true,
     };
   const text = blockText(block);
-  const match = query ? text.toLowerCase().indexOf(query) : -1;
+  const match = query ? foldCaseSameLength(text).indexOf(query) : -1;
   const offset = match > TEXT_CHUNK ? Math.max(0, match - 300) : 0;
   const window = textWindow(text, offset, Math.min(TEXT_CHUNK, Math.max(0, budget.left)));
   budget.left -= window.text.length;
@@ -147,7 +148,8 @@ export function projectSessionTranscript(messages: readonly Message[], raw: unkn
     offset = integer(options['offset'], 0, Number.MAX_SAFE_INTEGER),
     limit = integer(options['limit'], 10, 25);
   if (limit < 1) throw Error('Transcript page size must be at least one.');
-  const query = typeof options['query'] === 'string' ? options['query'].trim().toLowerCase() : '';
+  const query =
+    typeof options['query'] === 'string' ? foldCaseSameLength(options['query'].trim()) : '';
   if (query.length > 500) throw Error('Transcript search is limited to 500 characters.');
   const role = typeof options['role'] === 'string' ? options['role'] : '';
   if (!['', 'user', 'assistant', 'system'].includes(role))
@@ -157,7 +159,8 @@ export function projectSessionTranscript(messages: readonly Message[], raw: unkn
     throw Error('The transcript changed. Refresh before loading more history.');
   const matches = messages.flatMap((message, index) =>
     (!role || message.role === role) &&
-    (!query || blocks(message).some((block) => blockText(block).toLowerCase().includes(query)))
+    (!query ||
+      blocks(message).some((block) => foldCaseSameLength(blockText(block)).includes(query)))
       ? [index]
       : [],
   );

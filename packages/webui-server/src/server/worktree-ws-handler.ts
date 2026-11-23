@@ -1,4 +1,4 @@
-import { basename, join, resolve, sep } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { Logger } from '@wrongstack/contracts/types';
 import {
@@ -11,6 +11,7 @@ import { toErrorMessage } from '@wrongstack/core/utils';
 import { cleanupStaleSddWorktrees, sddRunLiveReason } from '@wrongstack/sdd';
 import { WorktreeManager } from '@wrongstack/worktree';
 import type { WebSocket } from 'ws';
+import { isPathInside, isSamePath } from './path-containment.js';
 import type { WorktreeHandleView, WorktreeOrphanView, WSServerMessage } from './types.js';
 import { sendSerialized } from './ws-utils.js';
 
@@ -143,11 +144,13 @@ export class WorktreeWebSocketHandler {
     return resolve(join(this.management!.projectRoot, '.wrongstack', 'worktrees'));
   }
 
-  /** True iff `dir` resolves strictly inside the managed worktrees root. */
+  /**
+   * True iff `dir` resolves strictly inside the managed worktrees root. Case-folded on win32 like
+   * the worktree package's `managedPathKey`: git reports a checkout in its on-disk spelling.
+   */
   private underRoot(dir: string): boolean {
-    const abs = resolve(dir);
     const root = this.worktreesRoot();
-    return abs !== root && abs.startsWith(root + sep);
+    return isPathInside(root, dir) && !isSamePath(root, dir);
   }
 
   /** Branches of worktrees a live in-session run currently owns. */
