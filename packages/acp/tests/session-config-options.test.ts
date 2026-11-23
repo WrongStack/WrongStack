@@ -353,6 +353,29 @@ describe('session config options built per session', () => {
     );
   });
 
+  it('never cuts an astral character in half when it shortens the derived title (F1465)', async () => {
+    // The title goes out in session/list and session_info_update; a lone high
+    // surrogate there makes a strict client reject the whole frame.
+    const emoji = String.fromCodePoint(0x1f600);
+    const { call } = makeHandler();
+    await call(1, 'initialize', { protocolVersion: 1 });
+    const created = await call(2, 'session/new', { cwd: CWD, mcpServers: [] });
+    const sessionId = created.result?.['sessionId'] as string;
+    await call(3, 'session/prompt', {
+      sessionId,
+      prompt: [{ type: 'text', text: `${'a'.repeat(76)}${emoji}${'b'.repeat(10)}` }],
+    });
+    const listed = await call(4, 'session/list', { cwd: CWD });
+    const sessions = (listed.result?.['sessions'] ?? []) as Array<{ title?: string }>;
+    const title = sessions[0]?.title ?? '';
+    expect(title).toBe(`${'a'.repeat(76)}…`);
+    const lone = [...title].some((ch) => {
+      const code = ch.charCodeAt(0);
+      return ch.length === 1 && code >= 0xd800 && code <= 0xdfff;
+    });
+    expect(lone, 'derived title must carry no unpaired surrogate').toBe(false);
+  });
+
   it('passes session cwd to store.delete and sorts session/list by updatedAt descending', async () => {
     const deleted: Array<{ id: string; cwd: string | undefined }> = [];
     const baseStore = memoryStore();

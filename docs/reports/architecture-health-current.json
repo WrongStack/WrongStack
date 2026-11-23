@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T13:29:20.347Z",
+  "generatedAt": "2026-11-23T13:33:16.282Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 50,
     "sourceFiles": 6492,
     "testFiles": 5762,
-    "sourceLines": 1328095,
+    "sourceLines": 1328102,
     "workspaceEdges": 259,
     "moduleEdges": 18987,
     "nonCommandSlashImports": 0,
@@ -36935,7 +36935,7 @@
   "hotspotCandidates": [
     {
       "file": "packages/acp/src/agent/protocol-session-management.ts",
-      "lines": 724,
+      "lines": 726,
       "relativeImports": 2
     },
     {

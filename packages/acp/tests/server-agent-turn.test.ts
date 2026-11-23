@@ -1164,6 +1164,58 @@ describe('serverAgentTurn deterministic helpers', () => {
     expect(h.isRecord('x')).toBe(false);
   });
 
+  it('never leaves a lone surrogate in a shortened tool_call title (F1466)', async () => {
+    const emoji = String.fromCodePoint(0x1f600);
+    const handlers: Record<string, (e: unknown) => void> = {};
+    const fakeAgent = {
+      events: {
+        on: (name: string, cb: (e: unknown) => void) => {
+          handlers[name] = cb;
+          return () => delete handlers[name];
+        },
+      },
+      run: vi.fn(async () => {
+        handlers['tool.started']?.({
+          id: 'tc1',
+          name: 'bash',
+          input: { command: `${'a'.repeat(76)}${emoji}${'b'.repeat(10)}` },
+        });
+        return { text: 'done', stopReason: 'end_turn' };
+      }),
+      teardown: vi.fn(async () => {}),
+    };
+    const transport = fakeTransport();
+    const handler = new ACPProtocolHandler({
+      transport: transport as never as AgentServerTransport,
+      defaultCwd: '/test',
+      runTurn: makeACPServerAgentTurn({ agentFor: async () => fakeAgent as never as Agent }),
+    });
+    await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
+    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
+    const sessionId = (
+      transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } }
+    ).result?.sessionId!;
+    await handler.handleMessage({
+      id: 3,
+      method: 'session/prompt',
+      params: { sessionId, prompt: [{ type: 'text', text: 'go' }] },
+    });
+    const toolCall = transport.sent
+      .map(
+        (m) => (m as { params?: { update?: { sessionUpdate?: string; title?: string } } }).params,
+      )
+      .map((p) => p?.update)
+      .find((u) => u?.sessionUpdate === 'tool_call');
+    const title = toolCall?.title ?? '';
+    expect(title).toBe(`bash: ${'a'.repeat(76)}…`);
+    const lone = [...title].some((ch) => {
+      const code = ch.charCodeAt(0);
+      return ch.length === 1 && code >= 0xd800 && code <= 0xdfff;
+    });
+    expect(lone, 'tool_call title must carry no unpaired surrogate').toBe(false);
+    handler.close();
+  });
+
   it('converts all prompt block variants', () => {
     expect(
       h.promptToText([

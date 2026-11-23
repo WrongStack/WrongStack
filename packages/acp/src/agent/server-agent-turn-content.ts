@@ -103,7 +103,12 @@ export function toolTitle(name: string, input: unknown): string {
   if (isRecord(input)) {
     const path = input.path ?? input.file ?? input.filePath ?? input.pattern ?? input.command;
     if (typeof path === 'string' && path.length > 0) {
-      return `${name}: ${path.length > 80 ? `${path.slice(0, 77)}…` : path}`;
+      if (path.length <= 80) return `${name}: ${path}`;
+      // The cut must not leave a lone high surrogate in the tool_call frame.
+      let cut = 77;
+      const last = path.charCodeAt(cut - 1);
+      if (last >= 0xd800 && last <= 0xdbff) cut -= 1;
+      return `${name}: ${path.slice(0, cut)}…`;
     }
   }
   return name;

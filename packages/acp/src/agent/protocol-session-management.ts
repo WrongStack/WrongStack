@@ -698,7 +698,9 @@ function deriveSessionTitle(prompt: readonly ContentBlock[]): string | undefined
     ) {
       const normalized = block.text.replace(/\s+/g, ' ').trim();
       if (normalized.length === 0) continue;
-      return normalized.length > 80 ? `${normalized.slice(0, 77)}…` : normalized;
+      // No lone high surrogate at the cut: session/list carries it (server-agent-commands rule).
+      const high = normalized.charCodeAt(76) >= 0xd800 && normalized.charCodeAt(76) <= 0xdbff;
+      return normalized.length > 80 ? `${normalized.slice(0, high ? 76 : 77)}…` : normalized;
     }
   }
   return undefined;
