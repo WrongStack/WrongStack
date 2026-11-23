@@ -225,6 +225,36 @@ describe('FileServer', () => {
     }
   });
 
+  it('caps a deadline longer than setTimeout allows instead of firing it at once (F1467)', async () => {
+    // Node turns a delay above 2^31-1 ms into 1 ms, so an uncapped 30-day
+    // fsTimeoutMs timed out every call almost immediately.
+    vi.useFakeTimers();
+    const delays: number[] = [];
+    const realSetTimeout = globalThis.setTimeout;
+    const spy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((
+      fn: () => void,
+      delay?: number,
+    ) => {
+      delays.push(Number(delay));
+      return realSetTimeout(fn, delay);
+    }) as typeof setTimeout);
+    try {
+      const longDeadline = new FileServer({
+        projectRoot,
+        timeoutMs: 30 * 24 * 60 * 60 * 1000,
+        operations: fakeOperations({ readFile: async () => 'content' }),
+      });
+      await expect(
+        longDeadline.readTextFile({ sessionId: 's1', path: path.join(projectRoot, 'file') }),
+      ).resolves.toEqual({ content: 'content' });
+      expect(delays.length).toBeGreaterThan(0);
+      expect(Math.max(...delays)).toBe(2_147_483_647);
+    } finally {
+      spy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
   it('cleans up and preserves an FsError raised during an atomic write', async () => {
     const unlink = vi.fn(async () => {
       throw new Error('cleanup failed');

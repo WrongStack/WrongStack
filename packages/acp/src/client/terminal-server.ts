@@ -123,7 +123,9 @@ export class TerminalServer {
 
   constructor(opts: TerminalServerOptions) {
     this.projectRoot = path.resolve(opts.projectRoot);
-    this.commandTimeoutMs = opts.commandTimeoutMs ?? 5 * 60_000;
+    // Node turns a delay above 2^31-1 ms into 1 ms: a longer deadline would
+    // kill every command at once, so cap it (as acp-session-callbacks does).
+    this.commandTimeoutMs = Math.min(opts.commandTimeoutMs ?? 5 * 60_000, 2_147_483_647);
     this.outputByteLimit = this.clampFiniteInt(opts.outputByteLimit, 1024 * 1024);
     this.maxOutputByteLimit = this.clampFiniteInt(opts.maxOutputByteLimit, 16 * 1024 * 1024);
     // Short, grep-friendly, no PII. 8 hex chars ≈ 4B values — plenty to

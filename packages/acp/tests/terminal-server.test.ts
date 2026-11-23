@@ -217,6 +217,37 @@ describe('TerminalServer', () => {
     }
   });
 
+  it('caps a command deadline longer than setTimeout allows (F1467)', () => {
+    // Node turns a delay above 2^31-1 ms into 1 ms: an uncapped 30-day
+    // terminalTimeoutMs killed every command right after it was spawned.
+    const delays: number[] = [];
+    const realSetTimeout = globalThis.setTimeout;
+    const spy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((
+      fn: () => void,
+      delay?: number,
+    ) => {
+      delays.push(Number(delay));
+      // Never arm the overflowing timer for real (it would fire after 1 ms).
+      return realSetTimeout(fn, Math.min(Number(delay), 2_147_483_647));
+    }) as typeof setTimeout);
+    const longDeadlineServer = new TerminalServer({
+      projectRoot,
+      commandTimeoutMs: 30 * 24 * 60 * 60 * 1000,
+    });
+    try {
+      longDeadlineServer.create({
+        sessionId: 's1',
+        command: 'node',
+        args: ['-e', 'process.exit(0)'],
+      });
+      expect(delays.length).toBeGreaterThan(0);
+      expect(Math.max(...delays)).toBe(2_147_483_647);
+    } finally {
+      spy.mockRestore();
+      longDeadlineServer.releaseAll();
+    }
+  });
+
   it('release() clears the timeout handle', async () => {
     const { terminalId } = server.create({
       sessionId: 's1',
