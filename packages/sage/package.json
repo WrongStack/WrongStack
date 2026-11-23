@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/sage",
-  "version": "1.7.17",
+  "version": "1.7.18",
   "private": true,
   "license": "MIT",
   "description": "WrongStack SAGE: project-local SQLite memory, graph-ready anchors, retrieval, and hygiene primitives.",
