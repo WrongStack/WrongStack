@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T13:56:28.912Z",
+  "generatedAt": "2026-11-23T14:00:29.324Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 50,
     "sourceFiles": 6492,
-    "testFiles": 5768,
-    "sourceLines": 1328335,
+    "testFiles": 5769,
+    "sourceLines": 1328333,
     "workspaceEdges": 259,
     "moduleEdges": 18987,
     "nonCommandSlashImports": 0,
@@ -871,7 +871,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 126,
-      "testFiles": 78,
+      "testFiles": 79,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -905,7 +905,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 78
+          "testFiles": 79
         }
       ]
     },
@@ -21993,6 +21993,12 @@
       },
       {
         "file": "packages/runtime/tests/wrongtrace-light-subagent-gate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/wrongtrace-prompt-friction-units.test.ts",
         "projects": [
           "root-node"
         ]

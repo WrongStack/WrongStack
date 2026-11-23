@@ -69,13 +69,11 @@ export function createWrongTracePromptContributor(
       )) ?? [null, []];
 
       const digest = digestAtlas(atlas);
-      // getFrictionMatrix() normalizes to a bare row array; summarizeFriction
-      // reads the {edges, total_collisions} report shape — wrapping the array
-      // is required or the friction block silently renders empty.
-      const summary = summarizeFriction({
-        edges: friction,
-        total_collisions: friction.length,
-      });
+      // getFrictionMatrix() returns the edge rows and carries the daemon's
+      // `total_collisions` on the array itself; summarizeFriction reads both.
+      // Passing `rows.length` as the total mixed an edge count with collision-
+      // weighted self-thrash and misreported the ratios.
+      const summary = summarizeFriction(friction);
       const lines = [digest?.prose, summary?.prose].filter((s) => s && s.length > 0);
       if (lines.length === 0) return [];
 
