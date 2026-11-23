@@ -51,7 +51,7 @@ describe('skill staging directory-hardening-on-creation (F76)', () => {
     await fs.mkdir(source, { recursive: true });
     await fs.writeFile(path.join(source, 'SKILL.md'), '# skill');
     await replaceSkillDirectory(source, target, ['SKILL.md']);
-    const targets = icaclsCalls.filter((c) => c.file === 'icacls').map((c) => c.args[0]);
+    const targets = icaclsCalls.filter((c) => c.file === 'icacls').map((c) => c.args[0] ?? '');
     expect(
       targets.some((t) => t.includes('.skill-stage-') && !t.endsWith('.md')),
       'staging dir is hardened',

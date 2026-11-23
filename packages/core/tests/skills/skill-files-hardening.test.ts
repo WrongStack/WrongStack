@@ -56,14 +56,14 @@ describe('skill install copy-time hardening (F62)', () => {
     // Valid-input control: the install still lands.
     expect(await fs.readFile(path.join(target, 'SKILL.md'), 'utf8')).toBe('# private skill');
     const staged = icaclsCalls.filter(
-      (c) => c.file === 'icacls' && c.args[0].includes('.skill-stage-'),
+      (c) => c.file === 'icacls' && (c.args[0] ?? '').includes('.skill-stage-'),
     );
     expect(
-      staged.some((c) => c.args[0].endsWith('SKILL.md')),
+      staged.some((c) => (c.args[0] ?? '').endsWith('SKILL.md')),
       'SKILL.md copy is hardened',
     ).toBe(true);
     expect(
-      staged.some((c) => c.args[0].endsWith('ref.md')),
+      staged.some((c) => (c.args[0] ?? '').endsWith('ref.md')),
       'nested copy is hardened',
     ).toBe(true);
   });

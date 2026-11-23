@@ -67,7 +67,7 @@ function makeCas() {
     rootDir: casRoot,
     projectRoot: project,
     vcs: {
-      runner: (_binary: string, args: readonly string[], cwd: string) => runGit([...args], cwd),
+      runner: (_binary: string, args: readonly string[]) => runGit([...args]),
     },
   });
 }

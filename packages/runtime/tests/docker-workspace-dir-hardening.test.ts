@@ -74,7 +74,7 @@ describe('docker workspace directory-hardening-on-creation (F63)', () => {
     });
     // Valid-input control: the run still completes.
     expect(result.exitCode).toBe(0);
-    const targets = icaclsCalls.filter((c) => c.file === 'icacls').map((c) => c.args[0]);
+    const targets = icaclsCalls.filter((c) => c.file === 'icacls').map((c) => c.args[0] ?? '');
     expect(
       targets.some((t) => t.includes('wrongstack-docker-')),
       'snapshot dir is hardened',
