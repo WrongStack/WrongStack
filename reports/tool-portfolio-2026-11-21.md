@@ -184,7 +184,54 @@ Quick has live controls for 12 groups and individual MCP servers through `/tool 
 
 Browser automation and the shared origin policy now live in `@wrongstack/browser-tools`. The existing browser import path remains a compatibility facade. The workspace package is bundled with WrongStack. Playwright is a development dependency and the runtime provisions it on demand. [Browser guide](../docs/browser-automation.md)
 
-`@wrongstack/codebase` owns the database, parser, incremental indexer, local workers, project daemon, and its IPC client. Its build emits the daemon and worker entry points beside their shared package chunks. Tools keeps the model-facing adapters and compatibility launchers. The shared Git ignore matcher has a standalone entry for the default file tools. CLI and MCP callers use the same index database paths and daemon protocol. Separate installation of the Codebase package and live provider cache-hit telemetry remain open. [Codebase package](../packages/codebase/package.json), [standalone asset manifest](../scripts/build-binaries.mjs)
+`@wrongstack/codebase` owns the database, parser, incremental indexer, local workers, project daemon, and its IPC client. Its build emits the daemon and worker entry points beside their shared package chunks. Tools keeps the model-facing adapters and compatibility launchers. The shared Git ignore matcher has a standalone entry for the default file tools. CLI and MCP callers use the same index database paths and daemon protocol. The Codebase MCP server and daemon can ship as one independent executable. The main CLI still includes Codebase. [Codebase package](../packages/codebase/package.json), [standalone build](../packages/codebase-index-mcp/README.md#standalone-build)
+
+### Live Quick cache check
+
+A single Quick session sent seven requests with synthetic context to ChatGPT plan Responses using `gpt-5.6-sol`. The serialized direct tool list, instructions, and routing key matched across all requests. The canonical Kanban schema was attached to one request and absent from the durable history.
+
+| Request | Prompt tokens | Provider-reported cache-read tokens |
+| --- | ---: | ---: |
+| Both groups off, cold | 10,412 | 0 |
+| Both groups off, warm | 10,433 | 10,240 |
+| Both groups enabled | 10,454 | 10,240 |
+| Kanban schema attached | 15,182 | 10,368 |
+| Following request | 10,496 | 10,368 |
+| Both groups disabled | 10,517 | 10,368 |
+| Both groups off, warm | 10,538 | 10,368 |
+
+The canonical Kanban schema increased the prompt by roughly 4,700 tokens for one request. The warm prefix was reused during attachment and after both groups were disabled. These measurements cover one account, one model, and one sequential run. [Prefix and usage probe](../packages/providers/src/prompt-cache-probe.ts)
+
+### Kanban action schemas in Quick
+
+`tool_search` with `kanban` lists the enabled tool's 64 operations. A lookup such as `kanban:get_task` attaches the fields for that action to the next request. Call the same `kanban` tool through `tool_use` with the action in its input. `kanban:*` explicitly attaches the full schema. The action schemas reuse the canonical field definitions. Execution still applies the existing validation, permissions and board policies.
+
+In a second seven-request run with the same synthetic context and `gpt-5.6-sol`, the attachment request used 10,611 prompt tokens with `kanban:get_task`, down from 15,182 with the full schema. Both runs reported 10,368 cache-read tokens for that request. The following request used 10,496 prompt tokens in both runs. The direct tool list, instructions and routing key were identical across the requests in the second run. [Action schemas](../packages/tools/src/kanban-action-schema.ts), [discovery](../packages/tools/src/tool-search.ts)
+
+### Compact clarification in new Quick sessions
+
+Quick schema version 1 introduced a direct, single-question `clarify` declaration with matching prompt guidance. Select, multiselect, free text, and recommended answers are available on that form. For multi-question or tabbed forms, look up `clarify` through `tool_search` and invoke it with `tool_use`. The catalog preserves the canonical declaration for discovery and validation. Journals created before the version marker keep the full direct declaration. Later versions retain the compact form. [Quick tool surface](../packages/core/src/core/agent-tool-surface.ts), [clarification tool](../packages/tools/src/clarify.ts)
+
+On the same seven-request synthetic sequence with `gpt-5.6-sol`, the new Quick session used 677 fewer prompt tokens on every request. The warm baseline fell from 10,433 to 9,756 tokens and the request carrying the Kanban action schema fell from 10,611 to 9,934. The new warm baseline reported 9,600 cache-read tokens. The serialized tool list, instructions and routing key matched across all group changes within the new session. [Resume wire regression](../packages/cli/tests/codex-prompt-prefix-stability.test.ts)
+
+### One direct shell in new Quick sessions
+
+New sessions record Quick schema version 2 and a shell tool in the journal. Quick sends `pwsh` when Windows host boot selects PowerShell 7, and sends the portable `bash` tool for POSIX, Windows PowerShell 5.1 and Command Prompt. The other shell and `exec` stay in the enabled catalog for exact lookup and execution through the gateways. If a gateway or the selected shell is unavailable, Quick leaves the available shell schemas direct. Journals from earlier versions keep their previous surfaces. Resume, fork and both history-clear paths retain the selection. The WebUI tool list and CLI stream metadata use the same selection as the provider request. [Quick tool surface](../packages/core/src/registry/scout-tool-surface.ts), [session creation](../packages/core/src/storage/session-store/create-session.ts), [wire regression](../packages/cli/tests/codex-prompt-prefix-stability.test.ts)
+
+The same seven-request Windows fixture with `gpt-5.6-sol` used 175 fewer prompt tokens on every request. The second request fell from 9,756 to 9,581 tokens and the request carrying `kanban:get_task` fell from 9,934 to 9,759. The direct tools, instructions and routing key matched across the sequence. The provider reported cache misses on the first two requests and 9,472 cache-read tokens on each of the remaining five. The fixture used fixed synthetic instructions to measure provider schema cost.
+
+### Quick schema budgets and cache fingerprints
+
+The catalog check now runs the production Quick resolver against the built-in registry. The projected `clarify` declaration carries an estimate computed from its compact input schema. The canonical catalog keeps the estimate for the full schema.
+
+| Quick projection | Direct schemas | Shared wire bytes | Estimated schema tokens |
+| --- | ---: | ---: | ---: |
+| Unversioned journal | 11 | 14,544 | 4,032 |
+| Version 1 | 11 | 9,812 | 2,680 |
+| Version 2, Bash | 10 | 8,784 | 2,397 |
+| Version 2, PowerShell | 10 | 8,826 | 2,409 |
+
+Both version 2 profiles meet the 2,800-token target for built-in declarations. CI checks count, bytes and estimated tokens. It also compares separate SHA-256 fingerprints of the ordered declarations and usage hints, so equal-size edits and order changes still get reviewed. These figures cover the shared built-in projection before provider wrapping. [Budget and fingerprints](../architecture/tool-schema-budget.json), [maintenance contract](../docs/tool-governance.md#schema-economics)
 
 ## Appendix A. Official plugin tools
 

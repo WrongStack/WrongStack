@@ -1,7 +1,7 @@
 import type { ContentBlock } from './blocks.js';
 import type { Message } from './messages.js';
 import type { ProviderErrorBody, Usage } from './provider.js';
-import type { FileSnapshot, WorkspaceCheckpointRef } from './session.js';
+import type { FileSnapshot, SessionMetadata, WorkspaceCheckpointRef } from './session.js';
 import type { SessionPermissionOverride } from './session-permission-override.js';
 import type { ToolSettlement } from './tool.js';
 
@@ -79,6 +79,8 @@ type SessionEventVariant =
       provider: string;
       /** Checkout directory (a linked git worktree differs from the project root). */
       checkout?: string | undefined;
+      quickToolSchemaVersion?: number | undefined;
+      quickShellTool?: SessionMetadata['quickShellTool'];
     }
   | {
       type: 'session_resumed';
@@ -87,6 +89,8 @@ type SessionEventVariant =
       model: string;
       provider: string;
       checkout?: string | undefined;
+      quickToolSchemaVersion?: number | undefined;
+      quickShellTool?: SessionMetadata['quickShellTool'];
     }
   | {
       type: 'subagent_policy';

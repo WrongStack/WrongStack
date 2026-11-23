@@ -7,7 +7,7 @@ import {
 } from '@wrongstack/contracts/types';
 import {
   type Agent,
-  providerToolsForVariant,
+  providerToolSurfaceForVariant,
   sessionToolCatalog,
   sessionToolGroupStates,
   setProjectToolGroup,
@@ -324,9 +324,13 @@ export async function handleIntrospectionRoute(
         : undefined;
       const direct = quick
         ? new Set(
-            providerToolsForVariant(agent.tools, 'quick', actx.meta, actx.provider).map(
-              (tool) => tool.name,
-            ),
+            providerToolSurfaceForVariant(
+              agent.tools,
+              'quick',
+              actx.meta,
+              actx.provider,
+              actx.activeRunSessionWriter ?? actx.session,
+            ).tools.map((tool) => tool.name),
           )
         : undefined;
       const tools = toolEntries(agent).map(({ tool, owner }) => {

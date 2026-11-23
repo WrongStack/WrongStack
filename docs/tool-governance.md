@@ -111,19 +111,27 @@ No existing tool names are removed or merged by this foundation change.
 
 ## Schema economics
 
-`architecture/tool-schema-budget.json` caps count, UTF-8 bytes and runtime-estimated
-tokens for each built-in tier and the actual six-tool lean benchmark roster. The
-probe uses `compactToolDefinitionForWire`, the same projection used in runtime
-accounting. These are schema estimates, not billed tokens: provider wrappers,
-system prompts, runtime additions and tokenizer differences are outside this
-built-in budget. Lean imports its names from the benchmark implementation.
+`architecture/tool-schema-budget.json` caps schema count, UTF-8 bytes and estimated
+tokens for the built-in tiers, the six-tool lean benchmark and the shipped Quick
+session variants. The check uses Quick's runtime resolver and the shared provider
+projection. The estimates cover built-in declarations before provider-specific
+wrapping. Host tools, required-playbook additions, system prompt rendering and
+provider token accounting have their own scope.
+
+Quick fingerprints the ordered declarations and their usage hints separately for
+unversioned journals, version 1 and each version 2 shell. CI detects changes to
+wording and serialization order even when the resulting payload fits the budget.
+When introducing a different projection, give new sessions a new version and
+keep the projections and fingerprints used by existing journals. A deliberate
+revision of an existing fingerprint should be reviewed for impact on resumed
+sessions. [Budget and fingerprints](../architecture/tool-schema-budget.json)
 
 Host-only aliases, cost, prerequisites, lifecycle metadata and usage hints are
 excluded from provider schemas. Four existing long descriptions have individually
 bounded, documented exceptions in the generator; all other descriptions are capped
 at 300 characters. Do not blindly truncate safety guidance to meet a target.
-Budgets never grow as a side effect of catalog generation. An intentional reviewed
-reset requires `bun scripts/generate-tool-catalog.ts --write --adopt-budget`.
+Catalog generation checks the approved budgets and fingerprints. An intentional
+reviewed reset uses `bun scripts/generate-tool-catalog.ts --write --adopt-budget`.
 
 ## Usage evidence and merge sequence
 

@@ -21,6 +21,7 @@ import {
   SYSTEM_PROMPT_VARIANTS,
 } from '../../src/core/system-prompt-variants.js';
 import {
+  providerToolSurfaceForVariant,
   providerToolsForVariant,
   QUICK_BASIC_TOOL_NAMES,
 } from '../../src/registry/scout-tool-surface.js';
@@ -29,7 +30,9 @@ import {
   setSessionToolGroup,
   setSessionToolGroupGovernance,
 } from '../../src/registry/session-tool-groups.js';
+import { reachableTools } from '../../src/registry/session-tool-reach.js';
 import { ToolRegistry } from '../../src/registry/tool-registry.js';
+import { measureToolSchemas } from '../../src/utils/tool-schema-budget.js';
 
 const tool = (name: string): Tool => ({
   name,
@@ -143,6 +146,66 @@ describe('Quick variant', () => {
         }),
       ),
     ).toContain('skill');
+  });
+
+  it('charges the projected declaration and leaves the discovery estimate canonical', () => {
+    const registry = new ToolRegistry();
+    const compact = {
+      ...tool('clarify'),
+      inputSchema: { type: 'object', properties: { question: { type: 'string' } } },
+    };
+    registry.register({
+      ...compact,
+      inputSchema: {
+        ...compact.inputSchema,
+        description: 'Detailed multi-question guidance. '.repeat(15),
+      },
+      quickProjection: { inputSchema: compact.inputSchema, usageHint: 'Ask one question.' },
+    });
+    const legacy = providerToolSurfaceForVariant(registry, 'quick', {}, undefined);
+    const projected = providerToolSurfaceForVariant(registry, 'quick', {}, undefined, {
+      quickToolSchemaVersion: 2,
+      quickShellTool: 'bash',
+    });
+    const canonical = measureToolSchemas(registry.list());
+    expect(measureToolSchemas(legacy.tools)).toEqual(canonical);
+    expect(canonical.estimatedTokens).toBeGreaterThan(
+      measureToolSchemas([compact]).estimatedTokens,
+    );
+    expect(measureToolSchemas(projected.tools)).toEqual(measureToolSchemas([compact]));
+  });
+
+  it.each([
+    { version: 2, pinned: 'pwsh', disabled: '', shells: ['pwsh'] },
+    { version: 2, pinned: 'bash', disabled: '', shells: ['bash'] },
+    { version: 2, pinned: 'pwsh', disabled: 'pwsh', shells: ['bash'] },
+    { version: 2, pinned: 'pwsh', disabled: 'tool_search', shells: ['bash', 'pwsh'] },
+    { version: 2, pinned: 'pwsh', disabled: 'tool_use', shells: ['bash', 'pwsh'] },
+    { version: 2, pinned: undefined, disabled: '', shells: ['bash', 'pwsh'] },
+    { version: 1, pinned: undefined, disabled: '', shells: ['bash', 'pwsh'] },
+    { version: undefined, pinned: undefined, disabled: '', shells: ['bash', 'pwsh'] },
+  ])('retains a stable shell surface for $version / $pinned / $disabled', async (row) => {
+    const registry = new ToolRegistry();
+    for (const name of ['bash', 'pwsh', 'exec', 'tool_search', 'tool_use']) {
+      registry.register(tool(name));
+    }
+    if (row.disabled) registry.disable(row.disabled, 'user');
+    const ctx = {
+      meta: { systemPromptVariant: 'quick' },
+      session: { quickToolSchemaVersion: row.version, quickShellTool: row.pinned },
+    } as unknown as Context;
+    const agent = { ctx, tools: registry, container: { safeResolve: () => undefined } };
+    const provider = { id: 'test' } as Provider;
+    await refreshAgentToolSurface(agent, provider, 'test', false);
+    const direct = ctx.tools;
+    expect(names(direct).filter((name) => ['bash', 'pwsh', 'exec'].includes(name))).toEqual(
+      row.shells,
+    );
+    if (!row.disabled) {
+      expect(names(reachableTools(ctx))).toEqual(expect.arrayContaining(['bash', 'pwsh', 'exec']));
+    }
+    await refreshAgentToolSurface(agent, provider, 'test', false);
+    expect(ctx.tools).toBe(direct);
   });
 
   it('loads the short system-quick.md identity', async () => {

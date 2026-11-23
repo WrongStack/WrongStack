@@ -11,7 +11,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@wrongstack/core/agent', () => ({
   DefaultSystemPromptBuilder: mocks.DefaultSystemPromptBuilder,
-  providerToolsForVariant: (registry: { listForProvider(): unknown }) => registry.listForProvider(),
+  providerToolSurfaceForVariant: (registry: { listForProvider(): unknown }) => ({
+    tools: registry.listForProvider(),
+  }),
 }));
 vi.mock('@wrongstack/core/utils', () => ({ resolveWstackPaths: mocks.resolveWstackPaths }));
 // Its own coverage: cli/tests/system-prompt-host-sections-parity.test.ts.

@@ -7,12 +7,12 @@ const mocks = vi.hoisted(() => ({
   setupTeardownRegistrar: vi.fn(),
   wireEventWiring: vi.fn(),
   registerJevTools: vi.fn(),
-  providerToolsForVariant: vi.fn(),
+  providerToolSurfaceForVariant: vi.fn(),
   loadOnlineAgentsForPrompt: vi.fn(),
 }));
 
 vi.mock('@wrongstack/core/agent', () => ({
-  providerToolsForVariant: mocks.providerToolsForVariant,
+  providerToolSurfaceForVariant: mocks.providerToolSurfaceForVariant,
 }));
 vi.mock('@wrongstack/tools/management', () => ({ registerJevTools: mocks.registerJevTools }));
 vi.mock('../src/wiring/metrics.js', () => ({ setupMetrics: mocks.setupMetrics }));
@@ -83,7 +83,7 @@ function harness() {
   mocks.wireEventWiring.mockReturnValue(eventWiring);
   mocks.registerJevTools.mockReturnValue(disposeJevTools);
   mocks.loadOnlineAgentsForPrompt.mockResolvedValue(onlineAgents);
-  mocks.providerToolsForVariant.mockReturnValue(providerTools);
+  mocks.providerToolSurfaceForVariant.mockReturnValue({ tools: providerTools });
   return {
     inputs,
     metrics,
@@ -134,11 +134,12 @@ describe('setupCliInfrastructure', () => {
     h.inputs.teardownHandlers[0]?.();
     expect(h.disposeJevTools).toHaveBeenCalledOnce();
     expect(h.resolve).toHaveBeenCalledWith(TOKENS.SystemPromptBuilder);
-    expect(mocks.providerToolsForVariant).toHaveBeenCalledWith(
+    expect(mocks.providerToolSurfaceForVariant).toHaveBeenCalledWith(
       h.inputs.toolRegistry,
       'lite',
       undefined,
       h.inputs.provider,
+      undefined,
     );
     expect(h.build).toHaveBeenCalledWith({
       cwd: h.inputs.cwd,
@@ -188,11 +189,12 @@ describe('setupCliInfrastructure', () => {
       h.setConfig({ ...h.inputs.getConfig(), systemPrompt: undefined });
       await setupCliInfrastructure(h.inputs);
       expect(mocks.loadOnlineAgentsForPrompt).toHaveBeenCalledWith(h.inputs.wpaths.projectDir);
-      expect(mocks.providerToolsForVariant).toHaveBeenCalledWith(
+      expect(mocks.providerToolSurfaceForVariant).toHaveBeenCalledWith(
         h.inputs.toolRegistry,
         undefined,
         undefined,
         h.inputs.provider,
+        undefined,
       );
       const wiring = mocks.wireEventWiring.mock.calls[0]![0] as EventWiringInputs;
       expect(wiring.getActiveModeId()).toBe('plan');

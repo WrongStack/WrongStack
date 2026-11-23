@@ -1,8 +1,14 @@
+import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { LEAN_BENCH_TOOL_NAMES } from '../packages/bench/src/isolation.ts';
 import { browserTools, liveBrowser } from '../packages/browser-tools/dist/index.js';
-import { measureToolSchemas } from '../packages/core/dist/utils/index.js';
+import { providerToolSurfaceForVariant } from '../packages/core/dist/core/index.js';
+import { ToolRegistry } from '../packages/core/dist/registry/index.js';
+import {
+  compactToolDefinitionForWire,
+  measureToolSchemas,
+} from '../packages/core/dist/utils/index.js';
 import {
   browserTools as compatibilityBrowserTools,
   liveBrowser as compatibilityLiveBrowser,
@@ -45,15 +51,56 @@ const measurements = Object.fromEntries(
 );
 const lean = LEAN_BENCH_TOOL_NAMES;
 measurements['lean'] = measureToolSchemas(builtinTools.filter((tool) => lean.includes(tool.name)));
+const registry = new ToolRegistry();
+registry.registerAllOrThrow(builtinTools, 'builtin');
+const quickProfiles = {
+  quickLegacy: undefined,
+  quickV1: { quickToolSchemaVersion: 1 },
+  quickBash: { quickToolSchemaVersion: 2, quickShellTool: 'bash' },
+  quickPwsh: { quickToolSchemaVersion: 2, quickShellTool: 'pwsh' },
+} as const;
+const quickFingerprints = Object.fromEntries(
+  Object.entries(quickProfiles).map(([profile, session]) => {
+    const { tools } = providerToolSurfaceForVariant(
+      registry,
+      'quick',
+      undefined,
+      undefined,
+      session,
+    );
+    measurements[profile] = measureToolSchemas(tools);
+    return [
+      profile,
+      {
+        declarations: sha256(tools.map((tool) => compactToolDefinitionForWire(tool))),
+        usageHints: sha256(tools.map((tool) => tool.usageHint ?? '')),
+      },
+    ] as const;
+  }),
+);
+
+function sha256(value: unknown): string {
+  return createHash('sha256').update(JSON.stringify(value)).digest('hex');
+}
+
 const budgetUrl = new URL('architecture/tool-schema-budget.json', root);
 if (adoptBudget) {
   if (!write) throw new Error('--adopt-budget requires --write');
   await writeFile(
     budgetUrl,
-    `${JSON.stringify({ schemaVersion: 1, scope: 'Built-in schemas using the shared provider-wire projection; excludes system prompt and provider-specific wrappers.', estimator: 'runtime heuristic, not billed tokens', profiles: measurements }, null, 2)}\n`,
+    `${JSON.stringify({ schemaVersion: 1, scope: 'Built-in schemas using the shared provider-wire projection; Quick also fingerprints direct usage hints. Excludes provider-specific wrappers and host additions.', estimator: 'runtime heuristic, not billed tokens', profiles: measurements, quickFingerprints }, null, 2)}\n`,
   );
 }
 const budget = JSON.parse(await readFile(budgetUrl, 'utf8'));
+for (const [profile, fingerprints] of Object.entries(quickFingerprints)) {
+  for (const field of ['declarations', 'usageHints'] as const) {
+    if (budget.quickFingerprints?.[profile]?.[field] !== fingerprints[field]) {
+      problems.push(
+        `${profile}.${field}: Quick cache prefix input changed (SHA-256 ${fingerprints[field]}). Preserve the existing projection or review a new session version before adopting the fingerprint.`,
+      );
+    }
+  }
+}
 for (const [profile, measured] of Object.entries(measurements)) {
   for (const metric of ['count', 'wireBytes', 'estimatedTokens'] as const) {
     const limit = budget.profiles?.[profile]?.[metric];

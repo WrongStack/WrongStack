@@ -1,6 +1,6 @@
 import { TOKENS } from '@wrongstack/contracts/kernel';
 import type { SystemPromptBuilder } from '@wrongstack/contracts/types';
-import { providerToolsForVariant } from '@wrongstack/core/agent';
+import { providerToolSurfaceForVariant } from '@wrongstack/core/agent';
 import { registerJevTools } from '@wrongstack/tools/management';
 import { wireEventWiring } from './boot/event-wiring.js';
 import { loadOnlineAgentsForPrompt } from './cli-main-helpers.js';
@@ -84,11 +84,12 @@ export async function setupCliInfrastructure(inputs: {
   const systemPrompt = await promptBuilder.build({
     cwd,
     projectRoot,
-    tools: providerToolsForVariant(
+    ...providerToolSurfaceForVariant(
       toolRegistry,
       getConfig().systemPrompt?.variant,
       undefined,
       provider,
+      sessionRef.current,
     ),
     catalogTools: toolRegistry.list(),
     provider: getConfig().provider,

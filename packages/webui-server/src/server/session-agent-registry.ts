@@ -27,7 +27,7 @@ import type {
   SessionWriter,
   TokenCounter,
 } from '@wrongstack/contracts/types';
-import { Agent, Context, providerToolsForVariant } from '@wrongstack/core/agent';
+import { Agent, Context, providerToolSurfaceForVariant } from '@wrongstack/core/agent';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import { setSessionLeaderMetaResolver } from '@wrongstack/core/security';
 import { SESSION_SCOPED_PREF_KEYS } from './session-scoped-prefs.js';
@@ -422,7 +422,13 @@ export function createSessionAgentRegistry(
     // The run refreshes this surface; until then it must already be this
     // session's, not the leader's, or the context view prices the wrong tools.
     if (typeof agent.tools?.listForProvider === 'function') {
-      agent.ctx.tools = providerToolsForVariant(agent.tools, meta['systemPromptVariant'], meta);
+      agent.ctx.tools = providerToolSurfaceForVariant(
+        agent.tools,
+        meta['systemPromptVariant'],
+        meta,
+        agent.ctx.provider,
+        agent.ctx.session,
+      ).tools;
     }
     return agent;
   };

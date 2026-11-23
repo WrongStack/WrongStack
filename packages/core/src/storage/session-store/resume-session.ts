@@ -210,6 +210,8 @@ export async function executeResumeSession(params: ResumeSessionParams): Promise
         id: canonicalId,
         model: data.metadata.model,
         provider: data.metadata.provider,
+        quickToolSchemaVersion: data.metadata.quickToolSchemaVersion,
+        quickShellTool: data.metadata.quickShellTool,
         ...(projectRoot ? { checkout: projectRoot } : {}),
       },
       events,

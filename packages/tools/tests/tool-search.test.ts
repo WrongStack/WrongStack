@@ -1,5 +1,10 @@
+import { setSessionToolGroup } from '@wrongstack/core/agent';
 import { createToolOutputSerializer } from '@wrongstack/core/utils';
 import { describe, expect, it } from 'vitest';
+import {
+  clearRequestScopedBlocks,
+  requestScopedEntries,
+} from '../../core/src/core/request-scoped-context.js';
 import { kanbanTool } from '../src/kanban.js';
 import { toolSearchTool } from '../src/tool-search.js';
 
@@ -99,6 +104,70 @@ describe('toolSearchTool', () => {
     expect(result.tools[0]?.name).toBe('kanban');
     expect(schema.properties?.action?.enum).toContain('workbench');
     expect(schema.properties?.action?.enum).toContain('create_board');
+  });
+
+  it('lists Kanban operations in Quick and stages only the selected operation', async () => {
+    const ctx = { ...makeCtx([kanbanTool]), meta: { systemPromptVariant: 'quick' } };
+    setSessionToolGroup(ctx, 'kanban', 'on');
+    const menu = await executeToolSearch({ query: 'kanban' }, ctx);
+    expect(menu.hint).toContain('kanban:<action>');
+    expect(menu.hint).toContain('get_task');
+    expect(requestScopedEntries(ctx)).toEqual([]);
+
+    const selection = { query: 'kanban:get_task' };
+    const result = await executeToolSearch(selection, ctx);
+    expect(result.tools[0]).toMatchObject({ name: 'kanban', schemaRevision: expect.any(String) });
+    expect(toolSearchTool.serialize!(result, selection)).not.toContain('"taskId"');
+    const attachment = requestScopedEntries(ctx)[0]?.block.text ?? '';
+    const schema = JSON.parse(attachment.slice(attachment.indexOf('\n') + 1));
+    expect(schema).toMatchObject({
+      properties: {
+        action: { enum: ['get_task'] },
+        boardId: kanbanTool.inputSchema.properties?.['boardId'],
+        taskId: kanbanTool.inputSchema.properties?.['taskId'],
+      },
+      required: ['action', 'boardId', 'taskId'],
+    });
+    expect(Object.keys(schema.properties).sort()).toEqual(['action', 'boardId', 'taskId']);
+    expect(attachment.length).toBeLessThan(JSON.stringify(kanbanTool.inputSchema).length / 10);
+
+    const second = await executeToolSearch({ query: 'kanban:list_boards' }, ctx);
+    expect(second.tools[0]?.schemaRevision).not.toBe(result.tools[0]?.schemaRevision);
+    expect(requestScopedEntries(ctx)).toHaveLength(2);
+
+    setSessionToolGroup(ctx, 'kanban', 'off');
+    expect(requestScopedEntries(ctx)).toEqual([]);
+    const disabled = await executeToolSearch(selection, ctx);
+    expect(disabled.tools).toEqual([]);
+    expect(disabled.hint).not.toContain('list_boards');
+  });
+
+  it('supports every canonical Kanban action and retains explicit full-schema lookup', async () => {
+    const ctx = { ...makeCtx([kanbanTool]), meta: { systemPromptVariant: 'quick' } };
+    setSessionToolGroup(ctx, 'kanban', 'on');
+    const properties = kanbanTool.inputSchema.properties!;
+    const actions = properties['action']!.enum!;
+    for (const action of actions) {
+      const result = await executeToolSearch({ query: `kanban:${action}` }, ctx);
+      expect(result.tools[0]?.schemaRevision, String(action)).toBeDefined();
+      const attachment = requestScopedEntries(ctx)[0]!.block.text;
+      const schema = JSON.parse(attachment.slice(attachment.indexOf('\n') + 1));
+      expect(schema.properties.action.enum).toEqual([action]);
+      for (const [field, definition] of Object.entries(schema.properties)) {
+        if (field !== 'action') expect(definition, field).toEqual(properties[field]);
+      }
+      for (const field of schema.required)
+        expect(Object.hasOwn(schema.properties, field)).toBe(true);
+      clearRequestScopedBlocks(ctx);
+    }
+
+    const unknown = await executeToolSearch({ query: 'kanban:unknown' }, ctx);
+    expect(unknown.hint).toContain('Unknown Kanban action');
+    expect(requestScopedEntries(ctx)).toEqual([]);
+
+    await executeToolSearch({ query: 'kanban:*' }, ctx);
+    const full = requestScopedEntries(ctx)[0]!.block.text;
+    expect(JSON.parse(full.slice(full.lastIndexOf('\n') + 1))).toEqual(kanbanTool.inputSchema);
   });
 
   it('filters by description query', async () => {

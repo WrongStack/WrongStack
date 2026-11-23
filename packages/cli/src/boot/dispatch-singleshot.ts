@@ -14,7 +14,7 @@
 
 import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { JSONSchema, TokenCounter } from '@wrongstack/contracts/types';
-import { type Agent, providerToolsForVariant, type RunResult } from '@wrongstack/core/agent';
+import { type Agent, providerToolSurfaceForVariant, type RunResult } from '@wrongstack/core/agent';
 import { color, writeOut } from '@wrongstack/core/utils';
 import { contextOverflowHint } from '../context-overflow-diagnostic.js';
 import type { TerminalRenderer } from '../renderer.js';
@@ -61,11 +61,12 @@ interface SingleShotDispatchContext {
  */
 export function providerToolNames(agent: Pick<Agent, 'tools' | 'ctx'>): string[] {
   const meta = agent.ctx?.meta ?? {};
-  const tools = providerToolsForVariant(
+  const { tools } = providerToolSurfaceForVariant(
     agent.tools,
     meta['systemPromptVariant'],
     meta,
     agent.ctx?.provider,
+    agent.ctx?.activeRunSessionWriter ?? agent.ctx?.session,
   );
   return tools.map((tool) => tool.name);
 }

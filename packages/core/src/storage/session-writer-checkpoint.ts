@@ -210,6 +210,10 @@ export async function executeClearSession(ctx: ClearSessionContext): Promise<voi
     model: ctx.meta.model ?? 'unknown',
     provider: ctx.meta.provider ?? 'unknown',
     ...(ctx.meta.checkout ? { checkout: ctx.meta.checkout } : {}),
+    ...(ctx.meta.quickToolSchemaVersion !== undefined
+      ? { quickToolSchemaVersion: ctx.meta.quickToolSchemaVersion }
+      : {}),
+    ...(ctx.meta.quickShellTool ? { quickShellTool: ctx.meta.quickShellTool } : {}),
   })}\n`;
   await ctx.handle.close();
   await atomicWrite(ctx.filePath, record, { mode: 0o600 });

@@ -71,18 +71,22 @@ describe('applyHeadlessHarnessDefaults', () => {
 
 describe('providerToolNames', () => {
   const tool = (name: string) => ({ name }) as never;
+  const catalog = ['read', 'bash', 'pwsh', 'tool_search', 'tool_use', 'codebase-search'];
   const registry = {
-    list: () => ['read', 'bash', 'tool_search', 'tool_use', 'codebase-search'].map(tool),
-    listForProvider: () => ['read', 'bash', 'tool_search', 'tool_use', 'codebase-search'].map(tool),
-    listWithin: (names: ReadonlySet<string>) =>
-      ['read', 'bash', 'tool_search', 'tool_use', 'codebase-search']
-        .filter((n) => names.has(n))
-        .map(tool),
+    list: () => catalog.map(tool),
+    listForProvider: () => catalog.map(tool),
+    listWithin: (names: ReadonlySet<string>) => catalog.filter((name) => names.has(name)).map(tool),
   };
 
   it('reports what a Quick session sends, not the whole registry', () => {
-    const agent = { tools: registry, ctx: { meta: { systemPromptVariant: 'quick' } } } as never;
-    expect(providerToolNames(agent)).toEqual(['read', 'bash', 'tool_search', 'tool_use']);
+    const agent = {
+      tools: registry,
+      ctx: {
+        meta: { systemPromptVariant: 'quick' },
+        session: { quickToolSchemaVersion: 2, quickShellTool: 'pwsh' },
+      },
+    } as never;
+    expect(providerToolNames(agent)).toEqual(['read', 'pwsh', 'tool_search', 'tool_use']);
   });
 
   it('applies the provider filter the agent loop applies', () => {

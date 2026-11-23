@@ -5910,6 +5910,26 @@
       "count": 6,
       "wireBytes": 5304,
       "estimatedTokens": 1448
+    },
+    "quickLegacy": {
+      "count": 11,
+      "wireBytes": 14544,
+      "estimatedTokens": 4032
+    },
+    "quickV1": {
+      "count": 11,
+      "wireBytes": 9812,
+      "estimatedTokens": 2680
+    },
+    "quickBash": {
+      "count": 10,
+      "wireBytes": 8784,
+      "estimatedTokens": 2397
+    },
+    "quickPwsh": {
+      "count": 10,
+      "wireBytes": 8826,
+      "estimatedTokens": 2409
     }
   }
 }

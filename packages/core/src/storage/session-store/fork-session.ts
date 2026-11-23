@@ -96,6 +96,8 @@ export async function forkSession(
     title: '',
     model: activeIdentity?.model,
     provider: activeIdentity?.provider,
+    quickToolSchemaVersion: activeIdentity?.quickToolSchemaVersion ?? 0,
+    quickShellTool: activeIdentity?.quickShellTool,
   });
 
   try {

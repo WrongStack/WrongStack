@@ -172,6 +172,8 @@ export interface Tool<I = unknown, O = unknown> {
   /** Optional category for grouping in help lists and system prompts. */
   category?: string | undefined;
   inputSchema: JSONSchema;
+  /** Direct declaration and guidance for Quick schema version 1. The catalog retains the canonical tool. */
+  quickProjection?: Readonly<{ inputSchema: JSONSchema; usageHint: string }> | undefined;
   /**
    * Optional canonical JSON output contract for tools.data(name, input) in ToolFlow.
    * The executor validates and scrubs the value before exposing it. Text calls

@@ -103,7 +103,7 @@
       "relativeImports": 2
     },
     "packages/core/src/storage/file-session-writer.ts": {
-      "lines": 705,
+      "lines": 717,
       "relativeImports": 12
     },
     "packages/fleet/src/host-skill-companion.ts": {
@@ -241,6 +241,10 @@
     "packages/webui-server/src/server/memory-handlers.ts": {
       "lines": 777,
       "relativeImports": 5
+    },
+    "packages/webui-server/src/server/pre-context-services.ts": {
+      "lines": 705,
+      "relativeImports": 12
     },
     "packages/webui-server/src/server/pref-helpers.ts": {
       "lines": 713,

@@ -3,7 +3,7 @@ import {
   type Agent,
   type Context,
   isToolReachable,
-  providerToolsForVariant,
+  providerToolSurfaceForVariant,
   sessionToolCatalog,
 } from '@wrongstack/core/agent';
 import type { TrustBoundary } from '@wrongstack/core/security';
@@ -150,12 +150,13 @@ export function createMcpToolHandlers(deps: {
 function refreshSurface(agent: Agent): void {
   if (typeof agent.tools?.listForProvider !== 'function') return;
   const meta = agent.ctx.meta as Record<string, unknown>;
-  agent.ctx.tools = providerToolsForVariant(
+  agent.ctx.tools = providerToolSurfaceForVariant(
     agent.tools,
     meta['systemPromptVariant'],
     meta,
     agent.ctx.provider,
-  );
+    agent.ctx.activeRunSessionWriter ?? agent.ctx.session,
+  ).tools;
   agent.ctx.catalogTools = sessionToolCatalog(agent.ctx, agent.tools.list());
 }
 

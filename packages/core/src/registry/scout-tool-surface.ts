@@ -15,8 +15,10 @@
  */
 
 import type { Provider } from '@wrongstack/contracts/types/provider';
+import type { SessionMetadata } from '@wrongstack/contracts/types/session';
 import type { Tool } from '@wrongstack/contracts/types/tool';
 import { ToolCapabilities } from '../security/capabilities.js';
+import { estimateToolDefTokens } from '../utils/token-estimate.js';
 import type { ToolRegistry } from './tool-registry.js';
 
 /**
@@ -111,6 +113,42 @@ const QUICK_REQUIRED_SKILLS_DIRECT_TOOL_NAMES: ReadonlySet<string> = new Set([
 
 const SCOUT_DELEGATION_NAMES: ReadonlySet<string> = new Set(SCOUT_DELEGATION_TOOL_NAMES);
 const soloFallbacks = new WeakMap<Tool[], Tool[]>();
+const projectedQuickTools = new WeakMap<Tool[], Tool[]>();
+const quickShellSurfaces = {
+  bash: new WeakMap<Tool[], Tool[]>(),
+  pwsh: new WeakMap<Tool[], Tool[]>(),
+};
+
+function quickShellTool(
+  tools: readonly Tool[],
+  pinned: SessionMetadata['quickShellTool'],
+): SessionMetadata['quickShellTool'] {
+  if (
+    (pinned === 'bash' || pinned === 'pwsh') &&
+    tools.some((tool) => tool.name === pinned) &&
+    tools.some((tool) => tool.name === 'tool_search') &&
+    tools.some((tool) => tool.name === 'tool_use')
+  ) {
+    return pinned;
+  }
+  return undefined;
+}
+
+function quickToolProjection(tools: Tool[], shell: SessionMetadata['quickShellTool']): Tool[] {
+  const cache = shell ? quickShellSurfaces[shell] : projectedQuickTools;
+  const cached = cache.get(tools);
+  if (cached) return cached;
+  const alternateShell = shell === 'pwsh' ? 'bash' : 'pwsh';
+  const direct = shell ? tools.filter((tool) => tool.name !== alternateShell) : tools;
+  const projected = direct.map((tool) => {
+    if (!tool.quickProjection) return tool;
+    const view: Tool = { ...tool, ...tool.quickProjection, _estDefTokens: undefined };
+    view._estDefTokens = estimateToolDefTokens(view);
+    return view;
+  });
+  cache.set(tools, projected);
+  return projected;
+}
 
 /**
  * Session meta key: deferred tools this project keeps calling through
@@ -202,6 +240,21 @@ export function providerToolsForVariant(
           )
         : registry.listForProvider();
   return provider?.selectToolsForRequest?.(tools) ?? tools;
+}
+
+/** The direct request surface and its shell guidance for a specific journal. */
+export function providerToolSurfaceForVariant(
+  registry: Parameters<typeof providerToolsForVariant>[0],
+  variant: unknown,
+  meta: Parameters<typeof providerToolsForVariant>[2],
+  provider: Parameters<typeof providerToolsForVariant>[3],
+  session?: Pick<SessionMetadata, 'quickToolSchemaVersion' | 'quickShellTool'>,
+): { tools: Tool[]; quickShellTool?: SessionMetadata['quickShellTool'] } {
+  const direct = providerToolsForVariant(registry, variant, meta, provider);
+  const version = variant === 'quick' ? session?.quickToolSchemaVersion : undefined;
+  if (version !== 1 && version !== 2) return { tools: direct };
+  const shell = version === 2 ? quickShellTool(direct, session?.quickShellTool) : undefined;
+  return { tools: quickToolProjection(direct, shell), quickShellTool: shell };
 }
 
 function hasRequiredSkills(meta: Readonly<Record<string, unknown>> | undefined): boolean {

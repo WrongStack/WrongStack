@@ -74,6 +74,35 @@ export const clarifyTool: Tool<ClarifyQuestionInput, ClarifyOutput> = {
     'Pause and ask the user for required decisions in one structured, tabbed form. Supports single-select, multi-select, free text, option descriptions, write-ins, and explicitly recommended answers. Submit returns all answers to the model at once.',
   usageHint:
     'Prefer `tabs` with stable snake_case ids. Every decision should include a recommended answer and a short recommendationReason. Use `type: "text"` for free-form input. Bounds: 1-8 tabs, 1-12 questions per tab, and 2-8 labeled options per select question. Blank questions, empty tabs, and description-only options are invalid by design. `type` is canonical; legacy isMultiSelect flags may be used only when they do not conflict. Legacy `question`/`questions` inputs remain supported.',
+  quickProjection: {
+    usageHint:
+      'Ask one question and recommend an answer with a short reason. For grouped forms, look up clarify with tool_search and pass the full form to tool_use.',
+    inputSchema: {
+      type: 'object',
+      description:
+        'Ask one question. For grouped forms, look up clarify with tool_search and pass the full form to tool_use.',
+      properties: {
+        question: { type: 'string', minLength: 1, description: 'Decision the user needs to make.' },
+        context: { type: 'string', description: 'Optional decision context.' },
+        type: { type: 'string', enum: ['single_select', 'multi_select', 'text'] },
+        options: {
+          ...optionArraySchema(),
+          description: 'Two to eight choices for a select question.',
+        },
+        recommendedOption: { type: 'string', description: 'Recommended option id or label.' },
+        recommendedOptions: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Recommended choices for multi-select.',
+        },
+        recommendedText: { type: 'string', description: 'Suggested answer for a text question.' },
+        recommendationReason: { type: 'string', description: 'Why this answer is recommended.' },
+        allowCustomResponse: { type: 'boolean', description: 'Allow a write-in answer.' },
+      },
+      required: ['question'],
+      additionalProperties: false,
+    },
+  },
   inputSchema: {
     type: 'object',
     properties: {

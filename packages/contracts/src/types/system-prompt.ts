@@ -19,6 +19,8 @@ export interface BuildContext {
   tools: Tool[];
   /** Complete enabled catalog, including tools reachable only through lazy gateways. */
   catalogTools?: Tool[] | undefined;
+  /** Direct Quick shell when the alternative is deferred. */
+  quickShellTool?: 'bash' | 'pwsh' | undefined;
   /** Provider id (e.g. "anthropic", "minimax-coding-plan"). */
   provider?: string | undefined;
   /** Model id (e.g. "configured-model", "MiniMax-M2.7"). */

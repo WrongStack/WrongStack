@@ -10,6 +10,10 @@ export interface SessionMetadata {
   model?: string | undefined;
   provider?: string | undefined;
   startedAt: string;
+  /** Provider tool projection pinned when the session was created. */
+  quickToolSchemaVersion?: number | undefined;
+  /** Shell whose schema is sent directly in Quick. */
+  quickShellTool?: 'bash' | 'pwsh' | undefined;
   endedAt?: string | undefined;
   /**
    * Tool calls the previous run had issued but not resolved when it closed,

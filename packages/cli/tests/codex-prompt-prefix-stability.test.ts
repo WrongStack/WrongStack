@@ -27,6 +27,7 @@ import {
   type Provider,
   type Request,
   type Response,
+  type SessionWriter,
 } from '@wrongstack/contracts/types';
 import {
   Agent,
@@ -40,7 +41,8 @@ import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultPermissionPolicy, DefaultSecretScrubber } from '@wrongstack/core/security';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
 import { diffCacheProbe, fingerprintCacheProbe, OpenAICodexProvider } from '@wrongstack/providers';
-import { afterEach, describe, expect, it } from 'vitest';
+import { clarifyTool } from '@wrongstack/tools';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { removeProjectFixtureDirectory } from '../../core/tests/helpers/project-server-harness.js';
 import { OpenAIResponsesProvider } from '../../providers/src/openai-responses.js';
 
@@ -153,6 +155,7 @@ async function runSession(
   owningSessionId?: string,
   providerId = 'openai-codex',
   withChurningMiddleware = false,
+  quickSession?: SessionWriter,
 ): Promise<Request[]> {
   const container = new Container();
   container.bind(TOKENS.Logger, () => new DefaultLogger({ level: 'error', stderr: false }));
@@ -184,11 +187,18 @@ async function runSession(
   const tools = new ToolRegistry();
   tools.register(fakeTool('read', `file body\n${'line of source\n'.repeat(40)}`) as never);
   tools.register(fakeTool('bash', `command output\n${'stdout line\n'.repeat(40)}`) as never);
+  if (quickSession) {
+    tools.register(clarifyTool);
+    for (const name of ['pwsh', 'tool_search', 'tool_use']) {
+      tools.register(fakeTool(name, 'ok') as never);
+    }
+  }
 
   const provider = new RecordingProvider(providerId);
   const events = new EventBus();
   const sessionStore = new DefaultSessionStore({ dir: path.join(tmp, 'sessions') });
-  const session = await sessionStore.create({ id: '', model: 'gpt-5.4', provider: providerId });
+  const session =
+    quickSession ?? (await sessionStore.create({ id: '', model: 'gpt-5.4', provider: providerId }));
 
   const ctx = new Context({
     systemPrompt: [{ type: 'text', text: 'placeholder — replaced by the first refresh' }],
@@ -201,6 +211,7 @@ async function runSession(
     model: 'gpt-5.4',
   } as never);
   if (owningSessionId) ctx.meta['sessionId'] = owningSessionId;
+  if (quickSession) ctx.meta['systemPromptVariant'] = 'quick';
 
   const pipelines = createDefaultPipelines();
   if (withChurningMiddleware) pipelines.request.use(churningMemoryMiddleware() as never);
@@ -229,6 +240,11 @@ async function runSession(
     const result = await agent.run(`turn ${t}: inspect the code`);
     // A failed run would leave a short, misleadingly stable history.
     expect(result.status).toBe('done');
+  }
+  if (quickSession) {
+    expect(ctx.catalogTools?.find((tool) => tool.name === 'clarify')?.inputSchema).toEqual(
+      clarifyTool.inputSchema,
+    );
   }
   return provider.received;
 }
@@ -291,8 +307,88 @@ async function wireBodies(
 describe('openai-codex prompt prefix stability', () => {
   let tmp = '';
   afterEach(async () => {
+    vi.unstubAllEnvs();
     if (tmp) await removeProjectFixtureDirectory(tmp, { maxRetries: 10, retryDelay: 50 });
     tmp = '';
+  });
+
+  it('pins the Quick wire schema across reopen, fork and clear while preserving legacy schemas', async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'quick-schema-resume-'));
+    const providerId = 'openai-chatgpt';
+    const store = new DefaultSessionStore({ dir: path.join(tmp, 'sessions') });
+    vi.stubEnv('WRONGSTACK_SHELL', 'pwsh.exe');
+    const session = await store.create({ id: '', model: 'gpt-5.4', provider: providerId });
+    const selectedShell = process.platform === 'win32' ? 'pwsh' : 'bash';
+    expect(session.quickShellTool).toBe(selectedShell);
+    const fresh = await runSession(tmp, undefined, providerId, false, session);
+    await session.close();
+    vi.stubEnv('WRONGSTACK_SHELL', 'cmd');
+    const resumed = await store.resume(session.id);
+    const afterResume = await runSession(tmp, undefined, providerId, false, resumed.writer);
+    await resumed.writer.close();
+
+    const legacy = await store.create({ id: '', model: 'gpt-5.4', provider: providerId });
+    await legacy.close();
+    await fs.writeFile(
+      legacy.transcriptPath!,
+      `${JSON.stringify({
+        type: 'session_start',
+        ts: new Date().toISOString(),
+        id: legacy.id,
+        model: 'gpt-5.4',
+        provider: providerId,
+      })}\n`,
+    );
+    const reopenedLegacy = await store.resume(legacy.id);
+    const legacyRequests = await runSession(
+      tmp,
+      undefined,
+      providerId,
+      false,
+      reopenedLegacy.writer,
+    );
+    await reopenedLegacy.writer.close();
+
+    const compactBodies = await wireBodies([...fresh, ...afterResume], providerId);
+    const fullBodies = await wireBodies(legacyRequests, providerId);
+    const wireTools = (body: Record<string, unknown>) => {
+      const namespaces = body['tools'] as {
+        tools: { name: string; parameters: unknown }[];
+      }[];
+      return namespaces.flatMap(({ tools }) => tools);
+    };
+    const wireShells = (body: Record<string, unknown>) =>
+      wireTools(body)
+        .map((tool) => tool.name)
+        .filter((name) => name === 'pwsh' || name === 'bash');
+    const wireSchema = (body: Record<string, unknown>) =>
+      wireTools(body).find((tool) => tool.name === 'clarify')?.parameters;
+    const compact = wireSchema(compactBodies[0]!);
+    const full = wireSchema(fullBodies[0]!);
+    expect(compact).toMatchObject({ required: ['question'] });
+    expect(compact).not.toHaveProperty('properties.tabs');
+    expect(full).toHaveProperty('properties.tabs');
+    expect(wireShells(compactBodies[0]!)).toEqual([selectedShell]);
+    expect(wireShells(fullBodies[0]!).sort()).toEqual(['bash', 'pwsh']);
+    expect(new Set(compactBodies.map((body) => JSON.stringify(body['tools']))).size).toBe(1);
+    expect(JSON.stringify(compact).length).toBeLessThan(JSON.stringify(full).length / 2);
+    expect(
+      compactBodies.every((body) => JSON.stringify(wireSchema(body)) === JSON.stringify(compact)),
+    ).toBe(true);
+    expect(new Set(compactBodies.map((body) => body['prompt_cache_key'])).size).toBe(1);
+    expect(new Set([...fresh, ...afterResume].map((request) => request.cache?.key)).size).toBe(1);
+    expect(fresh[0]?.tools?.find((tool) => tool.name === 'clarify')?.usageHint).toContain(
+      'Ask one question',
+    );
+    const fork = await store.fork(session.id);
+    expect(fork.data.metadata.quickShellTool).toBe(selectedShell);
+    await store.clearHistory(session.id);
+    const afterClear = await store.resume(session.id);
+    expect(afterClear.writer.quickToolSchemaVersion).toBe(session.quickToolSchemaVersion);
+    expect(afterClear.writer.quickShellTool).toBe(selectedShell);
+    await afterClear.writer.clearSession();
+    await afterClear.writer.close();
+    expect((await store.load(session.id)).metadata.quickShellTool).toBe(selectedShell);
   });
 
   it('keeps instructions, tools and the cache key byte-identical across turns', async () => {

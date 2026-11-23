@@ -122,7 +122,7 @@
         "export { isToolReachable, reachableTools, reachesCatalog, } from '../registry/session-tool-reach.js';",
         "export { keepsOwnContext } from './agent-owned-context.js';",
         "export { markUserInputObserver, userInputObserverCount } from '../hooks/user-input-observers.js';",
-        "export { providerToolsForVariant, SCOUT_DIRECT_TOOL_NAMES, } from '../registry/scout-tool-surface.js';",
+        "export { providerToolSurfaceForVariant, providerToolsForVariant, SCOUT_DIRECT_TOOL_NAMES, } from '../registry/scout-tool-surface.js';",
         "export { readUserInstructions, type UserInstructionsDocument, userInstructionsFile, writeUserInstructions, } from './project-instructions.js';",
         "export { resolveOwningSessionId } from './context-session-id.js';",
         "export { runProviderWithRetry } from './provider-runner.js';",
@@ -1094,7 +1094,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 82,
-      "sourceLines": 17580
+      "sourceLines": 17586
     },
     {
       "directory": "design",
@@ -1185,7 +1185,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime composition",
       "sourceFiles": 13,
-      "sourceLines": 2373
+      "sourceLines": 2426
     },
     {
       "directory": "replay",
@@ -1234,7 +1234,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 129,
-      "sourceLines": 29985
+      "sourceLines": 30057
     },
     {
       "directory": "tasking",
@@ -1254,8 +1254,8 @@
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
-      "sourceFiles": 97,
-      "sourceLines": 15809
+      "sourceFiles": 98,
+      "sourceLines": 15824
     },
     {
       "directory": "vcs",

@@ -12,6 +12,7 @@ import type {
 import { restrictFilePermissions } from '../../security/file-permissions.js';
 import type { SessionCatalogProjectClient } from '../../session-catalog/client.js';
 import { withFileLock } from '../../utils/atomic-write.js';
+import { effectiveShell } from '../../utils/effective-shell.js';
 import { toErrorMessage } from '../../utils/index.js';
 import type { EventBus } from '../event-bus-port.js';
 import { FileSessionWriter } from '../file-session-writer.js';
@@ -186,29 +187,48 @@ export async function executeCreateSession(
   // prior session's artifacts.
   await host.invalidateShardManifestBySessionId(id).catch(() => undefined);
   try {
-    const writer = new FileSessionWriter(id, handle, startedAt, meta, host.events, {
-      dir: shardDir,
-      filePath: file,
-      secretScrubber: host.secretScrubber,
-      checkpointCas: host.checkpointCas,
-      onAppend: host.onAppend,
-      onAppendBatch: host.onAppendBatch,
-      resolveName: async () => {
-        // Strict: an unreadable manifest must not read as "no name" (see finalize).
-        const current = await host.readSummaryManifest(id, undefined, true);
-        if (!current) return null;
-        return current.name === undefined
-          ? {}
-          : { name: sessionContentText(host.secretScrubber.scrub(current.name)) };
+    const writer = new FileSessionWriter(
+      id,
+      handle,
+      startedAt,
+      {
+        ...meta,
+        quickToolSchemaVersion: meta.quickToolSchemaVersion ?? 2,
+        // Only a newly created session gets a platform-derived shell. A fork
+        // supplies the source version and keeps the source's recorded choice.
+        quickShellTool:
+          meta.quickToolSchemaVersion === undefined
+            ? (meta.quickShellTool ??
+              (effectiveShell(process.platform, process.env['WRONGSTACK_SHELL']) === 'pwsh'
+                ? 'pwsh'
+                : 'bash'))
+            : meta.quickShellTool,
       },
-      onClose: async (s) => {
-        await host.persistCatalogSummary(s);
-        if (host.autoArchive) void host.archiveIdle().catch(() => undefined);
+      host.events,
+      {
+        dir: shardDir,
+        filePath: file,
+        secretScrubber: host.secretScrubber,
+        checkpointCas: host.checkpointCas,
+        onAppend: host.onAppend,
+        onAppendBatch: host.onAppendBatch,
+        resolveName: async () => {
+          // Strict: an unreadable manifest must not read as "no name" (see finalize).
+          const current = await host.readSummaryManifest(id, undefined, true);
+          if (!current) return null;
+          return current.name === undefined
+            ? {}
+            : { name: sessionContentText(host.secretScrubber.scrub(current.name)) };
+        },
+        onClose: async (s) => {
+          await host.persistCatalogSummary(s);
+          if (host.autoArchive) void host.archiveIdle().catch(() => undefined);
+        },
+        // Mid-session metadata checkpoints reuse the same sink as close so
+        // killed sessions leave accurate index rows / catalog entries behind.
+        onMetadataCheckpoint: (s) => host.persistCatalogSummary(s),
       },
-      // Mid-session metadata checkpoints reuse the same sink as close so
-      // killed sessions leave accurate index rows / catalog entries behind.
-      onMetadataCheckpoint: (s) => host.persistCatalogSummary(s),
-    });
+    );
     emitSessionStoreWrite(host.events, id, file, 'create', 'success', Date.now() - t0);
     return writer;
   } catch (err) {

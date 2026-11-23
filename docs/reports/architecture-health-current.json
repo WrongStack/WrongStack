@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T00:19:45.266Z",
+  "generatedAt": "2026-11-23T00:21:23.862Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 50,
-    "sourceFiles": 6488,
+    "sourceFiles": 6490,
     "testFiles": 5721,
-    "sourceLines": 1326668,
+    "sourceLines": 1327185,
     "workspaceEdges": 259,
-    "moduleEdges": 18963,
+    "moduleEdges": 18972,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -402,7 +402,7 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 663,
+      "sourceFiles": 664,
       "testFiles": 761,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
@@ -1060,7 +1060,7 @@
     {
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
-      "sourceFiles": 347,
+      "sourceFiles": 348,
       "testFiles": 391,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
@@ -36814,7 +36814,7 @@
     },
     {
       "file": "packages/core/src/storage/file-session-writer.ts",
-      "lines": 705,
+      "lines": 717,
       "relativeImports": 12
     },
     {
@@ -36986,6 +36986,11 @@
       "file": "packages/webui-server/src/server/memory-handlers.ts",
       "lines": 777,
       "relativeImports": 5
+    },
+    {
+      "file": "packages/webui-server/src/server/pre-context-services.ts",
+      "lines": 705,
+      "relativeImports": 12
     },
     {
       "file": "packages/webui-server/src/server/pref-helpers.ts",

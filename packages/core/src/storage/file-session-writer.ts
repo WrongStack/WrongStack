@@ -291,6 +291,14 @@ export class FileSessionWriter implements SessionWriter {
     return this.summaryTracker.pendingToolUses;
   }
 
+  get quickToolSchemaVersion(): number | undefined {
+    return this.meta.quickToolSchemaVersion;
+  }
+
+  get quickShellTool(): SessionMetadata['quickShellTool'] {
+    return this.meta.quickShellTool;
+  }
+
   private async writeSessionStartLazy(): Promise<void> {
     // Keep the lifecycle preamble in the same retryable buffer as every other
     // reconstruct event. Writing it through a separate one-shot append meant
@@ -305,6 +313,10 @@ export class FileSessionWriter implements SessionWriter {
       model: this.meta.model ?? 'unknown',
       provider: this.meta.provider ?? 'unknown',
       ...(this.meta.checkout ? { checkout: this.meta.checkout } : {}),
+      ...(this.quickToolSchemaVersion !== undefined
+        ? { quickToolSchemaVersion: this.quickToolSchemaVersion }
+        : {}),
+      ...(this.quickShellTool ? { quickShellTool: this.quickShellTool } : {}),
       seq: preambleSeq,
     });
   }

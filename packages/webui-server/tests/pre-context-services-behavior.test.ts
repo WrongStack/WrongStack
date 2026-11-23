@@ -64,7 +64,9 @@ vi.mock('@wrongstack/core/agent', () => ({
     }
     build = mocks.systemPromptBuild;
   },
-  providerToolsForVariant: (registry: { listForProvider(): unknown }) => registry.listForProvider(),
+  providerToolSurfaceForVariant: (registry: { listForProvider(): unknown }) => ({
+    tools: registry.listForProvider(),
+  }),
 }));
 vi.mock('@wrongstack/coordination', () => ({
   getSharedProjectMailbox: vi.fn(() => ({ getAgentStatuses: mocks.getAgentStatuses })),

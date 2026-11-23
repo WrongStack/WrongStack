@@ -107,4 +107,18 @@ describe('buildEnvironment — shell wiring (platform-gated)', () => {
       expect(env).toContain('- Shell: ');
     }
   });
+
+  it('uses distinct cached guidance for the portable shell and the direct PowerShell tool', async () => {
+    const builder = new DefaultSystemPromptBuilder({ todayIso: '2026-05-13' });
+    const context = { cwd: tmp, projectRoot: tmp, systemVariant: 'quick' as const };
+    process.env['WRONGSTACK_SHELL'] = 'pwsh';
+    const portable = await builder.build({ ...context, tools: [bashTool] });
+    const native = await builder.build({
+      ...context,
+      tools: [{ ...bashTool, name: 'pwsh' }],
+      quickShellTool: 'pwsh',
+    });
+    expect(native[2]?.text).toContain('The `pwsh` tool runs **PowerShell**');
+    expect(portable[2]?.text).not.toContain('The `pwsh` tool runs **PowerShell**');
+  });
 });

@@ -1,5 +1,7 @@
 import type { Tool } from '@wrongstack/contracts/types';
-import { stageDeferredToolSchema } from '@wrongstack/core/agent';
+import { isToolReachable, stageDeferredToolSchema } from '@wrongstack/core/agent';
+import { KANBAN_ACTIONS, kanbanActionSchema } from './kanban-action-schema.js';
+import { KANBAN_INPUT_SCHEMA } from './kanban-tool-schema.js';
 import { toolDiscoveryMetadata } from './tool-discovery-metadata.js';
 
 export interface ToolSearchInput {
@@ -115,11 +117,18 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
     const tools = ctx.catalogTools ?? ctx.tools;
     const query = input.query?.toLowerCase() ?? '';
     const quick = ctx.meta?.['systemPromptVariant'] === 'quick';
+    const actionQuery =
+      quick && query.trim().startsWith('kanban:')
+        ? query.trim().slice('kanban:'.length).trim()
+        : undefined;
     const scores = new Map<Tool, number>();
 
     const filtered = tools.filter((t: Tool) => {
+      const builtinKanban = t.name === 'kanban' && t.inputSchema === KANBAN_INPUT_SCHEMA;
+      if (actionQuery !== undefined && !builtinKanban) return false;
+      if (quick && builtinKanban && !isToolReachable(ctx, t.name, t)) return false;
       if (query) {
-        const score = queryScore(t, query);
+        const score = actionQuery === undefined ? queryScore(t, query) : 2_000;
         if (score === 0) return false;
         scores.set(t, score);
       }
@@ -163,7 +172,20 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
     if (query) filtered.sort((x, y) => (scores.get(y) ?? 0) - (scores.get(x) ?? 0));
     const best = filtered[0];
     const exact = quick && best && scores.get(best) === 2_000 ? best : undefined;
-    const schemaRevision = exact ? stageDeferredToolSchema(ctx, exact) : undefined;
+    const exactKanban = exact?.name === 'kanban' && exact.inputSchema === KANBAN_INPUT_SCHEMA;
+    const operation =
+      exactKanban && actionQuery !== undefined ? kanbanActionSchema(actionQuery) : undefined;
+    const showActions = exactKanban && !operation && actionQuery !== '*';
+    const schemaRevision =
+      exact && !showActions
+        ? stageDeferredToolSchema(
+            ctx,
+            exact,
+            operation && actionQuery !== undefined
+              ? { action: actionQuery, inputSchema: operation }
+              : undefined,
+          )
+        : undefined;
     // Full schemas only for the leading matches: a 20-result answer carrying
     // every schema and usage hint cost ~29 KB of context, most of it for tools
     // the model never calls. The rest stay identifiable by name and a short
@@ -207,8 +229,9 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
     // qualified `mcp__github__search`, or mistype one segment — the ranked
     // scorer above scores all of those as zero hits.
     const mcpSuggestions = results.length === 0 && query ? nearestMcpTools(tools, query) : [];
-    const hint =
-      excludedByFilters > 0
+    const hint = showActions
+      ? `${actionQuery === undefined ? '' : 'Unknown Kanban action. '}Search "kanban:<action>" for one input schema, or "kanban:*" for the complete schema. Actions: ${KANBAN_ACTIONS.join(', ')}.`
+      : excludedByFilters > 0
         ? `${excludedByFilters} tool(s) match "${input.query}" but the tags/permission/mutating filters excluded them; search again without those filters.`
         : mcpSuggestions.length > 0
           ? `Might the tool you're looking for be in this MCP? ${mcpSuggestions

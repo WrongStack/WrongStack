@@ -22,7 +22,7 @@ import {
 import {
   type Context,
   DefaultSystemPromptBuilder,
-  providerToolsForVariant,
+  providerToolSurfaceForVariant,
   type SystemInstructionVariant,
 } from '@wrongstack/core/agent';
 import type { ToolRegistry } from '@wrongstack/core/registry';
@@ -174,18 +174,19 @@ export async function rebuildSystemPrompt(
       config,
     }),
   });
-  const tools = providerToolsForVariant(
+  const surface = providerToolSurfaceForVariant(
     deps.toolRegistry,
     variant,
     deps.context.meta,
     deps.context.provider,
+    deps.context.activeRunSessionWriter ?? deps.context.session,
   );
   // The surface moves with the identity; the context view reads it from here.
-  deps.context.tools = tools;
+  deps.context.tools = surface.tools;
   deps.context.systemPrompt = await builder.build({
     cwd: deps.projectRoot,
     projectRoot: deps.projectRoot,
-    tools,
+    ...surface,
     catalogTools: deps.toolRegistry.list(),
     provider: config.provider,
     model: config.model,

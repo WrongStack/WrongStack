@@ -1,5 +1,6 @@
 export { markUserInputObserver, userInputObserverCount } from '../hooks/user-input-observers.js';
 export {
+  providerToolSurfaceForVariant,
   providerToolsForVariant,
   SCOUT_DIRECT_TOOL_NAMES,
 } from '../registry/scout-tool-surface.js';

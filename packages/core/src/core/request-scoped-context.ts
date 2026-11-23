@@ -60,21 +60,27 @@ export function requestScopedEntries(ctx: object): readonly RequestLayoutTailEnt
 }
 
 /** Keep the complete input contract out of durable tool-result history. */
-export function stageDeferredToolSchema(ctx: SchemaContext, tool: Tool): string {
-  const schema = stableStringify(tool.inputSchema);
+export function stageDeferredToolSchema(
+  ctx: SchemaContext,
+  tool: Tool,
+  operation?: { action: string; inputSchema: Tool['inputSchema'] },
+): string {
+  const schema = stableStringify(operation?.inputSchema ?? tool.inputSchema);
   const revision = createHash('sha256').update(schema).digest('hex').slice(0, 16);
   let schemas = deferred.get(ctx);
   if (!schemas) {
     schemas = new Map();
     deferred.set(ctx, schemas);
   }
-  schemas.set(tool.name, {
+  schemas.set(JSON.stringify([tool.name, operation?.action]), {
     tool,
     sessionId: ctx.eventSessionId?.(),
     groupRevision: sessionToolGroupRevision(ctx, tool),
     block: {
       type: 'text',
-      text: `Deferred tool schema for ${tool.name} (revision ${revision}). Call it through tool_use with input matching this schema.\n${tool.description}\n${schema}`,
+      text: operation
+        ? `Deferred tool schema for ${tool.name}:${operation.action} (revision ${revision}). Call tool_use with tool "${tool.name}" and input matching this schema.\n${schema}`
+        : `Deferred tool schema for ${tool.name} (revision ${revision}). Call it through tool_use with input matching this schema.\n${tool.description}\n${schema}`,
     },
   });
   return revision;

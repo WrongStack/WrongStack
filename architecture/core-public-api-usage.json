@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 543,
+      "files": 544,
       "typeOnly": 400,
-      "runtimeOrMixed": 175
+      "runtimeOrMixed": 176
     },
     "@wrongstack/core/boot": {
       "files": 6,
@@ -2504,6 +2504,12 @@
       "file": "packages/tools/tests/todo-identity-regression.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/tool-search.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",

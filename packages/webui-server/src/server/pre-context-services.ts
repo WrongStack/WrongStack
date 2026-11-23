@@ -48,7 +48,7 @@ import {
 import {
   Context,
   DefaultSystemPromptBuilder,
-  providerToolsForVariant,
+  providerToolSurfaceForVariant,
 } from '@wrongstack/core/agent';
 import { DefaultPromptLoader, DefaultSkillLoader } from '@wrongstack/core/execution';
 import { DefaultTokenCounter, resolveMcpServerConfig } from '@wrongstack/core/infrastructure';
@@ -618,7 +618,13 @@ export async function createPreContextServices(
   const systemPrompt = await systemPromptBuilder.build({
     cwd: projectRoot,
     projectRoot,
-    tools: providerToolsForVariant(toolRegistry, config.systemPrompt?.variant, undefined, provider),
+    ...providerToolSurfaceForVariant(
+      toolRegistry,
+      config.systemPrompt?.variant,
+      undefined,
+      provider,
+      session,
+    ),
     catalogTools: toolRegistry.list(),
     provider: config.provider,
     model: config.model,

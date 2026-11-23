@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
+import type { SessionMetadata } from '@wrongstack/contracts/types/session';
 import type { SessionCatalogProjectClient } from '../../session-catalog/client.js';
 import { atomicWrite } from '../../utils/atomic-write.js';
+import { createTranscriptLineReader } from './transcript-io.js';
 
 export interface ClearSessionHistoryParams {
   id: string;
@@ -44,17 +46,18 @@ export async function executeClearSessionHistory(params: ClearSessionHistoryPara
   const metaBackup = `${meta}${backupSuffix}`;
   let fileStaged = false;
   let metaStaged = false;
-  const record = `${JSON.stringify({
-    type: 'session_start',
-    ts: new Date().toISOString(),
-    id: canonical,
-    model: 'unknown',
-    provider: 'unknown',
-  })}\n`;
-
   try {
     fileStaged = await moveAside(file, fileBackup);
     metaStaged = await moveAside(meta, metaBackup);
+    const quickToolPins = fileStaged ? await readQuickToolPins(fileBackup) : {};
+    const record = `${JSON.stringify({
+      type: 'session_start',
+      ts: new Date().toISOString(),
+      id: canonical,
+      model: 'unknown',
+      provider: 'unknown',
+      ...quickToolPins,
+    })}\n`;
     await atomicWrite(file, record);
     if (catalogClient) {
       const now = new Date().toISOString();
@@ -101,6 +104,33 @@ export async function executeClearSessionHistory(params: ClearSessionHistoryPara
       // will revalidate on next access and heal the stale entry automatically.
     }
   }
+}
+
+async function readQuickToolPins(
+  file: string,
+): Promise<Pick<SessionMetadata, 'quickToolSchemaVersion' | 'quickShellTool'>> {
+  const reader = createTranscriptLineReader(file);
+  try {
+    for await (const line of reader.lines) {
+      if (!line.trim()) continue;
+      const header = JSON.parse(line);
+      if (header?.type === 'session_start') {
+        const { quickToolSchemaVersion, quickShellTool } = header;
+        return {
+          quickToolSchemaVersion:
+            typeof quickToolSchemaVersion === 'number' ? quickToolSchemaVersion : undefined,
+          quickShellTool:
+            quickShellTool === 'bash' || quickShellTool === 'pwsh' ? quickShellTool : undefined,
+        };
+      }
+      break;
+    }
+  } catch {
+    // Legacy or damaged journals can still be cleared.
+  } finally {
+    reader.close();
+  }
+  return {};
 }
 
 /** Rename `from` to `to`; false when there was nothing to move. */

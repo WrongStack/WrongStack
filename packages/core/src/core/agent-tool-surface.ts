@@ -2,7 +2,7 @@ import type { Container } from '@wrongstack/contracts/kernel/container';
 import { TOKENS } from '@wrongstack/contracts/kernel/tokens';
 import type { Provider } from '@wrongstack/contracts/types/provider';
 import type { BuildContext, SystemPromptBuilder } from '@wrongstack/contracts/types/system-prompt';
-import { providerToolsForVariant } from '../registry/scout-tool-surface.js';
+import { providerToolSurfaceForVariant } from '../registry/scout-tool-surface.js';
 import {
   sessionToolCatalog,
   setSessionToolGroupGovernance,
@@ -26,7 +26,14 @@ export async function refreshAgentToolSurface(
   const meta = ctx.meta ?? {};
   const config = agent.container?.safeResolve?.(TOKENS.ConfigStore)?.get?.();
   if (config) setSessionToolGroupGovernance(ctx, config.tools?.kanbanGovernance === true);
-  const tools = providerToolsForVariant(agent.tools, meta['systemPromptVariant'], meta, provider);
+  const variant = meta['systemPromptVariant'];
+  const { tools, quickShellTool } = providerToolSurfaceForVariant(
+    agent.tools,
+    variant,
+    meta,
+    provider,
+    ctx.activeRunSessionWriter ?? ctx.session,
+  );
   const catalogTools = sessionToolCatalog(ctx, agent.tools.list());
   const changed = ctx.tools !== tools;
   ctx.tools = tools;
@@ -34,7 +41,6 @@ export async function refreshAgentToolSurface(
   if (!refreshPrompt || (!changed && !forcePrompt)) return;
   const builder = agent.container.safeResolve<SystemPromptBuilder>(TOKENS.SystemPromptBuilder);
   if (!builder) return;
-  const variant = meta['systemPromptVariant'];
   const autonomy = meta['autonomy'];
   const onlineAgents = Array.isArray(meta['promptOnlineAgents'])
     ? (meta['promptOnlineAgents'] as NonNullable<BuildContext['onlineAgents']>)
@@ -44,6 +50,7 @@ export async function refreshAgentToolSurface(
     projectRoot: ctx.projectRoot,
     tools,
     catalogTools,
+    quickShellTool,
     provider: provider.id,
     model,
     onlineAgents,

@@ -71,7 +71,7 @@ describe('introspection answers about the asking session', () => {
   it('changes a Quick group on the selected tab and rejects a missing tab', async () => {
     const { ctx, sent } = makeContext();
     const registry = new ToolRegistry();
-    for (const name of ['kanban', 'tool_search', 'tool_use']) {
+    for (const name of ['kanban', 'bash', 'pwsh', 'tool_search', 'tool_use']) {
       registry.register({
         name,
         inputSchema: {},
@@ -87,6 +87,10 @@ describe('introspection answers about the asking session', () => {
       Object.assign(agent, { tools: registry });
       Object.assign(agent.ctx, { meta: { systemPromptVariant: 'quick' } });
     }
+    Object.assign(ctx.getAgent?.('tab-2')?.ctx.session ?? {}, {
+      quickToolSchemaVersion: 2,
+      quickShellTool: 'pwsh',
+    });
     await handleIntrospectionRoute(ctx, ws, {
       type: 'tools.group.set',
       payload: { sessionId: 'missing', group: 'kanban', mode: 'on' },
@@ -102,6 +106,10 @@ describe('introspection answers about the asking session', () => {
       toolGroups: expect.arrayContaining([
         expect.objectContaining({ group: 'kanban', mode: 'on', enabled: true, required: false }),
       ]),
+      tools: expect.arrayContaining([
+        expect.objectContaining({ name: 'bash', direct: false }),
+        expect.objectContaining({ name: 'pwsh', direct: true }),
+      ]),
     });
     await handleIntrospectionRoute(ctx, ws, {
       type: 'tools.list',
@@ -114,6 +122,8 @@ describe('introspection answers about the asking session', () => {
       ]),
       tools: expect.arrayContaining([
         expect.objectContaining({ name: 'kanban', groupDisabled: true, direct: false }),
+        expect.objectContaining({ name: 'bash', direct: true }),
+        expect.objectContaining({ name: 'pwsh', direct: true }),
       ]),
     });
   });

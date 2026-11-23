@@ -56,6 +56,7 @@ export async function buildEnvironment(
     env.skillCache ?? '',
     today,
     env.modeId ?? '',
+    ctx.quickShellTool ?? '',
   ].join('\0');
   const cached = env.envCacheByRoot.get(cacheKey);
   if (cached) {
@@ -68,7 +69,10 @@ export async function buildEnvironment(
   // On POSIX we keep reporting the raw $SHELL; on Windows we report the
   // resolved shell + a "write X syntax" nudge, and append a syntax guidance
   // sub-block below so the model doesn't default to bash/POSIX idioms.
-  const effShell = effectiveShell(os.platform(), process.env['WRONGSTACK_SHELL']);
+  const effShell =
+    ctx.quickShellTool === 'pwsh'
+      ? 'pwsh'
+      : effectiveShell(os.platform(), process.env['WRONGSTACK_SHELL']);
   const shell =
     effShell === 'posix'
       ? (process.env.SHELL ?? process.env.ComSpec ?? 'unknown')
@@ -135,12 +139,16 @@ export async function buildEnvironment(
   // not fall back to bash/POSIX idioms. Tier-gated: full for off/medium,
   // a one-liner for light, omitted for minimal/aggressive. POSIX returns ''.
   if (
-    ctx.tools.some((tool) => tool.name === 'bash') &&
+    ctx.tools.some((tool) => tool.name === (ctx.quickShellTool ?? 'bash')) &&
     effShell !== 'posix' &&
     tier !== 'minimal' &&
     tier !== 'aggressive'
   ) {
-    const guide = shellGuidanceBlock(effShell, tier === 'light' ? 'short' : 'full');
+    const guide = shellGuidanceBlock(
+      effShell,
+      tier === 'light' ? 'short' : 'full',
+      ctx.quickShellTool,
+    );
     if (guide) lines.push('', guide);
   }
 
