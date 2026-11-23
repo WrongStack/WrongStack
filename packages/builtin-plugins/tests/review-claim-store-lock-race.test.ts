@@ -126,11 +126,21 @@ it('breaking a stale lock never displaces a fresh holder (gated race)', async ()
       RACE_WAIT_MS,
     ),
   );
-  await g.bOpenAfterRename.promise;
-  expect(g.bOpenOk).toBe(false);
-  releaseA.resolve();
-  await Promise.all([a, b]);
-  g.armed = false;
+  // Under `--retry`, an attempt that stalls or fails is abandoned while B still
+  // waits on A's lock; B's wait then times out with nobody listening, and that
+  // unhandled rejection failed the whole coverage run although the retry passed.
+  // Observe both outcomes now, and always release A and drain on the way out.
+  const settled = Promise.allSettled([a, b]);
+  try {
+    await g.bOpenAfterRename.promise;
+    expect(g.bOpenOk).toBe(false);
+    releaseA.resolve();
+    await Promise.all([a, b]);
+  } finally {
+    releaseA.resolve();
+    await settled;
+    g.armed = false;
+  }
   expect(maxHolders).toBe(1);
   expect(order).toEqual(['A', 'B']);
   expect(existsSync(g.lockPath), 'no orphaned lock file').toBe(false);
