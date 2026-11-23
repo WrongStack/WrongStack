@@ -103,6 +103,40 @@ export interface RestrictPermissionsOptions {
  * block the write it protects, and `icacls` is absent in some minimal
  * environments (containers, WINE, restricted CI images).
  */
+/** F71: bound for one icacls invocation (observed normal: <2.5s, loaded D:). */
+const ICACLS_TIMEOUT_MS = 10_000;
+
+/**
+ * F71 (WS-045 infrastructure): icacls can stall indefinitely — antivirus
+ * interception, ACL propagation on directories with many children (observed
+ * >90s on a 1830-entry directory). The hardening contract is "a hardening step
+ * must not be able to block the write it protects", so bound the spawn:
+ * execFile's timeout kills the real child, and the race settles even an
+ * injected/unresponsive exec. The rejection lands in the best-effort catch
+ * below, which warns and returns.
+ */
+function icaclsBounded(
+  spawn: () => Promise<{ stdout: string; stderr: string }>,
+): Promise<{ stdout: string; stderr: string }> {
+  const spawned = spawn();
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`icacls timed out after ${ICACLS_TIMEOUT_MS}ms`)),
+      ICACLS_TIMEOUT_MS,
+    );
+    spawned.then(
+      (result) => {
+        clearTimeout(timer);
+        resolve(result);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 async function applyPermissions(
   targetPath: string,
   isDir: boolean,
@@ -128,17 +162,23 @@ async function applyPermissions(
       }
       const perm = isDir ? `${user}:(OI)(CI)(F)` : `${user}:(F)`;
       try {
-        await execFn('icacls', [targetPath, '/inheritance:r', '/grant:r', perm], {
-          windowsHide: true,
-        });
+        await icaclsBounded(() =>
+          execFn('icacls', [targetPath, '/inheritance:r', '/grant:r', perm], {
+            windowsHide: true,
+            timeout: ICACLS_TIMEOUT_MS,
+          }),
+        );
       } catch (firstError) {
         const slashIdx = user.indexOf('\\');
         const bareUser = slashIdx > 0 ? user.slice(slashIdx + 1) : '';
         if (bareUser && _filePermOps.execFileAsync === undefined) {
           const barePerm = isDir ? `${bareUser}:(OI)(CI)(F)` : `${bareUser}:(F)`;
-          await execFn('icacls', [targetPath, '/inheritance:r', '/grant:r', barePerm], {
-            windowsHide: true,
-          });
+          await icaclsBounded(() =>
+            execFn('icacls', [targetPath, '/inheritance:r', '/grant:r', barePerm], {
+              windowsHide: true,
+              timeout: ICACLS_TIMEOUT_MS,
+            }),
+          );
         } else {
           throw firstError;
         }

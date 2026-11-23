@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T13:13:32.076Z",
+  "generatedAt": "2026-11-23T13:17:08.013Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 50,
     "sourceFiles": 6492,
-    "testFiles": 5744,
-    "sourceLines": 1327802,
+    "testFiles": 5745,
+    "sourceLines": 1327842,
     "workspaceEdges": 259,
     "moduleEdges": 18984,
     "nonCommandSlashImports": 0,
@@ -670,7 +670,7 @@
       "name": "@wrongstack/persistence",
       "dir": "packages/persistence",
       "sourceFiles": 10,
-      "testFiles": 27,
+      "testFiles": 28,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -681,7 +681,7 @@
         {
           "path": "packages/persistence/tsconfig.test.json",
           "error": null,
-          "testFiles": 27
+          "testFiles": 28
         }
       ]
     },
@@ -18513,6 +18513,12 @@
       },
       {
         "file": "packages/persistence/tests/file-lock-token.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/persistence/tests/file-permissions-timeout.test.ts",
         "projects": [
           "root-node"
         ]
