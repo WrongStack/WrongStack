@@ -111,6 +111,8 @@ export class ChronicleJournal {
   private lastSequence = 0;
   private lastHash: string = GENESIS_HASH;
   private lastAutoPurgeAt = 0;
+  /** Active partition found ending mid-line (crash-torn tail) at the last disk refresh. */
+  private tornTailPath: string | undefined;
   /** Partition paths already owner-only hardened (once per partition). */
   private readonly hardenedPartitions = new Set<string>();
 
@@ -363,6 +365,12 @@ export class ChronicleJournal {
     this.lastHash = entry?.hash ?? checkpoint?.hash ?? GENESIS_HASH;
     this.partitionSizeBytes = state.size;
     this.partitionStartedAt = state.birthtimeMs ?? Date.now();
+    // A successful batch always ends in '\n', so only a crash or a failed
+    // (partial) append — both of which force this refresh — can leave the
+    // tail mid-line. Appending onto that fragment would fuse the next event
+    // into the same unparseable line and lose it along with the torn record.
+    this.tornTailPath =
+      state.size > 0 && !(await endsWithNewline(latest)) ? path.resolve(latest) : undefined;
     this.stateInitialized = true;
   }
 
@@ -443,8 +451,10 @@ export class ChronicleJournal {
           prev = event;
           return event;
         });
-        const serialized = recorded.map((e) => JSON.stringify(e)).join('\n') + '\n';
+        const lineBreak = this.tornTailPath === path.resolve(cp) ? '\n' : '';
+        const serialized = lineBreak + recorded.map((e) => JSON.stringify(e)).join('\n') + '\n';
         await fs.appendFile(cp, serialized, { encoding: 'utf8', mode: SECRET_FILE_MODE });
+        this.tornTailPath = undefined;
         this.partitionSizeBytes += Buffer.byteLength(serialized);
         // F21 (WS-045 class, F20 sibling): on Windows `mode: 0o600` is a no-op,
         // so this append-only event journal — which carries tool inputs/outputs
@@ -476,6 +486,26 @@ export class ChronicleJournal {
     } finally {
       this.lastBatchDurationMs = performance.now() - started;
     }
+  }
+}
+
+/** True when the file's last byte is '\n' (or the file is missing/empty). */
+async function endsWithNewline(filePath: string): Promise<boolean> {
+  let handle: fs.FileHandle;
+  try {
+    handle = await fs.open(filePath, 'r');
+  } catch (error) {
+    if (isNotFound(error)) return true;
+    throw error;
+  }
+  try {
+    const { size } = await handle.stat();
+    if (size === 0) return true;
+    const last = Buffer.alloc(1);
+    await handle.read(last, 0, 1, size - 1);
+    return last[0] === 0x0a;
+  } finally {
+    await handle.close();
   }
 }
 

@@ -65,4 +65,34 @@ describe('PhaseGraphBuilder.fromTaskGraph', () => {
     const graph = await PhaseGraphBuilder.fromTaskGraph(taskGraphOf(nodes), { title: 'Default' });
     expect(Array.from(graph.phases.values())).toHaveLength(2); // 6 / 5 → 2 groups
   });
+
+  it('orders only by depends_on/blocks edges, never by relates_to or implements (F1437)', async () => {
+    const source = taskGraphOf([
+      node('low', 'Low', 'low'),
+      node('crit', 'Crit', 'critical'),
+      node('a', 'A', 'medium'),
+      node('b', 'B', 'medium'),
+    ]);
+    source.edges = [
+      { id: 'e1', from: 'low', to: 'crit', type: 'relates_to' },
+      { id: 'e2', from: 'a', to: 'b', type: 'implements' },
+      { id: 'e3', from: 'b', to: 'a', type: 'relates_to' },
+    ];
+    const graph = await PhaseGraphBuilder.fromTaskGraph(source, { title: 'Links' });
+    const phase = Array.from(graph.phases.values())[0]!;
+    // A "related" link is not a prerequisite: no blocker is invented and the
+    // critical task keeps its place at the front.
+    expect(phase.taskGraph.edges.filter((edge) => edge.type === 'depends_on')).toEqual([]);
+    expect(Array.from(phase.taskGraph.nodes.values())[0]?.title).toBe('Crit');
+
+    // A real ordering edge is still honoured.
+    source.edges = [{ id: 'e4', from: 'low', to: 'crit', type: 'blocks' }];
+    const ordered = Array.from(
+      (await PhaseGraphBuilder.fromTaskGraph(source, { title: 'Blocks' })).phases.values(),
+    )[0]!;
+    const titleOf = (id: string) => ordered.taskGraph.nodes.get(id)?.title;
+    expect(
+      ordered.taskGraph.edges.map((edge) => `${titleOf(edge.from)}->${titleOf(edge.to)}`),
+    ).toEqual(['Low->Crit']);
+  });
 });

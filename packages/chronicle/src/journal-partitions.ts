@@ -329,6 +329,15 @@ export async function readLastEntryState(filePath: string): Promise<{
   }
 }
 
+/** A partition line that is not JSON: corrupt data (typically a crash-torn
+ *  append), as opposed to a failure to read the file at all. */
+export class ChronicleMalformedLineError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ChronicleMalformedLineError';
+  }
+}
+
 /** Stream entries line by line. Reading a whole partition into one string
  *  breaks past V8's max string length (~512MB) — purge and verify must work
  *  on partitions of any size, so only individual lines are materialized. */
@@ -347,7 +356,9 @@ export async function* streamEntriesStrict(filePath: string): AsyncGenerator<Chr
       try {
         entry = JSON.parse(trimmed) as ChronicleEvent;
       } catch {
-        throw new Error(`invalid JSON at line ${lineNumber} in ${path.basename(filePath)}`);
+        throw new ChronicleMalformedLineError(
+          `invalid JSON at line ${lineNumber} in ${path.basename(filePath)}`,
+        );
       }
       yield entry;
     }

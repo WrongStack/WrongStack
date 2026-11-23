@@ -209,6 +209,30 @@ describe('importLegacyChronicleJournal', () => {
     journal.close();
   });
 
+  it('quarantines a day whose partition ends in a crash-torn line instead of failing the whole import (F1435)', async () => {
+    const monday = path.join(dir, '2026-03-02.events.jsonl');
+    await writeLegacyDay('2026-03-02', 3);
+    const tuesday = await writeLegacyDay('2026-03-03', 2);
+    // An append the process died in the middle of: no closing brace, no newline.
+    await fs.appendFile(monday, '{"schemaVersion":1,"eventId":"torn-', 'utf8');
+
+    const journal = new ChronicleSqliteJournal({ directory: dir });
+    try {
+      // A rejection here is fatal for the store: every open re-runs the import
+      // and fails again, so Chronicle would never record another event.
+      const result = await importLegacyChronicleJournal(journal, dir);
+      expect(result).toMatchObject({ families: 1, events: 2 });
+      expect(result.quarantined).toHaveLength(1);
+      expect(result.quarantined[0]).toMatchObject({ day: '2026-03-02', sequence: 4 });
+      expect(result.quarantined[0]?.reason).toMatch(/invalid JSON at line 4/u);
+      expect(readRows().map((row) => row.day)).toEqual(['2026-03-03', '2026-03-03']);
+      expect(await journal.verify()).toMatchObject({ ok: true, entries: 2 });
+      expect(tuesday).toHaveLength(2);
+    } finally {
+      journal.close();
+    }
+  });
+
   it('remembers a quarantined day so a later run still reports the hole', async () => {
     await writeLegacyDay('2026-03-02', 3);
     await tamperMiddleLine('2026-03-02');

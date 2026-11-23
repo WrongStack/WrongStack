@@ -25,6 +25,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { chronicleEventHash, GENESIS_HASH } from './event-hash.js';
 import { collectPartitions, readRetentionCheckpoint, streamEntriesStrict } from './journal.js';
+import { ChronicleMalformedLineError } from './journal-partitions.js';
 import { PARTITION_FILE_PATTERN } from './partition-filename.js';
 import type { ChronicleQuarantinedFamily, ChronicleSqliteJournal } from './sqlite-journal.js';
 import type { ChronicleEvent } from './types.js';
@@ -72,6 +73,27 @@ async function discoverFamilies(directory: string): Promise<string[]> {
     if (match?.[1]) bases.add(match[1]);
   }
   return [...bases].sort();
+}
+
+/**
+ * A partition's entries, with an unparseable line reported as a break in this
+ * day's chain. A crash-torn append is corrupt data like any other break, and
+ * left as a plain error it aborted the whole import — the store then failed to
+ * open on every retry. Read failures (EACCES, EIO) still propagate unchanged.
+ */
+async function* familyEntries(
+  partition: string,
+  day: string,
+  nextSequence: () => number,
+): AsyncGenerator<ChronicleEvent> {
+  try {
+    yield* streamEntriesStrict(partition);
+  } catch (error) {
+    if (error instanceof ChronicleMalformedLineError) {
+      throw new ChronicleImportError(error.message, day, nextSequence());
+    }
+    throw error;
+  }
 }
 
 /** `2026-07-28.events` → `2026-07-28`. */
@@ -139,7 +161,7 @@ export async function importLegacyChronicleJournal(
           familyBoundary[path.relative(directory, partition).replaceAll('\\', '/')] = (
             await fs.stat(partition)
           ).size;
-          for await (const event of streamEntriesStrict(partition)) {
+          for await (const event of familyEntries(partition, day, () => expectedSequence)) {
             if (event.sequence <= checkpointSequence) {
               if (chronicleEventHash(event) !== event.hash) {
                 throw new ChronicleImportError(

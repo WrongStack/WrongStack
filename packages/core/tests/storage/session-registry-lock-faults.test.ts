@@ -93,6 +93,12 @@ describe('atomicUpdate stamp-failure branch', () => {
         const handle = await real.open(filePath, flags);
         const fake = Object.create(handle) as typeof handle;
         fake.writeFile = vi.fn().mockRejectedValue(EPERM);
+        // The prototype wrapper's inherited close() does not close the REAL
+        // handle's fd (Node FileHandle internals do not survive Object.create),
+        // so the fd leaked and GC later reported ERR_INVALID_STATE. Delegate
+        // close to the real handle — the mock's intent is only a rejecting
+        // stamp writeFile, not an leaked descriptor.
+        fake.close = () => handle.close();
         return fake;
       }
       return real.open(filePath, flags as string);

@@ -168,9 +168,14 @@ export class PhaseGraphBuilder {
     // Only edges between tasks that exist. An edge from a deleted task used to
     // raise its target's in-degree with nothing ever able to lower it, so the
     // target — and everything depending on it — never left Kahn's queue and
-    // was silently missing from the plan.
+    // was silently missing from the plan. Only ordering edges count:
+    // `relates_to` / `implements` are links, not prerequisites, and turning
+    // them into hard dependencies blocked tasks behind unrelated work.
     const edges = taskGraph.edges.filter(
-      (edge) => taskGraph.nodes.has(edge.from) && taskGraph.nodes.has(edge.to),
+      (edge) =>
+        (edge.type === 'depends_on' || edge.type === 'blocks') &&
+        taskGraph.nodes.has(edge.from) &&
+        taskGraph.nodes.has(edge.to),
     );
 
     // Build adjacency and prerequisites so a dependent is never pulled ahead of another parent.

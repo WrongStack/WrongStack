@@ -1,8 +1,13 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { appendFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { ChronicleJournal, childChronicleContext, createChronicleContext } from '../src/index.js';
+import {
+  ChronicleJournal,
+  ChronicleQueryEngine,
+  childChronicleContext,
+  createChronicleContext,
+} from '../src/index.js';
 import { readLastEntryState } from '../src/journal-partitions.js';
 
 const tempDirs: string[] = [];
@@ -138,6 +143,35 @@ describe('ChronicleJournal', () => {
       entries: 3,
       lastSequence: 3,
     });
+  });
+
+  it('starts a new line after a crash-torn tail instead of gluing the next event onto it (F1436)', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'wrongstack-chronicle-torn-'));
+    tempDirs.push(dir);
+    const filePath = path.join(dir, '2026-07-18.events.jsonl');
+    const context = createChronicleContext({ installationId: 'i', machineId: 'm' }, 'trace');
+    const options = { filePath, rotationWindowMs: Infinity, batchWindowMs: 0 };
+
+    const crashed = new ChronicleJournal(options);
+    await crashed.append({ eventType: 'first', ...context });
+    const second = await crashed.append({ eventType: 'second', ...context });
+    await crashed.flush();
+    // The process died mid-append: a fragment with no closing brace or newline.
+    await appendFile(filePath, '{"schemaVersion":1,"eventType":"torn', 'utf8');
+
+    const restarted = new ChronicleJournal(options);
+    const third = await restarted.append({ eventType: 'third', ...context });
+    expect(third.sequence).toBe(3);
+    expect(third.previousHash).toBe(second.hash);
+
+    // Only the torn record is lost: the next event sits on its own line.
+    const lines = (await readFile(filePath, 'utf8')).split('\n').filter(Boolean);
+    expect(lines.at(-2)).toBe('{"schemaVersion":1,"eventType":"torn');
+    expect(JSON.parse(lines.at(-1) ?? '')).toMatchObject({ eventType: 'third', sequence: 3 });
+    const engine = await ChronicleQueryEngine.fromFiles([filePath]);
+    const result = await engine.query({ order: 'asc' });
+    expect(result.events.map((event) => event.eventType)).toEqual(['first', 'second', 'third']);
+    expect(result.invalidLines).toBe(1);
   });
 
   it('serializes independent journal instances through one base lock', async () => {
