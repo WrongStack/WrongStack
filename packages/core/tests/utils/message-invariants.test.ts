@@ -66,6 +66,46 @@ describe('repairToolUseAdjacency', () => {
     expect(repaired.messages).toBe(messages);
   });
 
+  it('preserves a trailing open tool_use across an empty turn the same pass drops', () => {
+    // Crash recovery keeps a trailing open call for replay. An interrupted
+    // stream can leave an empty turn (#271) after it; that turn is dropped, so
+    // it must not make the call look non-trailing and delete it.
+    const messages: Message[] = [
+      {
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'pending', name: 'bash', input: {} }],
+      },
+      { role: 'assistant', content: [{ type: 'text', text: '' }] },
+    ];
+
+    const repaired = repairToolUseAdjacency(messages, { preserveTrailingToolUse: true });
+
+    expect(repaired.report.removedToolUses).toEqual([]);
+    expect(repaired.report.removedMessages).toBe(1);
+    expect(repaired.messages).toEqual([
+      {
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'pending', name: 'bash', input: {} }],
+      },
+    ]);
+  });
+
+  it('still repairs an open tool_use followed by a real turn when preservation is on', () => {
+    const messages: Message[] = [
+      {
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'pending', name: 'bash', input: {} }],
+      },
+      { role: 'user', content: 'continue' },
+    ];
+
+    const repaired = repairToolUseAdjacency(messages, { preserveTrailingToolUse: true });
+
+    expect(repaired.report.removedToolUses).toEqual(['pending']);
+    expect(repaired.report.removedMessages).toBe(1);
+    expect(repaired.messages).toEqual([{ role: 'user', content: 'continue' }]);
+  });
+
   it('repairs ranges cut through a tool exchange', () => {
     const messages: Message[] = [
       { role: 'assistant', content: [{ type: 'tool_use', id: 'u1', name: 'grep', input: {} }] },

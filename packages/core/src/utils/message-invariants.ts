@@ -39,6 +39,18 @@ export function repairToolUseAdjacency(
   let removedMessages = 0;
   let changed = false;
   const out: Message[] = [];
+  // Empty turns are dropped below (#271), so they must not decide whether a
+  // tool_use is "trailing" either: a pending call followed by an interrupted
+  // empty turn is still the last message the provider will see, and
+  // `preserveTrailingToolUse` exists to keep exactly that call for crash
+  // recovery. Judge against the last message this pass will KEEP.
+  let lastMeaningfulIndex = -1;
+  for (let k = messages.length - 1; k >= 0; k--) {
+    if (!isEmptyMessage(expectDefined(messages[k]))) {
+      lastMeaningfulIndex = k;
+      break;
+    }
+  }
 
   for (let i = 0; i < messages.length; i++) {
     const original = expectDefined(messages[i]);
@@ -56,7 +68,7 @@ export function repairToolUseAdjacency(
         for (const block of blocks) {
           const preserveTrailing =
             opts.preserveTrailingToolUse === true &&
-            i === messages.length - 1 &&
+            i === lastMeaningfulIndex &&
             block.type === 'tool_use';
           if (block.type === 'tool_use' && !nextIds.has(block.id) && !preserveTrailing) {
             removedToolUses.push(block.id);
