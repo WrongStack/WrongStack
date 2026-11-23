@@ -75,6 +75,23 @@ const ANSI_ESCAPE_RE = /\x1b[ -/]*[@-~]/g;
 const BIDI_AND_ZERO_WIDTH_RE = /[\p{Bidi_Control}\p{Default_Ignorable_Code_Point}]/gu;
 
 /**
+ * Remove every terminal escape sequence without otherwise altering the text.
+ *
+ * Covers CSI (`ESC [ …`), OSC (`ESC ] … BEL|ST`), DCS and the other
+ * string-terminated controls, and the two-character forms (`ESC c`, `ESC ]`).
+ * Shared with `stripAnsi` so the escape grammar has one definition; a
+ * text-only caller that used the old CSI-only regex left OSC hyperlinks and
+ * DCS bodies in command output, WebUI command results, and width math.
+ */
+export function stripTerminalEscapes(value: string): string {
+  return value
+    .replace(ANSI_OSC_RE, '')
+    .replace(ANSI_CONTROL_STRING_RE, '')
+    .replace(ANSI_RE, '')
+    .replace(ANSI_ESCAPE_RE, '');
+}
+
+/**
  * Strip terminal escapes, bidi/zero-width controls and non-printable characters
  * from `value`, normalizing tabs to a fixed-width separator.
  *
@@ -83,11 +100,7 @@ const BIDI_AND_ZERO_WIDTH_RE = /[\p{Bidi_Control}\p{Default_Ignorable_Code_Point
  */
 export function sanitizeTerminalText(value: string, tabWidth = 2): string {
   const tab = ' '.repeat(Math.max(1, Math.min(8, Math.floor(tabWidth))));
-  const withoutEscapes = value
-    .replace(ANSI_OSC_RE, '')
-    .replace(ANSI_CONTROL_STRING_RE, '')
-    .replace(ANSI_RE, '')
-    .replace(ANSI_ESCAPE_RE, '')
+  const withoutEscapes = stripTerminalEscapes(value)
     .replace(BIDI_AND_ZERO_WIDTH_RE, '')
     .replace(/\t/g, tab)
     .replace(/\r/g, '');

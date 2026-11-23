@@ -17,6 +17,18 @@ describe('color helpers', () => {
     expect(stripAnsi('\x1b[1;33;41mWARN\x1b[0m')).toBe('WARN');
   });
 
+  it('strips OSC, DCS and two-character escapes', () => {
+    expect(stripAnsi('\x1b]8;;https://example.com\x07click\x1b]8;;\x07')).toBe('click');
+    expect(stripAnsi('\x1bP1;2;3qpayload\x1b\\text')).toBe('text');
+    expect(stripAnsi('\x1bcreset')).toBe('reset');
+  });
+
+  it('leaves no escape introducer for an unterminated OSC body', () => {
+    const out = stripAnsi('\x1b]8;;https://example.com\nnext');
+    expect(out).not.toContain('\x1b');
+    expect(out).toContain('next');
+  });
+
   it('exposes all expected colour helpers', () => {
     const keys = [
       'reset',
