@@ -5,6 +5,20 @@ The MCP process is only a protocol adapter: search, stats, graphs, and index
 updates still go through the existing named-pipe/Unix-socket IPC service, so
 the detached project daemon remains the single SQLite owner.
 
+## Standalone build
+
+From the WrongStack checkout, build the MCP server and its project daemon with Bun:
+
+```powershell
+bun scripts/build-binaries.mjs --codebase-mcp --current
+```
+
+The executable and `SHA256SUMS` are written to `artifacts/codebase-mcp/`.
+The executable includes Bun, the project daemon, and the parser assets. Copy
+it to the destination and use its absolute path as the MCP client's
+`command`. On Windows x64 the file is named
+`wstack-codebase-index-mcp-windows-x64.exe`.
+
 ## Usage
 
 ```sh

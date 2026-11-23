@@ -7,6 +7,7 @@
  *   node scripts/build-binaries.mjs --target=bun-windows-x64,bun-linux-x64
  *   node scripts/build-binaries.mjs --current       # this machine only
  *   node scripts/build-binaries.mjs --skip-build    # reuse existing dist/
+ *   bun scripts/build-binaries.mjs --codebase-mcp --current
  *
  * Output: dist-bin/wstack-<os>-<arch>[.exe] and dist-bin/SHA256SUMS.
  *
@@ -24,6 +25,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -35,6 +37,7 @@ import { gzipSync } from 'node:zlib';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = path.join(root, 'dist-bin');
 const stageDir = path.join(outDir, '.stage');
+const codebaseOutDir = path.join(root, 'artifacts', 'codebase-mcp');
 
 export const ALL_TARGETS = [
   'bun-windows-x64',
@@ -77,6 +80,12 @@ const ASSETS = {
   vibeui: ['package.json', 'dist'],
 };
 
+const CODEBASE_MCP_ASSETS = {
+  core: ['package.json'],
+  tools: ASSETS.tools,
+  codebase: ASSETS.codebase,
+};
+
 /** Build noise that is never read at runtime. */
 const EXCLUDED = /(?:\.map|\.d\.ts|\.d\.mts|\.tsbuildinfo)$/;
 
@@ -84,6 +93,7 @@ export function parseBinaryBuildArgs(argv) {
   const opts = { targets: [...ALL_TARGETS], skipBuild: false };
   for (const arg of argv) {
     if (arg === '--skip-build') opts.skipBuild = true;
+    else if (arg === '--codebase-mcp') opts.codebaseMcp = true;
     else if (arg === '--current') opts.targets = [currentTarget()];
     else if (arg.startsWith('--target='))
       opts.targets = arg.slice('--target='.length).split(',').filter(Boolean);
@@ -107,8 +117,8 @@ function currentTarget() {
   return `bun-${os}-${arch}`;
 }
 
-export function outputName(target) {
-  const name = `wstack-${target.replace(/^bun-/, '')}`;
+export function outputName(target, prefix = 'wstack') {
+  const name = `${prefix}-${target.replace(/^bun-/, '')}`;
   return target.startsWith('bun-windows') ? `${name}.exe` : name;
 }
 
@@ -205,11 +215,11 @@ export function binaryCompileArgs(target, { version, apiVersion, packId }, entry
   ];
 }
 
-function compile(target, versions) {
-  const outfile = path.join(outDir, outputName(target));
-  const args = binaryCompileArgs(target, versions, 'scripts/binary/entry.mjs', outfile);
+function compile(target, versions, { destination, entry, prefix }, bunCommand) {
+  const outfile = path.join(destination, outputName(target, prefix));
+  const args = binaryCompileArgs(target, versions, entry, outfile);
   console.log(`\n→ ${target}`);
-  run('bun', args);
+  run(bunCommand, args);
   return outfile;
 }
 
@@ -221,34 +231,61 @@ async function sha256File(file) {
 
 async function main() {
   const opts = parseBinaryBuildArgs(process.argv.slice(2));
-  const bun = spawnSync('bun', ['--version'], { encoding: 'utf8', windowsHide: true });
+  const product = opts.codebaseMcp
+    ? {
+        destination: codebaseOutDir,
+        entry: 'scripts/binary/codebase-mcp-entry.mjs',
+        prefix: 'wstack-codebase-index-mcp',
+        assets: CODEBASE_MCP_ASSETS,
+      }
+    : { destination: outDir, entry: 'scripts/binary/entry.mjs', prefix: 'wstack', assets: ASSETS };
+  const { destination } = product;
+  const staging = path.join(destination, '.stage');
+  const bunCommand = /^bun(?:\.exe)?$/i.test(path.basename(process.execPath))
+    ? process.execPath
+    : 'bun';
+  const bun = spawnSync(bunCommand, ['--version'], { encoding: 'utf8', windowsHide: true });
   if (bun.status !== 0) throw new Error('Bun is required to build binaries (https://bun.sh).');
   console.log(`bun ${bun.stdout.trim()}`);
 
-  if (!opts.skipBuild) run(process.execPath, ['scripts/build.mjs']);
+  if (!opts.skipBuild) {
+    if (opts.codebaseMcp)
+      run(bunCommand, ['run', '--filter', '@wrongstack/codebase-index-mcp...', 'build']);
+    else run(process.execPath, ['scripts/build.mjs']);
+  }
 
   try {
-    rmSync(outDir, { recursive: true, force: true });
+    if (existsSync(destination)) {
+      const fromRoot = path.relative(realpathSync(root), realpathSync(destination));
+      if (fromRoot !== path.relative(root, destination)) {
+        throw new Error(`unexpected resolved output directory: ${destination}`);
+      }
+      rmSync(destination, { recursive: true, force: true });
+    }
   } catch (error) {
     // Windows locks a running executable: usually a project daemon started
     // by a previous smoke run of a dist-bin/ binary, idling out.
     throw new Error(
-      `cannot clear dist-bin/ (${error instanceof Error ? error.message : error}). ` +
-        'Stop running dist-bin binaries (and their idle daemons) and retry.',
+      `cannot clear ${destination} (${error instanceof Error ? error.message : error}). ` +
+        'Stop running binaries in that directory and retry.',
     );
   }
   const versions = readVersions();
-  const packId = buildAssetPack();
-  const outputs = opts.targets.map((target) => compile(target, { ...versions, packId }));
+  const packId = buildAssetPack({ assets: product.assets, destination: staging });
+  const outputs = opts.targets.map((target) =>
+    compile(target, { ...versions, packId }, product, bunCommand),
+  );
 
   const sums = [];
   for (const file of outputs) {
     sums.push(`${await sha256File(file)}  ${path.basename(file)}`);
   }
-  writeFileSync(path.join(outDir, 'SHA256SUMS'), `${sums.join('\n')}\n`);
-  rmSync(stageDir, { recursive: true, force: true });
+  writeFileSync(path.join(destination, 'SHA256SUMS'), `${sums.join('\n')}\n`);
+  rmSync(staging, { recursive: true, force: true });
 
-  console.log(`\nWrongStack ${versions.version} — ${outputs.length} binaries in dist-bin/:`);
+  console.log(
+    `\n${product.prefix} ${versions.version} — ${outputs.length} binaries in ${path.relative(root, destination)}/:`,
+  );
   for (const file of outputs) {
     console.log(`  ${path.basename(file).padEnd(32)} ${(statSync(file).size / 1e6).toFixed(1)} MB`);
   }

@@ -1,0 +1,180 @@
+import { spawn } from 'node:child_process';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { gunzipSync } from 'node:zlib';
+
+/* global WRONGSTACK_BINARY_VERSION, WRONGSTACK_BINARY_API_VERSION, WRONGSTACK_BINARY_PACK_ID, WRONGSTACK_BINARY_TARGET */
+const VERSION = WRONGSTACK_BINARY_VERSION;
+const PACK_ID = WRONGSTACK_BINARY_PACK_ID;
+
+const DAEMON_ARG = '__wstack_daemon';
+const SCRIPT_ARG = '__wstack_run_script';
+
+/** Prepare the runtime before loading a CLI or daemon module. */
+export async function startStandalone(assetPackPath, { runMain, runDaemon }) {
+  globalThis[Symbol.for('wrongstack.standalone-build')] = {
+    version: VERSION,
+    apiVersion: WRONGSTACK_BINARY_API_VERSION,
+    target: WRONGSTACK_BINARY_TARGET,
+  };
+
+  const [, , first, ...rest] = process.argv;
+  if (first === SCRIPT_ARG) {
+    runScript(rest);
+    return;
+  }
+  if (process.platform === 'win32') removeReplacedExecutable();
+  globalThis[Symbol.for('wrongstack.standalone-assets')] = ensureAssets(assetPackPath);
+  if (first === DAEMON_ARG) {
+    const [name, ...daemonArgs] = rest;
+    process.argv = [process.argv[0], process.argv[1], ...daemonArgs];
+    await runDaemon(name);
+  } else {
+    await runMain();
+  }
+}
+
+/**
+ * Run a project's JS file as `bun <file>` would: a child of this executable
+ * with BUN_BE_BUN=1. Only that child sees the variable — setting it on our own
+ * environment would turn every later daemon spawn into a bun invocation.
+ */
+function runScript(args) {
+  const child = spawn(process.execPath, args, {
+    stdio: 'inherit',
+    windowsHide: true,
+    env: { ...process.env, BUN_BE_BUN: '1' },
+  });
+  const forward = (signal) => {
+    try {
+      child.kill(signal);
+    } catch {
+      /* already gone */
+    }
+  };
+  for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(signal, () => forward(signal));
+  child.on('error', (error) => {
+    process.stderr.write(`wstack: could not run ${args[0] ?? 'script'}: ${error.message}\n`);
+    process.exit(127);
+  });
+  child.on('exit', (code, signal) => {
+    if (signal) process.kill(process.pid, signal);
+    process.exit(code ?? 1);
+  });
+}
+
+/**
+ * `wstack update` on Windows renames the running .exe to `.old` (a running
+ * executable cannot be overwritten); drop it once no process maps it.
+ */
+function removeReplacedExecutable() {
+  try {
+    fs.rmSync(`${process.execPath}.old`, { force: true });
+  } catch {
+    /* a daemon of the previous version still maps it; a later start retries */
+  }
+}
+
+function wstackHome() {
+  const fromEnv = process.env.WRONGSTACK_HOME;
+  return fromEnv?.trim() ? path.resolve(fromEnv) : path.join(os.homedir(), '.wrongstack');
+}
+
+/**
+ * Extract the embedded asset pack once per build into
+ * `~/.wrongstack/runtime/<version>-<packId>/` and return that directory.
+ * Extraction goes to a private temp dir and is renamed into place, so a
+ * concurrent first run (CLI + a daemon it spawned) never sees a partial tree.
+ */
+function ensureAssets(assetPackPath) {
+  const runtimeRoot = path.join(wstackHome(), 'runtime');
+  const target = path.join(runtimeRoot, `${VERSION}-${PACK_ID}`);
+  const marker = path.join(target, '.complete');
+  if (fs.existsSync(marker)) {
+    touchDaily(marker);
+    return target;
+  }
+
+  fs.mkdirSync(runtimeRoot, { recursive: true });
+  const staging = `${target}.tmp-${process.pid}-${Date.now().toString(36)}`;
+  try {
+    unpack(fs.readFileSync(assetPackPath), staging);
+    fs.writeFileSync(path.join(staging, '.complete'), `${VERSION} ${PACK_ID}\n`);
+    try {
+      fs.renameSync(staging, target);
+    } catch (error) {
+      // Lost the race to another process: its tree is identical.
+      if (!fs.existsSync(marker)) throw error;
+    }
+  } finally {
+    fs.rmSync(staging, { recursive: true, force: true });
+  }
+  pruneOldRuntimes(runtimeRoot, target);
+  return target;
+}
+
+/**
+ * Pack layout (gzip of): "WSPK1\n", u32le index length, JSON index of
+ * `[relativePath, byteLength]`, then the file bytes back to back.
+ */
+function unpack(gzipped, destination) {
+  const pack = gunzipSync(gzipped);
+  const magic = pack.subarray(0, 6).toString('latin1');
+  if (magic !== 'WSPK1\n') throw new Error('wstack: embedded asset pack is corrupt');
+  const indexLength = pack.readUInt32LE(6);
+  const index = JSON.parse(pack.subarray(10, 10 + indexLength).toString('utf8'));
+  let offset = 10 + indexLength;
+  const root = path.resolve(destination);
+  for (const [relative, size] of index) {
+    const file = path.resolve(root, relative);
+    if (!file.startsWith(root + path.sep)) throw new Error(`wstack: unsafe pack path ${relative}`);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, pack.subarray(offset, offset + size));
+    offset += size;
+  }
+  if (offset !== pack.length) throw new Error('wstack: embedded asset pack is truncated');
+}
+
+/** Keep an in-use tree's marker fresh so {@link pruneOldRuntimes} spares it. */
+function touchDaily(marker) {
+  try {
+    const now = Date.now();
+    if (now - fs.statSync(marker).mtimeMs > 24 * 60 * 60 * 1000) {
+      fs.utimesSync(marker, now / 1000, now / 1000);
+    }
+  } catch {
+    /* read-only home: pruning is best-effort anyway */
+  }
+}
+
+/** Drop other builds' trees untouched for 30 days; a live older binary keeps its own fresh. */
+function pruneOldRuntimes(runtimeRoot, keep) {
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  let entries;
+  try {
+    entries = fs.readdirSync(runtimeRoot, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const dir = path.join(runtimeRoot, entry.name);
+    if (dir === keep) continue;
+    try {
+      const stamp = fs.statSync(path.join(dir, '.complete')).mtimeMs;
+      if (stamp < cutoff) fs.rmSync(dir, { recursive: true, force: true });
+    } catch {
+      // No marker: an abandoned staging dir from a crashed extraction.
+      if (entry.name.includes('.tmp-')) {
+        try {
+          if (fs.statSync(dir).mtimeMs < Date.now() - 60 * 60 * 1000) {
+            fs.rmSync(dir, { recursive: true, force: true });
+          }
+        } catch {
+          /* racing another pruner */
+        }
+      }
+    }
+  }
+}
