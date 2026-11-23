@@ -96,6 +96,32 @@ describe('deriveCachePrefixKey', () => {
 
     expect(deriveCachePrefixKey(system, [first])).toBe(deriveCachePrefixKey(system, [reordered]));
   });
+
+  it('matches the JSON wire for undefined object properties', () => {
+    const system = [block('identity')];
+    const tool = (inputSchema: unknown): Tool =>
+      ({ name: 'search', description: 'Search files', inputSchema }) as Tool;
+
+    const undefinedDefault = tool({
+      type: 'object',
+      properties: { query: { type: 'string', default: undefined } },
+    });
+    const omittedDefault = tool({
+      type: 'object',
+      properties: { query: { type: 'string' } },
+    });
+    const nullDefault = tool({
+      type: 'object',
+      properties: { query: { type: 'string', default: null } },
+    });
+
+    expect(deriveCachePrefixKey(system, [undefinedDefault])).toBe(
+      deriveCachePrefixKey(system, [omittedDefault]),
+    );
+    expect(deriveCachePrefixKey(system, [nullDefault])).not.toBe(
+      deriveCachePrefixKey(system, [undefinedDefault]),
+    );
+  });
 });
 
 describe('applyModelRuntime — cache key survives the config ttl overlay', () => {

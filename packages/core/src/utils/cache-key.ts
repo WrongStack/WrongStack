@@ -11,6 +11,10 @@ function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
   const object = value as Record<string, unknown>;
   return `{${Object.keys(object)
+    // Match JSON.stringify / the provider wire: an `undefined` object value is
+    // omitted, not serialized as `null`. Keeping it as null made an omitted
+    // schema property collide with an explicit null in the cache partition key.
+    .filter((key) => object[key] !== undefined)
     .sort()
     .map((key) => `${JSON.stringify(key)}:${canonicalJson(object[key])}`)
     .join(',')}}`;
