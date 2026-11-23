@@ -177,6 +177,15 @@ async function ensureGitignoreFile(projectRoot: string): Promise<void> {
   }
 
   if (!changed) return;
+  // Gitignore is last-match-wins. Appending a missing broad rule (for example
+  // `/.wrongstack/*`) AFTER an existing `!/.wrongstack/project.json` re-ignored
+  // the committed identity — the exact file this repair exists to keep
+  // travelling with the repository. The managed negations therefore always go
+  // last, so the repair is independent of where the missing rules landed.
+  const managedNegations = new Set(['!/.wrongstack/', '!/.wrongstack/project.json']);
+  const withoutManagedNegations = lines.filter((line) => !managedNegations.has(line.trim()));
+  lines.length = 0;
+  lines.push(...withoutManagedNegations, '!/.wrongstack/', '!/.wrongstack/project.json');
   const eol = content.includes('\r\n') ? '\r\n' : '\n';
   await atomicWrite(filePath, `${lines.join(eol)}${eol}`);
 }

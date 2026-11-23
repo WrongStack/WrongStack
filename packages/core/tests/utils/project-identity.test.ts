@@ -66,6 +66,28 @@ describe('committed project identity', () => {
     expect(content.match(/!\/\.wrongstack\/project\.json/g)).toHaveLength(1);
   });
 
+  it('keeps the identity negation last when repairing a legacy rule set', async () => {
+    // Gitignore is last-match-wins. Repainting a partial rule set used to
+    // append `/.wrongstack/*` AFTER an existing `!/.wrongstack/project.json`,
+    // silently re-ignoring the only file this repair keeps shared.
+    await fs.writeFile(
+      path.join(root, '.gitignore'),
+      'node_modules/\n.wrongstack/*\n!/.wrongstack/project.json\n',
+    );
+
+    await ensureProjectGitignore(root);
+
+    const content = await fs.readFile(path.join(root, '.gitignore'), 'utf8');
+    const rules = content
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    expect(rules.lastIndexOf('/.wrongstack/*')).toBeLessThan(
+      rules.lastIndexOf('!/.wrongstack/project.json'),
+    );
+    expect(rules.filter((rule) => rule === '!/.wrongstack/project.json')).toHaveLength(1);
+  });
+
   it('preserves CRLF line endings when present in .gitignore', async () => {
     await fs.writeFile(path.join(root, '.gitignore'), 'node_modules/\r\n', 'utf8');
     await ensureProjectGitignore(root);
