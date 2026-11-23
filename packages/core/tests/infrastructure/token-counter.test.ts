@@ -78,6 +78,38 @@ describe('DefaultTokenCounter', () => {
     expect(seen[1]?.deltaCost).toBeUndefined();
     expect(seen[2]?.deltaCost?.total).toBe(0);
   });
+  it('leaves the running cost untouched when a required price is missing', () => {
+    // Regression: applyPrice validated AFTER charging, so a model that priced
+    // only one side charged that side and then dropped deltaCost. The running
+    // total and the per-call delta disagreed (the sibling test's contract), and
+    // `wstack --json` reported a cost with `costSource: 'unknown'`.
+    const events = new EventBus();
+    const seen: Array<{
+      cost: { total: number };
+      deltaCost?: { total: number } | undefined;
+    }> = [];
+    events.on('token.accounted', (event) => seen.push(event));
+
+    // Input priced, output unpriced: output tokens make the price incomplete.
+    const inputOnly = new DefaultTokenCounter({ events });
+    inputOnly.accountWithModel({ input: 1_000_000, output: 100 }, {
+      ...m1,
+      cost: { input: 3 },
+    } as ResolvedModel);
+    expect(inputOnly.estimateCost().total).toBe(0);
+    expect(seen[0]?.deltaCost).toBeUndefined();
+    expect(seen[0]?.cost.total).toBe(0);
+
+    // Output priced, input unpriced: input tokens make the price incomplete.
+    const outputOnly = new DefaultTokenCounter({ events });
+    outputOnly.accountWithModel({ input: 100, output: 1_000_000 }, {
+      ...m1,
+      cost: { output: 15 },
+    } as ResolvedModel);
+    expect(outputOnly.estimateCost().total).toBe(0);
+    expect(seen[1]?.deltaCost).toBeUndefined();
+    expect(seen[1]?.cost.total).toBe(0);
+  });
   it('emits a deltaCost that matches the running cost when the write-rate fallback charges but the cache-read rate is missing', () => {
     // Regression guard for the applyPrice asymmetry flagged in the r1
     // proof-driven hunt: the documented write-rate fallback

@@ -428,39 +428,25 @@ export class DefaultTokenCounter implements TokenCounter {
     usage: Usage,
     price: PriceEntry,
   ): { input: number; output: number; total: number } | undefined {
-    const beforeInput = this.costInput;
-    const beforeOutput = this.costOutput;
-    if (price.input) this.costInput += (usage.input / 1_000_000) * price.input;
-    if (price.output) this.costOutput += (usage.output / 1_000_000) * price.output;
     // Adapters report cache tokens OUTSIDE `usage.input`, so a cache count
     // with no catalog cache price must still be billed — at the input rate,
     // the most a provider charges for reading its own cache. Pricing it at 0
     // made every model without catalog cache prices look cheaper the better
     // its cache worked.
     const cacheReadRate = price.cacheRead ?? price.input;
-    if (usage.cacheRead && cacheReadRate) {
-      this.costInput += (usage.cacheRead / 1_000_000) * cacheReadRate;
-    }
-    // Gross read savings: what those cached tokens would have cost at the full
-    // input rate, minus the discounted cache-read rate actually billed.
-    // An unknown cache-read rate is billed at the input rate above, so it
-    // saves nothing.
-    if (usage.cacheRead && price.input !== undefined && price.cacheRead !== undefined) {
-      this.cacheSaved += (usage.cacheRead / 1_000_000) * (price.input - price.cacheRead);
-    }
     const hasCacheWriteSplit = usage.cacheWrite5m !== undefined || usage.cacheWrite1h !== undefined;
     const cacheWrite5m = usage.cacheWrite5m ?? (hasCacheWriteSplit ? 0 : usage.cacheWrite);
     const cacheWrite1h = usage.cacheWrite1h ?? 0;
     // Same for writes: providers that do not price them separately bill them
     // as ordinary input.
     const write5mRate = price.cacheWrite5m ?? price.cacheWrite ?? price.input;
-    if (cacheWrite5m && write5mRate) {
-      this.costInput += (cacheWrite5m / 1_000_000) * write5mRate;
-    }
     const write1hRate = price.cacheWrite1h ?? price.cacheWrite ?? price.input;
-    if (cacheWrite1h && write1hRate) {
-      this.costInput += (cacheWrite1h / 1_000_000) * write1hRate;
-    }
+    // Decide availability BEFORE charging anything. Returning undefined after
+    // a partial mutation left `cost.total` (and possibly `cacheSaved`)
+    // advanced while the emitter dropped `deltaCost`, so the running cost and
+    // the per-call delta disagreed and consumers that sum deltas
+    // under-reported. An incomplete price now leaves every accumulator
+    // untouched, exactly like a model with no price at all.
     const known = (tokens: number | undefined, rate: number | undefined) =>
       !tokens || (rate !== undefined && Number.isFinite(rate) && rate >= 0);
     if (
@@ -471,6 +457,26 @@ export class DefaultTokenCounter implements TokenCounter {
       !known(cacheWrite1h, write1hRate)
     )
       return undefined;
+    const beforeInput = this.costInput;
+    const beforeOutput = this.costOutput;
+    if (price.input) this.costInput += (usage.input / 1_000_000) * price.input;
+    if (price.output) this.costOutput += (usage.output / 1_000_000) * price.output;
+    if (usage.cacheRead && cacheReadRate) {
+      this.costInput += (usage.cacheRead / 1_000_000) * cacheReadRate;
+    }
+    // Gross read savings: what those cached tokens would have cost at the full
+    // input rate, minus the discounted cache-read rate actually billed.
+    // An unknown cache-read rate is billed at the input rate above, so it
+    // saves nothing.
+    if (usage.cacheRead && price.input !== undefined && price.cacheRead !== undefined) {
+      this.cacheSaved += (usage.cacheRead / 1_000_000) * (price.input - price.cacheRead);
+    }
+    if (cacheWrite5m && write5mRate) {
+      this.costInput += (cacheWrite5m / 1_000_000) * write5mRate;
+    }
+    if (cacheWrite1h && write1hRate) {
+      this.costInput += (cacheWrite1h / 1_000_000) * write1hRate;
+    }
     const input = this.costInput - beforeInput;
     const output = this.costOutput - beforeOutput;
     return { input, output, total: input + output };
