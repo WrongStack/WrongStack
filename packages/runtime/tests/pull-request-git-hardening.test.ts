@@ -41,8 +41,7 @@ beforeEach(async () => {
     uid: -1,
     gid: -1,
     homedir: 'C:\\Users\\tester',
-    shell: null,
-  })) as typeof _filePermOps.userInfo;
+  })) as unknown as typeof _filePermOps.userInfo;
   _filePermOps.execFileAsync = async (file, args) => {
     icaclsCalls.push({ file, args });
     return { stdout: '', stderr: '' };

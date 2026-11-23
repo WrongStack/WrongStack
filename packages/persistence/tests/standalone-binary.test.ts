@@ -191,7 +191,10 @@ describe('binary entry contract', () => {
   });
 
   it('uses the same hidden arguments as the runtime helpers', () => {
-    expect(entry).toContain(`const DAEMON_ARG = '${STANDALONE_DAEMON_ARG}';`);
-    expect(entry).toContain(`const SCRIPT_ARG = '${STANDALONE_SCRIPT_ARG}';`);
+    // The dispatch on these arguments lives in the runtime shared by every binary entry.
+    const runtime = fs.readFileSync(path.join(repoRoot, 'scripts/binary/runtime.mjs'), 'utf8');
+    expect(entry).toContain("from './runtime.mjs'");
+    expect(runtime).toContain(`const DAEMON_ARG = '${STANDALONE_DAEMON_ARG}';`);
+    expect(runtime).toContain(`const SCRIPT_ARG = '${STANDALONE_SCRIPT_ARG}';`);
   });
 });

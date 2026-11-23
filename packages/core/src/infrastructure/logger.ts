@@ -1,7 +1,9 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Logger, LogLevel } from '@wrongstack/contracts/types/logger';
-import { restrictFilePermissions } from '../security/file-permissions.js';
+// From persistence directly: infrastructure/ sits below security/ in the core layer
+// ratchet, and security/file-permissions only re-exports it.
+import { restrictFilePermissions } from '@wrongstack/persistence';
 import { color } from '../utils/color.js';
 import { redactText, redactValue } from '../utils/redaction.js';
 import { writeErr } from '../utils/term.js';
