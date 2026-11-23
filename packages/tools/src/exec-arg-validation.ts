@@ -98,6 +98,28 @@ function optionName(arg: string): string {
   return eq > 0 ? arg.slice(0, eq) : arg;
 }
 
+/**
+ * True when `name` is one of the blocked options.
+ *
+ * git's `parser-options` accepts any unambiguous LONG-option prefix, so
+ * `--upload-p` runs exactly what `--upload-pack` runs. A whole-name table let
+ * every abbreviated spelling of the transport hooks through:
+ * `git fetch --upload-p=<cmd>` and `git push --receive-p=<cmd>` were allowed
+ * while the full spellings were refused. Long names are therefore matched by
+ * prefix too — a prefix git might reject is still refused (fail closed), and
+ * no other git option is a prefix of a blocked one, so no legitimate
+ * invocation is lost. Short options have no abbreviation syntax and must stay
+ * exact: prefix-matching `find -o` against `-ok` would refuse a real operator.
+ */
+function isBlockedOptionName(name: string, blocked: ReadonlySet<string>): boolean {
+  if (blocked.has(name)) return true;
+  if (!name.startsWith('--') || name.length <= 2) return false;
+  for (const candidate of blocked) {
+    if (candidate.startsWith(name)) return true;
+  }
+  return false;
+}
+
 // Subcommand verbs only make sense in subcommand position. Keep externally
 // destructive actions blocked there without rejecting harmless downstream args
 // named "run", "publish", etc. passed to test runners or build tools.
@@ -185,7 +207,7 @@ export function validateArgs(
       // `-exec` / `-okdir` still execute after `--`.
       if (arg === '--' && cmd !== 'find') break;
       if (cmd === 'git' && options.validatedGitArgumentIndexes?.has(index)) continue;
-      if (blockedOptions.has(optionName(arg))) {
+      if (isBlockedOptionName(optionName(arg), blockedOptions)) {
         return `Blocked option "${optionName(arg)}" for command "${cmd}"`;
       }
     }
