@@ -153,6 +153,36 @@ describe('batch scanner finding normalization', () => {
       { file: 'app.ts', title: 'LineSuffix', line: 7 },
     ]);
   });
+
+  it('holds a :line suffix to the same positive safe-integer gate as `line` (F1285)', async () => {
+    const dir = await project({ 'app.ts': 'eval(input);' });
+    const result = await scan(
+      dir,
+      reply([
+        { file: 'app.ts:0', severity: 'high', title: 'ZeroSuffix' },
+        { file: 'app.ts:99999999999999999999', severity: 'high', title: 'HugeSuffix' },
+      ]),
+    );
+    expect(result.findings.map((f) => ({ file: f.file, title: f.title, line: f.line }))).toEqual([
+      { file: 'app.ts', title: 'ZeroSuffix', line: undefined },
+      { file: 'app.ts', title: 'HugeSuffix', line: undefined },
+    ]);
+  });
+
+  it('matches a known category case-insensitively, as it does severity (F1287)', async () => {
+    const dir = await project({ 'app.ts': 'eval(input);' });
+    const result = await scan(
+      dir,
+      reply([
+        { file: 'app.ts', severity: 'critical', category: 'Secrets', title: 'A' },
+        { file: 'app.ts', severity: 'high', category: ' CONFIG ', title: 'B' },
+      ]),
+    );
+    expect(result.findings.map((f) => `${f.title}=${f.category}`)).toEqual([
+      'A=secrets',
+      'B=config',
+    ]);
+  });
 });
 
 describe('scan inputs at the project boundary', () => {

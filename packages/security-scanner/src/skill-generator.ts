@@ -208,7 +208,13 @@ export async function generateSkillLLM(
         version: '1.0.0',
         techStack: techStack.stack,
         content: { type: 'skill', content },
-        patterns: Array.isArray(skillData.patterns) ? skillData.patterns : [],
+        // Entries are untrusted model output: a `null` one crashed the batch
+        // prompt build (`p.name`) and failed the whole scan (F1286).
+        patterns: Array.isArray(skillData.patterns)
+          ? (skillData.patterns as unknown[]).filter(
+              (p): p is SecurityPattern => typeof p === 'object' && p !== null && !Array.isArray(p),
+            )
+          : [],
         metadata: {
           generatedAt: new Date().toISOString(),
           confidence: 0.85,

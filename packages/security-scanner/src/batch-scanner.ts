@@ -300,8 +300,12 @@ export class BatchScanner {
               }
             }
             if (!scannedFiles.has(normalizedFile)) return [];
-            const category = validCategories.includes(item.category as Finding['category'])
-              ? (item.category as Finding['category'])
+            // Normalized like severity below: "Secrets" is the secrets category,
+            // not an unknown one to relabel as the 'injection' fallback (F1287).
+            const rawCategory =
+              typeof item.category === 'string' ? item.category.trim().toLowerCase() : '';
+            const category = validCategories.includes(rawCategory as Finding['category'])
+              ? (rawCategory as Finding['category'])
               : 'injection';
             const rawSeverity =
               typeof item.severity === 'string' ? item.severity.toLowerCase() : '';
@@ -310,10 +314,14 @@ export class BatchScanner {
             )
               ? (rawSeverity as Finding['severity'])
               : 'medium';
-            const resolvedLine =
-              typeof item.line === 'number' && Number.isSafeInteger(item.line) && item.line > 0
-                ? item.line
-                : lineFromFileSuffix;
+            // The `:N` suffix passes the same F464 gate as `line` (F1285).
+            const isLine = (value: unknown): value is number =>
+              typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+            const resolvedLine = isLine(item.line)
+              ? item.line
+              : isLine(lineFromFileSuffix)
+                ? lineFromFileSuffix
+                : undefined;
             const finding: Finding = {
               id: `llm-analysis-${normalizedFile}-${resolvedLine ?? 0}-${idx}`,
               severity,

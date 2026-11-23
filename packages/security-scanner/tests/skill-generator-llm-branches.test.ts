@@ -85,4 +85,24 @@ describe('model-written skill fallbacks', () => {
     const skill = await generate('{"name":"go-scan","description":"ok","patterns":"invalid"}');
     expect(skill.patterns).toEqual([]);
   });
+
+  it('drops non-object LLM pattern entries, so a null cannot crash the batch prompt (F1286)', async () => {
+    const pattern = {
+      id: 'p',
+      name: 'P',
+      severity: 'high',
+      description: 'd',
+      fileExtensions: ['.go'],
+      remediation: 'r',
+    };
+    const skill = await generate(
+      JSON.stringify({
+        name: 'go-scan',
+        description: 'ok',
+        patterns: [null, pattern, 'text', ['nested']],
+      }),
+    );
+    expect(skill.metadata.confidence).toBe(0.85); // still the model-written path
+    expect(skill.patterns).toEqual([pattern]);
+  });
 });
