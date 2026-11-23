@@ -19,7 +19,7 @@ import type { BuildBodyContext } from './model-output-limits.js';
 import { redirectSafeFetch } from './redirect-safe-fetch.js';
 import { isDebugStreamEnabled } from './stream-debug-state.js';
 import { streamBudget } from './stream-timeout-floors.js';
-import { streamTimeoutDefaults } from './stream-timeouts.js';
+import { sanitizeStreamTimeoutMs, streamTimeoutDefaults } from './stream-timeouts.js';
 import { filterToolsByMaxCount } from './tool-priority.js';
 import { wrapDebugStream, wrapWithHangDetection } from './wire-stream-wrappers.js';
 
@@ -187,15 +187,19 @@ export abstract class WireAdapter implements Provider {
     }
     // Per-instance options win; otherwise the host's configured defaults
     // (stream-timeouts.ts), which fall back to 60s/60s.
+    // Explicit values get the host path's clamp: past Node's timer range (or
+    // non-finite) a watchdog would fire after 1 ms instead of never.
     const hostDefaults = streamTimeoutDefaults();
     this.debugStream = streamOpts.debugStream ?? false;
+    const hang = sanitizeStreamTimeoutMs(streamOpts.streamHangTimeoutMs);
+    const headersMs = sanitizeStreamTimeoutMs(streamOpts.headersTimeoutMs);
     this.hangBudget = {
-      value: streamOpts.streamHangTimeoutMs ?? hostDefaults.hangTimeoutMs,
-      explicit: streamOpts.streamHangTimeoutMs !== undefined,
+      value: hang ?? hostDefaults.hangTimeoutMs,
+      explicit: hang !== undefined,
     };
     this.headersBudget = {
-      value: streamOpts.headersTimeoutMs ?? hostDefaults.headersTimeoutMs,
-      explicit: streamOpts.headersTimeoutMs !== undefined,
+      value: headersMs ?? hostDefaults.headersTimeoutMs,
+      explicit: headersMs !== undefined,
     };
   }
 

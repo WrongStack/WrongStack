@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T00:22:49.837Z",
+  "generatedAt": "2026-11-23T00:24:11.844Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 50,
     "sourceFiles": 6490,
-    "testFiles": 5723,
-    "sourceLines": 1327272,
+    "testFiles": 5724,
+    "sourceLines": 1327308,
     "workspaceEdges": 259,
-    "moduleEdges": 18974,
+    "moduleEdges": 18975,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -805,7 +805,7 @@
       "name": "@wrongstack/providers",
       "dir": "packages/providers",
       "sourceFiles": 138,
-      "testFiles": 132,
+      "testFiles": 133,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -819,7 +819,7 @@
         {
           "path": "packages/providers/tsconfig.test.json",
           "error": null,
-          "testFiles": 132
+          "testFiles": 133
         }
       ]
     },
@@ -21093,6 +21093,12 @@
       },
       {
         "file": "packages/providers/tests/stream-timeout-floors.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/stream-timeout-instance-overflow.test.ts",
         "projects": [
           "root-node"
         ]

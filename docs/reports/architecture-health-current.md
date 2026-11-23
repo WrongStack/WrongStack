@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-23T00:22:49.837Z
+**Generated:** 2026-11-23T00:24:11.844Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 50 |
 | Production source files | 6490 |
-| Production source lines | 1327272 |
-| Test files | 5723 |
+| Production source lines | 1327308 |
+| Test files | 5724 |
 | Workspace dependency edges | 259 |
-| Relative module edges | 18974 |
+| Relative module edges | 18975 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -56,7 +56,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/plugins | 156 | 149 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 27 | 47 | — |
 | @wrongstack/project-surfaces | 262 | 32 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers, @wrongstack/tools |
-| @wrongstack/providers | 138 | 132 | @wrongstack/contracts, @wrongstack/core |
+| @wrongstack/providers | 138 | 133 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/requirement-intake | 18 | 21 | @wrongstack/core |
 | @wrongstack/requirement-intake-mcp | 6 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/requirement-intake |
 | @wrongstack/runtime | 126 | 77 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/governance, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/sage, @wrongstack/security-scanner, @wrongstack/telegram, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |

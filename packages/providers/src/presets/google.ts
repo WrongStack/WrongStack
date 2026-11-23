@@ -459,6 +459,7 @@ function sanitizeSchemaForGemini(
   try {
     const src = node as Record<string, unknown>;
     const out: Record<string, unknown> = {};
+    let nullableFromTypeList = false;
     for (const [rawKey, v] of Object.entries(src)) {
       // Gemini accepts `anyOf` but not `oneOf`. Dropping `oneOf` left a property
       // such as telegram's `chat_id` (string | integer) with no type at all on
@@ -485,9 +486,30 @@ function sanitizeSchemaForGemini(
         out['required'] = v.filter((s) => typeof s === 'string');
       } else if (k === 'enum' && Array.isArray(v)) {
         out['enum'] = v;
+      } else if (k === 'type' && Array.isArray(v)) {
+        // Gemini's Schema.type is ONE Type value, never a list. JSON Schema
+        // allows one (zod-to-json-schema writes `["string", "null"]` for
+        // `.nullable()`, and MCP schemas arrive verbatim): keep the single
+        // non-null type with `nullable`, or an `anyOf` of the alternatives.
+        const types = v.filter((t): t is string => typeof t === 'string');
+        const nonNull = types.filter((t) => t !== 'null');
+        if (nonNull.length === 0) out['type'] = 'null';
+        else if (nonNull.length === 1) out['type'] = nonNull[0];
+        else if (!('anyOf' in src) && !('oneOf' in src)) {
+          out['anyOf'] = nonNull.map((t) => ({ type: t }));
+        }
+        if (nonNull.length > 0 && nonNull.length < types.length) {
+          out['nullable'] = true;
+          nullableFromTypeList = true;
+        }
       } else {
         out[k] = v;
       }
+    }
+    // A `null` the type list allowed is now `nullable`; as an enum member it
+    // would sit in a non-null type's value list.
+    if (nullableFromTypeList && Array.isArray(out['enum'])) {
+      out['enum'] = (out['enum'] as unknown[]).filter((value) => value !== null);
     }
     return out;
   } finally {

@@ -11,6 +11,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { Request, StopReason, StreamEvent, Usage } from '@wrongstack/contracts/types';
 import { safeParse } from '@wrongstack/core/utils';
 import { parseToolInput } from '../_tool-input.js';
+import { isEffortRejected } from '../effort-support.js';
 import { providerErrorFromStreamPayload } from '../error-parse.js';
 import { capabilitiesForFamily } from '../family-capabilities.js';
 import { type BuildBodyContext, resolveMaxOutputTokens } from '../model-output-limits.js';
@@ -90,7 +91,13 @@ export const mistralWireFormat = defineWireFormat<MistralStreamState>({
     if (req.frequencyPenalty !== undefined) body['frequency_penalty'] = req.frequencyPenalty;
     if (req.presencePenalty !== undefined) body['presence_penalty'] = req.presencePenalty;
     if (req.seed !== undefined) body['random_seed'] = req.seed;
-    if (req.reasoning?.effort !== undefined) {
+    // Skip a level this model already refused: WireFormatProvider.stream
+    // learns the refusal and retries; re-sending it would fail that retry and
+    // every later turn.
+    if (
+      req.reasoning?.effort !== undefined &&
+      !isEffortRejected(ctx?.providerId ?? 'mistral', req.model)
+    ) {
       body['reasoning_effort'] = req.reasoning.effort;
     }
     // `enabled: false` no longer fabricates `reasoning_effort: 'none'`:

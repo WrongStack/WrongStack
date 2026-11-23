@@ -29,8 +29,11 @@ let defaults: StreamTimeoutDefaults = {
   headersTimeoutMs: DEFAULT_HEADERS_TIMEOUT_MS,
 };
 
-/** A non-negative finite millisecond count, else undefined (keep the default). */
-function sanitize(value: unknown): number | undefined {
+/**
+ * A non-negative finite millisecond count clamped to Node's timer range, else
+ * undefined (keep the default). Shared with per-instance `streamOpts`.
+ */
+export function sanitizeStreamTimeoutMs(value: unknown): number | undefined {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return undefined;
   return Math.min(Math.floor(value), 2_147_483_647);
 }
@@ -44,8 +47,8 @@ export function setStreamTimeoutDefaults(
   next: { hangTimeoutMs?: number | undefined; headersTimeoutMs?: number | undefined } | undefined,
 ): void {
   if (!next) return;
-  const hang = sanitize(next.hangTimeoutMs);
-  const headers = sanitize(next.headersTimeoutMs);
+  const hang = sanitizeStreamTimeoutMs(next.hangTimeoutMs);
+  const headers = sanitizeStreamTimeoutMs(next.headersTimeoutMs);
   defaults = {
     hangTimeoutMs: hang ?? defaults.hangTimeoutMs,
     headersTimeoutMs: headers ?? defaults.headersTimeoutMs,

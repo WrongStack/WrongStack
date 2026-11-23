@@ -1,5 +1,6 @@
 import type { StreamEvent } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
+import { resetEffortSupport } from '../src/effort-support.js';
 import { mistralToolCallId, mistralWireFormat } from '../src/presets/mistral.js';
 import { WireFormatProvider } from '../src/wire-format.js';
 
@@ -411,5 +412,54 @@ describe('Mistral preset', () => {
     expect(id).toMatch(/^[A-Za-z0-9]{9}$/);
     expect(tool?.['tool_call_id']).toBe(id);
     expect(mistralToolCallId('abcDEF123')).toBe('abcDEF123');
+  });
+
+  // F1376: WireFormatProvider learns a `reasoning_effort` refusal and retries
+  // without the field; the Mistral body builder must honour what was learned,
+  // or the retry (and every later turn) re-sends the refused value.
+  it('retries without reasoning_effort after a refusal and keeps omitting it', async () => {
+    resetEffortSupport();
+    const bodies: Array<Record<string, unknown>> = [];
+    const fetchImpl = (async (_url: unknown, init?: { body?: string }) => {
+      const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+      bodies.push(body);
+      if ('reasoning_effort' in body) {
+        return new Response(
+          JSON.stringify({ message: "Invalid value for reasoning_effort: 'max'" }),
+          { status: 400 },
+        );
+      }
+      return new Response(
+        sseBody([
+          JSON.stringify({ model: 'm', choices: [{ delta: { content: 'ok' } }] }),
+          JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }] }),
+          '[DONE]',
+        ]),
+        { status: 200 },
+      );
+    }) as typeof fetch;
+    const request = {
+      model: 'magistral-effort-probe',
+      messages: [{ role: 'user' as const, content: 'hi' }],
+      maxTokens: 64,
+      reasoning: { effort: 'max' as const },
+    };
+    const turn = async (): Promise<string> => {
+      const provider = new WireFormatProvider(mistralWireFormat, { apiKey: 'k', fetchImpl });
+      let text = '';
+      for await (const ev of provider.stream(request, { signal: new AbortController().signal })) {
+        if (ev.type === 'text_delta') text += ev.text;
+      }
+      return text;
+    };
+    try {
+      expect(await turn()).toBe('ok');
+      expect(bodies.map((b) => 'reasoning_effort' in b)).toEqual([true, false]);
+      bodies.length = 0;
+      expect(await turn()).toBe('ok');
+      expect(bodies.map((b) => 'reasoning_effort' in b)).toEqual([false]);
+    } finally {
+      resetEffortSupport();
+    }
   });
 });

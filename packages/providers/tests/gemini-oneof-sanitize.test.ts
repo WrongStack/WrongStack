@@ -70,4 +70,30 @@ describe('Gemini schema sanitizer', () => {
     ]);
     expect(out.length).toBeGreaterThan(0);
   });
+
+  // F1375: Gemini's Schema.type is ONE Type value. zod-to-json-schema emits
+  // `type: ["string", "null"]` for `.nullable()`, and MCP schemas reach this
+  // sanitizer verbatim (untyped), so the array used to land on the wire as-is.
+  it('collapses a JSON-Schema type array to one type (nullable) or an anyOf', () => {
+    const mcpSchema: unknown = {
+      type: 'object',
+      properties: {
+        note: { type: ['string', 'null'], description: 'optional note' },
+        level: { type: ['string', 'null'], enum: ['low', 'high', null] },
+        id: { type: ['string', 'integer'] },
+        nothing: { type: ['null'] },
+        plain: { type: 'boolean' },
+      },
+    };
+    const properties = wireProperties(mcpSchema as Tool['inputSchema']);
+    expect(properties['note']).toEqual({
+      type: 'string',
+      nullable: true,
+      description: 'optional note',
+    });
+    expect(properties['level']).toEqual({ type: 'string', nullable: true, enum: ['low', 'high'] });
+    expect(properties['id']).toEqual({ anyOf: [{ type: 'string' }, { type: 'integer' }] });
+    expect(properties['nothing']).toEqual({ type: 'null' });
+    expect(properties['plain']).toEqual({ type: 'boolean' });
+  });
 });
