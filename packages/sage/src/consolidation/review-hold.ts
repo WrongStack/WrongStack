@@ -19,7 +19,13 @@ const HOLD_PATTERNS: ReadonlyArray<readonly [string, RegExp]> = [
     'download-and-execute',
     /\b(?:curl|wget|iwr|invoke-webrequest|invoke-restmethod)\b[^\n]{0,120}(?:\|\s*(?:sh|bash|zsh|iex|invoke-expression|python|node)\b|-o\s)|\b(?:iex|invoke-expression)\s*\(/i,
   ],
-  ['outbound-url', /\bhttps?:\/\/(?!(?:localhost|127\.0\.0\.1|\[::1\])(?:[:/]|$))[^\s)'"`]+/i],
+  // The loopback exemption holds only when no `@` ends a userinfo part before
+  // the path: in `http://localhost:1@collector.example/x` the host is what
+  // follows the `@` (RFC 3986 §3.2), so that URL is outbound.
+  [
+    'outbound-url',
+    /\bhttps?:\/\/(?!(?:localhost|127\.0\.0\.1|\[::1\])(?![^\s)'"`/?#]*@)(?:[:/]|$))[^\s)'"`]+/i,
+  ],
   [
     'credential-exfiltration',
     /\b(?:send|post|upload|exfiltrate|forward|paste)\b[^.\n]{0,60}\b(?:api[ _-]?keys?|tokens?|passwords?|secrets?|credentials?|\.env)\b/i,

@@ -206,8 +206,22 @@ function firstTokenInfo(input: string): TokenInfo | undefined {
   return { token, raw: match[0] };
 }
 
+/** A POSIX `NAME=value` assignment word (`env FOO=bar node`, `CI=1 node`). */
+const ENV_ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
+
 function resolveCommandExecutable(command: string): ResolvedExecutable {
-  const trimmed = command.trim();
+  let trimmed = command.trim();
+  // Prefix assignments (`CI=1 node build.js`) only set the environment of the
+  // command that follows: the executable is the first word after them. Probed
+  // as-is, `CI=1` was never on PATH and the anchor was demoted to 'stale'.
+  // Tested on the raw word: a quoted `"FOO=bar"` is a command name, not one.
+  for (
+    let word = firstTokenInfo(trimmed);
+    word && ENV_ASSIGNMENT.test(word.raw);
+    word = firstTokenInfo(trimmed)
+  ) {
+    trimmed = trimmed.slice(word.raw.length).trim();
+  }
   if (!trimmed) {
     return { executable: undefined, skippedFlag: false, demandFetch: false, wrapper: undefined };
   }
@@ -228,7 +242,7 @@ function resolveCommandExecutable(command: string): ResolvedExecutable {
     if (!tokenInfo)
       return { executable: undefined, skippedFlag, demandFetch, wrapper: first.token };
     const { token, raw } = tokenInfo;
-    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(token)) {
+    if (ENV_ASSIGNMENT.test(token)) {
       // env-style assignment (`env FOO=bar node`) — unambiguous, not a flag.
       cursor = cursor.slice(cursor.indexOf(raw) + raw.length).trim();
       continue;

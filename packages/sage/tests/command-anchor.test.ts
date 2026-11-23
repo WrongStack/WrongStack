@@ -56,6 +56,21 @@ describe('command anchor verification via existence probe (2026-08-02)', () => {
     expect(result.anchors[0]?.status).toBe('verified');
   });
 
+  it('skips leading NAME=value prefix assignments before the executable (F1525)', async () => {
+    // outcome-capture stores a successful `CI=1 node …` verbatim as the anchor;
+    // probing `CI=1` on PATH demoted that memory to stale.
+    for (const command of ['CI=1 node --version', 'A=1 B=2 sudo -u www node --version']) {
+      const result = await verifyMemoryAnchors(tempDir, makeMemory([{ type: 'command', command }]));
+      expect(result.anchors[0]?.status, command).toBe('verified');
+    }
+    const missing = await verifyMemoryAnchors(
+      tempDir,
+      makeMemory([{ type: 'command', command: 'CI=1 definitely-missing-binary-f1525' }]),
+    );
+    expect(missing.anchors[0]?.status).toBe('stale');
+    expect(missing.anchors[0]?.reason).toContain('definitely-missing-binary-f1525');
+  });
+
   it('resolves known value-taking wrapper flags and their arguments', async () => {
     // `sudo -u www node` — '-u' consumes 'www'; the command is 'node'.
     const anchor: MemoryAnchor = { type: 'command', command: 'sudo -u www node --version' };
