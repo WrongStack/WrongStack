@@ -28,6 +28,7 @@ import { KanbanVerificationDashboard } from './KanbanVerificationDashboard';
 import { type KanbanViewMode, KanbanViewModeTabs } from './KanbanViewModeTabs';
 import { KanbanWorkbench } from './KanbanWorkbench';
 import { auditKanbanBoard } from './kanban-cleaner';
+import { withKanbanRequestId } from './kanban-request-id';
 import { useKanbanStore } from './kanban-store';
 import { useKanbanRegistrySessionIds } from './useKanbanRegistrySessionIds';
 
@@ -143,7 +144,9 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
 
   const runningCostTotal = useMemo(() => runningBoardCostTotal(activeBoard), [activeBoard]);
 
-  const sendKanban = (type: `kanban.${string}`, payload: Record<string, unknown> = {}) => {
+  const sendKanban = (type: `kanban.${string}`, rawPayload: Record<string, unknown> = {}) => {
+    // A bare-task reply finds its board through the echoed requestId.
+    const payload = withKanbanRequestId(type, rawPayload);
     useKanbanStore.getState().sendKanban(type, payload);
     // Name the tab doing the work. Boards are addressed by `boardId` so their
     // contents never crossed tabs, but every activity entry and presence ping

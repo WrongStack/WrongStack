@@ -13,10 +13,10 @@
  * `tests/browser-import-boundaries.test.ts`).
  *
  * Covers: `localhost`, the 127.0.0.0/8 block, `::1` (with or without brackets,
- * as WHATWG serializes IPv6 hostnames), and the DECIMAL IPv4-mapped
- * `::ffff:127.x.x.x` form. Browsers emit the hex form (`[::ffff:7f00:1]`) for
- * IPv4-mapped literals — both this client and the server consistently treat
- * that as non-loopback.
+ * as WHATWG serializes IPv6 hostnames), and IPv4-mapped 127/8 in both the
+ * decimal `::ffff:127.x.x.x` form and the hex form browsers emit
+ * (`[::ffff:7f00:1]`). The server's gate (core `isLoopbackHost`) accepts the
+ * hex form too, so treating it as remote here desynced the token gate (F1315).
  */
 export function isLoopbackBrowserOrigin(hostname: string): boolean {
   const host = hostname.toLowerCase().replace(/^\[(.*)\]$/, '$1');
@@ -30,5 +30,7 @@ export function isLoopbackBrowserOrigin(hostname: string): boolean {
     return true;
   }
   if (host === '::1' || host === '0:0:0:0:0:0:0:1') return true;
+  const mappedHex = host.match(/^::ffff:([0-9a-f]{1,4}):[0-9a-f]{1,4}$/);
+  if (mappedHex) return Number.parseInt(mappedHex[1] ?? '', 16) >> 8 === 127;
   return host.startsWith('::ffff:127.');
 }

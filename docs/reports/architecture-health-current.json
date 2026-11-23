@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T00:26:49.473Z",
+  "generatedAt": "2026-11-23T00:28:14.147Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 50,
-    "sourceFiles": 6491,
-    "testFiles": 5730,
-    "sourceLines": 1327417,
+    "sourceFiles": 6492,
+    "testFiles": 5736,
+    "sourceLines": 1327525,
     "workspaceEdges": 259,
-    "moduleEdges": 18979,
+    "moduleEdges": 18983,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -552,7 +552,7 @@
       "name": "@wrongstack/hq-next",
       "dir": "packages/hq-next",
       "sourceFiles": 193,
-      "testFiles": 69,
+      "testFiles": 70,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -569,7 +569,7 @@
         {
           "path": "packages/hq-next/tsconfig.test.json",
           "error": null,
-          "testFiles": 69
+          "testFiles": 70
         }
       ]
     },
@@ -779,8 +779,8 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 262,
-      "testFiles": 32,
+      "sourceFiles": 263,
+      "testFiles": 36,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -797,7 +797,7 @@
         {
           "path": "packages/project-surfaces/tsconfig.test.json",
           "error": null,
-          "testFiles": 32
+          "testFiles": 36
         }
       ]
     },
@@ -1172,7 +1172,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 798,
-      "testFiles": 542,
+      "testFiles": 543,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1198,7 +1198,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 542
+          "testFiles": 543
         }
       ]
     },
@@ -16412,6 +16412,12 @@
         ]
       },
       {
+        "file": "packages/hq-next/tests/hq/data/loopback-server-parity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq-next/tests/hq/data/reducers.test.ts",
         "projects": [
           "root-node"
@@ -20246,6 +20252,12 @@
         ]
       },
       {
+        "file": "packages/project-surfaces/tests/codemap-community-label-collision.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/project-surfaces/tests/codemap-stale-refresh-cancel.test.tsx",
         "projects": [
           "root-node"
@@ -20282,6 +20294,12 @@
         ]
       },
       {
+        "file": "packages/project-surfaces/tests/kanban-store-bare-task-reply-board.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/project-surfaces/tests/kanban-store-stale-board-switch.test.ts",
         "projects": [
           "root-node"
@@ -20306,7 +20324,19 @@
         ]
       },
       {
+        "file": "packages/project-surfaces/tests/memory-preview-surrogate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/project-surfaces/tests/model-editor-search-cleanup.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/office-age-unit-rollover.test.ts",
         "projects": [
           "root-node"
         ]
@@ -34664,6 +34694,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/lib/color-hue-units.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/lib/color.test.ts",
         "projects": [
           "webui-jsdom"
@@ -36913,7 +36949,7 @@
     },
     {
       "file": "packages/project-surfaces/src/atlas/codemap-model.ts",
-      "lines": 1110,
+      "lines": 1116,
       "relativeImports": 0
     },
     {
@@ -37170,7 +37206,7 @@
     },
     {
       "file": "packages/project-surfaces/src/atlas/codemap-model.ts",
-      "lines": 1110,
+      "lines": 1116,
       "relativeImports": 0
     },
     {

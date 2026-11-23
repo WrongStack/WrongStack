@@ -340,6 +340,7 @@ export function inferGraphCommunities(graph: CodeMapGraphResponse): Map<string, 
     else membersByComm.set(c, [sortedNodes[i]!]);
   }
 
+  const usedLabels = new Set<string>();
   for (const [, members] of membersByComm) {
     if (members.length < 2) continue;
     const hub = [...members].sort(
@@ -348,7 +349,12 @@ export function inferGraphCommunities(graph: CodeMapGraphResponse): Map<string, 
         (degree[indexById.get(b.id)!] ?? 0) - (degree[indexById.get(a.id)!] ?? 0) ||
         a.label.localeCompare(b.label),
     )[0]!;
-    const label = `cluster:${hub.label}`;
+    // A hub label is a display name (a file's basename), so two communities can
+    // both be hubbed by an `index.ts`. Callers band and collapse by this label:
+    // a shared one merged distinct communities. The node id is unique.
+    let label = `cluster:${hub.label}`;
+    if (usedLabels.has(label)) label = `cluster:${hub.label} · ${hub.id}`;
+    usedLabels.add(label);
     for (const m of members) {
       result.set(m.id, label);
     }

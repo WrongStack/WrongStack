@@ -13,6 +13,26 @@ function clamp(n: number, lo: number, hi: number): number {
   return Math.min(Math.max(n, lo), hi);
 }
 
+/** Degrees per CSS `<angle>` unit; a bare number is degrees (mirrors core's parseAngle). */
+const ANGLE_UNIT_DEGREES: Record<string, number> = {
+  '': 1,
+  deg: 1,
+  grad: 0.9,
+  rad: 180 / Math.PI,
+  turn: 360,
+};
+
+/** Hue in degrees from `145`, `145deg`, `200grad`, `3.14rad` or `0.5turn`; unknown unit → null. */
+function parseAngle(s: string): number | null {
+  const m = /^([-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)([a-z]*)$/i.exec(s.trim());
+  const unit = m?.[2]?.toLowerCase() ?? '';
+  const factor =
+    m && Object.hasOwn(ANGLE_UNIT_DEGREES, unit) ? ANGLE_UNIT_DEGREES[unit] : undefined;
+  if (!m?.[1] || factor === undefined) return null;
+  const n = Number.parseFloat(m[1]) * factor;
+  return Number.isFinite(n) ? n : null;
+}
+
 function parseOklch(value: string): [number, number, number] | null {
   const m = /^oklch\(\s*([^)]+)\)$/i.exec(value.trim());
   if (!m?.[1]) return null;
@@ -26,8 +46,8 @@ function parseOklch(value: string): [number, number, number] | null {
   const C = parts[1].endsWith('%')
     ? (Number.parseFloat(parts[1]) / 100) * 0.4
     : Number.parseFloat(parts[1]);
-  const H = Number.parseFloat(parts[2].replace(/deg$/i, ''));
-  if (![L, C, H].every(Number.isFinite)) return null;
+  const H = parseAngle(parts[2]);
+  if (H === null || ![L, C].every(Number.isFinite)) return null;
   return [clamp(L, 0, 1), Math.max(0, C), H];
 }
 

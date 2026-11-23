@@ -23,12 +23,21 @@ afterEach(() => {
 });
 
 describe('isLoopbackBrowserOrigin', () => {
-  it.each(['localhost', 'LOCALHOST', '127.0.0.1', '127.1.2.3', '::1', '[::1]', '::ffff:127.0.0.1'])(
-    'accepts %s',
-    (host) => {
-      expect(isLoopbackBrowserOrigin(host)).toBe(true);
-    },
-  );
+  it.each([
+    'localhost',
+    'LOCALHOST',
+    '127.0.0.1',
+    '127.1.2.3',
+    '::1',
+    '[::1]',
+    '::ffff:127.0.0.1',
+    // Browsers serialise IPv4-mapped literals in hex; the server's gate (core
+    // isLoopbackHost) accepts that form, and the two must agree (F1315).
+    '[::ffff:7f00:1]',
+    '[::ffff:7f01:203]',
+  ])('accepts %s', (host) => {
+    expect(isLoopbackBrowserOrigin(host)).toBe(true);
+  });
 
   it.each([
     'example.com',
@@ -36,9 +45,8 @@ describe('isLoopbackBrowserOrigin', () => {
     '128.0.0.1',
     '127.0.0.999',
     '::ffff:192.168.0.1',
-    // Browsers serialise IPv4-mapped literals in hex; both sides treat the hex
-    // form as NON-loopback, and they must agree or the token gate desyncs.
-    '[::ffff:7f00:1]',
+    '[::ffff:c0a8:1]',
+    '[::ffff:7f:1]',
   ])('rejects %s', (host) => {
     expect(isLoopbackBrowserOrigin(host)).toBe(false);
   });

@@ -204,7 +204,10 @@ export async function searchVectorMemory(
  *  self-contained (no cross-feature import). */
 export function previewText(text: string, max = 170): string {
   const normalized = text.replace(/\s+/g, ' ').trim();
-  return normalized.length > max ? `${normalized.slice(0, max - 1)}…` : normalized;
+  if (normalized.length <= max) return normalized;
+  // Never end the preview on half of a surrogate pair (an emoji renders as U+FFFD).
+  const last = normalized.charCodeAt(max - 2);
+  return `${normalized.slice(0, last >= 0xd800 && last <= 0xdbff ? max - 2 : max - 1)}…`;
 }
 
 /** Forget (hard-remove) a single entry and its embedding from the

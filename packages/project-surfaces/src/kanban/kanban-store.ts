@@ -10,6 +10,9 @@ import type {
 } from '@wrongstack/kanban';
 import { create } from 'zustand';
 import { isKanbanBoardActive } from './kanban-board-active';
+import { BARE_TASK_REPLY_TYPES } from './kanban-request-id';
+
+export { withKanbanRequestId } from './kanban-request-id';
 
 /**
  * A verification spinner older than this is a ghost: its
@@ -17,6 +20,37 @@ import { isKanbanBoardActive } from './kanban-board-active';
  * board the user has left. Real verifications finish in seconds.
  */
 const VERIFICATION_SPINNER_TTL_MS = 5 * 60 * 1000;
+
+/**
+ * Bare-task replies (`BARE_TASK_REPLY_TYPES`) carry no board id. The board their
+ * stamped request named is remembered under its requestId, so a reply for a
+ * board the user has since left is not folded into the board now open. Keyed by
+ * id, never by type order: a lost reply cannot shift another onto the wrong board.
+ */
+const MAX_PENDING_TASK_REPLIES = 64;
+const taskReplyBoards = new Map<string, string>();
+
+function rememberTaskReplyBoard(type: string, payload: Record<string, unknown> | undefined): void {
+  const requestId = payload?.requestId;
+  const boardId = payload?.boardId;
+  if (!BARE_TASK_REPLY_TYPES.has(type) || typeof requestId !== 'string' || !requestId) return;
+  if (typeof boardId !== 'string' || !boardId) return;
+  taskReplyBoards.set(requestId, boardId);
+  while (taskReplyBoards.size > MAX_PENDING_TASK_REPLIES) {
+    const oldest = taskReplyBoards.keys().next().value;
+    if (oldest === undefined) break;
+    taskReplyBoards.delete(oldest);
+  }
+}
+
+/** The board the reply's request named; undefined for a reply nothing here stamped. */
+function takeTaskReplyBoard(payload: KanbanResultPayload): string | undefined {
+  const requestId = (payload as { requestId?: unknown }).requestId;
+  if (typeof requestId !== 'string') return undefined;
+  const boardId = taskReplyBoards.get(requestId);
+  taskReplyBoards.delete(requestId);
+  return boardId;
+}
 
 export interface KanbanResultPayload {
   success: boolean;
@@ -84,7 +118,8 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
     get().sendKanban('kanban.board.history', { boardId });
   },
   setLoading: (loading) => set({ loading }),
-  sendKanban: (type, _payload) => {
+  sendKanban: (type, payload) => {
+    rememberTaskReplyBoard(type, payload);
     set({ loading: true, lastOutboundAction: type });
     return type;
   },
@@ -124,6 +159,7 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
   setError: (error) => set({ error }),
   setQueueHealth: (health) => set({ queueHealth: health }),
   handleResult: (type, payload) => {
+    const replyBoardId = BARE_TASK_REPLY_TYPES.has(type) ? takeTaskReplyBoard(payload) : undefined;
     if (!payload.success) {
       if (type === 'kanban.task.verification_completed') {
         const ref = payload.data as { boardId?: string; taskId?: string } | undefined;
@@ -413,7 +449,9 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
     }
     if (isTask(data)) {
       set((state) => ({
-        ...(state.activeBoard && state.activeBoard.id === state.activeBoardId
+        ...(state.activeBoard &&
+        state.activeBoard.id === state.activeBoardId &&
+        (replyBoardId === undefined || replyBoardId === state.activeBoardId)
           ? (() => {
               const activeBoard = upsertTask(state.activeBoard, data);
               return {
@@ -586,6 +624,7 @@ function upsertTask(board: KanbanBoard, task: KanbanTask): KanbanBoard {
 
 /** Clears every board, the selection and per-board state, for an application switching projects. */
 export function resetKanbanStore(): void {
+  taskReplyBoards.clear();
   useKanbanStore.setState({
     boards: [],
     boardTotal: 0,

@@ -56,8 +56,11 @@ function secondsSince(iso: string | undefined, now: number): number | undefined 
 
 function largestUnit(s: number, withDays: boolean): [number, TimeUnit] {
   if (s < 60) return [s, 'second'];
-  if (s < 3600) return [Math.round(s / 60), 'minute'];
-  if (!withDays || s < 86_400) return [Math.round(s / 3600), 'hour'];
+  // Pick the unit from the rounded value: 3590 s is "1h", not "60m".
+  const minutes = Math.round(s / 60);
+  if (minutes < 60) return [minutes, 'minute'];
+  const hours = Math.round(s / 3600);
+  if (!withDays || hours < 24) return [hours, 'hour'];
   return [Math.round(s / 86_400), 'day'];
 }
 
