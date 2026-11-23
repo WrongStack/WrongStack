@@ -74,7 +74,12 @@ export function createDiagnosticsTool(deps: ToolDeps): Tool<DiagnosticsInput, st
           cwd: ctx.cwd,
           severityFilter: deps.cfg.severityFilter,
           maxPerFile: deps.cfg.maxDiagnosticsPerFile,
-          maxTotal: input.limit ?? deps.cfg.maxDiagnosticsTotal,
+          // A total budget below 1 printed "No LSP diagnostics." for a file
+          // with errors — a false clean claim. Clamp like the sibling tools.
+          maxTotal:
+            typeof input.limit === 'number' && Number.isFinite(input.limit)
+              ? Math.max(1, Math.trunc(input.limit))
+              : deps.cfg.maxDiagnosticsTotal,
           lineText: createLineTextReader(deps.tracker),
         });
         return `${output}\nChecked ${files.length} ${input.path ? 'file' : 'tracked files'} via ${[...servers].join(', ')}; severities: ${deps.cfg.severityFilter.join(', ')}.`;

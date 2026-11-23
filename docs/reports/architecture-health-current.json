@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T14:00:29.324Z",
+  "generatedAt": "2026-11-23T14:03:10.464Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 50,
     "sourceFiles": 6492,
-    "testFiles": 5769,
-    "sourceLines": 1328333,
+    "testFiles": 5771,
+    "sourceLines": 1328365,
     "workspaceEdges": 259,
     "moduleEdges": 18987,
     "nonCommandSlashImports": 0,
@@ -689,7 +689,7 @@
       "name": "@wrongstack/plug-lsp",
       "dir": "packages/plug-lsp",
       "sourceFiles": 52,
-      "testFiles": 63,
+      "testFiles": 65,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -704,7 +704,7 @@
         {
           "path": "packages/plug-lsp/tsconfig.test.json",
           "error": null,
-          "testFiles": 63
+          "testFiles": 65
         }
       ]
     },
@@ -18866,6 +18866,12 @@
         ]
       },
       {
+        "file": "packages/plug-lsp/tests/unit/diagnostics-limit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plug-lsp/tests/unit/diagnostics-uri-matching.test.ts",
         "projects": [
           "root-node"
@@ -19101,6 +19107,12 @@
       },
       {
         "file": "packages/plug-lsp/tests/unit/workspace-edit-spec-positions.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plug-lsp/tests/unit/workspace-edit-stale-tracker.test.ts",
         "projects": [
           "root-node"
         ]

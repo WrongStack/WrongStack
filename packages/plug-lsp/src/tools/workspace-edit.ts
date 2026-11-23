@@ -26,8 +26,7 @@ export async function applyWorkspaceEdit(
     // resolve to an absolute path, so skip anything else rather than failing
     // the whole edit on read.
     if (!path.isAbsolute(file)) continue;
-    const resolved = path.resolve(file);
-    const key = process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+    const key = canonicalPathKey(file);
     const existing = targetsByKey.get(key);
     if (existing) {
       existing[1].push(...edits);
@@ -51,6 +50,7 @@ export async function applyWorkspaceEdit(
     );
   }
 
+  const tracked = tracker.list?.() ?? [];
   const ops: Array<{ path: string; original: string; next: string; edits: number }> = [];
   for (const [file, edits] of targets) {
     // Every file is rewritten whole from its decode: a legacy single-byte file
@@ -64,6 +64,18 @@ export async function applyWorkspaceEdit(
       throw new LSPError(
         LSPErrorCode.ApplyEditFailed,
         `Refusing to apply workspace edit: ${file} is not UTF-8 text (a legacy single-byte encoding?)`,
+      );
+    }
+    // The server computed these ranges against the text it was sent (the
+    // tracked copy). If the file changed on disk since (an `exec` formatter, a
+    // checkout), splicing them into the disk text corrupts it at stale offsets.
+    // Matched by canonical key: on Windows the server's `file:///c%3A/…`
+    // spelling decodes to a lowercase drive while the tracker holds `C:`.
+    const key = canonicalPathKey(file);
+    if (tracked.some((doc) => canonicalPathKey(doc.path) === key && doc.text !== original)) {
+      throw new LSPError(
+        LSPErrorCode.ApplyEditFailed,
+        `Refusing to apply workspace edit: ${file} changed on disk since the language server analysed it; read the file again and retry`,
       );
     }
     ops.push({ path: file, original, next: applyTextEdits(original, edits), edits: edits.length });
@@ -88,8 +100,23 @@ export async function applyWorkspaceEdit(
     /* v8 ignore stop */
   }
 
-  for (const op of ops) await tracker.fileWritten(op.path);
+  for (const op of ops) {
+    // Resync the tracked spelling(s): `op.path` may be the server's lowercase
+    // drive, which would open a second copy and leave the tracked one on the
+    // pre-edit text — the stale check above would then refuse the next edit.
+    const key = canonicalPathKey(op.path);
+    const spellings = tracked.filter((doc) => canonicalPathKey(doc.path) === key);
+    for (const p of spellings.length > 0 ? spellings.map((doc) => doc.path) : [op.path]) {
+      await tracker.fileWritten(p);
+    }
+  }
   return { files: ops.map((op) => op.path), edits: ops.reduce((sum, op) => sum + op.edits, 0) };
+}
+
+/** Map key for one file: resolved, and case-folded where paths are case-insensitive. */
+function canonicalPathKey(file: string): string {
+  const resolved = path.resolve(file);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
 }
 
 /** Targets whose lexical or real (symlink-resolved) path leaves `projectRoot`. */
