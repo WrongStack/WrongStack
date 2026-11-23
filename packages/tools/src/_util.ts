@@ -483,6 +483,27 @@ function isLowSurrogate(code: number): boolean {
 }
 
 /**
+ * Largest prefix of `s` of at most `maxChars` UTF-16 units that does not end
+ * between the two halves of an astral character.
+ */
+function takeHeadChars(s: string, maxChars: number): string {
+  const n = Math.min(Math.max(0, Math.floor(maxChars)), s.length);
+  if (n === 0) return '';
+  return isHighSurrogate(s.charCodeAt(n - 1)) ? s.slice(0, n - 1) : s.slice(0, n);
+}
+
+/**
+ * Largest suffix of `s` of at most `maxChars` UTF-16 units that does not start
+ * between the two halves of an astral character.
+ */
+function takeTailChars(s: string, maxChars: number): string {
+  const n = Math.min(Math.max(0, Math.floor(maxChars)), s.length);
+  if (n === 0) return '';
+  const start = s.length - n;
+  return isLowSurrogate(s.charCodeAt(start)) ? s.slice(start + 1) : s.slice(start);
+}
+
+/**
  * Truncate to `maxBytes` keeping BOTH ends — the head (what ran / early context)
  * and the tail (errors and summaries usually land last), biased ~45/55 toward
  * the tail. The result never exceeds `maxBytes`.
@@ -569,7 +590,7 @@ export function createCommandOutputCapture(maxChars: number): CommandOutputCaptu
       if (!text) return;
       let rest = text;
       if (head.length < maxChars) {
-        const take = rest.slice(0, maxChars - head.length);
+        const take = takeHeadChars(rest, maxChars - head.length);
         head += take;
         rest = rest.slice(take.length);
       }
@@ -578,15 +599,16 @@ export function createCommandOutputCapture(maxChars: number): CommandOutputCaptu
       // Trim in batches, not per chunk, so a stream of small chunks does not
       // re-slice a maxChars string on every write.
       if (tail.length > maxChars * 2) {
-        const cut = tail.length - maxChars;
-        omitted += cut;
-        tail = tail.slice(cut);
+        const trimmed = takeTailChars(tail, maxChars);
+        omitted += tail.length - trimmed.length;
+        tail = trimmed;
       }
     },
     text() {
       if (tail.length > maxChars) {
-        omitted += tail.length - maxChars;
-        tail = tail.slice(tail.length - maxChars);
+        const trimmed = takeTailChars(tail, maxChars);
+        omitted += tail.length - trimmed.length;
+        tail = trimmed;
       }
       if (omitted === 0) return head + tail;
       // Start the tail on a whole line: a half line reads as garbage.

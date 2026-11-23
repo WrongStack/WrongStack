@@ -9,6 +9,7 @@ import {
   capBytesWithNotice,
   collapseCarriageReturns,
   collapseConsecutiveDuplicates,
+  createCommandOutputCapture,
   detectPackageManager,
   ensureInsideRoot,
   isBinaryBuffer,
@@ -286,6 +287,26 @@ describe('collapseConsecutiveDuplicates', () => {
 
   it('only collapses CONSECUTIVE duplicates, never reorders', () => {
     expect(collapseConsecutiveDuplicates('a\nb\na\nb')).toBe('a\nb\na\nb');
+  });
+});
+
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+
+describe('createCommandOutputCapture', () => {
+  it('never splits an astral character at the head or tail cut', () => {
+    const headCut = createCommandOutputCapture(2);
+    headCut.push(`a😀${'x'.repeat(20)}`);
+    expect(LONE_SURROGATE.test(headCut.text())).toBe(false);
+
+    const tailCut = createCommandOutputCapture(1);
+    tailCut.push(`${'x'.repeat(20)}😀`);
+    expect(LONE_SURROGATE.test(tailCut.text())).toBe(false);
+  });
+
+  it('keeps an astral character intact when it fits', () => {
+    const capture = createCommandOutputCapture(10);
+    capture.push('a😀b');
+    expect(capture.text()).toBe('a😀b');
   });
 });
 
