@@ -88,6 +88,14 @@ const SECRET_NAME_PARTS = [
 
 function looksSecret(name: string): boolean {
   const upper = name.toUpperCase();
+  // git's env-config protocol is one unit: `GIT_CONFIG_COUNT` with
+  // `GIT_CONFIG_KEY_<n>`/`GIT_CONFIG_VALUE_<n>`. The VALUE carries a secret (it
+  // is value-scanned above); the KEY holds a config KEY NAME (`core.autocrlf`,
+  // `http.extraHeader`) and never a credential. Stripping it while forwarding
+  // COUNT/VALUE handed every child an incomplete triple, and git then dies with
+  // `error: missing config key GIT_CONFIG_KEY_n` (exit 128) for every command.
+  // Exempt exactly that shape; other `_KEY` names keep the heuristic.
+  if (/^GIT_CONFIG_KEY_\d+$/.test(upper)) return false;
   for (const p of SECRET_NAME_PARTS) {
     if (upper.includes(p)) return true;
   }
@@ -130,12 +138,21 @@ function valueHasEmbeddedCredential(value: string): boolean {
 /**
  * Value-side detection of an HTTP credential header carried in a forwarded
  * variable — git's env config `GIT_CONFIG_VALUE_<n>="Authorization: Bearer …"`
- * (the `http.extraHeader` pattern) passes every name rule via the `GIT_`
- * prefix. Matches only the header shape, so ordinary values are unaffected.
+ * (the `http.extraHeader` pattern). Matching only the `Authorization` spelling
+ * forwarded every other header that carries a credential on the same channel:
+ * GitLab's `PRIVATE-TOKEN` / `JOB-TOKEN` (the documented way to authenticate
+ * `git` in GitLab CI), `X-API-KEY`, `X-AUTH-TOKEN`, `X-GITLAB-TOKEN` and
+ * `Cookie`. The child then holds the secret verbatim — an exfiltration vector
+ * this filter exists to close. Matching only the `name: value` header shape
+ * keeps ordinary values (including URLs that merely mention a header name)
+ * forwarded.
  */
 function valueHasHeaderCredential(value: string): boolean {
-  return /\b(?:proxy-)?authorization\s*:\s*\S/i.test(value);
+  return CREDENTIAL_HEADER_RE.test(value);
 }
+
+const CREDENTIAL_HEADER_RE =
+  /\b(?:proxy-)?authorization\s*:\s*\S|\b(?:private-token|job-token|x-auth-token|x-api-key|x-gitlab-token|cookie)\s*:\s*\S/i;
 
 /**
  * Code-injection directives that turn `NODE_OPTIONS` into an RCE channel by

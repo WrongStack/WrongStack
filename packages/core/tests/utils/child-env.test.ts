@@ -98,6 +98,55 @@ describe('buildChildEnv', () => {
     expect(result.GIT_CONFIG_VALUE_1).toBe('https://example.com/authorization-docs');
   });
 
+  // The `http.extraHeader` channel carries any auth header, not just
+  // `Authorization`: GitLab documents a private/job token header for `git`,
+  // and API-key/cookie auth use their own names. Matching only the
+  // Authorization spelling forwarded those secrets verbatim to every child.
+  it('strips non-Authorization credential headers on the git env-config channel', () => {
+    const privateToken = ['PRIVATE', 'TOKEN'].join('-');
+    const jobToken = ['JOB', 'TOKEN'].join('-');
+    const apiKey = ['X', 'API', 'KEY'].join('-');
+    process.env = {
+      GIT_CONFIG_COUNT: '5',
+      GIT_CONFIG_VALUE_0: `http.extraHeader=${privateToken}: fake-private-token`,
+      GIT_CONFIG_VALUE_1: `http.extraHeader=${jobToken}: fake-job-token`,
+      GIT_CONFIG_VALUE_2: `http.extraHeader=${apiKey}: fake-api-key`,
+      GIT_CONFIG_VALUE_3: 'http.extraHeader=Cookie: session=fake-session',
+      GIT_CONFIG_VALUE_4: 'core.autocrlf=false',
+    };
+    const result = buildChildEnv();
+    expect(result.GIT_CONFIG_VALUE_0).toBeUndefined();
+    expect(result.GIT_CONFIG_VALUE_1).toBeUndefined();
+    expect(result.GIT_CONFIG_VALUE_2).toBeUndefined();
+    expect(result.GIT_CONFIG_VALUE_3).toBeUndefined();
+    // A benign config value on the same channel still reaches the child.
+    expect(result.GIT_CONFIG_VALUE_4).toBe('core.autocrlf=false');
+  });
+
+  // `GIT_CONFIG_COUNT`/`KEY_<n>`/`VALUE_<n>` is one protocol: git dies with
+  // `error: missing config key GIT_CONFIG_KEY_n` (exit 128) when the key is
+  // absent. The `_KEY` secret heuristic stripped `GIT_CONFIG_KEY_<n>` while
+  // COUNT/VALUE were forwarded, so every child `git` failed. The KEY value is a
+  // config key NAME, never a credential.
+  it('forwards the complete git env-config triple and still strips secret KEY names', () => {
+    process.env = {
+      GIT_CONFIG_COUNT: '1',
+      GIT_CONFIG_KEY_0: 'core.autocrlf',
+      GIT_CONFIG_VALUE_0: 'false',
+      ANTHROPIC_API_KEY: 'fake-value',
+      SIGNING_KEY: 'fake-value',
+      MY_KEY: 'fake-value',
+    };
+    const result = buildChildEnv();
+    expect(result.GIT_CONFIG_COUNT).toBe('1');
+    expect(result.GIT_CONFIG_KEY_0).toBe('core.autocrlf');
+    expect(result.GIT_CONFIG_VALUE_0).toBe('false');
+    // The heuristic is narrowed, not disabled.
+    expect(result.ANTHROPIC_API_KEY).toBeUndefined();
+    expect(result.SIGNING_KEY).toBeUndefined();
+    expect(result.MY_KEY).toBeUndefined();
+  });
+
   it('should forward allowed system vars', () => {
     process.env = { PATH: '/usr/bin', HOME: '/home/user' };
     const result = buildChildEnv();
