@@ -13,6 +13,16 @@ function eventIdentity(event: KanbanEvent): string {
     : `sha256:${createHash('sha256').update(JSON.stringify(event)).digest('hex')}`;
 }
 
+/**
+ * Read a legacy JSON/JSONL source the way the file codec in storage.ts reads
+ * it: a leading UTF-8 BOM (Windows editors, PowerShell 5.1) is dropped, so a
+ * file the legacy readers accept is never what blocks the store from opening.
+ */
+async function readLegacyText(filePath: string): Promise<string> {
+  const raw = await fs.readFile(filePath, 'utf8');
+  return raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
+}
+
 async function removeLegacyFiles(dir: string, fileNames: readonly string[]): Promise<void> {
   await Promise.all(fileNames.map((fileName) => fs.rm(path.join(dir, fileName), { force: true })));
 }
@@ -133,7 +143,7 @@ export async function migrateLegacyKanbanFiles(
     for (const entry of boardFiles) {
       const boardId = entry.name.slice(0, -5);
       assertValidBoardId(boardId);
-      const raw = await fs.readFile(path.join(dir, entry.name), 'utf8');
+      const raw = await readLegacyText(path.join(dir, entry.name));
       const parsed = JSON.parse(raw) as KanbanBoard;
       if (parsed.id !== boardId) {
         throw new Error(
@@ -154,7 +164,7 @@ export async function migrateLegacyKanbanFiles(
             .all(boardId) as Array<{ payload: string }>
         ).map((row) => eventIdentity(JSON.parse(row.payload) as KanbanEvent)),
       );
-      const eventRaw = await fs.readFile(path.join(dir, entry.name), 'utf8');
+      const eventRaw = await readLegacyText(path.join(dir, entry.name));
       for (const line of eventRaw.split(/\r?\n/)) {
         if (!line.trim()) continue;
         const event = JSON.parse(line) as KanbanEvent;
@@ -173,7 +183,7 @@ export async function migrateLegacyKanbanFiles(
       }
     }
     const legacyHqState =
-      hqSyncFile === null ? null : await fs.readFile(path.join(dir, hqSyncFile), 'utf8');
+      hqSyncFile === null ? null : await readLegacyText(path.join(dir, hqSyncFile));
     if (legacyHqState !== null) {
       JSON.parse(legacyHqState);
       db.prepare('INSERT OR IGNORE INTO kanban_meta(key, value) VALUES (?, ?)').run(

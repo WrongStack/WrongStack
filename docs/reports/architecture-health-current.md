@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-23T13:35:34.215Z
+**Generated:** 2026-11-23T13:38:11.491Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 50 |
 | Production source files | 6492 |
-| Production source lines | 1328129 |
-| Test files | 5764 |
+| Production source lines | 1328139 |
+| Test files | 5765 |
 | Workspace dependency edges | 259 |
 | Relative module edges | 18987 |
 | Non-command slash imports | 0 |
@@ -46,7 +46,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/governance | 45 | 39 | @wrongstack/persistence |
 | @wrongstack/hq | 73 | 59 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/hq-next | 193 | 70 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/hq, @wrongstack/tools, @wrongstack/webui-protocol |
-| @wrongstack/kanban | 108 | 110 | @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/kanban | 108 | 111 | @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/kanban-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/mailbox-mcp | 7 | 11 | @wrongstack/coordination, @wrongstack/core, @wrongstack/mcp |
 | @wrongstack/mcp | 75 | 111 | @wrongstack/contracts, @wrongstack/core |
