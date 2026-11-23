@@ -13,6 +13,7 @@ export {
 } from './council-tool.js';
 export {
   AGENT_MODEL_ASSIGN_TOOL_NAME,
+  CREDENTIAL_SELECTOR_FIELDS,
   createFallbackManageTools,
   FALLBACK_CHAIN_MANAGE_TOOL_NAME,
   FALLBACK_PROFILE_MANAGE_TOOL_NAME,

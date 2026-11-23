@@ -408,12 +408,19 @@ export function createProviderManageTool(
             )
           : [];
         for (const field of droppedFields) {
-          // VULN-006: `envVars` must persist as an explicit EMPTY ARRAY, not
-          // undefined. An absent key lets the provider resolver fall back to
-          // the catalog preset (e.g. OPENAI_API_KEY) and silently re-arm the
-          // credential for the NEW endpoint; present-but-empty suppresses
-          // that fallback (providers/src/index.ts honors the sentinel).
-          entry[field] = field === 'envVars' ? [] : undefined;
+          // VULN-006: for a NEW custom endpoint, `envVars` must persist as an
+          // explicit EMPTY ARRAY, not undefined. An absent key lets the
+          // provider resolver fall back to the catalog preset (e.g.
+          // OPENAI_API_KEY) and silently re-arm the credential for the new
+          // host; present-but-empty suppresses that fallback
+          // (providers/src/index.ts honors the sentinel).
+          //
+          // A reset to the vendor default (`baseUrl: ''`) is the exception the
+          // comment above promises: there is no new endpoint to protect, and
+          // the catalog preset IS the vendor's own credential, so the key must
+          // re-arm rather than be suppressed. Persisting `[]` here left the
+          // provider keyless after a reset.
+          entry[field] = field === 'envVars' && entry.baseUrl !== undefined ? [] : undefined;
         }
         const clearedFields = droppedFields.filter((field) => previous[field] !== undefined);
 

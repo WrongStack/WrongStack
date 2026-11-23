@@ -1,6 +1,6 @@
 import type { ProviderConfig } from '@wrongstack/contracts/types';
 import { cloudFieldsForProvider, parseNativeCloudSettings } from '@wrongstack/core/cloud-provider';
-import { validateProviderBaseUrl } from '@wrongstack/tools/management';
+import { CREDENTIAL_SELECTOR_FIELDS, validateProviderBaseUrl } from '@wrongstack/tools/management';
 import type { WebSocket } from 'ws';
 import { errMessage } from '../ws-utils.js';
 import {
@@ -195,6 +195,7 @@ export function createProviderCrudHandlers(ctx: ProviderServiceContext) {
         ctx.sendOperationResult(ws, false, `Unknown provider "${payload.id}"`);
         return;
       }
+      const previousBaseUrl = cfg.baseUrl;
       // `provider.probe` sends the saved key to whatever `baseUrl` says and
       // echoes a slice of the response body back over this socket, so an
       // unvalidated write here is both a credential-delivery and a readable-SSRF
@@ -212,6 +213,25 @@ export function createProviderCrudHandlers(ctx: ProviderServiceContext) {
       if (payload.envVars !== undefined) cfg.envVars = payload.envVars;
       if (payload.models !== undefined) cfg.models = payload.models;
       if (payload.customModels !== undefined) cfg.customModels = payload.customModels;
+      // VULN-006: mirror provider_manage's endpoint-change sentinel. A changed
+      // baseUrl must not leave the previous credential selector armed for the
+      // new host — the resolver reads envVars/apiKey/apiKeys/activeKey and
+      // would send the old secret to a different endpoint. `envVars: []` is the
+      // documented sentinel that suppresses the catalog/env fallback; a reset
+      // to the vendor default (`baseUrl: ''`) has no new endpoint to protect,
+      // so the field clears to undefined and the vendor credential re-arms.
+      const endpointChanged =
+        payload.baseUrl !== undefined &&
+        (cfg.baseUrl ?? undefined) !== (previousBaseUrl ?? undefined);
+      if (endpointChanged) {
+        for (const field of CREDENTIAL_SELECTOR_FIELDS) {
+          if (field === 'envVars') {
+            if (payload.envVars === undefined) cfg.envVars = cfg.baseUrl ? [] : undefined;
+            continue;
+          }
+          delete (cfg as unknown as Record<string, unknown>)[field];
+        }
+      }
       if (payload.cloud !== undefined) {
         const cloud = parseNativeCloudSettings(payload.cloud);
         const fields = cloudFieldsForProvider(cfg.type || payload.id);

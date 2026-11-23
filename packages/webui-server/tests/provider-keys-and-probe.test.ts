@@ -8,6 +8,8 @@ import { probeModelDescriptors, projectSavedProviders } from '../src/server/prov
 
 // Mock validateProviderBaseUrl
 vi.mock('@wrongstack/tools/management', () => ({
+  // keys.ts applies the VULN-006 endpoint-change sentinel with this shared list.
+  CREDENTIAL_SELECTOR_FIELDS: ['apiKey', 'apiKeys', 'activeKey', 'envVars'],
   validateProviderBaseUrl: vi.fn(async (url: string) => {
     if (url.includes('evil.com') || url.includes('invalid')) {
       return 'Disallowed base URL';

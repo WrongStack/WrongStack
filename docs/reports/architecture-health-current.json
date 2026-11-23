@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T13:53:56.047Z",
+  "generatedAt": "2026-11-23T13:56:28.912Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 50,
     "sourceFiles": 6492,
-    "testFiles": 5766,
-    "sourceLines": 1328305,
+    "testFiles": 5768,
+    "sourceLines": 1328335,
     "workspaceEdges": 259,
     "moduleEdges": 18987,
     "nonCommandSlashImports": 0,
@@ -1061,7 +1061,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 348,
-      "testFiles": 397,
+      "testFiles": 398,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/browser-tools",
@@ -1082,7 +1082,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 397
+          "testFiles": 398
         }
       ]
     },
@@ -1229,7 +1229,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 357,
-      "testFiles": 423,
+      "testFiles": 424,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1264,7 +1264,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 423
+          "testFiles": 424
         }
       ]
     },
@@ -25958,6 +25958,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/management/provider-manage-reset-sentinel.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/management/session-branch.test.ts",
         "projects": [
           "root-node"
@@ -31635,6 +31641,12 @@
       },
       {
         "file": "packages/webui-server/tests/provider-token-persisters.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/provider-update-endpoint-sentinel.test.ts",
         "projects": [
           "root-node"
         ]

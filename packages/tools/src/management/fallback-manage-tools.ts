@@ -29,6 +29,7 @@ import {
   PROVIDER_KEY_SET_TOOL_NAME,
 } from './fallback-provider-key-set-tool.js';
 import {
+  CREDENTIAL_SELECTOR_FIELDS,
   createProviderManageTool,
   PROVIDER_MANAGE_TOOL_NAME,
   validateProviderBaseUrl,
@@ -52,6 +53,7 @@ export type {
 export * from './fallback-system-config-view-tool.js';
 export {
   AGENT_MODEL_ASSIGN_TOOL_NAME,
+  CREDENTIAL_SELECTOR_FIELDS,
   FALLBACK_CHAIN_MANAGE_TOOL_NAME,
   FALLBACK_PROFILE_MANAGE_TOOL_NAME,
   FAVORITE_MANAGE_TOOL_NAME,
