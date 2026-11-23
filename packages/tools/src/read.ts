@@ -434,6 +434,11 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     // the hash always covers the whole content.
     const contentHash = sha256hex(text);
     const allLines = text.length === 0 ? [] : text.split(/\r?\n/);
+    // A trailing newline TERMINATES the last line; `split` leaves a phantom
+    // empty element for it. Left in, it inflated `total_lines` by one, flipped
+    // `truncated` on an exact-boundary page, and made the EOF boundary one
+    // line too high (a 2-line file showed a readable "line 3").
+    if (text.endsWith('\n') && allLines.at(-1) === '') allLines.pop();
     const total = allLines.length;
 
     if (total === 0) {
