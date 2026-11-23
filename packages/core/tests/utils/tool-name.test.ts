@@ -48,6 +48,24 @@ describe('mcpQualifiedToolName / mcpServerToolPrefix', () => {
     expect(mcpQualifiedToolName('github', 'search_issues')).toBe('mcp__github__search_issues');
   });
 
+  it('keeps the namespace delimiter unambiguous when a name contains it', () => {
+    // `__` is the inserted separator, so a segment must never carry its own
+    // run: server "a__b"+tool "tool" and server "a"+tool "b__tool" used to
+    // render the same qualified name, which the registry rejects as a
+    // duplicate (and a permission rule could not tell the targets apart).
+    const serverWithDelimiter = mcpQualifiedToolName('a__b', 'tool');
+    const toolWithDelimiter = mcpQualifiedToolName('a', 'b__tool');
+    expect(serverWithDelimiter).not.toBe(toolWithDelimiter);
+    expect(serverWithDelimiter.slice(mcpServerToolPrefix('a__b').length)).not.toContain('__');
+    expect(toolWithDelimiter.slice(mcpServerToolPrefix('a').length)).not.toContain('__');
+    expect(serverWithDelimiter).toMatch(WIRE_TOOL_NAME_PATTERN);
+    expect(toolWithDelimiter).toMatch(WIRE_TOOL_NAME_PATTERN);
+
+    // A trailing run must not join the hash separator into a new `__`.
+    const trailingRun = mcpQualifiedToolName('a', 'b__');
+    expect(trailingRun.slice(mcpServerToolPrefix('a').length)).not.toContain('__');
+  });
+
   it('disambiguates lossy and truncated server/tool identities', () => {
     expect(mcpQualifiedToolName('srv', 'search:messages')).not.toBe(
       mcpQualifiedToolName('srv', 'search.messages'),

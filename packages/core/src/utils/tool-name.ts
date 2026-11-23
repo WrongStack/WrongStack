@@ -37,9 +37,20 @@ export function sanitizeWireToolName(name: string): string {
 function collisionSafeMcpSegment(value: string, maxLength: number): string {
   const safeValue = typeof value === 'string' ? value : '';
   const replaced = safeValue.replace(/[^a-zA-Z0-9_-]/g, '_') || 'tool';
-  if (replaced === safeValue && replaced.length <= maxLength) return replaced;
+  // `__` is the namespace delimiter this module inserts. Allowing it INSIDE a
+  // segment makes `mcp__<server>__<tool>` ambiguous: server "a__b" + tool
+  // "tool" and server "a" + tool "b__tool" both render as
+  // "mcp__a__b__tool". The registry then rejects the second registration
+  // (REGISTRY_DUPLICATE), and a permission rule keyed on the name cannot tell
+  // the two targets apart. Collapse the run and hash the identity, so the
+  // delimiter can only be the one inserted here.
+  const segment = replaced.replace(/_{2,}/g, '_');
+  if (segment === safeValue && segment.length <= maxLength) return segment;
   const suffix = `_${createHash('sha256').update(safeValue, 'utf8').digest('hex').slice(0, MCP_IDENTITY_HASH_LENGTH)}`;
-  return `${replaced.slice(0, Math.max(1, maxLength - suffix.length))}${suffix}`;
+  // Trim trailing underscores so the hash separator cannot join them into a
+  // new `__` run at the junction.
+  const head = segment.slice(0, Math.max(1, maxLength - suffix.length)).replace(/_+$/, '');
+  return `${head}${suffix}`;
 }
 
 /** Sanitized `mcp__<server>__` namespace prefix for a server's tools. */
