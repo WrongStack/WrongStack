@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T13:24:13.153Z",
+  "generatedAt": "2026-11-23T13:26:46.288Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 50,
     "sourceFiles": 6492,
-    "testFiles": 5761,
-    "sourceLines": 1328084,
+    "testFiles": 5762,
+    "sourceLines": 1328091,
     "workspaceEdges": 259,
     "moduleEdges": 18987,
     "nonCommandSlashImports": 0,
@@ -403,7 +403,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 664,
-      "testFiles": 773,
+      "testFiles": 774,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -420,7 +420,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 773
+          "testFiles": 774
         }
       ]
     },
@@ -13725,6 +13725,12 @@
       },
       {
         "file": "packages/core/tests/security/sensitive-path-ads.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/security/sensitive-read-shell-wrapper.test.ts",
         "projects": [
           "root-node"
         ]

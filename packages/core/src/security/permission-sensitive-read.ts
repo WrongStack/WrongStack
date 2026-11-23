@@ -332,17 +332,24 @@ export function inputPathLooksSensitive(input: unknown): boolean {
 }
 
 export function shellCommandReadsSensitivePath(command: string): boolean {
-  const tokens =
-    command.match(/"[^"]*"|'[^']*'|\S+/g)?.map((token) => stripShellQuotes(token).toLowerCase()) ??
-    [];
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i];
-    if (!token) continue;
-    if (!SHELL_READ_VERBS.has(token)) continue;
-    const rest = tokens.slice(i + 1);
-    if (rest.some((arg) => pathLooksSensitive(arg))) return true;
+  const rawTokens = command.match(/"[^"]*"|'[^']*'|\S+/g) ?? [];
+  const tokens: string[] = [];
+  for (const raw of rawTokens) {
+    const cleaned = stripShellQuotes(raw).toLowerCase();
+    if (!cleaned) continue;
+    tokens.push(cleaned);
+    // A quoted wrapper (`powershell -Command "Get-Content .env"`,
+    // `bash -c 'cat .env'`) hides the nested command as one token. Split it
+    // so the read-verb/path scan sees the inner argv.
+    if (/\s/.test(cleaned)) tokens.push(...cleaned.split(/\s+/).filter(Boolean));
   }
-  return false;
+  if (!tokens.some((token) => SHELL_READ_VERBS.has(token))) return false;
+  // Check every token, not only those after a verb: `find . -name .env
+  // -exec cat {}` reads the path before `cat`, and a quoted nested command
+  // puts the verb and path in the same original token. A sensitive path
+  // anywhere in a command that also has a read verb is treated as a read;
+  // false positives are the safe direction for this gate.
+  return tokens.some((token) => pathLooksSensitive(token));
 }
 
 /**
