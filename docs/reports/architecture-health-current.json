@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T13:33:16.282Z",
+  "generatedAt": "2026-11-23T13:35:34.215Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 50,
     "sourceFiles": 6492,
-    "testFiles": 5762,
-    "sourceLines": 1328102,
+    "testFiles": 5764,
+    "sourceLines": 1328129,
     "workspaceEdges": 259,
     "moduleEdges": 18987,
     "nonCommandSlashImports": 0,
@@ -577,7 +577,7 @@
       "name": "@wrongstack/kanban",
       "dir": "packages/kanban",
       "sourceFiles": 108,
-      "testFiles": 108,
+      "testFiles": 110,
       "workspaceDependencies": [
         "@wrongstack/persistence",
         "@wrongstack/primitives"
@@ -591,7 +591,7 @@
         {
           "path": "packages/kanban/tsconfig.test.json",
           "error": null,
-          "testFiles": 108
+          "testFiles": 110
         }
       ]
     },
@@ -17348,6 +17348,12 @@
         ]
       },
       {
+        "file": "packages/kanban/tests/dispatch-comment-surrogate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/dispatch-conformance.test.ts",
         "projects": [
           "root-node"
@@ -17739,6 +17745,12 @@
       },
       {
         "file": "packages/kanban/tests/verification/plugins/agent.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/verification/plugins/command-evidence-surrogate.test.ts",
         "projects": [
           "root-node"
         ]

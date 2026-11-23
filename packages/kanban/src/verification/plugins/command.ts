@@ -45,8 +45,8 @@ export class CommandPlugin implements VerifierPlugin {
       evidence: {
         command,
         exitCode: result.exitCode,
-        stdout: result.stdout.slice(0, 5000),
-        stderr: result.stderr.slice(0, 2000),
+        stdout: sliceAtCodePoint(result.stdout, 5000),
+        stderr: sliceAtCodePoint(result.stderr, 2000),
         durationMs: result.durationMs,
         ...(rejected ? { rejectionReason: result.stderr } : {}),
       },
@@ -55,7 +55,19 @@ export class CommandPlugin implements VerifierPlugin {
           ? undefined
           : rejected
             ? `Command rejected by security gate: ${result.stderr}`
-            : `Command exited with code ${result.exitCode}: ${result.stderr.slice(0, 500) || result.stdout.slice(0, 500)}`,
+            : `Command exited with code ${result.exitCode}: ${sliceAtCodePoint(result.stderr, 500) || sliceAtCodePoint(result.stdout, 500)}`,
     };
   }
+}
+
+/**
+ * First `max` UTF-16 code units of `value`, never ending between the halves of
+ * a surrogate pair. This evidence is persisted in the task's verificationReport,
+ * and a lone surrogate there is ill-formed text (same walk-back rule as
+ * verification-report's `truncateEvidence`).
+ */
+function sliceAtCodePoint(value: string, max: number): string {
+  if (value.length <= max) return value;
+  const last = value.charCodeAt(max - 1);
+  return value.slice(0, last >= 0xd800 && last <= 0xdbff ? max - 1 : max);
 }

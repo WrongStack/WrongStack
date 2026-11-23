@@ -211,6 +211,18 @@ function buildLease(ttlMs: number): DispatchLease {
 }
 
 /**
+ * First `max` UTF-16 code units of `value`, never ending between the halves of
+ * a surrogate pair. The cut text is persisted in the card's lifecycle history,
+ * and a lone surrogate there is ill-formed text (same walk-back rule as
+ * serialization.ts's generated title and verification-report's evidence cut).
+ */
+function sliceAtCodePoint(value: string, max: number): string {
+  if (value.length <= max) return value;
+  const last = value.charCodeAt(max - 1);
+  return value.slice(0, last >= 0xd800 && last <= 0xdbff ? max - 1 : max);
+}
+
+/**
  * Convert a thrown lifecycle/gate error into the structured dispatch payload
  * and emit operator-visible diagnostics (stderr + a kanban audit event).
  *
@@ -446,7 +458,10 @@ export async function completeKanbanDispatch(
           to: 'review',
           sessionId: input.sessionId,
           actor: input.actor,
-          comment: input.result?.slice(0, 1000) ?? 'Work completed.',
+          comment:
+            typeof input.result === 'string'
+              ? sliceAtCodePoint(input.result, 1000)
+              : 'Work completed.',
           ...(input.evidence
             ? {
                 attachment: {
