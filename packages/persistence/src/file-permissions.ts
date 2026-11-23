@@ -116,9 +116,9 @@ const ICACLS_TIMEOUT_MS = 10_000;
  * below, which warns and returns.
  */
 function icaclsBounded(
-  spawn: () => Promise<{ stdout: string; stderr: string }>,
+  invoke: () => Promise<{ stdout: string; stderr: string }>,
 ): Promise<{ stdout: string; stderr: string }> {
-  const spawned = spawn();
+  const spawned = invoke();
   return new Promise((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error(`icacls timed out after ${ICACLS_TIMEOUT_MS}ms`)),
