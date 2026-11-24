@@ -75,8 +75,9 @@ export const CREDENTIAL_PATTERNS: readonly CredentialPattern[] = [
   },
   // npm — a leaked publish token is a supply-chain compromise.
   { type: 'npm_token', regex: /(?<![A-Za-z0-9])npm_[A-Za-z0-9]{36}(?![A-Za-z0-9])/g },
-  // AWS
-  { type: 'aws_access_key', regex: /(?<![A-Za-z0-9])AKIA[0-9A-Z]{16}(?![A-Za-z0-9])/g },
+  // AWS — F101: ASIA is the STS temporary-credential prefix (SSO/CI
+  // federation), same 20-char shape as AKIA; parity with the scrubber (F85).
+  { type: 'aws_access_key', regex: /(?<![A-Za-z0-9])(?:AKIA|ASIA)[0-9A-Z]{16}(?![A-Za-z0-9])/g },
   // GCP
   { type: 'gcp_key', regex: /(?<![A-Za-z0-9])AIza[0-9A-Za-z_-]{35}(?![A-Za-z0-9])/g },
   // Slack. `xoxe` (token-rotation) and `xapp` (app-level) were missing;
@@ -102,6 +103,12 @@ export const CREDENTIAL_PATTERNS: readonly CredentialPattern[] = [
     type: 'stripe_key',
     // Secret (`sk_`) and restricted (`rk_`) keys carry the same authority.
     regex: /(?<![A-Za-z0-9])[sr]k_(?:live|test)_[A-Za-z0-9]{24,}(?![A-Za-z0-9])/g,
+  },
+  {
+    type: 'stripe_webhook_secret',
+    // F101: webhook signing secrets let an attacker forge webhook events;
+    // parity with the scrubber (F85).
+    regex: /(?<![A-Za-z0-9])whsec_[A-Za-z0-9]{24,}(?![A-Za-z0-9])/g,
   },
   // Twilio
   { type: 'twilio_sid', regex: /(?<![A-Za-z0-9])AC[a-f0-9]{32}(?![A-Za-z0-9])/g },

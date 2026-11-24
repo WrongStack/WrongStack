@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T18:53:04.276Z",
+  "generatedAt": "2026-11-24T19:00:04.160Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6543,
-    "testFiles": 5825,
-    "sourceLines": 1340554,
+    "testFiles": 5826,
+    "sourceLines": 1340561,
     "workspaceEdges": 261,
     "moduleEdges": 19139,
     "nonCommandSlashImports": 0,
@@ -712,7 +712,7 @@
       "name": "@wrongstack/plugin-sdk",
       "dir": "packages/plugin-sdk",
       "sourceFiles": 12,
-      "testFiles": 14,
+      "testFiles": 15,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -727,7 +727,7 @@
         {
           "path": "packages/plugin-sdk/tsconfig.test.json",
           "error": null,
-          "testFiles": 14
+          "testFiles": 15
         }
       ]
     },
@@ -19375,6 +19375,12 @@
       },
       {
         "file": "packages/plugin-sdk/tests/collect-source-files-inode-precision.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugin-sdk/tests/credential-patterns-aws-stripe.test.ts",
         "projects": [
           "root-node"
         ]
