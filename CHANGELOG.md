@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.20] — 2026-11-24
+
+HQ becomes a central key vault that hands provider keys and OAuth profiles to
+enrolled machines, ACP workers share one project MCP gateway, and a round of
+security, Chronicle and audit fixes.
+
+### Added
+
+- HQ key vault: HQ holds provider API keys under envelope encryption
+  (optionally passphrase-sealed) and gives each enrolled machine exactly its
+  granted keys, sealed to that device and signed by HQ. Machines enroll with a
+  one-time code (`wstack hq enroll|device|sync|unenroll`,
+  `wstack auth import --from hq`, "Import from HQ" in the TUI `/auth` panel).
+  Operator routes need an admin, a password step-up and a loopback or TLS
+  channel, and HQ gains built-in TLS (`--tls-cert`/`--tls-key`).
+- HQ provider profiles: a provider catalog, OAuth sign-in and server-side token
+  refresh on HQ; WebUI, VibeUI and Desktop provider settings import profiles
+  from HQ. Enrolled machines sync vault changes in the background after an
+  operator edit, without a manual Sync.
+- ACP: workers share a loopback project MCP gateway with per-worker grants
+  instead of spawning MCP servers per worker, and HTTP-capable workers reach
+  WrongStack MCPs through it. ACP client profiles, permission bridging,
+  preflight context, worktree isolation for local workers, and goals on an ACP
+  provider.
+- Tools: optional tool groups are versioned and provider schemas are deferred.
+
+### Fixed
+
+- Security: branch-guard closes protected-branch bypasses (attached and `=`
+  create flags, short-flag clusters, `pull`, `cherry-pick`, `revert`, `am`) and
+  judges the session's repo; secret detectors and the plugin-sdk credential
+  table catch AWS STS (`ASIA…`), Stripe webhook (`whsec_…`) and xAI keys;
+  `resolveNodeBin` rejects traversal and absolute package names; user-content
+  writes are owner-only; permission-grant and prompt-cache keys sort in
+  code-unit order, so canonically equivalent input keys the same grant.
+- ACP: registry entries and the cached registry reject malformed launch data
+  and duplicate ids, and a persistent subagent runner revokes each turn's
+  gateway grant instead of leaking one per turn.
+- MCP: the project MCP gateway answers a malformed service path with a 400
+  instead of hanging.
+- Chronicle: event, partition and facet ordering and search folding are
+  locale-independent, so canonically equivalent ids no longer skip or
+  duplicate a page and an uppercase search works on a Turkish host.
+- Audit round: the Telegram inbound fence and private-chat send policy, session
+  catalog damage and search folding, a Kanban prune race, TUI goal-run counts,
+  Kitty detection, review diff annotation, and text clipping and bounds that
+  never split a UTF-16 surrogate pair.
+
 ## [1.7.19] — 2026-11-24
 
 A direct ChatGPT sign-in shows its plan and app quota again, switching a

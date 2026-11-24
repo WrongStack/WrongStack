@@ -1,4 +1,4 @@
-// Changelog — recent 1.x era (1.7.19 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
+// Changelog — recent 1.x era (1.7.20 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
 // Historical entries mirror CHANGELOG.md release notes. 1.1.0 absorbs the 1.0.38
 // bump, which was never published; 1.7.8 and 1.7.10 were never tagged either.
 // The 1.1.5 entry summarizes the commits in v1.1.4..v1.1.5, the 1.1.6 entry
@@ -11,10 +11,22 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.20',
+    date: '2026-11-24',
+    tagline: 'HQ key vault for your machines',
+    latest: true,
+    highlights: [
+      'HQ hands provider keys and OAuth profiles to enrolled machines',
+      'Vault changes sync to machines in the background',
+      'ACP workers share one project MCP gateway',
+      'Branch-guard bypasses closed and more secret shapes detected',
+      'Locale-independent Chronicle ordering and search',
+    ],
+  },
+  {
     version: '1.7.19',
     date: '2026-11-24',
     tagline: 'ChatGPT plan quota is back',
-    latest: true,
     highlights: [
       'A direct ChatGPT sign-in shows its plan and app quota again',
       'WrongForge and ACP switches keep the leader streaming',

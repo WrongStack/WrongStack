@@ -1,11 +1,11 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.7.19',
-  title: 'Desktop installers are back.',
+  version: '1.7.20',
+  title: 'HQ key vault for your machines.',
   summary:
-    "A direct ChatGPT sign-in shows its plan and app quota again through the Codex CLI login, WrongForge and ACP switches keep the leader streaming, and a round of core, tool, ACP, SAGE and Windows hardening fixes.",
+    "HQ becomes a central key vault that hands provider keys and OAuth profiles to enrolled machines, ACP workers share one project MCP gateway, and a round of security, Chronicle and audit fixes.",
   socialDescription:
-    "WrongStack 1.7.19: a direct ChatGPT sign-in shows its plan quota again, and a round of core, tool and Windows hardening fixes.",
+    "WrongStack 1.7.20: HQ hands provider keys and OAuth profiles to enrolled machines, ACP workers share one MCP gateway, and a security round.",
   cards: [
     {
       title: 'ACP session modes',

@@ -55,6 +55,14 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.7.20
+
+- **HQ key vault** hands provider keys and OAuth profiles to enrolled machines,
+  sealed to each one, and syncs changes in the background.
+- **ACP workers share one project MCP gateway** with per-worker grants.
+- **Security hardening**: branch-guard bypasses closed, more secret shapes
+  detected, package-name traversal blocked.
+
 ### What's new in 1.7.19
 
 - **ChatGPT plan quota is back** for a direct ChatGPT sign-in, read through the
@@ -724,7 +732,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.7.19**; versions follow semver
+- Release notes: **v1.7.20**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements
