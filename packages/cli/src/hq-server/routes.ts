@@ -67,6 +67,7 @@ import {
 import { HqVaultRouteState, handleApiVault, isHqVaultDevicePath } from './routes/vault-handlers.js';
 import * as HqServerSnapshot from './snapshot.js';
 import * as HqServerUtils from './utils.js';
+import { broadcastHqVaultChanged } from './vault-notice.js';
 
 // ── Re-exports for hq-server.ts backward compat ────────────────────────────
 
@@ -243,6 +244,7 @@ export function createHqRouter(deps: HqRouterDeps): HqRouter {
   // Opened lazily on the first vault request; an HQ that never uses the vault
   // never writes a master key.
   const vault = new HqVaultRouteState(dataDir);
+  vault.onChange((notice) => broadcastHqVaultChanged(clients, notice));
   const writeFleetSnapshot = (res: http.ServerResponse): void => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(fleetSnapshot()));

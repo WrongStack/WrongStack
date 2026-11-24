@@ -124,9 +124,9 @@
       "runtimeOrMixed": 18
     },
     "@wrongstack/core/security": {
-      "files": 304,
+      "files": 305,
       "typeOnly": 27,
-      "runtimeOrMixed": 280
+      "runtimeOrMixed": 281
     },
     "@wrongstack/core/session-catalog": {
       "files": 19,
@@ -8340,6 +8340,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/cli/tests/hq-vault-client.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/tests/hq-vault-push-sync.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

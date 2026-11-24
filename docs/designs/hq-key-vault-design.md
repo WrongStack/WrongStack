@@ -2,7 +2,7 @@
 
 Durum: onaylandı (2026-11-23). **P0 sunucu, P1 HQ ekranı, P2 istemci uygulandı (2026-11-24); ardından
 birim anahtardan provider profiline taşındı (protokol v2, 2026-11-24)**; OAuth (HQ'da giriş + merkezi
-yenileme + cihaz yenileme kancası), P3–P5 açık.
+yenileme + cihaz yenileme kancası), P3 ve P4'ün itme/iptal/arka plan kısmı uygulandı; lease ve P5 açık.
 
 ### Protokol v2 — birim provider profili
 İlk sürüm tek tek anahtar saklayıp anahtar başına grant veriyordu; endpoint'i ve model listesini HQ'dan
@@ -55,6 +55,35 @@ yönetmek mümkün değildi. v2'de HQ'nun yönettiği ve verdiği birim, makinen
   Desktop `ProviderHqImport.tsx` (7 dil); hepsi HQ istemcisi olmayan host'ta hiçbir şey göstermez.
   Desktop Rust kapısı `hq.*`'ı `key.*` gibi profil kapsamına bağlar.
 - Standalone WebUI ve Desktop motoru da harici yenileyiciyi kurar (`provider-token-persisters`).
+
+### P4 — itme ile senkron, imzalı iptal, arka plan senkronu (2026-11-24)
+- Sayaç: `HqVaultFile.revision`, operatör değişikliklerinde artar (`store.change`): profil
+  oluştur/güncelle/sil, anahtar ekle/sil, giriş, grant, cihaz durumu. Token yenilemesi ve cihaz
+  fetch'i saymaz. Paket `revision` taşır (imza kapsamında).
+- İtme: `HqVaultStoreOptions.onChange` → `HqVaultRouteState.onChange` →
+  `broadcastHqVaultChanged` (`cli/src/hq-server/vault-notice.ts`), bağlı **her** istemciye
+  `hq.vault_changed {hqId, revision}`. Publisher kimliği cihaz kimliği değildir, bildirim bir şey
+  adlandırmaz. Komut kuyruğu ve audit dışında. İstemcide `parseHqServerMessage` →
+  `deliverHqServerMessage` → `vault/notice-bus.ts`.
+- Yoklama: kimlik doğrulamasız `GET /api/vault/revision` → `{hqId, revision}`. Publisher'ı kapalı
+  makine ve kesinti sonrası için.
+- Zamanlayıcı: `vault/device-sync.ts` `HqVaultSyncScheduler`, süreç ve makine başına bir tane
+  (`startHqVaultBackgroundSync`; CLI `installProviderPersisters`, standalone WebUI
+  `installWebuiProviderPersisters`). Revision `hq-device.json`'daki `syncedRevision`'dan
+  büyükse tek uçuşlu `sync()`. Bildirimler 0–4 sn yayılır; sürerken gelen daha yeni bildirim ikinci
+  turu tetikler. Yoklama hatası seri başına bir kez söylenir. Canlı süreçlere ek bir şey
+  gerekmedi: config izleyicisi (`watchProviderConfig`, standalone WebUI credential watcher)
+  dosyayı okuyup provider'ı yeniden kurar.
+- İptal: profil grant'i geri çekilince `sync` zaten siler. Cihaz iptalinde HQ, cihaz imzası
+  doğrulandıktan sonra `revocation` döner (`HQ_VAULT_REVOKED_PURPOSE`, deviceId + istek nonce'u,
+  HQ anahtarıyla imzalı). İstemci `verifyHqVaultRevocation` ile doğrularsa HQ'nun verdiği her
+  şeyi siler ve cihazı `revoked` işaretler (`HqVaultDeviceRevokedError`). İmzasız veya sahte
+  403 hiçbir şey silmez (mutasyonla doğrulandı: imza kontrolü kaldırılınca test kırmızı).
+  `renewKey` config kilidi içinde koştuğu için orada doğrulanmış iptal yalnız hata atar, yazmaz
+  (`writes: false`); temizliği arka plan senkronu yapar (aksi halde kilitlenme — testle kanıtlı).
+  Kimlik doğrulamasız revision GET'i hiç kullanılmamış bir vault'u oluşturmaz (404).
+- Açık: `lease` politikası (v2 grant'te `policy` yok; bellek katmanı `resolveActiveKey` önünde ve
+  her persister'ın lease değerini diske yazmadığını kanıtlayan test gerekiyor), P5.
 
 ### P0'da uygulanan (tasarımdan sapmalar dahil)
 - Kripto + depo + protokol + cihaz yardımcıları `packages/hq/src/vault/` altında (`crypto.ts`, `master-key.ts`,

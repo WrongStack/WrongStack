@@ -48,7 +48,7 @@ import {
 } from './publisher-defaults.js';
 import { MailboxSnapshotMemory } from './publisher-mailbox-memory.js';
 import { PublisherQueue, queuedFrameCoalesceKey } from './publisher-queue.js';
-import { parseHqServerMessage } from './publisher-server-message.js';
+import { deliverHqServerMessage, parseHqServerMessage } from './publisher-server-message.js';
 import {
   addSocketListener,
   defaultSocketFactory,
@@ -624,16 +624,8 @@ export class HqPublisher {
 
   private async handleServerMessage(event: unknown): Promise<void> {
     const message = this.parseServerMessage(event);
-    if (message?.type === 'hq.command_batch') {
-      await this.handleCommandBatch(message);
-      return;
-    }
-    if (message?.type === 'hq.kanban_snapshot') {
-      await this.options.onKanbanSnapshot?.(message.payload);
-    }
-    if (message?.type === 'hq.sage_snapshot') {
-      await this.options.onSageSnapshot?.(message.payload);
-    }
+    if (message?.type === 'hq.command_batch') await this.handleCommandBatch(message);
+    else if (message) await deliverHqServerMessage(message, this.options);
   }
 
   private parseServerMessage(event: unknown): ReturnType<typeof parseHqServerMessage> {

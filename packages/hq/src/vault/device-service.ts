@@ -27,6 +27,7 @@ import {
   type HqVaultOpenedProfile,
   openHqVaultBundle,
   verifyHqVaultEnrollResponse,
+  verifyHqVaultRevocation,
 } from './client.js';
 import { generateHqVaultKeyPair } from './crypto.js';
 import { normalizeKeys, writeKeysBack } from './device-keys.js';
@@ -85,9 +86,26 @@ export class HqVaultClientRequestError extends Error {
     message: string,
     readonly status: number,
     readonly code?: string,
+    /** The parsed error answer (a revoked device's signed revocation rides here). */
+    readonly body?: unknown,
   ) {
     super(message);
     this.name = 'HqVaultClientRequestError';
+  }
+}
+
+/** HQ revoked this device (verified); what HQ gave it has been removed. */
+export class HqVaultDeviceRevokedError extends Error {
+  constructor(
+    readonly hqUrl: string,
+    readonly removed: HqImportChange[],
+  ) {
+    super(
+      removed.length > 0
+        ? `HQ (${hqUrl}) revoked this machine; the ${removed.length} provider(s) and key(s) it had given were removed.`
+        : `HQ (${hqUrl}) revoked this machine. Disconnect it here, or enroll it again.`,
+    );
+    this.name = 'HqVaultDeviceRevokedError';
   }
 }
 
@@ -141,7 +159,11 @@ export class HqCredentialService {
       hostname: this.deps.hostname ?? os.hostname(),
       ...(options.label ? { label: options.label } : {}),
     });
-    const response = await this.post<HqVaultEnrollResponse>(origin, '/api/vault/enroll', request);
+    const response = await this.request<HqVaultEnrollResponse>(
+      origin,
+      '/api/vault/enroll',
+      request,
+    );
     const hq = verifyHqVaultEnrollResponse(response, request, code);
     const device: HqDeviceRecord = {
       hqUrl: origin,
@@ -164,15 +186,44 @@ export class HqCredentialService {
   /** Import granted profiles (all, or the given HQ profile ids) into the active profile. */
   async importKeys(options: { profileIds?: string[] | undefined } = {}): Promise<HqImportReport> {
     const device = await this.requireDevice();
-    const profiles = await this.fetchBundle(device, 'fetch', options.profileIds);
+    const profiles = await this.fetchBundle(device, 'fetch', { profileIds: options.profileIds });
     return this.apply(device, profiles, { removeUngranted: false });
   }
 
   /** Bring HQ profiles in step with HQ: changes mirrored, ungranted ones removed. */
   async sync(): Promise<HqImportReport> {
     const device = await this.requireDevice();
-    const profiles = await this.fetchBundle(device, 'fetch');
-    return this.apply(device, profiles, { removeUngranted: true });
+    const fetched: { revision?: number } = {};
+    const profiles = await this.fetchBundle(device, 'fetch', { out: fetched });
+    const report = await this.apply(device, profiles, { removeUngranted: true });
+    if (fetched.revision !== undefined && fetched.revision !== device.syncedRevision) {
+      // Re-read: the fetch may have just recorded the device as approved.
+      const current = (await this.device()) ?? device;
+      await writeHqDevice(this.deps.globalRoot, this.deps.vault, {
+        ...current,
+        syncedRevision: fetched.revision,
+      });
+    }
+    return report;
+  }
+
+  /**
+   * HQ's current change counter, from its unauthenticated revision endpoint:
+   * cheap enough to poll, and it carries no ids or values. A sync is needed
+   * when it is above `device.syncedRevision`.
+   */
+  async revision(signal?: AbortSignal): Promise<{ hqId: string; revision: number }> {
+    const device = await this.requireDevice();
+    const answer = await this.request<{ hqId?: unknown; revision?: unknown }>(
+      device.hqUrl,
+      '/api/vault/revision',
+      undefined,
+      signal,
+    );
+    if (typeof answer.hqId !== 'string' || !Number.isSafeInteger(answer.revision)) {
+      throw new HqVaultClientRequestError('HQ answered the revision check malformed.', 200);
+    }
+    return { hqId: answer.hqId, revision: answer.revision as number };
   }
 
   /**
@@ -187,12 +238,14 @@ export class HqCredentialService {
     if (source?.kind !== 'hq' || source.hqId !== device.hq.hqId) {
       throw new Error(`"${credential.label}" did not come from ${device.hqUrl}.`);
     }
-    const profiles = await this.fetchBundle(
-      device,
-      'fetch',
-      source.profileId ? [source.profileId] : undefined,
+    // A renewal runs inside the config lock (the refresh transaction), so a
+    // revocation here only fails it; the background sync — which HQ's revoke
+    // also triggered — removes what HQ gave, outside the lock.
+    const profiles = await this.fetchBundle(device, 'fetch', {
+      profileIds: source.profileId ? [source.profileId] : undefined,
       signal,
-    );
+      writes: false,
+    });
     for (const profile of profiles) {
       const key = profile.keys.find((k) => k.id === source.keyId);
       if (!key?.secrets) continue;
@@ -214,19 +267,7 @@ export class HqCredentialService {
   /** Forget this machine's HQ identity; optionally remove what it imported. */
   async unenroll(options: { removeKeys: boolean }): Promise<{ removed: HqImportChange[] }> {
     const device = await this.device().catch(() => undefined);
-    const removed: HqImportChange[] = [];
-    if (device && options.removeKeys) {
-      await this.deps.mutateProviders((all) => {
-        for (const [providerId, provider] of Object.entries(all)) {
-          if (this.ownsProvider(device, provider)) {
-            removed.push({ providerId, profileId: provider.source!.profileId });
-            delete all[providerId];
-          } else {
-            this.dropHqKeys(device, providerId, provider, removed);
-          }
-        }
-      });
-    }
+    const removed = device && options.removeKeys ? await this.removeOwned(device) : [];
     await removeHqDevice(this.deps.globalRoot);
     return { removed };
   }
@@ -245,6 +286,37 @@ export class HqCredentialService {
       );
     }
     return device;
+  }
+
+  /** Remove every provider and key this HQ gave the machine; keys entered here stay. */
+  private async removeOwned(device: HqDeviceRecord): Promise<HqImportChange[]> {
+    const removed: HqImportChange[] = [];
+    await this.deps.mutateProviders((all) => {
+      for (const [providerId, provider] of Object.entries(all)) {
+        if (this.ownsProvider(device, provider)) {
+          removed.push({ providerId, profileId: provider.source!.profileId });
+          delete all[providerId];
+        } else {
+          this.dropHqKeys(device, providerId, provider, removed);
+        }
+      }
+    });
+    return removed;
+  }
+
+  /**
+   * HQ revoked this device and proved it (a signature from the pinned HQ key
+   * over this request): remove what HQ gave, keep the identity marked revoked
+   * so status can say why, and stop.
+   */
+  private async revoked(device: HqDeviceRecord): Promise<never> {
+    const removed = await this.removeOwned(device);
+    await writeHqDevice(this.deps.globalRoot, this.deps.vault, {
+      ...device,
+      status: 'revoked',
+      revokedAt: new Date(this.now()).toISOString(),
+    });
+    throw new HqVaultDeviceRevokedError(device.hqUrl, removed);
   }
 
   private ownsProvider(device: HqDeviceRecord, provider: ProviderConfig): boolean {
@@ -278,21 +350,39 @@ export class HqCredentialService {
   private async fetchBundle(
     device: HqDeviceRecord,
     mode: 'list' | 'fetch',
-    profileIds?: string[],
-    signal?: AbortSignal,
+    options: {
+      profileIds?: string[] | undefined;
+      signal?: AbortSignal | undefined;
+      /** Receives the bundle's `revision`. */
+      out?: { revision?: number } | undefined;
+      /** False inside the config lock: a revocation then only throws, writing nothing. */
+      writes?: boolean | undefined;
+    } = {},
   ): Promise<HqVaultOpenedProfile[]> {
+    const { profileIds, signal, out } = options;
     const request = buildHqVaultFetchRequest(device.keys, {
       mode,
       now: this.now(),
       ...(profileIds ? { profileIds } : {}),
     });
-    const bundle = await this.post<HqVaultBundle>(
-      device.hqUrl,
-      '/api/vault/fetch',
-      request,
-      signal,
-    );
+    let bundle: HqVaultBundle;
+    try {
+      bundle = await this.request<HqVaultBundle>(device.hqUrl, '/api/vault/fetch', request, signal);
+    } catch (error) {
+      const answer = (error as HqVaultClientRequestError).body as
+        | { revocation?: unknown }
+        | undefined;
+      if (
+        error instanceof HqVaultClientRequestError &&
+        verifyHqVaultRevocation(answer?.revocation, device.keys, device.hq, request)
+      ) {
+        if (options.writes === false) throw new HqVaultDeviceRevokedError(device.hqUrl, []);
+        await this.revoked(device);
+      }
+      throw error;
+    }
     const profiles = openHqVaultBundle(bundle, device.keys, device.hq, request);
+    if (out && Number.isSafeInteger(bundle.revision)) out.revision = bundle.revision as number;
     if (device.status !== 'approved') {
       // A fetch only succeeds for an approved device.
       await writeHqDevice(this.deps.globalRoot, this.deps.vault, { ...device, status: 'approved' });
@@ -341,7 +431,7 @@ export class HqCredentialService {
    * an HQ that accepts the connection and stalls must not hold that lock (and
    * every other process waiting on it) until the OS gives up.
    */
-  private async post<T>(
+  private async request<T>(
     origin: string,
     pathname: string,
     body: unknown,
@@ -360,12 +450,17 @@ export class HqCredentialService {
     let text: string;
     try {
       bounded.throwIfAborted();
-      response = await this.fetchImpl(`${origin}${pathname}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: bounded,
-      });
+      response = await this.fetchImpl(
+        `${origin}${pathname}`,
+        body === undefined
+          ? { method: 'GET', signal: bounded }
+          : {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+              signal: bounded,
+            },
+      );
       text = await response.text();
     } catch (cause) {
       throw unreachable(cause);
@@ -387,6 +482,7 @@ export class HqCredentialService {
         message,
         response.status,
         typeof error === 'object' ? error?.code : undefined,
+        parsed,
       );
     }
     return parsed as T;

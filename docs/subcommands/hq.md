@@ -1201,7 +1201,18 @@ to end.
   each key is sealed to that device (ephemeral X25519 + HKDF-SHA256 +
   AES-256-GCM, bound to device, profile, key and version). A stolen client
   token opens nothing. An OAuth key's refresh token never leaves HQ; devices
-  get the access token.
+  get the access token. The bundle carries HQ's `revision` (below). A revoked
+  device whose signature verifies gets `403 VAULT_DENIED` with a `revocation`
+  signed by HQ's key over that device and the request's nonce.
+- `GET /api/vault/revision` — `{hqId, revision}`: a counter that grows with
+  every operator change devices should hear about (profiles, keys, sign-ins,
+  grants, device status — not token renewals). It names nothing and carries no
+  value, so devices may poll it.
+
+**Change notices.** After each such change HQ sends every connected client
+(`/ws/client`, any project) `{"type": "hq.vault_changed", "payload": {hqId,
+revision}}`. It goes through neither the command queue nor its audit; a client
+not enrolled with that `hqId` ignores it.
 
 **Sign-ins and renewal.** A finished sign-in is stored on its profile (created
 from the outcome — type, family, endpoint, models — when missing) as the active
@@ -1255,6 +1266,19 @@ keyId, version}`.
   the provider runtime asks HQ for a fresh one (signed fetch of that profile) instead of the
   provider, and stores it through the usual refresh transaction; nothing on this machine ever
   holds the refresh token.
+- **No manual Sync needed.** Each CLI, TUI, WebUI or Desktop engine process keeps one
+  background scheduler. HQ's `hq.vault_changed` notice (when the process has an HQ connection)
+  and a poll of `/api/vault/revision` (20 s after start, then every 5 minutes) trigger a
+  sync only when HQ's revision is above the one recorded in `hq-device.json` (`syncedRevision`).
+  That file is shared by every process on the machine, so one change costs one fetch. Notices
+  are spread over a few seconds. The sync rewrites the profile config, and running hosts
+  already watch that file and rebuild their provider.
+- **Revocation.** When HQ revokes the device, the next fetch returns HQ's signed revocation. If
+  it verifies against the pinned HQ key and names that request's nonce, the machine removes
+  every provider and key HQ gave it and marks itself `revoked` (`wstack hq device` shows it;
+  `wstack hq unenroll` or enrolling again clears it). An unsigned or foreign 403 removes
+  nothing; it is reported as an error. A token renewal that meets the revocation only fails:
+  it runs inside the config lock, so the background sync does the removal.
 
 ### VPS / public internet
 

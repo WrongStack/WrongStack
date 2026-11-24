@@ -19,6 +19,7 @@ import {
 import {
   HQ_VAULT_BUNDLE_PURPOSE,
   HQ_VAULT_FETCH_PURPOSE,
+  HQ_VAULT_REVOKED_PURPOSE,
   type HqVaultBundle,
   type HqVaultBundleKey,
   type HqVaultBundleProfile,
@@ -27,6 +28,7 @@ import {
   type HqVaultFetchMode,
   type HqVaultFetchRequest,
   type HqVaultIdentity,
+  type HqVaultRevocation,
   type HqVaultSealedKeyFields,
   hqVaultKeyAad,
   parseHqVaultEnrollmentToken,
@@ -168,4 +170,27 @@ export function openHqVaultBundle(
       return { ...meta, secrets };
     }),
   }));
+}
+
+/**
+ * True only for HQ's signed revocation of THIS device answering THIS request
+ * (see {@link HqVaultRevocation}). Anything else — unsigned, signed by another
+ * key, for another device or an earlier request — is not a revocation.
+ */
+export function verifyHqVaultRevocation(
+  revocation: unknown,
+  keys: HqVaultKeyPair,
+  pinned: HqVaultIdentity,
+  request: HqVaultFetchRequest,
+): boolean {
+  if (!revocation || typeof revocation !== 'object') return false;
+  const { sig, ...body } = revocation as HqVaultRevocation;
+  return (
+    body.v === 2 &&
+    body.hqId === pinned.hqId &&
+    body.deviceId === hqVaultKeyId(keys) &&
+    body.requestNonce === request.nonce &&
+    typeof body.revokedAt === 'string' &&
+    hqVaultVerify({ ...body, purpose: HQ_VAULT_REVOKED_PURPOSE }, sig, pinned.signPublic)
+  );
 }

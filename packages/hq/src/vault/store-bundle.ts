@@ -4,12 +4,14 @@
  * device, profile, key and version. A refresh token or id token never goes
  * into a seal — HQ is the only refresher, devices get the access token.
  */
-import { hqVaultSeal } from './crypto.js';
+import { type HqVaultKeyPair, hqVaultSeal, hqVaultSign } from './crypto.js';
 import {
+  HQ_VAULT_REVOKED_PURPOSE,
   type HqVaultBundleKey,
   type HqVaultBundleProfile,
   type HqVaultDeviceRecord,
   type HqVaultFetchMode,
+  type HqVaultRevocation,
   type HqVaultSealedKeyFields,
   hqVaultKeyAad,
 } from './protocol.js';
@@ -73,4 +75,16 @@ export function buildHqVaultBundleProfiles(
     });
   }
   return out;
+}
+
+/** HQ's signed revocation answer to one fetch request (see {@link HqVaultRevocation}). */
+export function signHqVaultRevocation(
+  identity: HqVaultKeyPair,
+  body: Omit<HqVaultRevocation, 'v' | 'sig'>,
+): HqVaultRevocation {
+  const signed = { v: 2 as const, ...body };
+  return {
+    ...signed,
+    sig: hqVaultSign({ ...signed, purpose: HQ_VAULT_REVOKED_PURPOSE }, identity),
+  };
 }

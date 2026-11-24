@@ -37,6 +37,10 @@ export interface HqDeviceRecord {
   status: HqVaultDeviceStatus;
   enrolledAt: string;
   keys: HqVaultKeyPair;
+  /** HQ's change counter at the last successful sync (see `HqVaultBundle.revision`). */
+  syncedRevision?: number;
+  /** When HQ's signed revocation arrived (status is then `revoked`). */
+  revokedAt?: string;
 }
 
 interface HqDeviceFile {
@@ -51,6 +55,8 @@ interface HqDeviceFile {
   /** SecretVault ciphertext (`enc:v<N>:…`). */
   encPrivateSealed: string;
   signPrivateSealed: string;
+  syncedRevision?: number;
+  revokedAt?: string;
 }
 
 export function hqDeviceFilePath(globalRoot: string): string {
@@ -101,6 +107,8 @@ export async function readHqDevice(
     status: file.status ?? 'pending',
     enrolledAt: file.enrolledAt ?? '',
     keys,
+    ...(Number.isSafeInteger(file.syncedRevision) ? { syncedRevision: file.syncedRevision } : {}),
+    ...(typeof file.revokedAt === 'string' ? { revokedAt: file.revokedAt } : {}),
   };
 }
 
@@ -120,6 +128,8 @@ export async function writeHqDevice(
     signPublic: record.keys.signPublic,
     encPrivateSealed: vault.encrypt(record.keys.encPrivate),
     signPrivateSealed: vault.encrypt(record.keys.signPrivate),
+    ...(record.syncedRevision !== undefined ? { syncedRevision: record.syncedRevision } : {}),
+    ...(record.revokedAt !== undefined ? { revokedAt: record.revokedAt } : {}),
   };
   await fs.mkdir(globalRoot, { recursive: true });
   const target = hqDeviceFilePath(globalRoot);

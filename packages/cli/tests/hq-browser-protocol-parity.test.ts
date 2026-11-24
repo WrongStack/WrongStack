@@ -102,6 +102,9 @@ const BROWSER_IGNORED: Record<string, string> = {
   'hq.kanban_snapshot': 'client-plane only — no browser consumer, fan-out removed',
   'hq.sage_snapshot':
     'client-plane only — durable project memory is delivered only to matching publishers',
+  // Sent to every publisher after an operator change to the key vault; the
+  // dashboard that made the change already re-reads the vault itself.
+  'hq.vault_changed': 'client-plane only — nudges enrolled machines to sync their HQ keys',
 };
 
 describe('HQ browser protocol parity', () => {

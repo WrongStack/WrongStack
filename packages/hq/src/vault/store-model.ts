@@ -73,6 +73,8 @@ export interface HqVaultFile {
   profiles: HqVaultStoredProfile[];
   devices: HqVaultDeviceRecord[];
   grants: HqVaultGrantRecord[];
+  /** Grows with every operator change devices should hear about (see `HqVaultBundle.revision`). */
+  revision?: number;
 }
 
 export type HqVaultState = 'sealed' | 'unsealed';
@@ -129,6 +131,8 @@ export class HqVaultError extends Error {
       | 'VAULT_CONFLICT'
       | 'VAULT_DENIED',
     message: string,
+    /** Extra members of the error answer (a device's signed revocation). */
+    readonly details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = 'HqVaultError';
@@ -300,6 +304,7 @@ export class HqVaultFileIO {
       profiles: Array.isArray(parsed.profiles) ? parsed.profiles : [],
       devices: Array.isArray(parsed.devices) ? parsed.devices : [],
       grants: Array.isArray(parsed.grants) ? parsed.grants : [],
+      ...(Number.isSafeInteger(parsed.revision) ? { revision: parsed.revision } : {}),
     };
   }
 

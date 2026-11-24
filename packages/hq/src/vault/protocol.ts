@@ -135,6 +135,23 @@ export interface HqVaultFetchRequest {
 
 export const HQ_VAULT_FETCH_PURPOSE = 'wstack-hq-vault/v2/fetch';
 export const HQ_VAULT_BUNDLE_PURPOSE = 'wstack-hq-vault/v2/bundle';
+export const HQ_VAULT_REVOKED_PURPOSE = 'wstack-hq-vault/v2/revoked';
+
+/**
+ * HQ's signed word that a device was revoked, answering one fetch request. HQ
+ * sends it only after the device's own signature verified, and a device acts
+ * on it (removes what HQ gave it) only when it verifies against the pinned HQ
+ * identity and names the request's nonce — a forged or replayed 403 never
+ * deletes keys. `sig` covers every other member plus `purpose: HQ_VAULT_REVOKED_PURPOSE`.
+ */
+export interface HqVaultRevocation {
+  v: 2;
+  hqId: string;
+  deviceId: string;
+  requestNonce: string;
+  revokedAt: string;
+  sig: string;
+}
 
 /**
  * The secret members of a key, sealed to the device. A device never receives
@@ -181,6 +198,12 @@ export interface HqVaultBundle {
   requestNonce: string;
   mode: HqVaultFetchMode;
   profiles: HqVaultBundleProfile[];
+  /**
+   * HQ's change counter when the bundle was made (it grows with every operator
+   * change). A device keeps it, and skips an `hq.vault_changed` notice that
+   * names a revision it already has.
+   */
+  revision?: number;
   sig: string;
 }
 

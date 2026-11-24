@@ -47,7 +47,7 @@ import {
   type HqVaultKeyMeta,
   type HqVaultProfileMeta,
 } from './protocol.js';
-import { buildHqVaultBundleProfiles } from './store-bundle.js';
+import { buildHqVaultBundleProfiles, signHqVaultRevocation } from './store-bundle.js';
 import {
   HQ_VAULT_FETCH_SKEW_MS,
   HqVaultEnrollmentCodes,
@@ -81,6 +81,8 @@ import { dueHqVaultKeys, type HqVaultRefresher, renewHqVaultKey } from './store-
 
 export interface HqVaultStoreOptions {
   now?: () => number;
+  /** After an operator change (never a token renewal) is saved: HQ sends `hq.vault_changed`. */
+  onChange?: (revision: number) => void;
 }
 
 export class HqVaultStore {
@@ -96,7 +98,7 @@ export class HqVaultStore {
 
   private constructor(
     private readonly dataDir: string,
-    options: HqVaultStoreOptions,
+    private readonly options: HqVaultStoreOptions,
   ) {
     this.io = new HqVaultFileIO(dataDir);
     this.now = options.now ?? Date.now;
@@ -191,7 +193,7 @@ export class HqVaultStore {
       input.apiKey !== undefined
         ? parseHqVaultKeyInput({ label: input.keyLabel ?? 'default', apiKey: input.apiKey })
         : undefined;
-    return this.mutate(async (file) => {
+    return this.change(async (file) => {
       const at = this.isoNow();
       const profile = createHqVaultProfile(file, input, at);
       if (key) upsertHqVaultKey(file, master, profile.id, key, at);
@@ -215,7 +217,7 @@ export class HqVaultStore {
     actor: string,
   ): Promise<HqVaultProfileMeta> {
     this.requireUnsealed();
-    return this.mutate(async (file) => {
+    return this.change(async (file) => {
       const profile = updateHqVaultProfile(file, id, input, this.isoNow());
       await this.audit({ kind: 'profile.update', actor, profileId: id, version: profile.version });
       return hqVaultProfileMeta(file, profile);
@@ -225,7 +227,7 @@ export class HqVaultStore {
   /** Delete a profile, its keys and every grant of it. */
   async deleteProfile(id: string, actor: string): Promise<void> {
     this.requireUnsealed();
-    await this.mutate(async (file) => {
+    await this.change(async (file) => {
       deleteHqVaultProfile(file, id);
       await this.audit({ kind: 'profile.delete', actor, profileId: id });
     });
@@ -240,7 +242,7 @@ export class HqVaultStore {
   ): Promise<HqVaultKeyMeta> {
     const master = this.requireUnsealed();
     const parsed = parseHqVaultKeyInput(input);
-    return this.mutate(async (file) => {
+    return this.change(async (file) => {
       const { key } = upsertHqVaultKey(file, master, id, parsed, this.isoNow());
       await this.audit({ kind, actor, profileId: id, keyLabel: key.label, version: key.version });
       return hqVaultKeyMeta(key);
@@ -249,7 +251,7 @@ export class HqVaultStore {
 
   async deleteKey(id: string, keyId: string, actor: string): Promise<void> {
     this.requireUnsealed();
-    await this.mutate(async (file) => {
+    await this.change(async (file) => {
       const key = deleteHqVaultKey(file, id, keyId, this.isoNow());
       await this.audit({ kind: 'key.delete', actor, profileId: id, keyLabel: key.label });
     });
@@ -261,7 +263,7 @@ export class HqVaultStore {
     actor: string,
   ): Promise<HqVaultProfileMeta> {
     const master = this.requireUnsealed();
-    return this.mutate(async (file) => {
+    return this.change(async (file) => {
       const { profile, key } = applyHqVaultSignIn(file, master, input, this.isoNow());
       await this.audit({
         kind: 'oauth.signin',
@@ -278,7 +280,7 @@ export class HqVaultStore {
   /** Grant (or withdraw) a whole profile to a device. Idempotent. */
   async setGrant(id: string, deviceId: unknown, granted: boolean, actor: string): Promise<void> {
     this.requireUnsealed();
-    await this.mutate(async (file) => {
+    await this.change(async (file) => {
       if (!setHqVaultGrant(file, id, deviceId, granted, this.isoNow())) return;
       await this.audit({
         kind: granted ? 'grant.create' : 'grant.revoke',
@@ -301,7 +303,7 @@ export class HqVaultStore {
     actor: string,
   ): Promise<HqVaultDeviceRecord> {
     this.requireUnsealed();
-    return this.mutate(async (file) => {
+    return this.change(async (file) => {
       const device = file.devices.find((d) => d.id === id);
       if (!device) throw new HqVaultError('VAULT_NOT_FOUND', 'No such device.');
       if (device.status === 'revoked') {
@@ -486,13 +488,18 @@ export class HqVaultStore {
     ) {
       throw new HqVaultError('VAULT_DENIED', 'Device authentication failed.');
     }
+    // Before the clock/replay checks on purpose: the statement is bound to this request's nonce.
+    if (device.status === 'revoked') {
+      const revocation = signHqVaultRevocation(this.identityKeys!, {
+        hqId: this.file.identity!.hqId,
+        deviceId: device.id,
+        requestNonce: String(request.nonce),
+        revokedAt: device.revokedAt ?? new Date(this.now()).toISOString(),
+      });
+      throw new HqVaultError('VAULT_DENIED', 'This device was revoked.', { revocation });
+    }
     if (device.status !== 'approved') {
-      throw new HqVaultError(
-        'VAULT_DENIED',
-        device.status === 'pending'
-          ? 'This device is waiting for approval in HQ.'
-          : 'This device was revoked.',
-      );
+      throw new HqVaultError('VAULT_DENIED', 'This device is waiting for approval in HQ.');
     }
     const ts = typeof request.ts === 'string' ? Date.parse(request.ts) : Number.NaN;
     const now = this.now();
@@ -545,6 +552,7 @@ export class HqVaultStore {
       requestNonce: request.nonce,
       mode,
       profiles,
+      revision: this.file.revision ?? 0,
     };
     return { ...body, sig: hqVaultSign({ ...body, purpose: HQ_VAULT_BUNDLE_PURPOSE }, identity) };
   }
@@ -654,6 +662,22 @@ export class HqVaultStore {
       };
     });
     this.identityKeys = keys;
+  }
+
+  /** HQ's change counter (see {@link HqVaultStoreOptions.onChange}). */
+  revision(): number {
+    return this.file.revision ?? 0;
+  }
+
+  /** {@link mutate} for an operator change: bumps the revision, then tells `onChange`. */
+  private async change<T>(fn: (file: HqVaultFile) => Promise<T>): Promise<T> {
+    const result = await this.mutate(async (file) => {
+      const out = await fn(file);
+      file.revision = (file.revision ?? 0) + 1;
+      return out;
+    });
+    this.options.onChange?.(this.revision());
+    return result;
   }
 
   /** Apply `fn` to a copy of the file, persist it, then make it current. */

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T19:40:54.125Z",
+  "generatedAt": "2026-11-24T20:12:29.764Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6543,
-    "testFiles": 5829,
-    "sourceLines": 1340588,
+    "sourceFiles": 6547,
+    "testFiles": 5831,
+    "sourceLines": 1341165,
     "workspaceEdges": 261,
-    "moduleEdges": 19139,
+    "moduleEdges": 19153,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -231,8 +231,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 650,
-      "testFiles": 720,
+      "sourceFiles": 651,
+      "testFiles": 721,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -284,7 +284,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 720
+          "testFiles": 721
         }
       ]
     },
@@ -527,8 +527,8 @@
     {
       "name": "@wrongstack/hq",
       "dir": "packages/hq",
-      "sourceFiles": 88,
-      "testFiles": 63,
+      "sourceFiles": 91,
+      "testFiles": 64,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -544,7 +544,7 @@
         {
           "path": "packages/hq/tsconfig.test.json",
           "error": null,
-          "testFiles": 63
+          "testFiles": 64
         }
       ]
     },
@@ -7405,6 +7405,12 @@
       },
       {
         "file": "packages/cli/tests/hq-vault-oauth.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/hq-vault-push-sync.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17359,6 +17365,12 @@
       },
       {
         "file": "packages/hq/tests/vault-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/vault-sync-scheduler.test.ts",
         "projects": [
           "root-node"
         ]

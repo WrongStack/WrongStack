@@ -13,3 +13,4 @@ export * from './protocol/resume.js';
 export * from './protocol/sage.js';
 export * from './protocol/session.js';
 export * from './protocol/tool.js';
+export * from './protocol/vault.js';

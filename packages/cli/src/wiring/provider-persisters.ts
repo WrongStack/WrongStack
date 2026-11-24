@@ -1,5 +1,6 @@
 import type { Config, Logger, SecretVault } from '@wrongstack/contracts/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
+import { startHqVaultBackgroundSync } from '@wrongstack/hq';
 import {
   applyProviderOAuthRefresh,
   createSubscriptionRefreshTransaction,
@@ -61,14 +62,15 @@ export function installProviderPersisters(args: {
   // An OAuth account an HQ key vault holds arrives without its refresh token:
   // HQ renews it, and the provider runtime asks HQ here when the access token
   // is about to expire. Only `source.kind === 'hq'` entries reach this.
-  const hq = new HqCredentialService({
-    globalRoot: globalRootForConfigPath(profileConfigPath),
-    vault: args.vault,
-    profileConfigPath,
-  });
+  const hqRoot = globalRootForConfigPath(profileConfigPath);
+  const hq = new HqCredentialService({ globalRoot: hqRoot, vault: args.vault, profileConfigPath });
   setExternalCredentialRefresher((_providerId, credential, signal) =>
     hq.renewKey(credential, signal),
   );
+  // Keep what HQ grants in step without a manual Sync: HQ's `hq.vault_changed`
+  // notices and a slow revision poll run one sync per change (one scheduler
+  // per process). The config watcher hands the result to the live provider.
+  startHqVaultBackgroundSync(hqRoot, { service: hq, warn: (m) => args.logger?.warn(m) });
 
   setOAuthTokenPersister((providerId, creds, source) => {
     void mutateConfigProviders(profileConfigPath, args.vault, (all) => {

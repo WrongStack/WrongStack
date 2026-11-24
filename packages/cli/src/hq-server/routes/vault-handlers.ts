@@ -46,11 +46,15 @@
  * payloads and broadcasts acks to browsers.
  */
 import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import type * as http from 'node:http';
+import * as path from 'node:path';
 import type { TLSSocket } from 'node:tls';
 import type { ModelsRegistry } from '@wrongstack/contracts/types';
 import {
   formatHqVaultEnrollmentToken,
+  HQ_VAULT_FILE,
+  type HqVaultChangedNotice,
   type HqVaultEnrollRequest,
   HqVaultError,
   type HqVaultFetchRequest,
@@ -69,6 +73,7 @@ import { resolveClientAddress } from '../client-address.js';
 import type { LoginAttemptStore } from '../login-attempt-store.js';
 import type { HqRouterMutableAuth, HqSessionEntry } from '../types.js';
 import { readRequestBody, writeInvalidBody } from '../utils.js';
+import { handleHqVaultRevisionRoute } from '../vault-notice.js';
 import {
   type ApplyHqAuthFile,
   consumeTotpCode,
@@ -108,6 +113,7 @@ export class HqVaultRouteState {
   private registry: ModelsRegistry | undefined;
   private signInState: HqVaultSignIns | undefined;
   private readonly elevations = new Map<string, number>();
+  private changeListener: ((notice: HqVaultChangedNotice) => void) | undefined;
 
   constructor(
     private readonly dataDir: string,
@@ -133,6 +139,31 @@ export class HqVaultRouteState {
     return this.signInState;
   }
 
+  /** Hear about operator changes (HQ sends connected machines `hq.vault_changed`). */
+  onChange(listener: (notice: HqVaultChangedNotice) => void): void {
+    this.changeListener = listener;
+  }
+
+  /**
+   * `{ hqId, revision }`, or undefined for a vault never used: an
+   * unauthenticated revision check must not create the master key and identity.
+   */
+  async notice(): Promise<HqVaultChangedNotice | undefined> {
+    if (!this.storePromise && !existsSync(path.join(this.dataDir, HQ_VAULT_FILE))) return undefined;
+    const store = await this.store();
+    const hqId = store.identity()?.hqId;
+    return hqId ? { hqId, revision: store.revision() } : undefined;
+  }
+
+  private announce(revision: number): void {
+    void this.storePromise
+      ?.then((store) => {
+        const hqId = store.identity()?.hqId;
+        if (hqId) this.changeListener?.({ hqId, revision });
+      })
+      .catch(() => undefined);
+  }
+
   /** Close open sign-in sessions (their loopback listeners) on shutdown. */
   close(): void {
     this.signInState?.close();
@@ -147,6 +178,7 @@ export class HqVaultRouteState {
     if (!this.storePromise) {
       this.storePromise = HqVaultStore.open(this.dataDir, hqVaultPassphraseFromEnv(), {
         now: this.now,
+        onChange: (revision) => this.announce(revision),
       });
       // A failed open (unreadable file, wrong env passphrase) must not stick.
       this.storePromise.catch(() => {
@@ -192,7 +224,10 @@ const VAULT_ERROR_STATUS: Record<HqVaultError['code'], number> = {
 
 function writeVaultFailure(res: http.ServerResponse, error: unknown): void {
   if (error instanceof HqVaultError) {
-    writeError(res, VAULT_ERROR_STATUS[error.code], error.code, error.message);
+    writeJson(res, VAULT_ERROR_STATUS[error.code], {
+      ...error.details,
+      error: { code: error.code, message: error.message },
+    });
     return;
   }
   // Never echo an unexpected error: it could quote file content.
@@ -263,8 +298,15 @@ const DEVICE_ACTION = /^\/api\/vault\/devices\/([0-9a-f]{32})\/(approve|revoke)$
 
 /** Paths a device reaches without a browser credential. */
 export function isHqVaultDevicePath(pathname: string): boolean {
-  return pathname === '/api/vault/enroll' || pathname === '/api/vault/fetch';
+  return (
+    pathname === '/api/vault/enroll' ||
+    pathname === '/api/vault/fetch' ||
+    pathname === HQ_VAULT_REVISION_PATH
+  );
 }
+
+/** GET → `{ hqId, revision }`: HQ's change counter, for devices to poll. No ids, no values. */
+const HQ_VAULT_REVISION_PATH = '/api/vault/revision';
 
 /** True when the request was routed here. */
 export async function handleApiVault(
@@ -276,6 +318,11 @@ export async function handleApiVault(
   const { pathname } = url;
   if (pathname !== '/api/vault' && !pathname.startsWith('/api/vault/')) return false;
 
+  if (pathname === HQ_VAULT_REVISION_PATH) {
+    const enabled = deps.mutableAuth.passwordHash !== undefined;
+    await handleHqVaultRevisionRoute(req, res, enabled ? () => deps.vault.notice() : undefined);
+    return true;
+  }
   if (isHqVaultDevicePath(pathname)) {
     if (req.method !== 'POST') {
       writeError(res, 405, 'METHOD_NOT_ALLOWED', 'POST only.');

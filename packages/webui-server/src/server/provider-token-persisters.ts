@@ -1,5 +1,5 @@
 import type { ProviderConfig } from '@wrongstack/contracts/types';
-import type { HqCredentialService } from '@wrongstack/hq';
+import { type HqCredentialService, startHqVaultBackgroundSync } from '@wrongstack/hq';
 import {
   applyProviderOAuthRefresh,
   createSubscriptionRefreshTransaction,
@@ -21,6 +21,8 @@ export function installWebuiProviderPersisters(args: {
    * refresh token). The CLI-embedded host installs its own and skips this.
    */
   hq?: HqCredentialService | undefined;
+  /** The machine root `hq` keeps its identity under; with it, HQ changes sync in the background. */
+  hqGlobalRoot?: string | undefined;
   mutate: (
     mutator: (providers: Record<string, ProviderConfig>) => void | Promise<void>,
   ) => Promise<void>;
@@ -36,6 +38,9 @@ export function installWebuiProviderPersisters(args: {
   const hq = args.hq;
   if (hq) {
     setExternalCredentialRefresher((_id, credential, signal) => hq.renewKey(credential, signal));
+    if (args.hqGlobalRoot) {
+      startHqVaultBackgroundSync(args.hqGlobalRoot, { service: hq, warn: args.warn });
+    }
   }
   setOAuthTokenPersister((id, creds, source) => {
     void args

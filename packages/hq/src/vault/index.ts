@@ -8,6 +8,7 @@ export {
   type HqImportChange,
   type HqImportReport,
   HqVaultClientRequestError,
+  HqVaultDeviceRevokedError,
   normalizeHqOrigin,
 } from './device-service.js';
 export {
@@ -18,7 +19,14 @@ export {
   removeHqDevice,
   writeHqDevice,
 } from './device-store.js';
+export {
+  HQ_VAULT_POLL_INTERVAL_MS,
+  HqVaultSyncScheduler,
+  type HqVaultSyncSchedulerOptions,
+  startHqVaultBackgroundSync,
+} from './device-sync.js';
 export * from './master-key.js';
+export { onHqVaultNotice } from './notice-bus.js';
 export * from './protocol.js';
 export * from './store.js';
 export {

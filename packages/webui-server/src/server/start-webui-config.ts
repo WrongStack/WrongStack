@@ -94,14 +94,12 @@ export async function prepareWebuiConfig(opts: WebUIOptions): Promise<PreparedWe
   if (!opts.services || !hasSubscriptionRefreshTransaction()) {
     const mutate = (mutator: (providers: Record<string, ProviderConfig>) => void | Promise<void>) =>
       mutateSavedProviders(profileConfigPath, vault, mutator);
+    const hqGlobalRoot = globalRootForConfigPath(profileConfigPath);
     installWebuiProviderPersisters({
       load: () => loadSavedProviders(profileConfigPath, vault),
       mutate,
-      hq: new HqCredentialService({
-        globalRoot: globalRootForConfigPath(profileConfigPath),
-        vault,
-        mutateProviders: mutate,
-      }),
+      hq: new HqCredentialService({ globalRoot: hqGlobalRoot, vault, mutateProviders: mutate }),
+      hqGlobalRoot,
       warn: (message) => logger.warn(message),
     });
   }
