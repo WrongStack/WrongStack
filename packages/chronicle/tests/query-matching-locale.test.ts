@@ -37,7 +37,9 @@ describe('chronicle event order is a locale-independent total order (F102)', () 
   it('keeps both events reachable through binary-search insertion', () => {
     const sorted: ChronicleEvent[] = [];
     for (const event of [composed, decomposed]) {
-      const at = findInsertionIndex(sorted, event, compareEventToKey);
+      const at = findInsertionIndex(sorted, event, (left, right) =>
+        compareEventToKey(left, orderKey(right)),
+      );
       sorted.splice(at, 0, event);
     }
     expect(sorted).toHaveLength(2);
