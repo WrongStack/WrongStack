@@ -16,7 +16,8 @@
  * - **approval itself** — `trust.json`, `plugin-trust.json`, and session
  *   journals under `projects/<slug>/sessions/`, whose `permission_overrides`
  *   come back live on resume;
- * - **secrets and egress** — `.key`, `auth.json`, `sync.json`;
+ * - **secrets and egress** — `.key`, `auth.json`, `sync.json`, and the HQ key
+ *   vault files (`hq-vault.json`, `hq-vault-master.key`, `hq-device.json`);
  * - **instructions every session obeys** — the profile's `instructions/`,
  *   `skills/` and `memory.md`, and the global `AGENTS.md`: a planted line there
  *   reaches the system prompt of every future session in every project.
@@ -32,7 +33,7 @@ import { wstackGlobalRoot } from '../utils/wstack-paths.js';
 
 /** Basenames that are sensitive wherever they sit under the root. */
 const SENSITIVE_BASENAMES =
-  /^(?:config(?:\.local)?\.json(?:\..+)?|trust\.json|plugin-trust\.json|auth\.json|sync\.json|adversary\.md|\.key)$/i;
+  /^(?:config(?:\.local)?\.json(?:\..+)?|trust\.json|plugin-trust\.json|auth\.json|sync\.json|adversary\.md|\.key|hq-vault\.json|hq-vault-master\.key|hq-device\.json)$/i;
 
 /** Subtrees (root-relative, forward slashes) whose every write is sensitive. */
 const SENSITIVE_SUBTREES: readonly RegExp[] = [

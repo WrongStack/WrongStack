@@ -97,7 +97,8 @@ export const HQ_SECTIONS: readonly HqSection[] = [
   {
     id: 'system',
     label: 'System',
-    summary: 'Remote commands, worktrees, MCP servers, notifications and access control.',
+    summary:
+      'Remote commands, worktrees, MCP servers, notifications, provider keys and access control.',
     icon: ServerCog,
     shortcut: 6,
     tabs: [
@@ -105,6 +106,7 @@ export const HQ_SECTIONS: readonly HqSection[] = [
       { view: 'worktree', label: 'Worktrees', href: '/system/worktrees/' },
       { view: 'mcp', label: 'MCP', href: '/system/mcp/' },
       { view: 'notifications', label: 'Notifications', href: '/system/notifications/' },
+      { view: 'vault', label: 'Keys', href: '/system/keys/' },
       { view: 'settings', label: 'Security', href: '/system/security/' },
     ],
   },

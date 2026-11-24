@@ -28,6 +28,7 @@ import {
 import type { HqServerHandle } from '../../hq-server/handle-types.js';
 import { parseHqIpAllowlist } from '../../hq-server/ip-allowlist.js';
 import { resolveHqPasswordInput } from '../../hq-server/secret-input.js';
+import { resolveHqTlsInput } from '../../hq-server/tls-input.js';
 import { normalizeHqPublicOrigin } from '../../hq-server/utils.js';
 import type { SubcommandDeps, SubcommandHandler } from '../contracts.js';
 
@@ -42,6 +43,7 @@ import { hqAlertsCmd } from './hq-alerts.js';
 import { hqAuditCmd } from './hq-audit.js';
 import { resolveDataDir } from './hq-data-dir.js';
 import { hqTokenCmd } from './hq-token.js';
+import { HQ_VAULT_SUBCOMMANDS, hqVaultCmd } from './hq-vault.js';
 
 export const hqCmd: SubcommandHandler = async (args, deps) => {
   // `--password -x…` parses as `password: true` with the password left in
@@ -81,6 +83,10 @@ export const hqCmd: SubcommandHandler = async (args, deps) => {
 
   if (sub === 'alerts') {
     return hqAlertsCmd(args.slice(1), deps);
+  }
+
+  if (HQ_VAULT_SUBCOMMANDS.has(sub)) {
+    return hqVaultCmd(sub, args.slice(1), deps);
   }
 
   if (sub === 'service') {
@@ -191,6 +197,11 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
     deps.renderer.writeError('HQ password must be at least 8 characters.\n');
     return 1;
   }
+  const tlsInput = await resolveHqTlsInput(flags);
+  if (!tlsInput.ok) {
+    deps.renderer.writeError(`${tlsInput.error}\n`);
+    return 1;
+  }
 
   let handle: HqServerHandle;
   try {
@@ -207,6 +218,7 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
       ...(tokenTtlMs !== undefined ? { tokenTtlMs } : {}),
       ...(trustedProxyHops !== undefined ? { trustedProxyHops } : {}),
       ...(ipAllowlist !== undefined ? { ipAllowlist } : {}),
+      ...(tlsInput.tls !== undefined ? { tls: tlsInput.tls } : {}),
     });
   } catch (err) {
     // A refusal is operator-actionable guidance, not a crash — print the
@@ -338,6 +350,18 @@ function printHelp(deps: SubcommandDeps): void {
     `  wstack hq service uninstall    Remove units but preserve HQ data and secret file.\n`,
   );
   deps.renderer.write('\n');
+  deps.renderer.write(`Key vault (this machine as a device of an HQ):\n`);
+  deps.renderer.write(
+    `  wstack hq enroll <url> <token> [--label <name>] [--replace]  Enroll with the token from HQ → System → Keys.\n`,
+  );
+  deps.renderer.write(
+    `  wstack hq device               Enrollment, fingerprints and the keys HQ grants.\n`,
+  );
+  deps.renderer.write(
+    `  wstack hq sync                 Import granted keys, apply rotations, drop revoked ones.\n`,
+  );
+  deps.renderer.write(`  wstack hq unenroll [--remove-keys]  Forget this machine's HQ identity.\n`);
+  deps.renderer.write('\n');
   deps.renderer.write(`Flags (apply to all subcommands):\n`);
   deps.renderer.write(
     `  --data-dir <path>   Override HQ data directory (default ~/.wrongstack/hq).\n`,
@@ -356,6 +380,10 @@ function printHelp(deps: SubcommandDeps): void {
     `  --insecure-open     Allow a non-loopback bind with no token/password set.\n`,
   );
   deps.renderer.write(`  --port <n>          Bind port (default 3499).\n`);
+  deps.renderer.write(
+    `  --tls-cert <path> --tls-key <path>  Serve HTTPS/WSS with these PEM files (env WRONGSTACK_HQ_TLS_CERT/KEY).\n` +
+      `                        Required for key-vault changes from other machines.\n`,
+  );
   deps.renderer.write(`  --strict-port       Fail if port is in use.\n`);
   deps.renderer.write(
     `  --hq-token-ttl <dur>  Stamp an expiresAt on first-run tokens (e.g. 1h, 7d, 3600s).\n`,

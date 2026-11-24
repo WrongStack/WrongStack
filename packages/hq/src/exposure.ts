@@ -55,6 +55,8 @@ export interface HqExposureInput {
   hasPassword: boolean;
   /** Operator opt-in that downgrades a refusal to a warning. */
   allowInsecure?: boolean | undefined;
+  /** HQ serves HTTPS itself (`--tls-cert` / `--tls-key`): credentials are not cleartext. */
+  tls?: boolean | undefined;
 }
 
 export type HqExposureVerdict =
@@ -97,6 +99,9 @@ export function assessHqExposure(input: HqExposureInput): HqExposureVerdict {
         `  • accept the risk:     wstack hq --insecure-open`,
     };
   }
+
+  // Authenticated and encrypted: nothing left to warn about.
+  if (input.tls === true) return { kind: 'ok' };
 
   // Authenticated, but the token still crosses the network in cleartext and
   // rides in the URL query — worth saying out loud once at startup.

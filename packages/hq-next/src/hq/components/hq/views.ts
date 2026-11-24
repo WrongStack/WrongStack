@@ -17,6 +17,7 @@ import {
   HeartPulse,
   History,
   Inbox,
+  KeySquare,
   LayoutDashboard,
   type LucideIcon,
   MessageSquareText,
@@ -118,6 +119,10 @@ const DETAIL: Record<HqViewId, { description: string; icon: LucideIcon }> = {
     description:
       'Push alerts, machines going offline and waiting approvals to ntfy, Slack, Discord or a webhook.',
     icon: Send,
+  },
+  vault: {
+    description: 'Provider keys stored encrypted on HQ, and which machine receives which.',
+    icon: KeySquare,
   },
   settings: {
     description: 'Password, two-factor sign-in, sessions and the access log.',

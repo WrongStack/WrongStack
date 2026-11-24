@@ -65,6 +65,15 @@ Max/Team, link a Console organization first for the monthly API credits). See
 All four new flows use the existing account aliases, vault, TUI picker, and WebUI
 settings. See [OAuth sign-in](../oauth-signin.md) for endpoints and renewal behavior.
 
+### Import from an HQ key vault
+```
+wstack auth import --from hq [key-id …]
+```
+Imports the keys HQ grants this machine (all, or the given vault key ids) into the active
+profile. Enroll first with `wstack hq enroll <hq-url> <token>`. See the
+[HQ key vault](hq.md#key-vault) for what is imported, how `wstack hq sync` keeps it in step,
+and what HQ is never allowed to change.
+
 ### Direct (flag-based)
 ```
 wstack auth <provider-id>
@@ -111,6 +120,7 @@ Fallback entries select `<auth-profile-alias>/<model-id>`, so the same model on
 |-----|--------|
 | `a` | Add a provider from the models.dev catalog |
 | `c` | Add a custom provider (bypass catalog) |
+| `h` | Import from HQ — keys the HQ key vault grants this machine (enrolls first if needed) |
 | `1`-`N` | Manage a saved provider |
 | `q` | Quit |
 

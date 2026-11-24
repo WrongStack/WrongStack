@@ -28,6 +28,7 @@ const LIST_ACTION_LABEL: Record<string, string> = {
   local: '＋ Add local server (OmniRoute / Ollama / vLLM / LM Studio)',
   custom: '＋ Add custom provider',
   oauth: '⚡ Sign in with provider OAuth',
+  hq: '⇣ Import from HQ (key vault)',
 };
 
 const PROVIDER_ACTION_LABEL: Record<string, string> = {

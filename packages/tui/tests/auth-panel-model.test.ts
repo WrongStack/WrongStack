@@ -34,10 +34,10 @@ function panel(over: Partial<AuthPanelState>): AuthPanelState {
 }
 
 describe('authPanelRows — list view', () => {
-  it('renders providers followed by the four add/sign-in actions', () => {
+  it('renders providers followed by the add/sign-in/import actions', () => {
     const state = panel({ providers: [provider('a'), provider('b')] });
     const rows = authPanelRows(state);
-    expect(rows).toHaveLength(6);
+    expect(rows).toHaveLength(7);
     expect(rows[0]).toMatchObject({ kind: 'provider', provider: { id: 'a' } });
     expect(rows[2]).toMatchObject({ kind: 'list-action', action: 'catalog' });
     expect(rows[5]).toMatchObject({ kind: 'list-action', action: 'oauth' });
@@ -50,6 +50,7 @@ describe('authPanelRows — list view', () => {
       'local',
       'custom',
       'oauth',
+      'hq',
     ]);
   });
 });
@@ -137,9 +138,9 @@ describe('filterAuthCatalog', () => {
 
 describe('authMoveSelected', () => {
   it('wraps around both ends', () => {
-    const state = panel({ providers: [provider('a')] }); // 1 + 4 actions = 5 rows
-    expect(authMoveSelected({ ...state, selected: 0 }, -1)).toBe(4);
-    expect(authMoveSelected({ ...state, selected: 4 }, 1)).toBe(0);
+    const state = panel({ providers: [provider('a')] }); // 1 + 5 actions = 6 rows
+    expect(authMoveSelected({ ...state, selected: 0 }, -1)).toBe(5);
+    expect(authMoveSelected({ ...state, selected: 5 }, 1)).toBe(0);
     expect(authMoveSelected({ ...state, selected: 2 }, 1)).toBe(3);
   });
 

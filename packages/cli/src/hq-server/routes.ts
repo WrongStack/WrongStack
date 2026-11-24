@@ -64,6 +64,7 @@ import {
   handleApiSystemHealth,
   handleApiSystemUpdate,
 } from './routes/system-handlers.js';
+import { HqVaultRouteState, handleApiVault, isHqVaultDevicePath } from './routes/vault-handlers.js';
 import * as HqServerSnapshot from './snapshot.js';
 import * as HqServerUtils from './utils.js';
 
@@ -80,6 +81,7 @@ export const sanitizeApiError = HqServerUtils.sanitizeApiError;
 export const buildHttpUrl = HqServerUtils.buildHttpUrl;
 export const buildBootstrapHttpUrl = HqServerUtils.buildBootstrapHttpUrl;
 export const buildClientWsUrl = HqServerUtils.buildClientWsUrl;
+export const buildStartupBrowserUrl = HqServerUtils.buildStartupBrowserUrl;
 export const agentRingKey = HqServerUtils.agentRingKey;
 export const agentMessageToEntry = HqServerUtils.agentMessageToEntry;
 export const readLocalSubagentTranscript = HqServerUtils.readLocalSubagentTranscript;
@@ -235,6 +237,9 @@ export function createHqRouter(
       healthHistory: persistence.healthHistory,
       healthThresholds: hqHostHealthThresholds(alertSettings?.config() ?? {}),
     });
+  // Opened lazily on the first vault request; an HQ that never uses the vault
+  // never writes a master key.
+  const vault = new HqVaultRouteState(dataDir);
   const writeFleetSnapshot = (res: http.ServerResponse): void => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(fleetSnapshot()));
@@ -293,6 +298,9 @@ export function createHqRouter(
         url.pathname !== '/api/mobile/login' &&
         url.pathname !== '/api/mobile/login/verify' &&
         url.pathname !== '/api/auth/bootstrap' &&
+        // Devices enroll with a one-time code and fetch with a signature over
+        // their own key; neither has, or needs, a browser credential.
+        !isHqVaultDevicePath(url.pathname) &&
         HqServerAuth.hqAuthRequired(mutableAuth, requireBrowserAuth)
       ) {
         const auth = HqServerAuth.authenticateBrowserRequest(req, url, mutableAuth, sessions);
@@ -344,6 +352,20 @@ export function createHqRouter(
         applyAuthFile,
       };
       if (await dispatchHqAuthRoutes(req, res, url, authDeps)) return;
+      if (
+        await handleApiVault(req, res, url, {
+          mutableAuth,
+          sessions,
+          loginAttempts,
+          dataDir,
+          applyAuthFile,
+          trustedProxyHops,
+          requireBrowserAuth,
+          vault,
+        })
+      ) {
+        return;
+      }
 
       if (url.pathname === '/api/snapshot' && req.method === 'GET') {
         writeFleetSnapshot(res);

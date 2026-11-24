@@ -158,7 +158,7 @@ export async function loadConfigProviders(
  */
 let configMutationChain: Promise<unknown> = Promise.resolve();
 
-function globalRootForConfigPath(configPath: string): string {
+export function globalRootForConfigPath(configPath: string): string {
   const configDir = path.dirname(configPath);
   const profilesDir = path.dirname(configDir);
   return path.basename(profilesDir) === 'profiles' ? path.dirname(profilesDir) : configDir;

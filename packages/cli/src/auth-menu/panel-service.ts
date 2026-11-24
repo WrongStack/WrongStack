@@ -31,6 +31,7 @@ import type {
   AuthPanelHost,
   AuthProviderRow,
 } from '@wrongstack/tui';
+import { runHqImportFlow } from '../hq-vault/flow.js';
 import {
   activeLabel,
   loadConfigProviders,
@@ -627,6 +628,13 @@ export function createAuthPanelHost(deps: AuthPanelServiceDeps): AuthPanelHost {
         });
         return code === 0;
       }, deps.onProvidersChanged);
+    },
+
+    importFromHq(io: AuthFlowIo): Promise<AuthFlowResult> {
+      return runFlow(
+        async () => (await runHqImportFlow(flowDeps(deps, io))) === 0,
+        deps.onProvidersChanged,
+      );
     },
 
     oauthLogin(kind: AuthOAuthKind, io: AuthFlowIo): Promise<AuthFlowResult> {

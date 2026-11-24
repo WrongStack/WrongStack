@@ -180,7 +180,10 @@ const AGENT_STATE_SENSITIVE_BASENAMES =
   // any backup the writer produces, while the still-anchored `^…$`
   // keeps the prompt narrow (we still don't want every file under
   // `~/.wrongstack` to trip this).
-  /^(?:config(?:\.local)?\.json(?:\..+)?|trust\.json|auth\.json|\.key)$/i;
+  // The HQ key vault files hold provider credentials (HQ side) and the
+  // device's private keys (client side) — readable by the agent's own file
+  // tools they would hand every credential the vault guards to the model.
+  /^(?:config(?:\.local)?\.json(?:\..+)?|trust\.json|auth\.json|\.key|hq-vault\.json|hq-vault-master\.key|hq-device\.json)$/i;
 
 /** Undo `escapeGlobSubject`'s backslash escapes so a subject compares as a path. */
 function unescapeGlobSubject(value: string): string {

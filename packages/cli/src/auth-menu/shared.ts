@@ -144,6 +144,9 @@ export function renderTopMenu(
   );
   renderer.write(`    ${color.bold('c')}  Add a custom provider\n`);
   renderer.write(`    ${color.bold('s')}  Login with provider OAuth\n`);
+  renderer.write(
+    `    ${color.bold('h')}  Import from HQ ${color.dim('(keys your HQ key vault grants this machine)')}\n`,
+  );
   if (ids.length > 0) {
     renderer.write(
       `    ${color.dim('1-')}${color.dim(String(ids.length))}  ${color.bold('Manage a provider')}\n`,

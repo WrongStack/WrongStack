@@ -124,9 +124,9 @@
       "runtimeOrMixed": 18
     },
     "@wrongstack/core/security": {
-      "files": 298,
+      "files": 302,
       "typeOnly": 27,
-      "runtimeOrMixed": 274
+      "runtimeOrMixed": 278
     },
     "@wrongstack/core/session-catalog": {
       "files": 19,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1016,
+      "files": 1021,
       "typeOnly": 77,
-      "runtimeOrMixed": 974
+      "runtimeOrMixed": 979
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -7973,6 +7973,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/hq-vault/device-store.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/input-reader.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8316,6 +8322,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/cli/tests/hq-trust-boundary-actor.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/tests/hq-vault-client.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -8694,6 +8706,18 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/hq/src/sage-store.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/hq/src/vault/master-key.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/hq/src/vault/store-model.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -12749,6 +12773,18 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/hq-vault/device-store.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/hq-vault/flow.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/input-reader.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -13614,6 +13650,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/subcommands/handlers/hq-token.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/subcommands/handlers/hq-vault.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -15078,6 +15120,18 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/hq/src/session-bridge.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/hq/src/vault/master-key.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/hq/src/vault/store-model.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

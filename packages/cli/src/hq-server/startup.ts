@@ -62,6 +62,7 @@ export async function clearHqRuntimeMarker(dataDir: string, url: string): Promis
 interface HqStartupInfoHandle {
   host: string;
   port: number;
+  tls?: boolean;
   firstRunSetup?: {
     dataDir: string;
     browserUrl: string;
@@ -86,8 +87,8 @@ export function writeHqStartupInfo(
   handle: HqStartupInfoHandle,
 ): void {
   const startup = handle.firstRunSetup;
-  const browserUrl = HqServerUtils.buildHttpUrl(handle.host, handle.port);
-  const clientUrl = HqServerUtils.buildClientWsUrl(handle.host, handle.port);
+  const browserUrl = HqServerUtils.buildHttpUrl(handle.host, handle.port, undefined, handle.tls);
+  const clientUrl = HqServerUtils.buildClientWsUrl(handle.host, handle.port, undefined, handle.tls);
   const mobileUrl = new URL(browserUrl);
   mobileUrl.pathname = '/mobile';
   write(
@@ -150,12 +151,12 @@ function writeHqLanEndpoints(
     `\n${terminalText('Reachable from other machines on your network:', 'blue', { bold: true })}\n`,
   );
   for (const ip of ips) {
-    const url = HqServerUtils.buildHttpUrl(ip, handle.port, browserToken);
+    const url = HqServerUtils.buildHttpUrl(ip, handle.port, browserToken, handle.tls);
     write(`  ${terminalLink(url)}\n`);
   }
   const firstIp = ips[0];
   if (firstIp === undefined) return;
-  const clientUrl = HqServerUtils.buildHttpUrl(firstIp, handle.port);
+  const clientUrl = HqServerUtils.buildHttpUrl(firstIp, handle.port, undefined, handle.tls);
   write(
     `  ${terminalText('On another machine, set', 'muted')} WRONGSTACK_HQ_URL=${terminalLink(clientUrl)}\n`,
   );

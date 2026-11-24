@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T00:58:57.062Z",
+  "generatedAt": "2026-11-24T01:05:53.449Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 50,
-    "sourceFiles": 6493,
-    "testFiles": 5789,
-    "sourceLines": 1328646,
+    "sourceFiles": 6517,
+    "testFiles": 5794,
+    "sourceLines": 1333648,
     "workspaceEdges": 259,
-    "moduleEdges": 18994,
+    "moduleEdges": 19053,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1045
+    "testOnlyExports": 1048
   },
   "errors": [],
   "packageCycles": [],
@@ -231,8 +231,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 640,
-      "testFiles": 716,
+      "sourceFiles": 647,
+      "testFiles": 719,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -284,7 +284,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 716
+          "testFiles": 719
         }
       ]
     },
@@ -527,8 +527,8 @@
     {
       "name": "@wrongstack/hq",
       "dir": "packages/hq",
-      "sourceFiles": 73,
-      "testFiles": 59,
+      "sourceFiles": 81,
+      "testFiles": 60,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -544,15 +544,15 @@
         {
           "path": "packages/hq/tsconfig.test.json",
           "error": null,
-          "testFiles": 59
+          "testFiles": 60
         }
       ]
     },
     {
       "name": "@wrongstack/hq-next",
       "dir": "packages/hq-next",
-      "sourceFiles": 193,
-      "testFiles": 70,
+      "sourceFiles": 202,
+      "testFiles": 71,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -569,7 +569,7 @@
         {
           "path": "packages/hq-next/tsconfig.test.json",
           "error": null,
-          "testFiles": 70
+          "testFiles": 71
         }
       ]
     },
@@ -7274,6 +7274,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/hq-tls.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/hq-token-cookie-upgrade.test.ts",
         "projects": [
           "root-node"
@@ -7317,6 +7323,18 @@
       },
       {
         "file": "packages/cli/tests/hq-update-route.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/hq-vault-client.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/hq-vault-routes.test.ts",
         "projects": [
           "root-node"
         ]
@@ -16826,6 +16844,12 @@
         ]
       },
       {
+        "file": "packages/hq-next/tests/vault-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/src/__tests__/lru.test.ts",
         "projects": [
           "root-node"
@@ -17169,6 +17193,12 @@
       },
       {
         "file": "packages/hq/tests/tool-bridge.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/vault-store.test.ts",
         "projects": [
           "root-node"
         ]
@@ -37137,8 +37167,8 @@
     },
     {
       "file": "packages/cli/src/hq-server.ts",
-      "lines": 711,
-      "relativeImports": 21
+      "lines": 712,
+      "relativeImports": 22
     },
     {
       "file": "packages/client/src/client.ts",
@@ -38494,6 +38524,10 @@
       "name": "credentialMayAnswer"
     },
     {
+      "file": "packages/cli/src/hq-server/routes/vault-handlers.ts",
+      "name": "isHqVaultSecureChannel"
+    },
+    {
       "file": "packages/cli/src/hq-server/snapshot.ts",
       "name": "HQ_BROWSER_MAX_BUFFERED_BYTES"
     },
@@ -39612,6 +39646,14 @@
     {
       "file": "packages/hq/src/redaction.ts",
       "name": "redactHqValue"
+    },
+    {
+      "file": "packages/hq/src/vault/master-key.ts",
+      "name": "encodeHqVaultMasterKey"
+    },
+    {
+      "file": "packages/hq/src/vault/master-key.ts",
+      "name": "HQ_VAULT_MASTER_KEY_FILE"
     },
     {
       "file": "packages/kanban/src/boundary.ts",

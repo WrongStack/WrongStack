@@ -248,8 +248,8 @@ export function writeInvalidBody(res: http.ServerResponse, error: unknown): void
 
 // ── URL builders ───────────────────────────────────────────────────────────
 
-export function buildHttpUrl(host: string, port: number, token?: string): string {
-  const url = new URL(`http://${displayHost(host)}:${port}/`);
+export function buildHttpUrl(host: string, port: number, token?: string, tls = false): string {
+  const url = new URL(`${tls ? 'https' : 'http'}://${displayHost(host)}:${port}/`);
   if (token) url.searchParams.set('token', token);
   return url.toString();
 }
@@ -261,14 +261,31 @@ export function buildHttpUrl(host: string, port: number, token?: string): string
  * SPA extracts the fragment, POSTs it to `/api/auth/bootstrap`, and
  * receives only an HttpOnly session cookie.
  */
-export function buildBootstrapHttpUrl(host: string, port: number, bootstrapCode: string): string {
-  const url = new URL(`http://${displayHost(host)}:${port}/`);
+export function buildBootstrapHttpUrl(
+  host: string,
+  port: number,
+  bootstrapCode: string,
+  tls = false,
+): string {
+  const url = new URL(`${tls ? 'https' : 'http'}://${displayHost(host)}:${port}/`);
   url.hash = `bootstrap=${bootstrapCode}`;
   return url.toString();
 }
 
-export function buildClientWsUrl(host: string, port: number, token?: string): string {
-  const url = new URL(`ws://${displayHost(host)}:${port}/ws/client`);
+/** The URL printed at startup: carries a one-time bootstrap code when one was issued. */
+export function buildStartupBrowserUrl(
+  host: string,
+  port: number,
+  tls: boolean,
+  bootstrapCode: string | undefined,
+): string {
+  return bootstrapCode !== undefined
+    ? buildBootstrapHttpUrl(host, port, bootstrapCode, tls)
+    : buildHttpUrl(host, port, undefined, tls);
+}
+
+export function buildClientWsUrl(host: string, port: number, token?: string, tls = false): string {
+  const url = new URL(`${tls ? 'wss' : 'ws'}://${displayHost(host)}:${port}/ws/client`);
   if (token) url.searchParams.set('token', token);
   return url.toString();
 }

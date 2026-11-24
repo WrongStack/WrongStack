@@ -27,6 +27,7 @@ export type HqViewId =
   | 'control'
   | 'settings'
   | 'notifications'
+  | 'vault'
   | 'sessions'
   | 'events';
 

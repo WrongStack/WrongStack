@@ -58,6 +58,30 @@ export interface ProviderApiKey {
    * token, so this is the only record of it.
    */
   project?: string | undefined;
+  /**
+   * Where the key came from when it was not entered on this machine. Absent
+   * for keys pasted or signed in here. Member names deliberately avoid the
+   * secret-field pattern (`secret`, `token`, `apiKey` …): provenance is not a
+   * credential and must stay readable in the encrypted config.
+   */
+  source?: ProviderApiKeySource | undefined;
+}
+
+/**
+ * `hq`: imported from an HQ key vault (`wstack hq enroll` + import). HQ keeps
+ * it in step — `wstack hq sync` replaces it when HQ rotates the key and
+ * removes it when HQ stops granting it.
+ */
+export interface ProviderApiKeySource {
+  kind: 'hq';
+  /** The HQ vault identity the key came from (`hqId`, pinned at enrollment). */
+  hqId: string;
+  /** The key's id in that vault. */
+  keyId: string;
+  /** Vault version this copy holds; a higher one on HQ means it was rotated. */
+  version: number;
+  /** The grant that delivered it. */
+  grantId: string;
 }
 
 export interface ProviderConfig {

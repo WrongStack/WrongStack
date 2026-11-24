@@ -13,6 +13,7 @@ import {
   runAuthMenu,
   runOAuthLoginKind,
 } from '../../auth-menu/index.js';
+import { createHqCredentialService, formatHqImportReport } from '../../hq-vault/flow.js';
 import { activeProfileConfigPath } from '../../profile-config-path.js';
 import { providerCloudConfig } from '../../provider-cloud-config.js';
 import {
@@ -125,6 +126,28 @@ export const authCmd: SubcommandHandler = async (args, deps) => {
   }
 
   // `wstack auth list` / `wstack auth ls` — quick listing
+  // `wstack auth import --from hq [key-id …]` — keys from the HQ key vault.
+  if (first === 'import') {
+    const from = deps.flags?.['from'];
+    if (from !== 'hq') {
+      deps.renderer.writeError(
+        'Usage: wstack auth import --from hq [key-id …]  (enroll first: wstack hq enroll <url> <token>)',
+      );
+      return 1;
+    }
+    const keyIds = flags.positional.slice(1);
+    try {
+      const report = await createHqCredentialService(menuDeps).importKeys(
+        keyIds.length > 0 ? { keyIds } : {},
+      );
+      for (const line of formatHqImportReport(report)) deps.renderer.write(`${line}\n`);
+      return 0;
+    } catch (error) {
+      deps.renderer.writeError(error instanceof Error ? error.message : String(error));
+      return 1;
+    }
+  }
+
   if (first === 'list' || first === 'ls') {
     return runAuthList(menuDeps);
   }

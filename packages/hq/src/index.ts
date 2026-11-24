@@ -28,4 +28,5 @@ export * from './redaction.js';
 export * from './session-bridge.js';
 export * from './tool-bridge.js';
 export * from './transcript-mapper.js';
+export * from './vault/index.js';
 export * from './worktree-bridge.js';

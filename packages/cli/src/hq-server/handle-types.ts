@@ -28,6 +28,8 @@ export type HqFirstRunSetup = HqStartupConnectionInfo;
 export interface HqServerHandle {
   host: string;
   port: number;
+  /** HQ serves HTTPS/WSS itself (`--tls-cert` / `--tls-key`). */
+  tls?: boolean;
   firstRunSetup?: HqFirstRunSetup;
   trustPublicOrigin(origin: string): void;
   close(): Promise<void>;

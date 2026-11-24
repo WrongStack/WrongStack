@@ -102,6 +102,16 @@
       "fingerprint": "8fd1e3255101c8c5"
     },
     {
+      "file": "packages/cli/tests/hq-tls.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "5170c2b2d30e0972"
+    },
+    {
+      "file": "packages/cli/tests/hq-tls.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "f63fd424a139fa78"
+    },
+    {
       "file": "packages/cli/tests/hq-visual-smoke.test.ts",
       "kind": "skipIf",
       "fingerprint": "ace5eeaed36e3013"

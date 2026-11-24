@@ -82,6 +82,12 @@ const SENSITIVE_KEYS = new Set([
   'apikey',
   'clientSecret',
   'privateKey',
+  // HQ key vault material: a sealed credential, a vault passphrase and the
+  // device / HQ private keys must never reach telemetry, even by accident.
+  'passphrase',
+  'sealed',
+  'encPrivate',
+  'signPrivate',
 ]);
 
 const PATH_KEYS = new Set([

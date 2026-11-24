@@ -9,15 +9,16 @@
  */
 
 import * as net from 'node:net';
+import { color, isPidAlive } from '@wrongstack/core/utils';
 import {
   HQ_CLI_DEFAULT_HOST,
   isLoopbackHost,
   readHqRuntimeFileSync,
   resolveHqDataDir,
 } from '@wrongstack/hq';
-import { color, isPidAlive } from '@wrongstack/core/utils';
 import { parseHqIpAllowlist } from '../hq-server/ip-allowlist.js';
 import { resolveHqPasswordInput } from '../hq-server/secret-input.js';
+import { resolveHqTlsInput } from '../hq-server/tls-input.js';
 import { normalizeHqPublicOrigin } from '../hq-server/utils.js';
 import { DEFAULT_PORT } from '../hq-server.js';
 import type { HqQuickTunnelHandle } from '../hq-tunnel.js';
@@ -206,6 +207,11 @@ export async function handleHqShortCircuit(
     }
     trustedProxyHops = parsed;
   }
+  const tlsInput = await resolveHqTlsInput(flags);
+  if (!tlsInput.ok) {
+    process.stderr.write(`${color.red('✗')} ${tlsInput.error}\n`);
+    return 1;
+  }
   // User explicitly chose a port if they either passed --port OR accepted
   // a non-default value from the interactive prompt.
   const userProvidedPort =
@@ -264,6 +270,7 @@ export async function handleHqShortCircuit(
       ...(tokenTtlMs !== undefined ? { tokenTtlMs } : {}),
       ...(trustedProxyHops !== undefined ? { trustedProxyHops } : {}),
       ...(ipAllowlist !== undefined ? { ipAllowlist } : {}),
+      ...(tlsInput.tls !== undefined ? { tls: tlsInput.tls } : {}),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

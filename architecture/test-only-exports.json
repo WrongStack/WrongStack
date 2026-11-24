@@ -440,6 +440,9 @@
     "packages/cli/src/hq-server/routes/command-handlers.ts": [
       "credentialMayAnswer"
     ],
+    "packages/cli/src/hq-server/routes/vault-handlers.ts": [
+      "isHqVaultSecureChannel"
+    ],
     "packages/cli/src/hq-server/snapshot.ts": [
       "HQ_BROWSER_MAX_BUFFERED_BYTES",
       "HQ_STALE_SNAPSHOT_MS",
@@ -1009,6 +1012,10 @@
     ],
     "packages/hq/src/redaction.ts": [
       "redactHqValue"
+    ],
+    "packages/hq/src/vault/master-key.ts": [
+      "encodeHqVaultMasterKey",
+      "HQ_VAULT_MASTER_KEY_FILE"
     ],
     "packages/kanban/src/boundary.ts": [
       "normalizeBoundaryPath"

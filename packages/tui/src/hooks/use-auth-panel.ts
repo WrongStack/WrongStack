@@ -399,7 +399,11 @@ export function useAuthPanel(opts: UseAuthPanelOptions): AuthPanelController {
         if (row.action === 'catalog') openCatalog();
         else if (row.action === 'local') dispatch({ type: 'authView', view: 'local' });
         else if (row.action === 'oauth') dispatch({ type: 'authView', view: 'oauth' });
-        else openCustomSetupForm();
+        else if (row.action === 'hq') {
+          const importFromHq = authHost?.importFromHq;
+          if (importFromHq) runFlow('Import from HQ', (io) => importFromHq(io));
+          else dispatch({ type: 'authHint', text: 'Import from HQ is not available here.' });
+        } else openCustomSetupForm();
         return;
       case 'key': {
         const providerId = panel.providerId;

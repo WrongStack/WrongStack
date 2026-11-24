@@ -33,12 +33,18 @@ const stateRoot = process.env['WRONGSTACK_HOME']
 const inState = (basename: string): string => path.join(stateRoot, basename);
 
 describe('isSensitiveReadCall — F1 config-backup coverage', () => {
-  it.each([['config.json'], ['config.local.json'], ['trust.json'], ['auth.json'], ['.key']])(
-    'still flags live config basenames: %s',
-    (basename) => {
-      expect(isSensitiveReadCall(readTool, { path: inState(basename) })).toBe(true);
-    },
-  );
+  it.each([
+    ['config.json'],
+    ['config.local.json'],
+    ['trust.json'],
+    ['auth.json'],
+    ['.key'],
+    ['hq-vault.json'],
+    ['hq-vault-master.key'],
+    ['hq-device.json'],
+  ])('still flags live config basenames: %s', (basename) => {
+    expect(isSensitiveReadCall(readTool, { path: inState(basename) })).toBe(true);
+  });
 
   it.each([
     // The exact writer outputs (config-history.ts:344-385)

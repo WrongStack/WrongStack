@@ -87,7 +87,7 @@ export async function fetchJson<T>(path: string): Promise<T> {
   return readJson<T>(response, path);
 }
 
-async function postJson<T>(path: string, body: unknown, label: string): Promise<T> {
+export async function postJson<T>(path: string, body: unknown, label: string): Promise<T> {
   return sendJson<T>(path, label, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -95,7 +95,7 @@ async function postJson<T>(path: string, body: unknown, label: string): Promise<
   });
 }
 
-async function sendJson<T>(path: string, label: string, init: RequestInit): Promise<T> {
+export async function sendJson<T>(path: string, label: string, init: RequestInit): Promise<T> {
   let response: Response;
   try {
     response = await authorizedFetch(path, init);

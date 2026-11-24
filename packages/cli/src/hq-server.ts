@@ -10,8 +10,8 @@
 
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
+import type * as http from 'node:http';
 import type { Server as HttpServer } from 'node:http';
-import * as http from 'node:http';
 import * as path from 'node:path';
 import { getSharedProjectMailbox } from '@wrongstack/coordination';
 import { createCompatibilityTrustBoundary, type TrustBoundary } from '@wrongstack/core/security';
@@ -46,9 +46,8 @@ import { prepareHqServerStart } from './hq-server/preflight.js';
 import {
   agentMessageToEntry,
   agentRingKey,
-  buildBootstrapHttpUrl,
   buildClientWsUrl,
-  buildHttpUrl,
+  buildStartupBrowserUrl,
   createHqRouter,
   decodePathSegment,
   type HqRouterDeps,
@@ -115,12 +114,15 @@ interface HqServerOptions {
   trustedProxyHops?: number;
   /** Optional exact-IP/CIDR admission list. Empty/absent means unrestricted. */
   ipAllowlist?: readonly string[];
+  /** Serve HTTPS/WSS with this PEM pair (see `hq-server/tls-server.ts`). */
+  tls?: HqTlsMaterial | undefined;
 }
 
 // Public HQ server handle types live in a dedicated leaf module so callers (notably
 // `subcommands/handlers/hq.ts`) can depend on the public types without pulling in
 // the HQ server implementation. See `./hq-server/handle-types.ts`.
 import type { HqServerHandle, HqStartupConnectionInfo } from './hq-server/handle-types.js';
+import { createHqHttpServer, type HqTlsMaterial, hqLocalOrigin } from './hq-server/tls-server.js';
 
 export type {
   HqFirstRunSetup,
@@ -157,6 +159,7 @@ async function startHqServerWithAuth(
       hasBrowserTokens: live.browserTokens.size > 0,
       hasPassword: live.passwordHash !== undefined,
       allowInsecure: options.allowInsecureOpen,
+      tls: options.tls !== undefined,
     });
     const previousFloor = live.requireAuthFloor === true;
     live.requireAuthFloor = exposure.kind === 'refuse';
@@ -418,7 +421,7 @@ async function startHqServerWithAuth(
       dataDir,
       hqSessionTag,
       requireBrowserAuth: options.requireBrowserAuth,
-      secureCookies: options.secureCookies,
+      secureCookies: options.secureCookies === true || options.tls !== undefined,
       authorizeMailboxGateway: (req, projectDir) =>
         mailboxManager.authorizeMailboxGateway(req, projectDir),
       getMailboxGateway: (projectDir) => mailboxManager.getMailboxGateway(projectDir),
@@ -449,7 +452,7 @@ async function startHqServerWithAuth(
       }
     };
 
-    const httpServer: HttpServer = http.createServer((req, res) => {
+    const httpServer: HttpServer = createHqHttpServer(options.tls, (req, res) => {
       const sessionsBefore = sessions.size > 0 ? new Set(sessions.keys()) : undefined;
       void handleRequest(req, res).finally(() => {
         if (sessionsBefore !== undefined) closeSocketsOfRemovedSessions(sessionsBefore);
@@ -628,30 +631,27 @@ async function startHqServerWithAuth(
         const clientToken =
           firstRunAuth.clientToken?.token ??
           authFile.clientTokens?.find((t) => t.token.trim().length > 0)?.token;
-        const hqUrl = `http://${host === '0.0.0.0' ? '127.0.0.1' : host}:${actualPort}`;
+        const tls = options.tls !== undefined;
+        const hqUrl = hqLocalOrigin(host, actualPort, tls);
         await writeHqRuntimeMarker(dataDir, hqUrl).catch(() => {});
 
         const browserTokenObj =
           (firstRunAuth.browserToken !== undefined
             ? mutableAuth.browserTokenObjs.get(hqTokenKey(firstRunAuth.browserToken))
             : undefined) ?? mutableAuth.browserTokenObjs.values().next().value;
-        let browserUrl: string;
-        if (browserTokenObj) {
-          const code = bootstrapStore.issue({
-            tokenId: browserTokenObj.id,
-            ...(browserTokenObj.capabilities !== undefined
-              ? { capabilities: browserTokenObj.capabilities }
-              : {}),
-          });
-          browserUrl = buildBootstrapHttpUrl(host, actualPort, code);
-        } else {
-          browserUrl = buildHttpUrl(host, actualPort);
-        }
+        const bootstrapCode = browserTokenObj
+          ? bootstrapStore.issue({
+              tokenId: browserTokenObj.id,
+              ...(browserTokenObj.capabilities !== undefined
+                ? { capabilities: browserTokenObj.capabilities }
+                : {}),
+            })
+          : undefined;
 
         const startupInfo: HqStartupConnectionInfo = {
           dataDir,
-          browserUrl,
-          clientUrl: buildClientWsUrl(host, actualPort, clientToken),
+          browserUrl: buildStartupBrowserUrl(host, actualPort, tls, bootstrapCode),
+          clientUrl: buildClientWsUrl(host, actualPort, clientToken, tls),
           clientEnv: {
             WRONGSTACK_HQ_URL: hqUrl,
             ...(clientToken ? { WRONGSTACK_HQ_TOKEN: clientToken } : {}),
@@ -664,6 +664,7 @@ async function startHqServerWithAuth(
         const handle: HqServerHandle = {
           host,
           port: actualPort,
+          ...(tls ? { tls: true } : {}),
           firstRunSetup: startupInfo,
           trustPublicOrigin: (origin) => {
             const parsed = new URL(origin);

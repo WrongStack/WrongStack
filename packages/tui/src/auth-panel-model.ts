@@ -212,6 +212,11 @@ export interface AuthPanelHost {
   ): Promise<AuthFlowResult>;
   oauthLogin(kind: AuthOAuthKind, io: AuthFlowIo): Promise<AuthFlowResult>;
   /**
+   * Import keys from the HQ key vault (enrolling first when this machine is
+   * not a device yet). Optional: a host without it shows a hint instead.
+   */
+  importFromHq?: ((io: AuthFlowIo) => Promise<AuthFlowResult>) | undefined;
+  /**
    * Form-shaped counterparts to the `io`-driven flows above: the panel hands
    * over one filled-in form instead of a question-at-a-time sequence, and the
    * host validates the whole thing in a single config mutation. Each resolves
@@ -348,7 +353,7 @@ export const AUTH_PANEL_INITIAL: AuthPanelState = {
 
 export type AuthPanelRow =
   | { kind: 'provider'; provider: AuthProviderRow }
-  | { kind: 'list-action'; action: 'catalog' | 'local' | 'custom' | 'oauth' }
+  | { kind: 'list-action'; action: 'catalog' | 'local' | 'custom' | 'oauth' | 'hq' }
   | { kind: 'key'; keyRow: AuthKeyRow }
   | {
       kind: 'provider-action';
@@ -410,6 +415,7 @@ export function authPanelRows(state: AuthPanelState): AuthPanelRow[] {
         { kind: 'list-action', action: 'local' },
         { kind: 'list-action', action: 'custom' },
         { kind: 'list-action', action: 'oauth' },
+        { kind: 'list-action', action: 'hq' },
       );
       return rows;
     }

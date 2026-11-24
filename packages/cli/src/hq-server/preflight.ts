@@ -17,6 +17,8 @@ interface HqPreflightOptions {
   tokenTtlMs?: number;
   requireBrowserAuth?: boolean;
   allowInsecureOpen?: boolean;
+  /** Present when HQ will serve HTTPS itself; only its presence matters here. */
+  tls?: unknown;
 }
 
 interface HqPreflightResult {
@@ -78,6 +80,7 @@ export async function prepareHqServerStart(
     hasBrowserTokens: liveBrowserTokens.length > 0,
     hasPassword,
     allowInsecure: options.allowInsecureOpen,
+    tls: options.tls !== undefined,
   });
   if (exposure.kind === 'refuse') {
     // Without this the operator sees "no browser tokens" while looking at an

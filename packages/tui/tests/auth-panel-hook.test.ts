@@ -392,4 +392,65 @@ describe('useAuthPanel standalone secret prompts', () => {
     });
     expect(harness.state.authPanel.flowDone).toBe(true);
   });
+  it('the Import from HQ row runs the host flow, or explains when the host has none', async () => {
+    const baseHost = () => ({
+      listProviders: vi.fn(async () => []),
+      listCatalog: vi.fn(async () => []),
+      localPresets: vi.fn(() => []),
+      setActiveKey: vi.fn(async () => null),
+      deleteKey: vi.fn(async () => null),
+      removeProvider: vi.fn(async () => null),
+      addKey: vi.fn(async () => ({ ok: true })),
+      updateKey: vi.fn(async () => ({ ok: true })),
+      editField: vi.fn(async () => ({ ok: true })),
+      editModelDetails: vi.fn(async () => ({ ok: true })),
+      addModel: vi.fn(async () => ({ ok: true })),
+      removeModel: vi.fn(async () => null),
+      resetModelToCatalog: vi.fn(async () => null),
+      addCatalogProvider: vi.fn(async () => ({ ok: true })),
+      addCustomProvider: vi.fn(async () => ({ ok: true })),
+      addLocal: vi.fn(async () => ({ ok: true })),
+      oauthLogin: vi.fn(async () => ({ ok: true })),
+      saveProviderSetup: vi.fn(async () => null),
+      saveProviderEdit: vi.fn(async () => null),
+      getModelEdit: vi.fn(async () => null),
+      saveModelEdit: vi.fn(async () => null),
+      saveKeyEdit: vi.fn(async () => null),
+    });
+    const openAndEnterHqRow = async (host: AuthPanelHost): Promise<Harness> => {
+      let harness!: Harness;
+      act(() => {
+        harness = createHarness(host);
+      });
+      act(() => {
+        harness.controller.openAuthPanel();
+        harness.rerender();
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      // With no providers the list is: catalog, local, custom, oauth, hq.
+      act(() => {
+        harness.dispatch({ type: 'authMove', delta: 4 });
+        harness.controller.onAuthEnter();
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      return harness;
+    };
+
+    const importFromHq = vi.fn(async () => ({ ok: true }));
+    const withImport = await openAndEnterHqRow({
+      ...baseHost(),
+      importFromHq,
+    } satisfies AuthPanelHost);
+    expect(importFromHq).toHaveBeenCalledTimes(1);
+    expect(withImport.state.authPanel.flowTitle).toBe('Import from HQ');
+    withImport.unmount();
+
+    const without = await openAndEnterHqRow(baseHost() satisfies AuthPanelHost);
+    expect(without.state.authPanel.hint).toContain('not available');
+    without.unmount();
+  });
 });

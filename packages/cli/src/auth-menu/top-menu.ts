@@ -1,4 +1,5 @@
 import { color } from '@wrongstack/core/utils';
+import { runHqImportFlow } from '../hq-vault/flow.js';
 import { addCustomProvider, addFromCatalog } from './add-provider.js';
 import { loadProviders } from './helpers.js';
 import { parseAuthMenuIndex } from './index-input.js';
@@ -53,6 +54,16 @@ export async function runTopMenu(deps: AuthMenuDeps): Promise<number> {
     // Sign in with a subscription (OAuth)
     if (choice === 's' || choice === 'signin' || choice === 'login' || choice === 'oauth') {
       await runOAuthLoginMenu(deps);
+      continue;
+    }
+
+    // Keys from the HQ key vault (enrolls first when needed)
+    if (choice === 'h' || choice === 'hq' || choice === 'import') {
+      try {
+        await runHqImportFlow(deps);
+      } catch (error) {
+        deps.renderer.writeError(error instanceof Error ? error.message : String(error));
+      }
       continue;
     }
 

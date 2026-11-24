@@ -109,8 +109,8 @@ describe('providers / navigation', () => {
     s = { ...s, authPanel: { ...s.authPanel, selected: 10 } };
     s = reducer(s, { type: 'authProviders', providers: [provider('a')] });
     expect(s.authPanel.busy).toBe(false);
-    // 1 provider + 4 actions = 5 rows → cursor clamps to 4.
-    expect(s.authPanel.selected).toBe(4);
+    // 1 provider + 5 actions = 6 rows → cursor clamps to 5.
+    expect(s.authPanel.selected).toBe(5);
   });
 
   it('authMove wraps across the row list', () => {
@@ -119,7 +119,7 @@ describe('providers / navigation', () => {
       providers: [provider('a')],
     });
     s = reducer(s, { type: 'authMove', delta: -1 });
-    expect(s.authPanel.selected).toBe(4);
+    expect(s.authPanel.selected).toBe(5);
     s = reducer(s, { type: 'authMove', delta: 1 });
     expect(s.authPanel.selected).toBe(0);
   });

@@ -98,6 +98,7 @@ All flags are parsed by the unified `parseArgs()` in
 | `--open` | `--open` | boolean | `false` | Open the dashboard URL in the default browser after the server prints its listening URL. Implementation: dynamic `import('@wrongstack/webui/server')` of `openBrowser()`. Errors are best-effort and silently swallowed |
 | `--data-dir` | `--data-dir <path>` or `--data-dir=<path>` | string | `~/.wrongstack/hq` | HQ data directory: where `auth.json` (and in later phases, the persistent event log + snapshot cache) live. Relative paths resolve against `process.cwd()`. The env var `WRONGSTACK_HQ_DATA_DIR` provides the same override without a CLI flag; the flag wins when both are set. The default honors `WRONGSTACK_HOME`, so pointing that at a sandbox also relocates HQ state |
 | `--password` | `--password <value>` or `--password=<value>` | string | `WRONGSTACK_HQ_PASSWORD` / unset | Enable password login or rotate an existing password (minimum 8 characters). Stored only as a scrypt hash; rotation invalidates existing password sessions. Prefer the environment variable on shared machines so the secret is not present in the process command line |
+| `--tls-cert` / `--tls-key` | `--tls-cert <path> --tls-key <path>` | string | `WRONGSTACK_HQ_TLS_CERT` / `WRONGSTACK_HQ_TLS_KEY` / unset | Serve HTTPS/WSS with these PEM files. Both or neither. See [Built-in TLS](#built-in-tls---tls-cert----tls-key) |
 | `--tunnel` | `--tunnel` | boolean | `false` | Start `cloudflared tunnel --url <loopback HQ URL>`, print the temporary HTTPS URL, and stop the tunnel with HQ. Requires `cloudflared` in `PATH`; refuses open mode/non-loopback binds. If live reload removes the final browser credential, data APIs remain authenticated and existing browser sessions/channels are revoked until authentication is restored |
 | `--client` | `--client` or `-c` | boolean | `false` | Token subcommand scope selector. When passed to `wstack hq token create/list/revoke`, operates on **client tokens** (validated on `/ws/client`) instead of the default **browser tokens** (validated on `/ws/browser`). Phase 4 |
 | `--capabilities` | `--capabilities <csv>` | string | scope default | Token grants. Browser tokens allow `control.enqueue`, `control.approve` (answer any tool-approval prompt, including persistent `always`/`deny`) and `control.approve.once` (one-shot `yes`/`no` and ask_user answers only — what the mobile login carries); client tokens allow `telemetry.publish` and optionally `control.execute`. New browser/client defaults are `control.enqueue` / `telemetry.publish` respectively |
@@ -173,6 +174,7 @@ Consequences:
 | `/api/agents/:id/messages` | GET | `application/json` | Per-subagent message ring (`?full=1`) |
 | `/ws/browser` | WS upgrade | Stream of `HqBrowserMessage` frames | Browser connects here. Receives the current snapshot immediately, then live updates |
 | `/ws/client` | WS upgrade | Stream of `HqClientMessage` / `HqServerMessage` frames (bidirectional) | Telemetry clients (TUI/REPL/WebUI) connect here. A live client token (`?token=`) is required whenever any client token exists **or** HQ holds any browser credential (password or browser token); only a fully credential-free HQ accepts tokenless publishers. With a password set and zero live client tokens, every publisher is rejected — mint one with `wstack hq token create --client`. Protocol version mismatch → close `1008` |
+| `/api/vault/*` | GET / POST / DELETE | `application/json` | **Key vault** — provider keys stored encrypted on HQ and delivered sealed to enrolled devices. See [Key vault](#key-vault) |
 | `/api/command` | POST | `application/json` (`202` on accept) | **Control plane.** Enqueue a command to a **connected** client. Requires a browser token with `control.enqueue` (open mode allows any). Target client must advertise `control.receive`. See [Control plane](#control-plane) |
 | `/api/commands` | GET | `application/json` | Recent command audit entries (`?limit=`, default 200) |
 | `/api/mailbox-send` | POST | `application/json` (`202` on delivery) | **Direct mailbox write** — deliver a prompt even when **no client is connected**. Same auth as `/api/command`. See [Direct mailbox delivery](#direct-mailbox-delivery-apimailbox-send) |
@@ -798,6 +800,7 @@ tabs below (`packages/hq-next/src/lib/sections.ts`).
 | **System · Control** | Reviewed commands to **one session** (all types, typed confirmation for abort and shell) or to **several sessions** at once (see below), plus the live command audit | `POST /api/command`, `/api/commands` |
 | **System · Worktrees** | Isolated checkouts per project on a time axis; conflicts and failures first | `worktree.event` (backfilled) |
 | **System · Notifications** | Push channels (ntfy for phone push, Slack, Discord, JSON webhook) for alerts, machines going offline and coming back or running low on disk or memory, and approvals or questions left waiting; each channel can be limited to machines with some labels (e.g. only the prod machines reach Slack); delivery status per channel; alert thresholds (including when a machine counts as low on disk or memory) and daily spend budgets for the fleet, each project and each machine | `/api/notify*`, `/api/alerts/settings` |
+| **System · Keys** | The [key vault](#key-vault): provider keys stored encrypted on HQ (name, provider, version, how many devices — never the value), enrolled devices with their fingerprints (approve, revoke, create a one-time enrollment code), a key × device access matrix (kept in the device's config or leased in memory, optionally made the active key) and the activity log. Changes need a password confirmation and a loopback or TLS connection; otherwise the page is read-only and says why | `/api/vault/*` |
 | **System · MCP** | Every MCP server each terminal runs: health, latency, failures and limit checks, failing servers first. Read-only — HQ cannot restart an MCP server | `hq.snapshot` (`mcpServers`) |
 | **System · Security** | Browser password, two-factor sign-in, sessions and the access log | `/api/auth/*` |
 
@@ -1074,9 +1077,31 @@ export WRONGSTACK_HQ_URL=http://<hq-host>:3499
   `Authorization: Bearer`. In OPEN MODE (no browser tokens), HTTP routes
   remain unauthenticated.
 
+### Built-in TLS (`--tls-cert` / `--tls-key`)
+
+HQ can serve HTTPS and WSS itself:
+
+```bash
+wstack hq --tls-cert /etc/hq/cert.pem --tls-key /etc/hq/key.pem
+# or WRONGSTACK_HQ_TLS_CERT / WRONGSTACK_HQ_TLS_KEY (file paths)
+```
+
+Both files are PEM; one without the other is refused rather than falling back
+to plain HTTP. With TLS on, the startup URLs are `https://` / `wss://`, session
+cookies are `Secure`, and the "bound to all interfaces without TLS" warning is
+not printed. HQ stops answering plain HTTP, and `runtime.json` records the
+`https://` URL, so **same-machine auto-discovered clients connect over WSS
+too**: the certificate must cover `127.0.0.1` (a `subjectAltName` IP entry) as
+well as the names remote clients use. Remote clients set
+`WRONGSTACK_HQ_URL=https://…`. A self-signed or private-CA certificate must be
+trusted by every client process, local ones included: `NODE_EXTRA_CA_CERTS=<ca.pem>`
+works for both the Bun-built `wstack` binary and Node (checked 2026-11-24). The
+[key vault](#key-vault) accepts operator changes from other machines only over
+TLS (or loopback / a declared reverse proxy).
+
 ### TLS termination (reverse proxy / Cloudflare Tunnel)
 
-HQ itself speaks plain HTTP/WS — it does not terminate TLS. For any
+Without `--tls-cert`, HQ speaks plain HTTP/WS. For any
 deployment that is not loopback, terminate TLS in front of it and let the
 proxy upgrade `https://` → `ws://` / `wss://` → `ws://`. The publisher's
 `toClientUrl()` (see `packages/hq/src/publisher.ts`) rewrites the
@@ -1108,6 +1133,91 @@ cloudflared tunnel --url http://localhost:3499
 Keep HQ on `127.0.0.1` and let `cloudflared` be the only thing that can
 reach it. Keep the browser password/token and the separate client enrollment
 token enabled even when another access layer sits in front of HQ.
+
+### Key vault
+
+HQ can hold provider API keys centrally and hand each one, encrypted, to the
+devices you choose. Design and later phases (dashboard screens, `wstack hq
+enroll`, "Import from HQ" in `/auth` and the provider menus, OAuth leases):
+[HQ key vault design](../designs/hq-key-vault-design.md). This section covers
+what the server does today.
+
+**At rest.** `<dataDir>/hq-vault.json` holds every key encrypted under its own
+data key, each data key wrapped under the master key
+`<dataDir>/hq-vault-master.key` (owner-only). Set
+`WRONGSTACK_HQ_VAULT_PASSPHRASE` before the vault is first used and the master
+key is wrapped with it: after every restart the vault is **sealed** (labels,
+devices and grants stay visible; nothing can be stored or delivered) until
+`POST /api/vault/unseal {passphrase}` or the variable is present at start.
+`<dataDir>/hq-vault-audit.jsonl` records every store, rotation, grant,
+revocation and device fetch — never a value. The agent's own file tools treat
+`hq-vault.json`, `hq-vault-master.key` and the client's `hq-device.json` as
+protected agent state.
+
+**Operator rules.** Every `/api/vault/*` operator route needs an admin
+credential (`auth.admin`), and the vault does not run at all until an HQ
+operator password exists. Changes additionally need:
+
+- a **secure channel** — loopback TCP peer, HQ's own TLS, or `X-Forwarded-Proto:
+  https` from a declared proxy (`--hq-trusted-proxy-hops > 0`); otherwise
+  `403 VAULT_INSECURE_CHANNEL`;
+- a **step-up** — `POST /api/vault/elevate {password, code?}` (the authenticator
+  code too when 2FA is on), valid 10 minutes for the credential that made it;
+  otherwise `403 VAULT_ELEVATION_REQUIRED`. Failed proofs share the login backoff.
+
+| Route | Method | Notes |
+|---|---|---|
+| `/api/vault/status` | GET | `state` (`sealed`/`unsealed`, or `unavailable` without a password), HQ fingerprint, counts, `secureChannel`, `elevatedUntil` |
+| `/api/vault/elevate` | POST | `{password, code?}` → `{elevatedUntil}` |
+| `/api/vault/unseal` | POST | `{passphrase}` |
+| `/api/vault/secrets` | GET / POST | Metadata only (`id, providerId, label, kind, version, …`); POST `{providerId, label, apiKey}` |
+| `/api/vault/secrets/:id/rotate` | POST | `{apiKey}`; the version advances so devices pick up the new value |
+| `/api/vault/secrets/:id` | DELETE | Also drops every grant of it |
+| `/api/vault/devices` | GET | Enrolled devices with fingerprint, status, last fetch |
+| `/api/vault/devices/:id/approve`, `/revoke` | POST | Revoking drops the device's grants; a revoked device must enroll again with new keys |
+| `/api/vault/grants` | GET / POST | POST `{secretId, deviceId, policy?: local\|lease, setActive?, leaseTtlSeconds?, expiresAt?}` |
+| `/api/vault/grants/:id` | DELETE | Stop delivering that key to that device |
+| `/api/vault/audit` | GET | Newest activity first (`?limit=`, at most 1000): stores, rotations, grants, revocations, enrollments, device fetches — never a value |
+| `/api/vault/enrollment-codes` | POST | `{label?, autoApprove?}` → one-time `enrollmentToken` (10 minutes, in memory) and the HQ fingerprint to compare on the device |
+
+**Device routes** need no browser credential and work over plain HTTP:
+everything they carry is authenticated by the device's own keys and sealed end
+to end.
+
+- `POST /api/vault/enroll` — the device sends its X25519 + Ed25519 public keys,
+  HMAC'd with the one-time code; HQ answers with its identity, HMAC'd the same
+  way, which the device pins. A party in the middle without the code cannot swap
+  either side's keys, and a failed attempt does not burn the code.
+- `POST /api/vault/fetch` — a request signed by the device (timestamp within 5
+  minutes, single-use nonce). HQ answers with a bundle signed by its pinned key;
+  each value is sealed to that device (ephemeral X25519 + HKDF-SHA256 +
+  AES-256-GCM, bound to device, key, version and grant). A stolen client token
+  opens nothing.
+
+Revoking a grant or a device stops delivery; it cannot take back a key a device
+already decrypted. Rotate the key at the provider and store the new one with
+`/rotate`.
+
+**On the device.** One device identity per machine, in `<WRONGSTACK_HOME>/hq-device.json`
+(owner-only; the private keys encrypted with the local vault key `~/.wrongstack/.key`).
+
+```bash
+wstack hq enroll <hq-url> <token> [--label <name>] [--replace]   # token from System → Keys
+wstack hq device              # HQ, both fingerprints, granted keys
+wstack hq sync                # import granted keys, apply rotations, drop revoked ones
+wstack auth import --from hq [key-id …]   # import (all, or some) into the active profile
+wstack hq unenroll [--remove-keys]
+```
+
+The same import is `h` in the `wstack auth` menu and **Import from HQ** in the TUI `/auth`
+panel; both enroll first when the machine is not a device yet. Imported keys are written
+to the active profile through the normal config writer, encrypted like a pasted key, and
+carry `source: {kind: "hq", hqId, keyId, version, grantId}`. `sync` touches only keys with
+that source: it replaces one HQ rotated and removes one HQ no longer grants. HQ never
+changes a provider's `baseUrl`, family or headers; a provider missing locally is created
+from the catalog, and one the catalog does not know is skipped. A label that collides with
+a key pasted here is saved as `<label>-hq`. The active key changes only when the grant says
+so. Lease grants (memory-only) are listed but not written to disk yet.
 
 ### VPS / public internet
 
