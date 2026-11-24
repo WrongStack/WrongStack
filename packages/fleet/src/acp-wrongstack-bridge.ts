@@ -18,13 +18,20 @@
  */
 import { statSync } from 'node:fs';
 import { join } from 'node:path';
-import { type AcpSessionSetup, findAgentDescriptor, REGISTRY_ID_ALIASES } from '@wrongstack/acp';
+import {
+  type AcpLiveCatalog,
+  type AcpSessionSetup,
+  defaultBridgeAgentIds,
+  findAgentDescriptor,
+  REGISTRY_ID_ALIASES,
+  resolveAcpClientProfile,
+} from '@wrongstack/acp';
 import type { Config, SubagentRunContext, TaskSpec } from '@wrongstack/contracts/types';
 import { cliSpawnArgs, isStandaloneBinary } from '@wrongstack/core/utils';
 
-export type BridgeServer = 'sage' | 'mailbox' | 'kanban' | 'codebase-index' | 'requirement-intake';
+export { DEFAULT_BRIDGE_AGENTS, defaultBridgeAgentIds } from '@wrongstack/acp';
 
-export const DEFAULT_BRIDGE_AGENTS: readonly string[] = ['claude-code'];
+export type BridgeServer = 'sage' | 'mailbox' | 'kanban' | 'codebase-index' | 'requirement-intake';
 export const DEFAULT_BRIDGE_SERVERS: readonly BridgeServer[] = [
   'codebase-index',
   'sage',
@@ -39,6 +46,32 @@ interface StdioServer {
   command: string;
   args: string[];
   env: { name: string; value: string }[];
+}
+
+export interface BridgeHttpMcpServer {
+  type: 'http';
+  name: string;
+  url: string;
+  headers: Array<{ name: string; value: string }>;
+}
+
+export type WrongStackBridgeHttpGrantFactory = (params: {
+  servers: readonly BridgeServer[];
+  projectRoot: string;
+  worktreeCwd?: string | undefined;
+  actor: string;
+  sessionId?: string | undefined;
+  role?: string | undefined;
+}) => { mcpServers: BridgeHttpMcpServer[]; revoke(): void } | undefined;
+
+export interface WrongStackBridgeExtraOptions {
+  /**
+   * Optional shared `ProjectMcpGateway` grant factory. When supplied, HTTP
+   * descriptors are attached alongside stdio fallbacks; `filterMcpServers()`
+   * automatically picks HTTP (zero child processes) when the ACP agent
+   * advertises `mcpCapabilities.http` and falls back to stdio otherwise.
+   */
+  httpGrant?: WrongStackBridgeHttpGrantFactory | undefined;
 }
 
 /** How to start this same `wstack`: the binary itself, or node/bun + the CLI entry. */
@@ -220,7 +253,12 @@ export function bridgeTaskKickoff(servers: readonly BridgeServer[], indexCli?: s
 
 function serverArgs(server: BridgeServer, projectRoot: string, ctx: SubagentRunContext): string[] {
   const actor = ctx.subagentId;
-  const base = ['mcp', 'serve', server, `--project-root=${projectRoot}`];
+  // Codebase Index is intentionally worktree-local (`realpathSync` without
+  // collapsing linked worktrees), so point it at the worker's worktree `cwd`
+  // when isolated; SAGE/Kanban/Mailbox/Intake collapse to `canonicalProjectRoot`.
+  const effectiveRoot =
+    server === 'codebase-index' && ctx.config.cwd ? ctx.config.cwd : projectRoot;
+  const base = ['mcp', 'serve', server, `--project-root=${effectiveRoot}`];
   switch (server) {
     case 'sage':
       return [...base, `--origin=${actor}`];
@@ -237,7 +275,12 @@ function serverArgs(server: BridgeServer, projectRoot: string, ctx: SubagentRunC
       ];
     }
     case 'kanban':
-      return [...base, `--actor=${actor}`, '--writable'];
+      return [
+        ...base,
+        `--actor=${actor}`,
+        ...(ctx.sessionId ? [`--session-id=${ctx.sessionId}`] : []),
+        '--writable',
+      ];
     case 'codebase-index':
       // Read-only for the worker, but kept fresh: it edits outside WrongStack.
       return [...base, '--watch'];
@@ -341,14 +384,18 @@ export function onPath(
 export function installedBridgeAgents(
   acp: Config['acp'] | undefined,
   isOnPath: (command: string) => boolean = (c) => onPath(c),
+  live?: AcpLiveCatalog | undefined,
 ): string[] {
   if ((acp?.bridge?.servers ?? DEFAULT_BRIDGE_SERVERS).length === 0) return [];
   const toCatalogId = new Map(Object.entries(REGISTRY_ID_ALIASES).map(([c, r]) => [r, c]));
+  const candidates =
+    acp?.bridge?.agents ?? defaultBridgeAgentIds(live ? Object.keys(live) : undefined);
   const out: string[] = [];
-  for (const listed of acp?.bridge?.agents ?? DEFAULT_BRIDGE_AGENTS) {
+  for (const listed of candidates) {
     const id = findAgentDescriptor(listed) ? listed : (toCatalogId.get(listed) ?? listed);
     if (out.includes(id)) continue;
-    const probe = findAgentDescriptor(id)?.probe.command;
+    const probe =
+      findAgentDescriptor(id)?.probe.command ?? live?.[listed]?.command ?? live?.[id]?.command;
     if (acp?.agents?.[id] || acp?.agents?.[listed] || (probe && isOnPath(probe))) out.push(id);
   }
   return out;
@@ -363,48 +410,108 @@ export function wrongstackBridgeSetup(
   projectRoot: string,
   config: BridgeConfig | undefined,
   role: 'worker' | 'leader' = 'worker',
+  extra?: WrongStackBridgeExtraOptions,
 ): ((task: TaskSpec, ctx: SubagentRunContext) => AcpSessionSetup) | undefined {
-  const agents = config?.agents ?? DEFAULT_BRIDGE_AGENTS;
-  // `claude-code` is also reachable by its registry id, `claude-acp`, either
-  // way round: `installedBridgeAgents` offers a registry-id listing by its
-  // catalog id, and that is the id this is then asked about.
-  const listed = (a: string) =>
-    a === agentId || REGISTRY_ID_ALIASES[a] === agentId || REGISTRY_ID_ALIASES[agentId] === a;
-  if (!agents.some(listed)) return undefined;
-  const servers = [...new Set(config?.servers ?? DEFAULT_BRIDGE_SERVERS)].filter(
+  const profile = resolveAcpClientProfile(agentId);
+  if (config?.agents !== undefined) {
+    // Explicit user allowlist in `acp.bridge.agents` (empty array disables bridge).
+    const listed = (a: string) =>
+      a === agentId || REGISTRY_ID_ALIASES[a] === agentId || REGISTRY_ID_ALIASES[agentId] === a;
+    if (!config.agents.some(listed)) return undefined;
+  } else if (!profile.bridgeByDefault) {
+    return undefined;
+  }
+
+  const defaultServers: readonly BridgeServer[] =
+    role === 'leader' ? [...DEFAULT_BRIDGE_SERVERS, 'requirement-intake'] : DEFAULT_BRIDGE_SERVERS;
+  const requestedServers = [...new Set(config?.servers ?? defaultServers)].filter(
     (s): s is BridgeServer => Object.hasOwn(SERVER_NAMES, s),
   );
+  // Clients whose ACP adapter ignores `session/new` `mcpServers` (e.g. current
+  // `kimi acp`) can still reach `codebase-index` through the `wstack tools` CLI;
+  // omit MCP-only services from their prompt notes so the model isn't told to
+  // call tools that won't be mounted.
+  const servers: BridgeServer[] =
+    profile.supportsSessionMcp === false
+      ? requestedServers.filter((s) => s === 'codebase-index')
+      : requestedServers;
   if (servers.length === 0) return undefined;
-  // `indexSurface: 'cli'` swaps the index MCP server for `wstack tools`: no
-  // schemas loaded up front, and every call catches the index up with the
-  // worker's own edits (the MCP server needs `--watch` for that).
+  // `indexSurface: 'cli'` (or client profiles whose ACP adapter ignores
+  // `session/new` `mcpServers`, like current `kimi acp`) swaps the index MCP
+  // server for `wstack tools`: no schemas loaded up front, and every call
+  // catches the index up with the worker's own edits.
+  const useCliIndex =
+    config?.indexSurface === 'cli' ||
+    (config?.indexSurface === undefined && profile.preferCliIndexSurface === true);
   const indexCli =
-    config?.indexSurface === 'cli' && servers.includes('codebase-index')
-      ? wstackToolsCommand()
-      : undefined;
-  const attached = indexCli ? servers.filter((s) => s !== 'codebase-index') : servers;
+    useCliIndex && servers.includes('codebase-index') ? wstackToolsCommand() : undefined;
   // Tool namespace encoding belongs to the client (Pi, Copilot and Claude differ).
   const adaptNames = (text: string): string =>
-    agentId === 'claude-code' || agentId === 'claude-acp'
+    profile.mcpToolNaming === 'claude-double-underscore'
       ? text
       : text.replace(/mcp__(wrongstack-[a-z]+)__([a-z_]+)/g, '$2 on $1') +
         '\nUse the exact callable names exposed by your MCP client; discover them when necessary. ' +
         'These are MCP tools, not skills or resources. Never guess a client-specific prefix.';
-  return (_task, ctx) => ({
-    promptPrefix: adaptNames(bridgeTaskKickoff(servers, indexCli)),
-    mcpServers: attached.map((server): StdioServer => {
+  return (task, ctx) => {
+    const effectiveServers =
+      config?.servers === undefined &&
+      ctx.config.role === 'planner' &&
+      !servers.includes('requirement-intake')
+        ? ([...servers, 'requirement-intake'] as const)
+        : servers;
+    const attached = indexCli
+      ? effectiveServers.filter((s) => s !== 'codebase-index')
+      : effectiveServers;
+    const note = adaptNames(
+      role === 'leader'
+        ? leaderBridgeNote(effectiveServers, indexCli)
+        : bridgeNote(effectiveServers, ctx.sessionId !== undefined, indexCli),
+    );
+    const kickoff = adaptNames(bridgeTaskKickoff(effectiveServers, indexCli));
+    const metaRec = (task as { metadata?: Record<string, unknown> }).metadata;
+    const kanbanCardId =
+      typeof metaRec?.['kanbanTaskId'] === 'string'
+        ? metaRec['kanbanTaskId']
+        : typeof metaRec?.['boardTaskId'] === 'string'
+          ? metaRec['boardTaskId']
+          : undefined;
+    const kanbanCue =
+      kanbanCardId && effectiveServers.includes('kanban')
+        ? adaptNames(
+            `[Kanban Card: ${kanbanCardId}] Inspect this card with mcp__wrongstack-kanban__kanban_read, claim/update its checks as you progress, and verify completion before finishing.`,
+          )
+        : undefined;
+    const promptPrefixParts = [
+      // Standard ACP v1 clients (non-Claude) ignore `_meta.systemPrompt.append`,
+      // so deliver the full project service guide once in the first user turn.
+      ...(profile.systemPromptChannel === 'first-turn-context-block'
+        ? [`<wrongstack-project-context>\n${note}\n</wrongstack-project-context>`]
+        : []),
+      kickoff,
+      ...(kanbanCue ? [kanbanCue] : []),
+    ];
+    const stdioServers = attached.map((server): StdioServer => {
       const launch = wstackLaunch(serverArgs(server, projectRoot, ctx));
       return { name: SERVER_NAMES[server], ...launch, env: [] };
-    }),
-    meta: {
-      systemPrompt: {
-        // `@session` only reaches someone when a WrongStack session delegated the task.
-        append: adaptNames(
-          role === 'leader'
-            ? leaderBridgeNote(servers, indexCli)
-            : bridgeNote(servers, ctx.sessionId !== undefined, indexCli),
-        ),
+    });
+    const grant = extra?.httpGrant?.({
+      servers: attached,
+      projectRoot,
+      worktreeCwd: ctx.config.cwd,
+      actor: ctx.subagentId,
+      sessionId: ctx.sessionId,
+      role: ctx.config.role ?? role,
+    });
+    return {
+      promptPrefix: promptPrefixParts.join('\n\n'),
+      mcpServers: grant ? [...grant.mcpServers, ...stdioServers] : stdioServers,
+      ...(grant ? { cleanup: () => grant.revoke() } : {}),
+      meta: {
+        systemPrompt: {
+          // `@session` only reaches someone when a WrongStack session delegated the task.
+          append: note,
+        },
       },
-    },
-  });
+    };
+  };
 }

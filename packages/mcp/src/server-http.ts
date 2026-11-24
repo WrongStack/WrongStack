@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { type AddressInfo, isIP } from 'node:net';
 import { toErrorMessage } from '@wrongstack/core/utils';
@@ -90,7 +90,12 @@ export async function handleHttpRequest(
   log: MCPServerLogger | undefined,
   boundHost: string,
 ): Promise<void> {
-  const send = (status: number, body: string, type = 'application/json') => {
+  const send = (
+    status: number,
+    body: string,
+    type = 'application/json',
+    extraHeaders?: Record<string, string>,
+  ) => {
     res.writeHead(status, {
       'content-type': type,
       // This endpoint executes tools. Nothing about it should be embedded,
@@ -100,6 +105,7 @@ export async function handleHttpRequest(
       'referrer-policy': 'no-referrer',
       // No CORS headers are ever emitted: a cross-origin reader must not be
       // able to see a response even if it manages to send the request.
+      ...(extraHeaders ?? {}),
     });
     res.end(body);
   };
@@ -130,6 +136,10 @@ export async function handleHttpRequest(
   // Health probe.
   if (req.method === 'GET') {
     return send(200, JSON.stringify({ status: 'ok', server: 'wrongstack-mcp' }));
+  }
+  // Streamable HTTP session teardown.
+  if (req.method === 'DELETE') {
+    return send(204, '');
   }
   if (req.method !== 'POST') {
     return send(405, JSON.stringify({ error: 'method not allowed' }));
@@ -205,11 +215,21 @@ export async function handleHttpRequest(
         if (!res.writableEnded) controller.abort();
       };
       if (modern) res.once('close', abort);
+      const sessionHeader = req.headers['mcp-session-id'];
+      const clientSessionId =
+        typeof sessionHeader === 'string' && sessionHeader.trim().length > 0
+          ? sessionHeader.trim()
+          : undefined;
+      const responseSessionId =
+        !modern && message?.['method'] === 'initialize'
+          ? (clientSessionId ?? randomUUID())
+          : clientSessionId;
+      const scopeId: string | symbol = clientSessionId ?? Symbol('mcp-http-request');
       try {
-        const out = await server.handleMessage(
-          body,
-          modern ? { signal: controller.signal } : undefined,
-        );
+        const out = await server.handleMessage(body, {
+          ...(modern ? { signal: controller.signal } : {}),
+          scopeId,
+        });
         if (res.destroyed) return undefined;
         if (modern && out) {
           const error = objectRecord(JSON.parse(out))?.['error'];
@@ -223,16 +243,17 @@ export async function handleHttpRequest(
             return undefined;
           }
         }
-        return out;
+        return { out, sessionId: responseSessionId };
       } finally {
         res.removeListener('close', abort);
       }
     })()
-      .then((out) => {
-        if (out === undefined) return;
+      .then((resPayload) => {
+        if (resPayload === undefined) return;
+        const extra = resPayload.sessionId ? { 'mcp-session-id': resPayload.sessionId } : undefined;
         // Notifications produce no response body.
-        if (out === null) return send(202, '');
-        return send(200, out);
+        if (resPayload.out === null) return send(202, '', 'application/json', extra);
+        return send(200, resPayload.out, 'application/json', extra);
       })
       .catch((err) => {
         log?.warn?.(`MCP http handler error: ${toErrorMessage(err)}`);

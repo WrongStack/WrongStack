@@ -2,6 +2,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { restrictFilePermissions } from '@wrongstack/core/security';
+import { resolveAcpClientProfile } from '../registry/acp-client-profiles.js';
 import type { McpServer } from '../types/acp-v1.js';
 import type { ACPSessionOptions } from './acp-session-types.js';
 
@@ -51,7 +52,8 @@ export function prepareAcpLaunch(
       if (owned) await rm(owned, { recursive: true, force: true });
     },
   };
-  if (opts.mcpServers?.length && ['copilot', 'github-copilot-cli'].includes(opts.role ?? '')) {
+  const profile = resolveAcpClientProfile(opts.role);
+  if (opts.mcpServers?.length && profile.mcpInjection === 'copilot-temp-json') {
     const servers = opts.mcpServers;
     return (async () => {
       directory = await mkdtemp(join(tmpdir(), 'wrongstack-copilot-mcp-'));
@@ -70,7 +72,11 @@ export function prepareAcpLaunch(
       return prepared;
     })();
   }
-  if (opts.mcpServers?.length && opts.role === 'pi-acp' && opts.env?.WRONGSTACK_PI_MCP_EXTENSION) {
+  if (
+    opts.mcpServers?.length &&
+    profile.mcpInjection === 'pi-env-json' &&
+    opts.env?.WRONGSTACK_PI_MCP_EXTENSION
+  ) {
     env = { ...opts.env, WRONGSTACK_PI_SESSION_MCP: JSON.stringify(opts.mcpServers) };
     prepared.env = env;
   }

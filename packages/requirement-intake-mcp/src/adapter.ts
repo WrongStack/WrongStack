@@ -149,6 +149,24 @@ async function defaultResolveProjectId(
   return (await ensureProjectIdentity(projectRoot)).identity.projectId;
 }
 
+const submitQueues = new Map<string, Promise<void>>();
+
+async function serializeSubmit<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const prev = submitQueues.get(key) ?? Promise.resolve();
+  let release!: () => void;
+  const next = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  submitQueues.set(key, next);
+  await prev;
+  try {
+    return await fn();
+  } finally {
+    release();
+    if (submitQueues.get(key) === next) submitQueues.delete(key);
+  }
+}
+
 export function createRequirementIntakeMcpToolHost(
   projectRoot: string,
   opts: RequirementIntakeMcpToolHostOptions = {},
@@ -249,30 +267,33 @@ export function createRequirementIntakeMcpToolHost(
     const projectId = await resolveProjectId(true);
     throwIfAborted(signal);
     const ctx = intakeContext(projectId, actor);
-    const result = await service.createIntake(
-      {
-        projectId,
-        originalRequest: request,
-        requestedBy: actor,
-        ...optionalFields,
-      },
-      ctx,
-    );
-    throwIfAborted(signal);
-    const submitted = await service.submitIntake(result.record.id, ctx);
-    throwIfAborted(signal);
-    return {
-      content: {
-        intakeId: submitted.record.id,
-        title: submitted.record.title,
-        requestType: submitted.record.requestType,
-        status: submitted.record.status,
-        projectId,
-        created: result.created,
-        idempotent: result.idempotent || submitted.idempotent,
-      },
-      isError: false,
-    };
+    return await serializeSubmit(projectId, async () => {
+      throwIfAborted(signal);
+      const result = await service.createIntake(
+        {
+          projectId,
+          originalRequest: request,
+          requestedBy: actor,
+          ...optionalFields,
+        },
+        ctx,
+      );
+      throwIfAborted(signal);
+      const submitted = await service.submitIntake(result.record.id, ctx);
+      throwIfAborted(signal);
+      return {
+        content: {
+          intakeId: submitted.record.id,
+          title: submitted.record.title,
+          requestType: submitted.record.requestType,
+          status: submitted.record.status,
+          projectId,
+          created: result.created,
+          idempotent: result.idempotent || submitted.idempotent,
+        },
+        isError: false,
+      };
+    });
   }
 
   async function listIntakes(
@@ -341,9 +362,26 @@ export function createRequirementIntakeMcpServer(
   projectRoot: string,
   opts: RequirementIntakeMcpToolHostOptions = {},
 ): MCPServer {
+  const host = createRequirementIntakeMcpToolHost(projectRoot, opts);
   return new MCPServer({
-    host: createRequirementIntakeMcpToolHost(projectRoot, opts),
+    host,
     serverInfo: { name: 'wrongstack-requirement-intake-mcp', version: SERVER_INFO.version },
+    resourceProvider: {
+      listResources: () => [
+        {
+          uri: 'intake://open',
+          name: 'Open Requirement Intakes',
+          description: 'Submitted and in-progress software requirement intake records.',
+          mimeType: 'application/json',
+        },
+      ],
+      readResource: async (uri, callOpts) => {
+        if (uri !== 'intake://open') return null;
+        const res = await host.callTool('requirement_intake_list', {}, callOpts);
+        const text = typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
+        return [{ uri, mimeType: 'application/json', text }];
+      },
+    },
     prompts: [
       {
         name: 'file-requirement-intake',

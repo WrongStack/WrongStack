@@ -38,6 +38,11 @@ export interface AttachedSageMcpOptions {
   /** Caller name stamped on proposals (`claude-code`, `codex`, ...). */
   origin?: string | undefined;
   idleReleaseMs?: number | undefined;
+  /**
+   * When true (or `WRONGSTACK_SAGE_SPAWN_IF_MISSING=1`), lazily spawns the SAGE
+   * project daemon if no WrongStack host owns it yet. Defaults to false (attach-only).
+   */
+  spawnIfMissing?: boolean | undefined;
   log?: ((line: string) => void) | undefined;
   /** Test seams. */
   stdin?: NodeJS.ReadableStream | undefined;
@@ -108,6 +113,26 @@ export function createAttachedSageMcp(
     host,
     serverInfo: { name: 'wrongstack-sage', version: SERVER_INFO.version },
     instructions: SAGE_MCP_INSTRUCTIONS,
+    resourceProvider: {
+      listResources: () => [
+        {
+          uri: 'sage://project/brief',
+          name: 'SAGE Project Memory Brief',
+          description: 'High-signal architectural decisions, gotchas, and conventions from SAGE.',
+          mimeType: 'application/json',
+        },
+      ],
+      readResource: async (uri, callOpts) => {
+        if (uri !== 'sage://project/brief') return null;
+        const res = await host.callTool(
+          'memory_search',
+          { query: 'architecture decisions conventions gotchas', limit: 10 },
+          callOpts,
+        );
+        const text = typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
+        return [{ uri, mimeType: 'application/json', text }];
+      },
+    },
   });
   return {
     server,
@@ -122,10 +147,12 @@ export function createAttachedSageMcp(
 
 export async function serveAttachedSageMcpStdio(opts: AttachedSageMcpOptions): Promise<void> {
   const log = opts.log ?? ((line: string) => process.stderr.write(`${line}\n`));
+  const spawnIfMissing =
+    opts.spawnIfMissing ?? process.env['WRONGSTACK_SAGE_SPAWN_IF_MISSING'] === '1';
   const port = new ProjectSageMemoryPort({
     projectRoot: opts.projectRoot,
     ...(opts.directory ? { directory: opts.directory } : {}),
-    spawnIfMissing: false,
+    spawnIfMissing,
     clientId: `sage-mcp-${opts.origin ?? 'client'}-${process.pid}`,
   });
   const attached = createAttachedSageMcp(port, opts);

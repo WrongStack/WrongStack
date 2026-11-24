@@ -127,22 +127,30 @@ export async function makeACPSubagentRunnerWithStop(
   // Memoized start: concurrent first calls used to each spawn an agent and
   // overwrite the shared one, leaking every process but the last.
   let shared: Promise<ACPSession> | null = null;
+  let sharedCleanup: (() => void | Promise<void>) | undefined;
   // Turns on the shared session run one at a time (it takes one prompt).
   let turns: Promise<unknown> = Promise.resolve();
   const runtimeConfigured = new WeakSet<ACPSession>();
 
-  const startSession = async (setup: AcpSessionSetup | undefined): Promise<ACPSession> => {
+  const startSession = async (
+    setup: AcpSessionSetup | undefined,
+    ctx?: SubagentRunContext,
+  ): Promise<ACPSession> => {
     const mcpServers =
       setup?.mcpServers && setup.mcpServers.length > 0
         ? [...(options.mcpServers ?? []), ...setup.mcpServers]
         : options.mcpServers;
     const permissionPolicy = setup?.permissionPolicy ?? options.permissionPolicy;
+    // Honor worktree-isolated `ctx.config.cwd` when provided by the coordinator,
+    // falling back to the runner's default `options.cwd` / `projectRoot`.
+    const effectiveCwd = ctx?.config?.cwd ?? options.cwd;
+    const effectiveProjectRoot = ctx?.config?.cwd ?? projectRoot;
     return ACPSession.start({
       command: options.command,
       ...(options.args !== undefined ? { args: options.args } : {}),
       ...(options.env !== undefined ? { env: options.env } : {}),
-      ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
-      projectRoot,
+      ...(effectiveCwd !== undefined ? { cwd: effectiveCwd } : {}),
+      projectRoot: effectiveProjectRoot,
       ...(options.allowOutsideProjectRoot ? { allowOutsideProjectRoot: true } : {}),
       timeoutMs,
       ...(options.promptIdleTimeoutMs !== undefined
@@ -166,16 +174,27 @@ export async function makeACPSubagentRunnerWithStop(
     try {
       setup = options.sessionSetup?.(task, ctx);
       if (persistent) {
-        shared ??= startSession(setup);
+        if (!shared) {
+          sharedCleanup = setup?.cleanup;
+          shared = startSession(setup, ctx);
+        }
         const starting = shared;
         session = await starting.catch((err: unknown) => {
-          if (shared === starting) shared = null;
+          if (shared === starting) {
+            shared = null;
+            const clean = sharedCleanup;
+            sharedCleanup = undefined;
+            void Promise.resolve(clean?.()).catch(() => undefined);
+          }
           throw err;
         });
       } else {
-        session = await startSession(setup);
+        session = await startSession(setup, ctx);
       }
     } catch (err) {
+      if (!persistent) {
+        await Promise.resolve(setup?.cleanup?.()).catch(() => undefined);
+      }
       // init / spawn failure. Throw a structured error so the host can
       // classify it (SubagentErrorKind).
       throw acpErrorToSubagentError(err, options.role ?? 'acp-subagent');
@@ -202,9 +221,15 @@ export async function makeACPSubagentRunnerWithStop(
     let endLive: (() => void) | undefined;
     try {
       if (session.canSteer()) endLive = options.onTurnLive?.(ctx, task, (t) => session.steer(t));
-      const prompt = setup?.promptPrefix
-        ? `${setup.promptPrefix}\n\n${task.description}`
-        : task.description;
+      const rolePrompt = (ctx.config?.systemPromptOverride || ctx.config?.prompt || '').trim();
+      const promptParts = [
+        setup?.promptPrefix?.trim() || '',
+        rolePrompt
+          ? `<wrongstack-role-instructions>\n${rolePrompt}\n</wrongstack-role-instructions>`
+          : '',
+        task.description,
+      ].filter(Boolean);
+      const prompt = promptParts.join('\n\n');
       const turn = async () => {
         const settings = ctx.config?.modelRuntime?.acp?.[options.role ?? ''];
         if (settings || runtimeConfigured.has(session)) {
@@ -231,6 +256,7 @@ export async function makeACPSubagentRunnerWithStop(
         } catch {
           // best-effort cleanup
         }
+        await Promise.resolve(setup?.cleanup?.()).catch(() => undefined);
       }
     }
 
@@ -267,6 +293,11 @@ export async function makeACPSubagentRunnerWithStop(
       } catch {
         // best-effort (a failed start has nothing to close)
       }
+    }
+    if (sharedCleanup) {
+      const clean = sharedCleanup;
+      sharedCleanup = undefined;
+      await Promise.resolve(clean()).catch(() => undefined);
     }
   };
 

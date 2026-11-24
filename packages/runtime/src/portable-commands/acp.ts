@@ -333,16 +333,18 @@ async function parallelAgents(
     const result = await runEnsemble({
       agentIds: idsCsv,
       task,
+      ...(originSessionId ? { sessionId: originSessionId } : {}),
       resolveCmd: (id) => {
         const cmd = resolveAcpAgentCommand(id, overrides, liveById);
-        return cmd
-          ? {
-              ...cmd,
-              cwd: opts.projectRoot,
-              projectRoot: opts.projectRoot,
-              sessionSetup: opts.acpSessionSetup?.(id, opts.projectRoot, readBridgeConfig(opts)),
-            }
-          : null;
+        if (!cmd) return null;
+        const permissionPolicy = opts.acpPermissionPolicy?.(id);
+        return {
+          ...cmd,
+          cwd: opts.projectRoot,
+          projectRoot: opts.projectRoot,
+          sessionSetup: opts.acpSessionSetup?.(id, opts.projectRoot, readBridgeConfig(opts)),
+          ...(permissionPolicy ? { permissionPolicy } : {}),
+        };
       },
     });
     return { message: renderEnsembleText(result) };
@@ -417,7 +419,7 @@ async function runSingle(
       cwd: opts.cwd,
       projectRoot: opts.projectRoot,
       sessionId,
-      permissionPolicy: defaultPermissionPolicy,
+      permissionPolicy: opts.acpPermissionPolicy?.(agentId) ?? defaultPermissionPolicy,
       runtimeValues: {
         ...opts.configStore?.get().modelRuntime?.acp?.[agentId],
         ...sessionAcpRuntime(originSessionId)[agentId],

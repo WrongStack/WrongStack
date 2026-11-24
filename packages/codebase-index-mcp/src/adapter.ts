@@ -472,10 +472,27 @@ export function createCodebaseIndexMcpServer(
   projectRoot: string,
   opts: CodebaseIndexMcpToolHostOptions = {},
 ): MCPServer {
+  const host = createCodebaseIndexMcpToolHost(projectRoot, opts);
   return new MCPServer({
-    host: createCodebaseIndexMcpToolHost(projectRoot, opts),
+    host,
     serverInfo: { name: 'wrongstack-codebase-index-mcp', version: SERVER_INFO.version },
     instructions: CODEBASE_INDEX_MCP_INSTRUCTIONS,
+    resourceProvider: {
+      listResources: () => [
+        {
+          uri: 'codebase://repo-map',
+          name: 'Codebase Repository Map',
+          description: 'Ranked structural overview of packages and key symbols in this workspace.',
+          mimeType: 'application/json',
+        },
+      ],
+      readResource: async (uri, callOpts) => {
+        if (uri !== 'codebase://repo-map') return null;
+        const res = await host.callTool('codebase_repo_map', {}, callOpts);
+        const text = typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
+        return [{ uri, mimeType: 'application/json', text }];
+      },
+    },
     prompts: [
       {
         name: 'explore-codebase',

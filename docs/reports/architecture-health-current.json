@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T01:19:32.213Z",
+  "generatedAt": "2026-11-24T01:22:50.129Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6520,
-    "testFiles": 5801,
-    "sourceLines": 1334471,
+    "sourceFiles": 6523,
+    "testFiles": 5806,
+    "sourceLines": 1336041,
     "workspaceEdges": 261,
-    "moduleEdges": 19060,
+    "moduleEdges": 19072,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -92,7 +92,7 @@
     {
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
-      "sourceFiles": 58,
+      "sourceFiles": 59,
       "testFiles": 74,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -454,8 +454,8 @@
     {
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
-      "sourceFiles": 63,
-      "testFiles": 24,
+      "sourceFiles": 64,
+      "testFiles": 27,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -476,7 +476,7 @@
         {
           "path": "packages/fleet/tsconfig.test.json",
           "error": null,
-          "testFiles": 24
+          "testFiles": 27
         }
       ]
     },
@@ -647,8 +647,8 @@
     {
       "name": "@wrongstack/mcp",
       "dir": "packages/mcp",
-      "sourceFiles": 75,
-      "testFiles": 111,
+      "sourceFiles": 76,
+      "testFiles": 113,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -662,7 +662,7 @@
         {
           "path": "packages/mcp/tsconfig.test.json",
           "error": null,
-          "testFiles": 111
+          "testFiles": 113
         }
       ]
     },
@@ -15906,6 +15906,24 @@
         ]
       },
       {
+        "file": "packages/fleet/tests/acp-p0-fixes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/fleet/tests/acp-p1-bridge-worktree.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/fleet/tests/acp-p3-preflight-conformance.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/fleet/tests/acp-permission-multi-location-abort.test.ts",
         "projects": [
           "root-node"
@@ -18258,6 +18276,12 @@
         ]
       },
       {
+        "file": "packages/mcp/tests/project-mcp-gateway.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/mcp/tests/protocol-version-negotiation.test.ts",
         "projects": [
           "root-node"
@@ -18385,6 +18409,12 @@
       },
       {
         "file": "packages/mcp/tests/server-http-catch-after-destroy.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/server-http-concurrent-ids.test.ts",
         "projects": [
           "root-node"
         ]
@@ -37230,6 +37260,11 @@
       "relativeImports": 17
     },
     {
+      "file": "packages/cli/src/goal-host.ts",
+      "lines": 705,
+      "relativeImports": 6
+    },
+    {
       "file": "packages/cli/src/hq-server.ts",
       "lines": 712,
       "relativeImports": 22
@@ -37336,7 +37371,7 @@
     },
     {
       "file": "packages/mailbox-mcp/src/adapter.ts",
-      "lines": 719,
+      "lines": 765,
       "relativeImports": 3
     },
     {
@@ -37381,7 +37416,7 @@
     },
     {
       "file": "packages/runtime/src/acp-leader/acp-leader-provider.ts",
-      "lines": 774,
+      "lines": 787,
       "relativeImports": 7
     },
     {
@@ -37752,6 +37787,11 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/runtime/src/acp-leader/acp-leader-provider.ts",
+      "lines": 787,
+      "relativeImports": 7
+    },
+    {
       "file": "packages/vibeui/src/lib/use-session.ts",
       "lines": 786,
       "relativeImports": 8
@@ -37772,9 +37812,9 @@
       "relativeImports": 5
     },
     {
-      "file": "packages/runtime/src/acp-leader/acp-leader-provider.ts",
-      "lines": 774,
-      "relativeImports": 7
+      "file": "packages/mailbox-mcp/src/adapter.ts",
+      "lines": 765,
+      "relativeImports": 3
     },
     {
       "file": "packages/plugins/src/adversary-mode/index.ts",
@@ -37855,11 +37895,6 @@
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
       "lines": 732,
       "relativeImports": 19
-    },
-    {
-      "file": "packages/core/src/registry/tool-registry.ts",
-      "lines": 731,
-      "relativeImports": 7
     }
   ],
   "testOnlyExports": [

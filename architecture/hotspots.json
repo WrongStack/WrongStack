@@ -34,6 +34,10 @@
       "lines": 706,
       "relativeImports": 17
     },
+    "packages/cli/src/goal-host.ts": {
+      "lines": 705,
+      "relativeImports": 6
+    },
     "packages/cli/src/hq-server.ts": {
       "lines": 712,
       "relativeImports": 22
@@ -119,7 +123,7 @@
       "relativeImports": 4
     },
     "packages/mailbox-mcp/src/adapter.ts": {
-      "lines": 719,
+      "lines": 765,
       "relativeImports": 3
     },
     "packages/plugins/src/adversary-mode/evaluator.ts": {
@@ -155,7 +159,7 @@
       "relativeImports": 17
     },
     "packages/runtime/src/acp-leader/acp-leader-provider.ts": {
-      "lines": 774,
+      "lines": 787,
       "relativeImports": 7
     },
     "packages/runtime/src/chimera/execution-chimera-review.ts": {

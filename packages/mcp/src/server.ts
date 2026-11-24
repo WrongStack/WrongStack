@@ -4,6 +4,7 @@ export type {
   MCPServerOptions,
   MCPServerPrompt,
   MCPServerResource,
+  MCPServerResourceProvider,
   MCPServerTool,
   MCPServerToolHost,
 } from './server-dispatch.js';

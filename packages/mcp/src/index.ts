@@ -119,6 +119,13 @@ export {
   type MCPServerOperationalHealth,
 } from './operations.js';
 export {
+  ProjectMcpGateway,
+  type ProjectMcpGatewayOptions,
+  type ProjectMcpGrantHandle,
+  type ProjectMcpGrantSpec,
+  type ProjectMcpHttpDescriptor,
+} from './project-mcp-gateway.js';
+export {
   type MCPCompletionReference,
   type MCPCompletionResult,
   type MCPGetPromptResult,
@@ -157,6 +164,7 @@ export {
   type MCPServerOptions,
   type MCPServerPrompt,
   type MCPServerResource,
+  type MCPServerResourceProvider,
   type MCPServerTool,
   type MCPServerToolHost,
   originIsAcceptable,

@@ -194,12 +194,11 @@ export async function defaultProbe(
       const out = (stdout + stderr).trim();
 
       // With the Windows cmd shim, spawn() never ENOENTs for missing tools:
-      // cmd.exe launches, prints "<command> is not recognized", and exits
-      // non-zero. Detect that specific shape and treat the binary
-      // as not-installed. The literal string is locale-stable for
-      // Windows cmd.exe English (the only locale we ship in CI).
+      // cmd.exe exits with 9009 (ERROR_CMD_NOT_FOUND, locale-independent) and
+      // prints a localized "not recognized" message to stderr. Check exit code
+      // 9009 first so non-English Windows locales detect missing binaries cleanly.
       const isWindowsShellMiss =
-        platform === 'win32' && out.toLowerCase().includes('is not recognized');
+        platform === 'win32' && (code === 9009 || out.toLowerCase().includes('is not recognized'));
 
       if (isWindowsShellMiss) {
         finish({

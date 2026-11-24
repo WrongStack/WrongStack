@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-24T01:19:32.213Z
+**Generated:** 2026-11-24T01:22:50.129Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 51 |
-| Production source files | 6520 |
-| Production source lines | 1334471 |
-| Test files | 5801 |
+| Production source files | 6523 |
+| Production source lines | 1336041 |
+| Test files | 5806 |
 | Workspace dependency edges | 261 |
-| Relative module edges | 19060 |
+| Relative module edges | 19072 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -27,7 +27,7 @@ PASS — no blocking architecture-health errors.
 
 | Package | Sources | Tests | Workspace dependencies |
 |---|---:|---:|---|
-| @wrongstack/acp | 58 | 74 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
+| @wrongstack/acp | 59 | 74 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/agent-catalog | 44 | 15 | @wrongstack/contracts, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/bench | 32 | 67 | @wrongstack/core |
 | @wrongstack/browser-tools | 14 | 22 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
@@ -41,7 +41,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/coordination | 193 | 211 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 665 | 780 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop-v2 | 560 | 404 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
-| @wrongstack/fleet | 63 | 24 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
+| @wrongstack/fleet | 64 | 27 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 24 | 32 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 39 | @wrongstack/persistence |
 | @wrongstack/hq | 81 | 60 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
@@ -49,7 +49,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/kanban | 108 | 112 | @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/kanban-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/mailbox-mcp | 7 | 11 | @wrongstack/coordination, @wrongstack/core, @wrongstack/mcp |
-| @wrongstack/mcp | 75 | 111 | @wrongstack/contracts, @wrongstack/core |
+| @wrongstack/mcp | 76 | 113 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/persistence | 10 | 28 | — |
 | @wrongstack/plug-lsp | 52 | 65 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugin-sdk | 12 | 13 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
@@ -121,11 +121,12 @@ None.
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
 | 792 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
 | 787 | `packages/plugins/src/branch-guard/index.ts` |
+| 787 | `packages/runtime/src/acp-leader/acp-leader-provider.ts` |
 | 786 | `packages/vibeui/src/lib/use-session.ts` |
 | 781 | `apps/desktop-v2/src/WrongStackSettings.tsx` |
 | 780 | `packages/tools/src/design.ts` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
-| 774 | `packages/runtime/src/acp-leader/acp-leader-provider.ts` |
+| 765 | `packages/mailbox-mcp/src/adapter.ts` |
 | 763 | `packages/plugins/src/adversary-mode/index.ts` |
 | 761 | `packages/coordination/src/agent-monitor.ts` |
 | 760 | `packages/tools/src/read.ts` |
@@ -142,7 +143,6 @@ None.
 | 739 | `packages/tools/src/bash-kill-guard.ts` |
 | 733 | `packages/vibeui/src/components/provider-manager.tsx` |
 | 732 | `packages/core/src/execution/auto-compaction-middleware.ts` |
-| 731 | `packages/core/src/registry/tool-registry.ts` |
 
 ## Exports only tests reference
 

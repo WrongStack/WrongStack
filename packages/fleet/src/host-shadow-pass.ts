@@ -28,6 +28,18 @@ interface HostShadowPassContext {
   requestShadowPass: (reason: string) => void;
 }
 
+function parseSideModelRef(
+  ref: string | undefined,
+): { provider: string; model: string } | undefined {
+  if (!ref) return undefined;
+  const slash = ref.indexOf('/');
+  if (slash <= 0 || slash === ref.length - 1) return undefined;
+  const provider = ref.slice(0, slash).trim();
+  const model = ref.slice(slash + 1).trim();
+  if (!provider || !model || provider === 'acp') return undefined;
+  return { provider, model };
+}
+
 export async function runHostShadowPass(ctx: HostShadowPassContext, reason: string): Promise<void> {
   try {
     const director = ctx.getDirector();
@@ -39,23 +51,26 @@ export async function runHostShadowPass(ctx: HostShadowPassContext, reason: stri
       return;
     }
     const liveConfig = ctx.getLiveConfig();
+    // In ACP Leader mode, liveConfig.provider is 'acp' — routing the shadow
+    // agent through ACP drops its shadow-agent.md prompt and native fleet tools.
+    // Prefer acp.leader.sideModel (or fallbackBridge / fallbackModels[0]) so it runs natively.
+    const sideModel =
+      liveConfig.provider === 'acp'
+        ? (parseSideModelRef(liveConfig.acp?.leader?.sideModel) ??
+          parseSideModelRef(liveConfig.fallbackBridge) ??
+          parseSideModelRef(liveConfig.fallbackModels?.[0]))
+        : undefined;
+    const shadowProvider = sideModel?.provider ?? liveConfig.provider;
+    const shadowModel = sideModel?.model ?? liveConfig.model;
     try {
       await ctx.spawnAndAssign(
         {
           name: 'shadow',
           role: 'shadow-agent',
           ...(ctx.sessionId ? { originSessionId: ctx.sessionId } : {}),
-          provider: liveConfig.provider,
-          model: liveConfig.model,
-          tools: [
-            'fleet',
-            'fleet',
-            'fleet',
-            'mailbox',
-            'mail_inbox',
-            'mail_send',
-            'terminate_subagent',
-          ],
+          provider: shadowProvider,
+          model: shadowModel,
+          tools: ['fleet', 'mailbox', 'mail_inbox', 'mail_send', 'terminate_subagent'],
         },
         buildShadowAgentTaskDescription(reason),
         {

@@ -36,6 +36,7 @@ import {
   type SageServiceLike,
 } from '@wrongstack/sage';
 import { type SageMcpPolicyOptions, selectAllowedTools } from './policy.js';
+import { SAGE_MCP_INSTRUCTIONS } from './usage-guide.js';
 import { SERVER_INFO } from './version.js';
 
 export interface SageMcpToolHostOptions extends SageMcpPolicyOptions {
@@ -227,5 +228,26 @@ export function createSageMcpServer(
   return new MCPServer({
     host,
     serverInfo: { name: 'wrongstack-sage-mcp', version: SERVER_INFO.version },
+    instructions: SAGE_MCP_INSTRUCTIONS,
+    resourceProvider: {
+      listResources: () => [
+        {
+          uri: 'sage://project/brief',
+          name: 'SAGE Project Memory Brief',
+          description: 'High-signal architectural decisions, gotchas, and conventions from SAGE.',
+          mimeType: 'application/json',
+        },
+      ],
+      readResource: async (uri, callOpts) => {
+        if (uri !== 'sage://project/brief') return null;
+        const res = await host.callTool(
+          'memory_search',
+          { query: 'architecture decisions conventions gotchas', limit: 10 },
+          callOpts,
+        );
+        const text = typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
+        return [{ uri, mimeType: 'application/json', text }];
+      },
+    },
   });
 }

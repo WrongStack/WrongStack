@@ -48,11 +48,26 @@ export function acpCommandOpts(this: HostAcpRunnerHost): BuildAcpSubagentRunnerO
     : false;
   const overrides = acp?.agents;
   const gatewayFactory = this.deps.wrongForgeGateway;
+  const memoryPort = this.deps.container.safeResolve(TOKENS.MemoryPort);
+  const preflight =
+    memoryPort && typeof memoryPort.search === 'function'
+      ? {
+          fetchMemories: async (query: string) => {
+            const hits = await memoryPort.search(query);
+            return hits.slice(0, 6).map((entry) => ({
+              title: entry.type,
+              content: entry.text,
+              scope: entry.scope,
+            }));
+          },
+        }
+      : undefined;
   return {
     ...(overrides ? { overrides } : {}),
     projectRoot: this.deps.projectRoot,
     allowOutsideProjectRoot,
     bridge: { projectRoot: this.deps.projectRoot, config: acp?.bridge },
+    ...(preflight ? { preflight } : {}),
     // The worker answers to the same rules as WrongStack's own subagents:
     // the user's deny rules, the destructive and credential guards, YOLO+.
     // Every capability is granted; the guards, not an allowlist, gate it.

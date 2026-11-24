@@ -104,7 +104,10 @@ const MUTATING_CAPABILITIES = new Set<string>([
 ]);
 
 export function subagentNeedsWorktree(config: SubagentConfig): boolean {
-  if (isExternalAgentProvider(config.provider)) return false;
+  // WrongForge is a remote HTTP worker that does not share local worktree paths;
+  // local ACP workers (`provider === 'acp'`) edit files on disk and benefit from
+  // Git worktree isolation just like native mutating subagents.
+  if (isExternalAgentProvider(config.provider) && config.provider !== 'acp') return false;
   if (config.tools?.some((tool) => MUTATING_TOOL_NAMES.has(tool))) return true;
   if (config.allowedCapabilities?.some((cap) => MUTATING_CAPABILITIES.has(cap))) return true;
   return !config.tools && !config.allowedCapabilities;

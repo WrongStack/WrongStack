@@ -41,12 +41,192 @@ type Translation =
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
 
 const MCP_TOOL = /^mcp__[^_].*__.+/;
+const VALID_MCP_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
-/** The `mcp__<server>__<tool>` name of a request, from Claude's `_meta` or the title. */
-function mcpToolName(call: AcpPermissionRequest['toolCall']): string | undefined {
-  const meta = (call as { _meta?: { claudeCode?: { toolName?: unknown } } })._meta;
-  const name = str(meta?.claudeCode?.toolName) ?? str(call.title);
-  return name && MCP_TOOL.test(name) ? name : undefined;
+/** Known WrongStack bridge MCP server names that may appear in non-Claude tool titles. */
+const DEFAULT_KNOWN_MCP_SERVERS: ReadonlySet<string> = new Set([
+  'wrongstack-sage',
+  'wrongstack-index',
+  'wrongstack-kanban',
+  'wrongstack-mailbox',
+  'wrongstack-intake',
+  'wrongstack-fleet',
+]);
+
+/**
+ * Exact bare tool names exposed by WrongStack's internal MCP servers.
+ * Some ACP clients (e.g. GitHub Copilot CLI) send only the bare tool name
+ * (like `codebase_stats`) in `session/request_permission`. Mapping only this
+ * exact allowlist keeps unknown tool names fail-closed.
+ */
+const KNOWN_BRIDGE_TOOL_TO_SERVER: Readonly<Record<string, string>> = {
+  // wrongstack-index
+  codebase_context: 'wrongstack-index',
+  codebase_search: 'wrongstack-index',
+  codebase_stats: 'wrongstack-index',
+  codebase_package_graph: 'wrongstack-index',
+  codebase_file_graph: 'wrongstack-index',
+  codebase_symbol_graph: 'wrongstack-index',
+  codebase_incoming_calls: 'wrongstack-index',
+  codebase_outgoing_calls: 'wrongstack-index',
+  codebase_read_symbol: 'wrongstack-index',
+  codebase_skeleton: 'wrongstack-index',
+  codebase_impact_analysis: 'wrongstack-index',
+  codebase_repo_map: 'wrongstack-index',
+  codebase_invariant_check: 'wrongstack-index',
+  codebase_diff_impact: 'wrongstack-index',
+  codebase_flow_trace: 'wrongstack-index',
+  codebase_onboard: 'wrongstack-index',
+  codebase_atlas: 'wrongstack-index',
+  dead_code_scan: 'wrongstack-index',
+  // wrongstack-sage
+  memory_for_file: 'wrongstack-sage',
+  memory_for_path: 'wrongstack-sage',
+  memory_search: 'wrongstack-sage',
+  memory_search_explain: 'wrongstack-sage',
+  memory_graph: 'wrongstack-sage',
+  memory_gather_batch: 'wrongstack-sage',
+  memory_candidates: 'wrongstack-sage',
+  // wrongstack-kanban
+  kanban_read: 'wrongstack-kanban',
+  kanban_watch: 'wrongstack-kanban',
+  kanban_manage: 'wrongstack-kanban',
+  kanban_destructive: 'wrongstack-kanban',
+  // wrongstack-mailbox
+  mailbox_read: 'wrongstack-mailbox',
+  mailbox_watch: 'wrongstack-mailbox',
+  mailbox_manage: 'wrongstack-mailbox',
+  mailbox_admin: 'wrongstack-mailbox',
+  // wrongstack-intake
+  requirement_intake_list: 'wrongstack-intake',
+  requirement_intake_submit: 'wrongstack-intake',
+};
+
+/**
+ * Normalize an MCP tool call from any ACP client into WrongStack's canonical
+ * `mcp__<server>__<tool>` form so user deny rules on `mcp__*` bind uniformly.
+ *
+ * Recognizes:
+ * - Claude Code `_meta.claudeCode.toolName` or title matching `mcp__<server>__<tool>`
+ * - Structured `_meta.mcp` (`{ serverName, toolName }` or `{ server, tool }`)
+ * - Non-Claude client title conventions (`<server>/<tool>`, `<server>:<tool>`,
+ *   `<server>.<tool>`, `<server>__<tool>`, `<tool> on <server>`) when `<server>`
+ *   is a registered/known MCP server (fail-closed: unknown strings are rejected).
+ */
+function mcpToolName(
+  call: AcpPermissionRequest['toolCall'],
+  knownServers: ReadonlySet<string>,
+): string | undefined {
+  const meta = (
+    call as {
+      _meta?: {
+        claudeCode?: { toolName?: unknown };
+        mcp?: { serverName?: unknown; server?: unknown; toolName?: unknown; tool?: unknown };
+      };
+    }
+  )._meta;
+
+  const metaServer = str(meta?.mcp?.serverName) ?? str(meta?.mcp?.server);
+  const metaTool = str(meta?.mcp?.toolName) ?? str(meta?.mcp?.tool);
+  if (
+    metaServer &&
+    metaTool &&
+    VALID_MCP_SEGMENT.test(metaServer) &&
+    VALID_MCP_SEGMENT.test(metaTool)
+  ) {
+    return `mcp__${metaServer}__${metaTool}`;
+  }
+
+  const rawName = str(meta?.claudeCode?.toolName) ?? str(call.title);
+  if (!rawName) return undefined;
+  const trimmed = rawName.trim();
+  if (MCP_TOOL.test(trimmed)) return trimmed;
+
+  // `<tool> on <server>` (format emitted by WrongStack's adaptNames() for non-Claude agents)
+  const onMatch = /^([A-Za-z0-9][A-Za-z0-9._-]*)\s+on\s+([A-Za-z0-9][A-Za-z0-9._-]*)$/.exec(
+    trimmed,
+  );
+  if (onMatch?.[1] && onMatch[2] && knownServers.has(onMatch[2])) {
+    return `mcp__${onMatch[2]}__${onMatch[1]}`;
+  }
+
+  // `mcp.<server>.<tool>`, `mcp:<server>:<tool>`, `mcp/<server>/<tool>` (e.g. codex-acp)
+  const prefixedMatch =
+    /^mcp(?:\.|:|\/)([A-Za-z0-9][A-Za-z0-9_-]*)(?:\.|:|\/)([A-Za-z0-9][A-Za-z0-9._-]*)$/.exec(
+      trimmed,
+    );
+  if (prefixedMatch?.[1] && prefixedMatch[2] && knownServers.has(prefixedMatch[1])) {
+    return `mcp__${prefixedMatch[1]}__${prefixedMatch[2]}`;
+  }
+
+  // `<server>/<tool>`, `<server>:<tool>`, `<server>.<tool>`, `<server>__<tool>`
+  const sepMatch = /^([A-Za-z0-9][A-Za-z0-9_-]*)(?:\/|:|\.|__)([A-Za-z0-9][A-Za-z0-9._-]*)$/.exec(
+    trimmed,
+  );
+  if (sepMatch?.[1] && sepMatch[2] && knownServers.has(sepMatch[1])) {
+    return `mcp__${sepMatch[1]}__${sepMatch[2]}`;
+  }
+
+  // `<tool> (<knownServer> MCP Server)[: ...]` (format used by Qwen Code)
+  const parenServerMatch =
+    /^([A-Za-z0-9][A-Za-z0-9._-]*)\s+\(([A-Za-z0-9][A-Za-z0-9_-]*)(?:\s+MCP\s+Server)?\)(?::.*)?$/i.exec(
+      trimmed,
+    );
+  if (parenServerMatch?.[1] && parenServerMatch[2] && knownServers.has(parenServerMatch[2])) {
+    return `mcp__${parenServerMatch[2]}__${parenServerMatch[1]}`;
+  }
+
+  // `<knownServer>: <humanized tool name>[ · <arg summary>]` (format used by Goose)
+  const colonSpaceMatch = /^([A-Za-z0-9][A-Za-z0-9_-]*):\s+([^·]+?)(?:\s+·.*)?$/.exec(trimmed);
+  if (colonSpaceMatch?.[1] && colonSpaceMatch[2] && knownServers.has(colonSpaceMatch[1])) {
+    const normalizedTool = colonSpaceMatch[2].trim().toLowerCase().replace(/\s+/g, '_');
+    if (VALID_MCP_SEGMENT.test(normalizedTool)) {
+      return `mcp__${colonSpaceMatch[1]}__${normalizedTool}`;
+    }
+  }
+
+  // `<knownServer>-<tool>` (format used by GitHub Copilot CLI, e.g. `wrongstack-index-codebase_stats`)
+  for (const server of knownServers) {
+    const prefix = `${server}-`;
+    if (trimmed.startsWith(prefix)) {
+      const toolPart = trimmed.slice(prefix.length);
+      if (VALID_MCP_SEGMENT.test(toolPart)) return `mcp__${server}__${toolPart}`;
+    }
+  }
+
+  // Bare known WrongStack bridge tool name (e.g. Copilot sends `codebase_stats` in permission title)
+  const mappedServer = Object.hasOwn(KNOWN_BRIDGE_TOOL_TO_SERVER, trimmed)
+    ? KNOWN_BRIDGE_TOOL_TO_SERVER[trimmed]
+    : undefined;
+  if (mappedServer && knownServers.has(mappedServer)) {
+    return `mcp__${mappedServer}__${trimmed}`;
+  }
+
+  return undefined;
+}
+
+function extractBashCommandFromContent(call: AcpPermissionRequest['toolCall']): string | undefined {
+  const content = (call as { content?: unknown }).content;
+  if (!Array.isArray(content)) return undefined;
+  for (const item of content) {
+    if (!item || typeof item !== 'object') continue;
+    const block = item as {
+      type?: unknown;
+      text?: unknown;
+      content?: { type?: unknown; text?: unknown };
+    };
+    const text =
+      block.type === 'content' && block.content?.type === 'text'
+        ? str(block.content.text)
+        : block.type === 'text'
+          ? str(block.text)
+          : undefined;
+    if (text) {
+      const cleaned = text.replace(/^Running:\s*/i, '').trim();
+      if (cleaned) return cleaned;
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -56,7 +236,10 @@ function mcpToolName(call: AcpPermissionRequest['toolCall']): string | undefined
  * this policy only ever answers with the agent's ask-again option — need no
  * check. Anything else the policy cannot see the effect of is refused.
  */
-function translate(req: Pick<AcpPermissionRequest, 'toolCall'>): Translation {
+function translate(
+  req: Pick<AcpPermissionRequest, 'toolCall'>,
+  knownServers: ReadonlySet<string>,
+): Translation {
   const call = req.toolCall;
   const label = str(call.title) ?? call.kind ?? 'unknown';
   if (
@@ -80,7 +263,7 @@ function translate(req: Pick<AcpPermissionRequest, 'toolCall'>): Translation {
   const paths = [...new Set([...rawPaths, ...locPaths])];
   switch (call.kind) {
     case 'execute': {
-      const command = str(raw.command);
+      const command = str(raw.command) ?? str(raw.cmd);
       return command
         ? { calls: [{ tool: 'bash', input: { command } }] }
         : refuse('a command request that names no command');
@@ -150,10 +333,20 @@ function translate(req: Pick<AcpPermissionRequest, 'toolCall'>): Translation {
     case 'switch_mode':
       return { safe: true };
     default: {
-      const mcp = mcpToolName(call);
-      return mcp
-        ? { calls: [{ tool: mcp, input: raw }], mcp: true }
-        : refuse('no WrongStack counterpart to check it against');
+      const mcp = mcpToolName(call, knownServers);
+      if (mcp) return { calls: [{ tool: mcp, input: raw }], mcp: true };
+      // Some ACP clients (e.g. Kimi) send `title: "Bash"` / `"Shell"` / `"Terminal"`
+      // with `kind: "other"` (or omitted `kind`) and `rawInput.command`.
+      const titleLower = (str(call.title) ?? '').trim().toLowerCase();
+      const command =
+        str(raw.command) ?? str(raw.cmd) ?? str(raw.script) ?? extractBashCommandFromContent(call);
+      if (
+        command &&
+        (titleLower === 'bash' || titleLower === 'shell' || titleLower === 'terminal')
+      ) {
+        return { calls: [{ tool: 'bash', input: { command } }] };
+      }
+      return refuse('no WrongStack counterpart to check it against');
     }
   }
 }
@@ -173,6 +366,12 @@ export interface AcpPermissionBridgeOptions {
    * MCP tools out of the registry and so out of a worker's reach too.
    */
   allowMcp?: boolean | undefined;
+  /**
+   * Additional MCP server names attached to this session so non-Claude ACP
+   * clients' `<server>/<tool>` or `<server>:<tool>` titles can be normalized
+   * into `mcp__<server>__<tool>` without weakening fail-closed refusal.
+   */
+  registeredMcpServers?: readonly string[] | undefined;
   /**
    * Ask the user when the policy wants a question (`confirm`). A worker has
    * no one to ask, so without this a `confirm` is refused; a leader runs in
@@ -209,13 +408,17 @@ function mcpToolFor(name: string): Tool {
 export function wrongstackAcpPermissionPolicy(
   opts: AcpPermissionBridgeOptions,
 ): AcpPermissionPolicy {
+  const knownServers: ReadonlySet<string> =
+    opts.registeredMcpServers && opts.registeredMcpServers.length > 0
+      ? new Set([...DEFAULT_KNOWN_MCP_SERVERS, ...opts.registeredMcpServers])
+      : DEFAULT_KNOWN_MCP_SERVERS;
   const refuse = (req: AcpPermissionRequest, call: WrongStackCall, reason: string) => {
     opts.onRefused?.(call, reason);
     return pick(req, false);
   };
   return async (req) => {
     if (req.signal.aborted) return { outcome: 'cancelled' };
-    const translated = translate(req);
+    const translated = translate(req, knownServers);
     if ('safe' in translated) return pick(req, true);
     if ('refuse' in translated) return refuse(req, translated.call, translated.refuse);
     for (const call of translated.calls) {

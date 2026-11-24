@@ -369,7 +369,12 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     writable: args.writable,
     ...(args.indexDir ? { indexDir: args.indexDir } : {}),
   });
-  void tryConfigureMcpEmbeddingPort();
+  // Avoid eager 384-dim embedding model load in every spawned stdio process
+  // (N concurrent ACP workers would otherwise duplicate RAM on startup).
+  // Opt-in eager load remains available for long-lived HTTP/shared processes.
+  if (args.transport === 'http' || process.env['WRONGSTACK_MCP_EAGER_EMBED'] === '1') {
+    void tryConfigureMcpEmbeddingPort();
+  }
   const policyText = `writable=${String(args.writable)} watch=${String(args.watch)}`;
 
   if (args.transport === 'http') {

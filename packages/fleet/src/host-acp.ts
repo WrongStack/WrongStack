@@ -23,6 +23,7 @@ import {
 } from '@wrongstack/coordination';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import { registerAcpSteerInbox } from './acp-live-steer.js';
+import { type AcpPreflightSources, buildAcpPreflightContext } from './acp-preflight-context.js';
 import { startAcpTurnReminders } from './acp-turn-reminders.js';
 import { DEFAULT_BRIDGE_SERVERS, wrongstackBridgeSetup } from './acp-wrongstack-bridge.js';
 import {
@@ -69,6 +70,32 @@ export interface BuildAcpSubagentRunnerOptions {
   permissions?: ((ctx: SubagentRunContext) => AcpPermissionPolicy) | undefined;
   /** WrongStack tools a WrongForge worker may call back (see wrongforge-gateway.ts). */
   wrongforgeGateway?: (() => Promise<WrongForgeGatewaySpec | undefined>) | undefined;
+  /** Optional pre-flight context sources (SAGE memories, Kanban card) prepended to user task prompt. */
+  preflight?: AcpPreflightSources | undefined;
+}
+
+function withAcpPreflight(
+  runner: SubagentRunner,
+  sources: AcpPreflightSources | undefined,
+): SubagentRunner {
+  if (!sources) return runner;
+  return async (task, ctx) => {
+    const metaRec = (task as { metadata?: Record<string, unknown> }).metadata;
+    const kanbanCardId =
+      typeof metaRec?.['kanbanTaskId'] === 'string'
+        ? metaRec['kanbanTaskId']
+        : typeof metaRec?.['boardTaskId'] === 'string'
+          ? metaRec['boardTaskId']
+          : undefined;
+    const block = await buildAcpPreflightContext({
+      taskDescription: task.description,
+      kanbanCardId,
+      sources,
+      signal: ctx.signal,
+    });
+    if (!block) return runner(task, ctx);
+    return runner({ ...task, description: `${block}\n\n${task.description}` }, ctx);
+  };
 }
 
 /**
@@ -149,6 +176,7 @@ export function buildAcpSubagentRunner(
         mailboxEnabled && mailboxProjectRoot
           ? startAcpTurnReminders({
               steer,
+              agentId: subagentId,
               // The actor-scoped projection every other mailbox surface uses.
               // The raw store count ignored the actor's base alias, so this
               // subagent could be told "no mail" while mail addressed to its
@@ -172,5 +200,7 @@ export function buildAcpSubagentRunner(
         stopMail?.();
       };
     },
-  }).then((runner) => withArchitectureDecisions(runner, decisionProjectRoot));
+  }).then((runner) =>
+    withAcpPreflight(withArchitectureDecisions(runner, decisionProjectRoot), options?.preflight),
+  );
 }

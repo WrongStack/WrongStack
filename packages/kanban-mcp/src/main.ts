@@ -16,6 +16,7 @@ export interface ParsedArgs {
   writable: boolean;
   destructive: boolean;
   actor?: string | undefined;
+  sessionId?: string | undefined;
   help: boolean;
 }
 
@@ -89,6 +90,7 @@ export function parseArgs(
     '--host',
     '--token',
     '--actor',
+    '--session-id',
     '--writable',
     '--destructive',
     '-h',
@@ -180,6 +182,11 @@ export function parseArgs(
         if (next !== undefined) parsed.actor = next;
         break;
       }
+      case '--session-id': {
+        const next = value();
+        if (next !== undefined) parsed.sessionId = next;
+        break;
+      }
       case '--writable':
         parsed.writable = parseSwitch(parsed.writable);
         break;
@@ -256,6 +263,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       writable: args.writable,
       destructive: args.destructive,
       ...(args.actor ? { actor: args.actor } : {}),
+      ...(args.sessionId ? { sessionId: args.sessionId } : {}),
     });
     const policyText = `writable=${String(args.writable)} destructive=${String(args.destructive)}`;
 

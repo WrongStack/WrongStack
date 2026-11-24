@@ -124,9 +124,9 @@
       "runtimeOrMixed": 18
     },
     "@wrongstack/core/security": {
-      "files": 302,
+      "files": 304,
       "typeOnly": 27,
-      "runtimeOrMixed": 278
+      "runtimeOrMixed": 280
     },
     "@wrongstack/core/session-catalog": {
       "files": 19,
@@ -8003,6 +8003,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/slash-commands/acp.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/slash-commands/agents.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8076,6 +8082,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/slash-commands/yolo.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/subcommands/handlers/acp-agents.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

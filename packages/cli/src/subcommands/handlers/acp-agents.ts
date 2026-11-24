@@ -8,12 +8,18 @@ import {
   probeAcpAgents,
   renderAcpBenchText,
   resolveAcpAgentCommand,
+  resolveAcpClientProfile,
   runAcpBench,
   runEnsemble,
   runOneAcpTask,
 } from '@wrongstack/acp';
 import { acpRuntimeValuesError } from '@wrongstack/contracts/types/acp-runtime';
-import { inspectAcpRuntime, wrongstackBridgeSetup } from '@wrongstack/fleet';
+import { AutoApprovePermissionPolicy, ToolCapabilities } from '@wrongstack/core/security';
+import {
+  inspectAcpRuntime,
+  wrongstackAcpPermissionPolicy,
+  wrongstackBridgeSetup,
+} from '@wrongstack/fleet';
 import { formatAcpAgentList } from '../../acp-agent-list.js';
 import {
   type LoadedAcpRegistry,
@@ -21,6 +27,22 @@ import {
   refreshAcpRegistry,
 } from '../../acp-registry-cache.js';
 import type { SubcommandDeps } from '../contracts.js';
+
+/** Build WrongStack's permission bridge for CLI `wstack acp spawn/parallel`. */
+function cliAcpPermissionPolicy(deps: SubcommandDeps) {
+  if (!deps.toolRegistry) return defaultPermissionPolicy;
+  const registry = deps.toolRegistry;
+  const policy = new AutoApprovePermissionPolicy(Object.values(ToolCapabilities), {
+    yoloPlus: () => deps.config.autonomy?.yoloPlus === true,
+  });
+  return wrongstackAcpPermissionPolicy({
+    evaluate: (tool, input, scope) => policy.evaluate(tool, input, scope),
+    getTool: (name) => registry.get(name),
+    projectRoot: deps.projectRoot,
+    allowMcp: process.env['WRONGSTACK_RESTRICTED'] !== '1',
+    onRefused: (call, reason) => deps.renderer.writeWarning(`Refused ${call.tool}: ${reason}\n`),
+  });
+}
 
 /** User-config ACP command overrides (never sourced from in-project config). */
 function acpOverrides(deps: SubcommandDeps): AcpAgentCommandOverrides | undefined {
@@ -141,7 +163,7 @@ export async function spawnACPAgent(args: string[], deps: SubcommandDeps): Promi
       cwd: deps.projectRoot,
       projectRoot: deps.projectRoot,
       signal: ac.signal,
-      permissionPolicy: defaultPermissionPolicy,
+      permissionPolicy: cliAcpPermissionPolicy(deps),
       sessionSetup: wrongstackBridgeSetup(subagentId, deps.projectRoot, deps.config.acp?.bridge),
       onProgress: (event) => {
         const line = formatProgress(event);
@@ -249,6 +271,7 @@ export async function parallelACPAgents(args: string[], deps: SubcommandDeps): P
               ...cmd,
               cwd: deps.projectRoot,
               projectRoot: deps.projectRoot,
+              permissionPolicy: cliAcpPermissionPolicy(deps),
               sessionSetup: wrongstackBridgeSetup(id, deps.projectRoot, deps.config.acp?.bridge),
             }
           : null;
@@ -412,4 +435,96 @@ export async function benchACPAgents(args: string[], deps: SubcommandDeps): Prom
     process.off('SIGINT', onSignal);
     process.off('SIGTERM', onSignal);
   }
+}
+
+/**
+ * `wstack acp doctor [agentId] [--probe]` — inspect ACP client readiness,
+ * adapter profile, WrongStack MCP bridge eligibility, and optional live handshake.
+ */
+export async function doctorACPAgents(args: string[], deps: SubcommandDeps): Promise<number> {
+  const runProbe =
+    deps.flags?.['probe'] === true || deps.flags?.['probe'] === 'true' || args.includes('--probe');
+  const requested = args
+    .filter((a) => !a.startsWith('-'))
+    .flatMap((a) => a.split(','))
+    .map((a) => a.trim())
+    .filter(Boolean);
+
+  const detected = await new EnsembleRegistry().list();
+  const overrides = acpOverrides(deps);
+  const live = await loadLive(deps);
+  const detectedById = new Map(detected.map((d) => [d.id, d]));
+
+  const targetIds = requested.length > 0 ? requested : detected.map((d) => d.id);
+
+  const rows: Array<{
+    id: string;
+    status: string;
+    mcpInjection: string;
+    promptChannel: string;
+    bridge: string;
+    handshake: string;
+  }> = [];
+
+  const probeResults = new Map<string, string>();
+  if (runProbe || requested.length === 1) {
+    const probeIds = targetIds.filter((id) => {
+      const det = detectedById.get(id);
+      const cmd = resolveAcpAgentCommand(id, overrides, live?.byId);
+      return Boolean(cmd) && (requested.length > 0 || det?.installed);
+    });
+    if (probeIds.length > 0) {
+      deps.renderer.writeInfo(`Probing ${probeIds.length} ACP agent(s)…\n`);
+      const results = await probeAcpAgents({
+        agentIds: probeIds,
+        resolveCmd: (id) => resolveAcpAgentCommand(id, overrides, live?.byId),
+        projectRoot: deps.projectRoot,
+      });
+      for (const r of results) {
+        if (r.ok) {
+          probeResults.set(r.id, `ok (${r.ms}ms)`);
+        } else {
+          probeResults.set(r.id, `fail: ${r.error ?? 'unknown'}`);
+        }
+      }
+    }
+  }
+
+  for (const id of targetIds) {
+    const det = detectedById.get(id);
+    const cmd = resolveAcpAgentCommand(id, overrides, live?.byId);
+    const profile = resolveAcpClientProfile(id);
+    const bridgeSetup = wrongstackBridgeSetup(id, deps.projectRoot, deps.config.acp?.bridge);
+    const isPkgLauncher = cmd?.command === 'npx' || cmd?.command === 'uvx';
+    const status = !cmd
+      ? 'unknown'
+      : det?.installed
+        ? 'installed'
+        : isPkgLauncher
+          ? `on-demand (${cmd.command})`
+          : 'missing';
+    rows.push({
+      id,
+      status,
+      mcpInjection: profile.mcpInjection,
+      promptChannel: profile.systemPromptChannel,
+      bridge: bridgeSetup ? 'enabled' : 'disabled',
+      handshake: probeResults.get(id) ?? '-',
+    });
+  }
+
+  const pad = (s: string, w: number) => (s.length >= w ? s : s + ' '.repeat(w - s.length));
+  const lines = [
+    'WrongStack ACP Doctor',
+    '─────────────────────',
+    `${pad('AGENT', 18)} ${pad('STATUS', 18)} ${pad('BRIDGE', 10)} ${pad('MCP INJECTION', 18)} ${pad('PROMPT CHANNEL', 26)} HANDSHAKE`,
+    ...rows.map(
+      (r) =>
+        `${pad(r.id, 18)} ${pad(r.status, 18)} ${pad(r.bridge, 10)} ${pad(r.mcpInjection, 18)} ${pad(r.promptChannel, 26)} ${r.handshake}`,
+    ),
+    '',
+    `Summary: ${rows.filter((r) => r.status === 'installed').length} installed, ${rows.filter((r) => r.bridge === 'enabled').length}/${rows.length} MCP-bridged.`,
+  ];
+  deps.renderer.write(`${lines.join('\n')}\n`);
+  return 0;
 }

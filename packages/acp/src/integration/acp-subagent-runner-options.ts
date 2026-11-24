@@ -97,4 +97,6 @@ export interface AcpSessionSetup {
   promptPrefix?: string | undefined;
   /** Replaces `permissionPolicy` for this session (e.g. bound to the delegating session). */
   permissionPolicy?: PermissionPolicy | undefined;
+  /** Optional teardown hook invoked when the session closes (e.g. revoking a ProjectMcpGateway grant). */
+  cleanup?: (() => void | Promise<void>) | undefined;
 }

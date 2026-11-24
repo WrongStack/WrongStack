@@ -55,7 +55,7 @@ export function buildEnsembleCommand(opts: AcpCommandHost): SlashCommand {
       '',
       'Use /acp list (or wstack acp list) to see which agents are detected.',
     ].join('\n'),
-    async run(args) {
+    async run(args, context) {
       // Pull optional flags out first so they don't get parsed into the agent
       // CSV or the task text. The ensemble engine already supports per-agent
       // timeout and bounded concurrency — these flags just surface them.
@@ -112,11 +112,28 @@ export function buildEnsembleCommand(opts: AcpCommandHost): SlashCommand {
 
       try {
         const overrides = readEnsembleOverrides(opts);
+        const bridge = readEnsembleBridgeConfig(opts);
         const live = opts.paths ? await loadCachedAcpRegistry(opts.paths) : null;
+        const sessionId =
+          typeof context?.session?.id === 'string' && context.session.id.length > 0
+            ? context.session.id
+            : undefined;
         const result = await runEnsemble({
           agentIds,
           task,
-          resolveCmd: (id) => resolveAcpAgentCommand(id, overrides, live?.byId),
+          ...(sessionId ? { sessionId } : {}),
+          resolveCmd: (id) => {
+            const cmd = resolveAcpAgentCommand(id, overrides, live?.byId);
+            if (!cmd) return null;
+            const permissionPolicy = opts.acpPermissionPolicy?.(id);
+            return {
+              ...cmd,
+              cwd: opts.projectRoot,
+              projectRoot: opts.projectRoot,
+              sessionSetup: opts.acpSessionSetup?.(id, opts.projectRoot, bridge),
+              ...(permissionPolicy ? { permissionPolicy } : {}),
+            };
+          },
           ...(timeoutMs !== undefined ? { timeoutMs } : {}),
           ...(maxConcurrency !== undefined ? { maxConcurrency } : {}),
         });
@@ -137,6 +154,14 @@ export function buildEnsembleCommand(opts: AcpCommandHost): SlashCommand {
 function readEnsembleOverrides(opts: AcpCommandHost): AcpAgentCommandOverrides | undefined {
   try {
     return opts.configStore?.get()?.acp?.agents;
+  } catch {
+    return undefined;
+  }
+}
+
+function readEnsembleBridgeConfig(opts: AcpCommandHost) {
+  try {
+    return opts.configStore?.get()?.acp?.bridge;
   } catch {
     return undefined;
   }

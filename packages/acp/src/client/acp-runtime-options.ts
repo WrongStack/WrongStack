@@ -47,33 +47,49 @@ export function acpRuntimeOptions(input: unknown): AcpRuntimeOption[] {
   return input.slice(0, 64).flatMap((raw): AcpRuntimeOption[] => {
     if (
       !record(raw) ||
-      raw.type !== 'select' ||
+      (raw.type !== 'select' && raw.type !== 'boolean') ||
       typeof raw.id !== 'string' ||
       !raw.id ||
-      seen.has(raw.id) ||
-      typeof raw.currentValue !== 'string' ||
-      !Array.isArray(raw.options)
+      seen.has(raw.id)
     )
       return [];
-    if (acpRuntimeValuesError({ [raw.id]: raw.currentValue })) return [];
+    const isBool = raw.type === 'boolean';
+    const currentValue = isBool
+      ? typeof raw.currentValue === 'boolean'
+        ? String(raw.currentValue)
+        : typeof raw.currentValue === 'string' &&
+            (raw.currentValue === 'true' || raw.currentValue === 'false')
+          ? raw.currentValue
+          : undefined
+      : typeof raw.currentValue === 'string'
+        ? raw.currentValue
+        : undefined;
+    if (currentValue === undefined) return [];
+    if (!isBool && !Array.isArray(raw.options)) return [];
+    if (acpRuntimeValuesError({ [raw.id]: currentValue })) return [];
     const category = typeof raw.category === 'string' ? raw.category : undefined;
     if (category === 'mode') return [];
     if (!ALLOWED_CATEGORIES.has(String(category)) && !ALLOWED_IDS.has(raw.id)) return [];
-    const options = raw.options
-      .slice(0, 4096)
-      .flatMap((group) =>
-        record(group) && Array.isArray(group.options) ? group.options.slice(0, 4096) : [group],
-      )
-      .slice(0, 8192)
-      .filter(
-        (value) =>
-          record(value) &&
-          typeof value.value === 'string' &&
-          value.value.length <= 2000 &&
-          typeof value.name === 'string' &&
-          value.name.length <= 2000,
-      )
-      .map((value) => ({ value: value.value as string, name: value.name as string }));
+    const options = isBool
+      ? [
+          { value: 'true', name: 'Enabled' },
+          { value: 'false', name: 'Disabled' },
+        ]
+      : (raw.options as unknown[])
+          .slice(0, 4096)
+          .flatMap((group) =>
+            record(group) && Array.isArray(group.options) ? group.options.slice(0, 4096) : [group],
+          )
+          .slice(0, 8192)
+          .filter(
+            (value) =>
+              record(value) &&
+              typeof value.value === 'string' &&
+              value.value.length <= 2000 &&
+              typeof value.name === 'string' &&
+              value.name.length <= 2000,
+          )
+          .map((value) => ({ value: value.value as string, name: value.name as string }));
     if (!options.length) return [];
     seen.add(raw.id);
     const inferredCategory =
@@ -85,7 +101,7 @@ export function acpRuntimeOptions(input: unknown): AcpRuntimeOption[] {
         name: typeof raw.name === 'string' ? raw.name : raw.id,
         category: inferredCategory,
         description: typeof raw.description === 'string' ? raw.description : undefined,
-        currentValue: raw.currentValue,
+        currentValue,
         options,
       },
     ];

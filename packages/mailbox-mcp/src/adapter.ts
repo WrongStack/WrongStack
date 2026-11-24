@@ -195,10 +195,35 @@ function normalizeTimeout(value: unknown): number {
   return Math.min(WATCH_MAX_TIMEOUT_MS, Math.max(100, Math.trunc(value)));
 }
 
+function isEventVisibleToScope(
+  event: unknown,
+  scope: MailboxActorReadScope,
+  fullAccess: boolean,
+): boolean {
+  if (fullAccess || !event || typeof event !== 'object') return true;
+  const rec = event as Record<string, unknown>;
+  const to = typeof rec['to'] === 'string' ? rec['to'] : undefined;
+  const from = typeof rec['from'] === 'string' ? rec['from'] : undefined;
+  // Events without explicit addressing metadata pass through so callers can reconcile.
+  if (!to && !from) return true;
+  const matches = (addr: string | undefined): boolean => {
+    if (!addr) return false;
+    if (addr === 'all' || addr === '@all' || addr === scope.actorId) return true;
+    if (scope.recipientAliases?.has(addr)) return true;
+    if (scope.sessionId && (addr === '@session' || addr === `@session:${scope.sessionId}`)) {
+      return true;
+    }
+    return false;
+  };
+  return matches(to) || matches(from);
+}
+
 async function watchForMailboxEvent(
   emitter: MailboxEventEmitter,
   args: Record<string, unknown>,
   signal: AbortSignal,
+  scope: MailboxActorReadScope,
+  fullAccess: boolean,
 ): Promise<unknown> {
   for (const key of Object.keys(args)) {
     if (key !== 'eventType' && key !== 'timeoutMs' && args[key] !== undefined) {
@@ -233,6 +258,7 @@ async function watchForMailboxEvent(
     };
     const sub = emitter.subscribe((event) => {
       if (eventType && event.type !== eventType) return;
+      if (!isEventVisibleToScope(event, scope, fullAccess)) return;
       finish({ changed: true, event });
     });
     unsubscribe = typeof sub === 'function' ? sub : () => {};
@@ -671,7 +697,10 @@ export function createMailboxMcpToolHost(
             : new Error('Mailbox call cancelled');
         }
         if (name === 'mailbox_watch') {
-          return { content: await watchForMailboxEvent(emitter, args, signal), isError: false };
+          return {
+            content: await watchForMailboxEvent(emitter, args, signal, scope, fullAccess),
+            isError: false,
+          };
         }
         const actions = allowed.get(name as MailboxMcpToolName);
         const action = args['action'];
@@ -701,9 +730,26 @@ export function createMailboxMcpServer(
   emitter: MailboxEventEmitter,
   opts: MailboxMcpToolHostOptions,
 ): MCPServer {
+  const host = createMailboxMcpToolHost(mailbox, emitter, opts);
   return new MCPServer({
-    host: createMailboxMcpToolHost(mailbox, emitter, opts),
+    host,
     serverInfo: { name: 'wrongstack-mailbox-mcp', version: SERVER_INFO.version },
+    resourceProvider: {
+      listResources: () => [
+        {
+          uri: 'mailbox://inbox/unread',
+          name: 'Mailbox Unread Inbox',
+          description: "This actor's unread coordination messages.",
+          mimeType: 'application/json',
+        },
+      ],
+      readResource: async (uri, callOpts) => {
+        if (uri !== 'mailbox://inbox/unread') return null;
+        const res = await host.callTool('mailbox_read', { action: 'inbox' }, callOpts);
+        const text = typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
+        return [{ uri, mimeType: 'application/json', text }];
+      },
+    },
     prompts: [
       {
         name: 'coordinate-via-mailbox',

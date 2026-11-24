@@ -96,6 +96,16 @@ export interface MCPServerLogger {
   info?(msg: string): void;
 }
 
+export interface MCPServerResourceProvider {
+  listResources():
+    | Omit<MCPServerResource, 'contents'>[]
+    | Promise<Omit<MCPServerResource, 'contents'>[]>;
+  readResource(
+    uri: string,
+    opts?: { signal?: AbortSignal | undefined },
+  ): Promise<MCPResourceContents[] | null>;
+}
+
 export interface MCPServerOptions {
   host: MCPServerToolHost;
   /** Advertised in the `initialize` handshake. Defaults to the wrongstack identity. */
@@ -103,6 +113,8 @@ export interface MCPServerOptions {
   logger?: MCPServerLogger | undefined;
   /** Explicit allowlist only; omitted means this server exposes no resources. */
   resources?: MCPServerResource[] | undefined;
+  /** Optional dynamic resource provider for live project state (SAGE, Kanban, Mailbox, Codebase). */
+  resourceProvider?: MCPServerResourceProvider | undefined;
   /** Explicit allowlist only; omitted means this server exposes no prompts. */
   prompts?: MCPServerPrompt[] | undefined;
   /**
@@ -135,6 +147,7 @@ export class MCPServer {
   private readonly serverInfo: { name: string; version: string };
   private readonly logger?: MCPServerLogger | undefined;
   private readonly resources: MCPServerResource[];
+  private readonly resourceProvider?: MCPServerResourceProvider | undefined;
   private readonly prompts: MCPServerPrompt[];
   private readonly instructions: string | undefined;
   private readonly inFlightRequests = new Map<number | string | symbol, AbortController>();
@@ -148,6 +161,7 @@ export class MCPServer {
     this.logger = opts.logger;
     this.instructions = opts.instructions?.trim() || undefined;
     this.resources = structuredClone(opts.resources ?? []);
+    this.resourceProvider = opts.resourceProvider;
     this.prompts = structuredClone(opts.prompts ?? []);
   }
 
@@ -165,7 +179,10 @@ export class MCPServer {
    * requests, or `null` for notifications (no `id`) and for blank input —
    * the caller should write the string to its output stream when non-null.
    */
-  async handleMessage(raw: string, options?: { signal?: AbortSignal }): Promise<string | null> {
+  async handleMessage(
+    raw: string,
+    options?: { signal?: AbortSignal | undefined; scopeId?: string | symbol | undefined },
+  ): Promise<string | null> {
     const line = raw.trim();
     if (!line) return null;
 
@@ -193,6 +210,12 @@ export class MCPServer {
     }
 
     const isNotification = msg.id === undefined || msg.id === null;
+    const scopeId = options?.scopeId;
+    const scopedKey = (id: number | string): number | string | symbol => {
+      if (typeof scopeId === 'string') return `${scopeId}\0${typeof id}:${String(id)}`;
+      if (typeof scopeId === 'symbol') return scopeId;
+      return id;
+    };
 
     // Notifications never get a response. We still dispatch known ones for
     // side effects, but `notifications/initialized` is purely a handshake ack.
@@ -200,12 +223,15 @@ export class MCPServer {
       if (msg.method === 'notifications/cancelled') {
         const input = paramsRecord(msg.params);
         const requestId = input['requestId'];
-        if (typeof requestId === 'number' || typeof requestId === 'string') {
+        if (
+          (typeof requestId === 'number' || typeof requestId === 'string') &&
+          typeof scopeId !== 'symbol'
+        ) {
           const reason =
             typeof input['reason'] === 'string' && input['reason'].trim().length > 0
               ? input['reason'].trim().slice(0, 500)
               : 'MCP request cancelled by client';
-          this.inFlightRequests.get(requestId)?.abort(new Error(reason));
+          this.inFlightRequests.get(scopedKey(requestId))?.abort(new Error(reason));
         }
       }
       return null;
@@ -261,8 +287,10 @@ export class MCPServer {
     const abort = () => controller.abort(options?.signal?.reason);
     options?.signal?.addEventListener('abort', abort, { once: true });
     if (options?.signal?.aborted) abort();
-    // Modern HTTP has request-scoped cancellation and no shared session IDs.
-    const requestKey = options?.signal ? Symbol() : requestId;
+    // Modern HTTP has request-scoped cancellation and no shared session IDs;
+    // multi-client HTTP isolates in-flight request IDs by session or per-request scope.
+    const requestKey =
+      options?.signal && typeof scopeId !== 'string' ? Symbol() : scopedKey(requestId);
     // One id has one abort handle. A retry that reuses the id must not orphan
     // the call already running under it: cancellation is keyed only by id.
     const displaced = this.inFlightRequests.get(requestKey);
@@ -337,7 +365,7 @@ export class MCPServer {
           ),
           capabilities: {
             tools: { listChanged: false },
-            ...(this.resources.length > 0
+            ...(this.resources.length > 0 || this.resourceProvider
               ? { resources: { subscribe: false, listChanged: false } }
               : {}),
             ...(this.prompts.length > 0 ? { prompts: { listChanged: false } } : {}),
@@ -370,22 +398,31 @@ export class MCPServer {
         };
       }
       case 'resources/list': {
-        if (this.resources.length === 0) return METHOD_NOT_FOUND_SENTINEL;
-        const page = paginate(this.resources, params);
+        if (this.resources.length === 0 && !this.resourceProvider) return METHOD_NOT_FOUND_SENTINEL;
+        const dynamic = this.resourceProvider ? await this.resourceProvider.listResources() : [];
+        const combined = [
+          ...this.resources.map(({ contents: _contents, ...resource }) => resource),
+          ...dynamic,
+        ];
+        const page = paginate(combined, params);
         return {
-          resources: page.items.map(({ contents: _contents, ...resource }) => resource),
+          resources: page.items,
           ...(page.nextCursor ? { nextCursor: page.nextCursor } : {}),
         };
       }
       case 'resources/templates/list':
-        if (this.resources.length === 0) return METHOD_NOT_FOUND_SENTINEL;
+        if (this.resources.length === 0 && !this.resourceProvider) return METHOD_NOT_FOUND_SENTINEL;
         return { resourceTemplates: [] };
       case 'resources/read': {
-        if (this.resources.length === 0) return METHOD_NOT_FOUND_SENTINEL;
+        if (this.resources.length === 0 && !this.resourceProvider) return METHOD_NOT_FOUND_SENTINEL;
         const uri = requiredParamString(params, 'uri', 'resources/read');
-        const resource = this.resources.find((candidate) => candidate.uri === uri);
-        if (!resource) throw new InvalidLookupError(`Resource not found: ${uri}`);
-        return { contents: structuredClone(resource.contents) };
+        const staticResource = this.resources.find((candidate) => candidate.uri === uri);
+        if (staticResource) return { contents: structuredClone(staticResource.contents) };
+        if (this.resourceProvider) {
+          const dynamicContents = await this.resourceProvider.readResource(uri, { signal });
+          if (dynamicContents) return { contents: dynamicContents };
+        }
+        throw new InvalidLookupError(`Resource not found: ${uri}`);
       }
       case 'prompts/list': {
         if (this.prompts.length === 0) return METHOD_NOT_FOUND_SENTINEL;

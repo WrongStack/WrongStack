@@ -96,6 +96,7 @@ export interface FleetCommandHost {
 
 /** What `/acp` hands an agent so it can reach WrongStack (`acp.bridge` config). */
 type AcpSessionSetup = Parameters<typeof runOneAcpTask>[0]['sessionSetup'];
+type AcpRunPermissionPolicy = Parameters<typeof runOneAcpTask>[0]['permissionPolicy'];
 type AcpBridgeConfig = NonNullable<Config['acp']>['bridge'];
 
 /** `/acp` and `/ensemble`: the external ACP agents installed on this machine. */
@@ -117,6 +118,11 @@ export interface AcpCommandHost {
         bridge: AcpBridgeConfig | undefined,
       ) => AcpSessionSetup)
     | undefined;
+  /**
+   * WrongStack's permission bridge for inline `/acp` and `/ensemble` runs so
+   * user deny rules and destructive/credential guards still apply.
+   */
+  acpPermissionPolicy?: ((agentId: string) => AcpRunPermissionPolicy) | undefined;
   /** False where no terminal shows a running agent's progress: tasks run in the fleet. */
   inlineAcpRuns?: boolean | undefined;
 }

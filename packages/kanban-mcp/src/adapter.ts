@@ -381,9 +381,26 @@ export function createKanbanMcpServer(
   projectRoot: string,
   opts: KanbanMcpToolHostOptions = {},
 ): MCPServer {
+  const host = createKanbanMcpToolHost(projectRoot, opts);
   return new MCPServer({
-    host: createKanbanMcpToolHost(projectRoot, opts),
+    host,
     serverInfo: { name: 'wrongstack-kanban-mcp', version: SERVER_INFO.version },
+    resourceProvider: {
+      listResources: () => [
+        {
+          uri: 'kanban://workbench',
+          name: 'Kanban Active Workbench',
+          description: 'In-flight and ready tasks across active project boards.',
+          mimeType: 'application/json',
+        },
+      ],
+      readResource: async (uri, callOpts) => {
+        if (uri !== 'kanban://workbench') return null;
+        const res = await host.callTool('kanban_read', { action: 'workbench' }, callOpts);
+        const text = typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
+        return [{ uri, mimeType: 'application/json', text }];
+      },
+    },
     prompts: [
       {
         name: 'work-kanban-task',

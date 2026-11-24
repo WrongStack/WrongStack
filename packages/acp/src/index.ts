@@ -39,7 +39,7 @@ export {
   imageContent,
   textContent,
 } from './client/acp-session.js';
-export type { AcpSteerOutcome } from './client/acp-session-ops.js';
+export { type AcpSteerOutcome, filterMcpServers } from './client/acp-session-ops.js';
 export type {
   FileServerOptions,
   FsErrorCode,
@@ -108,6 +108,18 @@ export type {
   RunOneAcpTaskResult,
 } from './integration/run-one-acp-task.js';
 export { runOneAcpTask } from './integration/run-one-acp-task.js';
+export type {
+  AcpClientProfile,
+  AcpMcpInjectionMode,
+  AcpMcpToolNamingStyle,
+  AcpSystemPromptChannel,
+} from './registry/acp-client-profiles.js';
+export {
+  DEFAULT_BRIDGE_AGENTS,
+  DEFAULT_GENERIC_ACP_PROFILE,
+  defaultBridgeAgentIds,
+  resolveAcpClientProfile,
+} from './registry/acp-client-profiles.js';
 export type {
   FetchAcpRegistryOptions,
   FetchAcpRegistryResult,

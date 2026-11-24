@@ -13,6 +13,7 @@
 import type { SubcommandHandler } from '../contracts.js';
 import {
   benchACPAgents,
+  doctorACPAgents,
   listACPAgents,
   parallelACPAgents,
   probeACPAgents,
@@ -59,6 +60,9 @@ Usage:
   wstack acp probe [agent-id-csv]
                         Handshake-test agents (bounded concurrency). Defaults
                         to all installed agents.
+  wstack acp doctor [agent-id-csv] [--probe]
+                        Inspect ACP client install status, adapter profiles,
+                        WrongStack MCP bridge readiness, and optional handshake.
   wstack acp bench [agent-id-csv] [--fs]
                         End-to-end verify each agent (handshake → prompt →
                         marker, optional fs check) and print a graded report.
@@ -130,6 +134,10 @@ parallel:
 
   if (sub === 'probe') {
     return probeACPAgents(args.slice(1), deps);
+  }
+
+  if (sub === 'doctor') {
+    return doctorACPAgents(args.slice(1), deps);
   }
 
   if (sub === 'bench') {

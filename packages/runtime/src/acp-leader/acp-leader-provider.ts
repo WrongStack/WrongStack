@@ -281,6 +281,7 @@ export class AcpLeaderProvider implements Provider {
     const stopReminders =
       leader.session.canSteer() && hostContext?.meta
         ? startAcpTurnReminders({
+            agentId: leader.agentId,
             context: hostContext,
             steer: (text) => leader.session.steer(text),
           })
@@ -371,13 +372,15 @@ export class AcpLeaderProvider implements Provider {
       latestUserText(req.messages),
       externalSkillLoader(leader.fleet?.tools, `mcp__${FLEET_SERVER_NAME}__`),
     );
-    const earlier = leader.joined ? undefined : earlierConversation(req.messages);
+    const wasJoined = leader.joined;
+    const earlier = wasJoined ? undefined : earlierConversation(req.messages);
     leader.joined = true;
     const prompt = earlier ? `${earlier}\n\n${latest}` : latest;
     const context = acpLeaderHost()?.context(req.cache?.sessionId) as Context | undefined;
     const notes = context?.meta ? consumeBtwNotes(context) : [];
-    const withNotes = notes.length > 0 ? `${prompt}\n\n${acpBtwBlock(notes)}` : prompt;
-    return leader.promptPrefix ? `${leader.promptPrefix}\n\n${withNotes}` : withNotes;
+    const withNotes =
+      notes.length > 0 ? `${prompt}\n\n${acpBtwBlock(notes, leader.agentId)}` : prompt;
+    return !wasJoined && leader.promptPrefix ? `${leader.promptPrefix}\n\n${withNotes}` : withNotes;
   }
 
   /**
@@ -655,16 +658,25 @@ export class AcpLeaderProvider implements Provider {
         : []),
     ];
     const meta = setup?.meta as { systemPrompt?: { append?: string } } | undefined;
+    const fleetAppendix = fleet ? fleetNote(fleet.tools) : undefined;
     const sessionMeta =
       meta?.systemPrompt?.append !== undefined
         ? {
             ...meta,
             systemPrompt: {
               ...meta.systemPrompt,
-              append: meta.systemPrompt.append + (fleet ? `\n${fleetNote(fleet.tools)}` : ''),
+              append: meta.systemPrompt.append + (fleetAppendix ? `\n${fleetAppendix}` : ''),
             },
           }
-        : meta;
+        : fleetAppendix
+          ? {
+              ...(meta ?? {}),
+              systemPrompt: {
+                ...(meta?.systemPrompt ?? {}),
+                append: fleetAppendix,
+              },
+            }
+          : meta;
     const permissionPolicy = host
       ? wrongstackAcpPermissionPolicy({
           evaluate: (tool, input) => host.permission(key).evaluate(tool, input, host.context(key)),
@@ -672,6 +684,7 @@ export class AcpLeaderProvider implements Provider {
           getTool: (name) => host.getTool(fleetToolName(name) ?? name),
           projectRoot,
           allowMcp: !isRestrictedProcess(),
+          registeredMcpServers: mcpServers.map((s) => s.name),
           ...(host.confirmAwaiter || host.confirmThroughEvents
             ? {
                 confirm: (tool, call, request) => this.confirm(key, tool, call.input, request),

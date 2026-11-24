@@ -6,6 +6,7 @@
 export * from './acp-live-progress.js';
 export * from './acp-live-steer.js';
 export * from './acp-permission-bridge.js';
+export * from './acp-preflight-context.js';
 export * from './acp-quota-hold.js';
 export * from './acp-quota-reading.js';
 export * from './acp-runtime-config.js';

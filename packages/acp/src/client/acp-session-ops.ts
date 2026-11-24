@@ -2,17 +2,30 @@ import type { AgentCapabilities, McpServer, SessionId, SessionInfo } from '../ty
 import { ACPSessionError, isJsonRpcError } from './acp-session-errors.js';
 import type { ACPSessionOptions } from './acp-session-types.js';
 
-function filterMcpServers(
+export function filterMcpServers(
   agentCapabilities: AgentCapabilities,
   servers?: McpServer[],
 ): McpServer[] {
   if (!servers || servers.length === 0) return [];
   const mcpCaps = agentCapabilities.mcpCapabilities ?? {};
-  return servers.filter((s) => {
+  const eligible = servers.filter((s) => {
     if ('type' in s && s.type === 'http') return mcpCaps.http === true;
     if ('type' in s && s.type === 'sse') return mcpCaps.sse === true;
     return true; // stdio — always supported per spec
   });
+  // When both an HTTP (e.g. shared ProjectMcpGateway) and stdio fallback entry
+  // exist for the same server name, prefer HTTP (zero child processes) if the
+  // agent advertised `mcpCapabilities.http`, otherwise keep stdio.
+  const byName = new Map<string, McpServer>();
+  const rank = (s: McpServer): number =>
+    'type' in s && s.type === 'http' ? 3 : 'type' in s && s.type === 'sse' ? 2 : 1;
+  for (const server of eligible) {
+    const prev = byName.get(server.name);
+    if (!prev || rank(server) > rank(prev)) {
+      byName.set(server.name, server);
+    }
+  }
+  return [...byName.values()];
 }
 
 export interface ACPSessionOpContext {

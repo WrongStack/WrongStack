@@ -96,6 +96,8 @@ export interface EnsembleRunnerOptions {
    * `SubagentRunner` itself layers a turn-level timeout under this.
    */
   timeoutMs?: number;
+  /** Calling WrongStack session id, forwarded so `@session` mailbox routing works. */
+  sessionId?: string | undefined;
   /**
    * Override the registry used for the install probe. Defaults to
    * `new EnsembleRegistry()`. Useful for tests.
@@ -202,15 +204,16 @@ async function runOne(
   timeoutMs: number,
   signal: AbortSignal | undefined,
   onProgress: EnsembleProgressHandler | undefined,
+  sessionId: string | undefined,
 ): Promise<Omit<EnsembleAgentResult, 'agentId'>> {
   const startedAt = Date.now();
   try {
     const { runner, stop } = await makeACPSubagentRunnerWithStop({
       ...cmd,
       timeoutMs,
-      // CLI /acp parallel and Director fan-out are trusted local agents — grant write/execute access.
-      // The session default is read-only for untrusted agents (acp-session.ts:221).
-      permissionPolicy: defaultPermissionPolicy,
+      // Honor a caller-supplied permission bridge (e.g. wrongstackAcpPermissionPolicy);
+      // fall back to defaultPermissionPolicy only when none was provided.
+      permissionPolicy: cmd.permissionPolicy ?? defaultPermissionPolicy,
       ...(onProgress ? { onProgress: (event) => onProgress(agentId, event) } : {}),
     });
     try {
@@ -227,6 +230,7 @@ async function runOne(
         { id: `ensemble-${agentId}`, description: task },
         {
           subagentId: agentId,
+          ...(sessionId ? { sessionId } : {}),
           config: {
             id: agentId,
             name: agentId,
@@ -368,7 +372,15 @@ export async function runEnsemble(opts: EnsembleRunnerOptions): Promise<Ensemble
         });
         return;
       }
-      const outcome = await runOne(id, cmd, opts.task, timeoutMs, opts.signal, opts.onProgress);
+      const outcome = await runOne(
+        id,
+        cmd,
+        opts.task,
+        timeoutMs,
+        opts.signal,
+        opts.onProgress,
+        opts.sessionId,
+      );
       setResult(results, id, outcome);
     },
     concurrency,

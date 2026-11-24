@@ -100,7 +100,35 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
     signal: AbortSignal,
     cwd?: string | undefined,
   ): Promise<string> {
-    const factory = deps.multiAgentHost.makeSubagentFactory(deps.getConfig());
+    const cfg = deps.getConfig();
+    if (cfg.provider === 'acp' && cfg.model) {
+      const acpRunner = await deps.multiAgentHost.buildACPRunner(cfg.model);
+      const { SubagentBudget } = await import('@wrongstack/coordination');
+      const outcome = await acpRunner(
+        { id: `goal-${label}-${Date.now()}`, description: prompt },
+        {
+          subagentId: `goal-${label}`,
+          config: {
+            id: `goal-${label}`,
+            name: label,
+            role: 'executor',
+            provider: 'acp',
+            model: cfg.model,
+            prompt: '',
+            ...(cwd ? { cwd } : {}),
+          },
+          budget: new SubagentBudget({
+            timeoutMs: 15 * 60_000,
+            maxIterations: 200,
+            maxToolCalls: 500,
+          }),
+          signal,
+          bridge: null,
+        },
+      );
+      return outcome.result == null ? '' : String(outcome.result);
+    }
+    const factory = deps.multiAgentHost.makeSubagentFactory(cfg);
     const built = await factory({ name: label, cwd });
     try {
       const result = (await built.agent.run(prompt, { signal })) as RunResult;

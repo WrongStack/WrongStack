@@ -110,9 +110,9 @@ export const AGENTS_CATALOG: readonly ACPAgentDescriptor[] = [
     id: 'copilot',
     displayName: 'GitHub Copilot CLI',
     vendor: 'github',
-    probe: { command: 'gh', args: ['copilot', '--help'] },
+    probe: { command: 'copilot', args: ['--version'] },
     // ACP is in the standalone @github/copilot CLI (registry id
-    // `github-copilot-cli`), not the `gh copilot` extension. Use the package.
+    // `github-copilot-cli`, v1.0.114+), not the legacy `gh copilot` extension.
     acp: { command: 'npx', args: ['-y', '@github/copilot', '--acp'] },
     supports: {
       loadSession: false,
@@ -120,7 +120,7 @@ export const AGENTS_CATALOG: readonly ACPAgentDescriptor[] = [
       terminal: true,
       fs: false,
     },
-    integration: 'experimental',
+    integration: 'native',
     docs: 'https://github.com/features/copilot/cli',
   },
 
@@ -156,8 +156,23 @@ export const AGENTS_CATALOG: readonly ACPAgentDescriptor[] = [
       terminal: true,
       fs: true,
     },
-    integration: 'experimental',
+    integration: 'native',
     docs: 'https://github.com/block/goose',
+  },
+  {
+    id: 'pi-acp',
+    displayName: 'pi ACP',
+    vendor: 'community',
+    probe: { command: 'pi-acp', args: ['--version'] },
+    acp: { command: 'npx', args: ['-y', 'pi-acp'] },
+    supports: {
+      loadSession: true,
+      promptImages: true,
+      terminal: true,
+      fs: true,
+    },
+    integration: 'community',
+    docs: 'https://github.com/svkozak/pi-acp',
   },
   {
     id: 'openhands',
@@ -172,7 +187,7 @@ export const AGENTS_CATALOG: readonly ACPAgentDescriptor[] = [
       fs: true,
     },
     integration: 'experimental',
-    // Not in the official agentclientprotocol/registry (2026-09). Keep as a
+    // Not in the official agentclientprotocol/registry (2026-11). Keep as a
     // local-PATH fallback; probe/spawn may hang if the binary has no ACP entry.
     docs: 'https://github.com/OpenHands/OpenHands',
   },
@@ -184,30 +199,30 @@ export const AGENTS_CATALOG: readonly ACPAgentDescriptor[] = [
     vendor: 'community',
     probe: { command: 'qwen', args: ['--version'] },
     // Qwen Code (the @qwen-code/qwen-code package) speaks ACP behind `--acp`.
-    acp: { command: 'qwen', args: ['--acp'] },
+    acp: { command: 'qwen', args: ['--acp', '--experimental-skills'] },
     supports: {
       loadSession: false,
       promptImages: false,
       terminal: true,
       fs: false,
     },
-    integration: 'experimental',
+    integration: 'native',
     docs: 'https://github.com/QwenLM/Qwen3-Coder',
   },
   {
     id: 'kiro-cli',
     displayName: 'Kiro CLI',
     vendor: 'community',
-    probe: { command: 'kiro', args: ['--version'] },
-    acp: { command: 'kiro', args: [] },
+    probe: { command: 'kiro-cli', args: ['--version'] },
+    // Official registry id `kiro` (v3.0.0+): `kiro-cli acp --agent-engine=v3`.
+    acp: { command: 'kiro-cli', args: ['acp', '--agent-engine=v3'] },
     supports: {
-      loadSession: false,
-      promptImages: false,
+      loadSession: true,
+      promptImages: true,
       terminal: true,
       fs: true,
     },
-    integration: 'experimental',
-    // Not in the official agentclientprotocol/registry (2026-09).
+    integration: 'native',
     docs: 'https://kiro.dev',
   },
   {
@@ -239,14 +254,14 @@ export const AGENTS_CATALOG: readonly ACPAgentDescriptor[] = [
       terminal: true,
       fs: false,
     },
-    integration: 'experimental',
+    integration: 'native',
     docs: 'https://github.com/mistralai/mistral-vibe',
   },
   {
     id: 'cursor',
     displayName: 'Cursor',
     vendor: 'community',
-    probe: { command: 'cursor', args: ['--version'] },
+    probe: { command: 'cursor-agent', args: ['--version'] },
     // Cursor's ACP entry is the `cursor-agent acp` binary (registry id `cursor`).
     acp: { command: 'cursor-agent', args: ['acp'] },
     supports: {
@@ -255,21 +270,33 @@ export const AGENTS_CATALOG: readonly ACPAgentDescriptor[] = [
       terminal: true,
       fs: true,
     },
-    integration: 'experimental',
+    integration: 'native',
     docs: 'https://cursor.com',
   },
   // ── Moonshot AI (Kimi) ─────────────────────────────────────────────
+  {
+    id: 'kimi-code',
+    displayName: 'Kimi Code',
+    vendor: 'moonshot',
+    probe: { command: 'kimi-code', args: ['--version'] },
+    // Official registry id `kimi-code` (`@moonshot-ai/kimi-code`, v2.7+): supersedes legacy `kimi`.
+    acp: { command: 'npx', args: ['-y', '@moonshot-ai/kimi-code', 'acp'] },
+    supports: {
+      loadSession: true,
+      promptImages: true,
+      terminal: true,
+      fs: true,
+    },
+    integration: 'native',
+    docs: 'https://www.kimi.com/code/docs/en/kimi-code-cli/guides/ides.html',
+  },
   {
     id: 'kimi',
     displayName: 'Kimi Code CLI',
     vendor: 'moonshot',
     probe: { command: 'kimi', args: ['--version'] },
-    // Kimi Code CLI speaks ACP behind `kimi acp`. The user must complete
-    // terminal login (`kimi` → `/login`) before launching `kimi acp`;
-    // otherwise session creation fails with `Authentication required`.
-    // The adapter reuses the CLI's existing auth state — WrongStack does
-    // NOT capture or replay the Kimi OAuth tokens.
-    // Docs: https://www.kimi.com/code/docs/en/kimi-code-cli/reference/kimi-acp.html
+    // Legacy Kimi Code CLI binary (`kimi acp`). Kept alongside `kimi-code`
+    // for users with the local binary already installed and logged in.
     acp: { command: 'kimi', args: ['acp'] },
     supports: {
       loadSession: true,
@@ -279,6 +306,87 @@ export const AGENTS_CATALOG: readonly ACPAgentDescriptor[] = [
     },
     integration: 'native',
     docs: 'https://www.kimi.com/code/docs/en/kimi-code-cli/guides/ides.html',
+  },
+  // ── Additional Official ACP Registry Agents ────────────────────────
+  {
+    id: 'antigravity-acp',
+    displayName: 'Google Antigravity',
+    vendor: 'google',
+    probe: { command: 'agy_acp_server', args: ['--version'] },
+    acp: { command: 'agy_acp_server', args: [] },
+    supports: { loadSession: true, promptImages: true, terminal: true, fs: true },
+    integration: 'native',
+    docs: 'https://antigravity.google',
+  },
+  {
+    id: 'amp-acp',
+    displayName: 'Amp',
+    vendor: 'community',
+    probe: { command: 'amp-acp', args: ['--version'] },
+    acp: { command: 'amp-acp', args: [] },
+    supports: { loadSession: true, promptImages: true, terminal: true, fs: true },
+    integration: 'native',
+    docs: 'https://ampcode.com',
+  },
+  {
+    id: 'auggie',
+    displayName: 'Auggie CLI',
+    vendor: 'community',
+    probe: { command: 'auggie', args: ['--version'] },
+    acp: { command: 'npx', args: ['-y', '@augmentcode/auggie', '--acp'] },
+    supports: { loadSession: true, promptImages: true, terminal: true, fs: true },
+    integration: 'native',
+    docs: 'https://www.augmentcode.com',
+  },
+  {
+    id: 'devin',
+    displayName: 'Devin',
+    vendor: 'community',
+    probe: { command: 'devin', args: ['--version'] },
+    acp: { command: 'devin', args: ['acp'] },
+    supports: { loadSession: true, promptImages: true, terminal: true, fs: true },
+    integration: 'native',
+    docs: 'https://devin.ai',
+  },
+  {
+    id: 'factory-droid',
+    displayName: 'Factory Droid',
+    vendor: 'community',
+    probe: { command: 'droid', args: ['--version'] },
+    acp: { command: 'npx', args: ['-y', 'droid', 'exec', '--output-format', 'acp-daemon'] },
+    supports: { loadSession: true, promptImages: true, terminal: true, fs: true },
+    integration: 'native',
+    docs: 'https://factory.ai',
+  },
+  {
+    id: 'grok-build',
+    displayName: 'Grok Build',
+    vendor: 'community',
+    probe: { command: 'grok', args: ['--version'] },
+    acp: { command: 'npx', args: ['-y', '@xai-official/grok', 'agent', 'stdio'] },
+    supports: { loadSession: true, promptImages: true, terminal: true, fs: true },
+    integration: 'native',
+    docs: 'https://x.ai',
+  },
+  {
+    id: 'junie',
+    displayName: 'Junie',
+    vendor: 'community',
+    probe: { command: 'junie', args: ['--version'] },
+    acp: { command: 'junie', args: ['--acp=true'] },
+    supports: { loadSession: true, promptImages: true, terminal: true, fs: true },
+    integration: 'native',
+    docs: 'https://www.jetbrains.com/junie/',
+  },
+  {
+    id: 'kilo',
+    displayName: 'Kilo',
+    vendor: 'community',
+    probe: { command: 'kilo', args: ['--version'] },
+    acp: { command: 'npx', args: ['-y', '@kilocode/cli', 'acp'] },
+    supports: { loadSession: true, promptImages: true, terminal: true, fs: true },
+    integration: 'native',
+    docs: 'https://kilocode.ai',
   },
 ] as const;
 
