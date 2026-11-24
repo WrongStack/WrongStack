@@ -136,12 +136,19 @@ export function seedScoutLearnedTools(
   projectDir: string,
   options: Omit<LearnedScoutToolsOptions, 'exclude'> = {},
 ): readonly string[] {
-  const learned = readLearnedScoutTools(projectDir, {
+  const learned = learnedScoutToolsForProject(projectDir, options);
+  if (learned.length > 0) meta[SCOUT_LEARNED_TOOLS_META_KEY] = Object.freeze(learned);
+  return learned;
+}
+
+export function learnedScoutToolsForProject(
+  projectDir: string,
+  options: Omit<LearnedScoutToolsOptions, 'exclude'> = {},
+): string[] {
+  return readLearnedScoutTools(projectDir, {
     ...options,
     exclude: SCOUT_DIRECT_TOOL_NAMES,
   });
-  if (learned.length > 0) meta[SCOUT_LEARNED_TOOLS_META_KEY] = Object.freeze(learned);
-  return learned;
 }
 
 function rotateIfLarge(filePath: string): void {

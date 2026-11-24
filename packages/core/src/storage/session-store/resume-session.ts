@@ -213,6 +213,7 @@ export async function executeResumeSession(params: ResumeSessionParams): Promise
         quickToolSchemaVersion: data.metadata.quickToolSchemaVersion,
         quickShellTool: data.metadata.quickShellTool,
         providerToolSchemaVersion: data.metadata.providerToolSchemaVersion,
+        scoutLearnedTools: data.metadata.scoutLearnedTools,
         ...(projectRoot ? { checkout: projectRoot } : {}),
       },
       events,

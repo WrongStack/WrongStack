@@ -48,9 +48,12 @@ function host(plugin: Plugin, config: Record<string, unknown> = {}) {
     },
   };
 }
-const profiles = [
+const operatorDiagnostics = [
   [cache, {}, 'llm_cache_status'],
   [router, { rules: [{ model: 'small' }] }, 'model_router_status'],
+] as const;
+const profiles = [
+  ...operatorDiagnostics,
   [throttle, {}, 'token_throttle_status'],
   [firewall, {}, 'prompt_firewall_status'],
   [escalate, { escalation: ['backup'] }, 'auto_escalate_status'],
@@ -64,6 +67,24 @@ const response = (text: string) => ({
 });
 
 describe('provider plugin host isolation', () => {
+  it.each(operatorDiagnostics)(
+    "reads the live status of %s without using another host's counters",
+    async (plugin, config, name) => {
+      const first = host(plugin, config);
+      const second = host(plugin, config);
+      const firstStatus = first.tools.get(name)?.operatorStatus;
+      const secondStatus = second.tools.get(name)?.operatorStatus;
+      expect(firstStatus?.sinceSchemaVersion).toBe(4);
+      const before = secondStatus?.read();
+      const inner = vi.fn(async () => response('first host'));
+      await first.extension.wrapProviderRunner!({}, request, inner);
+      expect(inner).toHaveBeenCalledOnce();
+      expect(firstStatus?.read()).toEqual(await first.status(name));
+      expect(firstStatus?.read()).not.toEqual(before);
+      expect(secondStatus?.read()).toEqual(before);
+    },
+  );
+
   it('keeps retry positions independent for overlapping agent runs in one host', () => {
     const loaded = host(escalate, { escalation: ['first', 'second'] });
     const first = {};

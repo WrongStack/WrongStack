@@ -82,6 +82,30 @@ afterEach(async () => {
 });
 
 describe('buildToolCommand', () => {
+  it('reads a registered operator diagnostic without invoking a model tool', async () => {
+    const { command, toolRegistry } = makeCommand();
+    const operatorStatus = vi.fn(() => ({ counters: { scans: 2 } }));
+    const execute = vi.fn(async () => 'legacy');
+    toolRegistry.register({
+      ...makeTool(),
+      name: 'scanner_status',
+      operatorStatus: { sinceSchemaVersion: 3, read: operatorStatus },
+      execute,
+    });
+
+    expect((await command.run('status'))?.message).toBe('scanner_status');
+    expect(JSON.parse((await command.run('status scanner_status'))?.message ?? '')).toEqual({
+      counters: { scans: 2 },
+    });
+    expect(execute).not.toHaveBeenCalled();
+    expect(operatorStatus).toHaveBeenCalledTimes(1);
+    expect((await command.run('status read'))?.message).toContain('unavailable');
+    expect((await command.run('status scanner_status extra'))?.message).toContain('Usage');
+    toolRegistry.disable('scanner_status');
+    expect((await command.run('status scanner_status'))?.message).toContain('unavailable');
+    expect(operatorStatus).toHaveBeenCalledTimes(1);
+  });
+
   it('sets Kanban for the active Quick context without writing global config', async () => {
     const { command, globalConfig } = makeCommand();
     const active = { meta: { systemPromptVariant: 'quick' } } as unknown as Context;
@@ -92,6 +116,33 @@ describe('buildToolCommand', () => {
     expect((await command.run('group kanban', other))?.message).toContain('disabled');
     expect((await command.run('group kanban off', active))?.message).toContain('disabled');
     await expect(fs.stat(globalConfig)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('offers Browser for version 5 and workspace groups for version 6 in Pro', async () => {
+    const { command } = makeCommand();
+    const context = {
+      meta: { systemPromptVariant: 'pro' },
+      session: { providerToolSchemaVersion: 5 },
+    } as unknown as Context;
+    expect((await command.run('group', context))?.message).toBe('browser: auto · disabled');
+    expect((await command.run('group browser on', context))?.message).toContain(
+      'available on demand',
+    );
+    expect((await command.run('group kanban on', context))?.message).toContain(
+      'groups available in this session',
+    );
+    const newest = { ...context, session: { providerToolSchemaVersion: 6 } } as unknown as Context;
+    const groups = (await command.run('group', newest))?.message;
+    expect(groups).toContain('kanban: auto · disabled');
+    expect(groups).toContain('codebase: auto · disabled');
+    for (const group of ['kanban', 'codebase']) {
+      expect((await command.run(`group ${group} on`, newest))?.message).toContain(
+        'available on demand',
+      );
+      expect((await command.run(`group ${group} off`, newest))?.message).toContain(
+        'off (session) · disabled',
+      );
+    }
   });
 
   it('saves a group default for future Quick sessions and supports returning to Auto', async () => {

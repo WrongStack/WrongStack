@@ -1,12 +1,17 @@
 import { Container, EventBus } from '@wrongstack/contracts/kernel';
 import type { MemoryStore, Tool } from '@wrongstack/contracts/types';
-import { isToolReachable, providerToolSurfaceForVariant } from '@wrongstack/core/agent';
+import {
+  isBrowserGroupTool,
+  isToolReachable,
+  providerToolSurfaceForVariant,
+  sessionToolCatalog,
+} from '@wrongstack/core/agent';
 import { DefaultLogger } from '@wrongstack/core/infrastructure';
 import { DefaultPluginAPI } from '@wrongstack/core/plugin';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { measureToolSchemas } from '@wrongstack/core/utils';
 import { LegacyMemoryPortAdapter } from '@wrongstack/sage';
-import { builtinToolsPack } from '@wrongstack/tools';
+import { BROWSER_TOOL_NAMES, builtinToolsPack } from '@wrongstack/tools';
 import { toolSearchTool } from '@wrongstack/tools/tool-search';
 import { BUILTIN_TIER_COUNTS } from '@wrongstack/tools/tool-tier';
 import { describe, expect, it } from 'vitest';
@@ -51,6 +56,29 @@ function legacyMemoryStore(): MemoryStore {
 }
 
 describe('canonical host tool registration', () => {
+  it.each([false, true])(
+    'with Browser enabled=%s, defers the entire group for new journals',
+    (enabled) => {
+      const registry = new ToolRegistry();
+      registerCanonicalHostTools({ registry, tier: 'off', browser: { enabled } });
+      expect(registry.browserToolsEnabled).toBe(enabled);
+      const full = registry.list();
+      const browser = full.filter(isBrowserGroupTool);
+      expect(browser.map((entry) => entry.name).sort()).toEqual(
+        [...BROWSER_TOOL_NAMES, 'e2e_plan'].sort(),
+      );
+      const latest = { providerToolSchemaVersion: 5 };
+      const select = (session: typeof latest) =>
+        providerToolSurfaceForVariant(registry, 'pro', {}, undefined, session).tools;
+      const v4 = select({ providerToolSchemaVersion: 4 });
+      const v5 = select(latest);
+      expect(v4.filter(isBrowserGroupTool)).toHaveLength(enabled ? 17 : 1);
+      expect(v5).toEqual(v4.filter((entry) => !isBrowserGroupTool(entry)));
+      expect(v5).toContainEqual(registry.get('tool_use'));
+      expect(sessionToolCatalog({ session: latest }, full)).not.toContainEqual(browser[0]);
+    },
+  );
+
   it('defers Kanban for new medium journals and preserves the legacy and explicit surfaces', () => {
     const registry = new ToolRegistry();
     registerCanonicalHostTools({ registry, tier: 'medium' });

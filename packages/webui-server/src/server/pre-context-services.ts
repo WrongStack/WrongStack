@@ -351,6 +351,7 @@ export async function createPreContextServices(
       memory: { enabled: config.features.memory, store: memoryStore },
       vectorMemory: vectorMemoryStore ? { store: vectorMemoryStore } : undefined,
       nextSteps: { enabled: config.tools?.nextsteps?.enabled === true },
+      kanbanGovernance: config.tools?.kanbanGovernance,
       skillLoader,
       coordinationTools: [
         makeMailboxTool({ projectDir: wpaths.projectDir, events }),

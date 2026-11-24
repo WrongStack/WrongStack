@@ -239,6 +239,113 @@ New journals using medium defer the Kanban declaration when `tool_search` and `t
 
 The built-in medium projection fell from 57 schemas, 86,396 bytes and 24,023 estimated tokens to 56 schemas, 63,297 bytes and 17,435 estimated tokens. These figures measure shared schema serialization. The local Responses fixture compares the final tool declarations, instructions and cache routing key across requests and resume. [Budget](../architecture/tool-schema-budget.json), [wire regression](../packages/cli/tests/codex-prompt-prefix-stability.test.ts)
 
+### Compact Scout sessions
+
+Provider schema version 2 keeps structured `exec` direct and uses the journal's
+preferred shell when both discovery tools are available. `read_url_content` is
+deferred when `fetch` is direct. The canonical URL reader remains discoverable
+and keeps its own execution contract. Scout offers the compact `clarify` form
+directly and attaches the full form for an exact lookup. Without a discovery
+gateway, new journals limit direct exposure to the starting set and permitted
+promotions. Explicit launch allowlists and older journals retain their existing
+behavior.
+
+| Built-in Scout projection | Direct schemas | Shared wire bytes | Estimated schema tokens |
+| --- | ---: | ---: | ---: |
+| Legacy | 13 | 16,275 | 4,502 |
+| Version 2, Bash | 11 | 9,976 | 2,724 |
+| Version 2, PowerShell | 11 | 10,018 | 2,736 |
+
+Project promotions are sampled when the session starts. Reopening, forking or
+clearing the journal restores that same roster. The local Responses regression
+compares the declarations, rendered instructions and routing key across resume.
+CI checks the three built-in Scout budgets and fingerprints. Host additions and
+project promotions sit outside these budget measurements. [Budget](../architecture/tool-schema-budget.json), [wire regression](../packages/cli/tests/codex-prompt-prefix-stability.test.ts)
+
+### ToolFlow package
+
+`@wrongstack/toolflow` owns QuickJS, the script runner, its tests, and the
+browser-safe presentation entry. `@wrongstack/tools` keeps compatibility
+imports and the canonical `tool_script` registration. The catalog check
+verifies that the registration uses the package's schema and executor. Quick
+continues to enable ToolFlow through its session group and load the schema on
+demand. The standalone WrongStack build includes the package and initializes
+QuickJS on first use. A compiled Windows fixture exercised the package's real
+interpreter through a synthetic host tool gate. A separate check against the
+built registry toggled ToolFlow in Quick and verified that discovery and
+execution follow the setting while the direct roster stays stable. [Package manifest](../packages/toolflow/package.json), [ToolFlow guide](../docs/toolflow.md#package-boundary)
+
+### Retiring model-facing status schemas
+
+New journals record provider schema version 3. The three passive diagnostics
+`dep_guard_status`, `injection_shield_status`, and `secret_scanner_status` become
+operator-only when their plugins are loaded. The host projects them out of the
+provider declaration list, catalog discovery, and direct and nested execution.
+`/tool status [name]` reads the live diagnostic and WebUI Tools shows its
+operator designation. Earlier journals retain their existing declarations.
+Safety hooks and active plugin operations retain their registrations.
+
+With all three plugins loaded in a local fixture, version 3 removed 590 bytes
+and 135 estimated tokens from the shared provider declaration list. The
+fixture retained all four hook registrations and the explicit scanner test.
+
+The maintained hosts already had no model registration for `mode`. The SDK
+factory is deprecated, and users can change modes through `/mode`. [Operator command](../docs/slash/tool.md), [mode command](../docs/slash/mode.md)
+
+### Provider observability diagnostics
+
+Provider schema version 4 moves `llm_cache_status`, `model_router_status`, and
+`plugin_stack_status` to the operator. `/tool status [name]` reads the same
+live snapshots surfaced by the compatibility tools. Version 3 journals
+continue to offer these three declarations. The cache-clear action, token
+budget query, provider wrappers, and optional stack prompt contributor keep
+their existing behavior. [Operator status guide](../docs/tool-governance.md#operator-diagnostics)
+
+In the compiled fixture with all six migrated plugins loaded, version 4
+removed three declarations from the version 3 list. The shared projection
+fell from 1,054 to 484 bytes and from 245 to 116 estimated tokens. The
+cache and router wrappers and the explicitly enabled stack contributor
+remained active in that fixture.
+
+### Browser and E2E in new sessions
+
+Provider schema version 5 routes all 16 Browser tools and `e2e_plan` through
+the existing Browser and E2E group in Default, Lite, Pro and Scout. Canonical
+host registration keeps the Browser package available to operator controls.
+Off removes the group from agent discovery and denies direct, alias and
+nested calls. On provides concise discovery results and one request-scoped
+schema after an exact lookup. The group setting preserves direct tool
+declarations and stable skill listings across both states. A version 4
+journal keeps its declared surface. Explicit non-Quick launch allowlists
+retain their direct selection. In the full built-in fixture with Browser
+previously exposed, the direct surface drops from 82 to 65 declarations,
+saving 8,902 serialized bytes and 2,354 estimated tokens per request.
+Local Anthropic, OpenAI, Codex, and Gemini request fixtures preserve the
+direct declarations, stable system blocks, and routing key while the group
+is toggled. The fixtures measure request composition and schema size.
+[Schema budget](../architecture/tool-schema-budget.json),
+[Tool group controls](../docs/slash/tool.md),
+[wire fixtures](../packages/core/tests/core/nested-tool-call.test.ts)
+
+### Kanban and Codebase in new sessions
+
+Provider schema version 6 extends the Quick group settings for Kanban and
+Codebase to Default, Lite, Pro and Scout. Auto enables a linked board or an
+existing project index. The group controls cover the CLI and WebUI and accept
+session overrides and project defaults. The canonical Kanban tool remains
+required under governance and can be called directly when the gateway is
+unavailable. Codebase LSP tools keep their separate Language servers group.
+Earlier journals keep their recorded projection.
+
+The full built-in projection drops from 65 direct declarations in version 5
+to 47 in version 6, saving 37,785 serialized bytes and 10,584 estimated tokens
+per request. The version 6 medium tier has 42 declarations. Versioned budgets
+cover both tiers. Local provider wire fixtures compare the serialized tool
+array, stable prompt, routing key and per-request schema attachment across
+group changes. [Schema budget](../architecture/tool-schema-budget.json),
+[tool group controls](../docs/slash/tool.md),
+[wire fixtures](../packages/core/tests/core/nested-tool-call.test.ts)
+
 ## Appendix A. Official plugin tools
 
 The source inventory contains 119 distinct declared names across 90 owners in `packages/plugins/src`. It covers direct registrations and the evidence-analyzer and workflow factories. Each row uses the existing plugin as the opt-in unit, except for already-default hooks whose diagnostic tools should become host-only. “Deferred” describes the proposed agent surface when that plugin group is enabled. Disable a plugin group to suppress all of its agent tools. [Plugin manifest](../packages/plugins/src/manifest/index.ts), [evidence analyzer](../packages/plugins/src/evidence-analyzer/index.ts), [workflow factory](../packages/plugins/src/workflow-runtime/index.ts)

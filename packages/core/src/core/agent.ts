@@ -15,6 +15,7 @@ import type { Tool } from '@wrongstack/contracts/types/tool';
 import type { ToolExecutorLike } from '@wrongstack/contracts/types/tool-executor';
 import { ExtensionRegistry } from '../extension/registry.js';
 import type { ProviderRegistry } from '../registry/provider-registry.js';
+import { bindSessionToolRegistry } from '../registry/session-tool-groups.js';
 import type { ToolRegistry } from '../registry/tool-registry.js';
 import { type AgentLoopHandler, createAgentLoopHandler, signalAbortReason } from './agent-loop.js';
 import { type AgentResponseHandler, createAgentResponseHandler } from './agent-response.js';
@@ -113,6 +114,7 @@ export class Agent {
     this.events = init.events;
     this.pipelines = init.pipelines;
     this.ctx = init.context;
+    bindSessionToolRegistry(this.ctx, this.tools);
     this.maxIterations = init.maxIterations ?? DEFAULT_MAX_ITERATIONS;
     this.executionStrategy = init.executionStrategy ?? 'smart';
     this.perIterationOutputCapBytes = init.perIterationOutputCapBytes ?? 100_000;

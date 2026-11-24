@@ -17,6 +17,7 @@ import {
   scoutToolUseLogPath,
   seedScoutLearnedTools,
 } from '../../src/storage/scout-tool-learning.js';
+import { DefaultSessionStore } from '../../src/storage/session-store.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.UTC(2026, 9, 4);
@@ -105,6 +106,30 @@ describe('learned tools on the Scout surface', () => {
     return r;
   };
   const names = (tools: readonly Tool[]) => tools.map((t) => t.name);
+
+  it('carries the sampled promotions through resume, fork and both clear paths', async () => {
+    const store = new DefaultSessionStore({ dir: path.join(dir, 'sessions'), projectRoot: dir });
+    const now = Date.now();
+    use('git', 3, now);
+    const first = await store.create({ id: '' });
+    expect(first.providerToolSchemaVersion).toBe(6);
+    expect(first.scoutLearnedTools).toEqual(['git']);
+    await first.close();
+
+    use('lint', 5, now);
+    const second = await store.create({ id: '' });
+    expect(second.scoutLearnedTools).toEqual(['lint', 'git']);
+    await second.close();
+
+    const resumed = await store.resume(first.id);
+    expect(resumed.writer.scoutLearnedTools).toEqual(['git']);
+    await resumed.writer.clearSession();
+    await resumed.writer.close();
+    const fork = await store.fork(first.id);
+    expect(fork.data.metadata.scoutLearnedTools).toEqual(['git']);
+    await store.clearHistory(first.id);
+    expect((await store.load(first.id)).metadata.scoutLearnedTools).toEqual(['git']);
+  });
 
   it('seeds the session meta once, never with tools Scout already sends', () => {
     use('read', 5);

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "scope": "Built-in schemas using the shared provider-wire projection; Quick also fingerprints direct usage hints. Excludes provider-specific wrappers and host additions.",
+  "scope": "Built-in schemas using the shared provider-wire projection; Quick and Scout also fingerprint direct usage hints. Excludes provider-specific wrappers and host additions.",
   "estimator": "runtime heuristic, not billed tokens",
   "profiles": {
     "off": {
@@ -33,10 +33,30 @@
       "wireBytes": 5304,
       "estimatedTokens": 1448
     },
+    "offV4": {
+      "count": 82,
+      "wireBytes": 103137,
+      "estimatedTokens": 28527
+    },
+    "offV5": {
+      "count": 65,
+      "wireBytes": 94235,
+      "estimatedTokens": 26173
+    },
+    "offV6": {
+      "count": 47,
+      "wireBytes": 56450,
+      "estimatedTokens": 15589
+    },
     "mediumV1": {
       "count": 56,
       "wireBytes": 63297,
       "estimatedTokens": 17435
+    },
+    "mediumV6": {
+      "count": 42,
+      "wireBytes": 50919,
+      "estimatedTokens": 14064
     },
     "quickLegacy": {
       "count": 11,
@@ -57,6 +77,21 @@
       "count": 10,
       "wireBytes": 8826,
       "estimatedTokens": 2409
+    },
+    "scoutLegacy": {
+      "count": 13,
+      "wireBytes": 16275,
+      "estimatedTokens": 4502
+    },
+    "scoutBash": {
+      "count": 11,
+      "wireBytes": 9976,
+      "estimatedTokens": 2724
+    },
+    "scoutPwsh": {
+      "count": 11,
+      "wireBytes": 10018,
+      "estimatedTokens": 2736
     }
   },
   "quickFingerprints": {
@@ -75,6 +110,20 @@
     "quickPwsh": {
       "declarations": "4359214b46e8f38af6dbd5414763f86d576650b9f798a756e9df131228674a88",
       "usageHints": "8cb5ab509f86dff77c57d6bdb1488e26d427d8508de75cad41e3b97c430b899b"
+    }
+  },
+  "scoutFingerprints": {
+    "scoutLegacy": {
+      "declarations": "e16899fab9da862d16e132c71b26b93386c6b64444683479bf3fd5e8bb09d3b7",
+      "usageHints": "0841884efbc502a230990eed4d8747056198b48bea4f58a4a5a12ae68408fd02"
+    },
+    "scoutBash": {
+      "declarations": "87fcda185379efc5214e1d5f156bc1d37a2d8ddb31eac769f351dfcce31d061c",
+      "usageHints": "11ef411eac973c723d779158c49113be49bb2bacaf6916c844fb313ea952f478"
+    },
+    "scoutPwsh": {
+      "declarations": "9bc9781c52a25391ffbee8ff4baf33b90daffd62a8d65f7d8c1c44e71fe40478",
+      "usageHints": "a10be953cb32758ba29423142fcef1803423695372359bdd991d8f85a3baa959"
     }
   }
 }

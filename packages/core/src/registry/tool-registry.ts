@@ -53,6 +53,8 @@ export class ToolRegistry extends ToolRegistryStorage {
    */
   private _providerToolNames: Set<string> | undefined;
   private _providerToolTier: ConcreteTokenSavingTier | undefined;
+  private _browserToolsEnabled = false;
+  private _kanbanGovernanceRequired = false;
   /**
    * Names kept off the provider surface while the catalog is otherwise exposed
    * whole. A name predicate, so a tool registered later (an MCP server that
@@ -550,7 +552,27 @@ export class ToolRegistry extends ToolRegistryStorage {
 
   get providerToolTier(): ConcreteTokenSavingTier | undefined {
     // A launch allowlist takes precedence over tier-specific session changes.
-    return this._restriction?.only ? undefined : this._providerToolTier;
+    return this.hasToolAllowlist ? undefined : this._providerToolTier;
+  }
+
+  get hasToolAllowlist(): boolean {
+    return this._restriction?.only !== undefined;
+  }
+
+  setBrowserToolsEnabled(enabled: boolean): void {
+    this._browserToolsEnabled = enabled;
+  }
+
+  get browserToolsEnabled(): boolean {
+    return this._browserToolsEnabled;
+  }
+
+  setKanbanGovernanceRequired(required: boolean): void {
+    this._kanbanGovernanceRequired = required;
+  }
+
+  get kanbanGovernanceRequired(): boolean {
+    return this._kanbanGovernanceRequired;
   }
 
   /**
@@ -667,6 +689,8 @@ export class ToolRegistry extends ToolRegistryStorage {
     this._disabled.clear();
     this._providerToolNames = undefined;
     this._providerToolTier = undefined;
+    this._browserToolsEnabled = false;
+    this._kanbanGovernanceRequired = false;
     this._providerExcluded = undefined;
     this._version++;
   }
@@ -695,6 +719,8 @@ export class ToolRegistry extends ToolRegistryStorage {
       ? new Set(this._providerToolNames)
       : undefined;
     copy._providerToolTier = this._providerToolTier;
+    copy._browserToolsEnabled = this._browserToolsEnabled;
+    copy._kanbanGovernanceRequired = this._kanbanGovernanceRequired;
     copy._providerExcluded = this._providerExcluded ? new Set(this._providerExcluded) : undefined;
     // Subagent registries are clones: a launch restriction must reach them too.
     copy._restriction = this._restriction;

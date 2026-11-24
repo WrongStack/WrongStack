@@ -29,6 +29,7 @@ function modeFamily(mode: { id?: string | undefined; tags?: string[] | undefined
   return 'custom';
 }
 
+/** @deprecated Use the host's mode controls, such as the `/mode` command. */
 export function createModeTool(modeStore: ModeStore): Tool<ModeInput, ModeOutput> {
   return {
     name: 'mode',

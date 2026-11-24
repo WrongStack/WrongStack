@@ -479,6 +479,24 @@ const plugin: Plugin = {
     state.postHookUnregister = api.registerHook('PostToolUse', cfg.postToolUseMatcher, postHook);
 
     // --- secret_scanner_status tool ---
+    const operatorStatus = () => ({
+      ok: true,
+      enabled: cfg.enabled,
+      mode: cfg.mode,
+      matcher: cfg.matcher,
+      postToolUseMatcher: cfg.postToolUseMatcher,
+      patternCount: scannerPatterns.patterns.length,
+      patternTypes: scannerPatterns.patterns.map((p) => p.type),
+      counters: {
+        block: state.blockCount,
+        redact: state.redactCount,
+        allow: state.allowCount,
+        leak: state.leakCount,
+        timeoutCount: state.timeoutCount,
+      },
+      lastBlock: state.lastBlock,
+      lastLeak: state.lastLeak,
+    });
     api.tools.register({
       name: 'secret_scanner_status',
       description:
@@ -486,26 +504,10 @@ const plugin: Plugin = {
       inputSchema: { type: 'object', properties: {} },
       permission: 'auto',
       mutating: false,
+      operatorStatus: { sinceSchemaVersion: 3, read: operatorStatus },
       async execute() {
         activateRuntime(runtime);
-        return {
-          ok: true,
-          enabled: cfg.enabled,
-          mode: cfg.mode,
-          matcher: cfg.matcher,
-          postToolUseMatcher: cfg.postToolUseMatcher,
-          patternCount: scannerPatterns.patterns.length,
-          patternTypes: scannerPatterns.patterns.map((p) => p.type),
-          counters: {
-            block: state.blockCount,
-            redact: state.redactCount,
-            allow: state.allowCount,
-            leak: state.leakCount,
-            timeoutCount: state.timeoutCount,
-          },
-          lastBlock: state.lastBlock,
-          lastLeak: state.lastLeak,
-        };
+        return operatorStatus();
       },
     });
 

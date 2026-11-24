@@ -139,7 +139,9 @@ between two refs.
 
 ### 8. `secret-scanner` — credential blocker + output leak detector
 
-**Tools**: `secret_scanner_status`, `secret_scanner_test`
+**Tool**: `secret_scanner_test`
+
+**Operator diagnostic**: `/tool status secret_scanner_status`
 **Hooks**:
 - `PreToolUse` with matcher `bash|pwsh|exec|write|edit|replace|patch` (configurable via `matcher`)
 - `PostToolUse` with matcher `*` (configurable via `postToolUseMatcher`)
@@ -760,7 +762,7 @@ inspection.
 
 ### 27 — `dep-guard`
 
-**Tools**: `dep_guard_status`
+**Operator diagnostic**: `/tool status dep_guard_status`
 **Hooks**: `PreToolUse`
 
 Supervises dependency installs before they run. It can block deny-listed
@@ -834,7 +836,7 @@ changelog_add({ section: "Fixed", text: "Prevent template path traversal." })
 
 ### 31 — `injection-shield`
 
-**Tools**: `injection_shield_status`
+**Operator diagnostic**: `/tool status injection_shield_status`
 **Hooks**: `PostToolUse`
 
 Scans tool output for prompt-injection patterns such as attempts to override
@@ -851,7 +853,9 @@ commands. It warns via additional context; it does not modify tool output.
 
 ### 32 — `llm-cache`
 
-**Tools**: `llm_cache_status`, `llm_cache_clear`
+**Tool**: `llm_cache_clear`
+
+**Operator diagnostic**: `/tool status llm_cache_status`
 **Hooks**: provider runner wrapper (opt-in)
 
 Caches identical deterministic provider requests and short-circuits the
@@ -869,7 +873,7 @@ cached.
 
 ### 33 — `model-router`
 
-**Tools**: `model_router_status`
+**Operator diagnostic**: `/tool status model_router_status`
 **Hooks**: provider runner wrapper (opt-in)
 
 Routes provider calls to alternate models based on declarative rules such as

@@ -4,8 +4,8 @@
  */
 import type { NestedToolCaller, NestedToolCallResult, Tool } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
+import { toolFlowMetrics } from '../src/presentation.js';
 import { toolScriptTool } from '../src/tool-script.js';
-import { toolFlowMetrics } from '../src/toolflow-presentation.js';
 
 type Call = Parameters<NestedToolCaller>[0];
 

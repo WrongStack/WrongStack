@@ -414,6 +414,19 @@ const plugin: Plugin = {
     state.hookUnregister = api.registerHook('PostToolUse', cfg.tools, hook as never);
 
     // ── injection_shield_status tool ──────────────────────────────────
+    const operatorStatus = () => ({
+      ok: true,
+      enabled: cfg.enabled,
+      tools: cfg.tools,
+      minMatches: cfg.minMatches,
+      patterns: PATTERNS.map((p) => p.name),
+      counters: {
+        invocations: state.invocations,
+        scans: state.scans,
+        detections: state.detections,
+      },
+      lastDetection: state.lastDetection,
+    });
     api.tools.register({
       name: 'injection_shield_status',
       description:
@@ -422,20 +435,9 @@ const plugin: Plugin = {
       permission: 'auto',
       category: 'Diagnostics',
       mutating: false,
+      operatorStatus: { sinceSchemaVersion: 3, read: operatorStatus },
       async execute() {
-        return {
-          ok: true,
-          enabled: cfg.enabled,
-          tools: cfg.tools,
-          minMatches: cfg.minMatches,
-          patterns: PATTERNS.map((p) => p.name),
-          counters: {
-            invocations: state.invocations,
-            scans: state.scans,
-            detections: state.detections,
-          },
-          lastDetection: state.lastDetection,
-        };
+        return operatorStatus();
       },
     });
 

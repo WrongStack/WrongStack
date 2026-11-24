@@ -17,6 +17,7 @@ import type {
   SessionWriter,
   WorkspaceCheckpointRef,
 } from '@wrongstack/contracts/types/session';
+import { learnedScoutToolsForProject } from './scout-tool-learning.js';
 import {
   type CheckpointGcResult,
   collectReachableManifestHashes,
@@ -120,7 +121,12 @@ export class DefaultSessionStore extends SessionStoreCore implements SessionStor
 
   async create(meta: Omit<SessionMetadata, 'startedAt'>): Promise<SessionWriter> {
     const checkout = meta.checkout ?? this.projectRoot;
-    return executeCreateSession(this.asCreateHost(), checkout ? { ...meta, checkout } : meta);
+    const scoutLearnedTools =
+      meta.scoutLearnedTools ??
+      (meta.providerToolSchemaVersion === undefined && this.projectRoot
+        ? learnedScoutToolsForProject(path.dirname(this.dir))
+        : undefined);
+    return executeCreateSession(this.asCreateHost(), { ...meta, checkout, scoutLearnedTools });
   }
 
   async fork(id: string, opts: SessionForkOptions = {}): Promise<ForkedSession> {

@@ -16,9 +16,15 @@
 
 import type { Provider } from '@wrongstack/contracts/types/provider';
 import type { SessionMetadata } from '@wrongstack/contracts/types/session';
-import type { Tool } from '@wrongstack/contracts/types/tool';
+import { isOperatorOnlyTool, type Tool } from '@wrongstack/contracts/types/tool';
 import { ToolCapabilities } from '../security/capabilities.js';
 import { estimateToolDefTokens } from '../utils/token-estimate.js';
+import { withoutOperatorToolStatus } from './operator-tool-status.js';
+import {
+  BROWSER_GROUP_SCHEMA_VERSION,
+  WORKSPACE_GROUP_SCHEMA_VERSION,
+  withoutDeferredSessionGroupTools,
+} from './session-tool-groups.js';
 import type { ToolRegistry } from './tool-registry.js';
 
 /**
@@ -113,9 +119,10 @@ const QUICK_REQUIRED_SKILLS_DIRECT_TOOL_NAMES: ReadonlySet<string> = new Set([
 
 const SCOUT_DELEGATION_NAMES: ReadonlySet<string> = new Set(SCOUT_DELEGATION_TOOL_NAMES);
 const soloFallbacks = new WeakMap<Tool[], Tool[]>();
-const projectedQuickTools = new WeakMap<Tool[], Tool[]>();
+const compactToolSurfaces = new WeakMap<Tool[], Tool[]>();
 const deferredKanbanSurfaces = new WeakMap<Tool[], Tool[]>();
-const quickShellSurfaces = {
+const scoutWebSurfaces = new WeakMap<Tool[], Tool[]>();
+const compactShellSurfaces = {
   bash: new WeakMap<Tool[], Tool[]>(),
   pwsh: new WeakMap<Tool[], Tool[]>(),
 };
@@ -127,7 +134,7 @@ function hasLazyToolGateways(tools: readonly Tool[]): boolean {
   );
 }
 
-function quickShellTool(
+function preferredDirectShell(
   tools: readonly Tool[],
   pinned: SessionMetadata['quickShellTool'],
 ): SessionMetadata['quickShellTool'] {
@@ -141,8 +148,8 @@ function quickShellTool(
   return undefined;
 }
 
-function quickToolProjection(tools: Tool[], shell: SessionMetadata['quickShellTool']): Tool[] {
-  const cache = shell ? quickShellSurfaces[shell] : projectedQuickTools;
+function compactToolProjection(tools: Tool[], shell: SessionMetadata['quickShellTool']): Tool[] {
+  const cache = shell ? compactShellSurfaces[shell] : compactToolSurfaces;
   const cached = cache.get(tools);
   if (cached) return cached;
   const alternateShell = shell === 'pwsh' ? 'bash' : 'pwsh';
@@ -193,9 +200,10 @@ function scoutTools(
   registry: Pick<ToolRegistry, 'list' | 'listWithin'>,
   subagentsAllowed: boolean,
   learned?: unknown,
+  keepBounded = false,
 ): Tool[] {
   const selected = registry.listWithin(scoutNames(subagentsAllowed, learned));
-  if (hasLazyToolGateways(selected)) {
+  if (keepBounded || hasLazyToolGateways(selected)) {
     // A learned tool can be spawn-capable; a solo session is never offered one.
     return subagentsAllowed ? selected : withoutSpawnTools(selected);
   }
@@ -203,6 +211,16 @@ function scoutTools(
   // Keep the explicit disable/restriction, but expose the remaining catalog.
   const catalog = registry.list();
   return subagentsAllowed ? catalog : withoutSpawnTools(catalog);
+}
+
+function scoutWebProjection(tools: Tool[]): Tool[] {
+  const cached = scoutWebSurfaces.get(tools);
+  if (cached) return cached;
+  const direct = tools.some((tool) => tool.name === 'fetch')
+    ? tools.filter((tool) => tool.name !== 'read_url_content')
+    : tools;
+  scoutWebSurfaces.set(tools, direct);
+  return direct;
 }
 
 /** Drop delegation and spawn-capable tools, memoised per input array. */
@@ -246,41 +264,116 @@ export function providerToolsForVariant(
   return provider?.selectToolsForRequest?.(tools) ?? tools;
 }
 
+const governedBoardName = new Set(['kanban']);
+const governedBoardSurfaces = new WeakMap<Tool[], WeakMap<Tool, Tool[]>>();
+
+function withGovernedBoard(tools: Tool[], board: Tool): Tool[] {
+  let surfaces = governedBoardSurfaces.get(tools);
+  if (!surfaces) {
+    surfaces = new WeakMap();
+    governedBoardSurfaces.set(tools, surfaces);
+  }
+  const existing = surfaces.get(board);
+  if (existing) return existing;
+  const available = [...tools, board];
+  surfaces.set(board, available);
+  return available;
+}
+
 /** The direct request surface and its shell guidance for a specific journal. */
 export function providerToolSurfaceForVariant(
   registry: Parameters<typeof providerToolsForVariant>[0] &
-    Partial<Pick<ToolRegistry, 'providerToolTier'>>,
+    Partial<
+      Pick<ToolRegistry, 'providerToolTier' | 'hasToolAllowlist' | 'kanbanGovernanceRequired'>
+    >,
   variant: unknown,
   meta: Parameters<typeof providerToolsForVariant>[2],
   provider: Parameters<typeof providerToolsForVariant>[3],
   session?: Pick<
     SessionMetadata,
-    'quickToolSchemaVersion' | 'quickShellTool' | 'providerToolSchemaVersion'
+    'quickToolSchemaVersion' | 'quickShellTool' | 'providerToolSchemaVersion' | 'scoutLearnedTools'
   >,
+  kanbanRequired = registry.kanbanGovernanceRequired === true,
 ): {
   tools: Tool[];
   quickShellTool?: SessionMetadata['quickShellTool'];
   kanbanDeferred?: true | undefined;
+  browserDeferred?: true | undefined;
+  workspaceToolsDeferred?: true | undefined;
 } {
-  const direct = providerToolsForVariant(registry, variant, meta, provider);
+  const providerVersion = session?.providerToolSchemaVersion ?? 0;
+  const deferBrowser =
+    providerVersion >= BROWSER_GROUP_SCHEMA_VERSION && !registry.hasToolAllowlist;
+  const deferWorkspace = deferBrowser && providerVersion >= WORKSPACE_GROUP_SCHEMA_VERSION;
+  const guidance = {
+    ...(deferBrowser ? { browserDeferred: true as const } : {}),
+    ...(deferWorkspace ? { workspaceToolsDeferred: true as const } : {}),
+  };
+  const select = (tools: Tool[]): Tool[] => {
+    const available = withoutOperatorToolStatus(tools, providerVersion);
+    const direct = deferBrowser
+      ? withoutDeferredSessionGroupTools(available, deferWorkspace)
+      : available;
+    const selected = provider?.selectToolsForRequest?.(direct) ?? direct;
+    if (!deferWorkspace || !kanbanRequired || selected.some((tool) => tool.name === 'tool_use')) {
+      return selected;
+    }
+    const board = registry.listWithin(governedBoardName)[0];
+    if (
+      !board ||
+      board.exposure === 'internal' ||
+      board.mcpServerName !== undefined ||
+      isOperatorOnlyTool(board, providerVersion)
+    )
+      return selected;
+    const withBoard = withGovernedBoard(direct, board);
+    const fallback = provider?.selectToolsForRequest?.(withBoard) ?? withBoard;
+    if (
+      fallback.some((tool) => tool.name === board.name) ||
+      !provider?.selectToolsForRequest?.([board]).some((tool) => tool.name === board.name)
+    ) {
+      return fallback;
+    }
+    // The provider accepts Kanban on its own. Reserve one slot for it when
+    // the provider's cap would otherwise leave a governed session without it.
+    return [...fallback.slice(0, -1), board];
+  };
+  if (variant === 'scout' && providerVersion >= 2) {
+    const selected = scoutTools(
+      registry,
+      generalSubagentsAllowed(meta),
+      session?.scoutLearnedTools,
+      !registry.hasToolAllowlist,
+    );
+    const tools = select(selected);
+    if (registry.hasToolAllowlist || !hasLazyToolGateways(tools)) return { ...guidance, tools };
+    const shell = preferredDirectShell(tools, session?.quickShellTool);
+    return {
+      ...guidance,
+      tools: compactToolProjection(scoutWebProjection(tools), shell),
+      quickShellTool: shell,
+    };
+  }
+  const direct = select(providerToolsForVariant(registry, variant, meta));
   if (
     variant !== 'quick' &&
     variant !== 'scout' &&
+    !deferWorkspace &&
     registry.providerToolTier === 'medium' &&
-    session?.providerToolSchemaVersion === 1 &&
+    providerVersion >= 1 &&
     hasLazyToolGateways(direct)
   ) {
     const cached = deferredKanbanSurfaces.get(direct);
-    if (cached) return { tools: cached, kanbanDeferred: true };
+    if (cached) return { ...guidance, tools: cached, kanbanDeferred: true };
     const tools = direct.filter((tool) => tool.name !== 'kanban');
-    if (tools.length === direct.length) return { tools: direct };
+    if (tools.length === direct.length) return { ...guidance, tools: direct };
     deferredKanbanSurfaces.set(direct, tools);
-    return { tools, kanbanDeferred: true };
+    return { ...guidance, tools, kanbanDeferred: true };
   }
   const version = variant === 'quick' ? session?.quickToolSchemaVersion : undefined;
-  if (version !== 1 && version !== 2) return { tools: direct };
-  const shell = version === 2 ? quickShellTool(direct, session?.quickShellTool) : undefined;
-  return { tools: quickToolProjection(direct, shell), quickShellTool: shell };
+  if (version !== 1 && version !== 2) return { ...guidance, tools: direct };
+  const shell = version === 2 ? preferredDirectShell(direct, session?.quickShellTool) : undefined;
+  return { ...guidance, tools: compactToolProjection(direct, shell), quickShellTool: shell };
 }
 
 function hasRequiredSkills(meta: Readonly<Record<string, unknown>> | undefined): boolean {

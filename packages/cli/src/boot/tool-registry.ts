@@ -43,6 +43,7 @@ interface RegisterBuiltinToolsDeps {
           disabledToolMeta?: Record<string, DisabledToolMeta> | undefined;
           autoThin?: AutoThinConfig | undefined;
           nextsteps?: { enabled?: boolean | undefined } | undefined;
+          kanbanGovernance?: boolean | undefined;
           exec?:
             | {
                 allow?: string[] | undefined;
@@ -98,6 +99,7 @@ export function registerBuiltinTools(deps: RegisterBuiltinToolsDeps): void {
     memory: { enabled: deps.config.features.memory, store: deps.memoryStore },
     vectorMemory: deps.vectorMemoryStore ? { store: deps.vectorMemoryStore } : undefined,
     nextSteps: { enabled: deps.config.tools?.nextsteps?.enabled === true },
+    kanbanGovernance: deps.config.tools?.kanbanGovernance,
     skillLoader: deps.skillLoader,
     coordinationTools: [
       makeMailboxTool({ projectDir: deps.wpaths.projectDir, events: deps.events }),

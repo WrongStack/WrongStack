@@ -317,6 +317,11 @@ export async function loadSessionDataFromFile(params: {
     quickToolSchemaVersion: sessionStartEvent?.quickToolSchemaVersion,
     quickShellTool: sessionStartEvent?.quickShellTool,
     providerToolSchemaVersion: sessionStartEvent?.providerToolSchemaVersion,
+    scoutLearnedTools: Array.isArray(sessionStartEvent?.scoutLearnedTools)
+      ? Object.freeze(
+          sessionStartEvent.scoutLearnedTools.filter((name) => typeof name === 'string'),
+        )
+      : undefined,
     endedAt: sessionEndEvent?.ts,
     model: sessionModel,
     provider: sessionProvider,

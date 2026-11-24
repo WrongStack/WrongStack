@@ -29,6 +29,7 @@ export default defineConfig({
       // Same for @wrongstack/tools: CLI tests import wiring that reaches the
       // tools package, and root Vitest must not require a prebuilt dist/.
       '@wrongstack/tools': path.resolve(__dirname, './packages/tools/src'),
+      '@wrongstack/toolflow': path.resolve(__dirname, './packages/toolflow/src'),
       '@wrongstack/browser-tools': path.resolve(__dirname, './packages/browser-tools/src'),
       '@wrongstack/codebase': path.resolve(__dirname, './packages/codebase/src'),
       '@wrongstack/providers/definitions': path.resolve(

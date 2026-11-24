@@ -6,7 +6,7 @@ tools in an individual session or verified external-service availability.
 
 ## Workspace packages
 
-48 packages, 2 applications, plus the private website.
+49 packages, 2 applications, plus the private website.
 
 | Package | Manifest | Publication |
 |---|---|---|
@@ -49,6 +49,7 @@ tools in an individual session or verified external-service availability.
 | `@wrongstack/security-scanner` | [packages/security-scanner/package.json](../packages/security-scanner/package.json) | private |
 | `@wrongstack/techstack` | [packages/techstack/package.json](../packages/techstack/package.json) | private |
 | `@wrongstack/telegram` | [packages/telegram/package.json](../packages/telegram/package.json) | private |
+| `@wrongstack/toolflow` | [packages/toolflow/package.json](../packages/toolflow/package.json) | private |
 | `@wrongstack/tools` | [packages/tools/package.json](../packages/tools/package.json) | private |
 | `@wrongstack/tui` | [packages/tui/package.json](../packages/tui/package.json) | private |
 | `@wrongstack/vector-memory` | [packages/vector-memory/package.json](../packages/vector-memory/package.json) | private |

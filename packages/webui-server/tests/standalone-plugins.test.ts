@@ -124,8 +124,11 @@ describe('standalone host plugin set', () => {
       ]),
     );
 
-    expect(toolRegistry.get('secret_scanner_status')).toBeDefined();
-    expect(toolRegistry.get('injection_shield_status')).toBeDefined();
+    const secretStatus = toolRegistry.get('secret_scanner_status')?.operatorStatus?.read;
+    expect(secretStatus?.()).toMatchObject({ ok: true });
+    expect(toolRegistry.get('injection_shield_status')?.operatorStatus?.read()).toMatchObject({
+      ok: true,
+    });
     // secret-scanner's PreToolUse policy hook sits on the registry the executor runs.
     const runner = new HookRunner({ registry: hookRegistry });
     const blocked = await runner.preToolUse(
@@ -134,6 +137,7 @@ describe('standalone host plugin set', () => {
       { cwd: root, session: { id: 'tab-1' } },
     );
     expect(blocked.block).toBe(true);
+    expect(secretStatus?.()).toMatchObject({ counters: { block: 1 } });
   });
 
   it('loads the set the CLI loads, minus only the built-ins it serves itself', async () => {

@@ -1,18 +1,18 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-24T01:05:53.449Z
+**Generated:** 2026-11-24T01:09:28.095Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
 
 | Measure | Value |
 |---|---:|
-| Workspace packages | 50 |
-| Production source files | 6517 |
-| Production source lines | 1333648 |
+| Workspace packages | 51 |
+| Production source files | 6520 |
+| Production source lines | 1334135 |
 | Test files | 5794 |
-| Workspace dependency edges | 259 |
-| Relative module edges | 19053 |
+| Workspace dependency edges | 261 |
+| Relative module edges | 19060 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -39,7 +39,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/codebase-index-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
 | @wrongstack/contracts | 133 | 6 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 193 | 211 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/core | 664 | 778 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/core | 665 | 778 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop-v2 | 560 | 404 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 63 | 24 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 24 | 32 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
@@ -66,7 +66,8 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/security-scanner | 21 | 37 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/techstack | 55 | 68 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 28 | 46 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
-| @wrongstack/tools | 348 | 399 | @wrongstack/agent-catalog, @wrongstack/browser-tools, @wrongstack/codebase, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/toolflow | 3 | 2 | @wrongstack/contracts |
+| @wrongstack/tools | 347 | 397 | @wrongstack/agent-catalog, @wrongstack/browser-tools, @wrongstack/codebase, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives, @wrongstack/toolflow |
 | @wrongstack/tui | 517 | 461 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 18 | 29 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/vibeui | 100 | 42 | @wrongstack/webui-protocol |
@@ -141,7 +142,7 @@ None.
 | 739 | `packages/tools/src/bash-kill-guard.ts` |
 | 733 | `packages/vibeui/src/components/provider-manager.tsx` |
 | 732 | `packages/core/src/execution/auto-compaction-middleware.ts` |
-| 730 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
+| 731 | `packages/core/src/registry/tool-registry.ts` |
 
 ## Exports only tests reference
 

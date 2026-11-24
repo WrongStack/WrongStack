@@ -22,6 +22,7 @@ import type { Context } from '../core/context.js';
 import { queueDirectoryInstructions } from '../core/project-instructions.js';
 import { spanSessionAttributes } from '../core/span-session.js';
 import {
+  bindSessionToolRegistry,
   isSessionToolAllowed,
   sessionToolCatalog,
   setSessionToolGroupGovernance,
@@ -132,6 +133,7 @@ export class ToolExecutor extends ToolExecutorCore {
     strategy: ToolExecutorStrategy,
   ): Promise<ToolBatchResult> {
     let budget = this.opts.perIterationOutputCapBytes ?? 100_000;
+    bindSessionToolRegistry(ctx, this.registry);
     if (this.opts.requireKanbanGovernance === true) setSessionToolGroupGovernance(ctx, true);
 
     const runOne = async (use0: ToolUseBlock): Promise<ToolExecutionOutput> => {
@@ -556,6 +558,7 @@ export class ToolExecutor extends ToolExecutorCore {
     budget: number,
     preToolContext?: { text: string; contextAs: 'inline' | 'separate' },
   ): Promise<{ block: ToolResultBlock; bytes: number }> {
+    bindSessionToolRegistry(ctx, this.registry);
     if (this.opts.requireKanbanGovernance === true) setSessionToolGroupGovernance(ctx, true);
     ctx.catalogTools = sessionToolCatalog(ctx, this.registry.list());
     if (!isSessionToolAllowed(ctx, tool)) {

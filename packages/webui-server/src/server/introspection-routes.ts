@@ -5,8 +5,10 @@ import {
   isSessionToolGroupMode,
   type ModelsRegistry,
 } from '@wrongstack/contracts/types';
+import { isOperatorOnlyTool, type Tool } from '@wrongstack/contracts/types/tool';
 import {
   type Agent,
+  canConfigureSessionToolGroup,
   providerToolSurfaceForVariant,
   sessionToolCatalog,
   sessionToolGroupStates,
@@ -63,6 +65,7 @@ interface ToolLike {
   inputSchema?: { properties?: Record<string, unknown> } | undefined;
   mutating?: boolean | undefined;
   permission?: string | undefined;
+  operatorStatus?: Tool['operatorStatus'];
 }
 
 interface ToolEntryLike {
@@ -153,6 +156,8 @@ export async function handleIntrospectionRoute(
       : ctx.getAgent?.(namedSession);
   const agent = namedAgent ?? ctx.agent;
   const actx = agent.ctx;
+  const toolSession = actx.activeRunSessionWriter ?? actx.session;
+  const schemaVersion = toolSession?.providerToolSchemaVersion ?? 0;
   const config = ctx.getConfig();
   /** The id to stamp a reply with — the asking tab's, falling back to the runtime's. */
   const askingSessionId = (): string => messageSessionId(message) ?? ctx.getSessionId();
@@ -170,11 +175,24 @@ export async function handleIntrospectionRoute(
   switch (message.type) {
     case 'diag.get': {
       if (!sessionAllowed(ctx, ws, message)) return true;
+      const variant = actx.meta?.['systemPromptVariant'];
       const registry = agent.tools as unknown as {
         list: () => ToolLike[];
         listForProvider?: () => ToolLike[];
       };
-      const tools = registry.listForProvider?.() ?? registry.list();
+      const tools =
+        variant !== 'quick' && canConfigureSessionToolGroup(actx, 'browser')
+          ? providerToolSurfaceForVariant(
+              agent.tools,
+              variant,
+              actx.meta,
+              actx.provider,
+              toolSession,
+              config.tools?.kanbanGovernance,
+            ).tools
+          : (registry.listForProvider?.() ?? registry.list()).filter(
+              (tool) => !isOperatorOnlyTool(tool, schemaVersion),
+            );
       ctx.send(ws, {
         type: 'diag.get',
         payload: withRequestId(message.payload, {
@@ -292,9 +310,11 @@ export async function handleIntrospectionRoute(
       const setGroup = message.type === 'tools.group.set';
       const sessionAvailable =
         namedAgent !== undefined || !namedSession || namedSession === ctx.getSessionId();
-      const quick = sessionAvailable && actx.meta?.['systemPromptVariant'] === 'quick';
+      const variant = actx.meta?.['systemPromptVariant'];
+      const supportsGroups = sessionAvailable && canConfigureSessionToolGroup(actx);
       let groupError: string | undefined;
-      if (quick) setSessionToolGroupGovernance(actx, config.tools?.kanbanGovernance === true);
+      if (supportsGroups)
+        setSessionToolGroupGovernance(actx, config.tools?.kanbanGovernance === true);
       if (setGroup) {
         const { group, mode, scope } = (message.payload ?? {}) as {
           group?: unknown;
@@ -302,8 +322,10 @@ export async function handleIntrospectionRoute(
           scope?: unknown;
         };
         try {
-          if (!quick) throw new Error('Select an active Quick session to change tool groups.');
-          if (!isSessionToolGroup(group)) throw new Error('Select a known Quick tool group.');
+          if (!isSessionToolGroup(group)) throw new Error('Select a known tool group.');
+          if (!supportsGroups || !canConfigureSessionToolGroup(actx, group)) {
+            throw new Error('Select an active session that supports this tool group.');
+          }
           if (scope === 'project' && isSessionToolGroupMode(mode)) {
             await setProjectToolGroup(actx, group, mode);
           } else if (scope === undefined && (mode === 'inherit' || isSessionToolGroupMode(mode))) {
@@ -319,32 +341,40 @@ export async function handleIntrospectionRoute(
         isDisabled?: (name: string) => boolean;
         isExposedToProvider?: (name: string) => boolean;
       };
-      const available = quick
+      const available = supportsGroups
         ? new Set(sessionToolCatalog(actx, agent.tools.list()).map((tool) => tool.name))
         : undefined;
       const direct =
-        quick || (sessionAvailable && agent.tools.providerToolTier === 'medium')
+        sessionAvailable &&
+        (supportsGroups || variant === 'scout' || agent.tools.providerToolTier === 'medium')
           ? new Set(
               providerToolSurfaceForVariant(
                 agent.tools,
-                actx.meta?.['systemPromptVariant'],
+                variant,
                 actx.meta,
                 actx.provider,
-                actx.activeRunSessionWriter ?? actx.session,
+                toolSession,
+                config.tools?.kanbanGovernance,
               ).tools.map((tool) => tool.name),
             )
           : undefined;
       const tools = toolEntries(agent).map(({ tool, owner }) => {
         const schema = tool.inputSchema ?? {};
         const disabled = registry.isDisabled?.(tool.name) ?? false;
+        const operatorOnly = sessionAvailable && isOperatorOnlyTool(tool, schemaVersion);
         return {
           name: tool.name,
           owner,
           description: tool.description ?? '',
           params: schema.properties ? Object.keys(schema.properties) : [],
           disabled,
-          ...(!disabled && available && !available.has(tool.name) ? { groupDisabled: true } : {}),
-          direct: direct?.has(tool.name) ?? registry.isExposedToProvider?.(tool.name) ?? true,
+          ...(operatorOnly ? { operatorOnly: true } : {}),
+          ...(!operatorOnly && !disabled && available && !available.has(tool.name)
+            ? { groupDisabled: true }
+            : {}),
+          direct:
+            !operatorOnly &&
+            (direct?.has(tool.name) ?? registry.isExposedToProvider?.(tool.name) ?? true),
           mutating: !!tool.mutating,
           permission: tool.permission ?? 'auto',
         };
@@ -360,7 +390,7 @@ export async function handleIntrospectionRoute(
         payload: withRequestId(message.payload, {
           tools,
           ...(namedSession ? { sessionId: namedSession } : {}),
-          ...(quick
+          ...(supportsGroups
             ? {
                 toolGroups: sessionToolGroupStates(actx, [
                   ...Object.keys(config.mcpServers ?? {}),

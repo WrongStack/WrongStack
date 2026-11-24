@@ -176,6 +176,19 @@ recommend appropriate use; tests do not establish that every live model follows
 that guidance. Speed and cost depend on the workflow and provider and need
 separate live measurements.
 
+## Package boundary
+
+`@wrongstack/toolflow` owns the interpreter, the QuickJS dependencies, and
+the browser-safe `@wrongstack/toolflow/presentation` entry. The built-in
+`tool_script` registration delegates to the package's declaration and executor.
+ToolFlow initializes QuickJS on the first script run. The host tool gate still
+validates, authorizes, and journals each nested call.
+
+In a Quick session, use `/tool group toolflow on` or the ToolFlow setting in
+WebUI Tools to enable discovery. Look up `tool_script` to load its schema for
+the next request. The standalone WrongStack distribution includes the runtime
+for this on-demand path.
+
 ## Reproduce the measurements
 
 ```powershell
@@ -194,7 +207,7 @@ The suite also checks real manifest reads, disabled tools, schema validation,
 and confirmation refusals. Run the broader ToolFlow checks with:
 
 ```powershell
-bun --bun run vitest run packages/tools/tests/tool-script.test.ts packages/tools/tests/toolflow-presentation.test.ts packages/core/tests/core/nested-tool-call.test.ts packages/core/tests/core/shared-system-contract.test.ts
+bun --bun run vitest run packages/toolflow/tests packages/core/tests/core/nested-tool-call.test.ts packages/core/tests/core/shared-system-contract.test.ts
 ```
 
 The broader tests cover byte accounting, aborts, unfinished effects, concurrent

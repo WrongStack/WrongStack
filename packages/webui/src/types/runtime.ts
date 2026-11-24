@@ -476,6 +476,7 @@ export interface WSToolsList {
       disabled: boolean;
       direct: boolean;
       groupDisabled?: boolean | undefined;
+      operatorOnly?: boolean | undefined;
       mutating: boolean;
       permission: string;
     }>;

@@ -18,6 +18,32 @@ const client = vi.hoisted(() => {
 vi.mock('@/hooks/useWebSocket', () => ({ useWebSocket: () => ({ client }) }));
 
 describe('ToolFlow tools settings', () => {
+  it('labels an operator diagnostic separately from the lazy model catalog', () => {
+    render(<ToolsSection />);
+    act(() =>
+      client.handlers.get('tools.list')?.({
+        payload: {
+          tools: [
+            {
+              name: 'scanner_status',
+              owner: 'scanner',
+              description: 'Scanner status',
+              params: [],
+              disabled: false,
+              direct: false,
+              operatorOnly: true,
+              mutating: false,
+              permission: 'auto',
+            },
+          ],
+        },
+      }),
+    );
+    expect(screen.getByText('operator')).toBeTruthy();
+    expect(screen.getByText(/0 lazy · 1 operator/)).toBeTruthy();
+    expect(screen.queryByText('lazy')).toBeNull();
+  });
+
   it.each([false, true])(
     'is searchable by product name and toggles its canonical ID (disabled=%s)',
     (disabled) => {

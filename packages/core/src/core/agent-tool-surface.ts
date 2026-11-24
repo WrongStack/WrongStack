@@ -4,6 +4,7 @@ import type { Provider } from '@wrongstack/contracts/types/provider';
 import type { BuildContext, SystemPromptBuilder } from '@wrongstack/contracts/types/system-prompt';
 import { providerToolSurfaceForVariant } from '../registry/scout-tool-surface.js';
 import {
+  isSessionKanbanRequired,
   sessionToolCatalog,
   setSessionToolGroupGovernance,
 } from '../registry/session-tool-groups.js';
@@ -33,6 +34,7 @@ export async function refreshAgentToolSurface(
     meta,
     provider,
     ctx.activeRunSessionWriter ?? ctx.session,
+    isSessionKanbanRequired(ctx),
   );
   const { tools } = surface;
   const catalogTools = sessionToolCatalog(ctx, agent.tools.list());

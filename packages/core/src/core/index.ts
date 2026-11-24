@@ -5,8 +5,11 @@ export {
   SCOUT_DIRECT_TOOL_NAMES,
 } from '../registry/scout-tool-surface.js';
 export {
+  canConfigureSessionToolGroup,
+  isBrowserGroupTool,
   isSessionMcpServerAllowed,
   sessionToolCatalog,
+  sessionToolGroupFor,
   sessionToolGroupState,
   sessionToolGroupStates,
   setProjectToolGroup,

@@ -28,6 +28,7 @@ import {
   type Request,
   type Response,
   type SessionWriter,
+  type Tool,
 } from '@wrongstack/contracts/types';
 import {
   Agent,
@@ -156,7 +157,7 @@ async function runSession(
   providerId = 'openai-codex',
   withChurningMiddleware = false,
   projectedSession?: SessionWriter,
-  variant: 'quick' | 'pro' = 'quick',
+  variant: 'quick' | 'pro' | 'scout' = 'quick',
 ): Promise<Request[]> {
   const container = new Container();
   container.bind(TOKENS.Logger, () => new DefaultLogger({ level: 'error', stderr: false }));
@@ -195,10 +196,24 @@ async function runSession(
     }
     if (variant === 'pro') {
       tools.register(kanbanTool);
+      tools.register(fakeTool('codebase-search', 'fixture') as never);
+      tools.register({
+        ...(fakeTool('scanner_status', 'fixture') as Tool),
+        operatorStatus: { sinceSchemaVersion: 3, read: () => ({ scans: 1 }) },
+      });
+      tools.register({
+        ...(fakeTool('cache_status', 'fixture') as Tool),
+        operatorStatus: { sinceSchemaVersion: 4, read: () => ({ hits: 1 }) },
+      });
       tools.setProviderToolNames(
         tools.list().map((tool) => tool.name),
         'medium',
       );
+    }
+    if (variant === 'scout') {
+      for (const name of ['exec', 'fetch', 'read_url_content', 'git']) {
+        tools.register(fakeTool(name, 'ok') as never);
+      }
     }
   }
 
@@ -221,6 +236,7 @@ async function runSession(
   } as never);
   if (owningSessionId) ctx.meta['sessionId'] = owningSessionId;
   if (projectedSession) ctx.meta['systemPromptVariant'] = variant;
+  if (variant === 'scout') ctx.meta['scoutLearnedTools'] = ['read_url_content'];
 
   const pipelines = createDefaultPipelines();
   if (withChurningMiddleware) pipelines.request.use(churningMemoryMiddleware() as never);
@@ -327,14 +343,14 @@ describe('openai-codex prompt prefix stability', () => {
     const store = new DefaultSessionStore({ dir: path.join(tmp, 'sessions') });
     vi.stubEnv('WRONGSTACK_SHELL', 'pwsh.exe');
     const session = await store.create({ id: '', model: 'gpt-5.4', provider: providerId });
-    expect(session.providerToolSchemaVersion).toBe(1);
+    expect(session.providerToolSchemaVersion).toBe(6);
     const selectedShell = process.platform === 'win32' ? 'pwsh' : 'bash';
     expect(session.quickShellTool).toBe(selectedShell);
     const fresh = await runSession(tmp, undefined, providerId, false, session);
     await session.close();
     vi.stubEnv('WRONGSTACK_SHELL', 'cmd');
     const resumed = await store.resume(session.id);
-    expect(resumed.writer.providerToolSchemaVersion).toBe(1);
+    expect(resumed.writer.providerToolSchemaVersion).toBe(6);
     const afterResume = await runSession(tmp, undefined, providerId, false, resumed.writer);
     await resumed.writer.close();
 
@@ -394,20 +410,50 @@ describe('openai-codex prompt prefix stability', () => {
     );
     const fork = await store.fork(session.id);
     expect(fork.data.metadata.quickShellTool).toBe(selectedShell);
-    expect(fork.data.metadata.providerToolSchemaVersion).toBe(1);
+    expect(fork.data.metadata.providerToolSchemaVersion).toBe(6);
     const legacyFork = await store.fork(legacy.id);
     expect(legacyFork.data.metadata.providerToolSchemaVersion).toBe(0);
     await store.clearHistory(session.id);
     const afterClear = await store.resume(session.id);
     expect(afterClear.writer.quickToolSchemaVersion).toBe(session.quickToolSchemaVersion);
     expect(afterClear.writer.quickShellTool).toBe(selectedShell);
-    expect(afterClear.writer.providerToolSchemaVersion).toBe(1);
+    expect(afterClear.writer.providerToolSchemaVersion).toBe(6);
     await afterClear.writer.clearSession();
     await afterClear.writer.close();
     expect((await store.load(session.id)).metadata).toMatchObject({
       quickShellTool: selectedShell,
-      providerToolSchemaVersion: 1,
+      providerToolSchemaVersion: 6,
     });
+  });
+
+  it('keeps the Scout roster, declarations, and instructions pinned across resume', async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'scout-schema-resume-'));
+    const providerId = 'openai-chatgpt';
+    const store = new DefaultSessionStore({ dir: path.join(tmp, 'sessions') });
+    const session = await store.create({
+      id: '',
+      model: 'gpt-5.4',
+      provider: providerId,
+      scoutLearnedTools: ['git'],
+      quickShellTool: 'bash',
+    });
+    const fresh = await runSession(tmp, undefined, providerId, false, session, 'scout');
+    await session.close();
+    const resumed = await store.resume(session.id);
+    const reopened = await runSession(tmp, undefined, providerId, false, resumed.writer, 'scout');
+    await resumed.writer.close();
+
+    const bodies = await wireBodies([...fresh, ...reopened], providerId);
+    const direct = new Set(bodies.map((body) => JSON.stringify(body['tools'])));
+    expect(direct.size).toBe(1);
+    const wire = [...direct][0];
+    expect(wire).toContain('"name":"git"');
+    expect(wire).toContain('"name":"exec"');
+    expect(wire).toContain('"name":"fetch"');
+    expect(wire).not.toContain('"name":"read_url_content"');
+    expect(wire).not.toContain('"name":"pwsh"');
+    expect(new Set(bodies.map((body) => body['instructions'])).size).toBe(1);
+    expect(new Set(bodies.map((body) => body['prompt_cache_key'])).size).toBe(1);
   });
 
   it('keeps the medium wire surface pinned across requests and resume', async () => {
@@ -429,17 +475,45 @@ describe('openai-codex prompt prefix stability', () => {
     });
     const legacyRequests = await runSession(tmp, undefined, providerId, false, legacy, 'pro');
     await legacy.close();
+    const previous = await store.create({
+      id: '',
+      model: 'gpt-5.4',
+      provider: providerId,
+      providerToolSchemaVersion: 3,
+    });
+    await previous.close();
+    const reopenedPrevious = await store.resume(previous.id);
+    const previousRequests = await runSession(
+      tmp,
+      undefined,
+      providerId,
+      false,
+      reopenedPrevious.writer,
+      'pro',
+    );
+    await reopenedPrevious.writer.close();
 
     const bodies = await wireBodies([...fresh, ...reopened], providerId);
     const [legacyBody] = await wireBodies(legacyRequests.slice(0, 1), providerId);
+    const [previousBody] = await wireBodies(previousRequests.slice(0, 1), providerId);
     const tools = new Set(bodies.map((body) => JSON.stringify(body['tools'])));
     expect(tools.size).toBe(1);
     expect([...tools][0]).toContain('"name":"tool_search"');
     expect([...tools][0]).not.toContain('"name":"kanban"');
+    expect([...tools][0]).not.toContain('"name":"codebase-search"');
+    expect([...tools][0]).not.toContain('"name":"scanner_status"');
+    expect([...tools][0]).not.toContain('"name":"cache_status"');
+    const previousTools = JSON.stringify(previousBody?.['tools']);
+    expect(previousTools).not.toContain('"name":"kanban"');
+    expect(previousTools).toContain('"name":"codebase-search"');
+    expect(previousTools).not.toContain('"name":"scanner_status"');
+    expect(previousTools).toContain('"name":"cache_status"');
     expect(JSON.stringify(legacyBody?.['tools'])).toContain('"name":"kanban"');
+    expect(JSON.stringify(legacyBody?.['tools'])).toContain('"name":"scanner_status"');
     const instructions = new Set(bodies.map((body) => body['instructions']));
     expect(instructions.size).toBe(1);
-    expect([...instructions][0]).toContain('kanban:<action>');
+    expect([...instructions][0]).not.toContain('kanban:<action>');
+    expect(previousBody?.['instructions']).toContain('kanban:<action>');
     expect(legacyBody?.['instructions']).not.toContain('kanban:<action>');
     expect(new Set(bodies.map((body) => body['prompt_cache_key'])).size).toBe(1);
   });

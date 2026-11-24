@@ -226,6 +226,7 @@ export interface SessionWriter {
   readonly startedAt?: string | undefined;
   readonly quickToolSchemaVersion?: number | undefined;
   readonly providerToolSchemaVersion?: number | undefined;
+  readonly scoutLearnedTools?: SessionMetadata['scoutLearnedTools'];
   readonly quickShellTool?: SessionMetadata['quickShellTool'];
   /**
    * Session-level trace ID for correlating storage events with agent

@@ -4,7 +4,7 @@ import {
   toolFlowInput,
   toolFlowMetrics,
   toolFlowMetricsLabel,
-} from '../src/toolflow-presentation.js';
+} from '../src/presentation.js';
 
 const result = 'answer\n\n(50 tool calls: read ×50)\n\nToolFlow bytes: 550000 -> 40; calls: 50';
 describe('ToolFlow shared presentation', () => {

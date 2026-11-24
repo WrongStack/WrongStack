@@ -116,6 +116,13 @@ export interface Tool<I = unknown, O = unknown> {
   deprecated?: { since: string; replacedBy: string; removeAfter?: string | undefined } | undefined;
   /** Intended exposure; hosts may narrow it further for a session or profile. */
   exposure?: import('./runtime-capability-manifest.js').RuntimeCapabilityExposure | undefined;
+  /** Read-only host diagnostic with a cutoff for its model-facing registration. */
+  operatorStatus?:
+    | {
+        readonly sinceSchemaVersion: number;
+        read(): Record<string, unknown>;
+      }
+    | undefined;
   /** Advisory prerequisites, still validated at execution time. */
   preconditions?: readonly string[] | undefined;
   /** Repetition has no additional effect; does not authorize automatic retries. */
@@ -172,7 +179,7 @@ export interface Tool<I = unknown, O = unknown> {
   /** Optional category for grouping in help lists and system prompts. */
   category?: string | undefined;
   inputSchema: JSONSchema;
-  /** Direct declaration and guidance for Quick schema version 1. The catalog retains the canonical tool. */
+  /** Compact direct declaration and guidance used by versioned Quick and Scout surfaces. */
   quickProjection?: Readonly<{ inputSchema: JSONSchema; usageHint: string }> | undefined;
   /**
    * Optional canonical JSON output contract for tools.data(name, input) in ToolFlow.
@@ -385,6 +392,27 @@ export interface Tool<I = unknown, O = unknown> {
    * this method instead. Existing branches stay until migrated incrementally.
    */
   serialize?(output: O, input: I): string;
+}
+
+export function isOperatorOnlyTool(tool: Pick<Tool, 'operatorStatus'>, schemaVersion: number) {
+  const diagnostic = tool.operatorStatus;
+  return typeof diagnostic?.read === 'function' && schemaVersion >= diagnostic.sinceSchemaVersion;
+}
+
+/** Host metadata returned during discovery. */
+export function toolDiscoveryMetadata(tool: Tool) {
+  return {
+    ...(tool.aliases?.length ? { aliases: tool.aliases } : {}),
+    ...(tool.deprecated ? { deprecated: tool.deprecated } : {}),
+    ...(tool.cost ? { cost: tool.cost } : {}),
+    ...(tool.preconditions?.length ? { preconditions: tool.preconditions } : {}),
+    ...(tool.idempotent !== undefined ? { idempotent: tool.idempotent } : {}),
+    ...(tool.retrySafe !== undefined ? { retrySafe: tool.retrySafe } : {}),
+    ...(tool.selection ? { selection: tool.selection } : {}),
+    ...(tool.estimatedDurationMs !== undefined
+      ? { estimatedDurationMs: tool.estimatedDurationMs }
+      : {}),
+  };
 }
 
 export interface ToolCallContext {

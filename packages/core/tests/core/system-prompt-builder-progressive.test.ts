@@ -129,6 +129,14 @@ describe('DefaultSystemPromptBuilder — progressive skill mode', () => {
       catalogTools: catalog,
     });
     expect(withBrowser.map((block) => block.text).join('\n')).toContain('browser-workflow');
+    const withBrowserDeferred = await builder.build({
+      cwd: tmp,
+      projectRoot: tmp,
+      tools: direct,
+      catalogTools: catalog,
+      browserDeferred: true,
+    });
+    expect(withBrowserDeferred).toEqual(withoutBrowser);
   });
 
   it('lists a progressive skill only when every exact required tool is registered', async () => {
@@ -153,6 +161,41 @@ describe('DefaultSystemPromptBuilder — progressive skill mode', () => {
       catalogTools: partialCatalog,
     });
     expect(partial.map((block) => block.text).join('\n')).not.toContain('exact-browser-workflow');
+  });
+
+  it('keeps workspace tool availability out of the stable skill listing when deferred', async () => {
+    const loader = mkSkillLoader([
+      {
+        name: 'use-code-index',
+        trigger: 'Navigate the index.',
+        requiredTools: ['codebase-search'],
+      },
+      { name: 'use-board', trigger: 'Coordinate project work.', requiredTools: ['kanban'] },
+    ]);
+    const builder = new DefaultSystemPromptBuilder({
+      todayIso: '2026-07-01',
+      skillLoader: loader,
+      skillMode: 'progressive',
+    });
+    const direct = [{ name: 'tool_search', description: 'Search tools' }] as never[];
+    const catalog = [
+      ...direct,
+      { name: 'kanban', description: 'Project board' },
+      { name: 'codebase-search', description: 'Codebase search' },
+    ] as never[];
+    const base = { cwd: tmp, projectRoot: tmp, tools: direct };
+    const available = await builder.build({ ...base, catalogTools: catalog });
+    const text = available.map((block) => block.text).join('\n');
+    expect(text).toContain('use-code-index');
+    expect(text).toContain('use-board');
+    const deferred = {
+      ...base,
+      browserDeferred: true as const,
+      workspaceToolsDeferred: true as const,
+    };
+    expect(await builder.build({ ...deferred, catalogTools: catalog })).toEqual(
+      await builder.build({ ...deferred, catalogTools: direct }),
+    );
   });
 });
 

@@ -109,7 +109,10 @@ export async function executeClearSessionHistory(params: ClearSessionHistoryPara
 async function readToolSchemaPins(
   file: string,
 ): Promise<
-  Pick<SessionMetadata, 'quickToolSchemaVersion' | 'quickShellTool' | 'providerToolSchemaVersion'>
+  Pick<
+    SessionMetadata,
+    'quickToolSchemaVersion' | 'quickShellTool' | 'providerToolSchemaVersion' | 'scoutLearnedTools'
+  >
 > {
   const reader = createTranscriptLineReader(file);
   try {
@@ -117,7 +120,12 @@ async function readToolSchemaPins(
       if (!line.trim()) continue;
       const header = JSON.parse(line);
       if (header?.type === 'session_start') {
-        const { quickToolSchemaVersion, quickShellTool, providerToolSchemaVersion } = header;
+        const {
+          quickToolSchemaVersion,
+          quickShellTool,
+          providerToolSchemaVersion,
+          scoutLearnedTools,
+        } = header;
         return {
           quickToolSchemaVersion:
             typeof quickToolSchemaVersion === 'number' ? quickToolSchemaVersion : undefined,
@@ -125,6 +133,9 @@ async function readToolSchemaPins(
             quickShellTool === 'bash' || quickShellTool === 'pwsh' ? quickShellTool : undefined,
           providerToolSchemaVersion:
             typeof providerToolSchemaVersion === 'number' ? providerToolSchemaVersion : undefined,
+          scoutLearnedTools: Array.isArray(scoutLearnedTools)
+            ? scoutLearnedTools.filter((name) => typeof name === 'string')
+            : undefined,
         };
       }
       break;

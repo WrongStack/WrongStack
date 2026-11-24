@@ -6,14 +6,17 @@ import {
   type ToolResultRenderMode,
   type ToolsConfig,
 } from '@wrongstack/contracts/types';
+import { isOperatorOnlyTool } from '@wrongstack/contracts/types/tool';
 import {
+  type Context,
+  canConfigureSessionToolGroup,
   sessionToolGroupState,
   sessionToolGroupStates,
   setProjectToolGroup,
   setSessionToolGroup,
   setSessionToolGroupGovernance,
 } from '@wrongstack/core/agent';
-import { noOpVault } from '@wrongstack/core/security';
+import { DefaultSecretScrubber, noOpVault } from '@wrongstack/core/security';
 import {
   color,
   getToolDescriptionMode,
@@ -69,6 +72,7 @@ export function buildToolCommand(opts: SlashCommandContext): SlashCommand {
     'Usage:',
     '  /tool                                  Show tool description + result-mode overrides',
     '  /tool list                             List every tool and its two modes',
+    '  /tool status [name]                    List or read an operator diagnostic',
     '  /tool <name>                           Show one tool mode (both axes)',
     '  /tool <name> simple|extend             Set BOTH description and result modes (legacy alias)',
     '  /tool <name> desc simple|extend        Set ONLY the description mode (LLM prompt)',
@@ -77,7 +81,7 @@ export function buildToolCommand(opts: SlashCommandContext): SlashCommand {
     '  /tool enable <name>                    Restore a disabled tool',
     '  /tool <name> disable|enable            Same as above, noun-first alias',
     '  /tool enable-all                       Restore all disabled tools',
-    '  /tool group [name] [auto|on|off|inherit] [--project]   Manage Quick tool groups',
+    '  /tool group [name] [auto|on|off|inherit] [--project]   Manage session tool groups',
     '',
     'Auto-thinning (off by default — enable with /settings autothin on):',
     '  /tool autothin status                  Show current config + disabled counts',
@@ -284,7 +288,9 @@ export function buildToolCommand(opts: SlashCommandContext): SlashCommand {
     return lines.join('\n');
   }
 
-  function formatList(): string {
+  function formatList(ctx?: Context): string {
+    const session = ctx?.activeRunSessionWriter ?? ctx?.session;
+    const schemaVersion = session?.providerToolSchemaVersion ?? 0;
     const header =
       `  ${color.dim(fit('tool', 28))} ` +
       `${color.dim(fit('owner', 28))} ` +
@@ -295,7 +301,9 @@ export function buildToolCommand(opts: SlashCommandContext): SlashCommand {
       const descMode = getToolDescriptionMode(opts.toolRegistry, tool.name);
       const resultMode = getToolResultRenderMode(opts.toolRegistry, tool.name);
       const owner = opts.toolRegistry.ownerOf(tool.name) ?? 'core';
-      const status = toolStatus(opts.toolRegistry, tool.name);
+      const status = isOperatorOnlyTool(tool, schemaVersion)
+        ? color.dim('operator')
+        : toolStatus(opts.toolRegistry, tool.name);
       return (
         `  ${fit(tool.name, 28)} ` +
         `${color.dim(fit(`[${owner}]`, 28))} ` +
@@ -413,7 +421,7 @@ export function buildToolCommand(opts: SlashCommandContext): SlashCommand {
     category: 'Config',
     description:
       'Set per-tool description mode (LLM prompt) and/or on-screen result mode. Disable/enable tools.',
-    argsHint: '[<name> desc|result simple|extend | disable | enable]',
+    argsHint: '[list | status [name] | <name> desc|result simple|extend | disable | enable]',
     help,
     async run(args, runContext) {
       if (!opts.configStore) {
@@ -427,12 +435,35 @@ export function buildToolCommand(opts: SlashCommandContext): SlashCommand {
 
       // ── Sub-command routing ──────────────────────────────────────
 
-      if (sub === 'list') return { message: formatList() };
+      if (sub === 'list') return { message: formatList(runContext ?? opts.context) };
+
+      if (sub === 'status') {
+        const name = parts[1];
+        if (parts.length > 2) return { message: 'Usage: /tool status [name]' };
+        if (!name) {
+          const names = opts.toolRegistry
+            .list()
+            .filter((tool) => typeof tool.operatorStatus?.read === 'function')
+            .map((tool) => tool.name)
+            .sort();
+          return { message: names.join('\n') || 'No operator diagnostics available.' };
+        }
+        const diagnostic = opts.toolRegistry.get(name)?.operatorStatus;
+        if (typeof diagnostic?.read !== 'function') {
+          return { message: `Operator diagnostic unavailable: ${name}` };
+        }
+        const scrubber = new DefaultSecretScrubber();
+        try {
+          return { message: scrubber.scrub(JSON.stringify(diagnostic.read(), null, 2)) };
+        } catch (error) {
+          return { message: scrubber.scrub(toErrorMessage(error)) };
+        }
+      }
 
       if (sub === 'group') {
         const ctx = runContext ?? opts.context;
-        if (ctx?.meta?.['systemPromptVariant'] !== 'quick') {
-          return { message: 'Tool group settings currently apply to Quick sessions.' };
+        if (!ctx || !canConfigureSessionToolGroup(ctx)) {
+          return { message: 'Select a session with tool group settings.' };
         }
         const [, group, mode, scope] = parts;
         const project = scope === '--project';
@@ -443,6 +474,9 @@ export function buildToolCommand(opts: SlashCommandContext): SlashCommand {
           (scope !== undefined && (!project || !isSessionToolGroupMode(mode)))
         ) {
           return { message: 'Usage: /tool group [name] [auto|on|off|inherit] [--project]' };
+        }
+        if (isSessionToolGroup(group) && !canConfigureSessionToolGroup(ctx, group)) {
+          return { message: 'Run /tool group to see the groups available in this session.' };
         }
         setSessionToolGroupGovernance(ctx, getCurrentTools().kanbanGovernance === true);
         try {

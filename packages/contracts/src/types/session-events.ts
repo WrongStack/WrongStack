@@ -81,6 +81,7 @@ type SessionEventVariant =
       checkout?: string | undefined;
       quickToolSchemaVersion?: number | undefined;
       providerToolSchemaVersion?: number | undefined;
+      scoutLearnedTools?: SessionMetadata['scoutLearnedTools'];
       quickShellTool?: SessionMetadata['quickShellTool'];
     }
   | {
@@ -92,6 +93,7 @@ type SessionEventVariant =
       checkout?: string | undefined;
       quickToolSchemaVersion?: number | undefined;
       providerToolSchemaVersion?: number | undefined;
+      scoutLearnedTools?: SessionMetadata['scoutLearnedTools'];
       quickShellTool?: SessionMetadata['quickShellTool'];
     }
   | {

@@ -1,8 +1,13 @@
 import type { Tool } from '@wrongstack/contracts/types';
-import { isToolReachable, stageDeferredToolSchema } from '@wrongstack/core/agent';
+import { toolDiscoveryMetadata } from '@wrongstack/contracts/types/tool';
+import {
+  isToolReachable,
+  sessionToolGroupFor,
+  sessionToolGroupStates,
+  stageDeferredToolSchema,
+} from '@wrongstack/core/agent';
 import { KANBAN_ACTIONS, kanbanActionSchema } from './kanban-action-schema.js';
 import { KANBAN_INPUT_SCHEMA } from './kanban-tool-schema.js';
-import { toolDiscoveryMetadata } from './tool-discovery-metadata.js';
 
 export interface ToolSearchInput {
   query?: string | undefined;
@@ -114,17 +119,48 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
     const rawLimit =
       typeof input.limit === 'number' && Number.isFinite(input.limit) ? input.limit : 20;
     const limit = Math.max(1, Math.min(Math.floor(rawLimit), 100));
-    const tools = ctx.catalogTools ?? ctx.tools;
+    const catalog = ctx.catalogTools ?? ctx.tools;
     const query = input.query?.toLowerCase() ?? '';
-    const quick = ctx.meta?.['systemPromptVariant'] === 'quick';
+    const variant = ctx.meta?.['systemPromptVariant'];
     const session = ctx.activeRunSessionWriter ?? ctx.session;
+    const version = session?.providerToolSchemaVersion ?? 0;
+    const versionedScout = variant === 'scout' && version >= 2;
+    const hasToolUse = ctx.tools.some((tool) => tool.name === 'tool_use');
+    const gateways = hasToolUse && ctx.tools.some((tool) => tool.name === 'tool_search');
+    const grouped = new Map(
+      variant === 'quick'
+        ? []
+        : sessionToolGroupStates(ctx).map(({ group, enabled }) => [group, enabled] as const),
+    );
+    const directlyAvailable = (tool: Tool) => ctx.tools.some(({ name }) => name === tool.name);
+    const candidates =
+      grouped.size === 0
+        ? catalog
+        : catalog.filter((tool) => {
+            const group = sessionToolGroupFor(tool);
+            const enabled = group && grouped.get(group);
+            return enabled === undefined || (enabled && (hasToolUse || directlyAvailable(tool)));
+          });
+    const tools =
+      versionedScout && !hasToolUse
+        ? candidates.filter((tool) => isToolReachable(ctx, tool.name, tool))
+        : candidates;
+    const compact = variant === 'quick' || (versionedScout && gateways);
+    const kanbanDirect = ctx.tools.some((tool) => tool.name === 'kanban');
+    const directBoard = kanbanDirect && version >= 6 && !hasToolUse;
     const deferredKanban =
-      quick ||
-      (session?.providerToolSchemaVersion === 1 &&
-        ctx.tools.some((tool) => tool.name === 'tool_search') &&
-        ctx.tools.some((tool) => tool.name === 'tool_use') &&
-        !ctx.tools.some((tool) => tool.name === 'kanban'));
-    const compactResult = (tool: Tool) => quick || (deferredKanban && isBuiltinKanban(tool));
+      !directBoard &&
+      (compact ||
+        (!kanbanDirect && ((version >= 1 && gateways) || (grouped.has('kanban') && hasToolUse))));
+    const groupedDeferred = (tool: Tool) => {
+      const group = sessionToolGroupFor(tool);
+      return group !== undefined && grouped.has(group) && !directlyAvailable(tool);
+    };
+    const compactResult = (tool: Tool) =>
+      compact ||
+      (directBoard && isBuiltinKanban(tool)) ||
+      (deferredKanban && isBuiltinKanban(tool)) ||
+      groupedDeferred(tool);
     const actionQuery =
       deferredKanban && query.trim().startsWith('kanban:')
         ? query.trim().slice('kanban:'.length).trim()
@@ -185,7 +221,7 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
       exactKanban && actionQuery !== undefined ? kanbanActionSchema(actionQuery) : undefined;
     const showActions = exactKanban && !operation && actionQuery !== '*';
     const schemaRevision =
-      exact && !showActions
+      exact && !showActions && !(directBoard && isBuiltinKanban(exact))
         ? stageDeferredToolSchema(
             ctx,
             exact,
@@ -254,15 +290,17 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
               )}. Search the exact suggested name to get its schema, then call it with tool_use.`
           : results.length === 0 && query
             ? `No tools matched "${input.query}". ${totalAvailable} tools are available; try a broader query, or call tool_search with no query and limit up to 100.`
-            : quick && !exact && results.length > 0
+            : compact && !exact && results.length > 0
               ? 'Search an exact tool name to load its input schema for the next request.'
               : deferredKanban &&
                   !exactKanban &&
                   results.some((tool) => tool.name === 'kanban' && tool.schemaOmitted)
                 ? 'Search "kanban" to list board operations, then "kanban:<action>" to load one input schema.'
-                : !quick && results.length > SCHEMA_RESULTS
-                  ? `Schemas are included for the first ${SCHEMA_RESULTS} results; call tool_search with another tool's exact name to get its inputSchema.`
-                  : undefined;
+                : !exact && filtered.slice(0, limit).some(groupedDeferred)
+                  ? 'Search an exact tool name to load its input schema.'
+                  : !compact && results.length > SCHEMA_RESULTS
+                    ? `Schemas are included for the first ${SCHEMA_RESULTS} results; call tool_search with another tool's exact name to get its inputSchema.`
+                    : undefined;
 
     return {
       tools: results,

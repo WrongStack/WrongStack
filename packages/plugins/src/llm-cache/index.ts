@@ -381,6 +381,25 @@ const plugin: Plugin = {
     }
 
     // ── llm_cache_status tool ─────────────────────────────────────────
+    const readStatus = () => {
+      const total = state.hits + state.misses;
+      return {
+        ok: true,
+        enabled: cfg.enabled,
+        onlyDeterministic: cfg.onlyDeterministic,
+        maxEntries: cfg.maxEntries,
+        ttlMs: cfg.ttlMs,
+        size: state.cache.size,
+        counters: {
+          hits: state.hits,
+          misses: state.misses,
+          skips: state.skips,
+          evictions: state.evictions,
+          hitRate: total > 0 ? Number((state.hits / total).toFixed(3)) : 0,
+        },
+        saved: { inputTokens: state.savedInputTokens, outputTokens: state.savedOutputTokens },
+      };
+    };
     api.tools.register({
       name: 'llm_cache_status',
       description:
@@ -389,24 +408,9 @@ const plugin: Plugin = {
       permission: 'auto',
       category: 'Diagnostics',
       mutating: false,
+      operatorStatus: { sinceSchemaVersion: 4, read: readStatus },
       async execute() {
-        const total = state.hits + state.misses;
-        return {
-          ok: true,
-          enabled: cfg.enabled,
-          onlyDeterministic: cfg.onlyDeterministic,
-          maxEntries: cfg.maxEntries,
-          ttlMs: cfg.ttlMs,
-          size: state.cache.size,
-          counters: {
-            hits: state.hits,
-            misses: state.misses,
-            skips: state.skips,
-            evictions: state.evictions,
-            hitRate: total > 0 ? Number((state.hits / total).toFixed(3)) : 0,
-          },
-          saved: { inputTokens: state.savedInputTokens, outputTokens: state.savedOutputTokens },
-        };
+        return readStatus();
       },
     });
 

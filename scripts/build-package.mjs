@@ -560,6 +560,9 @@ const profiles = {
     external: ['@wrongstack/core', '@wrongstack/persistence', 'node:sqlite', 'web-tree-sitter'],
     postBuild: copyCodebaseWasm,
   },
+  '@wrongstack/toolflow': {
+    entries: entryMap(['src/index.ts', 'src/presentation.ts']),
+  },
   '@wrongstack/tools': {
     entries: toolEntries,
     // Subpath entries share state such as the language profile and process

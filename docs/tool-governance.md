@@ -113,7 +113,7 @@ No existing tool names are removed or merged by this foundation change.
 
 `architecture/tool-schema-budget.json` caps schema count, UTF-8 bytes and estimated
 tokens for the built-in tiers, the six-tool lean benchmark and the shipped Quick
-session variants. The check uses Quick's runtime resolver and the shared provider
+and Scout variants. The check uses the runtime resolver and the shared provider
 projection. The estimates cover built-in declarations before provider-specific
 wrapping. Host tools, required-playbook additions, system prompt rendering and
 provider token accounting have their own scope.
@@ -128,13 +128,21 @@ projection version at creation. Earlier journals, explicit launch allowlists
 and surfaces missing either discovery gateway retain their tier-selected
 declarations. Quick keeps its own group settings and versioned declarations.
 
-Quick fingerprints the ordered declarations and their usage hints separately for
-unversioned journals, version 1 and each version 2 shell. CI detects changes to
+Quick and Scout fingerprint ordered declarations and usage hints for their
+legacy projections and each supported compact shell profile. CI detects changes to
 wording and serialization order even when the resulting payload fits the budget.
 When introducing a different projection, give new sessions a new version and
 keep the projections and fingerprints used by existing journals. A deliberate
 revision of an existing fingerprint should be reviewed for impact on resumed
 sessions. [Budget and fingerprints](../architecture/tool-schema-budget.json)
+
+Scout version 2 records project promotions at session creation and reuses them
+through resume, fork and history clear. With both discovery gateways present,
+it sends one shell, structured `exec`, a compact clarification form and the
+available search/fetch tools. The URL reader is deferred when `fetch` is direct
+and remains available through exact lookup. When a gateway is unavailable, the
+starting Scout set and permitted promotions remain direct. An explicit launch
+allowlist keeps precedence. Older journals retain their earlier projection.
 
 Host-only aliases, cost, prerequisites, lifecycle metadata and usage hints are
 excluded from provider schemas. Four existing long descriptions have individually
@@ -142,6 +150,49 @@ bounded, documented exceptions in the generator; all other descriptions are capp
 at 300 characters. Do not blindly truncate safety guidance to meet a target.
 Catalog generation checks the approved budgets and fingerprints. An intentional
 reviewed reset uses `bun scripts/generate-tool-catalog.ts --write --adopt-budget`.
+
+## Browser and E2E
+
+Starting with provider schema version 5, Browser and E2E is an optional group
+in all bundled profiles. Off removes the 16 Browser tools and `e2e_plan`
+from agent discovery and execution. On makes them discoverable through
+`tool_search` and callable through `tool_use`. An exact lookup attaches the
+current schema to one request outside the reusable cache prefix and the
+durable conversation. Pending attachments are discarded when the group is
+disabled. Browser-dependent skills stay out of the stable prompt in both
+states. Earlier journals retain their original projection. Explicit launch
+allowlists continue to control the direct surface in non-Quick sessions.
+
+## Kanban and Codebase
+
+Provider schema version 6 applies the existing Kanban and Codebase group
+settings in every bundled profile. The opt-in groups use the existing
+user-owned project defaults and session overrides. Auto enables Kanban for a
+linked board and Codebase for an existing index. Off blocks discovery and
+execution. Exact tool lookups and Kanban action lookups attach schemas to
+the next request. The stable prompt and direct tools use the same projection
+across group changes. Version 5 and earlier journals keep their existing
+surfaces. Non-Quick explicit launch allowlists retain their own selection.
+
+Governance keeps Kanban enabled. When a governed session cannot use the
+gateway, the direct surface can reserve a slot for the canonical board
+tool. Explicit tool restrictions and provider compatibility still apply.
+
+## Operator diagnostics
+
+Provider schema version 3 moves `dep_guard_status`, `injection_shield_status`
+and `secret_scanner_status` to the operator. Use `/tool status [name]` in a
+running session to see the registered diagnostics. Their plugin hooks and
+the explicit `secret_scanner_test` operation keep their existing behavior.
+Earlier journals retain their model tool declarations and cache prefixes.
+Each diagnostic records the earliest provider schema version it affects.
+Version 4 also moves `llm_cache_status`, `model_router_status`, and
+`plugin_stack_status` to the operator. Cache clearing and the model's
+remaining-token query keep their existing tool routes. Plugin Stack Observer
+keeps its separately configured prompt contributor.
+
+The SDK export `createModeTool` is deprecated. `/mode` remains the operator
+entry point.
 
 ## Usage evidence and merge sequence
 

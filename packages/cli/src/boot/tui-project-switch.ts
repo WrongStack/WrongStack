@@ -17,6 +17,7 @@ import {
   type Agent,
   type Context,
   DefaultSystemPromptBuilder,
+  providerToolSurfaceForVariant,
   setQueuedMessagesSnapshot,
 } from '@wrongstack/core/agent';
 import { restoreSessionPermissionOverrides } from '@wrongstack/core/security';
@@ -237,12 +238,15 @@ export async function switchProjectInPlace(
     context.systemPrompt = await switchBuilder.build({
       cwd: resolved,
       projectRoot: resolved,
-      tools:
-        typeof agent.tools?.listForProvider === 'function'
-          ? agent.tools.listForProvider()
-          : typeof agent.tools?.list === 'function'
-            ? agent.tools.list()
-            : [],
+      ...(typeof agent.tools?.listForProvider === 'function'
+        ? providerToolSurfaceForVariant(
+            agent.tools,
+            context.meta['systemPromptVariant'] ?? config.systemPrompt?.variant,
+            context.meta,
+            context.provider,
+            nextWriter,
+          )
+        : { tools: agent.tools?.list?.() ?? [] }),
       catalogTools: typeof agent.tools?.list === 'function' ? agent.tools.list() : [],
       provider: (context.provider as { id?: string }).id,
       model: context.model,

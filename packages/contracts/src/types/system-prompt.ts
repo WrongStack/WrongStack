@@ -19,10 +19,14 @@ export interface BuildContext {
   tools: Tool[];
   /** Complete enabled catalog, including tools reachable only through lazy gateways. */
   catalogTools?: Tool[] | undefined;
-  /** Direct Quick shell when the alternative is deferred. */
+  /** Direct shell in Quick or Scout when the alternative is deferred. */
   quickShellTool?: 'bash' | 'pwsh' | undefined;
   /** The tier keeps Kanban available through the discovery gateways. */
   kanbanDeferred?: true | undefined;
+  /** Browser and E2E stay out of the stable prompt even when enabled for discovery. */
+  browserDeferred?: true | undefined;
+  /** Keep optional Kanban and Codebase guidance out of the stable skill listings. */
+  workspaceToolsDeferred?: true | undefined;
   /** Provider id (e.g. "anthropic", "minimax-coding-plan"). */
   provider?: string | undefined;
   /** Model id (e.g. "configured-model", "MiniMax-M2.7"). */

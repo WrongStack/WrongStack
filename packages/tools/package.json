@@ -257,7 +257,6 @@
     "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
-    "@jitl/quickjs-singlefile-mjs-release-sync": "^0.32.0",
     "@typescript/typescript6": "^6.0.2",
     "@wrongstack/agent-catalog": "workspace:*",
     "@wrongstack/browser-tools": "workspace:*",
@@ -268,7 +267,7 @@
     "@wrongstack/kanban": "workspace:*",
     "@wrongstack/persistence": "workspace:*",
     "@wrongstack/primitives": "workspace:*",
-    "quickjs-emscripten-core": "^0.32.0",
+    "@wrongstack/toolflow": "workspace:*",
     "turndown": "^7.2.5",
     "undici": "^8.12.4",
     "unpdf": "2.2.1"

@@ -1,0 +1,35 @@
+{
+  "name": "@wrongstack/toolflow",
+  "version": "1.7.19",
+  "private": true,
+  "license": "MIT",
+  "description": "WrongStack ToolFlow runtime, QuickJS interpreter, and result presentation.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./presentation": {
+      "types": "./dist/presentation.d.ts",
+      "import": "./dist/presentation.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map"
+  ],
+  "scripts": {
+    "build": "bun ../../scripts/build-package.mjs",
+    "typecheck": "bun ../../scripts/bun-typecheck.mjs --noEmit",
+    "test": "bun --bun run vitest run --root ../.. packages/toolflow/tests"
+  },
+  "dependencies": {
+    "@jitl/quickjs-singlefile-mjs-release-sync": "^0.32.0",
+    "@wrongstack/contracts": "workspace:*",
+    "quickjs-emscripten-core": "^0.32.0"
+  }
+}

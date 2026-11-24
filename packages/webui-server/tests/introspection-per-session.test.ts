@@ -68,6 +68,39 @@ function makeContext() {
 }
 
 describe('introspection answers about the asking session', () => {
+  it('labels an operator diagnostic only in the new schema version', async () => {
+    const { ctx, sent } = makeContext();
+    const registry = new ToolRegistry();
+    registry.register({
+      name: 'scanner_status',
+      inputSchema: {},
+      description: 'Test diagnostic',
+      permission: 'auto',
+      mutating: false,
+      operatorStatus: { sinceSchemaVersion: 3, read: () => ({ scans: 1 }) },
+      async execute() {},
+    });
+    for (const [sessionId, version] of [
+      ['tab-1', 2],
+      ['tab-2', 3],
+    ] as const) {
+      const agent = ctx.getAgent?.(sessionId);
+      if (!agent?.ctx.session) throw new Error('Missing fixture session');
+      Object.assign(agent, { tools: registry });
+      Object.assign(agent.ctx.session, { providerToolSchemaVersion: version });
+      await handleIntrospectionRoute(ctx, ws, { type: 'tools.list', payload: { sessionId } });
+      const payload = sent.at(-1)?.payload as { tools: unknown[] } | undefined;
+      const diagnostic = payload?.tools[0];
+      expect(diagnostic).toMatchObject({ name: 'scanner_status', direct: version === 2 });
+      if (version === 3) expect(diagnostic).toHaveProperty('operatorOnly', true);
+      else expect(diagnostic).not.toHaveProperty('operatorOnly');
+      await handleIntrospectionRoute(ctx, ws, { type: 'diag.get', payload: { sessionId } });
+      expect(sent.at(-1)?.payload).toMatchObject({
+        tools: { names: version === 2 ? ['scanner_status'] : [] },
+      });
+    }
+  });
+
   it('shows Kanban as deferred only for the versioned medium tab', async () => {
     const { ctx, sent } = makeContext();
     const registry = new ToolRegistry();
@@ -161,6 +194,54 @@ describe('introspection answers about the asking session', () => {
       ]),
     });
   });
+
+  it.each([
+    ['browser', 'browser_open', 'e2e_plan', 5],
+    ['kanban', 'kanban', 'kanban_queue', 6],
+    ['codebase', 'codebase-search', 'codebase-index', 6],
+  ] as const)(
+    'enables %s tools only on the requested tab',
+    async (group, primary, secondary, version) => {
+      const { ctx, sent } = makeContext();
+      const registry = new ToolRegistry();
+      for (const name of [primary, secondary, 'tool_search', 'tool_use']) {
+        registry.register({
+          name,
+          inputSchema: {},
+          description: name,
+          permission: 'auto',
+          mutating: false,
+          async execute() {},
+        });
+      }
+      for (const sessionId of ['tab-1', 'tab-2']) {
+        const agent = ctx.getAgent?.(sessionId);
+        if (!agent) throw new Error('Missing fixture agent');
+        Object.assign(agent, { tools: registry });
+        Object.assign(agent.ctx, { meta: { systemPromptVariant: 'pro' } });
+        Object.assign(agent.ctx.session, { providerToolSchemaVersion: version });
+      }
+      await handleIntrospectionRoute(ctx, ws, {
+        type: 'tools.group.set',
+        payload: { sessionId: 'tab-2', group, mode: 'on' },
+      });
+      expect(sent.at(-1)?.payload).toMatchObject({
+        toolGroups: expect.arrayContaining([expect.objectContaining({ group, enabled: true })]),
+        tools: expect.arrayContaining([expect.objectContaining({ name: primary, direct: false })]),
+      });
+      await handleIntrospectionRoute(ctx, ws, {
+        type: 'tools.list',
+        payload: { sessionId: 'tab-1' },
+      });
+      expect(sent.at(-1)?.payload).toMatchObject({
+        toolGroups: expect.arrayContaining([expect.objectContaining({ group, enabled: false })]),
+        tools: expect.arrayContaining([
+          expect.objectContaining({ name: primary, direct: false, groupDisabled: true }),
+          expect.objectContaining({ name: secondary, direct: false, groupDisabled: true }),
+        ]),
+      });
+    },
+  );
 
   it('stats.get reports the ASKING tab’s numbers, not the runtime’s', async () => {
     const { ctx, sent } = makeContext();

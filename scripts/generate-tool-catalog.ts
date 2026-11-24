@@ -3,12 +3,14 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { LEAN_BENCH_TOOL_NAMES } from '../packages/bench/src/isolation.ts';
 import { browserTools, liveBrowser } from '../packages/browser-tools/dist/index.js';
+import type { SessionMetadata } from '../packages/contracts/src/types/session.js';
 import { providerToolSurfaceForVariant } from '../packages/core/dist/core/index.js';
 import { ToolRegistry } from '../packages/core/dist/registry/index.js';
 import {
   compactToolDefinitionForWire,
   measureToolSchemas,
 } from '../packages/core/dist/utils/index.js';
+import { toolScriptTool } from '../packages/toolflow/dist/index.js';
 import {
   browserTools as compatibilityBrowserTools,
   liveBrowser as compatibilityLiveBrowser,
@@ -32,6 +34,14 @@ const problems: string[] = [];
 if (browserTools !== compatibilityBrowserTools || liveBrowser !== compatibilityLiveBrowser) {
   problems.push('The browser compatibility entry must share the Browser package suite and state.');
 }
+const registeredToolFlow = builtinTools.find((tool) => tool.name === toolScriptTool.name);
+if (
+  !registeredToolFlow ||
+  registeredToolFlow.execute !== toolScriptTool.execute ||
+  registeredToolFlow.inputSchema !== toolScriptTool.inputSchema
+) {
+  problems.push('The built-in tool_script must use the ToolFlow package contract and executor.');
+}
 for (const tool of catalog.tools) {
   problems.push(...tool.issues.map((issue) => `${tool.name}: ${issue}`));
   const max = longDescriptions[tool.name]?.max ?? 300;
@@ -53,37 +63,67 @@ const lean = LEAN_BENCH_TOOL_NAMES;
 measurements['lean'] = measureToolSchemas(builtinTools.filter((tool) => lean.includes(tool.name)));
 const registry = new ToolRegistry();
 registry.registerAllOrThrow(builtinTools, 'builtin');
+for (const version of [4, 5, 6]) {
+  const { tools } = providerToolSurfaceForVariant(registry, 'pro', undefined, undefined, {
+    providerToolSchemaVersion: version,
+  });
+  measurements[`offV${version}`] = measureToolSchemas(tools);
+}
 const mediumNames = selectBuiltinToolsForTier('medium', builtinTools).map((tool) => tool.name);
 registry.setProviderToolNames(mediumNames, 'medium');
 const { tools: mediumV1 } = providerToolSurfaceForVariant(registry, 'pro', undefined, undefined, {
   providerToolSchemaVersion: 1,
 });
 measurements['mediumV1'] = measureToolSchemas(mediumV1);
+const { tools: mediumV6 } = providerToolSurfaceForVariant(registry, 'pro', undefined, undefined, {
+  providerToolSchemaVersion: 6,
+});
+measurements['mediumV6'] = measureToolSchemas(mediumV6);
 const quickProfiles = {
   quickLegacy: undefined,
   quickV1: { quickToolSchemaVersion: 1 },
   quickBash: { quickToolSchemaVersion: 2, quickShellTool: 'bash' },
   quickPwsh: { quickToolSchemaVersion: 2, quickShellTool: 'pwsh' },
 } as const;
-const quickFingerprints = Object.fromEntries(
-  Object.entries(quickProfiles).map(([profile, session]) => {
-    const { tools } = providerToolSurfaceForVariant(
-      registry,
-      'quick',
-      undefined,
-      undefined,
-      session,
-    );
-    measurements[profile] = measureToolSchemas(tools);
-    return [
-      profile,
-      {
-        declarations: sha256(tools.map((tool) => compactToolDefinitionForWire(tool))),
-        usageHints: sha256(tools.map((tool) => tool.usageHint ?? '')),
-      },
-    ] as const;
-  }),
-);
+const scoutProfiles = {
+  scoutLegacy: { providerToolSchemaVersion: 1 },
+  scoutBash: { providerToolSchemaVersion: 2, quickShellTool: 'bash' },
+  scoutPwsh: { providerToolSchemaVersion: 2, quickShellTool: 'pwsh' },
+} as const;
+const quickFingerprints = measureProfiles('quick', quickProfiles);
+const scoutFingerprints = measureProfiles('scout', scoutProfiles);
+
+function measureProfiles(
+  variant: 'quick' | 'scout',
+  profiles: Record<
+    string,
+    | Pick<
+        SessionMetadata,
+        'quickToolSchemaVersion' | 'quickShellTool' | 'providerToolSchemaVersion'
+      >
+    | undefined
+  >,
+) {
+  return Object.fromEntries(
+    Object.entries(profiles).map(([profile, session]) => {
+      const { tools } = providerToolSurfaceForVariant(
+        registry,
+        variant,
+        undefined,
+        undefined,
+        session,
+      );
+      measurements[profile] = measureToolSchemas(tools);
+      return [
+        profile,
+        {
+          declarations: sha256(tools.map((tool) => compactToolDefinitionForWire(tool))),
+          usageHints: sha256(tools.map((tool) => tool.usageHint ?? '')),
+        },
+      ] as const;
+    }),
+  );
+}
 
 function sha256(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -94,16 +134,18 @@ if (adoptBudget) {
   if (!write) throw new Error('--adopt-budget requires --write');
   await writeFile(
     budgetUrl,
-    `${JSON.stringify({ schemaVersion: 1, scope: 'Built-in schemas using the shared provider-wire projection; Quick also fingerprints direct usage hints. Excludes provider-specific wrappers and host additions.', estimator: 'runtime heuristic, not billed tokens', profiles: measurements, quickFingerprints }, null, 2)}\n`,
+    `${JSON.stringify({ schemaVersion: 1, scope: 'Built-in schemas using the shared provider-wire projection; Quick and Scout also fingerprint direct usage hints. Excludes provider-specific wrappers and host additions.', estimator: 'runtime heuristic, not billed tokens', profiles: measurements, quickFingerprints, scoutFingerprints }, null, 2)}\n`,
   );
 }
 const budget = JSON.parse(await readFile(budgetUrl, 'utf8'));
-for (const [profile, fingerprints] of Object.entries(quickFingerprints)) {
-  for (const field of ['declarations', 'usageHints'] as const) {
-    if (budget.quickFingerprints?.[profile]?.[field] !== fingerprints[field]) {
-      problems.push(
-        `${profile}.${field}: Quick cache prefix input changed (SHA-256 ${fingerprints[field]}). Preserve the existing projection or review a new session version before adopting the fingerprint.`,
-      );
+for (const [family, measured] of Object.entries({ quickFingerprints, scoutFingerprints })) {
+  for (const [profile, fingerprints] of Object.entries(measured)) {
+    for (const field of ['declarations', 'usageHints'] as const) {
+      if (budget[family]?.[profile]?.[field] !== fingerprints[field]) {
+        problems.push(
+          `${profile}.${field}: cache prefix input changed (SHA-256 ${fingerprints[field]}). Preserve the existing projection or review a new session version before adopting the fingerprint.`,
+        );
+      }
     }
   }
 }

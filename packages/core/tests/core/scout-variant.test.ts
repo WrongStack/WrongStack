@@ -12,7 +12,11 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { loadInstructionBundle } from '../../src/core/instruction-bundle.js';
 import { renderInstructionLayer } from '../../src/core/instruction-template.js';
 import { DefaultSystemPromptBuilder } from '../../src/core/system-prompt-builder.js';
-import { providerToolsForVariant } from '../../src/registry/scout-tool-surface.js';
+import {
+  providerToolSurfaceForVariant,
+  providerToolsForVariant,
+} from '../../src/registry/scout-tool-surface.js';
+import { reachableTools } from '../../src/registry/session-tool-reach.js';
 import { ToolRegistry } from '../../src/registry/tool-registry.js';
 import {
   areSubagentsAllowed,
@@ -54,6 +58,71 @@ function registry(): ToolRegistry {
 }
 
 describe('Scout direct tool surface', () => {
+  it('selects one shell and compact clarification and uses the saved promotion roster', () => {
+    const r = registry();
+    for (const name of ['exec', 'fetch', 'read_url_content', 'git']) r.register(tool(name));
+    const clarify = {
+      ...tool('clarify'),
+      quickProjection: {
+        inputSchema: { type: 'object', required: ['question'] },
+        usageHint: 'Ask one question.',
+      },
+    };
+    r.register(clarify);
+    const meta = { scoutLearnedTools: ['kanban'] };
+    const session = {
+      providerToolSchemaVersion: 2,
+      quickShellTool: 'pwsh',
+      scoutLearnedTools: ['git'],
+    } as const;
+    const select = () => providerToolSurfaceForVariant(r, 'scout', meta, undefined, session);
+    const { tools, quickShellTool } = select();
+    expect(names(tools)).toEqual([
+      'read',
+      'edit',
+      'pwsh',
+      'tool_search',
+      'tool_use',
+      'delegate',
+      'exec',
+      'fetch',
+      'git',
+      'clarify',
+    ]);
+    expect(quickShellTool).toBe('pwsh');
+    expect(tools.find((entry) => entry.name === 'clarify')?.inputSchema).toEqual(
+      clarify.quickProjection.inputSchema,
+    );
+    expect(names(reachableTools({ tools, catalogTools: r.list() }))).toEqual(
+      expect.arrayContaining(['bash', 'read_url_content', 'kanban']),
+    );
+    expect(select().tools).toBe(tools);
+    expect(names(providerToolSurfaceForVariant(r, 'scout', meta, undefined).tools)).toEqual(
+      expect.arrayContaining(['bash', 'pwsh', 'read_url_content', 'kanban']),
+    );
+  });
+
+  it('does not expose the complete catalog on a new journal when a gateway is disabled', () => {
+    const r = registry();
+    r.disable('tool_use');
+    const session = { providerToolSchemaVersion: 2 };
+    const select = () => providerToolSurfaceForVariant(r, 'scout', {}, undefined, session).tools;
+    expect(names(select())).toEqual(['read', 'edit', 'bash', 'pwsh', 'tool_search', 'delegate']);
+    r.setSessionRestriction({ only: ['kanban'] });
+    expect(names(select())).toEqual(['kanban', 'tool_search']);
+  });
+
+  it('keeps the available shell and URL reader when their preferred tools are unavailable', () => {
+    const r = registry();
+    r.register(tool('read_url_content'));
+    r.disable('pwsh');
+    const { tools } = providerToolSurfaceForVariant(r, 'scout', {}, undefined, {
+      providerToolSchemaVersion: 2,
+      quickShellTool: 'pwsh',
+    });
+    expect(names(tools)).toEqual(expect.arrayContaining(['bash', 'read_url_content']));
+  });
+
   it('narrows to the Scout set regardless of the tier surface', () => {
     const r = registry();
     expect(names(providerToolsForVariant(r, 'scout'))).toEqual([

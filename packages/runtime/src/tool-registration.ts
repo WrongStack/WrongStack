@@ -42,6 +42,7 @@ export interface CanonicalHostToolRegistrationOptions {
   contextTool?: Tool | undefined;
   coordinationTools?: readonly Tool[] | undefined;
   browser?: { enabled?: boolean } | undefined;
+  kanbanGovernance?: boolean | undefined;
   memory?:
     | {
         enabled: boolean;
@@ -172,6 +173,8 @@ export function registerCanonicalHostTools(
 
   for (const tool of options.coordinationTools ?? []) options.registry.register(tool);
 
+  options.registry.setBrowserToolsEnabled(options.browser?.enabled === true);
+  options.registry.setKanbanGovernanceRequired(options.kanbanGovernance === true);
   if (options.tier !== 'off') {
     const directNames = new Set(builtinTools.map((tool) => tool.name));
     for (const name of DIRECT_LAZY_GATEWAYS) directNames.add(name);

@@ -193,7 +193,11 @@ export async function executeCreateSession(
       startedAt,
       {
         ...meta,
-        providerToolSchemaVersion: meta.providerToolSchemaVersion ?? 1,
+        providerToolSchemaVersion: meta.providerToolSchemaVersion ?? 6,
+        scoutLearnedTools:
+          Array.isArray(meta.scoutLearnedTools) && meta.scoutLearnedTools.length
+            ? Object.freeze(meta.scoutLearnedTools.filter((name) => typeof name === 'string'))
+            : undefined,
         quickToolSchemaVersion: meta.quickToolSchemaVersion ?? 2,
         // Only a newly created session gets a platform-derived shell. A fork
         // supplies the source version and keeps the source's recorded choice.

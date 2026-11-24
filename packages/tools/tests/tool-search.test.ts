@@ -5,6 +5,7 @@ import {
   clearRequestScopedBlocks,
   requestScopedEntries,
 } from '../../core/src/core/request-scoped-context.js';
+import { clarifyTool } from '../src/clarify.js';
 import { kanbanTool } from '../src/kanban.js';
 import { toolSearchTool } from '../src/tool-search.js';
 
@@ -104,6 +105,110 @@ describe('toolSearchTool', () => {
     expect(result.tools[0]?.name).toBe('kanban');
     expect(schema.properties?.action?.enum).toContain('workbench');
     expect(schema.properties?.action?.enum).toContain('create_board');
+  });
+
+  it('attaches a Kanban action and a Codebase schema only on exact lookups in version 6', async () => {
+    const codebase = {
+      name: 'codebase-search',
+      description: 'Search the code index.',
+      permission: 'auto',
+      mutating: false,
+      inputSchema: { type: 'object', properties: { indexQuery: { type: 'string' } } },
+    };
+    const ctx = {
+      ...makeCtx([toolSearchTool, { name: 'tool_use' }]),
+      catalogTools: [kanbanTool, codebase],
+      meta: { systemPromptVariant: 'pro' },
+      session: { providerToolSchemaVersion: 6 },
+    };
+    expect((await executeToolSearch({}, ctx)).tools).toEqual([]);
+    setSessionToolGroup(ctx, 'kanban', 'on');
+    setSessionToolGroup(ctx, 'codebase', 'on');
+    const browse = await executeToolSearch({}, ctx);
+    expect(browse.tools).toMatchObject([
+      { name: 'kanban', schemaOmitted: true },
+      { name: codebase.name, schemaOmitted: true },
+    ]);
+    expect(requestScopedEntries(ctx)).toEqual([]);
+    const action = await executeToolSearch({ query: 'kanban:get_task' }, ctx);
+    expect(action.tools[0]?.schemaRevision).toBeDefined();
+    expect(action.tools[0]?.inputSchema).toBeUndefined();
+    const attachment = requestScopedEntries(ctx)[0]?.block.text ?? '';
+    expect(attachment).toContain('Deferred tool schema for kanban:get_task');
+    const schema = JSON.parse(attachment.slice(attachment.indexOf('\n') + 1));
+    expect(schema.properties.action.enum).toEqual(['get_task']);
+    setSessionToolGroup(ctx, 'kanban', 'off');
+    const lookup = await executeToolSearch({ query: codebase.name }, ctx);
+    expect(lookup.tools[0]?.schemaRevision).toBeDefined();
+    expect(lookup.tools[0]?.inputSchema).toBeUndefined();
+    expect(requestScopedEntries(ctx)).toHaveLength(1);
+    expect(requestScopedEntries(ctx)[0]?.block.text).toContain('"indexQuery"');
+    ctx.tools = [toolSearchTool];
+    expect((await executeToolSearch({ query: codebase.name }, ctx)).tools).toEqual([]);
+    expect(requestScopedEntries(ctx)).toEqual([]);
+  });
+
+  it('discovers Browser tools in Pro only when enabled and attaches an exact schema once', async () => {
+    const browser = {
+      name: 'browser_open',
+      description: 'Open a browser.',
+      permission: 'auto',
+      mutating: true,
+      inputSchema: { type: 'object', properties: { url: { type: 'string' } } },
+    };
+    const ctx = {
+      ...makeCtx([toolSearchTool, { name: 'tool_use' }]),
+      catalogTools: [browser],
+      meta: { systemPromptVariant: 'pro' },
+      session: { providerToolSchemaVersion: 5 },
+    };
+    const lookup = { query: 'browser_open' };
+    expect((await executeToolSearch(lookup, ctx)).tools).toEqual([]);
+
+    setSessionToolGroup(ctx, 'browser', 'on');
+    const browse = await executeToolSearch({ query: 'browser' }, ctx);
+    expect(browse.tools).toMatchObject([{ name: browser.name, schemaOmitted: true }]);
+    expect(browse.tools[0]).not.toHaveProperty('inputSchema');
+    expect(requestScopedEntries(ctx)).toEqual([]);
+    expect((await executeToolSearch(lookup, ctx)).tools[0]).toHaveProperty('schemaRevision');
+    expect(requestScopedEntries(ctx)[0]?.block.text).toContain('"url"');
+    ctx.tools = [toolSearchTool];
+    expect((await executeToolSearch(lookup, ctx)).tools).toEqual([]);
+    expect(requestScopedEntries(ctx)).toEqual([]);
+
+    ctx.tools = [toolSearchTool, { name: 'tool_use' }];
+    setSessionToolGroup(ctx, 'browser', 'off');
+    setSessionToolGroup(ctx, 'browser', 'on');
+    expect(requestScopedEntries(ctx)).toEqual([]);
+  });
+
+  it('loads the full clarification form on demand in versioned Scout', async () => {
+    const ctx = {
+      ...makeCtx([toolSearchTool, { name: 'tool_use' }]),
+      catalogTools: [clarifyTool],
+      meta: { systemPromptVariant: 'scout' },
+      session: { providerToolSchemaVersion: 2 },
+    };
+    const browse = await executeToolSearch({}, ctx);
+    expect(browse.tools[0]).toMatchObject({ name: 'clarify', schemaOmitted: true });
+    expect(requestScopedEntries(ctx)).toEqual([]);
+    const query = { query: 'clarify' };
+    const result = await executeToolSearch(query, ctx);
+    expect(result.tools[0]?.schemaRevision).toBeDefined();
+    expect(toolSearchTool.serialize!(result, query)).not.toContain('"tabs"');
+    expect(requestScopedEntries(ctx)[0]?.block.text).toContain('"tabs"');
+  });
+
+  it('does not return unreachable catalog schemas in Scout without tool_use', async () => {
+    const ctx = {
+      ...makeCtx([toolSearchTool]),
+      catalogTools: [toolSearchTool, kanbanTool],
+      meta: { systemPromptVariant: 'scout' },
+      session: { providerToolSchemaVersion: 2 },
+    };
+    const result = await executeToolSearch({ query: 'kanban' }, ctx);
+    expect(result.tools).toEqual([]);
+    expect(result._available).toBe(1);
   });
 
   it('defers only the Kanban schema on a versioned medium surface', async () => {

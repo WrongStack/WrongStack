@@ -9,6 +9,7 @@ import type {
   SystemPromptRegions,
 } from '@wrongstack/contracts/types/system-prompt';
 import { flattenSystemPromptRegions } from '@wrongstack/contracts/types/system-prompt';
+import { withoutDeferredSessionGroupTools } from '../registry/session-tool-groups.js';
 import {
   formatProjectSuppliedBlock,
   PROJECT_SUPPLIED_INSTRUCTIONS_TAG,
@@ -41,7 +42,10 @@ export class DefaultSystemPromptBuilder
     // Decide the prompt's shape before anything reads `this.tier`.
     this.latchTier(ctx.model);
     this._lastBuildTools = ctx.tools;
-    this._lastCatalogTools = ctx.catalogTools ?? ctx.tools;
+    const catalog = ctx.catalogTools ?? ctx.tools;
+    this._lastCatalogTools = ctx.browserDeferred
+      ? withoutDeferredSessionGroupTools(catalog, ctx.workspaceToolsDeferred === true)
+      : catalog;
     // Quick is the lean identity: no skill catalog, skill bodies or mode skill
     // hints — they were most of its prompt, re-sent on every request, for a
     // surface that loads skills only through `tool_search` / `tool_use`.

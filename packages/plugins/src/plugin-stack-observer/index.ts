@@ -162,6 +162,14 @@ const PLUGIN: Plugin = {
     }
 
     // --- plugin_stack_status tool ---
+    const readStatus = () => ({
+      ok: true,
+      enabled: cfg.enabled,
+      injectIntoSystemPrompt: cfg.injectIntoSystemPrompt,
+      wrapCount: state.wraps.length,
+      wraps: state.wraps,
+      contributions: state.contributions,
+    });
     api.tools.register({
       name: 'plugin_stack_status',
       description:
@@ -170,15 +178,9 @@ const PLUGIN: Plugin = {
       permission: 'auto',
       category: 'Diagnostics',
       mutating: false,
+      operatorStatus: { sinceSchemaVersion: 4, read: readStatus },
       async execute() {
-        return {
-          ok: true,
-          enabled: cfg.enabled,
-          injectIntoSystemPrompt: cfg.injectIntoSystemPrompt,
-          wrapCount: state.wraps.length,
-          wraps: state.wraps,
-          contributions: state.contributions,
-        };
+        return readStatus();
       },
     });
 

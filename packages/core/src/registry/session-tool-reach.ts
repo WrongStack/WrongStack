@@ -22,12 +22,13 @@
  */
 
 import type { Tool } from '@wrongstack/contracts/types/tool';
+import type { ToolSchemaSessionContext } from './operator-tool-status.js';
 import { isSessionToolAllowed } from './session-tool-groups.js';
 
 /** The tool that calls withheld catalog tools; its presence opens the catalog. */
 export const CATALOG_GATEWAY_TOOL = 'tool_use';
 
-interface ToolReachContext {
+interface ToolReachContext extends ToolSchemaSessionContext {
   readonly meta?: Readonly<Record<string, unknown>> | undefined;
   readonly projectRoot?: string | undefined;
   readonly currentKanbanBoardId?: string | undefined;

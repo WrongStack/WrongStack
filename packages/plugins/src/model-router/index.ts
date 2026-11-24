@@ -308,6 +308,19 @@ const plugin: Plugin = {
       } as never);
     }
 
+    const readStatus = () => ({
+      ok: true,
+      enabled: cfg.enabled,
+      dryRun: cfg.dryRun,
+      ruleCount: cfg.rules.length,
+      rules: cfg.rules,
+      counters: {
+        invocations: state.invocations,
+        routed: state.routed,
+        passthrough: state.passthrough,
+      },
+      routes: Object.fromEntries(state.routes),
+    });
     api.tools.register({
       name: 'model_router_status',
       description:
@@ -316,20 +329,9 @@ const plugin: Plugin = {
       permission: 'auto',
       category: 'Diagnostics',
       mutating: false,
+      operatorStatus: { sinceSchemaVersion: 4, read: readStatus },
       async execute() {
-        return {
-          ok: true,
-          enabled: cfg.enabled,
-          dryRun: cfg.dryRun,
-          ruleCount: cfg.rules.length,
-          rules: cfg.rules,
-          counters: {
-            invocations: state.invocations,
-            routed: state.routed,
-            passthrough: state.passthrough,
-          },
-          routes: Object.fromEntries(state.routes),
-        };
+        return readStatus();
       },
     });
 

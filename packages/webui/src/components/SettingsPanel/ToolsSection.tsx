@@ -23,15 +23,31 @@ interface ToolInfo {
   params: string[];
   disabled: boolean;
   groupDisabled?: boolean | undefined;
+  operatorOnly?: boolean | undefined;
   direct: boolean;
   mutating: boolean;
   permission: string;
 }
 
 /** Small indicator dot for tool status. */
-function StatusDot({ disabled, direct }: { disabled: boolean; direct: boolean }) {
-  const color = disabled ? 'bg-muted-foreground' : direct ? 'bg-success' : 'bg-info';
-  const title = disabled ? 'disabled' : direct ? 'direct provider tool' : 'lazy catalog tool';
+function StatusDot({
+  disabled,
+  direct,
+  operatorOnly,
+}: {
+  disabled: boolean;
+  direct: boolean;
+  operatorOnly?: boolean | undefined;
+}) {
+  const color =
+    disabled || operatorOnly ? 'bg-muted-foreground' : direct ? 'bg-success' : 'bg-info';
+  const title = disabled
+    ? 'disabled'
+    : operatorOnly
+      ? 'operator diagnostic'
+      : direct
+        ? 'direct provider tool'
+        : 'lazy catalog tool';
   return <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${color}`} title={title} />;
 }
 
@@ -52,7 +68,11 @@ function ToolRow({
     <div className="space-y-2 rounded-md border border-border/70 bg-card/70 p-3 transition-colors hover:bg-card">
       <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start">
         <div className="flex min-w-0 flex-1 items-start gap-2">
-          <StatusDot disabled={tool.disabled || tool.groupDisabled === true} direct={tool.direct} />
+          <StatusDot
+            disabled={tool.disabled || tool.groupDisabled === true}
+            direct={tool.direct}
+            operatorOnly={tool.operatorOnly}
+          />
           <div className="min-w-0 flex-1">
             <code className="block truncate text-sm font-mono font-semibold" title={tool.name}>
               {toolDisplayName(tool.name)}
@@ -69,9 +89,11 @@ function ToolRow({
                   ? 'disabled'
                   : tool.groupDisabled
                     ? 'group off'
-                    : tool.direct
-                      ? 'direct'
-                      : 'lazy'}
+                    : tool.operatorOnly
+                      ? 'operator'
+                      : tool.direct
+                        ? 'direct'
+                        : 'lazy'}
               </Badge>
               <span className="truncate text-[11px] text-muted-foreground" title={tool.owner}>
                 {tool.owner}
@@ -209,7 +231,10 @@ function SessionToolsSection({ sessionId }: { sessionId: string | undefined }): 
   // Tools are bounded (catalog), show all without pagination.
 
   const directCount = tools.filter((t) => !t.disabled && !t.groupDisabled && t.direct).length;
-  const lazyCount = tools.filter((t) => !t.disabled && !t.groupDisabled && !t.direct).length;
+  const lazyCount = tools.filter(
+    (t) => !t.disabled && !t.groupDisabled && !t.direct && !t.operatorOnly,
+  ).length;
+  const operatorCount = tools.filter((t) => !t.disabled && t.operatorOnly).length;
   const disabledCount = tools.filter((t) => t.disabled || t.groupDisabled).length;
 
   return (
@@ -223,8 +248,9 @@ function SessionToolsSection({ sessionId }: { sessionId: string | undefined }): 
         </div>
         {!loading && (
           <span className="rounded-md border border-border/60 bg-muted/30 px-2 py-1 text-xs text-muted-foreground sm:ml-auto">
-            {directCount} direct · {lazyCount} lazy · {disabledCount} disabled · {tools.length}{' '}
-            total
+            {directCount} direct · {lazyCount} lazy
+            {operatorCount > 0 ? ` · ${operatorCount} operator` : ''} · {disabledCount} disabled ·{' '}
+            {tools.length} total
           </span>
         )}
       </div>

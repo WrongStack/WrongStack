@@ -10,11 +10,13 @@ export interface SessionMetadata {
   model?: string | undefined;
   provider?: string | undefined;
   startedAt: string;
-  /** Provider-tier tool projection selected when the journal is created. */
+  /** Version of the tier and Scout provider projections selected at journal creation. */
   providerToolSchemaVersion?: number | undefined;
+  /** Scout promotions sampled at session creation. */
+  scoutLearnedTools?: readonly string[] | undefined;
   /** Provider tool projection pinned when the session was created. */
   quickToolSchemaVersion?: number | undefined;
-  /** Shell whose schema is sent directly in Quick. */
+  /** Journal pin for the direct shell in compact Quick and Scout. */
   quickShellTool?: 'bash' | 'pwsh' | undefined;
   endedAt?: string | undefined;
   /**

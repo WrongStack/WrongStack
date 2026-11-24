@@ -99,6 +99,7 @@ export async function forkSession(
     quickToolSchemaVersion: activeIdentity?.quickToolSchemaVersion ?? 0,
     quickShellTool: activeIdentity?.quickShellTool,
     providerToolSchemaVersion: activeIdentity?.providerToolSchemaVersion ?? 0,
+    scoutLearnedTools: activeIdentity?.scoutLearnedTools,
   });
 
   try {

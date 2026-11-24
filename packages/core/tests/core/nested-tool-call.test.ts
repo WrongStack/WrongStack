@@ -13,6 +13,7 @@ import type { NextFn } from '@wrongstack/contracts/kernel/pipeline';
 import { TOKENS } from '@wrongstack/contracts/kernel/tokens';
 import type { ToolUseBlock } from '@wrongstack/contracts/types/blocks';
 import type { NestedToolCallResult } from '@wrongstack/contracts/types/context';
+import type { SessionWriter } from '@wrongstack/contracts/types/session';
 import type { Tool } from '@wrongstack/contracts/types/tool';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildCodexRequestBody } from '../../../providers/src/openai-codex-body.js';
@@ -47,7 +48,9 @@ import { removeProjectFixtureDirectory } from '../helpers/project-server-harness
 
 const dirs: string[] = [];
 const spoolFiles: string[] = [];
+const sessionWriters: SessionWriter[] = [];
 afterEach(async () => {
+  await Promise.all(sessionWriters.splice(0).map((writer) => writer.close()));
   for (const file of spoolFiles.splice(0)) await fs.rm(file, { force: true });
   for (const dir of dirs.splice(0))
     await removeProjectFixtureDirectory(dir, { maxRetries: 10, retryDelay: 50 });
@@ -112,6 +115,7 @@ async function buildAgent(
   const events = new EventBus();
   const sessionStore = new DefaultSessionStore({ dir: path.join(tmp, 'sessions') });
   const session = await sessionStore.create({ id: '', model: 'test', provider: 'mock' });
+  sessionWriters.push(session);
   const append = vi.spyOn(session, 'append');
   const appendBatch = vi.spyOn(session, 'appendBatch');
   const ctx = new Context({
@@ -163,26 +167,83 @@ const turn = {
 const done = { content: [{ type: 'text' as const, text: 'ok' }], stopReason: 'end_turn' as const };
 
 describe('a tool call made from inside a tool', () => {
-  it.each(['native', 'auto', 'none'] as const)(
-    'keeps the Quick prefix stable for live groups on the %s request path',
-    async (cacheControl) => {
+  it('keeps operator status out of discovery and direct or nested execution', async () => {
+    const execute = vi.fn(async () => 'fixture diagnostic');
+    const status = {
+      ...tool('scanner_status', 'auto'),
+      aliases: ['old_scan_status'],
+      operatorStatus: { sinceSchemaVersion: 3, read: () => ({ scans: 1 }) },
+      execute,
+    };
+    const use = (id: string, name: string, input: Record<string, unknown>) => ({
+      content: [{ type: 'tool_use' as const, id, name, input }],
+      stopReason: 'tool_use' as const,
+    });
+    const provider = new MockProvider([
+      use('search', 'tool_search', { query: 'scanner_status' }),
+      use('direct', 'old_scan_status', {}),
+      use('nested', 'tool_use', { tool: 'old_scan_status', input: {} }),
+      use('script', 'tool_script', { script: 'return tools.names();' }),
+      done,
+    ]);
+    const { agent, ctx, events } = await buildAgent(provider, [
+      status,
+      toolSearchTool,
+      toolUseTool,
+      toolScriptTool,
+    ]);
+    events.on('tool.confirm_needed', (event) => event.resolve('yes'));
+    expect((await agent.run('Inspect the catalog')).status).toBe('done');
+    expect(ctx.catalogTools?.some((entry) => entry.name === status.name)).toBe(false);
+    expect(
+      provider.receivedRequests.every(
+        (request) => !request.tools?.some((entry) => entry.name === status.name),
+      ),
+    ).toBe(true);
+    expect(execute).not.toHaveBeenCalled();
+    const outputs = ctx.messages
+      .flatMap((message) => (Array.isArray(message.content) ? message.content : []))
+      .filter((block) => block.type === 'tool_result');
+    const result = (id: string) => outputs.find((block) => block.tool_use_id === id)?.content;
+    expect(result('search')).toContain('0 match(es)');
+    expect(result('script')).toContain('"tool_search"');
+    expect(result('script')).not.toContain('scanner_status');
+    expect(status.operatorStatus.read()).toEqual({ scans: 1 });
+  });
+
+  it.each([
+    ['quick', 'kanban', 'kanban', 'native'],
+    ['quick', 'kanban', 'kanban', 'auto'],
+    ['quick', 'kanban', 'kanban', 'none'],
+    ['pro', 'browser', 'browser_open', 'native'],
+    ['pro', 'browser', 'browser_open', 'auto'],
+    ['pro', 'browser', 'browser_open', 'none'],
+    ['pro', 'kanban', 'kanban', 'native'],
+    ['pro', 'kanban', 'kanban', 'auto'],
+    ['pro', 'kanban', 'kanban', 'none'],
+    ['pro', 'codebase', 'codebase-search', 'native'],
+    ['pro', 'codebase', 'codebase-search', 'auto'],
+    ['pro', 'codebase', 'codebase-search', 'none'],
+  ] as const)(
+    'keeps the %s prefix stable for the %s group (%s) on the %s request path',
+    async (variant, group, name, cacheControl) => {
       const use = (id: string, name: string, input: Record<string, unknown>) => ({
         content: [{ type: 'tool_use' as const, id, name, input }],
         stopReason: 'tool_use' as const,
       });
       const target: Tool = {
-        ...tool('kanban', 'auto'),
-        aliases: ['board_fixture'],
+        ...tool(name, 'auto'),
+        aliases: ['fixture_alias'],
         inputSchema: { type: 'object', properties: { contractMarker: { type: 'string' } } },
-        execute: vi.fn(async () => 'board accessed'),
+        execute: vi.fn(async () => 'tool accessed'),
       };
       const provider = new MockProvider([
-        use('off', 'tool_use', { tool: 'board_fixture', input: {} }),
+        use('off', 'tool_use', { tool: 'fixture_alias', input: {} }),
         done,
-        use('lookup', 'tool_search', { query: 'board_fixture' }),
-        use('on', 'tool_use', { tool: 'board_fixture', input: { contractMarker: 'valid' } }),
+        use('lookup', 'tool_search', { query: 'fixture_alias' }),
+        use('on', 'tool_use', { tool: 'fixture_alias', input: { contractMarker: 'valid' } }),
         done,
-        use('off-again', 'board_fixture', {}),
+        use('off-again', 'fixture_alias', {}),
         done,
       ]);
       provider.capabilities.cacheControl = cacheControl;
@@ -192,26 +253,23 @@ describe('a tool call made from inside a tool', () => {
         toolUseTool,
       ]);
       events.on('tool.confirm_needed', (event) => event.resolve('yes'));
-      ctx.meta['systemPromptVariant'] = 'quick';
+      ctx.meta['systemPromptVariant'] = variant;
+      const deferredSchema = `Deferred tool schema for ${name}`;
 
-      await agent.run('Try the unlinked board');
+      await agent.run('Try the disabled tool');
       expect(target.execute).not.toHaveBeenCalled();
-      setSessionToolGroup(ctx, 'kanban', 'on');
-      await agent.run('Look up and access the board');
+      setSessionToolGroup(ctx, group, 'on');
+      await agent.run('Look up and invoke the enabled tool');
       expect(target.execute).toHaveBeenCalledTimes(1);
-      expect(JSON.stringify(provider.receivedRequests[3]?.messages)).toContain(
-        'Deferred tool schema for kanban',
-      );
-      expect(JSON.stringify(provider.receivedRequests[4]?.messages)).not.toContain(
-        'Deferred tool schema for kanban',
-      );
-      expect(JSON.stringify(ctx.messages)).not.toContain('Deferred tool schema for kanban');
+      expect(JSON.stringify(provider.receivedRequests[3]?.messages)).toContain(deferredSchema);
+      expect(JSON.stringify(provider.receivedRequests[4]?.messages)).not.toContain(deferredSchema);
+      expect(JSON.stringify(ctx.messages)).not.toContain(deferredSchema);
       expect(requestScopedEntries(ctx)).toEqual([]);
 
       // Late registrations and another toggle leave the same direct tools and key.
-      registry.register(tool('late-plugin-tool', 'auto'), 'plugin');
-      setSessionToolGroup(ctx, 'kanban', 'off');
-      await agent.run('Try the board again through its alias');
+      if (variant === 'quick') registry.register(tool('late-plugin-tool', 'auto'), 'plugin');
+      setSessionToolGroup(ctx, group, 'off');
+      await agent.run('Try the disabled tool again through its alias');
       expect(target.execute).toHaveBeenCalledTimes(1);
       expect(provider.receivedRequests).toHaveLength(7);
       const stable = provider.receivedRequests[0];
@@ -221,6 +279,7 @@ describe('a tool call made from inside a tool', () => {
         none: googleWireFormat,
       }[cacheControl];
       if (!stable) throw new Error('Missing baseline request');
+      expect(stable.tools?.some((entry) => entry.name === name)).toBe(false);
       const wireContext = { capabilities: provider.capabilities };
       const stableWire = format.buildBody(stable, wireContext);
       const codexOptions = {
@@ -243,8 +302,8 @@ describe('a tool call made from inside a tool', () => {
         expect(wire['prompt_cache_key']).toBe(stableWire['prompt_cache_key']);
         const schemaPlacement =
           request === provider.receivedRequests[3]
-            ? expect.stringContaining('Deferred tool schema for kanban')
-            : expect.not.stringContaining('Deferred tool schema for kanban');
+            ? expect.stringContaining(deferredSchema)
+            : expect.not.stringContaining(deferredSchema);
         expect(JSON.stringify(wire)).toEqual(schemaPlacement);
         if (stableCodex) {
           const codex = buildCodexRequestBody(request, codexOptions);
@@ -260,9 +319,12 @@ describe('a tool call made from inside a tool', () => {
     'cannot reach a denied or disabled target through an alias via %s',
     async (route) => {
       const execute = vi.fn(async () => 'must not run');
-      for (const blocked of ['deny', 'disabled'] as const) {
+      for (const blocked of ['deny', 'disabled', 'browser-group'] as const) {
         const target: Tool = {
-          ...tool('alias_target', blocked === 'deny' ? 'deny' : 'auto'),
+          ...tool(
+            blocked === 'browser-group' ? 'browser_open' : 'alias_target',
+            blocked === 'deny' ? 'deny' : 'auto',
+          ),
           aliases: ['old_target'],
           execute,
         };
@@ -277,11 +339,12 @@ describe('a tool call made from inside a tool', () => {
                 ? { tool: 'old_target', input: {} }
                 : { script: "return await tools.call('old_target', {});" },
         };
-        const { agent, events, registry } = await buildAgent(
+        const { agent, ctx, events, registry } = await buildAgent(
           new MockProvider([{ content: [use], stopReason: 'tool_use' }, done]),
           [target, toolUseTool, toolScriptTool],
         );
         if (blocked === 'disabled') registry.disable('alias_target');
+        if (blocked === 'browser-group') ctx.meta['systemPromptVariant'] = 'pro';
         events.on('tool.confirm_needed', (event) => event.resolve('yes'));
         await agent.run('Check refusal');
         expect(execute).not.toHaveBeenCalled();

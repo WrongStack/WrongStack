@@ -603,6 +603,27 @@ const plugin: Plugin = {
     if (cfg.enabled && cfg.lockfileSync) state.lockfileUnregister = registerLockfileSync(api);
 
     // ── dep_guard_status tool ─────────────────────────────────────────
+    const operatorStatus = () => ({
+      ok: true,
+      enabled: cfg.enabled,
+      mode: cfg.mode,
+      deny: cfg.deny,
+      allow: cfg.allow,
+      warnOnUnpinned: cfg.warnOnUnpinned,
+      typosquatCheck: cfg.typosquatCheck,
+      registryCheck: cfg.registryCheck,
+      minPackageAgeDays: cfg.minPackageAgeDays,
+      vulnerabilityCheck: cfg.vulnerabilityCheck,
+      counters: {
+        invocations: state.invocations,
+        installsSeen: state.installsSeen,
+        llmConfirmCount: state.llmConfirmCount,
+        llmConfirmErrors: state.llmConfirmErrors,
+        blocks: state.blocks,
+        warns: state.warns,
+      },
+      lastBlock: state.lastBlock,
+    });
     api.tools.register({
       name: 'dep_guard_status',
       description:
@@ -611,28 +632,9 @@ const plugin: Plugin = {
       permission: 'auto',
       category: 'Diagnostics',
       mutating: false,
+      operatorStatus: { sinceSchemaVersion: 3, read: operatorStatus },
       async execute() {
-        return {
-          ok: true,
-          enabled: cfg.enabled,
-          mode: cfg.mode,
-          deny: cfg.deny,
-          allow: cfg.allow,
-          warnOnUnpinned: cfg.warnOnUnpinned,
-          typosquatCheck: cfg.typosquatCheck,
-          registryCheck: cfg.registryCheck,
-          minPackageAgeDays: cfg.minPackageAgeDays,
-          vulnerabilityCheck: cfg.vulnerabilityCheck,
-          counters: {
-            invocations: state.invocations,
-            installsSeen: state.installsSeen,
-            llmConfirmCount: state.llmConfirmCount,
-            llmConfirmErrors: state.llmConfirmErrors,
-            blocks: state.blocks,
-            warns: state.warns,
-          },
-          lastBlock: state.lastBlock,
-        };
+        return operatorStatus();
       },
     });
 

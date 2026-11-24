@@ -1,3 +1,4 @@
+import type { Tool } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import pluginStackObserver from '../src/plugin-stack-observer';
 
@@ -17,7 +18,7 @@ function getStatusTool(api: ReturnType<typeof makeApi>) {
     ([tool]: unknown[]) => (tool as { name: string }).name === 'plugin_stack_status',
   );
   if (!call) throw new Error('plugin_stack_status not registered');
-  return call[0] as { execute: () => Promise<unknown> };
+  return call[0] as { execute: () => Promise<unknown>; operatorStatus?: Tool['operatorStatus'] };
 }
 
 describe('plugin-stack-observer', () => {
@@ -46,12 +47,15 @@ describe('plugin-stack-observer', () => {
       wraps: ['request'],
     });
 
-    const status = (await getStatusTool(api).execute()) as {
+    const tool = getStatusTool(api);
+    const status = (await tool.execute()) as {
       wrapCount: number;
       wraps: Array<{ plugin: string }>;
     };
     expect(status.wrapCount).toBe(1);
     expect(status.wraps[0]?.plugin).toBe('llm-cache');
+    expect(tool.operatorStatus?.sinceSchemaVersion).toBe(4);
+    expect(tool.operatorStatus?.read()).toEqual(status);
   });
 
   it('teardown unregisters the provider wrap listener and clears state', async () => {

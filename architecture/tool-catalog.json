@@ -5911,10 +5911,30 @@
       "wireBytes": 5304,
       "estimatedTokens": 1448
     },
+    "offV4": {
+      "count": 82,
+      "wireBytes": 103137,
+      "estimatedTokens": 28527
+    },
+    "offV5": {
+      "count": 65,
+      "wireBytes": 94235,
+      "estimatedTokens": 26173
+    },
+    "offV6": {
+      "count": 47,
+      "wireBytes": 56450,
+      "estimatedTokens": 15589
+    },
     "mediumV1": {
       "count": 56,
       "wireBytes": 63297,
       "estimatedTokens": 17435
+    },
+    "mediumV6": {
+      "count": 42,
+      "wireBytes": 50919,
+      "estimatedTokens": 14064
     },
     "quickLegacy": {
       "count": 11,
@@ -5935,6 +5955,21 @@
       "count": 10,
       "wireBytes": 8826,
       "estimatedTokens": 2409
+    },
+    "scoutLegacy": {
+      "count": 13,
+      "wireBytes": 16275,
+      "estimatedTokens": 4502
+    },
+    "scoutBash": {
+      "count": 11,
+      "wireBytes": 9976,
+      "estimatedTokens": 2724
+    },
+    "scoutPwsh": {
+      "count": 11,
+      "wireBytes": 10018,
+      "estimatedTokens": 2736
     }
   }
 }
