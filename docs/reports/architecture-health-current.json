@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T19:09:20.885Z",
+  "generatedAt": "2026-11-24T19:40:54.125Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6543,
-    "testFiles": 5827,
-    "sourceLines": 1340564,
+    "testFiles": 5829,
+    "sourceLines": 1340588,
     "workspaceEdges": 261,
     "moduleEdges": 19139,
     "nonCommandSlashImports": 0,
@@ -208,7 +208,7 @@
       "name": "@wrongstack/chronicle",
       "dir": "packages/chronicle",
       "sourceFiles": 54,
-      "testFiles": 59,
+      "testFiles": 61,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -224,7 +224,7 @@
         {
           "path": "packages/chronicle/tsconfig.test.json",
           "error": null,
-          "testFiles": 59
+          "testFiles": 61
         }
       ]
     },
@@ -5352,6 +5352,12 @@
         ]
       },
       {
+        "file": "packages/chronicle/tests/partition-order-locale.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/chronicle/tests/payload-codec.test.ts",
         "projects": [
           "root-node"
@@ -5425,6 +5431,12 @@
       },
       {
         "file": "packages/chronicle/tests/provider-adapter.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/chronicle/tests/query-matching-locale.test.ts",
         "projects": [
           "root-node"
         ]

@@ -366,8 +366,13 @@ export class ChronicleSqliteQueryEngine {
       result[field] = [...(counts.get(field) ?? new Map<string, number>())]
         .map(([value, count]) => ({ value, count }))
         // Ties broken by value so both engines agree on an otherwise arbitrary
-        // order — the same comparator `ChronicleQueryEngine.facets` uses.
-        .sort((left, right) => right.count - left.count || left.value.localeCompare(right.value))
+        // order - the same comparator `ChronicleQueryEngine.facets` uses.
+        // F103: code-unit, not localeCompare (locale-dependent collation).
+        .sort(
+          (left, right) =>
+            right.count - left.count ||
+            (left.value < right.value ? -1 : left.value > right.value ? 1 : 0),
+        )
         .slice(0, Math.max(0, limit));
     }
     return result;

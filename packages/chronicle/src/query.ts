@@ -402,7 +402,9 @@ export class ChronicleQueryEngine {
     for (const field of uniqueFields) {
       result[field] = [...counts.get(field)!]
         .map(([value, count]) => ({ value, count }))
-        .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value))
+        // F103: code-unit tie-break — localeCompare is locale-dependent and
+        // collapses canonically equivalent values; both engines must agree.
+        .sort((a, b) => b.count - a.count || (a.value < b.value ? -1 : a.value > b.value ? 1 : 0))
         .slice(0, Math.max(0, limit));
     }
     return result;

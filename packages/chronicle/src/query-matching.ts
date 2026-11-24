@@ -50,7 +50,8 @@ export function matches(event: ChronicleEvent, query: ChronicleQuery): boolean {
   if (query.attributes && !objectContains(event.attributes, query.attributes)) return false;
   if (
     query.text &&
-    !JSON.stringify(event).toLocaleLowerCase().includes(query.text.toLocaleLowerCase())
+    // F102: locale-independent folding (see normalize).
+    !JSON.stringify(event).toLowerCase().includes(query.text.toLowerCase())
   )
     return false;
   return true;
@@ -60,8 +61,20 @@ function equal<T>(expected: T | undefined, actual: T | undefined): boolean {
   return expected === undefined || expected === actual;
 }
 
+/**
+ * F102: locale-independent text order. localeCompare treats canonically
+ * equivalent Unicode ('é' vs 'e\u0301') as equal, collapsing distinct machine
+ * identifiers into a non-total order; code-unit comparison is deterministic
+ * on every host and locale.
+ */
+function compareText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function normalize(value: string | undefined): string | undefined {
-  return value?.replaceAll('\\', '/').toLocaleLowerCase();
+  // F102: toLowerCase is locale-independent; toLocaleLowerCase folds 'I' to
+  // 'ı' on a Turkish host, silently missing path matches.
+  return value?.replaceAll('\\', '/').toLowerCase();
 }
 
 function lineContains(event: ChronicleEvent, line: number): boolean {
@@ -127,10 +140,10 @@ export function compareEvents(a: ChronicleEvent, b: ChronicleEvent): number {
 
 export function compareEventToKey(event: ChronicleEvent, key: ChronicleOrderKey): number {
   return (
-    (event.occurredAt ?? event.observedAt).localeCompare(key.occurredAt) ||
-    event.persistedAt.localeCompare(key.persistedAt) ||
+    compareText(event.occurredAt ?? event.observedAt, key.occurredAt) ||
+    compareText(event.persistedAt, key.persistedAt) ||
     event.sequence - key.sequence ||
-    event.eventId.localeCompare(key.eventId)
+    compareText(event.eventId, key.eventId)
   );
 }
 

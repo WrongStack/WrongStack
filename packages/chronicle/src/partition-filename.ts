@@ -15,6 +15,10 @@ function partitionSequence(filePath: string): number {
 
 /** Orders partitions by family, then by rotation sequence — the unrotated file (no sequence) sorts first. */
 export function comparePartitionPaths(left: string, right: string): number {
-  const familyOrder = partitionFamily(left).localeCompare(partitionFamily(right));
+  // F103: code-unit order — localeCompare collapses distinct canonically
+  // equivalent family names ('café' vs 'cafe\u0301') into an unstable sort.
+  const lf = partitionFamily(left);
+  const rf = partitionFamily(right);
+  const familyOrder = lf < rf ? -1 : lf > rf ? 1 : 0;
   return familyOrder || partitionSequence(left) - partitionSequence(right);
 }
