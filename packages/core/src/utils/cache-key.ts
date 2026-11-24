@@ -76,9 +76,14 @@ export function deriveCachePrefixKey(
   h.update('tools:\u0000');
   const sorted =
     safeTools.length > 1
-      ? [...safeTools].sort((a, b) =>
-          canonicalToolFingerprint(a).localeCompare(canonicalToolFingerprint(b)),
-        )
+      ? // F105: code-unit order. localeCompare ties on canonically equivalent
+        // fingerprints ('café' vs 'cafe\u0301'), falling back to registration
+        // order — the same tool set then hashes to a different cache partition.
+        [...safeTools].sort((a, b) => {
+          const fa = canonicalToolFingerprint(a);
+          const fb = canonicalToolFingerprint(b);
+          return fa < fb ? -1 : fa > fb ? 1 : 0;
+        })
       : safeTools;
   for (const tool of sorted) {
     h.update(canonicalToolFingerprint(tool)).update('\u0000');

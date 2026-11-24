@@ -332,7 +332,11 @@ function stableJson(value: unknown): string {
   try {
     return JSON.stringify(value, (_key, v: unknown) =>
       v && typeof v === 'object' && !Array.isArray(v)
-        ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b)))
+        ? // F104: code-unit order. localeCompare ties on canonically
+          // equivalent keys ('é' vs 'e\u0301'), leaving the sort insertion-
+          // order-dependent — the always-allow grant key then misses when
+          // the same logical input is rebuilt in another property order.
+          Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
         : v,
     );
   } catch {
