@@ -10,6 +10,12 @@ export interface KanbanStorageBackend {
   appendEvent(boardId: string, event: KanbanEvent): Promise<void>;
   readEvents(boardRef: string): Promise<KanbanEvent[]>;
   deleteBoard(boardRef: string): Promise<boolean>;
+  /**
+   * Atomically delete only when the freshly read board still satisfies
+   * `predicate`. The predicate and the delete share one transaction (or file
+   * lock), so a write committed after a caller's snapshot cannot be erased.
+   */
+  deleteBoardIf?(boardRef: string, predicate: (board: KanbanBoard) => boolean): Promise<boolean>;
   readMetadata(key: string): Promise<string | null>;
   writeMetadata(key: string, value: string): Promise<void>;
   mutateBoard<T>(

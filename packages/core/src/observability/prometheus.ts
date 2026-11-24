@@ -44,6 +44,17 @@ function formatNumber(n: number): string {
   return Number.isInteger(n) ? n.toString() : n.toString();
 }
 
+/**
+ * F1645: v0.0.4 metric names must match `[a-zA-Z_:][a-zA-Z0-9_:]*`, but the
+ * sink stores the event bridge's dotted names (`agent.sessions.started`), which
+ * OTLP accepts and a Prometheus scrape rejects outright. Map every other
+ * character to `_` (and prefix a leading digit) at exposition time only.
+ */
+function sanitizeMetricName(name: string): string {
+  const safe = name.replace(/[^a-zA-Z0-9_:]/g, '_');
+  return /^[a-zA-Z_:]/.test(safe) ? safe : `_${safe}`;
+}
+
 function joinLabels(
   base: Record<string, string>,
   extra: Record<string, string>,
@@ -63,10 +74,12 @@ export function renderPrometheus(snapshot: MetricsSnapshot): string {
     { type: MetricsSnapshot['series'][number]['type']; rows: Row[] }
   >();
   for (const s of snapshot.series) {
-    let g = groups.get(s.name);
+    // Group by the exposed name so `a.b` and `a_b` share one HELP/TYPE pair.
+    const exposedName = sanitizeMetricName(s.name);
+    let g = groups.get(exposedName);
     if (!g) {
       g = { type: s.type, rows: [] };
-      groups.set(s.name, g);
+      groups.set(exposedName, g);
     }
     g.rows.push({ labels: s.labels, values: s.values });
   }

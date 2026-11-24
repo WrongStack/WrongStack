@@ -190,6 +190,39 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
     return outcome.deleted;
   }
 
+  async deleteBoardIf(
+    boardRef: string,
+    predicate: (board: KanbanBoard) => boolean,
+  ): Promise<boolean> {
+    const outcome = await this.exclusive(() => {
+      this.db.exec('BEGIN IMMEDIATE');
+      try {
+        const board = this.readBoardUnlocked(boardRef);
+        if (!board || !predicate(board)) {
+          this.db.exec('ROLLBACK');
+          return { boardId: null, deleted: false };
+        }
+        this.db.prepare('DELETE FROM kanban_events WHERE board_id = ?').run(board.id);
+        const result = this.db.prepare('DELETE FROM kanban_boards WHERE id = ?').run(board.id);
+        this.db.exec('COMMIT');
+        return { boardId: board.id, deleted: Number(result.changes) > 0 };
+      } catch (error) {
+        // Preserve the original error if ROLLBACK itself fails.
+        try {
+          this.db.exec('ROLLBACK');
+        } catch {
+          /* preserve original error */
+        }
+        throw error;
+      }
+    });
+    if (outcome.deleted && outcome.boardId) {
+      this.oversizedBoards.delete(outcome.boardId);
+      this.notify({ type: 'deleted', boardId: outcome.boardId });
+    }
+    return outcome.deleted;
+  }
+
   async appendBoardHistory(entry: KanbanBoardHistoryEntry): Promise<void> {
     await this.exclusive(() => {
       this.db

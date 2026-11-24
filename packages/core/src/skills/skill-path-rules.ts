@@ -65,7 +65,11 @@ function projectPath(
   if (!isAbsolute(file)) {
     if (!root) {
       const norm = file.replace(/\\/g, '/').replace(/^(?:\.\/)+/, '');
+      // A drive-relative path (C:evil.txt, C:..\evil.txt) is not
+      // project-relative on Windows; the .. checks alone miss it because the
+      // drive prefix precedes the separator.
       return !norm ||
+        /^[a-z]:/i.test(norm) ||
         norm === '..' ||
         norm.startsWith('../') ||
         norm.includes('/../') ||

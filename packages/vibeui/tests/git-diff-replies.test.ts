@@ -18,3 +18,12 @@ it('keeps only the most recently answered diffs', () => {
   for (const n of ['1', '2', '3', '4', '5']) state = reduceFrame(state, reply(`${n}.ts`, n));
   expect(Object.keys(state.diffs)).toEqual(['2.ts', '3.ts', '4.ts', '5.ts']);
 });
+
+it('ranks a digits-only path by when it was answered, not by key order (F1601)', () => {
+  let state: SessionState = { ...initialState(), id: 's1' };
+  // `7` enumerates before every other key, yet it was answered after a, b and c.
+  for (const path of ['a.ts', 'b.ts', 'c.ts', '7', 'x.ts'])
+    state = reduceFrame(state, reply(path, path));
+  expect(Object.keys(state.diffs).sort()).toEqual(['7', 'b.ts', 'c.ts', 'x.ts']);
+  expect(state.diffs['7']?.newText).toBe('7');
+});

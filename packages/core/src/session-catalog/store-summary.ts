@@ -89,14 +89,19 @@ export function executeUpsertSummary(
   summaryRelativePath = normalizedSummary;
   const transcript = resolveContainedPath(sessionsDir, transcriptRelativePath);
   const stat = fs.existsSync(transcript) ? fs.statSync(transcript) : undefined;
+  const transcriptStat = stat?.isFile() === true ? stat : undefined;
+  // A summary without its transcript is the orphan the rebuild marks damaged.
+  // Writing it as healthy here (and resetting damage to 0 on every update) made
+  // a deleted/partial session resumable again pointing at a missing file.
+  const damaged = transcriptStat ? 0 : 1;
   const now = new Date().toISOString();
   const storageState =
     storage?.storageState ?? (transcriptRelativePath.endsWith('.jsonl.gz') ? 'cold' : 'hot');
   const codec = storage?.codec ?? (storageState === 'cold' ? 'gzip' : undefined);
   const uncompressedSize =
-    storage?.uncompressedSize ?? (storageState === 'hot' ? (stat?.size ?? 0) : 0);
+    storage?.uncompressedSize ?? (storageState === 'hot' ? (transcriptStat?.size ?? 0) : 0);
   const compressedSize =
-    storage?.compressedSize ?? (storageState === 'cold' ? (stat?.size ?? 0) : 0);
+    storage?.compressedSize ?? (storageState === 'cold' ? (transcriptStat?.size ?? 0) : 0);
   const contentSha256 = storage?.contentSha256;
   const archivedAt =
     storage?.archivedAt === null
@@ -108,15 +113,16 @@ export function executeUpsertSummary(
     .get(summary.id) as { summary_revision: number } | undefined;
   const revision = (prior?.summary_revision ?? 0) + 1;
   db.prepare(`INSERT INTO sessions(session_id,transcript_relative_path,summary_relative_path,summary_json,transcript_size,transcript_mtime_ms,summary_revision,indexed_at,damaged,storage_state,codec,uncompressed_size,compressed_size,content_sha256,archived_at)
-  VALUES (?,?,?,?,?,?,?,?,0,?,?,?,?,?,?) ON CONFLICT(session_id) DO UPDATE SET transcript_relative_path=excluded.transcript_relative_path,summary_relative_path=excluded.summary_relative_path,summary_json=excluded.summary_json,transcript_size=excluded.transcript_size,transcript_mtime_ms=excluded.transcript_mtime_ms,summary_revision=excluded.summary_revision,indexed_at=excluded.indexed_at,damaged=0,storage_state=excluded.storage_state,codec=excluded.codec,uncompressed_size=excluded.uncompressed_size,compressed_size=excluded.compressed_size,content_sha256=excluded.content_sha256,archived_at=excluded.archived_at`).run(
+  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(session_id) DO UPDATE SET transcript_relative_path=excluded.transcript_relative_path,summary_relative_path=excluded.summary_relative_path,summary_json=excluded.summary_json,transcript_size=excluded.transcript_size,transcript_mtime_ms=excluded.transcript_mtime_ms,summary_revision=excluded.summary_revision,indexed_at=excluded.indexed_at,damaged=excluded.damaged,storage_state=excluded.storage_state,codec=excluded.codec,uncompressed_size=excluded.uncompressed_size,compressed_size=excluded.compressed_size,content_sha256=excluded.content_sha256,archived_at=excluded.archived_at`).run(
     summary.id,
     transcriptRelativePath,
     summaryRelativePath,
     JSON.stringify(summary),
-    stat?.size ?? 0,
-    stat?.mtimeMs ?? 0,
+    transcriptStat?.size ?? 0,
+    transcriptStat?.mtimeMs ?? 0,
     revision,
     now,
+    damaged,
     storageState,
     codec ?? null,
     uncompressedSize,
@@ -129,11 +135,11 @@ export function executeUpsertSummary(
     ...summary,
     transcriptRelativePath,
     summaryRelativePath,
-    transcriptSize: stat?.size ?? 0,
-    transcriptMtimeMs: stat?.mtimeMs ?? 0,
+    transcriptSize: transcriptStat?.size ?? 0,
+    transcriptMtimeMs: transcriptStat?.mtimeMs ?? 0,
     summaryRevision: revision,
     indexedAt: now,
-    damaged: false,
+    damaged: damaged === 1,
     storageState,
     ...(codec ? { codec } : {}),
     uncompressedSize,

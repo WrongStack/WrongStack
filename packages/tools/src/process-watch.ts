@@ -26,6 +26,7 @@ import { StringDecoder } from 'node:string_decoder';
 import type { Tool } from '@wrongstack/contracts/types';
 import { ToolValidationError } from '@wrongstack/contracts/types';
 import { enqueueRuntimeNotice, resolveRuntimeNoticeTarget } from '@wrongstack/coordination';
+import { truncate } from '@wrongstack/primitives';
 import { buildChildEnv } from './_env.js';
 import { compileUserRegex } from './_regex.js';
 import { formatNoticeDuration } from './background-exit-notice.js';
@@ -167,9 +168,17 @@ function flush(w: Watch): void {
 
 function onLine(w: Watch, raw: string, stream: 'stdout' | 'stderr'): void {
   if (w.ended || w.endReason) return;
-  const line = raw.length > MAX_LINE_CHARS ? `${raw.slice(0, MAX_LINE_CHARS - 1)}…` : raw;
-  if (line.trim() === '') return;
-  if (w.filter && !w.filter.test(line)) return;
+  if (raw.trim() === '') return;
+  // F1661: match the line (up to the reader's own MAX_PARTIAL_CHARS bound,
+  // which keeps the regex cost bounded), then truncate it for the notice.
+  // Testing the 400-char notice text dropped lines matching past the cut.
+  if (
+    w.filter &&
+    !w.filter.test(raw.length > MAX_PARTIAL_CHARS ? raw.slice(0, MAX_PARTIAL_CHARS) : raw)
+  )
+    return;
+  // F1662: surrogate-safe cut; a raw slice could leave half an emoji pair.
+  const line = truncate(raw, MAX_LINE_CHARS);
   w.matched += 1;
   if (w.batch.length < MAX_LINES_PER_BATCH) {
     w.batch.push(stream === 'stderr' ? `[stderr] ${line}` : line);
@@ -388,7 +397,7 @@ async function startWatch(input: ProcessWatchInput, ctx: unknown): Promise<Proce
   const w: Watch = {
     id: `pw-${nextId++}`,
     sessionId,
-    description: description.length > 120 ? `${description.slice(0, 119)}…` : description,
+    description: truncate(description, 120),
     command: redactCommand(command),
     ...(filter ? { filter, filterSource: input.filter } : {}),
     child,

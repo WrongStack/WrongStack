@@ -66,6 +66,11 @@ const HASH_COMMENT_EXTENSIONS = new Set([
 const SUPPRESSION_DIRECTIVE_RE =
   /@ts-(?:ignore|expect-error|nocheck)|eslint-disable|biome-ignore|oxlint-disable|type:\s*ignore|\bnoqa\b|\bnosec\b|#\[allow\b|\/\/\s*nolint|@SuppressWarnings|\.(?:skip|only)\s*\(/i;
 
+// Go compiler directives are line comments that change what is built: build
+// constraints (`//go:build`, `// +build`), `//go:embed`, `//go:linkname`,
+// `//line`, cgo `//export` and gccgo `//extern`.
+const GO_DIRECTIVE_COMMENT_RE = /^\/\/(?:go:|line[ :]|export\s|extern\s)|^\/\/\s*\+build\b/;
+
 function isPureProseDocPath(filePath: string): boolean {
   const norm = filePath.replaceAll('\\', '/').replace(/^\.\/+/, '');
   const base = path.posix.basename(norm).toLowerCase();
@@ -124,7 +129,11 @@ function isCommentOrWhitespaceOnlyDiff(filePath: string, diff: string): boolean 
 
     if (allowsSlashComment) {
       // Exclude TS triple-slash directives (`/// <reference ... />`)
-      if (!trimmed.startsWith('//') || /^\/\/\/\s*<reference\b/i.test(trimmed)) {
+      if (
+        !trimmed.startsWith('//') ||
+        /^\/\/\/\s*<reference\b/i.test(trimmed) ||
+        GO_DIRECTIVE_COMMENT_RE.test(trimmed)
+      ) {
         return false;
       }
       continue;

@@ -282,7 +282,10 @@ function detectNativeTerminalKind(env: typeof process.env): string | null {
   const program = (env.TERM_PROGRAM ?? '').trim().toLowerCase();
   if (program) return NATIVE_TERMINAL_PROGRAMS.get(program) ?? null;
   if (env.LC_TERMINAL?.trim().toLowerCase() === 'iterm2') return 'iterm2';
-  if (term === 'xterm-kitty' || env.KITTY_WINDOW_ID) return 'kitty';
+  // KITTY_WINDOW_ID is inherited by child processes (an SSH shell, another
+  // terminal launched from Kitty); only TERM identifies the attached surface.
+  // The tmux passthrough branch below may still consult the outer marker.
+  if (term === 'xterm-kitty') return 'kitty';
   if (term === 'xterm-ghostty' || env.GHOSTTY_RESOURCES_DIR) return 'ghostty';
   if (term === 'wezterm' || env.WEZTERM_PANE) return 'wezterm';
   if (term === 'alacritty' || env.ALACRITTY_WINDOW_ID || env.ALACRITTY_SOCKET) return 'alacritty';

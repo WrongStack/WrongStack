@@ -62,7 +62,7 @@ async function gatedProxy() {
     dns.release();
     await flush();
   };
-  return { sendRaw, abortDuringDns };
+  return { sendRaw, abortDuringDns, sockets };
 }
 
 const firstChunk = (client: net.Socket) =>
@@ -135,5 +135,87 @@ describe('BrowserNetworkGuardProxy — browser aborts while DNS is pending', () 
 
     expect(upgradeHosts.filter((host) => host.startsWith('gated.test'))).toEqual([]);
     expect(upgradeHosts.filter((host) => host.startsWith('open.test'))).toHaveLength(1);
+  });
+});
+
+// F1570: forwardHttp only listened for the request's `aborted` event, which
+// never fires once a GET has been read. A browser leaving an SSE / long-poll
+// body (or leaving while DNS ran) kept an upstream connection the proxy never
+// closed, unlike the CONNECT and upgrade paths above.
+describe('BrowserNetworkGuardProxy — plain HTTP upstream follows the browser', () => {
+  it('closes the upstream of a streaming response when the browser leaves mid-body', async () => {
+    let upstreamClosed = false;
+    const target = http.createServer((request, response) => {
+      request.socket.once('close', () => {
+        upstreamClosed = true;
+      });
+      response.writeHead(200, { 'content-type': 'text/event-stream' });
+      response.write('data: 1\n\n');
+    });
+    await new Promise<void>((r) => target.listen(0, '127.0.0.1', r));
+    closers.push(
+      () =>
+        new Promise<void>((r) => {
+          target.closeAllConnections();
+          target.close(() => r());
+        }),
+    );
+    const port = (target.address() as net.AddressInfo).port;
+    const { sendRaw, sockets } = await gatedProxy();
+
+    const client = sendRaw(
+      `GET http://open.test:${port}/sse HTTP/1.1\r\nHost: open.test:${port}\r\n\r\n`,
+    );
+    let received = '';
+    await new Promise<void>((resolve) => {
+      client.on('data', (chunk) => {
+        received += String(chunk);
+        if (received.includes('data: 1')) resolve();
+      });
+    });
+    client.destroy();
+    for (let i = 0; i < 2000 && sockets.size > 0; i++) await flush(1);
+    expect(sockets.size).toBe(0);
+    for (let i = 0; i < 2000 && !upstreamClosed; i++) await flush(1);
+
+    expect(upstreamClosed).toBe(true);
+  });
+
+  it('does not dial a plain HTTP target for a browser socket that is already gone', async () => {
+    const hosts: string[] = [];
+    const target = http.createServer((request, response) => {
+      hosts.push(String(request.headers.host));
+      response.end('ok');
+    });
+    let connections = 0;
+    target.on('connection', () => {
+      connections += 1;
+    });
+    await new Promise<void>((r) => target.listen(0, '127.0.0.1', r));
+    closers.push(
+      () =>
+        new Promise<void>((r) => {
+          target.closeAllConnections();
+          target.close(() => r());
+        }),
+    );
+    const port = (target.address() as net.AddressInfo).port;
+    const { sendRaw, abortDuringDns } = await gatedProxy();
+
+    const aborted = sendRaw(
+      `GET http://gated.test:${port}/ HTTP/1.1\r\nHost: gated.test:${port}\r\n\r\n`,
+    );
+    await abortDuringDns(aborted);
+
+    // Fence: the target has seen the later request, so any dial the aborted
+    // one issued has connected by now.
+    const fence = sendRaw(
+      `GET http://open.test:${port}/ HTTP/1.1\r\nHost: open.test:${port}\r\n\r\n`,
+    );
+    expect(await firstChunk(fence)).toMatch(/^HTTP\/1\.1 200/);
+    await flush();
+
+    expect(hosts.filter((host) => host.startsWith('open.test'))).toHaveLength(1);
+    expect(connections).toBe(1);
   });
 });

@@ -200,6 +200,7 @@ const workspacePanelActionTypes = [
   'goalRunPhaseUpdate',
   'goalRunTaskActive',
   'goalRunTaskAgent',
+  'goalRunPhaseStatus',
   'goalRunTaskCompleted',
   'goalRunRunningPhases',
   'goalRunElapsed',
@@ -492,6 +493,21 @@ export function reduceWorkspacePanels(state: State, action: WorkspacePanelAction
           phases: {
             ...state.goalRun.phases,
             [action.phaseId]: { ...phase, completedTasks: phase.completedTasks + 1, activeTasks },
+          },
+        },
+      };
+    }
+    case 'goalRunPhaseStatus': {
+      if (!state.goalRun) return state;
+      const phase = state.goalRun.phases[action.phaseId];
+      if (!phase || phase.status === action.status) return state;
+      return {
+        ...state,
+        goalRun: {
+          ...state.goalRun,
+          phases: {
+            ...state.goalRun.phases,
+            [action.phaseId]: { ...phase, status: action.status },
           },
         },
       };

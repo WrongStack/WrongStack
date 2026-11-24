@@ -151,6 +151,7 @@ export const ALLOWED_ACTION_TYPES = defineActionTypes([
   'goalRunElapsed',
   'goalRunInit',
   'goalRunMonitorToggle',
+  'goalRunPhaseStatus',
   'goalRunPhaseUpdate',
   'goalRunReset',
   'goalRunRunningPhases',

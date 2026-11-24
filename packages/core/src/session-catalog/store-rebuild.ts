@@ -152,6 +152,12 @@ export function rebuildCatalogIndex(
         const cold = containedPathFn(`${id}.jsonl.gz`);
         const hotExists = fs.existsSync(hot);
         const coldExists = fs.existsSync(cold);
+        if (!hotExists && !coldExists) {
+          // A summary sidecar without any transcript is not a resumable
+          // session: indexing it as "cold" would publish a row whose
+          // transcript path does not exist. Fall through to the damaged row.
+          throw new Error('summary exists without a transcript');
+        }
         const transcript = hotExists ? hot : cold;
         const relative = hotExists ? `${id}.jsonl` : `${id}.jsonl.gz`;
         const storageState = hotExists ? 'hot' : 'cold';

@@ -66,3 +66,20 @@ describe('bundled skill paths', () => {
     expect(claimants(file)).toEqual([]);
   });
 });
+
+describe('declaredPathMatch without a project root', () => {
+  const broad = { paths: ['*'] };
+
+  it.each(['C:..\\evil.txt', 'C:evil.txt', '/etc/passwd'])(
+    'rejects the non-project-relative path %s',
+    (file) => {
+      // A skill's declared paths may only cover project-relative files; a
+      // drive-relative or absolute path escapes the project and must not match.
+      expect(declaredPathMatch(broad, file, undefined)).toBeUndefined();
+    },
+  );
+
+  it('still matches an ordinary project-relative file', () => {
+    expect(declaredPathMatch(broad, 'src/app.ts', undefined)).toBe('*');
+  });
+});

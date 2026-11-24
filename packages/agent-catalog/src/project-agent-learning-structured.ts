@@ -370,7 +370,10 @@ export function parseStructuredLearnedEntriesFromContent(
     const start = (stamp.index ?? 0) + stamp[0].length;
     const end = stamps[index + 1]?.index ?? raw.length;
     const parsed = parseEntryBody(raw.slice(start, end));
-    if (!parsed || parsed.what.length < MIN_INSTRUCTIVE_LENGTH) continue;
+    // No length bar here: a stamped entry was already accepted by the writer
+    // that rendered it, and taught text is kept however terse. Re-applying
+    // MIN_INSTRUCTIVE_LENGTH made the next re-render silently delete it.
+    if (!parsed) continue;
     structured.push({
       key: directiveKey(parsed.what),
       category,

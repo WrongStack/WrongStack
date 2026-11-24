@@ -92,8 +92,21 @@ export class BrowserNetworkGuardProxy {
     request: http.IncomingMessage,
     response: http.ServerResponse,
   ): Promise<void> {
+    // Tie the upstream to the browser side, as CONNECT and upgrade do. The
+    // request's `aborted` event never fires once a GET has been read, so a
+    // browser leaving an SSE / long-poll body left the upstream open for the
+    // proxy's lifetime. Registered before resolution: a browser that leaves
+    // while DNS and the candidate probe run must not get a dial at all.
+    let dialed: http.ClientRequest | undefined;
+    let browserGone = false;
+    response.once('close', () => {
+      if (response.writableFinished) return;
+      browserGone = true;
+      dialed?.destroy();
+    });
     try {
       const target = await this.resolve(request.url ?? '');
+      if (browserGone) return;
       if (target.url.protocol !== 'http:') throw new Error('browser: HTTPS must use CONNECT');
       const headers = sanitizeHeaders(request.headers);
       headers.host = target.url.host;
@@ -106,6 +119,7 @@ export class BrowserNetworkGuardProxy {
         headers,
         agent: false,
       });
+      dialed = upstream;
       upstream.setTimeout(this.options.connectTimeoutMs ?? 30_000, () => {
         upstream.destroy(new Error('browser: upstream connection timed out'));
       });

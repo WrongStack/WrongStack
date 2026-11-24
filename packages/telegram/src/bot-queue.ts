@@ -51,6 +51,16 @@ export interface BotOutboundOptions {
 /** How often idle, fully-refilled per-chat buckets are swept from the map. */
 const BUCKET_SWEEP_INTERVAL_MS = 60_000;
 
+/**
+ * Telegram private chats use the user's own positive numeric id; groups,
+ * supergroups and channels are negative, and a `@username` names a channel.
+ * The sign is the only chat-type signal available to an outbound send.
+ */
+function isPrivateTelegramChatId(chatId: string | number): boolean {
+  const numeric = typeof chatId === 'number' ? chatId : Number(String(chatId).trim());
+  return Number.isFinite(numeric) && numeric > 0;
+}
+
 export class TelegramBotOutbound {
   readonly #queue: OutboundQueue;
   readonly #bot: TelegramBot;
@@ -58,6 +68,12 @@ export class TelegramBotOutbound {
   readonly #buckets = new Map<string, TokenBucket>();
   readonly #getRateTokensPerSecond: () => number;
   readonly #getRateBurst: () => number;
+  /**
+   * True when the caller supplied an explicit rate/burst policy. An explicit
+   * override replaces the whole default policy, including the private-chat
+   * branch, so a caller's conservative value is never silently raised.
+   */
+  readonly #hasExplicitRatePolicy: boolean;
   readonly #bucketSweepTimer: ReturnType<typeof setInterval>;
   readonly #stopController = new AbortController();
   #stopped = false;
@@ -67,6 +83,8 @@ export class TelegramBotOutbound {
     this.#log = opts.log;
     this.#getRateTokensPerSecond = opts.getRateLimitTokensPerSecond ?? (() => 0.33);
     this.#getRateBurst = opts.getRateLimitBurst ?? (() => 4);
+    this.#hasExplicitRatePolicy =
+      opts.getRateLimitTokensPerSecond !== undefined || opts.getRateLimitBurst !== undefined;
     this.#queue = new OutboundQueue({
       maxPerChat: opts.maxPerChat,
       maxConcurrency: opts.maxConcurrency,
@@ -101,9 +119,14 @@ export class TelegramBotOutbound {
     const key = String(chatId);
     let bucket = this.#buckets.get(key);
     if (!bucket) {
+      // Default policy distinguishes the chat type (see the module header):
+      // private chats use 30 tokens/s with a burst of 5; groups, supergroups
+      // and channels keep the conservative 0.33/s, burst 4. An explicit caller
+      // rate/burst override replaces the whole policy.
+      const usePrivatePolicy = isPrivateTelegramChatId(chatId) && !this.#hasExplicitRatePolicy;
       bucket = createTokenBucket({
-        tokensPerSecond: this.#getRateTokensPerSecond(),
-        burst: this.#getRateBurst(),
+        tokensPerSecond: usePrivatePolicy ? 30 : this.#getRateTokensPerSecond(),
+        burst: usePrivatePolicy ? 5 : this.#getRateBurst(),
       });
       this.#buckets.set(key, bucket);
     }

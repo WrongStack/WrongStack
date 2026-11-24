@@ -11,18 +11,44 @@ import { errMessage, send } from './ws-utils.js';
 
 const GIT_REVIEW_TIMEOUT_MS = 10_000;
 
-export async function gitReviewBytes(cwd: string, args: string[], input?: string) {
+/** Isolation environment for a repository nobody has vouched for. */
+export type GitReviewIsolation = NonNullable<Awaited<ReturnType<typeof gitIsolationEnv>>>;
+/**
+ * `'none'` skips the isolation listing for read commands that cannot run repository-owned
+ * programs: rev-parse, ls-files, cat-file, update-index and rm. The listing is required only
+ * where the repository can name a program to run: core.fsmonitor on status/diff, and a filter's
+ * clean/process when status, diff, add or hash-object reads a working-tree file.
+ */
+export type GitReviewIsolationMode = GitReviewIsolation | 'none';
+
+async function gitReviewIsolation(cwd: string): Promise<GitReviewIsolation> {
   // The same budget as the command below: a busy machine must not refuse a review because the
   // config listing that precedes it took longer than the review itself may.
   const isolation = await gitIsolationEnv(cwd, { timeoutMs: GIT_REVIEW_TIMEOUT_MS });
   if (!isolation) throw Error('Git could not safely open this repository.');
+  return isolation;
+}
+
+export async function gitReviewBytes(
+  cwd: string,
+  args: string[],
+  input?: string,
+  isolation?: GitReviewIsolationMode,
+) {
+  // The per-command isolation listing was the largest group of git spawns in the conflict
+  // review (39 of 104 in its per-command trace); index/object reads pass 'none'.
+  const baseEnv = { ...buildChildEnv(), GIT_OPTIONAL_LOCKS: '0', GIT_LITERAL_PATHSPECS: '1' };
+  const env =
+    isolation === 'none'
+      ? baseEnv
+      : { ...baseEnv, ...(isolation ?? (await gitReviewIsolation(cwd))) };
   return await new Promise<Buffer>((resolve, reject) => {
     const child = execFile(
       'git',
       args,
       {
         cwd,
-        env: { ...buildChildEnv(), ...isolation, GIT_LITERAL_PATHSPECS: '1' },
+        env,
         timeout: GIT_REVIEW_TIMEOUT_MS,
         maxBuffer: 2 * 1024 * 1024,
         windowsHide: true,
@@ -40,8 +66,13 @@ export async function gitReviewBytes(cwd: string, args: string[], input?: string
     child.stdin?.end(input);
   });
 }
-export async function gitReviewCommand(cwd: string, args: string[], input?: string) {
-  const bytes = await gitReviewBytes(cwd, args, input);
+export async function gitReviewCommand(
+  cwd: string,
+  args: string[],
+  input?: string,
+  isolation?: GitReviewIsolationMode,
+) {
+  const bytes = await gitReviewBytes(cwd, args, input, isolation);
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   } catch {
@@ -53,7 +84,9 @@ export async function gitReviewTarget(projectRoot: string, path: string, allowMi
   if (!projectRoot || !path || path.length > 4096 || isUnsafeRelativePath(path))
     throw Error('An explicit project file is required.');
   const project = await realpath(projectRoot);
-  const root = (await gitReviewCommand(project, ['rev-parse', '--show-toplevel'])).trim();
+  const root = (
+    await gitReviewCommand(project, ['rev-parse', '--show-toplevel'], undefined, 'none')
+  ).trim();
   const prefix = repoRelativePrefix(root, project);
   if (prefix && !path.startsWith(prefix)) throw Error('The file is outside this project.');
   const absolute = resolve(root, path);

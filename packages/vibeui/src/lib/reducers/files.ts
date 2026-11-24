@@ -5,6 +5,12 @@ import type { FrameReducer, FrameReducerTable } from './types';
 
 /** Each side of a diff can be up to 2 MB, so only a few are kept. */
 const MAX_KEPT_DIFFS = 4;
+/**
+ * When each kept diff was answered. Key order cannot rank them: integer-like
+ * paths (a root file named `7`) enumerate before every other key.
+ */
+const answeredAt = new WeakMap<object, number>();
+let answerSequence = 0;
 
 const PREVIEWABLE_IMAGE = /^data:image\/(?:png|jpeg|webp|gif);base64,[a-z\d+/=]+$/i;
 
@@ -66,13 +72,11 @@ export const fileReducers: FrameReducerTable = {
     const path = text(p.path);
     // Newest last; only the few most recently answered paths are kept.
     const { [path]: _previous, ...others } = state.diffs;
-    const kept = Object.entries(others).slice(-(MAX_KEPT_DIFFS - 1));
-    return {
-      ...state,
-      diffs: {
-        ...Object.fromEntries(kept),
-        [path]: { path, oldText: text(p.oldText), newText: text(p.newText), error: diffError(p) },
-      },
-    };
+    const kept = Object.entries(others)
+      .sort(([, a], [, b]) => (answeredAt.get(a) ?? 0) - (answeredAt.get(b) ?? 0))
+      .slice(-(MAX_KEPT_DIFFS - 1));
+    const diff = { path, oldText: text(p.oldText), newText: text(p.newText), error: diffError(p) };
+    answeredAt.set(diff, ++answerSequence);
+    return { ...state, diffs: { ...Object.fromEntries(kept), [path]: diff } };
   },
 };

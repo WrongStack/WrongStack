@@ -69,6 +69,8 @@ export class Run implements AsyncIterable<RunEvent> {
   private readonly queue: RunEvent[] = [];
   private readonly waiters: Array<(next: IteratorResult<RunEvent>) => void> = [];
   private readonly listeners = new Set<(event: RunEvent) => void>();
+  /** Confirmations already streamed; the server re-sends pending ones to a new socket. */
+  private readonly confirmIds = new Set<string>();
   private settled = false;
   private resolveResult!: (result: RunResult) => void;
   private rejectResult!: (error: WrongStackError) => void;
@@ -145,6 +147,10 @@ export class Run implements AsyncIterable<RunEvent> {
   /** @internal */
   push(event: RunEvent): void {
     if (this.settled) return;
+    if (event.type === 'tool.confirm_needed' && typeof event.payload?.id === 'string') {
+      if (this.confirmIds.has(event.payload.id)) return;
+      this.confirmIds.add(event.payload.id);
+    }
     if (event.type === 'provider.text_delta' && typeof event.payload?.text === 'string') {
       this.streamed += event.payload.text;
     }

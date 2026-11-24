@@ -1150,7 +1150,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "preferred Runtime pilot",
       "sourceFiles": 15,
-      "sourceLines": 2406
+      "sourceLines": 2419
     },
     {
       "directory": "performance",
@@ -1192,7 +1192,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repository/runtime implementation",
       "sourceFiles": 3,
-      "sourceLines": 267
+      "sourceLines": 277
     },
     {
       "directory": "sandbox",
@@ -1213,14 +1213,14 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "project-scoped ownership and catalog subsystem",
       "sourceFiles": 20,
-      "sourceLines": 5798
+      "sourceLines": 5817
     },
     {
       "directory": "skills",
       "classification": "product feature",
       "intendedOwner": "skills implementation package or Runtime",
       "sourceFiles": 27,
-      "sourceLines": 5721
+      "sourceLines": 5725
     },
     {
       "directory": "statusline",
@@ -1255,7 +1255,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 98,
-      "sourceLines": 15984
+      "sourceLines": 15987
     },
     {
       "directory": "vcs",

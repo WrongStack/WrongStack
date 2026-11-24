@@ -214,6 +214,68 @@ describe('process_watch', () => {
     processCleanupDeadline(10_000) + 10_000,
   );
 
+  it('matches the filter against the whole line before truncating it (F1661)', async () => {
+    const { sb, ctx, sessionId } = await leaderSandbox();
+    const late = `${'x'.repeat(450)} ERROR late failure`;
+    const script = await fixture(
+      sb,
+      'long.js',
+      `for (const l of ${JSON.stringify(['noise', late])}) console.log(l);\n`,
+    );
+    await processWatchTool.execute(
+      { command: runtimeFixtureCommand(script), description: 'long lines', filter: 'ERROR' },
+      ctx,
+      { signal: newSignal() },
+    );
+
+    const collected: LeaderDelivery[] = [];
+    const exit = await waitFor(() => {
+      collected.push(...drain(sessionId));
+      return collected.find(
+        (d) => d.kind === 'runtime_notice' && /exited with code 0/.test(d.payload.title),
+      );
+    });
+    expect(exit.kind === 'runtime_notice' && exit.payload.title).toContain('(1 matching line)');
+    const bodies = collected
+      .flatMap((d) => (d.kind === 'runtime_notice' ? [d.payload.body ?? ''] : []))
+      .join('\n');
+    expect(bodies).toContain(`${'x'.repeat(399)}…`);
+    expect(bodies).not.toContain('noise');
+  });
+
+  it('never cuts a surrogate pair when truncating a line or the description (F1662)', async () => {
+    const { sb, ctx, sessionId } = await leaderSandbox();
+    const emoji = String.fromCodePoint(0x1f600);
+    const script = await fixture(
+      sb,
+      'emoji.js',
+      `console.log(${JSON.stringify(`${'x'.repeat(398)}${emoji} tail`)});\n`,
+    );
+    await processWatchTool.execute(
+      { command: runtimeFixtureCommand(script), description: `${'d'.repeat(118)}${emoji} more` },
+      ctx,
+      { signal: newSignal() },
+    );
+
+    const collected: LeaderDelivery[] = [];
+    await waitFor(() => {
+      collected.push(...drain(sessionId));
+      return collected.some(
+        (d) => d.kind === 'runtime_notice' && /exited with code 0/.test(d.payload.title),
+      )
+        ? true
+        : undefined;
+    });
+    const text = collected
+      .flatMap((d) =>
+        d.kind === 'runtime_notice' ? [`${d.payload.title}\n${d.payload.body ?? ''}`] : [],
+      )
+      .join('\n');
+    expect(text.isWellFormed()).toBe(true);
+    expect(text).toContain(`${'x'.repeat(398)}…`);
+    expect(text).toContain(`(${'d'.repeat(118)}…)`);
+  });
+
   it('rejects an invalid filter and a non-leader caller', async () => {
     const { ctx } = await leaderSandbox();
     const opts = { signal: newSignal() };

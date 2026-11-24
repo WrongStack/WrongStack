@@ -216,6 +216,58 @@ describe('goal run task counting', () => {
     }
   });
 
+  it('applies phase.statusChange in the same tick as phase.started', async () => {
+    const captured: Captured = {};
+    const view = mountBridge(captured);
+    try {
+      await until(() => captured.handler !== undefined, 'subscribeGoal handler captured');
+      const h = captured.handler as GoalHandler;
+
+      // The orchestrator can start and immediately report a status change
+      // (pause/fail) before React renders the phase into stateRef. The status
+      // must still land; a stale-ref lookup here used to drop it entirely.
+      h('phase.started', {
+        phaseId: 'p1',
+        name: 'Alpha',
+        completedTasks: 1,
+        totalTasks: 3,
+      });
+      h('phase.statusChange', { phaseId: 'p1', from: 'running', to: 'paused' });
+
+      await until(() => phaseView(captured) !== undefined, 'phase p1 registered');
+      expect(phaseView(captured)?.status).toBe('paused');
+      expect(phaseView(captured)).toMatchObject({ completedTasks: 1, totalTasks: 3 });
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it('preserves started counts when phase.completed arrives in the same tick', async () => {
+    const captured: Captured = {};
+    const view = mountBridge(captured);
+    try {
+      await until(() => captured.handler !== undefined, 'subscribeGoal handler captured');
+      const h = captured.handler as GoalHandler;
+
+      // Same-tick start/completion: the completion event carries no counts, so
+      // reading them from the render-synced stateRef overwrote the started
+      // numbers with 0/0. Completion must preserve the phase's own counts.
+      h('phase.started', {
+        phaseId: 'p1',
+        name: 'Alpha',
+        completedTasks: 1,
+        totalTasks: 3,
+      });
+      h('phase.completed', { phaseId: 'p1', name: 'Alpha', durationMs: 10 });
+
+      await until(() => phaseView(captured) !== undefined, 'phase p1 registered');
+      expect(phaseView(captured)?.status).toBe('completed');
+      expect(phaseView(captured)).toMatchObject({ completedTasks: 1, totalTasks: 3 });
+    } finally {
+      view.unmount();
+    }
+  });
+
   it('reducer counts sequential goalRunTaskCompleted actions against latest state', () => {
     let s = reducer(baseState, { type: 'goalRunInit', title: 'T' });
     s = reducer(s, {

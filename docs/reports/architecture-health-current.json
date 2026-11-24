@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T01:09:28.095Z",
+  "generatedAt": "2026-11-24T01:19:32.213Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6520,
-    "testFiles": 5794,
-    "sourceLines": 1334135,
+    "testFiles": 5801,
+    "sourceLines": 1334471,
     "workspaceEdges": 261,
     "moduleEdges": 19060,
     "nonCommandSlashImports": 0,
@@ -184,7 +184,7 @@
       "name": "@wrongstack/builtin-plugins",
       "dir": "packages/builtin-plugins",
       "sourceFiles": 40,
-      "testFiles": 42,
+      "testFiles": 44,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -200,7 +200,7 @@
         {
           "path": "packages/builtin-plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 42
+          "testFiles": 44
         }
       ]
     },
@@ -403,7 +403,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 665,
-      "testFiles": 778,
+      "testFiles": 780,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -420,7 +420,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 778
+          "testFiles": 780
         }
       ]
     },
@@ -577,7 +577,7 @@
       "name": "@wrongstack/kanban",
       "dir": "packages/kanban",
       "sourceFiles": 108,
-      "testFiles": 111,
+      "testFiles": 112,
       "workspaceDependencies": [
         "@wrongstack/persistence",
         "@wrongstack/primitives"
@@ -591,7 +591,7 @@
         {
           "path": "packages/kanban/tsconfig.test.json",
           "error": null,
-          "testFiles": 111
+          "testFiles": 112
         }
       ]
     },
@@ -712,7 +712,7 @@
       "name": "@wrongstack/plugin-sdk",
       "dir": "packages/plugin-sdk",
       "sourceFiles": 12,
-      "testFiles": 12,
+      "testFiles": 13,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -727,7 +727,7 @@
         {
           "path": "packages/plugin-sdk/tsconfig.test.json",
           "error": null,
-          "testFiles": 12
+          "testFiles": 13
         }
       ]
     },
@@ -1316,7 +1316,7 @@
       "name": "@wrongstack/wrongmemory-client",
       "dir": "packages/wrongmemory-client",
       "sourceFiles": 6,
-      "testFiles": 4,
+      "testFiles": 5,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -1327,7 +1327,7 @@
         {
           "path": "packages/wrongmemory-client/tsconfig.test.json",
           "error": null,
-          "testFiles": 4
+          "testFiles": 5
         }
       ]
     },
@@ -5017,6 +5017,18 @@
       },
       {
         "file": "packages/builtin-plugins/tests/review-context-builder.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/builtin-plugins/tests/review-diff-header-lookalike-lines.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/builtin-plugins/tests/review-fast-path-go-directives.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14016,7 +14028,19 @@
         ]
       },
       {
+        "file": "packages/core/tests/session-catalog/rebuild-catalog-orphan-summary.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/session-catalog/session-registry-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/session-catalog/upsert-summary-damaged.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17646,6 +17670,12 @@
         ]
       },
       {
+        "file": "packages/kanban/tests/prune-delete-stale-snapshot.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/prune-session-boards.test.ts",
         "projects": [
           "root-node"
@@ -19219,6 +19249,12 @@
       },
       {
         "file": "packages/plug-lsp/tests/unit/workspace-materialized.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugin-sdk/tests/collect-source-files-inode-precision.test.ts",
         "projects": [
           "root-node"
         ]
@@ -36085,6 +36121,12 @@
       },
       {
         "file": "packages/wrongmemory-client/tests/framing.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/wrongmemory-client/tests/start-daemon-spawn-error.test.ts",
         "projects": [
           "root-node"
         ]

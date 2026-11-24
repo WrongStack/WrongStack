@@ -27,6 +27,8 @@ class FakeServer {
   epoch = 'e1';
   /** Frames written in the same TCP write as the next `session.start`. */
   burst: Frame[] = [];
+  /** Frames sent raw before the next `session.start` (the server's pending-confirm re-send). */
+  preStart: Frame[] = [];
   /** Sessions with a run in flight, for `session.run_state`. */
   readonly running = new Set<string>();
   private readonly log = new Map<string, Frame[]>();
@@ -78,6 +80,7 @@ class FakeServer {
         // so its socket delivers them back to back in the same task.
         const raw = (socket as unknown as { _socket: import('node:net').Socket })._socket;
         raw.cork();
+        for (const frame of fake.preStart.splice(0)) fake.emit(frame);
         fake.emit({
           type: 'session.start',
           payload: { sessionId: 'sess_1', provider: 'p', model: 'm', eventEpoch: fake.epoch },
@@ -551,6 +554,38 @@ describe('WrongStackClient', () => {
       payload: { text: 'next', messageId: 'b', sessionId: 'sess_1' },
     });
     await expect.poll(() => seen).toEqual(['next']);
+  });
+
+  it('streams a pending confirmation once when a reconnect re-sends it (F1600)', async () => {
+    const { server, client } = await connected({}, { reconnect: { initialDelayMs: 0 } });
+    const run = client.send('hello');
+    const confirms: string[] = [];
+    run.onEvent((event) => {
+      if (event.type === 'tool.confirm_needed') confirms.push(event.payload.id);
+    });
+    await server.frame('user_message');
+    server.running.add('sess_1');
+    const confirm = {
+      id: 'confirm_f1600',
+      toolName: 'bash',
+      input: { cmd: 'ls' },
+      suggestedPattern: 'bash',
+      sessionId: 'sess_1',
+    };
+    server.broadcast({ type: 'tool.confirm_needed', payload: confirm });
+    await expect.poll(() => confirms.length).toBe(1);
+
+    // The real server re-sends every pending confirmation, unnumbered, before session.start.
+    server.preStart.push({ type: 'tool.confirm_needed', payload: confirm });
+    const reopened = new Promise<void>((resolve) => {
+      client.onStateChange((state) => {
+        if (state === 'open') resolve();
+      });
+    });
+    server.drop();
+    // `open` is reported after the frames read with session.start were applied.
+    await reopened;
+    expect(confirms).toEqual(['confirm_f1600']);
   });
 
   it('fails a run in flight when the server restarted', async () => {

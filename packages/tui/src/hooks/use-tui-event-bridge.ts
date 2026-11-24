@@ -193,44 +193,24 @@ function useGoalEvents(
           break;
         }
         case 'phase.completed': {
-          const p = payload as { phaseId: string; name: string };
-          const current = stateRef.current.goalRun?.phases[p.phaseId];
-          dispatch({
-            type: 'goalRunPhaseUpdate',
-            phaseId: p.phaseId,
-            name: p.name,
-            status: 'completed',
-            completedTasks: current?.completedTasks ?? 0,
-            totalTasks: current?.totalTasks ?? 0,
-          });
+          const p = payload as { phaseId: string };
+          // Reducer-owned: a completion carries no counts, and the render-synced
+          // stateRef has no phase yet when start and completion land in one tick.
+          // The reducer preserves the started counts and the phase name.
+          dispatch({ type: 'goalRunPhaseStatus', phaseId: p.phaseId, status: 'completed' });
           break;
         }
         case 'phase.failed': {
-          const p = payload as { phaseId: string; name: string };
-          const current = stateRef.current.goalRun?.phases[p.phaseId];
-          dispatch({
-            type: 'goalRunPhaseUpdate',
-            phaseId: p.phaseId,
-            name: p.name,
-            status: 'failed',
-            completedTasks: current?.completedTasks ?? 0,
-            totalTasks: current?.totalTasks ?? 0,
-          });
+          const p = payload as { phaseId: string };
+          dispatch({ type: 'goalRunPhaseStatus', phaseId: p.phaseId, status: 'failed' });
           break;
         }
         case 'phase.statusChange': {
           const p = payload as { phaseId: string; to: string };
-          const current = stateRef.current.goalRun?.phases[p.phaseId];
-          if (!current) break;
+          // Reducer-owned: never gate on the render-synced ref. A start and a
+          // status change in one tick used to drop the status entirely.
           const status = p.to === 'running' ? 'running' : p.to;
-          dispatch({
-            type: 'goalRunPhaseUpdate',
-            phaseId: p.phaseId,
-            name: current.name,
-            status,
-            completedTasks: current.completedTasks,
-            totalTasks: current.totalTasks,
-          });
+          dispatch({ type: 'goalRunPhaseStatus', phaseId: p.phaseId, status });
           break;
         }
         case 'phase.taskStarted': {

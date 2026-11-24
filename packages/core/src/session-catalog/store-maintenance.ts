@@ -43,7 +43,9 @@ export function listCatalogRecords(
   catalogRecord: (row: CatalogRow) => CatalogSessionRecord,
 ): CatalogSessionRecord[] {
   const read = () => readCatalogRecords(db, criteria, catalogRecord);
-  return criteria.titleContains
+  // The free-text search's title part reads the JS-folded unicode_title column,
+  // so it needs the same text-index refresh as titleContains.
+  return criteria.titleContains || criteria.search
     ? withSqliteTextIndex(
         db.prepare.bind(db),
         catalogTitleIndex,
@@ -78,10 +80,15 @@ function readCatalogRecords(
   const search = criteria.search?.trim();
   if (search) {
     const pattern = literalLike(search);
+    // The free-text search's title part must use the JS-folded unicode_title
+    // column (the same one titleContains uses): SQLite LIKE folds ASCII only,
+    // so the raw json_extract(title) missed U+0130 titles. session_id is ASCII
+    // and `name` is a legacy raw field.
+    const folded = literalLike(search.toLocaleLowerCase());
     clauses.push(
-      `(session_id LIKE ? ESCAPE '\\' OR ${jsonText('title')} LIKE ? ESCAPE '\\' OR ${jsonText('name')} LIKE ? ESCAPE '\\')`,
+      `(session_id LIKE ? ESCAPE '\\' OR unicode_title LIKE ? ESCAPE '\\' OR ${jsonText('title')} LIKE ? ESCAPE '\\' OR ${jsonText('name')} LIKE ? ESCAPE '\\')`,
     );
-    values.push(pattern, pattern, pattern);
+    values.push(pattern, folded, pattern, pattern);
   }
   if (criteria.since) {
     clauses.push(`${jsonText('startedAt')}>=?`);

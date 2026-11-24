@@ -106,6 +106,12 @@ export type AppActionWorkflows =
       totalTasks: number;
       startedAt?: number | undefined;
     }
+  | {
+      /** Phase status update; the reducer preserves the phase's name/counts. */
+      type: 'goalRunPhaseStatus';
+      phaseId: string;
+      status: string;
+    }
   | { type: 'goalRunRunningPhases'; phaseIds: string[] }
   | { type: 'goalRunElapsed'; ms: number }
   | {

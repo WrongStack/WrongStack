@@ -201,4 +201,27 @@ describe('TelegramBotOutbound', () => {
     await expect(first).rejects.toThrow();
     await queue.stop();
   });
+
+  it('applies the documented private-chat rate policy by default', async () => {
+    vi.useFakeTimers();
+    try {
+      const sent: string[] = [];
+      const send = vi.fn(async (_chatId: string | number, text: string) => {
+        sent.push(text);
+        return { ok: true as const, result: { message_id: sent.length } };
+      });
+      const queue = new TelegramBotOutbound({ bot: makeBot(send), log: silentLog });
+      const sends = Array.from({ length: 6 }, (_, index) => queue.sendManual(4242, `m${index}`));
+
+      // Private chats use the documented 30 tokens/s, burst 5: the sixth send
+      // waits ~33ms, not the ~3s the group policy (0.33/s, burst 4) imposes.
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(sent).toHaveLength(6);
+
+      await Promise.all(sends);
+      await queue.stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

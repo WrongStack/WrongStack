@@ -16,7 +16,12 @@ function decode(bytes: Buffer): string | null {
 }
 async function inspect(project: string, path: string) {
   const target = await gitReviewTarget(project, path, true);
-  const index = await gitReviewCommand(target.root, ['ls-files', '--unmerged', '-z', '--', path]);
+  const index = await gitReviewCommand(
+    target.root,
+    ['ls-files', '--unmerged', '-z', '--', path],
+    undefined,
+    'none',
+  );
   const rows = index
     .split('\0')
     .filter(Boolean)
@@ -32,7 +37,12 @@ async function inspect(project: string, path: string) {
   const sides: Record<string, Side> = {};
   await Promise.all(
     rows.map(async (row) => {
-      const bytes = await gitReviewBytes(target.root, ['cat-file', 'blob', row![2]!]);
+      const bytes = await gitReviewBytes(
+        target.root,
+        ['cat-file', 'blob', row![2]!],
+        undefined,
+        'none',
+      );
       sides[row![3]!] = { mode: row![1]!, oid: row![2]!, bytes, text: decode(bytes) };
     }),
   );
@@ -49,14 +59,12 @@ async function inspect(project: string, path: string) {
   )
     throw Error('The combined conflict preview exceeds the 1 MiB review limit.');
   // Index paths are real evidence; missing sides alone do not prove a rename relationship.
-  const related = await gitReviewCommand(target.project, [
-    'ls-files',
-    '--full-name',
-    '--unmerged',
-    '-z',
-    '--',
-    '.',
-  ]);
+  const related = await gitReviewCommand(
+    target.project,
+    ['ls-files', '--full-name', '--unmerged', '-z', '--', '.'],
+    undefined,
+    'none',
+  );
   const relatedPaths = [
     ...new Set(
       related
@@ -125,7 +133,12 @@ export async function handleGitConflict(
       throw Error('Choose merged text, an existing side, or explicit deletion.');
     if (choice === 'delete') {
       changed = true;
-      await gitReviewCommand(current.root, ['rm', '--force', '--', value['path']]);
+      await gitReviewCommand(
+        current.root,
+        ['rm', '--force', '--', value['path']],
+        undefined,
+        'none',
+      );
     } else {
       let bytes: Buffer;
       let mode: string | undefined;
@@ -160,22 +173,22 @@ export async function handleGitConflict(
       if (!current.exists) await mkdir(dirname(current.physical), { recursive: true });
       await writeFile(current.physical, bytes);
       if (mode) await chmod(current.physical, mode === '100755' ? 0o755 : 0o644);
+      // `add` reads working-tree files, so it keeps the repository isolation.
       await gitReviewCommand(current.root, ['add', '--', value['path']]);
       if (mode)
-        await gitReviewCommand(current.root, [
-          'update-index',
-          mode === '100755' ? '--chmod=+x' : '--chmod=-x',
-          '--',
-          value['path'],
-        ]);
+        await gitReviewCommand(
+          current.root,
+          ['update-index', mode === '100755' ? '--chmod=+x' : '--chmod=-x', '--', value['path']],
+          undefined,
+          'none',
+        );
     }
-    const remaining = await gitReviewCommand(current.root, [
-      'ls-files',
-      '--unmerged',
-      '-z',
-      '--',
-      value['path'],
-    ]);
+    const remaining = await gitReviewCommand(
+      current.root,
+      ['ls-files', '--unmerged', '-z', '--', value['path']],
+      undefined,
+      'none',
+    );
     if (remaining.length) throw Error('Git still reports an unresolved index entry.');
     send(ws, {
       type: 'git.action_result',

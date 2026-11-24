@@ -38,9 +38,12 @@ export function collectSourceFiles(root: string, opts: CollectOptions): string[]
   const files: string[] = [];
   if (!existsSync(root)) return files;
   const resolvedRoot = resolve(root);
+  // BigInt stats: a Number `ino` loses its low bits above 2^53 (NTFS file ids
+  // are 64-bit), so two different directories could share a visited key and
+  // the second was skipped as if it were a symlink loop.
   let s;
   try {
-    s = statSync(resolvedRoot);
+    s = statSync(resolvedRoot, { bigint: true });
   } catch {
     return files;
   }
@@ -53,7 +56,7 @@ export function collectSourceFiles(root: string, opts: CollectOptions): string[]
   const excludeSet = new Set(exclude); // O(1) lookup instead of O(n) includes()
   const maxDepth = normalizeMaxDepth(opts.maxDepth);
   const visitedInodes = new Set<string>();
-  if (s.dev !== undefined && s.ino !== undefined && (s.dev !== 0 || s.ino !== 0)) {
+  if (s.dev !== undefined && s.ino !== undefined && (s.dev !== 0n || s.ino !== 0n)) {
     visitedInodes.add(`${s.dev}:${s.ino}`);
   }
 
@@ -72,12 +75,12 @@ export function collectSourceFiles(root: string, opts: CollectOptions): string[]
       const full = resolve(dir, entry);
       let st;
       try {
-        st = statSync(full);
+        st = statSync(full, { bigint: true });
       } catch {
         continue;
       }
       if (st.isDirectory()) {
-        if (st.dev !== undefined && st.ino !== undefined && (st.dev !== 0 || st.ino !== 0)) {
+        if (st.dev !== undefined && st.ino !== undefined && (st.dev !== 0n || st.ino !== 0n)) {
           const inodeKey = `${st.dev}:${st.ino}`;
           if (visitedInodes.has(inodeKey)) continue;
           visitedInodes.add(inodeKey);

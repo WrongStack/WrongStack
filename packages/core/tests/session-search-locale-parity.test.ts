@@ -69,6 +69,16 @@ function catalogDb(title: string = TITLE): DatabaseSync {
   return db;
 }
 
+function catalogSearchIds(needle: string): string[] {
+  const db = catalogDb();
+  try {
+    const rows = listCatalogRecords(db, { search: needle }, () => ({}) as CatalogSessionRecord);
+    return rows.map((row) => row.id);
+  } finally {
+    db.close();
+  }
+}
+
 /** A store with `list()` and no `listFiltered` — the in-process fallback path. */
 function readerStore(title: string = TITLE): SessionStore {
   return {
@@ -112,6 +122,12 @@ describe('session-search locale parity (U+0130)', () => {
       it('A: the SQLite catalog path follows the host fold', () => {
         // The row mapper is stubbed, so the row count is what this path answers.
         expect(catalogIds(needle)).toHaveLength(expected.length);
+      });
+
+      it('A-search: the SQLite catalog free-text search folds the title on the host', () => {
+        // The search's title part must use the same JS fold as titleContains;
+        // raw SQLite LIKE folds ASCII only and misses U+0130 titles.
+        expect(catalogSearchIds(needle)).toHaveLength(expected.length);
       });
 
       it('B: the canonical matcher follows the host fold', () => {

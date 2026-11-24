@@ -1,4 +1,4 @@
-import { deleteBoard, listBoardSummaries, mutateBoard } from '../storage.js';
+import { deleteBoardIf, listBoardSummaries, mutateBoard } from '../storage.js';
 import type { KanbanTask } from '../types.js';
 import { nowIso, stampAtomicityAssessment } from './_internal.js';
 
@@ -224,8 +224,18 @@ export async function pruneSessionBoards(
         result.archivedRetained.push(summary.id);
         continue;
       }
-      await deleteBoard(projectRoot, summary.id);
-      result.deleted.push(summary.id);
+      const purged = await deleteBoardIf(projectRoot, summary.id, (board) => {
+        if ((board.kind ?? 'project') !== 'archive') return false;
+        const retention = board.retention;
+        if (!retention?.archivedAt || !isRetentionDuration(retention.purgeAfterArchiveMs))
+          return false;
+        const archivedAtMs = Date.parse(retention.archivedAt);
+        return (
+          Number.isFinite(archivedAtMs) && nowMs - archivedAtMs >= retention.purgeAfterArchiveMs
+        );
+      });
+      if (purged) result.deleted.push(summary.id);
+      else result.archivedRetained.push(summary.id);
       continue;
     }
 
@@ -249,8 +259,22 @@ export async function pruneSessionBoards(
         Number.isFinite(archivedAtMs) &&
         nowMs - archivedAtMs >= retention.purgeAfterArchiveMs
       ) {
-        await deleteBoard(projectRoot, summary.id);
-        result.deleted.push(summary.id);
+        const purged = await deleteBoardIf(projectRoot, summary.id, (board) => {
+          if ((board.kind ?? 'project') !== 'session_mirror') return false;
+          const boardRetention = board.retention;
+          if (
+            !boardRetention?.archivedAt ||
+            !isRetentionDuration(boardRetention.purgeAfterArchiveMs)
+          )
+            return false;
+          const boardArchivedMs = Date.parse(boardRetention.archivedAt);
+          return (
+            Number.isFinite(boardArchivedMs) &&
+            nowMs - boardArchivedMs >= boardRetention.purgeAfterArchiveMs
+          );
+        });
+        if (purged) result.deleted.push(summary.id);
+        else result.archivedRetained.push(summary.id);
       } else {
         result.archivedRetained.push(summary.id);
       }
@@ -275,8 +299,20 @@ export async function pruneSessionBoards(
     }
 
     if (retention.mode === 'delete_after_ttl') {
-      await deleteBoard(projectRoot, summary.id);
-      result.deleted.push(summary.id);
+      const deletedNow = await deleteBoardIf(projectRoot, summary.id, (board) => {
+        if ((board.kind ?? 'project') !== 'session_mirror') return false;
+        const boardRetention = board.retention;
+        if (
+          boardRetention?.mode !== 'delete_after_ttl' ||
+          boardRetention.archivedAt ||
+          !isRetentionDuration(boardRetention.ttlMs)
+        )
+          return false;
+        const boardUpdatedMs = Date.parse(board.updatedAt);
+        return Number.isFinite(boardUpdatedMs) && nowMs - boardUpdatedMs >= boardRetention.ttlMs;
+      });
+      if (deletedNow) result.deleted.push(summary.id);
+      else result.skipped.push(summary.id);
     } else {
       // archive_after_ttl: mark as archived inside the board's own atomic
       // read-modify-write. A separate readBoard + unconditional writeBoard

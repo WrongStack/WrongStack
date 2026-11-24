@@ -392,9 +392,10 @@ export function createWrongTraceHookPair(
               // STILL an in-flight participant on this path, so count it —
               // otherwise this racer's postToolUse would decrement a sibling's
               // claim and release the daemon lock mid-edit (the refcount
-              // contract: only the LAST finisher releases).
+              // contract: only the LAST finisher releases). No epoch bump: the
+              // claim acquired nothing, so a finished owner's release must not
+              // read it as a re-acquire and leave its lock to the TTL.
               acquireLock(counters, key);
-              bumpPathEpoch(counters, path);
               if (!claimedOwnerSetFor(counters).has(key)) {
                 claimedOwnerSetFor(counters).set(key, owner);
               }

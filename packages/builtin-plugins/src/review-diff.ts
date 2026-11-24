@@ -72,6 +72,11 @@ export function annotateUnifiedDiffWithLineNumbers(rawDiff: string): AnnotatedDi
   let inHunk = false;
   let seenChangeInHunk = false;
   let newLine = 0;
+  // Body lines the current hunk header still promises. While any remain, a line
+  // is hunk content even when it reads like a header: a removed `-- note` line
+  // (SQL/Lua) arrives as `--- note`, an added `++ x` line as `+++ x`.
+  let oldLeft = 0;
+  let newLeft = 0;
   let hunkCount = 0;
   let addedLines = 0;
   let removedLines = 0;
@@ -85,6 +90,8 @@ export function annotateUnifiedDiffWithLineNumbers(rawDiff: string): AnnotatedDi
       seenChangeInHunk = false;
       hunkCount++;
       newLine = Number.parseInt(hunkMatch[3]!, 10);
+      oldLeft = hunkMatch[2] === undefined ? 1 : Number.parseInt(hunkMatch[2], 10);
+      newLeft = hunkMatch[4] === undefined ? 1 : Number.parseInt(hunkMatch[4], 10);
       const headerContext = hunkMatch[5]?.trim();
       if (headerContext) {
         const sym = extractSymbolName(headerContext);
@@ -95,15 +102,16 @@ export function annotateUnifiedDiffWithLineNumbers(rawDiff: string): AnnotatedDi
     }
 
     if (
-      line.startsWith('diff --git ') ||
-      line.startsWith('index ') ||
-      line.startsWith('--- ') ||
-      line.startsWith('+++ ') ||
-      line.startsWith('new file mode ') ||
-      line.startsWith('deleted file mode ') ||
-      line.startsWith('similarity index ') ||
-      line.startsWith('rename from ') ||
-      line.startsWith('rename to ')
+      !(inHunk && (oldLeft > 0 || newLeft > 0)) &&
+      (line.startsWith('diff --git ') ||
+        line.startsWith('index ') ||
+        line.startsWith('--- ') ||
+        line.startsWith('+++ ') ||
+        line.startsWith('new file mode ') ||
+        line.startsWith('deleted file mode ') ||
+        line.startsWith('similarity index ') ||
+        line.startsWith('rename from ') ||
+        line.startsWith('rename to '))
     ) {
       inHunk = false;
       seenChangeInHunk = false;
@@ -121,6 +129,7 @@ export function annotateUnifiedDiffWithLineNumbers(rawDiff: string): AnnotatedDi
       const body = line.slice(1);
       out.push(`${String(newLine).padStart(4, ' ')} | +${body}`);
       newLine++;
+      newLeft--;
       addedLines++;
       const sym = extractSymbolName(body);
       if (sym && symbols.size < 16) symbols.add(sym);
@@ -130,6 +139,7 @@ export function annotateUnifiedDiffWithLineNumbers(rawDiff: string): AnnotatedDi
       seenChangeInHunk = true;
       const body = line.slice(1);
       out.push(`     | -${body}`);
+      oldLeft--;
       removedLines++;
       const sym = extractSymbolName(body);
       if (sym && symbols.size < 16) symbols.add(sym);
@@ -139,6 +149,8 @@ export function annotateUnifiedDiffWithLineNumbers(rawDiff: string): AnnotatedDi
       const body = line.slice(1);
       out.push(`${String(newLine).padStart(4, ' ')} |  ${body}`);
       newLine++;
+      oldLeft--;
+      newLeft--;
       // When a hunk starts near the top of a declaration, git diff places the
       // signature in the leading context lines rather than the `@@` header.
       if (!seenChangeInHunk) {

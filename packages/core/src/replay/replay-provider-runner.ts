@@ -48,7 +48,7 @@ import { hashRequest } from './hash.js';
  * fresh interactive session does not. In an interactive session, prefer
  * `'record'` (build the log) and use `'replay'` from a harness that pins the
  * volatile inputs. `hashRequest` itself is stable across time: local message
- * bookkeeping (`ts`, `_estTokens`, `origin`) is stripped before hashing.
+ * bookkeeping (`ts`, `_estTokens`, `origin`, `authoredLength`) is stripped before hashing.
  */
 export type ReplayMode = 'record' | 'replay' | 'auto';
 

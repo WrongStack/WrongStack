@@ -436,16 +436,58 @@ export async function deleteBoard(projectRoot: string, boardRef: string): Promis
   const filePath = getKanbanPath(projectRoot, boardId);
   return withFileLock(filePath, async () => {
     try {
-      await fs.unlink(filePath);
-      const eventsPath = getKanbanEventsPath(projectRoot, boardId);
-      // Clear the cache entry unconditionally: the board file is already gone,
-      // so even if the events-file unlink fails the cached state is stale.
-      eventLogState.delete(eventsPath);
-      try {
-        await fs.unlink(eventsPath);
-      } catch (eventsErr) {
-        if (!isEnoent(eventsErr)) throw eventsErr;
-      }
+      await unlinkBoardFiles(projectRoot, boardId, filePath);
+      return true;
+    } catch (err) {
+      if (isEnoent(err)) return false;
+      throw err;
+    }
+  });
+}
+
+async function unlinkBoardFiles(
+  projectRoot: string,
+  boardId: string,
+  filePath: string,
+): Promise<void> {
+  await fs.unlink(filePath);
+  const eventsPath = getKanbanEventsPath(projectRoot, boardId);
+  // Clear the cache entry unconditionally: the board file is already gone,
+  // so even if the events-file unlink fails the cached state is stale.
+  eventLogState.delete(eventsPath);
+  try {
+    await fs.unlink(eventsPath);
+  } catch (eventsErr) {
+    if (!isEnoent(eventsErr)) throw eventsErr;
+  }
+}
+
+/**
+ * Delete a board only when the freshly read board still satisfies `predicate`.
+ *
+ * The prune used to decide from a `listBoardSummaries` snapshot and then call
+ * `deleteBoard`: a session-resume mirror write committed in between was erased.
+ * The predicate runs under the same file lock (or the backend's transaction) as
+ * the delete, so the decision and the removal see the same board.
+ */
+export async function deleteBoardIf(
+  projectRoot: string,
+  boardRef: string,
+  predicate: (board: KanbanBoard) => boolean,
+): Promise<boolean> {
+  const backend = runtimeStorage(projectRoot);
+  if (backend) {
+    // A backend without the atomic primitive must not delete from a snapshot.
+    return backend.deleteBoardIf ? backend.deleteBoardIf(boardRef, predicate) : false;
+  }
+  const boardId = await resolveBoardRef(projectRoot, boardRef);
+  if (!boardId) return false;
+  const filePath = getKanbanPath(projectRoot, boardId);
+  return withFileLock(filePath, async () => {
+    try {
+      const board = normalizeBoard(JSON.parse(await readFileWithRetry(filePath)) as KanbanBoard);
+      if (!predicate(board)) return false;
+      await unlinkBoardFiles(projectRoot, boardId, filePath);
       return true;
     } catch (err) {
       if (isEnoent(err)) return false;

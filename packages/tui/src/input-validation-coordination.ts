@@ -33,6 +33,16 @@ export function validateCoordinationAction(
       return { valid: true, value: payload };
     }
 
+    case 'goalRunPhaseStatus': {
+      if (typeof action.phaseId !== 'string' || !action.phaseId) {
+        return { valid: false, error: 'goalRunPhaseStatus.phaseId: not a non-empty string.' };
+      }
+      if (typeof action.status !== 'string' || !action.status) {
+        return { valid: false, error: 'goalRunPhaseStatus.status: not a non-empty string.' };
+      }
+      return { valid: true, value: payload };
+    }
+
     case 'goalRunRunningPhases': {
       const phaseIds = action.phaseIds;
       if (!Array.isArray(phaseIds)) {

@@ -219,6 +219,7 @@ export function validateDisplayAction(
     case 'goalRunElapsed':
     case 'goalRunTaskActive':
     case 'goalRunTaskAgent':
+    case 'goalRunPhaseStatus':
     case 'goalRunTaskCompleted':
     case 'sddBoardSnapshot':
     case 'worktreeUpsert':

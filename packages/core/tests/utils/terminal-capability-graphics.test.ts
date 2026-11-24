@@ -22,6 +22,27 @@ describe('detectTerminal — supportsSyncOutput & graphicsProtocol', () => {
         .graphicsProtocol,
     ).toBe(protocol);
   });
+
+  it('does not treat an inherited KITTY_WINDOW_ID as the attached Kitty terminal', () => {
+    const tty = fakeStreams(true, true);
+    // A non-Kitty terminal launched from Kitty (or an SSH shell inheriting its
+    // environment) carries KITTY_WINDOW_ID but cannot paint Kitty images; the
+    // attached surface is identified by TERM/TERM_PROGRAM only.
+    const inherited = detectTerminal({
+      ...tty,
+      env: { TERM: 'xterm-256color', KITTY_WINDOW_ID: 'outer', COLORTERM: 'truecolor' },
+    });
+    expect(inherited.terminalHost.kind).toBeNull();
+    expect(inherited.graphicsProtocol).toBe('halfblock');
+
+    // Control: the attached Kitty terminal itself advertises it via TERM.
+    const attached = detectTerminal({
+      ...tty,
+      env: { TERM: 'xterm-kitty', KITTY_WINDOW_ID: 'outer', COLORTERM: 'truecolor' },
+    });
+    expect(attached.terminalHost.kind).toBe('kitty');
+    expect(attached.graphicsProtocol).toBe('kitty');
+  });
   it('enables synchronized output on modern real TTYs and disables on non-TTY or dumb terminals', () => {
     const tty = fakeStreams(true, true);
     expect(

@@ -142,6 +142,26 @@ describe('hashRequest', () => {
     expect(hashRequest(decoratedLater)).toBe(hashRequest(bare));
   });
 
+  it('ignores authoredLength, which a live turn carries and a resumed turn does not (F1646)', () => {
+    // agent-loop sets `authoredLength` on every live user turn; the same turn
+    // rebuilt from the journal (or stripped by the context editor) has none.
+    // Adapters never send it, so both must hash identically or replay misses.
+    const resumed = makeRequest({
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }],
+    });
+    const live = makeRequest({
+      messages: [
+        {
+          role: 'user',
+          content: [{ type: 'text', text: 'hello' }],
+          origin: 'user_input',
+          authoredLength: 1,
+        },
+      ],
+    });
+    expect(hashRequest(live)).toBe(hashRequest(resumed));
+  });
+
   it('hash is stable across key insertion order (deep sort)', () => {
     const a = {
       model: 'm',

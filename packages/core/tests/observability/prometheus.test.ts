@@ -41,6 +41,29 @@ describe('Prometheus exposition (L3-C)', () => {
     expect(out).toContain('detail="oops \\"quoted\\"\\nand \\\\back"');
   });
 
+  it('exposes the event bridge dotted names as valid v0.0.4 metric names (F1645)', () => {
+    // wireMetricsToEvents records `agent.sessions.started`, `tool.duration_ms`, …
+    // A scraper rejects the whole payload on one name outside the grammar.
+    const sink = new InMemoryMetricsSink();
+    sink.counter('agent.sessions.started');
+    sink.histogram('tool.duration_ms', 12, { tool: 'bash' });
+    sink.counter('a.b', 1, { x: '1' });
+    sink.counter('a_b', 2, { x: '2' });
+
+    const out = renderPrometheus(sink.snapshot());
+    const names = out
+      .split('\n')
+      .filter((line) => line !== '')
+      .map((line) =>
+        line.startsWith('#') ? line.split(' ')[2] : (/^([^\s{]+)/.exec(line)?.[1] ?? line),
+      );
+    for (const name of names) expect(name).toMatch(/^[a-zA-Z_:][a-zA-Z0-9_:]*$/);
+    expect(out).toContain('agent_sessions_started 1');
+    expect(out).toContain('tool_duration_ms_count{tool="bash"} 1');
+    // Names that collide once sanitized share one TYPE line.
+    expect(out.split('\n').filter((line) => line.startsWith('# TYPE a_b '))).toHaveLength(1);
+  });
+
   it('emits empty output (just header-less newline-free) when no metrics recorded', () => {
     const sink = new InMemoryMetricsSink();
     const out = renderPrometheus(sink.snapshot());

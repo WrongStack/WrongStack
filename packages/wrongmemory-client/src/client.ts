@@ -310,10 +310,26 @@ export async function startDaemon(root: string, opts: ConnectOptions = {}): Prom
   if (!existsSync(exe)) {
     throw new WrongMemoryError('UNAVAILABLE', `daemon executable not found: ${exe}`);
   }
-  const child = spawn(exe, ['--data-root', root], {
-    detached: true,
-    stdio: 'ignore',
-    windowsHide: true,
+  // `exe` passed the existence check, but spawning can still fail: a file
+  // that is not executable throws here, and a directory (or a binary removed
+  // in between) emits a ChildProcess 'error' that, unlistened, takes the host
+  // process down. Both are an unusable daemon executable: UNAVAILABLE.
+  let spawnError: unknown;
+  let child: ReturnType<typeof spawn>;
+  try {
+    child = spawn(exe, ['--data-root', root], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+  } catch (e) {
+    throw new WrongMemoryError(
+      'UNAVAILABLE',
+      `cannot start daemon ${exe}: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+  child.once('error', (e) => {
+    spawnError = e;
   });
   child.unref();
   const deadline = Date.now() + (opts.startTimeoutMs ?? 10_000);
@@ -332,8 +348,9 @@ export async function startDaemon(root: string, opts: ConnectOptions = {}): Prom
       await new Promise((r) => setTimeout(r, 100));
     }
   }
+  const failure = spawnError ?? last;
   throw new WrongMemoryError(
     'UNAVAILABLE',
-    `daemon did not become ready: ${last instanceof Error ? last.message : String(last)}`,
+    `daemon did not become ready: ${failure instanceof Error ? failure.message : String(failure)}`,
   );
 }

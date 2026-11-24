@@ -64,12 +64,22 @@ function sortKeys(value: unknown): unknown {
 /**
  * Strip a message down to what the provider actually receives.
  *
- * `ts`, `_estTokens` and `origin` are documented on {@link Message} as local
- * fields the adapters ignore. Two runs that produce the identical conversation
- * differ in all three, so they must not reach the digest.
+ * `ts`, `_estTokens`, `origin` and `authoredLength` are documented on
+ * {@link Message} as local fields the adapters ignore. Two runs that produce the
+ * identical conversation differ in all of them (F1646: a live user turn carries
+ * `authoredLength`, the same turn rebuilt from the journal does not), so they
+ * must not reach the digest.
  */
-function semanticMessage(message: Message): Omit<Message, 'ts' | '_estTokens' | 'origin'> {
-  const { ts: _ts, _estTokens: _estimate, origin: _origin, ...semantic } = message;
+function semanticMessage(
+  message: Message,
+): Omit<Message, 'ts' | '_estTokens' | 'origin' | 'authoredLength'> {
+  const {
+    ts: _ts,
+    _estTokens: _estimate,
+    origin: _origin,
+    authoredLength: _authoredLength,
+    ...semantic
+  } = message;
   return semantic;
 }
 

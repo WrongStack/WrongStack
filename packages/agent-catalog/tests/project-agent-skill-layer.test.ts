@@ -476,6 +476,28 @@ describe('teach flow', () => {
     expect(buffer).toContain('Always use pnpm');
     expect(buffer).toContain('failing command output');
   });
+
+  it('keeps a terse taught directive through the next capture (F1555)', () => {
+    captureLearnedFromAgentOutputDetailed(
+      '## LEARNED\nAlways prefer the workspace root script over a package-local one for cross-package checks.',
+      'executor',
+      projectRoot,
+      true,
+    );
+    updateProjectAgentLearned('executor', 'Use bun, not npm.', projectRoot, 'append');
+    expect(loadProjectAgentLearned('executor', projectRoot)).toContain('Use bun, not npm.');
+
+    captureLearnedFromAgentOutputDetailed(
+      '## LEARNED\nAlways attach the failing command output when reporting a broken build step.',
+      'executor',
+      projectRoot,
+      true,
+    );
+    const buffer = loadProjectAgentLearned('executor', projectRoot);
+    expect(buffer).toContain('- **Use bun, not npm.**');
+    expect(buffer).toContain('failing command output');
+    expect(buffer).not.toContain('- **## ');
+  });
 });
 
 describe('skill affinity ranking', () => {
