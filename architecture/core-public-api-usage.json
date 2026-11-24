@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1022,
+      "files": 1023,
       "typeOnly": 77,
-      "runtimeOrMixed": 980
+      "runtimeOrMixed": 981
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -12732,6 +12732,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/fleet-statusline.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/fleet/acp-project-mcp-gateway.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

@@ -15,7 +15,31 @@ import type { BrainArbiter, ProviderModelStatusTracker } from '@wrongstack/coord
 import type { AgentPipelines, FallbackProfileManager } from '@wrongstack/core/agent';
 import type { HookRunner } from '@wrongstack/core/hooks';
 import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import type { BridgeHttpMcpServer, BridgeServer } from './acp-wrongstack-bridge.js';
 import type { WrongForgeGatewaySpec } from './wrongforge-client.js';
+
+/** Request to mint a per-worker HTTP MCP grant on the host's shared ProjectMcpGateway. */
+export interface AcpProjectMcpGrantRequest {
+  servers: readonly BridgeServer[];
+  projectRoot: string;
+  worktreeCwd?: string | undefined;
+  actor: string;
+  sessionId?: string | undefined;
+  role?: string | undefined;
+}
+
+export interface AcpProjectMcpGrantResult {
+  mcpServers: BridgeHttpMcpServer[];
+  revoke(): void | Promise<void>;
+}
+
+/**
+ * Starts (or reuses) the host's shared loopback `ProjectMcpGateway` and mints
+ * a per-worker bearer grant for HTTP-capable ACP clients (0 child processes).
+ */
+export type AcpProjectMcpGatewayFactory = (
+  req: AcpProjectMcpGrantRequest,
+) => Promise<AcpProjectMcpGrantResult | undefined>;
 
 /** What the host hands the WrongForge tool-gateway factory for one task. */
 export interface WrongForgeGatewayOptions {
@@ -81,6 +105,11 @@ export interface MultiAgentDeps {
    * back into WrongStack's.
    */
   wrongForgeGateway?: WrongForgeGatewayFactory | undefined;
+  /**
+   * Shared loopback `ProjectMcpGateway` for HTTP-capable ACP workers
+   * (`sharedAcpProjectMcpGateway`). Absent, workers fall back to stdio MCP servers.
+   */
+  acpProjectMcpGateway?: AcpProjectMcpGatewayFactory | undefined;
 }
 
 /**

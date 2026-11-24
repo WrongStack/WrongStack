@@ -172,7 +172,7 @@ export async function makeACPSubagentRunnerWithStop(
     let session: ACPSession;
     let setup: AcpSessionSetup | undefined;
     try {
-      setup = options.sessionSetup?.(task, ctx);
+      setup = await options.sessionSetup?.(task, ctx);
       if (persistent) {
         if (!shared) {
           sharedCleanup = setup?.cleanup;

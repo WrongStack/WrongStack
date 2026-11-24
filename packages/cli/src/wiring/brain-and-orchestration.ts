@@ -40,6 +40,7 @@ import {
   SESSION_RENAME_TOOL_NAME,
 } from '@wrongstack/tools/management';
 import { subscribeBrainDecisionLog } from '../boot/brain-decision-log.js';
+import { sharedAcpProjectMcpGateway } from '../fleet/acp-project-mcp-gateway.js';
 import { createSubagentWrongTraceHookRunner } from '../fleet/subagent-hook-runner.js';
 import { sharedWrongForgeGateway } from '../fleet/wrongforge-gateway.js';
 import { activeProfileConfigPath } from '../profile-config-path.js';
@@ -482,6 +483,8 @@ export function setupBrainAndOrchestration(deps: BrainOrchestrationDeps): BrainO
       ...(installToolBoundary ? { installToolBoundary } : {}),
       // In-process tool gateway WrongForge workers call back into (CLI-only).
       wrongForgeGateway: sharedWrongForgeGateway,
+      // Shared loopback HTTP MCP gateway for HTTP-capable ACP workers (0 child processes).
+      acpProjectMcpGateway: sharedAcpProjectMcpGateway,
     },
     {
       manifestPath,

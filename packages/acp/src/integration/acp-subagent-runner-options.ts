@@ -80,7 +80,9 @@ export interface ACPSubagentRunnerOptions {
    * MCP servers, appended to `mcpServers`, and the `_meta` for `session/new`.
    * Lets the host give each worker its own identity on shared channels.
    */
-  sessionSetup?: ((task: TaskSpec, ctx: SubagentRunContext) => AcpSessionSetup) | undefined;
+  sessionSetup?:
+    | ((task: TaskSpec, ctx: SubagentRunContext) => AcpSessionSetup | Promise<AcpSessionSetup>)
+    | undefined;
   /**
    * When true, the underlying `ACPSession` is kept open across multiple
    * runner invocations (multi-turn conversation — the external agent

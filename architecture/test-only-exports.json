@@ -416,6 +416,9 @@
     "packages/cli/src/fleet-statusline.ts": [
       "renderFleetLine"
     ],
+    "packages/cli/src/fleet/acp-project-mcp-gateway.ts": [
+      "closeSharedAcpProjectMcpGateway"
+    ],
     "packages/cli/src/fleet/wrongforge-gateway.ts": [
       "WORKER_WITHHELD_TOOLS"
     ],

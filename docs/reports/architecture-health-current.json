@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T20:12:29.764Z",
+  "generatedAt": "2026-11-24T20:16:00.545Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6547,
-    "testFiles": 5831,
-    "sourceLines": 1341165,
+    "sourceFiles": 6548,
+    "testFiles": 5832,
+    "sourceLines": 1341405,
     "workspaceEdges": 261,
-    "moduleEdges": 19153,
+    "moduleEdges": 19156,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1047
+    "testOnlyExports": 1048
   },
   "errors": [],
   "packageCycles": [],
@@ -231,8 +231,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 651,
-      "testFiles": 721,
+      "sourceFiles": 652,
+      "testFiles": 722,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -284,7 +284,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 721
+          "testFiles": 722
         }
       ]
     },
@@ -5665,6 +5665,12 @@
       },
       {
         "file": "packages/cli/tests/acp-permission-bridge.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/acp-project-mcp-gateway.test.ts",
         "projects": [
           "root-node"
         ]
@@ -38739,6 +38745,10 @@
     {
       "file": "packages/cli/src/fleet-statusline.ts",
       "name": "renderFleetLine"
+    },
+    {
+      "file": "packages/cli/src/fleet/acp-project-mcp-gateway.ts",
+      "name": "closeSharedAcpProjectMcpGateway"
     },
     {
       "file": "packages/cli/src/fleet/wrongforge-gateway.ts",

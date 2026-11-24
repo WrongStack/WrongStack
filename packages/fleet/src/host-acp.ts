@@ -25,11 +25,16 @@ import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import { registerAcpSteerInbox } from './acp-live-steer.js';
 import { type AcpPreflightSources, buildAcpPreflightContext } from './acp-preflight-context.js';
 import { startAcpTurnReminders } from './acp-turn-reminders.js';
-import { DEFAULT_BRIDGE_SERVERS, wrongstackBridgeSetup } from './acp-wrongstack-bridge.js';
+import {
+  type BridgeServer,
+  DEFAULT_BRIDGE_SERVERS,
+  wrongstackBridgeSetup,
+} from './acp-wrongstack-bridge.js';
 import {
   startArchitectureDecisionRefresh,
   withArchitectureDecisions,
 } from './architecture-decision-context.js';
+import type { AcpProjectMcpGatewayFactory } from './host-types.js';
 import {
   makeWrongForgeRunner,
   WRONGFORGE_AGENT_ID,
@@ -70,6 +75,8 @@ export interface BuildAcpSubagentRunnerOptions {
   permissions?: ((ctx: SubagentRunContext) => AcpPermissionPolicy) | undefined;
   /** WrongStack tools a WrongForge worker may call back (see wrongforge-gateway.ts). */
   wrongforgeGateway?: (() => Promise<WrongForgeGatewaySpec | undefined>) | undefined;
+  /** Optional shared loopback ProjectMcpGateway factory for zero-subprocess HTTP MCPs. */
+  acpProjectMcpGateway?: AcpProjectMcpGatewayFactory | undefined;
   /** Optional pre-flight context sources (SAGE memories, Kanban card) prepended to user task prompt. */
   preflight?: AcpPreflightSources | undefined;
 }
@@ -142,12 +149,56 @@ export function buildAcpSubagentRunner(
     bridgeSetup !== undefined &&
     (options?.bridge?.config?.servers ?? DEFAULT_BRIDGE_SERVERS).includes('mailbox');
   const permissions = options?.permissions;
+  const acpGateway = options?.acpProjectMcpGateway;
+  const bridgeRoot = options?.bridge?.projectRoot;
   const sessionSetup =
     bridgeSetup || permissions
-      ? (task: TaskSpec, ctx: SubagentRunContext): AcpSessionSetup => ({
-          ...bridgeSetup?.(task, ctx),
-          ...(permissions ? { permissionPolicy: permissions(ctx) } : {}),
-        })
+      ? async (task: TaskSpec, ctx: SubagentRunContext): Promise<AcpSessionSetup> => {
+          const base = bridgeSetup?.(task, ctx);
+          let grant:
+            | {
+                mcpServers: NonNullable<AcpSessionSetup['mcpServers']>;
+                revoke(): void | Promise<void>;
+              }
+            | undefined;
+          if (acpGateway && bridgeRoot && base?.mcpServers && base.mcpServers.length > 0) {
+            const serverMap: Record<string, BridgeServer> = {
+              'wrongstack-sage': 'sage',
+              'wrongstack-mailbox': 'mailbox',
+              'wrongstack-kanban': 'kanban',
+              'wrongstack-index': 'codebase-index',
+              'wrongstack-intake': 'requirement-intake',
+            };
+            const requestedServers = base.mcpServers
+              .map((s) => serverMap[s.name])
+              .filter((s): s is BridgeServer => s !== undefined);
+            if (requestedServers.length > 0) {
+              grant = await acpGateway({
+                servers: requestedServers,
+                projectRoot: bridgeRoot,
+                worktreeCwd: ctx.config.cwd,
+                actor: ctx.subagentId,
+                sessionId: ctx.sessionId,
+                role: ctx.config.role,
+              }).catch(() => undefined);
+            }
+          }
+          const baseCleanup = base?.cleanup;
+          const grantRevoke = grant?.revoke;
+          const cleanup =
+            baseCleanup || grantRevoke
+              ? async () => {
+                  await Promise.resolve(baseCleanup?.()).catch(() => undefined);
+                  await Promise.resolve(grantRevoke?.()).catch(() => undefined);
+                }
+              : undefined;
+          return {
+            ...base,
+            ...(grant ? { mcpServers: [...grant.mcpServers, ...(base?.mcpServers ?? [])] } : {}),
+            ...(cleanup ? { cleanup } : {}),
+            ...(permissions ? { permissionPolicy: permissions(ctx) } : {}),
+          };
+        }
       : undefined;
   const projectRoot = options?.projectRoot;
   return makeACPSubagentRunner({
