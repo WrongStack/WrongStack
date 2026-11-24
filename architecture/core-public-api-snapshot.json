@@ -1087,14 +1087,14 @@
       "classification": "agent-domain service",
       "intendedOwner": "Core decision arbiter, exported via the coordination subpath",
       "sourceFiles": 14,
-      "sourceLines": 4210
+      "sourceLines": 4218
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 82,
-      "sourceLines": 17600
+      "sourceLines": 17613
     },
     {
       "directory": "design",
@@ -1220,7 +1220,7 @@
       "classification": "product feature",
       "intendedOwner": "skills implementation package or Runtime",
       "sourceFiles": 27,
-      "sourceLines": 5725
+      "sourceLines": 5728
     },
     {
       "directory": "statusline",
@@ -1234,7 +1234,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 129,
-      "sourceLines": 30178
+      "sourceLines": 30181
     },
     {
       "directory": "tasking",

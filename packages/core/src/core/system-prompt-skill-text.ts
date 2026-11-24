@@ -18,7 +18,10 @@ export function capSkillBody(body: string): string {
   // hard cut if no paragraph break exists.
   const budget = max - 1; // reserve 1 char for ellipsis
   const cut = body.lastIndexOf('\n\n', budget);
-  const truncated = cut > budget / 2 ? body.slice(0, cut) : body.slice(0, budget);
+  let end = cut > budget / 2 ? cut : budget;
+  const lastKept = body.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  const truncated = body.slice(0, end);
   return truncated + '…';
 }
 
@@ -37,7 +40,10 @@ export function compactTrigger(trigger: string): string {
   // Truncate to ~72 chars at a word boundary
   if (s.length > 72) {
     const cut = s.lastIndexOf(' ', 68);
-    s = cut > 50 ? s.slice(0, cut) + '…' : s.slice(0, 68) + '…';
+    let end = cut > 50 ? cut : 68;
+    const lastKept = s.charCodeAt(end - 1);
+    if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+    s = `${s.slice(0, end)}…`;
   }
   return s;
 }

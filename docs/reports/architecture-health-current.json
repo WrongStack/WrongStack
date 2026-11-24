@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T20:46:38.786Z",
+  "generatedAt": "2026-11-24T20:54:22.822Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6548,
-    "testFiles": 5837,
-    "sourceLines": 1341454,
+    "testFiles": 5846,
+    "sourceLines": 1341496,
     "workspaceEdges": 261,
     "moduleEdges": 19156,
     "nonCommandSlashImports": 0,
@@ -403,7 +403,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 665,
-      "testFiles": 782,
+      "testFiles": 788,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -420,7 +420,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 782
+          "testFiles": 788
         }
       ]
     },
@@ -528,7 +528,7 @@
       "name": "@wrongstack/hq",
       "dir": "packages/hq",
       "sourceFiles": 91,
-      "testFiles": 64,
+      "testFiles": 65,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -544,7 +544,7 @@
         {
           "path": "packages/hq/tsconfig.test.json",
           "error": null,
-          "testFiles": 64
+          "testFiles": 65
         }
       ]
     },
@@ -648,7 +648,7 @@
       "name": "@wrongstack/mcp",
       "dir": "packages/mcp",
       "sourceFiles": 76,
-      "testFiles": 115,
+      "testFiles": 117,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -662,7 +662,7 @@
         {
           "path": "packages/mcp/tsconfig.test.json",
           "error": null,
-          "testFiles": 115
+          "testFiles": 117
         }
       ]
     },
@@ -11694,6 +11694,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/brain/brain-decision-key-unicode.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/brain/brain-ledger-hardening.test.ts",
         "projects": [
           "root-node"
@@ -11707,6 +11713,12 @@
       },
       {
         "file": "packages/core/tests/brain/brain-trace-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/brain/brain-trace-unicode.test.ts",
         "projects": [
           "root-node"
         ]
@@ -11887,6 +11899,12 @@
       },
       {
         "file": "packages/core/tests/core/continue-intent.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/core/continue-label-unicode.test.ts",
         "projects": [
           "root-node"
         ]
@@ -12115,6 +12133,12 @@
       },
       {
         "file": "packages/core/tests/core/provider-runner-waiting-room.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/core/queued-messages-unicode.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14328,6 +14352,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/skills/skill-text-unicode.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/skills/skill-update-selection.test.ts",
         "projects": [
           "root-node"
@@ -14515,6 +14545,12 @@
       },
       {
         "file": "packages/core/tests/storage/file-session-writer.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/fold-preview-unicode.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17238,6 +17274,12 @@
         ]
       },
       {
+        "file": "packages/hq/tests/notifier-unicode.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/tests/notify-config-dir-hardening.test.ts",
         "projects": [
           "root-node"
@@ -18282,6 +18324,12 @@
         ]
       },
       {
+        "file": "packages/mcp/tests/elicitation-message-unicode.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/mcp/tests/elicitation.test.ts",
         "projects": [
           "root-node"
@@ -18409,6 +18457,12 @@
       },
       {
         "file": "packages/mcp/tests/progress-log-transports.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/progress-notification-unicode.test.ts",
         "projects": [
           "root-node"
         ]

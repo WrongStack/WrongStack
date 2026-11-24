@@ -172,8 +172,13 @@ export interface BrainTraceRecorderOptions {
   maxOpenRecords?: number | undefined;
 }
 
-const truncate = (value: string, max: number): string =>
-  value.length > max ? `${value.slice(0, max - 1)}…` : value;
+const truncate = (value: string, max: number): string => {
+  if (value.length <= max) return value;
+  let end = max - 1;
+  const lastKept = value.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  return `${value.slice(0, end)}…`;
+};
 
 /** Apply the content policy to one free-text field. */
 export function applyContentMode(

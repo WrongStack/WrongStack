@@ -80,12 +80,15 @@ const truncate = (s: string | undefined, max: number): string | undefined =>
  * contain a digit are id/number-shaped — collapse them to `#`.
  */
 export function brainDecisionKey(source: string | undefined, question: string): string {
-  const normalized = question
+  const value = question
     .toLowerCase()
     .replace(/[^\s]*\d[^\s]*/g, '#')
     .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 100);
+    .trim();
+  let end = Math.min(value.length, 100);
+  const lastKept = value.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  const normalized = value.slice(0, end);
   return `${source ?? '?'}:${normalized}`;
 }
 

@@ -23,8 +23,11 @@ export interface LocalSkillRecommendation {
 }
 
 export function normalizeSkillRequest(text: string): string {
+  let end = Math.min(text.length, MAX_QUERY_CHARS);
+  const lastKept = text.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
   return text
-    .slice(0, MAX_QUERY_CHARS)
+    .slice(0, end)
     .replace(/```[\s\S]*?(?:```|$)|~~~[\s\S]*?(?:~~~|$)/g, ' ')
     .normalize('NFKD')
     .replace(/\p{M}/gu, '')

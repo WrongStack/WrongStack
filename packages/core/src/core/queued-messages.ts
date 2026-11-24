@@ -57,7 +57,10 @@ function sameList(a: string[], b: string[]): boolean {
 function toPreview(text: string): string {
   const trimmed = text.trim();
   if (trimmed.length <= MAX_PREVIEW_CHARS) return trimmed;
-  return `${trimmed.slice(0, MAX_PREVIEW_CHARS - 1)}…`;
+  let end = MAX_PREVIEW_CHARS - 1;
+  const lastKept = trimmed.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  return `${trimmed.slice(0, end)}…`;
 }
 
 /**

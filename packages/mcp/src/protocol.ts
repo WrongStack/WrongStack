@@ -349,9 +349,11 @@ const HAS_CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
  */
 function clampedNotificationText(value: string): string {
   const sanitized = value.replace(CONTROL_CHARS, ' ');
-  return sanitized.length > MAX_NOTIFICATION_TEXT_CHARS
-    ? `${sanitized.slice(0, MAX_NOTIFICATION_TEXT_CHARS)}…`
-    : sanitized;
+  if (sanitized.length <= MAX_NOTIFICATION_TEXT_CHARS) return sanitized;
+  let end = MAX_NOTIFICATION_TEXT_CHARS;
+  const lastKept = sanitized.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  return `${sanitized.slice(0, end)}…`;
 }
 
 /** Accept a bounded, control-free identifier, or report it malformed. */

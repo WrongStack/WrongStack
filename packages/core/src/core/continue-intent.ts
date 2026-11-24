@@ -82,7 +82,11 @@ export interface ResolvedContinuation {
 /** Truncate a string to `max` chars with an ellipsis, for labels. */
 function ellipsize(s: string, max = 72): string {
   const flat = s.replace(/\s+/g, ' ').trim();
-  return flat.length <= max ? flat : `${flat.slice(0, max - 1)}…`;
+  if (flat.length <= max) return flat;
+  let end = max - 1;
+  const lastKept = flat.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  return `${flat.slice(0, end)}…`;
 }
 
 /**

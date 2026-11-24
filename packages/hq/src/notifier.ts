@@ -90,7 +90,11 @@ const MAX_DEDUPE_KEYS = 2_000;
 type FetchLike = (url: string, init: RequestInit) => Promise<{ ok: boolean; status: number }>;
 
 function clipText(value: string, max: number): string {
-  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+  if (value.length <= max) return value;
+  let end = max - 1;
+  const lastKept = value.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  return `${value.slice(0, end)}…`;
 }
 
 /**

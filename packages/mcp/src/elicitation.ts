@@ -134,6 +134,15 @@ function displayText(v: string): string {
   return sanitizeTerminalText(v);
 }
 
+function elicitationMessage(v: string): string {
+  const text = displayText(v);
+  if (text.length <= MAX_MESSAGE_CHARS) return text;
+  let end = MAX_MESSAGE_CHARS;
+  const lastKept = text.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  return text.slice(0, end);
+}
+
 function optionalDisplayString(v: unknown): string | undefined {
   const text = optionalString(v);
   return text === undefined ? undefined : optionalString(displayText(text));
@@ -289,7 +298,7 @@ export function parseUrlElicitation(params: unknown): Parsed<UrlElicitation> {
     ok: true,
     value: {
       mode: 'url',
-      message: displayText(message).slice(0, MAX_MESSAGE_CHARS),
+      message: elicitationMessage(message),
       url: url.href,
       elicitationId,
     },
@@ -326,7 +335,7 @@ export function parseElicitationParams(params: unknown): Parsed<ElicitationPromp
     if (!parsed.ok) return parsed;
     fields.push(parsed.value);
   }
-  return { ok: true, value: { message: displayText(message).slice(0, MAX_MESSAGE_CHARS), fields } };
+  return { ok: true, value: { message: elicitationMessage(message), fields } };
 }
 
 function label(field: ElicitationField): string {

@@ -117,7 +117,10 @@ function extractTextPreview(content: string | readonly ContentBlock[], maxChars 
           .join(' ');
   const singleLine = raw.replace(/\s+/g, ' ').trim();
   if (singleLine.length <= maxChars) return singleLine;
-  return `${singleLine.slice(0, maxChars - 1)}…`;
+  let end = maxChars - 1;
+  const lastKept = singleLine.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  return `${singleLine.slice(0, end)}…`;
 }
 
 export function buildDeterministicFoldSummary(
