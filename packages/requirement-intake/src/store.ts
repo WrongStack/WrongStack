@@ -390,7 +390,9 @@ export class RequirementIntakeStore {
     try {
       raw = await fsp.readFile(this.idempotencyPath, 'utf8');
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { version: 1, entries: {} };
+      // A missing map must not hide durable keys, as with the index: rebuild it
+      // from the record files (an empty or absent directory yields no entries).
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return this.recoverIdempotency();
       throw error;
     }
 

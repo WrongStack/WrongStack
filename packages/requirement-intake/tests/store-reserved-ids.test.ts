@@ -67,6 +67,22 @@ it('skips a case-alias idempotency filename while recovering durable keys', asyn
   expect((await store.findByIdempotencyKey('case-alias-recovery'))?.id).toBe(record.id);
 });
 
+it('recovers durable idempotency keys when the map file is missing', async () => {
+  const { store, service, dir } = makeHarness();
+  const { record } = await service.createIntake(
+    {
+      projectId: ALICE.projectId,
+      requestedBy: ALICE.id,
+      originalRequest: 'Recover a lost idempotency map',
+      idempotencyKey: 'lost-map-recovery',
+    },
+    ALICE,
+  );
+  await rm(join(dir, '_idempotency.json'), { force: true });
+
+  expect((await store.findByIdempotencyKey('lost-map-recovery'))?.id).toBe(record.id);
+});
+
 it('continues to allow record ids sharing only a prefix with metadata names', async () => {
   const { store, service } = makeHarness();
   const { record } = await service.createIntake(

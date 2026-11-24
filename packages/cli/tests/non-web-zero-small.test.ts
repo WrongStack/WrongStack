@@ -158,11 +158,11 @@ describe('small non-WebUI CLI modules', () => {
       cwd?: string;
       projectRoot?: string;
       initialModeId?: string;
-      sessionSetup?: (task: unknown, ctx: unknown) => { permissionPolicy?: unknown };
+      sessionSetup?: (task: unknown, ctx: unknown) => Promise<{ permissionPolicy?: unknown }>;
     };
     expect(opts).toMatchObject({ cwd: '/proj', projectRoot: '/proj', initialModeId: 'default' });
     const ctx = { subagentId: 'w', config: { id: 'w' }, sessionId: 'sess-9' };
-    expect(opts.sessionSetup!({ id: 't', description: 'd' }, ctx).permissionPolicy).toBe(
+    expect((await opts.sessionSetup!({ id: 't', description: 'd' }, ctx)).permissionPolicy).toBe(
       sessionPolicy,
     );
     expect(permissions).toHaveBeenCalledWith(ctx);
@@ -189,10 +189,10 @@ describe('small non-WebUI CLI modules', () => {
 
     buildAcpSubagentRunner('claude-code', { bridge });
     const claude = mocks.makeACPSubagentRunner.mock.calls[0]![0] as {
-      sessionSetup?: (task: unknown, ctx: unknown) => { mcpServers: { name: string }[] };
+      sessionSetup?: (task: unknown, ctx: unknown) => Promise<{ mcpServers: { name: string }[] }>;
     };
     expect(claude.sessionSetup).toBeTypeOf('function');
-    const setup = claude.sessionSetup!(
+    const setup = await claude.sessionSetup!(
       { id: 't', description: 'd' },
       { subagentId: 'claude-code', config: { id: 'claude-code' }, sessionId: 's' },
     );

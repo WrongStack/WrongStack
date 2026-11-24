@@ -10,6 +10,7 @@ vi.mock('@/components/SettingsPanel/ProviderModelsPanel', () => ({
   ProviderModelsPanel: () => null,
 }));
 vi.mock('@/components/SetupScreen/ModelEditor', () => ({ ModelEditor: () => null }));
+vi.mock('@/components/SettingsPanel/ProviderHqImport', () => ({ ProviderHqImport: () => null }));
 vi.mock('@/components/Toaster', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 afterEach(cleanup);
 
