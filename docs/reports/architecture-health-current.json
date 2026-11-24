@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T20:16:00.545Z",
+  "generatedAt": "2026-11-24T20:46:38.786Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6548,
-    "testFiles": 5832,
-    "sourceLines": 1341405,
+    "testFiles": 5837,
+    "sourceLines": 1341454,
     "workspaceEdges": 261,
     "moduleEdges": 19156,
     "nonCommandSlashImports": 0,
@@ -93,7 +93,7 @@
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
       "sourceFiles": 59,
-      "testFiles": 76,
+      "testFiles": 80,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -109,7 +109,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 76
+          "testFiles": 80
         }
       ]
     },
@@ -871,7 +871,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 126,
-      "testFiles": 79,
+      "testFiles": 80,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -905,7 +905,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 79
+          "testFiles": 80
         }
       ]
     },
@@ -3924,6 +3924,24 @@
         ]
       },
       {
+        "file": "packages/acp/tests/acp-platform-key-boundary.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/acp/tests/acp-profile-docs-boundary.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/acp/tests/acp-registry-duplicate-id.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/acp-registry-fallbacks.test.ts",
         "projects": [
           "root-node"
@@ -3931,6 +3949,12 @@
       },
       {
         "file": "packages/acp/tests/acp-registry-fetch.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/acp/tests/acp-registry-launch-content.test.ts",
         "projects": [
           "root-node"
         ]
@@ -21901,6 +21925,12 @@
       },
       {
         "file": "packages/runtime/tests/acp-leader-switch-race.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/acp-registry-cache-boundary.test.ts",
         "projects": [
           "root-node"
         ]

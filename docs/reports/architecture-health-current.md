@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-24T20:16:00.545Z
+**Generated:** 2026-11-24T20:46:38.786Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6548 |
-| Production source lines | 1341405 |
-| Test files | 5832 |
+| Production source lines | 1341454 |
+| Test files | 5837 |
 | Workspace dependency edges | 261 |
 | Relative module edges | 19156 |
 | Non-command slash imports | 0 |
@@ -27,7 +27,7 @@ PASS — no blocking architecture-health errors.
 
 | Package | Sources | Tests | Workspace dependencies |
 |---|---:|---:|---|
-| @wrongstack/acp | 59 | 76 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
+| @wrongstack/acp | 59 | 80 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/agent-catalog | 44 | 16 | @wrongstack/contracts, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/bench | 32 | 67 | @wrongstack/core |
 | @wrongstack/browser-tools | 14 | 22 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
@@ -59,7 +59,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/providers | 141 | 134 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/requirement-intake | 18 | 21 | @wrongstack/core |
 | @wrongstack/requirement-intake-mcp | 6 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/requirement-intake |
-| @wrongstack/runtime | 126 | 79 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/governance, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/sage, @wrongstack/security-scanner, @wrongstack/telegram, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
+| @wrongstack/runtime | 126 | 80 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/governance, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/sage, @wrongstack/security-scanner, @wrongstack/telegram, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
 | @wrongstack/sage | 179 | 183 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/hq, @wrongstack/persistence, @wrongstack/primitives, @wrongstack/tools, @wrongstack/wrongmemory-client |
 | @wrongstack/sage-mcp | 7 | 7 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/sage |
 | @wrongstack/sdd | 45 | 56 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/requirement-intake, @wrongstack/worktree |

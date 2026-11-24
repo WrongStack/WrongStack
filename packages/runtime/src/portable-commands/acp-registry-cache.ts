@@ -32,6 +32,31 @@ function acpRegistryCachePath(paths: WstackPaths): string {
   return path.join(paths.cacheDir, 'acp-registry.json');
 }
 
+function validArgs(value: unknown): value is string[] | undefined {
+  return (
+    value === undefined ||
+    (Array.isArray(value) &&
+      value.every((argument) => typeof argument === 'string' && !argument.includes('\0')))
+  );
+}
+
+function validEnv(value: unknown): value is Record<string, string> | undefined {
+  return (
+    value === undefined ||
+    (typeof value === 'object' &&
+      value !== null &&
+      !Array.isArray(value) &&
+      Object.entries(value).every(
+        ([key, item]) =>
+          key.length > 0 &&
+          !key.includes('\0') &&
+          !key.includes('=') &&
+          typeof item === 'string' &&
+          !item.includes('\0'),
+      ))
+  );
+}
+
 /** Read the cached registry, or `null` if it's missing or unreadable. */
 export async function loadCachedAcpRegistry(paths: WstackPaths): Promise<LoadedAcpRegistry | null> {
   try {
@@ -40,16 +65,22 @@ export async function loadCachedAcpRegistry(paths: WstackPaths): Promise<LoadedA
     if (!env || typeof env !== 'object' || !Array.isArray(env.agents)) return null;
     const byId: AcpLiveCatalog = Object.create(null);
     const validAgents: ACPAgentDescriptor[] = [];
+    const seenIds = new Set<string>();
     for (const a of env.agents) {
       if (
         !a ||
         typeof a.id !== 'string' ||
         !a.id.trim() ||
         typeof a.acp?.command !== 'string' ||
-        !a.acp.command.trim()
+        !a.acp.command.trim() ||
+        a.acp.command.includes('\0') ||
+        !validArgs(a.acp.args) ||
+        !validEnv(a.acp.env) ||
+        seenIds.has(a.id)
       ) {
         continue;
       }
+      seenIds.add(a.id);
       byId[a.id] = {
         command: a.acp.command,
         args: Array.isArray(a.acp.args) ? a.acp.args : [],

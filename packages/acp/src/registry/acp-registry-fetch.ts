@@ -74,7 +74,7 @@ export function currentPlatformKey(
   platform: NodeJS.Platform = process.platform,
   architecture: string = process.arch,
 ): string {
-  const os = platform === 'win32' ? 'windows' : platform === 'darwin' ? 'darwin' : 'linux';
+  const os = platform === 'win32' ? 'windows' : platform;
   const arch =
     architecture === 'arm64' ? 'aarch64' : architecture === 'x64' ? 'x86_64' : architecture;
   return `${os}-${arch}`;
@@ -89,12 +89,13 @@ function basename(cmd: string): string {
 function isValidLauncherSpec(spec: string | undefined): spec is string {
   if (typeof spec !== 'string') return false;
   const trimmed = spec.trim();
-  return trimmed.length > 0 && !trimmed.startsWith('-');
+  return trimmed.length > 0 && !trimmed.startsWith('-') && !trimmed.includes('\0');
 }
 
 function isValidLauncherArgs(args: unknown): args is string[] | undefined {
   return (
-    args === undefined || (Array.isArray(args) && args.every((arg) => typeof arg === 'string'))
+    args === undefined ||
+    (Array.isArray(args) && args.every((arg) => typeof arg === 'string' && !arg.includes('\0')))
   );
 }
 
@@ -104,7 +105,14 @@ function isValidLauncherEnv(env: unknown): env is Record<string, string> | undef
     (typeof env === 'object' &&
       env !== null &&
       !Array.isArray(env) &&
-      Object.values(env).every((value) => typeof value === 'string'))
+      Object.entries(env).every(
+        ([key, value]) =>
+          key.length > 0 &&
+          !key.includes('\0') &&
+          !key.includes('=') &&
+          typeof value === 'string' &&
+          !value.includes('\0'),
+      ))
   );
 }
 
@@ -163,7 +171,12 @@ export function mapRegistryEntry(
     acp,
     supports: { loadSession: true, promptImages: true, terminal: true, fs: true },
     integration: 'native',
-    docs: entry.repository ?? entry.website ?? '',
+    docs:
+      typeof entry.repository === 'string'
+        ? entry.repository
+        : typeof entry.website === 'string'
+          ? entry.website
+          : '',
   };
 }
 
@@ -210,9 +223,13 @@ export async function fetchAcpRegistry(
     }
     const platformKey = opts.platformKey ?? currentPlatformKey();
     const agents: ACPAgentDescriptor[] = [];
+    const seenIds = new Set<string>();
     for (const raw of rawAgents) {
       const mapped = mapRegistryEntry(raw as RegistryAgentEntry, platformKey);
-      if (mapped) agents.push(mapped);
+      if (mapped && !seenIds.has(mapped.id)) {
+        seenIds.add(mapped.id);
+        agents.push(mapped);
+      }
     }
     return { fetchedAt: opts.now ?? new Date().toISOString(), agents };
   } finally {

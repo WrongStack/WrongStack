@@ -134,6 +134,7 @@ const ACP_CLIENT_PROFILES: Readonly<Record<string, AcpClientProfile>> = {
 export function resolveAcpClientProfile(agentId: string | undefined): AcpClientProfile {
   if (!agentId) return DEFAULT_GENERIC_ACP_PROFILE;
   const normalized = agentId.trim().toLowerCase();
+  if (!normalized) return DEFAULT_GENERIC_ACP_PROFILE;
   return Object.hasOwn(ACP_CLIENT_PROFILES, normalized)
     ? ACP_CLIENT_PROFILES[normalized]!
     : { ...DEFAULT_GENERIC_ACP_PROFILE, id: normalized };
