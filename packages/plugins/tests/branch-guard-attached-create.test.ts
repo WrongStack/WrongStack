@@ -32,13 +32,17 @@ vi.mock('node:child_process', () => ({ execFile: mockExecFile }));
 
 const branchGuardPlugin = (await import('../src/branch-guard/index.js')).default;
 
+type BranchGuardHook = (input: unknown) => Promise<{ decision?: string; reason?: string } | void>;
+
 function makeApi(extensions: Record<string, unknown> = {}) {
   return {
     tools: { register: vi.fn() },
     config: { extensions },
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     metrics: { counter: vi.fn(), histogram: vi.fn(), gauge: vi.fn() },
-    registerHook: vi.fn(() => vi.fn()),
+    registerHook: vi.fn(
+      (_event: string, _matcher: string, _hook: BranchGuardHook, _options?: unknown) => vi.fn(),
+    ),
     onConfigChange: vi.fn(() => vi.fn()),
     onEvent: vi.fn(),
     emitCustom: vi.fn(),
@@ -49,7 +53,7 @@ function makeApi(extensions: Record<string, unknown> = {}) {
 function getHook(api: ReturnType<typeof makeApi>) {
   const call = api.registerHook.mock.calls[0];
   if (!call) throw new Error('hook not registered');
-  return call[2] as (input: unknown) => Promise<{ decision?: string; reason?: string } | void>;
+  return call[2];
 }
 
 async function run(command: string, extensions?: Record<string, unknown>) {

@@ -1,9 +1,12 @@
+import type { PermissionRequest, ToolCallId } from '@wrongstack/acp';
 import type { Config, PermissionDecision, Tool } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
 import { wrongstackAcpPermissionPolicy } from '../src/acp-permission-bridge.js';
 import { acpBtwBlock } from '../src/acp-turn-reminders.js';
 import { HostAcpRunnerCache } from '../src/host-acp-runner-cache.js';
 import { runHostShadowPass } from '../src/host-shadow-pass.js';
+
+const toolCallId = (value: string): ToolCallId => value as ToolCallId;
 
 describe('P0.1 acp-permission-bridge non-Claude MCP normalization', () => {
   const makePolicy = (registeredMcpServers?: string[]) => {
@@ -23,10 +26,10 @@ describe('P0.1 acp-permission-bridge non-Claude MCP normalization', () => {
     return { policy, evaluated, refused };
   };
 
-  const makeReq = (title: string, _meta?: Record<string, unknown>) => ({
-    sessionId: 's1',
+  const makeReq = (title: string, _meta?: Record<string, unknown>): PermissionRequest => ({
     toolCall: {
-      toolCallId: 'tc1',
+      sessionUpdate: 'tool_call_update',
+      toolCallId: toolCallId('tc1'),
       title,
       kind: 'other' as const,
       rawInput: { query: 'test' },
@@ -85,9 +88,9 @@ describe('P0.1 acp-permission-bridge non-Claude MCP normalization', () => {
       },
     });
     const res = await policy({
-      sessionId: 's1',
       toolCall: {
-        toolCallId: 'tc-kimi',
+        sessionUpdate: 'tool_call_update',
+        toolCallId: toolCallId('tc-kimi'),
         title: 'Bash',
         kind: 'other',
         rawInput: { command: 'wstack tools run codebase-stats' },
@@ -100,9 +103,9 @@ describe('P0.1 acp-permission-bridge non-Claude MCP normalization', () => {
     });
     expect(res).toEqual({ outcome: 'selected', optionId: 'allow' });
     const resContent = await policy({
-      sessionId: 's1',
       toolCall: {
-        toolCallId: 'tc-kimi-content',
+        sessionUpdate: 'tool_call_update',
+        toolCallId: toolCallId('tc-kimi-content'),
         title: 'Bash',
         kind: 'other',
         rawInput: {},
@@ -112,7 +115,7 @@ describe('P0.1 acp-permission-bridge non-Claude MCP normalization', () => {
             content: { type: 'text', text: 'Running: wstack tools run codebase-stats' },
           },
         ],
-      } as never,
+      },
       options: [
         { optionId: 'allow', name: 'Allow', kind: 'allow_once' },
         { optionId: 'reject', name: 'Reject', kind: 'reject_once' },
@@ -146,7 +149,11 @@ describe('P0.4 acp-turn-reminders agent-aware mailbox nudge', () => {
 
 describe('P0.4 host-shadow-pass ACP leader sideModel routing', () => {
   it('routes shadow agent to acp.leader.sideModel in ACP leader mode and deduplicates fleet tool', async () => {
-    const spawned: Array<{ provider?: string; model?: string; tools?: string[] }> = [];
+    const spawned: Array<{
+      provider?: string | undefined;
+      model?: string | undefined;
+      tools?: string[] | undefined;
+    }> = [];
     const liveConfig = {
       provider: 'acp',
       model: 'claude-code',
@@ -190,18 +197,18 @@ describe('P0.4 host-shadow-pass ACP leader sideModel routing', () => {
 
 describe('P0.4 HostAcpRunnerCache config invalidation', () => {
   it('builds a fresh runner when bridge config changes', async () => {
-    let bridgeEnabled = false;
+    let indexSurface: 'cli' | 'mcp' = 'cli';
     const cache = new HostAcpRunnerCache(10, () => ({
       projectRoot: '/repo',
       overrides: { 'test-acp': { command: 'echo', args: ['hi'] } },
-      bridge: { projectRoot: '/repo', config: { enabled: bridgeEnabled } },
+      bridge: { projectRoot: '/repo', config: { indexSurface } },
     }));
 
     const first = await cache.get('test-acp');
     const second = await cache.get('test-acp');
     expect(second).toBe(first);
 
-    bridgeEnabled = true;
+    indexSurface = 'mcp';
     const third = await cache.get('test-acp');
     expect(third).not.toBe(first);
   });

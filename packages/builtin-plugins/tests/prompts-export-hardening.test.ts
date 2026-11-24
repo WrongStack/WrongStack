@@ -1,9 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { DefaultPromptStore } from '@wrongstack/core/storage';
 import { _filePermOps } from '@wrongstack/persistence';
-import { DefaultPromptStore } from '../../core/src/storage/prompt-store.js';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildPromptsCommand } from '../src/prompts-command.js';
 
 /**

@@ -149,9 +149,9 @@
       "runtimeOrMixed": 30
     },
     "@wrongstack/core/storage": {
-      "files": 223,
+      "files": 224,
       "typeOnly": 62,
-      "runtimeOrMixed": 198
+      "runtimeOrMixed": 199
     },
     "@wrongstack/core/tasking": {
       "files": 48,
@@ -10152,6 +10152,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/builtin-plugins/tests/prompts-command-slug.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/builtin-plugins/tests/prompts-export-hardening.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

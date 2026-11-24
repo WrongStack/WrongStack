@@ -39,7 +39,7 @@ describe('rebuildCatalogIndex — summary-only orphan', () => {
       root,
       (relative) => path.join(root, relative),
       (run) => run(),
-      () => {},
+      () => 0,
     );
   }
 
