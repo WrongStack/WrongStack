@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T01:22:50.129Z",
+  "generatedAt": "2026-11-24T07:38:04.040Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6523,
-    "testFiles": 5806,
-    "sourceLines": 1336041,
+    "testFiles": 5807,
+    "sourceLines": 1336064,
     "workspaceEdges": 261,
     "moduleEdges": 19072,
     "nonCommandSlashImports": 0,
@@ -648,7 +648,7 @@
       "name": "@wrongstack/mcp",
       "dir": "packages/mcp",
       "sourceFiles": 76,
-      "testFiles": 113,
+      "testFiles": 114,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -662,7 +662,7 @@
         {
           "path": "packages/mcp/tsconfig.test.json",
           "error": null,
-          "testFiles": 113
+          "testFiles": 114
         }
       ]
     },
@@ -18271,6 +18271,12 @@
       },
       {
         "file": "packages/mcp/tests/progress-log-transports.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/project-mcp-gateway-malformed-path.test.ts",
         "projects": [
           "root-node"
         ]

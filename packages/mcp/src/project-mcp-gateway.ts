@@ -69,7 +69,18 @@ export class ProjectMcpGateway {
     this.host = host;
     this.logger = logger;
     this.httpServer = createServer((req, res) => {
-      void this.route(req, res);
+      this.route(req, res).catch((error: unknown) => {
+        this.logger?.warn?.(`project MCP gateway request failed: ${String(error)}`);
+        if (!res.headersSent) {
+          res.writeHead(500, {
+            'content-type': 'application/json',
+            'x-content-type-options': 'nosniff',
+          });
+          res.end(JSON.stringify({ error: 'internal error' }));
+        } else {
+          res.destroy();
+        }
+      });
     });
   }
 
@@ -176,7 +187,19 @@ export class ProjectMcpGateway {
       res.end(JSON.stringify({ error: 'not found' }));
       return;
     }
-    const serviceName = decodeURIComponent(pathname.slice(prefix.length));
+    let serviceName: string;
+    try {
+      serviceName = decodeURIComponent(pathname.slice(prefix.length));
+    } catch {
+      // A malformed percent-escape (`/mcp/%E0`) throws URIError; answer it
+      // instead of leaving the request hanging on a rejected route promise.
+      res.writeHead(400, {
+        'content-type': 'application/json',
+        'x-content-type-options': 'nosniff',
+      });
+      res.end(JSON.stringify({ error: 'malformed service path' }));
+      return;
+    }
     const mcpServer = Object.hasOwn(grant.spec.services, serviceName)
       ? grant.spec.services[serviceName]
       : undefined;
