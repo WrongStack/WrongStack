@@ -132,13 +132,26 @@ export async function sharedAcpProjectMcpGateway(
 
   if (Object.keys(services).length === 0) return undefined;
 
-  const grant = gateway.registerGrant({
-    actor: req.actor,
-    sessionId: req.sessionId,
-    role: req.role,
-    worktreeCwd: req.worktreeCwd,
-    services,
-  });
+  let grant: ReturnType<ProjectMcpGateway['registerGrant']>;
+  try {
+    grant = gateway.registerGrant({
+      actor: req.actor,
+      sessionId: req.sessionId,
+      role: req.role,
+      worktreeCwd: req.worktreeCwd,
+      services,
+    });
+  } catch {
+    // F107: the shared gateway can close mid-initialization (process
+    // shutdown racing a starting worker). Release the services already
+    // initialized — the mailbox and SAGE port would otherwise leak — and
+    // fail open to the stdio fallback, the documented contract for
+    // unavailable HTTP services.
+    for (const fn of cleanups) {
+      await Promise.resolve(fn()).catch(() => undefined);
+    }
+    return undefined;
+  }
 
   return {
     mcpServers: grant.mcpServers,
