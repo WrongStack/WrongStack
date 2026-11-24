@@ -1,4 +1,4 @@
-// Changelog — recent 1.x era (1.7.18 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
+// Changelog — recent 1.x era (1.7.19 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
 // Historical entries mirror CHANGELOG.md release notes. 1.1.0 absorbs the 1.0.38
 // bump, which was never published; 1.7.8 and 1.7.10 were never tagged either.
 // The 1.1.5 entry summarizes the commits in v1.1.4..v1.1.5, the 1.1.6 entry
@@ -11,10 +11,22 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.19',
+    date: '2026-11-24',
+    tagline: 'ChatGPT plan quota is back',
+    latest: true,
+    highlights: [
+      'A direct ChatGPT sign-in shows its plan and app quota again',
+      'WrongForge and ACP switches keep the leader streaming',
+      'Windows state directories are owner-only from creation',
+      'exec, read and output capture hardening',
+      'Core, ACP, SAGE and Kanban fixes',
+    ],
+  },
+  {
     version: '1.7.18',
     date: '2026-11-23',
     tagline: 'Desktop installers are back',
-    latest: true,
     highlights: [
       'Desktop installers build on every platform again',
       'Quick sessions pin their tool surface and direct shell',

@@ -1,11 +1,11 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.7.18',
+  version: '1.7.19',
   title: 'Desktop installers are back.',
   summary:
-    "The desktop installers are back on every platform, with all of 1.7.16: ACP session modes, MCP server instructions and the Code Intelligence package. Quick sessions pin their tool surface and shell, and state files are owner-only on Windows.",
+    "A direct ChatGPT sign-in shows its plan and app quota again through the Codex CLI login, WrongForge and ACP switches keep the leader streaming, and a round of core, tool, ACP, SAGE and Windows hardening fixes.",
   socialDescription:
-    "WrongStack 1.7.18: desktop installers are back, Quick sessions pin their tool surface, and state files are owner-only on Windows.",
+    "WrongStack 1.7.19: a direct ChatGPT sign-in shows its plan quota again, and a round of core, tool and Windows hardening fixes.",
   cards: [
     {
       title: 'ACP session modes',

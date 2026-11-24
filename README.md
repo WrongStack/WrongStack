@@ -55,6 +55,13 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.7.19
+
+- **ChatGPT plan quota is back** for a direct ChatGPT sign-in, read through the
+  Codex CLI login on this machine.
+- **WrongForge and ACP switches** keep the leader streaming in the WebUI.
+- **Core, tool and Windows hardening** across exec, read, SAGE, ACP and Kanban.
+
 ### What's new in 1.7.18
 
 - **Desktop installers are back** for every platform, with all of 1.7.16's ACP
@@ -717,7 +724,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.7.18**; versions follow semver
+- Release notes: **v1.7.19**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements

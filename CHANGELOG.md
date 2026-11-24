@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.19] — 2026-11-24
+
+A direct ChatGPT sign-in shows its plan and app quota again, switching a
+conversation to WrongForge or an ACP agent keeps the leader streaming, and a
+round of core, tool, ACP, SAGE and Windows hardening fixes.
+
+### Added
+
+- Medium-tier sessions load the Kanban tool on demand.
+
+### Fixed
+
+- Providers: a direct ChatGPT sign-in (`openai-chatgpt`) with no saved
+  `openai-codex` sign-in reads its plan and app limits through the Codex CLI's
+  login on this machine (`$CODEX_HOME/auth.json`, default `~/.codex/auth.json`),
+  read-only and never refreshed. The ChatGPT Usage link shows only when there
+  is no reading. Resetting a provider to its vendor endpoint re-arms the vendor
+  key.
+- WebUI: switching a conversation to WrongForge or an ACP agent keeps the
+  leader streaming.
+- Windows: state directories are owner-only from the moment they are created,
+  and an `icacls` call that stalls no longer blocks the write it protects.
+- Tools: `exec` refuses abbreviated git long options that resolve to a blocked
+  one, `read` no longer counts a phantom line after a trailing newline, and
+  command output capture never splits a surrogate pair.
+- Core: the sensitive-read gate sees through quoted shell wrappers, MCP tool
+  names cannot collide through a `__`, an incomplete price no longer
+  half-charges the running cost, an empty trailing turn keeps the pending tool
+  call kept for recovery, and the ReDoS check, JSON repair, wire compaction,
+  `envInt`/`envFloat`, `stripAnsi` and child environment scrubbing are tighter.
+- ACP: file and terminal deadlines above 2^31-1 ms no longer fire at once, and
+  session and tool-call titles never end in a lone surrogate.
+- SAGE: command anchors skip leading env assignments, loopback userinfo counts
+  as outbound, and injection replay does not credit a memory for a failed edit.
+- Kanban, SDD and plans: legacy board migration accepts a UTF-8 BOM, and a
+  malformed spec or plan file reads as absent or invalid instead of crashing.
+- LSP: workspace edits refuse a file changed on disk, and a zero diagnostics
+  limit is clamped.
+
 ## [1.7.18] — 2026-11-23
 
 1.7.17 was prepared but never published; its fixes ship here. The desktop
