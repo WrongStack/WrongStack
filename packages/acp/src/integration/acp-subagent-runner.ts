@@ -128,6 +128,11 @@ export async function makeACPSubagentRunnerWithStop(
   // overwrite the shared one, leaking every process but the last.
   let shared: Promise<ACPSession> | null = null;
   let sharedCleanup: (() => void | Promise<void>) | undefined;
+  // F106: the setup adopted into the shared session. Its cleanup lives with
+  // the session (revoked at stop) because its MCP servers serve every turn.
+  // Later turns' setups are NOT adopted — their cleanups must run after the
+  // turn, or their resources (e.g. a fresh HTTP gateway grant per turn) leak.
+  let adoptedSetup: AcpSessionSetup | undefined;
   // Turns on the shared session run one at a time (it takes one prompt).
   let turns: Promise<unknown> = Promise.resolve();
   const runtimeConfigured = new WeakSet<ACPSession>();
@@ -171,12 +176,18 @@ export async function makeACPSubagentRunnerWithStop(
   ): Promise<SubagentRunOutcome> => {
     let session: ACPSession;
     let setup: AcpSessionSetup | undefined;
+    let perTurnCleanup: (() => void | Promise<void>) | undefined;
     try {
       setup = await options.sessionSetup?.(task, ctx);
       if (persistent) {
         if (!shared) {
           sharedCleanup = setup?.cleanup;
+          adoptedSetup = setup;
           shared = startSession(setup, ctx);
+        } else if (setup !== adoptedSetup) {
+          // F106: unadopted per-turn setup — revoke after the turn (one-shot
+          // mode does this in its finally; persistent mode used to drop it).
+          perTurnCleanup = setup?.cleanup;
         }
         const starting = shared;
         session = await starting.catch((err: unknown) => {
@@ -184,6 +195,7 @@ export async function makeACPSubagentRunnerWithStop(
             shared = null;
             const clean = sharedCleanup;
             sharedCleanup = undefined;
+            adoptedSetup = undefined;
             void Promise.resolve(clean?.()).catch(() => undefined);
           }
           throw err;
@@ -257,6 +269,9 @@ export async function makeACPSubagentRunnerWithStop(
           // best-effort cleanup
         }
         await Promise.resolve(setup?.cleanup?.()).catch(() => undefined);
+      } else if (perTurnCleanup) {
+        // F106: revoke the unadopted per-turn setup even when the turn failed.
+        await Promise.resolve(perTurnCleanup()).catch(() => undefined);
       }
     }
 

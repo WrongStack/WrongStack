@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T20:58:37.797Z",
+  "generatedAt": "2026-11-24T21:13:02.764Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6548,
-    "testFiles": 5846,
-    "sourceLines": 1341496,
+    "testFiles": 5849,
+    "sourceLines": 1341520,
     "workspaceEdges": 261,
     "moduleEdges": 19156,
     "nonCommandSlashImports": 0,
@@ -93,7 +93,7 @@
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
       "sourceFiles": 59,
-      "testFiles": 80,
+      "testFiles": 81,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -109,7 +109,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 80
+          "testFiles": 81
         }
       ]
     },
@@ -232,7 +232,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 652,
-      "testFiles": 722,
+      "testFiles": 723,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -284,7 +284,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 722
+          "testFiles": 723
         }
       ]
     },
@@ -403,7 +403,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 665,
-      "testFiles": 788,
+      "testFiles": 789,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -420,7 +420,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 788
+          "testFiles": 789
         }
       ]
     },
@@ -4014,6 +4014,12 @@
         ]
       },
       {
+        "file": "packages/acp/tests/acp-subagent-runner-persistent-cleanup.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/acp-subagent-runner.test.ts",
         "projects": [
           "root-node"
@@ -5737,6 +5743,12 @@
       },
       {
         "file": "packages/cli/tests/acp-server-runtime.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/acp-session-modes-stable-key.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15433,6 +15445,12 @@
       },
       {
         "file": "packages/core/tests/utils/atomic-write.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/utils/cache-key-locale.test.ts",
         "projects": [
           "root-node"
         ]
