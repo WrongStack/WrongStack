@@ -17,6 +17,7 @@ import { existsSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { DesignKitTokens } from '@wrongstack/contracts/types/design-kit';
+import { restrictFilePermissions } from '../security/file-permissions.js';
 import { withFileLock } from '../utils/atomic-write.js';
 import { getDesignKitLoader } from './design-kit-loader.js';
 
@@ -196,10 +197,15 @@ export async function recordKitChoice(
     await assertInsideDesignProject(projectRoot, active);
     // Under the same lock as checked override writes, so neither lands inside the other.
     await withFileLock(active, async () => {
-      await fs.writeFile(active, `${JSON.stringify(record, null, 2)}\n`);
+      await fs.writeFile(active, `${JSON.stringify(record, null, 2)}\n`, { mode: 0o600 });
+      // F99 (WS-045): design state is user project content; the writes had NO
+      // mode and 0o600 is a Windows no-op. Harden both (best-effort — the
+      // surrounding catch keeps design persistence non-fatal).
+      await restrictFilePermissions(active, { label: 'design-state' });
       await assertInsideDesignProject(projectRoot, path.join(dir, 'decisions.md'));
       const line = `- ${isoTime} · kit=${kit}${stack ? ` stack=${stack}` : ''} · via=${source}\n`;
-      await fs.appendFile(path.join(dir, 'decisions.md'), line);
+      await fs.appendFile(path.join(dir, 'decisions.md'), line, { mode: 0o600 });
+      await restrictFilePermissions(path.join(dir, 'decisions.md'), { label: 'design-state' });
     });
   } catch {
     // best-effort: never break the caller

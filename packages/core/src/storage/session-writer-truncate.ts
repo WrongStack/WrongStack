@@ -1,4 +1,5 @@
 import * as fsp from 'node:fs/promises';
+import { restrictFilePermissions } from '../security/file-permissions.js';
 
 const CHUNK_SIZE = 65_536;
 
@@ -208,6 +209,11 @@ export async function rewriteSessionToCheckpoint(
     }
 
     await closeSrc();
+    // F90 (WS-045): the rewrite REPLACES the journal; `mode: 0o600` on the
+    // temp open is a Windows no-op, so the renamed transcript would carry the
+    // sessions dir's inherited ACL. Harden the temp before the rename
+    // (best-effort).
+    await restrictFilePermissions(tmpPath, { label: 'session-journal' });
     await fsp.rename(tmpPath, filePath);
   } catch (err) {
     await closeSrc().catch(() => undefined);

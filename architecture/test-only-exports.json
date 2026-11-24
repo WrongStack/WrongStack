@@ -719,7 +719,9 @@
       "drawDesignAnatomy"
     ],
     "packages/core/src/execution/design-keep.ts": [
+      "beforeSnapshotPath",
       "extractSourceWiring",
+      "saveWiringSnapshot",
       "verifyKeptWiring"
     ],
     "packages/core/src/execution/design-material.ts": [
@@ -1213,6 +1215,9 @@
     "packages/plugins/src/notify-hub/desktop-notifier.ts": [
       "desktopCommand",
       "toastText"
+    ],
+    "packages/plugins/src/path-guard/glob.ts": [
+      "matchesAny"
     ],
     "packages/plugins/src/path-guard/index.ts": [
       "isSymlinkEscape"

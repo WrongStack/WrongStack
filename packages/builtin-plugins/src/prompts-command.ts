@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { restrictFilePermissions } from '@wrongstack/core/security';
 import type { PromptEntry, PromptLoader, PromptVariable } from '@wrongstack/contracts/types/prompt';
 import type { SlashCommand } from '@wrongstack/contracts/types/slash-command';
 import type { Context } from '@wrongstack/core/agent';
@@ -182,7 +183,10 @@ export function buildPromptsCommand(
             2,
           );
           try {
-            await fs.writeFile(target, payload, 'utf8');
+            await fs.writeFile(target, payload, { encoding: 'utf8', mode: 0o600 });
+            // F94 (WS-045): prompt content is user material; the write had NO
+            // mode and 0o600 is a Windows no-op. Harden (best-effort).
+            await restrictFilePermissions(target, { label: 'prompts-export' });
             return { message: `Exported ${own.length} prompt(s) → ${target}` };
           } catch (err) {
             return {

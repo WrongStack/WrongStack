@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { restrictFilePermissions } from '@wrongstack/core/security';
 
 /** Mirrored human-readable file under `<projectRoot>/.wrongstack/`. */
 export const DOMAIN_TERMS_FILENAME = 'domain-terms.md';
@@ -487,6 +488,9 @@ export async function renderDomainTermsMarkdown(
     }
     lines.push('');
   }
-  await fs.writeFile(filePath, lines.join('\n'), 'utf8');
+  await fs.writeFile(filePath, lines.join('\n'), { encoding: 'utf8', mode: 0o600 });
+  // F98 (WS-045): the glossary is learned project content; the write had NO
+  // mode and 0o600 is a Windows no-op. Harden (best-effort).
+  await restrictFilePermissions(filePath, { label: 'domain-terms' });
   return filePath;
 }

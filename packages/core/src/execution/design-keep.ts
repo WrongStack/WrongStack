@@ -11,6 +11,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { designProjectDir, ensureDesignDir } from './design-project-store.js';
+import { restrictFilePermissions } from '../security/file-permissions.js';
 import { markCommentLines } from './design-verify.js';
 import { collectProjectUiFiles } from './design-verify-run.js';
 
@@ -128,7 +129,13 @@ export async function saveWiringSnapshot(
 ): Promise<string> {
   await ensureDesignDir(projectRoot);
   const abs = beforeSnapshotPath(projectRoot);
-  await fs.writeFile(abs, `${JSON.stringify(snapshot, null, 2)}\n`, 'utf8');
+  await fs.writeFile(abs, `${JSON.stringify(snapshot, null, 2)}\n`, {
+    encoding: 'utf8',
+    mode: 0o600,
+  });
+  // F100 (WS-045): the wiring snapshot is user project state; the write had
+  // NO mode and 0o600 is a Windows no-op. Harden (best-effort).
+  await restrictFilePermissions(abs, { label: 'design-state' });
   return path.relative(projectRoot, abs).replace(/\\/g, '/');
 }
 

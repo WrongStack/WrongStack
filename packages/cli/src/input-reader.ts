@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as readline from 'node:readline';
 import type { InputReader, PromptOption, ReadKeyOptions } from '@wrongstack/contracts/types';
-import { DefaultSecretScrubber } from '@wrongstack/core/security';
+import { DefaultSecretScrubber, restrictFilePermissions } from '@wrongstack/core/security';
 import {
   resolveWstackPaths,
   setOutputLineGuard,
@@ -20,6 +20,8 @@ const historyScrubber = new DefaultSecretScrubber();
 export class ReadlineInputReader implements InputReader {
   private rl?: readline.Interface | undefined;
   private readonly historyFile: string;
+  /** History file already owner-only hardened. F93 (WS-045). */
+  private historyHardened = false;
   private history: string[] = [];
   private pending = false;
   private suppressNextHistory = false;
@@ -49,7 +51,14 @@ export class ReadlineInputReader implements InputReader {
       const persisted = this.history
         .slice(-1000)
         .filter((line) => historyScrubber.scrub(line) === line);
-      await fs.writeFile(this.historyFile, persisted.join('\n'));
+      await fs.writeFile(this.historyFile, persisted.join('\n'), { mode: 0o600 });
+      // F93 (WS-045): scrubbed prompt history is still user content; the write
+      // had NO mode and 0o600 is a Windows no-op. Harden once per reader
+      // (best-effort — the surrounding catch keeps history non-fatal).
+      if (!this.historyHardened) {
+        this.historyHardened = true;
+        await restrictFilePermissions(this.historyFile, { label: 'input-history' });
+      }
     } catch {
       // ignore
     }

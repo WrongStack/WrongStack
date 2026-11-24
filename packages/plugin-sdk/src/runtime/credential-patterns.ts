@@ -54,6 +54,9 @@ export const CREDENTIAL_PATTERNS: readonly CredentialPattern[] = [
     type: 'openai_key',
     regex: /(?<![A-Za-z0-9])sk-(?!ant)(?:proj-)?[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g,
   },
+  // xAI is a first-class provider here; core's secret-scrubber carried this
+  // shape and the plugin surfaces did not (F1541).
+  { type: 'xai_key', regex: /(?<![A-Za-z0-9])xai-[A-Za-z0-9]{20,}(?![A-Za-z0-9])/g },
   // GitHub. `ghp_` is only the personal-access-token prefix — the OAuth
   // (`gho_`), user-to-server (`ghu_`), server-to-server (`ghs_`) and
   // refresh (`ghr_`) tokens grant the same or broader access and were

@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import type { MemoryEntry, MemoryScope } from '@wrongstack/contracts/types/memory';
 import type { MemoryBackend } from './memory-backend.js';
 import { FileMemoryBackend, type FileMemoryBackendOptions } from './memory-backend.js';
+import { restrictFilePermissions } from '../security/file-permissions.js';
 
 // ── Graph node and edge types ──────────────────────────────────────────
 
@@ -384,7 +385,11 @@ export class GraphMemoryBackend implements MemoryBackend {
       await fs.mkdir(dir, { recursive: true });
       // Atomic write via temp file
       const tmp = `${this.graphFile}.tmp`;
-      await fs.writeFile(tmp, JSON.stringify(data));
+      await fs.writeFile(tmp, JSON.stringify(data), { mode: 0o600 });
+      // F89 (WS-045): the graph is user memory content; the write had NO mode
+      // and 0o600 is a Windows no-op. Harden the temp before the rename
+      // (best-effort — the surrounding catch keeps the graph non-critical).
+      await restrictFilePermissions(tmp, { label: 'memory-graph' });
       await fs.rename(tmp, this.graphFile);
     } catch {
       // best-effort — graph is an enhancement, not critical

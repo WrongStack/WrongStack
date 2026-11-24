@@ -29,7 +29,10 @@ export function getSecretPatterns(stack: TechStack): SecurityPattern[] {
       /(?<![A-Za-z0-9_-])sk-(?:proj|svcacct|admin|ant-api\d+)-[A-Za-z0-9_-]{20,}/g,
       /xox[baprs]-[a-zA-Z0-9-]{10,}/g,
       /AIza[0-9A-Za-z\-_]{35}/g,
-      /AKIA[0-9A-Z]{16}/g,
+      // F86: ASIA STS temporary credentials share AKIA's shape; whsec_ is a
+      // Stripe webhook signing secret (forged-event authority).
+      /(?:AKIA|ASIA)[0-9A-Z]{16}/g,
+      /whsec_[A-Za-z0-9]{24,}/g,
     ],
     fileExtensions: [
       ...JS_EXTENSIONS,

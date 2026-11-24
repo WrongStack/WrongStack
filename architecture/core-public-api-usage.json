@@ -124,9 +124,9 @@
       "runtimeOrMixed": 18
     },
     "@wrongstack/core/security": {
-      "files": 293,
+      "files": 298,
       "typeOnly": 27,
-      "runtimeOrMixed": 269
+      "runtimeOrMixed": 274
     },
     "@wrongstack/core/session-catalog": {
       "files": 19,
@@ -7787,6 +7787,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/builtin-plugins/src/prompts-command.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/builtin-plugins/src/review-claim-registry.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8070,6 +8076,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/subcommands/handlers/automation-credentials.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/subcommands/handlers/export.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -8921,6 +8933,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/sage/src/domain-term-candidates.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/sage/src/project-server.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -9054,6 +9072,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/tui/src/components/app-error-boundary.tsx",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/tui/src/history-archive.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -9234,6 +9258,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/src/server/project-kit-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/src/server/projects-manifest.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T00:14:12.978Z",
+  "generatedAt": "2026-11-24T00:53:50.557Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,16 +13,16 @@
   "summary": {
     "packages": 50,
     "sourceFiles": 6493,
-    "testFiles": 5772,
-    "sourceLines": 1328509,
+    "testFiles": 5786,
+    "sourceLines": 1328584,
     "workspaceEdges": 259,
-    "moduleEdges": 18990,
+    "moduleEdges": 18994,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1042
+    "testOnlyExports": 1045
   },
   "errors": [],
   "packageCycles": [],
@@ -184,7 +184,7 @@
       "name": "@wrongstack/builtin-plugins",
       "dir": "packages/builtin-plugins",
       "sourceFiles": 40,
-      "testFiles": 41,
+      "testFiles": 42,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -200,7 +200,7 @@
         {
           "path": "packages/builtin-plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 41
+          "testFiles": 42
         }
       ]
     },
@@ -232,7 +232,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 640,
-      "testFiles": 714,
+      "testFiles": 716,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -284,7 +284,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 714
+          "testFiles": 716
         }
       ]
     },
@@ -403,7 +403,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 664,
-      "testFiles": 774,
+      "testFiles": 778,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -420,7 +420,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 774
+          "testFiles": 778
         }
       ]
     },
@@ -761,7 +761,7 @@
       "name": "@wrongstack/primitives",
       "dir": "packages/primitives",
       "sourceFiles": 27,
-      "testFiles": 47,
+      "testFiles": 48,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -772,7 +772,7 @@
         {
           "path": "packages/primitives/tsconfig.test.json",
           "error": null,
-          "testFiles": 47
+          "testFiles": 48
         }
       ]
     },
@@ -913,7 +913,7 @@
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
       "sourceFiles": 179,
-      "testFiles": 181,
+      "testFiles": 183,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -933,7 +933,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 181
+          "testFiles": 183
         }
       ]
     },
@@ -992,7 +992,7 @@
       "name": "@wrongstack/security-scanner",
       "dir": "packages/security-scanner",
       "sourceFiles": 21,
-      "testFiles": 36,
+      "testFiles": 37,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -1006,7 +1006,7 @@
         {
           "path": "packages/security-scanner/tsconfig.test.json",
           "error": null,
-          "testFiles": 36
+          "testFiles": 37
         }
       ]
     },
@@ -1061,7 +1061,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 348,
-      "testFiles": 398,
+      "testFiles": 399,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/browser-tools",
@@ -1082,7 +1082,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 398
+          "testFiles": 399
         }
       ]
     },
@@ -1090,7 +1090,7 @@
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
       "sourceFiles": 517,
-      "testFiles": 460,
+      "testFiles": 461,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1119,7 +1119,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 460
+          "testFiles": 461
         }
       ]
     },
@@ -1229,7 +1229,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 357,
-      "testFiles": 425,
+      "testFiles": 426,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1264,7 +1264,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 425
+          "testFiles": 426
         }
       ]
     },
@@ -4946,6 +4946,12 @@
         ]
       },
       {
+        "file": "packages/builtin-plugins/tests/prompts-export-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/builtin-plugins/tests/prompts-multiline.test.ts",
         "projects": [
           "root-node"
@@ -6428,6 +6434,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/export-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/external-plugins.test.ts",
         "projects": [
           "root-node"
@@ -7335,6 +7347,12 @@
       },
       {
         "file": "packages/cli/tests/import-claude-code.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/input-reader-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -12476,6 +12494,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/execution/design-keep-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/execution/design-keep.test.ts",
         "projects": [
           "root-node"
@@ -12519,6 +12543,12 @@
       },
       {
         "file": "packages/core/tests/execution/design-photos.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/execution/design-project-store-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14444,6 +14474,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/storage/memory-graph-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/storage/memory-project-agents-symlink.test.ts",
         "projects": [
           "root-node"
@@ -14979,6 +15015,12 @@
       },
       {
         "file": "packages/core/tests/storage/session-writer-redo-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/session-writer-truncate-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20342,6 +20384,12 @@
         ]
       },
       {
+        "file": "packages/primitives/tests/scrubber-aws-stripe-coverage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/primitives/tests/scrubber-webhook-origin-case.test.ts",
         "projects": [
           "root-node"
@@ -22136,6 +22184,12 @@
         ]
       },
       {
+        "file": "packages/sage/tests/domain-terms-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sage/tests/domain-terms-sort-contract.test.ts",
         "projects": [
           "root-node"
@@ -22875,6 +22929,12 @@
       },
       {
         "file": "packages/sage/tests/sqlite-v3-migration.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/store-helpers-aws-stripe.test.ts",
         "projects": [
           "root-node"
         ]
@@ -23661,6 +23721,12 @@
       },
       {
         "file": "packages/security-scanner/tests/skill-generator.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/security-scanner/tests/skill-patterns-aws-stripe.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26414,6 +26480,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/security-ast-scan-aws-stripe.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/security-ast-scan-tool.test.ts",
         "projects": [
           "root-node"
@@ -27573,6 +27645,12 @@
       },
       {
         "file": "packages/tui/tests/highlight.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/history-archive-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31455,6 +31533,12 @@
       },
       {
         "file": "packages/webui-server/tests/projects-manifest-bom.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/projects-manifest-hardening.test.ts",
         "projects": [
           "root-node"
         ]
@@ -38945,7 +39029,15 @@
     },
     {
       "file": "packages/core/src/execution/design-keep.ts",
+      "name": "beforeSnapshotPath"
+    },
+    {
+      "file": "packages/core/src/execution/design-keep.ts",
       "name": "extractSourceWiring"
+    },
+    {
+      "file": "packages/core/src/execution/design-keep.ts",
+      "name": "saveWiringSnapshot"
     },
     {
       "file": "packages/core/src/execution/design-keep.ts",
@@ -39878,6 +39970,10 @@
     {
       "file": "packages/plugins/src/notify-hub/desktop-notifier.ts",
       "name": "toastText"
+    },
+    {
+      "file": "packages/plugins/src/path-guard/glob.ts",
+      "name": "matchesAny"
     },
     {
       "file": "packages/plugins/src/path-guard/index.ts",

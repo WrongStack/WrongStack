@@ -142,7 +142,10 @@ const SECRET_PATTERN = new RegExp(
     '(?<![A-Za-z0-9])(?:api[_-]?key|secret|token|password)(?![A-Za-z0-9])[A-Za-z0-9_.-]*\\s*[:=]\\s*[\'"]?[A-Za-z0-9_\\-./+=]{16,}',
     '\\b[A-Za-z0-9_]{20,}\\.[A-Za-z0-9_-]{20,}\\.[A-Za-z0-9_-]{20,}\\b',
     '\\b(?:sk-(?:ant-)?|gh[pousr]_|github_pat_|xox[baprs]-)[A-Za-z0-9_-]{16,}\\b',
-    '\\bAKIA[0-9A-Z]{16}\\b',
+    // F87: ASIA is the STS temporary-credential prefix (same shape as AKIA);
+    // whsec_ is a Stripe webhook signing secret (forged-event authority).
+    '\\b(?:AKIA|ASIA)[0-9A-Z]{16}\\b',
+    '\\bwhsec_[A-Za-z0-9]{20,}\\b',
     '\\bAIza[0-9A-Za-z_-]{35}\\b',
     '\\bhf_[A-Za-z0-9]{20,}\\b',
     '\\b(?:sk|pk|rk)_(?:live|test)_[A-Za-z0-9]{20,}\\b',

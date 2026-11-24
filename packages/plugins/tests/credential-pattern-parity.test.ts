@@ -72,6 +72,9 @@ const SHARED_CORPUS: Array<[string, string]> = [
   // left them invisible to the plugin gates (core's broader openai pattern
   // happened to redact them). The corpus keeps both lists covering them.
   ['anthropic admin key', 'sk-ant-admin01-ZmFrZWZha2VmYWtlZmFrZWZha2VmYWtl'],
+  // F1541: WrongStack's own xAI key shape — core scrubbed it, both plugin
+  // surfaces passed it.
+  ['xai key', `xai-${'Zk3'.repeat(14)}`],
   ['github pat', `ghp_${'a'.repeat(36)}`],
   ['github pat v2', `github_pat_${'b'.repeat(50)}`],
   ['aws access key id', 'AKIAIOSFODNN7EXAMPLE'],
@@ -136,6 +139,7 @@ describe('prompt-firewall inherits the shared coverage', () => {
     ['sendgrid_key', 'SG.' + 'a'.repeat(22) + '.' + 'b'.repeat(43)],
     ['digitalocean_token', 'dop_v1_' + 'a'.repeat(64)],
     ['stripe_key', 'sk_live_' + 'a'.repeat(24)],
+    ['xai_key', 'xai-' + 'Zk3'.repeat(14)],
   ])('detects %s in an outgoing request', (kind, sample) => {
     const found = detectSecrets('context: ' + sample, []);
     expect(found.map((d) => d.kind)).toContain(kind);

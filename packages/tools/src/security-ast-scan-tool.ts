@@ -64,9 +64,12 @@ export interface SecurityScanOutput {
 
 // ─── Secret & Token Patterns ────────────────────────────────────────────────
 const SECRET_PATTERNS: Array<{ name: string; regex: RegExp }> = [
-  { name: 'AWS Access Key', regex: /\b(AKIA[0-9A-Z]{16})\b/ },
+  // F88: ASIA is the STS temporary-credential prefix (same shape as AKIA).
+  { name: 'AWS Access Key', regex: /\b((?:AKIA|ASIA)[0-9A-Z]{16})\b/ },
   { name: 'GitHub Token', regex: /\b(gh[pousr]_[A-Za-z0-9_]{36,255})\b/ },
   { name: 'Stripe Secret Key', regex: /\b(sk_live_[0-9a-zA-Z]{24,})\b/ },
+  // F88: webhook signing secrets carry forged-event authority.
+  { name: 'Stripe Webhook Secret', regex: /\b(whsec_[0-9a-zA-Z]{24,})\b/ },
   { name: 'Slack Token', regex: /\b(xox[baprs]-[0-9a-zA-Z]{10,48})\b/ },
   // Any type words (ENCRYPTED, PGP, …); PGP armor ends in ` BLOCK`.
   {

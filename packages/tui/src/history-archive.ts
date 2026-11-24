@@ -13,6 +13,7 @@
  */
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import { restrictFilePermissions } from '@wrongstack/core/security';
 import type { HistoryEntry } from './history-entry.js';
 
 /** How many recent entries to keep in memory at all times. */
@@ -200,6 +201,9 @@ export class HistoryArchive {
     this.opening ??= (async () => {
       await fsp.mkdir(path.dirname(this.filePath), { recursive: true });
       const handle = await fsp.open(this.filePath, 'a+', 0o600);
+      // F91 (WS-045): the positional mode is a Windows no-op; the archive
+      // holds prompt history. Harden once when opened (best-effort).
+      await restrictFilePermissions(this.filePath, { label: 'history-archive' });
       this.handle = handle;
       return handle;
     })();

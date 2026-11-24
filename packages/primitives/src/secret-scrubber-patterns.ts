@@ -91,8 +91,10 @@ export const PATTERNS: Pattern[] = [
   },
   {
     type: 'aws_access_key',
-    regex: /(?<![A-Za-z0-9])AKIA[0-9A-Z]{16}(?![A-Za-z0-9])/g,
-    anchor: 'AKIA',
+    // F85: ASIA is the STS TEMPORARY-credential prefix (SSO/CI federation) —
+    // same 20-char shape as AKIA, and it used to pass through verbatim.
+    regex: /(?<![A-Za-z0-9])(?:AKIA|ASIA)[0-9A-Z]{16}(?![A-Za-z0-9])/g,
+    anchor: ['AKIA', 'ASIA'],
   },
   {
     type: 'gcp_key',
@@ -109,6 +111,13 @@ export const PATTERNS: Pattern[] = [
     // Secret (`sk_`) and restricted (`rk_`) keys carry the same authority.
     regex: /(?<![A-Za-z0-9])[sr]k_(?:live|test)_[A-Za-z0-9]{24,}(?![A-Za-z0-9])/g,
     anchor: ['sk_', 'rk_'],
+  },
+  {
+    type: 'stripe_webhook_secret',
+    // F85: webhook signing secrets let an attacker forge webhook events;
+    // they appear bare in logs/errors, not only as named env values.
+    regex: /(?<![A-Za-z0-9])whsec_[A-Za-z0-9]{24,}(?![A-Za-z0-9])/g,
+    anchor: 'whsec_',
   },
   {
     type: 'twilio_sid',

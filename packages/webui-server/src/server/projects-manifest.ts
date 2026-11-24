@@ -8,6 +8,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { ConfigError } from '@wrongstack/contracts/types';
 import { projectSlug, withFileLock } from '@wrongstack/core/utils';
+import { restrictFilePermissions } from '@wrongstack/core/security';
 
 export interface ProjectEntry {
   name: string;
@@ -57,7 +58,11 @@ export async function saveManifest(
 ): Promise<void> {
   const file = projectsJsonPath(globalConfigPath);
   await fs.mkdir(path.dirname(file), { recursive: true });
-  await fs.writeFile(file, JSON.stringify(manifest, null, 2), 'utf8');
+  await fs.writeFile(file, JSON.stringify(manifest, null, 2), { encoding: 'utf8', mode: 0o600 });
+  // F96 (WS-045): the project registry is WrongStack state beside the global
+  // config; the write had NO mode and 0o600 is a Windows no-op. Harden
+  // (best-effort).
+  await restrictFilePermissions(file, { label: 'projects-manifest' });
 }
 
 export function generateProjectSlug(rootPath: string): string {

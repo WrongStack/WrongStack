@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { DefaultSessionReader } from '@wrongstack/core/storage';
+import { restrictFilePermissions } from '@wrongstack/core/security';
 import { expectDefined, toErrorMessage } from '@wrongstack/core/utils';
 import type { SubcommandHandler } from '../contracts.js';
 import { restoreFlags } from '../flags.js';
@@ -57,7 +58,10 @@ export const exportCmd: SubcommandHandler = async (args, deps) => {
   }
   if (output) {
     await fs.mkdir(path.dirname(path.resolve(deps.cwd, output)), { recursive: true });
-    await fs.writeFile(path.resolve(deps.cwd, output), rendered, 'utf8');
+    await fs.writeFile(path.resolve(deps.cwd, output), rendered, { encoding: 'utf8', mode: 0o600 });
+    // F95 (WS-045): the export is verbatim transcript content; the write had
+    // NO mode and 0o600 is a Windows no-op. Harden (best-effort).
+    await restrictFilePermissions(path.resolve(deps.cwd, output), { label: 'session-export' });
     deps.renderer.write(`Wrote ${rendered.length} bytes to ${output}\n`);
   } else {
     deps.renderer.write(rendered);
