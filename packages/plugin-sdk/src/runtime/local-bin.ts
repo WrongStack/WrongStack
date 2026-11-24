@@ -179,6 +179,14 @@ const binCache = new Map<string, BinCacheEntry>();
 const BIN_CACHE_MAX = 64;
 const NEGATIVE_BIN_CACHE_TTL_MS = 5_000;
 
+function isPackageName(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    /^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/i.test(value) &&
+    !value.split('/').some((part) => part === '.' || part === '..')
+  );
+}
+
 function cachePut(key: string, value: ResolvedNodeBin | null): ResolvedNodeBin | null {
   // Insertion-ordered eviction (oldest first) keeps this a plain LRU-ish
   // bound without the bookkeeping of a true LRU; resolution is cheap
@@ -217,6 +225,10 @@ export function resolveNodeBin(
   cwd: string,
   extraArgs: readonly string[] = [],
 ): ResolvedNodeBin | null {
+  // Validate before Node resolution: require.resolve accepts relative and
+  // absolute paths, so a traversal name would otherwise bypass the package
+  // sandbox and return an executable outside the project.
+  if (!isPackageName(packageName)) return null;
   const key = `${packageName}|${binName}|${cwd}`;
   const cached = binCache.get(key);
   if (cached !== undefined) {
@@ -244,11 +256,6 @@ export function resolveNodeBin(
     } catch {
       // Bun keeps negative module-resolution results after a package is installed.
       // Re-probe real search paths when our own bounded negative cache expires.
-      if (
-        !/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/i.test(packageName) ||
-        packageName.split('/').some((part) => part === '.' || part === '..')
-      )
-        throw new Error('Invalid package name');
       const candidates = requireFromProject.resolve.paths(packageName) ?? [];
       const found = candidates
         .map((directory) => join(directory, packageName, 'package.json'))
