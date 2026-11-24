@@ -239,7 +239,8 @@ export function retiredDirectivesToWarnAbout(
     .filter(
       (what) =>
         !currentKeys.some(
-          (key) => directiveSimilarity(key, normalizeForComparison(what)) >= RETIRED_MATCH_THRESHOLD,
+          (key) =>
+            directiveSimilarity(key, normalizeForComparison(what)) >= RETIRED_MATCH_THRESHOLD,
         ),
     );
 }

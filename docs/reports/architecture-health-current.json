@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T19:00:04.160Z",
+  "generatedAt": "2026-11-24T19:09:20.885Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6543,
-    "testFiles": 5826,
-    "sourceLines": 1340561,
+    "testFiles": 5827,
+    "sourceLines": 1340564,
     "workspaceEdges": 261,
     "moduleEdges": 19139,
     "nonCommandSlashImports": 0,
@@ -117,7 +117,7 @@
       "name": "@wrongstack/agent-catalog",
       "dir": "packages/agent-catalog",
       "sourceFiles": 44,
-      "testFiles": 15,
+      "testFiles": 16,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/persistence",
@@ -132,7 +132,7 @@
         {
           "path": "packages/agent-catalog/tsconfig.test.json",
           "error": null,
-          "testFiles": 15
+          "testFiles": 16
         }
       ]
     },
@@ -4369,6 +4369,12 @@
       },
       {
         "file": "packages/agent-catalog/tests/project-agent-knowledge-hygiene.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/agent-catalog/tests/project-agent-learning-order.test.ts",
         "projects": [
           "root-node"
         ]

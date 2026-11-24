@@ -1,4 +1,4 @@
-import { splitLearnedEntries, directiveSimilarity } from './project-agent-learning-entries.js';
+import { directiveSimilarity, splitLearnedEntries } from './project-agent-learning-entries.js';
 import {
   classifyLearnedEntry,
   type LearnedEntryCategory,

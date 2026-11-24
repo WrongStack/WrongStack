@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-24T19:00:04.160Z
+**Generated:** 2026-11-24T19:09:20.885Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6543 |
-| Production source lines | 1340561 |
-| Test files | 5826 |
+| Production source lines | 1340564 |
+| Test files | 5827 |
 | Workspace dependency edges | 261 |
 | Relative module edges | 19139 |
 | Non-command slash imports | 0 |
@@ -28,7 +28,7 @@ PASS — no blocking architecture-health errors.
 | Package | Sources | Tests | Workspace dependencies |
 |---|---:|---:|---|
 | @wrongstack/acp | 59 | 76 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
-| @wrongstack/agent-catalog | 44 | 15 | @wrongstack/contracts, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/agent-catalog | 44 | 16 | @wrongstack/contracts, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/bench | 32 | 67 | @wrongstack/core |
 | @wrongstack/browser-tools | 14 | 22 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/builtin-plugins | 40 | 44 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives |
