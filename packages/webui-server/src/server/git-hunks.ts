@@ -37,18 +37,19 @@ export async function gitReviewBytes(
 ) {
   // The per-command isolation listing was the largest group of git spawns in the conflict
   // review (39 of 104 in its per-command trace); index/object reads pass 'none'.
-  const baseEnv = { ...buildChildEnv(), GIT_OPTIONAL_LOCKS: '0', GIT_LITERAL_PATHSPECS: '1' };
-  const env =
-    isolation === 'none'
-      ? baseEnv
-      : { ...baseEnv, ...(isolation ?? (await gitReviewIsolation(cwd))) };
+  const isolationEnv = isolation === 'none' ? {} : (isolation ?? (await gitReviewIsolation(cwd)));
   return await new Promise<Buffer>((resolve, reject) => {
     const child = execFile(
       'git',
       args,
       {
         cwd,
-        env,
+        env: {
+          ...buildChildEnv(),
+          GIT_OPTIONAL_LOCKS: '0',
+          GIT_LITERAL_PATHSPECS: '1',
+          ...isolationEnv,
+        },
         timeout: GIT_REVIEW_TIMEOUT_MS,
         maxBuffer: 2 * 1024 * 1024,
         windowsHide: true,

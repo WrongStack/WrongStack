@@ -26,7 +26,8 @@ const authCmd = vi.fn(async () => 0);
 vi.mock('../src/subcommands/handlers/auth.js', () => ({
   authCmd: (...args: unknown[]) => (authCmd as (...args: unknown[]) => unknown)(...args),
 }));
-vi.mock('@wrongstack/acp', () => ({
+vi.mock('@wrongstack/acp', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/acp')>()),
   runEnsemble: (...a: unknown[]) => runEnsemble(...a),
   runOneAcpTask: (...a: unknown[]) => runOneAcpTask(...a),
   runAcpBench: (...a: unknown[]) => runAcpBench(...a),

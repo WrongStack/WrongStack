@@ -28,7 +28,8 @@ const acp = vi.hoisted(() => ({
 
 // `@wrongstack/acp` is not a dependency of this package, so its bare id does not
 // resolve from here: mock the module the runtime's import resolves to instead.
-vi.mock('../../acp/dist/index.js', () => ({
+vi.mock('../../acp/dist/index.js', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   textContent: (text: string) => ({ type: 'text', text }),
   findAgentDescriptor: (id: string) =>
     id === 'claude-code' ? { id, displayName: 'Claude Code', contextWindow: 1_000_000 } : undefined,

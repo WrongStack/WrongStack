@@ -199,17 +199,25 @@ describe('command queue across client removal paths', () => {
     // close event ran, so the close handler found nothing and the audit row
     // stayed `queued` forever — for exactly the hung client that strands it.
     await writeOpenAuth();
+    // The TTL is far longer than any hello->enqueue gap: with the old 300ms TTL
+    // a loaded worker let the sweep evict the client before the command was
+    // queued, and the enqueue got 404. The clock jump below is what expires it.
     handle = await startHqServer({
       host: '127.0.0.1',
       port: getPort(),
       dataDir,
-      clientTtlMs: 300,
+      clientTtlMs: 60_000,
       clientCleanupIntervalMs: 100,
     });
     const client = await open(`ws://127.0.0.1:${handle.port}/ws/client`);
     await helloAndWelcome(client, 'proc-hung');
     const commandId = await enqueueSteer(handle.port, 'proc-hung');
 
+    // `lastSeenAt` was stamped from `new Date()`; the sweep's cutoff reads
+    // `Date.now()`. Moving only the latter past the TTL makes the client stale
+    // at the next sweep tick. afterEach's restoreAllMocks puts the clock back.
+    const realNow = Date.now.bind(Date);
+    vi.spyOn(Date, 'now').mockImplementation(() => realNow() + 120_000);
     await closed(client);
     const port = handle.port;
     await waitFor(async () => (await auditEntry(port, commandId))[0]?.ackStatus === 'failed');

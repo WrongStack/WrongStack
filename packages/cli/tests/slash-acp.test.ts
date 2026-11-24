@@ -13,7 +13,8 @@ const resolveAcpAgentCommand = vi.fn();
 const runAcpBench = vi.fn();
 const renderAcpBenchText = vi.fn((..._args: unknown[]) => 'BENCH_TEXT');
 
-vi.mock('@wrongstack/acp', () => ({
+vi.mock('@wrongstack/acp', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/acp')>()),
   runEnsemble: (...a: unknown[]) => runEnsemble(...a),
   renderEnsembleText: (...a: unknown[]) => renderEnsembleText(...a),
   runOneAcpTask: (...a: unknown[]) => runOneAcpTask(...a),

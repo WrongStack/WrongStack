@@ -1,5 +1,5 @@
 import type { NativeCloudSettings } from '@wrongstack/core/cloud-provider';
-import { color } from '@wrongstack/core/utils';
+import { color, toErrorMessage } from '@wrongstack/core/utils';
 import { authProfileAliasError } from '@wrongstack/providers';
 import { retiredProviderAuthLoginHint } from '@wrongstack/providers/oauth';
 import { parseAuthFlags } from '../../arg-parser.js';
@@ -143,7 +143,7 @@ export const authCmd: SubcommandHandler = async (args, deps) => {
       for (const line of formatHqImportReport(report)) deps.renderer.write(`${line}\n`);
       return 0;
     } catch (error) {
-      deps.renderer.writeError(error instanceof Error ? error.message : String(error));
+      deps.renderer.writeError(toErrorMessage(error));
       return 1;
     }
   }

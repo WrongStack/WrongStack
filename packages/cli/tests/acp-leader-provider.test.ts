@@ -21,7 +21,8 @@ const acp = vi.hoisted(() => ({
     | undefined,
 }));
 
-vi.mock('@wrongstack/acp', () => ({
+vi.mock('@wrongstack/acp', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/acp')>()),
   applyAcpRuntimeValues: async (_session: unknown, values: Record<string, string>) => {
     acp.runtime.push({ ...values });
     return [];
@@ -371,8 +372,8 @@ describe('a leader turn', () => {
         'first',
       ].join('\n'),
     );
-    expect(acp.prompts[1]).toContain('mcp__wrongstack-sage__memory_search');
-    expect(acp.prompts[1]).toMatch(/\n\nsecond$/);
+    // The bridge kickoff rides the first turn only: the agent keeps it in its own history.
+    expect(acp.prompts[1]).toBe('second');
     expect(acp.starts).toHaveLength(1);
     expect(acp.starts[0]).toMatchObject({
       command: 'npx',

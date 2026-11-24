@@ -49,7 +49,7 @@ async function fixture() {
   tools.disable('keep-disabled');
   const sent: WSServerMessage[] = [];
   const ctx = {
-    agent: { tools } as never,
+    agent: { tools, ctx: {} } as never,
     configStore: store,
     getConfig: () => store.get() as unknown as Config,
     getProjectRoot: () => dir,

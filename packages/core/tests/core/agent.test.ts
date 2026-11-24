@@ -222,13 +222,15 @@ describe('Agent', () => {
     });
     const { agent, tools, ctx, tmp } = await buildAgent(
       provider,
-      ['read', 'bash', 'codebase-search', 'tool_search', 'tool_use'].map(tool),
+      // `grep` is outside Scout's direct set and outside every optional tool
+      // group (Codebase is off by default without an index since schema v6).
+      ['read', 'bash', 'grep', 'tool_search', 'tool_use'].map(tool),
       undefined,
       { refreshSystemPrompt: true, systemPromptBuild: build },
     );
     cleanupDirs.push(tmp);
     // A tier surface that withholds the shell — Scout must not depend on it.
-    tools.setProviderToolNames(['read', 'codebase-search', 'tool_search', 'tool_use']);
+    tools.setProviderToolNames(['read', 'grep', 'tool_search', 'tool_use']);
     ctx.meta['systemPromptVariant'] = 'scout';
 
     await agent.run('hello');
@@ -242,7 +244,7 @@ describe('Agent', () => {
       }),
     );
     // The withheld catalog stays reachable through the lazy gateways.
-    expect(ctx.catalogTools.map((t) => t.name)).toContain('codebase-search');
+    expect(ctx.catalogTools.map((t) => t.name)).toContain('grep');
   });
 
   it('keeps delegation off a solo Scout conversation request', async () => {

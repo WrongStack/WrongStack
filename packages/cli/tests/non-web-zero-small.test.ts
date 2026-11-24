@@ -20,7 +20,8 @@ vi.mock('@wrongstack/core/design', () => ({
   installDesignStudioMiddleware: mocks.installDesignStudioMiddleware,
 }));
 
-vi.mock('@wrongstack/acp', () => ({
+vi.mock('@wrongstack/acp', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/acp')>()),
   ACP_AGENT_COMMANDS: mocks.acpCommands,
   defaultPermissionPolicy: mocks.defaultPermissionPolicy,
   findAgentDescriptor: mocks.findAgentDescriptor,
@@ -202,7 +203,8 @@ describe('small non-WebUI CLI modules', () => {
       'wrongstack-kanban',
     ]);
 
-    buildAcpSubagentRunner('gemini-cli', { bridge });
+    // Every client profile bridges by default except the ones that opt out.
+    buildAcpSubagentRunner('openhands', { bridge });
     buildAcpSubagentRunner('claude-code', { bridge: { ...bridge, config: { agents: [] } } });
     expect(mocks.makeACPSubagentRunner.mock.calls[1]![0]).not.toHaveProperty('sessionSetup');
     expect(mocks.makeACPSubagentRunner.mock.calls[2]![0]).not.toHaveProperty('sessionSetup');

@@ -34,9 +34,9 @@ import {
   type KeyObject,
   randomBytes,
   sign,
-  timingSafeEqual,
   verify,
 } from 'node:crypto';
+import { timingSafeTokenEqual } from '@wrongstack/primitives';
 
 export const HQ_VAULT_CRYPTO_VERSION = 1;
 
@@ -269,9 +269,10 @@ export function hqVaultEnrollmentMac(code: string, message: unknown): string {
 export function hqVaultEnrollmentMacMatches(code: string, message: unknown, mac: unknown): boolean {
   if (typeof mac !== 'string') return false;
   try {
-    const expected = Buffer.from(hqVaultEnrollmentMac(code, message), 'base64url');
-    const given = fromB64u(mac, 'mac');
-    return given.length === expected.length && timingSafeEqual(given, expected);
+    // The MAC travels as canonical base64url (`hqVaultEnrollmentMac`), so comparing the
+    // encoded strings in constant time is the byte compare, minus the malleable
+    // non-canonical encodings a decode-then-compare would have accepted.
+    return timingSafeTokenEqual(mac, hqVaultEnrollmentMac(code, message));
   } catch {
     return false;
   }

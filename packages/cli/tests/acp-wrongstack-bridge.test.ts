@@ -27,10 +27,12 @@ function wstackArgs(server: { args: string[] }): string[] {
 }
 
 describe('wrongstackBridgeSetup', () => {
-  it('applies to claude-code by default, by catalog or registry id, and to nothing else', () => {
+  it('applies by default to every agent whose client profile bridges, by catalog or registry id', () => {
     expect(wrongstackBridgeSetup('claude-code', ROOT, undefined)).toBeTypeOf('function');
     expect(wrongstackBridgeSetup('claude-acp', ROOT, undefined)).toBeTypeOf('function');
-    expect(wrongstackBridgeSetup('codex-cli', ROOT, undefined)).toBeUndefined();
+    expect(wrongstackBridgeSetup('codex-cli', ROOT, undefined)).toBeTypeOf('function');
+    // A profile that opts out (no official registry entry yet) stays unbridged.
+    expect(wrongstackBridgeSetup('openhands', ROOT, undefined)).toBeUndefined();
   });
 
   it('gives a leader its own note: it answers the user and ends turns with next steps', () => {
@@ -40,10 +42,11 @@ describe('wrongstackBridgeSetup', () => {
     expect(note).toContain('<nextsteps>\n1. ');
     expect(note).toContain('<nextsteps-complete/>');
     expect(note).not.toContain('delegated worker');
-    // The same servers a worker gets.
-    expect(leader.mcpServers).toEqual(
-      wrongstackBridgeSetup('claude-code', ROOT, undefined)!(task, ctx).mcpServers,
-    );
+    // The servers a worker gets, plus the requirements intake the leader files into.
+    const worker = wrongstackBridgeSetup('claude-code', ROOT, undefined)!(task, ctx);
+    const names = (servers: unknown) => (servers as { name: string }[]).map((s) => s.name);
+    expect(names(leader.mcpServers)).toEqual([...names(worker.mcpServers), 'wrongstack-intake']);
+    expect(leader.mcpServers?.slice(0, -1)).toEqual(worker.mcpServers);
   });
 
   it('is turned off by an empty agent or server list', () => {

@@ -18,7 +18,8 @@ const acp = vi.hoisted(() => ({
   result: {} as Record<string, unknown>,
 }));
 
-vi.mock('@wrongstack/acp', () => ({
+vi.mock('@wrongstack/acp', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/acp')>()),
   textContent: (text: string) => ({ type: 'text', text }),
   findAgentDescriptor: (id: string) =>
     id === 'claude-code' ? { id, contextWindow: 1_000_000 } : undefined,
@@ -314,7 +315,8 @@ describe("the ACP leader's context", () => {
       await run();
       expect(acp.opened).toEqual(['new', 'sess_1']);
       expect(acp.prompts[1]).not.toContain('<earlier-conversation>');
-      expect(acp.prompts[1]).toMatch(/\n\nnext$/);
+      // No kickoff either: the resumed agent session already carries it.
+      expect(acp.prompts[1]).toBe('next');
     } finally {
       await rm(stateDir, { recursive: true, force: true });
     }

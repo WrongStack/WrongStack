@@ -14,6 +14,7 @@
  * serialised through one in-process queue and written atomically.
  */
 import * as fs from 'node:fs/promises';
+import { toErrorMessage } from '@wrongstack/primitives';
 import {
   generateHqVaultKeyPair,
   type HqVaultKeyPair,
@@ -591,10 +592,7 @@ export class HqVaultStore {
                 actor: 'hq',
                 profileId: profile.id,
                 keyLabel: key.label,
-                detail: `failed: ${error instanceof Error ? error.message : String(error)}`.slice(
-                  0,
-                  300,
-                ),
+                detail: `failed: ${toErrorMessage(error)}`.slice(0, 300),
               });
             })
             .finally(() => this.refreshing.delete(flight));

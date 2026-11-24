@@ -5,7 +5,8 @@ const runOneAcpTask = vi.fn(async (..._args: unknown[]) => ({
   iterations: 2,
   toolCalls: 1,
 }));
-vi.mock('@wrongstack/acp', () => ({
+vi.mock('@wrongstack/acp', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/acp')>()),
   resolveAcpAgentCommand: () => ({ command: 'gemini', args: ['--acp'] }),
   runOneAcpTask: (...args: unknown[]) => runOneAcpTask(...args),
   defaultPermissionPolicy: { evaluate: () => ({ permission: 'auto' }) },

@@ -1,4 +1,4 @@
-import { color } from '@wrongstack/core/utils';
+import { color, toErrorMessage } from '@wrongstack/core/utils';
 import { runHqImportFlow } from '../hq-vault/flow.js';
 import { addCustomProvider, addFromCatalog } from './add-provider.js';
 import { loadProviders } from './helpers.js';
@@ -62,7 +62,7 @@ export async function runTopMenu(deps: AuthMenuDeps): Promise<number> {
       try {
         await runHqImportFlow(deps);
       } catch (error) {
-        deps.renderer.writeError(error instanceof Error ? error.message : String(error));
+        deps.renderer.writeError(toErrorMessage(error));
       }
       continue;
     }

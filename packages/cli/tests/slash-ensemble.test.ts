@@ -10,7 +10,8 @@ const mockRenderEnsembleText = vi.fn(
   },
 );
 
-vi.mock('@wrongstack/acp', () => ({
+vi.mock('@wrongstack/acp', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/acp')>()),
   runEnsemble: mockRunEnsemble,
   renderEnsembleText: mockRenderEnsembleText,
   resolveAcpAgentCommand: vi.fn(() => ({ command: 'gemini', args: ['--acp'] })),

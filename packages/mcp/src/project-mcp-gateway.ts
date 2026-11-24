@@ -8,11 +8,11 @@
  * `handleHttpRequest` (WS-024 Origin/Host/Content-Type guards + Mcp-Session-Id
  * + per-session in-flight requestId isolation).
  */
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { MCPServer, MCPServerLogger } from './server-dispatch.js';
-import { handleHttpRequest } from './server-http.js';
+import { bearerTokenMatches, handleHttpRequest } from './server-http.js';
 
 export interface ProjectMcpGrantSpec {
   actor: string;
@@ -43,7 +43,7 @@ export interface ProjectMcpGatewayOptions {
 }
 
 interface StoredGrant {
-  tokenBuf: Buffer;
+  token: string;
   spec: ProjectMcpGrantSpec;
 }
 
@@ -51,10 +51,6 @@ function extractBearer(header: string | undefined): string | undefined {
   if (!header) return undefined;
   const match = /^Bearer\s+(.+)$/i.exec(header.trim());
   return match?.[1]?.trim() || undefined;
-}
-
-function tokenEquals(a: Buffer, b: Buffer): boolean {
-  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 export class ProjectMcpGateway {
@@ -119,7 +115,7 @@ export class ProjectMcpGateway {
     if (this.closed) throw new Error('ProjectMcpGateway is closed');
     const token = randomBytes(24).toString('base64url');
     const grantId = randomBytes(8).toString('hex');
-    this.grants.set(grantId, { tokenBuf: Buffer.from(token, 'utf8'), spec });
+    this.grants.set(grantId, { token, spec });
 
     const mcpServers: ProjectMcpHttpDescriptor[] = Object.keys(spec.services).map((name) => ({
       type: 'http',
@@ -148,9 +144,11 @@ export class ProjectMcpGateway {
   }
 
   private findGrant(token: string): StoredGrant | undefined {
-    const candidate = Buffer.from(token, 'utf8');
+    // `extractBearer` already accepted any scheme casing and spacing; re-frame the bare
+    // token so the package's one constant-time bearer compare can judge it.
+    const header = `Bearer ${token}`;
     for (const grant of this.grants.values()) {
-      if (tokenEquals(grant.tokenBuf, candidate)) return grant;
+      if (bearerTokenMatches(header, grant.token)) return grant;
     }
     return undefined;
   }

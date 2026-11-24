@@ -22,7 +22,12 @@ function harness() {
     }),
   };
   const host: HostAcpRunnerHost = {
-    deps: { events, configStore: { get: getConfig } } as unknown as HostAcpRunnerHost['deps'],
+    deps: {
+      events,
+      configStore: { get: getConfig },
+      // No memory port and no leader policy registered: the options omit preflight.
+      container: { safeResolve: () => undefined },
+    } as unknown as HostAcpRunnerHost['deps'],
     getDirector: vi.fn<HostAcpRunnerHost['getDirector']>(),
     ensureCoordinator: vi.fn(async () => {
       order.push('ensure');

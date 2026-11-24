@@ -25,6 +25,7 @@ import type {
   ProviderAuthStrategyMetadata,
 } from '@wrongstack/contracts/types';
 import type { HqVaultProfileMeta, HqVaultRefresher, HqVaultSignInResult } from '@wrongstack/hq';
+import { toErrorMessage } from '@wrongstack/primitives';
 import {
   createBuiltinProviderAuthRegistry,
   RENEWABLE_SIGN_INS,
@@ -166,10 +167,6 @@ function toResult(outcome: ProviderAuthOutcome): HqVaultSignInResult {
   };
 }
 
-function errorText(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 export class HqVaultSignIns {
   private readonly attempts = new Map<string, Attempt>();
   /** Slots taken by starts that are past the cap check but not yet registered. */
@@ -275,7 +272,7 @@ export class HqVaultSignIns {
         .waitForCompletion(controller.signal)
         .then((outcome) => this.finish(attempt, outcome, actor))
         .catch((error) => {
-          attempt.pendingFailure = errorText(error);
+          attempt.pendingFailure = toErrorMessage(error);
         })
         .finally(() => this.endCompletion(attempt));
     }
@@ -299,7 +296,7 @@ export class HqVaultSignIns {
       );
       await this.finish(attempt, outcome, actor);
     } catch (error) {
-      attempt.pendingFailure = errorText(error);
+      attempt.pendingFailure = toErrorMessage(error);
     } finally {
       this.endCompletion(attempt);
     }
@@ -367,7 +364,7 @@ export class HqVaultSignIns {
         message: `Signed in — saved on ${profile.id}.`,
       };
     } catch (error) {
-      attempt.view = { ...attempt.view, phase: 'error', message: errorText(error) };
+      attempt.view = { ...attempt.view, phase: 'error', message: toErrorMessage(error) };
     }
   }
 

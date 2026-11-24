@@ -144,8 +144,10 @@ describe('worktree task runner', () => {
     expect(updates).toEqual(['allocated', 'committed', 'merged']);
   });
 
-  it('handles ACP provider — no worktree needed', () => {
-    expect(subagentNeedsWorktree({ name: 'ACP-Agent', provider: 'acp' })).toBe(false);
+  it('isolates a local ACP worker like a native one; a remote WrongForge worker needs none', () => {
+    // A local ACP agent edits the project on disk; WrongForge runs elsewhere.
+    expect(subagentNeedsWorktree({ name: 'ACP-Agent', provider: 'acp' })).toBe(true);
+    expect(subagentNeedsWorktree({ name: 'Forge', provider: 'wrongforge' })).toBe(false);
   });
 
   it('handles agent with no tools and no allowedCapabilities — defaults to worktree', () => {
