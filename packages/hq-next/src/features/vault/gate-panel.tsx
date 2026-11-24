@@ -2,19 +2,50 @@
 
 /**
  * What stands between the operator and a change — and the form that removes
- * it: unseal a passphrase-protected vault, or confirm the HQ password (and
- * authenticator code) for a 10-minute window.
+ * it: unseal a passphrase-protected vault (banner), or confirm the HQ password
+ * (and authenticator code) for a 10-minute window (header lock + dialog).
  */
 import { PasswordInput } from '@hq/components/hq/password-input';
 import { elevateVault, unsealVault, type VaultStatus } from '@hq/data/vault-api';
 import { Lock, LockOpen, ShieldAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 import type { VaultGate } from './model';
 import { field, label, MessageLine, primaryButton, useVaultAction } from './shared';
 
-export function GatePanel({
+/**
+ * The states that block the whole screen's writes for a reason the operator
+ * fixes elsewhere (no password, plain HTTP) or here (sealed vault). Locked and
+ * unlocked are shown by {@link LockControl} in the header instead.
+ */
+export function GateBanner({
+  gate,
+  onChanged,
+}: {
+  gate: VaultGate;
+  onChanged: () => Promise<void>;
+}): ReactNode {
+  if (gate.kind === 'ready' || gate.kind === 'locked') return null;
+  return (
+    <div
+      className="flex flex-col gap-3 border border-warning/50 bg-warning/5 p-4"
+      data-testid="vault-gate"
+    >
+      <div className="flex items-start gap-3">
+        <ShieldAlert className="mt-0.5 size-5 shrink-0" aria-hidden />
+        <div className="flex flex-col gap-1">
+          <p className="font-medium">{gate.title}</p>
+          <p className="max-w-2xl text-sm text-muted-foreground">{gate.detail}</p>
+        </div>
+      </div>
+      {gate.kind === 'sealed' && <UnsealForm onChanged={onChanged} />}
+    </div>
+  );
+}
+
+/** Header control: "Unlocked · n min" or a Lock button that opens the password dialog. */
+export function LockControl({
   gate,
   status,
   onChanged,
@@ -23,36 +54,69 @@ export function GatePanel({
   status: VaultStatus;
   onChanged: () => Promise<void>;
 }): ReactNode {
-  const tone =
-    gate.kind === 'ready'
-      ? 'border-success/40 bg-success/5'
-      : gate.kind === 'locked'
-        ? 'border-border bg-muted/30'
-        : 'border-warning/50 bg-warning/5';
-  const Icon = gate.kind === 'ready' ? LockOpen : gate.kind === 'locked' ? Lock : ShieldAlert;
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  if (gate.kind === 'ready') {
+    return (
+      <span
+        className="inline-flex h-9 items-center gap-1.5 border border-success/40 bg-success/10 px-3 text-sm text-success"
+        title="Changes are allowed until the confirmation expires"
+        data-testid="vault-lock"
+      >
+        <LockOpen className="size-4" aria-hidden />
+        Unlocked · {gate.detail}
+      </span>
+    );
+  }
+  if (gate.kind !== 'locked') return null;
   return (
-    <div className={cn('flex flex-col gap-3 border p-4', tone)} data-testid="vault-gate">
-      <div className="flex items-start gap-3">
-        <Icon className="mt-0.5 size-5 shrink-0" aria-hidden />
-        <div className="flex flex-col gap-1">
-          <p className="font-medium">{gate.title}</p>
-          <p className="max-w-2xl text-sm text-muted-foreground">{gate.detail}</p>
+    <>
+      <button
+        type="button"
+        className={cn(
+          'inline-flex h-9 items-center gap-1.5 border border-border px-3 text-sm hover:bg-muted',
+        )}
+        onClick={() => dialogRef.current?.showModal()}
+        data-testid="vault-lock"
+      >
+        <Lock className="size-4" aria-hidden />
+        Unlock to edit
+      </button>
+      <dialog
+        ref={dialogRef}
+        aria-labelledby={titleId}
+        className="m-auto w-[min(26rem,calc(100vw-2rem))] border border-border bg-card p-0 text-foreground shadow-2xl backdrop:bg-black/50"
+      >
+        <div className="flex flex-col gap-4 p-5">
+          <div className="flex flex-col gap-1">
+            <h2 id={titleId} className="flex items-center gap-2 text-lg font-semibold">
+              <Lock className="size-4" aria-hidden />
+              Unlock provider changes
+            </h2>
+            <p className="text-sm text-muted-foreground">{gate.detail}</p>
+          </div>
+          <ElevateForm
+            totp={status.totpEnabled === true}
+            onChanged={async () => {
+              dialogRef.current?.close();
+              await onChanged();
+            }}
+            onCancel={() => dialogRef.current?.close()}
+          />
         </div>
-      </div>
-      {gate.kind === 'sealed' && <UnsealForm onChanged={onChanged} />}
-      {gate.kind === 'locked' && (
-        <ElevateForm totp={status.totpEnabled === true} onChanged={onChanged} />
-      )}
-    </div>
+      </dialog>
+    </>
   );
 }
 
 function ElevateForm({
   totp,
   onChanged,
+  onCancel,
 }: {
   totp: boolean;
   onChanged: () => Promise<void>;
+  onCancel: () => void;
 }): ReactNode {
   const id = useId();
   const [password, setPassword] = useState('');
@@ -61,7 +125,7 @@ function ElevateForm({
   const canSend = password !== '' && (!totp || /^\d{6}$/.test(code)) && !busy;
   return (
     <form
-      className="flex max-w-sm flex-col gap-3"
+      className="flex flex-col gap-3"
       onSubmit={(event) => {
         event.preventDefault();
         if (!canSend) return;
@@ -101,9 +165,14 @@ function ElevateForm({
           />
         </div>
       )}
-      <button type="submit" disabled={!canSend} className={primaryButton}>
-        {busy ? 'Checking…' : 'Unlock for 10 minutes'}
-      </button>
+      <div className="flex gap-2">
+        <button type="submit" disabled={!canSend} className={primaryButton}>
+          {busy ? 'Checking…' : 'Unlock for 10 minutes'}
+        </button>
+        <button type="button" className="h-10 px-3 text-sm" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
       <MessageLine message={message} />
     </form>
   );

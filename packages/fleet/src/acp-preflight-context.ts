@@ -43,18 +43,28 @@ async function withTimeout<T>(
   timeoutMs: number,
   parentSignal?: AbortSignal,
 ): Promise<T | undefined> {
+  if (parentSignal?.aborted) return undefined;
   const controller = new AbortController();
   const onParentAbort = () => controller.abort(parentSignal?.reason);
-  if (parentSignal?.aborted) return undefined;
   parentSignal?.addEventListener('abort', onParentAbort, { once: true });
-  const timer = setTimeout(() => controller.abort(new Error('preflight timeout')), timeoutMs);
-  timer.unref?.();
+  // The deadline must bound the AWAIT, not only the signal: a source that
+  // ignores its signal (a dead transport, an SDK without cancellation) left
+  // this pending forever, and the ACP host awaits this block before starting
+  // the worker. Late values and rejections are dropped, so the fail-open
+  // result stays `undefined`.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<undefined>((resolve) => {
+    timer = setTimeout(() => {
+      controller.abort(new Error('preflight timeout'));
+      resolve(undefined);
+    }, timeoutMs);
+    timer.unref?.();
+  });
   try {
-    return await fn(controller.signal);
-  } catch {
-    return undefined;
+    const work = (async () => fn(controller.signal))().catch(() => undefined);
+    return await Promise.race([work, deadline]);
   } finally {
-    clearTimeout(timer);
+    if (timer !== undefined) clearTimeout(timer);
     parentSignal?.removeEventListener('abort', onParentAbort);
   }
 }

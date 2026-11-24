@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { IntakeValidationError } from '../src/errors.js';
@@ -33,6 +33,39 @@ it.each(['_index', '_idempotency', '_INDEX', '_IDEMPOTENCY'])(
     expect((await store.findByIdempotencyKey('control'))?.id).toBe(record.id);
   },
 );
+
+it('skips a case-alias index filename while recovering durable records', async () => {
+  const { store, service, dir } = makeHarness();
+  const { record } = await service.createIntake(
+    {
+      projectId: ALICE.projectId,
+      requestedBy: ALICE.id,
+      originalRequest: 'Recover the durable intake index',
+    },
+    ALICE,
+  );
+  await rm(join(dir, '_index.json'), { force: true });
+  await writeFile(join(dir, '_INDEX.json'), '{ truncated', 'utf8');
+
+  expect((await store.listIndex()).map((entry) => entry.id)).toEqual([record.id]);
+});
+
+it('skips a case-alias idempotency filename while recovering durable keys', async () => {
+  const { store, service, dir } = makeHarness();
+  const { record } = await service.createIntake(
+    {
+      projectId: ALICE.projectId,
+      requestedBy: ALICE.id,
+      originalRequest: 'Recover the durable idempotency map',
+      idempotencyKey: 'case-alias-recovery',
+    },
+    ALICE,
+  );
+  await rm(join(dir, '_idempotency.json'), { force: true });
+  await writeFile(join(dir, '_IDEMPOTENCY.json'), '{ truncated', 'utf8');
+
+  expect((await store.findByIdempotencyKey('case-alias-recovery'))?.id).toBe(record.id);
+});
 
 it('continues to allow record ids sharing only a prefix with metadata names', async () => {
   const { store, service } = makeHarness();

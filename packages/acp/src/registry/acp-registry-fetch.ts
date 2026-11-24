@@ -92,6 +92,22 @@ function isValidLauncherSpec(spec: string | undefined): spec is string {
   return trimmed.length > 0 && !trimmed.startsWith('-');
 }
 
+function isValidLauncherArgs(args: unknown): args is string[] | undefined {
+  return (
+    args === undefined || (Array.isArray(args) && args.every((arg) => typeof arg === 'string'))
+  );
+}
+
+function isValidLauncherEnv(env: unknown): env is Record<string, string> | undefined {
+  return (
+    env === undefined ||
+    (typeof env === 'object' &&
+      env !== null &&
+      !Array.isArray(env) &&
+      Object.values(env).every((value) => typeof value === 'string'))
+  );
+}
+
 /**
  * Map one registry entry to an `ACPAgentDescriptor`, or `null` if it carries
  * no distribution runnable on this host. Pure — no I/O.
@@ -106,12 +122,14 @@ export function mapRegistryEntry(
   let acp: { command: string; args?: string[]; env?: Record<string, string> } | null = null;
 
   if (isValidLauncherSpec(dist?.npx?.package)) {
+    if (!isValidLauncherArgs(dist.npx.args) || !isValidLauncherEnv(dist.npx.env)) return null;
     acp = {
       command: 'npx',
       args: ['-y', dist.npx.package.trim(), ...(dist.npx.args ?? [])],
       ...(dist.npx.env ? { env: dist.npx.env } : {}),
     };
   } else if (isValidLauncherSpec(dist?.uvx?.package)) {
+    if (!isValidLauncherArgs(dist.uvx.args) || !isValidLauncherEnv(dist.uvx.env)) return null;
     acp = {
       command: 'uvx',
       args: [dist.uvx.package.trim(), ...(dist.uvx.args ?? [])],
@@ -119,7 +137,8 @@ export function mapRegistryEntry(
     };
   } else if (dist?.binary && Object.hasOwn(dist.binary, platformKey)) {
     const target = dist.binary[platformKey];
-    if (typeof target?.cmd === 'string' && !target.cmd.trim().endsWith('/')) {
+    if (typeof target?.cmd === 'string' && !/[/\\]$/.test(target.cmd.trim())) {
+      if (!isValidLauncherArgs(target.args) || !isValidLauncherEnv(target.env)) return null;
       const binCmd = basename(target.cmd);
       if (isValidLauncherSpec(binCmd)) {
         acp = {
@@ -138,7 +157,7 @@ export function mapRegistryEntry(
 
   return {
     id,
-    displayName: entry.name?.trim() || id,
+    displayName: (typeof entry.name === 'string' ? entry.name.trim() : '') || id,
     vendor: inferVendor(entry),
     probe: { command: probeCmd, args: ['--version'] },
     acp,
@@ -149,7 +168,11 @@ export function mapRegistryEntry(
 }
 
 function inferVendor(entry: RegistryAgentEntry): ACPAgentVendor {
-  const hay = `${entry.id} ${entry.name ?? ''} ${(entry.authors ?? []).join(' ')}`.toLowerCase();
+  const name = typeof entry.name === 'string' ? entry.name : '';
+  const authors = Array.isArray(entry.authors)
+    ? entry.authors.filter((author): author is string => typeof author === 'string')
+    : [];
+  const hay = `${entry.id} ${name} ${authors.join(' ')}`.toLowerCase();
   if (hay.includes('anthropic') || hay.includes('claude')) return 'anthropic';
   if (hay.includes('google') || hay.includes('gemini')) return 'google';
   if (hay.includes('openai') || hay.includes('codex')) return 'openai';

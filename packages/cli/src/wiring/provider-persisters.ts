@@ -7,12 +7,18 @@ import {
   setAccountQuotaReporting,
   setChatGPTQuotaProviders,
   setCodexCliQuotaFallback,
+  setExternalCredentialRefresher,
   setOAuthTokenPersister,
   setProviderModelPersister,
   setSubscriptionRefreshTransaction,
 } from '@wrongstack/providers';
+import { HqCredentialService } from '../hq-vault/service.js';
 import { activeProfileConfigPath } from '../profile-config-path.js';
-import { loadConfigProviders, mutateConfigProviders } from '../provider-config-utils.js';
+import {
+  globalRootForConfigPath,
+  loadConfigProviders,
+  mutateConfigProviders,
+} from '../provider-config-utils.js';
 
 export { applyProviderOAuthRefresh } from '@wrongstack/providers';
 
@@ -50,6 +56,18 @@ export function installProviderPersisters(args: {
     createSubscriptionRefreshTransaction((mutator) =>
       mutateConfigProviders(profileConfigPath, args.vault, mutator),
     ),
+  );
+
+  // An OAuth account an HQ key vault holds arrives without its refresh token:
+  // HQ renews it, and the provider runtime asks HQ here when the access token
+  // is about to expire. Only `source.kind === 'hq'` entries reach this.
+  const hq = new HqCredentialService({
+    globalRoot: globalRootForConfigPath(profileConfigPath),
+    vault: args.vault,
+    profileConfigPath,
+  });
+  setExternalCredentialRefresher((_providerId, credential, signal) =>
+    hq.renewKey(credential, signal),
   );
 
   setOAuthTokenPersister((providerId, creds, source) => {

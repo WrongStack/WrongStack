@@ -9,7 +9,11 @@
  */
 import { color } from '@wrongstack/core/utils';
 import { hqDeviceFingerprint } from '../../hq-vault/device-store.js';
-import { createHqCredentialService, formatHqImportReport } from '../../hq-vault/flow.js';
+import {
+  createHqCredentialService,
+  formatHqImportReport,
+  formatHqProfileLine,
+} from '../../hq-vault/flow.js';
 import { activeProfileConfigPath } from '../../profile-config-path.js';
 import type { SubcommandDeps } from '../contracts.js';
 
@@ -29,7 +33,6 @@ export async function hqVaultCmd(
     {
       vault: deps.vault,
       profileConfigPath: activeProfileConfigPath(deps.paths, deps.config),
-      modelsRegistry: deps.modelsRegistry,
     },
     deps.paths.globalRoot,
   );
@@ -39,7 +42,7 @@ export async function hqVaultCmd(
       if (!url || !token) {
         deps.renderer.writeError(
           'Usage: wstack hq enroll <hq-url> <enrollment-token> [--label <name>] [--replace]\n' +
-            'Get both from HQ → System → Keys → "Enroll a device".\n',
+            'Get both from HQ → System → Providers → Devices → "Enroll a device".\n',
         );
         return 1;
       }
@@ -52,12 +55,12 @@ export async function hqVaultCmd(
         `${color.green('✓')} Enrolled with ${device.hqUrl}\n` +
           `  HQ fingerprint:  ${device.hq.fingerprint}\n` +
           `  This device:     ${fingerprint}\n` +
-          `  Compare both with HQ → System → Keys.\n`,
+          `  Compare both with HQ → System → Providers.\n`,
       );
       deps.renderer.write(
         device.status === 'approved'
           ? 'Next: `wstack hq sync` imports the keys HQ grants this device.\n'
-          : 'HQ has to approve this device first (System → Keys → Devices). Then run `wstack hq sync`.\n',
+          : 'HQ has to approve this device first (System → Providers → Devices). Then run `wstack hq sync`.\n',
       );
       return 0;
     }
@@ -75,19 +78,14 @@ export async function hqVaultCmd(
           `Enrolled:        ${device.enrolledAt}\n`,
       );
       try {
-        const items = await service.list();
+        const profiles = await service.list();
         deps.renderer.write(
-          items.length === 0
-            ? 'Granted keys:    none yet\n'
-            : `Granted keys:\n${items
-                .map(
-                  (i) =>
-                    `  ${i.providerId}/${i.label} v${i.version} (${i.policy}${i.setActive ? ', active' : ''})`,
-                )
-                .join('\n')}\n`,
+          profiles.length === 0
+            ? 'Granted providers: none yet\n'
+            : `Granted providers:\n${profiles.map(formatHqProfileLine).join('\n')}\n`,
         );
       } catch (error) {
-        deps.renderer.write(`Granted keys:    unavailable — ${(error as Error).message}\n`);
+        deps.renderer.write(`Granted providers: unavailable — ${(error as Error).message}\n`);
       }
       return 0;
     }

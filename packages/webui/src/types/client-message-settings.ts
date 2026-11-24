@@ -73,6 +73,11 @@ export type ClientMessageSettings =
   | { type: 'auth.oauth.start'; payload: { kind: OAuthKind; providerId?: string | undefined } }
   | { type: 'auth.oauth.code'; payload: { kind: OAuthKind; input: string } }
   | { type: 'auth.oauth.cancel'; payload: { kind: OAuthKind } }
+  | { type: 'hq.status' }
+  | { type: 'hq.enroll'; payload: { hqUrl: string; token: string; label?: string | undefined } }
+  | { type: 'hq.import'; payload: { profileIds?: string[] | undefined } }
+  | { type: 'hq.sync' }
+  | { type: 'hq.unenroll'; payload: { removeKeys: boolean } }
   | { type: 'provider.quota.get' }
   | { type: 'provider.quota.refresh' }
   | { type: 'provider.status.get' }

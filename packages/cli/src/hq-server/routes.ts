@@ -191,9 +191,12 @@ export interface HqRouterDeps {
  * Kept as a factory so the dependencies from the server setup closure are
  * explicitly visible — every closure reference is a named field.
  */
-export function createHqRouter(
-  deps: HqRouterDeps,
-): (req: http.IncomingMessage, res: http.ServerResponse) => Promise<void> {
+/** The request handler, plus `close()` for what it holds open between requests. */
+export type HqRouter = ((req: http.IncomingMessage, res: http.ServerResponse) => Promise<void>) & {
+  close(): void;
+};
+
+export function createHqRouter(deps: HqRouterDeps): HqRouter {
   const {
     host,
     listeningPort,
@@ -245,7 +248,7 @@ export function createHqRouter(
     res.end(JSON.stringify(fleetSnapshot()));
   };
 
-  return async (req: http.IncomingMessage, res: http.ServerResponse): Promise<void> => {
+  const handler = async (req: http.IncomingMessage, res: http.ServerResponse): Promise<void> => {
     try {
       const url = new URL(req.url ?? '/', `http://${host}:${listeningPort()}`);
       HqServerAuth.setHqSecurityHeaders(res);
@@ -566,4 +569,5 @@ export function createHqRouter(
       }
     }
   };
+  return Object.assign(handler, { close: () => vault.close() });
 }

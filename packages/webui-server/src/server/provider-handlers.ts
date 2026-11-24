@@ -1,8 +1,11 @@
 import type { ModelsRegistry, ProviderConfig } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { HqCredentialService } from '@wrongstack/hq';
 import type { WebSocket } from 'ws';
+import { globalRootForConfigPath } from './global-root.js';
 import { createCatalogHandlers } from './provider/catalog.js';
 import { createCustomModelHandlers } from './provider/custom-models.js';
+import { createHqImportHandlers } from './provider/hq-import.js';
 import { createKeyHandlers, createProviderCrudHandlers } from './provider/keys.js';
 import { createProviderModelTestHandlers } from './provider/model-test.js';
 import {
@@ -18,7 +21,7 @@ import {
   type SavedProviderView,
 } from './provider/projection.js';
 import { createQuotaRefreshHandlers } from './provider/quota-refresh.js';
-import { loadSavedProviders, saveProviders } from './provider-config-io.js';
+import { loadSavedProviders, mutateSavedProviders, saveProviders } from './provider-config-io.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';
 
 /**
@@ -42,6 +45,7 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
   const quotaRefresh = createQuotaRefreshHandlers(ctx);
   const modelTest = createProviderModelTestHandlers(ctx);
   const oauth = createOauthHandlers(ctx);
+  const hq = createHqImportHandlers(ctx);
 
   return {
     ...catalog,
@@ -52,6 +56,7 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
     ...quotaRefresh,
     ...modelTest,
     ...oauth,
+    ...hq,
     broadcastSaved: ctx.broadcastSaved,
     loadConfigProviders: ctx.loadConfigProviders,
   };
@@ -131,5 +136,18 @@ export function createProviderHandlers(deps: ProviderHandlerDeps) {
     onProvidersLoaded: deps.onProvidersLoaded,
     applyModelSwitch: deps.applyModelSwitch,
     hostProviders: deps.hostProviders,
+    // The device client writes through the same file-locked mutate as token
+    // rotations, never load/save: a sync must not overwrite a fresh rotation.
+    // A host without a profile config file has no HQ client.
+    ...(typeof deps.profileConfigPath === 'string'
+      ? {
+          hqCredentials: new HqCredentialService({
+            globalRoot: globalRootForConfigPath(deps.profileConfigPath),
+            vault: deps.vault,
+            mutateProviders: (mutator) =>
+              mutateSavedProviders(deps.profileConfigPath, deps.vault, mutator),
+          }),
+        }
+      : {}),
   });
 }

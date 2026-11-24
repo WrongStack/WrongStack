@@ -56,6 +56,32 @@ describe('P3.1 buildAcpPreflightContext', () => {
 
     expect(block).toBeUndefined();
   });
+
+  it('fails open when a source never settles and ignores its signal', async () => {
+    // A lookup that ignores its abort signal takes this shape (a dead
+    // transport); the block must still fail open at its own deadline instead
+    // of holding the ACP task start forever.
+    const never = new Promise<never>(() => undefined);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const hang = new Promise<'hang'>((resolve) => {
+      timer = setTimeout(() => resolve('hang'), 600);
+      timer.unref?.();
+    });
+    try {
+      const settled = await Promise.race([
+        buildAcpPreflightContext({
+          taskDescription: 'anything',
+          options: { timeoutMs: 50 },
+          sources: { fetchMemories: () => never },
+        }),
+        hang,
+      ]);
+      expect(settled).not.toBe('hang');
+      expect(settled).toBeUndefined();
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
+  });
 });
 
 describe('P3.3 & P3.4 ACP Client Conformance Matrix & boolean configOptions', () => {

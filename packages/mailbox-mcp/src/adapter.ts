@@ -204,11 +204,15 @@ function isEventVisibleToScope(
   const rec = event as Record<string, unknown>;
   const to = typeof rec['to'] === 'string' ? rec['to'] : undefined;
   const from = typeof rec['from'] === 'string' ? rec['from'] : undefined;
+  // `isMailboxMessageVisibleTo`: leaders-only mail is not a member's event.
+  if (rec['audience'] === 'leaders' && !isMailboxLeader(scope.actorId, scope.role)) return false;
   // Events without explicit addressing metadata pass through so callers can reconcile.
   if (!to && !from) return true;
   const matches = (addr: string | undefined): boolean => {
     if (!addr) return false;
-    if (addr === 'all' || addr === '@all' || addr === scope.actorId) return true;
+    // `*` is the stored fan-out (`all` / `@all` normalize to it). Actor inbox
+    // queries include `to_id = '*'` for every recipient.
+    if (addr === '*' || addr === 'all' || addr === '@all' || addr === scope.actorId) return true;
     if (scope.recipientAliases?.has(addr)) return true;
     if (scope.sessionId && (addr === '@session' || addr === `@session:${scope.sessionId}`)) {
       return true;

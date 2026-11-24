@@ -4810,6 +4810,22 @@
       "save": "Save new key",
       "missing": "Enter the new API key.",
       "done": "The {{label}} key for {{provider}} was replaced."
+    },
+    "hq": {
+      "heading": "Import from HQ",
+      "body": "Take the providers your WrongStack HQ grants this machine. Keys arrive sealed to this machine; HQ keeps subscription sign-ins renewed.",
+      "hqUrl": "HQ address",
+      "token": "Enrollment code (from HQ: System → Providers → Devices)",
+      "enroll": "Connect this machine",
+      "connected": "Connected to {{url}}",
+      "fingerprints": "HQ {{hq}} · this machine {{device}}",
+      "noneGranted": "HQ grants this machine no providers yet.",
+      "importAll": "Import all",
+      "sync": "Sync",
+      "disconnect": "Disconnect",
+      "disconnectRemove": "Disconnect and remove keys",
+      "badge": "HQ",
+      "badgeHint": "Managed by WrongStack HQ: a sync replaces local changes to its keys"
     }
   },
   "processes": {

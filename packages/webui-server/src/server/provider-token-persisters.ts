@@ -1,4 +1,5 @@
 import type { ProviderConfig } from '@wrongstack/contracts/types';
+import type { HqCredentialService } from '@wrongstack/hq';
 import {
   applyProviderOAuthRefresh,
   createSubscriptionRefreshTransaction,
@@ -6,6 +7,7 @@ import {
   setAccountQuotaReporting,
   setChatGPTQuotaProviders,
   setCodexCliQuotaFallback,
+  setExternalCredentialRefresher,
   setOAuthTokenPersister,
   setProviderModelPersister,
   setSubscriptionRefreshTransaction,
@@ -14,6 +16,11 @@ import {
 /** Standalone hosts must persist rotations as well as interactive login outcomes. */
 export function installWebuiProviderPersisters(args: {
   load?: () => Promise<Record<string, ProviderConfig>>;
+  /**
+   * Renews an OAuth account an HQ key vault holds (it arrives without its
+   * refresh token). The CLI-embedded host installs its own and skips this.
+   */
+  hq?: HqCredentialService | undefined;
   mutate: (
     mutator: (providers: Record<string, ProviderConfig>) => void | Promise<void>,
   ) => Promise<void>;
@@ -26,6 +33,10 @@ export function installWebuiProviderPersisters(args: {
   // on this machine can (read-only, never refreshed).
   setCodexCliQuotaFallback(true);
   setSubscriptionRefreshTransaction(createSubscriptionRefreshTransaction(args.mutate));
+  const hq = args.hq;
+  if (hq) {
+    setExternalCredentialRefresher((_id, credential, signal) => hq.renewKey(credential, signal));
+  }
   setOAuthTokenPersister((id, creds, source) => {
     void args
       .mutate((providers) => {

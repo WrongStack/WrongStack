@@ -242,7 +242,10 @@ function redactPath(
 function summarizeString(value: string, maxSummaryLength: number, scrub: boolean): string {
   const scrubbed = scrub ? defaultScrubber.scrub(value) : value;
   if (scrubbed.length <= maxSummaryLength) return scrubbed;
-  return `${scrubbed.slice(0, maxSummaryLength)}…[truncated:${scrubbed.length - maxSummaryLength}]`;
+  let end = maxSummaryLength;
+  const lastKept = scrubbed.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  return `${scrubbed.slice(0, end)}…[truncated:${scrubbed.length - end}]`;
 }
 
 /**

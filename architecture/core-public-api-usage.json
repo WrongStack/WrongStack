@@ -69,9 +69,9 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/models": {
-      "files": 45,
+      "files": 46,
       "typeOnly": 10,
-      "runtimeOrMixed": 36
+      "runtimeOrMixed": 37
     },
     "@wrongstack/core/notifications": {
       "files": 7,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1021,
+      "files": 1022,
       "typeOnly": 77,
-      "runtimeOrMixed": 979
+      "runtimeOrMixed": 980
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -5189,6 +5189,12 @@
     },
     {
       "specifier": "@wrongstack/core/models",
+      "file": "packages/cli/src/hq-server/routes/vault-catalog.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/models",
       "file": "packages/cli/src/pre-launch/first-run.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -7973,12 +7979,6 @@
     },
     {
       "specifier": "@wrongstack/core/security",
-      "file": "packages/cli/src/hq-vault/device-store.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/input-reader.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8718,6 +8718,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/hq/src/sage-store.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/hq/src/vault/device-store.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -12749,6 +12755,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/hq-server/routes/vault-catalog.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/hq-server/utils.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
@@ -12780,12 +12792,6 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/hq-static-serve.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/hq-vault/device-store.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -15132,6 +15138,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/hq/src/session-bridge.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/hq/src/vault/device-store.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

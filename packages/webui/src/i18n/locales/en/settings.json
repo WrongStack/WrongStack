@@ -1362,5 +1362,25 @@
     "logContentHint": "Writes the state sent, the full question wording and the answers with their distributions to the Jev log file. This view stays metadata-only either way, and the account key is scrubbed. Turn it off when you are done. Save and restart existing sessions.",
     "logContentOn": "Full request/response content is recorded in this file. It is never shown here.",
     "logContentOff": "Metadata only. Full request/response content is not recorded."
+  },
+  "hq": {
+    "heading": "Import from HQ",
+    "body": "Get providers and their keys from your WrongStack HQ. HQ keeps them; this machine receives them sealed to its own key.",
+    "notEnrolled": "This machine is not connected to an HQ yet. In HQ open System → Providers → Devices → “Enroll a device”, then paste the address and token here.",
+    "hqUrl": "HQ address",
+    "token": "Enrollment token",
+    "enroll": "Connect to HQ",
+    "connected": "Connected to {{url}}",
+    "fingerprints": "HQ {{hq}} · this machine {{device}}",
+    "granted_one": "{{count}} provider granted",
+    "granted_other": "{{count}} providers granted",
+    "noneGranted": "HQ grants this machine no providers yet.",
+    "importAll": "Import all",
+    "sync": "Sync",
+    "disconnect": "Disconnect",
+    "disconnectRemove": "Disconnect and remove HQ providers",
+    "badge": "HQ",
+    "badgeHint": "Managed by HQ — changes to its endpoint or models are replaced on the next sync.",
+    "unavailable": "This host has no HQ client."
   }
 }

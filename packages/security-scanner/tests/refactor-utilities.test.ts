@@ -168,6 +168,16 @@ describe('Node manifest parsing', () => {
     ]);
   });
 
+  it('lets optionalDependencies override same-named runtime dependencies', () => {
+    const dependencies = parseNodeDependencies(
+      JSON.stringify({
+        dependencies: { shared: '^1.0.0' },
+        optionalDependencies: { shared: '^2.0.0' },
+      }),
+    );
+    expect(dependencies).toEqual([{ name: 'shared', version: '^2.0.0', isDev: false }]);
+  });
+
   it('returns an empty list for malformed manifests', () => {
     expect(parseNodeDependencies('{bad json')).toEqual([]);
   });

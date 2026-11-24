@@ -114,8 +114,11 @@ export const BOOLEAN_FLAGS = new Set([
   // `wstack acp` booleans. Without these, parseArgs treats the value after
   // `--fs`/`--echo` as the flag's value and eats a following positional
   // (e.g. the agent list in `acp bench --fs gemini-cli,codex-cli`).
+  // `--probe` is read as `=== true` by `acp doctor`; as a value flag it took
+  // the agent id with it (`doctor --probe codex` probed nothing, inspected all).
   'echo',
   'fs',
+  'probe',
   // `wstack modeldiag test` booleans. Keep a following positional token from
   // being consumed as the value of one of these switches.
   'all-models',

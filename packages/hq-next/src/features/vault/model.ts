@@ -1,18 +1,27 @@
 /**
- * The key vault screen's decisions, kept out of the components so they can be
- * tested without a DOM: what the operator is allowed to do right now, the
- * key × device grant matrix, and the audit trail in words.
+ * The Providers screen's decisions, kept out of the components so they can be
+ * tested without a DOM: what the operator may do right now, how the catalog
+ * is searched and grouped, which alias a new profile gets, form checks, and
+ * the audit trail in words.
  */
 import type {
   HqVaultAuditEntry,
   HqVaultDeviceRecord,
-  HqVaultGrantRecord,
-  HqVaultSecretMeta,
+  HqVaultProfileMeta,
+  VaultCatalogProvider,
   VaultStatus,
 } from '@hq/data/vault-api';
 
-/** Mirrors the server's provider id rule (`store.ts`). */
-export const PROVIDER_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
+/** Mirrors the server's profile id rule (`store-profiles.ts`). */
+export const PROFILE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
+
+/** The wire families a custom provider can speak (`store-profiles.ts`). */
+export const WIRE_FAMILIES = [
+  { id: 'openai-compatible', label: 'OpenAI-compatible (most gateways, vLLM, LiteLLM)' },
+  { id: 'openai', label: 'OpenAI' },
+  { id: 'anthropic', label: 'Anthropic' },
+  { id: 'google', label: 'Google Gemini' },
+] as const;
 
 export type VaultGateKind = 'unavailable' | 'sealed' | 'insecure' | 'locked' | 'ready';
 
@@ -20,7 +29,7 @@ export interface VaultGate {
   kind: VaultGateKind;
   /** Whether lists can be shown. */
   canRead: boolean;
-  /** Whether store / grant / revoke controls are live. */
+  /** Whether add / replace / grant controls are live. */
   canWrite: boolean;
   title: string;
   detail: string;
@@ -40,7 +49,7 @@ export function vaultGate(status: VaultStatus, now: number): VaultGate {
       canWrite: false,
       title: 'Set an HQ password first',
       detail:
-        'The key vault confirms every change with your HQ password, so it stays off until one exists. Set it under System → Security.',
+        'HQ confirms every key change with your password, so provider management stays off until one exists. Set it under System → Security.',
     };
   }
   if (status.state === 'sealed') {
@@ -50,7 +59,7 @@ export function vaultGate(status: VaultStatus, now: number): VaultGate {
       canWrite: false,
       title: 'The vault is sealed',
       detail:
-        'HQ restarted and its master key is protected by a passphrase. Enter it to store or deliver keys again; until then devices get nothing.',
+        'HQ restarted and its master key is protected by a passphrase. Enter it to change or deliver keys again; until then devices get nothing.',
     };
   }
   if (!status.secureChannel) {
@@ -69,10 +78,10 @@ export function vaultGate(status: VaultStatus, now: number): VaultGate {
       kind: 'locked',
       canRead: true,
       canWrite: false,
-      title: 'Confirm your password to make changes',
+      title: 'Locked',
       detail: status.totpEnabled
-        ? 'Changes need your HQ password and an authenticator code; the confirmation lasts 10 minutes.'
-        : 'Changes need your HQ password; the confirmation lasts 10 minutes.',
+        ? 'Unlock with your HQ password and an authenticator code to make changes; it stays unlocked for 10 minutes.'
+        : 'Unlock with your HQ password to make changes; it stays unlocked for 10 minutes.',
     };
   }
   const minutes = Math.max(1, Math.ceil((until - now) / 60_000));
@@ -80,62 +89,168 @@ export function vaultGate(status: VaultStatus, now: number): VaultGate {
     kind: 'ready',
     canRead: true,
     canWrite: true,
-    title: 'Unlocked for changes',
-    detail: `Your confirmation is good for ${minutes} more minute${minutes === 1 ? '' : 's'}.`,
+    title: 'Unlocked',
+    detail: `${minutes} more minute${minutes === 1 ? '' : 's'}`,
   };
 }
 
-export interface GrantCell {
-  deviceId: string;
-  grant: HqVaultGrantRecord | null;
+/** Family groups in the catalog, in the order an operator looks for them. */
+const FAMILY_ORDER = ['anthropic', 'openai', 'google', 'openai-compatible'];
+const FAMILY_TITLE: Record<string, string> = {
+  anthropic: 'Anthropic',
+  'anthropic-oauth': 'Anthropic',
+  openai: 'OpenAI',
+  'openai-codex': 'OpenAI',
+  google: 'Google',
+  'google-antigravity': 'Google',
+  'github-copilot': 'GitHub Copilot',
+  'openai-compatible': 'OpenAI-compatible',
+};
+
+export function familyTitle(family: string | undefined): string {
+  return (family && FAMILY_TITLE[family]) ?? 'Other';
 }
 
-export interface GrantRow {
-  secret: HqVaultSecretMeta;
-  cells: GrantCell[];
+export interface CatalogGroup {
+  title: string;
+  providers: VaultCatalogProvider[];
 }
 
 /**
- * One row per key, one column per device that can still receive keys
- * (revoked devices have no grants and take no new ones). Devices sort
- * approved first, then by name; keys by provider, then label.
+ * Wire families whose credential comes only from a sign-in (a subscription
+ * account), never from a pasted key. A pasted value would make a profile that
+ * cannot work, so the catalog offers no key form for them.
  */
-export function grantMatrix(
-  secrets: readonly HqVaultSecretMeta[],
-  devices: readonly HqVaultDeviceRecord[],
-  grants: readonly HqVaultGrantRecord[],
-): { devices: HqVaultDeviceRecord[]; rows: GrantRow[] } {
-  const columns = devices
-    .filter((d) => d.status !== 'revoked')
-    .sort(
-      (a, b) =>
-        Number(b.status === 'approved') - Number(a.status === 'approved') ||
-        deviceName(a).localeCompare(deviceName(b)),
+const SIGN_IN_FAMILIES = new Set([
+  'openai-codex',
+  'github-copilot',
+  'google-antigravity',
+  'anthropic-oauth',
+]);
+
+export function isSignInOnly(provider: { family: string }): boolean {
+  return SIGN_IN_FAMILIES.has(provider.family);
+}
+
+/** Shown first, in this order, when the catalog has them. */
+export const POPULAR_PROVIDERS = [
+  'anthropic',
+  'openai',
+  'google',
+  'openrouter',
+  'mistral',
+  'deepseek',
+  'xai',
+  'groq',
+  'together',
+  'fireworks',
+  'cerebras',
+] as const;
+
+/**
+ * Search (name, id, family, endpoint host) and group. With a query, one flat
+ * "Matches" group in the catalog's own order. Without one, "Popular" first,
+ * then the rest by wire family.
+ */
+export function catalogGroups(
+  providers: readonly VaultCatalogProvider[],
+  query: string,
+): CatalogGroup[] {
+  const q = query.trim().toLowerCase();
+  if (q !== '') {
+    const hit = providers.filter((p) =>
+      [p.id, p.name, p.family, p.apiBase ?? ''].some((v) => v.toLowerCase().includes(q)),
     );
-  const byPair = new Map(grants.map((g) => [`${g.secretId}\0${g.deviceId}`, g]));
-  const rows = [...secrets]
-    .sort((a, b) => a.providerId.localeCompare(b.providerId) || a.label.localeCompare(b.label))
-    .map((secret) => ({
-      secret,
-      cells: columns.map((device) => ({
-        deviceId: device.id,
-        grant: byPair.get(`${secret.id}\0${device.id}`) ?? null,
-      })),
-    }));
-  return { devices: columns, rows };
+    return hit.length > 0 ? [{ title: 'Matches', providers: hit }] : [];
+  }
+  const byId = new Map(providers.map((p) => [p.id, p]));
+  const popular = POPULAR_PROVIDERS.flatMap((id) => byId.get(id) ?? []);
+  const popularIds = new Set(popular.map((p) => p.id));
+  const groups = new Map<string, VaultCatalogProvider[]>();
+  for (const provider of providers) {
+    if (popularIds.has(provider.id)) continue;
+    const title = familyTitle(provider.family);
+    groups.set(title, [...(groups.get(title) ?? []), provider]);
+  }
+  const rank = (title: string): number => {
+    const index = FAMILY_ORDER.findIndex((f) => familyTitle(f) === title);
+    return index === -1 ? FAMILY_ORDER.length : index;
+  };
+  const rest = [...groups.entries()]
+    .map(([title, list]) => ({ title, providers: list }))
+    .sort((a, b) => rank(a.title) - rank(b.title) || a.title.localeCompare(b.title));
+  return popular.length > 0 ? [{ title: 'Popular', providers: popular }, ...rest] : rest;
+}
+
+/** The family chip of a saved profile: its own family, else its catalog type's; none if unknown. */
+export function profileFamilyLabel(profile: { family?: string; type: string }): string | null {
+  if (profile.family) return familyTitle(profile.family);
+  return Object.hasOwn(FAMILY_TITLE, profile.type) ? FAMILY_TITLE[profile.type]! : null;
+}
+
+/** The id a new profile of `type` gets: the type itself, then `type-2`, `type-3` … */
+export function nextProfileId(type: string, profiles: readonly HqVaultProfileMeta[]): string {
+  const taken = new Set(profiles.map((p) => p.id));
+  if (!taken.has(type)) return type;
+  for (let n = 2; ; n++) if (!taken.has(`${type}-${n}`)) return `${type}-${n}`;
+}
+
+/** How many saved profiles were made from each catalog provider. */
+export function configuredCounts(profiles: readonly HqVaultProfileMeta[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const p of profiles) counts.set(p.type, (counts.get(p.type) ?? 0) + 1);
+  return counts;
+}
+
+/** A key as it can be recognised without showing it. */
+export function maskedKey(hint: string): string {
+  return hint ? `••••${hint}` : '••••';
+}
+
+export function profileIdError(id: string, profiles: readonly HqVaultProfileMeta[]): string | null {
+  const value = id.trim();
+  if (!PROFILE_ID_PATTERN.test(value)) {
+    return 'Alias: letters, digits and . _ : - (for example openai or team-proxy).';
+  }
+  if (profiles.some((p) => p.id === value))
+    return `"${value}" is already saved; pick another alias.`;
+  return null;
+}
+
+export function keyFormError(input: { label: string; apiKey: string }): string | null {
+  if (input.label.trim() === '') return 'Name the key.';
+  if (input.label.trim().length > 80) return 'Keep the name under 80 characters.';
+  if (input.apiKey.trim() === '') return 'Paste the key.';
+  return null;
+}
+
+export function baseUrlError(value: string, required: boolean): string | null {
+  const url = value.trim();
+  if (url === '') return required ? 'A custom provider needs its endpoint URL.' : null;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') return null;
+  } catch {
+    // falls through
+  }
+  return 'Endpoint: an http(s) URL such as https://llm.example.com/v1.';
+}
+
+/** Comma or newline separated model ids, de-duplicated, empty → undefined. */
+export function parseModelList(text: string): string[] | undefined {
+  const models = [
+    ...new Set(
+      text
+        .split(/[\n,]+/)
+        .map((m) => m.trim())
+        .filter(Boolean),
+    ),
+  ];
+  return models.length > 0 ? models : undefined;
 }
 
 export function deviceName(device: HqVaultDeviceRecord): string {
   return device.label ?? device.hostname;
-}
-
-function secretName(
-  id: string | undefined,
-  secrets: ReadonlyMap<string, HqVaultSecretMeta>,
-): string {
-  if (id === undefined) return 'a key';
-  const secret = secrets.get(id);
-  return secret ? `${secret.label} (${secret.providerId})` : 'a deleted key';
 }
 
 function deviceLabel(
@@ -150,20 +265,30 @@ function deviceLabel(
 /** One audit entry as a sentence. Never shows a value — the log holds none. */
 export function auditSentence(
   entry: HqVaultAuditEntry,
-  secrets: ReadonlyMap<string, HqVaultSecretMeta>,
   devices: ReadonlyMap<string, HqVaultDeviceRecord>,
 ): string {
-  const key = secretName(entry.secretId, secrets);
+  const profile = entry.profileId ?? 'a provider';
+  const key = entry.keyLabel ? `${profile}/${entry.keyLabel}` : `a ${profile} key`;
   const device = deviceLabel(entry.deviceId, devices);
   switch (entry.kind) {
     case 'unseal':
       return 'Vault unsealed';
-    case 'secret.create':
-      return `Stored ${key}`;
-    case 'secret.rotate':
-      return `Replaced ${key} (version ${entry.version ?? '?'})`;
-    case 'secret.delete':
-      return `Deleted ${entry.providerId ? `a ${entry.providerId} key` : 'a key'}`;
+    case 'profile.create':
+      return `Added ${profile}`;
+    case 'profile.update':
+      return `Changed ${profile}`;
+    case 'profile.delete':
+      return `Removed ${profile}`;
+    case 'key.set':
+      return entry.version !== undefined && entry.version > 1
+        ? `Replaced ${key} (version ${entry.version})`
+        : `Saved ${key}`;
+    case 'key.delete':
+      return `Deleted ${key}`;
+    case 'key.refresh':
+      return `Refreshed ${key}`;
+    case 'oauth.signin':
+      return `Signed in ${key}`;
     case 'device.enroll':
       return `${device} enrolled`;
     case 'device.approve':
@@ -171,14 +296,14 @@ export function auditSentence(
     case 'device.revoke':
       return `Revoked ${device}`;
     case 'grant.create':
-      return `Gave ${key} to ${device}`;
+      return `Gave ${profile} to ${device}`;
     case 'grant.revoke':
-      return `Took ${key} back from ${device}`;
+      return `Took ${profile} back from ${device}`;
     case 'enrollment.mint':
       return 'Created an enrollment code';
     case 'fetch': {
-      const count = entry.secretIds?.length ?? 0;
-      return `${device} fetched ${count} key${count === 1 ? '' : 's'}`;
+      const count = entry.profileIds?.length ?? 0;
+      return `${device} fetched ${count} provider${count === 1 ? '' : 's'}`;
     }
     default:
       return entry.kind;
@@ -194,21 +319,4 @@ export function auditActor(
   if (actor.startsWith('hq-dashboard:token:')) return `token ${actor.slice(19, 27)}`;
   if (actor.startsWith('hq-dashboard:session')) return 'dashboard sign-in';
   return actor;
-}
-
-export interface SecretFormInput {
-  providerId: string;
-  label: string;
-  apiKey: string;
-}
-
-/** The first problem with a new-key form, or null when it can be sent. */
-export function secretFormError(input: SecretFormInput): string | null {
-  if (!PROVIDER_ID_PATTERN.test(input.providerId.trim())) {
-    return 'Provider id: letters, digits and . _ : - (for example openai or anthropic).';
-  }
-  if (input.label.trim() === '') return 'Name the key.';
-  if (input.label.trim().length > 80) return 'Keep the name under 80 characters.';
-  if (input.apiKey.trim() === '') return 'Paste the key.';
-  return null;
 }

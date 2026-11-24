@@ -26,9 +26,10 @@ export function parseNodeDependencies(content: string): DetectedDependency[] {
     if (!isRecord(manifest)) return [];
     const dependencies = new Map<string, DetectedDependency>();
     collectDependencies(manifest.devDependencies, true, dependencies);
-    collectDependencies(manifest.optionalDependencies, false, dependencies);
     collectDependencies(manifest.peerDependencies, false, dependencies);
     collectDependencies(manifest.dependencies, false, dependencies);
+    // npm gives optionalDependencies precedence over a same-named runtime dependency.
+    collectDependencies(manifest.optionalDependencies, false, dependencies);
     return [...dependencies.values()].sort((left, right) => left.name.localeCompare(right.name));
   } catch {
     return [];

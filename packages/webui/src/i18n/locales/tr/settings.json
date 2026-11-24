@@ -1362,5 +1362,25 @@
     "logContentHint": "Gönderilen durumu, sorunun tam ifadesini ve dağılımlarıyla birlikte yanıtları Jev günlük dosyasına yazar. Bu görünüm her iki modda da yalnızca meta veri gösterir ve hesap anahtarı temizlenir. İşiniz bitince kapatın. Kaydedin ve mevcut oturumları yeniden başlatın.",
     "logContentOn": "Tam istek/yanıt içeriği bu dosyaya kaydedilir. Burada hiçbir zaman gösterilmez.",
     "logContentOff": "Yalnızca meta veri. Tam istek/yanıt içeriği kaydedilmez."
+  },
+  "hq": {
+    "heading": "HQ’dan içe aktar",
+    "body": "Provider’ları ve anahtarlarını WrongStack HQ’dan al. HQ saklar; bu makine onları kendi anahtarına mühürlü olarak alır.",
+    "notEnrolled": "Bu makine henüz bir HQ’ya bağlı değil. HQ’da System → Providers → Devices → “Enroll a device” bölümünü aç, sonra adresi ve kodu buraya yapıştır.",
+    "hqUrl": "HQ adresi",
+    "token": "Kayıt kodu",
+    "enroll": "HQ’ya bağlan",
+    "connected": "{{url}} adresine bağlı",
+    "fingerprints": "HQ {{hq}} · bu makine {{device}}",
+    "granted_one": "{{count}} provider verildi",
+    "granted_other": "{{count}} provider verildi",
+    "noneGranted": "HQ bu makineye henüz provider vermedi.",
+    "importAll": "Hepsini içe aktar",
+    "sync": "Eşitle",
+    "disconnect": "Bağlantıyı kes",
+    "disconnectRemove": "Bağlantıyı kes ve HQ provider’larını kaldır",
+    "badge": "HQ",
+    "badgeHint": "HQ yönetiyor — endpoint ya da model değişiklikleri bir sonraki eşitlemede değiştirilir.",
+    "unavailable": "Bu sunucuda HQ istemcisi yok."
   }
 }

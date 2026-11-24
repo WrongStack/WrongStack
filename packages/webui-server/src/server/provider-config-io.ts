@@ -8,7 +8,6 @@
  * with no side-channel state.
  */
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import { ConfigError, type ProviderConfig, type SecretVault } from '@wrongstack/contracts/types';
 import {
   decryptConfigSecrets,
@@ -22,6 +21,7 @@ import {
   removeProviderFallbackReferences,
   validateProviderConfigShape,
 } from '@wrongstack/providers';
+import { globalRootForConfigPath } from './global-root.js';
 
 const snapshots = new ProviderConfigSnapshots();
 let writeChain: Promise<void> = Promise.resolve();
@@ -31,11 +31,7 @@ function stripConfigBom(raw: string): string {
   return raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
 }
 
-function globalRootForConfigPath(configPath: string): string {
-  const configDir = path.dirname(configPath);
-  const profilesDir = path.dirname(configDir);
-  return path.basename(profilesDir) === 'profiles' ? path.dirname(profilesDir) : configDir;
-}
+export { globalRootForConfigPath };
 
 /** Atomic credential/model updates share the provider CRUD writer queue and lock. */
 export async function mutateSavedProviders(

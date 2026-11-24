@@ -7,6 +7,7 @@ import { clientId } from '../lib/ids';
 import { record, rows, text } from '../lib/session';
 import type { SessionController } from '../lib/use-session';
 import { Modal } from './dialogs';
+import { HqBadge, HqImportPanel } from './hq-import';
 import { usePresentation } from './presentation-mode';
 import { EmptyArtwork } from './vibe-visuals';
 
@@ -17,6 +18,7 @@ interface SavedProvider {
   baseUrl: string;
   models: string[];
   keys: { label: string; masked: string; active: boolean }[];
+  hq: boolean;
 }
 interface Strategy {
   id: string;
@@ -84,6 +86,7 @@ export function ProviderManager({
               models: Array.isArray(v.models)
                 ? v.models.filter((m): m is string => typeof m === 'string')
                 : [],
+              hq: text(record(v.hq).profileId) !== '',
               keys: rows(v.apiKeys).map((k) => ({
                 label: text(k.label),
                 masked: text(k.maskedKey),
@@ -319,6 +322,7 @@ export function ProviderManager({
                 No accounts match “{query}”. Try another name.
               </p>
             )}
+          <HqImportPanel controller={controller} />
           <div className="provider-cards">
             {saved
               .filter((p) => `${p.id} ${p.type}`.toLowerCase().includes(query.toLowerCase()))
@@ -436,7 +440,10 @@ function ProviderCard({
             {provider.id.slice(0, 2).toUpperCase()}
           </span>
           <div>
-            <strong>{provider.id}</strong>
+            <strong>
+              {provider.id}
+              <HqBadge hq={provider.hq} />
+            </strong>
             <small>
               {provider.type || provider.family}
               {current && ' · Current model provider'}

@@ -368,6 +368,91 @@ describe('createMailboxMcpToolHost', () => {
     expect(emitter.subscriberCount).toBe(0);
   });
 
+  it('shows fan-out mail to a scoped watcher and hides leaders-only mail from a member', async () => {
+    const watch = async (
+      actorRole: string | undefined,
+      event: { messageId: string; from: string; to: string; audience?: 'all' | 'leaders' },
+    ) => {
+      const emitter = new MailboxEventEmitter();
+      const host = createMailboxMcpToolHost(backend(), emitter, {
+        actor: 'worker-1',
+        sessionId: 'sess-1',
+        ...(actorRole ? { actorRole } : {}),
+      });
+      const pending = host.callTool('mailbox_watch', {
+        eventType: 'message.sent',
+        timeoutMs: 300,
+      });
+      await vi.waitFor(() => expect(emitter.subscriberCount).toBe(1));
+      emitter.emit({
+        type: 'message.sent',
+        timestamp: '2026-11-24T00:00:00.000Z',
+        ...event,
+      });
+      return pending;
+    };
+
+    await expect(
+      watch(undefined, {
+        messageId: 'direct',
+        from: 'other',
+        to: 'worker-1',
+        audience: 'all',
+      }),
+    ).resolves.toMatchObject({
+      content: { changed: true, event: { messageId: 'direct' } },
+      isError: false,
+    });
+
+    await expect(
+      watch(undefined, {
+        messageId: 'foreign',
+        from: 'other',
+        to: 'someone-else',
+        audience: 'all',
+      }),
+    ).resolves.toMatchObject({
+      content: { changed: false, timedOut: true },
+      isError: false,
+    });
+
+    await expect(
+      watch(undefined, {
+        messageId: 'broadcast',
+        from: 'other',
+        to: '*',
+        audience: 'all',
+      }),
+    ).resolves.toMatchObject({
+      content: { changed: true, event: { messageId: 'broadcast' } },
+      isError: false,
+    });
+
+    await expect(
+      watch(undefined, {
+        messageId: 'leaders-only',
+        from: 'leader',
+        to: 'worker-1',
+        audience: 'leaders',
+      }),
+    ).resolves.toMatchObject({
+      content: { changed: false, timedOut: true },
+      isError: false,
+    });
+
+    await expect(
+      watch('leader', {
+        messageId: 'leaders-broadcast',
+        from: 'other',
+        to: '*',
+        audience: 'leaders',
+      }),
+    ).resolves.toMatchObject({
+      content: { changed: true, event: { messageId: 'leaders-broadcast' } },
+      isError: false,
+    });
+  });
+
   it('cancels a Mailbox watch and removes its subscription immediately', async () => {
     const emitter = new MailboxEventEmitter();
     const controller = new AbortController();

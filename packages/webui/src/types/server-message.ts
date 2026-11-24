@@ -163,6 +163,7 @@ import type {
   WSDiagGet,
   WSFallbackSuggestions,
   WSFilesList,
+  WSHqState,
   WSKeyOperationResult,
   WSModelSwitchResult,
   WSProviderCatalog,
@@ -392,6 +393,7 @@ export type WSServerMessage =
   | WSModelSwitchResult
   | WSAuthOAuthStatus
   | WSAuthOAuthProviders
+  | WSHqState
   | WSFilesList
   | WSFilesGitServerMessage
   | WSCompletionResult

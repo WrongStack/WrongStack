@@ -6,6 +6,7 @@ import { modelsDevModelSchema } from '@wrongstack/core/models';
 import { getAllProviderQuota, withQuotaPace } from '@wrongstack/core/quota';
 import type { WebSocket } from 'ws';
 import { correlatedReply } from './correlated-reply.js';
+import { dispatchHqRoute } from './provider/hq-routes.js';
 import type { ProviderRouteHandlers } from './provider-route-types.js';
 import type { WSClientMessage } from './types.js';
 import { errMessage, runWithOperationRequest, send, sendResult } from './ws-utils.js';
@@ -203,6 +204,8 @@ export async function handleProviderRoute(
     msg.type === 'acp.config_options'
   )
     ws = correlatedReply(ws, msg.payload, [msg.type, 'key.operation_result']).socket;
+  else if (msg.type.startsWith('hq.'))
+    ws = correlatedReply(ws, msg.payload, ['hq.state', 'key.operation_result']).socket;
   else if (msg.type.startsWith('auth.oauth.'))
     ws = correlatedReply(ws, msg.payload, [
       'auth.oauth.providers',
@@ -236,6 +239,7 @@ async function dispatchProviderRoute(
   msg: WSClientMessage,
   routes: ProviderRouteHandlers,
 ): Promise<boolean> {
+  if (msg.type.startsWith('hq.')) return dispatchHqRoute(ws, msg, routes.providerHandlers);
   switch (msg.type) {
     case 'acp.config_options': {
       const payload = asPayloadRecord(msg);

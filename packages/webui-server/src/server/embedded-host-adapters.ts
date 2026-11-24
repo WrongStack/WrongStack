@@ -56,6 +56,8 @@ export interface EmbeddedProviderContext extends EmbeddedHostTransport {
   getDisabledProviders?: (() => readonly string[]) | undefined;
   /** Providers the host serves itself (the CLI's ACP leader), listed beside the saved ones. */
   hostProviders?: (() => readonly HostProvider[]) | undefined;
+  /** This machine's HQ key-vault client, built by the host with its own config writer. */
+  hqCredentials?: import('@wrongstack/hq').HqCredentialService | undefined;
 }
 
 export interface EmbeddedAgentConfigContext extends EmbeddedHostTransport {
@@ -196,6 +198,7 @@ export function createEmbeddedProviderOperations(ctx: EmbeddedProviderContext) {
     getDisabledModels: ctx.getDisabledModels,
     getDisabledProviders: ctx.getDisabledProviders,
     hostProviders: ctx.hostProviders,
+    hqCredentials: ctx.hqCredentials,
     log: ctx.log,
   });
 }

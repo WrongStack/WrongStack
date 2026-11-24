@@ -55,7 +55,8 @@ describe('surface protocol contract', () => {
     // +4: design.draw / design.kept / design.photos / design.snapshot (Design Studio).
     // +2: btw.add / btw.get (a BTW note delivered as a same-session user instruction).
     // +1: tools.group.set (turn a session's tool group on or off).
-    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(322);
+    // +5: hq.status / hq.enroll / hq.import / hq.sync / hq.unenroll (Import from HQ).
+    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(327);
     expect(CLIENT_MESSAGE_TYPES).toContain('acp.config_options');
     expect(CLIENT_MESSAGE_TYPES).toEqual(expect.arrayContaining(['mcp.tools', 'mcp.tool.call']));
     expect(CLIENT_MESSAGE_TYPES).toEqual(
@@ -94,7 +95,8 @@ describe('surface protocol contract', () => {
     //     (plugin api.ui chips, toasts and prompt modals).
     // +4: design.draw / design.kept / design.photos / design.snapshot (Design Studio).
     // +1: btw.state (pending same-session BTW instructions).
-    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(333);
+    // +1: hq.state (Import from HQ).
+    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(334);
     expect(SERVER_MESSAGE_TYPES).toContain('acp.config_options');
     expect(SERVER_MESSAGE_TYPES).toEqual(expect.arrayContaining(['mcp.tools', 'mcp.tool.result']));
     expect(SERVER_MESSAGE_TYPES).toContain('provider.primary_restored');

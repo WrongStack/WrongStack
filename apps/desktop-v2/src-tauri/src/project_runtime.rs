@@ -294,6 +294,7 @@ impl HostState {
             && (kind == "prefs.update"
                 || kind == "model.switch"
                 || kind.starts_with("key.")
+                || kind.starts_with("hq.")
                 || [
                     "provider.add",
                     "provider.update",

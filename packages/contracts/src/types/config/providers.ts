@@ -80,8 +80,29 @@ export interface ProviderApiKeySource {
   keyId: string;
   /** Vault version this copy holds; a higher one on HQ means it was rotated. */
   version: number;
-  /** The grant that delivered it. */
-  grantId: string;
+  /** The vault profile holding it — what a renewal asks HQ for. */
+  profileId?: string | undefined;
+}
+
+/**
+ * `hq`: the whole provider profile is owned by an HQ key vault — HQ defines its
+ * type, endpoint, model list, keys and active key, and `wstack hq sync` keeps it
+ * in step (and removes it when HQ stops granting it). A locally created profile
+ * never carries this and is never touched by sync.
+ */
+export interface ProviderConfigSource {
+  kind: 'hq';
+  hqId: string;
+  /** The profile's id in that vault (the local id may differ: `<id>-hq`). */
+  profileId: string;
+  /** Vault profile version this copy reflects. */
+  version: number;
+  /**
+   * HQ's active key label as last applied here. The local active key follows
+   * HQ only when HQ's choice differs from this — a key refreshed or replaced
+   * on HQ never undoes a switch made on this machine.
+   */
+  activeKey?: string | undefined;
 }
 
 export interface ProviderConfig {
@@ -167,6 +188,8 @@ export interface ProviderConfig {
    * capability overrides. The model id is the key, not a fully qualified id.
    */
   customModels?: Record<string, CustomModelDefinition>;
+  /** Set when an HQ key vault owns this profile; see {@link ProviderConfigSource}. */
+  source?: ProviderConfigSource | undefined;
   // A generic `oauthConfig` block (clientId / deviceCodeEndpoint /
   // tokenEndpoint / authorizationEndpoint / scopes) was declared here and
   // documented as what `wstack auth login <id>` uses instead of an API-key

@@ -1,7 +1,12 @@
 /**
- * HQ key vault wire protocol — the shapes a device and HQ exchange over
- * `POST /api/vault/enroll` and `POST /api/vault/fetch`, plus the metadata the
+ * HQ key vault wire protocol — what a device and HQ exchange over
+ * `POST /api/vault/enroll` and `POST /api/vault/fetch`, and the metadata the
  * dashboard reads.
+ *
+ * The unit HQ manages and grants is a **provider profile** — the same shape a
+ * machine's config holds under `providers.<id>`: a type, family, endpoint,
+ * model list, its keys (API keys and OAuth sign-ins) and which one is active.
+ * A device granted a profile receives all of it.
  *
  * Nothing here travels through the HQ command queue: `commands.jsonl` audits
  * command payloads and acks, and browsers receive them. Vault material moves
@@ -9,25 +14,48 @@
  */
 import type { HqSealedBox } from './crypto.js';
 
-export const HQ_VAULT_PROTOCOL_VERSION = 1;
+export const HQ_VAULT_PROTOCOL_VERSION = 2;
 
-/** The only credential kind P0 stores; OAuth leases arrive with central refresh. */
-export type HqVaultSecretKind = 'api_key';
-
-/** `local`: the device keeps it in its own vault. `lease`: memory only, until `leaseExpiresAt`. */
-export type HqVaultGrantPolicy = 'local' | 'lease';
+export type HqVaultKeyAuthMethod = 'api_key' | 'oauth';
 
 export type HqVaultDeviceStatus = 'pending' | 'approved' | 'revoked';
 
-/** Secret metadata — never the value. */
-export interface HqVaultSecretMeta {
+/** A key's metadata — never the value. */
+export interface HqVaultKeyMeta {
   id: string;
-  providerId: string;
   label: string;
-  kind: HqVaultSecretKind;
+  authMethod: HqVaultKeyAuthMethod;
+  /** Last characters of the value, for recognising it (e.g. `…f3a9`). Not secret. */
+  hint: string;
   version: number;
   createdAt: string;
   updatedAt: string;
+  /** OAuth: when the current access token expires (HQ refreshes before then). */
+  expiresAt?: string;
+  /** OAuth: account id the provider reported, for display. */
+  accountId?: string;
+  /** OAuth: the account's own strategy id, as the provider code reads it (`xai`, `kimi`, …). */
+  oauthStrategyId?: string;
+  /** OAuth: the sign-in HQ ran to make it (`chatgpt`, `copilot`, …); picks HQ's refresher. */
+  signIn?: string;
+}
+
+/** A provider profile as the dashboard sees it. */
+export interface HqVaultProfileMeta {
+  id: string;
+  /** Catalog provider id (or the id itself for a custom provider). */
+  type: string;
+  family?: string;
+  baseUrl?: string;
+  envVars?: string[];
+  models?: string[];
+  activeKey?: string;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  keys: HqVaultKeyMeta[];
+  /** Devices this profile is granted to. */
+  deviceIds: string[];
 }
 
 export interface HqVaultDeviceRecord {
@@ -44,16 +72,11 @@ export interface HqVaultDeviceRecord {
   lastFetchAt?: string;
 }
 
+/** A profile granted to a device. */
 export interface HqVaultGrantRecord {
   id: string;
-  secretId: string;
+  profileId: string;
   deviceId: string;
-  policy: HqVaultGrantPolicy;
-  /** Make this key the provider's active key on import. */
-  setActive: boolean;
-  /** Lease length for `policy: 'lease'`, seconds. */
-  leaseTtlSeconds?: number;
-  expiresAt?: string;
   createdAt: string;
 }
 
@@ -100,52 +123,75 @@ export type HqVaultFetchMode = 'list' | 'fetch';
  * signature over every other member plus `purpose: HQ_VAULT_FETCH_PURPOSE`.
  */
 export interface HqVaultFetchRequest {
-  v: 1;
+  v: 2;
   deviceId: string;
   ts: string;
   nonce: string;
   mode: HqVaultFetchMode;
-  secretIds?: string[];
+  /** Only these profiles (default: every granted one). */
+  profileIds?: string[];
   sig: string;
 }
 
-export const HQ_VAULT_FETCH_PURPOSE = 'wstack-hq-vault/v1/fetch';
-export const HQ_VAULT_BUNDLE_PURPOSE = 'wstack-hq-vault/v1/bundle';
+export const HQ_VAULT_FETCH_PURPOSE = 'wstack-hq-vault/v2/fetch';
+export const HQ_VAULT_BUNDLE_PURPOSE = 'wstack-hq-vault/v2/bundle';
 
-export interface HqVaultBundleItem {
-  secretId: string;
-  providerId: string;
+/**
+ * The secret members of a key, sealed to the device. A device never receives
+ * an OAuth refresh token: HQ is the only refresher and the device gets the
+ * current access token in `apiKey`.
+ */
+export interface HqVaultSealedKeyFields {
+  apiKey: string;
+  tokenType?: string;
+  scope?: string;
+  project?: string;
+}
+
+export interface HqVaultBundleKey {
+  id: string;
   label: string;
-  kind: HqVaultSecretKind;
+  authMethod: HqVaultKeyAuthMethod;
   version: number;
-  grantId: string;
-  policy: HqVaultGrantPolicy;
-  setActive: boolean;
-  leaseExpiresAt?: string;
-  /** Absent in `list` mode. Opens to JSON `{ "apiKey": string }`. */
+  expiresAt?: string;
+  accountId?: string;
+  oauthStrategyId?: string;
+  /** Absent in `list` mode. Opens to JSON {@link HqVaultSealedKeyFields}. */
   sealed?: HqSealedBox;
+}
+
+export interface HqVaultBundleProfile {
+  id: string;
+  type: string;
+  family?: string;
+  baseUrl?: string;
+  envVars?: string[];
+  models?: string[];
+  activeKey?: string;
+  version: number;
+  keys: HqVaultBundleKey[];
 }
 
 /** HQ's signed answer. `sig` covers every other member plus `purpose: HQ_VAULT_BUNDLE_PURPOSE`. */
 export interface HqVaultBundle {
-  v: 1;
+  v: 2;
   hqId: string;
   deviceId: string;
   issuedAt: string;
   requestNonce: string;
   mode: HqVaultFetchMode;
-  items: HqVaultBundleItem[];
+  profiles: HqVaultBundleProfile[];
   sig: string;
 }
 
-/** The associated data a bundle item is sealed under. */
-export function hqVaultItemAad(item: {
+/** The associated data a bundle key is sealed under. */
+export function hqVaultKeyAad(item: {
   deviceId: string;
-  secretId: string;
+  profileId: string;
+  keyId: string;
   version: number;
-  grantId: string;
 }): string {
-  return `wstack-hq-vault/v1|${item.deviceId}|${item.secretId}|${item.version}|${item.grantId}`;
+  return `wstack-hq-vault/v2|${item.deviceId}|${item.profileId}|${item.keyId}|${item.version}`;
 }
 
 /**

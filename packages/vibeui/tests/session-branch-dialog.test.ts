@@ -211,6 +211,17 @@ describe('VibeUI session branch dialog', () => {
     expect(branchButton('main')).toBeUndefined();
   });
 
+  it('keeps the dialog usable when a branch descriptor is malformed', async () => {
+    const fake = fakeController();
+    mount(fake.controller);
+    await fake.reply({
+      message: JSON.stringify({ activeBranchId: 'main', headSeq: 0, branches: { main: null } }),
+    });
+    expect(dialog()!.textContent).toContain('Single main branch active. Fork a new branch below.');
+    expect(branchButton('main')).toBeUndefined();
+    expect(button('Create branch')).toBeDefined();
+  });
+
   it('reports an offline workspace without sending anything', async () => {
     const fake = fakeController({ connection: 'closed' });
     await act(async () => {

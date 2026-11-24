@@ -67,6 +67,7 @@ export {
 export { COPILOT_PROVIDER_ID, isUsableCopilotChatModel } from './copilot.js';
 export { beginOAuthLogin, OAUTH_PROVIDER_IDS } from './legacy.js';
 export { createOpenRouterAuthStrategy } from './openrouter.js';
+export { RENEWABLE_SIGN_INS, renewStoredOAuthCredential } from './renew-stored.js';
 export {
   base64url,
   callbackHtml,

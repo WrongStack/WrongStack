@@ -5,15 +5,23 @@
  *   GET    /api/vault/status
  *   POST   /api/vault/elevate                 password (+ TOTP when enabled) → 10 min step-up
  *   POST   /api/vault/unseal                  passphrase-protected vault after a restart
- *   GET    /api/vault/secrets                 metadata only, never a value
- *   POST   /api/vault/secrets                 { providerId, label, apiKey }
- *   POST   /api/vault/secrets/:id/rotate      { apiKey }
- *   DELETE /api/vault/secrets/:id
+ *   GET    /api/vault/catalog                 providers a profile can be made from
+ *   GET    /api/vault/profiles                metadata only, never a value
+ *   GET    /api/vault/profiles/:id
+ *   POST   /api/vault/profiles                { id, type?, family?, baseUrl?, envVars?, models?, apiKey?, keyLabel? }
+ *   PATCH  /api/vault/profiles/:id            { type?, family?, baseUrl?, envVars?, models?, activeKey? } (null clears)
+ *   DELETE /api/vault/profiles/:id
+ *   POST   /api/vault/profiles/:id/keys       { label, apiKey } adds, or replaces the key with that label
+ *   DELETE /api/vault/profiles/:id/keys/:keyId
+ *   PUT    /api/vault/profiles/:id/devices/:deviceId  { granted }
+ *   GET    /api/vault/oauth/strategies        sign-ins HQ can run (ChatGPT, GitHub Copilot, …)
+ *   POST   /api/vault/oauth                   { strategyId, profileId? } → attempt (browser URL / device code)
+ *   GET    /api/vault/oauth/:attemptId        poll
+ *   POST   /api/vault/oauth/:attemptId/code   { input } — paste the redirected URL or code
+ *   DELETE /api/vault/oauth/:attemptId        cancel
  *   GET    /api/vault/devices
  *   POST   /api/vault/devices/:id/approve | /revoke
  *   GET    /api/vault/grants
- *   POST   /api/vault/grants                  { secretId, deviceId, policy?, setActive?, leaseTtlSeconds?, expiresAt? }
- *   DELETE /api/vault/grants/:id
  *   POST   /api/vault/enrollment-codes        { label?, autoApprove? } → one-time enrollment token
  *
  * Device routes — no browser credential; exempt from the router's auth gate:
@@ -40,11 +48,13 @@
 import { createHash } from 'node:crypto';
 import type * as http from 'node:http';
 import type { TLSSocket } from 'node:tls';
+import type { ModelsRegistry } from '@wrongstack/contracts/types';
 import {
   formatHqVaultEnrollmentToken,
   type HqVaultEnrollRequest,
   HqVaultError,
   type HqVaultFetchRequest,
+  type HqVaultRefresher,
   HqVaultStore,
   hqVaultPassphraseFromEnv,
   verifyHqPassword,
@@ -66,6 +76,14 @@ import {
   recordVerifyFailure,
   requireAdminCredential,
 } from './auth/common.js';
+import { createHqVaultModelsRegistry, listHqVaultCatalog } from './vault-catalog.js';
+import {
+  createHqVaultAuthRegistry,
+  type HqVaultAuthRegistry,
+  HqVaultSignInError,
+  HqVaultSignIns,
+  hqVaultRefresher,
+} from './vault-oauth.js';
 
 export const HQ_VAULT_ELEVATION_MS = 10 * 60_000;
 const BODY_LIMIT = 64 * 1024;
@@ -87,12 +105,43 @@ export interface HqVaultRouteDeps {
  */
 export class HqVaultRouteState {
   private storePromise: Promise<HqVaultStore> | undefined;
+  private registry: ModelsRegistry | undefined;
+  private signInState: HqVaultSignIns | undefined;
   private readonly elevations = new Map<string, number>();
 
   constructor(
     private readonly dataDir: string,
     private readonly now: () => number = Date.now,
+    private readonly makeRegistry: () => ModelsRegistry = createHqVaultModelsRegistry,
+    private readonly makeAuthRegistry: () => HqVaultAuthRegistry = createHqVaultAuthRegistry,
+    private readonly makeRefresher: () => HqVaultRefresher = () => hqVaultRefresher,
   ) {}
+
+  /** Renews OAuth keys about to expire, inside an authenticated device fetch. */
+  refresher(): HqVaultRefresher {
+    return this.makeRefresher();
+  }
+
+  /** Sign-in attempts, saved onto `store` when they finish. */
+  signIns(store: HqVaultStore): HqVaultSignIns {
+    this.signInState ??= new HqVaultSignIns(
+      this.makeAuthRegistry(),
+      (input, actor) => store.saveSignIn(input, actor),
+      () => this.modelsRegistry(),
+      this.now,
+    );
+    return this.signInState;
+  }
+
+  /** Close open sign-in sessions (their loopback listeners) on shutdown. */
+  close(): void {
+    this.signInState?.close();
+  }
+
+  modelsRegistry(): ModelsRegistry {
+    this.registry ??= this.makeRegistry();
+    return this.registry;
+  }
 
   store(): Promise<HqVaultStore> {
     if (!this.storePromise) {
@@ -201,10 +250,16 @@ function actorOf(auth: NonNullable<HqBrowserAuthResult>): string {
     : `hq-dashboard:session${auth.tokenId ? `:token:${auth.tokenId}` : ''}`;
 }
 
-const SECRET_ONE = /^\/api\/vault\/secrets\/([0-9a-f-]{36})$/;
-const SECRET_ROTATE = /^\/api\/vault\/secrets\/([0-9a-f-]{36})\/rotate$/;
+const PROFILE_SEGMENT = '([A-Za-z0-9][A-Za-z0-9._:-]{0,63})';
+const PROFILE_ONE = new RegExp(`^/api/vault/profiles/${PROFILE_SEGMENT}$`);
+const PROFILE_KEYS = new RegExp(`^/api/vault/profiles/${PROFILE_SEGMENT}/keys$`);
+const PROFILE_KEY_ONE = new RegExp(`^/api/vault/profiles/${PROFILE_SEGMENT}/keys/([0-9a-f-]{36})$`);
+const PROFILE_DEVICE = new RegExp(
+  `^/api/vault/profiles/${PROFILE_SEGMENT}/devices/([0-9a-f]{32})$`,
+);
+const OAUTH_ONE = /^\/api\/vault\/oauth\/([0-9a-f]{24})$/;
+const OAUTH_CODE = /^\/api\/vault\/oauth\/([0-9a-f]{24})\/code$/;
 const DEVICE_ACTION = /^\/api\/vault\/devices\/([0-9a-f]{32})\/(approve|revoke)$/;
-const GRANT_ONE = /^\/api\/vault\/grants\/([0-9a-f-]{36})$/;
 
 /** Paths a device reaches without a browser credential. */
 export function isHqVaultDevicePath(pathname: string): boolean {
@@ -290,6 +345,15 @@ export async function handleApiVault(
     return true;
   }
 
+  if (pathname === '/api/vault/catalog' && isRead) {
+    try {
+      writeJson(res, 200, { providers: await listHqVaultCatalog(deps.vault.modelsRegistry()) });
+    } catch {
+      writeError(res, 503, 'CATALOG_UNAVAILABLE', 'The provider catalog could not be loaded.');
+    }
+    return true;
+  }
+
   let store: HqVaultStore;
   try {
     store = await deps.vault.store();
@@ -304,15 +368,31 @@ export async function handleApiVault(
   }
 
   if (isRead) {
-    if (pathname === '/api/vault/secrets') writeJson(res, 200, { secrets: store.listSecrets() });
-    else if (pathname === '/api/vault/devices')
+    const profileOne = pathname.match(PROFILE_ONE);
+    const oauthOne = pathname.match(OAUTH_ONE);
+    if (pathname === '/api/vault/oauth/strategies') {
+      writeJson(res, 200, { strategies: deps.vault.signIns(store).strategies() });
+    } else if (oauthOne) {
+      try {
+        writeJson(res, 200, deps.vault.signIns(store).view(oauthOne[1]!));
+      } catch (error) {
+        writeSignInFailure(res, error);
+      }
+    } else if (pathname === '/api/vault/profiles')
+      writeJson(res, 200, { profiles: store.listProfiles() });
+    else if (profileOne) {
+      try {
+        writeJson(res, 200, { profile: store.getProfile(profileOne[1]!) });
+      } catch (error) {
+        writeVaultFailure(res, error);
+      }
+    } else if (pathname === '/api/vault/devices')
       writeJson(res, 200, { devices: store.listDevices() });
     else if (pathname === '/api/vault/grants') writeJson(res, 200, { grants: store.listGrants() });
     else if (pathname === '/api/vault/audit') {
       const limit = Number.parseInt(url.searchParams.get('limit') ?? '200', 10);
       writeJson(res, 200, { entries: await store.readAudit(Number.isFinite(limit) ? limit : 200) });
-    }
-    else writeError(res, 404, 'NOT_FOUND', 'Unknown vault route.');
+    } else writeError(res, 404, 'NOT_FOUND', 'Unknown vault route.');
     return true;
   }
 
@@ -326,59 +406,62 @@ export async function handleApiVault(
     return true;
   }
 
+  if (pathname === '/api/vault/oauth' || pathname.startsWith('/api/vault/oauth/')) {
+    await handleSignInWrite(req, res, pathname, deps.vault.signIns(store), store, actor);
+    return true;
+  }
+
   try {
-    if (pathname === '/api/vault/secrets' && req.method === 'POST') {
+    if (pathname === '/api/vault/profiles' && req.method === 'POST') {
       const body = await readJsonObject(req, res);
       if (!body) return true;
-      writeJson(res, 201, {
-        secret: await store.createSecret(
-          { providerId: body.providerId, label: body.label, apiKey: body.apiKey },
-          actor,
-        ),
-      });
+      writeJson(res, 201, { profile: await store.createProfile(body, actor) });
       return true;
     }
-    const rotate = pathname.match(SECRET_ROTATE);
-    if (rotate && req.method === 'POST') {
+    const profileOne = pathname.match(PROFILE_ONE);
+    if (profileOne && req.method === 'PATCH') {
       const body = await readJsonObject(req, res);
       if (!body) return true;
-      writeJson(res, 200, { secret: await store.rotateSecret(rotate[1]!, body.apiKey, actor) });
+      writeJson(res, 200, { profile: await store.updateProfile(profileOne[1]!, body, actor) });
       return true;
     }
-    const secretOne = pathname.match(SECRET_ONE);
-    if (secretOne && req.method === 'DELETE') {
-      await store.deleteSecret(secretOne[1]!, actor);
+    if (profileOne && req.method === 'DELETE') {
+      await store.deleteProfile(profileOne[1]!, actor);
       writeJson(res, 200, { deleted: true });
+      return true;
+    }
+    const profileKeys = pathname.match(PROFILE_KEYS);
+    if (profileKeys && req.method === 'POST') {
+      const body = await readJsonObject(req, res);
+      if (!body) return true;
+      // Only a label and a value: OAuth keys (with their refresh tokens) are
+      // made by HQ's own sign-in flow, never pasted.
+      const { label, apiKey } = body;
+      writeJson(res, 200, { key: await store.setKey(profileKeys[1]!, { label, apiKey }, actor) });
+      return true;
+    }
+    const keyOne = pathname.match(PROFILE_KEY_ONE);
+    if (keyOne && req.method === 'DELETE') {
+      await store.deleteKey(keyOne[1]!, keyOne[2]!, actor);
+      writeJson(res, 200, { deleted: true });
+      return true;
+    }
+    const profileDevice = pathname.match(PROFILE_DEVICE);
+    if (profileDevice && req.method === 'PUT') {
+      const body = await readJsonObject(req, res);
+      if (!body) return true;
+      if (typeof body.granted !== 'boolean') {
+        writeError(res, 400, 'BAD_REQUEST', 'granted must be true or false.');
+        return true;
+      }
+      await store.setGrant(profileDevice[1]!, profileDevice[2]!, body.granted, actor);
+      writeJson(res, 200, { profile: store.getProfile(profileDevice[1]!) });
       return true;
     }
     const device = pathname.match(DEVICE_ACTION);
     if (device && req.method === 'POST') {
       const status = device[2] === 'approve' ? 'approved' : 'revoked';
       writeJson(res, 200, { device: await store.setDeviceStatus(device[1]!, status, actor) });
-      return true;
-    }
-    if (pathname === '/api/vault/grants' && req.method === 'POST') {
-      const body = await readJsonObject(req, res);
-      if (!body) return true;
-      writeJson(res, 201, {
-        grant: await store.createGrant(
-          {
-            secretId: body.secretId,
-            deviceId: body.deviceId,
-            policy: body.policy,
-            setActive: body.setActive,
-            leaseTtlSeconds: body.leaseTtlSeconds,
-            expiresAt: body.expiresAt,
-          },
-          actor,
-        ),
-      });
-      return true;
-    }
-    const grantOne = pathname.match(GRANT_ONE);
-    if (grantOne && req.method === 'DELETE') {
-      await store.revokeGrant(grantOne[1]!, actor);
-      writeJson(res, 200, { revoked: true });
       return true;
     }
     if (pathname === '/api/vault/enrollment-codes' && req.method === 'POST') {
@@ -402,6 +485,46 @@ export async function handleApiVault(
 
   writeError(res, 404, 'NOT_FOUND', 'Unknown vault route.');
   return true;
+}
+
+function writeSignInFailure(res: http.ServerResponse, error: unknown): void {
+  if (error instanceof HqVaultSignInError) writeError(res, error.status, error.code, error.message);
+  else writeVaultFailure(res, error);
+}
+
+async function handleSignInWrite(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  pathname: string,
+  signIns: HqVaultSignIns,
+  store: HqVaultStore,
+  actor: string,
+): Promise<void> {
+  try {
+    if (pathname === '/api/vault/oauth' && req.method === 'POST') {
+      const body = await readJsonObject(req, res);
+      if (!body) return;
+      // Fail before opening a browser flow when the vault cannot store the result.
+      if (store.state !== 'unsealed') throw new HqVaultError('VAULT_SEALED', 'vault is sealed');
+      writeJson(res, 201, await signIns.start(body.strategyId, body.profileId, actor));
+      return;
+    }
+    const code = pathname.match(OAUTH_CODE);
+    if (code && req.method === 'POST') {
+      const body = await readJsonObject(req, res);
+      if (!body) return;
+      writeJson(res, 200, await signIns.code(code[1]!, body.input, actor));
+      return;
+    }
+    const one = pathname.match(OAUTH_ONE);
+    if (one && req.method === 'DELETE') {
+      writeJson(res, 200, signIns.cancel(one[1]!));
+      return;
+    }
+    writeError(res, 404, 'NOT_FOUND', 'Unknown vault route.');
+  } catch (error) {
+    writeSignInFailure(res, error);
+  }
 }
 
 async function handleElevate(
@@ -512,7 +635,13 @@ async function handleDeviceRoute(
     if (pathname === '/api/vault/enroll') {
       writeJson(res, 200, await store.enroll(body as unknown as HqVaultEnrollRequest));
     } else {
-      writeJson(res, 200, await store.fetch(body as unknown as HqVaultFetchRequest));
+      writeJson(
+        res,
+        200,
+        await store.fetch(body as unknown as HqVaultFetchRequest, {
+          refresher: deps.vault.refresher(),
+        }),
+      );
     }
   } catch (error) {
     writeVaultFailure(res, error);

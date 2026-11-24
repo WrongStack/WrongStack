@@ -83,6 +83,14 @@ export interface ProviderMutationHandlers {
   handleOAuthCancel: (ws: WebSocket, kind: string, attemptId?: string) => void;
   handleOAuthList: (ws: WebSocket) => void;
   resolveOAuthStrategyId: (input: string) => string | undefined;
+  handleHqStatus: (ws: WebSocket) => Promise<void>;
+  handleHqEnroll: (
+    ws: WebSocket,
+    payload: { hqUrl: string; token: string; label?: string | undefined },
+  ) => Promise<void>;
+  handleHqImport: (ws: WebSocket, profileIds?: string[]) => Promise<void>;
+  handleHqSync: (ws: WebSocket) => Promise<void>;
+  handleHqUnenroll: (ws: WebSocket, removeKeys: boolean) => Promise<void>;
 }
 
 export interface ProviderRouteHandlers {

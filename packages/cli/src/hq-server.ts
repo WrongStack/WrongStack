@@ -685,6 +685,7 @@ async function startHqServerWithAuth(
               stopAlertEngine();
               void notify.close();
             },
+            stopRouter: handleRequest.close,
             authWatcher,
             snapshotBroadcaster,
             bootstrapStore,

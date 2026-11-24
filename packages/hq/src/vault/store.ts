@@ -1,7 +1,7 @@
 /**
- * HqVaultStore — HQ's encrypted credential store, device registry and grants.
+ * HqVaultStore — HQ's encrypted provider profiles, device registry and grants.
  *
- * File `<dataDir>/hq-vault.json` (owner-only). Every secret is encrypted under
+ * File `<dataDir>/hq-vault.json` (owner-only). Every key is encrypted under
  * its own data key; the data key is wrapped under the master key
  * (`master-key.ts`). HQ's own identity keys are encrypted the same way. The
  * file therefore holds no credential in the clear, and with a passphrase-wrapped
@@ -13,7 +13,6 @@
  * Single writer: one HQ process owns its data directory; mutations are
  * serialised through one in-process queue and written atomically.
  */
-import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import {
   generateHqVaultKeyPair,
@@ -24,7 +23,6 @@ import {
   hqVaultEnrollmentMacMatches,
   hqVaultFingerprint,
   hqVaultKeyId,
-  hqVaultSeal,
   hqVaultSign,
   hqVaultVerify,
   isHqVaultKeyString,
@@ -38,42 +36,47 @@ import {
   HQ_VAULT_BUNDLE_PURPOSE,
   HQ_VAULT_FETCH_PURPOSE,
   type HqVaultBundle,
-  type HqVaultBundleItem,
   type HqVaultDeviceRecord,
   type HqVaultEnrollRequest,
   type HqVaultEnrollResponse,
   type HqVaultFetchMode,
   type HqVaultFetchRequest,
-  type HqVaultGrantPolicy,
   type HqVaultGrantRecord,
   type HqVaultIdentity,
-  type HqVaultSecretKind,
-  type HqVaultSecretMeta,
-  hqVaultItemAad,
+  type HqVaultKeyMeta,
+  type HqVaultProfileMeta,
 } from './protocol.js';
+import { buildHqVaultBundleProfiles } from './store-bundle.js';
 import {
   HQ_VAULT_FETCH_SKEW_MS,
   HqVaultEnrollmentCodes,
   HqVaultNonceCache,
 } from './store-guards.js';
 import {
-  decryptHqVaultValue,
   emptyHqVaultFile,
-  encryptHqVaultValue,
   type HqVaultAuditEntry,
   HqVaultError,
   type HqVaultFile,
   HqVaultFileIO,
   type HqVaultState,
   type HqVaultStatus,
-  type HqVaultStoredSecret,
   hqVaultText,
 } from './store-model.js';
-
-const DEFAULT_LEASE_TTL_SECONDS = 3600;
-const MAX_LEASE_TTL_SECONDS = 7 * 86_400;
-const MAX_API_KEY_LENGTH = 16_384;
-const PROVIDER_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
+import {
+  applyHqVaultSignIn,
+  createHqVaultProfile,
+  deleteHqVaultKey,
+  deleteHqVaultProfile,
+  findHqVaultProfile,
+  type HqVaultSignInResult,
+  hqVaultKeyMeta,
+  hqVaultProfileMeta,
+  parseHqVaultKeyInput,
+  setHqVaultGrant,
+  updateHqVaultProfile,
+  upsertHqVaultKey,
+} from './store-profiles.js';
+import { dueHqVaultKeys, type HqVaultRefresher, renewHqVaultKey } from './store-refresh.js';
 
 export interface HqVaultStoreOptions {
   now?: () => number;
@@ -140,7 +143,8 @@ export class HqVaultStore {
       passphraseProtected: this.passphraseProtected,
       ...(identity ? { identity } : {}),
       counts: {
-        secrets: this.file.secrets.length,
+        profiles: this.file.profiles.length,
+        keys: this.file.profiles.reduce((n, p) => n + p.keys.length, 0),
         devices: this.file.devices.filter((d) => d.status !== 'revoked').length,
         pendingDevices: this.file.devices.filter((d) => d.status === 'pending').length,
         grants: this.file.grants.length,
@@ -169,92 +173,117 @@ export class HqVaultStore {
     await this.audit({ kind: 'unseal', actor });
   }
 
-  // ── Secrets ───────────────────────────────────────────────────────────────
+  // ── Provider profiles ─────────────────────────────────────────────────────
 
-  listSecrets(): HqVaultSecretMeta[] {
-    return this.file.secrets.map(({ dek: _dek, payload: _payload, ...meta }) => meta);
+  listProfiles(): HqVaultProfileMeta[] {
+    return this.file.profiles.map((p) => hqVaultProfileMeta(this.file, p));
   }
 
-  async createSecret(
-    input: { providerId: unknown; label: unknown; apiKey: unknown; kind?: HqVaultSecretKind },
-    actor: string,
-  ): Promise<HqVaultSecretMeta> {
+  getProfile(id: string): HqVaultProfileMeta {
+    return hqVaultProfileMeta(this.file, findHqVaultProfile(this.file, id));
+  }
+
+  async createProfile(input: Record<string, unknown>, actor: string): Promise<HqVaultProfileMeta> {
     const master = this.requireUnsealed();
-    const providerId = hqVaultText(input.providerId, 64);
-    if (providerId === undefined || !PROVIDER_ID.test(providerId)) {
-      throw new HqVaultError(
-        'VAULT_INVALID',
-        'providerId must be a provider id (letters, digits, . _ : -).',
-      );
-    }
-    const label = hqVaultText(input.label, 80);
-    if (label === undefined) throw new HqVaultError('VAULT_INVALID', 'Name the key (label).');
-    const apiKey = hqVaultText(input.apiKey, MAX_API_KEY_LENGTH);
-    if (apiKey === undefined) throw new HqVaultError('VAULT_INVALID', 'apiKey is required.');
+    // A key typed together with the profile is validated before anything is written.
+    const key =
+      input.apiKey !== undefined
+        ? parseHqVaultKeyInput({ label: input.keyLabel ?? 'default', apiKey: input.apiKey })
+        : undefined;
     return this.mutate(async (file) => {
-      if (file.secrets.some((s) => s.providerId === providerId && s.label === label)) {
-        throw new HqVaultError(
-          'VAULT_CONFLICT',
-          `A key labelled "${label}" already exists for ${providerId}.`,
-        );
+      const at = this.isoNow();
+      const profile = createHqVaultProfile(file, input, at);
+      if (key) upsertHqVaultKey(file, master, profile.id, key, at);
+      await this.audit({ kind: 'profile.create', actor, profileId: profile.id });
+      if (key) {
+        await this.audit({
+          kind: 'key.set',
+          actor,
+          profileId: profile.id,
+          keyLabel: key.label,
+          version: 1,
+        });
       }
-      const at = new Date(this.now()).toISOString();
-      const id = randomUUID();
-      const secret: HqVaultStoredSecret = {
-        id,
-        providerId,
-        label,
-        kind: input.kind ?? 'api_key',
-        version: 1,
-        createdAt: at,
-        updatedAt: at,
-        ...encryptHqVaultValue(master, id, 1, apiKey),
-      };
-      file.secrets.push(secret);
-      await this.audit({ kind: 'secret.create', actor, secretId: id, providerId, version: 1 });
-      const { dek: _d, payload: _p, ...meta } = secret;
-      return meta;
+      return hqVaultProfileMeta(file, profile);
     });
   }
 
-  /** Replace a secret's value; its version advances, so devices re-fetch it. */
-  async rotateSecret(id: string, apiKeyInput: unknown, actor: string): Promise<HqVaultSecretMeta> {
-    const master = this.requireUnsealed();
-    const apiKey = hqVaultText(apiKeyInput, MAX_API_KEY_LENGTH);
-    if (apiKey === undefined) throw new HqVaultError('VAULT_INVALID', 'apiKey is required.');
+  async updateProfile(
+    id: string,
+    input: Record<string, unknown>,
+    actor: string,
+  ): Promise<HqVaultProfileMeta> {
+    this.requireUnsealed();
     return this.mutate(async (file) => {
-      const secret = file.secrets.find((s) => s.id === id);
-      if (!secret) throw new HqVaultError('VAULT_NOT_FOUND', 'No such key.');
-      const version = secret.version + 1;
-      Object.assign(secret, encryptHqVaultValue(master, id, version, apiKey), {
-        version,
-        updatedAt: new Date(this.now()).toISOString(),
-      });
-      await this.audit({
-        kind: 'secret.rotate',
-        actor,
-        secretId: id,
-        providerId: secret.providerId,
-        version,
-      });
-      const { dek: _d, payload: _p, ...meta } = secret;
-      return meta;
+      const profile = updateHqVaultProfile(file, id, input, this.isoNow());
+      await this.audit({ kind: 'profile.update', actor, profileId: id, version: profile.version });
+      return hqVaultProfileMeta(file, profile);
     });
   }
 
-  /** Delete a secret and every grant of it. */
-  async deleteSecret(id: string, actor: string): Promise<void> {
+  /** Delete a profile, its keys and every grant of it. */
+  async deleteProfile(id: string, actor: string): Promise<void> {
     this.requireUnsealed();
     await this.mutate(async (file) => {
-      const secret = file.secrets.find((s) => s.id === id);
-      if (!secret) throw new HqVaultError('VAULT_NOT_FOUND', 'No such key.');
-      file.secrets = file.secrets.filter((s) => s.id !== id);
-      file.grants = file.grants.filter((g) => g.secretId !== id);
+      deleteHqVaultProfile(file, id);
+      await this.audit({ kind: 'profile.delete', actor, profileId: id });
+    });
+  }
+
+  /** Add a key to a profile, or replace the value of the key with that label. */
+  async setKey(
+    id: string,
+    input: Record<string, unknown>,
+    actor: string,
+    kind: 'key.set' | 'key.refresh' | 'oauth.signin' = 'key.set',
+  ): Promise<HqVaultKeyMeta> {
+    const master = this.requireUnsealed();
+    const parsed = parseHqVaultKeyInput(input);
+    return this.mutate(async (file) => {
+      const { key } = upsertHqVaultKey(file, master, id, parsed, this.isoNow());
+      await this.audit({ kind, actor, profileId: id, keyLabel: key.label, version: key.version });
+      return hqVaultKeyMeta(key);
+    });
+  }
+
+  async deleteKey(id: string, keyId: string, actor: string): Promise<void> {
+    this.requireUnsealed();
+    await this.mutate(async (file) => {
+      const key = deleteHqVaultKey(file, id, keyId, this.isoNow());
+      await this.audit({ kind: 'key.delete', actor, profileId: id, keyLabel: key.label });
+    });
+  }
+
+  /** Store a provider sign-in (see {@link applyHqVaultSignIn}). */
+  async saveSignIn(
+    input: { profileId?: string | undefined; strategyId: string; result: HqVaultSignInResult },
+    actor: string,
+  ): Promise<HqVaultProfileMeta> {
+    const master = this.requireUnsealed();
+    return this.mutate(async (file) => {
+      const { profile, key } = applyHqVaultSignIn(file, master, input, this.isoNow());
       await this.audit({
-        kind: 'secret.delete',
+        kind: 'oauth.signin',
         actor,
-        secretId: id,
-        providerId: secret.providerId,
+        profileId: profile.id,
+        keyLabel: key.label,
+        version: key.version,
+        detail: input.strategyId,
+      });
+      return hqVaultProfileMeta(file, profile);
+    });
+  }
+
+  /** Grant (or withdraw) a whole profile to a device. Idempotent. */
+  async setGrant(id: string, deviceId: unknown, granted: boolean, actor: string): Promise<void> {
+    this.requireUnsealed();
+    await this.mutate(async (file) => {
+      if (!setHqVaultGrant(file, id, deviceId, granted, this.isoNow())) return;
+      await this.audit({
+        kind: granted ? 'grant.create' : 'grant.revoke',
+        actor,
+        profileId: id,
+        deviceId: String(deviceId),
       });
     });
   }
@@ -305,95 +334,6 @@ export class HqVaultStore {
   /** Newest audit entries first (at most 1000). Never holds a value. */
   readAudit(limit = 200): Promise<HqVaultAuditEntry[]> {
     return this.io.readAudit(Math.max(1, Math.min(1000, Math.trunc(limit))));
-  }
-
-  async createGrant(
-    input: {
-      secretId: unknown;
-      deviceId: unknown;
-      policy?: unknown;
-      setActive?: unknown;
-      leaseTtlSeconds?: unknown;
-      expiresAt?: unknown;
-    },
-    actor: string,
-  ): Promise<HqVaultGrantRecord> {
-    this.requireUnsealed();
-    const policy: HqVaultGrantPolicy = input.policy === 'lease' ? 'lease' : 'local';
-    if (input.policy !== undefined && input.policy !== 'local' && input.policy !== 'lease') {
-      throw new HqVaultError('VAULT_INVALID', "policy must be 'local' or 'lease'.");
-    }
-    let leaseTtlSeconds: number | undefined;
-    if (policy === 'lease') {
-      const ttl = input.leaseTtlSeconds ?? DEFAULT_LEASE_TTL_SECONDS;
-      if (
-        typeof ttl !== 'number' ||
-        !Number.isInteger(ttl) ||
-        ttl < 60 ||
-        ttl > MAX_LEASE_TTL_SECONDS
-      ) {
-        throw new HqVaultError(
-          'VAULT_INVALID',
-          `leaseTtlSeconds must be a whole number from 60 to ${MAX_LEASE_TTL_SECONDS}.`,
-        );
-      }
-      leaseTtlSeconds = ttl;
-    }
-    let expiresAt: string | undefined;
-    if (input.expiresAt !== undefined) {
-      const ms = typeof input.expiresAt === 'string' ? Date.parse(input.expiresAt) : Number.NaN;
-      if (!Number.isFinite(ms) || ms <= this.now()) {
-        throw new HqVaultError('VAULT_INVALID', 'expiresAt must be a future ISO date.');
-      }
-      expiresAt = new Date(ms).toISOString();
-    }
-    return this.mutate(async (file) => {
-      const secret = file.secrets.find((s) => s.id === input.secretId);
-      if (!secret) throw new HqVaultError('VAULT_NOT_FOUND', 'No such key.');
-      const device = file.devices.find((d) => d.id === input.deviceId);
-      if (!device || device.status === 'revoked') {
-        throw new HqVaultError('VAULT_NOT_FOUND', 'No such device.');
-      }
-      if (file.grants.some((g) => g.secretId === secret.id && g.deviceId === device.id)) {
-        throw new HqVaultError('VAULT_CONFLICT', 'That device already has this key.');
-      }
-      const grant: HqVaultGrantRecord = {
-        id: randomUUID(),
-        secretId: secret.id,
-        deviceId: device.id,
-        policy,
-        setActive: input.setActive === true,
-        ...(leaseTtlSeconds !== undefined ? { leaseTtlSeconds } : {}),
-        ...(expiresAt !== undefined ? { expiresAt } : {}),
-        createdAt: new Date(this.now()).toISOString(),
-      };
-      file.grants.push(grant);
-      await this.audit({
-        kind: 'grant.create',
-        actor,
-        grantId: grant.id,
-        secretId: secret.id,
-        deviceId: device.id,
-        providerId: secret.providerId,
-      });
-      return { ...grant };
-    });
-  }
-
-  async revokeGrant(id: string, actor: string): Promise<void> {
-    this.requireUnsealed();
-    await this.mutate(async (file) => {
-      const grant = file.grants.find((g) => g.id === id);
-      if (!grant) throw new HqVaultError('VAULT_NOT_FOUND', 'No such grant.');
-      file.grants = file.grants.filter((g) => g.id !== id);
-      await this.audit({
-        kind: 'grant.revoke',
-        actor,
-        grantId: id,
-        secretId: grant.secretId,
-        deviceId: grant.deviceId,
-      });
-    });
   }
 
   // ── Enrollment ────────────────────────────────────────────────────────────
@@ -509,22 +449,30 @@ export class HqVaultStore {
    * request must carry the device's signature and the values open only with
    * its private key.
    */
-  async fetch(request: HqVaultFetchRequest): Promise<HqVaultBundle> {
+  /**
+   * @param options.refresher renews OAuth keys that are about to expire, after
+   * the device has authenticated and before the bundle is sealed — so a device
+   * always gets a live access token and HQ alone ever spends the refresh token.
+   */
+  async fetch(
+    request: HqVaultFetchRequest,
+    options: { refresher?: HqVaultRefresher | undefined } = {},
+  ): Promise<HqVaultBundle> {
     const master = this.requireUnsealed();
-    if (request === null || typeof request !== 'object' || request.v !== 1) {
-      throw new HqVaultError('VAULT_INVALID', 'Unsupported fetch request.');
+    if (request === null || typeof request !== 'object' || request.v !== 2) {
+      throw new HqVaultError('VAULT_INVALID', 'Unsupported fetch request; update this machine.');
     }
     const mode: HqVaultFetchMode | undefined =
       request.mode === 'list' ? 'list' : request.mode === 'fetch' ? 'fetch' : undefined;
     if (mode === undefined)
       throw new HqVaultError('VAULT_INVALID', "mode must be 'list' or 'fetch'.");
     if (
-      request.secretIds !== undefined &&
-      (!Array.isArray(request.secretIds) ||
-        request.secretIds.length > 256 ||
-        request.secretIds.some((id) => typeof id !== 'string'))
+      request.profileIds !== undefined &&
+      (!Array.isArray(request.profileIds) ||
+        request.profileIds.length > 256 ||
+        request.profileIds.some((id) => typeof id !== 'string'))
     ) {
-      throw new HqVaultError('VAULT_INVALID', 'secretIds must be an array of ids.');
+      throw new HqVaultError('VAULT_INVALID', 'profileIds must be an array of ids.');
     }
     const device = this.file.devices.find((d) => d.id === request.deviceId);
     const { sig, ...rest } = request;
@@ -564,42 +512,17 @@ export class HqVaultStore {
       throw new HqVaultError('VAULT_DENIED', 'Request replayed.');
     }
 
-    const wanted = request.secretIds ? new Set(request.secretIds) : undefined;
-    const issuedAt = new Date(now).toISOString();
-    const items: HqVaultBundleItem[] = [];
-    for (const grant of this.file.grants) {
-      if (grant.deviceId !== device.id) continue;
-      if (grant.expiresAt !== undefined && Date.parse(grant.expiresAt) <= now) continue;
-      const secret = this.file.secrets.find((s) => s.id === grant.secretId);
-      if (!secret) continue;
-      if (wanted && !wanted.has(secret.id)) continue;
-      const item: HqVaultBundleItem = {
-        secretId: secret.id,
-        providerId: secret.providerId,
-        label: secret.label,
-        kind: secret.kind,
-        version: secret.version,
-        grantId: grant.id,
-        policy: grant.policy,
-        setActive: grant.setActive,
-        ...(grant.policy === 'lease'
-          ? {
-              leaseExpiresAt: new Date(
-                now + (grant.leaseTtlSeconds ?? DEFAULT_LEASE_TTL_SECONDS) * 1000,
-              ).toISOString(),
-            }
-          : {}),
-      };
-      if (mode === 'fetch') {
-        const apiKey = decryptHqVaultValue(master, secret);
-        item.sealed = hqVaultSeal(
-          JSON.stringify({ apiKey }),
-          device.encPublic,
-          hqVaultItemAad({ deviceId: device.id, ...item }),
-        );
-      }
-      items.push(item);
+    if (mode === 'fetch' && options.refresher) {
+      await this.refreshDue(device.id, request.profileIds, options.refresher, now);
     }
+    const issuedAt = new Date(now).toISOString();
+    const profiles = buildHqVaultBundleProfiles(
+      this.file,
+      master,
+      device,
+      mode,
+      request.profileIds,
+    );
     if (mode === 'fetch') {
       await this.mutate(async (file) => {
         const live = file.devices.find((d) => d.id === device.id);
@@ -609,23 +532,82 @@ export class HqVaultStore {
         kind: 'fetch',
         actor: `device:${device.id}`,
         deviceId: device.id,
-        secretIds: items.map((i) => i.secretId),
+        profileIds: profiles.map((p) => p.id),
       });
     }
     const identity = this.identityKeys!;
     const body = {
-      v: 1 as const,
+      v: 2 as const,
       hqId: this.file.identity!.hqId,
       deviceId: device.id,
       issuedAt,
       requestNonce: request.nonce,
       mode,
-      items,
+      profiles,
     };
     return { ...body, sig: hqVaultSign({ ...body, purpose: HQ_VAULT_BUNDLE_PURPOSE }, identity) };
   }
 
   // ── Internals ─────────────────────────────────────────────────────────────
+
+  private readonly refreshing = new Map<string, Promise<void>>();
+
+  /** Renew the device's due OAuth keys; one renewal per key at a time, failures logged and skipped. */
+  private async refreshDue(
+    deviceId: string,
+    profileIds: readonly string[] | undefined,
+    refresher: HqVaultRefresher,
+    now: number,
+  ): Promise<void> {
+    const master = this.requireUnsealed();
+    const due = dueHqVaultKeys(this.file, deviceId, profileIds, now);
+    await Promise.all(
+      due.map(({ profile, key }) => {
+        const flight = `${key.id}:${key.version}`;
+        let pending = this.refreshing.get(flight);
+        if (!pending) {
+          pending = (async () => {
+            const renewed = await renewHqVaultKey(master, profile, key, refresher);
+            if (!renewed) return;
+            await this.mutate(async (file) => {
+              const live = file.profiles
+                .find((p) => p.id === profile.id)
+                ?.keys.find((k) => k.id === key.id);
+              // Replaced or deleted meanwhile: the operator's change wins.
+              if (!live || live.version !== key.version) return;
+              upsertHqVaultKey(file, master, profile.id, renewed, this.isoNow());
+              await this.audit({
+                kind: 'key.refresh',
+                actor: 'hq',
+                profileId: profile.id,
+                keyLabel: key.label,
+                version: key.version + 1,
+              });
+            });
+          })()
+            .catch(async (error: unknown) => {
+              await this.audit({
+                kind: 'key.refresh',
+                actor: 'hq',
+                profileId: profile.id,
+                keyLabel: key.label,
+                detail: `failed: ${error instanceof Error ? error.message : String(error)}`.slice(
+                  0,
+                  300,
+                ),
+              });
+            })
+            .finally(() => this.refreshing.delete(flight));
+          this.refreshing.set(flight, pending);
+        }
+        return pending;
+      }),
+    );
+  }
+
+  private isoNow(): string {
+    return new Date(this.now()).toISOString();
+  }
 
   private requireUnsealed(): Buffer {
     if (this.masterKey === undefined || this.identityKeys === undefined) {

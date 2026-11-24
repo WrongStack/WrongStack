@@ -23,7 +23,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { removePathSync } from '@wrongstack/primitives';
 import { loadProjectAgentConfig } from './project-agent-config-io.js';
-import { tokenOverlap } from './project-agent-learning-entries.js';
+import { directiveSimilarity } from './project-agent-learning-entries.js';
 import { normalizeForComparison } from './project-agent-learning-normalize.js';
 import {
   assertProjectAgentRole,
@@ -213,7 +213,7 @@ export function renderSkillAugmentation(
     .filter(Boolean);
   const fresh = directives.filter(
     (directive) =>
-      !priorLines.some((line) => tokenOverlap(line, normalizeForComparison(directive)) >= 0.55),
+      !priorLines.some((line) => directiveSimilarity(line, normalizeForComparison(directive)) >= 0.55),
   );
   if (priorBody) {
     // Nothing new to say: hand back the file exactly as it is, footer and all,

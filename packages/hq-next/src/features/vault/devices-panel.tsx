@@ -1,14 +1,15 @@
 'use client';
 
 /**
- * Devices that may receive keys: each enrolled with a one-time code from this
- * page, identified by its own key pair (the fingerprint), approved or revoked
- * here. Revoking stops delivery at once; it cannot recall a key the device
- * already imported.
+ * Devices that may receive providers: each enrolled with a one-time code from
+ * this page, identified by its own key pair (the fingerprint), approved or
+ * revoked here, with the providers it holds. Revoking stops delivery at once;
+ * it cannot recall a key the device already imported.
  */
 import {
   type HqVaultDeviceRecord,
   type HqVaultIdentity,
+  type HqVaultProfileMeta,
   mintVaultEnrollment,
   setVaultDeviceStatus,
   type VaultEnrollment,
@@ -33,12 +34,14 @@ import {
 
 export function DevicesPanel({
   devices,
+  profiles,
   identity,
   canWrite,
   now,
   onChanged,
 }: {
   devices: readonly HqVaultDeviceRecord[];
+  profiles: readonly HqVaultProfileMeta[];
   identity: HqVaultIdentity | undefined;
   canWrite: boolean;
   now: number;
@@ -50,7 +53,7 @@ export function DevicesPanel({
   return (
     <VaultSection
       title="Devices"
-      description="Machines that can receive keys. A device enrolls with a one-time code and proves itself with its own keys on every request."
+      description="Machines that can receive providers. A device enrolls with a one-time code and proves itself with its own keys on every request. Give it providers from each provider's card; it picks them up with wstack hq sync or Import from HQ."
       actions={
         canWrite && !enrolling ? (
           <button type="button" className={smallButton} onClick={() => setEnrolling(true)}>
@@ -75,6 +78,7 @@ export function DevicesPanel({
             <DeviceRow
               key={device.id}
               device={device}
+              holds={profiles.filter((p) => p.deviceIds.includes(device.id)).map((p) => p.id)}
               canWrite={canWrite}
               now={now}
               onChanged={onChanged}
@@ -199,11 +203,13 @@ function EnrollForm({
 
 function DeviceRow({
   device,
+  holds,
   canWrite,
   now,
   onChanged,
 }: {
   device: HqVaultDeviceRecord;
+  holds: readonly string[];
   canWrite: boolean;
   now: number;
   onChanged: () => Promise<void>;
@@ -235,6 +241,17 @@ function DeviceRow({
           <span className="block">
             <Fingerprint value={device.fingerprint} />
           </span>
+          <span className="mt-1 flex flex-wrap gap-1">
+            {holds.length === 0 ? (
+              <span className="text-xs text-muted-foreground">no providers yet</span>
+            ) : (
+              holds.map((id) => (
+                <span key={id} className="border border-border px-1.5 py-0.5 text-[11px]">
+                  {id}
+                </span>
+              ))
+            )}
+          </span>
         </span>
         <span className="text-xs text-muted-foreground">
           enrolled {relativeTime(device.enrolledAt, now)} ·{' '}
@@ -265,8 +282,8 @@ function DeviceRow({
       {confirmRevoke && (
         <div className="flex flex-wrap items-center gap-2 border border-destructive/40 bg-destructive/5 p-2">
           <span className="flex-1 text-xs">
-            The device loses every key grant and cannot fetch again with these keys. Keys it already
-            imported stay on it until removed there.
+            The device loses every provider grant and cannot fetch again with these keys. Keys it
+            already imported stay on it until removed there.
           </span>
           <button
             type="button"

@@ -78,3 +78,42 @@
   display: grid;
   gap: 4px;
 }
+.saved-provider-hq {
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+.provider-hq {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.provider-hq h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+.provider-hq-connected {
+  display: grid;
+  gap: 8px;
+}
+.provider-hq-connected code {
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  opacity: 0.75;
+}
+.provider-hq-connected ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.provider-hq-error {
+  color: var(--danger);
+}

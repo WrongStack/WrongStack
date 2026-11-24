@@ -50,12 +50,20 @@ function patchDelta(value: string): { addedLines: number; removedLines: number }
 }
 
 function compactText(value: string): string {
-  return value.length <= TOOL_TEXT_CAP ? value : `${value.slice(0, TOOL_TEXT_CAP - 1)}…`;
+  if (value.length <= TOOL_TEXT_CAP) return value;
+  let end = TOOL_TEXT_CAP - 1;
+  const lastKept = value.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  return `${value.slice(0, end)}…`;
 }
 
 export function boundedText(value: string, cap: number): string {
   const trimmed = value.trim();
-  return trimmed.length <= cap ? trimmed : `${trimmed.slice(0, cap - 1)}…`;
+  if (trimmed.length <= cap) return trimmed;
+  let end = cap - 1;
+  const lastKept = trimmed.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  return `${trimmed.slice(0, end)}…`;
 }
 
 export function compactTodos(value: unknown): AgentTodoItem[] | undefined {

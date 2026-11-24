@@ -23,6 +23,8 @@ export interface ProviderChoice {
   type?: string;
   /** Saved native cloud routing values (region, project, location, resource name). */
   cloud?: NativeCloudSettings;
+  /** Managed by a WrongStack HQ key vault (imported with "Import from HQ"). */
+  hq?: boolean;
 }
 export function providerChoices(state: EngineState): ProviderChoice[] {
   const choices = new Map<string, ProviderChoice>();
@@ -45,6 +47,7 @@ export function providerChoices(state: EngineState): ProviderChoice[] {
       family: String(row['family'] ?? known?.family ?? ''),
       saved: true,
       ...(row['hostServed'] === true ? { hostServed: true } : {}),
+      ...(row['hq'] && typeof row['hq'] === 'object' ? { hq: true } : {}),
       models: Array.isArray(row['models'])
         ? row['models'].filter((model): model is string => typeof model === 'string')
         : null,

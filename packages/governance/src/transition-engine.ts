@@ -178,6 +178,10 @@ export function decideTransition(proposal: TransitionProposal): TransitionDecisi
     return reject('stale_snapshot', 'Verification must use the current result snapshot.');
   }
 
+  if (proposal.to === 'ready_to_merge' && !facts.snapshotCurrent) {
+    return reject('stale_snapshot', 'Merge admission requires the current workspace snapshot.');
+  }
+
   if (
     (proposal.to === 'reviewing' || proposal.to === 'ready_to_merge') &&
     !facts.requiredEvidenceSatisfied

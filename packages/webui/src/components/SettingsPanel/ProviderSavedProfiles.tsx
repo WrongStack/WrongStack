@@ -284,6 +284,14 @@ export function ProviderSavedProfiles({
                       {sp.family}
                     </span>
                   )}
+                  {sp.hq && (
+                    <span
+                      className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary"
+                      title={t('settings:hq.badgeHint')}
+                    >
+                      {t('settings:hq.badge')}
+                    </span>
+                  )}
                   {sp.apiKeys.some((key) => key.isActive) && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-success">
                       <ShieldCheck className="h-3 w-3" />

@@ -44,11 +44,14 @@ export interface SavedProvider {
     | undefined;
   /** First entry of `models`, surfaced for the panel's "Using" line. */
   pickedModelId?: string | undefined;
+  /** Set when an HQ key vault manages this provider; HQ's edits replace local ones on sync. */
+  hq?: { profileId: string } | undefined;
   apiKeys: Array<{
     label: string;
     maskedKey: string;
     isActive: boolean;
     createdAt: string;
+    fromHq?: boolean | undefined;
   }>;
 }
 

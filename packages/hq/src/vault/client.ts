@@ -20,13 +20,15 @@ import {
   HQ_VAULT_BUNDLE_PURPOSE,
   HQ_VAULT_FETCH_PURPOSE,
   type HqVaultBundle,
-  type HqVaultBundleItem,
+  type HqVaultBundleKey,
+  type HqVaultBundleProfile,
   type HqVaultEnrollRequest,
   type HqVaultEnrollResponse,
   type HqVaultFetchMode,
   type HqVaultFetchRequest,
   type HqVaultIdentity,
-  hqVaultItemAad,
+  type HqVaultSealedKeyFields,
+  hqVaultKeyAad,
   parseHqVaultEnrollmentToken,
 } from './protocol.js';
 
@@ -99,26 +101,31 @@ export function verifyHqVaultEnrollResponse(
 /** Sign a fetch request as this device. */
 export function buildHqVaultFetchRequest(
   keys: HqVaultKeyPair,
-  options: { mode: HqVaultFetchMode; secretIds?: string[]; now?: number },
+  options: { mode: HqVaultFetchMode; profileIds?: string[]; now?: number },
 ): HqVaultFetchRequest {
   const body = {
-    v: 1 as const,
+    v: 2 as const,
     deviceId: hqVaultKeyId(keys),
     ts: new Date(options.now ?? Date.now()).toISOString(),
     nonce: hqVaultRandom(24),
     mode: options.mode,
-    ...(options.secretIds ? { secretIds: [...options.secretIds] } : {}),
+    ...(options.profileIds ? { profileIds: [...options.profileIds] } : {}),
   };
   return { ...body, sig: hqVaultSign({ ...body, purpose: HQ_VAULT_FETCH_PURPOSE }, keys) };
 }
 
-export interface HqVaultOpenedItem extends Omit<HqVaultBundleItem, 'sealed'> {
-  apiKey?: string;
+export interface HqVaultOpenedKey extends Omit<HqVaultBundleKey, 'sealed'> {
+  /** Present after a `fetch`; absent in `list` mode. */
+  secrets?: HqVaultSealedKeyFields;
+}
+
+export interface HqVaultOpenedProfile extends Omit<HqVaultBundleProfile, 'keys'> {
+  keys: HqVaultOpenedKey[];
 }
 
 /**
  * Verify a bundle against the pinned HQ identity and the request it answers,
- * then open every sealed value. Throws on any mismatch — a bundle that does not
+ * then open every sealed key. Throws on any mismatch — a bundle that does not
  * verify is discarded whole, never partially imported.
  */
 export function openHqVaultBundle(
@@ -126,7 +133,7 @@ export function openHqVaultBundle(
   keys: HqVaultKeyPair,
   pinned: HqVaultIdentity,
   request: HqVaultFetchRequest,
-): HqVaultOpenedItem[] {
+): HqVaultOpenedProfile[] {
   const { sig, ...body } = bundle;
   if (!hqVaultVerify({ ...body, purpose: HQ_VAULT_BUNDLE_PURPOSE }, sig, pinned.signPublic)) {
     throw new HqVaultClientError('Bundle signature does not match the pinned HQ identity.');
@@ -135,19 +142,30 @@ export function openHqVaultBundle(
   if (bundle.hqId !== pinned.hqId || bundle.deviceId !== deviceId) {
     throw new HqVaultClientError('Bundle is addressed to a different HQ or device.');
   }
-  if (bundle.requestNonce !== request.nonce || bundle.mode !== request.mode) {
+  if (bundle.v !== 2 || bundle.requestNonce !== request.nonce || bundle.mode !== request.mode) {
     throw new HqVaultClientError('Bundle does not answer this request.');
   }
-  if (!Array.isArray(bundle.items)) throw new HqVaultClientError('Bundle is malformed.');
-  return bundle.items.map((item) => {
-    const { sealed, ...meta } = item;
-    if (sealed === undefined) return meta;
-    const parsed = JSON.parse(hqVaultOpen(sealed, keys, hqVaultItemAad({ deviceId, ...item }))) as {
-      apiKey?: unknown;
-    };
-    if (typeof parsed.apiKey !== 'string' || parsed.apiKey.length === 0) {
-      throw new HqVaultClientError(`Bundle item ${item.secretId} has no key.`);
-    }
-    return { ...meta, apiKey: parsed.apiKey };
-  });
+  if (!Array.isArray(bundle.profiles)) throw new HqVaultClientError('Bundle is malformed.');
+  return bundle.profiles.map((profile) => ({
+    ...profile,
+    keys: profile.keys.map((key) => {
+      const { sealed, ...meta } = key;
+      if (sealed === undefined) return meta;
+      const aad = hqVaultKeyAad({
+        deviceId,
+        profileId: profile.id,
+        keyId: key.id,
+        version: key.version,
+      });
+      const parsed = JSON.parse(hqVaultOpen(sealed, keys, aad)) as Partial<HqVaultSealedKeyFields>;
+      if (typeof parsed.apiKey !== 'string' || parsed.apiKey.length === 0) {
+        throw new HqVaultClientError(`Key ${profile.id}/${key.label} in the bundle is empty.`);
+      }
+      const secrets: HqVaultSealedKeyFields = { apiKey: parsed.apiKey };
+      for (const field of ['tokenType', 'scope', 'project'] as const) {
+        if (typeof parsed[field] === 'string') secrets[field] = parsed[field];
+      }
+      return { ...meta, secrets };
+    }),
+  }));
 }

@@ -1,15 +1,60 @@
 # HQ Key Vault — merkezi anahtar/auth yönetimi (taslak tasarım, 2026-11-23)
 
-Durum: onaylandı (2026-11-23). **P0 sunucu tarafı, P1 HQ "Keys" ekranı ve P2 istemci (CLI + `/auth` + TUI) uygulandı (2026-11-24)**; P3–P5 açık.
+Durum: onaylandı (2026-11-23). **P0 sunucu, P1 HQ ekranı, P2 istemci uygulandı (2026-11-24); ardından
+birim anahtardan provider profiline taşındı (protokol v2, 2026-11-24)**; OAuth (HQ'da giriş + merkezi
+yenileme + cihaz yenileme kancası), P3–P5 açık.
 
-P2: `packages/cli/src/hq-vault/` — `device-store.ts` (`hq-device.json`), `service.ts`
-(`HqCredentialService`: enroll / list / importKeys / sync / unenroll, tek yazıcı `mutateConfigProviders`),
-`flow.ts` (menü + TUI ortak akışı). Komutlar: `wstack hq enroll|device|sync|unenroll`,
-`wstack auth import --from hq`; `wstack auth` menüsünde `h`; TUI `/auth` panelinde "Import from HQ"
-(`AuthPanelHost.importFromHq`). `ProviderApiKey.source` (alan adları secret desenine takılmaz).
-Lease grant'ler P4'e kadar listelenir ama diske yazılmaz.
+### Protokol v2 — birim provider profili
+İlk sürüm tek tek anahtar saklayıp anahtar başına grant veriyordu; endpoint'i ve model listesini HQ'dan
+yönetmek mümkün değildi. v2'de HQ'nun yönettiği ve verdiği birim, makinenin `providers.<id>` altında tuttuğu
+**profilin tamamı**: type, wire family, baseUrl, envVars, models, anahtarlar (API key + OAuth), activeKey.
+- Sunucu: `store-model.ts` (dosya v2 + v1→v2 göçü: providerId başına bir profil, anahtar grant'i profil
+  grant'ine dönüşür, şifreli metin değişmeden taşınır), `store-profiles.ts` (saf mutasyonlar + doğrulama),
+  `store-bundle.ts` (cihaza mühür; refresh/id token mühre girmez), `store.ts`. Anahtar sırları JSON yük
+  (`apiKey`, `refreshToken?`, `idToken?`, `tokenType?`, `scope?`, `project?`, `oauthClientId?`,
+  `oauthSubject?`), ekranda yalnız son 4 karakter (`hint`). Profil versiyonu her değişiklikte artar.
+- Rotalar: `GET /api/vault/catalog` (models.dev + overlay, `~/.wrongstack/cache`), `profiles` CRUD,
+  `profiles/:id/keys`, `PUT profiles/:id/devices/:deviceId {granted}`. AAD `wstack-hq-vault/v2|device|profile|key|version`.
+- İstemci (`cli/src/hq-vault/mirror.ts`): HQ profili aynen yansıtılır, girişe
+  `source: {kind:'hq', hqId, profileId, version}` yazılır. **Yerelde girilmiş bir provider asla ezilmez**
+  — id çakışırsa HQ profili `<id>-hq` olur (kullanıcı kararı: özel endpoint'li HQ profilleri otomatik
+  kabul). activeKey yalnız HQ profili değiştirdiğinde (versiyon) izlenir; bu makinede HQ profiline eklenen
+  anahtarlar korunur; `sync` geri çekilen profili ve v1 içe aktarımının yerel provider'lara bıraktığı
+  anahtarları siler.
+- HQ ekranı System → **Providers** (`/system/providers/`): Saved (profil kartları), Add provider
+  (katalog: popüler önce, aileye göre, arama; özel endpoint formu), Sign in, Devices, Activity;
+  "Unlock to edit" diyaloğu. Logolar WebUI'nin Lobe Icons kopyası (`hq-next/public/provider-logos`).
 
-P1: hq-next System → Keys (`packages/hq-next/src/features/vault/`): kapı paneli (parola yok / mühürlü / güvensiz kanal / kilitli / açık; unseal ve step-up formları), anahtarlar (ekle, değiştir, sil — değer hiç geri okunmaz), cihazlar (kayıt kodu üret + `wstack hq enroll <url> <token>` komutu, onay, iptal, parmak izleri), anahtar × cihaz erişim matrisi, etkinlik günlüğü (`GET /api/vault/audit`).
+### OAuth — HQ'da giriş, merkezi yenileme, cihaz kancası (2026-11-24)
+- Giriş: `cli/src/hq-server/routes/vault-oauth.ts` (`HqVaultSignIns`, deneme id'li durum makinesi,
+  WebUI `oauth.ts` modeli; yapıştır-kod her zaman sunulur). Yalnız HQ'nun yenileyebildiği girişler
+  listelenir (`RENEWABLE_SIGN_INS`; Antigravity host OAuth istemcisi istediği için yok).
+  Sonuç `applyHqVaultSignIn` ile profile yazılır; anahtar `signIn` (HQ'nun yürüttüğü strateji) taşır.
+- Merkezi yenileme: `hq/src/vault/store-refresh.ts` — cihazın kimliği doğrulanmış `fetch`'inde, 10 dk
+  içinde dolacak OAuth anahtarları mühürlemeden önce yenilenir (anahtar başına tek uçuş, dönmeyen
+  refresh token korunur, `key.refresh` denetimi). Sağlayıcı kodu `providers/src/oauth/renew-stored.ts`
+  (`renewStoredOAuthCredential`).
+- Cihaz kancası (tek enjeksiyon noktası): `providers/src/external-credential-refresh.ts` +
+  `provider-build.ts`. `authMethod:'oauth'` + `source` + refresh token yok ⇒ koordinatöre bellekte
+  bir yer tutucu refresh anahtarı ve host yenileyicisi verilir (Codex/Copilot/Antigravity `refreshFn`,
+  abonelik sınıfına yeni `refreshFn` seçeneği; dönen anahtar yenilemesi
+  `renewRotatingOAuthCredential` içinde host'a gider, yer tutucu "başkası döndürdü" sayılmaz).
+  CLI `installProviderPersisters` → `HqCredentialService.renewKey` (yazmaz; işlem/persister yazar).
+  Yer tutucu diske hiç yazılmaz.
+
+### P3 — WebUI / VibeUI / Desktop "Import from HQ" (2026-11-24)
+- Cihaz istemcisi (`device-store`, `device-mirror`, `device-service` → `HqCredentialService`) cli'dan
+  `@wrongstack/hq`'ya taşındı; config yazımı `mutateProviders` bağımlılığıyla enjekte edilir
+  (cli: `mutateConfigProviders`, webui-server: `mutateSavedProviders`). cli'daki dosyalar re-export.
+- Protokol (tasarımdaki `hq_vault.*` yerine): `hq.status`, `hq.enroll`, `hq.import`, `hq.sync`,
+  `hq.unenroll`; her yanıt tam `hq.state` (`requestId` ile ilişkilendirilir). İşleyici
+  `webui-server/src/server/provider/hq-import.ts`; değişiklikler `providers.saved` yayınlar.
+  `hq.enroll` tek kullanımlık kodu taşıdığı için yalnız loopback eşten ya da TLS üzerinden kabul edilir.
+- Projeksiyon: HQ profili `hq: {profileId}`, HQ anahtarı `fromHq: true` taşır (rozet için).
+- Yüzeyler: WebUI `ProviderHqImport.tsx` (7 dil), VibeUI `hq-import.tsx` (İngilizce, yüzey gibi),
+  Desktop `ProviderHqImport.tsx` (7 dil); hepsi HQ istemcisi olmayan host'ta hiçbir şey göstermez.
+  Desktop Rust kapısı `hq.*`'ı `key.*` gibi profil kapsamına bağlar.
+- Standalone WebUI ve Desktop motoru da harici yenileyiciyi kurar (`provider-token-persisters`).
 
 ### P0'da uygulanan (tasarımdan sapmalar dahil)
 - Kripto + depo + protokol + cihaz yardımcıları `packages/hq/src/vault/` altında (`crypto.ts`, `master-key.ts`,

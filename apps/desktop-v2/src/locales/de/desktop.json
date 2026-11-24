@@ -4810,6 +4810,22 @@
       "save": "Neuen Schlüssel speichern",
       "missing": "Gib den neuen API-Schlüssel ein.",
       "done": "Der Schlüssel {{label}} für {{provider}} wurde ersetzt."
+    },
+    "hq": {
+      "heading": "Aus HQ importieren",
+      "body": "Übernehmen Sie die Anbieter, die Ihr WrongStack HQ diesem Rechner freigibt. Schlüssel kommen für diesen Rechner versiegelt an; HQ erneuert Abo-Anmeldungen.",
+      "hqUrl": "HQ-Adresse",
+      "token": "Registrierungscode (aus HQ: System → Anbieter → Geräte)",
+      "enroll": "Diesen Rechner verbinden",
+      "connected": "Verbunden mit {{url}}",
+      "fingerprints": "HQ {{hq}} · dieser Rechner {{device}}",
+      "noneGranted": "HQ gibt diesem Rechner noch keine Anbieter frei.",
+      "importAll": "Alle importieren",
+      "sync": "Synchronisieren",
+      "disconnect": "Trennen",
+      "disconnectRemove": "Trennen und Schlüssel entfernen",
+      "badge": "HQ",
+      "badgeHint": "Von WrongStack HQ verwaltet: Eine Synchronisierung ersetzt lokale Änderungen an seinen Schlüsseln"
     }
   },
   "processes": {

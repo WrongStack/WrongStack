@@ -414,8 +414,12 @@ export async function bindProjectEndpoint(
 export interface ProjectMetadataReasserter {
   /** Start guarding. Call once the daemon's first metadata write has landed. */
   enable(): void;
-  /** Stop guarding (the daemon is stopping and removes its file). */
-  disable(): void;
+  /**
+   * Stop guarding and resolve after any in-flight reassert finishes.
+   * Callers must await this before removing their metadata file, or a late
+   * rewrite can recreate metadata after shutdown cleanup.
+   */
+  disable(): Promise<void>;
   /** Rewrite the file when it names another daemon, is missing or unreadable. */
   reassert(): Promise<void>;
 }
@@ -468,6 +472,7 @@ export function createProjectMetadataReasserter(options: {
     disable: () => {
       enabled = false;
       rerun = false;
+      return inFlight ?? Promise.resolve();
     },
     reassert: () => {
       if (!enabled) return Promise.resolve();

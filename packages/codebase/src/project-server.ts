@@ -607,7 +607,7 @@ const metadataGuard = createProjectMetadataReasserter({
 async function stop(_reason: string): Promise<void> {
   if (stopping) return;
   stopping = true;
-  metadataGuard.disable();
+  await metadataGuard.disable();
   if (idleTimer) clearTimeout(idleTimer);
   idleTimer = undefined;
   clearInterval(clientLeaseTimer);

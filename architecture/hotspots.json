@@ -39,7 +39,7 @@
       "relativeImports": 6
     },
     "packages/cli/src/hq-server.ts": {
-      "lines": 712,
+      "lines": 713,
       "relativeImports": 22
     },
     "packages/client/src/client.ts": {
@@ -123,7 +123,7 @@
       "relativeImports": 4
     },
     "packages/mailbox-mcp/src/adapter.ts": {
-      "lines": 765,
+      "lines": 769,
       "relativeImports": 3
     },
     "packages/plugins/src/adversary-mode/evaluator.ts": {
@@ -215,8 +215,8 @@
       "relativeImports": 12
     },
     "packages/vibeui/src/components/provider-manager.tsx": {
-      "lines": 733,
-      "relativeImports": 6
+      "lines": 740,
+      "relativeImports": 7
     },
     "packages/vibeui/src/components/resource-hub.tsx": {
       "lines": 800,
@@ -267,8 +267,8 @@
       "relativeImports": 7
     },
     "packages/webui-server/src/server/provider-routes.ts": {
-      "lines": 720,
-      "relativeImports": 5
+      "lines": 724,
+      "relativeImports": 6
     },
     "apps/desktop-v2/src/AutomationWorkspace.tsx": {
       "lines": 853,

@@ -34,7 +34,10 @@ function sanitizeToolAnnotations(value: unknown): MCPToolAnnotations | undefined
   const out: MCPToolAnnotations = {};
   const title = value['title'];
   if (typeof title === 'string' && title.length > 0) {
-    out.title = title.slice(0, ANNOTATION_TITLE_MAX_CHARS);
+    let end = ANNOTATION_TITLE_MAX_CHARS;
+    const lastKept = title.charCodeAt(end - 1);
+    if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+    out.title = title.slice(0, end);
   }
   for (const hint of ANNOTATION_HINTS) {
     const raw = value[hint];

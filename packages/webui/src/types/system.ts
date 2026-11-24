@@ -287,13 +287,42 @@ export interface WSSavedProviders {
         | undefined;
       /** First entry of `models`, surfaced for the panel's "Using" line. */
       pickedModelId?: string | undefined;
+      /** Set when an HQ key vault manages this provider. */
+      hq?: { profileId: string } | undefined;
       apiKeys: Array<{
         label: string;
         maskedKey: string;
         isActive: boolean;
         createdAt: string;
+        fromHq?: boolean | undefined;
       }>;
     }>;
+  };
+}
+
+/** This machine's HQ key-vault connection ("Import from HQ"). */
+export interface WSHqState {
+  type: 'hq.state';
+  payload: {
+    available: boolean;
+    enrolled: boolean;
+    hqUrl?: string | undefined;
+    hqFingerprint?: string | undefined;
+    deviceFingerprint?: string | undefined;
+    status?: string | undefined;
+    granted?:
+      | Array<{
+          id: string;
+          type: string;
+          family?: string | undefined;
+          baseUrl?: string | undefined;
+          keyCount: number;
+          activeKey?: string | undefined;
+        }>
+      | undefined;
+    grantedError?: string | undefined;
+    report?: string[] | undefined;
+    error?: string | undefined;
   };
 }
 

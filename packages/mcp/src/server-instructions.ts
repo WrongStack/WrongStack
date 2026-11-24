@@ -25,10 +25,13 @@ export function mcpServerInstructionsSection(registry: InstructionsSource): stri
   for (const { name } of registry.list()) {
     const text = registry.getCatalog(name)?.serverMetadata?.instructions?.trim();
     if (!text) continue;
-    const capped =
-      text.length > MCP_INSTRUCTIONS_MAX_CHARS
-        ? `${text.slice(0, MCP_INSTRUCTIONS_MAX_CHARS)}\n[instructions truncated]`
-        : text;
+    let capped = text;
+    if (text.length > MCP_INSTRUCTIONS_MAX_CHARS) {
+      let end = MCP_INSTRUCTIONS_MAX_CHARS;
+      const lastKept = text.charCodeAt(end - 1);
+      if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+      capped = `${text.slice(0, end)}\n[instructions truncated]`;
+    }
     parts.push(`## ${name}\n${capped}`);
   }
   if (parts.length === 0) return undefined;

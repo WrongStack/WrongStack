@@ -6,6 +6,7 @@ import type { EngineState } from './engine-state';
 import { entries } from './engine-values';
 import { ProviderCloudSettings } from './ProviderCloudSettings';
 import { ProviderConnectionWiring } from './ProviderConnectionWiring';
+import { ProviderHqImport } from './ProviderHqImport';
 import { ProviderKeyReplace } from './ProviderKeyReplace';
 import { ProviderOAuth } from './ProviderOAuth';
 import { ProviderProbe } from './ProviderProbe';
@@ -282,6 +283,7 @@ export function ProviderSettings({
               {t('providerSettings.useModel')}
             </button>
           </form>
+          <ProviderHqImport command={command} connected={state.connected} onChanged={refresh} />
           {providers.some((provider) => provider.saved) && (
             <div className="saved-provider-list">
               <h4>{t('providerSettings.savedConnections')}</h4>
@@ -300,6 +302,14 @@ export function ProviderSettings({
                     >
                       <strong>{provider.name}</strong>
                       <span className="saved-provider-family">{provider.family}</span>
+                      {provider.hq && (
+                        <span
+                          className="saved-provider-hq"
+                          title={t('providerSettings.hq.badgeHint')}
+                        >
+                          {t('providerSettings.hq.badge')}
+                        </span>
+                      )}
                     </button>
                     {provider.keys.length ? (
                       provider.keys.map((key) => (

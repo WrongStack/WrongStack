@@ -21,6 +21,26 @@ export interface VibeBranchRow {
   isActive: boolean;
 }
 
+function isVibeBranchDescriptor(value: unknown): value is VibeBranchDescriptor {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const branch = value as Record<string, unknown>;
+  return (
+    typeof branch.id === 'string' &&
+    branch.id.length > 0 &&
+    typeof branch.name === 'string' &&
+    (branch.parentBranchId === null || typeof branch.parentBranchId === 'string') &&
+    typeof branch.forkSeq === 'number' &&
+    Number.isSafeInteger(branch.forkSeq) &&
+    branch.forkSeq >= 0 &&
+    typeof branch.createdAt === 'string' &&
+    typeof branch.lastActivityAt === 'string' &&
+    (branch.status === 'active' || branch.status === 'folded' || branch.status === 'archived') &&
+    typeof branch.turnCount === 'number' &&
+    Number.isSafeInteger(branch.turnCount) &&
+    branch.turnCount >= 0
+  );
+}
+
 export function parseVibeSessionTree(raw: string): VibeSessionTreeSnapshot | null {
   if (!raw.trim()) return null;
   try {
@@ -32,7 +52,8 @@ export function parseVibeSessionTree(raw: string): VibeSessionTreeSnapshot | nul
       typeof parsed.activeBranchId !== 'string' ||
       !parsed.branches ||
       typeof parsed.branches !== 'object' ||
-      Array.isArray(parsed.branches)
+      Array.isArray(parsed.branches) ||
+      !Object.values(parsed.branches).every(isVibeBranchDescriptor)
     ) {
       return null;
     }

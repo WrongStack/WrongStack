@@ -67,6 +67,10 @@ export {
 } from './effort-support.js';
 export { endpointCredentialsSuppressed } from './endpoint-credentials.js';
 export { parseProviderHttpError } from './error-parse.js';
+export {
+  type ExternalCredentialRefresher,
+  setExternalCredentialRefresher,
+} from './external-credential-refresh.js';
 export { CAPABILITIES_BY_FAMILY, capabilitiesForFamily } from './family-capabilities.js';
 export {
   type CopilotCredentials,

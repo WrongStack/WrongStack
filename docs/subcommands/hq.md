@@ -174,7 +174,7 @@ Consequences:
 | `/api/agents/:id/messages` | GET | `application/json` | Per-subagent message ring (`?full=1`) |
 | `/ws/browser` | WS upgrade | Stream of `HqBrowserMessage` frames | Browser connects here. Receives the current snapshot immediately, then live updates |
 | `/ws/client` | WS upgrade | Stream of `HqClientMessage` / `HqServerMessage` frames (bidirectional) | Telemetry clients (TUI/REPL/WebUI) connect here. A live client token (`?token=`) is required whenever any client token exists **or** HQ holds any browser credential (password or browser token); only a fully credential-free HQ accepts tokenless publishers. With a password set and zero live client tokens, every publisher is rejected — mint one with `wstack hq token create --client`. Protocol version mismatch → close `1008` |
-| `/api/vault/*` | GET / POST / DELETE | `application/json` | **Key vault** — provider keys stored encrypted on HQ and delivered sealed to enrolled devices. See [Key vault](#key-vault) |
+| `/api/vault/*` | GET / POST / PATCH / PUT / DELETE | `application/json` | **Key vault** — provider profiles and their keys stored encrypted on HQ and delivered sealed to enrolled devices. See [Key vault](#key-vault) |
 | `/api/command` | POST | `application/json` (`202` on accept) | **Control plane.** Enqueue a command to a **connected** client. Requires a browser token with `control.enqueue` (open mode allows any). Target client must advertise `control.receive`. See [Control plane](#control-plane) |
 | `/api/commands` | GET | `application/json` | Recent command audit entries (`?limit=`, default 200) |
 | `/api/mailbox-send` | POST | `application/json` (`202` on delivery) | **Direct mailbox write** — deliver a prompt even when **no client is connected**. Same auth as `/api/command`. See [Direct mailbox delivery](#direct-mailbox-delivery-apimailbox-send) |
@@ -800,7 +800,7 @@ tabs below (`packages/hq-next/src/lib/sections.ts`).
 | **System · Control** | Reviewed commands to **one session** (all types, typed confirmation for abort and shell) or to **several sessions** at once (see below), plus the live command audit | `POST /api/command`, `/api/commands` |
 | **System · Worktrees** | Isolated checkouts per project on a time axis; conflicts and failures first | `worktree.event` (backfilled) |
 | **System · Notifications** | Push channels (ntfy for phone push, Slack, Discord, JSON webhook) for alerts, machines going offline and coming back or running low on disk or memory, and approvals or questions left waiting; each channel can be limited to machines with some labels (e.g. only the prod machines reach Slack); delivery status per channel; alert thresholds (including when a machine counts as low on disk or memory) and daily spend budgets for the fleet, each project and each machine | `/api/notify*`, `/api/alerts/settings` |
-| **System · Keys** | The [key vault](#key-vault): provider keys stored encrypted on HQ (name, provider, version, how many devices — never the value), enrolled devices with their fingerprints (approve, revoke, create a one-time enrollment code), a key × device access matrix (kept in the device's config or leased in memory, optionally made the active key) and the activity log. Changes need a password confirmation and a loopback or TLS connection; otherwise the page is read-only and says why | `/api/vault/*` |
+| **System · Providers** | Provider management over the [key vault](#key-vault), laid out like WebUI's provider screen. **Saved**: one card per provider profile — logo, alias, family, endpoint, model count; its keys masked to the last four characters with the active one marked (use this / replace / delete, add key); edit endpoint, family and models; remove; and the devices it is given to as toggle chips. **Add provider**: the models.dev catalog (popular first, then by wire family, searchable) with an inline alias + key form, or a custom endpoint (alias, wire family, URL, models, key); sign-in-only providers point to Sign in. **Sign in**: subscription sign-ins run on HQ (ChatGPT, GitHub Copilot, OpenRouter, xAI, Kimi, Meta, ChatGPT API) — a device code to enter at the provider, or the provider's page with a field to paste the redirected address when HQ's own callback cannot be reached; personal plans carry a terms warning. **Devices**: enrolled machines with fingerprints and the providers each holds (approve, revoke, create a one-time enrollment code). **Activity**: the audit log. Changes need **Unlock to edit** (password, plus the authenticator code with 2FA, for 10 minutes) and a loopback or TLS connection; otherwise the page is read-only and says why | `/api/vault/*` |
 | **System · MCP** | Every MCP server each terminal runs: health, latency, failures and limit checks, failing servers first. Read-only — HQ cannot restart an MCP server | `hq.snapshot` (`mcpServers`) |
 | **System · Security** | Browser password, two-factor sign-in, sessions and the access log | `/api/auth/*` |
 
@@ -1136,21 +1136,23 @@ token enabled even when another access layer sits in front of HQ.
 
 ### Key vault
 
-HQ can hold provider API keys centrally and hand each one, encrypted, to the
-devices you choose. Design and later phases (dashboard screens, `wstack hq
-enroll`, "Import from HQ" in `/auth` and the provider menus, OAuth leases):
-[HQ key vault design](../designs/hq-key-vault-design.md). This section covers
-what the server does today.
+HQ can hold every model provider centrally — the same profile a machine keeps
+under `providers.<id>` (type, wire family, endpoint, models, keys, active key)
+— and hand whole profiles, encrypted, to the devices you choose. Design and
+later phases: [HQ key vault design](../designs/hq-key-vault-design.md). This
+section covers what the server does today.
 
 **At rest.** `<dataDir>/hq-vault.json` holds every key encrypted under its own
 data key, each data key wrapped under the master key
 `<dataDir>/hq-vault-master.key` (owner-only). Set
 `WRONGSTACK_HQ_VAULT_PASSPHRASE` before the vault is first used and the master
-key is wrapped with it: after every restart the vault is **sealed** (labels,
+key is wrapped with it: after every restart the vault is **sealed** (profiles,
 devices and grants stay visible; nothing can be stored or delivered) until
 `POST /api/vault/unseal {passphrase}` or the variable is present at start.
-`<dataDir>/hq-vault-audit.jsonl` records every store, rotation, grant,
-revocation and device fetch — never a value. The agent's own file tools treat
+`<dataDir>/hq-vault-audit.jsonl` records every profile and key change, grant,
+revocation and device fetch — never a value. A version-1 vault (one entry per
+key, granted per key) is read as profiles: one per provider id, each key grant
+becoming a grant of its profile. The agent's own file tools treat
 `hq-vault.json`, `hq-vault-master.key` and the client's `hq-device.json` as
 protected agent state.
 
@@ -1170,14 +1172,20 @@ operator password exists. Changes additionally need:
 | `/api/vault/status` | GET | `state` (`sealed`/`unsealed`, or `unavailable` without a password), HQ fingerprint, counts, `secureChannel`, `elevatedUntil` |
 | `/api/vault/elevate` | POST | `{password, code?}` → `{elevatedUntil}` |
 | `/api/vault/unseal` | POST | `{passphrase}` |
-| `/api/vault/secrets` | GET / POST | Metadata only (`id, providerId, label, kind, version, …`); POST `{providerId, label, apiKey}` |
-| `/api/vault/secrets/:id/rotate` | POST | `{apiKey}`; the version advances so devices pick up the new value |
-| `/api/vault/secrets/:id` | DELETE | Also drops every grant of it |
+| `/api/vault/catalog` | GET | Providers a profile can be made from: the models.dev catalog plus WrongStack's overlay, read from this machine's `~/.wrongstack/cache` (refreshed daily, bundled overlay offline) |
+| `/api/vault/profiles` | GET / POST | Metadata only — keys show `label, authMethod, hint` (last four characters), `version`, never a value — plus `deviceIds`. POST `{id, type?, family?, baseUrl?, envVars?, models?, apiKey?, keyLabel?}` creates a profile, optionally with its first key |
+| `/api/vault/profiles/:id` | GET / PATCH / DELETE | PATCH `{type?, family?, baseUrl?, envVars?, models?, activeKey?}` (`null` clears); DELETE also drops every grant of it |
+| `/api/vault/profiles/:id/keys` | POST | `{label, apiKey}` adds a key, or replaces the value of the key with that label (its version advances) |
+| `/api/vault/profiles/:id/keys/:keyId` | DELETE | The next key becomes active if this one was |
+| `/api/vault/profiles/:id/devices/:deviceId` | PUT | `{granted: true\|false}` — give the whole profile to a device, or take it back. Idempotent |
+| `/api/vault/oauth/strategies` | GET | Sign-ins HQ can run **and keep renewing** (Antigravity, which needs a host OAuth client, is not offered) |
+| `/api/vault/oauth` | POST | `{strategyId, profileId?}` → attempt `{attemptId, phase, authorizeUrl?, bound?, verificationUri?, userCode?}`. At most 4 in flight, 15 minutes each, in memory |
+| `/api/vault/oauth/:attemptId` | GET / DELETE | Poll (`awaiting_browser`, `awaiting_code`, `exchanging`, `success`, `error`) or cancel |
+| `/api/vault/oauth/:attemptId/code` | POST | `{input}` — the redirected URL or code, for a browser sign-in HQ's loopback callback did not receive |
 | `/api/vault/devices` | GET | Enrolled devices with fingerprint, status, last fetch |
 | `/api/vault/devices/:id/approve`, `/revoke` | POST | Revoking drops the device's grants; a revoked device must enroll again with new keys |
-| `/api/vault/grants` | GET / POST | POST `{secretId, deviceId, policy?: local\|lease, setActive?, leaseTtlSeconds?, expiresAt?}` |
-| `/api/vault/grants/:id` | DELETE | Stop delivering that key to that device |
-| `/api/vault/audit` | GET | Newest activity first (`?limit=`, at most 1000): stores, rotations, grants, revocations, enrollments, device fetches — never a value |
+| `/api/vault/grants` | GET | Which profile each device holds |
+| `/api/vault/audit` | GET | Newest activity first (`?limit=`, at most 1000): profile and key changes, grants, revocations, enrollments, device fetches — never a value |
 | `/api/vault/enrollment-codes` | POST | `{label?, autoApprove?}` → one-time `enrollmentToken` (10 minutes, in memory) and the HQ fingerprint to compare on the device |
 
 **Device routes** need no browser credential and work over plain HTTP:
@@ -1190,34 +1198,63 @@ to end.
   either side's keys, and a failed attempt does not burn the code.
 - `POST /api/vault/fetch` — a request signed by the device (timestamp within 5
   minutes, single-use nonce). HQ answers with a bundle signed by its pinned key;
-  each value is sealed to that device (ephemeral X25519 + HKDF-SHA256 +
-  AES-256-GCM, bound to device, key, version and grant). A stolen client token
-  opens nothing.
+  each key is sealed to that device (ephemeral X25519 + HKDF-SHA256 +
+  AES-256-GCM, bound to device, profile, key and version). A stolen client
+  token opens nothing. An OAuth key's refresh token never leaves HQ; devices
+  get the access token.
+
+**Sign-ins and renewal.** A finished sign-in is stored on its profile (created
+from the outcome — type, family, endpoint, models — when missing) as the active
+OAuth key, with every token encrypted, and audited as `oauth.signin`. HQ is the
+only refresher: when a device's authenticated fetch includes an OAuth key that
+expires within 10 minutes, HQ renews it first with the refresh token it holds
+(single-flight per key; a refresh token the provider did not rotate is kept),
+audits `key.refresh` (or `key.refresh` with `failed: …`, after which the
+current token is still delivered), and seals the new access token. A pasted
+API key never replaces a sign-in.
 
 Revoking a grant or a device stops delivery; it cannot take back a key a device
-already decrypted. Rotate the key at the provider and store the new one with
-`/rotate`.
+already decrypted. Rotate the key at the provider and replace it on the
+profile (same label).
 
 **On the device.** One device identity per machine, in `<WRONGSTACK_HOME>/hq-device.json`
 (owner-only; the private keys encrypted with the local vault key `~/.wrongstack/.key`).
 
 ```bash
-wstack hq enroll <hq-url> <token> [--label <name>] [--replace]   # token from System → Keys
-wstack hq device              # HQ, both fingerprints, granted keys
-wstack hq sync                # import granted keys, apply rotations, drop revoked ones
-wstack auth import --from hq [key-id …]   # import (all, or some) into the active profile
+wstack hq enroll <hq-url> <token> [--label <name>] [--replace]   # token from System → Providers → Devices
+wstack hq device              # HQ, both fingerprints, granted providers
+wstack hq sync                # mirror granted providers, apply HQ's changes, drop withdrawn ones
+wstack auth import --from hq [profile-id …]   # import (all, or some) into the active profile
 wstack hq unenroll [--remove-keys]
 ```
 
 The same import is `h` in the `wstack auth` menu and **Import from HQ** in the TUI `/auth`
-panel; both enroll first when the machine is not a device yet. Imported keys are written
-to the active profile through the normal config writer, encrypted like a pasted key, and
-carry `source: {kind: "hq", hqId, keyId, version, grantId}`. `sync` touches only keys with
-that source: it replaces one HQ rotated and removes one HQ no longer grants. HQ never
-changes a provider's `baseUrl`, family or headers; a provider missing locally is created
-from the catalog, and one the catalog does not know is skipped. A label that collides with
-a key pasted here is saved as `<label>-hq`. The active key changes only when the grant says
-so. Lease grants (memory-only) are listed but not written to disk yet.
+panel; both enroll first when the machine is not a device yet. WebUI (Settings → Providers),
+VibeUI (Providers → Saved) and Desktop (WrongStack settings → Providers) have an **Import
+from HQ** section too: connect this machine (HQ address + enrollment code), the providers HQ
+grants it, **Import all**, **Sync**, **Disconnect** (keeps the imported keys) and
+**Disconnect and remove keys**. It appears only on a host with an HQ client, and saved
+providers HQ manages carry an **HQ** badge. All three speak the WebUI protocol's `hq.status`,
+`hq.enroll`, `hq.import`, `hq.sync` and `hq.unenroll`, each answered by a full `hq.state`;
+`hq.enroll` carries the one-time code, so the engine accepts it only from a loopback peer or
+over TLS. In Desktop the `hq.*` requests belong to the profile scope, like `key.*`. Each granted profile is
+written to the active profile through the normal config writer, keys encrypted like a pasted
+key: HQ's type, family, endpoint, env vars and models are mirrored exactly, the entry carries
+`source: {kind: "hq", hqId, profileId, version}` and each key `source: {kind: "hq", hqId,
+keyId, version}`.
+
+- A provider entered on this machine is never overwritten: when its id is taken, the HQ
+  profile is stored as `<id>-hq` (then `<id>-hq-2` …) and found there on every later sync.
+- `sync` touches only what HQ put there: it mirrors HQ's edits and key replacements, removes
+  a profile HQ no longer grants, and removes keys a version-1 import put into a local
+  provider. Keys added on this machine to an HQ profile are kept.
+- The active key follows HQ only when HQ picks a different key than it last did
+  (`source.activeKey`); a key HQ renewed or replaced never undoes a switch made here. A key
+  entered here whose name HQ starts using is renamed `<name>-local`, never dropped.
+- An HQ OAuth key arrives without its refresh token. When its access token is about to expire,
+  the provider runtime asks HQ for a fresh one (signed fetch of that profile) instead of the
+  provider, and stores it through the usual refresh transaction; nothing on this machine ever
+  holds the refresh token.
 
 ### VPS / public internet
 

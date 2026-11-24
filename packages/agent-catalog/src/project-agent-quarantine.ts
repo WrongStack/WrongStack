@@ -17,7 +17,7 @@
 
 import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
-import { tokenOverlap } from './project-agent-learning-entries.js';
+import { directiveSimilarity } from './project-agent-learning-entries.js';
 import {
   MIN_INSTRUCTIVE_LENGTH,
   normalizeForComparison,
@@ -178,7 +178,7 @@ export function scrubRetiredLines(text: string, retired: readonly string[]): str
       !isStructure &&
       claim.length >= MIN_INSTRUCTIVE_LENGTH &&
       keys.some(
-        (key) => tokenOverlap(key, normalizeForComparison(claim)) >= RETIRED_MATCH_THRESHOLD,
+        (key) => directiveSimilarity(key, normalizeForComparison(claim)) >= RETIRED_MATCH_THRESHOLD,
       )
     ) {
       // Drop the continuation lines that belong to this bullet as well.
@@ -239,7 +239,7 @@ export function retiredDirectivesToWarnAbout(
     .filter(
       (what) =>
         !currentKeys.some(
-          (key) => tokenOverlap(key, normalizeForComparison(what)) >= RETIRED_MATCH_THRESHOLD,
+          (key) => directiveSimilarity(key, normalizeForComparison(what)) >= RETIRED_MATCH_THRESHOLD,
         ),
     );
 }

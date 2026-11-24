@@ -81,7 +81,7 @@ function hqNotifyConfigFilePath(dataDir: string): string {
 }
 
 const PRIVATE_HOST =
-  /^(localhost|127(?:\.\d{1,3}){3}|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|\[::1\]|[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:local|lan|internal|home\.arpa))$/i;
+  /^(localhost|127(?:\.\d{1,3}){3}|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|\[::1\]|\[(?:f[cd][0-9a-f]{2}|fe[89ab][0-9a-f]):[0-9a-f:.]*\]|[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:local|lan|internal|home\.arpa))$/i;
 
 /**
  * Validate a channel or link URL. Returns the normalized URL or an error
@@ -150,12 +150,14 @@ export function parseHqNotifyChannel(
   id: string,
   base?: HqNotifyChannel,
 ): { ok: true; channel: HqNotifyChannel } | { ok: false; error: string } {
-  const name =
+  let name =
     input.name === undefined && base !== undefined
       ? base.name
       : typeof input.name === 'string'
         ? input.name.trim().slice(0, MAX_NAME)
         : '';
+  const lastNameUnit = name.charCodeAt(name.length - 1);
+  if (lastNameUnit >= 0xd800 && lastNameUnit <= 0xdbff) name = name.slice(0, -1);
   if (name === '') return { ok: false, error: 'Give the channel a name.' };
   const type = input.type === undefined && base !== undefined ? base.type : input.type;
   if (!HQ_NOTIFY_CHANNEL_TYPES.includes(type as HqNotifyChannelType)) {

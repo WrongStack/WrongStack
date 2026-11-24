@@ -1,3 +1,4 @@
+import type * as childProcess from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import type { Server } from 'node:http';
@@ -11,6 +12,20 @@ import {
   resolveDistDir,
   startStaticServe,
 } from '../src/server/frontend-static-serve.js';
+
+// `spawn` is the process boundary of `ensureDistDir`'s default build runner.
+// It passes through to the real implementation unless a test puts a simulated
+// machine behind it, so the rest of this file is unaffected.
+const processBoundary = vi.hoisted(() => ({
+  spawn: vi.fn(),
+  real: undefined as unknown as typeof childProcess.spawn,
+}));
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof childProcess>();
+  processBoundary.real = actual.spawn;
+  processBoundary.spawn.mockImplementation(actual.spawn);
+  return { ...actual, spawn: processBoundary.spawn };
+});
 
 describe('frontend-static-serve', () => {
   describe('findInstalledPackageJson', () => {
@@ -213,6 +228,163 @@ describe('frontend-static-serve', () => {
       });
       expect(result).toBe(path.join('/fake', 'dist'));
     });
+
+    // The cases above inject `runBuild`; production uses the default runner.
+    // It spawned `pnpm`, which pnpm 10+ refuses in a repository whose
+    // `packageManager` is bun and a Bun-only machine does not have, so the
+    // cold-start recovery failed on every default setup.
+    describe('default build runner', () => {
+      const workspace = path.resolve(path.sep, 'workspace');
+      const webui = path.join(workspace, 'packages', 'webui');
+      /** The remedy the error messages name; it is also the command that runs. */
+      const remedy = 'bun run --filter @wrongstack/webui build';
+
+      interface SpawnCall {
+        command: string;
+        args: readonly string[];
+        cwd: string | undefined;
+      }
+
+      /** A simulated machine: what is on PATH, and which executable refuses this repository. */
+      interface Machine {
+        name: string;
+        installed: readonly string[];
+        refusing: readonly string[] | undefined;
+        /** How an absent executable fails: ENOENT on POSIX, exit 1 through cmd.exe. */
+        absentFails: 'error' | 'close';
+      }
+
+      /** Put a simulated machine behind the process boundary and return what it spawned. */
+      function simulate(machine: Machine): { calls: SpawnCall[]; failBuilds: () => void } {
+        const calls: SpawnCall[] = [];
+        let exitCode = 0;
+        processBoundary.spawn.mockImplementation(((
+          command: string,
+          args: readonly string[],
+          options?: { cwd?: string },
+        ) => {
+          calls.push({ command, args, cwd: options?.cwd });
+          const child = new EventEmitter() as EventEmitter & { kill: () => boolean };
+          child.kill = () => false;
+          process.nextTick(() => {
+            if (!machine.installed.includes(command)) {
+              if (machine.absentFails === 'error') {
+                child.emit(
+                  'error',
+                  Object.assign(new Error(`spawn ${command} ENOENT`), { code: 'ENOENT' }),
+                );
+              } else {
+                child.emit('close', 1);
+              }
+            } else if (machine.refusing?.includes(command)) {
+              child.emit('close', 1);
+            } else {
+              child.emit('close', exitCode);
+            }
+          });
+          return child;
+        }) as unknown as typeof childProcess.spawn);
+        return {
+          calls,
+          failBuilds: () => {
+            exitCode = 1;
+          },
+        };
+      }
+
+      const missingDist = {
+        resolvePackageJson: () => path.join(webui, 'package.json'),
+        findWorkspaceRoot: () => workspace,
+      };
+
+      const failureOf = (promise: Promise<unknown>): Promise<unknown> =>
+        promise.then(
+          () => undefined,
+          (error: unknown) => error,
+        );
+
+      afterEach(() => {
+        processBoundary.spawn.mockImplementation(processBoundary.real);
+      });
+
+      it.each([
+        {
+          name: 'pnpm 10+ beside bun, which refuses the repository',
+          installed: ['pnpm', 'bun'],
+          refusing: ['pnpm'],
+          absentFails: 'error',
+        },
+        {
+          name: 'a Bun-only POSIX machine',
+          installed: ['bun'],
+          refusing: undefined,
+          absentFails: 'error',
+        },
+        {
+          name: 'a Bun-only Windows machine',
+          installed: ['bun'],
+          refusing: undefined,
+          absentFails: 'close',
+        },
+      ] satisfies Machine[])('recovers a missing dist through bun on $name', async (machine) => {
+        const { calls } = simulate(machine);
+        // The dist exists once a build has been spawned.
+        const result = await ensureDistDir(undefined, {
+          ...missingDist,
+          exists: () => calls.length > 0,
+        });
+        expect(result).toBe(path.join(webui, 'dist'));
+        expect(calls).toHaveLength(1);
+        const [call] = calls;
+        expect(call && `${call.command} ${call.args.join(' ')}`).toBe(remedy);
+        expect(call?.cwd).toBe(workspace);
+      });
+
+      it('spawns nothing for an already-built dist', async () => {
+        const { calls } = simulate({
+          name: 'bun',
+          installed: ['bun'],
+          refusing: undefined,
+          absentFails: 'error',
+        });
+        await expect(
+          ensureDistDir(undefined, { ...missingDist, exists: () => true }),
+        ).resolves.toBe(path.join(webui, 'dist'));
+        expect(calls).toHaveLength(0);
+      });
+
+      it('names the Bun remedy when the build fails', async () => {
+        const { failBuilds } = simulate({
+          name: 'bun',
+          installed: ['bun'],
+          refusing: undefined,
+          absentFails: 'error',
+        });
+        failBuilds();
+        const failure = await failureOf(
+          ensureDistDir(undefined, { ...missingDist, exists: () => false }),
+        );
+        expect(failure).toBeInstanceOf(Error);
+        expect(String(failure)).toContain('webui.auto_build.failed');
+        expect(String(failure)).toContain(remedy);
+        expect(String(failure)).not.toContain('pnpm');
+      });
+
+      it('names the same remedy when Bun itself is missing', async () => {
+        simulate({
+          name: 'no build tool',
+          installed: [],
+          refusing: undefined,
+          absentFails: 'error',
+        });
+        const failure = await failureOf(
+          ensureDistDir(undefined, { ...missingDist, exists: () => false }),
+        );
+        expect(failure).toBeInstanceOf(Error);
+        expect(String(failure)).toContain('webui.auto_build.failed: spawn bun ENOENT');
+        expect(String(failure)).toContain(remedy);
+      });
+    });
   });
 
   describe('startStaticServe', () => {
@@ -265,7 +437,7 @@ describe('frontend-static-serve', () => {
         // The message must name the consequence AND the fix.
         expect(parsed.message).toMatch(/WebSocket only/i);
         expect(parsed.message).toMatch(/404/);
-        expect(parsed.message).toContain('pnpm --filter @wrongstack/webui build');
+        expect(parsed.message).toContain('bun run --filter @wrongstack/webui build');
       } finally {
         warn.mockRestore();
       }

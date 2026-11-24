@@ -1,7 +1,9 @@
-import type { Config, SecretVault } from '@wrongstack/contracts/types';
+import type { Config, ProviderConfig, SecretVault } from '@wrongstack/contracts/types';
 import { expectDefined } from '@wrongstack/core/utils';
+import { HqCredentialService } from '@wrongstack/hq';
 import { hasSubscriptionRefreshTransaction } from '@wrongstack/providers';
 import { bootConfig, patchConfig } from './boot.js';
+import { globalRootForConfigPath } from './global-root.js';
 import {
   type ConfigWriteLockHolder,
   type PrefHelperDeps,
@@ -90,9 +92,16 @@ export async function prepareWebuiConfig(opts: WebUIOptions): Promise<PreparedWe
   // because a renewal without it rotates the refresh token, drops the rotated
   // value, and every later renewal fails with invalid_grant.
   if (!opts.services || !hasSubscriptionRefreshTransaction()) {
+    const mutate = (mutator: (providers: Record<string, ProviderConfig>) => void | Promise<void>) =>
+      mutateSavedProviders(profileConfigPath, vault, mutator);
     installWebuiProviderPersisters({
       load: () => loadSavedProviders(profileConfigPath, vault),
-      mutate: (mutator) => mutateSavedProviders(profileConfigPath, vault, mutator),
+      mutate,
+      hq: new HqCredentialService({
+        globalRoot: globalRootForConfigPath(profileConfigPath),
+        vault,
+        mutateProviders: mutate,
+      }),
       warn: (message) => logger.warn(message),
     });
   }

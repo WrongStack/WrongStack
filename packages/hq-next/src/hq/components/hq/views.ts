@@ -121,7 +121,8 @@ const DETAIL: Record<HqViewId, { description: string; icon: LucideIcon }> = {
     icon: Send,
   },
   vault: {
-    description: 'Provider keys stored encrypted on HQ, and which machine receives which.',
+    description:
+      'Model providers and their API keys, stored encrypted on HQ, and which machine gets which.',
     icon: KeySquare,
   },
   settings: {

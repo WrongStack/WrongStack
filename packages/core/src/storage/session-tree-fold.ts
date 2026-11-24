@@ -25,12 +25,14 @@ export function enforceFoldSummaryTokenCap(
   const slice = summary.slice(0, budget);
   const lastNewline = slice.lastIndexOf('\n');
   const lastSpace = slice.lastIndexOf(' ');
-  const cutIndex =
+  let cutIndex =
     lastNewline >= Math.floor(budget * 0.6)
       ? lastNewline
       : lastSpace >= Math.floor(budget * 0.6)
         ? lastSpace
         : budget;
+  const lastKept = slice.charCodeAt(cutIndex - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) cutIndex -= 1;
   return `${slice.slice(0, cutIndex).trimEnd()}${FOLD_TRUNCATION_MARKER}`;
 }
 

@@ -67,12 +67,12 @@ settings. See [OAuth sign-in](../oauth-signin.md) for endpoints and renewal beha
 
 ### Import from an HQ key vault
 ```
-wstack auth import --from hq [key-id …]
+wstack auth import --from hq [profile-id …]
 ```
-Imports the keys HQ grants this machine (all, or the given vault key ids) into the active
+Imports the provider profiles HQ grants this machine (all, or the given profile ids) into the active
 profile. Enroll first with `wstack hq enroll <hq-url> <token>`. See the
 [HQ key vault](hq.md#key-vault) for what is imported, how `wstack hq sync` keeps it in step,
-and what HQ is never allowed to change.
+and why a provider entered here is never overwritten.
 
 ### Direct (flag-based)
 ```
@@ -120,7 +120,7 @@ Fallback entries select `<auth-profile-alias>/<model-id>`, so the same model on
 |-----|--------|
 | `a` | Add a provider from the models.dev catalog |
 | `c` | Add a custom provider (bypass catalog) |
-| `h` | Import from HQ — keys the HQ key vault grants this machine (enrolls first if needed) |
+| `h` | Import from HQ — providers the HQ key vault grants this machine (enrolls first if needed) |
 | `1`-`N` | Manage a saved provider |
 | `q` | Quit |
 

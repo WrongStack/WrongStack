@@ -11,6 +11,12 @@ import { expectDefined } from '@wrongstack/core/utils';
 import { AnthropicProvider } from './anthropic.js';
 import { RetiredAnthropicOAuthProvider } from './anthropic-oauth.js';
 import { createCatalogAwareProvider } from './catalog-provider-routing.js';
+import {
+  externalRefreshPlaceholder,
+  isExternallyRenewed,
+  isExternalRefreshPlaceholder,
+  renewExternally,
+} from './external-credential-refresh.js';
 import { GitHubCopilotProvider } from './github-copilot.js';
 import { GoogleProvider } from './google.js';
 import { AntigravityProvider } from './google-antigravity.js';
@@ -141,7 +147,10 @@ export function oauthPersistenceCallbacks(
       source = {
         ...source,
         accessToken: creds.accessToken,
-        refreshToken: creds.refreshToken ?? source.refreshToken,
+        // A host-renewed account's placeholder never becomes the stored pair.
+        refreshToken: isExternalRefreshPlaceholder(creds.refreshToken)
+          ? source.refreshToken
+          : (creds.refreshToken ?? source.refreshToken),
       };
     },
     onModels: (models: ProviderLiveModel[]) => _modelsPersist?.(providerId, models, { ...source }),
@@ -173,6 +182,15 @@ export function resolveActiveKeyEntry(cfg: ProviderConfig): ProviderApiKey | und
   return undefined;
 }
 
+/**
+ * When a host-renewed token expires. A credential without a usable expiry is
+ * treated as good for a minute, so a bad answer cannot spin the refresher.
+ */
+function externalExpiry(credential: ProviderApiKey): number {
+  const expires = credential.expiresAt ? Date.parse(credential.expiresAt) : Number.NaN;
+  return Number.isFinite(expires) ? expires : Date.now() + 60_000;
+}
+
 export function buildProvider(
   p: ResolvedProvider,
   cfg: ProviderConfig,
@@ -197,9 +215,15 @@ export function buildProvider(
   const explicitApiKey = resolveActiveKey(cfg);
   const account = resolveActiveKeyEntry(cfg);
   if (account?.oauthStrategyId && Object.hasOwn(SUBSCRIPTION_ENDPOINTS, account.oauthStrategyId)) {
+    const external = isExternallyRenewed(account);
     return new SubscriptionOAuthProvider({
       id,
-      credential: account,
+      credential: external
+        ? { ...account, refreshToken: externalRefreshPlaceholder(account) }
+        : account,
+      ...(external
+        ? { refreshFn: (credential, signal) => renewExternally(id, credential, signal) }
+        : {}),
       baseUrl: cfg.baseUrl,
       headers: cfg.headers,
       ...oauthPersistenceCallbacks(id, cfg, account.apiKey),
@@ -388,12 +412,25 @@ export function buildProvider(
     case 'openai-codex': {
       const entry = resolveActiveKeyEntry(cfg);
       const parsedExpiry = entry?.expiresAt ? Date.parse(entry.expiresAt) : Number.NaN;
+      const external = isExternallyRenewed(entry) ? entry : undefined;
       return new OpenAICodexProvider({
         id,
         baseUrl,
+        ...(external
+          ? {
+              refreshFn: async (_key: string, signal?: AbortSignal) => {
+                const renewed = await renewExternally(id, external, signal);
+                return {
+                  access: renewed.apiKey,
+                  refresh: externalRefreshPlaceholder(external),
+                  expires: externalExpiry(renewed),
+                };
+              },
+            }
+          : {}),
         credentials: {
           accessToken: expectDefined(apiKey),
-          refreshToken: entry?.refreshToken,
+          refreshToken: external ? externalRefreshPlaceholder(external) : entry?.refreshToken,
           expiresAt: Number.isFinite(parsedExpiry) ? parsedExpiry : undefined,
           accountId: entry?.accountId,
         },
@@ -410,11 +447,20 @@ export function buildProvider(
     case 'github-copilot': {
       const entry = resolveActiveKeyEntry(cfg);
       const parsedExpiry = entry?.expiresAt ? Date.parse(entry.expiresAt) : Number.NaN;
+      const external = isExternallyRenewed(entry) ? entry : undefined;
       return new GitHubCopilotProvider({
         id,
+        ...(external
+          ? {
+              refreshFn: async (_key: string, signal?: AbortSignal) => {
+                const renewed = await renewExternally(id, external, signal);
+                return { token: renewed.apiKey, expires: externalExpiry(renewed) };
+              },
+            }
+          : {}),
         credentials: {
           copilotToken: resolveActiveKey(cfg) ?? '',
-          githubToken: entry?.refreshToken,
+          githubToken: external ? externalRefreshPlaceholder(external) : entry?.refreshToken,
           expiresAt: Number.isFinite(parsedExpiry) ? parsedExpiry : undefined,
         },
         ...oauthPersistenceCallbacks(id, cfg, expectDefined(apiKey)),
@@ -424,12 +470,27 @@ export function buildProvider(
       const entry = resolveActiveKeyEntry(cfg);
       const parsedExpiry = entry?.expiresAt ? Date.parse(entry.expiresAt) : Number.NaN;
       const persistence = oauthPersistenceCallbacks(id, cfg, expectDefined(apiKey));
+      const external = isExternallyRenewed(entry) ? entry : undefined;
       return new AntigravityProvider({
         id,
         ...(cfg.baseUrl !== undefined ? { baseUrl: cfg.baseUrl } : {}),
+        ...(external
+          ? {
+              refreshFn: async (_key: string, signal?: AbortSignal) => {
+                const renewed = await renewExternally(id, external, signal);
+                // No refresh value: the coordinator keeps its placeholder, and
+                // the persisted entry never gains one.
+                return {
+                  access: renewed.apiKey,
+                  expires: externalExpiry(renewed),
+                  refresh: undefined,
+                };
+              },
+            }
+          : {}),
         credentials: {
           accessToken: expectDefined(apiKey),
-          refreshToken: entry?.refreshToken,
+          refreshToken: external ? externalRefreshPlaceholder(external) : entry?.refreshToken,
           expiresAt: Number.isFinite(parsedExpiry) ? parsedExpiry : undefined,
           project: entry?.project,
         },

@@ -3,6 +3,10 @@
  * `<dataDir>/hq-vault.json`, its atomic owner-only writer, and the append-only
  * audit log `<dataDir>/hq-vault-audit.jsonl`. `store.ts` owns the behaviour;
  * this module owns the bytes.
+ *
+ * Version 2 holds provider profiles (the `providers.<id>` shape a machine's
+ * config uses), each with its keys; version 1 (one flat secret per key,
+ * granted per key) is migrated on read.
  */
 import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs/promises';
@@ -14,15 +18,44 @@ import type {
   HqVaultDeviceRecord,
   HqVaultGrantRecord,
   HqVaultIdentity,
-  HqVaultSecretMeta,
+  HqVaultKeyMeta,
 } from './protocol.js';
 
 export const HQ_VAULT_FILE = 'hq-vault.json';
 export const HQ_VAULT_AUDIT_FILE = 'hq-vault-audit.jsonl';
 
-export interface HqVaultStoredSecret extends HqVaultSecretMeta {
+/**
+ * Every secret member of a key, encrypted at rest. `refreshToken` and
+ * `idToken` never leave HQ; the rest is sealed to devices.
+ */
+export interface HqVaultKeySecrets {
+  apiKey: string;
+  refreshToken?: string;
+  idToken?: string;
+  tokenType?: string;
+  scope?: string;
+  project?: string;
+  oauthClientId?: string;
+  oauthSubject?: string;
+}
+
+export interface HqVaultStoredKey extends HqVaultKeyMeta {
   dek: HqVaultCipherText;
   payload: HqVaultCipherText;
+}
+
+export interface HqVaultStoredProfile {
+  id: string;
+  type: string;
+  family?: string;
+  baseUrl?: string;
+  envVars?: string[];
+  models?: string[];
+  activeKey?: string;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  keys: HqVaultStoredKey[];
 }
 
 export interface HqVaultStoredIdentity {
@@ -35,9 +68,9 @@ export interface HqVaultStoredIdentity {
 }
 
 export interface HqVaultFile {
-  version: 1;
+  version: 2;
   identity?: HqVaultStoredIdentity;
-  secrets: HqVaultStoredSecret[];
+  profiles: HqVaultStoredProfile[];
   devices: HqVaultDeviceRecord[];
   grants: HqVaultGrantRecord[];
 }
@@ -49,14 +82,24 @@ export interface HqVaultStatus {
   /** True when the master key is passphrase-wrapped. */
   passphraseProtected: boolean;
   identity?: HqVaultIdentity;
-  counts: { secrets: number; devices: number; pendingDevices: number; grants: number };
+  counts: {
+    profiles: number;
+    keys: number;
+    devices: number;
+    pendingDevices: number;
+    grants: number;
+  };
 }
 
 export type HqVaultAuditKind =
   | 'unseal'
-  | 'secret.create'
-  | 'secret.rotate'
-  | 'secret.delete'
+  | 'profile.create'
+  | 'profile.update'
+  | 'profile.delete'
+  | 'key.set'
+  | 'key.delete'
+  | 'key.refresh'
+  | 'oauth.signin'
   | 'device.enroll'
   | 'device.approve'
   | 'device.revoke'
@@ -69,12 +112,12 @@ export interface HqVaultAuditEntry {
   at: string;
   kind: HqVaultAuditKind;
   actor: string;
-  secretId?: string;
-  providerId?: string;
+  profileId?: string;
+  keyLabel?: string;
   version?: number;
   deviceId?: string;
-  grantId?: string;
-  secretIds?: string[];
+  profileIds?: string[];
+  detail?: string;
 }
 
 export class HqVaultError extends Error {
@@ -93,7 +136,7 @@ export class HqVaultError extends Error {
 }
 
 export function emptyHqVaultFile(): HqVaultFile {
-  return { version: 1, secrets: [], devices: [], grants: [] };
+  return { version: 2, profiles: [], devices: [], grants: [] };
 }
 
 /** A trimmed, non-empty string of at most `max` characters, else undefined. */
@@ -103,35 +146,131 @@ export function hqVaultText(value: unknown, max: number): string | undefined {
   return trimmed.length > 0 && trimmed.length <= max ? trimmed : undefined;
 }
 
+/** The last characters of a value, for recognising it. Never more than 4. */
+export function hqVaultHint(value: string): string {
+  return value.length <= 8 ? '' : value.slice(-4);
+}
+
+function keyAad(kind: 'dek' | 'secret', id: string, version: number): string {
+  return `${kind}|${id}|${version}`;
+}
+
 /**
- * Envelope-encrypt one secret value: a fresh data key encrypts the value, the
- * master key wraps the data key. Both bind the secret id and version, so a
- * ciphertext cannot be moved to another secret or replayed as another version.
+ * Envelope-encrypt one key's secrets: a fresh data key encrypts them, the
+ * master key wraps the data key. Both bind the key id and version, so a
+ * ciphertext cannot be moved to another key or replayed as another version.
  */
-export function encryptHqVaultValue(
+export function encryptHqVaultSecrets(
   master: Buffer,
   id: string,
   version: number,
-  value: string,
+  secrets: HqVaultKeySecrets,
 ): { dek: HqVaultCipherText; payload: HqVaultCipherText } {
   const dek = randomBytes(32);
   return {
-    dek: hqVaultEncrypt(master, dek, `dek|${id}|${version}`),
-    payload: hqVaultEncrypt(dek, Buffer.from(value, 'utf8'), `secret|${id}|${version}`),
+    dek: hqVaultEncrypt(master, dek, keyAad('dek', id, version)),
+    payload: hqVaultEncrypt(
+      dek,
+      Buffer.from(JSON.stringify(secrets), 'utf8'),
+      keyAad('secret', id, version),
+    ),
   };
 }
 
-export function decryptHqVaultValue(master: Buffer, secret: HqVaultStoredSecret): string {
-  const dek = hqVaultDecrypt(master, secret.dek, `dek|${secret.id}|${secret.version}`);
-  return hqVaultDecrypt(dek, secret.payload, `secret|${secret.id}|${secret.version}`).toString(
+export function decryptHqVaultSecrets(
+  master: Buffer,
+  key: Pick<HqVaultStoredKey, 'id' | 'version' | 'dek' | 'payload'>,
+): HqVaultKeySecrets {
+  const dek = hqVaultDecrypt(master, key.dek, keyAad('dek', key.id, key.version));
+  const raw = hqVaultDecrypt(dek, key.payload, keyAad('secret', key.id, key.version)).toString(
     'utf8',
   );
+  // Version-1 payloads were the bare API key; version 2 is JSON.
+  if (!raw.startsWith('{')) return { apiKey: raw };
+  return JSON.parse(raw) as HqVaultKeySecrets;
+}
+
+interface V1Secret {
+  id: string;
+  providerId: string;
+  label: string;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  dek: HqVaultCipherText;
+  payload: HqVaultCipherText;
+}
+
+interface V1Grant {
+  id: string;
+  secretId: string;
+  deviceId: string;
+  createdAt: string;
+}
+
+/**
+ * Version 1 → 2: one profile per distinct provider id holding its keys (the
+ * ciphertexts move unchanged — they are bound to the key id and version,
+ * which stay), and a key grant becomes a grant of the key's profile. Hints are
+ * unknown without decrypting and stay empty until the key is next replaced.
+ */
+export function migrateHqVaultFileV1(v1: {
+  identity?: HqVaultStoredIdentity;
+  secrets?: V1Secret[];
+  devices?: HqVaultDeviceRecord[];
+  grants?: V1Grant[];
+}): HqVaultFile {
+  const profiles = new Map<string, HqVaultStoredProfile>();
+  const profileOfSecret = new Map<string, string>();
+  for (const secret of v1.secrets ?? []) {
+    let profile = profiles.get(secret.providerId);
+    if (!profile) {
+      profile = {
+        id: secret.providerId,
+        type: secret.providerId,
+        version: 1,
+        createdAt: secret.createdAt,
+        updatedAt: secret.updatedAt,
+        keys: [],
+        activeKey: secret.label,
+      };
+      profiles.set(secret.providerId, profile);
+    }
+    profile.keys.push({
+      id: secret.id,
+      label: secret.label,
+      authMethod: 'api_key',
+      hint: '',
+      version: secret.version,
+      createdAt: secret.createdAt,
+      updatedAt: secret.updatedAt,
+      dek: secret.dek,
+      payload: secret.payload,
+    });
+    profileOfSecret.set(secret.id, secret.providerId);
+  }
+  const grants: HqVaultGrantRecord[] = [];
+  const seen = new Set<string>();
+  for (const grant of v1.grants ?? []) {
+    const profileId = profileOfSecret.get(grant.secretId);
+    if (!profileId || seen.has(`${profileId}\0${grant.deviceId}`)) continue;
+    seen.add(`${profileId}\0${grant.deviceId}`);
+    grants.push({ id: grant.id, profileId, deviceId: grant.deviceId, createdAt: grant.createdAt });
+  }
+  return {
+    version: 2,
+    ...(v1.identity ? { identity: v1.identity } : {}),
+    profiles: [...profiles.values()],
+    devices: v1.devices ?? [],
+    grants,
+  };
 }
 
 /** Reads and writes `hq-vault.json` and appends to the audit log. */
 export class HqVaultFileIO {
   readonly filePath: string;
   private readonly auditPath: string;
+  private hardened = false;
 
   constructor(private readonly dataDir: string) {
     this.filePath = path.join(dataDir, HQ_VAULT_FILE);
@@ -147,14 +286,18 @@ export class HqVaultFileIO {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
       throw error;
     }
-    const parsed = JSON.parse(raw) as Partial<HqVaultFile>;
-    if (parsed.version !== 1) {
+    const stored = JSON.parse(raw) as { version?: unknown };
+    if (stored.version === 1) {
+      return migrateHqVaultFileV1(stored as Parameters<typeof migrateHqVaultFileV1>[0]);
+    }
+    const parsed = stored as Partial<HqVaultFile>;
+    if (parsed.version !== 2) {
       throw new HqVaultError('VAULT_INVALID', `${HQ_VAULT_FILE} has an unsupported version.`);
     }
     return {
-      version: 1,
+      version: 2,
       ...(parsed.identity ? { identity: parsed.identity } : {}),
-      secrets: Array.isArray(parsed.secrets) ? parsed.secrets : [],
+      profiles: Array.isArray(parsed.profiles) ? parsed.profiles : [],
       devices: Array.isArray(parsed.devices) ? parsed.devices : [],
       grants: Array.isArray(parsed.grants) ? parsed.grants : [],
     };
@@ -162,9 +305,13 @@ export class HqVaultFileIO {
 
   async write(file: HqVaultFile): Promise<void> {
     await fs.mkdir(this.dataDir, { recursive: true });
-    await restrictDirPermissions(this.dataDir, { label: 'hq-vault-dir' });
+    if (!this.hardened) await restrictDirPermissions(this.dataDir, { label: 'hq-vault-dir' });
     await atomicWrite(this.filePath, `${JSON.stringify(file, null, 2)}\n`, { mode: 0o600 });
-    await restrictFilePermissions(this.filePath, { label: 'hq-vault' });
+    if (!this.hardened) await restrictFilePermissions(this.filePath, { label: 'hq-vault' });
+    // Once per process: on Windows each hardening call spawns icacls (about a
+    // second), and every later write replaces the file inside the owner-only
+    // directory, so it inherits that ACL; on POSIX `mode` covers it.
+    this.hardened = true;
   }
 
   /** Best effort: an audit write failure must not fail the operation it records. */

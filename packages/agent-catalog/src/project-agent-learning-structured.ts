@@ -1,4 +1,4 @@
-import { splitLearnedEntries, tokenOverlap } from './project-agent-learning-entries.js';
+import { splitLearnedEntries, directiveSimilarity } from './project-agent-learning-entries.js';
 import {
   classifyLearnedEntry,
   type LearnedEntryCategory,
@@ -419,7 +419,7 @@ export function mergeStructuredEntries(
 ): StructuredLearnedEntry[] {
   const { what, why, how } = decomposeLearnedEntry(fresh.text, fresh.category);
   const key = directiveKey(fresh.text);
-  const overlapping = existing.filter((entry) => tokenOverlap(entry.key, key) >= 0.55);
+  const overlapping = existing.filter((entry) => directiveSimilarity(entry.key, key) >= 0.55);
 
   // A directive that has repeatedly been exercised and repeatedly worked is not
   // replaced by a near-duplicate just because the near-duplicate is newer.
@@ -454,7 +454,7 @@ export function mergeStructuredEntries(
       : {}),
   };
   const merged = existing.filter(
-    (entry) => entry.category !== fresh.category || tokenOverlap(entry.key, key) < 0.55,
+    (entry) => entry.category !== fresh.category || directiveSimilarity(entry.key, key) < 0.55,
   );
   merged.push(freshEntry);
   return sortStructuredEntries(merged);

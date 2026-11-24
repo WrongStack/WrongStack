@@ -28,7 +28,10 @@ export function authoredBlocks(
       : message.content;
   const authored =
     typeof message.authoredLength === 'number'
-      ? content.slice(0, Math.max(0, message.authoredLength))
+      ? content.slice(
+          0,
+          Number.isFinite(message.authoredLength) ? Math.max(0, message.authoredLength) : 0,
+        )
       : content.some((block) => block.type === 'tool_result')
         ? []
         : content;

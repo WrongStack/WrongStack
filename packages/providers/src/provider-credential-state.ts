@@ -4,6 +4,12 @@ import {
   type ProviderConfig,
   ProviderError,
 } from '@wrongstack/contracts/types';
+import { isExternalRefreshPlaceholder } from './external-credential-refresh.js';
+
+/** A host-renewed account's in-memory placeholder is no refresh token at all. */
+function storedRefreshToken(value: string | undefined): string | undefined {
+  return isExternalRefreshPlaceholder(value) ? undefined : value;
+}
 
 export function unavailableProviderCredentials(
   id: string,
@@ -59,7 +65,7 @@ function matches(key: ProviderApiKey, source: CredentialSource): boolean {
   return (
     (source.label === undefined || key.label === source.label) &&
     key.apiKey === source.accessToken &&
-    key.refreshToken === source.refreshToken
+    key.refreshToken === storedRefreshToken(source.refreshToken)
   );
 }
 export function matchesActiveProviderCredential(
@@ -83,7 +89,8 @@ export function applyProviderOAuthRefresh(
     : (keys.find((key) => key.label === config.activeKey) ?? keys[0]);
   if (!key) return false;
   key.apiKey = creds.accessToken;
-  if (creds.refreshToken !== undefined) key.refreshToken = creds.refreshToken;
+  const refreshToken = storedRefreshToken(creds.refreshToken);
+  if (refreshToken !== undefined) key.refreshToken = refreshToken;
   key.expiresAt = new Date(creds.expiresAt).toISOString();
   if (creds.accountId) key.accountId = creds.accountId;
   if (creds.scope !== undefined) key.scope = creds.scope;

@@ -433,7 +433,7 @@ async function removeOwnedMetadata(): Promise<void> {
 async function stop(_reason: string): Promise<void> {
   if (stopping) return;
   stopping = true;
-  metadataGuard.disable();
+  await metadataGuard.disable();
   // DIAGNOSTIC: the stop reason is otherwise unobservable — the client spawns
   // this daemon with stdio:'ignore', so anything not written to stderr is lost
   // when the daemon exits. Harmless in production precisely because stderr is

@@ -243,6 +243,26 @@ const domainMethods = {
     this.send({ type: 'auth.oauth.cancel', payload: { kind } });
   },
 
+  hqStatus(this: WsClientDomainHost) {
+    this.send({ type: 'hq.status' });
+  },
+
+  hqEnroll(this: WsClientDomainHost, hqUrl: string, token: string) {
+    this.send({ type: 'hq.enroll', payload: { hqUrl, token } });
+  },
+
+  hqImport(this: WsClientDomainHost, profileIds?: string[]) {
+    this.send({ type: 'hq.import', payload: profileIds ? { profileIds } : {} });
+  },
+
+  hqSync(this: WsClientDomainHost) {
+    this.send({ type: 'hq.sync' });
+  },
+
+  hqUnenroll(this: WsClientDomainHost, removeKeys: boolean) {
+    this.send({ type: 'hq.unenroll', payload: { removeKeys } });
+  },
+
   probeProvider(this: WsClientDomainHost, providerId: string, timeoutMs?: number) {
     this.send({
       type: 'provider.probe',

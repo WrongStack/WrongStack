@@ -11,6 +11,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { LOCAL_PRESET_FAMILY, type LOCAL_SERVER_PRESETS } from './local-presets';
 import { OAuthLoginSection } from './OAuthLoginSection';
+import { ProviderHqImport } from './ProviderHqImport';
 import { ProviderSavedProfiles } from './ProviderSavedProfiles.js';
 import type { CatalogProvider, ProviderSectionProps } from './provider-section-types.js';
 
@@ -262,6 +263,8 @@ export function ProviderSection({
           }))}
         />
       </div>
+
+      <ProviderHqImport ws={ws} />
 
       <div className="pt-2 border-t">
         <h3 className="text-sm font-semibold mb-1 flex items-center gap-2">

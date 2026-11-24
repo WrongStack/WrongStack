@@ -1,56 +1,58 @@
 import { describe, expect, it } from 'vitest';
+import { providerBrand } from '../src/features/vault/brand';
 import {
   auditActor,
   auditSentence,
-  grantMatrix,
-  secretFormError,
+  baseUrlError,
+  catalogGroups,
+  configuredCounts,
+  keyFormError,
+  maskedKey,
+  nextProfileId,
+  parseModelList,
+  profileIdError,
   vaultGate,
 } from '../src/features/vault/model';
 import type {
   HqVaultDeviceRecord,
-  HqVaultGrantRecord,
-  HqVaultSecretMeta,
+  HqVaultProfileMeta,
+  VaultCatalogProvider,
   VaultStatus,
 } from '../src/hq/data/vault-api';
 
 const NOW = Date.parse('2026-11-24T10:00:00Z');
 const base: VaultStatus = { state: 'unsealed', passwordConfigured: true, secureChannel: true };
 
-const secret = (id: string, providerId: string, label: string): HqVaultSecretMeta => ({
+const profile = (id: string, type = id): HqVaultProfileMeta => ({
   id,
-  providerId,
-  label,
-  kind: 'api_key',
+  type,
   version: 1,
   createdAt: '2026-11-24T09:00:00Z',
   updatedAt: '2026-11-24T09:00:00Z',
+  keys: [],
+  deviceIds: [],
 });
 
-const device = (
-  id: string,
-  hostname: string,
-  status: HqVaultDeviceRecord['status'],
-): HqVaultDeviceRecord => ({
+const provider = (id: string, family: string, name = id): VaultCatalogProvider => ({
+  id,
+  name,
+  family,
+  envVars: [],
+  models: [],
+});
+
+const device = (id: string, hostname: string): HqVaultDeviceRecord => ({
   id,
   hostname,
-  status,
+  status: 'approved',
   encPublic: 'e',
   signPublic: 's',
   fingerprint: 'F',
   enrolledAt: '2026-11-24T09:00:00Z',
 });
 
-const grant = (id: string, secretId: string, deviceId: string): HqVaultGrantRecord => ({
-  id,
-  secretId,
-  deviceId,
-  policy: 'local',
-  setActive: false,
-  createdAt: '2026-11-24T09:00:00Z',
-});
-
 describe('vaultGate', () => {
-  it('follows the server order: password, seal, channel, step-up', () => {
+  it('checks in the server order: password, seal, channel, unlock', () => {
     expect(vaultGate({ ...base, state: 'unavailable', passwordConfigured: false }, NOW).kind).toBe(
       'unavailable',
     );
@@ -61,78 +63,115 @@ describe('vaultGate', () => {
       canWrite: false,
     });
     expect(vaultGate(base, NOW).kind).toBe('locked');
+    const ready = vaultGate(
+      { ...base, elevatedUntil: new Date(NOW + 4 * 60_000 + 1).toISOString() },
+      NOW,
+    );
+    expect(ready).toMatchObject({ kind: 'ready', canWrite: true, detail: '5 more minutes' });
     expect(vaultGate({ ...base, elevatedUntil: new Date(NOW - 1).toISOString() }, NOW).kind).toBe(
       'locked',
     );
-    const ready = vaultGate(
-      { ...base, elevatedUntil: new Date(NOW + 4 * 60_000).toISOString() },
-      NOW,
+  });
+});
+
+describe('catalog', () => {
+  const catalog = [
+    provider('groq', 'openai-compatible', 'Groq'),
+    provider('anthropic', 'anthropic', 'Anthropic'),
+    provider('openai', 'openai', 'OpenAI'),
+    provider('mystery', 'something-new', 'Mystery'),
+  ];
+
+  it('puts popular providers first in a fixed order, then the rest by family', () => {
+    const groups = catalogGroups(
+      [...catalog, provider('fireworks-like', 'openai-compatible', 'Fireworks-like')],
+      '',
     );
-    expect(ready).toMatchObject({ kind: 'ready', canWrite: true });
-    expect(ready.detail).toContain('4 more minutes');
+    expect(groups.map((g) => [g.title, g.providers.map((p) => p.id)])).toEqual([
+      ['Popular', ['anthropic', 'openai', 'groq']],
+      ['OpenAI-compatible', ['fireworks-like']],
+      ['Other', ['mystery']],
+    ]);
   });
 
-  it('mentions the authenticator code only when 2FA is on', () => {
-    expect(vaultGate({ ...base, totpEnabled: true }, NOW).detail).toContain('authenticator');
-    expect(vaultGate(base, NOW).detail).not.toContain('authenticator');
+  it('searches name, id and family into one Matches group', () => {
+    expect(catalogGroups(catalog, 'GRO')).toEqual([{ title: 'Matches', providers: [catalog[0]] }]);
+    expect(catalogGroups(catalog, 'zzz')).toEqual([]);
   });
-});
 
-describe('grantMatrix', () => {
-  it('drops revoked devices, puts approved ones first and fills the cells', () => {
-    const secrets = [secret('s2', 'openai', 'b'), secret('s1', 'anthropic', 'a')];
-    const devices = [
-      device('d1', 'zeta', 'pending'),
-      device('d2', 'alpha', 'approved'),
-      device('d3', 'gone', 'revoked'),
-    ];
-    const { devices: cols, rows } = grantMatrix(secrets, devices, [grant('g1', 's2', 'd2')]);
-    expect(cols.map((d) => d.id)).toEqual(['d2', 'd1']);
-    expect(rows.map((r) => r.secret.id)).toEqual(['s1', 's2']);
-    expect(rows[1]!.cells.map((c) => c.grant?.id ?? null)).toEqual(['g1', null]);
+  it('gives a new profile the provider id, then id-2, id-3', () => {
+    expect(nextProfileId('openai', [])).toBe('openai');
+    expect(nextProfileId('openai', [profile('openai'), profile('openai-2')])).toBe('openai-3');
+    expect(configuredCounts([profile('openai'), profile('work', 'openai')]).get('openai')).toBe(2);
   });
 });
 
-describe('audit wording', () => {
-  const secrets = new Map([['s1', secret('s1', 'openai', 'team')]]);
-  const devices = new Map([['d1', { ...device('d1', 'LAB-02', 'approved'), label: 'lab' }]]);
+describe('forms', () => {
+  it('checks the alias against the server rule and existing profiles', () => {
+    expect(profileIdError('../x', [])).toMatch(/letters, digits/);
+    expect(profileIdError('openai', [profile('openai')])).toMatch(/already saved/);
+    expect(profileIdError('team-proxy', [profile('openai')])).toBeNull();
+  });
 
-  it('names keys and devices and never needs a value', () => {
+  it('checks keys and endpoints', () => {
+    expect(keyFormError({ label: '', apiKey: 'k' })).toBe('Name the key.');
+    expect(keyFormError({ label: 'team', apiKey: ' ' })).toBe('Paste the key.');
+    expect(keyFormError({ label: 'team', apiKey: 'k' })).toBeNull();
+    expect(baseUrlError('', true)).toMatch(/needs its endpoint/);
+    expect(baseUrlError('', false)).toBeNull();
+    expect(baseUrlError('file:///etc/passwd', false)).toMatch(/http\(s\)/);
+    expect(baseUrlError('https://llm.example.com/v1', true)).toBeNull();
+  });
+
+  it('parses a model list and masks a key by its hint', () => {
+    expect(parseModelList('a, b\nb ,, c')).toEqual(['a', 'b', 'c']);
+    expect(parseModelList(' , ')).toBeUndefined();
+    expect(maskedKey('f3a9')).toBe('••••f3a9');
+    expect(maskedKey('')).toBe('••••');
+  });
+});
+
+describe('providerBrand', () => {
+  it('prefers the endpoint domain, then the id or its alias, and never guesses', () => {
+    expect(providerBrand('team-proxy', { baseUrl: 'https://openrouter.ai/api/v1' })?.name).toBe(
+      'OpenRouter',
+    );
+    expect(providerBrand('openai-2')?.name).toBe('OpenAI');
+    expect(providerBrand('openai-hq')?.name).toBe('OpenAI');
+    expect(providerBrand('work', { type: 'anthropic' })?.name).toBe('Anthropic');
+    expect(providerBrand('team-proxy', { baseUrl: 'https://llm.internal/v1' })).toBeNull();
+  });
+});
+
+describe('audit in words', () => {
+  const devices = new Map([['d1', device('d1', 'LAB-02')]]);
+  it('names profiles, keys and devices without a value', () => {
+    const at = '2026-11-24T09:59:00Z';
     expect(
       auditSentence(
-        { at: 'x', kind: 'grant.create', actor: 'a', secretId: 's1', deviceId: 'd1' },
-        secrets,
+        { at, kind: 'key.set', actor: 'x', profileId: 'openai', keyLabel: 'team', version: 1 },
         devices,
       ),
-    ).toBe('Gave team (openai) to lab');
+    ).toBe('Saved openai/team');
     expect(
       auditSentence(
-        { at: 'x', kind: 'fetch', actor: 'device:d1', deviceId: 'd1', secretIds: ['s1'] },
-        secrets,
+        { at, kind: 'key.set', actor: 'x', profileId: 'openai', keyLabel: 'team', version: 3 },
         devices,
       ),
-    ).toBe('lab fetched 1 key');
+    ).toBe('Replaced openai/team (version 3)');
     expect(
       auditSentence(
-        { at: 'x', kind: 'secret.rotate', actor: 'a', secretId: 'zz', version: 3 },
-        secrets,
+        { at, kind: 'grant.create', actor: 'x', profileId: 'openai', deviceId: 'd1' },
         devices,
       ),
-    ).toBe('Replaced a deleted key (version 3)');
-    expect(auditActor('device:d1', devices)).toBe('lab');
+    ).toBe('Gave openai to LAB-02');
+    expect(
+      auditSentence(
+        { at, kind: 'fetch', actor: 'device:d1', deviceId: 'd1', profileIds: ['a', 'b'] },
+        devices,
+      ),
+    ).toBe('LAB-02 fetched 2 providers');
+    expect(auditActor('device:d1', devices)).toBe('LAB-02');
     expect(auditActor('hq-dashboard:session', devices)).toBe('dashboard sign-in');
-  });
-});
-
-describe('secretFormError', () => {
-  it('checks provider id, name and key', () => {
-    expect(secretFormError({ providerId: '../x', label: 'a', apiKey: 'k' })).toMatch(/Provider id/);
-    expect(secretFormError({ providerId: 'openai', label: ' ', apiKey: 'k' })).toBe(
-      'Name the key.',
-    );
-    expect(secretFormError({ providerId: 'openai', label: 'a', apiKey: '' })).toBe(
-      'Paste the key.',
-    );
-    expect(secretFormError({ providerId: 'openai', label: 'a', apiKey: 'k' })).toBeNull();
   });
 });

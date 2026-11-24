@@ -134,7 +134,9 @@ const ACP_CLIENT_PROFILES: Readonly<Record<string, AcpClientProfile>> = {
 export function resolveAcpClientProfile(agentId: string | undefined): AcpClientProfile {
   if (!agentId) return DEFAULT_GENERIC_ACP_PROFILE;
   const normalized = agentId.trim().toLowerCase();
-  return ACP_CLIENT_PROFILES[normalized] ?? { ...DEFAULT_GENERIC_ACP_PROFILE, id: normalized };
+  return Object.hasOwn(ACP_CLIENT_PROFILES, normalized)
+    ? ACP_CLIENT_PROFILES[normalized]!
+    : { ...DEFAULT_GENERIC_ACP_PROFILE, id: normalized };
 }
 
 /**
@@ -146,10 +148,11 @@ export function defaultBridgeAgentIds(liveIds?: Iterable<string>): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
   const add = (id: string) => {
-    if (!id || seen.has(id)) return;
-    if (!resolveAcpClientProfile(id).bridgeByDefault) return;
-    seen.add(id);
-    out.push(id);
+    const normalized = id.trim().toLowerCase();
+    if (!normalized || seen.has(normalized)) return;
+    if (!resolveAcpClientProfile(normalized).bridgeByDefault) return;
+    seen.add(normalized);
+    out.push(normalized);
   };
   for (const entry of AGENTS_CATALOG) add(entry.id);
   if (liveIds) {

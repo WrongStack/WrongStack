@@ -37,6 +37,10 @@ export interface SubscriptionOAuthOptions {
   headers?: Record<string, string> | undefined;
   onRefresh?: ((tokens: OAuthRefreshedTokens) => void) | undefined;
   onModels?: ((models: ProviderLiveModel[], credential: ProviderApiKey) => void) | undefined;
+  /** Renew with something other than the account's own refresh endpoint (a host holding the refresh token). */
+  refreshFn?:
+    | ((credential: ProviderApiKey, signal?: AbortSignal) => Promise<ProviderApiKey>)
+    | undefined;
 }
 
 /** Renewable account auth composed with the existing Messages/Responses transports. */
@@ -101,9 +105,11 @@ export class SubscriptionOAuthProvider implements Provider {
               this.id,
               { ...this.credential, refreshToken },
               (current) =>
-                strategy === 'chatgpt-api'
-                  ? refreshChatGPTDirect(current, opts.fetchImpl, signal)
-                  : refreshDeviceSubscription(current, opts.fetchImpl, signal),
+                opts.refreshFn
+                  ? opts.refreshFn(current, signal)
+                  : strategy === 'chatgpt-api'
+                    ? refreshChatGPTDirect(current, opts.fetchImpl, signal)
+                    : refreshDeviceSubscription(current, opts.fetchImpl, signal),
             );
           } catch (error) {
             if (error instanceof ProviderError && error.providerId !== this.id) {

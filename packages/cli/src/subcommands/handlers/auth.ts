@@ -126,19 +126,19 @@ export const authCmd: SubcommandHandler = async (args, deps) => {
   }
 
   // `wstack auth list` / `wstack auth ls` — quick listing
-  // `wstack auth import --from hq [key-id …]` — keys from the HQ key vault.
+  // `wstack auth import --from hq [profile-id …]` — providers from the HQ key vault.
   if (first === 'import') {
     const from = deps.flags?.['from'];
     if (from !== 'hq') {
       deps.renderer.writeError(
-        'Usage: wstack auth import --from hq [key-id …]  (enroll first: wstack hq enroll <url> <token>)',
+        'Usage: wstack auth import --from hq [profile-id …]  (enroll first: wstack hq enroll <url> <token>)',
       );
       return 1;
     }
-    const keyIds = flags.positional.slice(1);
+    const profileIds = flags.positional.slice(1);
     try {
       const report = await createHqCredentialService(menuDeps).importKeys(
-        keyIds.length > 0 ? { keyIds } : {},
+        profileIds.length > 0 ? { profileIds } : {},
       );
       for (const line of formatHqImportReport(report)) deps.renderer.write(`${line}\n`);
       return 0;

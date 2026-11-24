@@ -151,7 +151,7 @@ export class TechStackStore {
     const stmt = this.stmt(`
       SELECT raw_json FROM snapshots
       WHERE project_id = ?
-      ORDER BY created_at DESC
+      ORDER BY created_at DESC, rowid DESC
       LIMIT 1
     `);
     const row = stmt.get(projectId) as { raw_json: string } | undefined;
@@ -182,7 +182,7 @@ export class TechStackStore {
     const stmt = this.stmt(`
       SELECT raw_json FROM snapshots
       WHERE project_id = ?
-      ORDER BY created_at DESC
+      ORDER BY created_at DESC, rowid DESC
       LIMIT ?
     `);
     const rows = stmt.all(projectId, limit) as Array<{ raw_json: string }>;
@@ -262,7 +262,7 @@ export class TechStackStore {
   /** List jobs for a project (newest first). */
   listJobs(projectId: string, limit = 50): TechStackJob[] {
     const stmt = this.stmt(`
-      SELECT * FROM jobs WHERE project_id = ? ORDER BY created_at DESC LIMIT ?
+      SELECT * FROM jobs WHERE project_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?
     `);
     const rows = stmt.all(projectId, limit) as Array<Record<string, unknown>>;
     return rows.map((r) => this.rowToJob(r));

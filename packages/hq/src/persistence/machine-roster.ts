@@ -65,7 +65,9 @@ export function parseHqMachineLabels(raw: unknown): string[] | null {
 }
 
 function clip(value: string): string {
-  return value.length > MAX_TEXT ? value.slice(0, MAX_TEXT) : value;
+  if (value.length <= MAX_TEXT) return value;
+  const lastKept = value.charCodeAt(MAX_TEXT - 1);
+  return value.slice(0, lastKept >= 0xd800 && lastKept <= 0xdbff ? MAX_TEXT - 1 : MAX_TEXT);
 }
 
 function isoOrNull(value: unknown): string | null {

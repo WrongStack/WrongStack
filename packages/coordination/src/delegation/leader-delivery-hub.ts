@@ -251,7 +251,7 @@ export function runtimeNoticeDeliveryId(
   handle: string,
   seq: number | string,
 ): string {
-  return `notice:${source}:${handle}#${seq}`;
+  return `notice:${source}:${encodeURIComponent(handle)}#${encodeURIComponent(String(seq))}`;
 }
 
 /**
@@ -282,7 +282,13 @@ export function renderLeaderDeliveryBlock(delivery: LeaderDelivery): string {
   } else if (p.cause === 'restart') {
     lines.push('note: recovered from the session journal after a process restart.');
   }
-  const task = p.task.length > 300 ? `${p.task.slice(0, 299)}…` : p.task;
+  let task = p.task;
+  if (task.length > 300) {
+    let end = 299;
+    const lastKept = task.charCodeAt(end - 1);
+    if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+    task = `${task.slice(0, end)}…`;
+  }
   lines.push(`task: ${task}`);
   lines.push(`summary: ${p.summary}`);
   if (p.excerpt?.trim()) lines.push('', p.excerpt.trim());
@@ -302,7 +308,13 @@ function renderRuntimeNoticeBlock(delivery: RuntimeNoticeLeaderDelivery): string
     lines.push(
       '',
       body.length > RUNTIME_NOTICE_BODY_MAX_CHARS
-        ? `${body.slice(0, RUNTIME_NOTICE_BODY_MAX_CHARS - 1)}…`
+        ? `${body.slice(
+            0,
+            body.charCodeAt(RUNTIME_NOTICE_BODY_MAX_CHARS - 2) >= 0xd800 &&
+              body.charCodeAt(RUNTIME_NOTICE_BODY_MAX_CHARS - 2) <= 0xdbff
+              ? RUNTIME_NOTICE_BODY_MAX_CHARS - 2
+              : RUNTIME_NOTICE_BODY_MAX_CHARS - 1,
+          )}…`
         : body,
     );
   }

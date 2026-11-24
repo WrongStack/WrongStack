@@ -169,21 +169,16 @@ export function classifyLearnedEntry(text: string): LearnedEntryCategory {
 }
 
 /**
- * Token signature used for near-duplicate detection.
+ * Normalize a directive for comparison without discarding token order.
  *
- * Letters and digits of every script survive. The class used to be ASCII `\w`,
- * which erased Cyrillic, CJK, Greek and every other non-Latin word entirely:
- * each such directive normalized to the empty string, all of them compared
- * as identical, and a role learning in those languages kept exactly one
- * directive — the second was rejected as a "near-duplicate" of the first.
+ * Sorting the tokens made the key non-injective: "run A before B" and
+ * "run B before A" became identical, so capture and taught merges dropped one
+ * of two contradictory directives. Order is part of an instruction's meaning.
  */
 export function normalizeForComparison(text: string): string {
   return text
     .toLowerCase()
     .replace(/[^\p{L}\p{N}_\s]/gu, ' ')
     .replace(/\s+/g, ' ')
-    .trim()
-    .split(/\s+/)
-    .sort()
-    .join(' ');
+    .trim();
 }

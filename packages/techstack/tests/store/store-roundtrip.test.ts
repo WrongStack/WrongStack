@@ -112,6 +112,18 @@ describe('snapshots', () => {
     expect(store.listSnapshots('proj-1', 2).map((s) => s.id)).toEqual(['s5', 's4']);
   });
 
+  it('uses save order to break snapshot timestamp ties, including replacements', () => {
+    const tied = '2026-07-01T00:00:00.000Z';
+    store.saveSnapshot(snapshot({ id: 'first', createdAt: tied }));
+    store.saveSnapshot(snapshot({ id: 'second', createdAt: tied }));
+    expect(store.getSnapshot('proj-1')?.id).toBe('second');
+    expect(store.listSnapshots('proj-1').map((s) => s.id)).toEqual(['second', 'first']);
+
+    store.saveSnapshot(snapshot({ id: 'first', createdAt: tied, fingerprint: 'replaced' }));
+    expect(store.listSnapshots('proj-1').map((s) => s.id)).toEqual(['first', 'second']);
+    expect(store.getSnapshot('proj-1')?.fingerprint).toBe('replaced');
+  });
+
   it('deleteSnapshotsBefore is strict (<), project-scoped, and reports the count', () => {
     store.saveSnapshot(snapshot({ id: 'a', createdAt: '2026-01-01T00:00:00.000Z' }));
     store.saveSnapshot(snapshot({ id: 'b', createdAt: '2026-02-01T00:00:00.000Z' }));
@@ -186,6 +198,13 @@ describe('jobs', () => {
     store.saveJob(job({ id: 'foreign', projectId: 'proj-2' }));
     expect(store.listJobs('proj-1').map((j) => j.id)).toEqual(['j3', 'j2', 'j1']);
     expect(store.listJobs('proj-1', 1).map((j) => j.id)).toEqual(['j3']);
+  });
+  it('uses save order to break job timestamp ties', () => {
+    const tied = '2026-07-01T00:00:00.000Z';
+    store.saveJob(job({ id: 'first', createdAt: tied }));
+    store.saveJob(job({ id: 'second', createdAt: tied }));
+    expect(store.listJobs('proj-1').map((j) => j.id)).toEqual(['second', 'first']);
+    expect(store.listJobs('proj-1', 1).map((j) => j.id)).toEqual(['second']);
   });
 });
 

@@ -4810,6 +4810,22 @@
       "save": "Salvar nova chave",
       "missing": "Digite a nova chave de API.",
       "done": "A chave {{label}} de {{provider}} foi substituída."
+    },
+    "hq": {
+      "heading": "Importar do HQ",
+      "body": "Receba os provedores que o seu WrongStack HQ concede a esta máquina. As chaves chegam seladas para esta máquina; o HQ mantém os logins de assinatura renovados.",
+      "hqUrl": "Endereço do HQ",
+      "token": "Código de inscrição (no HQ: Sistema → Provedores → Dispositivos)",
+      "enroll": "Conectar esta máquina",
+      "connected": "Conectado a {{url}}",
+      "fingerprints": "HQ {{hq}} · esta máquina {{device}}",
+      "noneGranted": "O HQ ainda não concede provedores a esta máquina.",
+      "importAll": "Importar tudo",
+      "sync": "Sincronizar",
+      "disconnect": "Desconectar",
+      "disconnectRemove": "Desconectar e remover chaves",
+      "badge": "HQ",
+      "badgeHint": "Gerenciado pelo WrongStack HQ: uma sincronização substitui as alterações locais nas chaves dele"
     }
   },
   "processes": {

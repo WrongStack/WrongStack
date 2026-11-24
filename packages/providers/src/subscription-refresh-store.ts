@@ -1,5 +1,10 @@
 import type { ProviderApiKey, ProviderConfig } from '@wrongstack/contracts/types';
 import { ProviderError } from '@wrongstack/contracts/types';
+import {
+  isExternallyRenewed,
+  isExternalRefreshPlaceholder,
+  renewExternally,
+} from './external-credential-refresh.js';
 
 type Renewal = (credential: ProviderApiKey) => Promise<ProviderApiKey>;
 export type SubscriptionRefreshTransaction = (
@@ -74,6 +79,8 @@ export async function renewRotatingOAuthCredential<T extends RotatingOAuthTokens
     opts.providerId,
     { ...opts.stored, apiKey: opts.accessToken, refreshToken: opts.refreshToken },
     async (current) => {
+      // An account whose refresh token a host holds is renewed by that host.
+      if (isExternallyRenewed(current)) return renewExternally(opts.providerId, current);
       if (!current.refreshToken)
         throw new ProviderError(opts.signInHint, 401, false, opts.providerId, { kind: 'auth' });
       const tokens = await opts.exchange(current.refreshToken);
@@ -121,8 +128,12 @@ export function createSubscriptionRefreshTransaction(
           providerId,
         );
       }
-      const changed =
-        current.apiKey !== source.apiKey || current.refreshToken !== source.refreshToken;
+      // A host-renewed account holds a placeholder refresh key in memory only;
+      // it is not a rotation by someone else.
+      const sourceRefresh = isExternalRefreshPlaceholder(source.refreshToken)
+        ? undefined
+        : source.refreshToken;
+      const changed = current.apiKey !== source.apiKey || current.refreshToken !== sourceRefresh;
       const expiry = current.expiresAt ? Date.parse(current.expiresAt) : 0;
       // A sibling already rotated this account, or the user reauthorized it.
       // An unchanged token still renews on an explicit 401 refresh.

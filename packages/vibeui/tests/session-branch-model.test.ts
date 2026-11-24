@@ -47,6 +47,38 @@ describe('VibeUI session-branch-model', () => {
     ]);
   });
 
+  it.each([
+    ['null', null],
+    ['array', []],
+    ['missing id', { id: undefined, name: 'main' }],
+    ['non-string parent', { id: 'main', parentBranchId: 7 }],
+    ['fractional fork sequence', { id: 'main', forkSeq: 1.5 }],
+    ['non-string creation time', { id: 'main', createdAt: 1 }],
+    ['unknown status', { id: 'main', status: 'pending' }],
+    ['negative turn count', { id: 'main', turnCount: -1 }],
+  ] as const)(
+    'rejects %s branch descriptors instead of passing them to the UI',
+    (_case, invalid) => {
+      const valid = {
+        id: 'main',
+        name: 'main',
+        parentBranchId: null,
+        forkSeq: 0,
+        createdAt: '2026-11-12T10:00:00.000Z',
+        lastActivityAt: '2026-11-12T10:05:00.000Z',
+        status: 'active',
+        turnCount: 0,
+      };
+      const descriptor =
+        invalid === null || Array.isArray(invalid) ? invalid : { ...valid, ...invalid };
+      expect(
+        parseVibeSessionTree(
+          JSON.stringify({ activeBranchId: 'main', headSeq: 0, branches: { main: descriptor } }),
+        ),
+      ).toBeNull();
+    },
+  );
+
   it('builds deterministic /tree subcommand arguments including --keep-files', () => {
     expect(buildVibeTreeCommandArgs({ kind: 'list' })).toBe('list --json');
     expect(buildVibeTreeCommandArgs({ kind: 'new', name: '  exp-cache ' })).toBe('new exp-cache');

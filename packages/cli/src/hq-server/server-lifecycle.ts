@@ -18,6 +18,8 @@ interface HqServerShutdownParams {
   sessionCleanupTimer: NodeJS.Timeout;
   loginAttempts: LoginAttemptStore;
   stopAlertEngine: () => void;
+  /** Releases what the router holds open (pending provider sign-ins and their callback ports). */
+  stopRouter?: (() => void) | undefined;
   authWatcher: { close(): void };
   snapshotBroadcaster: { close(): void };
   bootstrapStore: { clear(): void };
@@ -43,6 +45,7 @@ export function createHqServerShutdown(params: HqServerShutdownParams): () => Pr
       clearInterval(params.sessionCleanupTimer);
 
       params.stopAlertEngine();
+      params.stopRouter?.();
       params.authWatcher.close();
       params.snapshotBroadcaster.close();
       params.bootstrapStore.clear();

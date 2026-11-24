@@ -4810,6 +4810,22 @@
       "save": "Yeni anahtarı kaydet",
       "missing": "Yeni API anahtarını gir.",
       "done": "{{provider}} için {{label}} anahtarı değiştirildi."
+    },
+    "hq": {
+      "heading": "HQ'dan içe aktar",
+      "body": "WrongStack HQ'nun bu makineye verdiği sağlayıcıları alın. Anahtarlar bu makineye mühürlü gelir; abonelik oturumlarını HQ yeniler.",
+      "hqUrl": "HQ adresi",
+      "token": "Kayıt kodu (HQ: Sistem → Sağlayıcılar → Cihazlar)",
+      "enroll": "Bu makineyi bağla",
+      "connected": "{{url}} adresine bağlı",
+      "fingerprints": "HQ {{hq}} · bu makine {{device}}",
+      "noneGranted": "HQ bu makineye henüz sağlayıcı vermedi.",
+      "importAll": "Tümünü içe aktar",
+      "sync": "Eşitle",
+      "disconnect": "Bağlantıyı kes",
+      "disconnectRemove": "Bağlantıyı kes ve anahtarları sil",
+      "badge": "HQ",
+      "badgeHint": "WrongStack HQ yönetiyor: eşitleme anahtarlarındaki yerel değişikliklerin yerine HQ'nunkileri koyar"
     }
   },
   "processes": {

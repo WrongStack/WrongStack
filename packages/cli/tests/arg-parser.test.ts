@@ -112,6 +112,18 @@ describe('parseArgs', () => {
     });
   });
 
+  it('keeps the agent id after --probe (a boolean acp doctor reads as === true)', () => {
+    expect(parseArgs(['acp', 'doctor', '--probe', 'codex'])).toEqual({
+      flags: { probe: true },
+      positional: ['acp', 'doctor', 'codex'],
+    });
+    // The three boundary forms of a BOOLEAN_FLAGS member: explicit true/false
+    // stay boolean, and a trailing switch is true.
+    expect(parseArgs(['acp', 'doctor', '--probe=true']).flags.probe).toBe(true);
+    expect(parseArgs(['acp', 'doctor', '--probe=false']).flags.probe).toBe(false);
+    expect(parseArgs(['acp', 'doctor', '--probe']).flags.probe).toBe(true);
+  });
+
   it('treats non-boolean flag at end of argv as true', () => {
     const r = parseArgs(['--label']);
     expect(r.flags.label).toBe(true);

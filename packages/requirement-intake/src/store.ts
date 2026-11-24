@@ -83,6 +83,11 @@ export interface StoreCreateResult {
 const INDEX_PATH = '_index.json';
 const IDEMPOTENCY_PATH = '_idempotency.json';
 
+function isIntakeMetadataFile(file: string): boolean {
+  const lower = file.toLowerCase();
+  return lower === INDEX_PATH || lower === IDEMPOTENCY_PATH;
+}
+
 function hashIdempotencyKey(key: string): string {
   return createHash('sha256').update(key, 'utf8').digest('hex');
 }
@@ -332,7 +337,7 @@ export class RequirementIntakeStore {
     }
     const entries: IntakeIndexEntry[] = [];
     for (const file of files) {
-      if (file === INDEX_PATH || file === IDEMPOTENCY_PATH || !file.endsWith('.json')) continue;
+      if (isIntakeMetadataFile(file) || !file.endsWith('.json')) continue;
       const id = file.slice(0, -'.json'.length);
       if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) continue;
       let record: RequirementIntakeRecord | null;
@@ -419,7 +424,7 @@ export class RequirementIntakeStore {
 
     const entries: IdempotencyFile['entries'] = {};
     for (const file of files) {
-      if (file === INDEX_PATH || file === IDEMPOTENCY_PATH || !file.endsWith('.json')) continue;
+      if (isIntakeMetadataFile(file) || !file.endsWith('.json')) continue;
       const id = file.slice(0, -'.json'.length);
       if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) continue;
       let record: RequirementIntakeRecord;

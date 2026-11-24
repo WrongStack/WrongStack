@@ -27,6 +27,8 @@ export interface SavedProviderView {
    * no key to add and no connection to remove.
    */
   hostServed?: true | undefined;
+  /** Set when an HQ key vault manages this provider; HQ's edits replace local ones on sync. */
+  hq?: { profileId: string } | undefined;
   apiKeys: Array<{
     label: string;
     maskedKey: string;
@@ -34,6 +36,8 @@ export interface SavedProviderView {
     createdAt: string;
     authMethod?: 'api_key' | 'oauth' | 'session_token' | undefined;
     expiresAt?: string | undefined;
+    /** The key came from an HQ key vault. */
+    fromHq?: true | undefined;
   }>;
 }
 
@@ -60,6 +64,7 @@ export function projectSavedProviders(
       ...(cfg.cloud ? { cloud: parseNativeCloudSettings(cfg.cloud) } : {}),
       models,
       customModels: cfg.customModels,
+      ...(cfg.source?.kind === 'hq' ? { hq: { profileId: cfg.source.profileId } } : {}),
       apiKeys: keys.map((k) => ({
         label: k.label,
         maskedKey: maskedKey(k.apiKey),
@@ -67,6 +72,7 @@ export function projectSavedProviders(
         createdAt: k.createdAt,
         ...(k.authMethod ? { authMethod: k.authMethod } : {}),
         ...(k.expiresAt ? { expiresAt: k.expiresAt } : {}),
+        ...(k.source?.kind === 'hq' ? { fromHq: true as const } : {}),
       })),
     };
     const picked = models && models.length > 0 ? models[0] : undefined;

@@ -13,7 +13,11 @@ import {
 } from './project-agent-consolidation.js';
 import { listProjectAgentRoles } from './project-agent-files.js';
 import type { LearnedCaptureResult } from './project-agent-identity-types.js';
-import { splitLearnedEntries, tokenOverlap } from './project-agent-learning-entries.js';
+import {
+  directiveSimilarity,
+  splitLearnedEntries,
+  tokenOverlap,
+} from './project-agent-learning-entries.js';
 import {
   LEARNED_HARD_LIMIT,
   LEARNED_SOFT_LIMIT,
@@ -358,7 +362,7 @@ export function captureLearnedFromAgentOutputDetailed(
       continue;
     }
     const candidateNorm = normalizeForComparison(normalized.text);
-    if (normalizedEntries.some((entry) => tokenOverlap(candidateNorm, entry) >= 0.55)) {
+    if (normalizedEntries.some((entry) => directiveSimilarity(candidateNorm, entry) >= 0.55)) {
       skipped++;
       continue;
     }

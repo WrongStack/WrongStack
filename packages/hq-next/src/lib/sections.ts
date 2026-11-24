@@ -106,7 +106,7 @@ export const HQ_SECTIONS: readonly HqSection[] = [
       { view: 'worktree', label: 'Worktrees', href: '/system/worktrees/' },
       { view: 'mcp', label: 'MCP', href: '/system/mcp/' },
       { view: 'notifications', label: 'Notifications', href: '/system/notifications/' },
-      { view: 'vault', label: 'Keys', href: '/system/keys/' },
+      { view: 'vault', label: 'Providers', href: '/system/providers/' },
       { view: 'settings', label: 'Security', href: '/system/security/' },
     ],
   },

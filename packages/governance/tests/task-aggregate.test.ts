@@ -268,6 +268,52 @@ describe('governance task aggregate', () => {
     expect(current.state).toBe('proposed_complete');
   });
 
+  it('requires a current snapshot before policy admits reviewed work for merge', () => {
+    const scoped = scopedTask();
+    const attached = decideAndApply(
+      scoped.aggregate,
+      command('attach_plan_version', scoped.aggregate.revision, { plan: plan() }),
+    );
+    let current = decideAndApply(
+      attached.aggregate,
+      command('transition_task', attached.aggregate.revision, { to: 'planned' }),
+    ).aggregate;
+    for (const to of [
+      'authorized',
+      'executing',
+      'proposed_complete',
+      'verifying',
+      'reviewing',
+    ] as const) {
+      current = decideAndApply(
+        current,
+        command('transition_task', current.revision, { to }),
+      ).aggregate;
+    }
+    const admission: GovernanceCommand = {
+      type: 'transition_task',
+      commandId: 'command-merge-admission',
+      taskId: 'task-1',
+      expectedRevision: current.revision,
+      actor: 'policy',
+      issuedAt: '2026-08-01T00:02:00.000Z',
+      to: 'ready_to_merge',
+    };
+
+    expect(decideGovernanceCommand(current, admission, { transitionFacts: facts })).toMatchObject({
+      accepted: true,
+    });
+    expect(
+      decideGovernanceCommand(current, admission, {
+        transitionFacts: { ...facts, snapshotCurrent: false },
+      }),
+    ).toMatchObject({
+      accepted: false,
+      code: 'transition_rejected',
+      details: [{ code: 'stale_snapshot' }],
+    });
+  });
+
   it('replays the same immutable aggregate and rejects event revision gaps', () => {
     const scoped = scopedTask();
     const attached = decideAndApply(

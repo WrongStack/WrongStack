@@ -74,7 +74,11 @@ export function sessionContentText(content: string | ContentBlock[]): string {
 
 export function sessionContentPreview(content: string | ContentBlock[], maxLength = 160): string {
   const text = sessionContentText(content) || '(non-text input)';
-  return text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 1))}…` : text;
+  if (text.length <= maxLength) return text;
+  let end = Math.max(0, maxLength - 1);
+  const lastKept = text.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  return `${text.slice(0, end)}…`;
 }
 
 export function userInputTitle(content: string | ContentBlock[]): string {

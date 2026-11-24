@@ -1,5 +1,6 @@
 import type { ModelsRegistry, ProviderConfig } from '@wrongstack/contracts/types';
 import type { ProviderAuthRegistry } from '@wrongstack/core/registry';
+import type { HqCredentialService } from '@wrongstack/hq';
 import type { WebSocket } from 'ws';
 import type { WSServerMessage } from '../types.js';
 import { send as sendToSocket, stampDispatchSession } from '../ws-utils.js';
@@ -28,6 +29,8 @@ export interface ProviderOperationsDeps {
   applyModelSwitch?: ((providerId: string, modelId: string) => Promise<void>) | undefined;
   /** Providers the host serves itself (the CLI's ACP leader), listed beside the saved ones. */
   hostProviders?: (() => readonly HostProvider[]) | undefined;
+  /** This machine's HQ key-vault client ("Import from HQ"); absent = the host offers none. */
+  hqCredentials?: HqCredentialService | undefined;
 }
 
 /**

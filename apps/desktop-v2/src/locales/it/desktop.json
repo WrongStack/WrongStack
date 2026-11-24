@@ -4810,6 +4810,22 @@
       "save": "Salva la nuova chiave",
       "missing": "Inserisci la nuova chiave API.",
       "done": "La chiave {{label}} di {{provider}} è stata sostituita."
+    },
+    "hq": {
+      "heading": "Importa da HQ",
+      "body": "Ottieni i provider che il tuo WrongStack HQ concede a questa macchina. Le chiavi arrivano sigillate per questa macchina; HQ rinnova gli accessi in abbonamento.",
+      "hqUrl": "Indirizzo HQ",
+      "token": "Codice di registrazione (in HQ: Sistema → Provider → Dispositivi)",
+      "enroll": "Collega questa macchina",
+      "connected": "Collegato a {{url}}",
+      "fingerprints": "HQ {{hq}} · questa macchina {{device}}",
+      "noneGranted": "HQ non concede ancora provider a questa macchina.",
+      "importAll": "Importa tutto",
+      "sync": "Sincronizza",
+      "disconnect": "Disconnetti",
+      "disconnectRemove": "Disconnetti e rimuovi le chiavi",
+      "badge": "HQ",
+      "badgeHint": "Gestito da WrongStack HQ: una sincronizzazione sostituisce le modifiche locali alle sue chiavi"
     }
   },
   "processes": {

@@ -411,7 +411,7 @@ async function removeOwnedMetadata(): Promise<void> {
 async function stop(_reason: string): Promise<void> {
   if (stopping) return;
   stopping = true;
-  metadataGuard.disable();
+  await metadataGuard.disable();
   if (idleTimer) clearTimeout(idleTimer);
   hygiene.dispose();
   if (silentClientSweep) clearInterval(silentClientSweep);

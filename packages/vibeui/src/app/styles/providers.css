@@ -120,6 +120,44 @@
   font-size: var(--type-sm);
 }
 
+.provider-hq-badge {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--corner-sm);
+  font-size: var(--type-xs);
+  font-weight: 600;
+  color: var(--muted);
+  vertical-align: middle;
+}
+
+.provider-hq .hq-connected {
+  display: grid;
+  gap: 8px;
+  font-size: var(--type-sm);
+}
+
+.provider-hq code {
+  overflow-wrap: anywhere;
+  font-size: var(--type-xs);
+  color: var(--muted);
+}
+
+.provider-hq ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.provider-hq .hq-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.provider-hq .hq-error {
+  color: var(--danger);
+}
+
 @media (max-width: 650px) {
   .provider-account header {
     align-items: flex-start;

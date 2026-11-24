@@ -1362,5 +1362,25 @@
     "logContentHint": "Writes the state sent, the full question wording and the answers with their distributions to the Jev log file. This view stays metadata-only either way, and the account key is scrubbed. Turn it off when you are done. Save and restart existing sessions.",
     "logContentOn": "Full request/response content is recorded in this file. It is never shown here.",
     "logContentOff": "Metadata only. Full request/response content is not recorded."
+  },
+  "hq": {
+    "heading": "Importer depuis HQ",
+    "body": "Récupérez les fournisseurs et leurs clés depuis votre WrongStack HQ. HQ les conserve ; cette machine les reçoit scellés avec sa propre clé.",
+    "notEnrolled": "Cette machine n’est pas encore connectée à un HQ. Dans HQ, ouvrez System → Providers → Devices → « Enroll a device », puis collez ici l’adresse et le jeton.",
+    "hqUrl": "Adresse du HQ",
+    "token": "Jeton d’inscription",
+    "enroll": "Se connecter au HQ",
+    "connected": "Connecté à {{url}}",
+    "fingerprints": "HQ {{hq}} · cette machine {{device}}",
+    "granted_one": "{{count}} fournisseur accordé",
+    "granted_other": "{{count}} fournisseurs accordés",
+    "noneGranted": "HQ n’accorde encore aucun fournisseur à cette machine.",
+    "importAll": "Tout importer",
+    "sync": "Synchroniser",
+    "disconnect": "Se déconnecter",
+    "disconnectRemove": "Se déconnecter et retirer les fournisseurs HQ",
+    "badge": "HQ",
+    "badgeHint": "Géré par HQ : les modifications de l’endpoint ou des modèles sont remplacées à la prochaine synchronisation.",
+    "unavailable": "Cet hôte n’a pas de client HQ."
   }
 }

@@ -302,7 +302,7 @@ export function resolveDistDir(input?: string | ResolveDistOptions): string | nu
 /**
  * Injectable seams for `ensureDistDir`. Both default to the real
  * implementations; tests override them to assert the auto-build path
- * without spawning `pnpm` or walking the real filesystem.
+ * without spawning the build or walking the real filesystem.
  */
 export interface EnsureDistDeps extends Omit<ResolveDistOptions, 'explicitDistDir'> {
   /** Build command runner (tests override to no-op or assert cwd). */
@@ -338,7 +338,7 @@ export async function ensureDistDir(
   const resolved = resolveDistDir(resolveOptions);
   if (resolved !== null) return resolved;
 
-  // Locate the workspace root to run the pnpm build command.
+  // Locate the workspace root to run the workspace build command from.
   let packageDir: string;
   try {
     const packageJson = deps.resolvePackageJson
@@ -380,21 +380,21 @@ export async function ensureDistDir(
   );
 
   const runBuild =
-    deps.runBuild ?? ((cwd: string) => runPnpmBuild(cwd, '@wrongstack/webui', 180_000));
+    deps.runBuild ?? ((cwd: string) => runBunBuild(cwd, '@wrongstack/webui', 180_000));
 
   try {
     await runBuild(workspaceRoot);
   } catch (error) {
     throw new Error(
       `webui.auto_build.failed: ${errMessage(error)}. ` +
-        'Run `pnpm --filter @wrongstack/webui build` manually.',
+        'Run `bun run --filter @wrongstack/webui build` manually.',
     );
   }
 
   const afterBuild = resolveDistDir(resolveOptions);
   if (afterBuild === null) {
     throw new Error(
-      '@wrongstack/webui frontend is not built. Run `pnpm --filter @wrongstack/webui build`.',
+      '@wrongstack/webui frontend is not built. Run `bun run --filter @wrongstack/webui build`.',
     );
   }
   return afterBuild;
@@ -418,7 +418,7 @@ export function warnFrontendUnavailable(reason: string, detail?: string): void {
         `Frontend not resolved (${reason}) — serving WebSocket only; ` +
         `every static request will answer 404. ` +
         (detail ??
-          'Build it with `pnpm --filter @wrongstack/webui build`, or pass an explicit dist directory.'),
+          'Build it with `bun run --filter @wrongstack/webui build`, or pass an explicit dist directory.'),
       timestamp: new Date().toISOString(),
     }),
   );
@@ -512,9 +512,16 @@ export async function startStaticServe(
   return { server, port: opts.httpPort };
 }
 
-function runPnpmBuild(cwd: string, workspace: string, timeoutMs: number): Promise<void> {
+/**
+ * Build one workspace package from the workspace root with Bun — the package
+ * manager this repository pins (`packageManager` in the root manifest) and the
+ * one its build scripts run on. `pnpm` cannot do this job here: pnpm 10+
+ * refuses a project that declares another package manager
+ * (ERR_PNPM_OTHER_PM_EXPECTED, exit 1), and a Bun-only machine has no pnpm.
+ */
+function runBunBuild(cwd: string, workspace: string, timeoutMs: number): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn('pnpm', ['--filter', workspace, 'build'], {
+    const child = spawn('bun', ['run', '--filter', workspace, 'build'], {
       cwd,
       shell: process.platform === 'win32',
       stdio: 'inherit',
@@ -532,7 +539,7 @@ function runPnpmBuild(cwd: string, workspace: string, timeoutMs: number): Promis
     child.once('close', (code) => {
       clearTimeout(timer);
       if (code === 0) resolve();
-      else reject(new Error(`pnpm build exited with code ${String(code)}`));
+      else reject(new Error(`bun build exited with code ${String(code)}`));
     });
   });
 }

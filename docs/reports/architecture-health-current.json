@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T07:38:04.040Z",
+  "generatedAt": "2026-11-24T13:20:51.478Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6523,
-    "testFiles": 5807,
-    "sourceLines": 1336064,
+    "sourceFiles": 6543,
+    "testFiles": 5824,
+    "sourceLines": 1340552,
     "workspaceEdges": 261,
-    "moduleEdges": 19072,
+    "moduleEdges": 19139,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1048
+    "testOnlyExports": 1047
   },
   "errors": [],
   "packageCycles": [],
@@ -93,7 +93,7 @@
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
       "sourceFiles": 59,
-      "testFiles": 74,
+      "testFiles": 76,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -109,7 +109,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 74
+          "testFiles": 76
         }
       ]
     },
@@ -231,8 +231,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 647,
-      "testFiles": 719,
+      "sourceFiles": 650,
+      "testFiles": 720,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -284,7 +284,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 719
+          "testFiles": 720
         }
       ]
     },
@@ -355,7 +355,7 @@
       "name": "@wrongstack/contracts",
       "dir": "packages/contracts",
       "sourceFiles": 133,
-      "testFiles": 6,
+      "testFiles": 7,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/primitives"
@@ -369,7 +369,7 @@
         {
           "path": "packages/contracts/tsconfig.test.json",
           "error": null,
-          "testFiles": 6
+          "testFiles": 7
         }
       ]
     },
@@ -377,7 +377,7 @@
       "name": "@wrongstack/coordination",
       "dir": "packages/coordination",
       "sourceFiles": 193,
-      "testFiles": 211,
+      "testFiles": 213,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -395,7 +395,7 @@
         {
           "path": "packages/coordination/tsconfig.test.json",
           "error": null,
-          "testFiles": 211
+          "testFiles": 213
         }
       ]
     },
@@ -403,7 +403,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 665,
-      "testFiles": 780,
+      "testFiles": 782,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -420,15 +420,15 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 780
+          "testFiles": 782
         }
       ]
     },
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 560,
-      "testFiles": 404,
+      "sourceFiles": 561,
+      "testFiles": 405,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -447,7 +447,7 @@
         {
           "path": "apps/desktop-v2/tsconfig.test.json",
           "error": null,
-          "testFiles": 404
+          "testFiles": 405
         }
       ]
     },
@@ -527,8 +527,8 @@
     {
       "name": "@wrongstack/hq",
       "dir": "packages/hq",
-      "sourceFiles": 81,
-      "testFiles": 60,
+      "sourceFiles": 88,
+      "testFiles": 63,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -544,15 +544,15 @@
         {
           "path": "packages/hq/tsconfig.test.json",
           "error": null,
-          "testFiles": 60
+          "testFiles": 63
         }
       ]
     },
     {
       "name": "@wrongstack/hq-next",
       "dir": "packages/hq-next",
-      "sourceFiles": 202,
-      "testFiles": 71,
+      "sourceFiles": 204,
+      "testFiles": 72,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -569,7 +569,7 @@
         {
           "path": "packages/hq-next/tsconfig.test.json",
           "error": null,
-          "testFiles": 71
+          "testFiles": 72
         }
       ]
     },
@@ -648,7 +648,7 @@
       "name": "@wrongstack/mcp",
       "dir": "packages/mcp",
       "sourceFiles": 76,
-      "testFiles": 114,
+      "testFiles": 115,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -662,7 +662,7 @@
         {
           "path": "packages/mcp/tsconfig.test.json",
           "error": null,
-          "testFiles": 114
+          "testFiles": 115
         }
       ]
     },
@@ -804,8 +804,8 @@
     {
       "name": "@wrongstack/providers",
       "dir": "packages/providers",
-      "sourceFiles": 139,
-      "testFiles": 133,
+      "sourceFiles": 141,
+      "testFiles": 134,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -819,7 +819,7 @@
         {
           "path": "packages/providers/tsconfig.test.json",
           "error": null,
-          "testFiles": 133
+          "testFiles": 134
         }
       ]
     },
@@ -1172,8 +1172,8 @@
     {
       "name": "@wrongstack/vibeui",
       "dir": "packages/vibeui",
-      "sourceFiles": 100,
-      "testFiles": 42,
+      "sourceFiles": 101,
+      "testFiles": 43,
       "workspaceDependencies": [
         "@wrongstack/webui-protocol"
       ],
@@ -1186,14 +1186,14 @@
         {
           "path": "packages/vibeui/tsconfig.test.json",
           "error": null,
-          "testFiles": 42
+          "testFiles": 43
         }
       ]
     },
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 798,
+      "sourceFiles": 799,
       "testFiles": 543,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1250,8 +1250,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 357,
-      "testFiles": 426,
+      "sourceFiles": 360,
+      "testFiles": 427,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1286,7 +1286,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 426
+          "testFiles": 427
         }
       ]
     },
@@ -3090,6 +3090,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/provider-hq-import.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/provider-key-replace.test.ts",
         "projects": [
           "root-node"
@@ -3918,7 +3924,19 @@
         ]
       },
       {
+        "file": "packages/acp/tests/acp-registry-fallbacks.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/acp-registry-fetch.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/acp/tests/acp-registry-metadata-boundary.test.ts",
         "projects": [
           "root-node"
         ]
@@ -7368,6 +7386,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/hq-vault-oauth.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/hq-vault-routes.test.ts",
         "projects": [
           "root-node"
@@ -9942,6 +9966,12 @@
         ]
       },
       {
+        "file": "packages/contracts/tests/live-context-authored-length.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/contracts/tests/mailbox-unread.test.ts",
         "projects": [
           "root-node"
@@ -10045,6 +10075,12 @@
       },
       {
         "file": "packages/coordination/tests/autonomous-coordinator.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/bounded-text-unicode.test.ts",
         "projects": [
           "root-node"
         ]
@@ -10615,6 +10651,12 @@
       },
       {
         "file": "packages/coordination/tests/leader-auto-wake.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/leader-delivery-boundaries.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14424,6 +14466,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/storage/fold-summary-unicode.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/storage/goal-coordination.test.ts",
         "projects": [
           "root-node"
@@ -14797,6 +14845,12 @@
       },
       {
         "file": "packages/core/tests/storage/session-move.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/session-preview-surrogate.test.ts",
         "projects": [
           "root-node"
         ]
@@ -16908,6 +16962,12 @@
         ]
       },
       {
+        "file": "packages/hq-next/tests/vault-api-profile-path.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq-next/tests/vault-model.test.ts",
         "projects": [
           "root-node"
@@ -17106,6 +17166,12 @@
         ]
       },
       {
+        "file": "packages/hq/tests/machine-roster-unicode.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/tests/machine-roster.test.ts",
         "projects": [
           "root-node"
@@ -17226,6 +17292,12 @@
         ]
       },
       {
+        "file": "packages/hq/tests/text-and-private-ipv6-regression.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/tests/timeseries-oversized-load.test.ts",
         "projects": [
           "root-node"
@@ -17257,6 +17329,12 @@
       },
       {
         "file": "packages/hq/tests/tool-bridge.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/vault-refresh.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18613,6 +18691,12 @@
       },
       {
         "file": "packages/mcp/tests/tasks-stdio.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/text-boundary-regression.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20989,6 +21073,12 @@
       },
       {
         "file": "packages/providers/tests/error-parse.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/external-credential-refresh.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30018,6 +30108,12 @@
         ]
       },
       {
+        "file": "packages/vibeui/tests/hq-import.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/vibeui/tests/mascot.test.ts",
         "projects": [
           "root-node"
@@ -31783,6 +31879,12 @@
       },
       {
         "file": "packages/webui-server/tests/provider-host-quota.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/provider-hq-import.test.ts",
         "projects": [
           "root-node"
         ]
@@ -37272,7 +37374,7 @@
     },
     {
       "file": "packages/cli/src/hq-server.ts",
-      "lines": 712,
+      "lines": 713,
       "relativeImports": 22
     },
     {
@@ -37377,7 +37479,7 @@
     },
     {
       "file": "packages/mailbox-mcp/src/adapter.ts",
-      "lines": 765,
+      "lines": 769,
       "relativeImports": 3
     },
     {
@@ -37492,8 +37594,8 @@
     },
     {
       "file": "packages/vibeui/src/components/provider-manager.tsx",
-      "lines": 733,
-      "relativeImports": 6
+      "lines": 740,
+      "relativeImports": 7
     },
     {
       "file": "packages/vibeui/src/components/resource-hub.tsx",
@@ -37557,8 +37659,8 @@
     },
     {
       "file": "packages/webui-server/src/server/provider-routes.ts",
-      "lines": 720,
-      "relativeImports": 5
+      "lines": 724,
+      "relativeImports": 6
     },
     {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
@@ -37819,7 +37921,7 @@
     },
     {
       "file": "packages/mailbox-mcp/src/adapter.ts",
-      "lines": 765,
+      "lines": 769,
       "relativeImports": 3
     },
     {
@@ -37888,14 +37990,14 @@
       "relativeImports": 6
     },
     {
+      "file": "packages/vibeui/src/components/provider-manager.tsx",
+      "lines": 740,
+      "relativeImports": 7
+    },
+    {
       "file": "packages/tools/src/bash-kill-guard.ts",
       "lines": 739,
       "relativeImports": 5
-    },
-    {
-      "file": "packages/vibeui/src/components/provider-manager.tsx",
-      "lines": 733,
-      "relativeImports": 6
     },
     {
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
@@ -38175,10 +38277,6 @@
     {
       "file": "apps/desktop-v2/src/ProjectUsageSummary.tsx",
       "name": "readUsageSummary"
-    },
-    {
-      "file": "apps/desktop-v2/src/ProviderConnectionWiring.tsx",
-      "name": "parseModelList"
     },
     {
       "file": "apps/desktop-v2/src/ProviderHealth.tsx",

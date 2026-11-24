@@ -352,7 +352,7 @@ function printHelp(deps: SubcommandDeps): void {
   deps.renderer.write('\n');
   deps.renderer.write(`Key vault (this machine as a device of an HQ):\n`);
   deps.renderer.write(
-    `  wstack hq enroll <url> <token> [--label <name>] [--replace]  Enroll with the token from HQ → System → Keys.\n`,
+    `  wstack hq enroll <url> <token> [--label <name>] [--replace]  Enroll with the token from HQ → System → Providers.\n`,
   );
   deps.renderer.write(
     `  wstack hq device               Enrollment, fingerprints and the keys HQ grants.\n`,

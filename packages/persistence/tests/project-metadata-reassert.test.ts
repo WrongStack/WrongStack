@@ -84,9 +84,58 @@ describe('createProjectMetadataReasserter', () => {
     const { guard, write } = await setup({ ...OWN, pid: 1 });
     await guard.reassert();
     guard.enable();
-    guard.disable();
+    await guard.disable();
     await guard.reassert();
     expect(write).not.toHaveBeenCalled();
+  });
+
+  it('drains an in-flight reassert before shutdown removes metadata', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'metadata-reassert-disable-'));
+    const metadataPath = path.join(dir, 'server.json');
+    let entered!: () => void;
+    let release!: () => void;
+    const writeEntered = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const writeReleased = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    try {
+      await fs.writeFile(metadataPath, JSON.stringify({ ...OWN, pid: 1 }));
+      const write = vi.fn(async () => {
+        entered();
+        await writeReleased;
+        await fs.writeFile(metadataPath, JSON.stringify(OWN));
+      });
+      const guard = createProjectMetadataReasserter({
+        metadataPath,
+        endpoint: OWN.endpoint,
+        pid: OWN.pid,
+        write,
+      });
+      guard.enable();
+      const pending = guard.reassert();
+      await writeEntered;
+
+      const disabling = guard.disable();
+      expect(disabling).toBeInstanceOf(Promise);
+      let drained = false;
+      void disabling.then(() => {
+        drained = true;
+      });
+      await Promise.resolve();
+      expect(drained).toBe(false);
+
+      release();
+      await disabling;
+      await pending;
+      expect(write).toHaveBeenCalledTimes(1);
+      await fs.rm(metadataPath, { force: true });
+      await expect(fs.access(metadataPath)).rejects.toThrow();
+    } finally {
+      release();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
   });
 
   it('coalesces concurrent refusals into one write', async () => {

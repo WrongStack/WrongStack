@@ -4810,6 +4810,22 @@
       "save": "Enregistrer la nouvelle clé",
       "missing": "Saisissez la nouvelle clé API.",
       "done": "La clé {{label}} de {{provider}} a été remplacée."
+    },
+    "hq": {
+      "heading": "Importer depuis HQ",
+      "body": "Récupérez les fournisseurs que votre WrongStack HQ accorde à cette machine. Les clés arrivent scellées pour cette machine ; HQ renouvelle les connexions par abonnement.",
+      "hqUrl": "Adresse de HQ",
+      "token": "Code d'inscription (dans HQ : Système → Fournisseurs → Appareils)",
+      "enroll": "Connecter cette machine",
+      "connected": "Connecté à {{url}}",
+      "fingerprints": "HQ {{hq}} · cette machine {{device}}",
+      "noneGranted": "HQ n'accorde encore aucun fournisseur à cette machine.",
+      "importAll": "Tout importer",
+      "sync": "Synchroniser",
+      "disconnect": "Déconnecter",
+      "disconnectRemove": "Déconnecter et supprimer les clés",
+      "badge": "HQ",
+      "badgeHint": "Géré par WrongStack HQ : une synchronisation remplace les modifications locales de ses clés"
     }
   },
   "processes": {
