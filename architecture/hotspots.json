@@ -135,7 +135,7 @@
       "relativeImports": 0
     },
     "packages/plugins/src/branch-guard/index.ts": {
-      "lines": 725,
+      "lines": 787,
       "relativeImports": 1
     },
     "packages/project-surfaces/src/analytics/AnalyticsDashboard.tsx": {

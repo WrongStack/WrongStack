@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-24T00:53:50.557Z
+**Generated:** 2026-11-24T00:58:57.062Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 50 |
 | Production source files | 6493 |
-| Production source lines | 1328584 |
-| Test files | 5786 |
+| Production source lines | 1328646 |
+| Test files | 5789 |
 | Workspace dependency edges | 259 |
 | Relative module edges | 18994 |
 | Non-command slash imports | 0 |
@@ -53,7 +53,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/persistence | 10 | 28 | — |
 | @wrongstack/plug-lsp | 52 | 65 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugin-sdk | 12 | 12 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
-| @wrongstack/plugins | 156 | 149 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
+| @wrongstack/plugins | 156 | 152 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 27 | 48 | — |
 | @wrongstack/project-surfaces | 263 | 36 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers, @wrongstack/tools |
 | @wrongstack/providers | 139 | 133 | @wrongstack/contracts, @wrongstack/core |
@@ -119,6 +119,7 @@ None.
 | 800 | `packages/client/src/client.ts` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
 | 792 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
+| 787 | `packages/plugins/src/branch-guard/index.ts` |
 | 786 | `packages/vibeui/src/lib/use-session.ts` |
 | 781 | `apps/desktop-v2/src/WrongStackSettings.tsx` |
 | 780 | `packages/tools/src/design.ts` |
@@ -141,7 +142,6 @@ None.
 | 733 | `packages/vibeui/src/components/provider-manager.tsx` |
 | 732 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 | 730 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
-| 730 | `packages/acp/src/agent/server-agent-turn.ts` |
 
 ## Exports only tests reference
 

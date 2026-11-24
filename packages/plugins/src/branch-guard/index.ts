@@ -211,7 +211,7 @@ async function detectUncommittedChanges(
  * modifies the branch history.
  */
 interface GitCommandMatch {
-  type: 'commit' | 'push' | 'merge';
+  type: 'commit' | 'push' | 'merge' | 'pull' | 'cherry-pick' | 'revert' | 'am';
   /** The matched substring (for display). */
   snippet: string;
   /**
@@ -266,7 +266,12 @@ const GIT_GLOBAL_OPTIONS = String.raw`(?:\s+(?:-[Cc]\s+(?:"[^"]*"|'[^']*'|\S+)|-
  */
 const GIT_BINARY = String.raw`\bgit(?:\.exe)?["']?`;
 const GIT_OP_RE = new RegExp(
-  String.raw`${GIT_BINARY}${GIT_GLOBAL_OPTIONS}\s+(commit|push|merge)(?![a-zA-Z0-9_-])`,
+  // F82: pull merges into the current branch (empirically: `git pull . feat`
+  // fast-forwards main) — the blockMerge contract covers it. F83: cherry-pick,
+  // revert and am CREATE commits on the current branch (empirically:
+  // `[main …] change` / `Revert "change"`) — the blockCommit contract covers
+  // them. `cherry` (read-only) must not match: the lookahead rejects the '-'.
+  String.raw`${GIT_BINARY}${GIT_GLOBAL_OPTIONS}\s+(commit|push|merge|pull|cherry-pick|revert|am)(?![a-zA-Z0-9_-])`,
   'g',
 );
 const GIT_SWITCH_RE = new RegExp(
@@ -371,14 +376,44 @@ async function detectGitOpsInCommand(
     if (!switchesThisRepo(head, cwd)) continue;
     const args = (m[2] ?? '').trim().split(/\s+/).filter(Boolean);
     if (args.includes('--')) continue;
-    const create = args.findIndex((a) => /^(?:-[bBcC]|--orphan)$/.test(a));
-    const target =
-      create >= 0 ? args[create + 1] : args.find((a) => a === '-' || !a.startsWith('-'));
+    const create = args.findIndex((a) => /^(?:-[bBcC]|--orphan|--create|--force-create)$/.test(a));
+    // F79: git accepts attached short values (`checkout -Bmain` force-recreates
+    // main — empirically verified) and `--orphan=name`. Reading only exact
+    // tokens let `git checkout -Bmain && git commit` from a feature branch go
+    // unseen: the commit was judged on the feature branch and landed on the
+    // protected one.
+    // F80: switch's long create options take `=value` too (`--create=main`,
+    // `--force-create=main` — empirically verified); the `=` spelling starts
+    // with '-', so the plain-target fallback skipped it as well.
+    // F81: short CLUSTERS carry the create flag too (`-qBmain` = -q -B main,
+    // `-qcmain` = -q -c main — empirically verified), with the value attached
+    // or separate (`-qb main`). b/B/c/C are create flags in both checkout and
+    // switch; every other short flag is boolean, so any single-dash cluster
+    // ending in one of them creates a branch. Git takes the FIRST create letter
+    // and the rest of the cluster as its value, so the boolean prefix must not
+    // contain one: `[a-zA-Z]*` read `-Bproduction` as -B…c + `tion`.
+    const attached = args
+      .map(
+        (a) =>
+          /^-([ad-zAD-Z]*)([bBcC])([^-].*)$/.exec(a) ??
+          /^--(?:orphan|create|force-create)=(.+)$/.exec(a),
+      )
+      .find((m) => m !== null);
+    const clusterCreate = args.findIndex((a) => /^-[a-zA-Z]*[bBcC]$/.test(a));
+    const target = attached
+      ? attached[0].startsWith('--')
+        ? attached[1]!
+        : attached[3]!
+      : clusterCreate >= 0
+        ? args[clusterCreate + 1]
+        : create >= 0
+          ? args[create + 1]
+          : args.find((a) => a === '-' || !a.startsWith('-'));
     if (target) {
       events.push({
         at: m.index ?? 0,
         to: target.replace(/^['"]|['"]$/g, ''),
-        verify: m[1] === 'checkout' && create < 0,
+        verify: m[1] === 'checkout' && create < 0 && clusterCreate < 0 && !attached,
       });
     }
   }
@@ -416,16 +451,21 @@ function detectStructuredGitCommand(input: Record<string, unknown>): GitCommandM
   }
   if (command === 'push') return { type: 'push', snippet: 'git push' };
   if (command === 'merge') return { type: 'merge', snippet: 'git merge' };
+  // F82: the structured git tool exposes pull; it merges into the current
+  // branch exactly like the shell spelling.
+  if (command === 'pull') return { type: 'pull', snippet: 'git pull' };
   return null;
 }
 
 /**
  * Check if a git operation type should be blocked based on config.
  */
-function shouldBlock(op: 'commit' | 'push' | 'merge', cfg: BranchGuardConfig): boolean {
+function shouldBlock(op: GitCommandMatch['type'], cfg: BranchGuardConfig): boolean {
   if (op === 'commit') return cfg.blockCommit;
   if (op === 'push') return cfg.blockPush;
-  if (op === 'merge') return cfg.blockMerge;
+  if (op === 'merge' || op === 'pull') return cfg.blockMerge;
+  // F83: these create commits on the current branch — blockCommit's contract.
+  if (op === 'cherry-pick' || op === 'revert' || op === 'am') return cfg.blockCommit;
   return false;
 }
 
@@ -487,10 +527,13 @@ const plugin: Plugin = {
     state.configUnregister = api.onConfigChange((next) => {
       cfg = readHostConfig(next);
     });
-    const cwd = typeof process.cwd === 'function' ? process.cwd() : undefined;
-
     const hook = async (
-      input: { toolName?: string | undefined; toolInput?: unknown },
+      input: {
+        toolName?: string | undefined;
+        toolInput?: unknown;
+        cwd?: string | undefined;
+        workingDir?: string | undefined;
+      },
       runtime: { signal: AbortSignal } = { signal: new AbortController().signal },
     ): Promise<{
       decision?: 'block' | 'allow' | undefined;
@@ -500,6 +543,17 @@ const plugin: Plugin = {
       const toolName = input.toolName ?? '';
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
       state.invocationCount += 1;
+
+      // F84: HookInput carries the session's cwd/workingDir, and the contract
+      // says a hook reasoning about where a tool acted starts at workingDir.
+      // Capturing the HOST's process.cwd() at setup judged worktree and
+      // multi-project sessions against the wrong repo: a commit onto the
+      // session repo's protected branch was allowed. Per-invocation, so a
+      // host chdir or a new session directory is always respected.
+      const cwd =
+        input.workingDir ??
+        input.cwd ??
+        (typeof process.cwd === 'function' ? process.cwd() : undefined);
 
       if (!cfg.enabled || cfg.mode === 'off') return;
 
@@ -572,7 +626,15 @@ const plugin: Plugin = {
           ? 'committing to'
           : gitOp.type === 'push'
             ? 'pushing from'
-            : 'merging into';
+            : gitOp.type === 'pull'
+              ? 'pulling into'
+              : gitOp.type === 'cherry-pick'
+                ? 'cherry-picking onto'
+                : gitOp.type === 'revert'
+                  ? 'reverting on'
+                  : gitOp.type === 'am'
+                    ? 'applying patches onto'
+                    : 'merging into';
 
       // Check for uncommitted changes so we can suggest stash.
       const hasUncommitted = await detectUncommittedChanges(cwd, runtime.signal);
