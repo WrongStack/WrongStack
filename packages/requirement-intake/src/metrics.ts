@@ -42,10 +42,12 @@ export class InMemoryIntakeMetrics implements IntakeMetrics {
   readonly durations = new Map<string, number[]>();
 
   increment(counter: IntakeCounter, by = 1, _labels?: Record<string, string>): void {
+    if (!Number.isFinite(by)) return;
     this.counters.set(counter, (this.counters.get(counter) ?? 0) + by);
   }
 
   recordDuration(timer: IntakeTimer, milliseconds: number): void {
+    if (!Number.isFinite(milliseconds) || milliseconds < 0) return;
     const bucket = this.durations.get(timer) ?? [];
     bucket.push(milliseconds);
     this.durations.set(timer, bucket);

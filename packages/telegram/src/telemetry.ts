@@ -145,6 +145,7 @@ export function newHistogram(): Histogram {
 }
 
 export function observeHistogram(h: Histogram, ms: number): void {
+  if (!Number.isFinite(ms) || ms < 0) return;
   h.count += 1;
   h.sum += ms;
   if (ms < h.min) h.min = ms;

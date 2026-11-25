@@ -78,7 +78,10 @@ export function createTokenBucket(opts?: RateLimiterOptions): TokenBucket {
     timeoutMs?: number | undefined,
     signal?: AbortSignal | undefined,
   ): Promise<void> {
-    const deadline = timeoutMs !== undefined ? Date.now() + timeoutMs : Infinity;
+    const deadline =
+      typeof timeoutMs === 'number' && Number.isFinite(timeoutMs)
+        ? Date.now() + Math.max(0, timeoutMs)
+        : Infinity;
 
     while (true) {
       signal?.throwIfAborted();

@@ -21,7 +21,8 @@ const MAX_TELEGRAM_MESSAGE_LENGTH = 4096;
  * out on the wire as a bare `\ud83d`.
  */
 export function sliceUtf16Safe(text: string, end: number): string {
-  const sliced = text.slice(0, end);
+  const safeEnd = Number.isFinite(end) ? Math.max(0, Math.floor(end)) : 0;
+  const sliced = text.slice(0, safeEnd);
   const code = sliced.charCodeAt(sliced.length - 1);
   return code >= 0xd800 && code <= 0xdbff ? sliced.slice(0, -1) : sliced;
 }

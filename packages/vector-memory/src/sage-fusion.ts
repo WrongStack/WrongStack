@@ -163,7 +163,7 @@ export async function fuseWithVectorMemory(
   const vectorIndexBySageId = new Map<string, number>();
   for (let i = 0; i < vectorHits.length; i++) {
     const hit = vectorHits[i]!;
-    if (threshold !== undefined && hit.score < threshold) continue;
+    if (threshold !== undefined && (!Number.isFinite(hit.score) || hit.score < threshold)) continue;
     const rawSageId = (hit.entry.metadata as Record<string, unknown> | undefined)?.['sageId'];
     if (typeof rawSageId !== 'string') continue;
     const sageId = rawSageId.trim();

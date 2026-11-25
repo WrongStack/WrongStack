@@ -43,7 +43,7 @@
       "relativeImports": 22
     },
     "packages/client/src/client.ts": {
-      "lines": 800,
+      "lines": 816,
       "relativeImports": 4
     },
     "packages/codebase/src/background-indexer.ts": {
@@ -123,7 +123,7 @@
       "relativeImports": 4
     },
     "packages/mailbox-mcp/src/adapter.ts": {
-      "lines": 769,
+      "lines": 774,
       "relativeImports": 3
     },
     "packages/plugins/src/adversary-mode/evaluator.ts": {

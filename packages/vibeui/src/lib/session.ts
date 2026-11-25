@@ -62,7 +62,8 @@ export function draftKey(sessionId: string): string {
 }
 
 export function composeMessage(draft: string, references: string[]): string {
-  return [draft.trim(), ...[...new Set(references)].map((path) => `@${path}`)]
-    .filter(Boolean)
-    .join('\n');
+  const cleanRefs = [
+    ...new Set(references.map((path) => path.trim()).filter((path) => path.length > 0)),
+  ];
+  return [draft.trim(), ...cleanRefs.map((path) => `@${path}`)].filter(Boolean).join('\n');
 }

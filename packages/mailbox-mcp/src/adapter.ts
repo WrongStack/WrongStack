@@ -266,10 +266,15 @@ async function watchForMailboxEvent(
       finish({ changed: true, event });
     });
     unsubscribe = typeof sub === 'function' ? sub : () => {};
-    if (settled) unsubscribe();
-    if (signal.aborted) onAbort();
-    else signal.addEventListener('abort', onAbort, { once: true });
-    if (settled) return;
+    if (settled) {
+      unsubscribe();
+      return;
+    }
+    if (signal.aborted) {
+      onAbort();
+      return;
+    }
+    signal.addEventListener('abort', onAbort, { once: true });
     timer = setTimeout(() => finish({ changed: false, timedOut: true, timeoutMs }), timeoutMs);
     timer.unref?.();
   });

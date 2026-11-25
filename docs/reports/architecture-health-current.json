@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T15:37:04.302Z",
+  "generatedAt": "2026-11-25T15:39:39.506Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,16 +13,16 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6564,
-    "testFiles": 5919,
-    "sourceLines": 1345655,
+    "testFiles": 5945,
+    "sourceLines": 1345765,
     "workspaceEdges": 261,
     "moduleEdges": 19226,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 1,
+    "testsWithoutTypecheck": 2,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1048
+    "testOnlyExports": 1049
   },
   "errors": [
     "2 unexcepted module cycle(s)"
@@ -294,7 +294,7 @@
       "name": "@wrongstack/client",
       "dir": "packages/client",
       "sourceFiles": 7,
-      "testFiles": 8,
+      "testFiles": 11,
       "workspaceDependencies": [
         "@wrongstack/webui-protocol"
       ],
@@ -307,7 +307,7 @@
         {
           "path": "packages/client/tsconfig.test.json",
           "error": null,
-          "testFiles": 8
+          "testFiles": 11
         }
       ]
     },
@@ -486,7 +486,7 @@
       "name": "@wrongstack/goal",
       "dir": "packages/goal",
       "sourceFiles": 24,
-      "testFiles": 32,
+      "testFiles": 33,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -501,7 +501,7 @@
         {
           "path": "packages/goal/tsconfig.test.json",
           "error": null,
-          "testFiles": 32
+          "testFiles": 33
         }
       ]
     },
@@ -627,7 +627,7 @@
       "name": "@wrongstack/mailbox-mcp",
       "dir": "packages/mailbox-mcp",
       "sourceFiles": 7,
-      "testFiles": 11,
+      "testFiles": 12,
       "workspaceDependencies": [
         "@wrongstack/coordination",
         "@wrongstack/core",
@@ -642,7 +642,7 @@
         {
           "path": "packages/mailbox-mcp/tsconfig.test.json",
           "error": null,
-          "testFiles": 11
+          "testFiles": 12
         }
       ]
     },
@@ -829,7 +829,7 @@
       "name": "@wrongstack/requirement-intake",
       "dir": "packages/requirement-intake",
       "sourceFiles": 18,
-      "testFiles": 21,
+      "testFiles": 23,
       "workspaceDependencies": [
         "@wrongstack/core"
       ],
@@ -842,7 +842,7 @@
         {
           "path": "packages/requirement-intake/tsconfig.test.json",
           "error": null,
-          "testFiles": 21
+          "testFiles": 23
         }
       ]
     },
@@ -1016,7 +1016,7 @@
       "name": "@wrongstack/techstack",
       "dir": "packages/techstack",
       "sourceFiles": 55,
-      "testFiles": 68,
+      "testFiles": 69,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1032,7 +1032,7 @@
         {
           "path": "packages/techstack/tsconfig.test.json",
           "error": null,
-          "testFiles": 68
+          "testFiles": 69
         }
       ]
     },
@@ -1040,7 +1040,7 @@
       "name": "@wrongstack/telegram",
       "dir": "packages/telegram",
       "sourceFiles": 28,
-      "testFiles": 46,
+      "testFiles": 53,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1055,7 +1055,7 @@
         {
           "path": "packages/telegram/tsconfig.test.json",
           "error": null,
-          "testFiles": 46
+          "testFiles": 53
         }
       ]
     },
@@ -1151,7 +1151,7 @@
       "name": "@wrongstack/vector-memory",
       "dir": "packages/vector-memory",
       "sourceFiles": 18,
-      "testFiles": 29,
+      "testFiles": 30,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1167,7 +1167,7 @@
         {
           "path": "packages/vector-memory/tsconfig.test.json",
           "error": null,
-          "testFiles": 29
+          "testFiles": 30
         }
       ]
     },
@@ -1175,7 +1175,7 @@
       "name": "@wrongstack/vibeui",
       "dir": "packages/vibeui",
       "sourceFiles": 101,
-      "testFiles": 43,
+      "testFiles": 47,
       "workspaceDependencies": [
         "@wrongstack/webui-protocol"
       ],
@@ -1188,7 +1188,7 @@
         {
           "path": "packages/vibeui/tsconfig.test.json",
           "error": null,
-          "testFiles": 43
+          "testFiles": 47
         }
       ]
     },
@@ -1230,7 +1230,7 @@
       "name": "@wrongstack/webui-protocol",
       "dir": "packages/webui-protocol",
       "sourceFiles": 29,
-      "testFiles": 16,
+      "testFiles": 19,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1245,7 +1245,7 @@
         {
           "path": "packages/webui-protocol/tsconfig.test.json",
           "error": null,
-          "testFiles": 16
+          "testFiles": 19
         }
       ]
     },
@@ -1337,7 +1337,7 @@
       "name": "@wrongstack/wrongtrace",
       "dir": "packages/wrongtrace",
       "sourceFiles": 11,
-      "testFiles": 13,
+      "testFiles": 16,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -1348,7 +1348,7 @@
         {
           "path": "packages/wrongtrace/tsconfig.test.json",
           "error": null,
-          "testFiles": 13
+          "testFiles": 15
         }
       ]
     },
@@ -10087,6 +10087,24 @@
         ]
       },
       {
+        "file": "packages/client/tests/http-session-nul.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/client/tests/reconnect-nan-policy.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/client/tests/schedule-timeout-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/client/tests/subscription-eviction.test.ts",
         "projects": [
           "root-node"
@@ -16405,6 +16423,12 @@
         ]
       },
       {
+        "file": "packages/goal/tests/checkpoint-corrupt-load.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/goal/tests/checkpoint-task-shape.test.ts",
         "projects": [
           "root-node"
@@ -18548,6 +18572,12 @@
       },
       {
         "file": "packages/mailbox-mcp/tests/stdio.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mailbox-mcp/tests/watch-sync-abort-leak.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22219,6 +22249,12 @@
         ]
       },
       {
+        "file": "packages/requirement-intake/tests/metrics-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/requirement-intake/tests/questions.test.ts",
         "projects": [
           "root-node"
@@ -22268,6 +22304,12 @@
       },
       {
         "file": "packages/requirement-intake/tests/suggestions.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/requirement-intake/tests/validation-nul-bytes.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24997,7 +25039,25 @@
         ]
       },
       {
+        "file": "packages/techstack/tests/techstack-triage-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/techstack/tests/trend-vulnerable-siblings.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/telegram/tests/format-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/telegram/tests/format-session-ended-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -25045,7 +25105,37 @@
         ]
       },
       {
+        "file": "packages/telegram/tests/poll-lock-nan-options.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/telegram/tests/rate-limiter-nan-timeout.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/telegram/tests/slice-utf16-safe-negative.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/telegram/tests/telegram-approve-sessionless-ctx.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/telegram/tests/telegram-read-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/telegram/tests/telemetry-histogram-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30499,6 +30589,12 @@
         ]
       },
       {
+        "file": "packages/vector-memory/tests/sage-fusion-nan-threshold.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/vector-memory/tests/sage-fusion.test.ts",
         "projects": [
           "root-node"
@@ -30631,6 +30727,12 @@
         ]
       },
       {
+        "file": "packages/vibeui/tests/artifacts-version-type.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/vibeui/tests/artifacts.test.ts",
         "projects": [
           "root-node"
@@ -30644,6 +30746,12 @@
       },
       {
         "file": "packages/vibeui/tests/component-guards.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/vibeui/tests/compose-message-empty-ref.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30775,6 +30883,12 @@
         ]
       },
       {
+        "file": "packages/vibeui/tests/session-agents-neg-stats.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/vibeui/tests/session-branch-dialog-cleanup.test.tsx",
         "projects": [
           "root-node"
@@ -30835,6 +30949,12 @@
         ]
       },
       {
+        "file": "packages/vibeui/tests/vibe-branch-orphan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/vibeui/tests/working-activity.test.ts",
         "projects": [
           "root-node"
@@ -30871,6 +30991,12 @@
         ]
       },
       {
+        "file": "packages/webui-protocol/tests/auto-wake-counts.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-protocol/tests/auto-wake.test.ts",
         "projects": [
           "root-node"
@@ -30884,6 +31010,12 @@
       },
       {
         "file": "packages/webui-protocol/tests/automation-portability.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-protocol/tests/connection-fsm-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30914,6 +31046,12 @@
       },
       {
         "file": "packages/webui-protocol/tests/frame-resume-invalid-payload.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-protocol/tests/frame-resume-nan-timeout.test.ts",
         "projects": [
           "root-node"
         ]
@@ -36901,6 +37039,12 @@
         ]
       },
       {
+        "file": "packages/wrongtrace/src/__tests__/hooks-array-whitespace.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/wrongtrace/src/__tests__/hooks-comma-file-list.test.ts",
         "projects": [
           "root-node"
@@ -36914,6 +37058,12 @@
       },
       {
         "file": "packages/wrongtrace/src/__tests__/hooks.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/wrongtrace/src/__tests__/http-nan-timeout.test.ts",
         "projects": [
           "root-node"
         ]
@@ -36947,12 +37097,25 @@
         "projects": [
           "root-node"
         ]
+      },
+      {
+        "file": "packages/wrongtrace/tests/wrongtrace-timeout-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
       }
     ],
     "invalidRuntime": [],
     "withoutTypecheck": [
       {
         "file": "packages/codebase/tests/parser-output-boundaries.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "packages/wrongtrace/tests/wrongtrace-timeout-nan.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -37988,7 +38151,7 @@
     },
     {
       "file": "packages/client/src/client.ts",
-      "lines": 800,
+      "lines": 816,
       "relativeImports": 4
     },
     {
@@ -38088,7 +38251,7 @@
     },
     {
       "file": "packages/mailbox-mcp/src/adapter.ts",
-      "lines": 769,
+      "lines": 774,
       "relativeImports": 3
     },
     {
@@ -38484,14 +38647,14 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/client/src/client.ts",
+      "lines": 816,
+      "relativeImports": 4
+    },
+    {
       "file": "apps/desktop-v2/src/RosterRuntimeEditor.tsx",
       "lines": 800,
       "relativeImports": 11
-    },
-    {
-      "file": "packages/client/src/client.ts",
-      "lines": 800,
-      "relativeImports": 4
     },
     {
       "file": "packages/vibeui/src/components/resource-hub.tsx",
@@ -38530,7 +38693,7 @@
     },
     {
       "file": "packages/mailbox-mcp/src/adapter.ts",
-      "lines": 769,
+      "lines": 774,
       "relativeImports": 3
     },
     {
@@ -41362,6 +41525,10 @@
     {
       "file": "packages/telegram/src/telemetry.ts",
       "name": "bumpCounter"
+    },
+    {
+      "file": "packages/telegram/src/telemetry.ts",
+      "name": "newHistogram"
     },
     {
       "file": "packages/telegram/src/telemetry.ts",

@@ -126,7 +126,7 @@ export function createHttpClient(options: HttpClientOptions): WrongStackHttpClie
 
   const session = (id: string): string => {
     const trimmed = typeof id === 'string' ? id.trim() : '';
-    if (!trimmed || trimmed === '.' || trimmed === '..') {
+    if (!trimmed || trimmed === '.' || trimmed === '..' || /[\u0000-\u001f\u007f]/.test(trimmed)) {
       throw new WrongStackError({
         kind: 'invalid',
         code: 'invalid_session_id',

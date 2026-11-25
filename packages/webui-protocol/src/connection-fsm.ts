@@ -86,10 +86,11 @@ export function planConnectionReconnect(
           config.maxReconnectAttempts,
           DEFAULT_SURFACE_CONNECTION_CONFIG.maxReconnectAttempts,
         );
-  if (state.stopped || state.reconnectAttempt >= maxReconnectAttempts) {
+  const currentAttempt = finiteInteger(state.reconnectAttempt, 0);
+  if (state.stopped || currentAttempt >= maxReconnectAttempts) {
     return { state: { ...state, phase: 'closed' }, plan: null };
   }
-  const attempt = state.reconnectAttempt + 1;
+  const attempt = currentAttempt + 1;
   const initialBackoffMs = finiteNonNegative(
     config.initialBackoffMs,
     DEFAULT_SURFACE_CONNECTION_CONFIG.initialBackoffMs,
@@ -114,9 +115,10 @@ export function planConnectionReconnect(
   const sample = Number.isFinite(randomValue) ? Math.min(1, Math.max(0, randomValue)) : 0.5;
   const centeredJitter = (sample * 2 - 1) * jitterRatio;
   const delayMs = Math.min(maxBackoffMs, Math.max(0, Math.round(base * (1 + centeredJitter))));
+  const safeNow = Number.isFinite(now) ? now : Date.now();
   return {
     state: { ...state, phase: 'reconnecting', reconnectAttempt: attempt },
-    plan: { attempt, delayMs, retryAt: now + delayMs },
+    plan: { attempt, delayMs, retryAt: safeNow + delayMs },
   };
 }
 

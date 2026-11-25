@@ -52,8 +52,16 @@ export class PollLock {
     readonly lockPath: string,
     opts?: PollLockOptions,
   ) {
-    this.heartbeatMs = opts?.heartbeatMs ?? 15_000;
-    this.staleMs = opts?.staleMs ?? 45_000;
+    this.heartbeatMs =
+      typeof opts?.heartbeatMs === 'number' &&
+      Number.isFinite(opts.heartbeatMs) &&
+      opts.heartbeatMs > 0
+        ? Math.min(2_147_483_647, opts.heartbeatMs)
+        : 15_000;
+    this.staleMs =
+      typeof opts?.staleMs === 'number' && Number.isFinite(opts.staleMs) && opts.staleMs > 0
+        ? opts.staleMs
+        : 45_000;
     this.log = opts?.log;
   }
 

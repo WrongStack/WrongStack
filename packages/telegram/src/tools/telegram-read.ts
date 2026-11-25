@@ -55,20 +55,27 @@ export function makeTelegramReadTool(opts: { bot: TelegramBot }): Tool<TelegramR
       });
 
       let acked = 0;
-      if (input.ack_last !== undefined && input.ack_last > 0) {
+      if (
+        typeof input.ack_last === 'number' &&
+        Number.isSafeInteger(input.ack_last) &&
+        input.ack_last > 0
+      ) {
         acked = opts.bot.acknowledge(input.ack_last, input.chat_id);
       }
 
       return {
         buffer_total: opts.bot.bufferCount,
-        messages: msgs.map((m) => ({
-          message_id: m.messageId,
-          chat_id: m.chatId,
-          chat_type: m.chatType,
-          from: m.userName ?? `user_${m.userId ?? 'unknown'}`,
-          text: m.text,
-          ts: new Date(m.timestamp).toISOString(),
-        })),
+        messages: msgs.map((m) => {
+          const parsed = new Date(m.timestamp);
+          return {
+            message_id: m.messageId,
+            chat_id: m.chatId,
+            chat_type: m.chatType,
+            from: m.userName ?? `user_${m.userId ?? 'unknown'}`,
+            text: m.text,
+            ts: Number.isFinite(parsed.getTime()) ? parsed.toISOString() : '',
+          };
+        }),
         acked,
         hint:
           acked > 0

@@ -1515,6 +1515,7 @@
     ],
     "packages/telegram/src/telemetry.ts": [
       "bumpCounter",
+      "newHistogram",
       "observeHistogram",
       "TelegramTelemetry"
     ],

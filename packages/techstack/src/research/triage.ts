@@ -32,7 +32,9 @@ const DIRECT_BONUS = 10;
 const RUNTIME_BONUS = 5;
 
 function priorityFor(dep: DependencyObservation): number {
-  const base = PRIORITY_BY_STATUS[dep.status] ?? 0;
+  const base = Object.hasOwn(PRIORITY_BY_STATUS, dep.status)
+    ? (PRIORITY_BY_STATUS[dep.status] ?? 0)
+    : 0;
   const direct = dep.direct ? DIRECT_BONUS : 0;
   const runtime = dep.scope === 'runtime' ? RUNTIME_BONUS : 0;
   return base + direct + runtime;
@@ -70,7 +72,9 @@ export function triageCandidates(
   const best = new Map<string, TriageCandidate>();
 
   for (const dependency of dependencies) {
-    const cluster = CLUSTER_BY_STATUS[dependency.status];
+    const cluster = Object.hasOwn(CLUSTER_BY_STATUS, dependency.status)
+      ? CLUSTER_BY_STATUS[dependency.status]
+      : undefined;
     if (!cluster) continue;
     if (dependency.sourceType === 'path' || dependency.sourceType === 'git') continue;
 

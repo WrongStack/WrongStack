@@ -17,7 +17,7 @@ export function parseArtifact(output: string, sessionId: string): Artifact | nul
     const value = parsed as Record<string, unknown>;
     if (
       value.type !== 'artifact.presentation' ||
-      ![1, 2].includes(Number(value.version)) ||
+      (value.version !== 1 && value.version !== 2) ||
       value.sessionId !== sessionId
     )
       return null;

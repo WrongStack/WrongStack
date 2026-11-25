@@ -62,7 +62,9 @@ export async function discover(opts: DiscoveryOptions = {}): Promise<DiscoveryRe
   const rawTimeoutMs = opts.timeoutMs ?? 1000;
   const timeoutMs = Number.isFinite(rawTimeoutMs)
     ? Math.min(Math.max(0, rawTimeoutMs), 2_147_483_647)
-    : 2_147_483_647;
+    : rawTimeoutMs === Number.POSITIVE_INFINITY
+      ? 2_147_483_647
+      : 1000;
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch;
 
   if (typeof fetchImpl !== 'function') {

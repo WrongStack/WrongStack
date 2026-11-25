@@ -687,14 +687,30 @@ export class WrongStackClient {
 
   private async reconnect(cause: WrongStackError): Promise<void> {
     const policy = this.options.reconnect || {};
-    const attempts = policy.attempts ?? 10;
-    let delay = policy.initialDelayMs ?? 500;
+    const attempts =
+      typeof policy.attempts === 'number' &&
+      Number.isFinite(policy.attempts) &&
+      policy.attempts >= 0
+        ? Math.floor(policy.attempts)
+        : 10;
+    const maxDelayMs =
+      typeof policy.maxDelayMs === 'number' &&
+      Number.isFinite(policy.maxDelayMs) &&
+      policy.maxDelayMs >= 0
+        ? policy.maxDelayMs
+        : 10_000;
+    let delay =
+      typeof policy.initialDelayMs === 'number' &&
+      Number.isFinite(policy.initialDelayMs) &&
+      policy.initialDelayMs >= 0
+        ? policy.initialDelayMs
+        : 500;
     let last = cause;
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       // close() during an attempt (not a wait) had no timer to cancel.
       if (this.closing) return;
       if (!(await this.wait(delay))) return;
-      delay = Math.min(delay * 2, policy.maxDelayMs ?? 10_000);
+      delay = Math.min(delay * 2, maxDelayMs);
       const socketBeforeAttempt = this.socketNumber;
       try {
         const { start, early, closed } = await this.open();

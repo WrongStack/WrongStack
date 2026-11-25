@@ -57,7 +57,13 @@ const httpUrlSchema = z
     }
   }, 'must be a valid http(s) URL');
 
-const idSchema = z.string().trim().min(1).max(128);
+const noNullBytes = (value: string) => !value.includes('\0');
+const idSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(128)
+  .refine(noNullBytes, 'must not contain NUL bytes');
 const nonBlankString = (max: number, label: string) =>
   z
     .string()
@@ -75,7 +81,13 @@ export const attachmentInputSchema = z
   .object({
     name: z.string().trim().min(1).max(200),
     kind: z.enum(INTAKE_ATTACHMENT_KINDS),
-    path: z.string().trim().min(1).max(MAX_REFERENCE_LENGTH).optional(),
+    path: z
+      .string()
+      .trim()
+      .min(1)
+      .max(MAX_REFERENCE_LENGTH)
+      .refine(noNullBytes, 'path must not contain NUL bytes')
+      .optional(),
     url: httpUrlSchema.optional(),
     sizeBytes: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
     mimeType: normalizedOptionalString(100),
@@ -87,7 +99,12 @@ export const attachmentInputSchema = z
 export const relatedResourceInputSchema = z
   .object({
     kind: z.enum(RELATED_RESOURCE_KINDS),
-    reference: z.string().trim().min(1).max(MAX_REFERENCE_LENGTH),
+    reference: z
+      .string()
+      .trim()
+      .min(1)
+      .max(MAX_REFERENCE_LENGTH)
+      .refine(noNullBytes, 'reference must not contain NUL bytes'),
     title: normalizedOptionalString(200),
   })
   .refine((value) => value.kind !== 'url' || httpUrlSchema.safeParse(value.reference).success, {

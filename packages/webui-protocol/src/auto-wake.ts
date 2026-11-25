@@ -30,7 +30,9 @@ export function formatAutoWakeNotice(
   notices: readonly string[] = [],
 ): string {
   const chainNote =
-    typeof chain === 'number' && chain > 0 ? ` — woken turn ${chain} without your input` : '';
+    typeof chain === 'number' && Number.isFinite(chain) && chain > 0
+      ? ` — woken turn ${Math.floor(chain)} without your input`
+      : '';
   const n = delegationIds.length;
   const ids = n > 0 ? ` (${delegationIds.join(', ')})` : '';
   const results = n === 1 ? 'a background delegation result' : 'background delegation results';
@@ -46,15 +48,17 @@ export function formatDeliveryPendingNotice(
   delegationIds: readonly string[],
   count: number,
 ): string {
+  const safeCount = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
   const ids = delegationIds.length > 0 ? ` (${delegationIds.join(', ')})` : '';
-  return count === 1
+  return safeCount === 1
     ? `Background delegation result ready${ids}.`
-    : `${count} background delegation results ready${ids}.`;
+    : `${safeCount} background delegation results ready${ids}.`;
 }
 
 /** The notice shown when the chain cap holds results until the user speaks. */
 export function formatAutoWakeSuppressedNotice(pending: number): string {
-  return `Auto-wake paused: ${pending} background result${pending === 1 ? '' : 's'} held after too many consecutive woken turns — send a message to continue.`;
+  const safePending = Number.isFinite(pending) ? Math.max(0, Math.floor(pending)) : 0;
+  return `Auto-wake paused: ${safePending} background result${safePending === 1 ? '' : 's'} held after too many consecutive woken turns — send a message to continue.`;
 }
 
 /**

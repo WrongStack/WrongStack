@@ -74,7 +74,7 @@ export function fmtDuration(ms: number): string {
  * Uses comma-separated thousands: 1,234, 56,789.
  */
 export function fmtTokens(n: number): string {
-  return n.toLocaleString('en-US');
+  return Number.isFinite(n) ? n.toLocaleString('en-US') : '0';
 }
 
 function isJsonContainer(text: string): boolean {
@@ -141,7 +141,9 @@ export function formatDelegateCompleted(e: DelegateCompletedLike): string {
   const rawBody = e.summary?.trim() || `(no summary) — ${task}`;
   const body = redactSecrets(rawBody);
 
-  const stats = [`⏱ ${fmtDuration(e.durationMs)}`, `${e.iterations} iter`, `${e.toolCalls} tools`];
+  const iterations = Number.isFinite(e.iterations) && e.iterations > 0 ? e.iterations : 0;
+  const toolCalls = Number.isFinite(e.toolCalls) && e.toolCalls > 0 ? e.toolCalls : 0;
+  const stats = [`⏱ ${fmtDuration(e.durationMs)}`, `${iterations} iter`, `${toolCalls} tools`];
   if (typeof e.costUsd === 'number' && Number.isFinite(e.costUsd) && e.costUsd > 0) {
     stats.push(`💲${e.costUsd.toFixed(4)}`);
   }
@@ -179,18 +181,28 @@ export function formatToolExecuted(e: ToolExecutedLike): string {
  */
 export function formatSessionEnded(e: SessionEndedLike): string {
   const id = e.id.length > 8 ? sliceUtf16Safe(e.id, 8) : e.id;
-  const total = e.inputTokens + e.outputTokens;
+  const inputTokens = Number.isFinite(e.inputTokens) && e.inputTokens > 0 ? e.inputTokens : 0;
+  const outputTokens = Number.isFinite(e.outputTokens) && e.outputTokens > 0 ? e.outputTokens : 0;
+  const total = inputTokens + outputTokens;
 
   const lines = [
     `🏁 Session ${id} ended`,
-    `⬇ ${fmtTokens(e.inputTokens)} in · ⬆ ${fmtTokens(e.outputTokens)} out · ${fmtTokens(total)} total`,
+    `⬇ ${fmtTokens(inputTokens)} in · ⬆ ${fmtTokens(outputTokens)} out · ${fmtTokens(total)} total`,
   ];
 
   // Show cache stats when available
-  if (e.cacheRead || e.cacheWrite) {
+  const cacheRead =
+    typeof e.cacheRead === 'number' && Number.isFinite(e.cacheRead) && e.cacheRead > 0
+      ? e.cacheRead
+      : 0;
+  const cacheWrite =
+    typeof e.cacheWrite === 'number' && Number.isFinite(e.cacheWrite) && e.cacheWrite > 0
+      ? e.cacheWrite
+      : 0;
+  if (cacheRead > 0 || cacheWrite > 0) {
     const parts: string[] = [];
-    if (e.cacheRead && e.cacheRead > 0) parts.push(`${fmtTokens(e.cacheRead)} cache read`);
-    if (e.cacheWrite && e.cacheWrite > 0) parts.push(`${fmtTokens(e.cacheWrite)} cache written`);
+    if (cacheRead > 0) parts.push(`${fmtTokens(cacheRead)} cache read`);
+    if (cacheWrite > 0) parts.push(`${fmtTokens(cacheWrite)} cache written`);
     if (parts.length > 0) lines.push(`📦 ${parts.join(' · ')}`);
   }
 

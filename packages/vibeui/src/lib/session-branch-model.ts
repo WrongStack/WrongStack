@@ -74,21 +74,7 @@ export function parseVibeSessionTree(raw: string): VibeSessionTreeSnapshot | nul
 
 export function flattenVibeBranchRows(tree: VibeSessionTreeSnapshot): VibeBranchRow[] {
   const all = Object.values(tree.branches);
-  const childrenByParent = new Map<string, VibeBranchDescriptor[]>();
-  for (const branch of all) {
-    if (branch.parentBranchId === null) continue;
-    const parentId = Object.hasOwn(tree.branches, branch.parentBranchId)
-      ? branch.parentBranchId
-      : 'main';
-    const list = childrenByParent.get(parentId) ?? [];
-    list.push(branch);
-    childrenByParent.set(parentId, list);
-  }
-  for (const list of childrenByParent.values()) {
-    list.sort((a, b) => a.forkSeq - b.forkSeq || a.createdAt.localeCompare(b.createdAt));
-  }
-
-  const root = tree.branches.main ??
+  const root = (Object.hasOwn(tree.branches, 'main') ? tree.branches.main : undefined) ??
     all.find((b) => b.parentBranchId === null) ?? {
       id: 'main',
       name: 'main',
@@ -99,6 +85,20 @@ export function flattenVibeBranchRows(tree: VibeSessionTreeSnapshot): VibeBranch
       status: 'active' as const,
       turnCount: 0,
     };
+
+  const childrenByParent = new Map<string, VibeBranchDescriptor[]>();
+  for (const branch of all) {
+    if (branch.parentBranchId === null) continue;
+    const parentId = Object.hasOwn(tree.branches, branch.parentBranchId)
+      ? branch.parentBranchId
+      : root.id;
+    const list = childrenByParent.get(parentId) ?? [];
+    list.push(branch);
+    childrenByParent.set(parentId, list);
+  }
+  for (const list of childrenByParent.values()) {
+    list.sort((a, b) => a.forkSeq - b.forkSeq || a.createdAt.localeCompare(b.createdAt));
+  }
 
   const rows: VibeBranchRow[] = [];
   const visited = new Set<string>();

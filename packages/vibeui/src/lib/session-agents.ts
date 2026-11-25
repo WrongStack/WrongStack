@@ -79,11 +79,11 @@ export function updateAgent<S extends { agents: AgentEntry[] }>(
   if (isActiveAgent(agent.status) || kind === 'task_completed' || type === 'agent.timeline.message')
     agent.hasWorked = true;
   if (typeof p.iteration === 'number' || typeof p.iterations === 'number')
-    agent.iterations = number(p.iteration ?? p.iterations);
-  if (typeof p.toolCalls === 'number') agent.toolCalls = number(p.toolCalls);
-  if (typeof p.costUsd === 'number') agent.costUsd = number(p.costUsd);
-  if (typeof p.tokens === 'number') agent.tokens = number(p.tokens);
-  if (typeof p.maxContext === 'number') agent.maxContext = number(p.maxContext);
+    agent.iterations = Math.max(0, number(p.iteration ?? p.iterations));
+  if (typeof p.toolCalls === 'number') agent.toolCalls = Math.max(0, number(p.toolCalls));
+  if (typeof p.costUsd === 'number') agent.costUsd = Math.max(0, number(p.costUsd));
+  if (typeof p.tokens === 'number') agent.tokens = Math.max(0, number(p.tokens));
+  if (typeof p.maxContext === 'number') agent.maxContext = Math.max(0, number(p.maxContext));
   if (typeof p.currentTool === 'string') agent.currentTool = p.currentTool;
   if (typeof p.partialText === 'string') agent.partialText = p.partialText.slice(-20_000);
   if (!isActiveAgent(agent.status)) agent.currentTool = '';

@@ -115,8 +115,9 @@ function targetPathOf(toolInput: unknown): string | undefined {
     if (first) return first;
   }
   if (Array.isArray(files) && files.length > 0) {
-    const first = files[0];
-    if (typeof first === 'string' && first.length > 0) return first;
+    for (const entry of files) {
+      if (typeof entry === 'string' && entry.trim().length > 0) return entry.trim();
+    }
   }
   // `patch` accepts an optional directory.
   const dir = t['directory'];

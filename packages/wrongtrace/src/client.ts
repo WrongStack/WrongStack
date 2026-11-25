@@ -90,7 +90,9 @@ export async function _httpJson<T>(
   const rawTimeout = init?.timeoutMs ?? DEFAULT_TRANSPORT_TIMEOUT_MS;
   const safeTimeout = Number.isFinite(rawTimeout)
     ? Math.min(Math.max(0, rawTimeout), 2_147_483_647)
-    : 2_147_483_647;
+    : rawTimeout === Number.POSITIVE_INFINITY
+      ? 2_147_483_647
+      : DEFAULT_TRANSPORT_TIMEOUT_MS;
   const timer = setTimeout(() => controller.abort(), safeTimeout);
   try {
     const headers: Record<string, string> = { Accept: 'application/json' };

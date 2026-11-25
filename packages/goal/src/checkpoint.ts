@@ -380,7 +380,22 @@ export class CheckpointManager {
         const checkpoints = parsed as SerializedCheckpoint[];
 
         for (const sc of checkpoints) {
-          if (!sc || typeof sc !== 'object' || typeof sc.id !== 'string') continue;
+          if (
+            !sc ||
+            typeof sc !== 'object' ||
+            typeof sc.id !== 'string' ||
+            sc.id.length === 0 ||
+            typeof sc.graphId !== 'string' ||
+            sc.graphId.length === 0 ||
+            typeof sc.phaseId !== 'string' ||
+            typeof sc.timestamp !== 'number' ||
+            !Number.isFinite(sc.timestamp) ||
+            !['pending', 'running', 'paused', 'completed', 'failed', 'skipped'].includes(
+              sc.phaseStatus,
+            )
+          ) {
+            continue;
+          }
           if (
             !Array.isArray(sc.taskStatuses) ||
             !sc.taskStatuses.every(

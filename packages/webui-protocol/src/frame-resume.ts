@@ -198,7 +198,9 @@ export class FrameResume<T extends SequencedFrame & { type: string }> {
     if (this.timer) timers.clearTimeout(this.timer);
     const safeTimeoutMs = Number.isFinite(this.timeoutMs)
       ? Math.min(Math.max(0, this.timeoutMs), 2_147_483_647)
-      : 2_147_483_647;
+      : this.timeoutMs === Number.POSITIVE_INFINITY
+        ? 2_147_483_647
+        : FRAME_RESUME_TIMEOUT_MS;
     this.timer = timers.setTimeout(() => {
       this.timer = null;
       this.requested = [];

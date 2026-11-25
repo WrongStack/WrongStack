@@ -240,7 +240,7 @@ export interface CancellableTimeout {
 }
 
 export function scheduleTimeout(ms: number, onTimeout: () => void): CancellableTimeout {
-  let remainingMs = ms;
+  let remainingMs = Number.isFinite(ms) ? Math.max(0, ms) : 0;
   let timer: ReturnType<typeof setTimeout>;
   const schedule = () => {
     const chunkMs = Math.min(remainingMs, MAX_TIMEOUT_CHUNK_MS);
@@ -263,16 +263,21 @@ export function cancellableDelay(
   onSettled: () => void,
 ): CancellableTimeout & { promise: Promise<boolean> } {
   const { promise, resolve } = Promise.withResolvers<boolean>();
-  const timer = scheduleTimeout(Number.isFinite(ms) ? Math.max(0, ms) : 0, () => {
+  let settled = false;
+  const finish = (completed: boolean) => {
+    if (settled) return;
+    settled = true;
     onSettled();
-    resolve(true);
+    resolve(completed);
+  };
+  const timer = scheduleTimeout(Number.isFinite(ms) ? Math.max(0, ms) : 0, () => {
+    finish(true);
   });
   return {
     promise,
     cancel: () => {
       timer.cancel();
-      onSettled();
-      resolve(false);
+      finish(false);
     },
   };
 }
