@@ -49,8 +49,12 @@ export interface SessionHistoryWireEntry {
  * field (`text`, `thinking`, `content`); anything else falls back to a
  * labelled placeholder.
  */
-function blockText(block: ContentBlock | string): string {
+function blockText(block: ContentBlock | string | null | undefined): string {
   if (typeof block === 'string') return block;
+  // Journal events are parsed with a shallow type guard, so a content array can
+  // hold an entry that is not a block. Render the placeholder instead of
+  // throwing out of the whole inspect projection.
+  if (!block || typeof block !== 'object') return '[block]';
   switch (block.type) {
     case 'text':
       return block.text;
@@ -82,14 +86,18 @@ function cutText(value: string, max: number): string {
   return value.slice(0, end);
 }
 
+function isTextBlock(
+  block: ContentBlock | null | undefined,
+): block is Extract<ContentBlock, { type: 'text' }> {
+  return typeof block === 'object' && block !== null && block.type === 'text';
+}
+
 function userContentPreview(content: string | ContentBlock[]): string {
   const text = (
     typeof content === 'string'
       ? content
       : content
-          .filter(
-            (block): block is Extract<ContentBlock, { type: 'text' }> => block.type === 'text',
-          )
+          .filter(isTextBlock)
           .map((block) => block.text)
           .join(' ')
   )
@@ -153,6 +161,8 @@ function labelForEvent(e: SessionEvent): string {
       return 'Session permission rules changed';
     case 'acp_runtime_settings':
       return 'ACP model settings changed';
+    case 'acp_companion_link':
+      return e.externalSessionId === null ? 'ACP companion unlinked' : 'ACP companion linked';
     case 'subagent_model_plan':
       return 'Subagent model plan updated';
     case 'leader_effort':
@@ -305,6 +315,8 @@ function detailForEvent(e: SessionEvent): string {
     }
     case 'acp_runtime_settings':
       return 'ACP model / effort';
+    case 'acp_companion_link':
+      return 'External ACP session';
     case 'subagent_model_plan': {
       const plan = normalizeSubagentModelPlan(e.plan);
       const pinned = plan.slots.filter(

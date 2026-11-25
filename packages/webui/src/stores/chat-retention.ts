@@ -30,7 +30,7 @@ export const MAX_CHAT_FIELD_CHARS = 2 * 1024 * 1024;
 
 export function boundChatField(text: string, maxChars = MAX_CHAT_FIELD_CHARS): string {
   const safeMax =
-    typeof maxChars === 'number' && Number.isFinite(maxChars) && maxChars > 0
+    typeof maxChars === 'number' && Number.isFinite(maxChars) && maxChars >= 1
       ? Math.floor(maxChars)
       : MAX_CHAT_FIELD_CHARS;
   if (text.length <= safeMax) return text;

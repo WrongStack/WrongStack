@@ -46,7 +46,8 @@ interface ClearChatContextOptions {
 
 export function clearChatContext(options: ClearChatContextOptions): void {
   const { client, isLoading, clearMessages, setLoading, sendAbort, sessionId } = options;
-  const targetSessionId = sessionId ?? activeSessionLaneId();
+  const normalizedSessionId = typeof sessionId === 'string' ? sessionId.trim() : '';
+  const targetSessionId = normalizedSessionId || activeSessionLaneId();
   if (targetSessionId && targetSessionId !== SESSION_DEFAULT_LANE_ID) {
     streamCoalescer.dropSession(targetSessionId);
   } else {

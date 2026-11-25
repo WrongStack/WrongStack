@@ -13,12 +13,13 @@ export async function handleAgentRosterRoute(
   handlers: AgentRosterRouteHandlers,
 ): Promise<boolean> {
   if (!msg.type.startsWith('agent-roster.')) return false;
-  const requestId =
+  const rawRequestId =
     msg.payload &&
     typeof msg.payload === 'object' &&
     typeof (msg.payload as { requestId?: unknown }).requestId === 'string'
-      ? (msg.payload as { requestId: string }).requestId
-      : undefined;
+      ? (msg.payload as { requestId: string }).requestId.trim()
+      : '';
+  const requestId = rawRequestId.length > 0 ? rawRequestId : undefined;
   try {
     const response = await handlers.rosterHandler.handleMessage(
       ws,
@@ -31,7 +32,11 @@ export async function handleAgentRosterRoute(
         ? {
             ...response,
             payload: {
-              ...(response.payload && typeof response.payload === 'object' ? response.payload : {}),
+              ...(response.payload &&
+              typeof response.payload === 'object' &&
+              !Array.isArray(response.payload)
+                ? response.payload
+                : {}),
               requestId,
             },
           }

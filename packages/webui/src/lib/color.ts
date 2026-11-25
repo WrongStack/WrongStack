@@ -46,7 +46,7 @@ function parseOklch(value: string): [number, number, number] | null {
   if (!m?.[1]) return null;
   const coords = m[1].split('/')[0] ?? '';
   const parts = coords.trim().split(/\s+/);
-  if (parts.length < 3 || !parts[0] || !parts[1] || !parts[2]) return null;
+  if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) return null;
   const L = parseOklchComponent(parts[0], 1);
   // Chroma percentage reference (CSS Color 4): 100% → 0.4. L stays 100% → 1.0.
   const C = parseOklchComponent(parts[1], 0.4);

@@ -29,7 +29,8 @@ export function requestAuthOperation(
     const abort = () => finish(false);
     off = client.on('key.operation_result', (frame) => {
       if (frame.type !== 'key.operation_result') return;
-      const payload = frame.payload as { requestId?: string; success: boolean };
+      const payload = frame.payload as { requestId?: string; success?: boolean } | null | undefined;
+      if (!payload || typeof payload !== 'object') return;
       if (payload.requestId === requestId) finish(payload.success === true);
     });
     signal.addEventListener('abort', abort, { once: true });

@@ -16,7 +16,8 @@ function requestSessionId(msg: WSClientMessage): string | undefined {
     payload && typeof payload === 'object'
       ? (payload as { sessionId?: unknown }).sessionId
       : undefined;
-  return typeof value === 'string' && value.length > 0 ? value : undefined;
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 export function createAutonomyRouteHandlers(ctx: PrefsHandlerContext): AutonomyRouteHandlers {
