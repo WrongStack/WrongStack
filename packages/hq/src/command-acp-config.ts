@@ -13,25 +13,25 @@ export interface HqAcpConfigCommand {
   expected?: AcpRuntimeValues;
 }
 export function parseHqAcpConfig(p: Record<string, unknown>): HqAcpConfigCommand | null {
+  if (!p || typeof p !== 'object') return null;
+  const sessionId = typeof p.sessionId === 'string' ? p.sessionId.trim() : '';
+  const agentId = typeof p.agentId === 'string' ? p.agentId.trim() : '';
   if (
-    typeof p.sessionId !== 'string' ||
-    !p.sessionId.trim() ||
-    p.sessionId.length > 512 ||
-    typeof p.agentId !== 'string' ||
-    !p.agentId.trim() ||
-    p.agentId.length > 200 ||
-    ['__proto__', 'constructor', 'prototype'].includes(p.agentId)
+    !sessionId ||
+    sessionId.length > 512 ||
+    !agentId ||
+    agentId.length > 200 ||
+    ['__proto__', 'constructor', 'prototype'].includes(agentId)
   )
     return null;
-  if (p.action === 'inspect')
-    return { type: 'acp-config', action: 'inspect', agentId: p.agentId, sessionId: p.sessionId };
+  if (p.action === 'inspect') return { type: 'acp-config', action: 'inspect', agentId, sessionId };
   if (p.action !== 'set' || acpRuntimeValuesError(p.values) || acpRuntimeValuesError(p.expected))
     return null;
   return {
     type: 'acp-config',
     action: 'set',
-    agentId: p.agentId,
-    sessionId: p.sessionId,
+    agentId,
+    sessionId,
     values: p.values as AcpRuntimeValues,
     expected: p.expected as AcpRuntimeValues,
   };

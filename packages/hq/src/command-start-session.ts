@@ -26,6 +26,7 @@ export interface HqStartSessionCommand {
 
 /** Shape check for an inbound `start-session` payload; `null` rejects it. */
 export function parseHqStartSession(p: Record<string, unknown>): HqStartSessionCommand | null {
+  if (!p || typeof p !== 'object') return null;
   const prompt = p['prompt'];
   if (typeof prompt !== 'string') return null;
   const trimmed = prompt.trim();

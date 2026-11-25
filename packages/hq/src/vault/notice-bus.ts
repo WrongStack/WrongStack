@@ -18,7 +18,7 @@ export function onHqVaultNotice(listener: HqVaultNoticeListener): () => void {
 
 /** Called by the publisher; a listener's failure never reaches the socket. */
 export function deliverHqVaultNotice(notice: HqVaultChangedNotice): void {
-  for (const listener of listeners) {
+  for (const listener of [...listeners]) {
     try {
       listener(notice);
     } catch {

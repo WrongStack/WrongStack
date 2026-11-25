@@ -76,7 +76,7 @@ export class PublisherQueue {
     const bytes = Buffer.byteLength(serialized, 'utf8');
     if (
       !Number.isFinite(this.maxQueuedMessages) ||
-      this.maxQueuedMessages <= 0 ||
+      this.maxQueuedMessages < 1 ||
       !Number.isFinite(this.maxQueuedBytes) ||
       this.maxQueuedBytes <= 0 ||
       bytes > this.maxQueuedBytes

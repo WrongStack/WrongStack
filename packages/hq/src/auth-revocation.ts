@@ -80,6 +80,6 @@ export function shouldCloseBrowserSocket(
   boundSessionId: string | undefined,
   revokedSessionIds: ReadonlySet<string>,
 ): boolean {
-  if (boundSessionId === undefined || boundSessionId.length === 0) return true;
+  if (boundSessionId === undefined || boundSessionId.trim().length === 0) return true;
   return revokedSessionIds.has(boundSessionId);
 }
