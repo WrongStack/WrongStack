@@ -75,9 +75,20 @@ export class StreamCoalescer {
     // the next frame) doesn't lose or double-emit the current batch.
     const batch = Array.from(this.pending.entries());
     this.pending.clear();
+    let firstError: unknown;
+    let hasError = false;
     for (const [key, p] of batch) {
-      if (p.buffer) p.flush(key, p.buffer);
+      if (!p.buffer) continue;
+      try {
+        p.flush(key, p.buffer);
+      } catch (error) {
+        if (!hasError) {
+          hasError = true;
+          firstError = error;
+        }
+      }
     }
+    if (hasError) throw firstError;
   }
 
   /** Discard a key's buffered text without flushing. Used when a later event

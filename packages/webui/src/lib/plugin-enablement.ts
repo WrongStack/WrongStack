@@ -77,7 +77,9 @@ export function resolvePluginToggleStates(
   for (const entry of configuredPlugins) {
     const name = pluginNameOf(entry);
     const configuredEnabled = !isPluginEntryDisabled(entry);
-    const localOverride = localOverrides?.[name];
+    const rawOverride =
+      localOverrides && Object.hasOwn(localOverrides, name) ? localOverrides[name] : undefined;
+    const localOverride = typeof rawOverride === 'boolean' ? rawOverride : undefined;
     const resolved = localOverride ?? configuredEnabled;
     out.push({ name, configuredEnabled, localOverride, resolved });
   }

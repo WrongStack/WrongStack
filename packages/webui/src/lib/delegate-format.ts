@@ -15,7 +15,13 @@ export function truncateDelegateTask(text: string, max = 180): string {
   const limit = Number.isFinite(max) ? Math.floor(max) : 180;
   if (limit <= 0) return '';
   if (line.length <= limit) return line;
-  return limit === 1 ? '…' : `${line.slice(0, limit - 1)}…`;
+  if (limit === 1) return '…';
+  let end = limit - 1;
+  if (end > 0) {
+    const code = line.charCodeAt(end - 1);
+    if (code >= 0xd800 && code <= 0xdbff) end -= 1;
+  }
+  return `${line.slice(0, end)}…`;
 }
 
 export function delegateStartedText(target: string, task: string): string {

@@ -19,5 +19,7 @@ export function agentBelongsToSession(
   agentSessionId: string | null | undefined,
   sessionId: string | null | undefined,
 ): boolean {
-  return sessionId ? agentSessionId === sessionId : !agentSessionId;
+  const agent = agentSessionId?.trim() || '';
+  const session = sessionId?.trim() || '';
+  return session ? agent === session : !agent;
 }

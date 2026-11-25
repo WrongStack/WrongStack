@@ -41,6 +41,7 @@ export function reduceSandboxEvent(
   state: SandboxEventState,
   msg: SandboxWsEvent,
 ): SandboxEventState {
+  if (!msg || typeof msg !== 'object') return state;
   if (msg.event === 'sandbox.denied') {
     return { ...state, lastEvent: msg, denialCount: state.denialCount + 1 };
   }

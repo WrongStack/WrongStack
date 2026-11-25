@@ -83,6 +83,7 @@ export function oklchToHex(value: string): string | null {
   const r = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
   const g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
   const bl = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
+  if (!Number.isFinite(r) || !Number.isFinite(g) || !Number.isFinite(bl)) return null;
   return `#${hex2(lin(r))}${hex2(lin(g))}${hex2(lin(bl))}`;
 }
 

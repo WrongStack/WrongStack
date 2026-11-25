@@ -22,7 +22,7 @@ const openModals = new Set<string>();
 const listeners = new Set<() => void>();
 
 function notify(): void {
-  for (const listener of listeners) listener();
+  for (const listener of [...listeners]) listener();
 }
 
 /**

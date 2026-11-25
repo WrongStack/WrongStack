@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T21:16:09.912Z",
+  "generatedAt": "2026-11-25T21:18:46.868Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6571,
-    "testFiles": 6378,
-    "sourceLines": 1348782,
+    "testFiles": 6385,
+    "sourceLines": 1348805,
     "workspaceEdges": 261,
     "moduleEdges": 19249,
     "nonCommandSlashImports": 0,
@@ -1194,7 +1194,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 799,
-      "testFiles": 571,
+      "testFiles": 578,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1220,7 +1220,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 571
+          "testFiles": 578
         }
       ]
     },
@@ -39475,6 +39475,48 @@
       },
       {
         "file": "packages/webui/tests/types/sage-type-contract.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/webui-agent-session-blank.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/webui-coalescer-throw-drops-rest.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/webui-delegate-surrogate-split.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/webui-modal-registry-reentrant.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/webui-oklch-nan-hex.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/webui-plugin-enablement-proto.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/webui-sandbox-null-msg.test.ts",
         "projects": [
           "webui-jsdom"
         ]
