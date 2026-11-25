@@ -214,8 +214,9 @@ export class SpecVersioning {
     for (const req of specDiff.added) {
       const newTask = addedReqTasks.get(req.id);
       if (!newTask) continue;
-      for (const blockerReqId of new Set(req.blockedBy ?? [])) {
-        if (blockerReqId === req.id) continue;
+      for (const rawBlockerReqId of new Set(req.blockedBy ?? [])) {
+        const blockerReqId = rawBlockerReqId.trim();
+        if (!blockerReqId || blockerReqId === req.id) continue;
         for (const blockerTask of reqToTasks.get(blockerReqId) ?? []) {
           if (blockerTask.id === newTask.id) continue;
           const exists = graph.edges.some(
@@ -240,14 +241,18 @@ export class SpecVersioning {
       if (modTasks.length === 0) continue;
       const modTaskIds = new Set(modTasks.map((t) => t.id));
       const prevBlockerTaskIds = new Set<string>();
-      for (const blockerReqId of mod.previousVersion.blockedBy ?? []) {
+      for (const rawBlockerReqId of mod.previousVersion.blockedBy ?? []) {
+        const blockerReqId = rawBlockerReqId.trim();
+        if (!blockerReqId) continue;
         for (const blockerTask of reqToTasks.get(blockerReqId) ?? []) {
           prevBlockerTaskIds.add(blockerTask.id);
         }
       }
       const nextBlockerTasks: TaskNode[] = [];
       const nextBlockerTaskIds = new Set<string>();
-      for (const blockerReqId of mod.requirement.blockedBy ?? []) {
+      for (const rawBlockerReqId of mod.requirement.blockedBy ?? []) {
+        const blockerReqId = rawBlockerReqId.trim();
+        if (!blockerReqId) continue;
         for (const blockerTask of reqToTasks.get(blockerReqId) ?? []) {
           if (!nextBlockerTaskIds.has(blockerTask.id)) {
             nextBlockerTaskIds.add(blockerTask.id);

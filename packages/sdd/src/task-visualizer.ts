@@ -180,7 +180,9 @@ export function renderTaskList(graph: TaskGraph): string {
   };
 
   for (const node of nodes) {
-    groups[node.status].push(node);
+    if (Object.hasOwn(groups, node.status)) {
+      groups[node.status].push(node);
+    }
   }
 
   for (const [status, group] of Object.entries(groups)) {

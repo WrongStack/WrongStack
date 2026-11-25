@@ -42,37 +42,16 @@ export class SpecParser {
     };
   }
 
-  private extractTitle(lines: readonly string[], structure: readonly string[]): string {
-    let fence: string | undefined;
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!;
-      // A fenced code block is verbatim content, not document structure: a `#`
-      // comment inside a snippet is not the spec's title. The same holds for
-      // text inside an HTML comment (see visibleStructureLines).
-      const nextFence = this.updateFence(line, fence);
-      const inFence = fence !== undefined || nextFence !== undefined;
-      fence = nextFence;
-      if (inFence) continue;
-
+  private extractTitle(_lines: readonly string[], structure: readonly string[]): string {
+    for (let i = 0; i < structure.length; i++) {
       const m = /^#\s+(.+)/.exec((structure[i] ?? '').trim());
       if (m?.[1]) return m[1];
     }
     return 'Untitled Specification';
   }
 
-  private extractVersion(lines: readonly string[], structure: readonly string[]): string {
-    let fence: string | undefined;
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!;
-      // Same rule as the title: a `Version:` line inside a fenced block or an
-      // HTML comment is sample content, not the spec's version.
-      const nextFence = this.updateFence(line, fence);
-      const inFence = fence !== undefined || nextFence !== undefined;
-      fence = nextFence;
-      if (inFence) continue;
-
+  private extractVersion(_lines: readonly string[], structure: readonly string[]): string {
+    for (let i = 0; i < structure.length; i++) {
       const m = /version[:\s]+(\d+\.\d+\.\d+)/i.exec((structure[i] ?? '').trim());
       if (m?.[1]) return m[1];
     }
@@ -80,11 +59,12 @@ export class SpecParser {
   }
 
   /**
-   * Per-line text visible outside HTML comment regions, for structural
-   * matching only — content extraction keeps the raw lines. Precedence mirrors
-   * extractRequirements: inside a fence region a line is verbatim content and
-   * can neither open nor close a comment; a comment region spans lines until
-   * its closing marker.
+   * Per-line text visible outside HTML comment and fenced-code regions, for
+   * structural matching only — content extraction keeps the raw lines.
+   * Precedence mirrors extractRequirements: inside a comment a fence marker
+   * never opens a code block, and inside a fence a comment marker never opens
+   * a comment. Fenced lines map to `''` so callers match structure solely via
+   * this array without re-scanning raw lines for fences.
    */
   private visibleStructureLines(lines: readonly string[]): string[] {
     const out: string[] = new Array(lines.length);
@@ -92,14 +72,20 @@ export class SpecParser {
     let fence: string | undefined;
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
+      if (inComment) {
+        const comment = this.stripHtmlComments(line, true);
+        inComment = comment.inComment;
+        out[i] = comment.visible;
+        continue;
+      }
       const nextFence = this.updateFence(line, fence);
       const inFence = fence !== undefined || nextFence !== undefined;
       fence = nextFence;
-      if (!inComment && inFence) {
-        out[i] = line;
+      if (inFence) {
+        out[i] = '';
         continue;
       }
-      const comment = this.stripHtmlComments(line, inComment);
+      const comment = this.stripHtmlComments(line, false);
       inComment = comment.inComment;
       out[i] = comment.hadComment ? comment.visible : line;
     }
@@ -127,22 +113,16 @@ export class SpecParser {
     const overviewLines: string[] = [];
     let inOverview = false;
     let foundHeading = false;
-    let fence: string | undefined;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
-      const nextFence = this.updateFence(line, fence);
-      const inFence = fence !== undefined || nextFence !== undefined;
-      fence = nextFence;
-      if (!inFence) {
-        const visibleLine = (structure[i] ?? '').trim();
-        if (/^##\s+Overview/i.test(visibleLine)) {
-          inOverview = true;
-          foundHeading = true;
-          continue;
-        }
-        if (foundHeading && /^##\s+/.test(visibleLine)) break;
+      const visibleLine = (structure[i] ?? '').trim();
+      if (/^##\s+Overview/i.test(visibleLine)) {
+        inOverview = true;
+        foundHeading = true;
+        continue;
       }
+      if (foundHeading && /^##\s+/.test(visibleLine)) break;
       if (inOverview) overviewLines.push(line);
     }
 
@@ -154,38 +134,31 @@ export class SpecParser {
     let currentSection: Partial<SpecSection> | null = null;
     let currentLines: string[] = [];
     let depth = 1;
-    let fence: string | undefined;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
-      const nextFence = this.updateFence(line, fence);
-      const inFence = fence !== undefined || nextFence !== undefined;
-      fence = nextFence;
+      const visibleLine = (structure[i] ?? '').trim();
+      const h2 = /^##\s+(.+)/.exec(visibleLine);
+      const h3 = /^###\s+(.+)/.exec(visibleLine);
 
-      if (!inFence) {
-        const visibleLine = (structure[i] ?? '').trim();
-        const h2 = /^##\s+(.+)/.exec(visibleLine);
-        const h3 = /^###\s+(.+)/.exec(visibleLine);
-
-        if (h2) {
-          if (currentSection && currentLines.length > 0) {
-            sections.push({
-              type: this.mapSectionType(currentSection.title!),
-              title: currentSection.title!,
-              level: depth,
-              content: currentLines.join('\n').trim(),
-            });
-          }
-          currentSection = { title: h2[1]! };
-          currentLines = [];
-          depth = 2;
-          continue;
+      if (h2) {
+        if (currentSection && currentLines.length > 0) {
+          sections.push({
+            type: this.mapSectionType(currentSection.title!),
+            title: currentSection.title!,
+            level: depth,
+            content: currentLines.join('\n').trim(),
+          });
         }
+        currentSection = { title: h2[1]! };
+        currentLines = [];
+        depth = 2;
+        continue;
+      }
 
-        if (h3) {
-          currentLines.push(line);
-          continue;
-        }
+      if (h3) {
+        currentLines.push(line);
+        continue;
       }
 
       if (currentSection) {
@@ -344,16 +317,19 @@ export class SpecParser {
       priority = 'low';
     }
 
+    const description = trimmed
+      .replace(
+        /\[(?:functional|non-functional|security|performance|ux|critical|high|medium|low|prio:high)\]/gi,
+        '',
+      )
+      .trim();
+    if (!description) return null;
+
     return {
       id,
       type,
       priority,
-      description: trimmed
-        .replace(
-          /\[(?:functional|non-functional|security|performance|ux|critical|high|medium|low|prio:high)\]/gi,
-          '',
-        )
-        .trim(),
+      description,
       acceptanceCriteria: [],
     };
   }

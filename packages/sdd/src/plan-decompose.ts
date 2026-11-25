@@ -88,7 +88,10 @@ export function assessTaskNodeAtomicity(
 export async function decomposeNonAtomicTasks(
   opts: PlanDecomposeOptions,
 ): Promise<PlanDecomposeResult> {
-  const maxDecompositions = Math.max(1, opts.maxDecompositions ?? 10);
+  const maxDecompositions =
+    typeof opts.maxDecompositions === 'number' && Number.isFinite(opts.maxDecompositions)
+      ? Math.max(1, Math.floor(opts.maxDecompositions))
+      : 10;
   const result: PlanDecomposeResult = { applied: [], proposals: [], flagged: [] };
 
   const nodes = opts.tracker.getAllNodes();

@@ -36,10 +36,38 @@ function graphToJSON(graph: TaskGraph): string {
 }
 
 function graphFromJSON(raw: string): TaskGraph {
-  const parsed = JSON.parse(raw) as Omit<TaskGraph, 'nodes'> & { nodes: [string, TaskNode][] };
+  const parsed: unknown = JSON.parse(raw);
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error('Invalid task graph JSON');
+  }
+  const obj = parsed as Record<string, unknown>;
+  if (
+    typeof obj['id'] !== 'string' ||
+    typeof obj['specId'] !== 'string' ||
+    typeof obj['title'] !== 'string' ||
+    !Array.isArray(obj['nodes']) ||
+    !obj['nodes'].every(
+      (entry) =>
+        Array.isArray(entry) &&
+        entry.length === 2 &&
+        typeof entry[0] === 'string' &&
+        typeof entry[1] === 'object' &&
+        entry[1] !== null &&
+        !Array.isArray(entry[1]),
+    ) ||
+    !Array.isArray(obj['edges']) ||
+    !Array.isArray(obj['rootNodes']) ||
+    typeof obj['createdAt'] !== 'number' ||
+    !Number.isFinite(obj['createdAt']) ||
+    typeof obj['updatedAt'] !== 'number' ||
+    !Number.isFinite(obj['updatedAt'])
+  ) {
+    throw new Error('Malformed task graph payload');
+  }
+  const typed = parsed as Omit<TaskGraph, 'nodes'> & { nodes: [string, TaskNode][] };
   return {
-    ...parsed,
-    nodes: new Map(parsed.nodes),
+    ...typed,
+    nodes: new Map(typed.nodes),
   };
 }
 
@@ -74,7 +102,8 @@ export class TaskGraphStore implements TaskStore {
   private async loadFile(id: string): Promise<TaskGraph | null> {
     try {
       const raw = await fsp.readFile(this.filePath(id), 'utf8');
-      return graphFromJSON(raw);
+      const graph = graphFromJSON(raw);
+      return graph.id === id ? graph : null;
     } catch {
       return null;
     }

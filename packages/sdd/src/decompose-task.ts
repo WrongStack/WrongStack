@@ -120,8 +120,14 @@ export type PlanningDecomposer = (info: {
  * intentionally untouched.
  */
 export function makePlanningDecomposer(opts: PlanningDecomposerOptions): PlanningDecomposer {
-  const min = Math.max(2, opts.minSubtasks ?? 2);
-  const max = Math.max(min, opts.maxSubtasks ?? 5);
+  const min =
+    typeof opts.minSubtasks === 'number' && Number.isFinite(opts.minSubtasks)
+      ? Math.max(2, Math.floor(opts.minSubtasks))
+      : 2;
+  const max =
+    typeof opts.maxSubtasks === 'number' && Number.isFinite(opts.maxSubtasks)
+      ? Math.max(min, Math.floor(opts.maxSubtasks))
+      : Math.max(min, 5);
 
   return async function decompose(info): Promise<SddSubtaskSpec[]> {
     let text: string;
@@ -150,8 +156,14 @@ export function makePlanningDecomposer(opts: PlanningDecomposerOptions): Plannin
  * the supervisor safely degrades a `split` verdict into a retry.
  */
 export function makeLlmSubtaskGenerator(opts: SubtaskGeneratorOptions) {
-  const min = Math.max(2, opts.minSubtasks ?? 2);
-  const max = Math.max(min, opts.maxSubtasks ?? 4);
+  const min =
+    typeof opts.minSubtasks === 'number' && Number.isFinite(opts.minSubtasks)
+      ? Math.max(2, Math.floor(opts.minSubtasks))
+      : 2;
+  const max =
+    typeof opts.maxSubtasks === 'number' && Number.isFinite(opts.maxSubtasks)
+      ? Math.max(min, Math.floor(opts.maxSubtasks))
+      : Math.max(min, 4);
 
   return async function generateSubtasks(info: {
     task: TaskNode;

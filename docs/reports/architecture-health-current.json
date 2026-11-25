@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T15:34:14.024Z",
+  "generatedAt": "2026-11-25T15:37:04.302Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6564,
-    "testFiles": 5912,
-    "sourceLines": 1345628,
+    "testFiles": 5919,
+    "sourceLines": 1345655,
     "workspaceEdges": 261,
     "moduleEdges": 19226,
     "nonCommandSlashImports": 0,
@@ -967,7 +967,7 @@
       "name": "@wrongstack/sdd",
       "dir": "packages/sdd",
       "sourceFiles": 45,
-      "testFiles": 56,
+      "testFiles": 63,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -986,7 +986,7 @@
         {
           "path": "packages/sdd/tsconfig.test.json",
           "error": null,
-          "testFiles": 56
+          "testFiles": 63
         }
       ]
     },
@@ -24037,6 +24037,12 @@
         ]
       },
       {
+        "file": "packages/sdd/tests/decompose-task-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sdd/tests/decompose-task.test.ts",
         "projects": [
           "root-node"
@@ -24074,6 +24080,12 @@
       },
       {
         "file": "packages/sdd/tests/parallel-controls-retry-guard.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sdd/tests/plan-decompose-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24211,6 +24223,18 @@
         ]
       },
       {
+        "file": "packages/sdd/tests/spec-parser-comment-fence.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sdd/tests/spec-parser-empty-req.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sdd/tests/spec-parser.test.ts",
         "projects": [
           "root-node"
@@ -24230,6 +24254,12 @@
       },
       {
         "file": "packages/sdd/tests/spec-templates.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sdd/tests/spec-versioning-dep-trim.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24283,6 +24313,12 @@
         ]
       },
       {
+        "file": "packages/sdd/tests/task-graph-store-corrupt-shape.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sdd/tests/task-graph-store.test.ts",
         "projects": [
           "root-node"
@@ -24296,6 +24332,12 @@
       },
       {
         "file": "packages/sdd/tests/task-visualizer-legend.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sdd/tests/task-visualizer-status-proto.test.ts",
         "projects": [
           "root-node"
         ]

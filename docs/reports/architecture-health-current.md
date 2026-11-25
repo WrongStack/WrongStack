@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-25T15:34:14.024Z
+**Generated:** 2026-11-25T15:37:04.302Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6564 |
-| Production source lines | 1345628 |
-| Test files | 5912 |
+| Production source lines | 1345655 |
+| Test files | 5919 |
 | Workspace dependency edges | 261 |
 | Relative module edges | 19226 |
 | Non-command slash imports | 0 |
@@ -62,7 +62,7 @@
 | @wrongstack/runtime | 129 | 95 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/governance, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/sage, @wrongstack/security-scanner, @wrongstack/telegram, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
 | @wrongstack/sage | 179 | 183 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/hq, @wrongstack/persistence, @wrongstack/primitives, @wrongstack/tools, @wrongstack/wrongmemory-client |
 | @wrongstack/sage-mcp | 7 | 7 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/sage |
-| @wrongstack/sdd | 45 | 56 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/requirement-intake, @wrongstack/worktree |
+| @wrongstack/sdd | 45 | 63 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/requirement-intake, @wrongstack/worktree |
 | @wrongstack/security-scanner | 21 | 37 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/techstack | 55 | 68 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 28 | 46 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
