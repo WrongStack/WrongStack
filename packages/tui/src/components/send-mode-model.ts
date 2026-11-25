@@ -93,5 +93,10 @@ export function formatSendModeMessagePreview(text: string, maxChars = 120): stri
   const safeMax = Number.isFinite(maxChars) ? Math.max(0, Math.floor(maxChars)) : 120;
   if (safeMax === 0) return '';
   if (singleLine.length <= safeMax) return singleLine;
-  return `${singleLine.slice(0, Math.max(0, safeMax - 1))}…`;
+  let end = Math.max(0, safeMax - 1);
+  if (end > 0) {
+    const last = singleLine.charCodeAt(end - 1);
+    if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  }
+  return `${singleLine.slice(0, end)}…`;
 }

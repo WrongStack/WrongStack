@@ -28,7 +28,9 @@ export function filterPromptPicker(
   if (cat === '★ favorites') return all.filter((e) => e.favorite);
   if (cat === '🕘 recent') {
     const bySlug = new Map(all.map((e) => [e.slug, e]));
-    return recentSlugs.map((s) => bySlug.get(s)).filter((e): e is PromptPickEntry => Boolean(e));
+    return [...new Set(recentSlugs)]
+      .map((s) => bySlug.get(s))
+      .filter((e): e is PromptPickEntry => Boolean(e));
   }
   return all.filter((e) => e.category === cat);
 }

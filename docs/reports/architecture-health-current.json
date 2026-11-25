@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T20:50:22.944Z",
+  "generatedAt": "2026-11-25T20:53:24.330Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6570,
-    "testFiles": 6277,
-    "sourceLines": 1348063,
+    "testFiles": 6283,
+    "sourceLines": 1348076,
     "workspaceEdges": 261,
     "moduleEdges": 19241,
     "nonCommandSlashImports": 0,
@@ -1112,7 +1112,7 @@
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
       "sourceFiles": 517,
-      "testFiles": 495,
+      "testFiles": 501,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1141,7 +1141,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 495
+          "testFiles": 501
         }
       ]
     },
@@ -30840,6 +30840,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/provider-colors-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/provider-quota-panel.test.tsx",
         "projects": [
           "root-node"
@@ -31195,6 +31201,12 @@
       },
       {
         "file": "packages/tui/tests/send-mode-picker.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/send-mode-preview-surrogate.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31873,6 +31885,30 @@
       },
       {
         "file": "packages/tui/tests/tui-memory-counters.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/tui-picker-viewport-nan-reserved.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/tui-prompt-picker-dup-recent.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/tui-selection-band-reentrant.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/tui-suggestion-label-nan.test.ts",
         "projects": [
           "root-node"
         ]

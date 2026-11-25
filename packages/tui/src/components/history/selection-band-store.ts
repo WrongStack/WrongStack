@@ -65,7 +65,7 @@ export function createSelectionBandStore(): SelectionBandStore {
     publish(next) {
       if (sameBand(snapshot, next)) return;
       snapshot = next;
-      for (const listener of listeners) listener();
+      for (const listener of [...listeners]) listener();
     },
   };
 }

@@ -69,8 +69,9 @@ export function modeIcon(label?: string): string {
 export function formatSuggestionLabel(label: string, maxLen = 28): string {
   const stripped = label.replace(/^\/next\s+[\d\s]+\s*/, '').trim();
   if (!stripped) return '';
-  if (stripped.length <= maxLen) return stripped;
-  const shortened = stripped.slice(0, maxLen);
+  const safeMax = Number.isFinite(maxLen) && maxLen >= 1 ? Math.floor(maxLen) : 28;
+  if (stripped.length <= safeMax) return stripped;
+  const shortened = stripped.slice(0, safeMax);
   const lastSpace = shortened.lastIndexOf(' ');
   return lastSpace > 10 ? `${shortened.slice(0, lastSpace)}…` : `${shortened}…`;
 }

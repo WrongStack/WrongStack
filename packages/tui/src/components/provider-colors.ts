@@ -11,12 +11,16 @@ import { type Theme, theme } from '../theme.js';
 
 /** Return a hex color for a known provider family, or a neutral fallback. */
 export function colorForFamily(family: string | undefined): string {
-  return FAMILY_COLORS[family?.toLowerCase() ?? ''] ?? '#89dceb';
+  const key = family?.toLowerCase() ?? '';
+  return (Object.hasOwn(FAMILY_COLORS, key) ? FAMILY_COLORS[key] : undefined) ?? '#89dceb';
 }
 
 /** Return a dimmer variant (used for unselected / secondary text). */
 export function dimColorForFamily(family: string | undefined): string {
-  return DIMMED_FAMILY_COLORS[family?.toLowerCase() ?? ''] ?? '#585b70';
+  const key = family?.toLowerCase() ?? '';
+  return (
+    (Object.hasOwn(DIMMED_FAMILY_COLORS, key) ? DIMMED_FAMILY_COLORS[key] : undefined) ?? '#585b70'
+  );
 }
 
 const FAMILY_COLORS: Record<string, string> = {

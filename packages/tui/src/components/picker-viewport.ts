@@ -14,10 +14,11 @@ export function pickerViewport(
   terminal: { columns: number; rows: number },
   { columns, maxRows, reservedRows, rowCap }: PickerViewportOptions,
 ): { columns: number; rows: number; compact: boolean } {
+  const safeReserved = cells(reservedRows);
   const width = Math.min(cells(terminal.columns), cells(columns ?? terminal.columns));
   const height = Math.min(
     cells(terminal.rows),
-    cells(maxRows ?? terminal.rows - reservedRows),
+    cells(maxRows ?? terminal.rows - safeReserved),
     cells(rowCap ?? terminal.rows),
   );
   // Borders and chrome should not crowd out the focused result or its controls.
