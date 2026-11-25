@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T08:11:57.845Z",
+  "generatedAt": "2026-11-25T08:18:34.168Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6554,
+    "sourceFiles": 6549,
     "testFiles": 5854,
-    "sourceLines": 1342347,
+    "sourceLines": 1341617,
     "workspaceEdges": 261,
-    "moduleEdges": 19170,
+    "moduleEdges": 19158,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -231,7 +231,7 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 654,
+      "sourceFiles": 652,
       "testFiles": 724,
       "workspaceDependencies": [
         "@wrongstack/acp",
@@ -527,7 +527,7 @@
     {
       "name": "@wrongstack/hq",
       "dir": "packages/hq",
-      "sourceFiles": 93,
+      "sourceFiles": 91,
       "testFiles": 65,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -551,7 +551,7 @@
     {
       "name": "@wrongstack/hq-next",
       "dir": "packages/hq-next",
-      "sourceFiles": 205,
+      "sourceFiles": 204,
       "testFiles": 72,
       "workspaceDependencies": [
         "@wrongstack/contracts",
