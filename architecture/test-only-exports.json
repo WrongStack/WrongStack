@@ -1334,6 +1334,9 @@
     "packages/providers/src/oauth-refresh-coordinator.ts": [
       "resetSharedOAuthRefreshState"
     ],
+    "packages/providers/src/openai-codex-errors.ts": [
+      "codexUsageLimitResetMs"
+    ],
     "packages/providers/src/openai-shared.ts": [
       "OPENAI_EFFORT_ACCEPT"
     ],

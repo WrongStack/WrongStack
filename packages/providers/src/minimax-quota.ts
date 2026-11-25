@@ -304,9 +304,10 @@ export function miniMaxQuotaResetInMs(
   for (const snapshot of snapshots) {
     for (const window of snapshot.windows) {
       const exhausted = snapshot.reachedWindowId === window.id || window.usedPercent >= 100;
-      if (!exhausted || window.resetsAt === undefined) continue;
+      if (!exhausted || window.resetsAt === undefined || !Number.isFinite(window.resetsAt))
+        continue;
       const ms = window.resetsAt * 1000 - now;
-      if (ms <= 0) continue;
+      if (!Number.isFinite(ms) || ms <= 0) continue;
       // Several exhausted windows: the account is usable only once ALL of
       // them have reset, so the latest reset is the honest wait.
       best = best === undefined ? ms : Math.max(best, ms);

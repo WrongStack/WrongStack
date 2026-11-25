@@ -206,8 +206,11 @@ export function capabilitiesForFamily(
   family: WireFamily,
   overrides: Partial<Capabilities> = {},
 ): Capabilities {
+  const base = Object.hasOwn(CAPABILITIES_BY_FAMILY, family)
+    ? CAPABILITIES_BY_FAMILY[family]
+    : CAPABILITIES_BY_FAMILY.unsupported;
   return {
-    ...(CAPABILITIES_BY_FAMILY[family] ?? CAPABILITIES_BY_FAMILY.unsupported),
+    ...base,
     ...overrides,
   };
 }

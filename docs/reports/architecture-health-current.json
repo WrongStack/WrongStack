@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T15:57:03.728Z",
+  "generatedAt": "2026-11-25T15:59:38.380Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6564,
-    "testFiles": 6053,
-    "sourceLines": 1346159,
+    "testFiles": 6077,
+    "sourceLines": 1346230,
     "workspaceEdges": 261,
     "moduleEdges": 19226,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 3,
     "testsWithoutTypecheck": 10,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1054
+    "testOnlyExports": 1055
   },
   "errors": [
     "2 unexcepted module cycle(s)"
@@ -807,7 +807,7 @@
       "name": "@wrongstack/providers",
       "dir": "packages/providers",
       "sourceFiles": 142,
-      "testFiles": 135,
+      "testFiles": 159,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -821,7 +821,7 @@
         {
           "path": "packages/providers/tsconfig.test.json",
           "error": null,
-          "testFiles": 135
+          "testFiles": 159
         }
       ]
     },
@@ -21949,13 +21949,31 @@
         ]
       },
       {
+        "file": "packages/providers/tests/anthropic-reset-trunc-zero.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/providers/tests/anthropic.test.ts",
         "projects": [
           "root-node"
         ]
       },
       {
+        "file": "packages/providers/tests/antigravity-quota-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/providers/tests/auto-discover.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/balance-quota-overflow-str.test.ts",
         "projects": [
           "root-node"
         ]
@@ -21968,6 +21986,12 @@
       },
       {
         "file": "packages/providers/tests/cache-zero-limit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/capabilities-proto.test.ts",
         "projects": [
           "root-node"
         ]
@@ -21991,6 +22015,12 @@
         ]
       },
       {
+        "file": "packages/providers/tests/cf-gateway-url-encode.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/providers/tests/chatgpt-account-catalog.test.ts",
         "projects": [
           "root-node"
@@ -21998,6 +22028,18 @@
       },
       {
         "file": "packages/providers/tests/chatgpt-direct-auth.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/chatgpt-quota-fractional-reset.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/chatgpt-quota-timeout-neg.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22021,7 +22063,25 @@
         ]
       },
       {
+        "file": "packages/providers/tests/codex-blocking-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/providers/tests/codex-cache-regressions.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/codex-cli-quota-trim.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/codex-errors-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22034,6 +22094,12 @@
       },
       {
         "file": "packages/providers/tests/codex-token-validation.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/codex-truncation-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22081,7 +22147,19 @@
         ]
       },
       {
+        "file": "packages/providers/tests/copilot-token-anchor.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/providers/tests/cross-wire-history.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/custom-quota-timeout-neg.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22130,6 +22208,12 @@
       },
       {
         "file": "packages/providers/tests/factories.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/family-capabilities-proto.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22195,6 +22279,12 @@
         ]
       },
       {
+        "file": "packages/providers/tests/kimi-quota-timeout-neg.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/providers/tests/leased-credentials.test.ts",
         "projects": [
           "root-node"
@@ -22208,6 +22298,12 @@
       },
       {
         "file": "packages/providers/tests/minimax-account.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/minimax-quota-reset-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22261,6 +22357,12 @@
         ]
       },
       {
+        "file": "packages/providers/tests/oauth-expires-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/providers/tests/oauth-guidance-parity.test.ts",
         "projects": [
           "root-node"
@@ -22292,6 +22394,12 @@
       },
       {
         "file": "packages/providers/tests/oauth-refresh.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/oauth-signal-timeout-neg.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22340,6 +22448,18 @@
       },
       {
         "file": "packages/providers/tests/object-utils.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/omniroute-quota-timeout-neg.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/openai-chat-usage-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22429,6 +22549,12 @@
         ]
       },
       {
+        "file": "packages/providers/tests/opencode-quota-timeout-neg.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/providers/tests/opencode.test.ts",
         "projects": [
           "root-node"
@@ -22436,6 +22562,12 @@
       },
       {
         "file": "packages/providers/tests/openrouter-oauth.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/openrouter-quota-timeout-neg.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22579,6 +22711,12 @@
         ]
       },
       {
+        "file": "packages/providers/tests/stream-debug-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/providers/tests/stream-debug-reentrant.test.ts",
         "projects": [
           "root-node"
@@ -22712,6 +22850,12 @@
       },
       {
         "file": "packages/providers/tests/zai-account.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/zai-plan-days-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -41893,6 +42037,10 @@
     {
       "file": "packages/providers/src/oauth-refresh-coordinator.ts",
       "name": "resetSharedOAuthRefreshState"
+    },
+    {
+      "file": "packages/providers/src/openai-codex-errors.ts",
+      "name": "codexUsageLimitResetMs"
     },
     {
       "file": "packages/providers/src/openai-shared.ts",

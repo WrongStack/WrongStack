@@ -95,8 +95,12 @@ export const SIBLING_CATALOG_BY_PROVIDER_TYPE: Partial<Record<string, string>> =
  */
 export function catalogProviderIdFor(providerId: string, type?: string | undefined): string {
   return (
-    (type ? CATALOG_ALIAS_BY_PROVIDER_TYPE[type] : undefined) ??
-    CATALOG_ALIAS_BY_PROVIDER_TYPE[providerId] ??
+    (type && Object.hasOwn(CATALOG_ALIAS_BY_PROVIDER_TYPE, type)
+      ? CATALOG_ALIAS_BY_PROVIDER_TYPE[type]
+      : undefined) ??
+    (Object.hasOwn(CATALOG_ALIAS_BY_PROVIDER_TYPE, providerId)
+      ? CATALOG_ALIAS_BY_PROVIDER_TYPE[providerId]
+      : undefined) ??
     (type && type !== providerId ? type : providerId)
   );
 }

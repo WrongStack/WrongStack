@@ -90,9 +90,17 @@ export function setLeasedCredentials(
   const inScope = (id: string) =>
     id.startsWith(prefix) &&
     (!scope.profileIds || scope.profileIds.includes(id.slice(prefix.length).split('|')[0]!));
-  const before = new Map([...leases].filter(([id]) => inScope(id)));
-  for (const id of before.keys()) leases.delete(id);
-  for (const [id, lease] of entries) if (inScope(id)) leases.set(id, lease);
+  const now = Date.now();
+  const inScopeIds = [...leases.keys()].filter(inScope);
+  const before = new Map<string, LeasedCredential>();
+  for (const id of inScopeIds) {
+    const existing = leases.get(id);
+    leases.delete(id);
+    if (existing && existing.leaseUntil > now) before.set(id, existing);
+  }
+  for (const [id, lease] of entries) {
+    if (inScope(id) && lease.leaseUntil > now) leases.set(id, lease);
+  }
   const ids = new Set([...before.keys(), ...[...leases.keys()].filter(inScope)]);
   const changed = [...ids].some((id) => material(before.get(id)) !== material(leases.get(id)));
   scheduleExpiry();
@@ -129,6 +137,7 @@ export function waitForLease(
   timeoutMs: number,
   signal?: AbortSignal,
 ): Promise<boolean> {
+  if (signal?.aborted) return Promise.resolve(false);
   if (leasedCredential(entry)) return Promise.resolve(true);
   const hqId = entry.source?.kind === 'hq' ? entry.source.hqId : undefined;
   return new Promise((resolve) => {

@@ -39,7 +39,10 @@ function record(value: unknown): Json | undefined {
 /** Amounts arrive as numbers or decimal strings (`"110.00"`). */
 function amount(value: unknown): number | undefined {
   if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
-  if (typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value.trim())) return Number(value);
+  if (typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value.trim())) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : undefined;
+  }
   return undefined;
 }
 

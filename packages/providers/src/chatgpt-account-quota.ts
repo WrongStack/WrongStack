@@ -41,9 +41,9 @@ export function parseChatGPTAppQuota(
       return [];
     const resetsAt =
       typeof reset === 'number' && Number.isFinite(reset) && reset > 0
-        ? reset
+        ? Math.floor(reset)
         : typeof after === 'number' && Number.isFinite(after) && after > 0
-          ? Math.floor(Date.now() / 1000) + after
+          ? Math.floor(Date.now() / 1000) + Math.floor(after)
           : undefined;
     windows.push({
       id: `window-${index}`,
@@ -77,30 +77,34 @@ export async function readChatGPTQuota(
 ): Promise<ProviderQuotaSnapshot[]> {
   const root = upstreamUrl(codexUsageUrl(this.baseUrl));
   if (root !== 'https://chatgpt.com/backend-api/wham/usage') return [];
-  const signal = AbortSignal.any([
-    ...(opts.signal ? [opts.signal] : []),
-    AbortSignal.timeout(opts.timeoutMs ?? 10_000),
-  ]);
-  const read = async (url: string): Promise<unknown> => {
-    const request = () =>
-      redirectSafeFetch(this.fetchImpl, url, {
-        method: 'GET',
-        signal,
-        headers: {
-          accept: 'application/json',
-          authorization: `Bearer ${this.access}`,
-          'OAI-App-Brand': 'chatgpt',
-          ...(this.accountId ? { 'chatgpt-account-id': this.accountId } : {}),
-        },
-      });
-    let response = await request();
-    if (response.status === 401) {
-      await this.doRefresh(signal);
-      response = await request();
-    }
-    return response.ok ? response.json() : undefined;
-  };
+  const timeoutMs =
+    typeof opts.timeoutMs === 'number' && Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0
+      ? opts.timeoutMs
+      : 10_000;
   try {
+    const signal = AbortSignal.any([
+      ...(opts.signal ? [opts.signal] : []),
+      AbortSignal.timeout(timeoutMs),
+    ]);
+    const read = async (url: string): Promise<unknown> => {
+      const request = () =>
+        redirectSafeFetch(this.fetchImpl, url, {
+          method: 'GET',
+          signal,
+          headers: {
+            accept: 'application/json',
+            authorization: `Bearer ${this.access}`,
+            'OAI-App-Brand': 'chatgpt',
+            ...(this.accountId ? { 'chatgpt-account-id': this.accountId } : {}),
+          },
+        });
+      let response = await request();
+      if (response.status === 401) {
+        await this.doRefresh(signal);
+        response = await request();
+      }
+      return response.ok ? response.json() : undefined;
+    };
     await this.ensureFreshToken(signal);
     const app = parseChatGPTAppQuota(providerId, clientId, await read(`${root}/chatpass/apps`));
     if (!app.length) return [];

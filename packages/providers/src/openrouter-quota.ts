@@ -139,24 +139,32 @@ export async function reportOpenRouterQuota(
   opts: OpenRouterQuotaReportOptions,
 ): Promise<ProviderQuotaSnapshot[]> {
   const doFetch = opts.fetchImpl ?? fetch;
-  const timeout = AbortSignal.timeout(opts.timeoutMs ?? 10_000);
-  const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
-  const [keyBody, creditsBody] = await Promise.all([
-    getJson(doFetch, `${OPENROUTER_API_ROOT}/key`, opts.apiKey, signal),
-    getJson(doFetch, `${OPENROUTER_API_ROOT}/credits`, opts.apiKey, signal),
-  ]);
-  const key = keyBody === undefined ? undefined : parseOpenRouterKey(keyBody);
-  const credits = creditsBody === undefined ? undefined : parseOpenRouterCredits(creditsBody);
-  if (!key?.windows.length && !credits) return [];
-  const snapshot: ProviderQuotaSnapshot = {
-    providerId,
-    meterId: DEFAULT_QUOTA_METER,
-    meterLabel: 'OpenRouter',
-    ...(key?.freeTier ? { planLabel: 'free tier' } : {}),
-    windows: key?.windows ?? [],
-    ...(credits ? { credits } : {}),
-    capturedAt: opts.now ?? Date.now(),
-  };
-  recordProviderQuota(providerId, [snapshot]);
-  return [snapshot];
+  const timeoutMs =
+    typeof opts.timeoutMs === 'number' && Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0
+      ? opts.timeoutMs
+      : 10_000;
+  try {
+    const timeout = AbortSignal.timeout(timeoutMs);
+    const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
+    const [keyBody, creditsBody] = await Promise.all([
+      getJson(doFetch, `${OPENROUTER_API_ROOT}/key`, opts.apiKey, signal),
+      getJson(doFetch, `${OPENROUTER_API_ROOT}/credits`, opts.apiKey, signal),
+    ]);
+    const key = keyBody === undefined ? undefined : parseOpenRouterKey(keyBody);
+    const credits = creditsBody === undefined ? undefined : parseOpenRouterCredits(creditsBody);
+    if (!key?.windows.length && !credits) return [];
+    const snapshot: ProviderQuotaSnapshot = {
+      providerId,
+      meterId: DEFAULT_QUOTA_METER,
+      meterLabel: 'OpenRouter',
+      ...(key?.freeTier ? { planLabel: 'free tier' } : {}),
+      windows: key?.windows ?? [],
+      ...(credits ? { credits } : {}),
+      capturedAt: opts.now ?? Date.now(),
+    };
+    recordProviderQuota(providerId, [snapshot]);
+    return [snapshot];
+  } catch {
+    return [];
+  }
 }

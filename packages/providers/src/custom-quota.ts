@@ -181,8 +181,12 @@ export async function reportCustomQuota(
   if (auth === 'bearer') headers['authorization'] = `Bearer ${opts.apiKey}`;
   else if (auth === 'x-api-key') headers['x-api-key'] = opts.apiKey;
   const doFetch = opts.fetchImpl ?? fetch;
-  const timeout = AbortSignal.timeout(opts.timeoutMs ?? 10_000);
+  const timeoutMs =
+    typeof opts.timeoutMs === 'number' && Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0
+      ? opts.timeoutMs
+      : 10_000;
   try {
+    const timeout = AbortSignal.timeout(timeoutMs);
     const res = await doFetch(url, {
       headers,
       // The key must not follow a redirect to another host.

@@ -608,8 +608,12 @@ function rangeQuery(days: number, now: Date): string {
 export async function fetchZaiPlanReport(
   opts: ZaiAccountFetchOptions & { days?: number | undefined; now?: Date | undefined },
 ): Promise<ZaiPlanReport> {
-  const days = opts.days ?? 7;
-  const now = opts.now ?? new Date();
+  const days =
+    typeof opts.days === 'number' && Number.isFinite(opts.days) && opts.days >= 1
+      ? Math.floor(opts.days)
+      : 7;
+  const now =
+    opts.now instanceof Date && Number.isFinite(opts.now.getTime()) ? opts.now : new Date();
   const range = rangeQuery(days, now);
   const [quota, subscription, detail, activity, performance] = await Promise.all([
     fetchZaiQuota(opts),

@@ -284,18 +284,22 @@ export async function reportOmniRouteQuota(
   opts: OmniRouteQuotaReportOptions,
 ): Promise<ProviderQuotaSnapshot[]> {
   const doFetch = opts.fetchImpl ?? fetch;
-  const timeout = AbortSignal.timeout(opts.timeoutMs ?? 10_000);
-  const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
-  const get = async (path: string): Promise<unknown> => {
-    const res = await doFetch(`${opts.root}${path}`, {
-      headers: { accept: 'application/json', authorization: `Bearer ${opts.managementToken}` },
-      // The management token must not follow a redirect anywhere.
-      redirect: 'error',
-      signal,
-    });
-    return res.ok ? res.json() : undefined;
-  };
+  const timeoutMs =
+    typeof opts.timeoutMs === 'number' && Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0
+      ? opts.timeoutMs
+      : 10_000;
   try {
+    const timeout = AbortSignal.timeout(timeoutMs);
+    const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
+    const get = async (path: string): Promise<unknown> => {
+      const res = await doFetch(`${opts.root}${path}`, {
+        headers: { accept: 'application/json', authorization: `Bearer ${opts.managementToken}` },
+        // The management token must not follow a redirect anywhere.
+        redirect: 'error',
+        signal,
+      });
+      return res.ok ? res.json() : undefined;
+    };
     const [limits, connections] = await Promise.all([
       get('/api/usage/provider-limits'),
       get('/api/providers'),

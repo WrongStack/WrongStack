@@ -50,7 +50,7 @@ export function parseCodexCliAuth(
   if (expiresAt === undefined || expiresAt <= now + EXPIRY_MARGIN_MS) return undefined;
   const accountId =
     typeof account === 'string' && account.trim()
-      ? account
+      ? account.trim()
       : (extractAccountId(access) ?? undefined);
   return { access, accountId };
 }

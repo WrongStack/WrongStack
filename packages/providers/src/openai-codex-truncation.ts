@@ -56,13 +56,14 @@ export function truncateMiddle(text: string, policy: CodexTruncationPolicy): str
 function truncateWithByteEstimate(text: string, maxBytes: number, useTokens: boolean): string {
   if (text.length === 0) return '';
   const totalBytes = utf8Length(text);
-  if (maxBytes === 0) {
+  const safeMaxBytes = Number.isFinite(maxBytes) ? Math.max(0, Math.floor(maxBytes)) : 0;
+  if (safeMaxBytes === 0) {
     return marker(useTokens, removedUnits(useTokens, totalBytes, countChars(text)));
   }
-  if (totalBytes <= maxBytes) return text;
-  const left = Math.floor(maxBytes / 2);
-  const [removedChars, before, after] = splitUtf8(text, left, maxBytes - left);
-  return `${before}${marker(useTokens, removedUnits(useTokens, totalBytes - maxBytes, removedChars))}${after}`;
+  if (totalBytes <= safeMaxBytes) return text;
+  const left = Math.floor(safeMaxBytes / 2);
+  const [removedChars, before, after] = splitUtf8(text, left, safeMaxBytes - left);
+  return `${before}${marker(useTokens, removedUnits(useTokens, totalBytes - safeMaxBytes, removedChars))}${after}`;
 }
 
 function marker(useTokens: boolean, removed: number): string {

@@ -20,6 +20,7 @@ import {
   onLeasedCredentialsChanged,
   onLeaseWanted,
   setLeasedCredentials,
+  waitForLease,
 } from '../src/leased-credentials.js';
 import { resolveActiveKey, resolveActiveKeyEntry } from '../src/provider-build.js';
 import { makeProviderFromConfig } from '../src/provider-factory.js';
@@ -215,6 +216,40 @@ describe('lease store notifications', () => {
       vi.advanceTimersByTime(1_001);
       expect(heard).toHaveBeenCalledTimes(1);
       expect(resolveActiveKey(leaseConfig())).toBeUndefined();
+    } finally {
+      off();
+    }
+  });
+
+  it('waitForLease and awaitingLeaseProvider abort immediately when given an already-aborted signal', async () => {
+    const wanted: string[] = [];
+    const off = onLeaseWanted((hqId) => wanted.push(hqId));
+    try {
+      const preAborted = AbortSignal.abort(new Error('already cancelled'));
+      const entry = leaseConfig().apiKeys![0]!;
+      const ok = await waitForLease(entry, 20_000, preAborted);
+      expect(ok).toBe(false);
+      expect(wanted).toEqual([]);
+
+      const provider = makeProviderFromConfig('team', leaseConfig());
+      await expect(
+        provider.complete({ model: 'm', messages: [] } as never, { signal: preAborted }),
+      ).rejects.toThrow('already cancelled');
+    } finally {
+      off();
+    }
+  });
+
+  it('notifies and wakes waiters when a lapsed lease is renewed with the same key', async () => {
+    const entry = leaseConfig().apiKeys![0]!;
+    setLeasedCredentials(HQ, live(Date.now() - 10));
+    const heard = vi.fn();
+    const off = onLeasedCredentialsChanged(heard);
+    try {
+      const waitP = waitForLease(entry, 500);
+      queueMicrotask(() => setLeasedCredentials(HQ, live(Date.now() + 60_000)));
+      expect(await waitP).toBe(true);
+      expect(heard).toHaveBeenCalledTimes(1);
     } finally {
       off();
     }

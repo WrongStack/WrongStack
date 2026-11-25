@@ -80,7 +80,7 @@ export function codexUsageLimitResetMs(
       : resetsIn !== undefined
         ? resetsIn * 1000
         : undefined;
-  if (ms === undefined || ms <= 0) return undefined;
+  if (ms === undefined || !Number.isFinite(ms) || ms <= 0) return undefined;
   return Math.min(Math.round(ms), MAX_BODY_RESET_MS);
 }
 

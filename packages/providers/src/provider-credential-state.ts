@@ -55,6 +55,7 @@ export function awaitingLeaseProvider(
   if (!whenLeased) return missing;
   let real: Provider | undefined;
   const ready = async (signal: AbortSignal): Promise<Provider> => {
+    signal.throwIfAborted();
     real ??= await whenLeased(signal);
     signal.throwIfAborted();
     return real ?? missing;

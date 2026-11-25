@@ -84,11 +84,14 @@ export async function renewRotatingOAuthCredential<T extends RotatingOAuthTokens
       if (!current.refreshToken)
         throw new ProviderError(opts.signInHint, 401, false, opts.providerId, { kind: 'auth' });
       const tokens = await opts.exchange(current.refreshToken);
+      const expiresDate = Number.isFinite(tokens.expires) ? new Date(tokens.expires) : undefined;
       return {
         ...current,
         apiKey: tokens.access,
         refreshToken: tokens.refresh,
-        expiresAt: new Date(tokens.expires).toISOString(),
+        ...(expiresDate && Number.isFinite(expiresDate.getTime())
+          ? { expiresAt: expiresDate.toISOString() }
+          : {}),
         ...opts.project?.(tokens, current),
       };
     },

@@ -195,7 +195,7 @@ export function codexBlockingWindow(
 ): ProviderQuotaWindow | undefined {
   let blocking: ProviderQuotaWindow | undefined;
   for (const window of snapshot.windows) {
-    if (window.usedPercent < 100) continue;
+    if (!Number.isFinite(window.usedPercent) || window.usedPercent < 100) continue;
     if (
       blocking === undefined ||
       (window.resetsAt !== undefined &&

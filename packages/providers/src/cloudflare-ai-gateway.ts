@@ -149,7 +149,7 @@ async function sendGatewayRequest(
   });
   const gatewayFetch = options.fetchImpl ?? fetch;
   return gatewayFetch(
-    `https://gateway.ai.cloudflare.com/v1/${options.accountId}/${options.gatewayId}`,
+    `https://gateway.ai.cloudflare.com/v1/${encodeURIComponent(options.accountId)}/${encodeURIComponent(options.gatewayId)}`,
     {
       method: 'POST',
       headers: gatewayHeaders,

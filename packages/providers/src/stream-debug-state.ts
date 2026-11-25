@@ -93,11 +93,14 @@ export function setDebugStreamCallback(cb: DebugStreamCallback | null): void {
 export function pushDebugChunkStats(bytes: number, deltaMs: number): void {
   if (!_debugStreamEnabled) return;
 
+  const safeBytes = Number.isFinite(bytes) && bytes > 0 ? bytes : 0;
+  const safeDeltaMs = Number.isFinite(deltaMs) && deltaMs > 0 ? deltaMs : 0;
+
   _pendingStats = {
     chunkCount: (_pendingStats?.chunkCount ?? 0) + 1,
-    lastChunkSize: bytes,
-    lastDeltaMs: deltaMs,
-    totalBytes: (_pendingStats?.totalBytes ?? 0) + bytes,
+    lastChunkSize: safeBytes,
+    lastDeltaMs: safeDeltaMs,
+    totalBytes: (_pendingStats?.totalBytes ?? 0) + safeBytes,
     lastChunkAt: new Date().toISOString(),
   };
   _scheduleFlush();
@@ -114,6 +117,7 @@ export function defaultDebugStreamCallback(stats: DebugStreamStats): void {
 }
 
 function fmtBytes(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return '0B';
   if (n < 1024) return `${n}B`;
   if (n < 1_048_576) return `${(n / 1024).toFixed(1)}KB`;
   return `${(n / 1_048_576).toFixed(1)}MB`;

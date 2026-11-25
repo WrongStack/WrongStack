@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-25T15:57:03.728Z
+**Generated:** 2026-11-25T15:59:38.380Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6564 |
-| Production source lines | 1346159 |
-| Test files | 6053 |
+| Production source lines | 1346230 |
+| Test files | 6077 |
 | Workspace dependency edges | 261 |
 | Relative module edges | 19226 |
 | Non-command slash imports | 0 |
@@ -56,7 +56,7 @@
 | @wrongstack/plugins | 157 | 153 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 27 | 50 | — |
 | @wrongstack/project-surfaces | 263 | 51 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers, @wrongstack/tools |
-| @wrongstack/providers | 142 | 135 | @wrongstack/contracts, @wrongstack/core |
+| @wrongstack/providers | 142 | 159 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/requirement-intake | 18 | 23 | @wrongstack/core |
 | @wrongstack/requirement-intake-mcp | 6 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/requirement-intake |
 | @wrongstack/runtime | 129 | 95 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/governance, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/sage, @wrongstack/security-scanner, @wrongstack/telegram, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
@@ -148,7 +148,7 @@ None.
 
 ## Exports only tests reference
 
-- 1054 runtime exports are referenced by tests and by no other production file.
+- 1055 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

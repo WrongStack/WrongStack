@@ -71,9 +71,13 @@ export function normalizeOpenAIChatUsage(u: OpenAIChatUsageWire, previous: Usage
   // Deducting only the current chunk's zeros made a chunk that repeats
   // `prompt_tokens` without the cache detail re-count the whole cached prefix
   // as fresh, full-rate input — the double count this module exists to prevent.
-  const retainedCacheRead = cached || previous.cacheRead || 0;
-  const retainedCacheWrite = cacheWrite || previous.cacheWrite || 0;
-  const completion = nonNegative(u.completion_tokens, previous.output);
+  const prevInput = nonNegative(previous.input);
+  const prevOutput = nonNegative(previous.output);
+  const prevCacheRead = optionalNonNegative(previous.cacheRead);
+  const prevCacheWrite = optionalNonNegative(previous.cacheWrite);
+  const retainedCacheRead = cached || prevCacheRead || 0;
+  const retainedCacheWrite = cacheWrite || prevCacheWrite || 0;
+  const completion = nonNegative(u.completion_tokens, prevOutput);
   // Lean endpoints may report only `total_tokens` + `completion_tokens`;
   // prompt = total − completion recovers the input count instead of leaving it
   // at 0. Ordered after the explicit prompt fields.
@@ -87,7 +91,7 @@ export function normalizeOpenAIChatUsage(u: OpenAIChatUsageWire, previous: Usage
       ? nonNegative(u.prompt_cache_hit_tokens) + nonNegative(u.prompt_cache_miss_tokens)
       : totalTokens !== undefined
         ? Math.max(0, totalTokens - completion)
-        : previous.input + retainedCacheRead + retainedCacheWrite;
+        : prevInput + retainedCacheRead + retainedCacheWrite;
   // Hybrid gateways use Anthropic/MiniMax delta semantics in an OpenAI-shaped
   // envelope: `input_tokens` is fresh-only and the cache counts are separate.
   // `prompt_tokens`, when present, remains OpenAI's total. A broken gateway
@@ -103,10 +107,10 @@ export function normalizeOpenAIChatUsage(u: OpenAIChatUsageWire, previous: Usage
         ? freshInputDelta
         : Math.max(0, promptTotal - retainedCacheRead - retainedCacheWrite)),
     output: completion,
-    cacheRead: cached || previous.cacheRead,
+    cacheRead: cached || prevCacheRead,
   };
-  if (cacheWrite || previous.cacheWrite !== undefined) {
-    next.cacheWrite = cacheWrite || previous.cacheWrite;
+  if (cacheWrite || prevCacheWrite !== undefined) {
+    next.cacheWrite = cacheWrite || prevCacheWrite;
   }
   return next;
 }

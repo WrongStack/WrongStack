@@ -3,9 +3,13 @@ import { ProviderError } from '@wrongstack/contracts/types';
 export type OAuthJson = Record<string, unknown>;
 
 export function oauthSignal(signal?: AbortSignal, timeoutMs = 30_000): AbortSignal {
+  const safeTimeout =
+    typeof timeoutMs === 'number' && Number.isFinite(timeoutMs) && timeoutMs > 0
+      ? timeoutMs
+      : 30_000;
   return signal
-    ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
-    : AbortSignal.timeout(timeoutMs);
+    ? AbortSignal.any([signal, AbortSignal.timeout(safeTimeout)])
+    : AbortSignal.timeout(safeTimeout);
 }
 
 export async function oauthRequest(

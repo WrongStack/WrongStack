@@ -26,7 +26,7 @@ const SAFE_PROXY_EP_SUFFIXES = ['.githubcopilot.com'] as const;
  *  Rejects hostnames that are not public Copilot endpoints (SSRF guard). */
 export function copilotBaseUrlFromToken(token: string | undefined): string {
   if (token) {
-    const m = token.match(/proxy-ep=([^;]+)/);
+    const m = token.match(/(?:^|;)proxy-ep=([^;]+)/);
     if (m?.[1]) {
       const raw = m[1].replace(/^proxy\./, 'api.');
       try {

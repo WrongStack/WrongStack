@@ -117,8 +117,12 @@ export async function reportOpenCodeQuota(
   opts: OpenCodeQuotaReportOptions,
 ): Promise<ProviderQuotaSnapshot[]> {
   const doFetch = opts.fetchImpl ?? fetch;
-  const timeout = AbortSignal.timeout(opts.timeoutMs ?? 10_000);
+  const timeoutMs =
+    typeof opts.timeoutMs === 'number' && Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0
+      ? opts.timeoutMs
+      : 10_000;
   try {
+    const timeout = AbortSignal.timeout(timeoutMs);
     const res = await doFetch(OPENCODE_USAGE_URL, {
       headers: { accept: 'application/json', authorization: `Bearer ${opts.apiKey}` },
       signal: opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout,

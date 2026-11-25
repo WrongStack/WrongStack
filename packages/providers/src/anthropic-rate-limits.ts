@@ -124,6 +124,7 @@ function parseWindow(
   const usedPercent = utilizationPercent(headers, spec.id);
   if (usedPercent === undefined) return undefined;
   const resetsAt = headerNum(headers, `${PREFIX}-${spec.id}-reset`);
+  const resetSec = resetsAt !== undefined ? Math.trunc(resetsAt) : 0;
   return {
     id: spec.id,
     // The id already reads as the window length (`5h`, `7d`), and it is what
@@ -132,7 +133,7 @@ function parseWindow(
     label: spec.id,
     usedPercent,
     windowMinutes: spec.windowMinutes,
-    ...(resetsAt !== undefined && resetsAt > 0 ? { resetsAt: Math.trunc(resetsAt) } : {}),
+    ...(resetSec > 0 ? { resetsAt: resetSec } : {}),
   };
 }
 

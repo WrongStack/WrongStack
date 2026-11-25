@@ -82,6 +82,7 @@ export function parseAntigravityQuota(
   if (typeof body !== 'object' || body === null) return [];
   const buckets = (body as { buckets?: unknown }).buckets;
   if (!Array.isArray(buckets)) return [];
+  const safeNow = Number.isFinite(now) ? now : Date.now();
 
   const windows: ProviderQuotaWindow[] = [];
   for (const raw of buckets) {
@@ -91,7 +92,7 @@ export function parseAntigravityQuota(
     if (modelId.length === 0) continue;
     const fraction = num(bucket.remainingFraction);
     if (fraction === undefined) continue;
-    const resetsAt = parseResetSeconds(bucket.resetTime, now);
+    const resetsAt = parseResetSeconds(bucket.resetTime, safeNow);
     // A bucket with a full allowance and no reset is not on a rolling window
     // at all — it is unmetered, and a permanently-empty bar for it would be
     // noise in a report whose whole job is showing what is running out.
@@ -113,7 +114,7 @@ export function parseAntigravityQuota(
       meterId: 'antigravity',
       meterLabel: 'per-model buckets',
       windows,
-      capturedAt: now,
+      capturedAt: safeNow,
     },
   ];
 }
