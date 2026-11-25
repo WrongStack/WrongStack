@@ -9,16 +9,27 @@ import type * as http from 'node:http';
 import type {
   HqVaultEnrollRequest,
   HqVaultFetchRequest,
+  HqVaultRefresher,
+  HqVaultStore,
   HqVaultUploadRequest,
 } from '@wrongstack/hq';
-import type { HqVaultRouteDeps } from './vault-handlers.js';
+import type { HqRouterMutableAuth } from '../types.js';
 import { readJsonObject, writeError, writeJson, writeVaultFailure } from './vault-http.js';
+
+/**
+ * What the device routes read from the vault router's deps. Declared here, not
+ * imported from vault-handlers.ts, so the two modules do not import each other.
+ */
+export interface HqVaultDeviceRouteDeps {
+  mutableAuth: Pick<HqRouterMutableAuth, 'passwordHash'>;
+  vault: { store(): Promise<HqVaultStore>; refresher(): HqVaultRefresher };
+}
 
 export async function handleHqVaultDeviceRoute(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   pathname: string,
-  deps: HqVaultRouteDeps,
+  deps: HqVaultDeviceRouteDeps,
 ): Promise<void> {
   // The vault exists only on an HQ with an operator password; until then
   // there is no code to enroll with and nothing to fetch.

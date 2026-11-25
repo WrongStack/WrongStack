@@ -13,7 +13,7 @@ import type {
   RequestPermissionOutcome,
   ToolCallUpdateNotification,
 } from '../types/acp-v1.js';
-import type { AcpChildSource } from './acp-session-types.js';
+import type { AcpChildSource } from './acp-child-source.js';
 
 /** A single permission decision request. */
 export interface PermissionRequest {

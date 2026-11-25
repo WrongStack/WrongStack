@@ -16,7 +16,10 @@ import type {
   ToolKind,
   UsageCost,
 } from '../types/acp-v1.js';
+import type { AcpChildSource } from './acp-child-source.js';
 import type { PermissionPolicy } from './permission.js';
+
+export type { AcpChildSource } from './acp-child-source.js';
 
 export interface AcpSessionTarget {
   action: 'resume' | 'fork';
@@ -28,11 +31,6 @@ export interface AcpFormElicitation {
   message: string;
   requestedSchema: unknown;
   child?: AcpChildSource | undefined;
-}
-
-export interface AcpChildSource {
-  id: string;
-  title: string | null;
 }
 
 export type AcpFormElicitationResult =

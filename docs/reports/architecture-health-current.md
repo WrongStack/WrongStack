@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-25T16:18:32.728Z
+**Generated:** 2026-11-25T16:27:15.347Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,26 +8,26 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 51 |
-| Production source files | 6565 |
-| Production source lines | 1347244 |
+| Production source files | 6566 |
+| Production source lines | 1347263 |
 | Test files | 6253 |
 | Workspace dependency edges | 261 |
-| Relative module edges | 19228 |
+| Relative module edges | 19230 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
-| Type-inclusive module cycles | 3 |
+| Type-inclusive module cycles | 1 |
 | Tests without TypeScript test-project coverage | 10 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
 
-- 2 unexcepted module cycle(s)
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 
 | Package | Sources | Tests | Workspace dependencies |
 |---|---:|---:|---|
-| @wrongstack/acp | 64 | 91 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
+| @wrongstack/acp | 65 | 91 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/agent-catalog | 44 | 19 | @wrongstack/contracts, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/bench | 33 | 68 | @wrongstack/core |
 | @wrongstack/browser-tools | 14 | 25 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
@@ -87,8 +87,6 @@ None.
 
 ### Type-inclusive
 
-- packages/acp/src/client/acp-session-types.ts ↔ packages/acp/src/client/permission.ts
-- packages/cli/src/hq-server/routes/vault-device.ts ↔ packages/cli/src/hq-server/routes/vault-handlers.ts
 - packages/contracts/src/types/blocks.ts ↔ packages/contracts/src/types/context.ts ↔ packages/contracts/src/types/conversation-state.ts ↔ packages/contracts/src/types/messages.ts ↔ packages/contracts/src/types/provider.ts ↔ packages/contracts/src/types/run-env.ts ↔ packages/contracts/src/types/session-events.ts ↔ packages/contracts/src/types/session-storage.ts ↔ packages/contracts/src/types/session.ts ↔ packages/contracts/src/types/tool.ts
 
 ## Largest production files
