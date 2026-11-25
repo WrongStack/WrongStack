@@ -108,7 +108,6 @@ export function attachAutoExtend(events: EventBus, policy: AutoExtendPolicy = {}
 
       if (kind === 'timeout' || kind === 'idle_timeout') {
         if (progress > lastTimeoutProgress) {
-          lastTimeoutProgress = progress;
           const cap =
             typeof ceiling.timeoutMs === 'number' && Number.isFinite(ceiling.timeoutMs)
               ? ceiling.timeoutMs
@@ -118,6 +117,7 @@ export function attachAutoExtend(events: EventBus, policy: AutoExtendPolicy = {}
             deny();
             return;
           }
+          lastTimeoutProgress = progress;
           extend({ [FIELD_BY_KIND[kind]]: next });
         } else {
           // No new work since the last timeout extension — the agent is stuck.
@@ -126,12 +126,15 @@ export function attachAutoExtend(events: EventBus, policy: AutoExtendPolicy = {}
         return;
       }
 
+      if (!Object.hasOwn(FIELD_BY_KIND, kind)) {
+        deny();
+        return;
+      }
       const count = extendCounts.get(kind) ?? 0;
       if (count >= maxPerKind) {
         deny();
         return;
       }
-      extendCounts.set(kind, count + 1);
       const field = FIELD_BY_KIND[kind];
       const rawCap = ceiling[field];
       const cap =
@@ -141,6 +144,7 @@ export function attachAutoExtend(events: EventBus, policy: AutoExtendPolicy = {}
         deny();
         return;
       }
+      extendCounts.set(kind, count + 1);
       extend({ [field]: next });
     }),
   ];

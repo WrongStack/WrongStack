@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T20:43:09.872Z",
+  "generatedAt": "2026-11-25T20:45:47.145Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6570,
-    "testFiles": 6257,
-    "sourceLines": 1348003,
+    "testFiles": 6264,
+    "sourceLines": 1348032,
     "workspaceEdges": 261,
     "moduleEdges": 19241,
     "nonCommandSlashImports": 0,
@@ -377,7 +377,7 @@
       "name": "@wrongstack/coordination",
       "dir": "packages/coordination",
       "sourceFiles": 193,
-      "testFiles": 230,
+      "testFiles": 234,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -395,7 +395,7 @@
         {
           "path": "packages/coordination/tsconfig.test.json",
           "error": null,
-          "testFiles": 230
+          "testFiles": 234
         }
       ]
     },
@@ -455,7 +455,7 @@
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
       "sourceFiles": 64,
-      "testFiles": 34,
+      "testFiles": 35,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -476,7 +476,7 @@
         {
           "path": "packages/fleet/tsconfig.test.json",
           "error": null,
-          "testFiles": 34
+          "testFiles": 35
         }
       ]
     },
@@ -484,7 +484,7 @@
       "name": "@wrongstack/goal",
       "dir": "packages/goal",
       "sourceFiles": 24,
-      "testFiles": 33,
+      "testFiles": 34,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -499,7 +499,7 @@
         {
           "path": "packages/goal/tsconfig.test.json",
           "error": null,
-          "testFiles": 33
+          "testFiles": 34
         }
       ]
     },
@@ -1294,7 +1294,7 @@
       "name": "@wrongstack/worktree",
       "dir": "packages/worktree",
       "sourceFiles": 10,
-      "testFiles": 9,
+      "testFiles": 10,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -1308,7 +1308,7 @@
         {
           "path": "packages/worktree/tsconfig.test.json",
           "error": null,
-          "testFiles": 9
+          "testFiles": 10
         }
       ]
     },
@@ -10548,6 +10548,12 @@
         ]
       },
       {
+        "file": "packages/coordination/tests/auto-extend-denied-burns-count.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/coordination/tests/auto-extend-idle-timeout.test.ts",
         "projects": [
           "root-node"
@@ -10741,6 +10747,18 @@
       },
       {
         "file": "packages/coordination/tests/collab-pause-nan-circular.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/collab-report-unknown-verdict.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/collab-snapshot-nan-limit.test.ts",
         "projects": [
           "root-node"
         ]
@@ -11755,6 +11773,12 @@
       },
       {
         "file": "packages/coordination/tests/subagent-result-tool.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/subagent-status-nan-metrics.test.ts",
         "projects": [
           "root-node"
         ]
@@ -16908,6 +16932,12 @@
         ]
       },
       {
+        "file": "packages/fleet/tests/fleet-quota-hold-nan-now.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/fleet/tests/host-acp-runner-gateway.test.ts",
         "projects": [
           "root-node"
@@ -17119,6 +17149,12 @@
       },
       {
         "file": "packages/goal/tests/goal-run-resume.integration.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/goal-run-state-unknown.test.ts",
         "projects": [
           "root-node"
         ]
@@ -38785,6 +38821,12 @@
       },
       {
         "file": "packages/worktree/tests/worktree-git-fsroot.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/worktree/tests/worktree-hold-blank-owner.test.ts",
         "projects": [
           "root-node"
         ]

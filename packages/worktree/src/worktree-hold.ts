@@ -69,9 +69,14 @@ export async function holdManagedWorktree(
   holdGenerations.set(key, gen);
   inProcessHolds.set(key, (inProcessHolds.get(key) ?? 0) + 1);
   const file = markerPath(worktreesRoot, dir);
+  const normalizedOwnerId = ownerId.trim() || 'unknown';
   try {
     await fsp.mkdir(join(resolve(worktreesRoot), '.holds'), { recursive: true });
-    const marker: HoldMarker = { pid: process.pid, ownerId, at: new Date().toISOString() };
+    const marker: HoldMarker = {
+      pid: process.pid,
+      ownerId: normalizedOwnerId,
+      at: new Date().toISOString(),
+    };
     await atomicWrite(file, JSON.stringify(marker), { mode: 0o600 });
   } catch {
     // The in-process hold still protects same-process sweeps; a missing

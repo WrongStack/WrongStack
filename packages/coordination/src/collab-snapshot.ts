@@ -99,9 +99,13 @@ export async function readCollabSnapshotFiles(
       allFiles.push(file);
     }
   }
-  if (allFiles.length > limit) {
+  const safeLimit =
+    typeof limit === 'number' && Number.isFinite(limit) && limit >= 0
+      ? Math.floor(limit)
+      : DEFAULT_MAX_TARGET_FILES;
+  if (allFiles.length > safeLimit) {
     const hint = options.contextWindow
-      ? `contextWindow=${options.contextWindow} → calculated limit=${limit}`
+      ? `contextWindow=${options.contextWindow} → calculated limit=${safeLimit}`
       : `default limit=${DEFAULT_MAX_TARGET_FILES}`;
     throw new Error(
       `[collab_debug] Target has ${allFiles.length} files, which exceeds the ` +

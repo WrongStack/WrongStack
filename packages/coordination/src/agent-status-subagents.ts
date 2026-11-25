@@ -163,9 +163,15 @@ export function subscribeSubagentStatus(
       entry.status = 'running';
       /* v8 ignore next -- touch() always sets startedAt on creation */
       if (!entry.startedAt) entry.startedAt = new Date().toISOString();
-      if (typeof p.iteration === 'number') entry.iterations = p.iteration;
-      if (typeof p.toolCalls === 'number') entry.toolCalls = p.toolCalls;
-      if (typeof p.costUsd === 'number') entry.costUsd = p.costUsd;
+      if (typeof p.iteration === 'number' && Number.isFinite(p.iteration) && p.iteration >= 0) {
+        entry.iterations = p.iteration;
+      }
+      if (typeof p.toolCalls === 'number' && Number.isFinite(p.toolCalls) && p.toolCalls >= 0) {
+        entry.toolCalls = p.toolCalls;
+      }
+      if (typeof p.costUsd === 'number' && Number.isFinite(p.costUsd) && p.costUsd >= 0) {
+        entry.costUsd = p.costUsd;
+      }
       if (p.currentTool) entry.currentTool = p.currentTool;
       // Live streamed tail of THIS subagent's current response (the runner
       // already accumulates it) — capped to the same budget as the leader.
@@ -194,8 +200,12 @@ export function subscribeSubagentStatus(
       entry.currentTask = undefined;
       entry.taskId = undefined;
       entry.partialText = undefined;
-      if (typeof p.iterations === 'number') entry.iterations = p.iterations;
-      if (typeof p.toolCalls === 'number') entry.toolCalls = p.toolCalls;
+      if (typeof p.iterations === 'number' && Number.isFinite(p.iterations) && p.iterations >= 0) {
+        entry.iterations = p.iterations;
+      }
+      if (typeof p.toolCalls === 'number' && Number.isFinite(p.toolCalls) && p.toolCalls >= 0) {
+        entry.toolCalls = p.toolCalls;
+      }
       entry.lastActivityAt = new Date().toISOString();
       host.flush();
     }),

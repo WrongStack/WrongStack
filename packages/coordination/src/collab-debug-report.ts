@@ -43,8 +43,11 @@ export function assembleReport(host: CollabDebugReportHost): CollabDebugReport {
   };
   const overallVerdict = evalList.reduce<CollabDebugReport['overallVerdict']>((worst, eval_) => {
     const w = verdictOrder[worst];
-    const c = verdictOrder[eval_.verdict];
-    return c > w ? eval_.verdict : worst;
+    const verdict: CollabDebugReport['overallVerdict'] = Object.hasOwn(verdictOrder, eval_.verdict)
+      ? eval_.verdict
+      : 'reject';
+    const c = verdictOrder[verdict];
+    return c > w ? verdict : worst;
   }, 'approve');
 
   const summary = host.buildMarkdownSummary(

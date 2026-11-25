@@ -28,7 +28,9 @@ export async function runWithQuotaHold<T>(
 ): Promise<T> {
   const hold = holds.get(agentId);
   if (hold) {
-    const left = hold.until - now();
+    const rawNow = now();
+    const nowMs = Number.isFinite(rawNow) ? rawNow : Date.now();
+    const left = hold.until - nowMs;
     if (left > 0) {
       const at = new Date(hold.until).toLocaleTimeString([], {
         hour: '2-digit',

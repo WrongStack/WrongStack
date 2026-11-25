@@ -33,10 +33,11 @@ export function canTransitionGoalRun(
   from: GoalRunState | undefined,
   to: GoalRunState | undefined,
 ): boolean {
-  if (from === to) return true;
   const fromSlot: GoalRunSlot = from ?? 'unset';
   const toSlot: GoalRunSlot = to ?? 'unset';
-  return Object.hasOwn(ALLOWED, fromSlot) && ALLOWED[fromSlot].includes(toSlot);
+  if (!Object.hasOwn(ALLOWED, fromSlot)) return false;
+  if (fromSlot === toSlot) return true;
+  return ALLOWED[fromSlot].includes(toSlot);
 }
 
 /**
