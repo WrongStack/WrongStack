@@ -22,6 +22,13 @@ import { normalizeKeys, writeKeysBack } from './device-keys.js';
 
 const MIRRORED = ['family', 'baseUrl', 'envVars', 'models'] as const;
 
+/**
+ * What a memory-only (lease) key stores as its `apiKey`: a marker, never the
+ * value. The value lives in each process's lease store; key resolution never
+ * returns the marker.
+ */
+export const HQ_LEASED_KEY_MARKER = 'leased-by-hq:held-in-memory-only';
+
 /** The config id an HQ profile is stored under on this machine. */
 export function resolveHqLocalId(
   all: Record<string, ProviderConfig>,
@@ -46,10 +53,11 @@ export function hqBundleKeyToApiKey(
   hqId: string,
   profileId: string,
   createdAt: string,
+  lease = false,
 ): ProviderApiKey {
   return {
     label: key.label,
-    apiKey: key.secrets.apiKey,
+    apiKey: lease ? HQ_LEASED_KEY_MARKER : key.secrets.apiKey,
     createdAt,
     authMethod: key.authMethod,
     ...(key.expiresAt ? { expiresAt: key.expiresAt } : {}),
@@ -58,7 +66,14 @@ export function hqBundleKeyToApiKey(
     ...(key.secrets.project ? { project: key.secrets.project } : {}),
     ...(key.accountId ? { accountId: key.accountId } : {}),
     ...(key.oauthStrategyId ? { oauthStrategyId: key.oauthStrategyId } : {}),
-    source: { kind: 'hq', hqId, keyId: key.id, version: key.version, profileId },
+    source: {
+      kind: 'hq',
+      hqId,
+      keyId: key.id,
+      version: key.version,
+      profileId,
+      ...(lease ? { lease: true as const } : {}),
+    },
   };
 }
 
@@ -83,6 +98,7 @@ export function mirrorHqProfile(
         : value;
   }
 
+  const lease = profile.lease !== undefined && !profile.lease.withheld;
   const previous = normalizeKeys(provider);
   const local = previous.filter((k) => k.source?.kind !== 'hq' || k.source.hqId !== hqId);
   const hqKeys: ProviderApiKey[] = [];
@@ -97,6 +113,7 @@ export function mirrorHqProfile(
         hqId,
         profile.id,
         prior?.createdAt || nowIso(),
+        lease,
       ),
     );
   }

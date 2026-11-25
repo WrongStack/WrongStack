@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T08:18:34.168Z",
+  "generatedAt": "2026-11-25T08:38:37.279Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6549,
-    "testFiles": 5854,
-    "sourceLines": 1341617,
+    "sourceFiles": 6550,
+    "testFiles": 5856,
+    "sourceLines": 1342310,
     "workspaceEdges": 261,
-    "moduleEdges": 19158,
+    "moduleEdges": 19164,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -232,7 +232,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 652,
-      "testFiles": 724,
+      "testFiles": 725,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -284,7 +284,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 724
+          "testFiles": 725
         }
       ]
     },
@@ -804,8 +804,8 @@
     {
       "name": "@wrongstack/providers",
       "dir": "packages/providers",
-      "sourceFiles": 141,
-      "testFiles": 134,
+      "sourceFiles": 142,
+      "testFiles": 135,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -819,7 +819,7 @@
         {
           "path": "packages/providers/tsconfig.test.json",
           "error": null,
-          "testFiles": 134
+          "testFiles": 135
         }
       ]
     },
@@ -7465,6 +7465,12 @@
       },
       {
         "file": "packages/cli/tests/hq-vault-client.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/hq-vault-lease.test.ts",
         "projects": [
           "root-node"
         ]
@@ -21319,6 +21325,12 @@
       },
       {
         "file": "packages/providers/tests/image-input-contracts.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/leased-credentials.test.ts",
         "projects": [
           "root-node"
         ]

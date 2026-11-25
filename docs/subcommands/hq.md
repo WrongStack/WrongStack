@@ -1177,7 +1177,7 @@ operator password exists. Changes additionally need:
 | `/api/vault/profiles/:id` | GET / PATCH / DELETE | PATCH `{type?, family?, baseUrl?, envVars?, models?, activeKey?}` (`null` clears); DELETE also drops every grant of it |
 | `/api/vault/profiles/:id/keys` | POST | `{label, apiKey}` adds a key, or replaces the value of the key with that label (its version advances) |
 | `/api/vault/profiles/:id/keys/:keyId` | DELETE | The next key becomes active if this one was |
-| `/api/vault/profiles/:id/devices/:deviceId` | PUT | `{granted: true\|false}` — give the whole profile to a device, or take it back. Idempotent |
+| `/api/vault/profiles/:id/devices/:deviceId` | PUT | `{granted: true\|false, lease?: boolean}` — give the whole profile to a device, or take it back; `lease: true` makes the grant memory-only (below), `false` makes it stored again, omitted leaves it. Idempotent |
 | `/api/vault/oauth/strategies` | GET | Sign-ins HQ can run **and keep renewing** (Antigravity, which needs a host OAuth client, is not offered) |
 | `/api/vault/oauth` | POST | `{strategyId, profileId?}` → attempt `{attemptId, phase, authorizeUrl?, bound?, verificationUri?, userCode?}`. At most 4 in flight, 15 minutes each, in memory |
 | `/api/vault/oauth/:attemptId` | GET / DELETE | Poll (`awaiting_browser`, `awaiting_code`, `exchanging`, `success`, `error`) or cancel |
@@ -1279,6 +1279,24 @@ keyId, version}`.
   `wstack hq unenroll` or enrolling again clears it). An unsigned or foreign 403 removes
   nothing; it is reported as an error. A token renewal that meets the revocation only fails:
   it runs inside the config lock, so the background sync does the removal.
+- **Memory-only grants (lease).** On the dashboard, the memory chip next to a granted device
+  (or `PUT …/devices/:deviceId {granted: true, lease: true}`) makes that grant a lease. The
+  device mirrors the profile as usual, but each key's stored value is the marker
+  `leased-by-hq:held-in-memory-only` and its `source` carries `lease: true`. The real value
+  stays in the memory of each process that uses it, for at most the lease time (1 hour). The
+  process fetches it at start, renews it at 80% of that time (sooner if the access token
+  expires first), and rebuilds its provider when a value arrives, changes or lapses. Without a
+  live lease the provider answers every request with "no lease is held right now". It never
+  falls back to a key from the environment. No config writer can put the value on disk,
+  because it never enters a config object. An OAuth lease is renewed by fetching it again,
+  never by the provider's own refresh. Model discovery skips lease providers (HQ sets their
+  model list). The device names the `lease` feature in its signed fetch request; for a
+  request that does not (an older release, which would store the value), HQ sends such a
+  profile without any sealed key (`lease.withheld`). The cost of this policy: every process
+  that uses the profile fetches its own lease, and with HQ unreachable a lease profile cannot
+  be used once its lease lapses. The fetch happens when a provider first needs the lease, not at every process start,
+  and the request waits up to 20 s for it. Switching an existing grant to memory-only does not
+  erase a copy the machine already stored (or its config backups): rotate the key on HQ.
 
 ### VPS / public internet
 

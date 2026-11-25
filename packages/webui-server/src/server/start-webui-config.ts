@@ -1,7 +1,7 @@
 import type { Config, ProviderConfig, SecretVault } from '@wrongstack/contracts/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import { HqCredentialService } from '@wrongstack/hq';
-import { hasSubscriptionRefreshTransaction } from '@wrongstack/providers';
+import { hasSubscriptionRefreshTransaction, setLeasedCredentials } from '@wrongstack/providers';
 import { bootConfig, patchConfig } from './boot.js';
 import { globalRootForConfigPath } from './global-root.js';
 import {
@@ -98,7 +98,12 @@ export async function prepareWebuiConfig(opts: WebUIOptions): Promise<PreparedWe
     installWebuiProviderPersisters({
       load: () => loadSavedProviders(profileConfigPath, vault),
       mutate,
-      hq: new HqCredentialService({ globalRoot: hqGlobalRoot, vault, mutateProviders: mutate }),
+      hq: new HqCredentialService({
+        globalRoot: hqGlobalRoot,
+        vault,
+        mutateProviders: mutate,
+        onLeases: (hqId, leases, scope) => setLeasedCredentials(hqId, leases, scope),
+      }),
       hqGlobalRoot,
       warn: (message) => logger.warn(message),
     });

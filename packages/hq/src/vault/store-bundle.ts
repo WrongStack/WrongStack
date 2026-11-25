@@ -6,6 +6,8 @@
  */
 import { type HqVaultKeyPair, hqVaultSeal, hqVaultSign } from './crypto.js';
 import {
+  HQ_VAULT_FEATURE_LEASE,
+  HQ_VAULT_LEASE_TTL_SECONDS,
   HQ_VAULT_REVOKED_PURPOSE,
   type HqVaultBundleKey,
   type HqVaultBundleProfile,
@@ -23,14 +25,25 @@ export function buildHqVaultBundleProfiles(
   device: HqVaultDeviceRecord,
   mode: HqVaultFetchMode,
   profileIds: readonly string[] | undefined,
+  features: readonly string[] = [],
 ): HqVaultBundleProfile[] {
   const wanted = profileIds ? new Set(profileIds) : undefined;
-  const granted = new Set(
-    file.grants.filter((g) => g.deviceId === device.id).map((g) => g.profileId),
+  const grants = new Map(
+    file.grants.filter((g) => g.deviceId === device.id).map((g) => [g.profileId, g]),
   );
   const out: HqVaultBundleProfile[] = [];
   for (const profile of file.profiles) {
-    if (!granted.has(profile.id) || (wanted && !wanted.has(profile.id))) continue;
+    const grant = grants.get(profile.id);
+    if (!grant || (wanted && !wanted.has(profile.id))) continue;
+    // A lease grant is sealed only to a device that said it keeps leases off
+    // disk; an older one would write the values to its config.
+    const lease =
+      grant.policy === 'lease'
+        ? {
+            ttlSeconds: grant.leaseTtlSeconds ?? HQ_VAULT_LEASE_TTL_SECONDS,
+            ...(features.includes(HQ_VAULT_FEATURE_LEASE) ? {} : { withheld: true as const }),
+          }
+        : undefined;
     const keys = profile.keys.map((key): HqVaultBundleKey => {
       const entry: HqVaultBundleKey = {
         id: key.id,
@@ -41,7 +54,7 @@ export function buildHqVaultBundleProfiles(
         ...(key.accountId ? { accountId: key.accountId } : {}),
         ...(key.oauthStrategyId ? { oauthStrategyId: key.oauthStrategyId } : {}),
       };
-      if (mode === 'fetch') {
+      if (mode === 'fetch' && !lease?.withheld) {
         const secrets = decryptHqVaultSecrets(master, key);
         const sealed: HqVaultSealedKeyFields = {
           apiKey: secrets.apiKey,
@@ -72,6 +85,7 @@ export function buildHqVaultBundleProfiles(
       ...(profile.activeKey ? { activeKey: profile.activeKey } : {}),
       version: profile.version,
       keys,
+      ...(lease ? { lease } : {}),
     });
   }
   return out;

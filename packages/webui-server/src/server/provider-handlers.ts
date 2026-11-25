@@ -1,6 +1,7 @@
 import type { ModelsRegistry, ProviderConfig } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { HqCredentialService } from '@wrongstack/hq';
+import { setLeasedCredentials } from '@wrongstack/providers';
 import type { WebSocket } from 'ws';
 import { globalRootForConfigPath } from './global-root.js';
 import { createCatalogHandlers } from './provider/catalog.js';
@@ -146,6 +147,7 @@ export function createProviderHandlers(deps: ProviderHandlerDeps) {
             vault: deps.vault,
             mutateProviders: (mutator) =>
               mutateSavedProviders(deps.profileConfigPath, deps.vault, mutator),
+            onLeases: (hqId, leases, scope) => setLeasedCredentials(hqId, leases, scope),
           }),
         }
       : {}),

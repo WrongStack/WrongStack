@@ -32,9 +32,14 @@ export const HQ_VAULT_POLL_INTERVAL_MS = 5 * 60_000;
 export const HQ_VAULT_NOTICE_JITTER_MS = 4_000;
 /** The first poll after start waits this long (plus jitter): a short command exits first. */
 export const HQ_VAULT_FIRST_POLL_MS = 20_000;
+/** A failed lease renewal is retried this soon (held leases stay usable until they lapse). */
+export const HQ_VAULT_LEASE_RETRY_MS = 60_000;
 
 export interface HqVaultSyncSchedulerOptions {
-  service: Pick<HqCredentialService, 'device' | 'sync' | 'revision'>;
+  service: Pick<
+    HqCredentialService,
+    'device' | 'sync' | 'revision' | 'refreshLeases' | 'nextLeaseRenewal'
+  >;
   /** After a sync that changed something. */
   onSynced?: ((report: HqImportReport) => void) | undefined;
   /** A failed check or sync (HQ unreachable, revoked, …); never thrown. */
@@ -43,11 +48,23 @@ export interface HqVaultSyncSchedulerOptions {
   firstPollMs?: number | undefined;
   jitterMs?: number | undefined;
   random?: (() => number) | undefined;
+  /**
+   * Subscribe to "a provider needs a lease this process does not hold"
+   * (`onLeaseWanted` in `@wrongstack/providers`). With it, leases are fetched
+   * on demand — a process that never uses a leased key never asks HQ — and
+   * renewed while held. Without it, a machine with lease grants fetches them
+   * when the scheduler starts.
+   */
+  onLeaseWanted?: ((listener: (hqId: string) => void) => () => void) | undefined;
 }
 
 export class HqVaultSyncScheduler {
   private pending: ReturnType<typeof setTimeout> | undefined;
   private poller: ReturnType<typeof setTimeout> | undefined;
+  private leaseTimer: ReturnType<typeof setTimeout> | undefined;
+  private leaseFailing = false;
+  private leaseRun: Promise<void> | undefined;
+  private unsubscribeWant: (() => void) | undefined;
   private running: Promise<void> | undefined;
   private wanted: number | undefined;
   private stopped = false;
@@ -58,17 +75,64 @@ export class HqVaultSyncScheduler {
     this.unsubscribe = onHqVaultNotice((notice) => this.notice(notice));
   }
 
-  /** Begin polling (the first check after `firstPollMs`). */
+  /**
+   * Begin polling (the first check after `firstPollMs`). A machine holding
+   * memory-only leases fetches them right away: this process has none yet.
+   */
   start(): this {
     this.schedulePoll(this.options.firstPollMs ?? HQ_VAULT_FIRST_POLL_MS);
+    const subscribe = this.options.onLeaseWanted;
+    if (subscribe) {
+      this.unsubscribeWant = subscribe((hqId) => {
+        void this.enrolledDevice().then((device) => {
+          if (device?.hq.hqId === hqId) void this.renewLeases();
+        });
+      });
+    } else {
+      void this.enrolledDevice().then((device) => {
+        if (device?.leaseProfileIds?.length) void this.renewLeases();
+      });
+    }
     return this;
+  }
+
+  /** Fetch this process's leases now (one fetch at a time) and schedule the next renewal. */
+  renewLeases(): Promise<void> {
+    this.leaseRun ??= this.fetchLeases().finally(() => {
+      this.leaseRun = undefined;
+    });
+    return this.leaseRun;
+  }
+
+  private async fetchLeases(): Promise<void> {
+    if (this.stopped) return;
+    try {
+      const at = await this.options.service.refreshLeases();
+      this.leaseFailing = false;
+      this.scheduleLeases(at);
+    } catch (error) {
+      if (error instanceof HqVaultDeviceRevokedError) {
+        this.options.warn?.(error.message);
+        this.stop();
+        return;
+      }
+      // Held leases stay usable until they lapse; ask again soon.
+      if (!this.leaseFailing) {
+        this.options.warn?.(`HQ lease renewal failed: ${(error as Error).message}`);
+      }
+      this.leaseFailing = true;
+      this.scheduleLeases(Date.now() + HQ_VAULT_LEASE_RETRY_MS);
+    }
   }
 
   stop(): void {
     this.stopped = true;
     this.unsubscribe();
+    this.unsubscribeWant?.();
     if (this.pending) clearTimeout(this.pending);
     if (this.poller) clearTimeout(this.poller);
+    if (this.leaseTimer) clearTimeout(this.leaseTimer);
+    this.leaseTimer = undefined;
     this.pending = undefined;
     this.poller = undefined;
   }
@@ -142,6 +206,8 @@ export class HqVaultSyncScheduler {
         if (!device || target === undefined) return;
         if (device.syncedRevision !== undefined && device.syncedRevision >= target) return;
         const report = await this.options.service.sync();
+        // The sync delivered fresh leases (or none any more).
+        this.scheduleLeases(this.options.service.nextLeaseRenewal());
         if (report.added.length + report.updated.length + report.removed.length > 0) {
           this.options.onSynced?.(report);
         }
@@ -162,6 +228,20 @@ export class HqVaultSyncScheduler {
       }
     })();
     return this.running;
+  }
+
+  private scheduleLeases(at: number | undefined): void {
+    if (this.leaseTimer) clearTimeout(this.leaseTimer);
+    this.leaseTimer = undefined;
+    if (at === undefined || this.stopped) return;
+    this.leaseTimer = setTimeout(
+      () => {
+        this.leaseTimer = undefined;
+        void this.renewLeases();
+      },
+      Math.max(0, at - Date.now()),
+    );
+    this.leaseTimer.unref?.();
   }
 
   private schedulePoll(base: number): void {

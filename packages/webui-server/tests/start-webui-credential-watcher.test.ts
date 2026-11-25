@@ -26,6 +26,7 @@ vi.mock('../src/server/standalone-acp-leader.js', () => ({
   standaloneHostProviders: mocks.standaloneHostProviders,
 }));
 
+import { setLeasedCredentials } from '@wrongstack/providers';
 import { setupWebuiCredentialWatcher } from '../src/server/start-webui-credential-watcher.js';
 
 describe('setupWebuiCredentialWatcher', () => {
@@ -265,7 +266,7 @@ describe('setupWebuiCredentialWatcher', () => {
       updateAutoCompactionMaxContext,
     });
 
-    expect(result).toBe(close);
+    expect(typeof result).toBe('function');
     await onSnapshot?.({
       providers: { openai: { type: 'openai', apiKey: 'new' } },
       uiLocale: 'fr',
@@ -286,6 +287,43 @@ describe('setupWebuiCredentialWatcher', () => {
     );
     expect(context.provider).toEqual({ id: 'replacement' });
     expect(updateAutoCompactionMaxContext).toHaveBeenCalledWith({ id: 'replacement' });
+    // Closing stops the file watcher (and the lease subscription).
+    result?.();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('rebuilds the active provider when a memory-only HQ lease arrives — no file changed', async () => {
+    mocks.watchProviderConfig.mockImplementation(() => ({ close: vi.fn() }));
+    const config = { providers: { team: { type: 'openai', apiKey: 'marker' } } };
+    const create = vi.fn(() => ({ id: 'rebuilt' }));
+    const context = { provider: { id: 'team' }, meta: {} as Record<string, unknown> };
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const stop = setupWebuiCredentialWatcher({
+      watchConfigPath: 'config.json',
+      vault: {} as never,
+      logger: { warn: vi.fn() } as never,
+      state: { getConfig: () => config, setConfig: vi.fn() } as never,
+      deps: {
+        context,
+        configStore: { replace: vi.fn() },
+        providerRegistry: { has: () => true, create },
+      } as never,
+      clients: new Map(),
+      loadConfig: vi.fn(async () => config as never),
+      updateAutoCompactionMaxContext: vi.fn().mockResolvedValue(undefined),
+    });
+    try {
+      const hq = 'b'.repeat(32);
+      setLeasedCredentials(hq, [
+        [`${hq}|team|k1`, { apiKey: 'sk-leased', leaseUntil: Date.now() + 60_000 }],
+      ]);
+      await vi.waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+      expect(context.provider).toEqual({ id: 'rebuilt' });
+      setLeasedCredentials(hq, []);
+      await vi.waitFor(() => expect(create).toHaveBeenCalledTimes(2));
+    } finally {
+      stop?.();
+    }
   });
   it('keeps the ACP leader listed and its live agent sessions in place on a config reload', async () => {
     let notify: ((snapshot: Record<string, unknown>) => Promise<void>) | undefined;

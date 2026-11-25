@@ -58,7 +58,35 @@ export interface HqCredentialServiceDeps {
   now?: (() => number) | undefined;
   /** Upper bound on one HQ request (default {@link HQ_REQUEST_TIMEOUT_MS}). */
   requestTimeoutMs?: number | undefined;
+  /**
+   * Where memory-only (lease) values go: the process's lease store
+   * (`setLeasedCredentials` in `@wrongstack/providers`). Without it, lease
+   * profiles are mirrored but their keys never resolve.
+   */
+  onLeases?: HqLeaseSink | undefined;
 }
+
+/** A leased value as the process holds it (the providers lease store's shape). */
+export interface HqLeasedValue {
+  apiKey: string;
+  tokenType?: string | undefined;
+  scope?: string | undefined;
+  project?: string | undefined;
+  expiresAt?: string | undefined;
+  leaseUntil: number;
+}
+
+/** Replace this HQ's leases (all, or only `profileIds`'). Ids: `hqId|profileId|keyId`. */
+export type HqLeaseSink = (
+  hqId: string,
+  leases: Array<[string, HqLeasedValue]>,
+  scope: { profileIds?: readonly string[] | undefined },
+) => void;
+
+/** Renew a lease when this much of it is left, or before its token expires. */
+const LEASE_RENEW_FRACTION = 0.2;
+const LEASE_TOKEN_MARGIN_MS = 2 * 60_000;
+const LEASE_MIN_RENEW_MS = 30_000;
 
 /** One HQ request may take this long, the response body included. */
 export const HQ_REQUEST_TIMEOUT_MS = 15_000;
@@ -187,7 +215,25 @@ export class HqCredentialService {
   async importKeys(options: { profileIds?: string[] | undefined } = {}): Promise<HqImportReport> {
     const device = await this.requireDevice();
     const profiles = await this.fetchBundle(device, 'fetch', { profileIds: options.profileIds });
-    return this.apply(device, profiles, { removeUngranted: false });
+    const report = await this.apply(device, profiles, { removeUngranted: false });
+    await this.deliverLeases(device, profiles, options.profileIds);
+    return report;
+  }
+
+  /**
+   * Fetch the memory-only (lease) values again, without touching config —
+   * what each process does at start and before its leases run out. Resolves
+   * to when the next renewal is due (undefined: no leases).
+   */
+  async refreshLeases(): Promise<number | undefined> {
+    const device = await this.requireDevice();
+    await this.deliverLeases(device, await this.fetchBundle(device, 'fetch'));
+    return this.leaseRenewalAt;
+  }
+
+  /** When the leases this service delivered last are due for renewal. */
+  nextLeaseRenewal(): number | undefined {
+    return this.leaseRenewalAt;
   }
 
   /** Bring HQ profiles in step with HQ: changes mirrored, ungranted ones removed. */
@@ -196,14 +242,7 @@ export class HqCredentialService {
     const fetched: { revision?: number } = {};
     const profiles = await this.fetchBundle(device, 'fetch', { out: fetched });
     const report = await this.apply(device, profiles, { removeUngranted: true });
-    if (fetched.revision !== undefined && fetched.revision !== device.syncedRevision) {
-      // Re-read: the fetch may have just recorded the device as approved.
-      const current = (await this.device()) ?? device;
-      await writeHqDevice(this.deps.globalRoot, this.deps.vault, {
-        ...current,
-        syncedRevision: fetched.revision,
-      });
-    }
+    await this.deliverLeases(device, profiles, undefined, fetched.revision);
     return report;
   }
 
@@ -268,6 +307,7 @@ export class HqCredentialService {
   async unenroll(options: { removeKeys: boolean }): Promise<{ removed: HqImportChange[] }> {
     const device = await this.device().catch(() => undefined);
     const removed = device && options.removeKeys ? await this.removeOwned(device) : [];
+    if (device) this.deps.onLeases?.(device.hq.hqId, [], {});
     await removeHqDevice(this.deps.globalRoot);
     return { removed };
   }
@@ -310,6 +350,7 @@ export class HqCredentialService {
    * so status can say why, and stop.
    */
   private async revoked(device: HqDeviceRecord): Promise<never> {
+    this.deps.onLeases?.(device.hq.hqId, [], {});
     const removed = await this.removeOwned(device);
     await writeHqDevice(this.deps.globalRoot, this.deps.vault, {
       ...device,
@@ -317,6 +358,64 @@ export class HqCredentialService {
       revokedAt: new Date(this.now()).toISOString(),
     });
     throw new HqVaultDeviceRevokedError(device.hqUrl, removed);
+  }
+
+  private leaseRenewalAt: number | undefined;
+
+  /**
+   * Hand the lease profiles' values to the lease store, work out when to
+   * renew them, and record (for every process on the machine) which profiles
+   * are leases and which revision this machine has. A partial fetch
+   * (`profileIds`) replaces only those profiles' leases.
+   */
+  private async deliverLeases(
+    device: HqDeviceRecord,
+    profiles: HqVaultOpenedProfile[],
+    profileIds?: string[],
+    revision?: number,
+  ): Promise<void> {
+    const now = this.now();
+    const leases: Array<[string, HqLeasedValue]> = [];
+    const leaseProfiles: string[] = [];
+    let renewAt: number | undefined;
+    for (const profile of profiles) {
+      if (!profile.lease || profile.lease.withheld) continue;
+      leaseProfiles.push(profile.id);
+      const ttlMs = profile.lease.ttlSeconds * 1000;
+      for (const key of profile.keys) {
+        if (!key.secrets) continue;
+        const id = `${device.hq.hqId}|${profile.id}|${key.id}`;
+        leases.push([
+          id,
+          {
+            ...key.secrets,
+            ...(key.expiresAt ? { expiresAt: key.expiresAt } : {}),
+            leaseUntil: now + ttlMs,
+          },
+        ]);
+        const expires = key.expiresAt
+          ? Date.parse(key.expiresAt) - LEASE_TOKEN_MARGIN_MS
+          : Infinity;
+        const due = Math.max(
+          now + LEASE_MIN_RENEW_MS,
+          Math.min(now + ttlMs * (1 - LEASE_RENEW_FRACTION), expires),
+        );
+        renewAt = renewAt === undefined ? due : Math.min(renewAt, due);
+      }
+    }
+    this.deps.onLeases?.(device.hq.hqId, leases, { profileIds });
+    if (!profileIds) this.leaseRenewalAt = renewAt;
+    const current = (await this.device()) ?? device;
+    const sameLeases =
+      profileIds !== undefined ||
+      JSON.stringify(current.leaseProfileIds ?? []) === JSON.stringify(leaseProfiles);
+    const sameRevision = revision === undefined || revision === current.syncedRevision;
+    if (sameLeases && sameRevision) return;
+    await writeHqDevice(this.deps.globalRoot, this.deps.vault, {
+      ...current,
+      ...(sameRevision ? {} : { syncedRevision: revision }),
+      ...(profileIds !== undefined ? {} : { leaseProfileIds: leaseProfiles }),
+    });
   }
 
   private ownsProvider(device: HqDeviceRecord, provider: ProviderConfig): boolean {

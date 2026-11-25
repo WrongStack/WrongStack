@@ -82,6 +82,12 @@ export interface ProviderApiKeySource {
   version: number;
   /** The vault profile holding it — what a renewal asks HQ for. */
   profileId?: string | undefined;
+  /**
+   * A memory-only grant: the stored `apiKey` is a marker, the value lives in
+   * each process's lease store (`@wrongstack/providers` leased-credentials)
+   * and never in a config file.
+   */
+  lease?: true | undefined;
 }
 
 /**

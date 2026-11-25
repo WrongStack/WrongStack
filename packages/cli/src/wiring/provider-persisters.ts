@@ -5,6 +5,7 @@ import {
   applyProviderOAuthRefresh,
   createSubscriptionRefreshTransaction,
   matchesActiveProviderCredential,
+  onLeaseWanted,
   setAccountQuotaReporting,
   setChatGPTQuotaProviders,
   setCodexCliQuotaFallback,
@@ -70,7 +71,12 @@ export function installProviderPersisters(args: {
   // Keep what HQ grants in step without a manual Sync: HQ's `hq.vault_changed`
   // notices and a slow revision poll run one sync per change (one scheduler
   // per process). The config watcher hands the result to the live provider.
-  startHqVaultBackgroundSync(hqRoot, { service: hq, warn: (m) => args.logger?.warn(m) });
+  startHqVaultBackgroundSync(hqRoot, {
+    service: hq,
+    warn: (m) => args.logger?.warn(m),
+    // Memory-only (lease) keys are fetched when a provider first needs one.
+    onLeaseWanted,
+  });
 
   setOAuthTokenPersister((providerId, creds, source) => {
     void mutateConfigProviders(profileConfigPath, args.vault, (all) => {

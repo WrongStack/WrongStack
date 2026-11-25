@@ -9,7 +9,12 @@
  */
 import { randomUUID } from 'node:crypto';
 import type { WireFamily } from '@wrongstack/contracts/types/models-registry';
-import type { HqVaultKeyAuthMethod, HqVaultKeyMeta, HqVaultProfileMeta } from './protocol.js';
+import {
+  HQ_VAULT_LEASE_TTL_SECONDS,
+  type HqVaultKeyAuthMethod,
+  type HqVaultKeyMeta,
+  type HqVaultProfileMeta,
+} from './protocol.js';
 import {
   encryptHqVaultSecrets,
   HqVaultError,
@@ -302,12 +307,18 @@ export function deleteHqVaultKey(
 }
 
 /** Grant or withdraw a profile for a device. Returns false when nothing changed. */
+/**
+ * Grant (or withdraw) a profile; `lease` (when given) sets whether the device
+ * holds it in memory only. True when anything changed — a lease toggle on an
+ * existing grant included.
+ */
 export function setHqVaultGrant(
   file: HqVaultFile,
   id: string,
   deviceId: unknown,
   granted: boolean,
   at: string,
+  lease?: boolean,
 ): boolean {
   findHqVaultProfile(file, id);
   const device = file.devices.find((d) => d.id === deviceId);
@@ -315,13 +326,22 @@ export function setHqVaultGrant(
     throw new HqVaultError('VAULT_NOT_FOUND', 'No such device.');
   }
   const existing = file.grants.find((g) => g.profileId === id && g.deviceId === device.id);
-  if (granted === (existing !== undefined)) return false;
-  if (granted) {
-    file.grants.push({ id: randomUUID(), profileId: id, deviceId: device.id, createdAt: at });
-  } else {
+  if (!granted) {
+    if (!existing) return false;
     file.grants = file.grants.filter((g) => g !== existing);
+    return true;
   }
-  return true;
+  const grant = existing ?? { id: randomUUID(), profileId: id, deviceId: device.id, createdAt: at };
+  const wasLease = grant.policy === 'lease';
+  if (lease === true) {
+    grant.policy = 'lease';
+    grant.leaseTtlSeconds ??= HQ_VAULT_LEASE_TTL_SECONDS;
+  } else if (lease === false) {
+    delete grant.policy;
+    delete grant.leaseTtlSeconds;
+  }
+  if (!existing) file.grants.push(grant);
+  return !existing || wasLease !== (grant.policy === 'lease');
 }
 
 function touch(profile: HqVaultStoredProfile, at: string): void {
@@ -343,6 +363,9 @@ export function hqVaultProfileMeta(
     ...structuredClone(rest),
     keys: keys.map(hqVaultKeyMeta),
     deviceIds: file.grants.filter((g) => g.profileId === profile.id).map((g) => g.deviceId),
+    leaseDeviceIds: file.grants
+      .filter((g) => g.profileId === profile.id && g.policy === 'lease')
+      .map((g) => g.deviceId),
   };
 }
 

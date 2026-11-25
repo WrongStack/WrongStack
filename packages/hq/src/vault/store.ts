@@ -40,7 +40,6 @@ import {
   type HqVaultDeviceRecord,
   type HqVaultEnrollRequest,
   type HqVaultEnrollResponse,
-  type HqVaultFetchMode,
   type HqVaultFetchRequest,
   type HqVaultGrantRecord,
   type HqVaultIdentity,
@@ -49,6 +48,7 @@ import {
 } from './protocol.js';
 import { buildHqVaultBundleProfiles, signHqVaultRevocation } from './store-bundle.js';
 import {
+  checkHqVaultFetchRequest,
   HQ_VAULT_FETCH_SKEW_MS,
   HqVaultEnrollmentCodes,
   HqVaultNonceCache,
@@ -278,15 +278,22 @@ export class HqVaultStore {
   }
 
   /** Grant (or withdraw) a whole profile to a device. Idempotent. */
-  async setGrant(id: string, deviceId: unknown, granted: boolean, actor: string): Promise<void> {
+  async setGrant(
+    id: string,
+    deviceId: unknown,
+    granted: boolean,
+    actor: string,
+    lease?: boolean,
+  ): Promise<void> {
     this.requireUnsealed();
     await this.change(async (file) => {
-      if (!setHqVaultGrant(file, id, deviceId, granted, this.isoNow())) return;
+      if (!setHqVaultGrant(file, id, deviceId, granted, this.isoNow(), lease)) return;
       await this.audit({
         kind: granted ? 'grant.create' : 'grant.revoke',
         actor,
         profileId: id,
         deviceId: String(deviceId),
+        ...(granted && lease !== undefined ? { detail: lease ? 'memory-only' : 'stored' } : {}),
       });
     });
   }
@@ -462,21 +469,7 @@ export class HqVaultStore {
     options: { refresher?: HqVaultRefresher | undefined } = {},
   ): Promise<HqVaultBundle> {
     const master = this.requireUnsealed();
-    if (request === null || typeof request !== 'object' || request.v !== 2) {
-      throw new HqVaultError('VAULT_INVALID', 'Unsupported fetch request; update this machine.');
-    }
-    const mode: HqVaultFetchMode | undefined =
-      request.mode === 'list' ? 'list' : request.mode === 'fetch' ? 'fetch' : undefined;
-    if (mode === undefined)
-      throw new HqVaultError('VAULT_INVALID', "mode must be 'list' or 'fetch'.");
-    if (
-      request.profileIds !== undefined &&
-      (!Array.isArray(request.profileIds) ||
-        request.profileIds.length > 256 ||
-        request.profileIds.some((id) => typeof id !== 'string'))
-    ) {
-      throw new HqVaultError('VAULT_INVALID', 'profileIds must be an array of ids.');
-    }
+    const { mode, features } = checkHqVaultFetchRequest(request);
     const device = this.file.devices.find((d) => d.id === request.deviceId);
     const { sig, ...rest } = request;
     // One answer for every authentication failure: an unknown device, a bad
@@ -530,6 +523,7 @@ export class HqVaultStore {
       device,
       mode,
       request.profileIds,
+      features,
     );
     if (mode === 'fetch') {
       await this.mutate(async (file) => {

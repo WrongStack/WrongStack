@@ -30,13 +30,18 @@ export function setExternalCredentialRefresher(fn: ExternalCredentialRefresher |
   refresher = fn;
 }
 
-/** Whether `entry` is an OAuth account the installed host renewer refreshes. */
+/**
+ * Whether `entry` is an OAuth account the installed host renewer refreshes.
+ * A memory-only lease is not: the host re-leases it, and a renewal here would
+ * hand the new token to the refresh transaction, which writes it to disk.
+ */
 export function isExternallyRenewed(entry: ProviderApiKey | undefined): boolean {
   return (
     refresher !== undefined &&
     entry?.authMethod === 'oauth' &&
     !entry.refreshToken &&
-    entry.source !== undefined
+    entry.source !== undefined &&
+    entry.source.lease !== true
   );
 }
 

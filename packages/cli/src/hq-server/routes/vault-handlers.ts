@@ -13,7 +13,7 @@
  *   DELETE /api/vault/profiles/:id
  *   POST   /api/vault/profiles/:id/keys       { label, apiKey } adds, or replaces the key with that label
  *   DELETE /api/vault/profiles/:id/keys/:keyId
- *   PUT    /api/vault/profiles/:id/devices/:deviceId  { granted }
+ *   PUT    /api/vault/profiles/:id/devices/:deviceId  { granted, lease? }
  *   GET    /api/vault/oauth/strategies        sign-ins HQ can run (ChatGPT, GitHub Copilot, …)
  *   POST   /api/vault/oauth                   { strategyId, profileId? } → attempt (browser URL / device code)
  *   GET    /api/vault/oauth/:attemptId        poll
@@ -497,11 +497,12 @@ export async function handleApiVault(
     if (profileDevice && req.method === 'PUT') {
       const body = await readJsonObject(req, res);
       if (!body) return true;
-      if (typeof body.granted !== 'boolean') {
-        writeError(res, 400, 'BAD_REQUEST', 'granted must be true or false.');
+      const { granted, lease } = body;
+      if (typeof granted !== 'boolean' || (lease !== undefined && typeof lease !== 'boolean')) {
+        writeError(res, 400, 'BAD_REQUEST', 'granted (and lease, if given) must be true or false.');
         return true;
       }
-      await store.setGrant(profileDevice[1]!, profileDevice[2]!, body.granted, actor);
+      await store.setGrant(profileDevice[1]!, profileDevice[2]!, granted, actor, lease);
       writeJson(res, 200, { profile: store.getProfile(profileDevice[1]!) });
       return true;
     }

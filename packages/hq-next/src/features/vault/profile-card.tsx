@@ -17,7 +17,7 @@ import {
   setVaultKey,
   updateVaultProfile,
 } from '@hq/data/vault-api';
-import { Check, KeyRound, Laptop, Pencil, Plus, Server, Trash2 } from 'lucide-react';
+import { Check, KeyRound, Laptop, MemoryStick, Pencil, Plus, Server, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useId, useState } from 'react';
 import { relativeTime } from '@/features/attention/model';
@@ -93,6 +93,7 @@ export function ProfileCard({
   const { busy, message, run } = useVaultAction();
   const live = devices.filter((d) => d.status !== 'revoked');
   const granted = new Set(profile.deviceIds);
+  const leased = new Set(profile.leaseDeviceIds ?? []);
   const typeNote = profile.type !== profile.id ? profile.type : null;
   const familyLabel = profileFamilyLabel(profile);
 
@@ -224,31 +225,61 @@ export function ProfileCard({
         )}
         {live.map((device) => {
           const on = granted.has(device.id);
+          const lease = leased.has(device.id);
           const pending = device.status === 'pending';
           return (
-            <button
-              key={device.id}
-              type="button"
-              role="switch"
-              aria-checked={on}
-              disabled={!canWrite || busy || (pending && !on)}
-              title={pending ? 'Approve this device first' : on ? 'Take it back' : 'Give it'}
-              className={cn(
-                'inline-flex h-7 items-center gap-1 border px-2 text-xs disabled:opacity-50',
-                on
-                  ? 'border-success/60 bg-success/10 text-foreground'
-                  : 'border-border text-muted-foreground hover:bg-muted',
+            <span key={device.id} className="inline-flex">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={on}
+                disabled={!canWrite || busy || (pending && !on)}
+                title={pending ? 'Approve this device first' : on ? 'Take it back' : 'Give it'}
+                className={cn(
+                  'inline-flex h-7 items-center gap-1 border px-2 text-xs disabled:opacity-50',
+                  on
+                    ? 'border-success/60 bg-success/10 text-foreground'
+                    : 'border-border text-muted-foreground hover:bg-muted',
+                )}
+                onClick={() =>
+                  void run(async () => {
+                    await setVaultGrant(profile.id, device.id, !on);
+                    await onChanged();
+                  })
+                }
+              >
+                {on && <Check className="size-3" aria-hidden />}
+                {deviceName(device)}
+              </button>
+              {on && (
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={lease}
+                  aria-label={`Memory only on ${deviceName(device)}`}
+                  disabled={!canWrite || busy}
+                  title={
+                    lease
+                      ? 'Memory only: the device never writes these keys to disk and loses them without HQ. Click to let it store them.'
+                      : 'Stored on the device (encrypted). Click to keep them in memory only — a copy already stored there stays until you rotate the key.'
+                  }
+                  className={cn(
+                    'inline-flex h-7 items-center border border-l-0 px-1.5 disabled:opacity-50',
+                    lease
+                      ? 'border-success/60 bg-success/10 text-foreground'
+                      : 'border-border text-muted-foreground hover:bg-muted',
+                  )}
+                  onClick={() =>
+                    void run(async () => {
+                      await setVaultGrant(profile.id, device.id, true, !lease);
+                      await onChanged();
+                    })
+                  }
+                >
+                  <MemoryStick className="size-3" aria-hidden />
+                </button>
               )}
-              onClick={() =>
-                void run(async () => {
-                  await setVaultGrant(profile.id, device.id, !on);
-                  await onChanged();
-                })
-              }
-            >
-              {on && <Check className="size-3" aria-hidden />}
-              {deviceName(device)}
-            </button>
+            </span>
           );
         })}
       </footer>

@@ -41,6 +41,8 @@ export interface HqDeviceRecord {
   syncedRevision?: number;
   /** When HQ's signed revocation arrived (status is then `revoked`). */
   revokedAt?: string;
+  /** HQ profiles this machine holds as memory-only leases (each process fetches them at start). */
+  leaseProfileIds?: string[];
 }
 
 interface HqDeviceFile {
@@ -57,6 +59,7 @@ interface HqDeviceFile {
   signPrivateSealed: string;
   syncedRevision?: number;
   revokedAt?: string;
+  leaseProfileIds?: string[];
 }
 
 export function hqDeviceFilePath(globalRoot: string): string {
@@ -109,6 +112,9 @@ export async function readHqDevice(
     keys,
     ...(Number.isSafeInteger(file.syncedRevision) ? { syncedRevision: file.syncedRevision } : {}),
     ...(typeof file.revokedAt === 'string' ? { revokedAt: file.revokedAt } : {}),
+    ...(Array.isArray(file.leaseProfileIds)
+      ? { leaseProfileIds: file.leaseProfileIds.filter((id) => typeof id === 'string') }
+      : {}),
   };
 }
 
@@ -130,6 +136,7 @@ export async function writeHqDevice(
     signPrivateSealed: vault.encrypt(record.keys.signPrivate),
     ...(record.syncedRevision !== undefined ? { syncedRevision: record.syncedRevision } : {}),
     ...(record.revokedAt !== undefined ? { revokedAt: record.revokedAt } : {}),
+    ...(record.leaseProfileIds?.length ? { leaseProfileIds: record.leaseProfileIds } : {}),
   };
   await fs.mkdir(globalRoot, { recursive: true });
   const target = hqDeviceFilePath(globalRoot);

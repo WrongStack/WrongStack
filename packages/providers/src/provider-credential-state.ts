@@ -14,15 +14,9 @@ function storedRefreshToken(value: string | undefined): string | undefined {
 export function unavailableProviderCredentials(
   id: string,
   capabilities: Provider['capabilities'],
+  message = `The auth profile "${id}" changed or was removed. Configure its credentials or select another account.`,
 ): Provider {
-  const failure = () =>
-    new ProviderError(
-      `The auth profile "${id}" changed or was removed. Configure its credentials or select another account.`,
-      401,
-      false,
-      id,
-      { kind: 'auth' },
-    );
+  const failure = () => new ProviderError(message, 401, false, id, { kind: 'auth' });
   return {
     id,
     capabilities,
@@ -39,6 +33,52 @@ export function unavailableProviderCredentials(
       }),
     }),
   };
+}
+
+/**
+ * A provider whose memory-only HQ key has not arrived, or lapsed (see
+ * leased-credentials). A request first asks for the lease and waits for it
+ * (`whenLeased` resolves the real provider, or undefined when none came in
+ * time), so the first request of a fresh process does not lose the race with
+ * the lease fetch; without one it fails, never with another key.
+ */
+export function awaitingLeaseProvider(
+  id: string,
+  capabilities: Provider['capabilities'],
+  whenLeased?: (signal: AbortSignal) => Promise<Provider | undefined>,
+): Provider {
+  const missing = unavailableProviderCredentials(
+    id,
+    capabilities,
+    `"${id}" uses a key HQ leases to this machine in memory only, and no lease is held right now. Check that HQ is reachable; it is asked again shortly.`,
+  );
+  if (!whenLeased) return missing;
+  let real: Provider | undefined;
+  const ready = async (signal: AbortSignal): Promise<Provider> => {
+    real ??= await whenLeased(signal);
+    signal.throwIfAborted();
+    return real ?? missing;
+  };
+  return {
+    id,
+    capabilities,
+    complete: async (request, context) => (await ready(context.signal)).complete(request, context),
+    stream: (request, context) => ({
+      [Symbol.asyncIterator]: () => {
+        let inner: AsyncIterator<unknown> | undefined;
+        return {
+          next: async () => {
+            inner ??= (await ready(context.signal))
+              .stream(request, context)
+              [Symbol.asyncIterator]();
+            return inner.next();
+          },
+          return: async (value?: unknown) =>
+            (await inner?.return?.(value)) ?? { done: true as const, value },
+        };
+      },
+    }),
+  } as Provider;
 }
 
 type CredentialSource = {

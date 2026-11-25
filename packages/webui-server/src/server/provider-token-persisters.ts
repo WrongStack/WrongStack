@@ -4,6 +4,7 @@ import {
   applyProviderOAuthRefresh,
   createSubscriptionRefreshTransaction,
   matchesActiveProviderCredential,
+  onLeaseWanted,
   setAccountQuotaReporting,
   setChatGPTQuotaProviders,
   setCodexCliQuotaFallback,
@@ -39,7 +40,11 @@ export function installWebuiProviderPersisters(args: {
   if (hq) {
     setExternalCredentialRefresher((_id, credential, signal) => hq.renewKey(credential, signal));
     if (args.hqGlobalRoot) {
-      startHqVaultBackgroundSync(args.hqGlobalRoot, { service: hq, warn: args.warn });
+      startHqVaultBackgroundSync(args.hqGlobalRoot, {
+        service: hq,
+        warn: args.warn,
+        onLeaseWanted,
+      });
     }
   }
   setOAuthTokenPersister((id, creds, source) => {

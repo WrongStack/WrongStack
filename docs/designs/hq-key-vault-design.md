@@ -2,7 +2,7 @@
 
 Durum: onaylandı (2026-11-23). **P0 sunucu, P1 HQ ekranı, P2 istemci uygulandı (2026-11-24); ardından
 birim anahtardan provider profiline taşındı (protokol v2, 2026-11-24)**; OAuth (HQ'da giriş + merkezi
-yenileme + cihaz yenileme kancası), P3 ve P4'ün itme/iptal/arka plan kısmı uygulandı; lease ve P5 açık.
+yenileme + cihaz yenileme kancası), P3 ve P4 (itme/iptal/arka plan senkronu + lease) uygulandı; P5 açık.
 
 ### Protokol v2 — birim provider profili
 İlk sürüm tek tek anahtar saklayıp anahtar başına grant veriyordu; endpoint'i ve model listesini HQ'dan
@@ -82,8 +82,38 @@ yönetmek mümkün değildi. v2'de HQ'nun yönettiği ve verdiği birim, makinen
   `renewKey` config kilidi içinde koştuğu için orada doğrulanmış iptal yalnız hata atar, yazmaz
   (`writes: false`); temizliği arka plan senkronu yapar (aksi halde kilitlenme — testle kanıtlı).
   Kimlik doğrulamasız revision GET'i hiç kullanılmamış bir vault'u oluşturmaz (404).
-- Açık: `lease` politikası (v2 grant'te `policy` yok; bellek katmanı `resolveActiveKey` önünde ve
-  her persister'ın lease değerini diske yazmadığını kanıtlayan test gerekiyor), P5.
+
+### P4 — lease (yalnız bellek) grant'leri (2026-11-24)
+- HQ: `HqVaultGrantRecord.policy?: 'lease'` + `leaseTtlSeconds?` (yok = yerel; göç gerekmedi).
+  `PUT …/devices/:deviceId {granted, lease?}`; lease aç/kapa değişikliktir (revision artar).
+  Profil meta'sında `leaseDeviceIds`, panoda verilmiş cihaz çipinin yanında bellek düğmesi.
+- Eski istemci koruması: cihaz imzalı fetch isteğinde `features: ['lease']` der. Demeyen
+  isteğe lease profili mühürsüz gider (`lease.withheld`), çünkü eski sürüm değeri diske yazardı.
+- Cihaz: aynalama lease anahtarına değer yerine işaret (`HQ_LEASED_KEY_MARKER`) ve
+  `source.lease: true` yazar. Değer `@wrongstack/providers` `leased-credentials.ts` deposunda,
+  süreç başına, `leaseUntil`'e kadar. `HqCredentialService.onLeases` ile enjekte edilir (hq
+  providers'a bağımlı değil). CLI sarmalayıcısı ve webui-server iki kurulum yeri bağlar.
+  `hq-device.json` `leaseProfileIds` tutar. Lease isteğe bağlı çekilir: yer tutucu provider
+  istekte `waitForLease` ile lease ister ve en çok 20 sn bekler (`onLeaseWanted` →
+  zamanlayıcı `renewLeases`, tek uçuş). Gelirse aynı config'ten gerçek provider'ı kurup isteği ona
+  verir. Böylece yeni bir sürecin (`wstack -p`, ACP/fleet işçisi, Desktop motoru) ilk isteği
+  yarışı kaybetmez, lease'i hiç kullanmayan süreç HQ'ya hiç gitmez (kanıt: yarış testi önce
+  kırmızıydı). Lease tutulurken TTL'nin %80'inde ya da token bitiminden 2 dk önce yenilenir;
+  hatada 60 sn sonra yeniden denenir.
+- Çözümleme: `resolveActiveKey`/`resolveActiveKeyEntry` lease girdisi için canlı değeri taşıyan
+  bir KOPYA döner, yoksa hiçbir şey; config'i değiştirmez. `buildProvider` lease yoksa env'e ya
+  da `no-key`'e düşmez. Gerçek provider etkisiz bir yer tutucuyla yalnız yetenekleri için
+  kurulur, istekler "lease yok" ile reddedilir (`awaitingLeaseProvider`). OAuth lease
+  `isExternallyRenewed` dışında (yenileme transaction'ı diske yazardı); tazelik yeniden lease
+  ile gelir. auto-discover lease girdisini atlar.
+- Yeniden kurma: depo değer gelince, değişince veya süresi dolunca `onLeasedCredentialsChanged`
+  ile haber verir (yalnız `leaseUntil` uzaması değişiklik sayılmaz). CLI `reloadFromDisk`
+  (`leaseMoved`) ve standalone WebUI izleyicisi (config anahtarında lease nesli) provider'ı
+  yeniden kurar.
+- Değişmez (testli): lease değeri hiçbir `Config` nesnesine girmez. Tüm config yazıcıları diskten
+  okuyup yazdığı için (keşif ajanı doğruladı) sync, import, lease yenileme ve model listesi
+  yazımı sonrası diskte işaret kalır. Mutasyonla doğrulandı: env'e düşme, CLI yeniden kurma.
+- Açık: P5.
 
 ### P0'da uygulanan (tasarımdan sapmalar dahil)
 - Kripto + depo + protokol + cihaz yardımcıları `packages/hq/src/vault/` altında (`crypto.ts`, `master-key.ts`,

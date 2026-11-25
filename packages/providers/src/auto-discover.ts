@@ -10,6 +10,7 @@ import type { CompatibleModelEntry } from './auto-discover-model-map.js';
 import { mapCompatibleModel } from './auto-discover-model-map.js';
 import { fetchCopilotModels } from './github-copilot-models.js';
 import { copilotBaseUrlFromToken } from './github-copilot-token.js';
+import { isLeasedEntry } from './leased-credentials.js';
 import {
   CODEX_BASE_URL,
   CODEX_ORIGINATOR,
@@ -160,6 +161,8 @@ export function resolveDiscoveryTargets(config: Config): DiscoveryTarget[] {
   const out: DiscoveryTarget[] = [];
   for (const [id, cfg] of Object.entries(config.providers ?? {})) {
     const active = cfg.apiKeys?.find((key) => key.label === cfg.activeKey) ?? cfg.apiKeys?.[0];
+    // A memory-only HQ key: its stored value is a marker, and HQ owns the model list.
+    if (isLeasedEntry(active)) continue;
     const strategy = active?.oauthStrategyId;
     if (
       active?.authMethod === 'oauth' &&

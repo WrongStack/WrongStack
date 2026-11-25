@@ -28,6 +28,10 @@ function fakeService(options: { synced?: number; status?: HqDeviceRecord['status
     syncs: 0,
     gate: undefined as Promise<void> | undefined,
     fail: undefined as Error | undefined,
+    leaseProfileIds: undefined as string[] | undefined,
+    leaseFetches: 0,
+    leaseFail: undefined as Error | undefined,
+    leaseRenewIn: 40,
   };
   const service = {
     device: async () =>
@@ -35,7 +39,14 @@ function fakeService(options: { synced?: number; status?: HqDeviceRecord['status
         hq: { hqId: HQ },
         status: state.status,
         ...(state.synced !== undefined ? { syncedRevision: state.synced } : {}),
+        ...(state.leaseProfileIds ? { leaseProfileIds: state.leaseProfileIds } : {}),
       }) as HqDeviceRecord,
+    refreshLeases: async () => {
+      state.leaseFetches++;
+      if (state.leaseFail) throw state.leaseFail;
+      return Date.now() + state.leaseRenewIn;
+    },
+    nextLeaseRenewal: () => undefined,
     revision: async () => ({ hqId: HQ, revision: state.hqRevision }),
     sync: async () => {
       state.syncs++;
@@ -129,6 +140,67 @@ describe('HqVaultSyncScheduler', () => {
     await s.poll();
     await s.poll();
     expect(warn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('lease renewal', () => {
+  it('a process holding leases fetches them at start and renews them on time', async () => {
+    const { state, service } = fakeService({ synced: 0 });
+    state.leaseProfileIds = ['team'];
+    scheduler(service, { firstPollMs: 60_000 }).start();
+    await vi.waitFor(() => expect(state.leaseFetches).toBeGreaterThanOrEqual(1));
+    await vi.waitFor(() => expect(state.leaseFetches).toBeGreaterThanOrEqual(3));
+  });
+
+  it('on demand: nothing at start; a want for this HQ fetches once, one for another HQ nothing', async () => {
+    const { state, service } = fakeService({ synced: 0 });
+    state.leaseProfileIds = ['team'];
+    state.leaseRenewIn = 60_000;
+    let want: ((hqId: string) => void) | undefined;
+    const unsubscribe = vi.fn();
+    scheduler(service, {
+      firstPollMs: 60_000,
+      onLeaseWanted: (listener: (hqId: string) => void) => {
+        want = listener;
+        return unsubscribe;
+      },
+    }).start();
+    await new Promise((r) => setTimeout(r, 30));
+    expect(state.leaseFetches).toBe(0);
+
+    want?.('b'.repeat(32));
+    await new Promise((r) => setTimeout(r, 30));
+    expect(state.leaseFetches).toBe(0);
+
+    for (let i = 0; i < 3; i++) want?.(HQ);
+    await vi.waitFor(() => expect(state.leaseFetches).toBe(1));
+    await new Promise((r) => setTimeout(r, 30));
+    expect(state.leaseFetches).toBe(1);
+  });
+
+  it('a machine without leases fetches nothing at start', async () => {
+    const { state, service } = fakeService({ synced: 0 });
+    scheduler(service, { firstPollMs: 60_000 }).start();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(state.leaseFetches).toBe(0);
+  });
+
+  it('a failed renewal is said once and retried later; a revocation stops it', async () => {
+    const { state, service } = fakeService({ synced: 0 });
+    state.leaseProfileIds = ['team'];
+    state.leaseFail = new Error('ECONNREFUSED');
+    const warn = vi.fn();
+    const s = scheduler(service, { firstPollMs: 60_000, warn });
+    await s.renewLeases();
+    await s.renewLeases();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('HQ lease renewal failed'));
+
+    state.leaseFail = new HqVaultDeviceRevokedError('http://hq', []);
+    await s.renewLeases();
+    const fetches = state.leaseFetches;
+    await s.renewLeases(); // stopped
+    expect(state.leaseFetches).toBe(fetches);
   });
 });
 

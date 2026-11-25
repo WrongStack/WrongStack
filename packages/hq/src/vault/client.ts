@@ -18,6 +18,7 @@ import {
 } from './crypto.js';
 import {
   HQ_VAULT_BUNDLE_PURPOSE,
+  HQ_VAULT_FEATURE_LEASE,
   HQ_VAULT_FETCH_PURPOSE,
   HQ_VAULT_REVOKED_PURPOSE,
   type HqVaultBundle,
@@ -112,6 +113,7 @@ export function buildHqVaultFetchRequest(
     nonce: hqVaultRandom(24),
     mode: options.mode,
     ...(options.profileIds ? { profileIds: [...options.profileIds] } : {}),
+    features: [HQ_VAULT_FEATURE_LEASE],
   };
   return { ...body, sig: hqVaultSign({ ...body, purpose: HQ_VAULT_FETCH_PURPOSE }, keys) };
 }

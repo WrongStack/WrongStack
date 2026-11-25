@@ -1,4 +1,5 @@
 import type { Config, Provider, ProviderConfig } from '@wrongstack/contracts/types';
+import { setLeasedCredentials } from '@wrongstack/providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resolveProviderCfg } from '../src/wiring/provider-runtime.js';
 import {
@@ -529,6 +530,25 @@ describe('setupProviderRuntime — config watchers', () => {
     const builds = vi.mocked(deps.buildProviderForIdRuntime).mock.calls;
     expect(builds[0]?.[0].config.apiKey).toBe(TOKEN_ROTATED);
     expect(builds[1]?.[0].config.apiKey).toBe(TOKEN_WORK);
+  });
+
+  it('rebuilds the provider when a memory-only HQ lease changes — no file changed', async () => {
+    const build = vi.fn((): Provider => fakeProvider('anthropic'));
+    const deps = makeDeps({ buildProviderForIdRuntime: build });
+    snapshotByPath['/home/profiles/default.json'] = { providers: {} };
+    const runtime = setupProviderRuntime(deps);
+    await runtime.reloadProviderConfig();
+    const builds = build.mock.calls.length;
+    const hq = 'c'.repeat(32);
+    try {
+      setLeasedCredentials(hq, [[`${hq}|p|k`, { apiKey: 'v', leaseUntil: Date.now() + 60_000 }]]);
+      await vi.waitFor(() => expect(build.mock.calls.length).toBe(builds + 1));
+      // Nothing moved since: an ordinary reload does not rebuild again.
+      await runtime.reloadProviderConfig();
+      expect(build.mock.calls.length).toBe(builds + 1);
+    } finally {
+      setLeasedCredentials(hq, []);
+    }
   });
 
   it('watches the profile, project-local, in-project, and bootstrap layers', () => {

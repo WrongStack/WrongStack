@@ -19,7 +19,12 @@ import {
 import { readJsonObjectFile, type WstackPaths } from '@wrongstack/core/utils';
 import { createProxyInstantApply } from '@wrongstack/core/wiring/proxy-rewrite';
 import { WRONGFORGE_AGENT_ID } from '@wrongstack/fleet';
-import { unavailableProviderCredentials, withCatalogCapabilities } from '@wrongstack/providers';
+import {
+  leasedCredentialsGeneration,
+  onLeasedCredentialsChanged,
+  unavailableProviderCredentials,
+  withCatalogCapabilities,
+} from '@wrongstack/providers';
 import { getSageService } from '@wrongstack/sage';
 import { ACP_LEADER_PROVIDER_ID } from '../acp-leader/acp-leader-provider.js';
 import { createFallbackGate } from './fallback-gate.js';
@@ -474,7 +479,12 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
     // merged snapshot, and apply it to cfg + ConfigStore.
     let previousSnapshotSerialized: string | undefined;
     let failedReloadId: string | undefined;
+    // A memory-only HQ lease arriving, changing or lapsing changes no file but
+    // must rebuild the provider (see leased-credentials in @wrongstack/providers).
+    let builtLeaseGeneration = leasedCredentialsGeneration();
     const reloadFromDisk = async (): Promise<void> => {
+      const leaseGeneration = leasedCredentialsGeneration();
+      const leaseMoved = leaseGeneration !== builtLeaseGeneration;
       // Validate the watched layers leniently first. A torn/corrupt write must
       // not replace the live runtime with defaults while an atomic save settles.
       const merged = await readMergedSnapshot();
@@ -487,7 +497,8 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
       const serialized = serializeProviderRuntimeSnapshot(nextConfig);
       const observedProvider = context.provider;
       const activeId = observedProvider?.id ?? cfg.provider;
-      if (serialized === previousSnapshotSerialized && failedReloadId !== activeId) return;
+      if (serialized === previousSnapshotSerialized && failedReloadId !== activeId && !leaseMoved)
+        return;
       previousSnapshotSerialized = serialized;
 
       // Snapshot credential state before replacement so only credential
@@ -503,7 +514,8 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
       // Routing-only edits (fallbackProfiles, modelMatrix, etc.) reach
       // ConfigStore above but never need a provider rebuild.
       const after = JSON.stringify(resolveProviderCfg(activeId).cfg);
-      if (after === before && failedReloadId !== activeId && !removedAccount) return;
+      if (after === before && failedReloadId !== activeId && !removedAccount && !leaseMoved) return;
+      builtLeaseGeneration = leaseGeneration;
       await context.runModelTransition(async () => {
         // A queued model switch already owns the new live provider.
         if (context.provider !== observedProvider && context.provider?.id !== activeId) return;
@@ -536,6 +548,7 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
       return next;
     };
     reloadProviderConfig = onAnyConfigChange;
+    onLeasedCredentialsChanged(() => void onAnyConfigChange());
 
     // Set up a watcher for EACH config layer. The `watchProviderConfig`
     // watcher provides file-watch, debounce, and no-op guard per path.

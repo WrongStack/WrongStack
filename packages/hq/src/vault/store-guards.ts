@@ -9,6 +9,8 @@
  */
 import { randomBytes } from 'node:crypto';
 import { hqVaultRandom } from './crypto.js';
+import type { HqVaultFetchMode, HqVaultFetchRequest } from './protocol.js';
+import { HqVaultError } from './store-model.js';
 
 /** Enrollment codes live this long. */
 export const HQ_VAULT_ENROLLMENT_TTL_MS = 10 * 60_000;
@@ -79,4 +81,35 @@ export class HqVaultNonceCache {
     this.seen.set(key, ts);
     return true;
   }
+}
+
+/** Shape checks on a device's fetch request (its signature is checked after). */
+export function checkHqVaultFetchRequest(request: HqVaultFetchRequest): {
+  mode: HqVaultFetchMode;
+  features: string[];
+} {
+  if (request === null || typeof request !== 'object' || request.v !== 2) {
+    throw new HqVaultError('VAULT_INVALID', 'Unsupported fetch request; update this machine.');
+  }
+  const mode: HqVaultFetchMode | undefined =
+    request.mode === 'list' ? 'list' : request.mode === 'fetch' ? 'fetch' : undefined;
+  if (mode === undefined)
+    throw new HqVaultError('VAULT_INVALID', "mode must be 'list' or 'fetch'.");
+  const ids = request.profileIds;
+  if (
+    ids !== undefined &&
+    (!Array.isArray(ids) || ids.length > 256 || ids.some((id) => typeof id !== 'string'))
+  ) {
+    throw new HqVaultError('VAULT_INVALID', 'profileIds must be an array of ids.');
+  }
+  const features = request.features;
+  if (
+    features !== undefined &&
+    (!Array.isArray(features) ||
+      features.length > 16 ||
+      features.some((f) => typeof f !== 'string'))
+  ) {
+    throw new HqVaultError('VAULT_INVALID', 'features must be an array of names.');
+  }
+  return { mode, features: features ?? [] };
 }

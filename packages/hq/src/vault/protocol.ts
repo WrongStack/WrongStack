@@ -56,6 +56,8 @@ export interface HqVaultProfileMeta {
   keys: HqVaultKeyMeta[];
   /** Devices this profile is granted to. */
   deviceIds: string[];
+  /** Of those, the devices that hold it in memory only (lease grants). */
+  leaseDeviceIds?: string[];
 }
 
 export interface HqVaultDeviceRecord {
@@ -78,7 +80,24 @@ export interface HqVaultGrantRecord {
   profileId: string;
   deviceId: string;
   createdAt: string;
+  /**
+   * `lease`: the device keeps the keys in memory only — never on disk — and
+   * re-fetches them before `leaseTtlSeconds` runs out; without HQ they are
+   * gone. Absent: the device stores them encrypted in its config.
+   */
+  policy?: 'lease';
+  leaseTtlSeconds?: number;
 }
+
+/** How long a device may hold a leased key without renewing it. */
+export const HQ_VAULT_LEASE_TTL_SECONDS = 3600;
+
+/**
+ * The feature a device names in its signed fetch request to receive lease
+ * grants. A device that does not name it (an older release would write the
+ * keys to disk) gets those profiles without secrets.
+ */
+export const HQ_VAULT_FEATURE_LEASE = 'lease';
 
 /** HQ's public identity, pinned by a device at enrollment. */
 export interface HqVaultIdentity {
@@ -130,6 +149,8 @@ export interface HqVaultFetchRequest {
   mode: HqVaultFetchMode;
   /** Only these profiles (default: every granted one). */
   profileIds?: string[];
+  /** What this device understands (e.g. {@link HQ_VAULT_FEATURE_LEASE}). */
+  features?: string[];
   sig: string;
 }
 
@@ -187,6 +208,12 @@ export interface HqVaultBundleProfile {
   activeKey?: string;
   version: number;
   keys: HqVaultBundleKey[];
+  /**
+   * A lease grant: hold the keys in memory only, for at most `ttlSeconds`.
+   * `withheld` when the request did not name the lease feature — the keys
+   * then carry no seal and the device must be updated.
+   */
+  lease?: { ttlSeconds: number; withheld?: true };
 }
 
 /** HQ's signed answer. `sig` covers every other member plus `purpose: HQ_VAULT_BUNDLE_PURPOSE`. */

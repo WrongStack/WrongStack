@@ -2,7 +2,9 @@ import type { Config, ProviderConfig } from '@wrongstack/contracts/types';
 import { watchProviderConfig } from '@wrongstack/core/storage';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import {
+  leasedCredentialsGeneration,
   makeProviderFromConfig,
+  onLeasedCredentialsChanged,
   unavailableProviderCredentials,
   withCatalogCapabilities,
 } from '@wrongstack/providers';
@@ -34,13 +36,15 @@ function activeProviderConfigKey(
   },
   providerId: string,
 ): string {
-  return JSON.stringify(
+  return `${JSON.stringify(
     cfg.providers?.[providerId] ?? {
       type: providerId,
       ...(cfg.apiKey !== undefined ? { apiKey: cfg.apiKey } : {}),
       ...(cfg.baseUrl !== undefined ? { baseUrl: cfg.baseUrl } : {}),
     },
-  );
+    // A memory-only HQ lease arriving, changing or lapsing changes no file
+    // but must rebuild the provider too.
+  )}|lease:${leasedCredentialsGeneration()}`;
 }
 
 export function setupWebuiCredentialWatcher(options: {
@@ -79,150 +83,154 @@ export function setupWebuiCredentialWatcher(options: {
   } = options;
   let lastActiveCfg = activeProviderConfigKey(state.getConfig(), deps.context.provider.id);
   let lastUiLocale: string | undefined = state.getConfig().uiLocale;
-  const credentialWatcher = watchProviderConfig(
-    watchConfigPath,
-    vault,
-    async (snapshot) => {
-      const previousProvider = deps.context.provider;
-      const beforeConfig = state.getConfig();
-      const fallbackConfig = patchConfig(beforeConfig, {
-        providers: snapshot.providers,
-        ...(snapshot.apiKey !== undefined ? { apiKey: snapshot.apiKey } : {}),
-        ...(snapshot.baseUrl !== undefined ? { baseUrl: snapshot.baseUrl } : {}),
-      });
-      // Standalone WebUI follows the same contract as the CLI host: any file
-      // change re-runs the canonical layered loader, then atomically swaps the
-      // complete Config so deleted and newly-added fields apply immediately.
-      let nextConfig: Config;
-      try {
-        nextConfig = loadConfig ? await loadConfig() : fallbackConfig;
-      } catch (error) {
-        logger.warn(`Config hot-reload failed: ${toErrorMessage(error)}`);
-        return;
+  type Snapshot = { providers: Record<string, ProviderConfig>; apiKey?: string; baseUrl?: string };
+  const onConfigChange = async (snapshot?: Snapshot): Promise<void> => {
+    const previousProvider = deps.context.provider;
+    const beforeConfig = state.getConfig();
+    const fallbackConfig = snapshot
+      ? patchConfig(beforeConfig, {
+          providers: snapshot.providers,
+          ...(snapshot.apiKey !== undefined ? { apiKey: snapshot.apiKey } : {}),
+          ...(snapshot.baseUrl !== undefined ? { baseUrl: snapshot.baseUrl } : {}),
+        })
+      : beforeConfig;
+    // Standalone WebUI follows the same contract as the CLI host: any file
+    // change re-runs the canonical layered loader, then atomically swaps the
+    // complete Config so deleted and newly-added fields apply immediately.
+    let nextConfig: Config;
+    try {
+      nextConfig = loadConfig ? await loadConfig() : fallbackConfig;
+    } catch (error) {
+      logger.warn(`Config hot-reload failed: ${toErrorMessage(error)}`);
+      return;
+    }
+    const removedAccount =
+      Object.hasOwn(beforeConfig.providers ?? {}, previousProvider.id) &&
+      !Object.hasOwn(nextConfig.providers ?? {}, previousProvider.id);
+    state.setConfig(nextConfig);
+    deps.configStore.replace(nextConfig);
+    broadcast(clients, {
+      type: 'providers.saved',
+      payload: {
+        providers: withHostProviders(
+          projectSavedProviders(nextConfig.providers ?? {}),
+          standaloneHostProviders(nextConfig),
+        ),
+      },
+    } as WSServerMessage);
+    // Display language live-propagation: when config.uiLocale changes in
+    // another process, seed context.meta + broadcast prefs.updated so every
+    // connected client re-renders in the new language (handlePrefsUpdated →
+    // useLocalPrefs → i18n.changeLanguage).
+    const newUi = nextConfig.uiLocale;
+    if (newUi !== lastUiLocale) {
+      lastUiLocale = newUi;
+      if (newUi) {
+        deps.context.meta['uiLocale'] = newUi;
+        broadcast(clients, { type: 'prefs.updated', payload: { uiLocale: newUi } });
       }
-      const removedAccount =
-        Object.hasOwn(beforeConfig.providers ?? {}, previousProvider.id) &&
-        !Object.hasOwn(nextConfig.providers ?? {}, previousProvider.id);
-      state.setConfig(nextConfig);
-      deps.configStore.replace(nextConfig);
-      broadcast(clients, {
-        type: 'providers.saved',
-        payload: {
-          providers: withHostProviders(
-            projectSavedProviders(nextConfig.providers ?? {}),
-            standaloneHostProviders(nextConfig),
-          ),
-        },
-      } as WSServerMessage);
-      // Display language live-propagation: when config.uiLocale changes in
-      // another process, seed context.meta + broadcast prefs.updated so every
-      // connected client re-renders in the new language (handlePrefsUpdated →
-      // useLocalPrefs → i18n.changeLanguage).
-      const newUi = nextConfig.uiLocale;
-      if (newUi !== lastUiLocale) {
-        lastUiLocale = newUi;
-        if (newUi) {
-          deps.context.meta['uiLocale'] = newUi;
-          broadcast(clients, { type: 'prefs.updated', payload: { uiLocale: newUi } });
-        }
-      }
+    }
 
-      const activeId = deps.context.provider.id;
-      // Booted before any provider was set up, this engine still runs the inert
-      // setup stub. Once the saved config names a provider and model, take
-      // them: a Desktop spare engine warmed before the user picked a default is
-      // claimed for a new conversation as-is, and it announced "unconfigured",
-      // which the desktop shows as "Connect a provider" (#448). An unclaimed
-      // spare follows a changed default the same way, or the conversation it
-      // becomes starts on the default saved when it booted.
-      if (
-        adoptSavedDefault &&
-        nextConfig.provider &&
-        nextConfig.model &&
-        (activeId === UNCONFIGURED_PROVIDER_ID ||
-          (followSavedDefault?.() === true &&
-            (nextConfig.provider !== activeId || nextConfig.model !== deps.context.model)))
-      ) {
-        try {
-          await adoptSavedDefault(nextConfig.provider, nextConfig.model);
-          lastActiveCfg = activeProviderConfigKey(state.getConfig(), deps.context.provider.id);
-        } catch (err) {
-          logger.warn(
-            `Saved default ${nextConfig.provider}/${nextConfig.model} not adopted: ${toErrorMessage(err)}`,
-          );
-        }
-        return;
-      }
-      // An agent leader holds no credentials of its own, and a rebuilt one
-      // would orphan the live agent sessions the current instance owns.
-      if (isHostBuiltLeader(activeId)) return;
-      const newCfgStr = activeProviderConfigKey(nextConfig, activeId);
-      if (newCfgStr === lastActiveCfg && !removedAccount) return;
-      lastActiveCfg = newCfgStr;
+    const activeId = deps.context.provider.id;
+    // Booted before any provider was set up, this engine still runs the inert
+    // setup stub. Once the saved config names a provider and model, take
+    // them: a Desktop spare engine warmed before the user picked a default is
+    // claimed for a new conversation as-is, and it announced "unconfigured",
+    // which the desktop shows as "Connect a provider" (#448). An unclaimed
+    // spare follows a changed default the same way, or the conversation it
+    // becomes starts on the default saved when it booted.
+    if (
+      adoptSavedDefault &&
+      nextConfig.provider &&
+      nextConfig.model &&
+      (activeId === UNCONFIGURED_PROVIDER_ID ||
+        (followSavedDefault?.() === true &&
+          (nextConfig.provider !== activeId || nextConfig.model !== deps.context.model)))
+    ) {
       try {
-        if (removedAccount) throw new Error('Auth profile was removed');
-        const providerCfg: ProviderConfig = nextConfig.providers?.[activeId] ?? {
-          type: activeId,
-          ...(nextConfig.apiKey !== undefined ? { apiKey: nextConfig.apiKey } : {}),
-          ...(nextConfig.baseUrl !== undefined ? { baseUrl: nextConfig.baseUrl } : {}),
-        };
-        const factoryType = providerCfg.type ?? activeId;
-        // WrongProxy / WrongTrace: keep the hot-reloaded provider on the proxy
-        // too. A credential/config reload must not silently drop the rewrite
-        // and send the live session back to the upstream directly. The live
-        // config's top-level baseUrl is the fallback when the saved cfg
-        // carries no explicit one (same rule as the other WebUI sites).
-        const routedCfg = routeProviderCfgThroughProxy(
-          providerCfg,
-          factoryType === activeId ? state.getConfig().baseUrl : undefined,
-          activeId,
-        );
-        const built = deps.providerRegistry.has(factoryType)
-          ? deps.providerRegistry.create({ ...routedCfg, type: activeId } as never, factoryType)
-          : makeProviderFromConfig(activeId, { ...routedCfg, type: factoryType });
-        // A rebuilt transport starts with family defaults. Retain the active
-        // model's explicit capabilities when credentials or custom definitions change.
-        const newProv = deps.modelsRegistry
-          ? await withCatalogCapabilities(deps.modelsRegistry, activeId, built, {
-              ...routedCfg,
-              model: deps.context.model,
-            })
-          : built;
-        const previousProvider = deps.context.provider;
-        deps.context.provider = newProv;
-        // New credentials are a project fact — every open tab has to get them,
-        // not just the leader, or the tabs opened before the reload keep
-        // authenticating with the key that was just replaced.
-        const moved = fanOutProviderRebuild({
-          sessionAgentIds: deps.sessionAgentIds,
-          peekAgent: deps.peekAgent,
-          previous: previousProvider,
-          next: newProv,
-          applied: deps.context,
-        });
-        void updateAutoCompactionMaxContext(newProv).catch(() => undefined);
-        console.log(
-          `[WebUI] Provider credentials reloaded from config.json (${activeId})${
-            moved.length > 0 ? ` — applied to ${moved.length} background tab(s)` : ''
-          }`,
-        );
+        await adoptSavedDefault(nextConfig.provider, nextConfig.model);
+        lastActiveCfg = activeProviderConfigKey(state.getConfig(), deps.context.provider.id);
       } catch (err) {
-        const blocked = unavailableProviderCredentials(activeId, previousProvider.capabilities);
-        deps.context.provider = blocked;
-        fanOutProviderRebuild({
-          sessionAgentIds: deps.sessionAgentIds,
-          peekAgent: deps.peekAgent,
-          previous: previousProvider,
-          next: blocked,
-          applied: deps.context,
-        });
-        lastActiveCfg = '';
-        console.warn(
-          `[WebUI] Credential hot-reload failed for ${activeId}: ${toErrorMessage(err)}`,
+        logger.warn(
+          `Saved default ${nextConfig.provider}/${nextConfig.model} not adopted: ${toErrorMessage(err)}`,
         );
       }
-    },
-    { warn: (m) => logger.warn(`Config watcher: ${m}`) },
-  );
-  return credentialWatcher.close;
+      return;
+    }
+    // An agent leader holds no credentials of its own, and a rebuilt one
+    // would orphan the live agent sessions the current instance owns.
+    if (isHostBuiltLeader(activeId)) return;
+    const newCfgStr = activeProviderConfigKey(nextConfig, activeId);
+    if (newCfgStr === lastActiveCfg && !removedAccount) return;
+    lastActiveCfg = newCfgStr;
+    try {
+      if (removedAccount) throw new Error('Auth profile was removed');
+      const providerCfg: ProviderConfig = nextConfig.providers?.[activeId] ?? {
+        type: activeId,
+        ...(nextConfig.apiKey !== undefined ? { apiKey: nextConfig.apiKey } : {}),
+        ...(nextConfig.baseUrl !== undefined ? { baseUrl: nextConfig.baseUrl } : {}),
+      };
+      const factoryType = providerCfg.type ?? activeId;
+      // WrongProxy / WrongTrace: keep the hot-reloaded provider on the proxy
+      // too. A credential/config reload must not silently drop the rewrite
+      // and send the live session back to the upstream directly. The live
+      // config's top-level baseUrl is the fallback when the saved cfg
+      // carries no explicit one (same rule as the other WebUI sites).
+      const routedCfg = routeProviderCfgThroughProxy(
+        providerCfg,
+        factoryType === activeId ? state.getConfig().baseUrl : undefined,
+        activeId,
+      );
+      const built = deps.providerRegistry.has(factoryType)
+        ? deps.providerRegistry.create({ ...routedCfg, type: activeId } as never, factoryType)
+        : makeProviderFromConfig(activeId, { ...routedCfg, type: factoryType });
+      // A rebuilt transport starts with family defaults. Retain the active
+      // model's explicit capabilities when credentials or custom definitions change.
+      const newProv = deps.modelsRegistry
+        ? await withCatalogCapabilities(deps.modelsRegistry, activeId, built, {
+            ...routedCfg,
+            model: deps.context.model,
+          })
+        : built;
+      const previousProvider = deps.context.provider;
+      deps.context.provider = newProv;
+      // New credentials are a project fact — every open tab has to get them,
+      // not just the leader, or the tabs opened before the reload keep
+      // authenticating with the key that was just replaced.
+      const moved = fanOutProviderRebuild({
+        sessionAgentIds: deps.sessionAgentIds,
+        peekAgent: deps.peekAgent,
+        previous: previousProvider,
+        next: newProv,
+        applied: deps.context,
+      });
+      void updateAutoCompactionMaxContext(newProv).catch(() => undefined);
+      console.log(
+        `[WebUI] Provider credentials reloaded from config.json (${activeId})${
+          moved.length > 0 ? ` — applied to ${moved.length} background tab(s)` : ''
+        }`,
+      );
+    } catch (err) {
+      const blocked = unavailableProviderCredentials(activeId, previousProvider.capabilities);
+      deps.context.provider = blocked;
+      fanOutProviderRebuild({
+        sessionAgentIds: deps.sessionAgentIds,
+        peekAgent: deps.peekAgent,
+        previous: previousProvider,
+        next: blocked,
+        applied: deps.context,
+      });
+      lastActiveCfg = '';
+      logger.warn(`Credential hot-reload failed for ${activeId}: ${toErrorMessage(err)}`);
+    }
+  };
+  const credentialWatcher = watchProviderConfig(watchConfigPath, vault, onConfigChange, {
+    warn: (m) => logger.warn(`Config watcher: ${m}`),
+  });
+  // Leases change no file: run the same reload, whose config key carries the lease generation.
+  const offLeases = onLeasedCredentialsChanged(() => void onConfigChange());
+  return () => {
+    offLeases();
+    credentialWatcher.close();
+  };
 }

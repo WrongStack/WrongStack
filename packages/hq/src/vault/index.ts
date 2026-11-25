@@ -1,12 +1,19 @@
 export * from './client.js';
 export * from './crypto.js';
-export { hqBundleKeyToApiKey, mirrorHqProfile, resolveHqLocalId } from './device-mirror.js';
+export {
+  HQ_LEASED_KEY_MARKER,
+  hqBundleKeyToApiKey,
+  mirrorHqProfile,
+  resolveHqLocalId,
+} from './device-mirror.js';
 export {
   HQ_REQUEST_TIMEOUT_MS,
   HqCredentialService,
   type HqCredentialServiceDeps,
   type HqImportChange,
   type HqImportReport,
+  type HqLeasedValue,
+  type HqLeaseSink,
   HqVaultClientRequestError,
   HqVaultDeviceRevokedError,
   normalizeHqOrigin,

@@ -8,6 +8,7 @@ import {
   HqCredentialService as HqDeviceService,
   type HqCredentialServiceDeps as HqDeviceServiceDeps,
 } from '@wrongstack/hq';
+import { setLeasedCredentials } from '@wrongstack/providers';
 import { mutateConfigProviders } from '../provider-config-utils.js';
 
 export {
@@ -27,6 +28,8 @@ export class HqCredentialService extends HqDeviceService {
   constructor(deps: HqCredentialServiceDeps) {
     const { profileConfigPath, ...rest } = deps;
     super({
+      // Memory-only (lease) values go to this process's lease store.
+      onLeases: (hqId, leases, scope) => setLeasedCredentials(hqId, leases, scope),
       ...rest,
       mutateProviders: (mutator) => mutateConfigProviders(profileConfigPath, deps.vault, mutator),
     });

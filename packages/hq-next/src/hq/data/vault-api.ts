@@ -143,15 +143,21 @@ export function deleteVaultKey(profileId: string, keyId: string): Promise<{ dele
   );
 }
 
+/** `lease`: the device keeps the keys in memory only (omit to leave the policy as it is). */
 export function setVaultGrant(
   profileId: string,
   deviceId: string,
   granted: boolean,
+  lease?: boolean,
 ): Promise<{ profile: HqVaultProfileMeta }> {
   return sendJson(
     `${profilePath(profileId)}/devices/${encodeURIComponent(deviceId)}`,
     granted ? 'giving the provider to the device' : 'taking the provider back',
-    { method: 'PUT', headers: JSON_HEADERS, body: JSON.stringify({ granted }) },
+    {
+      method: 'PUT',
+      headers: JSON_HEADERS,
+      body: JSON.stringify(lease === undefined ? { granted } : { granted, lease }),
+    },
   );
 }
 

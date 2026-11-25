@@ -101,6 +101,15 @@ export {
   parseAntigravityQuota,
   reportAntigravityQuota,
 } from './google-antigravity-quota.js';
+export {
+  isLeasedEntry,
+  type LeasedCredential,
+  leasedCredentialId,
+  leasedCredentialsGeneration,
+  onLeasedCredentialsChanged,
+  onLeaseWanted,
+  setLeasedCredentials,
+} from './leased-credentials.js';
 export { MiniMaxProvider, type MiniMaxProviderOptions } from './minimax.js';
 export {
   type BuildBodyContext,

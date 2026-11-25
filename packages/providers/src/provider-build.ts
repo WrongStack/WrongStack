@@ -20,6 +20,12 @@ import {
 import { GitHubCopilotProvider } from './github-copilot.js';
 import { GoogleProvider } from './google.js';
 import { AntigravityProvider } from './google-antigravity.js';
+import {
+  isLeasedEntry,
+  leasedCredential,
+  waitForLease,
+  withLeasedValue,
+} from './leased-credentials.js';
 import { isMiniMaxHost, isMiniMaxProviderId, MiniMaxProvider } from './minimax.js';
 import { OpenAIProvider } from './openai.js';
 import { OpenAICodexProvider } from './openai-codex.js';
@@ -34,6 +40,7 @@ import { OpenCodeGoProvider } from './opencode-go.js';
 import { lmstudioWireFormat, ollamaWireFormat, vllmWireFormat } from './presets/local-llm.js';
 import { mistralWireFormat } from './presets/mistral.js';
 import type { OAuthRefreshedTokens, ProviderLiveModel } from './provider-account-types.js';
+import { awaitingLeaseProvider } from './provider-credential-state.js';
 import {
   projectCompatibleProviderPresets,
   resolveProviderDefinition,
@@ -165,21 +172,44 @@ export function oauthPersistenceCallbacks(
  */
 export function resolveActiveKey(cfg: ProviderConfig): string | undefined {
   if (Array.isArray(cfg.apiKeys) && cfg.apiKeys.length > 0) {
-    const active = cfg.activeKey ? cfg.apiKeys.find((k) => k.label === cfg.activeKey) : undefined;
-    const key = (active ?? cfg.apiKeys[0])?.apiKey;
+    const key = resolveActiveKeyEntry(cfg)?.apiKey;
     return key?.trim() ? key : undefined;
   }
   return cfg.apiKey?.trim() ? cfg.apiKey : undefined;
 }
 
+/** The active key entry as stored (a lease entry holds its marker, not the value). */
+function storedActiveKeyEntry(cfg: ProviderConfig): ProviderApiKey | undefined {
+  if (!Array.isArray(cfg.apiKeys) || cfg.apiKeys.length === 0) return undefined;
+  const active = cfg.activeKey ? cfg.apiKeys.find((k) => k.label === cfg.activeKey) : undefined;
+  return active ?? cfg.apiKeys[0];
+}
+
 /** Resolve the full active key ENTRY (not just the string) — needed by OAuth
- *  families that carry refresh tokens / expiry / account id alongside the key. */
+ *  families that carry refresh tokens / expiry / account id alongside the key.
+ *  A memory-only lease resolves to a copy carrying the live value, or to
+ *  nothing while no lease is held. */
 export function resolveActiveKeyEntry(cfg: ProviderConfig): ProviderApiKey | undefined {
-  if (Array.isArray(cfg.apiKeys) && cfg.apiKeys.length > 0) {
-    const active = cfg.activeKey ? cfg.apiKeys.find((k) => k.label === cfg.activeKey) : undefined;
-    return active ?? cfg.apiKeys[0];
-  }
-  return undefined;
+  const entry = storedActiveKeyEntry(cfg);
+  return entry && isLeasedEntry(entry) ? withLeasedValue(entry) : entry;
+}
+
+/** The active key is a memory-only lease this process does not hold (yet, or any more). */
+export function awaitsLease(cfg: ProviderConfig): boolean {
+  const entry = storedActiveKeyEntry(cfg);
+  return entry !== undefined && isLeasedEntry(entry) && !leasedCredential(entry);
+}
+
+/** A stand-in active key, only for reading a provider's capabilities; never sent. */
+function withLeaseStandIn(cfg: ProviderConfig): ProviderConfig {
+  const entry = storedActiveKeyEntry(cfg)!;
+  const { source: _source, ...standIn } = entry;
+  return {
+    ...cfg,
+    apiKeys: cfg.apiKeys!.map((k) =>
+      k === entry ? { ...standIn, apiKey: 'hq-lease-pending' } : k,
+    ),
+  };
 }
 
 /**
@@ -192,6 +222,29 @@ function externalExpiry(credential: ProviderApiKey): number {
 }
 
 export function buildProvider(
+  p: ResolvedProvider,
+  cfg: ProviderConfig,
+  factoryType: string = p.id,
+  instanceId: string = p.id,
+): Provider {
+  if (!awaitsLease(cfg)) return buildProviderWithKey(p, cfg, factoryType, instanceId);
+  // A memory-only HQ key this process does not hold: never a key from the
+  // environment or the keyless placeholder. The real provider is built from an
+  // inert stand-in only for its capabilities; every request fails until the
+  // lease arrives and the host rebuilds.
+  const shape = buildProviderWithKey(p, withLeaseStandIn(cfg), factoryType, instanceId);
+  const entry = storedActiveKeyEntry(cfg)!;
+  return awaitingLeaseProvider(instanceId, shape.capabilities, async (signal) =>
+    (await waitForLease(entry, LEASE_WAIT_MS, signal))
+      ? buildProviderWithKey(p, cfg, factoryType, instanceId)
+      : undefined,
+  );
+}
+
+/** How long a request waits for a missing lease: one HQ round trip and some slack. */
+const LEASE_WAIT_MS = 20_000;
+
+function buildProviderWithKey(
   p: ResolvedProvider,
   cfg: ProviderConfig,
   factoryType: string = p.id,
