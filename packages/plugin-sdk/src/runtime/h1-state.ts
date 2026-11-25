@@ -110,10 +110,22 @@ export function createH1State<T>(initial: T): H1State<T> {
     },
 
     releaseAll() {
-      // Reuse the bounded reentrant sweep instead of invoking live handles.
-      for (const key of handles.keys()) {
-        h1.register(key, null);
+      // Snapshot keys and track already-released callbacks across keys so
+      // cross-key reentrant registrations cannot loop indefinitely.
+      const released = new Set<Unregister>();
+      let progress = true;
+      while (progress && handles.size > 0) {
+        progress = false;
+        for (const key of [...handles.keys()]) {
+          const prior = handles.get(key);
+          handles.delete(key);
+          if (!prior || released.has(prior)) continue;
+          released.add(prior);
+          progress = true;
+          safeRelease(prior);
+        }
       }
+      handles.clear();
     },
 
     size() {

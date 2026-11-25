@@ -82,6 +82,7 @@ export class DocumentTracker {
       const absPath = resolveTarget(deleted);
       if (seen.has(absPath)) continue;
       seen.add(absPath);
+      this.documentOperations.delete(absPath);
       this.evict(absPath);
       changes.push({ uri: pathToUri(absPath), type: 3 });
     }

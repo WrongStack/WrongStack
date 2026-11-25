@@ -398,7 +398,12 @@ export class JsonlFindingStore implements FindingStore {
       return a.finding.createdAt.localeCompare(b.finding.createdAt);
     });
 
-    const limit = opts?.limit ?? FINDING_DEFAULT_PAGE_SIZE;
+    const rawLimit = opts?.limit;
+    if (typeof rawLimit === 'number' && Number.isFinite(rawLimit) && rawLimit <= 0) return [];
+    const limit =
+      typeof rawLimit === 'number' && Number.isFinite(rawLimit)
+        ? Math.floor(rawLimit)
+        : FINDING_DEFAULT_PAGE_SIZE;
     return entries.slice(0, limit);
   }
 
@@ -432,8 +437,18 @@ export class JsonlFindingStore implements FindingStore {
     eventsFolded: number;
   }> {
     return withFileLock(this.filePath, async () => {
-      const resolvedMaxAge = opts?.resolvedMaxAgeMs ?? FINDING_RESOLVED_RETENTION_MS;
-      const ignoredMaxAge = opts?.ignoredMaxAgeMs ?? FINDING_IGNORED_RETENTION_MS;
+      const resolvedMaxAge =
+        typeof opts?.resolvedMaxAgeMs === 'number' &&
+        Number.isFinite(opts.resolvedMaxAgeMs) &&
+        opts.resolvedMaxAgeMs >= 0
+          ? opts.resolvedMaxAgeMs
+          : FINDING_RESOLVED_RETENTION_MS;
+      const ignoredMaxAge =
+        typeof opts?.ignoredMaxAgeMs === 'number' &&
+        Number.isFinite(opts.ignoredMaxAgeMs) &&
+        opts.ignoredMaxAgeMs >= 0
+          ? opts.ignoredMaxAgeMs
+          : FINDING_IGNORED_RETENTION_MS;
       const nonTerminalMaxAge = opts?.nonTerminalMaxAgeMs;
       const now = Date.now();
 

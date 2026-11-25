@@ -159,8 +159,16 @@ export async function maybeCompactReviewStores(
   projectDir: string,
   opts: ReviewStoreMaintenanceOptions = {},
 ): Promise<ReviewStoreMaintenanceResult> {
-  const thresholdBytes = opts.thresholdBytes ?? REVIEW_STORE_COMPACTION_THRESHOLD_BYTES;
-  const intervalMs = opts.intervalMs ?? REVIEW_STORE_COMPACTION_INTERVAL_MS;
+  const thresholdBytes =
+    typeof opts.thresholdBytes === 'number' &&
+    Number.isFinite(opts.thresholdBytes) &&
+    opts.thresholdBytes >= 0
+      ? opts.thresholdBytes
+      : REVIEW_STORE_COMPACTION_THRESHOLD_BYTES;
+  const intervalMs =
+    typeof opts.intervalMs === 'number' && Number.isFinite(opts.intervalMs) && opts.intervalMs >= 0
+      ? opts.intervalMs
+      : REVIEW_STORE_COMPACTION_INTERVAL_MS;
   const now = opts.now ?? Date.now();
   const nonTerminalRetentionMs = resolveNonTerminalRetentionMs(opts);
   const nonTerminalFindingsRetentionMs = resolveFindingNonTerminalRetentionMs(opts);

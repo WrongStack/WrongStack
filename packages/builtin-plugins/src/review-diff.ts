@@ -5,12 +5,15 @@ export function truncateDiffSurrogateSafe(
   text: string;
   truncated: boolean;
 } {
-  if (text.length <= maxChars) return { text, truncated: false };
-  let end = maxChars;
-  const lastKept = text.charCodeAt(end - 1);
-  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  const limit = Number.isFinite(maxChars) ? Math.max(0, Math.floor(maxChars)) : 0;
+  if (text.length <= limit) return { text, truncated: false };
+  let end = limit;
+  if (end > 0) {
+    const lastKept = text.charCodeAt(end - 1);
+    if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  }
   return {
-    text: `${text.slice(0, end)}\n... (diff truncated at ${maxChars} bytes — please use the read tool to view full file content)`,
+    text: `${text.slice(0, end)}\n... (diff truncated at ${limit} bytes — please use the read tool to view full file content)`,
     truncated: true,
   };
 }

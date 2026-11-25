@@ -46,7 +46,8 @@ export function formatCodebaseLspResults(output: CodebaseLspSearchOutput, cwd: s
 
   for (const r of results) {
     const sourceTag = r.source === 'index' ? '[index]' : `[lsp:${r.server ?? '?'}]`;
-    const scoreTag = r.score !== undefined ? ` score=${r.score.toFixed(2)}` : '';
+    const scoreTag =
+      typeof r.score === 'number' && Number.isFinite(r.score) ? ` score=${r.score.toFixed(2)}` : '';
     const location = `${displayPath(r.file, cwd)}:${r.line}`;
 
     if (r.snippet) {

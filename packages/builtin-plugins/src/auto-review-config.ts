@@ -45,7 +45,8 @@ export const DEFAULT_CASCADE_ON: ResolvedAutoReviewConfig['cascadeOn'] = 'high';
 export const MAX_KNOWN_FINGERPRINTS = 5_000;
 
 export function trimKnownFingerprints(map: Map<string, string>, max: number): void {
-  while (map.size > max) {
+  const limit = Number.isFinite(max) && max >= 0 ? Math.floor(max) : MAX_KNOWN_FINGERPRINTS;
+  while (map.size > limit) {
     const oldest = map.keys().next().value;
     if (oldest === undefined) break;
     map.delete(oldest);
@@ -101,16 +102,17 @@ export function selectRoundRobinReviewerAssignment(
         return statusTracker.isAvailable(parsed.provider.trim(), parsed.model.trim());
       })
     : pool;
+  const safeCursor = Number.isFinite(cursor) ? Math.trunc(cursor) : 0;
   if (filteredPool.length === 0) {
     return {
       provider: fallbackProvider,
       model: fallbackModel,
       fallbackModels: [],
-      nextCursor: cursor + 1,
+      nextCursor: safeCursor + 1,
     };
   }
   const len = filteredPool.length;
-  const idx = ((cursor % len) + len) % len;
+  const idx = ((safeCursor % len) + len) % len;
   const primaryRef = filteredPool[idx]!;
   const parsed = parseModelRef(primaryRef);
   const provider = parsed.provider?.trim() || fallbackProvider;
@@ -162,11 +164,29 @@ export function resolveAutoReviewConfig(
     model: resolvedModel,
     fallbackModels,
     modelSelection: cfg.modelSelection === 'random' ? 'random' : 'round-robin',
-    debounceMs: cfg.debounceMs ?? DEFAULT_DEBOUNCE_MS,
-    maxFilesPerBatch: cfg.maxFilesPerBatch ?? DEFAULT_MAX_FILES_PER_BATCH,
-    maxConcurrentReviews: cfg.maxConcurrentReviews ?? DEFAULT_MAX_CONCURRENT_REVIEWS,
+    debounceMs:
+      typeof cfg.debounceMs === 'number' && Number.isFinite(cfg.debounceMs) && cfg.debounceMs >= 0
+        ? cfg.debounceMs
+        : DEFAULT_DEBOUNCE_MS,
+    maxFilesPerBatch:
+      typeof cfg.maxFilesPerBatch === 'number' &&
+      Number.isFinite(cfg.maxFilesPerBatch) &&
+      cfg.maxFilesPerBatch > 0
+        ? Math.floor(cfg.maxFilesPerBatch)
+        : DEFAULT_MAX_FILES_PER_BATCH,
+    maxConcurrentReviews:
+      typeof cfg.maxConcurrentReviews === 'number' &&
+      Number.isFinite(cfg.maxConcurrentReviews) &&
+      cfg.maxConcurrentReviews > 0
+        ? Math.floor(cfg.maxConcurrentReviews)
+        : DEFAULT_MAX_CONCURRENT_REVIEWS,
     cascadeOn: cfg.cascadeOn ?? DEFAULT_CASCADE_ON,
-    maxCascadeDepth: cfg.maxCascadeDepth ?? DEFAULT_MAX_CASCADE_DEPTH,
+    maxCascadeDepth:
+      typeof cfg.maxCascadeDepth === 'number' &&
+      Number.isFinite(cfg.maxCascadeDepth) &&
+      cfg.maxCascadeDepth >= 0
+        ? Math.floor(cfg.maxCascadeDepth)
+        : DEFAULT_MAX_CASCADE_DEPTH,
   };
 }
 

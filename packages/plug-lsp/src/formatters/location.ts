@@ -19,16 +19,19 @@ export function formatLocations(
   const lines = list.slice(0, effectiveLimit).map((loc) => {
     const uri = 'uri' in loc ? loc.uri : loc.targetUri;
     const range = 'range' in loc ? loc.range : loc.targetSelectionRange;
+    const safeLine =
+      typeof range.start.line === 'number' && Number.isFinite(range.start.line)
+        ? Math.max(0, Math.trunc(range.start.line))
+        : 0;
+    const safeChar =
+      typeof range.start.character === 'number' && Number.isFinite(range.start.character)
+        ? Math.max(0, Math.trunc(range.start.character))
+        : 0;
     // Columns go out in the same 1-based byte convention the tools take in,
     // so a location can be passed straight back to hover/definition/rename.
-    const text = /^file:/i.test(uri)
-      ? lineText?.(uriToPathOrUri(uri), range.start.line)
-      : undefined;
-    const column =
-      text !== undefined
-        ? lspColumnToHuman(text, range.start.character)
-        : range.start.character + 1;
-    return `${displayUri(uri, cwd)}:${range.start.line + 1}:${column}`;
+    const text = /^file:/i.test(uri) ? lineText?.(uriToPathOrUri(uri), safeLine) : undefined;
+    const column = text !== undefined ? lspColumnToHuman(text, safeChar) : safeChar + 1;
+    return `${displayUri(uri, cwd)}:${safeLine + 1}:${column}`;
   });
   if (list.length > effectiveLimit)
     lines.push(`... truncated ${list.length - effectiveLimit} more`);

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-25T15:39:39.506Z
+**Generated:** 2026-11-25T15:42:13.605Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6564 |
-| Production source lines | 1345765 |
-| Test files | 5945 |
+| Production source lines | 1345858 |
+| Test files | 5960 |
 | Workspace dependency edges | 261 |
 | Relative module edges | 19226 |
 | Non-command slash imports | 0 |
@@ -28,10 +28,10 @@
 | Package | Sources | Tests | Workspace dependencies |
 |---|---:|---:|---|
 | @wrongstack/acp | 64 | 91 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
-| @wrongstack/agent-catalog | 44 | 17 | @wrongstack/contracts, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/agent-catalog | 44 | 19 | @wrongstack/contracts, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/bench | 33 | 68 | @wrongstack/core |
 | @wrongstack/browser-tools | 14 | 23 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
-| @wrongstack/builtin-plugins | 40 | 45 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives |
+| @wrongstack/builtin-plugins | 40 | 52 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/chronicle | 54 | 61 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/cli | 654 | 726 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/bench, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/codebase-index-mcp, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/hq-next, @wrongstack/kanban, @wrongstack/kanban-mcp, @wrongstack/mailbox-mcp, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/requirement-intake-mcp, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sage-mcp, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/vibeui, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/worktree, @wrongstack/wrongtrace |
 | @wrongstack/client | 7 | 11 | @wrongstack/webui-protocol |
@@ -51,8 +51,8 @@
 | @wrongstack/mailbox-mcp | 7 | 12 | @wrongstack/coordination, @wrongstack/core, @wrongstack/mcp |
 | @wrongstack/mcp | 76 | 117 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/persistence | 10 | 28 | — |
-| @wrongstack/plug-lsp | 52 | 65 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
-| @wrongstack/plugin-sdk | 12 | 15 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
+| @wrongstack/plug-lsp | 52 | 70 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
+| @wrongstack/plugin-sdk | 12 | 16 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugins | 157 | 153 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 27 | 48 | — |
 | @wrongstack/project-surfaces | 263 | 36 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers, @wrongstack/tools |
@@ -111,8 +111,8 @@ None.
 | 898 | `apps/desktop-v2/src/SkillLibrary.tsx` |
 | 883 | `packages/builtin-plugins/src/review-followup-briefing.ts` |
 | 878 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
+| 872 | `packages/builtin-plugins/src/review-claim-registry.ts` |
 | 869 | `packages/runtime/src/chimera/execution-chimera-review.ts` |
-| 864 | `packages/builtin-plugins/src/review-claim-registry.ts` |
 | 853 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
 | 853 | `packages/plugins/src/adversary-mode/evaluator.ts` |
 | 853 | `packages/tools/src/design-reference.ts` |
@@ -148,7 +148,7 @@ None.
 
 ## Exports only tests reference
 
-- 1049 runtime exports are referenced by tests and by no other production file.
+- 1051 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

@@ -148,8 +148,16 @@ function resolveStore(
 } {
   return {
     storeDir: opts?.storeDir ?? path.join(cwd, '.wrongstack'),
-    ttlMs: opts?.ttlMs ?? DEFAULT_CLAIM_TTL_MS,
-    maxLedgerLines: opts?.maxLedgerLines ?? MAX_LEDGER_LINES,
+    ttlMs:
+      typeof opts?.ttlMs === 'number' && Number.isFinite(opts.ttlMs) && opts.ttlMs > 0
+        ? opts.ttlMs
+        : DEFAULT_CLAIM_TTL_MS,
+    maxLedgerLines:
+      typeof opts?.maxLedgerLines === 'number' &&
+      Number.isFinite(opts.maxLedgerLines) &&
+      opts.maxLedgerLines > 0
+        ? Math.floor(opts.maxLedgerLines)
+        : MAX_LEDGER_LINES,
   };
 }
 

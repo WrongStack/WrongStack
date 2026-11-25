@@ -58,7 +58,8 @@ export function captureWindowState(
   key: string,
   now: number = Date.now(),
 ): { count: number; lastCaptureAt: number | undefined; remaining: number } {
-  const window = currentWindow(key, now);
+  const safeNow = Number.isFinite(now) ? now : Date.now();
+  const window = currentWindow(key, safeNow);
   return {
     count: window.count,
     lastCaptureAt: window.lastCaptureAt,
@@ -67,9 +68,10 @@ export function captureWindowState(
 }
 
 export function recordCaptureAttempt(key: string, now: number = Date.now()): void {
-  const window = currentWindow(key, now);
+  const safeNow = Number.isFinite(now) ? now : Date.now();
+  const window = currentWindow(key, safeNow);
   window.count += 1;
-  window.lastCaptureAt = now;
+  window.lastCaptureAt = safeNow;
 }
 
 /** Drop every counter. Called on an explicit session boundary and by tests. */

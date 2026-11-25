@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T15:39:39.506Z",
+  "generatedAt": "2026-11-25T15:42:13.605Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6564,
-    "testFiles": 5945,
-    "sourceLines": 1345765,
+    "testFiles": 5960,
+    "sourceLines": 1345858,
     "workspaceEdges": 261,
     "moduleEdges": 19226,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 3,
     "testsWithoutTypecheck": 2,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1049
+    "testOnlyExports": 1051
   },
   "errors": [
     "2 unexcepted module cycle(s)"
@@ -119,7 +119,7 @@
       "name": "@wrongstack/agent-catalog",
       "dir": "packages/agent-catalog",
       "sourceFiles": 44,
-      "testFiles": 17,
+      "testFiles": 19,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/persistence",
@@ -134,7 +134,7 @@
         {
           "path": "packages/agent-catalog/tsconfig.test.json",
           "error": null,
-          "testFiles": 17
+          "testFiles": 19
         }
       ]
     },
@@ -186,7 +186,7 @@
       "name": "@wrongstack/builtin-plugins",
       "dir": "packages/builtin-plugins",
       "sourceFiles": 40,
-      "testFiles": 45,
+      "testFiles": 52,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -202,7 +202,7 @@
         {
           "path": "packages/builtin-plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 45
+          "testFiles": 52
         }
       ]
     },
@@ -691,7 +691,7 @@
       "name": "@wrongstack/plug-lsp",
       "dir": "packages/plug-lsp",
       "sourceFiles": 52,
-      "testFiles": 65,
+      "testFiles": 70,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -706,7 +706,7 @@
         {
           "path": "packages/plug-lsp/tsconfig.test.json",
           "error": null,
-          "testFiles": 65
+          "testFiles": 70
         }
       ]
     },
@@ -714,7 +714,7 @@
       "name": "@wrongstack/plugin-sdk",
       "dir": "packages/plugin-sdk",
       "sourceFiles": 12,
-      "testFiles": 15,
+      "testFiles": 16,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -729,7 +729,7 @@
         {
           "path": "packages/plugin-sdk/tsconfig.test.json",
           "error": null,
-          "testFiles": 15
+          "testFiles": 16
         }
       ]
     },
@@ -4429,6 +4429,12 @@
         ]
       },
       {
+        "file": "packages/agent-catalog/tests/capture-window-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/agent-catalog/tests/directive-lift.test.ts",
         "projects": [
           "root-node"
@@ -4472,6 +4478,12 @@
       },
       {
         "file": "packages/agent-catalog/tests/project-agent-config-io.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/agent-catalog/tests/project-agent-config-validation-nul.test.ts",
         "projects": [
           "root-node"
         ]
@@ -5065,6 +5077,12 @@
         ]
       },
       {
+        "file": "packages/builtin-plugins/tests/auto-review-config-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/builtin-plugins/tests/auto-review-plugin.test.ts",
         "projects": [
           "root-node"
@@ -5089,6 +5107,12 @@
         ]
       },
       {
+        "file": "packages/builtin-plugins/tests/claim-registry-nan-ttl.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/builtin-plugins/tests/cloud-config-sync-plugin-read-error.test.ts",
         "projects": [
           "root-node"
@@ -5102,6 +5126,12 @@
       },
       {
         "file": "packages/builtin-plugins/tests/cloud-config-sync-teardown-ownership.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/builtin-plugins/tests/finding-store-negative-limit.test.ts",
         "projects": [
           "root-node"
         ]
@@ -5155,6 +5185,18 @@
         ]
       },
       {
+        "file": "packages/builtin-plugins/tests/report-store-negative-limit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/builtin-plugins/tests/review-candidates-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/builtin-plugins/tests/review-changed-files-quoted-paths.test.ts",
         "projects": [
           "root-node"
@@ -5192,6 +5234,12 @@
       },
       {
         "file": "packages/builtin-plugins/tests/review-diff-header-lookalike-lines.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/builtin-plugins/tests/review-diff-truncate-bounds.test.ts",
         "projects": [
           "root-node"
         ]
@@ -5282,6 +5330,12 @@
       },
       {
         "file": "packages/builtin-plugins/tests/review-report-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/builtin-plugins/tests/review-store-maintenance-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19471,6 +19525,18 @@
         ]
       },
       {
+        "file": "packages/plug-lsp/tests/formatters-diagnostics-bounds.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plug-lsp/tests/formatters-symbols-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plug-lsp/tests/integration/crash-recovery.test.ts",
         "projects": [
           "root-node"
@@ -19502,6 +19568,18 @@
       },
       {
         "file": "packages/plug-lsp/tests/integration/tools-e2e.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plug-lsp/tests/lsp-diagnostics-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plug-lsp/tests/lsp-location-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19592,6 +19670,12 @@
       },
       {
         "file": "packages/plug-lsp/tests/unit/diagnostics-verification.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plug-lsp/tests/unit/document-tracker-delete-fence.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19850,6 +19934,12 @@
       },
       {
         "file": "packages/plugin-sdk/tests/credential-patterns-aws-stripe.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugin-sdk/tests/h1-releaseall-reentrant.test.ts",
         "projects": [
           "root-node"
         ]
@@ -38121,7 +38211,7 @@
     },
     {
       "file": "packages/builtin-plugins/src/review-claim-registry.ts",
-      "lines": 864,
+      "lines": 872,
       "relativeImports": 4
     },
     {
@@ -38607,14 +38697,14 @@
       "relativeImports": 12
     },
     {
+      "file": "packages/builtin-plugins/src/review-claim-registry.ts",
+      "lines": 872,
+      "relativeImports": 4
+    },
+    {
       "file": "packages/runtime/src/chimera/execution-chimera-review.ts",
       "lines": 869,
       "relativeImports": 3
-    },
-    {
-      "file": "packages/builtin-plugins/src/review-claim-registry.ts",
-      "lines": 864,
-      "relativeImports": 4
     },
     {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
@@ -39273,6 +39363,14 @@
     {
       "file": "packages/browser-tools/src/artifacts.ts",
       "name": "_resetArtifactSweepForTests"
+    },
+    {
+      "file": "packages/builtin-plugins/src/auto-review-config.ts",
+      "name": "DEFAULT_MAX_CONCURRENT_REVIEWS"
+    },
+    {
+      "file": "packages/builtin-plugins/src/auto-review-config.ts",
+      "name": "DEFAULT_MAX_FILES_PER_BATCH"
     },
     {
       "file": "packages/builtin-plugins/src/auto-review-git.ts",

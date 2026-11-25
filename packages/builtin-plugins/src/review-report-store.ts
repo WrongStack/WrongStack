@@ -359,7 +359,12 @@ export class JsonlReportStore implements ReportStore {
     // Sort newest first.
     reports.sort((a, b) => b.reviewedAt.localeCompare(a.reviewedAt));
 
-    const limit = opts?.limit ?? REPORT_DEFAULT_PAGE_SIZE;
+    const rawLimit = opts?.limit;
+    if (typeof rawLimit === 'number' && Number.isFinite(rawLimit) && rawLimit <= 0) return [];
+    const limit =
+      typeof rawLimit === 'number' && Number.isFinite(rawLimit)
+        ? Math.floor(rawLimit)
+        : REPORT_DEFAULT_PAGE_SIZE;
     return reports.slice(0, limit);
   }
 
@@ -392,7 +397,10 @@ export class JsonlReportStore implements ReportStore {
     nonTerminalMaxAgeMs?: number;
   }): Promise<{ removed: number; removedNonTerminal: number; eventsFolded: number }> {
     return withFileLock(this.filePath, async () => {
-      const maxAge = opts?.maxAgeMs ?? REPORT_RETENTION_MS;
+      const maxAge =
+        typeof opts?.maxAgeMs === 'number' && Number.isFinite(opts.maxAgeMs) && opts.maxAgeMs >= 0
+          ? opts.maxAgeMs
+          : REPORT_RETENTION_MS;
       // Bounded retention for reports that never reached a terminal state.
       // Left undefined, the historical behavior is preserved exactly: an
       // `open`/`actioned` report is kept at any age. Only the maintenance

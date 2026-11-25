@@ -144,7 +144,7 @@ function candidateTier(filePath: string): number {
 export function prioritizeReviewCandidates<
   T extends { path: string; status: 'added' | 'modified' },
 >(files: readonly T[], maxFiles: number): { selected: T[]; capped: T[] } {
-  const cap = Math.max(1, maxFiles);
+  const cap = Number.isFinite(maxFiles) ? Math.max(1, Math.floor(maxFiles)) : 1;
   const indexed = files.map((file, index) => ({ file, index, tier: candidateTier(file.path) }));
   indexed.sort((a, b) => a.tier - b.tier || a.index - b.index);
   return {

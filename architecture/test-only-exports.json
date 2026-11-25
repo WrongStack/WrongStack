@@ -307,6 +307,10 @@
     "packages/browser-tools/src/artifacts.ts": [
       "_resetArtifactSweepForTests"
     ],
+    "packages/builtin-plugins/src/auto-review-config.ts": [
+      "DEFAULT_MAX_CONCURRENT_REVIEWS",
+      "DEFAULT_MAX_FILES_PER_BATCH"
+    ],
     "packages/builtin-plugins/src/auto-review-git.ts": [
       "snapshotChangedFiles"
     ],
