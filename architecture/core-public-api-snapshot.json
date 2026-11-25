@@ -1108,7 +1108,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 112,
-      "sourceLines": 31466
+      "sourceLines": 31467
     },
     {
       "directory": "extension",
@@ -1150,7 +1150,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "preferred Runtime pilot",
       "sourceFiles": 15,
-      "sourceLines": 2419
+      "sourceLines": 2431
     },
     {
       "directory": "performance",

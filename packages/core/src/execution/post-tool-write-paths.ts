@@ -22,10 +22,11 @@ export function postToolWritePaths(
   const entries = toolName === 'patch' ? result.files : result.results;
   if (!Array.isArray(entries)) return {};
   const args = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
+  const directory = typeof args.directory === 'string' ? args.directory.trim() : '';
   const base =
     toolName === 'patch'
-      ? typeof args.directory === 'string' && args.directory.length > 0
-        ? path.resolve(context.projectRoot, args.directory)
+      ? directory.length > 0
+        ? path.resolve(context.projectRoot, directory)
         : context.cwd
       : context.projectRoot;
   const paths = new Set<string>();
@@ -35,7 +36,7 @@ export function postToolWritePaths(
       toolName === 'patch' ? entry : entry && typeof entry === 'object' ? entry.path : undefined;
     if (
       typeof value !== 'string' ||
-      value.length === 0 ||
+      value.trim().length === 0 ||
       value.length > 4096 ||
       value.includes('\0')
     ) {

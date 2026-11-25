@@ -13,6 +13,16 @@ const SEVERITY: Record<HealthStatus, number> = {
   unhealthy: 2,
 };
 
+const DEFAULT_HEALTH_TIMEOUT_MS = 5_000;
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
+function normalizeTimeoutMs(value: number | undefined): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    return DEFAULT_HEALTH_TIMEOUT_MS;
+  }
+  return Math.min(Math.trunc(value), MAX_TIMEOUT_MS);
+}
+
 /**
  * Aggregates registered health checks. Worst status wins — one unhealthy check
  * makes the whole system unhealthy. Use timeouts so a slow probe can't stall
@@ -23,7 +33,7 @@ export class DefaultHealthRegistry implements HealthRegistry {
   private readonly timeoutMs: number;
 
   constructor(opts: { timeoutMs?: number | undefined } = {}) {
-    this.timeoutMs = opts.timeoutMs ?? 5_000;
+    this.timeoutMs = normalizeTimeoutMs(opts.timeoutMs);
   }
 
   register(check: HealthCheck): void {
@@ -44,7 +54,9 @@ export class DefaultHealthRegistry implements HealthRegistry {
 
     let status: HealthStatus = 'healthy';
     for (const r of results) {
-      if (SEVERITY[r.status] > SEVERITY[status]) status = r.status;
+      if (Object.hasOwn(SEVERITY, r.status) && SEVERITY[r.status] > SEVERITY[status]) {
+        status = r.status;
+      }
     }
 
     return { status, timestamp: Date.now(), checks: results };

@@ -91,7 +91,7 @@ export function getToolErrorInfo(block: ToolResultBlock): ToolErrorInfo | undefi
 }
 
 function formatErrorPrefix(category: ToolErrorCategory, retryable: boolean): string {
-  const label = CATEGORY_LABELS[category] ?? 'Error';
+  const label = Object.hasOwn(CATEGORY_LABELS, category) ? CATEGORY_LABELS[category] : 'Error';
   return retryable ? `${label} (retryable)` : label;
 }
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T21:20:28.043Z",
+  "generatedAt": "2026-11-25T21:30:16.940Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6571,
-    "testFiles": 6390,
-    "sourceLines": 1348806,
+    "testFiles": 6393,
+    "sourceLines": 1348819,
     "workspaceEdges": 261,
     "moduleEdges": 19249,
     "nonCommandSlashImports": 0,
@@ -403,7 +403,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 665,
-      "testFiles": 852,
+      "testFiles": 855,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -420,7 +420,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 852
+          "testFiles": 855
         }
       ]
     },
@@ -12510,6 +12510,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/core-health-timeout-overflow.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/core-merge-custom-models-array.test.ts",
         "projects": [
           "root-node"
@@ -12517,6 +12523,18 @@
       },
       {
         "file": "packages/core/tests/core-path-segment-win-reserved-space.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/core-post-tool-write-blank-path.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/core-tool-error-proto-category.test.ts",
         "projects": [
           "root-node"
         ]
