@@ -10,8 +10,11 @@ function collectDependencies(
   collected: Map<string, DetectedDependency>,
 ): void {
   if (!isRecord(value)) return;
-  for (const [name, version] of Object.entries(value)) {
-    if (typeof version !== 'string' || !name.trim() || !version.trim()) continue;
+  for (const [rawName, rawVersion] of Object.entries(value)) {
+    if (typeof rawVersion !== 'string') continue;
+    const name = rawName.trim();
+    const version = rawVersion.trim();
+    if (!name || !version) continue;
     collected.set(name, { name, version, isDev });
   }
 }

@@ -46,5 +46,7 @@ export function getTargetFilesForStack(techStack: Pick<TechStackInfo, 'stack'>):
     unknown: ['**/*'],
   };
 
-  return filesByStack[techStack.stack] || filesByStack.unknown;
+  return Object.hasOwn(filesByStack, techStack.stack)
+    ? filesByStack[techStack.stack]
+    : filesByStack.unknown;
 }

@@ -40,22 +40,26 @@ export function toSpdx(snapshot: Snapshot): SpdxDocument {
     dataLicense: 'CC0-1.0',
     SPDXID: 'SPDXRef-DOCUMENT',
     name: `TechStack-SBOM-${snapshot.projectId}`,
-    documentNamespace: `https://wrongstack.dev/spdx/${snapshot.id}`,
+    documentNamespace: `https://wrongstack.dev/spdx/${encodeURIComponent(snapshot.id)}`,
     creationInfo: {
       created,
       creators: ['Tool: WrongStack TechStack Engine'],
     },
-    packages: snapshot.dependencies.map((dep, index) => ({
-      name: dep.name,
-      SPDXID: `SPDXRef-Package-${index}`,
-      versionInfo: dep.locked ?? dep.installed ?? dep.requested,
-      downloadLocation: dep.purl ? `https://purl.io/${dep.purl}` : 'NOASSERTION',
-      filesAnalyzed: false,
-      licenseConcluded: dep.license ?? 'NOASSERTION',
-      licenseDeclared: dep.license ?? 'NOASSERTION',
-      supplier: 'NOASSERTION',
-      copyrightText: 'NOASSERTION',
-    })),
+    packages: snapshot.dependencies.map((dep, index) => {
+      const purl = dep.purl?.trim();
+      const license = dep.license?.trim();
+      return {
+        name: dep.name,
+        SPDXID: `SPDXRef-Package-${index}`,
+        versionInfo: dep.locked ?? dep.installed ?? dep.requested,
+        downloadLocation: purl ? `https://purl.io/${purl}` : 'NOASSERTION',
+        filesAnalyzed: false,
+        licenseConcluded: license || 'NOASSERTION',
+        licenseDeclared: license || 'NOASSERTION',
+        supplier: 'NOASSERTION',
+        copyrightText: 'NOASSERTION',
+      };
+    }),
   };
 }
 

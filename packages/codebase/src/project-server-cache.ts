@@ -32,7 +32,8 @@ export class GenerationLruCache<T> {
    * generation before it is too old to serve.
    */
   peekEntry(key: string): { generation: number; value: T } | undefined {
-    return this.entries.get(key);
+    const entry = this.entries.get(key);
+    return entry ? { generation: entry.generation, value: entry.value } : undefined;
   }
 
   set(key: string, generation: number, value: T): T {

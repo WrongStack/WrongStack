@@ -25,23 +25,30 @@ export const GENESIS_HASH = '0'.repeat(64);
  * `JSON.stringify(event)` in V8 property order. The stored bytes are a record;
  * the preimage is always re-derived from the parsed event.
  */
-function stableStringify(value: unknown): string {
+function stableStringify(value: unknown, seen = new WeakSet<object>()): string {
   if (value === undefined || typeof value === 'function' || typeof value === 'symbol') {
     return 'null';
   }
+  if (typeof value === 'bigint') return JSON.stringify(value.toString());
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => (item === undefined || typeof item === 'function' || typeof item === 'symbol' ? 'null' : stableStringify(item))).join(',')}]`;
+  if (seen.has(value)) return '"[Circular]"';
+  seen.add(value);
+  try {
+    if (Array.isArray(value)) {
+      return `[${value.map((item) => (item === undefined || typeof item === 'function' || typeof item === 'symbol' ? 'null' : stableStringify(item, seen))).join(',')}]`;
+    }
+    const obj = value as Record<string, unknown>;
+    return `{${Object.keys(obj)
+      .sort()
+      .filter((key) => {
+        const v = obj[key];
+        return v !== undefined && typeof v !== 'function' && typeof v !== 'symbol';
+      })
+      .map((key) => `${JSON.stringify(key)}:${stableStringify(obj[key], seen)}`)
+      .join(',')}}`;
+  } finally {
+    seen.delete(value);
   }
-  const obj = value as Record<string, unknown>;
-  return `{${Object.keys(obj)
-    .sort()
-    .filter((key) => {
-      const v = obj[key];
-      return v !== undefined && typeof v !== 'function' && typeof v !== 'symbol';
-    })
-    .map((key) => `${JSON.stringify(key)}:${stableStringify(obj[key])}`)
-    .join(',')}}`;
 }
 
 export function hashValue(value: unknown): string {

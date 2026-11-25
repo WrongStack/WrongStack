@@ -31,13 +31,19 @@ export function normalizeDiagnosticPath(value: string, root: string): string {
 }
 
 export function normalizeSeverity(value: string | undefined): LanguageDiagnostic['severity'] {
-  if (value === 'warning' || value === 'warn') return 'warning';
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === 'warning' || normalized === 'warn') return 'warning';
   // rustc closes a failed build with a span-less `failure-note` ("For more
   // information about this error, try `rustc --explain …`"): a pointer, not a
   // diagnostic. Read as `error` it inflated every failed cargo build by one.
-  if (value === 'info' || value === 'note' || value === 'help' || value === 'failure-note')
+  if (
+    normalized === 'info' ||
+    normalized === 'note' ||
+    normalized === 'help' ||
+    normalized === 'failure-note'
+  )
     return 'info';
-  if (value === 'hint') return 'hint';
+  if (normalized === 'hint') return 'hint';
   return 'error';
 }
 

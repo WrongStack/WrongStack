@@ -177,7 +177,14 @@ function nonMarkerLineCount(text: string): number {
  * regression — so a bad LLM merge can never silently stick. OFF by default.
  */
 export function makeLlmConflictResolver(opts: LlmConflictResolverOptions) {
-  const minFraction = opts.minRetainedFraction ?? 0.5;
+  const rawMinFraction = opts.minRetainedFraction;
+  const minFraction =
+    typeof rawMinFraction === 'number' &&
+    Number.isFinite(rawMinFraction) &&
+    rawMinFraction >= 0 &&
+    rawMinFraction <= 1
+      ? rawMinFraction
+      : 0.5;
   const io = opts.io ?? defaultFileIO;
 
   return async function conflictResolver(info: {

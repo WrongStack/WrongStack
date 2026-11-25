@@ -7,13 +7,11 @@ export interface ChronicleContext {
 }
 
 /** Create a root correlation context for a session, run, or background worker. */
-export function createChronicleContext(
-  scope: ChronicleScope,
-  traceId: string = randomUUID(),
-): ChronicleContext {
+export function createChronicleContext(scope: ChronicleScope, traceId?: string): ChronicleContext {
+  const safeTraceId = typeof traceId === 'string' && traceId.trim() ? traceId.trim() : randomUUID();
   return {
     scope: { ...scope },
-    correlation: { traceId, spanId: randomUUID() },
+    correlation: { traceId: safeTraceId, spanId: randomUUID() },
   };
 }
 

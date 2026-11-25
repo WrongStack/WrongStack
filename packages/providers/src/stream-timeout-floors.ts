@@ -14,17 +14,14 @@
  * reads this, so the checks are restated here as plain patterns.
  */
 
+import { upstreamHost } from './proxy-upstream.js';
 import { DEFAULT_HEADERS_TIMEOUT_MS, DEFAULT_STREAM_HANG_TIMEOUT_MS } from './stream-timeouts.js';
 
 export const SLOW_BACKEND_HANG_TIMEOUT_MS = 240_000;
 export const SLOW_BACKEND_HEADERS_TIMEOUT_MS = 180_000;
 
 function hostOf(url: string): string {
-  try {
-    return new URL(url).hostname.toLowerCase();
-  } catch {
-    return '';
-  }
+  return upstreamHost(url) ?? '';
 }
 
 /** MiniMax by catalog id family or API host; Z.AI / BigModel by host or id. */

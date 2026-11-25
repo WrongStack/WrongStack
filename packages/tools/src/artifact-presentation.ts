@@ -24,7 +24,10 @@ export function parseArtifactPresentation(output: unknown): ArtifactPresentation
   const p = value as Record<string, unknown>;
   if (p['type'] !== 'artifact.presentation' || (p['version'] !== 1 && p['version'] !== 2))
     return null;
-  if (p['version'] === 2 && !['text', 'image', 'diff', 'browser'].includes(String(p['kind'])))
+  if (
+    p['version'] === 2 &&
+    (typeof p['kind'] !== 'string' || !['text', 'image', 'diff', 'browser'].includes(p['kind']))
+  )
     return null;
   if (
     p['kind'] === 'browser' &&
@@ -35,7 +38,7 @@ export function parseArtifactPresentation(output: unknown): ArtifactPresentation
     if (typeof p[field] !== 'string' || !p[field].trim() || /[\x00-\x1f\x7f]/.test(p[field]))
       return null;
   }
-  const filePath = p['path'] as string;
+  const filePath = (p['path'] as string).trim();
   if (
     filePath.length > 4096 ||
     filePath.startsWith('/') ||

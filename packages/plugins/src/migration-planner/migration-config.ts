@@ -19,7 +19,9 @@ export const DEFAULTS: MigrationPlannerConfig = {
 };
 
 export function readConfig(raw: unknown): MigrationPlannerConfig {
-  if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
+  if (!raw || typeof raw !== 'object') {
+    return { ...DEFAULTS, changelogPaths: [...DEFAULTS.changelogPaths] };
+  }
   const r = raw as Record<string, unknown>;
   const rawPaths = r['changelogPaths'] ?? r['changelog_paths'] ?? r['paths'];
   const rawMax = r['maxChars'] ?? r['max_chars'] ?? r['limit'];
@@ -32,7 +34,7 @@ export function readConfig(raw: unknown): MigrationPlannerConfig {
           .filter((x): x is string => typeof x === 'string')
           .map((x) => x.trim())
           .filter((x) => x.length > 0)
-      : DEFAULTS.changelogPaths,
+      : [...DEFAULTS.changelogPaths],
     maxChars:
       typeof rawMax === 'number' &&
       Number.isFinite(rawMax) &&

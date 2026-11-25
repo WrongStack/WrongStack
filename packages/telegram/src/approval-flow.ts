@@ -153,9 +153,8 @@ export class ApprovalFlow {
       throw new Error(`Telegram approval request ${input.requestId} is already pending.`);
     return new Promise((resolve) => {
       const MAX_TIMEOUT_CHUNK_MS = 2_147_483_647;
-      let remainingMs = Number.isFinite(input.expiresAt)
-        ? Math.max(0, input.expiresAt - Date.now())
-        : 0;
+      const expiresAt = Number.isFinite(input.expiresAt) ? input.expiresAt : 0;
+      let remainingMs = Math.max(0, expiresAt - Date.now());
       const request: TelegramApprovalRequest = {
         requestId: input.requestId,
         sessionId: input.sessionId,
@@ -163,7 +162,7 @@ export class ApprovalFlow {
         expectedUserIds: new Set(expectedUserIds),
         allowGroup: input.allowGroup,
         pendingCallbacks: [],
-        expiresAt: input.expiresAt,
+        expiresAt,
         state: 'pending',
         resolve,
         timer: undefined as unknown as ReturnType<typeof setTimeout>,

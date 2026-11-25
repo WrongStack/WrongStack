@@ -80,12 +80,13 @@ export function rememberTurnState(
   req: Request,
   value: string | undefined,
 ): void {
-  if (!value || req.messages.length === 0) return;
+  const trimmed = value?.trim();
+  if (!trimmed || req.messages.length === 0) return;
   const key = host.turnStateKey(req);
   // Re-insert so the map stays in least-recently-used order for the eviction
   // below; a Map preserves insertion order and delete+set moves the entry.
   host.turnState.delete(key);
-  host.turnState.set(key, value);
+  host.turnState.set(key, trimmed);
   while (host.turnState.size > CODEX_TURN_STATE_MAX_SESSIONS) {
     const oldest = host.turnState.keys().next().value;
     if (oldest === undefined) break;

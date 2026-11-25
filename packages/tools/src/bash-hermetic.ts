@@ -65,7 +65,7 @@ export function hermeticEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
  * hermetic env does not carry), so they need no flag.
  */
 export function hermeticPosixArgv(shellBin: string): string[] {
-  const name = shellBin.split('/').pop() ?? '';
+  const name = (shellBin.split(/[\\/]/).pop() ?? '').toLowerCase().replace(/\.exe$/, '');
   if (name === 'bash') return ['--noprofile', '--norc', '-c'];
   if (name === 'zsh') return ['-f', '-c'];
   if (name === 'fish') return ['--no-config', '-c'];

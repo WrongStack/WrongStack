@@ -40,13 +40,13 @@ const ATTR_ALT = /(?<![-\w])alt\s*=/i;
 // empty `aria-label=""` (or `aria-labelledby=""`, which references nothing)
 // names nothing for assistive tech, so mere presence is not a label. Same
 // non-empty rule `hasMeaningfulAlt` already applies to `alt`.
-const ATTR_ARIA_LABEL = /\b(?:aria-label|aria-labelledby)\s*=\s*["']?([^"'\s>]*)["']?/i;
+const ATTR_ARIA_LABEL = /(?<![-\w])(?:aria-label|aria-labelledby)\s*=\s*["']?([^"'\s>]*)["']?/i;
 // Captures the idref VALUE, not just the attribute's presence: an empty
 // `aria-describedby=""` references nothing, so it is not a description at
 // all. Treating it as one both displaced the error-severity
 // `missing-input-label` with a warning and emitted a message claiming the
 // element "uses aria-describedby as a description" — false for an empty one.
-const ATTR_ARIA_DESCRIBEDBY = /\baria-describedby\s*=\s*["']?([^"'\s>]*)["']?/i;
+const ATTR_ARIA_DESCRIBEDBY = /(?<![-\w])aria-describedby\s*=\s*["']?([^"'\s>]*)["']?/i;
 // `(?<![-\w])`, not `\b`, for the same reason as ATTR_ID and ATTR_ALT above: a
 // hyphen is a word boundary, so `\btitle` also matched `data-title="…"` (and
 // `data-x-title=`). A data-* attribute is invisible to assistive tech, so
@@ -82,7 +82,7 @@ const ATTR_PLACEHOLDER = /(?<![-\w])placeholder\s*=\s*["']?([^"'\s>]*)["']?/i;
 // the rule itself asks for. Same non-empty rule hasAccessibleName and
 // hasTitleName apply to the other two accepted attributes.
 const ATTR_VALUE = /(?<![-\w])value\s*=\s*["']?([^"'\s>]*)["']?/i;
-const ATTR_ROLE_DECORATIVE = /\brole\s*=\s*["'](?:presentation|none)["']/i;
+const ATTR_ROLE_DECORATIVE = /(?<![-\w])role\s*=\s*["'](?:presentation|none)["']/i;
 export const LABEL_SPAN = /<label\b[^>]*>[\s\S]*?<\/label>/gi;
 export const FIELDSET_SPAN = /<fieldset\b[^>]*>[\s\S]*?<\/fieldset>/gi;
 export const SINGLE_FILE_LABEL_NOTE =

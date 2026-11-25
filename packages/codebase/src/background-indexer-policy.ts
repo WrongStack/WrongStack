@@ -42,7 +42,11 @@ export function resolveLastError(
   localAt: number,
 ): string | null {
   if (!remote) return local;
-  if (local !== null && localAt > (remote.updatedAt ?? 0)) return local;
+  const remoteAt =
+    typeof remote.updatedAt === 'number' && Number.isFinite(remote.updatedAt)
+      ? remote.updatedAt
+      : 0;
+  if (local !== null && localAt > remoteAt) return local;
   return remote.lastError;
 }
 

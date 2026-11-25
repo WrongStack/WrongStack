@@ -1,9 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { restrictFilePermissions } from '@wrongstack/core/security';
 import type { PromptEntry, PromptLoader, PromptVariable } from '@wrongstack/contracts/types/prompt';
 import type { SlashCommand } from '@wrongstack/contracts/types/slash-command';
 import type { Context } from '@wrongstack/core/agent';
+import { restrictFilePermissions } from '@wrongstack/core/security';
 import { type DefaultPromptStore, migratePromptEntry } from '@wrongstack/core/storage';
 import {
   expectDefined,
@@ -49,12 +49,16 @@ export function buildPromptsCommand(
 
         case 'view':
         case 'show': {
-          if (!restJoined) return { message: 'Usage: /prompts view <title>' };
+          if (!restJoined) return { message: 'Usage: /prompts view <slug-or-title>' };
+          const byId = await loader?.find(restJoined);
+          if (byId) return { message: formatPrompt(byId) };
           const matches = await store.find(restJoined);
-          if (matches.length === 0) return { message: `No prompt matching "${restJoined}".` };
+          const title = restJoined.toLowerCase();
           const entry =
-            matches.find((m) => m.title.toLowerCase() === restJoined.toLowerCase()) ??
-            expectDefined(matches[0]);
+            matches.find((m) => m.title.toLowerCase() === title) ??
+            (await loader?.list())?.find((m) => m.title.toLowerCase() === title) ??
+            matches[0];
+          if (!entry) return { message: `No prompt matching "${restJoined}".` };
           return { message: formatPrompt(entry) };
         }
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T20:55:24.704Z",
+  "generatedAt": "2026-11-25T20:58:30.916Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6570,
-    "testFiles": 6297,
-    "sourceLines": 1348111,
+    "testFiles": 6320,
+    "sourceLines": 1348162,
     "workspaceEdges": 261,
-    "moduleEdges": 19241,
+    "moduleEdges": 19242,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 10,
+    "testsWithoutTypecheck": 12,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1060
   },
@@ -208,7 +208,7 @@
       "name": "@wrongstack/chronicle",
       "dir": "packages/chronicle",
       "sourceFiles": 54,
-      "testFiles": 64,
+      "testFiles": 66,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -224,7 +224,7 @@
         {
           "path": "packages/chronicle/tsconfig.test.json",
           "error": null,
-          "testFiles": 64
+          "testFiles": 66
         }
       ]
     },
@@ -313,7 +313,7 @@
       "name": "@wrongstack/codebase",
       "dir": "packages/codebase",
       "sourceFiles": 115,
-      "testFiles": 9,
+      "testFiles": 11,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/persistence",
@@ -735,7 +735,7 @@
       "name": "@wrongstack/plugins",
       "dir": "packages/plugins",
       "sourceFiles": 157,
-      "testFiles": 165,
+      "testFiles": 168,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -753,7 +753,7 @@
         {
           "path": "packages/plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 165
+          "testFiles": 168
         }
       ]
     },
@@ -805,7 +805,7 @@
       "name": "@wrongstack/providers",
       "dir": "packages/providers",
       "sourceFiles": 142,
-      "testFiles": 159,
+      "testFiles": 162,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -819,7 +819,7 @@
         {
           "path": "packages/providers/tsconfig.test.json",
           "error": null,
-          "testFiles": 159
+          "testFiles": 162
         }
       ]
     },
@@ -965,7 +965,7 @@
       "name": "@wrongstack/sdd",
       "dir": "packages/sdd",
       "sourceFiles": 45,
-      "testFiles": 63,
+      "testFiles": 64,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -984,7 +984,7 @@
         {
           "path": "packages/sdd/tsconfig.test.json",
           "error": null,
-          "testFiles": 63
+          "testFiles": 64
         }
       ]
     },
@@ -992,7 +992,7 @@
       "name": "@wrongstack/security-scanner",
       "dir": "packages/security-scanner",
       "sourceFiles": 21,
-      "testFiles": 41,
+      "testFiles": 44,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -1006,7 +1006,7 @@
         {
           "path": "packages/security-scanner/tsconfig.test.json",
           "error": null,
-          "testFiles": 41
+          "testFiles": 44
         }
       ]
     },
@@ -1014,7 +1014,7 @@
       "name": "@wrongstack/techstack",
       "dir": "packages/techstack",
       "sourceFiles": 55,
-      "testFiles": 69,
+      "testFiles": 70,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1030,7 +1030,7 @@
         {
           "path": "packages/techstack/tsconfig.test.json",
           "error": null,
-          "testFiles": 69
+          "testFiles": 70
         }
       ]
     },
@@ -1038,7 +1038,7 @@
       "name": "@wrongstack/telegram",
       "dir": "packages/telegram",
       "sourceFiles": 28,
-      "testFiles": 53,
+      "testFiles": 55,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1053,7 +1053,7 @@
         {
           "path": "packages/telegram/tsconfig.test.json",
           "error": null,
-          "testFiles": 53
+          "testFiles": 55
         }
       ]
     },
@@ -1082,7 +1082,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 347,
-      "testFiles": 408,
+      "testFiles": 414,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/browser-tools",
@@ -1104,7 +1104,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 408
+          "testFiles": 414
         }
       ]
     },
@@ -5376,6 +5376,12 @@
         ]
       },
       {
+        "file": "packages/chronicle/tests/chronicle-blank-trace-id.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/chronicle/tests/chronicle-hash-undef.test.ts",
         "projects": [
           "root-node"
@@ -5437,6 +5443,12 @@
       },
       {
         "file": "packages/chronicle/tests/domain-adapter.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/chronicle/tests/event-hash-circular.test.ts",
         "projects": [
           "root-node"
         ]
@@ -10332,6 +10344,12 @@
         ]
       },
       {
+        "file": "packages/codebase/tests/codebase-lru-peek-alias.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/codebase/tests/parser-output-boundaries.test.ts",
         "projects": [
           "root-node"
@@ -10345,6 +10363,12 @@
       },
       {
         "file": "packages/codebase/tests/project-server-cache-bounds.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/codebase/tests/resolve-last-error-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20976,6 +21000,12 @@
         ]
       },
       {
+        "file": "packages/plugins/tests/a11y-data-role-aria.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plugins/tests/accessibility-auditor.test.ts",
         "projects": [
           "root-node"
@@ -21649,6 +21679,18 @@
       },
       {
         "file": "packages/plugins/tests/plugin-teardown.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugins/tests/plugins-host-state-bad-signal.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugins/tests/plugins-migration-defaults-alias.test.ts",
         "projects": [
           "root-node"
         ]
@@ -23304,6 +23346,18 @@
         ]
       },
       {
+        "file": "packages/providers/tests/providers-codex-blank-turn-state.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/providers-timeout-floor-proxy.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/providers/tests/proxy-upstream.test.ts",
         "projects": [
           "root-node"
@@ -23479,6 +23533,12 @@
       },
       {
         "file": "packages/providers/tests/trusted-presets.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/warm-connection-nan-now.test.ts",
         "projects": [
           "root-node"
         ]
@@ -25530,6 +25590,12 @@
         ]
       },
       {
+        "file": "packages/sdd/tests/conflict-resolver-nan-fraction.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sdd/tests/conflict-resolver-unfence-surrounding.test.ts",
         "projects": [
           "root-node"
@@ -25950,6 +26016,12 @@
         ]
       },
       {
+        "file": "packages/security-scanner/tests/gitignore-updater-undef-entries.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/security-scanner/tests/gitignore-updater-write-failure.test.ts",
         "projects": [
           "root-node"
@@ -26071,6 +26143,18 @@
       },
       {
         "file": "packages/security-scanner/tests/scanner.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/security-scanner/tests/secscan-manifest-trim.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/security-scanner/tests/secscan-targets-proto.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26508,6 +26592,12 @@
         ]
       },
       {
+        "file": "packages/techstack/tests/spdx-uri-blank-fields.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/techstack/tests/status-installed-version.test.ts",
         "projects": [
           "root-node"
@@ -26545,6 +26635,12 @@
       },
       {
         "file": "packages/techstack/tests/trend-vulnerable-siblings.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/telegram/tests/approval-flow-nan-expires.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26623,6 +26719,12 @@
       },
       {
         "file": "packages/telegram/tests/telegram-approve-sessionless-ctx.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/telegram/tests/telegram-bucket-sub1-burst.test.ts",
         "projects": [
           "root-node"
         ]
@@ -27042,6 +27144,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/background-log-toolname-sanitize.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/background-log.test.ts",
         "projects": [
           "root-node"
@@ -27049,6 +27157,12 @@
       },
       {
         "file": "packages/tools/tests/bash-backpressure.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/bash-hermetic-win-path.test.ts",
         "projects": [
           "root-node"
         ]
@@ -29233,6 +29347,30 @@
       },
       {
         "file": "packages/tools/tests/tool-working-directory.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/tools-artifact-whitespace-path.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/tools-diag-severity-case.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/tools-fallback-list-alias.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/tools-kanban-gate-null-proto.test.ts",
         "projects": [
           "root-node"
         ]
@@ -39203,6 +39341,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "packages/codebase/tests/codebase-lru-peek-alias.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "packages/codebase/tests/parser-output-boundaries.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -39218,6 +39363,13 @@
       },
       {
         "file": "packages/codebase/tests/project-server-cache-bounds.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "packages/codebase/tests/resolve-last-error-nan.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

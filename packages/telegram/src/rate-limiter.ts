@@ -65,7 +65,7 @@ export function createTokenBucket(opts?: RateLimiterOptions): TokenBucket {
       ? opts.tokensPerSecond
       : 0.33;
   const burst =
-    typeof opts?.burst === 'number' && Number.isFinite(opts.burst) && opts.burst >= 0
+    typeof opts?.burst === 'number' && Number.isFinite(opts.burst) && opts.burst >= 1
       ? opts.burst
       : 4;
 

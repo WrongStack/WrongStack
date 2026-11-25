@@ -23,8 +23,14 @@ function agentSettableGate(
 ): { completionGate: { enforcement: 'strict' | 'soft' } } | Record<string, never> {
   if (enforcement === undefined) return {};
   if (enforcement !== 'strict' && enforcement !== 'soft') {
+    let label: string;
+    try {
+      label = String(enforcement);
+    } catch {
+      label = '<unprintable>';
+    }
     throw invalidInput(
-      `gateEnforcement "${String(enforcement)}" is not settable from the kanban tool; only "strict" or "soft" (switching the completion gate off is a human decision made through board config).`,
+      `gateEnforcement "${label}" is not settable from the kanban tool; only "strict" or "soft" (switching the completion gate off is a human decision made through board config).`,
       'gateEnforcement',
     );
   }

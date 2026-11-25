@@ -15,7 +15,10 @@ export class GitignoreUpdater {
   private options: GitignoreUpdaterOptions;
 
   constructor(options: Partial<GitignoreUpdaterOptions> = {}) {
-    this.options = { ...DEFAULT_OPTIONS, ...options };
+    this.options = {
+      gitignorePath: options.gitignorePath ?? DEFAULT_OPTIONS.gitignorePath,
+      entries: [...(options.entries ?? DEFAULT_OPTIONS.entries)],
+    };
   }
 
   async update(): Promise<{ added: string[]; existing: string[]; errors: string[] }> {

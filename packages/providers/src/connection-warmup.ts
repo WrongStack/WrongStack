@@ -51,12 +51,13 @@ export function warmConnection(
   fetchImpl: typeof fetch = fetch,
   now: number = Date.now(),
 ): Promise<void> {
+  const safeNow = Number.isFinite(now) ? now : Date.now();
   const origin = originOf(baseUrl);
   if (!origin) return Promise.resolve();
   const pending = inFlight.get(origin);
   if (pending) return pending;
   const last = lastWarmAt.get(origin);
-  if (last !== undefined && now - last < WARM_INTERVAL_MS) return Promise.resolve();
+  if (last !== undefined && safeNow - last < WARM_INTERVAL_MS) return Promise.resolve();
 
   if (lastWarmAt.size >= MAX_TRACKED_ORIGINS) lastWarmAt.clear();
   const warm = Promise.resolve().then(async () => {
@@ -84,7 +85,7 @@ export function warmConnection(
       // staying in `lastWarmAt` would silently throttle the next attempt
       // inside the interval even though no warm connection is available.
       succeeded = true;
-      lastWarmAt.set(origin, now);
+      lastWarmAt.set(origin, safeNow);
     } catch {
       // Best-effort by contract. Drop any stale throttle entry for this
       // origin so a transient outage can be retried without waiting out the

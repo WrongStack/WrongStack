@@ -45,6 +45,8 @@ export function createHostStates<T extends HostState>(
 }
 
 export function providerSignal(state: HostState, context: unknown): AbortSignal {
-  const signal = (context as { signal?: AbortSignal } | null)?.signal;
-  return signal ? AbortSignal.any([state.abort.signal, signal]) : state.abort.signal;
+  const signal = (context as { signal?: unknown } | null)?.signal;
+  return signal instanceof AbortSignal
+    ? AbortSignal.any([state.abort.signal, signal])
+    : state.abort.signal;
 }

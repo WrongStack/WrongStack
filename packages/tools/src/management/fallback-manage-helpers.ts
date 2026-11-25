@@ -33,7 +33,7 @@ export function notFavoriteError(ref: string, config: Config): string {
 }
 
 export function modelList(config: Config): string[] {
-  return config.favoriteModels ?? [];
+  return [...(config.favoriteModels ?? [])];
 }
 
 export function profileList(config: Config): Record<string, string[]> {
@@ -41,5 +41,5 @@ export function profileList(config: Config): Record<string, string[]> {
 }
 
 export function chainList(config: Config): string[] {
-  return config.fallbackModels ?? [];
+  return [...(config.fallbackModels ?? [])];
 }

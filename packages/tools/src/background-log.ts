@@ -83,8 +83,9 @@ export function openBackgroundLog(
     fs.mkdirSync(dir, { recursive: true });
     prune(dir, new Set(inUse));
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const safeTool = toolName.replace(/[^A-Za-z0-9_-]/g, '_') || 'tool';
     // A timestamp/PID pair can repeat between launches in the same clock tick.
-    const file = path.join(dir, `${stamp}-${randomUUID()}-${toolName}-${process.pid}.log`);
+    const file = path.join(dir, `${stamp}-${randomUUID()}-${safeTool}-${process.pid}.log`);
     return { path: file, fd: fs.openSync(file, 'ax', 0o600) };
   } catch {
     return undefined;
