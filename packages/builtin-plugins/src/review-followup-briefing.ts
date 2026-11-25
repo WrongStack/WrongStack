@@ -141,6 +141,12 @@ export function extractChimeraReportIdFromPrompt(text: string): string | undefin
  * leader's final response text. Returns `null` when no valid block is present.
  */
 export function extractChimeraFollowupOutcomes(text: string): ChimeraFollowupOutcomeItem[] | null {
+  const safePrefix = (value: string, max: number): string => {
+    let end = Math.min(value.length, max);
+    const lastKept = value.charCodeAt(end - 1);
+    if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+    return value.slice(0, end);
+  };
   if (!text) return null;
 
   const parseCandidate = (rawJson: string): ChimeraFollowupOutcomeItem[] | null => {
@@ -171,7 +177,7 @@ export function extractChimeraFollowupOutcomes(text: string): ChimeraFollowupOut
       if (!id || !normalizedOutcome) continue;
       const reason =
         typeof rec['reason'] === 'string' && rec['reason'].trim().length > 0
-          ? rec['reason'].trim().slice(0, 500)
+          ? safePrefix(rec['reason'].trim(), 500)
           : undefined;
       items.push({
         id,

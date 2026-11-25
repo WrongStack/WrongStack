@@ -11,6 +11,7 @@
  */
 import { execFile } from 'node:child_process';
 import { buildChildEnv } from '@wrongstack/core/utils';
+import { nonnegativeFiniteLimit, safePrefix } from '../runtime/string-boundaries.js';
 
 export type DesktopPlatform = 'win32' | 'darwin' | 'linux';
 
@@ -73,7 +74,9 @@ export function toastText(text: string, max: number): string {
     .replace(/[`*_#>]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
-  return line.length > max ? `${line.slice(0, max - 1)}…` : line;
+  const limit = nonnegativeFiniteLimit(max);
+  if (limit === 0) return '';
+  return line.length > limit ? `${safePrefix(line, limit - 1)}…` : line;
 }
 
 export interface DesktopNotifierOptions {
@@ -96,7 +99,12 @@ export class DesktopNotifier {
 
   constructor(opts: DesktopNotifierOptions = {}) {
     this.#command = desktopCommand(opts.platform ?? process.platform);
-    this.#minIntervalMs = opts.minIntervalMs ?? 10_000;
+    this.#minIntervalMs =
+      typeof opts.minIntervalMs === 'number' &&
+      Number.isFinite(opts.minIntervalMs) &&
+      opts.minIntervalMs >= 0
+        ? opts.minIntervalMs
+        : 10_000;
     this.#onError = opts.onError ?? (() => {});
     this.#exec = opts.exec ?? execFile;
   }

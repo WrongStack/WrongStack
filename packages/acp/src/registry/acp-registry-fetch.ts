@@ -126,6 +126,7 @@ export function mapRegistryEntry(
 ): ACPAgentDescriptor | null {
   if (!entry || typeof entry.id !== 'string' || entry.id.trim().length === 0) return null;
   const id = entry.id.trim();
+  if (/[\u0000-\u001f\u007f]/.test(id)) return null;
   const dist = entry.distribution;
   let acp: { command: string; args?: string[]; env?: Record<string, string> } | null = null;
 

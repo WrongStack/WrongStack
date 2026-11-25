@@ -1,3 +1,5 @@
+import { nonnegativeFiniteLimit, safePrefix } from '../runtime/string-boundaries.js';
+
 export function formatDuration(startedAt: string | null, lastActivityAt: string | null): string {
   if (!startedAt) return '0s';
   const start = Date.parse(startedAt);
@@ -16,6 +18,7 @@ export function formatDuration(startedAt: string | null, lastActivityAt: string 
 }
 
 export function topN<T>(map: Map<string, T>, n: number): Array<[string, T]> {
+  const limit = nonnegativeFiniteLimit(n);
   return [...map.entries()]
     .sort((a, b) => {
       // Sort by numeric value when possible
@@ -24,9 +27,21 @@ export function topN<T>(map: Map<string, T>, n: number): Array<[string, T]> {
       if (typeof av === 'number' && typeof bv === 'number') return bv - av;
       return 0;
     })
-    .slice(0, n);
+    .slice(0, limit);
 }
 
 export function truncate(s: string, max: number): string {
-  return s.length > max ? s.slice(0, max) + `\n\n[truncated ${s.length - max} chars]` : s;
+  const limit = nonnegativeFiniteLimit(max);
+  if (s.length <= limit) return s;
+  if (limit === 0) return '';
+
+  let end = limit;
+  while (end > 0) {
+    const prefix = safePrefix(s, end);
+    const suffix = `\n\n[truncated ${s.length - prefix.length} chars]`;
+    if (prefix.length + suffix.length <= limit) return `${prefix}${suffix}`;
+    const next = Math.max(0, limit - suffix.length);
+    end = next < end ? next : end - 1;
+  }
+  return safePrefix(s, limit);
 }

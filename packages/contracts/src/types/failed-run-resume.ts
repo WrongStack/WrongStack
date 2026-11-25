@@ -20,6 +20,10 @@ export const MAX_FAILED_RUN_RESUME_DELAY_MS = 120_000;
 /** Base wait for hosts whose ordinary auto-proceed delay is near zero. */
 export const DEFAULT_FAILED_RUN_RESUME_BASE_MS = 15_000;
 
+function failedRunResumeAttempt(attempt: number): number {
+  return Number.isFinite(attempt) ? Math.max(1, Math.floor(attempt)) : 1;
+}
+
 /**
  * Whether a finished run is one an automatic resume can fix: it `failed` (a
  * run the user stopped comes back `aborted`) on a provider error the provider
@@ -44,7 +48,7 @@ export function isResumableRunFailure(
  */
 export function failedRunResumeDelayMs(attempt: number, baseMs: number): number {
   const base = Number.isFinite(baseMs) && baseMs > 0 ? baseMs : 0;
-  const step = Math.max(1, Math.floor(attempt));
+  const step = failedRunResumeAttempt(attempt);
   return Math.min(MAX_FAILED_RUN_RESUME_DELAY_MS, base * 2 ** (step - 1));
 }
 
@@ -55,8 +59,12 @@ export function failedRunResumeDelayMs(attempt: number, baseMs: number): number 
  * still in the transcript, so it asks to carry on, not to start over.
  */
 export function failedRunResumePrompt(attempt: number, reason?: string): string {
-  const step = Math.max(1, Math.floor(attempt));
-  const cause = reason?.trim() ? ` (${reason.trim().slice(0, 200)})` : '';
+  const step = failedRunResumeAttempt(attempt);
+  const trimmedReason = reason?.trim().replace(/\s+/g, ' ') ?? '';
+  let reasonEnd = Math.min(trimmedReason.length, 200);
+  const lastReasonUnit = trimmedReason.charCodeAt(reasonEnd - 1);
+  if (lastReasonUnit >= 0xd800 && lastReasonUnit <= 0xdbff) reasonEnd -= 1;
+  const cause = trimmedReason ? ` (${trimmedReason.slice(0, reasonEnd)})` : '';
   return [
     `Automatic resume ${step} of ${MAX_FAILED_RUN_RESUMES}: the previous run stopped on a provider error${cause} after its retries, not on a decision of yours.`,
     'Continue the original task from where it stopped; do not redo work that is already done, and do not stop to ask whether to continue.',

@@ -67,26 +67,27 @@ export async function loadCachedAcpRegistry(paths: WstackPaths): Promise<LoadedA
     const validAgents: ACPAgentDescriptor[] = [];
     const seenIds = new Set<string>();
     for (const a of env.agents) {
+      const id = typeof a?.id === 'string' ? a.id.trim() : '';
+      const command = typeof a?.acp?.command === 'string' ? a.acp.command.trim() : '';
       if (
         !a ||
-        typeof a.id !== 'string' ||
-        !a.id.trim() ||
-        typeof a.acp?.command !== 'string' ||
-        !a.acp.command.trim() ||
-        a.acp.command.includes('\0') ||
+        !id ||
+        /[\u0000-\u001f\u007f]/.test(id) ||
+        !command ||
+        command.includes('\0') ||
         !validArgs(a.acp.args) ||
         !validEnv(a.acp.env) ||
-        seenIds.has(a.id)
+        seenIds.has(id)
       ) {
         continue;
       }
-      seenIds.add(a.id);
-      byId[a.id] = {
-        command: a.acp.command,
+      seenIds.add(id);
+      byId[id] = {
+        command,
         args: Array.isArray(a.acp.args) ? a.acp.args : [],
         ...(a.acp.env ? { env: a.acp.env } : {}),
       };
-      validAgents.push(a);
+      validAgents.push({ ...a, id, acp: { ...a.acp, command } });
     }
     return {
       fetchedAt: typeof env.fetchedAt === 'string' ? env.fetchedAt : '',

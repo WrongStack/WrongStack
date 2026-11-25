@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T10:27:08.919Z",
+  "generatedAt": "2026-11-25T10:30:22.907Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6555,
-    "testFiles": 5857,
-    "sourceLines": 1343374,
+    "sourceFiles": 6556,
+    "testFiles": 5868,
+    "sourceLines": 1343481,
     "workspaceEdges": 261,
-    "moduleEdges": 19183,
+    "moduleEdges": 19189,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 2,
@@ -95,7 +95,7 @@
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
       "sourceFiles": 59,
-      "testFiles": 82,
+      "testFiles": 83,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -111,7 +111,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 82
+          "testFiles": 83
         }
       ]
     },
@@ -119,7 +119,7 @@
       "name": "@wrongstack/agent-catalog",
       "dir": "packages/agent-catalog",
       "sourceFiles": 44,
-      "testFiles": 16,
+      "testFiles": 17,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/persistence",
@@ -134,7 +134,7 @@
         {
           "path": "packages/agent-catalog/tsconfig.test.json",
           "error": null,
-          "testFiles": 16
+          "testFiles": 17
         }
       ]
     },
@@ -186,7 +186,7 @@
       "name": "@wrongstack/builtin-plugins",
       "dir": "packages/builtin-plugins",
       "sourceFiles": 40,
-      "testFiles": 44,
+      "testFiles": 45,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -202,7 +202,7 @@
         {
           "path": "packages/builtin-plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 44
+          "testFiles": 45
         }
       ]
     },
@@ -357,7 +357,7 @@
       "name": "@wrongstack/contracts",
       "dir": "packages/contracts",
       "sourceFiles": 133,
-      "testFiles": 7,
+      "testFiles": 10,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/primitives"
@@ -371,7 +371,7 @@
         {
           "path": "packages/contracts/tsconfig.test.json",
           "error": null,
-          "testFiles": 7
+          "testFiles": 10
         }
       ]
     },
@@ -736,8 +736,8 @@
     {
       "name": "@wrongstack/plugins",
       "dir": "packages/plugins",
-      "sourceFiles": 156,
-      "testFiles": 152,
+      "sourceFiles": 157,
+      "testFiles": 153,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -755,7 +755,7 @@
         {
           "path": "packages/plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 152
+          "testFiles": 153
         }
       ]
     },
@@ -873,7 +873,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 126,
-      "testFiles": 80,
+      "testFiles": 84,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -907,7 +907,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 80
+          "testFiles": 84
         }
       ]
     },
@@ -3977,6 +3977,12 @@
         ]
       },
       {
+        "file": "packages/acp/tests/acp-registry-id-control.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/acp-registry-launch-content.test.ts",
         "projects": [
           "root-node"
@@ -4362,6 +4368,12 @@
       },
       {
         "file": "packages/agent-catalog/tests/directive-lift.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/agent-catalog/tests/dispatch-consolidation-boundaries.test.ts",
         "projects": [
           "root-node"
         ]
@@ -5028,6 +5040,12 @@
       },
       {
         "file": "packages/builtin-plugins/tests/cloud-config-sync-teardown-ownership.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/builtin-plugins/tests/followup-reason-unicode.test.ts",
         "projects": [
           "root-node"
         ]
@@ -10098,6 +10116,24 @@
       },
       {
         "file": "packages/contracts/tests/mailbox-unread.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/contracts/tests/numeric-boundaries.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/contracts/tests/resume-provider-unicode.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/contracts/tests/session-marker-unicode.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19739,6 +19775,12 @@
         ]
       },
       {
+        "file": "packages/plugins/tests/boundary-normalization-audit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plugins/tests/branch-guard-attached-create.test.ts",
         "projects": [
           "root-node"
@@ -22073,6 +22115,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/acp-registry-cache-normalization.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/acp-runtime-config.test.ts",
         "projects": [
           "root-node"
@@ -22098,6 +22146,18 @@
       },
       {
         "file": "packages/runtime/tests/automation-crash-recovery.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/automation-duration-boundary.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/automation-final-text-unicode.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22164,6 +22224,12 @@
       },
       {
         "file": "packages/runtime/tests/automation-stop-claim.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/automation-tuneup-unicode.test.ts",
         "projects": [
           "root-node"
         ]
@@ -37577,7 +37643,7 @@
     },
     {
       "file": "packages/builtin-plugins/src/review-followup-briefing.ts",
-      "lines": 877,
+      "lines": 883,
       "relativeImports": 5
     },
     {
@@ -38038,6 +38104,11 @@
       "relativeImports": 10
     },
     {
+      "file": "packages/builtin-plugins/src/review-followup-briefing.ts",
+      "lines": 883,
+      "relativeImports": 5
+    },
+    {
       "file": "packages/acp/src/client/acp-session.ts",
       "lines": 881,
       "relativeImports": 25
@@ -38046,11 +38117,6 @@
       "file": "apps/desktop-v2/src/ProjectDesignStudio.tsx",
       "lines": 878,
       "relativeImports": 12
-    },
-    {
-      "file": "packages/builtin-plugins/src/review-followup-briefing.ts",
-      "lines": 877,
-      "relativeImports": 5
     },
     {
       "file": "packages/runtime/src/chimera/execution-chimera-review.ts",

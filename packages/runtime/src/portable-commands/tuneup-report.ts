@@ -48,6 +48,13 @@ const LARGE_INSTRUCTION_CHARS = 12_000;
 /** …or longer than this many lines. */
 const LARGE_INSTRUCTION_LINES = 400;
 
+function safePrefix(value: string, max: number): string {
+  let end = Math.min(value.length, max);
+  const lastKept = value.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+}
+
 // ── Item 1: unused skills / MCP / plugins ────────────────────────────────────
 
 export function checkSkills(input: TuneupInput): TuneupFinding[] {
@@ -172,7 +179,7 @@ export function checkMemoryDedup(input: TuneupInput): TuneupFinding[] {
 
   const sample = dupes
     .slice(0, 3)
-    .map(([line]) => `  · ${line.length > 72 ? `${line.slice(0, 69)}…` : line}`)
+    .map(([line]) => `  · ${line.length > 72 ? `${safePrefix(line, 69)}…` : line}`)
     .join('\n');
 
   return [
@@ -247,7 +254,7 @@ export function checkHooks(input: TuneupInput): TuneupFinding[] {
 
 function previewCommand(command: string): string {
   const one = command.replace(/\s+/g, ' ').trim();
-  return one.length > 48 ? `${one.slice(0, 45)}…` : one;
+  return one.length > 48 ? `${safePrefix(one, 45)}…` : one;
 }
 
 // ── Item 5: version ──────────────────────────────────────────────────────────

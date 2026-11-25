@@ -41,6 +41,7 @@
  * @public
  */
 import type { Plugin } from '@wrongstack/contracts/types';
+import { nonnegativeFiniteLimit, safePrefix } from '../runtime/string-boundaries.js';
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern)
@@ -283,8 +284,12 @@ export function extractToolContent(
   toolResult: unknown,
   maxChars = Number.POSITIVE_INFINITY,
 ): string {
-  const limit = Number.isFinite(maxChars) ? Math.max(0, maxChars) : Number.POSITIVE_INFINITY;
-  const clip = (value: string) => value.slice(0, limit);
+  const limit =
+    maxChars === Number.POSITIVE_INFINITY
+      ? Number.POSITIVE_INFINITY
+      : nonnegativeFiniteLimit(maxChars);
+  const clip = (value: string) =>
+    limit === Number.POSITIVE_INFINITY ? value : safePrefix(value, limit);
   if (!toolResult) return '';
   if (typeof toolResult === 'string') return clip(toolResult);
   if (typeof toolResult === 'object') {

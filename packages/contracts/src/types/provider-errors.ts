@@ -396,8 +396,12 @@ export class ProviderError extends WrongStackError {
     const kind = describeStatus(this.status, this.body?.type);
     const head = `${this.providerId} ${kind}`;
     const detail = this.body?.message?.trim();
-    const reqId = this.body?.requestId
-      ? ` [req ${this.body.requestId.slice(0, 16)}${this.body.requestId.length > 16 ? '…' : ''}]`
+    const requestId = this.body?.requestId;
+    let requestIdEnd = Math.min(requestId?.length ?? 0, 16);
+    const lastRequestIdUnit = requestId?.charCodeAt(requestIdEnd - 1) ?? 0;
+    if (lastRequestIdUnit >= 0xd800 && lastRequestIdUnit <= 0xdbff) requestIdEnd -= 1;
+    const reqId = requestId
+      ? ` [req ${requestId.slice(0, requestIdEnd)}${requestId.length > 16 ? '…' : ''}]`
       : '';
     if (detail && detail.length > 0) {
       return `${head}: ${truncate(detail, 240)}${reqId}`;

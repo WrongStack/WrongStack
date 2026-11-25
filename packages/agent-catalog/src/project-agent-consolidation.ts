@@ -148,13 +148,16 @@ export function loadConsolidationMetadata(
       '',
     );
     const parsed = JSON.parse(raw) as unknown;
+    const metadata = parsed as ConsolidationMetadata;
     if (
       typeof parsed === 'object' &&
       parsed !== null &&
-      typeof (parsed as ConsolidationMetadata).consolidatedAt === 'string' &&
-      typeof (parsed as ConsolidationMetadata).sourceEntryCount === 'number'
+      typeof metadata.consolidatedAt === 'string' &&
+      Number.isFinite(Date.parse(metadata.consolidatedAt)) &&
+      Number.isSafeInteger(metadata.sourceEntryCount) &&
+      metadata.sourceEntryCount >= 0
     ) {
-      return parsed as ConsolidationMetadata;
+      return metadata;
     }
     return undefined;
   } catch {

@@ -14,6 +14,7 @@ import {
   runOptionalPluginLlm,
 } from '../runtime/llm.js';
 import { safePath } from '../runtime/sandbox.js';
+import { nonnegativeFiniteLimit, safePrefix } from '../runtime/string-boundaries.js';
 
 const MAX_INPUT_CHARS = 1_000_000;
 
@@ -103,6 +104,8 @@ export function analyzeEvidence(
   maxFindings: number,
   now: () => number = Date.now,
 ): { findings: EvidenceFinding[]; partial: boolean } {
+  const findingLimit = nonnegativeFiniteLimit(maxFindings);
+  if (findingLimit === 0) return { findings: [], partial: false };
   const starts = [0];
   for (let index = content.indexOf('\n'); index !== -1; index = content.indexOf('\n', index + 1)) {
     starts.push(index + 1);
@@ -152,10 +155,10 @@ export function analyzeEvidence(
             rule: rule.label,
             severity: rule.severity,
             line: lineIndex + 1,
-            excerpt: redactExcerpt(lineAt(lineIndex).trim()).slice(0, 240),
+            excerpt: safePrefix(redactExcerpt(lineAt(lineIndex).trim()), 240),
             advice: rule.advice,
           });
-          if (findings.length >= maxFindings) return { findings, partial: false };
+          if (findings.length >= findingLimit) return { findings, partial: false };
         }
       }
     }

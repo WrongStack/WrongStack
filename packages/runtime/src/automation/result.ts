@@ -17,6 +17,13 @@ export interface AutomationResult {
   validation: import('@wrongstack/webui-protocol').AutomationValidation;
 }
 
+function safePrefix(value: string, max: number): string {
+  let end = Math.min(value.length, max);
+  const lastKept = value.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+}
+
 export function buildAutomationResult(
   output: string,
   patch: string | null,
@@ -111,10 +118,11 @@ export function buildAutomationResult(
   return {
     version: 1,
     agentStatus: typeof payload['status'] === 'string' ? payload['status'] : null,
-    sessionId: typeof payload['sessionId'] === 'string' ? payload['sessionId'].slice(0, 256) : null,
+    sessionId:
+      typeof payload['sessionId'] === 'string' ? safePrefix(payload['sessionId'], 256) : null,
     finalText:
-      typeof payload['finalText'] === 'string' ? payload['finalText'].slice(0, 16_384) : null,
-    durationMs: Math.max(0, Math.round(durationMs)),
+      typeof payload['finalText'] === 'string' ? safePrefix(payload['finalText'], 16_384) : null,
+    durationMs: Number.isFinite(durationMs) ? Math.max(0, Math.round(durationMs)) : 0,
     usage: {
       inputTokens: number(usage['input']),
       outputTokens: number(usage['output']),

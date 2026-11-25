@@ -159,8 +159,13 @@ export function readConfig(raw: unknown): SessionRecapConfig {
     enabled: r['enabled'] !== false,
     subjectPrefix: typeof rawPrefix === 'string' ? rawPrefix : DEFAULTS.subjectPrefix,
     includeTranscriptTail:
-      typeof rawTail === 'number' && rawTail >= 0 ? rawTail : DEFAULTS.includeTranscriptTail,
-    maxBodyChars: typeof rawBody === 'number' && rawBody > 0 ? rawBody : DEFAULTS.maxBodyChars,
+      typeof rawTail === 'number' && Number.isFinite(rawTail) && rawTail >= 0
+        ? rawTail
+        : DEFAULTS.includeTranscriptTail,
+    maxBodyChars:
+      typeof rawBody === 'number' && Number.isFinite(rawBody) && rawBody > 0
+        ? rawBody
+        : DEFAULTS.maxBodyChars,
     aiSummary: rawAi === true,
   };
 }

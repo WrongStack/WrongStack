@@ -23,7 +23,7 @@
       "relativeImports": 4
     },
     "packages/builtin-plugins/src/review-followup-briefing.ts": {
-      "lines": 877,
+      "lines": 883,
       "relativeImports": 5
     },
     "packages/chronicle/src/project-server-client.ts": {

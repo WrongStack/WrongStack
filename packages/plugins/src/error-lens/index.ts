@@ -44,6 +44,7 @@
  * @public
  */
 import type { HookInvocationContext, Plugin } from '@wrongstack/contracts/types';
+import { nonnegativeFiniteLimit, safePrefix } from '../runtime/string-boundaries.js';
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern)
@@ -159,7 +160,7 @@ const FRAME_PATTERNS: RegExp[] = [
 export function extractErrorLine(output: string): string | null {
   for (const re of ERROR_LINE_PATTERNS) {
     const m = re.exec(output);
-    if (m?.[1]) return m[1].trim().slice(0, 300);
+    if (m?.[1]) return safePrefix(m[1].trim(), 300);
   }
   return null;
 }
@@ -170,6 +171,7 @@ export function extractErrorLine(output: string): string | null {
  * duplicates removed, capped at `maxFrames`.
  */
 export function extractFrames(output: string, maxFrames: number): string[] {
+  const limit = nonnegativeFiniteLimit(maxFrames);
   const seen = new Set<string>();
   const project: string[] = [];
   const vendor: string[] = [];
@@ -194,7 +196,7 @@ export function extractFrames(output: string, maxFrames: number): string[] {
       m = re.exec(output);
     }
   }
-  return [...project, ...vendor].slice(0, maxFrames);
+  return [...project, ...vendor].slice(0, limit);
 }
 
 function failureKey(errorLine: string | null, frames: string[]): string {

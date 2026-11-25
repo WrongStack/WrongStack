@@ -126,6 +126,13 @@ export const CHAT_MARKER_SOURCES: ReadonlySet<SessionEvent['type']> = new Set(
   [...SESSION_MARKER_EVENT_TYPES].filter((type) => !CHAT_EXCLUDED_MARKER_SOURCES.has(type)),
 );
 
+function safePrefix(value: string, max: number): string {
+  let end = Math.min(value.length, max);
+  const lastKept = value.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+}
+
 /**
  * Project one session event to a marker, or `null` when the event carries no
  * timeline meaning (conversation turns, lifecycle bookkeeping, unknown types).
@@ -133,8 +140,10 @@ export const CHAT_MARKER_SOURCES: ReadonlySet<SessionEvent['type']> = new Set(
 export function sessionEventToMarker(ev: SessionEvent): SessionMarker | null {
   switch (ev.type) {
     case 'compaction': {
-      const before = (ev.before / 1000).toFixed(0);
-      const after = (ev.after / 1000).toFixed(0);
+      const before = (
+        (Number.isFinite(ev.before) && ev.before >= 0 ? ev.before : 0) / 1000
+      ).toFixed(0);
+      const after = ((Number.isFinite(ev.after) && ev.after >= 0 ? ev.after : 0) / 1000).toFixed(0);
       const level = ev.level ? ` (${ev.level})` : '';
       const reductions =
         ev.reductions && ev.reductions.length > 0
@@ -157,7 +166,8 @@ export function sessionEventToMarker(ev: SessionEvent): SessionMarker | null {
       };
 
     case 'provider_retry': {
-      const secs = (ev.delayMs / 1000).toFixed(ev.delayMs >= 1000 ? 1 : 2);
+      const delayMs = Number.isFinite(ev.delayMs) && ev.delayMs >= 0 ? ev.delayMs : 0;
+      const secs = (delayMs / 1000).toFixed(delayMs >= 1000 ? 1 : 2);
       return {
         ts: ev.ts,
         source: ev.type,
@@ -183,7 +193,7 @@ export function sessionEventToMarker(ev: SessionEvent): SessionMarker | null {
         ts: ev.ts,
         source: ev.type,
         level: 'info',
-        text: `✓ checkpoint #${ev.promptIndex}: "${ev.promptPreview.slice(0, 60)}"`,
+        text: `✓ checkpoint #${ev.promptIndex}: "${safePrefix(ev.promptPreview, 60)}"`,
       };
 
     case 'agent_spawned':
@@ -221,13 +231,16 @@ export function sessionEventToMarker(ev: SessionEvent): SessionMarker | null {
         ts: ev.ts,
         source: ev.type,
         level: 'info',
-        text: `🤝 delegating → ${ev.target}: ${ev.task.length > 100 ? `${ev.task.slice(0, 99)}…` : ev.task}`,
+        text: `🤝 delegating → ${ev.target}: ${ev.task.length > 100 ? `${safePrefix(ev.task, 99)}…` : ev.task}`,
         agentId: ev.subagentId,
         detail: { kind: 'delegate_started', target: ev.target, task: ev.task },
       };
 
     case 'delegate_completed': {
-      const cost = ev.costUsd && ev.costUsd > 0 ? ` · $${ev.costUsd.toFixed(4)}` : '';
+      const cost =
+        ev.costUsd && Number.isFinite(ev.costUsd) && ev.costUsd > 0
+          ? ` · $${ev.costUsd.toFixed(4)}`
+          : '';
       return {
         ts: ev.ts,
         source: ev.type,
@@ -284,7 +297,7 @@ export function sessionEventToMarker(ev: SessionEvent): SessionMarker | null {
         ts: ev.ts,
         source: ev.type,
         level: 'error',
-        text: `error: ${ev.error.slice(0, 80)}`,
+        text: `error: ${safePrefix(ev.error, 80)}`,
         agentId: ev.agentId,
       };
 

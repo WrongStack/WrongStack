@@ -443,11 +443,12 @@ const TICK_STEPS_MS = [
  * smallest "nice" step that yields at most `maxTicks` marks.
  */
 export function worktreeTimelineTicks(start: number, end: number, maxTicks = 5): number[] {
+  const tickLimit = Number.isFinite(maxTicks) && maxTicks >= 1 ? Math.floor(maxTicks) : 5;
   const span = Math.max(0, end - start);
-  if (span === 0 || maxTicks < 1) return [start];
+  if (span === 0) return [start];
   const step =
-    TICK_STEPS_MS.find((s) => span / s <= maxTicks) ??
-    Math.ceil(span / maxTicks / 86_400_000) * 86_400_000;
+    TICK_STEPS_MS.find((s) => span / s <= tickLimit) ??
+    Math.ceil(span / tickLimit / 86_400_000) * 86_400_000;
   const ticks: number[] = [];
   for (let t = Math.ceil(start / step) * step; t <= end; t += step) ticks.push(t);
   return ticks;
@@ -455,6 +456,7 @@ export function worktreeTimelineTicks(start: number, end: number, maxTicks = 5):
 
 /** Compact duration: `850ms`, `42s`, `3m 05s`, `1h 02m`. */
 export function formatWorktreeDuration(ms: number): string {
+  if (!Number.isFinite(ms)) return '0ms';
   if (ms < 1000) return `${Math.max(0, Math.round(ms))}ms`;
   const s = Math.floor(ms / 1000);
   if (s < 60) return `${s}s`;

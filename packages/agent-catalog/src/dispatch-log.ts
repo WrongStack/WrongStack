@@ -182,8 +182,10 @@ export function recordDispatchOutcome(entry: DispatchOutcomeEntry, projectRoot?:
       subagentId: entry.subagentId,
       ...(entry.role ? { role: entry.role } : {}),
       status: entry.status,
-      ...(typeof entry.durationMs === 'number' ? { durationMs: Math.round(entry.durationMs) } : {}),
-      ...(typeof entry.costUsd === 'number' && entry.costUsd > 0
+      ...(typeof entry.durationMs === 'number' && Number.isFinite(entry.durationMs)
+        ? { durationMs: Math.round(entry.durationMs) }
+        : {}),
+      ...(typeof entry.costUsd === 'number' && Number.isFinite(entry.costUsd) && entry.costUsd > 0
         ? { costUsd: Math.round(entry.costUsd * 1_000_000) / 1_000_000 }
         : {}),
       ...(entry.provider ? { provider: entry.provider } : {}),

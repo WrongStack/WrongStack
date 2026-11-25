@@ -3,6 +3,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { shellCommandLinesFromInput } from '@wrongstack/core/security';
 import { compilePathGlob, safeProfileName, wstackGlobalRoot } from '@wrongstack/core/utils';
+import { nonnegativeFiniteLimit, safePrefix } from '../runtime/string-boundaries.js';
 
 export type AdversaryEngine = 'auto' | 'brain' | 'jev' | 'council' | 'llm';
 export type AdversaryActionMode = 'block' | 'warn';
@@ -51,7 +52,8 @@ export function sanitizePolicyText(raw: string, maxChars: number): string {
   UNICODE_TAG_CHARS.lastIndex = 0;
   const decodedTags = withoutBom.replace(UNICODE_TAG_CHARS, '');
   const cleaned = decodedTags.replace(INVISIBLE_POLICY_CHARS, '').replace(/\r\n/g, '\n');
-  return cleaned.length > maxChars ? cleaned.slice(0, maxChars) : cleaned;
+  const limit = nonnegativeFiniteLimit(maxChars);
+  return cleaned.length > limit ? safePrefix(cleaned, limit) : cleaned;
 }
 
 export interface ParsedAdversaryDocument {
