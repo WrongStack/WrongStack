@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 547,
+      "files": 548,
       "typeOnly": 400,
-      "runtimeOrMixed": 179
+      "runtimeOrMixed": 180
     },
     "@wrongstack/core/boot": {
       "files": 6,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1029,
+      "files": 1030,
       "typeOnly": 78,
-      "runtimeOrMixed": 986
+      "runtimeOrMixed": 987
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -1274,6 +1274,12 @@
       "file": "packages/coordination/src/collab-pause.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/coordination/src/director-model-routing.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -15810,6 +15816,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/src/plugin-management/package-install.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/acp-companions.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

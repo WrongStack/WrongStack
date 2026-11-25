@@ -46,7 +46,12 @@ export function collabPauseMiddleware(
   bus: CollaborationBus,
   opts: CollabPauseMiddlewareOptions = {},
 ): Middleware<ToolCallPipelinePayload> {
-  const timeoutMs = opts.defaultTimeoutMs ?? 60_000;
+  const timeoutMs =
+    typeof opts.defaultTimeoutMs === 'number' &&
+    Number.isFinite(opts.defaultTimeoutMs) &&
+    opts.defaultTimeoutMs >= 0
+      ? Math.floor(opts.defaultTimeoutMs)
+      : 60_000;
   const logger = opts.logger;
 
   return {
@@ -127,8 +132,17 @@ export function collabInjectMiddleware(
       // the block object the caller already holds.
       payload.result.type = 'tool_result';
       payload.result.tool_use_id = payload.toolUse.id;
-      payload.result.content =
-        typeof injected.content === 'string' ? injected.content : JSON.stringify(injected.content);
+      let serializedContent: string;
+      if (typeof injected.content === 'string') {
+        serializedContent = injected.content;
+      } else {
+        try {
+          serializedContent = JSON.stringify(injected.content) ?? String(injected.content);
+        } catch {
+          serializedContent = String(injected.content);
+        }
+      }
+      payload.result.content = serializedContent;
       payload.result.is_error = injected.isError;
       // Close the feedback loop: tell listeners (the webui collab handler) that
       // the queued injection was actually applied, carrying the now-known real

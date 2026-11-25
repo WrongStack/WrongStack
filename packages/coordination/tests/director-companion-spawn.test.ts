@@ -6,6 +6,7 @@
  * entry point, so a caller-built config cannot claim it through `spawn`.
  */
 
+import type { Config } from '@wrongstack/contracts/types/config';
 import type { SubagentRunOutcome } from '@wrongstack/contracts/types/multi-agent';
 import { setSessionSubagentPolicy } from '@wrongstack/core/security';
 import { describe, expect, it, vi } from 'vitest';
@@ -16,9 +17,12 @@ import {
   subagentSlotOccupancy,
 } from '../src/session-subagent-models.js';
 
-function directorFor(sessionId: string) {
+function directorFor(sessionId: string, appConfig?: Config) {
   return new Director({
     sessionId,
+    appConfig,
+    sessionProvider: appConfig?.provider,
+    sessionModel: appConfig?.model,
     config: {
       coordinatorId: `companion-${sessionId}`,
       doneCondition: { type: 'all_tasks_done' },
@@ -59,6 +63,77 @@ describe('Director companion spawn gate', () => {
     await expect(
       director.spawnCompanion({ ...companion, id: 'memory-companion-strict' }),
     ).rejects.toThrow('Subagent companions are disabled for this session.');
+  });
+
+  it('runs a native companion on the ACP leader side model while keeping ACP workers available', async () => {
+    const director = directorFor('dir-companion-acp-leader', {
+      provider: 'acp',
+      model: 'claude-code',
+      acp: { leader: { sideModel: 'openrouter/anthropic/claude-haiku-4-5' } },
+      fallbackBridge: 'openai/gpt-5.4',
+    } as Config);
+    try {
+      const id = await director.spawnCompanion(companion);
+      expect(director.resolvedModelFor(id)).toEqual({
+        provider: 'openrouter',
+        model: 'anthropic/claude-haiku-4-5',
+      });
+      await director.assignInternal({
+        id: 'memory-probe',
+        description: 'Review memory',
+        subagentId: id,
+      });
+      await expect(director.awaitTasks(['memory-probe'])).resolves.toMatchObject([
+        { subagentId: id, status: 'success', result: 'ok' },
+      ]);
+
+      const externalId = await director.spawn({
+        name: 'Reviewer',
+        provider: 'acp',
+        model: 'codex-cli',
+      });
+      expect(director.resolvedModelFor(externalId)).toEqual({
+        provider: 'acp',
+        model: 'codex-cli',
+      });
+    } finally {
+      await director.shutdown();
+    }
+  });
+
+  it('refuses an explicitly external companion role without consuming a fleet slot', async () => {
+    const sessionId = 'dir-companion-acp-role';
+    setSessionSubagentModelPlanForSession(sessionId, {
+      enabled: true,
+      lock: true,
+      followSessionModel: false,
+      slots: [{ provider: 'openai', model: 'gpt-5.4' }],
+      roles: { 'memory-curator': { provider: 'acp', model: 'codex-cli' } },
+    });
+    const director = directorFor(sessionId);
+    try {
+      await expect(director.spawnCompanion(companion)).rejects.toThrow(
+        'Companion "memory-curator" requires a native provider and model',
+      );
+      expect(director.status().subagents).toEqual([]);
+      expect(subagentSlotOccupancy(sessionId)).toEqual([{ slotIndex: 0, subagentIds: [] }]);
+    } finally {
+      resetSessionSubagentModelPlan(sessionId);
+      await director.shutdown();
+    }
+  });
+
+  it('refuses a companion when the ACP leader has no native side model or role route', async () => {
+    const director = directorFor('dir-companion-acp-no-side', {
+      provider: 'acp',
+      model: 'codex-cli',
+    } as Config);
+    try {
+      await expect(director.spawnCompanion(companion)).rejects.toThrow('acp.leader.sideModel');
+      expect(director.status().subagents).toEqual([]);
+    } finally {
+      await director.shutdown();
+    }
   });
 
   it('spawnCompanion does not occupy numbered worker lanes or strip tier under a locked lane plan', async () => {

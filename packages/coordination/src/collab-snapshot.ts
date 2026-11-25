@@ -50,10 +50,18 @@ export async function resolveCollabTargetInsideRoot(
  * Priority: explicit `maxTargetFiles` > dynamic from `contextWindow` > `DEFAULT_MAX_TARGET_FILES`.
  */
 export function effectiveCollabFileLimit(options: CollabSessionOptions): number {
-  if (options.maxTargetFiles !== undefined) {
-    return options.maxTargetFiles;
+  if (
+    typeof options.maxTargetFiles === 'number' &&
+    Number.isFinite(options.maxTargetFiles) &&
+    options.maxTargetFiles > 0
+  ) {
+    return Math.floor(options.maxTargetFiles);
   }
-  if (options.contextWindow !== undefined) {
+  if (
+    typeof options.contextWindow === 'number' &&
+    Number.isFinite(options.contextWindow) &&
+    options.contextWindow > 0
+  ) {
     // Reserve 40% of context window for the file snapshot.
     // Heuristic: ~2000 tokens per average source file.
     return Math.max(5, Math.floor((options.contextWindow * 0.4) / 2000));

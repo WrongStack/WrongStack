@@ -197,7 +197,8 @@ export class Director extends DirectorCore implements DirectorFleetHost, ICoordi
           return self.spawnCount;
         },
         hasExplicitMatrixRoute: (role) => this.hasExplicitMatrixRoute(role),
-        resolveSpawnModel: (config, slot) => this.resolveSpawnModel(config, slot),
+        resolveSpawnModel: (config, slot, companion) =>
+          this.resolveSpawnModel(config, slot, companion),
         resolveModelPrice: this.resolveModelPrice,
         subagentIdleTimeoutMs: this.subagentIdleTimeoutMs,
         subagentIdleDelayMs: this.subagentIdleDelayMs,
@@ -235,8 +236,9 @@ export class Director extends DirectorCore implements DirectorFleetHost, ICoordi
   private resolveSpawnModel(
     config: SubagentConfig,
     slotClaim?: SubagentSlotClaim | undefined,
+    companion?: boolean,
   ): void {
-    delegateResolveSpawnModel(this.directorModelRoutingHost(), config, slotClaim);
+    delegateResolveSpawnModel(this.directorModelRoutingHost(), config, slotClaim, companion);
   }
 
   async ask<T = unknown>(subagentId: string, payload: unknown, timeoutMs?: number): Promise<T> {

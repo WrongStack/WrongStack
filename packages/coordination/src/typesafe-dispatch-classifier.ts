@@ -80,9 +80,18 @@ export interface TypeSafeDispatchClassifierOptions {
 export function makeTypeSafeDispatchClassifier(
   opts: TypeSafeDispatchClassifierOptions,
 ): DispatchClassifier {
-  const fitThreshold = opts.fitThreshold ?? 0.35;
-  const minConfidence = opts.minConfidence ?? 0.2;
-  const timeoutMs = opts.timeoutMs ?? 4_000;
+  const fitThreshold =
+    typeof opts.fitThreshold === 'number' && Number.isFinite(opts.fitThreshold)
+      ? opts.fitThreshold
+      : 0.35;
+  const minConfidence =
+    typeof opts.minConfidence === 'number' && Number.isFinite(opts.minConfidence)
+      ? opts.minConfidence
+      : 0.2;
+  const timeoutMs =
+    typeof opts.timeoutMs === 'number' && Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0
+      ? opts.timeoutMs
+      : 4_000;
 
   return async (task, candidates) => {
     if (candidates.length === 0) return null;

@@ -58,7 +58,7 @@ function normalizeConfig(
   const maxConcurrent = Math.max(minConcurrent, parsedMax);
   const factorRaw = config.decreaseFactor;
   const decreaseFactor =
-    typeof factorRaw === 'number' && Number.isFinite(factorRaw) && factorRaw > 0
+    typeof factorRaw === 'number' && Number.isFinite(factorRaw) && factorRaw > 0 && factorRaw < 1
       ? factorRaw
       : base.decreaseFactor;
   const threshRaw = config.successThreshold;
@@ -267,7 +267,7 @@ export class AdaptiveConcurrencyController {
    * Force a decrease (e.g., manual trigger or other error types)
    */
   decrease(target?: number): void {
-    if (!this.config.enabled) return;
+    if (!this.config.enabled || this.disposed) return;
 
     const validTarget =
       typeof target === 'number' && Number.isFinite(target) ? Math.floor(target) : undefined;
@@ -360,6 +360,7 @@ export class AdaptiveConcurrencyController {
    * Register a state change handler
    */
   onStateChange(handler: (state: AdaptiveConcurrencyState) => void): () => void {
+    if (this.disposed) return () => {};
     this.stateChangeHandlers.push(handler);
     return () => {
       const index = this.stateChangeHandlers.indexOf(handler);

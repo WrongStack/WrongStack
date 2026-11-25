@@ -21,6 +21,7 @@ import {
   formatAcpProbeCapabilities,
   installedAcpAgentIds,
 } from './acp-agent-list.js';
+import { acpCompanionCommand } from './acp-companions.js';
 import { acpNativeCommand } from './acp-native-commands.js';
 import {
   discoverAcpRegistry,
@@ -62,7 +63,7 @@ export function buildAcpCommand(opts: AcpCommandHost): SlashCommand {
     description:
       'Discover and assign tasks to installed ACP coding agents (claude-code, codex-cli, gemini-cli, …).',
     argsHint:
-      '[list | commands | command | sessions | continue | fork | config | mode | plan | children | probe | <agent-id> [--bg] <task>]',
+      '[list | commands | command | sessions | continue | fork | companion | config | mode | plan | children | probe | <agent-id> [--bg] <task>]',
     help: [
       'Use the ACP-supporting CLIs already installed on this machine as',
       'subagents — they run with their own login, so no API key is spent here.',
@@ -82,6 +83,9 @@ export function buildAcpCommand(opts: AcpCommandHost): SlashCommand {
       '  /acp sessions <id> [cursor]     List the current project’s sessions',
       '  /acp continue <id> <session> <task>  Send a turn to an existing session',
       '  /acp fork <id> <session> <task>      Continue a copy of an existing session',
+      '  /acp companion <id> <task>     Start or talk to a companion in this conversation',
+      '  /acp companion                 List companions linked to this conversation',
+      '  /acp companion forget <id>     Unlink a companion',
       '  /acp <agent-id> <task>        Run a task on ONE agent, inline + streamed',
       '  /acp <agent-id> --bg <task>   Run it as a background fleet subagent (/agents)',
       '  /acp parallel <csv> <task>    Fan one task out to several agents at once',
@@ -149,6 +153,20 @@ export function buildAcpCommand(opts: AcpCommandHost): SlashCommand {
       if (head === 'probe') return probeAgents(rest, overrides, live, opts);
       if (head === 'bench') return benchAgents(rest, overrides, live, opts);
       const originSessionId = askingSessionId(ctx);
+      if (head === 'companion') {
+        return acpCompanionCommand(rest, ctx, (agentId, task, sessionTarget, remember) =>
+          runSingle(
+            agentId,
+            task,
+            overrides,
+            live,
+            opts,
+            ctx?.eventSessionId?.(),
+            originSessionId,
+            { sessionTarget, remember },
+          ),
+        );
+      }
       if (head === 'parallel') return parallelAgents(rest, overrides, live, opts, originSessionId);
       if (head === 'continue' || head === 'fork') {
         const [agentId, remaining] = splitFirstWord(rest);
@@ -165,8 +183,7 @@ export function buildAcpCommand(opts: AcpCommandHost): SlashCommand {
           ctx?.eventSessionId?.(),
           originSessionId,
           {
-            action: head === 'continue' ? 'resume' : 'fork',
-            sessionId: id,
+            sessionTarget: { action: head === 'continue' ? 'resume' : 'fork', sessionId: id },
           },
         );
       }
@@ -555,13 +572,16 @@ async function runSingle(
   opts: AcpCommandHost,
   sessionId: string | undefined,
   originSessionId?: string | undefined,
-  sessionTarget?: AcpSessionTarget,
+  turn?: {
+    sessionTarget?: AcpSessionTarget | undefined;
+    remember?: ((sessionId: string) => void) | undefined;
+  },
 ): Promise<{ message: string }> {
   // Detect a `--bg` flag anywhere in the remaining tokens.
   const tokens = rest.split(/\s+/).filter(Boolean);
-  const bg = !sessionTarget && tokens.includes('--bg');
+  const bg = !turn && tokens.includes('--bg');
   const task = stripQuotes(
-    sessionTarget
+    turn
       ? rest
       : tokens
           .filter((t) => t !== '--bg')
@@ -586,7 +606,7 @@ async function runSingle(
   // A host with no terminal to stream into runs every task this way: the
   // agents view shows its progress, where inline it would show nothing until
   // the agent finished.
-  if (!sessionTarget && (bg || (opts.inlineAcpRuns === false && opts.onSpawn))) {
+  if (!turn && (bg || (opts.inlineAcpRuns === false && opts.onSpawn))) {
     if (!opts.onSpawn) {
       return {
         message: 'Background mode needs the fleet (director). Director Mode is always active.',
@@ -616,7 +636,7 @@ async function runSingle(
       cwd: opts.cwd,
       projectRoot: opts.projectRoot,
       sessionId,
-      ...(sessionTarget ? { sessionTarget } : {}),
+      ...(turn?.sessionTarget ? { sessionTarget: turn.sessionTarget } : {}),
       permissionPolicy: opts.acpPermissionPolicy?.(agentId) ?? defaultPermissionPolicy,
       runtimeValues: {
         ...opts.configStore?.get().modelRuntime?.acp?.[agentId],
@@ -628,6 +648,7 @@ async function runSingle(
         if (line) opts.renderer.writeInfo(`  ${line}\n`);
       },
     });
+    if (result.agentSessionId) turn?.remember?.(result.agentSessionId);
     const body = result.result && result.result.length > 0 ? result.result : '(no text output)';
     const reference = result.agentSessionId
       ? `\nACP session: ${JSON.stringify(result.agentSessionId)}`

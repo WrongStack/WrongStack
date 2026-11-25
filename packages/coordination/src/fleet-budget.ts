@@ -43,11 +43,14 @@ export function fleetBudgetFromDirector(
 ): FleetBudget | null {
   if (!director) return null;
   const snap = director.fleetManager?.budgetSnapshot?.();
-  const maxSpawns = snap?.maxSpawns ?? director.maxSpawns;
-  const usedSpawns = snap?.usedSpawns ?? director.spawnCount;
+  const rawMax = snap?.maxSpawns ?? director.maxSpawns;
+  const maxSpawns = Number.isNaN(rawMax) ? 0 : Math.max(0, rawMax);
+  const rawUsed = snap?.usedSpawns ?? director.spawnCount;
+  const usedSpawns = Number.isFinite(rawUsed) && rawUsed > 0 ? rawUsed : 0;
   const remainingSpawns =
-    snap?.remainingSpawns ??
-    Math.max(0, (Number.isFinite(maxSpawns) ? maxSpawns : Number.POSITIVE_INFINITY) - usedSpawns);
+    snap?.remainingSpawns !== undefined && !Number.isNaN(snap.remainingSpawns)
+      ? Math.max(0, snap.remainingSpawns)
+      : Math.max(0, maxSpawns - usedSpawns);
   const activeAgents = director
     .status()
     .subagents.filter((agent) => agent.status === 'running' || agent.status === 'idle').length;

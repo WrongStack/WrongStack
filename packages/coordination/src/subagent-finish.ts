@@ -88,12 +88,14 @@ export function buildSubagentFinishNotice(input: {
   /** Granted working-time window in milliseconds. */
   graceMs: number;
 }): string {
-  const localTime = new Date(input.deadlineMs).toISOString();
-  const seconds = Math.max(1, Math.round(input.graceMs / 1000));
+  const safeDeadlineMs = Number.isFinite(input.deadlineMs) ? input.deadlineMs : Date.now();
+  const safeGraceMs = Number.isFinite(input.graceMs) ? input.graceMs : 0;
+  const localTime = new Date(safeDeadlineMs).toISOString();
+  const seconds = Math.max(1, Math.round(safeGraceMs / 1000));
   // A window that is already spent must not be rounded up into phantom
   // working time — the budget clamps at 0, and 0 renders as "finish now".
   const timeLeft =
-    input.graceMs > 0
+    safeGraceMs > 0
       ? `You have roughly ${seconds} seconds (until ${localTime}) of legitimate working time left.`
       : `Your working-time window is already spent (deadline was ${localTime}) — finish now.`;
   return [

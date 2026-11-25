@@ -130,7 +130,7 @@ const PRIORITY: Record<ExploreProbeSource, number> = {
 };
 
 export function exploreProbePriority(probe: ExploreProbe): number {
-  return PRIORITY[probe.source];
+  return Object.hasOwn(PRIORITY, probe.source) ? PRIORITY[probe.source] : -1;
 }
 
 /** Preserve zero where meaningful; reject NaN/Infinity and timer spin loops. */

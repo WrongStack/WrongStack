@@ -40,8 +40,14 @@ export type SystemOneTierSuggester = (input: {
 export function createSystemOneTierSuggester(
   opts: SystemOneTierSuggesterOptions,
 ): SystemOneTierSuggester {
-  const minConfidence = opts.minConfidence ?? 0.6;
-  const timeoutMs = opts.timeoutMs ?? 3_000;
+  const minConfidence =
+    typeof opts.minConfidence === 'number' && Number.isFinite(opts.minConfidence)
+      ? opts.minConfidence
+      : 0.6;
+  const timeoutMs =
+    typeof opts.timeoutMs === 'number' && Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0
+      ? opts.timeoutMs
+      : 3_000;
 
   return async ({ task, role }) => {
     try {

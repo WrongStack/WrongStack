@@ -65,8 +65,16 @@ const FIELD_BY_KIND = {
  * function that detaches all listeners — call it when the subagent task ends.
  */
 export function attachAutoExtend(events: EventBus, policy: AutoExtendPolicy = {}): () => void {
-  const factor = policy.factor ?? 0.5;
-  const maxPerKind = policy.maxExtensionsPerKind ?? 8;
+  const factor =
+    typeof policy.factor === 'number' && Number.isFinite(policy.factor) && policy.factor > 0
+      ? policy.factor
+      : 0.5;
+  const maxPerKind =
+    typeof policy.maxExtensionsPerKind === 'number' &&
+    Number.isFinite(policy.maxExtensionsPerKind) &&
+    policy.maxExtensionsPerKind >= 0
+      ? Math.floor(policy.maxExtensionsPerKind)
+      : 8;
   const ceiling = { ...DEFAULT_CEILING, ...policy.ceiling };
 
   const extendCounts = new Map<string, number>();
@@ -101,11 +109,12 @@ export function attachAutoExtend(events: EventBus, policy: AutoExtendPolicy = {}
       if (kind === 'timeout' || kind === 'idle_timeout') {
         if (progress > lastTimeoutProgress) {
           lastTimeoutProgress = progress;
-          const next = Math.min(
-            Math.ceil(limit * (1 + factor)),
-            ceiling.timeoutMs ?? DEFAULT_CEILING.timeoutMs,
-          );
-          if (next <= limit) {
+          const cap =
+            typeof ceiling.timeoutMs === 'number' && Number.isFinite(ceiling.timeoutMs)
+              ? ceiling.timeoutMs
+              : DEFAULT_CEILING.timeoutMs;
+          const next = Math.min(Math.ceil(limit * (1 + factor)), cap);
+          if (!Number.isFinite(limit) || !Number.isFinite(next) || next <= limit) {
             deny();
             return;
           }
@@ -124,9 +133,11 @@ export function attachAutoExtend(events: EventBus, policy: AutoExtendPolicy = {}
       }
       extendCounts.set(kind, count + 1);
       const field = FIELD_BY_KIND[kind];
-      const cap = ceiling[field] ?? DEFAULT_CEILING[field];
+      const rawCap = ceiling[field];
+      const cap =
+        typeof rawCap === 'number' && Number.isFinite(rawCap) ? rawCap : DEFAULT_CEILING[field];
       const next = Math.min(Math.ceil(limit * (1 + factor)), cap);
-      if (next <= limit) {
+      if (!Number.isFinite(limit) || !Number.isFinite(next) || next <= limit) {
         deny();
         return;
       }

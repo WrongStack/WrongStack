@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T15:59:38.380Z",
+  "generatedAt": "2026-11-25T16:03:19.424Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6564,
-    "testFiles": 6077,
-    "sourceLines": 1346230,
+    "sourceFiles": 6565,
+    "testFiles": 6094,
+    "sourceLines": 1346426,
     "workspaceEdges": 261,
-    "moduleEdges": 19226,
+    "moduleEdges": 19228,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -379,7 +379,7 @@
       "name": "@wrongstack/coordination",
       "dir": "packages/coordination",
       "sourceFiles": 193,
-      "testFiles": 213,
+      "testFiles": 230,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -397,7 +397,7 @@
         {
           "path": "packages/coordination/tsconfig.test.json",
           "error": null,
-          "testFiles": 213
+          "testFiles": 230
         }
       ]
     },
@@ -872,7 +872,7 @@
     {
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
-      "sourceFiles": 129,
+      "sourceFiles": 130,
       "testFiles": 95,
       "workspaceDependencies": [
         "@wrongstack/acp",
@@ -10375,7 +10375,19 @@
         ]
       },
       {
+        "file": "packages/coordination/tests/adaptive-concurrency-dispose.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/coordination/tests/adaptive-concurrency.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/adaptive-decrease-factor.test.ts",
         "projects": [
           "root-node"
         ]
@@ -10417,7 +10429,25 @@
         ]
       },
       {
+        "file": "packages/coordination/tests/agent-status-helpers-bounds.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/agent-status-helpers-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/coordination/tests/agent-status-helpers.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/agent-status-nan-started.test.ts",
         "projects": [
           "root-node"
         ]
@@ -10430,6 +10460,12 @@
       },
       {
         "file": "packages/coordination/tests/auto-extend-idle-timeout.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/auto-extend-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -10604,6 +10640,18 @@
       },
       {
         "file": "packages/coordination/tests/collab-debug.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/collab-limit-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/collab-pause-nan-circular.test.ts",
         "projects": [
           "root-node"
         ]
@@ -10915,6 +10963,12 @@
         ]
       },
       {
+        "file": "packages/coordination/tests/explore-probe-priority-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/coordination/tests/file-author-tool-record.test.ts",
         "projects": [
           "root-node"
@@ -10922,6 +10976,18 @@
       },
       {
         "file": "packages/coordination/tests/file-author-tracker.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/fleet-budget-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/fleet-budget-neg-max.test.ts",
         "projects": [
           "root-node"
         ]
@@ -10994,6 +11060,12 @@
       },
       {
         "file": "packages/coordination/tests/idle-leader-identity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/idle-retirement-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -11287,6 +11359,12 @@
         ]
       },
       {
+        "file": "packages/coordination/tests/mailbox-validators-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/coordination/tests/manifest-deps.test.ts",
         "projects": [
           "root-node"
@@ -11384,6 +11462,12 @@
       },
       {
         "file": "packages/coordination/tests/project-server-endpoint-length.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/provider-status-restore-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -11563,6 +11647,12 @@
         ]
       },
       {
+        "file": "packages/coordination/tests/subagent-finish-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/coordination/tests/subagent-graceful-finish.test.ts",
         "projects": [
           "root-node"
@@ -11576,6 +11666,12 @@
       },
       {
         "file": "packages/coordination/tests/subagent-result-tool.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/system-one-tier-timeout.test.ts",
         "projects": [
           "root-node"
         ]
@@ -11630,6 +11726,12 @@
       },
       {
         "file": "packages/coordination/tests/tool-lifecycle.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/typesafe-classifier-timeout.test.ts",
         "projects": [
           "root-node"
         ]
@@ -39156,6 +39258,11 @@
       "file": "packages/runtime/src/docker-workspace.ts",
       "lines": 703,
       "relativeImports": 4
+    },
+    {
+      "file": "packages/runtime/src/portable-commands/acp.ts",
+      "lines": 714,
+      "relativeImports": 8
     },
     {
       "file": "packages/sage/src/types.ts",

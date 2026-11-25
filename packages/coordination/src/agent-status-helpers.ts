@@ -58,9 +58,11 @@ function compactText(value: string): string {
 }
 
 export function boundedText(value: string, cap: number): string {
+  const safeCap = Number.isFinite(cap) ? Math.floor(cap) : 0;
+  if (safeCap <= 0) return '';
   const trimmed = value.trim();
-  if (trimmed.length <= cap) return trimmed;
-  let end = cap - 1;
+  if (trimmed.length <= safeCap) return trimmed;
+  let end = safeCap - 1;
   const lastKept = trimmed.charCodeAt(end - 1);
   if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
   return `${trimmed.slice(0, end)}…`;
@@ -131,7 +133,8 @@ function compactToolInput(input: unknown): {
   for (const key of safeKeys) {
     const value = source[key];
     if (typeof value === 'string') safe[key] = compactText(value);
-    else if (typeof value === 'number' || typeof value === 'boolean') safe[key] = value;
+    else if ((typeof value === 'number' && Number.isFinite(value)) || typeof value === 'boolean')
+      safe[key] = value;
   }
 
   const content = [source['content'], source['text'], source['data']].find(
@@ -163,15 +166,15 @@ export function completedToolReceipt(
   pending?: PendingTool,
 ): AgentRecentTool {
   const completedAt = Date.now();
-  const durationMs = Math.max(
-    0,
-    payload.durationMs ?? completedAt - (pending?.startedAt ?? completedAt),
-  );
+  const pendingStartedAt =
+    pending && Number.isFinite(pending.startedAt) ? pending.startedAt : undefined;
+  const rawDuration = payload.durationMs ?? completedAt - (pendingStartedAt ?? completedAt);
+  const durationMs = Number.isFinite(rawDuration) ? Math.max(0, rawDuration) : 0;
   const compact = compactToolInput(payload.input ?? pending?.input);
   return {
     id: payload.id ?? `${payload.name}:${completedAt}`,
     name: payload.name,
-    startedAt: pending?.startedAt ?? Math.max(0, completedAt - durationMs),
+    startedAt: pendingStartedAt ?? Math.max(0, completedAt - durationMs),
     completedAt,
     durationMs,
     ok: payload.ok !== false,
@@ -237,6 +240,10 @@ function receiptFilePath(receipt: AgentRecentTool): string | undefined {
   return undefined;
 }
 
+function safeLineCount(value: number | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
+}
+
 export function addToolActivity(
   current: AgentActivityTotals | undefined,
   receipt: AgentRecentTool,
@@ -248,14 +255,14 @@ export function addToolActivity(
   const kind = toolActivityKind(receipt.name);
   if (kind === 'read') {
     next.reads += 1;
-    next.linesRead += receipt.outputLines ?? 0;
+    next.linesRead += safeLineCount(receipt.outputLines);
   } else if (kind === 'write') {
     next.writes += 1;
-    next.linesWritten += receipt.inputLines ?? 0;
+    next.linesWritten += safeLineCount(receipt.inputLines);
   } else if (kind === 'edit') {
     next.edits += 1;
-    next.linesAdded += receipt.addedLines ?? receipt.newLines ?? 0;
-    next.linesRemoved += receipt.removedLines ?? receipt.oldLines ?? 0;
+    next.linesAdded += safeLineCount(receipt.addedLines ?? receipt.newLines);
+    next.linesRemoved += safeLineCount(receipt.removedLines ?? receipt.oldLines);
   } else if (kind === 'terminal') next.terminalCalls += 1;
   else if (kind === 'web') next.webCalls += 1;
   else if (kind === 'search') next.searches += 1;

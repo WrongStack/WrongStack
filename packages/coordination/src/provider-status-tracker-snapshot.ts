@@ -61,7 +61,12 @@ export function restoreProviderStatusSnapshot(ctx: SnapshotContext, value: unkno
     const item = raw as Record<string, unknown>;
     if (typeof item['providerId'] !== 'string' || typeof item['model'] !== 'string') continue;
     if (item['state'] !== 'blocked' && item['state'] !== 'degraded') continue;
-    if (typeof item['stateExpiresAt'] !== 'number' || item['stateExpiresAt'] <= now) continue;
+    if (
+      typeof item['stateExpiresAt'] !== 'number' ||
+      !Number.isFinite(item['stateExpiresAt']) ||
+      item['stateExpiresAt'] <= now
+    )
+      continue;
     const { providerId, model } = statusIdentity(item['providerId'], item['model']);
     const s = ctx.getOrCreate(pairKey(providerId, model), providerId, model);
     s.state = item['state'];

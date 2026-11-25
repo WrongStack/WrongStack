@@ -12,7 +12,7 @@ interface DirectorSpawnAdmissionHost {
   readonly maxSpawns: number;
   readonly spawnCount: number;
   hasExplicitMatrixRoute(role: string | undefined): boolean;
-  resolveSpawnModel(config: SubagentConfig, slot?: SubagentSlotClaim): void;
+  resolveSpawnModel(config: SubagentConfig, slot?: SubagentSlotClaim, companion?: boolean): void;
   readonly resolveModelPrice?: DirectorOptions['resolveModelPrice'];
   readonly subagentIdleTimeoutMs: number | undefined;
   readonly subagentIdleDelayMs: Map<string, number | undefined>;
@@ -65,9 +65,9 @@ export async function admitDirectorSpawn(
           // still wins — that one names this role AND this session.
           routed: Boolean(opts?.companion) || host.hasExplicitMatrixRoute(config.role),
         });
-  host.resolveSpawnModel(config, slotClaim);
   let subagentId: string;
   try {
+    host.resolveSpawnModel(config, slotClaim, opts?.companion);
     // Resolve after lanes/matrix/tier routing; the leader's model may have a
     // different price. Keep an explicit embedder rate authoritative.
     const resolvedPrice =

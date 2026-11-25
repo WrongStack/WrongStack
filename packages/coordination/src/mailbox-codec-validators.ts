@@ -25,7 +25,7 @@ export function rejectUnknownFields(
 }
 
 export function requireString(payload: Record<string, unknown>, field: string, op: string): string {
-  const val = payload[field];
+  const val = Object.hasOwn(payload, field) ? payload[field] : undefined;
   if (val === undefined || val === null) {
     throw new MailboxValidationError(
       'VALIDATION_ERROR',
@@ -55,7 +55,7 @@ export function optionalString(
   field: string,
   _op: string,
 ): string | undefined {
-  const val = payload[field];
+  const val = Object.hasOwn(payload, field) ? payload[field] : undefined;
   if (val === undefined || val === null) return undefined;
   if (typeof val !== 'string') {
     throw new MailboxValidationError(
@@ -72,7 +72,7 @@ export function optionalBoolean(
   field: string,
   _op: string,
 ): boolean | undefined {
-  const val = payload[field];
+  const val = Object.hasOwn(payload, field) ? payload[field] : undefined;
   if (val === undefined || val === null) return undefined;
   if (typeof val !== 'boolean') {
     throw new MailboxValidationError(
@@ -89,7 +89,7 @@ export function optionalNonNegInt(
   field: string,
   _op: string,
 ): number | undefined {
-  const val = payload[field];
+  const val = Object.hasOwn(payload, field) ? payload[field] : undefined;
   if (val === undefined || val === null) return undefined;
   if (typeof val !== 'number' || !Number.isFinite(val) || val < 0) {
     throw new MailboxValidationError(

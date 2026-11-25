@@ -26,8 +26,9 @@ export class DirectorIdleRetirement {
   }
   arm(subagentId: string, delayMs: number | undefined): void {
     this.clear(subagentId);
-    if (delayMs === undefined) return;
-    const timerDelayMs = Math.min(delayMs, MAX_TIMER_DELAY_MS);
+    if (delayMs === undefined || !Number.isFinite(delayMs)) return;
+    const safeDelayMs = Math.max(0, delayMs);
+    const timerDelayMs = Math.min(safeDelayMs, MAX_TIMER_DELAY_MS);
     const timer = setTimeout(() => {
       this.timers.delete(subagentId);
       const entry = this.getCoordinator()

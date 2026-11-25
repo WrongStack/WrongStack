@@ -12,15 +12,135 @@ requests through the active permission policy.
 ## Usage
 
 ```
-/acp                          List detected agents (✓ installed / ✗ missing)
+/acp                          Discover current registry and local agents
+/acp commands                 List the active ACP leader's commands
+/acp command <name> [args]    Run one of those commands in the same conversation
+/acp config                   Show the active ACP leader's live settings
+/acp config <agent-id> <option-id> <value>
+/acp mode [selector] [value]   Show or switch the active ACP leader's mode
+/acp plan                     Show the active ACP leader's latest plans
+/acp children [session-id]    Inspect the active agent's child sessions
 /acp <agent-id> <task>        Run a task on ONE agent, inline + streamed
 /acp <agent-id> --bg <task>   Run it as a background fleet subagent (see /agents)
+/acp sessions <agent-id> [cursor]
+/acp continue <agent-id> <session-id> <task>
+/acp fork <agent-id> <session-id> <task>
+/acp companion <agent-id> <task>
+/acp companion [forget <agent-id>]
 /acp parallel <csv> <task>    Fan one task out to several agents at once
 /acp probe [csv]              Handshake-test agents — shows what actually works
 /acp bench [csv] [--fs]       End-to-end verify each agent + graded report
 /acp sync                     Pull the official agentclientprotocol/registry
 /acp help
 ```
+
+## Continue external agent sessions
+
+Use `wstack acp sessions <agent-id>` to list sessions for the current project.
+Pass the displayed cursor to fetch the next page. Add `--json` for scripting.
+The same listing is available through `/acp sessions` in a live WrongStack session.
+
+Successful inline tasks print their ACP session ID. Pass it to
+`wstack acp continue <agent-id> <session-id> "<task>"` to use that history.
+`wstack acp fork <agent-id> <session-id> "<task>"` sends the task to a new copy
+when the agent advertises fork support. The `/acp continue` and `/acp fork`
+forms use the same protocol operations. A rejected session ID ends the command
+with an error. [ACP session discovery](https://agentclientprotocol.com/protocol/v1/session-list)
+
+## Attachments with an ACP leader
+
+For an image prompt, WrongStack reads the active ACP session's advertised image
+capability before routing the request. Supported image uploads reach the agent
+as image data. Other agents use the configured image-understanding fallback.
+URL-only images that reach the ACP leader travel as resource links.
+
+When a fresh ACP leader joins an existing WrongStack conversation, the handoff
+carries extracted text from prior PDFs and recent images that fit the attachment
+budget. An agent that resumes its own persisted session uses that session's
+existing history. [ACP content types](https://agentclientprotocol.com/protocol/v1/content)
+
+## Run an agent's own slash commands
+
+Select an ACP leader and run `/acp commands` to see the commands that the agent
+advertises for the active session, including any argument hints. Send one with
+`/acp command <name> [args]`. WrongStack sends the command text through the
+normal conversation turn so that streaming and permission requests stay in the
+current session. [ACP slash commands](https://agentclientprotocol.com/protocol/v1/slash-commands)
+
+## Change an active agent's model settings
+
+Run `/acp config` with an ACP leader selected to see the current model, effort
+and other supported model settings from that conversation. Use the option ID and
+a value from the list with `/acp config <agent-id> <option-id> <value>`.
+The change takes effect in the current ACP session and is saved in the
+WrongStack conversation. If switching models changes the available effort levels,
+the command shows the updated choices. Use `/acp config <agent-id> reset` to clear
+the conversation's overrides. If the original value is unavailable in the live
+session, WrongStack clears the override and reports the agent's current value.
+[ACP configuration options](https://agentclientprotocol.com/protocol/v1/session-config-options)
+
+Use `--lane=N` or `--role=name` with the same command to configure fleet workers.
+
+## Inspect or switch a session mode
+
+Run `/acp mode` with an ACP leader selected to see the current mode and the
+values the agent advertises. Use `/acp mode plan` when Plan is selectable.
+When the agent has separate selectors, name the selector explicitly. For
+example, Codex exposes `/acp mode collaboration_mode plan` for planning and
+`/acp mode mode read-only` for sandbox permissions.
+
+The command applies the change to the current agent session. WrongStack lists
+the values its ACP integrations can select and keeps permission-bypass values
+view-only. [ACP config options](https://agentclientprotocol.com/protocol/v1/session-config-options) · [ACP legacy modes](https://agentclientprotocol.com/protocol/v1/session-modes)
+
+## Follow an ACP agent's plan
+
+Run `/acp plan` to read the active agent's checklists and Markdown plans.
+Checklist steps also update the conversation's Todos as the agent reports
+progress. Plans can change during a turn or between turns. The command shows
+the latest version of each plan, including completed checklists that the agent
+still reports. [ACP agent plans](https://agentclientprotocol.com/protocol/v1/agent-plan)
+
+## Inspect an ACP agent's subagents
+
+Run `/acp children` to see the child sessions that the active agent announces.
+The list shows parent-child relationships and the latest state the agent
+reported. Run `/acp children <session-id>` to read one child's recent output,
+messages from other sessions, and last tool activity. The view is read-only.
+[ACP subagents](https://agentclientprotocol.com/protocol/v1/subagents)
+
+## Run fleet workers and companions alongside an ACP leader
+
+Use `/acp codex-cli --bg "Review the current diff"` to dispatch an external
+fleet worker without switching the leader. Track the worker with `/agents`.
+
+Use `/acp companion codex-cli "Review the current diff"` to start a separate
+ACP conversation. Send another `/acp companion codex-cli "Explain the first
+finding"` to continue with the agent's original history. Use `/acp companion`
+to list the external sessions linked to the current WrongStack conversation
+and `/acp companion forget codex-cli` to remove a link. Companion turns use
+the same permission flow as inline `/acp` tasks. Follow-ups require the
+agent to support ACP resume or load. Links belong to the open WrongStack conversation.
+To revisit an external session after closing the conversation, use
+`/acp sessions` and `/acp continue`.
+
+WrongStack's built-in Explore and Memory companions keep their own tools and
+budgets. With an ACP leader, configure a native model for the companion role
+or set `acp.leader.sideModel` to a native `provider/model`. The default route
+also checks `fallbackBridge` and the first `fallbackModels` entry. Built-in
+companions require a native model route.
+
+## Answer an ACP agent's questions
+
+An active ACP leader can ask for project input during a turn in the TUI or
+WebUI. The form identifies the requesting agent and appears in its conversation.
+Review and edit the answers before sending them. Use **Decline** to refuse the
+request or **Cancel** to dismiss the form. In the TUI, press `x` or `Esc`
+outside a text field for those actions.
+
+This supports session-scoped forms with text, numbers, booleans and choices.
+Use the agent's own sign-in flow for credentials. ACP URL elicitation is
+currently unavailable. [ACP elicitation](https://agentclientprotocol.com/protocol/v1/elicitation)
 
 ## `probe` vs `bench`
 
@@ -42,19 +162,23 @@ requests through the active permission policy.
 
 ## Where the agent list comes from
 
-The list has two sources, merged at resolution time (override → synced registry
-→ bundled catalog):
+`/acp` and `wstack acp list` refresh the official registry when the local
+snapshot is missing or at least one hour old. WrongStack reads the latest
+GitHub release and falls back to the ACP CDN, the last cached snapshot, or
+the bundled catalog. `/acp sync` forces a refresh. [Official ACP registry](https://github.com/agentclientprotocol/registry)
 
-1. **Official registry** — [`agentclientprotocol/registry`](https://github.com/agentclientprotocol/registry),
-   an hourly-updated catalog of 37+ ACP agents published at
-   `https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json`. Run
-   `/acp sync` to fetch it into `~/.wrongstack/cache/acp-registry.json`. Once
-   synced, you can run **any** registry agent by its id (`/acp factory-droid
-   "…"`), and the authoritative ACP-entry commands are used.
-2. **Bundled catalog** — a small offline fallback (`agents.catalog.ts`) so the
-   command works before/without a sync. Our stable ids (`claude-code`,
-   `gemini-cli`, `codex-cli`, `copilot`) alias to their registry ids
-   (`claude-acp`, `gemini`, `codex-acp`, `github-copilot-cli`).
+The list puts detected local and configured agents first, followed by
+package launchers and binaries that require setup. Package launchers use
+the registry version when available. For binary releases, install the
+vendor's CLI or configure the path of the extracted executable. Upstream
+quarantined entries show the published reason and require a profile command
+override to launch.
+
+CLI and WebUI model pickers and fleet delegation read the same local cache.
+WrongStack uses commands set in the active profile first, then a detected local
+ACP command, then the registry launch command or bundled fallback.
+The MCP bridge allowlist controls project-service access. Installed agents can
+lead sessions and expose runtime settings with the bridge disabled.
 
 ### Examples
 
@@ -68,17 +192,18 @@ The list has two sources, merged at resolution time (override → synced registr
 
 ## Agent ids
 
-`claude-code`, `gemini-cli`, `codex-cli`, `copilot`, `cline`, `goose`,
-`openhands`, `qwen-code`, `kiro-cli`, `opencode`, `mistral-vibe`, `cursor`.
-Run `/acp` to see which are detected on this host.
+Use `antigravity-acp` for `agy acp`, `claude-code` and `codex-cli` for the
+official adapters, `opencode` for the current OpenCode CLI, and `pi-acp` for
+the Pi adapter. Existing `opencode-v2` commands still work. Command Code is
+available as `command-code` and uses `cmdc acp` on Windows. [Antigravity ACP](https://antigravity.google/docs/cli/acp/) · [Command Code ACP](https://commandcode.ai/docs/acp)
 
 ## Detection vs. handshake
 
-`/acp` (list) only checks whether the binary is on `$PATH`. **Being installed
-does not mean it speaks ACP.** Some CLIs need a specific entry flag or adapter
-(e.g. Gemini's `--acp` flag, Claude Code's `@agentclientprotocol/claude-agent-acp`
-adapter). Run `/acp probe` to actually run the `initialize` handshake against each
-agent and see which truly respond.
+`/acp probe` runs the ACP `initialize` handshake and reports the session, prompt
+and MCP capabilities the agent advertises. `wstack acp config <agent-id>`
+opens a session and returns its available model and effort options, modes and
+commands. `/acp config <agent-id>` applies the agent's available options to the
+current session or a fleet lane or role.
 
 ## Fixing an agent that probes ✗
 
@@ -91,7 +216,7 @@ stripped as an arbitrary-command-exec risk:
 {
   "acp": {
     "agents": {
-      "codex-cli": { "command": "codex", "args": ["acp"] },
+      "codex-cli": { "command": "npx", "args": ["-y", "@agentclientprotocol/codex-acp"] },
       "claude-code": { "command": "npx", "args": ["-y", "@agentclientprotocol/claude-agent-acp"] }
     }
   }
