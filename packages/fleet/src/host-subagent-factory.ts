@@ -429,6 +429,7 @@ export function createHostSubagentFactory(
       catalogTools: subagentTools,
       agentId: subagentName,
       agentName: effectiveCfg.name ?? subagentName,
+      userInputAwaiter: host.deps.subagentUserInputAwaiter,
     });
     // The tab this worker belongs to, stamped for its whole life.
     //
@@ -465,14 +466,25 @@ export function createHostSubagentFactory(
     const leaderPolicy = host.deps.container.safeResolve(TOKENS.PermissionPolicy);
     const subagentPolicyOptions = {
       yoloPlus: () =>
-        subagentYoloPlus({
-          sessionId: owningSessionId,
-          leaderPolicy,
-          fallback: () => host.deps.configStore.get().autonomy?.yoloPlus === true,
-        }),
+        host.deps.authorizeSubagentTool
+          ? host.opts.getLeaderMode?.() === 'yolo-plus'
+          : subagentYoloPlus({
+              sessionId: owningSessionId,
+              leaderPolicy,
+              fallback: () => host.deps.configStore.get().autonomy?.yoloPlus === true,
+            }),
     };
+    const permissionPolicy = new AutoApprovePermissionPolicy(subAllowedCaps, subagentPolicyOptions);
+    const hostApproval = host.deps.authorizeSubagentTool;
+    if (hostApproval) {
+      const evaluate = permissionPolicy.evaluate.bind(permissionPolicy);
+      permissionPolicy.evaluate = async (tool, input) => {
+        const local = await evaluate(tool, input, ctx);
+        return local.permission === 'deny' ? local : hostApproval(tool, input, ctx);
+      };
+    }
     const toolExecutor = new ToolExecutor(baseRegistry, {
-      permissionPolicy: new AutoApprovePermissionPolicy(subAllowedCaps, subagentPolicyOptions),
+      permissionPolicy,
       secretScrubber: host.deps.secretScrubber,
       renderer: host.deps.renderer,
       events,
@@ -520,7 +532,7 @@ export function createHostSubagentFactory(
       events,
       pipelines,
       context: ctx,
-      permissionPolicy: new AutoApprovePermissionPolicy(subAllowedCaps, subagentPolicyOptions),
+      permissionPolicy,
       toolExecutor,
       tracer: host.deps.tracer,
       loopDetection: config.tools?.loopDetection,

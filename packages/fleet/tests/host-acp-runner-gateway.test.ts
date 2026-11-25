@@ -5,7 +5,7 @@
  * absent, the runner is built without a gateway.
  */
 import { Container, EventBus } from '@wrongstack/contracts/kernel';
-import type { Config } from '@wrongstack/contracts/types';
+import type { Config, Tool } from '@wrongstack/contracts/types';
 import type { ExploreCompanion } from '@wrongstack/coordination';
 import { describe, expect, it, vi } from 'vitest';
 import { acpCommandOpts, type HostAcpRunnerHost } from '../src/host-acp-runner.js';
@@ -45,6 +45,26 @@ function host(gateway?: WrongForgeGatewayFactory): HostAcpRunnerHost {
 }
 
 describe('WrongForge gateway injection', () => {
+  it('honors the embedding editor decision for an external ACP worker edit', async () => {
+    const h = host();
+    const approve = vi.fn(async () => ({ permission: 'deny' as const, source: 'user' as const }));
+    Object.assign(h.deps, { authorizeSubagentTool: approve });
+    const write = { name: 'write', permission: 'confirm', capabilities: ['fs.write'] } as Tool;
+    vi.mocked(h.deps.toolRegistry.get).mockReturnValue(write);
+    const policy = acpCommandOpts.call(h).permissions?.({ sessionId: 'session' } as never);
+    const input = { path: 'fixture.txt', content: 'fixture only' };
+    const decision = await policy?.({
+      sessionId: 'external',
+      signal: new AbortController().signal,
+      toolCall: { toolCallId: 'edit1', title: 'Write fixture.txt', kind: 'edit', rawInput: input },
+      options: [
+        { optionId: 'allow_once', name: 'Allow', kind: 'allow_once' },
+        { optionId: 'reject_once', name: 'Reject', kind: 'reject_once' },
+      ],
+    });
+    expect(decision).toEqual({ outcome: 'selected', optionId: 'reject_once' });
+    expect(approve).toHaveBeenCalledWith(write, input);
+  });
   it('starts the embedder-supplied gateway with the host project and registry', async () => {
     const spec = { url: 'http://127.0.0.1:1', token: 't' } as unknown as WrongForgeGatewaySpec;
     const factory = vi.fn<WrongForgeGatewayFactory>(async () => spec);

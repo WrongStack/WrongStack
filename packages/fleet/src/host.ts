@@ -617,6 +617,7 @@ export class MultiAgentHost {
   private hostAcpRunnerHost(): HostAcpRunnerHost {
     // Preserve the owner's instance and check each member against the helper contract.
     void (this.deps satisfies HostAcpRunnerHost['deps']);
+    void (this.opts satisfies HostAcpRunnerHost['opts']);
     void (this.getDirector satisfies HostAcpRunnerHost['getDirector']);
     void (this.ensureCoordinator satisfies HostAcpRunnerHost['ensureCoordinator']);
     void (this.getCoordinator satisfies HostAcpRunnerHost['getCoordinator']);

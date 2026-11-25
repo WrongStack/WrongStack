@@ -22,6 +22,7 @@ function isRestrictedProcess(): boolean {
 
 export interface HostAcpRunnerHost {
   deps: import('./host-types.js').MultiAgentDeps;
+  opts?: Pick<import('./host-types.js').MultiAgentHostOptions, 'getLeaderMode'>;
   getDirector: () => import('@wrongstack/coordination').Director | undefined;
   ensureCoordinator: (_config: import('@wrongstack/contracts/types').Config) => Promise<void>;
   getCoordinator: () => import('@wrongstack/coordination').DefaultMultiAgentCoordinator;
@@ -77,16 +78,22 @@ export function acpCommandOpts(this: HostAcpRunnerHost): BuildAcpSubagentRunnerO
     // Every capability is granted; the guards, not an allowlist, gate it.
     permissions: (ctx) => {
       const leaderPolicy = this.deps.container.safeResolve(TOKENS.PermissionPolicy);
+      const hostApproval = this.deps.authorizeSubagentTool;
       const policy = new AutoApprovePermissionPolicy(Object.values(ToolCapabilities), {
         yoloPlus: () =>
-          subagentYoloPlus({
-            sessionId: ctx.sessionId,
-            leaderPolicy,
-            fallback: () => this.deps.configStore.get().autonomy?.yoloPlus === true,
-          }),
+          hostApproval
+            ? this.opts?.getLeaderMode?.() === 'yolo-plus'
+            : subagentYoloPlus({
+                sessionId: ctx.sessionId,
+                leaderPolicy,
+                fallback: () => this.deps.configStore.get().autonomy?.yoloPlus === true,
+              }),
       });
       return wrongstackAcpPermissionPolicy({
-        evaluate: (tool, input, scope) => policy.evaluate(tool, input, scope),
+        evaluate: async (tool, input, scope) => {
+          const local = await policy.evaluate(tool, input, scope);
+          return !hostApproval || local.permission === 'deny' ? local : hostApproval(tool, input);
+        },
         getTool: (name) => this.deps.toolRegistry.get(name),
         projectRoot: this.deps.projectRoot,
         allowMcp: !isRestrictedProcess(),

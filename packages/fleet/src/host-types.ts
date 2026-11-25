@@ -3,14 +3,18 @@ import type {
   Config,
   ConfigStore,
   ModelsRegistry,
+  PermissionDecision,
   Renderer,
   SecretScrubber,
   SessionWriter,
   SkillLoader,
   SystemPromptBuilder,
   TokenCounter,
+  Tool,
   Tracer,
+  UserInputAwaiter,
 } from '@wrongstack/contracts/types';
+import type { AgentContext } from '@wrongstack/contracts/types/context';
 import type { BrainArbiter, ProviderModelStatusTracker } from '@wrongstack/coordination';
 import type { AgentPipelines, FallbackProfileManager } from '@wrongstack/core/agent';
 import type { HookRunner } from '@wrongstack/core/hooks';
@@ -85,6 +89,11 @@ export interface MultiAgentDeps {
   renderer?: Renderer | undefined;
   /** Shared live fallback profile manager from the runtime container. */
   fallbackProfileManager: FallbackProfileManager;
+  /** Embedding session approval after native worker restrictions have been checked. */
+  authorizeSubagentTool?:
+    | ((tool: Tool, input: unknown, context?: AgentContext) => Promise<PermissionDecision>)
+    | undefined;
+  subagentUserInputAwaiter?: UserInputAwaiter | undefined;
   /**
    * Optional trusted control-plane hook installed on every in-process
    * subagent pipeline. This is host wiring, never a model-visible capability.
