@@ -407,7 +407,7 @@ function resolveReviewStaleAfterMs(board: AuditableBoard, fallback: number): num
     if (isPositiveFinite(policy.reviewStaleAfterMs)) return policy.reviewStaleAfterMs;
     if (isPositiveFinite(policy.reviewStaleHours)) return policy.reviewStaleHours * 60 * 60 * 1000;
   }
-  return fallback;
+  return isPositiveFinite(fallback) ? fallback : DEFAULT_REVIEW_STALE_AFTER_MS;
 }
 
 function readLifecycleEntries(task: AuditableTask): Array<{ state: string; at: number | null }> {

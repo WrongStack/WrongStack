@@ -98,7 +98,13 @@ export function storyStats(story: ReturnType<typeof buildSessionStory>, projectR
     else if (['failure', 'denied', 'cancelled'].includes(call.end.raw?.outcome ?? ''))
       tool.failed++;
     else tool.pending++;
-    if (call.end?.durationMs !== undefined) tool.durations.push(call.end.durationMs);
+    if (
+      typeof call.end?.durationMs === 'number' &&
+      Number.isFinite(call.end.durationMs) &&
+      call.end.durationMs >= 0
+    ) {
+      tool.durations.push(call.end.durationMs);
+    }
     tools.set(call.name, tool);
     // A FAILED call can still have left files changed on disk — `patch --merge`
     // writes conflict markers and then throws. Surface them as present but

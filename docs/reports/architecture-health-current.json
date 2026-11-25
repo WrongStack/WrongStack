@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T15:47:31.499Z",
+  "generatedAt": "2026-11-25T15:50:10.076Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6564,
-    "testFiles": 5994,
-    "sourceLines": 1345976,
+    "testFiles": 6009,
+    "sourceLines": 1346002,
     "workspaceEdges": 261,
     "moduleEdges": 19226,
     "nonCommandSlashImports": 0,
@@ -782,7 +782,7 @@
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
       "sourceFiles": 263,
-      "testFiles": 36,
+      "testFiles": 51,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -799,7 +799,7 @@
         {
           "path": "packages/project-surfaces/tsconfig.test.json",
           "error": null,
-          "testFiles": 36
+          "testFiles": 51
         }
       ]
     },
@@ -21361,7 +21361,25 @@
         ]
       },
       {
+        "file": "packages/project-surfaces/tests/codemap-cache-nan-max.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/project-surfaces/tests/codemap-community-label-collision.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/codemap-nan-steps.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/codemap-relative-pkg.test.ts",
         "projects": [
           "root-node"
         ]
@@ -21379,6 +21397,12 @@
         ]
       },
       {
+        "file": "packages/project-surfaces/tests/completion-no-ext-lang.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/project-surfaces/tests/council-decision-card-hooks.test.tsx",
         "projects": [
           "root-node"
@@ -21391,13 +21415,49 @@
         ]
       },
       {
+        "file": "packages/project-surfaces/tests/dashboard-primitives-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/project-surfaces/tests/debug-dashboard-race.test.tsx",
         "projects": [
           "root-node"
         ]
       },
       {
+        "file": "packages/project-surfaces/tests/flow-padding-invalid.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/project-surfaces/tests/flow-padding.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/i18n-display-decimal-bounds.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/kanban-cleaner-nan-stale.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/kanban-labels-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/kanban-metadata-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -21434,6 +21494,12 @@
       },
       {
         "file": "packages/project-surfaces/tests/memory-preview-surrogate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/model-calendar-disabled.test.ts",
         "projects": [
           "root-node"
         ]
@@ -21535,13 +21601,37 @@
         ]
       },
       {
+        "file": "packages/project-surfaces/tests/story-distribution-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/project-surfaces/tests/story-history-sync-throw-and-mask.test.tsx",
         "projects": [
           "root-node"
         ]
       },
       {
+        "file": "packages/project-surfaces/tests/story-stats-duration-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/project-surfaces/tests/surface-host-fetch-routing.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/task-activity-nan-metrics.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/task-activity-title-proto.test.ts",
         "projects": [
           "root-node"
         ]
@@ -38631,7 +38721,7 @@
     },
     {
       "file": "packages/project-surfaces/src/atlas/codemap-model.ts",
-      "lines": 1116,
+      "lines": 1118,
       "relativeImports": 0
     },
     {
@@ -38903,7 +38993,7 @@
     },
     {
       "file": "packages/project-surfaces/src/atlas/codemap-model.ts",
-      "lines": 1116,
+      "lines": 1118,
       "relativeImports": 0
     },
     {

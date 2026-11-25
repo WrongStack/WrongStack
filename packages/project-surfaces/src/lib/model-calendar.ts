@@ -53,6 +53,7 @@ export function ruleTarget(rule: ModelBlackoutRule): string {
 }
 
 export function isCalendarRuleBlocking(rule: ModelBlackoutRule, at = new Date()): boolean {
+  if (rule.enabled === false || !isCalendarRuleValid(rule)) return false;
   const inside = isCalendarRuleActive(rule, at);
   return rule.mode === 'allow_only' ? !inside : inside;
 }

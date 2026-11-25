@@ -451,9 +451,10 @@ export function buildCanvasGuidedTour(
   });
 
   // Pick the most important nodes up to maxSteps, then sort foundation-first
+  const safeMaxSteps = Number.isFinite(maxSteps) ? Math.max(1, Math.floor(maxSteps)) : 8;
   const top = [...scored]
     .sort((a, b) => b.importance - a.importance || a.node.label.localeCompare(b.node.label))
-    .slice(0, Math.max(1, maxSteps));
+    .slice(0, safeMaxSteps);
 
   top.sort((a, b) => {
     const aFoundationRatio = (a.inCount + 1) / (a.outCount + 1);
@@ -518,7 +519,8 @@ export function sliceCanvasExecutionFlow(
   const visited = new Set<string>([startNodeId]);
   let currentId = startNodeId;
 
-  while (nodes.length < maxSteps) {
+  const safeMaxSteps = Number.isFinite(maxSteps) ? Math.max(1, Math.floor(maxSteps)) : 6;
+  while (nodes.length < safeMaxSteps) {
     const outgoing = graph.edges
       .filter((e) => e.source === currentId && e.target !== currentId && !visited.has(e.target))
       .sort((a, b) => b.weight - a.weight || a.target.localeCompare(b.target));

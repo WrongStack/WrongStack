@@ -54,7 +54,7 @@ export const VERIFICATION_STATE_KEYS: Record<string, string> = {
 
 /** Translate an enum value through a key map, falling back to the raw value. */
 export function enumLabel(t: TFunction, keys: Record<string, string>, value: string): string {
-  const key = keys[value];
+  const key = Object.hasOwn(keys, value) ? keys[value] : undefined;
   return key ? t(key) : value;
 }
 

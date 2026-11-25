@@ -28,9 +28,10 @@ export function touchClientGraphCache(
   graph: CodeMapGraphResponse,
   maxEntries: number,
 ): void {
+  const limit = Number.isFinite(maxEntries) ? Math.max(1, Math.floor(maxEntries)) : 48;
   if (cache.has(key)) cache.delete(key);
   cache.set(key, graph);
-  while (cache.size > maxEntries) {
+  while (cache.size > limit) {
     const oldest = cache.keys().next().value;
     if (oldest === undefined) break;
     cache.delete(oldest);
@@ -46,9 +47,9 @@ export function sameFile(left: string | undefined, right: string | undefined): b
 
 export function packageForFile(filePath: string): string {
   const normalized = normalizedPath(filePath);
-  const packageMatch = normalized.match(/\/packages\/([^/]+)\//);
+  const packageMatch = normalized.match(/(?:^|\/)packages\/([^/]+)\//);
   if (packageMatch?.[1]) return `@wrongstack/${packageMatch[1]}`;
-  const appMatch = normalized.match(/\/apps\/([^/]+)\//);
+  const appMatch = normalized.match(/(?:^|\/)apps\/([^/]+)\//);
   if (appMatch?.[1]) return `app:${appMatch[1]}`;
   return '(root)';
 }

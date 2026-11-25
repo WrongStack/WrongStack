@@ -8,7 +8,7 @@ const text = (value: unknown) => (typeof value === 'string' && value ? value : u
 const number = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
 export function distribution(values: number[]) {
-  const sorted = [...values].sort((a, b) => a - b);
+  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
   return {
     n: sorted.length,
     avg: sorted.length ? sorted.reduce((a, b) => a + b, 0) / sorted.length : undefined,

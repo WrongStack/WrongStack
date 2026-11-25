@@ -26,16 +26,18 @@ export function displayLocale(): string | undefined {
  * trailing zeros. No digit grouping, as with `toFixed`.
  */
 export function displayDecimal(value: number, digits: number, trim = false): string {
+  if (!Number.isFinite(value)) return '0';
+  const safeDigits = Number.isFinite(digits) ? Math.min(20, Math.max(0, Math.floor(digits))) : 0;
   const locale = displayLocale();
   // No display language yet (nothing registered): keep the toFixed dot, not the OS locale.
-  if (!locale) return trim ? String(Number(value.toFixed(digits))) : value.toFixed(digits);
+  if (!locale) return trim ? String(Number(value.toFixed(safeDigits))) : value.toFixed(safeDigits);
   try {
     return value.toLocaleString(locale, {
-      minimumFractionDigits: trim ? 0 : digits,
-      maximumFractionDigits: digits,
+      minimumFractionDigits: trim ? 0 : safeDigits,
+      maximumFractionDigits: safeDigits,
       useGrouping: false,
     });
   } catch {
-    return trim ? String(Number(value.toFixed(digits))) : value.toFixed(digits);
+    return trim ? String(Number(value.toFixed(safeDigits))) : value.toFixed(safeDigits);
   }
 }

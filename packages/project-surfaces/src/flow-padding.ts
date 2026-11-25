@@ -8,6 +8,7 @@
  * fraction to the per-side viewport percentage React Flow 13 accepts.
  */
 export function fitPadding(fraction: number): `${number}%` {
+  if (!Number.isFinite(fraction) || fraction <= 0) return '0%';
   const perSide = (100 * fraction) / (2 * (1 + fraction));
   return `${Math.round(perSide * 10) / 10}%`;
 }

@@ -23,6 +23,7 @@ export function fmtTok(n?: number): string {
 
 /** A context window size: 200_000 → "200k", 1_048_576 → "1M", 2_000_000 → "2M". */
 export function fmtContextWindow(n: number): string {
+  if (!Number.isFinite(n) || n < 0) return '0k';
   if (n >= 1_000_000) return `${displayDecimal(n / 1_000_000, 1, true)}M`;
   return `${displayDecimal(n / 1000, 0)}k`;
 }
@@ -87,11 +88,13 @@ export function statusColor(status: string): string {
 /** Compact sparkline from an array of numeric activity values (0–1). */
 export function sparkline(values: number[], width = 40): string {
   if (values.length === 0) return '';
-  const max = Math.max(1, ...values);
-  const step = Math.max(1, Math.floor(values.length / width));
+  const safe = values.map((v) => (Number.isFinite(v) && v > 0 ? v : 0));
+  const max = Math.max(1, ...safe);
+  const safeWidth = Number.isFinite(width) && width > 0 ? Math.floor(width) : 40;
+  const step = Math.max(1, Math.floor(safe.length / safeWidth));
   const sampled: number[] = [];
-  for (let i = 0; i < values.length; i += step) {
-    sampled.push(values[i]!);
+  for (let i = 0; i < safe.length; i += step) {
+    sampled.push(safe[i]!);
   }
   return sampled
     .map((v) => {

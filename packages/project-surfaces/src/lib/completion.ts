@@ -53,7 +53,9 @@ interface CompletionCacheKeyInput {
 }
 
 export function getLanguage(filePath: string): string {
-  const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
+  const base = filePath.split(/[\\/]/).pop() ?? '';
+  const dot = base.lastIndexOf('.');
+  const ext = dot > 0 ? base.slice(dot + 1).toLowerCase() : '';
   // An own entry only: `LANG_MAP` is a plain object, so `constructor` or
   // `__proto__` would otherwise resolve to an inherited member.
   const language = Object.hasOwn(LANG_MAP, ext) ? LANG_MAP[ext] : undefined;

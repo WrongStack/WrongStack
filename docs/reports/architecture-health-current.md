@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-25T15:47:31.499Z
+**Generated:** 2026-11-25T15:50:10.076Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6564 |
-| Production source lines | 1345976 |
-| Test files | 5994 |
+| Production source lines | 1346002 |
+| Test files | 6009 |
 | Workspace dependency edges | 261 |
 | Relative module edges | 19226 |
 | Non-command slash imports | 0 |
@@ -55,7 +55,7 @@
 | @wrongstack/plugin-sdk | 12 | 16 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugins | 157 | 153 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 27 | 50 | — |
-| @wrongstack/project-surfaces | 263 | 36 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers, @wrongstack/tools |
+| @wrongstack/project-surfaces | 263 | 51 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers, @wrongstack/tools |
 | @wrongstack/providers | 142 | 135 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/requirement-intake | 18 | 23 | @wrongstack/core |
 | @wrongstack/requirement-intake-mcp | 6 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/requirement-intake |
@@ -100,7 +100,7 @@ None.
 | 1162 | `packages/core/src/execution/design-md.ts` |
 | 1146 | `packages/acp/src/client/acp-session.ts` |
 | 1124 | `packages/runtime/src/acp-leader/acp-leader-provider.ts` |
-| 1116 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
+| 1118 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
 | 1082 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 1080 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 1042 | `packages/webui/src/components/ChimeraReviewsView.tsx` |

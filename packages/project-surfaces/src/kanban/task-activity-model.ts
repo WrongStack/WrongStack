@@ -122,7 +122,8 @@ export function eventTitle(event: KanbanEvent, t?: TFunction): string {
     const kind = titleCase(event.type.slice('task.activity.'.length));
     return t ? t('activity:kanbanText.eventTitle.recordedKind', { kind }) : `Recorded ${kind}`;
   }
-  const titleKey = t ? EVENT_TITLE_KEYS[event.type] : undefined;
+  const titleKey =
+    t && Object.hasOwn(EVENT_TITLE_KEYS, event.type) ? EVENT_TITLE_KEYS[event.type] : undefined;
   if (t && titleKey) return t(titleKey);
   switch (event.type) {
     case 'task.created':
@@ -185,8 +186,14 @@ export function eventDescription(event: KanbanEvent, t?: TFunction): string | un
   if (event.type.startsWith('task.file.')) {
     const filePath = text(after['filePath']);
     const toolName = text(after['toolName']);
-    const durationMs = typeof after['durationMs'] === 'number' ? after['durationMs'] : undefined;
-    const lines = typeof after['lines'] === 'number' ? after['lines'] : undefined;
+    const durationMs =
+      typeof after['durationMs'] === 'number' && Number.isFinite(after['durationMs'])
+        ? after['durationMs']
+        : undefined;
+    const lines =
+      typeof after['lines'] === 'number' && Number.isFinite(after['lines'])
+        ? after['lines']
+        : undefined;
     const lineCount =
       lines === undefined
         ? undefined

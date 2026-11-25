@@ -10,7 +10,8 @@ export function kanbanMetadataText(value: unknown): string | undefined {
     const text = value.trim();
     return text || undefined;
   }
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : undefined;
+  if (typeof value === 'boolean') return String(value);
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
 
   const record = value as Record<string, unknown>;
