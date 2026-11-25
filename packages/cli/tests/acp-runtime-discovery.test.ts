@@ -8,6 +8,24 @@ const agent = {
     fileURLToPath(new URL('../../acp/tests/fixtures/runtime-config-agent.ts', import.meta.url)),
   ],
 };
+it('reads a registry agent’s runtime options with the WrongStack MCP bridge disabled', async () => {
+  const result = await inspectAcpRuntime(
+    { acp: { bridge: { agents: [], servers: [] } } } as never,
+    process.cwd(),
+    'registry-peer',
+    {},
+    {
+      'registry-peer': agent,
+    },
+  );
+  expect(result.agentId).toBe('registry-peer');
+  expect(result.options).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ id: 'engine' }),
+      expect.objectContaining({ id: 'thought' }),
+    ]),
+  );
+});
 it('does not coalesce different agent identities that share the same launch command', async () => {
   const root = process.cwd();
   const config = {

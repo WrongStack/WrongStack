@@ -26,7 +26,12 @@ export function providerQuotaMenu(
       const meters = snapshots
         .filter((s) => s.providerId === id)
         .sort((a, b) => (a.meterLabel ?? a.meterId).localeCompare(b.meterLabel ?? b.meterId));
-      const worst = Math.max(0, ...meters.flatMap((s) => s.windows.map((w) => w.usedPercent)));
+      const worst = Math.max(
+        0,
+        ...meters.flatMap((s) =>
+          s.windows.map((w) => w.usedPercent).filter((pct): pct is number => Number.isFinite(pct)),
+        ),
+      );
       const reached = meters.some((s) => s.reachedWindowId !== undefined);
       const noCredits = meters.some(
         (s) => s.credits && !s.credits.unlimited && !s.credits.hasCredits,
@@ -37,10 +42,13 @@ export function providerQuotaMenu(
         if (meter.planLabel) body.push(`Plan: ${meter.planLabel}`);
         if (meter.via) body.push(`Pool account via ${meter.via}`);
         for (const window of meter.windows) {
-          const filled = Math.round(Math.max(0, Math.min(100, window.usedPercent)) / 10);
+          const safeUsed = Number.isFinite(window.usedPercent)
+            ? Math.max(0, Math.min(100, window.usedPercent))
+            : 0;
+          const filled = Math.round(safeUsed / 10);
           body.push(
             `${quotaWindowLabel(window)}  ${'█'.repeat(filled)}${'░'.repeat(10 - filled)}`,
-            `${formatQuotaPercent(window.usedPercent)} used · ${formatQuotaPercent(Math.max(0, 100 - window.usedPercent))} left`,
+            `${formatQuotaPercent(safeUsed)} used · ${formatQuotaPercent(Math.max(0, 100 - safeUsed))} left`,
           );
           const reset = formatQuotaResetIn(quotaResetInMs(window, now));
           if (reset) body.push(`Resets in ${reset}`);

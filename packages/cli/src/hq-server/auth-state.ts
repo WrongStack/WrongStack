@@ -122,11 +122,13 @@ export function createHqAuthState(
     mutableAuth,
     tokenStats: () => {
       const now = Date.now();
+      const liveBrowser = rawBrowserTokens.filter((token) => !isTokenExpired(token, now));
+      const liveClient = rawClientTokens.filter((token) => !isTokenExpired(token, now));
       const all = [...rawBrowserTokens, ...rawClientTokens];
-      const live = all.filter((token) => !isTokenExpired(token, now));
+      const live = [...liveBrowser, ...liveClient];
       return {
-        browserTotal: mutableAuth.browserTokens.size,
-        clientTotal: mutableAuth.clientTokens.size,
+        browserTotal: new Set(liveBrowser.map(hqTokenKey)).size,
+        clientTotal: new Set(liveClient.map(hqTokenKey)).size,
         expired: all.length - live.length,
         expiringSoon: live.filter((token) => {
           if (token.expiresAt === undefined) return false;

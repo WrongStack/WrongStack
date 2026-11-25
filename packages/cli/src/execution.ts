@@ -101,6 +101,9 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
   try {
     const visionAdapters = () => createToolVisionAdapters(agent.tools);
     const supportsVision = async (): Promise<boolean> => {
+      if (context.provider.supportsVisionFor) {
+        return context.provider.supportsVisionFor(context.model, context.session.id);
+      }
       try {
         const providerConfig = config.providers?.[context.provider.id];
         const mergedModels = mergeCustomModelDefs(providerConfig?.customModels, config.models);

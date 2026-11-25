@@ -25,6 +25,7 @@ function emitModeChanged(context: Context | undefined, from: string, to: string)
  */
 async function runModePicker(modeStore: ModeStore, reader: InputReader): Promise<Mode | undefined> {
   const modes = await modeStore.listModes();
+  if (modes.length === 0) return undefined;
   const active = await modeStore.getActiveMode();
   const activeIdx = modes.findIndex((m) => m.id === active?.id);
 

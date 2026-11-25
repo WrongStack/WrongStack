@@ -249,6 +249,32 @@ describe('acpCmd — dispatch', () => {
   });
 });
 
+describe('acpCmd — existing sessions', () => {
+  it.each([
+    ['continue', 'resume'],
+    ['fork', 'fork'],
+  ] as const)(
+    'passes the external session ID through %s and prints the result ID',
+    async (sub, action) => {
+      runOneAcpTask.mockResolvedValueOnce({
+        result: 'finished',
+        iterations: 1,
+        toolCalls: 0,
+        agentSessionId: 'active-external',
+      });
+      const deps = fakeDeps();
+      expect(await acpCmd([sub, 'claude-code', 'earlier', 'do more'], deps)).toBe(0);
+      expect(runOneAcpTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionTarget: { action, sessionId: 'earlier' },
+          task: 'do more',
+        }),
+      );
+      expect(flattenWriteCalls(deps)).toContain('ACP session: "active-external"');
+    },
+  );
+});
+
 describe('acpCmd — parallel', () => {
   it('returns 1 with usage when no args', async () => {
     const deps = fakeDeps();

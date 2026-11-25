@@ -37,8 +37,13 @@ vi.mock('@wrongstack/acp', async (importOriginal) => ({
 const loadCachedAcpRegistry = vi.fn(async (..._args: unknown[]): Promise<any> => null);
 const refreshAcpRegistry = vi.fn();
 vi.mock('../../runtime/src/portable-commands/acp-registry-cache.js', () => ({
+  discoverAcpRegistry: (...a: unknown[]) => loadCachedAcpRegistry(...a),
   loadCachedAcpRegistry: (...a: unknown[]) => loadCachedAcpRegistry(...a),
   refreshAcpRegistry: (...a: unknown[]) => refreshAcpRegistry(...a),
+}));
+vi.mock('@wrongstack/runtime/commands', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/runtime/commands')>()),
+  buildAcpCommand: (await import('../../runtime/src/portable-commands/acp.js')).buildAcpCommand,
 }));
 
 import { buildAcpCommand } from '../src/slash-commands/acp.js';
@@ -78,6 +83,87 @@ beforeEach(() => {
 });
 
 describe('/acp dispatch', () => {
+  it('reuses an ACP companion session only in the conversation that opened it', async () => {
+    const command = cmd();
+    const first = { session: { id: 'first' } } as never;
+    const second = { session: { id: 'second' } } as never;
+    resolveAcpAgentCommand.mockReturnValue({ command: 'codex-acp' });
+    runOneAcpTask
+      .mockResolvedValueOnce({ result: 'started', agentSessionId: 'codex session 1' })
+      .mockResolvedValueOnce({ result: 'continued', agentSessionId: 'codex session 1' })
+      .mockResolvedValueOnce({ result: 'other', agentSessionId: 'codex session 2' });
+
+    expect(await command.run('companion codex-cli Read the diff', first)).toMatchObject({
+      message: expect.stringContaining('started'),
+    });
+    expect(await command.run('companion', first)).toMatchObject({
+      message: expect.stringContaining('codex-cli'),
+    });
+    await command.run('companion codex-cli Explain the earlier finding', first);
+    await command.run('companion codex-cli Start a new review', second);
+
+    expect(runOneAcpTask).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        task: 'Explain the earlier finding',
+        sessionTarget: { action: 'resume', sessionId: 'codex session 1' },
+      }),
+    );
+    expect(runOneAcpTask.mock.calls[2]?.[0]).not.toHaveProperty('sessionTarget');
+    await command.run('companion forget codex-cli', first);
+    expect(await command.run('companion', first)).toMatchObject({
+      message: 'No ACP companions in this conversation.',
+    });
+    expect(await command.run('companion', second)).toMatchObject({
+      message: expect.stringContaining('codex session 2'),
+    });
+  });
+
+  it('keeps the previous companion link after a rejected follow-up', async () => {
+    const command = cmd();
+    const context = { session: { id: 'first' } } as never;
+    resolveAcpAgentCommand.mockReturnValue({ command: 'codex-acp' });
+    runOneAcpTask
+      .mockResolvedValueOnce({ result: 'started', agentSessionId: 'first-id' })
+      .mockRejectedValueOnce(new Error('agent refused resume'))
+      .mockResolvedValueOnce({ result: 'retried', agentSessionId: 'first-id' });
+
+    await command.run('companion codex-cli Start a review', context);
+    expect(await command.run('companion codex-cli Continue', context)).toMatchObject({
+      message: expect.stringContaining('agent refused resume'),
+    });
+    await command.run('companion codex-cli Retry', context);
+    expect(runOneAcpTask).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sessionTarget: { action: 'resume', sessionId: 'first-id' } }),
+    );
+  });
+
+  it('serializes companion turns and keeps the active link until the turn finishes', async () => {
+    const command = cmd();
+    const context = { session: { id: 'first' } } as never;
+    const started = Promise.withResolvers<void>();
+    const done = Promise.withResolvers<{ result: string; agentSessionId: string }>();
+    resolveAcpAgentCommand.mockReturnValue({ command: 'codex-acp' });
+    runOneAcpTask.mockImplementationOnce(() => {
+      started.resolve();
+      return done.promise;
+    });
+    const pending = command.run('companion codex-cli Start', context);
+    await started.promise;
+    try {
+      expect(await command.run('companion codex-cli Continue', context)).toMatchObject({
+        message: expect.stringContaining('already has a turn running'),
+      });
+      expect(await command.run('companion forget codex-cli', context)).toMatchObject({
+        message: expect.stringContaining('Wait for the current'),
+      });
+      expect(runOneAcpTask).toHaveBeenCalledTimes(1);
+    } finally {
+      done.resolve({ result: 'done', agentSessionId: 'started-id' });
+      await pending;
+    }
+  });
+
   it('lists detected agents with no args', async () => {
     ensembleList.mockResolvedValue([
       { id: 'gemini-cli', displayName: 'Gemini CLI', installed: true, version: '0.45.1' },

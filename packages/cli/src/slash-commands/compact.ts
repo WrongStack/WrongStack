@@ -44,11 +44,16 @@ export function buildCompactCommand(opts: SlashCommandContext): SlashCommand {
       // Compute context fill percentage for the output message.
       const metaMax = ctx.meta?.['effectiveMaxContext'];
       const maxCtx =
-        (typeof metaMax === 'number' ? metaMax : undefined) ??
+        (typeof metaMax === 'number' && Number.isFinite(metaMax) && metaMax > 0
+          ? metaMax
+          : undefined) ??
         ctx.provider?.capabilities?.maxContext ??
         0;
       const afterTokens = report.fullRequestTokensAfter ?? report.after;
-      const pct = maxCtx > 0 ? Math.round((afterTokens / maxCtx) * 100) : -1;
+      const pct =
+        Number.isFinite(maxCtx) && maxCtx > 0 && Number.isFinite(afterTokens)
+          ? Math.round((afterTokens / maxCtx) * 100)
+          : -1;
       const ctxInfo = pct >= 0 ? ` at ${pct}%` : '';
 
       const reductions = report.reductions

@@ -45,7 +45,9 @@ export function cycleStartupEffort(
 ): StartupEffortChoice {
   if (options.length === 0) return EFFORT_KEEP;
   const base = Math.max(0, options.indexOf(current as StartupEffortChoice));
-  return options[(base + delta + options.length) % options.length] ?? EFFORT_KEEP;
+  const step = Number.isFinite(delta) ? Math.trunc(delta) : 0;
+  const idx = (((base + step) % options.length) + options.length) % options.length;
+  return options[idx] ?? EFFORT_KEEP;
 }
 
 /**

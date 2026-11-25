@@ -99,9 +99,9 @@
       "runtimeOrMixed": 12
     },
     "@wrongstack/core/quota": {
-      "files": 61,
+      "files": 62,
       "typeOnly": 2,
-      "runtimeOrMixed": 59
+      "runtimeOrMixed": 60
     },
     "@wrongstack/core/registry": {
       "files": 217,
@@ -5988,6 +5988,12 @@
     {
       "specifier": "@wrongstack/core/quota",
       "file": "packages/cli/tests/tui-provider-quota-menu.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/quota",
+      "file": "packages/cli/tests/tui-quota-menu-nan.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

@@ -47,8 +47,16 @@ export function readPipedStdin(
   opts: ReadPipedStdinOptions = {},
 ): Promise<PipedStdinResult> {
   if (source.isTTY) return Promise.resolve(EMPTY);
-  const firstByteTimeoutMs = opts.firstByteTimeoutMs ?? PIPED_STDIN_FIRST_BYTE_TIMEOUT_MS;
-  const maxBytes = opts.maxBytes ?? PIPED_STDIN_MAX_BYTES;
+  const firstByteTimeoutMs =
+    typeof opts.firstByteTimeoutMs === 'number' &&
+    Number.isFinite(opts.firstByteTimeoutMs) &&
+    opts.firstByteTimeoutMs >= 0
+      ? opts.firstByteTimeoutMs
+      : PIPED_STDIN_FIRST_BYTE_TIMEOUT_MS;
+  const maxBytes =
+    typeof opts.maxBytes === 'number' && Number.isFinite(opts.maxBytes) && opts.maxBytes >= 0
+      ? Math.floor(opts.maxBytes)
+      : PIPED_STDIN_MAX_BYTES;
 
   return new Promise((resolve) => {
     const chunks: Buffer[] = [];

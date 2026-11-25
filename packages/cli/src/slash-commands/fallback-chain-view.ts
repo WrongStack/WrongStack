@@ -19,7 +19,9 @@ export function renderFallbackView(opts: SlashCommandContext): string {
 
   const filteredReason = (ref: string): string | undefined => refStaleModelListWarning(ref, config);
   const activeProfile =
-    typeof config.fallbackProfile === 'string' && profiles[config.fallbackProfile]
+    typeof config.fallbackProfile === 'string' &&
+    Object.hasOwn(profiles, config.fallbackProfile) &&
+    profiles[config.fallbackProfile]
       ? config.fallbackProfile
       : undefined;
 

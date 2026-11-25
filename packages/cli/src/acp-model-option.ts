@@ -137,10 +137,12 @@ export function selectedAcpEffort(
   configOptions: readonly SessionConfigOption[],
 ): string | undefined {
   const option = configOptions.find((o) => o.category === 'thought_level');
-  if (!option || typeof option.currentValue !== 'string' || option.currentValue === EFFORT_KEEP) {
+  if (!option || typeof option.currentValue !== 'string') {
     return undefined;
   }
-  return option.currentValue;
+  const value = option.currentValue.trim();
+  if (!value || value === EFFORT_KEEP) return undefined;
+  return value;
 }
 
 /**

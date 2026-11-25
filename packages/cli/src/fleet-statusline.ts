@@ -42,7 +42,8 @@ interface FleetStatusLineOptions {
 }
 
 function fmtElapsed(ms: number): string {
-  const s = Math.floor(ms / 1000);
+  const safeMs = Number.isFinite(ms) && ms > 0 ? ms : 0;
+  const s = Math.floor(safeMs / 1000);
   if (s < 60) return `${s}s`;
   const m = Math.floor(s / 60);
   const rem = s % 60;
@@ -100,7 +101,7 @@ export function renderFleetLine(
   // scroll region. Strip-aware truncation isn't worth it here — cap on the
   // raw length minus a safety margin; ANSI codes are short and the margin
   // absorbs them.
-  const max = Math.max(20, columns - 1);
+  const max = Number.isFinite(columns) ? Math.max(20, Math.floor(columns) - 1) : 80;
   // Rough visible-length guard: count only non-ANSI chars.
   const visible = line.replace(/\x1b\[[0-9;]*m/g, '');
   if (visible.length > max) {

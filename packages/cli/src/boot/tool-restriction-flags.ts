@@ -22,13 +22,16 @@ export interface ToolRestriction {
 
 function parseToolList(flag: string, value: string | boolean | undefined): string[] | undefined {
   if (value === undefined) return undefined;
-  if (value === true || (typeof value === 'string' && !value.trim())) {
+  if (typeof value !== 'string' || !value.trim()) {
     throw new Error(`--${flag} needs a comma-separated list of tool names`);
   }
-  const names = String(value)
+  const names = value
     .split(/[\s,]+/)
     .map((name) => name.trim())
     .filter(Boolean);
+  if (names.length === 0) {
+    throw new Error(`--${flag} needs a comma-separated list of tool names`);
+  }
   const scoped = names.find((name) => name.includes('('));
   if (scoped) {
     throw new Error(

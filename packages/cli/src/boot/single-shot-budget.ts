@@ -37,12 +37,15 @@ export function watchSingleShotBudget(opts: {
   events: Pick<EventBus, 'on'>;
   onExceeded: () => void;
 }): SingleShotBudget {
-  const leaderStart = opts.tokenCounter.estimateCost().total;
+  const finiteNonNegative = (value: number): number =>
+    typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
+  const leaderStart = finiteNonNegative(opts.tokenCounter.estimateCost().total);
   const subagentCost = new Map<string, number>();
   let exceeded = false;
 
   const spent = (): number => {
-    let total = opts.tokenCounter.estimateCost().total - leaderStart;
+    const leaderNow = finiteNonNegative(opts.tokenCounter.estimateCost().total);
+    let total = Math.max(0, leaderNow - leaderStart);
     for (const cost of subagentCost.values()) total += cost;
     return total;
   };
@@ -54,7 +57,10 @@ export function watchSingleShotBudget(opts: {
 
   const offLeader = opts.events.on('token.accounted', check);
   const offSubagent = opts.events.on('subagent.token_accounted', (payload) => {
-    subagentCost.set(payload.subagentId, payload.cost.total);
+    const cost = payload.cost.total;
+    if (typeof cost === 'number' && Number.isFinite(cost) && cost >= 0) {
+      subagentCost.set(payload.subagentId, cost);
+    }
     check();
   });
 

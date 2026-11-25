@@ -12,6 +12,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const acp = vi.hoisted(() => ({
   starts: [] as Array<Record<string, unknown>>,
   prompts: [] as string[],
+  promptBlocks: [] as Array<Array<Record<string, unknown>>>,
+  promptCapabilities: {} as { image?: boolean; embeddedContext?: boolean },
+  nativeCommands: [] as Array<{ name: string; description: string; input?: { hint: string } }>,
   steers: [] as string[],
   closes: [] as Array<{ graceMs?: number }>,
   runtime: [] as Array<Record<string, string>>,
@@ -42,12 +45,15 @@ vi.mock('@wrongstack/acp', async (importOriginal) => ({
       if (acp.startError) throw acp.startError;
       return {
         openSession: async () => ({ sessionId: 'sess_1', resumed: false }),
+        getCapabilities: () => ({ promptCapabilities: acp.promptCapabilities }),
+        getAvailableCommands: () => acp.nativeCommands,
         prompt: async (
           blocks: Array<{ text: string }>,
           _signal: AbortSignal,
           onProgress: (e: unknown) => void,
         ) => {
           acp.prompts.push(blocks[0]?.text ?? '');
+          acp.promptBlocks.push(blocks);
           return (
             (await acp.turn?.(onProgress)) ?? {
               text: 'ok',
@@ -124,6 +130,9 @@ const CONFIG = { acp: { leader: { sideModel: 'zai/glm-5' } } } as unknown as Con
 beforeEach(() => {
   acp.starts.length = 0;
   acp.prompts.length = 0;
+  acp.promptBlocks.length = 0;
+  acp.promptCapabilities = {};
+  acp.nativeCommands = [];
   acp.steers.length = 0;
   acp.closes.length = 0;
   acp.runtime.length = 0;
@@ -193,6 +202,128 @@ describe('the leader context window', () => {
 });
 
 describe('a leader turn', () => {
+  it('runs a native slash command verbatim without consuming a queued conversation note', async () => {
+    acp.nativeCommands = [
+      { name: 'session', description: 'Show stats', input: { hint: 'detail' } },
+    ];
+    const context = { meta: {} };
+    setBtwNote(context as never, 'check the latest note');
+    bindAcpLeaderHost({
+      events: new EventBus(),
+      projectRoot: '/proj',
+      getConfig: () => CONFIG,
+      permission: () => ({ evaluate: async () => ({ permission: 'auto' }) }) as never,
+      context: () => context as never,
+      getTool: () => undefined,
+      runTool: async () => ({ content: '', isError: false }),
+    });
+    const provider = new AcpLeaderProvider({ bootConfig: CONFIG, buildProvider: () => undefined });
+    expect(await provider.listNativeCommands('claude-code', 's1')).toEqual([
+      { name: 'session', description: 'Show stats', inputHint: 'detail' },
+    ]);
+    acp.turn = async () => ({ text: '', stopReason: 'end_turn', toolCalls: [], hasText: false });
+    const events = await collect(
+      provider.stream(leaderRequest('/session  detail') as never, { signal: SIGNAL }),
+    );
+    expect(acp.prompts).toEqual(['/session  detail']);
+    expect(events).toContainEqual({
+      type: 'text_delta',
+      text: 'Agent command /session completed.',
+    });
+    expect(pendingBtwCount(context as never)).toBe(1);
+    expect(acp.starts).toHaveLength(1);
+    acp.turn = undefined;
+    await collect(provider.stream(leaderRequest('Normal follow-up') as never, { signal: SIGNAL }));
+    expect(acp.prompts[1]).toContain('earlier-conversation');
+    expect(acp.prompts[1]).toContain('check the latest note');
+    await closeAcpLeaderSessions();
+  });
+
+  it('uses the live vision capability and carries an image when a later user note follows it', async () => {
+    const provider = new AcpLeaderProvider({ bootConfig: CONFIG, buildProvider: () => undefined });
+    acp.promptCapabilities = { image: true };
+    const request = leaderRequest('look at the image');
+    const image = {
+      type: 'image',
+      source: { type: 'base64', media_type: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUg==' },
+    };
+    request.messages.at(-1)!.content.push(image as never);
+    request.messages.push({ role: 'user', content: [{ type: 'text', text: 'follow-up note' }] });
+
+    expect(await provider.supportsVisionFor('claude-code', 's1')).toBe(true);
+    await collect(provider.stream(request as never, { signal: SIGNAL }));
+    expect(acp.starts).toHaveLength(1);
+    expect(acp.prompts[0]).toContain('follow-up note');
+    expect(acp.promptBlocks[0]).toContainEqual({
+      type: 'image',
+      data: image.source.data,
+      mimeType: 'image/png',
+    });
+    await closeAcpLeaderSessions();
+  });
+
+  it('copies prior attachment context on handoff and keeps the next prompt incremental', async () => {
+    const provider = new AcpLeaderProvider({ bootConfig: CONFIG, buildProvider: () => undefined });
+    acp.promptCapabilities = { image: true };
+    const request = leaderRequest('what was in the earlier files?');
+    const imageData = 'iVBORw0KGgoAAAANSUhEUg==';
+    request.messages[0]!.content.push(
+      { type: 'image', source: { type: 'base64', data: imageData } } as never,
+      {
+        type: 'document',
+        name: 'earlier.pdf',
+        source: { type: 'base64', media_type: 'application/pdf', data: 'JVBERg==' },
+        text: 'Earlier report contains the number 147.',
+      } as never,
+    );
+
+    await collect(provider.stream(request as never, { signal: SIGNAL }));
+    expect(acp.prompts[0]).toContain('Earlier report contains the number 147.');
+    expect(acp.promptBlocks[0]).toContainEqual({
+      type: 'image',
+      data: imageData,
+      mimeType: 'image/png',
+    });
+    await collect(provider.stream(request as never, { signal: SIGNAL }));
+    expect(acp.prompts[1]).not.toContain('Earlier report');
+    expect(acp.promptBlocks[1]?.some((block) => block['type'] === 'image')).toBe(false);
+    await closeAcpLeaderSessions();
+  });
+
+  it('rejects a fresh image the agent cannot view and can retry with the earlier context', async () => {
+    const provider = new AcpLeaderProvider({ bootConfig: CONFIG, buildProvider: () => undefined });
+    const request = leaderRequest('look at the image');
+    request.messages.at(-1)!.content.push({
+      type: 'image',
+      source: { type: 'base64', media_type: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUg==' },
+    } as never);
+    await expect(collect(provider.stream(request as never, { signal: SIGNAL }))).rejects.toThrow(
+      'does not support image',
+    );
+    expect(acp.prompts).toEqual([]);
+    await collect(provider.stream(leaderRequest('text retry') as never, { signal: SIGNAL }));
+    expect(acp.prompts[0]).toContain('<earlier-conversation>');
+    await closeAcpLeaderSessions();
+  });
+
+  it('sends an image referenced by a URL as an ACP resource link', async () => {
+    const provider = new AcpLeaderProvider({ bootConfig: CONFIG, buildProvider: () => undefined });
+    const request = leaderRequest('review the reference');
+    const url = 'https://8.8.8.8/reference.png';
+    request.messages.at(-1)!.content.push({
+      type: 'image',
+      source: { type: 'url', url, media_type: 'image/png' },
+    } as never);
+    await collect(provider.stream(request as never, { signal: SIGNAL }));
+    expect(acp.promptBlocks[0]).toContainEqual({
+      type: 'resource_link',
+      uri: url,
+      name: 'Image',
+      mimeType: 'image/png',
+    });
+    await closeAcpLeaderSessions();
+  });
+
   it('applies session-specific ACP options before each turn and resets removed overrides', async () => {
     const context = {
       meta: { acpRuntime: { 'claude-code': { model: 'fable', effort: 'low' } } } as Record<

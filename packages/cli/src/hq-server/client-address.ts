@@ -74,7 +74,8 @@ export function parseForwardedEntry(entry: string): string | undefined {
   const lastColon = normalized.lastIndexOf(':');
   if (lastColon > 0 && normalized.indexOf(':') === lastColon) {
     const host = normalized.slice(0, lastColon);
-    if (isIP(host) === 4) return host;
+    const port = normalized.slice(lastColon + 1);
+    if (isIP(host) === 4 && /^\d+$/.test(port)) return host;
   }
   return undefined;
 }

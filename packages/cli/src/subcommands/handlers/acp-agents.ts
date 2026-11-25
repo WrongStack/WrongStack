@@ -3,6 +3,9 @@
 import {
   type ACPProgressEvent,
   type AcpAgentCommandOverrides,
+  type AcpSessionTarget,
+  acpCommandOnPath,
+  canonicalAcpAgentId,
   defaultPermissionPolicy,
   EnsembleRegistry,
   probeAcpAgents,
@@ -20,8 +23,14 @@ import {
   wrongstackAcpPermissionPolicy,
   wrongstackBridgeSetup,
 } from '@wrongstack/fleet';
-import { formatAcpAgentList } from '../../acp-agent-list.js';
+import { formatAcpSessions, listAcpSessions } from '@wrongstack/runtime/commands';
 import {
+  formatAcpAgentList,
+  formatAcpProbeCapabilities,
+  installedAcpAgentIds,
+} from '../../acp-agent-list.js';
+import {
+  discoverAcpRegistry,
   type LoadedAcpRegistry,
   loadCachedAcpRegistry,
   refreshAcpRegistry,
@@ -55,9 +64,11 @@ async function loadLive(deps: SubcommandDeps): Promise<LoadedAcpRegistry | null>
 }
 
 export async function listACPAgents(deps: SubcommandDeps): Promise<number> {
-  const detected = await new EnsembleRegistry().list();
-  const live = await loadLive(deps);
-  deps.renderer.write(`${formatAcpAgentList({ live, detected })}\n`);
+  const [detected, live] = await Promise.all([
+    new EnsembleRegistry().list(),
+    deps.paths ? discoverAcpRegistry(deps.paths) : null,
+  ]);
+  deps.renderer.write(`${formatAcpAgentList({ live, detected, overrides: acpOverrides(deps) })}\n`);
   return 0;
 }
 
@@ -81,7 +92,11 @@ export async function syncACPRegistry(deps: SubcommandDeps): Promise<number> {
   }
 }
 
-export async function spawnACPAgent(args: string[], deps: SubcommandDeps): Promise<number> {
+export async function spawnACPAgent(
+  args: string[],
+  deps: SubcommandDeps,
+  sessionTarget?: AcpSessionTarget,
+): Promise<number> {
   const [subagentId, ...taskParts] = args;
   if (!subagentId) {
     deps.renderer.writeError('Usage: wstack acp spawn <agent-id> <task>\n');
@@ -158,6 +173,7 @@ export async function spawnACPAgent(args: string[], deps: SubcommandDeps): Promi
       ...(cmd.env !== undefined ? { env: cmd.env } : {}),
       role: subagentId,
       task,
+      ...(sessionTarget ? { sessionTarget } : {}),
       // The project, not wherever `wstack` was launched from: the bridge's
       // servers are bound to it, and the agent must edit the same tree.
       cwd: deps.projectRoot,
@@ -177,6 +193,9 @@ export async function spawnACPAgent(args: string[], deps: SubcommandDeps): Promi
     deps.renderer.writeInfo(
       `Done. iterations=${result.iterations} toolCalls=${result.toolCalls}\n`,
     );
+    if (result.agentSessionId) {
+      deps.renderer.write(`ACP session: ${JSON.stringify(result.agentSessionId)}\n`);
+    }
     return 0;
   } catch (err) {
     // runOneAcpTask throws structured SubagentError shapes; surface the
@@ -192,6 +211,32 @@ export async function spawnACPAgent(args: string[], deps: SubcommandDeps): Promi
   }
 }
 
+export async function listACPSessions(args: string[], deps: SubcommandDeps): Promise<number> {
+  const [agentId, cursor, extra] = args.filter((arg) => arg !== '--json');
+  if (!agentId || extra !== undefined) {
+    deps.renderer.writeError('Usage: wstack acp sessions <agent-id> [cursor] [--json]\n');
+    return 1;
+  }
+  try {
+    const live = await loadLive(deps);
+    const page = await listAcpSessions({
+      agentId,
+      cursor,
+      projectRoot: deps.projectRoot,
+      overrides: acpOverrides(deps),
+      live: live?.byId,
+    });
+    const json =
+      args.includes('--json') || deps.flags?.['json'] === true || deps.flags?.['json'] === 'true';
+    deps.renderer.write(`${json ? JSON.stringify(page) : formatAcpSessions(page)}\n`);
+    return 0;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    deps.renderer.writeError(`ACP session listing failed: ${message}\n`);
+    return 1;
+  }
+}
+
 export async function readACPAgentConfig(args: string[], deps: SubcommandDeps): Promise<number> {
   const agentId = args[0];
   if (!agentId || args.slice(1).some((x) => x !== '--json')) {
@@ -199,7 +244,8 @@ export async function readACPAgentConfig(args: string[], deps: SubcommandDeps): 
     return 1;
   }
   try {
-    const result = await inspectAcpRuntime(deps.config, deps.projectRoot, agentId);
+    const live = await loadLive(deps);
+    const result = await inspectAcpRuntime(deps.config, deps.projectRoot, agentId, {}, live?.byId);
     deps.renderer.write(
       args.includes('--json') || deps.flags?.['json'] === true
         ? `${JSON.stringify(result)}\n`
@@ -343,6 +389,7 @@ export async function parallelACPAgents(args: string[], deps: SubcommandDeps): P
 
 export async function probeACPAgents(args: string[], deps: SubcommandDeps): Promise<number> {
   const csv = args.join(' ');
+  const live = await loadLive(deps);
   let ids: string[];
   if (csv) {
     ids = csv
@@ -352,14 +399,13 @@ export async function probeACPAgents(args: string[], deps: SubcommandDeps): Prom
       .filter(Boolean);
   } else {
     const detected = await new EnsembleRegistry().list();
-    ids = detected.filter((a) => a.installed).map((a) => a.id);
+    ids = installedAcpAgentIds(detected, live);
   }
   if (ids.length === 0) {
     deps.renderer.writeError('No installed agents to probe.\n');
     return 1;
   }
   const overrides = acpOverrides(deps);
-  const live = await loadLive(deps);
   deps.renderer.writeInfo(
     `Probing ${ids.length} agent(s)… (npx-based agents may download on first run)\n`,
   );
@@ -373,7 +419,9 @@ export async function probeACPAgents(args: string[], deps: SubcommandDeps): Prom
   for (const r of results) {
     if (r.ok) {
       const info = r.agentInfo ? ` — ${r.agentInfo.name} ${r.agentInfo.version}` : '';
-      deps.renderer.write(`  ✓ ${r.id.padEnd(16)} ok  ${r.ms}ms${info}\n`);
+      deps.renderer.write(
+        `  ✓ ${r.id.padEnd(16)} ok  ${r.ms}ms${info}${formatAcpProbeCapabilities(r)}\n`,
+      );
     } else {
       deps.renderer.write(`  ✗ ${r.id.padEnd(16)} ${r.error ?? 'failed'}  (${r.ms}ms)\n`);
     }
@@ -388,6 +436,7 @@ export async function benchACPAgents(args: string[], deps: SubcommandDeps): Prom
   // arrive in `args`); tolerate a literal token too for safety.
   const checkFs = deps.flags?.fs === true || deps.flags?.fs === 'true' || args.includes('--fs');
   const csv = args.filter((a) => a !== '--fs').join(' ');
+  const live = await loadLive(deps);
 
   let ids: string[];
   if (csv) {
@@ -398,7 +447,7 @@ export async function benchACPAgents(args: string[], deps: SubcommandDeps): Prom
       .filter(Boolean);
   } else {
     const detected = await new EnsembleRegistry().list();
-    ids = detected.filter((a) => a.installed).map((a) => a.id);
+    ids = installedAcpAgentIds(detected, live);
   }
   if (ids.length === 0) {
     deps.renderer.writeError('No installed agents to bench.\n');
@@ -413,7 +462,6 @@ export async function benchACPAgents(args: string[], deps: SubcommandDeps): Prom
 
   try {
     const overrides = acpOverrides(deps);
-    const live = await loadLive(deps);
     deps.renderer.writeInfo(
       `Benching ${ids.length} agent(s)${checkFs ? ' (with fs check)' : ''}: ${ids.join(', ')}…\n`,
     );
@@ -453,9 +501,21 @@ export async function doctorACPAgents(args: string[], deps: SubcommandDeps): Pro
   const detected = await new EnsembleRegistry().list();
   const overrides = acpOverrides(deps);
   const live = await loadLive(deps);
-  const detectedById = new Map(detected.map((d) => [d.id, d]));
-
-  const targetIds = requested.length > 0 ? requested : detected.map((d) => d.id);
+  const installed = new Set(installedAcpAgentIds(detected, live));
+  const configured = new Set(Object.keys(overrides ?? {}).map(canonicalAcpAgentId));
+  const quarantined = new Set(
+    (live?.agents ?? [])
+      .filter((agent) => agent.registry?.quarantineReason)
+      .map((agent) => canonicalAcpAgentId(agent.id)),
+  );
+  const knownIds = [
+    ...new Set([
+      ...detected.map((agent) => agent.id),
+      ...Object.keys(live?.byId ?? {}).map(canonicalAcpAgentId),
+      ...configured,
+    ]),
+  ];
+  const targetIds = requested.length > 0 ? [...new Set(requested)] : knownIds;
 
   const rows: Array<{
     id: string;
@@ -469,9 +529,8 @@ export async function doctorACPAgents(args: string[], deps: SubcommandDeps): Pro
   const probeResults = new Map<string, string>();
   if (runProbe || requested.length === 1) {
     const probeIds = targetIds.filter((id) => {
-      const det = detectedById.get(id);
       const cmd = resolveAcpAgentCommand(id, overrides, live?.byId);
-      return Boolean(cmd) && (requested.length > 0 || det?.installed);
+      return Boolean(cmd) && (requested.length > 0 || installed.has(id) || configured.has(id));
     });
     if (probeIds.length > 0) {
       deps.renderer.writeInfo(`Probing ${probeIds.length} ACP agent(s)…\n`);
@@ -482,7 +541,7 @@ export async function doctorACPAgents(args: string[], deps: SubcommandDeps): Pro
       });
       for (const r of results) {
         if (r.ok) {
-          probeResults.set(r.id, `ok (${r.ms}ms)`);
+          probeResults.set(r.id, `ok (${r.ms}ms)${formatAcpProbeCapabilities(r)}`);
         } else {
           probeResults.set(r.id, `fail: ${r.error ?? 'unknown'}`);
         }
@@ -491,18 +550,22 @@ export async function doctorACPAgents(args: string[], deps: SubcommandDeps): Pro
   }
 
   for (const id of targetIds) {
-    const det = detectedById.get(id);
+    const canonical = canonicalAcpAgentId(id);
     const cmd = resolveAcpAgentCommand(id, overrides, live?.byId);
     const profile = resolveAcpClientProfile(id);
     const bridgeSetup = wrongstackBridgeSetup(id, deps.projectRoot, deps.config.acp?.bridge);
     const isPkgLauncher = cmd?.command === 'npx' || cmd?.command === 'uvx';
     const status = !cmd
-      ? 'unknown'
-      : det?.installed
-        ? 'installed'
-        : isPkgLauncher
-          ? `on-demand (${cmd.command})`
-          : 'missing';
+      ? quarantined.has(canonical)
+        ? 'quarantined'
+        : 'unknown'
+      : configured.has(canonical)
+        ? 'configured'
+        : installed.has(canonical)
+          ? 'installed'
+          : isPkgLauncher && acpCommandOnPath(cmd.command)
+            ? `on-demand (${cmd.command})`
+            : 'missing';
     rows.push({
       id,
       status,

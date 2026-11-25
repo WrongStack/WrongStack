@@ -61,10 +61,10 @@ export function formatExistingSddSessionMessage(existing: {
 
 export function parseParallelSlots(input: string): { parallelSlots: number } | undefined {
   const value = input.trim();
-  if (!value || !/^-?\d+$/.test(value)) return undefined;
+  if (!value || !/^\d+$/.test(value)) return undefined;
   const slots = Number(value);
-  return slots && Number.isFinite(slots)
-    ? { parallelSlots: Math.min(16, Math.max(1, slots)) }
+  return slots > 0 && Number.isSafeInteger(slots)
+    ? { parallelSlots: Math.min(16, slots) }
     : undefined;
 }
 

@@ -8,14 +8,17 @@ const FILLED = '█';
 const EMPTY = '░';
 
 export function renderContextChip(used: number, max: number): string {
-  const ratio = Math.max(0, Math.min(1, used / max));
+  const safeUsed = Number.isFinite(used) && used > 0 ? used : 0;
+  const safeMax = Number.isFinite(max) && max > 0 ? max : 0;
+  const ratio = safeMax > 0 ? Math.max(0, Math.min(1, safeUsed / safeMax)) : 0;
   const pct = Math.round(ratio * 100);
   const bar = renderProgress(ratio, 6);
-  return `${bar} ${pct}% (${fmtTok(used)}/${fmtTok(max)})`;
+  return `${bar} ${pct}% (${fmtTok(safeUsed)}/${fmtTok(safeMax)})`;
 }
 
 function renderProgress(ratio: number, width: number): string {
-  const clamped = Math.max(0, Math.min(1, ratio));
+  const safeRatio = Number.isFinite(ratio) ? ratio : 0;
+  const clamped = Math.max(0, Math.min(1, safeRatio));
   const filled = clamped === 0 ? 0 : Math.max(1, Math.round(clamped * width));
   const capped = Math.min(width, filled);
   return FILLED.repeat(capped) + EMPTY.repeat(width - capped);

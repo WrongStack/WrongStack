@@ -6,9 +6,10 @@
  *   1_500_000 → "1.5M"
  */
 export function fmtTok(n: number): string {
-  if (n < 1000) return String(n);
-  if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)}k`;
-  return `${(n / 1_000_000).toFixed(1)}M`;
+  const safe = Number.isFinite(n) && n > 0 ? n : 0;
+  if (safe < 1000) return String(safe);
+  if (safe < 1_000_000) return `${(safe / 1000).toFixed(safe < 10_000 ? 1 : 0)}k`;
+  return `${(safe / 1_000_000).toFixed(1)}M`;
 }
 
 /**
@@ -27,8 +28,9 @@ export function patchConfig<T extends object>(base: T, patch: Partial<T>): T {
  * conversion in their head.
  */
 export function fmtDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  const s = ms / 1000;
+  const safe = Number.isFinite(ms) && ms > 0 ? ms : 0;
+  if (safe < 1000) return `${safe}ms`;
+  const s = safe / 1000;
   if (s < 59.5) return `${s.toFixed(s < 10 ? 1 : 0)}s`;
   let m = Math.floor(s / 60);
   let remSec = Math.round(s - m * 60);

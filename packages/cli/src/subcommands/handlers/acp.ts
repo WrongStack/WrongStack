@@ -15,6 +15,7 @@ import {
   benchACPAgents,
   doctorACPAgents,
   listACPAgents,
+  listACPSessions,
   parallelACPAgents,
   probeACPAgents,
   readACPAgentConfig,
@@ -50,6 +51,12 @@ Usage:
                         Same, starting new sessions in that mode
   wstack acp server       Same as \`wstack acp serve\`
   wstack acp list         List available ACP agents
+  wstack acp sessions <id> [cursor] [--json]
+                        List the current project's agent sessions
+  wstack acp continue <id> <session-id> <task>
+                        Send a turn to an existing agent session
+  wstack acp fork <id> <session-id> <task>
+                        Send a turn to a copy of an agent session
   wstack acp config <id>  Read an agent's model/effort options (--json supported)
   wstack acp sync         Pull the official agentclientprotocol/registry into cache
   wstack acp spawn <id> <task>
@@ -117,6 +124,18 @@ parallel:
 
   if (sub === 'list') {
     return listACPAgents(deps);
+  }
+  if (sub === 'sessions') return listACPSessions(args.slice(1), deps);
+  if (sub === 'continue' || sub === 'fork') {
+    const [, agentId, sessionId, ...task] = args;
+    if (!agentId || !sessionId?.trim() || task.length === 0) {
+      deps.renderer.writeError(`Usage: wstack acp ${sub} <agent-id> <session-id> <task>\n`);
+      return 1;
+    }
+    return spawnACPAgent([agentId, ...task], deps, {
+      action: sub === 'continue' ? 'resume' : 'fork',
+      sessionId,
+    });
   }
 
   if (sub === 'sync') {

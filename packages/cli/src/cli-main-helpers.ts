@@ -3,7 +3,7 @@ import type { Config, Logger, ModelsRegistry } from '@wrongstack/contracts/types
 import { getSharedProjectMailbox, type MailboxAgentStatus } from '@wrongstack/coordination';
 import type { AgentPipelines } from '@wrongstack/core/agent';
 import {
-  installedBridgeAgents,
+  installedAcpAgents,
   refreshRuntimeModelCatalog,
   WRONGFORGE_AGENT_ID,
   wrongForgeModels,
@@ -224,7 +224,7 @@ export function createPickableProvidersLoader(args: {
     const providers = await buildPickableProviders(modelsRegistry, config);
     // ACP agents installed here can lead the session (`acp / claude-code`).
     // They are not in the models.dev catalog, so the catalog list never has them.
-    const agents = installedBridgeAgents(config.acp);
+    const agents = installedAcpAgents(config.acp);
     const withAcp =
       agents.length > 0 && !providers.some((p) => p.id === ACP_LEADER_PROVIDER_ID)
         ? [

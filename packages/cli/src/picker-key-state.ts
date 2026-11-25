@@ -9,18 +9,26 @@ export function applyPickerKey(
   chunk: string,
   matchCount: number,
 ): ProviderPickerState {
-  if (chunk === '\x1b[A') return { ...state, selected: Math.max(0, state.selected - 1) };
+  const safeCount = Number.isFinite(matchCount) ? Math.max(0, Math.floor(matchCount)) : 0;
+  const safeSelected = Number.isFinite(state.selected)
+    ? Math.max(0, Math.floor(state.selected))
+    : 0;
+  if (chunk === '\x1b[A')
+    return {
+      ...state,
+      selected: Math.min(Math.max(0, safeCount - 1), Math.max(0, safeSelected - 1)),
+    };
   if (chunk === '\x1b[B')
-    return { ...state, selected: Math.min(Math.max(0, matchCount - 1), state.selected + 1) };
+    return { ...state, selected: Math.min(Math.max(0, safeCount - 1), safeSelected + 1) };
   if (chunk === '\x1b') return { ...state, query: '', selected: 0, status: 'typing' };
   if (chunk.charCodeAt(0) === 0x1b) return state;
 
   let query = state.query;
-  let selected = state.selected;
+  let selected = safeSelected;
   const status: ProviderPickerState['status'] = 'typing';
   for (const ch of chunk) {
     if (ch === '\r' || ch === '\n') {
-      return { ...state, status: matchCount > 0 ? 'submitted' : 'typing' };
+      return { ...state, selected: safeSelected, status: safeCount > 0 ? 'submitted' : 'typing' };
     }
     if (ch === '\x03') return { ...state, status: 'cancelled' };
     if (ch === '\x15') {

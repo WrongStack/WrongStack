@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T16:03:19.424Z",
+  "generatedAt": "2026-11-25T16:06:00.001Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6565,
-    "testFiles": 6094,
-    "sourceLines": 1346426,
+    "testFiles": 6111,
+    "sourceLines": 1346570,
     "workspaceEdges": 261,
     "moduleEdges": 19228,
     "nonCommandSlashImports": 0,
@@ -234,7 +234,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 654,
-      "testFiles": 726,
+      "testFiles": 743,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -286,7 +286,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 726
+          "testFiles": 743
         }
       ]
     },
@@ -5797,6 +5797,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/acp-effort-blank.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/acp-handler.test.ts",
         "projects": [
           "root-node"
@@ -6517,6 +6523,18 @@
         ]
       },
       {
+        "file": "packages/cli/tests/cli-utils-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/client-address-port.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/codex-catalog-overlay-sync.test.ts",
         "projects": [
           "root-node"
@@ -6554,6 +6572,12 @@
       },
       {
         "file": "packages/cli/tests/commit-message.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/compact-maxctx-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -6620,6 +6644,12 @@
       },
       {
         "file": "packages/cli/tests/daemon-inventory.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/delay-format-non-finite.test.ts",
         "projects": [
           "root-node"
         ]
@@ -6781,6 +6811,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/fallback-view-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/first-run.test.ts",
         "projects": [
           "root-node"
@@ -6824,6 +6860,12 @@
       },
       {
         "file": "packages/cli/tests/fleet-status-broadcast.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/fleet-statusline-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -7208,6 +7250,12 @@
       },
       {
         "file": "packages/cli/tests/hq-auth-revocation.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/hq-auth-stale-token-stats.test.ts",
         "projects": [
           "root-node"
         ]
@@ -7987,6 +8035,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/mode-picker-empty.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/model-smoke-test.test.ts",
         "projects": [
           "root-node"
@@ -8083,7 +8137,19 @@
         ]
       },
       {
+        "file": "packages/cli/tests/picker-effort-wrap.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/picker-effort.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/picker-key-state-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -8096,6 +8162,12 @@
       },
       {
         "file": "packages/cli/tests/picker.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/piped-stdin-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -8371,6 +8443,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/repl-rendering-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/repl-suggestions.test.ts",
         "projects": [
           "root-node"
@@ -8533,6 +8611,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/sdd-parallel-slots-neg.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/sdd-subcommands-gaps.test.ts",
         "projects": [
           "root-node"
@@ -8612,6 +8696,12 @@
       },
       {
         "file": "packages/cli/tests/shutdown-cleanup.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/single-shot-budget-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -9559,6 +9649,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/tool-restriction-flags-invalid.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/tool-restriction-flags.test.ts",
         "projects": [
           "root-node"
@@ -9614,6 +9710,12 @@
       },
       {
         "file": "packages/cli/tests/tui-provider-quota-menu.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/tui-quota-menu-nan.test.ts",
         "projects": [
           "root-node"
         ]

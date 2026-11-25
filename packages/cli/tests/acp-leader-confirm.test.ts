@@ -11,7 +11,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@wrongstack/fleet', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@wrongstack/fleet')>()),
-  installedBridgeAgents: (acp: { agents?: Record<string, unknown> } | undefined) =>
+  installedAcpAgents: (acp: { agents?: Record<string, unknown> } | undefined) =>
     acp?.agents ? Object.keys(acp.agents) : [],
 }));
 

@@ -59,7 +59,7 @@ describe('wrongstackBridgeSetup', () => {
 
   it('applies to an agent listed by its registry id, as installedBridgeAgents offers it', () => {
     const bridge = { agents: ['claude-acp'] };
-    const offered = installedBridgeAgents({ bridge }, (c) => c === 'claude');
+    const offered = installedBridgeAgents({ bridge }, (c) => c === 'claude' || c === 'npx');
     expect(offered).toEqual(['claude-code']);
     for (const agentId of offered) {
       const setup = wrongstackBridgeSetup(agentId, ROOT, bridge);
@@ -225,7 +225,7 @@ describe('wrongstackBridgeSetup', () => {
 });
 
 describe('installedBridgeAgents', () => {
-  const claudeOnPath = (c: string) => c === 'claude';
+  const claudeOnPath = (c: string) => c === 'claude' || c === 'npx';
 
   it('lists the default worker when its CLI is on PATH, and nothing otherwise', () => {
     expect(installedBridgeAgents(undefined, claudeOnPath)).toEqual(['claude-code']);
