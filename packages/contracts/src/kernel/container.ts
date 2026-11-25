@@ -124,7 +124,7 @@ export class Container {
     this.resolving.add(token);
     try {
       let value: unknown = entry.factory(this);
-      for (const d of entry.decorators) {
+      for (const d of [...entry.decorators]) {
         value = d(value, this);
       }
       if (entry.singleton) {

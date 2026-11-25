@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T20:13:27.358Z",
+  "generatedAt": "2026-11-25T20:40:57.428Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6566,
-    "testFiles": 6254,
-    "sourceLines": 1347274,
+    "testFiles": 6256,
+    "sourceLines": 1347290,
     "workspaceEdges": 261,
     "moduleEdges": 19230,
     "nonCommandSlashImports": 0,
@@ -355,7 +355,7 @@
       "name": "@wrongstack/contracts",
       "dir": "packages/contracts",
       "sourceFiles": 133,
-      "testFiles": 12,
+      "testFiles": 14,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/primitives"
@@ -369,7 +369,7 @@
         {
           "path": "packages/contracts/tsconfig.test.json",
           "error": null,
-          "testFiles": 12
+          "testFiles": 14
         }
       ]
     },
@@ -10387,6 +10387,18 @@
       },
       {
         "file": "packages/contracts/src/kernel/__tests__/run-controller-unsubscribe-ownership.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/contracts/tests/acp-runtime-blank-id.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/contracts/tests/container-reentrant-decorate.test.ts",
         "projects": [
           "root-node"
         ]

@@ -76,6 +76,14 @@ export interface AgentEventMap {
     /** `background` (tracker-owned, leader not blocked) or `wait` (blocking). */
     mode?: 'background' | 'wait' | undefined;
   };
+  'acp.worker_update': {
+    sessionId: string;
+    workerId: string;
+    agentId: string;
+    state: 'running' | 'finished';
+    task?: string | undefined;
+    text?: string | undefined;
+  };
   /**
    * Fired by the `delegate` tool once the subagent settles (success,
    * timeout, budget exhaustion, error). Carries human-friendly, untruncated

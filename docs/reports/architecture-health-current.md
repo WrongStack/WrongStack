@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-25T20:13:27.358Z
+**Generated:** 2026-11-25T20:40:57.428Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6566 |
-| Production source lines | 1347274 |
-| Test files | 6254 |
+| Production source lines | 1347290 |
+| Test files | 6256 |
 | Workspace dependency edges | 261 |
 | Relative module edges | 19230 |
 | Non-command slash imports | 0 |
@@ -37,7 +37,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/client | 7 | 11 | @wrongstack/webui-protocol |
 | @wrongstack/codebase | 115 | 9 | @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/codebase-index-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/contracts | 133 | 12 | @wrongstack/kanban, @wrongstack/primitives |
+| @wrongstack/contracts | 133 | 14 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 193 | 230 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 665 | 833 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop-v2 | 561 | 405 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
