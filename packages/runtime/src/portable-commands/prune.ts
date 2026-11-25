@@ -95,9 +95,11 @@ export function buildPruneCommand(opts: SessionCommandHost): SlashCommand {
         // The store prunes by a transcript's last write, not its start: a
         // session started long ago but used yesterday is kept, so it must not
         // be listed here either.
-        const stale = list.filter(
-          (s) => new Date(s.lastActivityAt ?? s.startedAt).getTime() < cutoff,
-        );
+        const stale = list.filter((s) => {
+          const lastMs = s.lastActivityAt ? Date.parse(s.lastActivityAt) : Number.NaN;
+          const refMs = Number.isFinite(lastMs) ? lastMs : Date.parse(s.startedAt);
+          return Number.isFinite(refMs) && refMs < cutoff;
+        });
         if (stale.length === 0) {
           return {
             message: color.dim(

@@ -22,6 +22,50 @@ const tab = { eventSessionId: () => 'tab-2' } as never;
 describe('/acp on an engine', () => {
   beforeEach(() => runOneAcpTask.mockClear());
 
+  it('lists and dispatches only commands advertised by the active agent session', async () => {
+    const listNativeCommands = vi.fn(async () => [
+      { name: 'session', description: 'Show session details', inputHint: 'detail' },
+    ]);
+    const ctx = { model: 'codex-cli', session: { id: 'active' }, provider: { listNativeCommands } };
+    const acp = buildAcpCommand({ renderer: quiet, projectRoot: '/p', cwd: '/p' });
+    const list = await acp.run('commands', ctx as never);
+    expect(list?.message).toContain('/session [detail]  — Show session details');
+    expect(await acp.run('command /session  detail', ctx as never)).toMatchObject({
+      runText: '/session  detail',
+    });
+    expect(await acp.run('command /sessions', ctx as never)).toEqual({
+      message: 'The agent did not advertise that command. See /acp commands.',
+    });
+    expect(listNativeCommands).toHaveBeenCalledWith('codex-cli', 'active');
+  });
+
+  it.each([
+    ['continue', 'resume'],
+    ['fork', 'fork'],
+  ] as const)(
+    'forwards an explicit %s and keeps it on the selected conversation',
+    async (sub, action) => {
+      const spawn = vi.fn(async () => 'Spawned');
+      const acp = buildAcpCommand({
+        renderer: quiet,
+        projectRoot: '/p',
+        cwd: '/p',
+        onSpawn: spawn,
+        inlineAcpRuns: false,
+      });
+      const id = 'thread 7';
+      await acp.run(`${sub} gemini-cli ${JSON.stringify(id)} "review --flag\nthen summarize"`, tab);
+      expect(spawn).not.toHaveBeenCalled();
+      expect(runOneAcpTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionTarget: { action, sessionId: id },
+          sessionId: 'tab-2',
+          task: 'review --flag\nthen summarize',
+        }),
+      );
+    },
+  );
+
   it('runs a task in the fleet when no terminal shows its progress', async () => {
     const onSpawn = vi.fn(async () => 'Spawned subagent w1');
     const acp = buildAcpCommand({

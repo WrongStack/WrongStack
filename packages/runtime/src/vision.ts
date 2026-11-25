@@ -314,7 +314,7 @@ function firstPresent(props: Record<string, unknown>, keys: string[]): string | 
   return keys.find((key) => key in props);
 }
 
-async function assertSafeVisionUrl(rawUrl: string | undefined): Promise<void> {
+export async function assertSafeVisionUrl(rawUrl: string | undefined): Promise<void> {
   if (typeof rawUrl !== 'string' || rawUrl.trim().length === 0) {
     throw new VisionUrlBlockedError({ url: rawUrl ?? '', reason: 'image URL is empty' });
   }

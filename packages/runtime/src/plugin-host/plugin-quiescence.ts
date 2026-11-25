@@ -162,13 +162,19 @@ export function installPluginToolQuiescence(
 
   return async (pluginName: string, timeoutMs: number): Promise<void> => {
     if ((inFlight.get(pluginName) ?? 0) <= 0) return;
+    if (timeoutMs === Number.NEGATIVE_INFINITY) return;
     await new Promise<void>((resolve) => {
       let settled = false;
+      let timer: ReturnType<typeof setTimeout> | undefined;
       const done = () => {
         if (settled) return;
         settled = true;
-        clearTimeout(timer);
-        waiters.get(pluginName)?.delete(done);
+        if (timer !== undefined) clearTimeout(timer);
+        const active = waiters.get(pluginName);
+        if (active) {
+          active.delete(done);
+          if (active.size === 0) waiters.delete(pluginName);
+        }
         resolve();
       };
       let set = waiters.get(pluginName);
@@ -177,8 +183,10 @@ export function installPluginToolQuiescence(
         waiters.set(pluginName, set);
       }
       set.add(done);
-      const timer = setTimeout(done, Math.max(0, timeoutMs));
-      timer.unref?.();
+      if (Number.isFinite(timeoutMs)) {
+        timer = setTimeout(done, Math.max(0, timeoutMs));
+        timer.unref?.();
+      }
     });
   };
 }

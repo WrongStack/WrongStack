@@ -3,11 +3,11 @@
  * "model" per ACP agent installed here. It has no saved record and no
  * models.dev entry, so the WebUI pickers only offer it through this list.
  */
-import { findAgentDescriptor } from '@wrongstack/acp';
+import { canonicalAcpAgentId, findAgentDescriptor, readCachedAcpRegistry } from '@wrongstack/acp';
 import type { Config, Provider, ProviderConfig } from '@wrongstack/contracts/types';
 import { acpAgentName } from '@wrongstack/contracts/types/agent-identity';
 import type { ProviderRegistry } from '@wrongstack/core/registry';
-import { installedBridgeAgents } from '@wrongstack/fleet';
+import { installedAcpAgents } from '@wrongstack/fleet';
 import { ACP_LEADER_PROVIDER_ID, isHostBuiltLeader } from './acp-leader-host.js';
 
 export interface PickableHostProvider {
@@ -26,14 +26,17 @@ export interface PickableHostProvider {
 
 /** The `acp` entry, or none when no ACP agent is installed. */
 export function acpLeaderPickable(config: Config | undefined): PickableHostProvider[] {
-  const agents = installedBridgeAgents(config?.acp);
+  const live = readCachedAcpRegistry();
+  const agents = installedAcpAgents(config?.acp, undefined, live?.byId ?? {});
   if (agents.length === 0) return [];
   return [
     {
       id: ACP_LEADER_PROVIDER_ID,
       type: ACP_LEADER_PROVIDER_ID,
       models: agents.map((id) => {
-        const descriptor = findAgentDescriptor(id);
+        const descriptor =
+          findAgentDescriptor(id) ??
+          live?.agents.find((agent) => canonicalAcpAgentId(agent.id) === id);
         return {
           id,
           name: descriptor?.displayName ?? acpAgentName(id),

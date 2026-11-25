@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 545,
+      "files": 547,
       "typeOnly": 400,
-      "runtimeOrMixed": 177
+      "runtimeOrMixed": 179
     },
     "@wrongstack/core/boot": {
       "files": 6,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1026,
-      "typeOnly": 77,
-      "runtimeOrMixed": 984
+      "files": 1028,
+      "typeOnly": 78,
+      "runtimeOrMixed": 985
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -1710,6 +1710,18 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/runtime/src/wrongforge-leader/wrongforge-leader-provider.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/tests/acp-leader-elicitation.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/tests/acp-leader-plans.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -15797,6 +15809,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/acp-native-commands.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/src/portable-commands/acp-registry-cache.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -15956,6 +15974,12 @@
       "file": "packages/runtime/src/wrongforge-leader/wrongforge-leader-provider.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/tests/acp-registry-discovery.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/utils",

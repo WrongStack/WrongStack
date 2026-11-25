@@ -133,11 +133,13 @@ export async function runSubagentModelLadder(opts: LadderRunOptions): Promise<La
     }
     if (res.usage) {
       hasUsage = true;
-      totalInput += res.usage.inputTokens;
-      totalOutput += res.usage.outputTokens;
-      totalCacheRead += res.usage.cacheReadTokens ?? 0;
-      totalCacheWrite += res.usage.cacheWriteTokens ?? 0;
-      totalCostUsd += res.usage.costUsd;
+      const finiteNonNeg = (v: number | undefined): number =>
+        typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
+      totalInput += finiteNonNeg(res.usage.inputTokens);
+      totalOutput += finiteNonNeg(res.usage.outputTokens);
+      totalCacheRead += finiteNonNeg(res.usage.cacheReadTokens);
+      totalCacheWrite += finiteNonNeg(res.usage.cacheWriteTokens);
+      totalCostUsd += finiteNonNeg(res.usage.costUsd);
     }
     outcome.totalIterations = totalIterations;
     outcome.totalToolCalls = totalToolCalls;

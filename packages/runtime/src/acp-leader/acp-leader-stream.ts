@@ -16,7 +16,7 @@ import type {
   SubagentError,
   Usage,
 } from '@wrongstack/contracts/types';
-import { ProviderError } from '@wrongstack/contracts/types';
+import { documentAsText, ProviderError } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 
 /** A push-to-pull bridge: the agent's progress callback pushes, the stream iterates. */
@@ -193,44 +193,41 @@ export class ToolCardRelay {
  * last reply (the user's prompt plus anything WrongStack folded in after it —
  * a [DELEGATION RESULT], a session note). The agent keeps its own history.
  */
+export function pendingUserMessages(messages: readonly Message[]): Message[] {
+  return messages
+    .slice(messages.findLastIndex((message) => message.role === 'assistant') + 1)
+    .filter((message) => message.role === 'user');
+}
+
 export function latestUserText(messages: readonly Message[]): string {
-  const parts: string[] = [];
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i];
-    if (message?.role === 'assistant') break;
-    if (message?.role !== 'user') continue;
-    const content = message.content as string | ContentBlock[];
-    const text =
-      typeof content === 'string'
-        ? content
-        : content
-            .filter(
-              (block): block is Extract<ContentBlock, { type: 'text' }> => block.type === 'text',
-            )
-            .map((block) => block.text)
-            .join('\n\n');
-    if (text.trim()) parts.unshift(text);
-  }
-  return parts.join('\n\n');
+  return pendingUserMessages(messages)
+    .map((message) => messageText(message))
+    .filter((text) => text.trim())
+    .join('\n\n');
 }
 
 /** Recent turns kept when an agent joins a conversation: ~15k tokens. */
 const EARLIER_CONVERSATION_CHARS = 60_000;
 
-function messageText(message: Message): string {
+function messageText(message: Message, includeAttachmentContext = false): string {
   const content = message.content as string | ContentBlock[];
   if (typeof content === 'string') return content;
   return content
-    .filter((block): block is Extract<ContentBlock, { type: 'text' }> => block.type === 'text')
-    .map((block) => block.text)
+    .flatMap((block) => {
+      if (block.type === 'text') return [block.text];
+      if (!includeAttachmentContext || message.role !== 'user') return [];
+      if (block.type === 'document') return [documentAsText(block).text];
+      if (block.type === 'image') return ['[Image attached earlier]'];
+      return [];
+    })
     .join('\n\n');
 }
 
 /**
  * The conversation before the agent's first turn, for an agent that joins one
  * already under way: a `/model` switch to it, or a resumed session (a fresh
- * agent remembers nothing). Text only, newest kept when it is long; the
- * messages `latestUserText` sends are not repeated.
+ * agent remembers nothing). Includes extracted document text and markers for
+ * images. The messages `latestUserText` sends are not repeated.
  */
 export function earlierConversation(
   messages: readonly Message[],
@@ -240,7 +237,7 @@ export function earlierConversation(
   while (end > 0 && messages[end - 1]?.role !== 'assistant') end--;
   const lines: string[] = [];
   for (const message of messages.slice(0, end)) {
-    const text = messageText(message).trim();
+    const text = messageText(message, true).trim();
     if (!text) continue;
     const who =
       message.role === 'assistant' ? 'Assistant' : message.role === 'user' ? 'User' : 'Summary';

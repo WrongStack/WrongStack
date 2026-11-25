@@ -24,6 +24,7 @@ export interface EventConfirmRequest {
   toolUseId: string;
   suggestedPattern: string;
   signal: AbortSignal;
+  boundaryReason?: string | undefined;
   /** Where an "always" or "deny" answer is remembered, as for the leader's own tools. */
   permission?: Pick<PermissionPolicy, 'trust' | 'deny'> | undefined;
   /** The context the policy evaluates the agent's calls in: an exact-input answer is keyed to it. */
@@ -69,6 +70,7 @@ export async function confirmThroughEvents(req: EventConfirmRequest): Promise<bo
       input: req.input,
       toolUseId: req.toolUseId,
       suggestedPattern: req.suggestedPattern,
+      ...(req.boundaryReason ? { boundaryReason: req.boundaryReason } : {}),
       deadlineAt: Date.now() + timeoutMs,
       resolve: (decision) => settle(decision, 'user'),
     });

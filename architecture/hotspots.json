@@ -159,8 +159,8 @@
       "relativeImports": 17
     },
     "packages/runtime/src/acp-leader/acp-leader-provider.ts": {
-      "lines": 787,
-      "relativeImports": 7
+      "lines": 1124,
+      "relativeImports": 9
     },
     "packages/runtime/src/chimera/execution-chimera-review.ts": {
       "lines": 869,

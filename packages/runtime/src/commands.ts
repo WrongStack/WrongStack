@@ -34,12 +34,18 @@ import { buildTreeCommand } from './portable-commands/tree.js';
 import { buildTuneupCommand } from './portable-commands/tuneup.js';
 
 export { buildAcpCommand } from './portable-commands/acp.js';
-export { formatAcpAgentList } from './portable-commands/acp-agent-list.js';
 export {
+  formatAcpAgentList,
+  formatAcpProbeCapabilities,
+  installedAcpAgentIds,
+} from './portable-commands/acp-agent-list.js';
+export {
+  discoverAcpRegistry,
   type LoadedAcpRegistry,
   loadCachedAcpRegistry,
   refreshAcpRegistry,
 } from './portable-commands/acp-registry-cache.js';
+export { formatAcpSessions, listAcpSessions } from './portable-commands/acp-sessions.js';
 export { buildDelegateCommand } from './portable-commands/delegate.js';
 export { buildEnsembleCommand } from './portable-commands/ensemble.js';
 export {

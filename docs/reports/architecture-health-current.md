@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-25T15:28:25.160Z
+**Generated:** 2026-11-25T15:31:03.769Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 51 |
-| Production source files | 6561 |
-| Production source lines | 1344666 |
-| Test files | 5878 |
+| Production source files | 6564 |
+| Production source lines | 1345474 |
+| Test files | 5889 |
 | Workspace dependency edges | 261 |
-| Relative module edges | 19219 |
+| Relative module edges | 19226 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 3 |
@@ -59,7 +59,7 @@
 | @wrongstack/providers | 142 | 135 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/requirement-intake | 18 | 21 | @wrongstack/core |
 | @wrongstack/requirement-intake-mcp | 6 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/requirement-intake |
-| @wrongstack/runtime | 126 | 84 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/governance, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/sage, @wrongstack/security-scanner, @wrongstack/telegram, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
+| @wrongstack/runtime | 129 | 95 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/governance, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/sage, @wrongstack/security-scanner, @wrongstack/telegram, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
 | @wrongstack/sage | 179 | 183 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/hq, @wrongstack/persistence, @wrongstack/primitives, @wrongstack/tools, @wrongstack/wrongmemory-client |
 | @wrongstack/sage-mcp | 7 | 7 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/sage |
 | @wrongstack/sdd | 45 | 56 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/requirement-intake, @wrongstack/worktree |
@@ -99,6 +99,7 @@ None.
 | 1519 | `packages/core/src/execution/design-dna.ts` |
 | 1162 | `packages/core/src/execution/design-md.ts` |
 | 1146 | `packages/acp/src/client/acp-session.ts` |
+| 1124 | `packages/runtime/src/acp-leader/acp-leader-provider.ts` |
 | 1116 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
 | 1082 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 1080 | `apps/desktop-v2/src/ProjectGoals.tsx` |
@@ -123,7 +124,6 @@ None.
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
 | 792 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
 | 787 | `packages/plugins/src/branch-guard/index.ts` |
-| 787 | `packages/runtime/src/acp-leader/acp-leader-provider.ts` |
 | 786 | `packages/vibeui/src/lib/use-session.ts` |
 | 781 | `apps/desktop-v2/src/WrongStackSettings.tsx` |
 | 780 | `packages/tools/src/design.ts` |

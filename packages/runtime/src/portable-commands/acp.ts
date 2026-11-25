@@ -1,6 +1,7 @@
 import {
   type ACPProgressEvent,
   type AcpAgentCommandOverrides,
+  type AcpSessionTarget,
   defaultPermissionPolicy,
   EnsembleRegistry,
   probeAcpAgents,
@@ -12,15 +13,23 @@ import {
   runOneAcpTask,
 } from '@wrongstack/acp';
 import type { SlashCommand } from '@wrongstack/contracts/types';
+import type { AcpChildSession } from '@wrongstack/contracts/types/acp-runtime';
 import { sessionAcpRuntime } from '@wrongstack/coordination';
-import { toErrorMessage } from '@wrongstack/core/utils';
-import { formatAcpAgentList } from './acp-agent-list.js';
+import { sanitizeTerminalPreview, stripAnsi, toErrorMessage } from '@wrongstack/core/utils';
 import {
+  formatAcpAgentList,
+  formatAcpProbeCapabilities,
+  installedAcpAgentIds,
+} from './acp-agent-list.js';
+import { acpNativeCommand } from './acp-native-commands.js';
+import {
+  discoverAcpRegistry,
   type LoadedAcpRegistry,
   loadCachedAcpRegistry,
   refreshAcpRegistry,
 } from './acp-registry-cache.js';
 import { configureAcpRuntime } from './acp-runtime-config.js';
+import { formatAcpSessions, listAcpSessions } from './acp-sessions.js';
 import { askingSessionId } from './fleet.js';
 import type { AcpCommandHost } from './host.js';
 
@@ -30,7 +39,7 @@ import type { AcpCommandHost } from './host.js';
  * WrongStack interface. These external agents run as subprocesses using THEIR
  * OWN login, so you exploit them without spending API credits here.
  *
- *   /acp                         list detected agents (✓ installed / ✗ missing)
+ *   /acp                         discover current registry and local agents
  *   /acp <agent-id> <task>       run a task on one agent (inline, streamed)
  *   /acp <agent-id> --bg <task>  run it as a background fleet subagent
  *   /acp parallel <csv> <task>   fan a task out to several agents at once
@@ -53,17 +62,26 @@ export function buildAcpCommand(opts: AcpCommandHost): SlashCommand {
     description:
       'Discover and assign tasks to installed ACP coding agents (claude-code, codex-cli, gemini-cli, …).',
     argsHint:
-      '[list | config <agent> [--lane=N|--role=name] [option value|reset] | probe | <agent-id> [--bg] <task>]',
+      '[list | commands | command | sessions | continue | fork | config | mode | plan | children | probe | <agent-id> [--bg] <task>]',
     help: [
       'Use the ACP-supporting CLIs already installed on this machine as',
       'subagents — they run with their own login, so no API key is spent here.',
       '',
       'Usage:',
+      '  /acp config                   Read the active ACP leader’s live settings',
       '  /acp config <agent>           Read the agent model/effort selectors',
-      '  /acp config <agent> <id> <value>  Validate and save a session setting',
+      '  /acp config <agent> <id> <value>  Apply on the active leader and save the session setting',
       '  /acp config <agent> reset     Clear this session override',
       '  Add --lane=1 or --role=reviewer to configure a lane/role instead.',
-      '  /acp                          List detected agents (✓ installed / ✗ missing)',
+      '  /acp mode [selector] [value]  Read or change the active ACP leader’s mode',
+      '  /acp plan                     Show the active ACP leader’s latest plans',
+      '  /acp children [session-id]    Inspect the active agent’s child sessions',
+      '  /acp                          Discover current registry and local agents',
+      '  /acp commands                 List the active ACP leader’s native commands',
+      '  /acp command <name> [args]    Run a native command in this conversation',
+      '  /acp sessions <id> [cursor]     List the current project’s sessions',
+      '  /acp continue <id> <session> <task>  Send a turn to an existing session',
+      '  /acp fork <id> <session> <task>      Continue a copy of an existing session',
       '  /acp <agent-id> <task>        Run a task on ONE agent, inline + streamed',
       '  /acp <agent-id> --bg <task>   Run it as a background fleet subagent (/agents)',
       '  /acp parallel <csv> <task>    Fan one task out to several agents at once',
@@ -85,34 +103,215 @@ export function buildAcpCommand(opts: AcpCommandHost): SlashCommand {
       'If an agent is detected but `probe` shows it failing, its catalog entry',
       'likely needs a different ACP entry command. Override it in',
       '~/.wrongstack/profiles/<name>/config.json:',
-      '  { "acp": { "agents": { "codex-cli": { "command": "codex", "args": ["acp"] } } } }',
+      '  { "acp": { "agents": { "codex-cli": { "command": "npx", "args": ["-y", "@agentclientprotocol/codex-acp"] } } } }',
     ].join('\n'),
     async run(args, ctx) {
       const trimmed = args.trim();
+      const [head, rest] = splitFirstWord(trimmed);
+      if (head === 'commands' || head === 'command') return acpNativeCommand(head, rest, ctx);
+      if (head === 'config') return configureAcpRuntime(rest, opts, ctx);
+      if (head === 'mode') return nativeModeCommand(rest, ctx);
+      if (head === 'plan') return nativePlanCommand(rest, ctx);
+      if (head === 'children') return nativeChildrenCommand(rest, ctx);
       const overrides = readOverrides(opts);
       if (trimmed === 'help') return { message: this.help ?? '' };
       if (trimmed === 'sync') return syncRegistry(opts);
+      if (!trimmed || trimmed === 'list') {
+        const [detected, live] = await Promise.all([
+          new EnsembleRegistry().list(),
+          opts.paths ? discoverAcpRegistry(opts.paths) : null,
+        ]);
+        return { message: formatAcpAgentList({ live, detected, overrides }) };
+      }
 
       // Load the synced registry cache once per invocation (null if never synced).
       const live = opts.paths ? await loadCachedAcpRegistry(opts.paths) : null;
 
-      // No args → list.
-      if (!trimmed || trimmed === 'list') return listAgents(live);
-
-      const spaceIdx = trimmed.search(/\s/);
-      const head = (spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx)).trim();
-      const rest = spaceIdx === -1 ? '' : trimmed.slice(spaceIdx + 1).trim();
-
+      if (head === 'sessions') {
+        const [agentId, remaining] = splitFirstWord(rest);
+        const cursor = remaining ? parseSessionArgument(remaining) : undefined;
+        if (!agentId || (remaining && (!cursor || cursor[1]))) {
+          return { message: 'Usage: /acp sessions <agent-id> [cursor]' };
+        }
+        try {
+          const page = await listAcpSessions({
+            agentId,
+            cursor: cursor?.[0] || undefined,
+            projectRoot: opts.projectRoot,
+            overrides,
+            live: live?.byId,
+          });
+          return { message: formatAcpSessions(page) };
+        } catch (error) {
+          return { message: `ACP session listing failed: ${toErrorMessage(error)}` };
+        }
+      }
       if (head === 'probe') return probeAgents(rest, overrides, live, opts);
-      if (head === 'config') return configureAcpRuntime(rest, opts, ctx);
       if (head === 'bench') return benchAgents(rest, overrides, live, opts);
       const originSessionId = askingSessionId(ctx);
       if (head === 'parallel') return parallelAgents(rest, overrides, live, opts, originSessionId);
+      if (head === 'continue' || head === 'fork') {
+        const [agentId, remaining] = splitFirstWord(rest);
+        const [id, task] = parseSessionArgument(remaining) ?? ['', ''];
+        if (!agentId || !id || !stripQuotes(task)) {
+          return { message: `Usage: /acp ${head} <agent-id> <session-id> <task>` };
+        }
+        return runSingle(
+          agentId,
+          task,
+          overrides,
+          live,
+          opts,
+          ctx?.eventSessionId?.(),
+          originSessionId,
+          {
+            action: head === 'continue' ? 'resume' : 'fork',
+            sessionId: id,
+          },
+        );
+      }
 
       // Otherwise `head` is an agent id and `rest` is the task (+ optional --bg).
       return runSingle(head, rest, overrides, live, opts, ctx?.eventSessionId?.(), originSessionId);
     },
   };
+}
+
+async function nativeChildrenCommand(
+  input: string,
+  ctx: Parameters<SlashCommand['run']>[1],
+): Promise<{ message: string }> {
+  if (!ctx?.provider?.listNativeChildren || !ctx.session?.id) {
+    return { message: 'Select an ACP session leader in this conversation first.' };
+  }
+  const target = input ? parseSessionArgument(input) : undefined;
+  if (input && (!target?.[0] || target[1])) return { message: 'Usage: /acp children [session-id]' };
+  try {
+    const children = await ctx.provider.listNativeChildren(ctx.model, ctx.session.id);
+    if (target) {
+      const child = children.find((entry) => entry.id === target[0]);
+      if (!child) return { message: 'This conversation has no ACP child session with that ID.' };
+      const message = [
+        describeChild(child),
+        `Parent session ${JSON.stringify(child.parentId)}`,
+        ...(child.description ? [child.description] : []),
+        ...(child.activity ? [`Last tool: ${child.activity}`] : []),
+        ...(child.message
+          ? [
+              `Message from ${child.message.senderId ? JSON.stringify(child.message.senderId) : 'another session'}\n${child.message.text}`,
+            ]
+          : []),
+        ...(child.output ? [`Recent output\n${child.output}`] : []),
+      ].join('\n\n');
+      return {
+        message: sanitizeTerminalPreview(message, { maxChars: 12_000, maxLines: 200 }).text,
+      };
+    }
+    if (!children.length)
+      return { message: 'This conversation has no announced ACP child sessions.' };
+    const byParent = Map.groupBy(children, (child) => child.parentId);
+    const ids = new Set(children.map((child) => child.id));
+    const lines: string[] = [];
+    const visit = (child: AcpChildSession, level: number): void => {
+      lines.push(`${'  '.repeat(Math.min(level, 10))}${describeChild(child)}`);
+      for (const nested of byParent.get(child.id) ?? []) visit(nested, level + 1);
+    };
+    for (const child of children) {
+      if (!ids.has(child.parentId)) visit(child, 0);
+    }
+    return {
+      message: sanitizeTerminalPreview(
+        [
+          `ACP child sessions from ${ctx.model}`,
+          ...lines,
+          '',
+          'Use /acp children <session-id> to inspect one.',
+        ].join('\n'),
+        { maxChars: 64_000, maxLines: 300 },
+      ).text,
+    };
+  } catch (error) {
+    return { message: `ACP child sessions failed: ${toErrorMessage(error)}` };
+  }
+}
+
+function describeChild(child: AcpChildSession): string {
+  return `${child.title ?? 'Subagent'} ${JSON.stringify(child.id)} — ${child.state}${child.stopReason ? ` (${child.stopReason})` : ''}`;
+}
+
+async function nativePlanCommand(
+  input: string,
+  ctx: Parameters<SlashCommand['run']>[1],
+): Promise<{ message: string }> {
+  if (input) return { message: 'Usage: /acp plan' };
+  if (!ctx?.provider?.listNativePlans || !ctx.session?.id) {
+    return { message: 'Select an ACP session leader in this conversation first.' };
+  }
+  try {
+    const plans = await ctx.provider.listNativePlans(ctx.model, ctx.session.id);
+    const blocks = plans.flatMap((plan) => {
+      if (plan.type === 'markdown')
+        return plan.content.trim() ? [`Plan ${plan.planId}\n${plan.content}`] : [];
+      if (!plan.entries.length) return [];
+      const steps = plan.entries.map((entry) => {
+        const status =
+          entry.status === 'completed'
+            ? 'Done'
+            : entry.status === 'in_progress'
+              ? 'In progress'
+              : 'Pending';
+        return `  - ${status}: ${entry.content}`;
+      });
+      return [
+        [plan.planId === null ? 'Checklist' : `Checklist ${plan.planId}`, ...steps].join('\n'),
+      ];
+    });
+    if (blocks.length === 0) return { message: 'This ACP conversation has no active plan yet.' };
+    const preview = sanitizeTerminalPreview(
+      [`ACP plans from ${ctx.model}`, ...blocks].join('\n\n'),
+      { maxChars: 64_000, maxLines: 1_000 },
+    );
+    return {
+      message: preview.text + (preview.truncated ? '\n\nAdditional plan content omitted.' : ''),
+    };
+  } catch (error) {
+    return { message: `ACP plan failed: ${toErrorMessage(error)}` };
+  }
+}
+
+async function nativeModeCommand(
+  input: string,
+  ctx: Parameters<SlashCommand['run']>[1],
+): Promise<{ message: string }> {
+  if (!ctx?.provider?.configureNativeMode || !ctx.session?.id) {
+    return { message: 'Select an ACP session leader in this conversation first.' };
+  }
+  const first = input ? parseSessionArgument(input) : undefined;
+  const second = first?.[1] ? parseSessionArgument(first[1]) : undefined;
+  if (input && (!first?.[0] || (first[1] && (!second?.[0] || second[1])))) {
+    return { message: 'Usage: /acp mode [selector] [value]' };
+  }
+  try {
+    const modes = await ctx.provider.configureNativeMode(
+      ctx.model,
+      ctx.session.id,
+      first ? (second ? { optionId: first[0], value: second[0] } : { value: first[0] }) : undefined,
+    );
+    const display = (value: string) => stripAnsi(value).replace(/\p{Cc}/gu, ' ');
+    return {
+      message: [
+        `ACP modes for ${display(ctx.model)}`,
+        ...modes.flatMap((mode) => [
+          `${display(mode.id)}: ${display(mode.currentValue || 'unknown')}`,
+          `  Agent offers: ${mode.options.map((option) => display(option.value)).join(' | ')}`,
+          `  Selectable: ${mode.selectableValues.map(display).join(' | ') || 'view only'}`,
+        ]),
+        ...(!modes.length ? ['This agent has not advertised session modes.'] : []),
+      ].join('\n'),
+    };
+  } catch (error) {
+    return { message: `ACP mode failed: ${toErrorMessage(error)}` };
+  }
 }
 
 /** The `acp.bridge` config: what WrongStack hands a delegated worker. */
@@ -149,11 +348,6 @@ async function syncRegistry(opts: AcpCommandHost): Promise<{ message: string }> 
   }
 }
 
-async function listAgents(live: LoadedAcpRegistry | null): Promise<{ message: string }> {
-  const detected = await new EnsembleRegistry().list();
-  return { message: formatAcpAgentList({ live, detected }) };
-}
-
 async function probeAgents(
   csv: string,
   overrides: AcpAgentCommandOverrides | undefined,
@@ -171,7 +365,7 @@ async function probeAgents(
     );
   } else {
     const detected = await new EnsembleRegistry().list();
-    ids = detected.filter((a) => a.installed).map((a) => a.id);
+    ids = installedAcpAgentIds(detected, live);
   }
   if (ids.length === 0) {
     return { message: 'No installed agents to probe. Run `/acp` to see what is detected.' };
@@ -194,7 +388,7 @@ async function probeAgents(
   for (const r of results) {
     if (r.ok) {
       const name = r.agentInfo?.name ? ` — ${r.agentInfo.name} ${r.agentInfo.version}` : '';
-      lines.push(`  ✓ ${r.id.padEnd(16)} ok  ${r.ms}ms${name}`);
+      lines.push(`  ✓ ${r.id.padEnd(16)} ok  ${r.ms}ms${name}${formatAcpProbeCapabilities(r)}`);
     } else {
       lines.push(`  ✗ ${r.id.padEnd(16)} ${r.error ?? 'failed'}  (${r.ms}ms)`);
     }
@@ -228,7 +422,7 @@ async function benchAgents(
     );
   } else {
     const detected = await new EnsembleRegistry().list();
-    ids = detected.filter((a) => a.installed).map((a) => a.id);
+    ids = installedAcpAgentIds(detected, live);
   }
   if (ids.length === 0) {
     return {
@@ -361,15 +555,18 @@ async function runSingle(
   opts: AcpCommandHost,
   sessionId: string | undefined,
   originSessionId?: string | undefined,
+  sessionTarget?: AcpSessionTarget,
 ): Promise<{ message: string }> {
   // Detect a `--bg` flag anywhere in the remaining tokens.
   const tokens = rest.split(/\s+/).filter(Boolean);
-  const bg = tokens.includes('--bg');
+  const bg = !sessionTarget && tokens.includes('--bg');
   const task = stripQuotes(
-    tokens
-      .filter((t) => t !== '--bg')
-      .join(' ')
-      .trim(),
+    sessionTarget
+      ? rest
+      : tokens
+          .filter((t) => t !== '--bg')
+          .join(' ')
+          .trim(),
   );
   if (!task) {
     return {
@@ -389,7 +586,7 @@ async function runSingle(
   // A host with no terminal to stream into runs every task this way: the
   // agents view shows its progress, where inline it would show nothing until
   // the agent finished.
-  if (bg || (opts.inlineAcpRuns === false && opts.onSpawn)) {
+  if (!sessionTarget && (bg || (opts.inlineAcpRuns === false && opts.onSpawn))) {
     if (!opts.onSpawn) {
       return {
         message: 'Background mode needs the fleet (director). Director Mode is always active.',
@@ -419,6 +616,7 @@ async function runSingle(
       cwd: opts.cwd,
       projectRoot: opts.projectRoot,
       sessionId,
+      ...(sessionTarget ? { sessionTarget } : {}),
       permissionPolicy: opts.acpPermissionPolicy?.(agentId) ?? defaultPermissionPolicy,
       runtimeValues: {
         ...opts.configStore?.get().modelRuntime?.acp?.[agentId],
@@ -431,14 +629,35 @@ async function runSingle(
       },
     });
     const body = result.result && result.result.length > 0 ? result.result : '(no text output)';
+    const reference = result.agentSessionId
+      ? `\nACP session: ${JSON.stringify(result.agentSessionId)}`
+      : '';
     return {
-      message: `=== ${agentId} ===\n${body}\n\n[${agentId}] done — iterations=${result.iterations} toolCalls=${result.toolCalls}`,
+      message: `=== ${agentId} ===\n${body}\n\n[${agentId}] done — iterations=${result.iterations} toolCalls=${result.toolCalls}${reference}`,
     };
   } catch (err) {
     const e = err as { kind?: string; message?: string };
     const detail = e.kind ? `[${e.kind}] ` : '';
     const message = e.message ?? toErrorMessage(err);
     return { message: `ACP agent '${agentId}' failed: ${detail}${message}` };
+  }
+}
+
+function splitFirstWord(input: string): [string, string] {
+  const boundary = input.search(/\s/);
+  return boundary < 0 ? [input, ''] : [input.slice(0, boundary), input.slice(boundary).trimStart()];
+}
+
+/** Parse the quoted opaque IDs and cursors emitted by the session commands. */
+function parseSessionArgument(input: string): [string, string] | undefined {
+  const match = /^(?:"(?:[^"\\]|\\.)*"|'[^']*'|[^\s"']+)(?=\s|$)/u.exec(input);
+  if (!match) return undefined;
+  const raw = match[0];
+  try {
+    const value = raw.startsWith('"') ? (JSON.parse(raw) as string) : stripQuotes(raw);
+    return [value, input.slice(raw.length).trimStart()];
+  } catch {
+    return undefined;
   }
 }
 

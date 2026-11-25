@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T15:28:25.160Z",
+  "generatedAt": "2026-11-25T15:31:03.769Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6561,
-    "testFiles": 5878,
-    "sourceLines": 1344666,
+    "sourceFiles": 6564,
+    "testFiles": 5889,
+    "sourceLines": 1345474,
     "workspaceEdges": 261,
-    "moduleEdges": 19219,
+    "moduleEdges": 19226,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
@@ -872,8 +872,8 @@
     {
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
-      "sourceFiles": 126,
-      "testFiles": 84,
+      "sourceFiles": 129,
+      "testFiles": 95,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -907,7 +907,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 84
+          "testFiles": 95
         }
       ]
     },
@@ -22153,13 +22153,31 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/acp-leader-children.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/acp-leader-close-race.test.ts",
         "projects": [
           "root-node"
         ]
       },
       {
+        "file": "packages/runtime/tests/acp-leader-close-untrack.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/acp-leader-earlier-conversation-surrogate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/acp-leader-elicitation.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22172,6 +22190,24 @@
       },
       {
         "file": "packages/runtime/tests/acp-leader-host-state.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/acp-leader-modes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/acp-leader-plans.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/acp-leader-runtime-config.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22195,7 +22231,19 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/acp-registry-discovery.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/acp-runtime-config.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/acp-session-commands.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22465,6 +22513,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/ladder-usage-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/light-subagent-factory-status-tracker.test.ts",
         "projects": [
           "root-node"
@@ -22519,6 +22573,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/plugin-quiescence-timeout.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/plugin-reload-heap.test.ts",
         "projects": [
           "root-node"
@@ -22556,6 +22616,12 @@
       },
       {
         "file": "packages/runtime/tests/plugin-watch-queued-after-error.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/prune-invalid-last-activity.test.ts",
         "projects": [
           "root-node"
         ]
@@ -37887,8 +37953,8 @@
     },
     {
       "file": "packages/runtime/src/acp-leader/acp-leader-provider.ts",
-      "lines": 787,
-      "relativeImports": 7
+      "lines": 1124,
+      "relativeImports": 9
     },
     {
       "file": "packages/runtime/src/chimera/execution-chimera-review.ts",
@@ -38138,6 +38204,11 @@
       "relativeImports": 27
     },
     {
+      "file": "packages/runtime/src/acp-leader/acp-leader-provider.ts",
+      "lines": 1124,
+      "relativeImports": 9
+    },
+    {
       "file": "packages/project-surfaces/src/atlas/codemap-model.ts",
       "lines": 1116,
       "relativeImports": 0
@@ -38256,11 +38327,6 @@
       "file": "packages/plugins/src/branch-guard/index.ts",
       "lines": 787,
       "relativeImports": 1
-    },
-    {
-      "file": "packages/runtime/src/acp-leader/acp-leader-provider.ts",
-      "lines": 787,
-      "relativeImports": 7
     },
     {
       "file": "packages/vibeui/src/lib/use-session.ts",

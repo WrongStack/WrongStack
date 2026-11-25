@@ -143,6 +143,10 @@ export function trackAcpLeader(leader: LeaderSessions): void {
   state.liveLeaders.add(leader);
 }
 
+export function untrackAcpLeader(leader: LeaderSessions): void {
+  state.liveLeaders.delete(leader);
+}
+
 /**
  * Close every ACP leader's agent sessions, bounded by `timeoutMs`. Called on
  * the way out: an open agent (and the MCP servers it started) otherwise holds

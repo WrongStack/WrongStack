@@ -16,12 +16,17 @@
  *
  * `@wrongstack/acp` is loaded on first use: it must stay off the boot graph.
  */
-import { type ACPProgressEvent, type ACPSession, findAgentDescriptor } from '@wrongstack/acp';
+import {
+  type ACPProgressEvent,
+  type ACPSession,
+  type AcpChildSource,
+  type AcpFormElicitationHandler,
+  findAgentDescriptor,
+} from '@wrongstack/acp';
 import type {
   AgentContextUsage,
   Capabilities,
   Config,
-  ContentBlock as CoreContentBlock,
   Provider,
   ProviderFactory,
   Request,
@@ -31,8 +36,26 @@ import type {
   Tool,
 } from '@wrongstack/contracts/types';
 import { documentAsText, ProviderError } from '@wrongstack/contracts/types';
+import type {
+  AcpChildSession,
+  AcpNativeModeChoice,
+  AcpNativeModeSelector,
+  AcpNativeRuntimeResult,
+  AcpRuntimeEdit,
+  AcpRuntimeSelections,
+  AcpRuntimeValues,
+  AcpSessionPlan,
+} from '@wrongstack/contracts/types/acp-runtime';
+import type { TodoItem } from '@wrongstack/contracts/types/todo';
 import { type Context, consumeBtwNotes } from '@wrongstack/core/agent';
-import { subjectForToolInput } from '@wrongstack/core/utils';
+import {
+  base64DecodedBytes,
+  MAX_INCOMING_IMAGE_BYTES,
+  MAX_INCOMING_IMAGES,
+  sanitizeTerminalPreview,
+  subjectForToolInput,
+  toErrorMessage,
+} from '@wrongstack/core/utils';
 import {
   acpBtwBlock,
   recordAcpRateLimit,
@@ -40,6 +63,8 @@ import {
   wrongstackAcpPermissionPolicy,
   wrongstackBridgeSetup,
 } from '@wrongstack/fleet';
+import { assertSafeVisionUrl } from '../vision.js';
+import { advertisedNativeCommand } from './acp-leader-commands.js';
 import { confirmThroughEvents, rememberConfirmAnswer } from './acp-leader-confirm.js';
 import { LeaderContext, publishLeaderContext } from './acp-leader-context.js';
 import {
@@ -50,13 +75,19 @@ import {
   fleetToolName,
   startFleetEndpoint,
 } from './acp-leader-fleet.js';
-import { ACP_LEADER_PROVIDER_ID, acpLeaderHost, trackAcpLeader } from './acp-leader-host.js';
+import {
+  ACP_LEADER_PROVIDER_ID,
+  acpLeaderHost,
+  trackAcpLeader,
+  untrackAcpLeader,
+} from './acp-leader-host.js';
 import { readLeaderSession, writeLeaderSession } from './acp-leader-resume.js';
 import { externalSkillDirective, externalSkillLoader } from './acp-leader-skills.js';
 import {
   agentTurnError,
   earlierConversation,
   latestUserText,
+  pendingUserMessages,
   StreamQueue,
   TextBlocks,
   ToolCardRelay,
@@ -101,8 +132,55 @@ const CAPABILITIES: Capabilities = {
 
 type AcpModule = typeof import('@wrongstack/acp');
 
+function nativeCommandText(messages: Request['messages']): string {
+  const content = pendingUserMessages(messages).at(-1)?.content;
+  if (typeof content === 'string') return content.trim();
+  if (!content?.every((block) => block.type === 'text')) return '';
+  return content
+    .map((block) => block.text)
+    .join('\n\n')
+    .trim();
+}
+
+/** Fit handoff images in the existing incoming-image budget after the active turn's attachments. */
+function recentHistoryImages(
+  acp: AcpModule,
+  messages: Request['messages'],
+  attachments: Parameters<ACPSession['prompt']>[0],
+): Parameters<ACPSession['prompt']>[0] {
+  const images: Parameters<ACPSession['prompt']>[0] = [];
+  let remainingImages = MAX_INCOMING_IMAGES;
+  let remainingBytes = MAX_INCOMING_IMAGE_BYTES;
+  for (const block of attachments) {
+    if (block.type === 'image') {
+      remainingImages--;
+      remainingBytes -= base64DecodedBytes(block.data);
+    } else if (block.type === 'resource' && 'blob' in block.resource) {
+      remainingBytes -= base64DecodedBytes(block.resource.blob);
+    }
+  }
+
+  const lastReply = messages.findLastIndex((message) => message.role === 'assistant');
+  for (let i = lastReply - 1; i >= 0 && remainingImages > 0 && remainingBytes > 0; i--) {
+    const message = messages[i];
+    if (message?.role !== 'user' || !Array.isArray(message.content)) continue;
+    for (let j = message.content.length - 1; j >= 0 && remainingImages > 0; j--) {
+      const block = message.content[j];
+      if (block?.type !== 'image' || block.source.type !== 'base64' || !block.source.data?.trim())
+        continue;
+      const bytes = base64DecodedBytes(block.source.data);
+      if (bytes > remainingBytes) continue;
+      images.push(acp.imageContent(block.source.media_type ?? 'image/png', block.source.data));
+      remainingImages--;
+      remainingBytes -= bytes;
+    }
+  }
+  return images.reverse();
+}
+
 interface LeaderSession {
   runtimeConfigured?: boolean;
+  runtimeUpdate?: Promise<unknown> | undefined;
   agentId: string;
   session: ACPSession;
   context: LeaderContext;
@@ -210,6 +288,194 @@ export class AcpLeaderProvider implements Provider {
     return this.caps.value;
   }
 
+  async supportsVisionFor(model: string, sessionId: string): Promise<boolean> {
+    const acp = await this.loadAcp();
+    try {
+      const leader = await this.sessionFor(sessionId, model);
+      return leader.session.getCapabilities().promptCapabilities?.image === true;
+    } catch (error) {
+      throw agentTurnError(error, model, acp.classifyAgentFailure).error;
+    }
+  }
+
+  async listNativeCommands(model: string, sessionId: string) {
+    const acp = await this.loadAcp();
+    try {
+      const leader = await this.sessionFor(sessionId, model);
+      return leader.session.getAvailableCommands().map(({ name, description, input }) => ({
+        name,
+        description,
+        ...(input?.hint ? { inputHint: input.hint } : {}),
+      }));
+    } catch (error) {
+      throw agentTurnError(error, model, acp.classifyAgentFailure).error;
+    }
+  }
+
+  async listNativePlans(model: string, sessionId: string): Promise<AcpSessionPlan[]> {
+    const leader = await this.sessions.get(sessionId);
+    return leader?.agentId === model ? leader.session.getSessionPlans() : [];
+  }
+
+  async listNativeChildren(model: string, sessionId: string): Promise<AcpChildSession[]> {
+    const leader = await this.sessions.get(sessionId);
+    return leader?.agentId === model ? leader.session.getChildSessions() : [];
+  }
+
+  private projectPlanTodos(sessionId: string, plans: AcpSessionPlan[]): void {
+    const host = acpLeaderHost();
+    const ctx = host?.context(sessionId) as Context | undefined;
+    if (!host || !ctx?.state || (ctx.provider && ctx.provider.id !== this.id)) return;
+    const prefix = 'acp-plan-';
+    const previous = ctx.todos.filter((todo) => todo.id.startsWith(prefix));
+    const fromPlans = plans
+      .flatMap((plan): TodoItem[] =>
+        plan.type === 'items'
+          ? plan.entries.map((entry, index) => ({
+              id: `${prefix}${plan.planId === null ? index + 1 : JSON.stringify([plan.planId, index])}`,
+              content: entry.content,
+              status: entry.status,
+            }))
+          : [],
+      )
+      .slice(0, 512);
+    if (
+      previous.length === fromPlans.length &&
+      previous.every((row, index) => {
+        const next = fromPlans[index];
+        return (
+          next && row.id === next.id && row.content === next.content && row.status === next.status
+        );
+      })
+    ) {
+      return;
+    }
+    ctx.state.replaceTodos([
+      ...ctx.todos.filter((todo) => !todo.id.startsWith(prefix)),
+      ...fromPlans,
+    ]);
+    host.events.emit('provider.todos_updated', {
+      sessionId,
+      ctx,
+      todos: [...ctx.todos],
+      revision: ctx.state.revision,
+    });
+  }
+
+  async configureNativeRuntime(
+    model: string,
+    sessionId: string,
+    edit?: AcpRuntimeEdit,
+  ): Promise<AcpNativeRuntimeResult> {
+    const acp = await this.loadAcp();
+    const leader = await this.sessionFor(sessionId, model);
+    return this.withRuntimeUpdate(leader, async () => {
+      const current = leader.session.getConfigOptions();
+      if (!edit) return { options: current };
+      const previous = this.desiredRuntime(model, sessionId);
+      const { values, save } = edit(current);
+      try {
+        const unavailableRestores: AcpRuntimeValues = {};
+        const options = await this.applyRuntime(
+          acp,
+          leader,
+          this.effectiveRuntime(model, values),
+          (id, value) => {
+            unavailableRestores[id] = value;
+          },
+        );
+        await save();
+        return { options, unavailableRestores };
+      } catch (error) {
+        try {
+          await this.applyRuntime(acp, leader, previous);
+        } catch (rollbackError) {
+          throw new Error(
+            `${toErrorMessage(error)}. Restoring the agent settings failed: ${toErrorMessage(rollbackError)}`,
+            { cause: error },
+          );
+        }
+        throw error;
+      }
+    });
+  }
+
+  async configureNativeMode(
+    model: string,
+    sessionId: string,
+    choice?: AcpNativeModeChoice,
+  ): Promise<AcpNativeModeSelector[]> {
+    const acp = await this.loadAcp();
+    const leader = await this.sessionFor(sessionId, model);
+    const supported = acp.resolveAcpClientProfile(model).leaderModes;
+    const selectors = () =>
+      leader.session.getSessionModeOptions().map((option) => {
+        const allowed =
+          supported && Object.hasOwn(supported, option.id) ? supported[option.id] : undefined;
+        return {
+          ...option,
+          selectableValues: option.options
+            .map((choice) => choice.value)
+            .filter((value) => allowed?.includes(value)),
+        };
+      });
+    return this.withRuntimeUpdate(leader, async () => {
+      const current = selectors();
+      if (!choice) return current;
+      const matching = current.filter(
+        (option) =>
+          (!choice.optionId || option.id === choice.optionId) &&
+          option.options.some((value) => value.value === choice.value),
+      );
+      const selected = matching[0];
+      if (!selected) throw new Error('This ACP agent does not offer that mode.');
+      if (matching.length > 1) throw new Error('Specify a mode selector ID. See /acp mode.');
+      if (!selected.selectableValues.includes(choice.value)) {
+        throw new Error(
+          'WrongStack cannot switch to that mode. See /acp mode for selectable values.',
+        );
+      }
+      await leader.session.setSessionModeOption(selected.id, choice.value);
+      return selectors();
+    });
+  }
+
+  private async withRuntimeUpdate<T>(leader: LeaderSession, run: () => Promise<T>): Promise<T> {
+    const pending = (leader.runtimeUpdate ?? Promise.resolve()).then(run, run);
+    leader.runtimeUpdate = pending;
+    try {
+      return await pending;
+    } finally {
+      if (leader.runtimeUpdate === pending) leader.runtimeUpdate = undefined;
+    }
+  }
+
+  private desiredRuntime(model: string, sessionId: string): AcpRuntimeValues {
+    const context = acpLeaderHost()?.context(sessionId) as Context | undefined;
+    const selections = context?.meta?.['acpRuntime'] as AcpRuntimeSelections | undefined;
+    return this.effectiveRuntime(model, selections?.[model]);
+  }
+
+  private effectiveRuntime(model: string, values?: AcpRuntimeValues): AcpRuntimeValues {
+    return values && Object.keys(values).length > 0
+      ? { ...values }
+      : { ...(this.config().modelRuntime?.acp?.[model] ?? {}) };
+  }
+
+  private async applyRuntime(
+    acp: AcpModule,
+    leader: LeaderSession,
+    values: AcpRuntimeValues,
+    onUnavailableRestore?: (id: string, value: string) => void,
+  ) {
+    const configured = Object.keys(values).length > 0;
+    if (!configured && !leader.runtimeConfigured) return leader.session.getConfigOptions();
+    leader.runtimeConfigured = true;
+    const options = await acp.applyAcpRuntimeValues(leader.session, values, onUnavailableRestore);
+    leader.runtimeConfigured = configured;
+    return options;
+  }
+
   /** The WrongStack provider and request for anything that is not a leader turn. */
   private side(req: Request): { provider: Provider; req: Request } {
     const ref = leaderSideModel(this.config());
@@ -265,49 +531,54 @@ export class AcpLeaderProvider implements Provider {
 
     yield { type: 'message_start', model: agentId };
     const hostContext = acpLeaderHost()?.context(key) as Context | undefined;
-    const selectedRuntime = hostContext?.meta?.['acpRuntime'] as
-      | import('@wrongstack/contracts/types/acp-runtime').AcpRuntimeSelections
-      | undefined;
-    const sessionOverride = selectedRuntime?.[agentId];
-    const desiredRuntime =
-      sessionOverride && Object.keys(sessionOverride).length > 0
-        ? { ...sessionOverride }
-        : { ...(this.config().modelRuntime?.acp?.[agentId] ?? {}) };
-    if (Object.keys(desiredRuntime).length || leader.runtimeConfigured) {
-      leader.runtimeConfigured = true;
-      await acp.applyAcpRuntimeValues(leader.session, desiredRuntime);
-      leader.runtimeConfigured = Object.keys(desiredRuntime).length > 0;
+    if (
+      leader.runtimeUpdate ||
+      leader.runtimeConfigured ||
+      Object.keys(this.desiredRuntime(agentId, key)).length > 0
+    ) {
+      await this.withRuntimeUpdate(leader, () =>
+        this.applyRuntime(acp, leader, this.desiredRuntime(agentId, key)),
+      );
     }
+    const commandText = nativeCommandText(req.messages);
+    const nativeCommand = commandText
+      ? advertisedNativeCommand(commandText, leader.session.getAvailableCommands?.() ?? [])
+      : undefined;
+    const prompt = nativeCommand
+      ? [acp.textContent(commandText)]
+      : await this.promptBlocks(acp, leader, req);
     const stopReminders =
-      leader.session.canSteer() && hostContext?.meta
+      !nativeCommand && leader.session.canSteer() && hostContext?.meta
         ? startAcpTurnReminders({
             agentId: leader.agentId,
             context: hostContext,
             steer: (text) => leader.session.steer(text),
           })
         : undefined;
-    const turn = leader.session
-      .prompt(this.promptBlocks(acp, leader, req), opts.signal, onProgress)
-      .then(
-        (result) => {
-          blocks.close();
-          if (result.usage) this.observeContext(leader, req.cache?.sessionId, result.usage);
-          const agentContext = leader.context.current;
-          queue.push({
-            type: 'message_stop',
-            stopReason: turnStopReason(result),
-            usage: turnUsage(result),
-            ...(agentContext ? { agentContext } : {}),
-          });
-          queue.end();
-        },
-        (err: unknown) => {
-          blocks.close();
-          const { error, dead } = agentTurnError(err, agentId, acp.classifyAgentFailure);
-          if (dead) this.drop(key, leader);
-          queue.fail(error);
-        },
-      );
+    const turn = leader.session.prompt(prompt, opts.signal, onProgress).then(
+      (result) => {
+        if (nativeCommand && result.stopReason === 'end_turn' && !result.hasText) {
+          blocks.text(`Agent command /${nativeCommand.name} completed.`);
+        }
+        if (!nativeCommand && result.stopReason !== 'cancelled') leader.joined = true;
+        blocks.close();
+        if (result.usage) this.observeContext(leader, req.cache?.sessionId, result.usage);
+        const agentContext = leader.context.current;
+        queue.push({
+          type: 'message_stop',
+          stopReason: turnStopReason(result),
+          usage: turnUsage(result),
+          ...(agentContext ? { agentContext } : {}),
+        });
+        queue.end();
+      },
+      (err: unknown) => {
+        blocks.close();
+        const { error, dead } = agentTurnError(err, agentId, acp.classifyAgentFailure);
+        if (dead) this.drop(key, leader);
+        queue.fail(error);
+      },
+    );
     try {
       yield* queue.drain();
     } finally {
@@ -317,53 +588,72 @@ export class AcpLeaderProvider implements Provider {
   }
 
   /**
-   * Build the ACP prompt content blocks: the text turn plus any attached images
-   * or documents from the latest user message, gated by the agent's advertised
-   * `promptCapabilities` (with text fallback for PDFs when embeddedContext is absent).
+   * Preserve attachments across every user message waiting for this turn.
+   * Fresh external sessions also receive recent images from the handoff history.
    */
-  private promptBlocks(
+  private async promptBlocks(
     acp: AcpModule,
     leader: LeaderSession,
     req: Request,
-  ): Parameters<ACPSession['prompt']>[0] {
-    const out: Parameters<ACPSession['prompt']>[0] = [
-      acp.textContent(this.promptText(leader, req)),
-    ];
-    const lastUser = [...req.messages].reverse().find((m) => m.role === 'user');
-    if (!lastUser || typeof lastUser.content === 'string') return out;
+  ): Promise<Parameters<ACPSession['prompt']>[0]> {
+    type PromptBlock = Parameters<ACPSession['prompt']>[0][number];
+    const attachments: PromptBlock[] = [];
     const promptCaps = leader.session.getCapabilities?.().promptCapabilities;
-    for (const block of lastUser.content as CoreContentBlock[]) {
-      if (block.type === 'image' && promptCaps?.image === true) {
-        if (block.source.type === 'base64' && block.source.data) {
-          out.push({
-            type: 'image',
-            data: block.source.data,
-            mimeType: block.source.media_type ?? 'image/png',
-          });
-        } else if (block.source.type === 'url' && block.source.url) {
-          out.push({
-            type: 'image',
-            data: '',
-            mimeType: block.source.media_type ?? 'image/png',
-            uri: block.source.url,
-          });
-        }
-      } else if (block.type === 'document') {
-        if (promptCaps?.embeddedContext === true) {
-          out.push({
-            type: 'resource',
-            resource: {
-              uri: `file:///${encodeURIComponent(block.name ?? 'document.pdf')}`,
-              mimeType: block.source.media_type,
-              blob: block.source.data,
-            },
-          });
-        } else {
-          out.push(acp.textContent(documentAsText(block).text));
+    for (const message of pendingUserMessages(req.messages)) {
+      if (!Array.isArray(message.content)) continue;
+      for (const block of message.content) {
+        if (block.type === 'image') {
+          const { source } = block;
+          if (source.type === 'url') {
+            await assertSafeVisionUrl(source.url);
+            attachments.push({
+              type: 'resource_link',
+              uri: source.url!,
+              name: 'Image',
+              ...(source.media_type ? { mimeType: source.media_type } : {}),
+            });
+            continue;
+          }
+          if (promptCaps?.image !== true || !source.data?.trim()) {
+            throw new ProviderError(
+              promptCaps?.image !== true
+                ? `ACP agent '${leader.agentId}' does not support image prompt content.`
+                : 'ACP image attachment has no image data.',
+              400,
+              false,
+              this.id,
+              { kind: 'invalid_request' },
+            );
+          }
+          attachments.push(acp.imageContent(source.media_type ?? 'image/png', source.data));
+        } else if (block.type === 'document') {
+          if (promptCaps?.embeddedContext) {
+            attachments.push({
+              type: 'resource',
+              resource: {
+                uri: `file:///${encodeURIComponent(block.name ?? 'document.pdf')}`,
+                mimeType: block.source.media_type,
+                blob: block.source.data,
+              },
+            });
+          } else {
+            attachments.push(acp.textContent(documentAsText(block).text));
+          }
         }
       }
     }
-    return out;
+
+    const prior =
+      !leader.joined && promptCaps?.image === true
+        ? recentHistoryImages(acp, req.messages, attachments)
+        : [];
+    return [
+      acp.textContent(this.promptText(leader, req)),
+      ...(prior.length
+        ? [acp.textContent('Recent images from the earlier conversation, in order.'), ...prior]
+        : []),
+      ...attachments,
+    ];
   }
 
   /** The turn's prompt; an agent joining a conversation under way gets the turns before it. */
@@ -374,7 +664,6 @@ export class AcpLeaderProvider implements Provider {
     );
     const wasJoined = leader.joined;
     const earlier = wasJoined ? undefined : earlierConversation(req.messages);
-    leader.joined = true;
     const prompt = earlier ? `${earlier}\n\n${latest}` : latest;
     const context = acpLeaderHost()?.context(req.cache?.sessionId) as Context | undefined;
     const notes = context?.meta ? consumeBtwNotes(context) : [];
@@ -427,17 +716,6 @@ export class AcpLeaderProvider implements Provider {
               ctx,
               text: event.text,
             });
-          }
-          return;
-        }
-        case 'plan': {
-          const ctx = acpLeaderHost()?.context(sessionId);
-          if (ctx) {
-            ctx.todos = event.entries.map((entry, idx) => ({
-              id: `acp-plan-${idx + 1}`,
-              content: entry.content,
-              status: entry.status,
-            }));
           }
           return;
         }
@@ -521,6 +799,9 @@ export class AcpLeaderProvider implements Provider {
     }
     const starting = this.startSession(key, agentId).then((leader) => {
       this.sessionLeaders.set(starting, leader);
+      if (this.sessions.get(key) === starting) {
+        this.projectPlanTodos(key, leader.session.getSessionPlans?.() ?? []);
+      }
       return leader;
     });
     this.sessions.set(key, starting);
@@ -538,11 +819,15 @@ export class AcpLeaderProvider implements Provider {
     sessionId: string,
     tool: Tool,
     input: Record<string, unknown>,
-    request: { toolCallId: string | undefined; signal: AbortSignal },
+    request: {
+      toolCallId: string | undefined;
+      signal: AbortSignal;
+      child?: AcpChildSource | undefined;
+    },
   ): Promise<boolean> {
     const approved = await this.ask(sessionId, tool, input, request);
     // A fleet tool runs in this process right after; that run must not ask again.
-    if (approved && FLEET_TOOLS.includes(tool.name)) {
+    if (approved && !request.child && FLEET_TOOLS.includes(tool.name)) {
       const key = fleetGrantKey(sessionId, tool.name, input);
       this.fleetGrants.set(key, (this.fleetGrants.get(key) ?? 0) + 1);
     }
@@ -576,12 +861,19 @@ export class AcpLeaderProvider implements Provider {
     sessionId: string,
     tool: Tool,
     input: Record<string, unknown>,
-    request: { toolCallId: string | undefined; signal: AbortSignal },
+    request: {
+      toolCallId: string | undefined;
+      signal: AbortSignal;
+      child?: AcpChildSource | undefined;
+    },
   ): Promise<boolean> {
     const host = acpLeaderHost();
     const suggestedPattern =
       subjectForToolInput(tool.name, input, tool.subjectKey, tool.subjectFields) ?? tool.name;
-    const toolUseId = request.toolCallId ?? `acp-${Date.now()}`;
+    const callId = request.toolCallId ?? `acp-${Date.now()}`;
+    const toolUseId = request.child
+      ? JSON.stringify(['acp-child', request.child.id, callId])
+      : callId;
     if (host?.confirmAwaiter) {
       const answer = await host.confirmAwaiter(tool, input, toolUseId, suggestedPattern);
       await rememberConfirmAnswer(
@@ -605,6 +897,11 @@ export class AcpLeaderProvider implements Provider {
       toolUseId,
       suggestedPattern,
       signal: request.signal,
+      ...(request.child
+        ? {
+            boundaryReason: `ACP subagent ${sanitizeTerminalPreview(request.child.title ?? request.child.id, { maxLines: 1, maxChars: 300 }).text}`,
+          }
+        : {}),
       permission: host.permission(sessionId),
       context: host.context(sessionId),
     });
@@ -615,7 +912,11 @@ export class AcpLeaderProvider implements Provider {
     const config = this.config();
     const host = acpLeaderHost();
     const projectRoot = host?.projectRoot ?? process.cwd();
-    const cmd = acp.resolveAcpAgentCommand(agentId, config.acp?.agents);
+    const cmd = acp.resolveAcpAgentCommand(
+      agentId,
+      config.acp?.agents,
+      acp.readCachedAcpRegistry()?.byId,
+    );
     if (!cmd) {
       throw new ProviderError(
         `Unknown ACP agent "${agentId}". Run /acp to see the agents installed here.`,
@@ -692,6 +993,29 @@ export class AcpLeaderProvider implements Provider {
             : {}),
         })
       : undefined;
+    const elicitForm: AcpFormElicitationHandler | undefined =
+      host?.confirmThroughEvents && (host.context(key) as Context | undefined)?.userInputAwaiter
+        ? async (form, signal) => {
+            const { elicitAcpFormViaUserInput } = await import('@wrongstack/mcp');
+            return elicitAcpFormViaUserInput(
+              form.child ? `${agentId} / ${form.child.title ?? form.child.id}` : agentId,
+              form,
+              {
+                requestUserInput: (request, formSignal = signal) => {
+                  const ctx = host.context(key) as Context | undefined;
+                  return (
+                    ctx?.userInputAwaiter?.(request, {
+                      sessionId: key,
+                      signal: formSignal,
+                      meta: ctx.meta,
+                    }) ?? Promise.resolve(undefined)
+                  );
+                },
+              },
+              signal,
+            );
+          }
+        : undefined;
     // A WrongStack session this agent led before (a resume): continue the
     // agent's own conversation rather than starting it over from a recap.
     const stateDir = host?.stateDir;
@@ -715,12 +1039,24 @@ export class AcpLeaderProvider implements Provider {
           (config.features?.allowOutsideProjectRoot ??
             !(config.tools?.restrictToProjectRoot ?? false)),
         role: agentId,
+        observeSubagents: !host?.confirmAwaiter,
+        onPlansChanged: (plans) => {
+          const live = this.sessions.get(key);
+          if (live && this.sessionLeaders.get(live)?.session === session) {
+            this.projectPlanTodos(key, plans);
+          }
+        },
         ...(permissionPolicy ? { permissionPolicy } : {}),
+        ...(elicitForm ? { elicitForm } : {}),
         ...(mcpServers.length > 0 ? { mcpServers } : {}),
         ...(sessionMeta ? { sessionMeta } : {}),
         // Claude asks before edits and commands only in `default`.
         ...(permissionPolicy
-          ? { initialModeId: 'default', requireInitialMode: agentId === 'claude-code' }
+          ? {
+              initialModeId: 'default',
+              requireInitialMode:
+                acp.resolveAcpClientProfile(agentId).initialMode?.require ?? false,
+            }
           : {}),
         ...(resumeSessionId ? { resumeSessionId } : {}),
       });
@@ -750,6 +1086,7 @@ export class AcpLeaderProvider implements Provider {
   /** Close every agent session (process shutdown). */
   async closeAll(): Promise<void> {
     this.closed = true;
+    untrackAcpLeader(this);
     const all = [...this.sessions.values()];
     this.sessions.clear();
     this.fleetGrants.clear();

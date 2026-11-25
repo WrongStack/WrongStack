@@ -79,7 +79,13 @@ describe('/acp config', () => {
   it('shows the agent’s settings without saving when no option is given', async () => {
     sessionSettings = { 'claude-code': { effort: 'high' } };
     const { message } = await configureAcpRuntime('claude-code', opts, ctxWith());
-    expect(inspectAcpRuntime).toHaveBeenCalledWith({}, '/p', 'claude-code', { effort: 'high' });
+    expect(inspectAcpRuntime).toHaveBeenCalledWith(
+      {},
+      '/p',
+      'claude-code',
+      { effort: 'high' },
+      undefined,
+    );
     expect(message).toBe(
       'ACP claude-code\nmodel: sonnet\n  sonnet | opus\neffort: high\n  low | high',
     );
