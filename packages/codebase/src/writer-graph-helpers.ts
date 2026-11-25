@@ -33,17 +33,18 @@ export function buildPackageGraphNodes(
   };
 
   for (const { file, n } of fileCounts) {
+    const safeCount = Number.isFinite(n) && n > 0 ? n : 0;
     const pkg = getOrSetPkg(file);
     const node = pkgNodes.get(pkg);
     if (node) {
-      node.symbolCount = (node.symbolCount ?? 0) + n;
+      node.symbolCount = (node.symbolCount ?? 0) + safeCount;
     } else {
       pkgNodes.set(pkg, {
         id: `pkg:${pkg}`,
         label: pkg,
         kind: 'package',
         package: pkg,
-        symbolCount: n,
+        symbolCount: safeCount,
         fileCount: 0,
       });
     }

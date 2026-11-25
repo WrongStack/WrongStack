@@ -134,6 +134,9 @@ export function verificationExecutionLeaseSecretMatches(
   secret: string,
   expectedHash: string,
 ): boolean {
+  if (typeof expectedHash !== 'string' || !/^[a-f0-9]{64}$/i.test(expectedHash)) {
+    return false;
+  }
   const actual = Buffer.from(verificationExecutionLeaseSecretHash(secret), 'hex');
   const expected = Buffer.from(expectedHash, 'hex');
   return actual.length === expected.length && timingSafeEqual(actual, expected);

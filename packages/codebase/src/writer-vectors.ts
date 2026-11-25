@@ -130,7 +130,7 @@ export function searchFileVectorsWithStatement(
   // unnormalised vectors is not bounded by [-1, 1]: the `minScore` floor then
   // admitted or rejected hits by vector magnitude instead of by direction.
   const queryNorm = l2Norm(query);
-  if (!(queryNorm > 0)) return [];
+  if (!Number.isFinite(queryNorm) || queryNorm <= 0) return [];
   const floor = Number.isFinite(minScore) ? minScore : Number.NEGATIVE_INFINITY;
   const rows = stmt('SELECT file, vector FROM file_vectors').all() as Array<{
     file: string;
@@ -148,11 +148,11 @@ export function searchFileVectorsWithStatement(
     }
     if (vector.length !== query.length) continue;
     const vectorNorm = l2Norm(vector);
-    if (!(vectorNorm > 0)) continue;
+    if (!Number.isFinite(vectorNorm) || vectorNorm <= 0) continue;
     let dot = 0;
     for (let i = 0; i < query.length; i++) dot += (query[i] as number) * (vector[i] as number);
     const score = dot / (queryNorm * vectorNorm);
-    if (score >= floor) hits.push({ file: row.file, score });
+    if (Number.isFinite(score) && score >= floor) hits.push({ file: row.file, score });
   }
 
   hits.sort((a, b) => b.score - a.score || a.file.localeCompare(b.file));

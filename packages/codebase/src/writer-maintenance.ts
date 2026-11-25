@@ -16,9 +16,10 @@ export function recordFtsChurn(
   setMetadata: (key: string, value: string) => void,
   rows: number,
 ): void {
-  if (rows <= 0 || !ftsAvailable) return;
+  if (!Number.isFinite(rows) || rows <= 0 || !ftsAvailable) return;
   try {
-    const current = Number(getMetadata(FTS_CHURN_KEY) ?? '0') || 0;
+    const rawCurrent = Number(getMetadata(FTS_CHURN_KEY) ?? '0');
+    const current = Number.isFinite(rawCurrent) && rawCurrent > 0 ? rawCurrent : 0;
     setMetadata(FTS_CHURN_KEY, String(current + rows));
   } catch {
     /* tracking must never fail the owning write */
@@ -35,9 +36,16 @@ export function optimizeFtsIfNeeded(
 ): boolean {
   if (!ftsAvailable) return false;
   try {
-    const minChurnRatio = options.minChurnRatio ?? 0.1;
-    const minChurnRows = options.minChurnRows ?? 5_000;
-    const churn = Number(getMetadata(FTS_CHURN_KEY) ?? '0') || 0;
+    const minChurnRatio =
+      typeof options.minChurnRatio === 'number' && Number.isFinite(options.minChurnRatio)
+        ? Math.max(0, options.minChurnRatio)
+        : 0.1;
+    const minChurnRows =
+      typeof options.minChurnRows === 'number' && Number.isFinite(options.minChurnRows)
+        ? Math.max(0, options.minChurnRows)
+        : 5_000;
+    const rawChurn = Number(getMetadata(FTS_CHURN_KEY) ?? '0');
+    const churn = Number.isFinite(rawChurn) && rawChurn > 0 ? rawChurn : 0;
     const liveRows = Number(
       (stmt('SELECT COUNT(*) AS n FROM symbols').get() as { n?: number } | undefined)?.n ?? 0,
     );
@@ -74,8 +82,14 @@ export function compactIfNeeded(
   runWithRetry: <T>(fn: () => T) => T,
   options: { minBytes?: number; minFreeRatio?: number } = {},
 ): boolean {
-  const minBytes = options.minBytes ?? 256 * 1024 * 1024;
-  const minFreeRatio = options.minFreeRatio ?? 0.35;
+  const minBytes =
+    typeof options.minBytes === 'number' && Number.isFinite(options.minBytes)
+      ? Math.max(0, options.minBytes)
+      : 256 * 1024 * 1024;
+  const minFreeRatio =
+    typeof options.minFreeRatio === 'number' && Number.isFinite(options.minFreeRatio)
+      ? Math.max(0, options.minFreeRatio)
+      : 0.35;
   try {
     const pageCount = Number(
       (stmt('PRAGMA page_count').get() as { page_count?: number } | undefined)?.page_count ?? 0,

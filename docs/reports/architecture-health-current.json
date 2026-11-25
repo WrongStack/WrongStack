@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T15:42:13.605Z",
+  "generatedAt": "2026-11-25T15:44:49.665Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,16 +13,16 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6564,
-    "testFiles": 5960,
-    "sourceLines": 1345858,
+    "testFiles": 5977,
+    "sourceLines": 1345934,
     "workspaceEdges": 261,
     "moduleEdges": 19226,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 3,
-    "testsWithoutTypecheck": 2,
+    "testsWithoutTypecheck": 10,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1051
+    "testOnlyExports": 1052
   },
   "errors": [
     "2 unexcepted module cycle(s)"
@@ -210,7 +210,7 @@
       "name": "@wrongstack/chronicle",
       "dir": "packages/chronicle",
       "sourceFiles": 54,
-      "testFiles": 61,
+      "testFiles": 64,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -226,7 +226,7 @@
         {
           "path": "packages/chronicle/tsconfig.test.json",
           "error": null,
-          "testFiles": 61
+          "testFiles": 64
         }
       ]
     },
@@ -315,7 +315,7 @@
       "name": "@wrongstack/codebase",
       "dir": "packages/codebase",
       "sourceFiles": 115,
-      "testFiles": 1,
+      "testFiles": 9,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/persistence",
@@ -509,7 +509,7 @@
       "name": "@wrongstack/governance",
       "dir": "packages/governance",
       "sourceFiles": 45,
-      "testFiles": 39,
+      "testFiles": 43,
       "workspaceDependencies": [
         "@wrongstack/persistence"
       ],
@@ -522,7 +522,7 @@
         {
           "path": "packages/governance/tsconfig.test.json",
           "error": null,
-          "testFiles": 39
+          "testFiles": 43
         }
       ]
     },
@@ -763,7 +763,7 @@
       "name": "@wrongstack/primitives",
       "dir": "packages/primitives",
       "sourceFiles": 27,
-      "testFiles": 48,
+      "testFiles": 50,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -774,7 +774,7 @@
         {
           "path": "packages/primitives/tsconfig.test.json",
           "error": null,
-          "testFiles": 48
+          "testFiles": 50
         }
       ]
     },
@@ -5389,6 +5389,12 @@
         ]
       },
       {
+        "file": "packages/chronicle/tests/chronicle-hash-undef.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/chronicle/tests/chronicle-project-server-client.gaps.test.ts",
         "projects": [
           "root-node"
@@ -5462,6 +5468,12 @@
       },
       {
         "file": "packages/chronicle/tests/file-tool-stats.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/chronicle/tests/health-monitor-interval.test.ts",
         "projects": [
           "root-node"
         ]
@@ -5552,6 +5564,12 @@
       },
       {
         "file": "packages/chronicle/tests/partition-order-locale.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/chronicle/tests/partition-range-cache-merge.test.ts",
         "projects": [
           "root-node"
         ]
@@ -10213,7 +10231,55 @@
         ]
       },
       {
+        "file": "packages/codebase/tests/background-indexer-lifecycle.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/codebase/tests/bm25-snippet-radius.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/codebase/tests/parser-output-boundaries.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/codebase/tests/perf-metrics-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/codebase/tests/project-server-cache-bounds.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/codebase/tests/vector-search-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/codebase/tests/writer-graph-helpers-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/codebase/tests/writer-maintenance-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/codebase/tests/writer-vectors-inf.test.ts",
         "projects": [
           "root-node"
         ]
@@ -16669,6 +16735,12 @@
         ]
       },
       {
+        "file": "packages/governance/tests/autonomy-invalid-tier.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/governance/tests/capability-grant.test.ts",
         "projects": [
           "root-node"
@@ -16747,6 +16819,12 @@
         ]
       },
       {
+        "file": "packages/governance/tests/path-nul-byte-rejection.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/governance/tests/plan-version-path-scope.test.ts",
         "projects": [
           "root-node"
@@ -16819,6 +16897,12 @@
         ]
       },
       {
+        "file": "packages/governance/tests/transition-engine-nan-findings.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/governance/tests/transition-engine.test.ts",
         "projects": [
           "root-node"
@@ -16850,6 +16934,12 @@
       },
       {
         "file": "packages/governance/tests/verification-issuance-coordinator.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/governance/tests/verification-lease-hash-validation.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20977,6 +21067,12 @@
         ]
       },
       {
+        "file": "packages/primitives/tests/older-daemon-neg-pid.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/primitives/tests/older-daemon.test.ts",
         "projects": [
           "root-node"
@@ -21146,6 +21242,12 @@
       },
       {
         "file": "packages/primitives/tests/remove-path.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/runtime-version-ws.test.ts",
         "projects": [
           "root-node"
         ]
@@ -37198,7 +37300,63 @@
     "invalidRuntime": [],
     "withoutTypecheck": [
       {
+        "file": "packages/codebase/tests/background-indexer-lifecycle.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "packages/codebase/tests/bm25-snippet-radius.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "packages/codebase/tests/parser-output-boundaries.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "packages/codebase/tests/perf-metrics-nan.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "packages/codebase/tests/project-server-cache-bounds.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "packages/codebase/tests/vector-search-proto.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "packages/codebase/tests/writer-graph-helpers-nan.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "packages/codebase/tests/writer-maintenance-nan.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "packages/codebase/tests/writer-vectors-inf.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -38246,7 +38404,7 @@
     },
     {
       "file": "packages/codebase/src/background-indexer.ts",
-      "lines": 715,
+      "lines": 727,
       "relativeImports": 17
     },
     {
@@ -39907,6 +40065,10 @@
     {
       "file": "packages/codebase-index-mcp/src/main.ts",
       "name": "resolveIndexProjectRoot"
+    },
+    {
+      "file": "packages/codebase/src/writer-maintenance.ts",
+      "name": "FTS_CHURN_KEY"
     },
     {
       "file": "packages/contracts/src/types/runtime-capability-manifest.ts",

@@ -18,7 +18,11 @@ export interface ChronicleHealthMonitorOptions {
  * event instead of one raw event per sample.
  */
 export function startChronicleHealthMonitor(options: ChronicleHealthMonitorOptions): () => void {
-  const intervalMs = Math.max(5_000, options.intervalMs ?? 30_000);
+  const rawInterval = options.intervalMs;
+  const intervalMs =
+    typeof rawInterval === 'number' && Number.isFinite(rawInterval)
+      ? Math.max(5_000, Math.min(2_147_483_647, rawInterval))
+      : 30_000;
   const delay = monitorEventLoopDelay({ resolution: 20 });
   delay.enable();
   let previousCpu = process.cpuUsage();

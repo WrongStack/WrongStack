@@ -154,7 +154,11 @@ export function extractSemanticFeatures(text: string): Array<{ feature: string; 
     if (stem.length >= 3 && stem !== word) {
       features.push({ feature: `$stem:${stem}`, weight: 1.5 });
     }
-    const concept = SEMANTIC_CONCEPT_MAP[word] ?? SEMANTIC_CONCEPT_MAP[stem];
+    const concept = Object.hasOwn(SEMANTIC_CONCEPT_MAP, word)
+      ? SEMANTIC_CONCEPT_MAP[word]
+      : Object.hasOwn(SEMANTIC_CONCEPT_MAP, stem)
+        ? SEMANTIC_CONCEPT_MAP[stem]
+        : undefined;
     if (concept) {
       features.push({ feature: concept, weight: 3.0 });
     }

@@ -196,7 +196,7 @@ export function decideTransition(proposal: TransitionProposal): TransitionDecisi
         'A model may review and propose fixes but cannot admit its own work.',
       );
     }
-    if (facts.blockingFindings > 0) {
+    if (!Number.isSafeInteger(facts.blockingFindings) || facts.blockingFindings !== 0) {
       return reject(
         'blocking_findings',
         'Blocking review findings must be resolved before admission.',
@@ -217,7 +217,7 @@ export function decideTransition(proposal: TransitionProposal): TransitionDecisi
     if (!facts.requiredEvidenceSatisfied) {
       return reject('evidence_missing', 'Completion requires all mandatory evidence.');
     }
-    if (facts.blockingFindings > 0) {
+    if (!Number.isSafeInteger(facts.blockingFindings) || facts.blockingFindings !== 0) {
       return reject('blocking_findings', 'Completion is blocked by unresolved review findings.');
     }
   }

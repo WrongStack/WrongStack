@@ -107,6 +107,7 @@ export { isIndexableFile, resolveLastError } from './background-indexer-policy.j
 // readiness and UIs can show an indexing indicator.
 let _ready = false;
 let _indexing = false;
+let _activeIndexRuns = 0;
 let _currentFile = 0;
 let _totalFiles = 0;
 let _lastError: string | null = null;
@@ -294,9 +295,10 @@ function addReadyReindex(opts: {
   coalesceWindowMs?: number | undefined;
 }): void {
   const key = reindexBatchKey(opts.projectRoot, opts.indexDir);
+  const fileKey = debounceKey(opts.projectRoot, opts.indexDir, opts.file);
   const windowMs = opts.coalesceWindowMs ?? DEFAULT_COALESCE_WINDOW_MS;
-  const pending = pendingReindexCompletions.get(key);
-  pendingReindexCompletions.delete(key);
+  const pending = pendingReindexCompletions.get(fileKey);
+  pendingReindexCompletions.delete(fileKey);
   const existing = readyReindexBatches.get(key);
   if (existing) {
     existing.files.add(opts.file);
@@ -342,6 +344,7 @@ export async function runStartupIndex(opts: {
   // queuing yet another run behind a possibly-wedged pipeline.
   if (!indexCircuitBreaker.allowRequest()) throw circuitOpenError();
 
+  _activeIndexRuns += 1;
   _indexing = true;
   emitState();
 
@@ -387,7 +390,8 @@ export async function runStartupIndex(opts: {
     else indexCircuitBreaker.recordFailure(err);
     throw err;
   } finally {
-    _indexing = false;
+    _activeIndexRuns = Math.max(0, _activeIndexRuns - 1);
+    _indexing = _activeIndexRuns > 0;
     emitState();
   }
 }
@@ -448,13 +452,20 @@ export function enqueueReindex(opts: {
   timeoutMs?: number | undefined;
   onError?: ((err: unknown) => void) | undefined;
 }): Promise<void> {
-  const files = opts.files.filter(isIndexableFile);
+  const files = [...new Set(opts.files.filter(isIndexableFile))];
   if (files.length === 0) return Promise.resolve();
   const completion = new Promise<void>((resolve, reject) => {
-    const key = reindexBatchKey(opts.projectRoot, opts.indexDir);
-    const pending = pendingReindexCompletions.get(key) ?? new Set<ReindexCompletion>();
-    pending.add({ resolve, reject });
-    pendingReindexCompletions.set(key, pending);
+    let remaining = files.length;
+    const onFileSettled = () => {
+      remaining -= 1;
+      if (remaining === 0) resolve();
+    };
+    for (const file of files) {
+      const fileKey = debounceKey(opts.projectRoot, opts.indexDir, file);
+      const pending = pendingReindexCompletions.get(fileKey) ?? new Set<ReindexCompletion>();
+      pending.add({ resolve: onFileSettled, reject });
+      pendingReindexCompletions.set(fileKey, pending);
+    }
   });
   const ms = opts.debounceMs ?? DEFAULT_DEBOUNCE_MS;
 
@@ -694,6 +705,7 @@ function ensureLocalIndexServer(options: {
 export function resetIndexStateForTesting(): void {
   _ready = false;
   _indexing = false;
+  _activeIndexRuns = 0;
   _currentFile = 0;
   _totalFiles = 0;
   _lastError = null;

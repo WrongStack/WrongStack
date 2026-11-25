@@ -38,7 +38,9 @@ function isRange(value: unknown): value is ChroniclePartitionRange {
 export class ChroniclePartitionRangeCache {
   private readonly cachePath: string;
   private entries: Map<string, ChroniclePartitionRange> | undefined;
+  private loaded = false;
   private dirty = false;
+  private revision = 0;
 
   constructor(private readonly directory: string) {
     this.cachePath = path.join(directory, 'range-cache.json');
@@ -49,7 +51,7 @@ export class ChroniclePartitionRangeCache {
   }
 
   private async load(): Promise<Map<string, ChroniclePartitionRange>> {
-    if (this.entries) return this.entries;
+    if (this.loaded && this.entries) return this.entries;
     const entries = new Map<string, ChroniclePartitionRange>();
     try {
       const raw = await fs.readFile(this.cachePath, 'utf8');
@@ -67,7 +69,13 @@ export class ChroniclePartitionRangeCache {
       // Missing, corrupt, or unreadable sidecar: self-heal by starting
       // empty rather than failing the query it's meant to speed up.
     }
+    if (this.entries) {
+      for (const [key, range] of this.entries) {
+        entries.set(key, range);
+      }
+    }
     this.entries = entries;
+    this.loaded = true;
     return entries;
   }
 
@@ -81,6 +89,7 @@ export class ChroniclePartitionRangeCache {
     this.entries ??= new Map();
     this.entries.set(this.toKey(filePath), range);
     this.dirty = true;
+    this.revision += 1;
   }
 
   /** Drop entries for files no longer present (e.g. removed by retention purge). */
@@ -91,21 +100,26 @@ export class ChroniclePartitionRangeCache {
       if (!keep.has(key)) {
         this.entries.delete(key);
         this.dirty = true;
+        this.revision += 1;
       }
     }
   }
 
   async flush(): Promise<void> {
     if (!this.dirty || !this.entries) return;
+    const entries = await this.load();
+    const flushedRevision = this.revision;
     const payload: CacheFile = {
       version: CACHE_VERSION,
-      entries: Object.fromEntries(this.entries),
+      entries: Object.fromEntries(entries),
     };
     try {
       await withFileLock(this.cachePath, async () => {
         await atomicWrite(this.cachePath, `${JSON.stringify(payload)}\n`, { mode: 0o600 });
       });
-      this.dirty = false;
+      if (this.revision === flushedRevision) {
+        this.dirty = false;
+      }
     } catch {
       // Best-effort persistence: the cache still works in-memory for this
       // process even if the sidecar couldn't be written this time.

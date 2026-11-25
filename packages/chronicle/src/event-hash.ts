@@ -26,14 +26,20 @@ export const GENESIS_HASH = '0'.repeat(64);
  * the preimage is always re-derived from the parsed event.
  */
 function stableStringify(value: unknown): string {
+  if (value === undefined || typeof value === 'function' || typeof value === 'symbol') {
+    return 'null';
+  }
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) {
-    return `[${value.map((item) => (item === undefined ? 'null' : stableStringify(item))).join(',')}]`;
+    return `[${value.map((item) => (item === undefined || typeof item === 'function' || typeof item === 'symbol' ? 'null' : stableStringify(item))).join(',')}]`;
   }
   const obj = value as Record<string, unknown>;
   return `{${Object.keys(obj)
     .sort()
-    .filter((key) => obj[key] !== undefined)
+    .filter((key) => {
+      const v = obj[key];
+      return v !== undefined && typeof v !== 'function' && typeof v !== 'symbol';
+    })
     .map((key) => `${JSON.stringify(key)}:${stableStringify(obj[key])}`)
     .join(',')}}`;
 }

@@ -2,7 +2,11 @@
 export class GenerationLruCache<T> {
   private readonly entries = new Map<string, { generation: number; value: T }>();
 
-  constructor(private readonly maxEntries: number) {}
+  private readonly maxEntries: number;
+
+  constructor(maxEntries: number) {
+    this.maxEntries = Number.isFinite(maxEntries) ? Math.max(1, Math.floor(maxEntries)) : 128;
+  }
 
   get(key: string, generation: number): T | undefined {
     const entry = this.entries.get(key);

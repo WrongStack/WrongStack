@@ -88,14 +88,18 @@ export const OPERATION_MINIMUM_TIER: Readonly<Record<GovernedOperation, Autonomy
 };
 
 export function compareAutonomyTiers(left: AutonomyTier, right: AutonomyTier): number {
-  return TIER_RANK[left] - TIER_RANK[right];
+  const leftRank = Object.hasOwn(TIER_RANK, left) ? TIER_RANK[left] : -1;
+  const rightRank = Object.hasOwn(TIER_RANK, right) ? TIER_RANK[right] : Number.MAX_SAFE_INTEGER;
+  return leftRank - rightRank;
 }
 
 export function decideOperationAutonomy(
   envelope: AutonomyEnvelope,
   operation: GovernedOperation,
 ): OperationAutonomyDecision {
-  const minimumTier = OPERATION_MINIMUM_TIER[operation];
+  const minimumTier = Object.hasOwn(OPERATION_MINIMUM_TIER, operation)
+    ? OPERATION_MINIMUM_TIER[operation]
+    : 'A4';
 
   if (!envelope.allowedOperations.includes(operation)) {
     return {

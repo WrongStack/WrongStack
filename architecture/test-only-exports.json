@@ -609,6 +609,9 @@
     "packages/codebase-index-mcp/src/main.ts": [
       "resolveIndexProjectRoot"
     ],
+    "packages/codebase/src/writer-maintenance.ts": [
+      "FTS_CHURN_KEY"
+    ],
     "packages/contracts/src/types/runtime-capability-manifest.ts": [
       "isDeprecatedRuntimeToolAlias",
       "isKnownRuntimeCapability",

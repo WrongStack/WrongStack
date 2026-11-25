@@ -276,6 +276,7 @@ export class Bm25Index {
   extractSnippet(docId: number, queryTokens: string[], radius = 40): string {
     const doc = this.getDoc(docId);
     if (!doc) return '';
+    const safeRadius = Number.isFinite(radius) ? Math.max(0, Math.floor(radius)) : 40;
 
     const lower = doc.raw.toLowerCase();
     for (const tok of queryTokens) {
@@ -287,13 +288,13 @@ export class Bm25Index {
           lower.length === doc.raw.length
             ? [lowIdx, lowIdx + tok.length]
             : rawRangeOfLowered(doc.raw, lowIdx, lowIdx + tok.length);
-        const start = Math.max(0, idx - radius);
-        const end = Math.min(doc.raw.length, matchEnd + radius);
+        const start = Math.max(0, idx - safeRadius);
+        const end = Math.min(doc.raw.length, matchEnd + safeRadius);
         const excerpt = doc.raw.slice(start, end);
         const ellipsis = '\u2026';
         return (start > 0 ? ellipsis : '') + excerpt + (end < doc.raw.length ? ellipsis : '');
       }
     }
-    return doc.raw.slice(0, radius * 2) + (doc.raw.length > radius * 2 ? '\u2026' : '');
+    return doc.raw.slice(0, safeRadius * 2) + (doc.raw.length > safeRadius * 2 ? '\u2026' : '');
   }
 }

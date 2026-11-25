@@ -51,9 +51,13 @@ export function retireOlderDaemon(
     timer.unref?.();
   }
   const version = String(hello.runtimeVersion);
+  const pid =
+    typeof hello.pid === 'number' && Number.isSafeInteger(hello.pid) && hello.pid > 0
+      ? hello.pid
+      : undefined;
   return new OlderDaemonError(
     `${service} ${version} is older than this client ${WRONGSTACK_RUNTIME_VERSION}`,
-    typeof hello.pid === 'number' ? hello.pid : undefined,
+    pid,
   );
 }
 
@@ -87,7 +91,7 @@ export async function replaceOlderDaemon(
 
 /** Whether `pid` is a running process other than this one (`EPERM`: running, not ours). */
 function isRunning(pid: number | undefined): boolean {
-  if (!pid || pid === process.pid) return false;
+  if (!pid || !Number.isSafeInteger(pid) || pid <= 0 || pid === process.pid) return false;
   try {
     process.kill(pid, 0);
     return true;
@@ -101,7 +105,7 @@ function isRunning(pid: number | undefined): boolean {
  * already exited or is not ours to end (`ESRCH`, `EPERM`).
  */
 export function forceStopDaemon(pid: number | undefined): boolean {
-  if (!pid || pid === process.pid) return false;
+  if (!pid || !Number.isSafeInteger(pid) || pid <= 0 || pid === process.pid) return false;
   try {
     process.kill(pid);
     return true;

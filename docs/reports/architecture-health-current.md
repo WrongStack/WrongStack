@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-25T15:42:13.605Z
+**Generated:** 2026-11-25T15:44:49.665Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,14 +9,14 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6564 |
-| Production source lines | 1345858 |
-| Test files | 5960 |
+| Production source lines | 1345934 |
+| Test files | 5977 |
 | Workspace dependency edges | 261 |
 | Relative module edges | 19226 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 3 |
-| Tests without TypeScript test-project coverage | 2 |
+| Tests without TypeScript test-project coverage | 10 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
@@ -32,10 +32,10 @@
 | @wrongstack/bench | 33 | 68 | @wrongstack/core |
 | @wrongstack/browser-tools | 14 | 23 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/builtin-plugins | 40 | 52 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives |
-| @wrongstack/chronicle | 54 | 61 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/chronicle | 54 | 64 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/cli | 654 | 726 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/bench, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/codebase-index-mcp, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/hq-next, @wrongstack/kanban, @wrongstack/kanban-mcp, @wrongstack/mailbox-mcp, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/requirement-intake-mcp, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sage-mcp, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/vibeui, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/worktree, @wrongstack/wrongtrace |
 | @wrongstack/client | 7 | 11 | @wrongstack/webui-protocol |
-| @wrongstack/codebase | 115 | 1 | @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/codebase | 115 | 9 | @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/codebase-index-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
 | @wrongstack/contracts | 133 | 12 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 193 | 213 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
@@ -43,7 +43,7 @@
 | @wrongstack/desktop-v2 | 561 | 405 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 64 | 27 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 24 | 33 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
-| @wrongstack/governance | 45 | 39 | @wrongstack/persistence |
+| @wrongstack/governance | 45 | 43 | @wrongstack/persistence |
 | @wrongstack/hq | 93 | 88 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/hq-next | 205 | 72 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/hq, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/kanban | 108 | 112 | @wrongstack/persistence, @wrongstack/primitives |
@@ -54,7 +54,7 @@
 | @wrongstack/plug-lsp | 52 | 70 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugin-sdk | 12 | 16 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugins | 157 | 153 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
-| @wrongstack/primitives | 27 | 48 | — |
+| @wrongstack/primitives | 27 | 50 | — |
 | @wrongstack/project-surfaces | 263 | 36 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers, @wrongstack/tools |
 | @wrongstack/providers | 142 | 135 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/requirement-intake | 18 | 23 | @wrongstack/core |
@@ -148,13 +148,13 @@ None.
 
 ## Exports only tests reference
 
-- 1051 runtime exports are referenced by tests and by no other production file.
+- 1052 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 
 ## TypeScript test coverage debt
 
-- 2 test files are not included in a package TypeScript test project.
+- 10 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.
