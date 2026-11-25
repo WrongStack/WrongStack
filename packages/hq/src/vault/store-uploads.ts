@@ -224,6 +224,8 @@ export class HqVaultUploads {
   ): Promise<HqVaultProfileMeta> {
     const master = this.host.master();
     return this.host.change(async (file) => {
+      const now = this.host.now();
+      sweep(file, now);
       const upload = findUpload(file, id);
       const device = file.devices.find((d) => d.id === upload.deviceId);
       if (device?.status !== 'approved') {
@@ -233,7 +235,7 @@ export class HqVaultUploads {
         );
       }
       const payload = openUpload(upload, this.host.identity());
-      const at = new Date(this.host.now()).toISOString();
+      const at = new Date(now).toISOString();
       const profile = createHqVaultProfile(
         file,
         { ...payload.profile, id: input.profileId ?? payload.profile.id },
@@ -260,6 +262,7 @@ export class HqVaultUploads {
   async reject(id: string, actor: string): Promise<void> {
     this.host.master();
     await this.host.mutate(async (file) => {
+      sweep(file, this.host.now());
       const upload = findUpload(file, id);
       file.uploads = file.uploads!.filter((u) => u.id !== id);
       await this.host.audit({

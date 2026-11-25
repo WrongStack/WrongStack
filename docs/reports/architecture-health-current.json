@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T15:31:03.769Z",
+  "generatedAt": "2026-11-25T15:34:14.024Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6564,
-    "testFiles": 5889,
-    "sourceLines": 1345474,
+    "testFiles": 5912,
+    "sourceLines": 1345628,
     "workspaceEdges": 261,
     "moduleEdges": 19226,
     "nonCommandSlashImports": 0,
@@ -530,7 +530,7 @@
       "name": "@wrongstack/hq",
       "dir": "packages/hq",
       "sourceFiles": 93,
-      "testFiles": 65,
+      "testFiles": 88,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -546,7 +546,7 @@
         {
           "path": "packages/hq/tsconfig.test.json",
           "error": null,
-          "testFiles": 65
+          "testFiles": 88
         }
       ]
     },
@@ -17257,6 +17257,12 @@
         ]
       },
       {
+        "file": "packages/hq/tests/alert-budgets-infinity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/tests/alert-budgets.test.ts",
         "projects": [
           "root-node"
@@ -17264,6 +17270,18 @@
       },
       {
         "file": "packages/hq/tests/alerts-config.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/alerts-nan-config.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/alerts-nonfinite-metrics.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17359,6 +17377,12 @@
         ]
       },
       {
+        "file": "packages/hq/tests/command-tracker-nan-limit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/tests/commands.test.ts",
         "projects": [
           "root-node"
@@ -17366,6 +17390,12 @@
       },
       {
         "file": "packages/hq/tests/correlation-id.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/cost-bridge-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17384,6 +17414,18 @@
       },
       {
         "file": "packages/hq/tests/event-log-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/event-log-nan-limits.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/event-log-preset-proto.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17413,13 +17455,55 @@
         ]
       },
       {
+        "file": "packages/hq/tests/health-history-nan-every.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/health-history-nan-now.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/tests/health-history.test.ts",
         "projects": [
           "root-node"
         ]
       },
       {
+        "file": "packages/hq/tests/host-health-nan-now.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/host-health-nan-thresholds.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/host-health-verdict-inf.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/tests/host-health.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/hq-kanban-chunk-bounds.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/jsonl-io-fractional-limit.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17455,7 +17539,19 @@
         ]
       },
       {
+        "file": "packages/hq/tests/mailbox-mapper-neg-limit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/tests/mailbox-mapper.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/notifier-malformed-link.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17575,6 +17671,18 @@
         ]
       },
       {
+        "file": "packages/hq/tests/simple-log-nan-limits.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/snapshot-store-corrupt-shape.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/tests/text-and-private-ipv6-regression.test.ts",
         "projects": [
           "root-node"
@@ -17605,6 +17713,12 @@
         ]
       },
       {
+        "file": "packages/hq/tests/timeseries-store-nan-bucket.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/tests/token-ttl.test.ts",
         "projects": [
           "root-node"
@@ -17612,6 +17726,18 @@
       },
       {
         "file": "packages/hq/tests/tool-bridge.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/transcript-mapper-nan-duration.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/vault-nonce-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17635,7 +17761,19 @@
         ]
       },
       {
+        "file": "packages/hq/tests/vault-uploads-expiry.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/tests/worktree-bridge.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/write-queues-sync-throw.test.ts",
         "projects": [
           "root-node"
         ]

@@ -131,11 +131,15 @@ export function mapSessionEventToEntries(ev: Record<string, unknown>): HqTranscr
       const isError = ev['isError'] === true;
       const content = ev['output'] ?? ev['content'];
       const outStr = content !== undefined && content !== null ? asString(content) : '';
-      if (!outStr.trim() && !isError && typeof ev['durationMs'] !== 'number') return [];
+      const durationMs =
+        typeof ev['durationMs'] === 'number' && Number.isFinite(ev['durationMs'])
+          ? ev['durationMs']
+          : undefined;
+      if (!outStr.trim() && !isError && durationMs === undefined) return [];
       return [
         make(isError ? 'error' : 'tool', outStr, {
           tool: typeof ev['name'] === 'string' ? String(ev['name']) : '↳ result',
-          ...(typeof ev['durationMs'] === 'number' ? { durationMs: ev['durationMs'] } : {}),
+          ...(durationMs !== undefined ? { durationMs } : {}),
           ...(isError ? { isError: true } : {}),
           ...(typeof ev['id'] === 'string' ? { toolUseId: ev['id'] } : {}),
         }),

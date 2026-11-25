@@ -32,7 +32,8 @@ export class BestEffortBatchQueue<T> {
     this.drainScheduled = false;
     if (this.activeWrite || this.pending.length === 0) return;
     const batch = this.pending.splice(0);
-    const active = this.writeBatch(batch)
+    const active = Promise.resolve()
+      .then(() => this.writeBatch(batch))
       .catch((err: unknown) => {
         /* best-effort: a failed batch must not break the write chain, but
          * surface the error to stderr so a silent write death is observable.
@@ -79,7 +80,8 @@ export class BestEffortLatestQueue<T> {
     if (this.activeWrite || this.pending === undefined) return;
     const latest = this.pending;
     this.pending = undefined;
-    const active = this.writeLatest(latest)
+    const active = Promise.resolve()
+      .then(() => this.writeLatest(latest))
       .catch((err: unknown) => {
         /* best-effort: a failed write must not break the write chain, but
          * surface the error to stderr so a silent write death is observable.

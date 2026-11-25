@@ -96,13 +96,12 @@ export function hqEventLogPresetFields(preset: HqEventLogPreset): {
   maxBytes: number;
   rotateKeepBytes: number;
 } {
-  const fields = HQ_EVENT_LOG_PRESETS[preset];
-  if (fields === undefined) {
+  if (!Object.hasOwn(HQ_EVENT_LOG_PRESETS, preset)) {
     throw new Error(
       `Unknown HqEventLogPreset: ${String(preset)}. Allowed: ${Object.keys(HQ_EVENT_LOG_PRESETS).join(', ')}.`,
     );
   }
-  return fields;
+  return HQ_EVENT_LOG_PRESETS[preset];
 }
 
 /**
@@ -130,10 +129,26 @@ export class HqEventLog {
 
   constructor(opts: HqEventLogOptions) {
     this.filePath = path.join(opts.dataDir, 'events.jsonl');
-    this.maxLines = opts.maxLines ?? DEFAULT_EVENT_LOG_MAX_LINES;
-    this.rotateKeep = opts.rotateKeep ?? DEFAULT_EVENT_LOG_ROTATE_KEEP;
-    this.maxBytes = opts.maxBytes ?? DEFAULT_EVENT_LOG_MAX_BYTES;
-    this.rotateKeepBytes = opts.rotateKeepBytes ?? DEFAULT_EVENT_LOG_ROTATE_KEEP_BYTES;
+    this.maxLines =
+      typeof opts.maxLines === 'number' && Number.isFinite(opts.maxLines) && opts.maxLines > 0
+        ? Math.floor(opts.maxLines)
+        : DEFAULT_EVENT_LOG_MAX_LINES;
+    this.rotateKeep =
+      typeof opts.rotateKeep === 'number' &&
+      Number.isFinite(opts.rotateKeep) &&
+      opts.rotateKeep >= 0
+        ? Math.floor(opts.rotateKeep)
+        : DEFAULT_EVENT_LOG_ROTATE_KEEP;
+    this.maxBytes =
+      typeof opts.maxBytes === 'number' && Number.isFinite(opts.maxBytes) && opts.maxBytes > 0
+        ? Math.floor(opts.maxBytes)
+        : DEFAULT_EVENT_LOG_MAX_BYTES;
+    this.rotateKeepBytes =
+      typeof opts.rotateKeepBytes === 'number' &&
+      Number.isFinite(opts.rotateKeepBytes) &&
+      opts.rotateKeepBytes >= 0
+        ? Math.floor(opts.rotateKeepBytes)
+        : DEFAULT_EVENT_LOG_ROTATE_KEEP_BYTES;
     this.writer = new BestEffortBatchQueue((events) => this.appendInternal(events));
   }
 

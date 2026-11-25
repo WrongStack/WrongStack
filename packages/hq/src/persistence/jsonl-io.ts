@@ -24,7 +24,9 @@ export async function readTailNonEmptyLines(
   limit: number,
   estimatedLineCount: number,
 ): Promise<string[]> {
-  if (!(limit > 0)) return [];
+  const effectiveLimit =
+    limit === Number.POSITIVE_INFINITY ? Number.POSITIVE_INFINITY : Math.floor(limit);
+  if (!(effectiveLimit > 0)) return [];
   const handle = await fs.open(filePath, 'r');
   try {
     const size = (await handle.stat()).size;
@@ -54,8 +56,8 @@ export async function readTailNonEmptyLines(
       Math.max(
         RECENT_READ_CHUNK_BYTES,
         estimatedLineCount > 0
-          ? Math.ceil((size * limit * 1.1) / estimatedLineCount) + RECENT_READ_CHUNK_BYTES
-          : Math.ceil(limit * 512) + RECENT_READ_CHUNK_BYTES,
+          ? Math.ceil((size * effectiveLimit * 1.1) / estimatedLineCount) + RECENT_READ_CHUNK_BYTES
+          : Math.ceil(effectiveLimit * 512) + RECENT_READ_CHUNK_BYTES,
       ),
     );
     while (position > 0) {
@@ -91,12 +93,12 @@ export async function readTailNonEmptyLines(
           lineHasBytes = true;
         }
       }
-      if (position === 0 || nonEmptyLines >= limit) {
+      if (position === 0 || nonEmptyLines >= effectiveLimit) {
         const lines = Buffer.concat(chunks)
           .toString('utf8')
           .split('\n')
           .filter((line) => line.length > 0);
-        return lines.slice(-limit).reverse();
+        return lines.slice(-effectiveLimit).reverse();
       }
       nextReadBytes = Math.min(position, nextReadBytes * 2);
     }

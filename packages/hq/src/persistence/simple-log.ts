@@ -42,9 +42,20 @@ export class HqSimpleLog<T> {
 
   constructor(opts: HqSimpleLogOptions) {
     this.filePath = path.join(opts.dataDir, opts.filename);
-    this.maxLines = opts.maxLines ?? Infinity;
-    this.rotateKeep = opts.rotateKeep ?? this.maxLines;
-    this.readLimit = opts.readLimit ?? Infinity;
+    this.maxLines =
+      typeof opts.maxLines === 'number' && Number.isFinite(opts.maxLines) && opts.maxLines > 0
+        ? Math.floor(opts.maxLines)
+        : Infinity;
+    this.rotateKeep =
+      typeof opts.rotateKeep === 'number' &&
+      Number.isFinite(opts.rotateKeep) &&
+      opts.rotateKeep >= 0
+        ? Math.floor(opts.rotateKeep)
+        : this.maxLines;
+    this.readLimit =
+      typeof opts.readLimit === 'number' && Number.isFinite(opts.readLimit) && opts.readLimit > 0
+        ? Math.floor(opts.readLimit)
+        : Infinity;
     this.writer = new BestEffortBatchQueue((records) => this.appendInternal(records));
   }
 

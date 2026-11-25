@@ -113,7 +113,11 @@ export function evaluateBudgets(
 ): HqBudgetFiring[] {
   if (spend === undefined) return [];
   const out: HqBudgetFiring[] = [];
-  if (positive(config.dailyBudgetUsd) && spend.totalUsd >= config.dailyBudgetUsd) {
+  if (
+    positive(config.dailyBudgetUsd) &&
+    Number.isFinite(spend.totalUsd) &&
+    spend.totalUsd >= config.dailyBudgetUsd
+  ) {
     out.push({
       ruleId: 'budget-fleet-24h',
       message: `Fleet spent ${usd(spend.totalUsd)} in the last 24h (budget ${usd(config.dailyBudgetUsd)})`,
@@ -123,7 +127,7 @@ export function evaluateBudgets(
     snapshot?.projects.find((project) => project.projectId === id)?.projectName ?? id;
   for (const [projectId, budget] of Object.entries(config.projectDailyBudgetsUsd ?? {})) {
     const spent = spend.byProject.get(projectId) ?? 0;
-    if (positive(budget) && spent >= budget) {
+    if (positive(budget) && Number.isFinite(spent) && spent >= budget) {
       out.push({
         ruleId: `budget-project:${projectId}`,
         message: `Project ${projectName(projectId)} spent ${usd(spent)} in the last 24h (budget ${usd(budget)})`,
@@ -132,7 +136,7 @@ export function evaluateBudgets(
   }
   for (const [key, budget] of Object.entries(config.machineDailyBudgetsUsd ?? {})) {
     const spent = spend.byMachine.get(key) ?? 0;
-    if (positive(budget) && spent >= budget) {
+    if (positive(budget) && Number.isFinite(spent) && spent >= budget) {
       out.push({
         ruleId: `budget-machine:${key}`,
         message: `Machine ${key.replace(/^(host|mid):/, '')} spent ${usd(spent)} in the last 24h (budget ${usd(budget)})`,

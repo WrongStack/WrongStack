@@ -69,8 +69,9 @@ export class HqVaultNonceCache {
 
   /** Record `key` seen at `ts`; false when it was already seen inside the window. */
   remember(key: string, ts: number, now: number): boolean {
+    if (!Number.isFinite(ts) || !Number.isFinite(now)) return false;
     for (const [k, at] of this.seen) {
-      if (Math.abs(now - at) > HQ_VAULT_FETCH_SKEW_MS) this.seen.delete(k);
+      if (!Number.isFinite(at) || Math.abs(now - at) > HQ_VAULT_FETCH_SKEW_MS) this.seen.delete(k);
     }
     if (this.seen.has(key)) return false;
     // Bounded even under a flood of distinct, validly signed nonces.

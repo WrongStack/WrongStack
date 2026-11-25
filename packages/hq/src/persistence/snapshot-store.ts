@@ -21,6 +21,18 @@ export interface HqSnapshotStoreOptions {
  * The HQ server writes on every debounced broadcast and reads on boot to
  * re-seed its in-memory state. Best-effort, never rejects.
  */
+function isHqSnapshot(value: unknown): value is HqSnapshot {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const rec = value as Record<string, unknown>;
+  return (
+    typeof rec.totals === 'object' &&
+    rec.totals !== null &&
+    !Array.isArray(rec.totals) &&
+    Array.isArray(rec.machines) &&
+    Array.isArray(rec.projects)
+  );
+}
+
 export class HqSnapshotStore {
   private readonly filePath: string;
   private readonly writer: BestEffortLatestQueue<HqSnapshot>;
@@ -46,7 +58,8 @@ export class HqSnapshotStore {
   async load(): Promise<HqSnapshot | null> {
     try {
       const content = await fs.readFile(this.filePath, 'utf8');
-      return JSON.parse(content) as HqSnapshot;
+      const parsed: unknown = JSON.parse(content);
+      return isHqSnapshot(parsed) ? parsed : null;
     } catch {
       return null;
     }

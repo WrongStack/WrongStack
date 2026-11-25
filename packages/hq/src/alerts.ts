@@ -128,16 +128,30 @@ const DEFAULT_CONFIG: ResolvedAlertConfig = {
  */
 const DEFAULT_MAX_SNOOZE_MS = 24 * 60 * 60_000;
 
+function resolveNonNegative(value: number | undefined, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
 function resolveConfig(config?: HqAlertRuleConfig): ResolvedAlertConfig {
   return {
-    costThresholdUsd: config?.costThresholdUsd ?? DEFAULT_CONFIG.costThresholdUsd,
-    staleMachineSeconds: config?.staleMachineSeconds ?? DEFAULT_CONFIG.staleMachineSeconds,
-    maxAgents: config?.maxAgents ?? DEFAULT_CONFIG.maxAgents,
-    tokenExpiryWarningHours:
-      config?.tokenExpiryWarningHours ?? DEFAULT_CONFIG.tokenExpiryWarningHours,
-    throughputBudgetUsd: config?.throughputBudgetUsd ?? DEFAULT_CONFIG.throughputBudgetUsd,
-    throughputLookbackMinutes:
-      config?.throughputLookbackMinutes ?? DEFAULT_CONFIG.throughputLookbackMinutes,
+    costThresholdUsd: resolveNonNegative(config?.costThresholdUsd, DEFAULT_CONFIG.costThresholdUsd),
+    staleMachineSeconds: resolveNonNegative(
+      config?.staleMachineSeconds,
+      DEFAULT_CONFIG.staleMachineSeconds,
+    ),
+    maxAgents: resolveNonNegative(config?.maxAgents, DEFAULT_CONFIG.maxAgents),
+    tokenExpiryWarningHours: resolveNonNegative(
+      config?.tokenExpiryWarningHours,
+      DEFAULT_CONFIG.tokenExpiryWarningHours,
+    ),
+    throughputBudgetUsd: resolveNonNegative(
+      config?.throughputBudgetUsd,
+      DEFAULT_CONFIG.throughputBudgetUsd,
+    ),
+    throughputLookbackMinutes: resolveNonNegative(
+      config?.throughputLookbackMinutes,
+      DEFAULT_CONFIG.throughputLookbackMinutes,
+    ),
   };
 }
 
@@ -148,7 +162,7 @@ const RULES: readonly HqAlertRule[] = [
     evaluate: (snapshot, config) => {
       if (snapshot === null) return null;
       const cost = snapshot.totals.totalCostUsd ?? 0;
-      if (cost >= config.costThresholdUsd) {
+      if (Number.isFinite(cost) && cost >= config.costThresholdUsd) {
         return `Fleet cost $${cost.toFixed(2)} exceeded threshold $${config.costThresholdUsd.toFixed(2)}`;
       }
       return null;
@@ -183,7 +197,7 @@ const RULES: readonly HqAlertRule[] = [
       // Disabled when the operator hasn't set a budget.
       if (config.throughputBudgetUsd <= 0) return null;
       const cost = snapshot.totals.totalCostUsd ?? 0;
-      if (cost >= config.throughputBudgetUsd) {
+      if (Number.isFinite(cost) && cost >= config.throughputBudgetUsd) {
         return `Fleet spend $${cost.toFixed(2)} exceeded throughput budget $${config.throughputBudgetUsd.toFixed(2)} (lookback ${config.throughputLookbackMinutes}min)`;
       }
       return null;
@@ -226,7 +240,10 @@ const RULES: readonly HqAlertRule[] = [
       if (snapshot === null) return null;
       // Aggregate failed tasks across all reported fleets.
       const fleets = snapshot.fleets ?? [];
-      const failed = fleets.reduce((sum, f) => sum + f.failedTasks, 0);
+      const failed = fleets.reduce(
+        (sum, f) => sum + (Number.isFinite(f.failedTasks) && f.failedTasks > 0 ? f.failedTasks : 0),
+        0,
+      );
       if (failed >= 5) {
         return `${failed} failed task(s) across the fleet`;
       }

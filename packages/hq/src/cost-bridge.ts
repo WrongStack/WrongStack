@@ -46,12 +46,15 @@ export function startCostTelemetryBridge(opts: CostTelemetryBridgeOptions): () =
 
   const off = events.on('token.accounted', (p: TokenAccountedEvent) => {
     const usage = p.deltaUsage ?? p.usage;
-    const totalPromptTokens = effectiveInputTokens(usage);
+    const finiteNonNeg = (v: number | undefined): number =>
+      typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
+    const totalPromptTokens = finiteNonNeg(effectiveInputTokens(usage));
+    const outputTokens = finiteNonNeg(usage.output);
     const payload: HqUsagePayload = {
       inputTokens: totalPromptTokens,
-      outputTokens: usage.output,
-      totalTokens: totalPromptTokens + usage.output,
-      costUsd: p.cost.total,
+      outputTokens,
+      totalTokens: totalPromptTokens + outputTokens,
+      costUsd: finiteNonNeg(p.cost.total),
     };
     // Forward the dimensions HQ needs for per-model/per-provider cost charts
     // and cache-hit-ratio cards. All optional — older counters omit them.

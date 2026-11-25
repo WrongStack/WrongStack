@@ -91,8 +91,16 @@ export class HqTimeseriesStore {
 
   constructor(opts: HqTimeseriesStoreOptions) {
     this.filePath = path.join(opts.dataDir, 'timeseries.jsonl');
-    this.bucketMs = opts.bucketMs ?? 5 * 60 * 1000;
-    this.maxBuckets = opts.maxBuckets ?? 2016;
+    this.bucketMs =
+      typeof opts.bucketMs === 'number' && Number.isFinite(opts.bucketMs) && opts.bucketMs > 0
+        ? Math.floor(opts.bucketMs)
+        : 5 * 60 * 1000;
+    this.maxBuckets =
+      typeof opts.maxBuckets === 'number' &&
+      Number.isFinite(opts.maxBuckets) &&
+      opts.maxBuckets >= 1
+        ? Math.floor(opts.maxBuckets)
+        : 2016;
     this.writer = new BestEffortLatestQueue((snapshot) => this.flushInternal(snapshot));
   }
 
@@ -119,17 +127,39 @@ export class HqTimeseriesStore {
     /** When present, this signal is also attributed to the reporting machine's key. */
     machineKey?: string;
   }): void {
-    const start = this.bucketStart(signal.ts ?? Date.now());
+    const rawTs = signal.ts ?? Date.now();
+    if (!Number.isFinite(rawTs)) return;
+    const start = this.bucketStart(rawTs);
     let bucket = this.buckets.get(start);
     if (!bucket) {
       bucket = { ts: start, costUsd: 0, inputTokens: 0, outputTokens: 0, toolCalls: 0 };
       this.buckets.set(start, bucket);
     }
-    if (signal.costUsd !== undefined) bucket.costUsd += signal.costUsd;
-    if (signal.inputTokens !== undefined) bucket.inputTokens += signal.inputTokens;
-    if (signal.outputTokens !== undefined) bucket.outputTokens += signal.outputTokens;
-    if (signal.toolCalls !== undefined) bucket.toolCalls += signal.toolCalls;
-    if (signal.activeAgents !== undefined) bucket.activeAgents = signal.activeAgents;
+    const costUsd =
+      typeof signal.costUsd === 'number' && Number.isFinite(signal.costUsd)
+        ? signal.costUsd
+        : undefined;
+    const inputTokens =
+      typeof signal.inputTokens === 'number' && Number.isFinite(signal.inputTokens)
+        ? signal.inputTokens
+        : undefined;
+    const outputTokens =
+      typeof signal.outputTokens === 'number' && Number.isFinite(signal.outputTokens)
+        ? signal.outputTokens
+        : undefined;
+    const toolCalls =
+      typeof signal.toolCalls === 'number' && Number.isFinite(signal.toolCalls)
+        ? signal.toolCalls
+        : undefined;
+    const activeAgents =
+      typeof signal.activeAgents === 'number' && Number.isFinite(signal.activeAgents)
+        ? signal.activeAgents
+        : undefined;
+    if (costUsd !== undefined) bucket.costUsd += costUsd;
+    if (inputTokens !== undefined) bucket.inputTokens += inputTokens;
+    if (outputTokens !== undefined) bucket.outputTokens += outputTokens;
+    if (toolCalls !== undefined) bucket.toolCalls += toolCalls;
+    if (activeAgents !== undefined) bucket.activeAgents = activeAgents;
     // Attribute this cost signal to its model / provider dimension when known,
     // so trend charts can break spend down without scraping the event log.
     if (signal.model !== undefined || signal.provider !== undefined) {

@@ -90,6 +90,7 @@ export class HqHealthHistory {
 
   /** Fold a snapshot in: one new point per machine when its sample is due. */
   observe(snapshot: HqSnapshot, now: number = Date.now()): void {
+    if (!Number.isFinite(now)) return;
     for (const machine of snapshot.machines ?? []) {
       const health = machine.health;
       if (health === undefined) continue;
@@ -104,16 +105,18 @@ export class HqHealthHistory {
         key,
         at: health.reportedAt,
         memUsedPct:
-          health.memTotalBytes > 0
+          finite(health.memTotalBytes) &&
+          health.memTotalBytes > 0 &&
+          finite(health.memAvailableBytes)
             ? Math.round(
                 (1000 * Math.max(0, health.memTotalBytes - health.memAvailableBytes)) /
                   health.memTotalBytes,
               ) / 10
             : 0,
-        ...(health.diskFreeBytes !== undefined ? { diskFreeBytes: health.diskFreeBytes } : {}),
-        ...(health.diskTotalBytes !== undefined ? { diskTotalBytes: health.diskTotalBytes } : {}),
-        ...(health.loadAvg1 !== undefined ? { load1: health.loadAvg1 } : {}),
-        cpuCount: health.cpuCount,
+        ...(finite(health.diskFreeBytes) ? { diskFreeBytes: health.diskFreeBytes } : {}),
+        ...(finite(health.diskTotalBytes) ? { diskTotalBytes: health.diskTotalBytes } : {}),
+        ...(finite(health.loadAvg1) ? { load1: health.loadAvg1 } : {}),
+        cpuCount: finite(health.cpuCount) ? health.cpuCount : 0,
       };
       if (list === undefined) this.series.set(key, [point]);
       else list.push(point);
@@ -134,6 +137,7 @@ export class HqHealthHistory {
    * machine however often readings were taken.
    */
   overview(sinceMs: number, everyMs: number): { key: string; points: HqHealthPoint[] }[] {
+    const stepMs = Number.isFinite(everyMs) && everyMs > 0 ? everyMs : 0;
     const machines: { key: string; points: HqHealthPoint[] }[] = [];
     for (const [key, list] of this.series) {
       const recent = list.filter((point) => Date.parse(point.at) >= sinceMs);
@@ -142,7 +146,7 @@ export class HqHealthHistory {
       let lastAt = Number.NEGATIVE_INFINITY;
       for (const [index, point] of recent.entries()) {
         const at = Date.parse(point.at);
-        if (at - lastAt >= everyMs || index === recent.length - 1) {
+        if (at - lastAt >= stepMs || index === recent.length - 1) {
           kept.push(point);
           lastAt = at;
         }

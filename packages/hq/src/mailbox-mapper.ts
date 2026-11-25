@@ -148,7 +148,12 @@ export function createMailboxSnapshotPayload(
   const filteredMessages = includeCompleted
     ? messages
     : messages.filter((message) => !message.completed);
-  const limit = options.limit ?? 50;
+  const limit =
+    options.limit === undefined
+      ? 50
+      : Number.isFinite(options.limit)
+        ? Math.max(0, Math.floor(options.limit))
+        : 0;
   const sortedMessages = [...filteredMessages]
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
     .slice(0, limit);
@@ -174,7 +179,12 @@ export async function createMailboxSnapshotPayloadFromMailbox(
   mailbox: Pick<Mailbox, 'query' | 'getAgentStatuses'>,
   options: HqMailboxSnapshotOptions,
 ): Promise<HqMailboxSnapshotPayload> {
-  const limit = options.limit ?? 50;
+  const limit =
+    options.limit === undefined
+      ? 50
+      : Number.isFinite(options.limit)
+        ? Math.max(0, Math.floor(options.limit))
+        : 0;
   const [messages, agents] = await Promise.all([
     mailbox.query({ limit }),
     mailbox.getAgentStatuses(),

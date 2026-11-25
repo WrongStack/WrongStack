@@ -70,7 +70,11 @@ export function isHqKanbanSnapshotPayload(value: unknown): value is HqKanbanSnap
     payload.boards.length > MAX_HQ_KANBAN_BOARDS ||
     payload.tombstones.length > MAX_HQ_KANBAN_BOARDS ||
     !isOptionalChunkOrdinal(payload.chunkIndex) ||
-    !isOptionalChunkOrdinal(payload.chunkCount)
+    !isOptionalChunkOrdinal(payload.chunkCount) ||
+    (payload.chunkCount !== undefined && (payload.chunkCount as number) < 1) ||
+    (payload.chunkIndex !== undefined &&
+      payload.chunkCount !== undefined &&
+      (payload.chunkIndex as number) >= (payload.chunkCount as number))
   ) {
     return false;
   }

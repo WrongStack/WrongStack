@@ -117,8 +117,12 @@ function hqNotificationLink(
   path: string | undefined,
 ): string | undefined {
   if (publicUrl === undefined || path === undefined) return undefined;
-  const base = publicUrl.endsWith('/') ? publicUrl : `${publicUrl}/`;
-  return new URL(path.replace(/^\/+/, ''), base).toString();
+  try {
+    const base = publicUrl.endsWith('/') ? publicUrl : `${publicUrl}/`;
+    return new URL(path.replace(/^\/+/, ''), base).toString();
+  } catch {
+    return undefined;
+  }
 }
 
 /** The request one channel type expects. */

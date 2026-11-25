@@ -13,7 +13,16 @@ export class CommandTracker {
     { promise: Promise<void>; resolve: () => void }
   >();
 
-  constructor(private readonly maxTrackedCommands = 500) {}
+  private readonly maxTrackedCommands: number;
+
+  constructor(maxTrackedCommands = 500) {
+    this.maxTrackedCommands =
+      typeof maxTrackedCommands === 'number' &&
+      Number.isFinite(maxTrackedCommands) &&
+      maxTrackedCommands > 0
+        ? Math.floor(maxTrackedCommands)
+        : 500;
+  }
 
   get(commandId: string): HqPublisherCommandResult | typeof IN_FLIGHT_COMMAND | undefined {
     return this.commandResults.get(commandId);

@@ -34,11 +34,21 @@ export function hqHostHealthThresholds(
     'hostDiskFreePct' | 'hostDiskFreeGiB' | 'hostMemAvailablePct'
   > = {},
 ): HqHostHealthThresholds {
+  const finiteOrDefault = (value: number | undefined, fallback: number): number =>
+    typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback;
   return {
-    diskFreePct: config.hostDiskFreePct ?? HQ_DEFAULT_HOST_HEALTH_THRESHOLDS.diskFreePct,
-    diskFreeGiB: config.hostDiskFreeGiB ?? HQ_DEFAULT_HOST_HEALTH_THRESHOLDS.diskFreeGiB,
-    memAvailablePct:
-      config.hostMemAvailablePct ?? HQ_DEFAULT_HOST_HEALTH_THRESHOLDS.memAvailablePct,
+    diskFreePct: finiteOrDefault(
+      config.hostDiskFreePct,
+      HQ_DEFAULT_HOST_HEALTH_THRESHOLDS.diskFreePct,
+    ),
+    diskFreeGiB: finiteOrDefault(
+      config.hostDiskFreeGiB,
+      HQ_DEFAULT_HOST_HEALTH_THRESHOLDS.diskFreeGiB,
+    ),
+    memAvailablePct: finiteOrDefault(
+      config.hostMemAvailablePct,
+      HQ_DEFAULT_HOST_HEALTH_THRESHOLDS.memAvailablePct,
+    ),
   };
 }
 
@@ -51,13 +61,18 @@ export function hqHostHealthProblems(
 ): HqHostHealthProblem[] {
   if (health === undefined) return [];
   const at = Date.parse(health.reportedAt);
-  if (!Number.isFinite(at) || now - at > HQ_HOST_HEALTH_FRESH_MS) return [];
+  if (!Number.isFinite(at) || !Number.isFinite(now) || now - at > HQ_HOST_HEALTH_FRESH_MS) {
+    return [];
+  }
   const problems: HqHostHealthProblem[] = [];
   const { diskTotalBytes: total, diskFreeBytes: free } = health;
   if (
     total !== undefined &&
     free !== undefined &&
+    Number.isFinite(total) &&
+    Number.isFinite(free) &&
     total > 0 &&
+    free >= 0 &&
     ((thresholds.diskFreePct > 0 && (free / total) * 100 < thresholds.diskFreePct) ||
       (thresholds.diskFreeGiB > 0 && free < thresholds.diskFreeGiB * 1024 ** 3))
   ) {
@@ -65,7 +80,10 @@ export function hqHostHealthProblems(
   }
   if (
     thresholds.memAvailablePct > 0 &&
+    Number.isFinite(health.memTotalBytes) &&
+    Number.isFinite(health.memAvailableBytes) &&
     health.memTotalBytes > 0 &&
+    health.memAvailableBytes >= 0 &&
     (health.memAvailableBytes / health.memTotalBytes) * 100 < thresholds.memAvailablePct
   ) {
     problems.push('memory');
