@@ -41,7 +41,10 @@ export const runtimeReducers: FrameReducerTable = {
     tokens: number(p.tokens),
     maxContext: number(p.maxContext) || state.maxContext,
   }),
-  'ctx.max_context': (state, p) => ({ ...state, maxContext: number(p.maxContext) }),
+  'ctx.max_context': (state, p) => {
+    const next = number(p.maxContext);
+    return next > 0 ? { ...state, maxContext: next } : state;
+  },
   'context.compacted': (state, p) => ({
     ...state,
     notice: `Context compacted: ${number(p.before).toLocaleString()} → ${number(p.after).toLocaleString()} tokens.`,

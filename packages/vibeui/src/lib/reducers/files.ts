@@ -69,7 +69,8 @@ export const fileReducers: FrameReducerTable = {
     notice: text(p.error) || state.notice,
   }),
   'git.diff': (state, p) => {
-    const path = text(p.path);
+    const path = text(p.path).trim();
+    if (!path) return state;
     // Newest last; only the few most recently answered paths are kept.
     const { [path]: _previous, ...others } = state.diffs;
     const kept = Object.entries(others)

@@ -24,19 +24,23 @@ export const providerReducers: FrameReducerTable = {
       baseUrl: text(v.apiBase),
     })),
   }),
-  'provider.models': (state, p) => ({
-    ...state,
-    models: {
-      ...state.models,
-      [text(p.provider)]: rows(p.models)
-        .filter((m) => text(m.id))
-        .map((m) => ({
-          id: text(m.id),
-          name: text(m.name) || text(m.id),
-          contextWindow: number(m.contextWindow),
-        })),
-    },
-  }),
+  'provider.models': (state, p) => {
+    const providerId = text(p.provider).trim();
+    if (!providerId) return state;
+    return {
+      ...state,
+      models: {
+        ...state.models,
+        [providerId]: rows(p.models)
+          .filter((m) => text(m.id))
+          .map((m) => ({
+            id: text(m.id),
+            name: text(m.name) || text(m.id),
+            contextWindow: number(m.contextWindow),
+          })),
+      },
+    };
+  },
   'provider.model_switched': modelSwitched,
   'model.switch_result': modelSwitched,
   'key.operation_result': (state, p) => ({

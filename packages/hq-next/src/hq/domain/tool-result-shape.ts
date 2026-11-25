@@ -36,10 +36,11 @@ export function detectShape(toolName: string | undefined, result: string): ToolR
 
   if (isBashTool || exitMatch) {
     const stdout = exitMatch ? result.slice(0, exitMatch.index).trimEnd() : result;
+    const rawCode = exitMatch ? Number(exitMatch[1]) : undefined;
     return {
       kind: 'bash',
       stdout,
-      exitCode: exitMatch ? Number(exitMatch[1]) : undefined,
+      exitCode: rawCode !== undefined && Number.isSafeInteger(rawCode) ? rawCode : undefined,
       duration: durationMatch?.[1],
     };
   }

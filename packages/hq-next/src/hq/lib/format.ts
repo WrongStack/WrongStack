@@ -24,9 +24,10 @@ export function formatCount(value: number): string {
  */
 export function formatUsd(value: number): string {
   if (!Number.isFinite(value)) return '$0.0000';
-  const sign = value < 0 ? '-' : '';
   const abs = Math.abs(value);
-  return abs >= 1 ? `${sign}$${abs.toFixed(2)}` : `${sign}$${abs.toFixed(4)}`;
+  const formatted = abs >= 1 ? abs.toFixed(2) : abs.toFixed(4);
+  const sign = value < 0 && Number(formatted) > 0 ? '-' : '';
+  return `${sign}$${formatted}`;
 }
 
 /** Wall-clock, no date — transcripts and audit rows are about today. */

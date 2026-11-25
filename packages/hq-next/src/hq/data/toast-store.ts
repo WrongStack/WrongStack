@@ -38,7 +38,7 @@ export const useToastStore = create<ToastState>()((set) => ({
     const effectiveTtlMs =
       ttlMs === 0
         ? 0
-        : typeof ttlMs === 'number' && Number.isFinite(ttlMs) && ttlMs > 0
+        : typeof ttlMs === 'number' && Number.isFinite(ttlMs) && ttlMs >= 1
           ? Math.min(Math.floor(ttlMs), 2_147_483_647)
           : DEFAULT_TTL_MS;
     const id = `toast-${++counter}-${Date.now()}`;

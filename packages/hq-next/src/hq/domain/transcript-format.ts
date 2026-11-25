@@ -122,8 +122,9 @@ export function formatDuration(ms: number | undefined): string {
 
 /** Short display label for a tool name, stripping the `mcp__server__` prefix. */
 export function toolDisplayName(toolName: string | undefined): string {
-  if (!toolName) return 'tool';
-  return toolName.replace(/^mcp__(.+?)__/, '$1:');
+  const trimmed = toolName?.trim();
+  if (!trimmed) return 'tool';
+  return trimmed.replace(/^mcp__(.+?)__/, '$1:');
 }
 
 /** Format a timestamp string as a local `HH:MM:SS`, or '' when unparseable. */

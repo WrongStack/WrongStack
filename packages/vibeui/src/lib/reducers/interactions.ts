@@ -28,10 +28,16 @@ export function resolveConfirmation(state: SessionState, id: string): SessionSta
 
 /** The first approval is shown; concurrent ones queue in arrival order. */
 const confirmNeeded: FrameReducer = (state, p) => {
+  let input = '';
+  try {
+    input = JSON.stringify(p.input, null, 2) ?? '';
+  } catch {
+    input = '';
+  }
   const confirm = {
     id: text(p.id),
     tool: text(p.toolName),
-    input: JSON.stringify(p.input, null, 2) ?? '',
+    input,
     deadlineAt: number(p.deadlineAt),
   };
   if (!confirm.id) return state;

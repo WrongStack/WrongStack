@@ -15,12 +15,25 @@ import type { Config } from '@wrongstack/contracts/types';
  * in-project config denylist (`in-project-policy.ts`), so a repo-committed
  * config cannot widen this header to an attacker's host.
  */
+function safeHttpOrigin(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed || /[\s;,]/.test(trimmed)) return undefined;
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return undefined;
+    return parsed.origin;
+  } catch {
+    return undefined;
+  }
+}
+
 export function integrationConnectSources(config: Config | undefined): string[] {
   if (!config) return [];
   const out: string[] = [];
-  const hqUrl = (config as { hq?: { url?: unknown } }).hq?.url;
-  if (typeof hqUrl === 'string' && hqUrl.trim()) out.push(hqUrl.trim());
-  const proxyUrl = config.tools?.wrongProxy?.url;
-  if (typeof proxyUrl === 'string' && proxyUrl.trim()) out.push(proxyUrl.trim());
+  const hqOrigin = safeHttpOrigin((config as { hq?: { url?: unknown } }).hq?.url);
+  if (hqOrigin) out.push(hqOrigin);
+  const proxyOrigin = safeHttpOrigin(config.tools?.wrongProxy?.url);
+  if (proxyOrigin) out.push(proxyOrigin);
   return out;
 }

@@ -32,5 +32,9 @@ export function isLoopbackBrowserOrigin(hostname: string): boolean {
   if (host === '::1' || host === '0:0:0:0:0:0:0:1') return true;
   const mappedHex = host.match(/^::ffff:([0-9a-f]{1,4}):[0-9a-f]{1,4}$/);
   if (mappedHex) return Number.parseInt(mappedHex[1] ?? '', 16) >> 8 === 127;
-  return host.startsWith('::ffff:127.');
+  const mappedV4 = host.match(/^::ffff:127\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (mappedV4) {
+    return mappedV4.slice(1).every((octet) => Number(octet) <= 255);
+  }
+  return false;
 }
