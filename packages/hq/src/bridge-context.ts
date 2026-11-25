@@ -83,8 +83,10 @@ export function createBridgeContext(options: BridgeContextOptions): BridgeContex
   const offs: Array<() => void> = [];
 
   function sessionIdTag(eventSessionId?: string): { sessionId?: string } {
-    const tag = eventSessionId ?? bridgeSessionId;
-    return tag !== undefined && tag.length > 0 ? { sessionId: tag } : {};
+    const eventTag = eventSessionId?.trim();
+    const bridgeTag = bridgeSessionId?.trim();
+    const tag = eventTag || bridgeTag;
+    return tag ? { sessionId: tag } : {};
   }
 
   function safePublish(publishOptions: HqPublishEventOptions): void {

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T20:45:47.145Z",
+  "generatedAt": "2026-11-25T20:47:50.871Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6570,
-    "testFiles": 6264,
-    "sourceLines": 1348032,
+    "testFiles": 6269,
+    "sourceLines": 1348043,
     "workspaceEdges": 261,
     "moduleEdges": 19241,
     "nonCommandSlashImports": 0,
@@ -528,7 +528,7 @@
       "name": "@wrongstack/hq",
       "dir": "packages/hq",
       "sourceFiles": 93,
-      "testFiles": 88,
+      "testFiles": 91,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -544,7 +544,7 @@
         {
           "path": "packages/hq/tsconfig.test.json",
           "error": null,
-          "testFiles": 88
+          "testFiles": 91
         }
       ]
     },
@@ -552,7 +552,7 @@
       "name": "@wrongstack/hq-next",
       "dir": "packages/hq-next",
       "sourceFiles": 205,
-      "testFiles": 95,
+      "testFiles": 97,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -569,7 +569,7 @@
         {
           "path": "packages/hq-next/tsconfig.test.json",
           "error": null,
-          "testFiles": 95
+          "testFiles": 97
         }
       ]
     },
@@ -17676,6 +17676,12 @@
         ]
       },
       {
+        "file": "packages/hq-next/tests/hq-brain-model-nan-at.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq-next/tests/hq-format-usd-neg.test.ts",
         "projects": [
           "root-node"
@@ -17683,6 +17689,12 @@
       },
       {
         "file": "packages/hq-next/tests/hq-selectors-unread-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq-versions-whitespace.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18198,7 +18210,19 @@
         ]
       },
       {
+        "file": "packages/hq/tests/bootstrap-store-caps-alias.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/tests/brain-bridge.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/bridge-context-blank-session.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18343,6 +18367,12 @@
       },
       {
         "file": "packages/hq/tests/host-health.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq/tests/hq-acp-config-blank-circular.test.ts",
         "projects": [
           "root-node"
         ]

@@ -123,6 +123,7 @@ function outcomeAfter(current: Outcome, payload: HqBrainEventPayload): Outcome {
 
 /** Fold brain envelopes (any order) into decisions and interventions, newest activity first. */
 export function buildTrail(events: readonly HqEventEnvelope[]): TrailItem[] {
+  const safeAt = (at: unknown): number => (typeof at === 'number' && Number.isFinite(at) ? at : 0);
   const ordered = [...events]
     .filter(
       (event) =>
@@ -130,13 +131,15 @@ export function buildTrail(events: readonly HqEventEnvelope[]): TrailItem[] {
     )
     .sort(
       (left, right) =>
-        (left.payload as HqBrainEventPayload).at - (right.payload as HqBrainEventPayload).at,
+        safeAt((left.payload as HqBrainEventPayload).at) -
+        safeAt((right.payload as HqBrainEventPayload).at),
     );
   const decisions = new Map<string, Decision>();
   const items: TrailItem[] = [];
 
   for (const event of ordered) {
     const payload = event.payload as HqBrainEventPayload;
+    const at = safeAt(payload.at);
     if (payload.kind === 'intervention') {
       items.push({
         kind: 'intervention',
@@ -146,7 +149,7 @@ export function buildTrail(events: readonly HqEventEnvelope[]): TrailItem[] {
         signal: payload.interventionKind,
         steered: payload.intervened === true,
         detail: payload.detail,
-        lastAt: payload.at,
+        lastAt: at,
       });
       continue;
     }
@@ -171,15 +174,15 @@ export function buildTrail(events: readonly HqEventEnvelope[]): TrailItem[] {
         detail: undefined,
         humanDetail: undefined,
         council: undefined,
-        startedAt: payload.at,
-        lastAt: payload.at,
+        startedAt: at,
+        lastAt: at,
         steps: [],
       };
       decisions.set(key, decision);
       items.push(decision);
     }
     decision.steps.push(payload);
-    decision.lastAt = Math.max(decision.lastAt, payload.at);
+    decision.lastAt = Math.max(decision.lastAt, at);
     decision.question ??= payload.question;
     decision.source ??= payload.source;
     if (payload.risk !== undefined) decision.risk = payload.risk;

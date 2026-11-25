@@ -15,10 +15,10 @@ export interface HqAcpConfigCommand {
 export function parseHqAcpConfig(p: Record<string, unknown>): HqAcpConfigCommand | null {
   if (
     typeof p.sessionId !== 'string' ||
-    !p.sessionId ||
+    !p.sessionId.trim() ||
     p.sessionId.length > 512 ||
     typeof p.agentId !== 'string' ||
-    !p.agentId ||
+    !p.agentId.trim() ||
     p.agentId.length > 200 ||
     ['__proto__', 'constructor', 'prototype'].includes(p.agentId)
   )
@@ -63,5 +63,9 @@ export function isHqAcpConfigResult(value: unknown): value is AcpRuntimeOptionsR
     )
   )
     return false;
-  return new TextEncoder().encode(JSON.stringify(value)).byteLength <= 256_000;
+  try {
+    return new TextEncoder().encode(JSON.stringify(value)).byteLength <= 256_000;
+  } catch {
+    return false;
+  }
 }

@@ -10,8 +10,8 @@ const SEMVER = /^v?(\d+)\.(\d+)\.(\d+)/;
 
 /** -1, 0 or 1; null when either side is not a release version. */
 export function compareVersions(left: string, right: string): number | null {
-  const a = SEMVER.exec(left);
-  const b = SEMVER.exec(right);
+  const a = SEMVER.exec(left.trim());
+  const b = SEMVER.exec(right.trim());
   if (a === null || b === null) return null;
   for (let index = 1; index <= 3; index += 1) {
     const delta = Number(a[index]) - Number(b[index]);
@@ -33,13 +33,14 @@ export interface VersionDrift {
   mixed: boolean;
 }
 
-const strip = (version: string): string => version.replace(/^v/, '');
+const strip = (version: string): string => version.trim().replace(/^v/, '');
 
 export function versionDrift(
   clients: readonly HqClientRecord[],
   hubVersion: string | undefined,
 ): VersionDrift {
-  const hub = hubVersion !== undefined && SEMVER.test(hubVersion) ? strip(hubVersion) : undefined;
+  const trimmedHub = hubVersion?.trim();
+  const hub = trimmedHub && SEMVER.test(trimmedHub) ? strip(trimmedHub) : undefined;
   const counts = new Map<string, number>();
   const behind: HqClientRecord[] = [];
   const ahead: HqClientRecord[] = [];
@@ -47,6 +48,7 @@ export function versionDrift(
   for (const client of clients) {
     if (!client.connected || client.version === undefined) continue;
     const version = strip(client.version);
+    if (!version) continue;
     reporting += 1;
     counts.set(version, (counts.get(version) ?? 0) + 1);
     if (hub === undefined) continue;

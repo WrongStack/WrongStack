@@ -58,7 +58,7 @@ export class HqBootstrapCodeStore {
       code,
       expiresAt: Date.now() + BOOTSTRAP_CODE_TTL_MS,
       tokenId: source.tokenId,
-      ...(source.capabilities !== undefined ? { capabilities: source.capabilities } : {}),
+      ...(source.capabilities !== undefined ? { capabilities: [...source.capabilities] } : {}),
     });
     return code;
   }
