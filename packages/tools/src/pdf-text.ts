@@ -30,6 +30,9 @@ export interface PdfPageRange {
  * Throws with a message fit for the model on a malformed or empty range.
  */
 export function parsePdfPageRange(spec: string | undefined, total: number): PdfPageRange {
+  if (!Number.isFinite(total) || total < 0) {
+    throw new Error(`Invalid PDF page count: ${total}`);
+  }
   if (spec === undefined || spec.trim() === '') {
     return { first: 1, last: Math.min(total, PDF_MAX_PAGES_PER_READ) };
   }

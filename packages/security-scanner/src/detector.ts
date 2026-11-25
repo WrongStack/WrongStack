@@ -193,7 +193,10 @@ export class TechStackDetector {
     }
 
     this.cachedResults.set(projectRoot, { result, timestamp: Date.now() });
-    while (this.cachedResults.size > Math.max(1, this.maxCacheEntries)) {
+    const maxEntries = Number.isFinite(this.maxCacheEntries)
+      ? Math.max(1, Math.floor(this.maxCacheEntries))
+      : 1;
+    while (this.cachedResults.size > maxEntries) {
       const oldest = this.cachedResults.keys().next().value;
       if (oldest === undefined) break;
       this.cachedResults.delete(oldest);

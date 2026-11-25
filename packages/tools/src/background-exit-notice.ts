@@ -43,7 +43,8 @@ export function backgroundExitNoticeTarget(
 }
 
 export function formatNoticeDuration(ms: number): string {
-  const total = Math.max(0, Math.round(ms / 1000));
+  const safeMs = Number.isFinite(ms) ? ms : 0;
+  const total = Math.max(0, Math.round(safeMs / 1000));
   if (total < 60) return `${total}s`;
   const minutes = Math.floor(total / 60);
   if (minutes < 60) return `${minutes}m ${total % 60}s`;
@@ -63,7 +64,9 @@ export async function readLogTail(path: string, maxLines = TAIL_LINES): Promise<
     // A read that starts mid-file starts mid-line: drop the fragment.
     if (size > length) lines = lines.slice(1);
     while (lines.length > 0 && lines[lines.length - 1]?.trim() === '') lines.pop();
-    return lines.slice(-maxLines);
+    const safeMax = Number.isFinite(maxLines) ? Math.max(0, Math.floor(maxLines)) : TAIL_LINES;
+    if (safeMax === 0) return [];
+    return lines.slice(-safeMax);
   } finally {
     await handle.close();
   }

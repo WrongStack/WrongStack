@@ -97,9 +97,12 @@ export function serializeKanbanOutput(output: KanbanToolOutput, input: unknown):
     if (boardBytes > KANBAN_BOARD_TRANSCRIPT_BYTE_CAP) {
       const columns: Record<string, number> = {};
       for (const column of board.columns) {
-        columns[column.title || column.id] = board.tasks.filter(
-          (task) => task.columnId === column.id,
-        ).length;
+        Object.defineProperty(columns, column.title || column.id, {
+          value: board.tasks.filter((task) => task.columnId === column.id).length,
+          enumerable: true,
+          writable: true,
+          configurable: true,
+        });
       }
       compact['board'] = {
         id: board.id,

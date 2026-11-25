@@ -1549,6 +1549,9 @@
       "COMMAND_OUTPUT_MAX_BYTES",
       "truncateHeadTail"
     ],
+    "packages/tools/src/background-exit-notice.ts": [
+      "readLogTail"
+    ],
     "packages/tools/src/bash-kill-guard.ts": [
       "getBlockedKillMessage",
       "parseKillCommand"

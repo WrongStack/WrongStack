@@ -117,10 +117,10 @@ export async function withTransientPrivateOrigin<T>(
   const key = resolve(root);
   const parsed = parsePrivateOriginAllowlist(origin);
   const canonicalOrigin = parsed.length === 1 ? parsed[0]! : origin.trim();
+  const live = browserPrivateOrigins(key);
   const counts = transientOrigins.get(key) ?? new Map<string, number>();
   transientOrigins.set(key, counts);
   counts.set(canonicalOrigin, (counts.get(canonicalOrigin) ?? 0) + 1);
-  const live = browserPrivateOrigins(key);
   const added = !live.includes(canonicalOrigin);
   if (added) live.push(canonicalOrigin);
   try {

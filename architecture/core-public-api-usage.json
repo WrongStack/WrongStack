@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1028,
+      "files": 1029,
       "typeOnly": 78,
-      "runtimeOrMixed": 985
+      "runtimeOrMixed": 986
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -12210,6 +12210,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/browser-tools/tests/browser-policy.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/browser-tools/tests/policy-transient-leak.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

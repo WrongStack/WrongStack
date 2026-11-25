@@ -230,7 +230,12 @@ export function createContinuationAttemptTracker(): ContinuationAttemptTracker {
       const result: Record<string, { attempts: number; skipped: boolean }> = {};
       const allIds = new Set([...attempts.keys(), ...skipped]);
       for (const id of allIds) {
-        result[id] = { attempts: attempts.get(id) ?? 0, skipped: skipped.has(id) };
+        Object.defineProperty(result, id, {
+          value: { attempts: attempts.get(id) ?? 0, skipped: skipped.has(id) },
+          enumerable: true,
+          writable: true,
+          configurable: true,
+        });
       }
       return result;
     },
@@ -278,9 +283,10 @@ export function generateAdvancementPrompt(
     activeForm?: string | undefined;
   }[],
 ): string {
-  const idx = Math.max(0, Math.min(attemptCount - 1, ADVANCE_PREAMBLES.length - 1));
+  const safeAttempts = Number.isFinite(attemptCount) ? Math.max(1, Math.floor(attemptCount)) : 1;
+  const idx = Math.min(safeAttempts - 1, ADVANCE_PREAMBLES.length - 1);
   const preamble = ADVANCE_PREAMBLES[idx]!.replace(/\{attempts\}/g, () =>
-    String(attemptCount),
+    String(safeAttempts),
   ).replace(/\{label\}/g, () => stalledTodo.content.slice(0, 72));
 
   if (!nextTodo) {

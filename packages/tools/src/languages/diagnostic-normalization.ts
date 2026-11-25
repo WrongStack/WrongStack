@@ -76,10 +76,12 @@ export function dedupeDiagnostics(items: readonly LanguageDiagnostic[]): Languag
 }
 
 export function compareDiagnostics(a: LanguageDiagnostic, b: LanguageDiagnostic): number {
+  const safeNum = (n: number | undefined): number =>
+    typeof n === 'number' && Number.isFinite(n) ? n : 0;
   return (
     (a.file ?? '').localeCompare(b.file ?? '') ||
-    (a.range?.start.line ?? 0) - (b.range?.start.line ?? 0) ||
-    (a.range?.start.column ?? 0) - (b.range?.start.column ?? 0) ||
+    safeNum(a.range?.start.line) - safeNum(b.range?.start.line) ||
+    safeNum(a.range?.start.column) - safeNum(b.range?.start.column) ||
     severityRank(a.severity) - severityRank(b.severity) ||
     (a.code ?? '').localeCompare(b.code ?? '') ||
     a.message.localeCompare(b.message)

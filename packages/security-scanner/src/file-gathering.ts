@@ -211,10 +211,12 @@ export async function gatherFiles(options: GatherFilesOptions): Promise<string[]
   ];
   const includeMatchers = (options.includePatterns ?? []).map(getGlobRegex);
   const unrestricted = extensions.length === 0 && includeMatchers.length === 0;
+  const maxDepth =
+    Number.isFinite(options.maxDepth) && options.maxDepth >= 0 ? Math.floor(options.maxDepth) : 0;
   const files: string[] = [];
 
   async function visit(directory: string, currentDepth: number): Promise<void> {
-    if (currentDepth > options.maxDepth) return;
+    if (currentDepth > maxDepth) return;
 
     try {
       const entries = await readdir(directory, { withFileTypes: true });

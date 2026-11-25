@@ -34,8 +34,14 @@ export async function extractDirectorySkeleton(opts: {
   /** The scan stopped at `maxFiles` with more indexable files left. */
   moreFiles: boolean;
 }> {
-  const maxFiles = opts.maxFiles ?? 30;
-  const maxChars = opts.maxChars ?? Number.POSITIVE_INFINITY;
+  const maxFiles =
+    typeof opts.maxFiles === 'number' && Number.isFinite(opts.maxFiles)
+      ? Math.max(0, Math.floor(opts.maxFiles))
+      : 30;
+  const maxChars =
+    typeof opts.maxChars === 'number' && Number.isFinite(opts.maxChars)
+      ? Math.max(0, opts.maxChars)
+      : Number.POSITIVE_INFINITY;
   // One past the limit, to tell "exactly maxFiles" from "more left".
   const scanLimit = maxFiles + 1;
   const filePaths: string[] = [];

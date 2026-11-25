@@ -40,9 +40,11 @@ export async function browserInstallationDiagnostics(): Promise<{
 
 /** Reject with `message` when `promise` has not settled within `ms`. */
 export function settleWithin<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  if (ms === Number.POSITIVE_INFINITY) return promise;
+  const delayMs = Number.isFinite(ms) ? Math.min(Math.max(0, Math.floor(ms)), 2_147_483_647) : 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(message)), ms);
+    timer = setTimeout(() => reject(new Error(message)), delayMs);
   });
   // The abandoned evaluation settles (or rejects on page close) later.
   promise.catch(() => undefined);

@@ -2,6 +2,11 @@
 // JMESPath implementation (from json-path plugin)
 // ---------------------------------------------------------------------------
 
+function ownProp(obj: unknown, key: string): unknown {
+  if (obj === null || typeof obj !== 'object') return undefined;
+  return Object.hasOwn(obj, key) ? (obj as Record<string, unknown>)[key] : undefined;
+}
+
 export function jmespathSearch(data: unknown, query: string): unknown {
   // Handle basic JMESPath expressions
   if (!query || query === '@') return data;
@@ -17,7 +22,7 @@ export function jmespathSearch(data: unknown, query: string): unknown {
       return undefined;
     }
     const rest = dotMatch[2];
-    const val = (data as Record<string, unknown> | undefined)?.[key];
+    const val = ownProp(data, key);
     if (rest === undefined) return val;
     return jmespathSearch(val, rest);
   }
@@ -31,7 +36,7 @@ export function jmespathSearch(data: unknown, query: string): unknown {
     }
     const idx = Number.parseInt(propIdxMatch[2]!, 10);
     const rest = propIdxMatch[3] ? propIdxMatch[3] : undefined;
-    const arr = (data as Record<string, unknown> | undefined)?.[key];
+    const arr = ownProp(data, key);
     if (!Array.isArray(arr)) return undefined;
     const val = arr[idx];
     if (rest === undefined) return val;
@@ -41,10 +46,10 @@ export function jmespathSearch(data: unknown, query: string): unknown {
   // Array access: [0], [0].rest, or [0][1]
   const arrMatch = query.match(/^\[(\d+)\](?:\.?(.*))?$/);
   if (arrMatch) {
+    if (!Array.isArray(data)) return undefined;
     const idx = Number.parseInt(arrMatch[1]!, 10);
     const rest = arrMatch[2] ? arrMatch[2] : undefined;
-    const arr = data as unknown[];
-    const val = arr?.[idx];
+    const val = data[idx];
     if (rest === undefined) return val;
     return jmespathSearch(val, rest);
   }
@@ -66,7 +71,7 @@ export function jmespathSearch(data: unknown, query: string): unknown {
       return [];
     }
     const rest = multiMatch[2];
-    const arr = (data as Record<string, unknown[]> | undefined)?.[key];
+    const arr = ownProp(data, key);
     if (!Array.isArray(arr)) return [];
     if (rest === undefined) return arr;
     return arr.map((item) => jmespathSearch(item, rest));
@@ -100,7 +105,7 @@ export function jmespathSearch(data: unknown, query: string): unknown {
     const filtered = arr.filter((item) => {
       // A `null` element (valid JSON) has no fields: JMESPath reads it as null
       // instead of failing the whole query.
-      const itemVal = (item as Record<string, unknown> | null | undefined)?.[field];
+      const itemVal = ownProp(item, field);
       // Ordering is number-only in JMESPath; coercion would select nulls,
       // booleans, numeric strings and arrays as if they were numeric fields.
       if (
@@ -192,7 +197,7 @@ export function simpleQuery(data: unknown, path: string): unknown {
     if (!Number.isNaN(idx) && Array.isArray(current)) {
       current = current[idx];
     } else if (typeof current === 'object' && current !== null) {
-      current = (current as Record<string, unknown>)[part];
+      current = ownProp(current, part);
     } else {
       return undefined;
     }

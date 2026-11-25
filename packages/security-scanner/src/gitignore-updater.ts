@@ -73,10 +73,12 @@ export class GitignoreUpdater {
   }
 
   async isEntryIgnored(entry: string): Promise<boolean> {
+    const target = entry.trim();
+    if (!target) return false;
     try {
       const content = await readFile(this.options.gitignorePath, 'utf-8');
       const lines = content.split(/\r?\n/).map((l) => l.trim());
-      return lines.includes(entry.trim());
+      return lines.includes(target);
     } catch {
       return false;
     }

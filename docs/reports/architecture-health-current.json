@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T15:44:49.665Z",
+  "generatedAt": "2026-11-25T15:47:31.499Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6564,
-    "testFiles": 5977,
-    "sourceLines": 1345934,
+    "testFiles": 5994,
+    "sourceLines": 1345976,
     "workspaceEdges": 261,
     "moduleEdges": 19226,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 3,
     "testsWithoutTypecheck": 10,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1052
+    "testOnlyExports": 1053
   },
   "errors": [
     "2 unexcepted module cycle(s)"
@@ -163,7 +163,7 @@
       "name": "@wrongstack/browser-tools",
       "dir": "packages/browser-tools",
       "sourceFiles": 14,
-      "testFiles": 23,
+      "testFiles": 25,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -178,7 +178,7 @@
         {
           "path": "packages/browser-tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 23
+          "testFiles": 25
         }
       ]
     },
@@ -994,7 +994,7 @@
       "name": "@wrongstack/security-scanner",
       "dir": "packages/security-scanner",
       "sourceFiles": 21,
-      "testFiles": 37,
+      "testFiles": 41,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -1008,7 +1008,7 @@
         {
           "path": "packages/security-scanner/tsconfig.test.json",
           "error": null,
-          "testFiles": 37
+          "testFiles": 41
         }
       ]
     },
@@ -1084,7 +1084,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 347,
-      "testFiles": 397,
+      "testFiles": 408,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/browser-tools",
@@ -1106,7 +1106,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 397
+          "testFiles": 408
         }
       ]
     },
@@ -5072,6 +5072,18 @@
       },
       {
         "file": "packages/browser-tools/tests/browser-tools.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/policy-transient-leak.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/settle-within-inf.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24631,6 +24643,12 @@
         ]
       },
       {
+        "file": "packages/security-scanner/tests/detector-cache-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/security-scanner/tests/detector-edge.test.ts",
         "projects": [
           "root-node"
@@ -24644,6 +24662,18 @@
       },
       {
         "file": "packages/security-scanner/tests/detector.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/security-scanner/tests/file-gathering-nan-depth.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/security-scanner/tests/gitignore-blank-entry.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24824,6 +24854,12 @@
       },
       {
         "file": "packages/security-scanner/tests/slash-command.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/security-scanner/tests/sleep-with-abort-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -25687,7 +25723,19 @@
         ]
       },
       {
+        "file": "packages/tools/tests/auto-proceed-advancement-bounds.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/auto-proceed-loop-guard.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/background-exit-duration-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -25700,6 +25748,12 @@
       },
       {
         "file": "packages/tools/tests/background-indexer.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/background-log-fraction.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26461,6 +26515,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/diagnostic-compare-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/diff-outside-ref.test.ts",
         "projects": [
           "root-node"
@@ -26468,6 +26528,12 @@
       },
       {
         "file": "packages/tools/tests/diff.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/directory-skeleton-maxfiles.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26761,6 +26827,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/jmespath-non-array-index.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/json-file-growth.test.ts",
         "projects": [
           "root-node"
@@ -26774,6 +26846,12 @@
       },
       {
         "file": "packages/tools/tests/json-ordering-filter.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/json-query-proto.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26900,6 +26978,12 @@
       },
       {
         "file": "packages/tools/tests/kanban-serialize.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/kanban-serializer-proto.test.ts",
         "projects": [
           "root-node"
         ]
@@ -27043,6 +27127,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/log-tail-zero.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/logs-cancellation.test.ts",
         "projects": [
           "root-node"
@@ -27062,6 +27152,12 @@
       },
       {
         "file": "packages/tools/tests/logs.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/loop-guard-proto-snap.test.ts",
         "projects": [
           "root-node"
         ]
@@ -27296,6 +27392,12 @@
       },
       {
         "file": "packages/tools/tests/pdf-attach-and-image-generate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/pdf-page-range-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -41849,6 +41951,10 @@
     {
       "file": "packages/tools/src/_util.ts",
       "name": "truncateHeadTail"
+    },
+    {
+      "file": "packages/tools/src/background-exit-notice.ts",
+      "name": "readLogTail"
     },
     {
       "file": "packages/tools/src/bash-kill-guard.ts",

@@ -82,6 +82,10 @@ export async function retryProviderComplete(
 
 /** Sleep `ms` milliseconds, rejecting if `abort` fires before the timer resolves. */
 export function sleepWithAbort(ms: number, abortController: AbortController): Promise<void> {
+  const safeMs =
+    typeof ms === 'number' && Number.isFinite(ms) && ms > 0
+      ? Math.min(Math.floor(ms), 2_147_483_647)
+      : 0;
   return new Promise<void>((resolve, reject) => {
     if (abortController.signal.aborted) {
       reject(new Error('Retry backoff aborted'));
@@ -94,7 +98,7 @@ export function sleepWithAbort(ms: number, abortController: AbortController): Pr
     const timer = setTimeout(() => {
       abortController.signal.removeEventListener('abort', onAbort);
       resolve();
-    }, ms);
+    }, safeMs);
     abortController.signal.addEventListener('abort', onAbort, { once: true });
   });
 }
