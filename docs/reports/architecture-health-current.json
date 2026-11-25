@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T22:23:23.156Z",
+  "generatedAt": "2026-11-25T08:11:57.845Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6548,
-    "testFiles": 5849,
-    "sourceLines": 1341522,
+    "sourceFiles": 6554,
+    "testFiles": 5854,
+    "sourceLines": 1342347,
     "workspaceEdges": 261,
-    "moduleEdges": 19156,
+    "moduleEdges": 19170,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 0,
+    "testsWithoutTypecheck": 1,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1048
   },
@@ -93,7 +93,7 @@
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
       "sourceFiles": 59,
-      "testFiles": 81,
+      "testFiles": 82,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -109,7 +109,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 81
+          "testFiles": 82
         }
       ]
     },
@@ -139,8 +139,8 @@
     {
       "name": "@wrongstack/bench",
       "dir": "packages/bench",
-      "sourceFiles": 32,
-      "testFiles": 67,
+      "sourceFiles": 33,
+      "testFiles": 68,
       "workspaceDependencies": [
         "@wrongstack/core"
       ],
@@ -153,7 +153,7 @@
         {
           "path": "packages/bench/tsconfig.test.json",
           "error": null,
-          "testFiles": 67
+          "testFiles": 68
         }
       ]
     },
@@ -161,7 +161,7 @@
       "name": "@wrongstack/browser-tools",
       "dir": "packages/browser-tools",
       "sourceFiles": 14,
-      "testFiles": 22,
+      "testFiles": 23,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -176,7 +176,7 @@
         {
           "path": "packages/browser-tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 22
+          "testFiles": 23
         }
       ]
     },
@@ -231,8 +231,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 652,
-      "testFiles": 723,
+      "sourceFiles": 654,
+      "testFiles": 724,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -284,7 +284,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 723
+          "testFiles": 724
         }
       ]
     },
@@ -313,7 +313,7 @@
       "name": "@wrongstack/codebase",
       "dir": "packages/codebase",
       "sourceFiles": 115,
-      "testFiles": 0,
+      "testFiles": 1,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/persistence",
@@ -527,7 +527,7 @@
     {
       "name": "@wrongstack/hq",
       "dir": "packages/hq",
-      "sourceFiles": 91,
+      "sourceFiles": 93,
       "testFiles": 65,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -551,7 +551,7 @@
     {
       "name": "@wrongstack/hq-next",
       "dir": "packages/hq-next",
-      "sourceFiles": 204,
+      "sourceFiles": 205,
       "testFiles": 72,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -3858,6 +3858,12 @@
         ]
       },
       {
+        "file": "packages/acp/tests/acp-boundary-normalization-audit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/acp-concurrent-prompt.test.ts",
         "projects": [
           "root-node"
@@ -4440,6 +4446,12 @@
         ]
       },
       {
+        "file": "packages/bench/tests/boundary-normalization-audit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/bench/tests/child-env.test.ts",
         "projects": [
           "root-node"
@@ -4825,6 +4837,12 @@
       },
       {
         "file": "packages/browser-tools/tests/browser-artifact-retention.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-boundary-normalization-audit.test.ts",
         "projects": [
           "root-node"
         ]
@@ -5695,6 +5713,12 @@
       },
       {
         "file": "packages/cli/tests/acp-permission-bridge.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/acp-project-mcp-gateway-init-failure.test.ts",
         "projects": [
           "root-node"
         ]
@@ -10003,6 +10027,12 @@
       },
       {
         "file": "packages/codebase-index-mcp/tests/policy.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/codebase/tests/parser-output-boundaries.test.ts",
         "projects": [
           "root-node"
         ]
@@ -36499,7 +36529,15 @@
       }
     ],
     "invalidRuntime": [],
-    "withoutTypecheck": [],
+    "withoutTypecheck": [
+      {
+        "file": "packages/codebase/tests/parser-output-boundaries.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      }
+    ],
     "multipleTypechecks": []
   },
   "unresolvedRelativeImports": [

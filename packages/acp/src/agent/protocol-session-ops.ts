@@ -154,7 +154,7 @@ export function parseMcpServers(raw: unknown, onSkipped?: (reason: string) => vo
     }
     const e = entry as Record<string, unknown>;
     const name = typeof e.name === 'string' ? e.name.trim() : '';
-    if (name === '') {
+    if (name === '' || /[\u0000-\u001f\u007f]/u.test(name)) {
       onSkipped?.('entry has no name');
       continue;
     }
@@ -179,7 +179,11 @@ export function parseMcpServers(raw: unknown, onSkipped?: (reason: string) => vo
       onSkipped?.(`"${name}": unknown transport "${type}"`);
       continue;
     }
-    if (typeof e.command !== 'string' || e.command === '') {
+    if (
+      typeof e.command !== 'string' ||
+      e.command === '' ||
+      /[\u0000-\u001f\u007f]/u.test(e.command)
+    ) {
       onSkipped?.(`"${name}": stdio server has no command`);
       continue;
     }
@@ -247,7 +251,11 @@ export async function resolveSessionCwd(requested: string): Promise<string | nul
 export function errorToJsonRpc(err: unknown): { code: number; message: string; data?: unknown } {
   if (err && typeof err === 'object') {
     const e = err as { code?: unknown; message?: unknown; data?: unknown };
-    if (typeof e.code === 'number' && typeof e.message === 'string') {
+    if (
+      typeof e.code === 'number' &&
+      Number.isSafeInteger(e.code) &&
+      typeof e.message === 'string'
+    ) {
       const result: { code: number; message: string; data?: unknown } = {
         code: e.code,
         message: e.message,

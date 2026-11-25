@@ -62,6 +62,11 @@ const CALL_TYPES: ReadonlySet<string> = new Set<CallType>([
   'import',
 ]);
 
+const sourceLine = (value: unknown): number =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= 1 ? value : 1;
+const sourceColumn = (value: unknown): number =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : 0;
+
 function coerceSymbols(value: unknown): RawParsedSymbol[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((entry): RawParsedSymbol[] => {
@@ -71,8 +76,8 @@ function coerceSymbols(value: unknown): RawParsedSymbol[] {
       {
         name: candidate.name,
         kind: candidate.kind,
-        line: typeof candidate.line === 'number' ? candidate.line : 1,
-        col: typeof candidate.col === 'number' ? candidate.col : 0,
+        line: sourceLine(candidate.line),
+        col: sourceColumn(candidate.col),
         signature: typeof candidate.signature === 'string' ? candidate.signature : '',
         scope: typeof candidate.scope === 'string' ? candidate.scope : '',
         doc: typeof candidate.doc === 'string' ? candidate.doc : '',
@@ -99,7 +104,7 @@ function coerceRefs(value: unknown, lang: SymbolLang): Ref[] {
         fromId: 0,
         toName: candidate.toName,
         callType: candidate.callType as CallType,
-        line: typeof candidate.line === 'number' ? candidate.line : 1,
+        line: sourceLine(candidate.line),
         lang,
         module,
       },

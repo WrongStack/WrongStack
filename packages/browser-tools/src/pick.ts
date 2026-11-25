@@ -22,16 +22,28 @@ const STYLE_KEYS = [
 export function boundBrowserSelection(
   raw: unknown,
 ): Omit<BrowserElementSelection, 'url' | 'title' | 'capturedAt' | 'image'> {
+  const safePrefix = (value: string, max: number): string => {
+    let end = Math.min(value.length, max);
+    const lastKept = value.charCodeAt(end - 1);
+    if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+    return value.slice(0, end);
+  };
   const field = (from: unknown, key: string) => (from as Record<string, unknown> | null)?.[key];
   const text = (from: unknown, key: string, max: number) => {
     const value = field(from, key);
-    return typeof value === 'string' ? value.slice(0, max) : '';
+    return typeof value === 'string' ? safePrefix(value, max) : '';
   };
   const box = <K extends string>(from: unknown, keys: K[]) =>
     Object.fromEntries(
       keys.map((key) => {
         const value = field(from, key);
-        return [key, typeof value === 'number' && Number.isFinite(value) ? value : 0];
+        const nonnegative = key === 'width' || key === 'height';
+        return [
+          key,
+          typeof value === 'number' && Number.isFinite(value) && (!nonnegative || value >= 0)
+            ? value
+            : 0,
+        ];
       }),
     ) as Record<K, number>;
   const styles = field(raw, 'styles');

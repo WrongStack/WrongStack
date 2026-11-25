@@ -92,8 +92,9 @@ export async function startScreencast(session: LiveSession): Promise<CDPSession>
 }
 
 export function pushBounded<T>(target: T[], value: T, limit: number): void {
+  const boundedLimit = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 0;
   target.push(value);
-  if (target.length > limit) target.splice(0, target.length - limit);
+  if (target.length > boundedLimit) target.splice(0, target.length - boundedLimit);
 }
 
 export async function abortable<T>(

@@ -43,6 +43,7 @@ export async function readSummary(
     !isRecord(parsed) ||
     typeof parsed['suite'] !== 'string' ||
     typeof parsed['finishedAt'] !== 'string' ||
+    !Number.isFinite(Date.parse(parsed['finishedAt'])) ||
     !isRecord(parsed['fingerprint']) ||
     !Array.isArray(parsed['cells']) ||
     !parsed['cells'].every(isCellResultRecord)
@@ -94,6 +95,15 @@ function isCellResultRecord(value: unknown): boolean {
   );
 }
 
+const RUN_STATUSES = new Set([
+  'completed',
+  'failed',
+  'aborted',
+  'max_iterations',
+  'timeout',
+  'crashed',
+]);
+
 function isTaskResultRecord(value: unknown): boolean {
   return (
     isRecord(value) &&
@@ -101,7 +111,10 @@ function isTaskResultRecord(value: unknown): boolean {
     value['taskId'].length > 0 &&
     isCellResultRecord({ cell: value['cell'] }) &&
     isRecord(value['grade']) &&
+    typeof value['grade']['passed'] === 'boolean' &&
     isRecord(value['run']) &&
+    typeof value['run']['status'] === 'string' &&
+    RUN_STATUSES.has(value['run']['status']) &&
     isRecord(value['tools'])
   );
 }
@@ -167,7 +180,8 @@ export async function readRunManifest(outDir: string): Promise<RunManifest | und
       typeof parsed['startedAt'] !== 'string' ||
       !isRecord(parsed['fingerprint']) ||
       !Array.isArray(parsed['cells']) ||
-      typeof parsed['planned'] !== 'number' ||
+      !Number.isSafeInteger(parsed['planned']) ||
+      (parsed['planned'] as number) < 0 ||
       !isRecord(parsed['flags'])
     ) {
       return undefined;
@@ -180,11 +194,21 @@ export async function readRunManifest(outDir: string): Promise<RunManifest | und
 
 /** Planned vs recorded, for a finished or unfinished run directory. */
 export function runProgress(report: Pick<BenchReport, 'progress' | 'results'>): BenchProgress {
-  return (
-    report.progress ?? {
-      planned: report.results.length,
-      completed: report.results.length,
-      interrupted: false,
-    }
-  );
+  const fallback = {
+    planned: report.results.length,
+    completed: report.results.length,
+    interrupted: false,
+  };
+  const progress = report.progress;
+  if (
+    !progress ||
+    !Number.isSafeInteger(progress.planned) ||
+    progress.planned < 0 ||
+    !Number.isSafeInteger(progress.completed) ||
+    progress.completed < 0 ||
+    typeof progress.interrupted !== 'boolean'
+  ) {
+    return fallback;
+  }
+  return progress;
 }

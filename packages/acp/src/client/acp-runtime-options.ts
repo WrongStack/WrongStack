@@ -11,6 +11,12 @@ export interface AcpRuntimeSession {
 
 const record = (x: unknown): x is Record<string, unknown> =>
   !!x && typeof x === 'object' && !Array.isArray(x);
+const safePrefix = (value: string, max: number): string => {
+  let end = Math.min(value.length, max);
+  const lastKept = value.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+};
 const applied = new WeakMap<
   AcpRuntimeSession,
   { original: AcpRuntimeValues; requested: AcpRuntimeValues }
@@ -50,6 +56,7 @@ export function acpRuntimeOptions(input: unknown): AcpRuntimeOption[] {
       (raw.type !== 'select' && raw.type !== 'boolean') ||
       typeof raw.id !== 'string' ||
       !raw.id ||
+      raw.id.length > 2000 ||
       seen.has(raw.id)
     )
       return [];
@@ -98,9 +105,10 @@ export function acpRuntimeOptions(input: unknown): AcpRuntimeOption[] {
     return [
       {
         id: raw.id,
-        name: typeof raw.name === 'string' ? raw.name : raw.id,
+        name: typeof raw.name === 'string' ? safePrefix(raw.name, 2000) : raw.id,
         category: inferredCategory,
-        description: typeof raw.description === 'string' ? raw.description : undefined,
+        description:
+          typeof raw.description === 'string' ? safePrefix(raw.description, 2000) : undefined,
         currentValue,
         options,
       },
@@ -130,7 +138,7 @@ export function acpLegacyModelOption(input: unknown): AcpRuntimeOption | undefin
     seen.add(rawId);
     const rawName =
       typeof item['name'] === 'string' && item['name'].length > 0 ? item['name'] : rawId;
-    options.push({ value: rawId, name: rawName.slice(0, 2000) });
+    options.push({ value: rawId, name: safePrefix(rawName, 2000) });
   }
   if (!options.length) return undefined;
   const currentValue = currentModelId ?? options[0]!.value;

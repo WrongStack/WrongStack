@@ -87,7 +87,11 @@ function firstLine(s: string): string {
       .split('\n')
       .map((l) => l.trim())
       .find((l) => l.length > 0) ?? '';
-  return line.length > 120 ? `${line.slice(0, 117)}…` : line;
+  if (line.length <= 120) return line;
+  let end = 117;
+  const lastKept = line.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
+  return `${line.slice(0, end)}…`;
 }
 
 function randomMarker(): string {

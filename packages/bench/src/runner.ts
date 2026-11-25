@@ -5,6 +5,7 @@ import { treeKill as killChildTree, settleWin32Kill } from '@wrongstack/core/uti
 import { inheritedEnv } from './child-env.js';
 import { type BenchProfile, LEAN_BENCH_TOOL_NAMES } from './isolation.js';
 import { BENCH_DAEMON_IDLE_ENV } from './sandbox-reaper.js';
+import { safePrefix, safeSuffix } from './string-boundaries.js';
 import type { ModelCell, RawRun } from './types.js';
 
 /** Everything needed to run one (task × cell) subprocess. */
@@ -241,7 +242,7 @@ export function errorMessage(raw: unknown): string | undefined {
   const message = typeof err['message'] === 'string' ? err['message'].trim() : '';
   if (message.length === 0) return undefined;
   const code = typeof err['code'] === 'string' && err['code'].length > 0 ? `${err['code']}: ` : '';
-  return `${code}${message}`.slice(0, 500);
+  return safePrefix(`${code}${message}`, 500);
 }
 
 function normalizeStatus(s: string): RawRun['status'] {
@@ -263,10 +264,10 @@ export function crashDetail(code: number | null, stderr: string, stdout: string)
   const tail = [stderr, stdout]
     .map((text) => text.trim())
     .filter((text) => text.length > 0)
-    .join('\n')
-    .slice(-2000);
+    .join('\n');
+  const boundedTail = safeSuffix(tail, 2000);
   const prefix = `exit ${code ?? 'null'}`;
-  return tail ? `${prefix}: ${tail}` : prefix;
+  return boundedTail ? `${prefix}: ${boundedTail}` : prefix;
 }
 
 function num(v: unknown): number {

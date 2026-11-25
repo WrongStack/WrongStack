@@ -14,6 +14,7 @@ import { type QualityReviewPolicy, reviewTranscript } from './quality-review.js'
 import { mapWithConcurrency, runWstack } from './runner.js';
 import { reapProcessesUnder, sandboxRootsFor } from './sandbox-reaper.js';
 import { readSessionLogEvents, readTokenMetrics, readToolMetrics } from './session-metrics.js';
+import { safePrefix } from './string-boundaries.js';
 import { evaluateTraceEval } from './trace-eval.js';
 import type {
   BenchConfig,
@@ -542,7 +543,7 @@ export function heartbeatLine(state: {
 }
 
 function fmtElapsed(ms: number): string {
-  const s = Math.max(0, Math.round(ms / 1000));
+  const s = Number.isFinite(ms) ? Math.max(0, Math.round(ms / 1000)) : 0;
   if (s < 60) return `${s}s`;
   const m = Math.floor(s / 60);
   if (m < 60) return `${m}m${String(s % 60).padStart(2, '0')}s`;
@@ -561,14 +562,18 @@ export function resultSummary(
   tokens: { total: number; input: number; cacheRead: number } | undefined,
   toolCalls: number,
 ): string {
-  const parts = [`${run.status}`, `${Math.round(run.elapsedMs / 1000)}s`, `${run.iterations} it`];
-  if (tokens && tokens.total > 0) {
-    const prompt = tokens.input + tokens.cacheRead;
-    const cache = prompt > 0 ? ` (cache ${Math.round((tokens.cacheRead / prompt) * 100)}%)` : '';
+  const elapsedMs = Number.isFinite(run.elapsedMs) ? Math.max(0, run.elapsedMs) : 0;
+  const parts = [`${run.status}`, `${Math.round(elapsedMs / 1000)}s`, `${run.iterations} it`];
+  if (tokens && Number.isFinite(tokens.total) && tokens.total > 0) {
+    const input = Number.isFinite(tokens.input) && tokens.input > 0 ? tokens.input : 0;
+    const cacheRead =
+      Number.isFinite(tokens.cacheRead) && tokens.cacheRead > 0 ? tokens.cacheRead : 0;
+    const prompt = input + cacheRead;
+    const cache = prompt > 0 ? ` (cache ${Math.round((cacheRead / prompt) * 100)}%)` : '';
     parts.push(`${(tokens.total / 1000).toFixed(1)}k tok${cache}`);
   }
   parts.push(`${toolCalls} tools`);
-  if (run.costUsd > 0) parts.push(`$${run.costUsd.toFixed(3)}`);
+  if (Number.isFinite(run.costUsd) && run.costUsd > 0) parts.push(`$${run.costUsd.toFixed(3)}`);
   return parts.join(' · ');
 }
 
@@ -589,7 +594,7 @@ export function failureHint(detail: string | undefined): string {
     meaningful.find((line) => /^(●|FAILED|Error|AssertionError|setup failed)|Tests:/.test(line)) ??
     meaningful.at(-1) ??
     'no detail';
-  return pick.length > 160 ? `${pick.slice(0, 157)}…` : pick;
+  return pick.length > 160 ? `${safePrefix(pick, 157)}…` : pick;
 }
 
 /**
