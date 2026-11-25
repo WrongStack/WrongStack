@@ -352,10 +352,28 @@ describe('FrameResume', () => {
     resume.onFramesResumed({ type: 'session.frames_resumed', payload: { sessionId: 's1' } });
   });
 
-  it('waits the longest timer delay for a non-finite timeoutMs instead of releasing at once', () => {
+  it('waits the default delay for a NaN timeoutMs instead of releasing at once', () => {
     vi.useFakeTimers();
     const applied: Frame[] = [];
     const resume = new FrameResume<Frame>((frames) => applied.push(...frames), Number.NaN);
+    resume.gate.adoptEpoch('e1');
+    resume.gate.accept(f(1, 's1'));
+    resume.request(['s1']);
+    resume.gate.accept(f(3, 's1', 'held'));
+    vi.advanceTimersByTime(4_999);
+    expect(resume.gate.isResuming('s1')).toBe(true);
+    expect(applied).toEqual([]);
+    vi.advanceTimersByTime(1);
+    expect(texts(applied)).toEqual(['held']);
+  });
+
+  it('waits the longest timer delay for an Infinity timeoutMs', () => {
+    vi.useFakeTimers();
+    const applied: Frame[] = [];
+    const resume = new FrameResume<Frame>(
+      (frames) => applied.push(...frames),
+      Number.POSITIVE_INFINITY,
+    );
     resume.gate.adoptEpoch('e1');
     resume.gate.accept(f(1, 's1'));
     resume.request(['s1']);

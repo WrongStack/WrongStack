@@ -24,11 +24,13 @@ export interface HqSnapshotStoreOptions {
 function isHqSnapshot(value: unknown): value is HqSnapshot {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const rec = value as Record<string, unknown>;
+  // `machines` is optional on HqSnapshot: a snapshot from an HQ with no machine
+  // records omits it and must still load on boot.
   return (
     typeof rec.totals === 'object' &&
     rec.totals !== null &&
     !Array.isArray(rec.totals) &&
-    Array.isArray(rec.machines) &&
+    (rec.machines === undefined || Array.isArray(rec.machines)) &&
     Array.isArray(rec.projects)
   );
 }

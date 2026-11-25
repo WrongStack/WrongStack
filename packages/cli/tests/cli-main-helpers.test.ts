@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   getTaskTracker: vi.fn(),
   getActiveBuilder: vi.fn(),
   getTaskGraphId: vi.fn(),
-  installedBridgeAgents: vi.fn((): string[] => []),
+  installedAcpAgents: vi.fn((): string[] => []),
   wrongForgeModels: vi.fn(
     async (): Promise<{ models: string[]; default?: string } | undefined> => undefined,
   ),
@@ -17,7 +17,7 @@ vi.mock('@wrongstack/fleet', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@wrongstack/fleet')>();
   return {
     ...actual,
-    installedBridgeAgents: mocks.installedBridgeAgents,
+    installedAcpAgents: mocks.installedAcpAgents,
     // The real wrongForgeModels reads the machine (~/.wrongforge key, a live
     // server, the info cache), which would leak this host's WrongForge into
     // assertions about the provider list.
@@ -121,7 +121,7 @@ describe('cli-main helpers', () => {
     mocks.buildPickableProviders.mockReturnValue([
       { id: 'zai', family: 'openai', models: ['glm-5'] },
     ]);
-    mocks.installedBridgeAgents.mockReturnValueOnce(['claude-code']);
+    mocks.installedAcpAgents.mockReturnValueOnce(['claude-code']);
     const loader = createPickableProvidersLoader({
       modelsRegistry: {} as never,
       logger: {} as never,
@@ -137,7 +137,7 @@ describe('cli-main helpers', () => {
     mocks.buildPickableProviders.mockReturnValue([
       { id: 'zai', family: 'openai', models: ['glm-5'] },
     ]);
-    mocks.installedBridgeAgents.mockReturnValueOnce(['claude-code']);
+    mocks.installedAcpAgents.mockReturnValueOnce(['claude-code']);
     mocks.wrongForgeModels.mockReturnValueOnce(
       Promise.resolve({ models: ['claude-sonnet-5-5'], default: 'claude-sonnet-5-5' }),
     );

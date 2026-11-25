@@ -50,32 +50,22 @@ describe('splitProviderModel', () => {
     expect(splitProviderModel('   ')).toEqual({ providerId: '', model: '' });
   });
 
-  it('trims leading/trailing whitespace at the outer level and trims the model side', () => {
-    // `splitProviderModel` calls `ref.trim()` first, so leading and trailing
-    // whitespace around the entire ref is dropped. The model side is then
-    // `.trim()`-ed. The provider segment is whatever `trimmed.slice(0, slash)`
-    // returns — a single interior space between the provider and the slash
-    // is preserved (matches canonical `parseModelRef` behavior).
+  it('trims leading/trailing whitespace at the outer level and trims both sides', () => {
+    // `splitProviderModel` trims the whole ref, then each side of the slash.
     expect(splitProviderModel('  openai /  gpt-4o  ')).toEqual({
-      providerId: 'openai ',
+      providerId: 'openai',
       model: 'gpt-4o',
     });
   });
 
-  it('preserves interior whitespace in the provider segment (matches canonical parseModelRef)', () => {
-    // `splitProviderModel` does NOT trim the provider segment, so a stray
-    // interior space between the provider name and the slash is preserved
-    // (e.g. `'openai /gpt-4o'` → providerId `'openai '`). This matches
-    // canonical `parseModelRef` in `@wrongstack/core/agent`, and the slash
-    // command and the LLM tools share the same behavior. The unknown-provider
-    // path in `refInactiveReason` is what surfaces such refs as inactive,
-    // since they will not match any `(provider, model)` in the known set.
+  it('trims the provider segment like canonical parseModelRef', () => {
+    // A stray space between the provider name and the slash is dropped, as
+    // `parseModelRef` in `@wrongstack/core` does, so the ref matches the known
+    // `(provider, model)` pair instead of reading as an unknown provider.
     const { providerId, model } = splitProviderModel('openai /gpt-4o');
-    expect(providerId).toBe('openai ');
+    expect(providerId).toBe('openai');
     expect(model).toBe('gpt-4o');
-    expect(refInactiveReason(providerId + '/' + model, new Set(['openai/gpt-4o']))).toBe(
-      '"gpt-4o" not in openai  model list',
-    );
+    expect(refInactiveReason('openai /gpt-4o', new Set(['openai/gpt-4o']))).toBeUndefined();
   });
 });
 

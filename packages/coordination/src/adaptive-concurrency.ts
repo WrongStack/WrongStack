@@ -58,7 +58,7 @@ function normalizeConfig(
   const maxConcurrent = Math.max(minConcurrent, parsedMax);
   const factorRaw = config.decreaseFactor;
   const decreaseFactor =
-    typeof factorRaw === 'number' && Number.isFinite(factorRaw) && factorRaw > 0 && factorRaw < 1
+    typeof factorRaw === 'number' && Number.isFinite(factorRaw) && factorRaw > 0 && factorRaw <= 1
       ? factorRaw
       : base.decreaseFactor;
   const threshRaw = config.successThreshold;

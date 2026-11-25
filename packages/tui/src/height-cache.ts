@@ -368,7 +368,9 @@ export function computeWindow(
     };
   }
   const safeViewportRows = Number.isFinite(viewportRows) && viewportRows > 0 ? viewportRows : 0;
-  const safeScrollOffset = Number.isFinite(scrollOffset) && scrollOffset > 0 ? scrollOffset : 0;
+  // Only a non-finite offset is replaced; a negative one keeps its meaning in the
+  // viewportTop formula below (pinned past the newest row).
+  const safeScrollOffset = Number.isFinite(scrollOffset) ? scrollOffset : 0;
 
   // When all content fits in the viewport, don't window.
   if (totalHeight <= safeViewportRows) {

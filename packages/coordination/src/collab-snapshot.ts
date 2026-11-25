@@ -53,8 +53,10 @@ export function effectiveCollabFileLimit(options: CollabSessionOptions): number 
   if (
     typeof options.maxTargetFiles === 'number' &&
     Number.isFinite(options.maxTargetFiles) &&
-    options.maxTargetFiles > 0
+    options.maxTargetFiles >= 0
   ) {
+    // 0 is an explicit limit (any target exceeds it); only negative or
+    // non-finite values fall through to the defaults.
     return Math.floor(options.maxTargetFiles);
   }
   if (

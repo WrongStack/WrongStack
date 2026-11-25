@@ -283,8 +283,8 @@ export function generateAdvancementPrompt(
     activeForm?: string | undefined;
   }[],
 ): string {
-  const safeAttempts = Number.isFinite(attemptCount) ? Math.max(1, Math.floor(attemptCount)) : 1;
-  const idx = Math.min(safeAttempts - 1, ADVANCE_PREAMBLES.length - 1);
+  const safeAttempts = Number.isFinite(attemptCount) ? Math.max(0, Math.floor(attemptCount)) : 1;
+  const idx = Math.max(0, Math.min(safeAttempts - 1, ADVANCE_PREAMBLES.length - 1));
   const preamble = ADVANCE_PREAMBLES[idx]!.replace(/\{attempts\}/g, () =>
     String(safeAttempts),
   ).replace(/\{label\}/g, () => stalledTodo.content.slice(0, 72));
