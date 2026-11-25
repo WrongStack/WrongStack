@@ -1,11 +1,11 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.7.20',
-  title: 'HQ key vault for your machines.',
+  version: '1.7.21',
+  title: 'ACP leaders, fully native.',
   summary:
-    "HQ becomes a central key vault that hands provider keys and OAuth profiles to enrolled machines, ACP workers share one project MCP gateway, and a round of security, Chronicle and audit fixes.",
+    "ACP leaders run the agent's own slash commands, modes, plans and subagents, HQ vault leases keep provider keys in memory only, machines can push their providers to HQ for approval, and a repository-wide input-validation hardening round.",
   socialDescription:
-    "WrongStack 1.7.20: HQ hands provider keys and OAuth profiles to enrolled machines, ACP workers share one MCP gateway, and a security round.",
+    "WrongStack 1.7.21: ACP leaders run the agent's own commands, modes and plans, HQ leases keep keys in memory, and an input-hardening round.",
   cards: [
     {
       title: 'ACP session modes',

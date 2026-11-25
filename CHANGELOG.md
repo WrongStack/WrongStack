@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.21] — 2026-11-26
+
+ACP leaders run the agent's own slash commands, modes, plans and subagents,
+HQ vault grants can keep provider keys in memory only and machines can push
+their providers to HQ for approval, and a repository-wide input-validation
+hardening round.
+
+### Added
+
+- ACP leader: an ACP agent leading a conversation runs its own slash commands,
+  model settings, modes, plans, subagents and elicitation; WrongStack tracks
+  its plans, child sessions and command announcements, discovers agents from
+  the registry cache and on `PATH`, and runs native companions on
+  `acp.leader.sideModel` instead of external companion routes. `/acp` agent
+  and model options follow the registry cache and the leader's provider.
+- WrongStack as an ACP agent announces child sessions, clarify prompts and
+  assistant text to the editor.
+- HQ vault leases: a grant can keep a provider key in process memory only
+  until its lease ends; the device stores a marker instead of the value.
+- `wstack hq keys push`: a machine seals a whole provider to HQ for operator
+  approval in the Providers page; approval grants it back and the next sync
+  adopts it in place of the local provider.
+
+### Fixed
+
+- Providers: a lapsed or pending HQ lease never falls back to the
+  environment key, for quota reads or provider builds.
+- Security: browser-tools and HQ loopback/hub address checks refuse spoofed
+  octets and mapped addresses, the WebUI server rejects CSP `connect-src`
+  injection, and `/acp` agent listings strip terminal escapes from registry
+  metadata and local CLI versions.
+- Input validation across core, runtime, CLI, TUI, WebUI, VibeUI, HQ, ACP,
+  coordination, fleet, providers, tools, SAGE, Kanban, SDD, MCP, Chronicle,
+  codebase and plugins: non-finite, negative and unsafe-integer limits, blank
+  ids, prototype keys, circular input and NUL bytes are rejected, timers above
+  2^31-1 ms are bounded, text never splits a surrogate pair, and pending
+  rejections and containers stay re-entrant.
+- ACP: the MCP gateway releases initialized services when grant registration
+  fails.
+
 ## [1.7.20] — 2026-11-24
 
 HQ becomes a central key vault that hands provider keys and OAuth profiles to

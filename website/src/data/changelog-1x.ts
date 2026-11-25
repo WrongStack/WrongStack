@@ -1,4 +1,4 @@
-// Changelog — recent 1.x era (1.7.20 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
+// Changelog — recent 1.x era (1.7.21 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
 // Historical entries mirror CHANGELOG.md release notes. 1.1.0 absorbs the 1.0.38
 // bump, which was never published; 1.7.8 and 1.7.10 were never tagged either.
 // The 1.1.5 entry summarizes the commits in v1.1.4..v1.1.5, the 1.1.6 entry
@@ -11,10 +11,22 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.21',
+    date: '2026-11-26',
+    tagline: 'ACP leaders, fully native',
+    latest: true,
+    highlights: [
+      "ACP leaders run the agent's own slash commands, modes, plans and subagents",
+      'HQ vault leases keep provider keys in memory only',
+      'wstack hq keys push sends a provider to HQ for approval',
+      'Loopback checks refuse spoofed and mapped addresses',
+      'Repository-wide input-validation hardening',
+    ],
+  },
+  {
     version: '1.7.20',
     date: '2026-11-24',
     tagline: 'HQ key vault for your machines',
-    latest: true,
     highlights: [
       'HQ hands provider keys and OAuth profiles to enrolled machines',
       'Vault changes sync to machines in the background',
