@@ -44,6 +44,7 @@ export function normalizeSelection(
  *  excluded. The mouse handler must already have excluded the rail before
  *  calling into the controller — we only check the band bounds here. */
 export function isOutOfBand(col: number, termWidth: number): boolean {
+  if (!Number.isFinite(col) || !Number.isFinite(termWidth)) return true;
   return col < 0 || col >= termWidth;
 }
 
@@ -73,7 +74,7 @@ export function selectionTouchedEntryIds(opts: {
   for (const card of cards) {
     const visTop = Math.max(selection.topLeft.row, card.viewportStartRow);
     const visBot = Math.min(selection.bottomRight.row, card.viewportEndRow - 1);
-    if (visTop > visBot) continue;
+    if (!Number.isFinite(visTop) || !Number.isFinite(visBot) || visTop > visBot) continue;
     ids.push(card.entryId);
   }
   return ids;

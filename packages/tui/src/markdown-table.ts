@@ -142,6 +142,7 @@ function parseSeparatorWidths(sepCells: string[]): (number | null)[] {
 }
 
 export function renderTable(tableLines: string[], maxWidth: number): string {
+  const safeMaxWidth = Number.isFinite(maxWidth) ? Math.max(1, Math.floor(maxWidth)) : 1;
   tableLines = sanitizeTerminalText(tableLines.join('\n')).split('\n');
   const header = parseCells(tableLines[0] ?? '');
   const sepCells = parseCells(tableLines[1] ?? '');
@@ -169,13 +170,13 @@ export function renderTable(tableLines: string[], maxWidth: number): string {
   // readable cells cannot fit, render every row as stacked key/value lines.
   // This preserves all cell content without letting a forest of `│` borders
   // cross the viewport/scrollbar boundary.
-  if (maxWidth < cols * (MIN_COL_WIDTH + 3) + 1) {
-    return renderStackedRows(header, dataRows, Math.max(1, maxWidth));
+  if (safeMaxWidth < cols * (MIN_COL_WIDTH + 3) + 1) {
+    return renderStackedRows(header, dataRows, safeMaxWidth);
   }
 
   // Parse separator widths to use as minimum column widths.
   const sepWidths = parseSeparatorWidths(sepCells);
-  const widths = computeWidths([header, ...dataRows], cols, maxWidth, sepWidths);
+  const widths = computeWidths([header, ...dataRows], cols, safeMaxWidth, sepWidths);
 
   const lines: string[] = [];
   lines.push(border('┌', '┬', '┐', widths));

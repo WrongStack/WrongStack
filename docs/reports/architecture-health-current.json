@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T16:06:00.001Z",
+  "generatedAt": "2026-11-25T16:10:39.948Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6565,
-    "testFiles": 6111,
-    "sourceLines": 1346570,
+    "testFiles": 6145,
+    "sourceLines": 1346737,
     "workspaceEdges": 261,
     "moduleEdges": 19228,
     "nonCommandSlashImports": 0,
@@ -1114,7 +1114,7 @@
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
       "sourceFiles": 517,
-      "testFiles": 461,
+      "testFiles": 495,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1143,7 +1143,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 461
+          "testFiles": 495
         }
       ]
     },
@@ -28759,6 +28759,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/agent-peek-lines-zero-max.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/agent-swarm-panel-visibility.test.ts",
         "projects": [
           "root-node"
@@ -28933,6 +28939,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/background-strip-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/background-strip.test.tsx",
         "projects": [
           "root-node"
@@ -28952,6 +28964,12 @@
       },
       {
         "file": "packages/tui/tests/banner.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/basic-format-bytes-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -28993,6 +29011,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/cell-selection-nonfinite.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/chat-search-bar.test.tsx",
         "projects": [
           "root-node"
@@ -29006,6 +29030,12 @@
       },
       {
         "file": "packages/tui/tests/checkpoint-nan-budget.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/checkpoint-retention-infinity.test.ts",
         "projects": [
           "root-node"
         ]
@@ -29054,6 +29084,12 @@
       },
       {
         "file": "packages/tui/tests/command-discovery-layout.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/command-list-window-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -29125,6 +29161,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/context-slash-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/context-slash.test.ts",
         "projects": [
           "root-node"
@@ -29143,6 +29185,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/copy-geometry-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/copy-hit-clipboard.test.tsx",
         "projects": [
           "root-node"
@@ -29156,6 +29204,12 @@
       },
       {
         "file": "packages/tui/tests/copy-icon.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/copy-registry-nan-clip.test.ts",
         "projects": [
           "root-node"
         ]
@@ -29210,6 +29264,12 @@
       },
       {
         "file": "packages/tui/tests/ctrl-letter-shortcut.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/cycle-preset-bounds.test.ts",
         "projects": [
           "root-node"
         ]
@@ -29407,6 +29467,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/fleet-coalescer-maxtools.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/fleet-monitor.test.ts",
         "projects": [
           "root-node"
@@ -29533,6 +29599,18 @@
         ]
       },
       {
+        "file": "packages/tui/tests/height-cache-nan-estimate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/height-cache-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/height-cache.comprehensive.test.ts",
         "projects": [
           "root-node"
@@ -29611,6 +29689,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/history-retention-infinity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/history-retention.test.ts",
         "projects": [
           "root-node"
@@ -29624,6 +29708,12 @@
       },
       {
         "file": "packages/tui/tests/history-viewport-size-sync.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/hit-test-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -29678,6 +29768,12 @@
       },
       {
         "file": "packages/tui/tests/input-editing-chip-end-hang.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/input-editing-cursor-bounds.test.ts",
         "projects": [
           "root-node"
         ]
@@ -29899,6 +29995,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/markdown-table-nan-width.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/markdown-table-wide-grapheme.test.ts",
         "projects": [
           "root-node"
@@ -29959,6 +30061,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/memory-slash-format-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/memory-slash-renderers.test.ts",
         "projects": [
           "root-node"
@@ -29972,6 +30080,12 @@
       },
       {
         "file": "packages/tui/tests/memory-split-modules.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/message-jump-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30014,6 +30128,12 @@
       },
       {
         "file": "packages/tui/tests/model-picker-effort-view.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/model-picker-effort-wrap.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30523,6 +30643,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/scrollbar-geometry-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/scrollbar-rail-memo.test.ts",
         "projects": [
           "root-node"
@@ -30547,7 +30673,19 @@
         ]
       },
       {
+        "file": "packages/tui/tests/selection-band-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/selection-band-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/selection-helpers-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30560,6 +30698,12 @@
       },
       {
         "file": "packages/tui/tests/selection-modes.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/send-mode-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30889,6 +31033,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/status-bar-mode-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/status-bar-overflow.test.ts",
         "projects": [
           "root-node"
@@ -30979,6 +31129,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/statusline-picker-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/statusline-picker.test.ts",
         "projects": [
           "root-node"
@@ -31009,6 +31165,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/strip-chips-oob-selected.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/subagent-history-format.test.ts",
         "projects": [
           "root-node"
@@ -31016,6 +31178,12 @@
       },
       {
         "file": "packages/tui/tests/subagent-models-panel.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/subagent-preview-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31087,6 +31255,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/theme-picker-rows-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/theme-picker-rows.test.ts",
         "projects": [
           "root-node"
@@ -31112,6 +31286,12 @@
       },
       {
         "file": "packages/tui/tests/thinking-word.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/token-previews-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31190,6 +31370,18 @@
       },
       {
         "file": "packages/tui/tests/transcript-search.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/transcript-snippet-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/tui-memory-counters-keys.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31417,6 +31609,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/user-input-progress-neg.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/user-input-prompt.test.tsx",
         "projects": [
           "root-node"
@@ -31490,6 +31688,12 @@
       },
       {
         "file": "packages/tui/tests/working-dir-chip.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/worktree-bars-nan.test.ts",
         "projects": [
           "root-node"
         ]

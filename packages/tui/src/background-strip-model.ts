@@ -34,6 +34,14 @@ export interface BackgroundProcessLike {
   logFile?: string | undefined;
 }
 
+function compareStartedAt(a: { startedAt: number }, b: { startedAt: number }): number {
+  const aFinite = Number.isFinite(a.startedAt);
+  const bFinite = Number.isFinite(b.startedAt);
+  if (aFinite && bFinite) return a.startedAt - b.startedAt;
+  if (aFinite !== bFinite) return aFinite ? -1 : 1;
+  return 0;
+}
+
 /** Running subagents (oldest first), then background shells (oldest first). */
 export function buildBackgroundItems(
   fleet: Readonly<Record<string, FleetEntry>>,
@@ -41,7 +49,7 @@ export function buildBackgroundItems(
 ): BackgroundItem[] {
   const agents = Object.values(fleet)
     .filter((e) => e.status === 'running')
-    .sort((a, b) => a.startedAt - b.startedAt)
+    .sort(compareStartedAt)
     .map(
       (e): BackgroundItem => ({
         id: `agent:${e.id}`,
@@ -53,7 +61,7 @@ export function buildBackgroundItems(
     );
   const shells = processes
     .filter((p) => p.background && !p.killed)
-    .sort((a, b) => a.startedAt - b.startedAt)
+    .sort(compareStartedAt)
     .map(
       (p): BackgroundItem => ({
         id: `shell:${p.pid}`,
@@ -101,21 +109,26 @@ export function layoutStripChips(
     selected: i === selected,
     text: `${item.kind === 'shell' ? '$' : spinner} ${truncateDisplay(item.label, LABEL_MAX)} ${formatElapsed(now - item.startedAt)}`,
   }));
+  const safeWidth = Number.isFinite(width) ? Math.max(0, width) : 0;
   // Start the window at the selected chip when it would not fit from the left.
   const fits = (from: number): StripChip[] => {
     const out: StripChip[] = [];
     let used = 0;
     for (const chip of all.slice(from)) {
       const w = displayWidth(chip.text) + 3; // " [" … "]"
-      if (used + w > width && out.length > 0) break;
+      if (used + w > safeWidth && out.length > 0) break;
       out.push(chip);
       used += w;
     }
     return out;
   };
+  const safeSelected =
+    all.length > 0 && Number.isFinite(selected)
+      ? Math.max(0, Math.min(all.length - 1, Math.floor(selected)))
+      : 0;
   let start = 0;
   let chips = fits(0);
-  while (selected >= start + chips.length && start < all.length - 1) {
+  while (safeSelected >= start + chips.length && start < all.length - 1) {
     start += 1;
     chips = fits(start);
   }
@@ -124,16 +137,17 @@ export function layoutStripChips(
 
 /** What a subagent is doing, newest last. */
 export function agentPeekLines(entry: FleetEntry | undefined, max: number): string[] {
-  if (!entry) return [];
+  const limit = Number.isFinite(max) ? Math.floor(max) : 0;
+  if (!entry || limit <= 0) return [];
   const lines: string[] = [];
   for (const m of entry.recentMessages) lines.push(...m.text.split('\n'));
   const streaming = entry.streamingText.trim();
-  if (streaming) lines.push(...streaming.split('\n').slice(-max));
+  if (streaming) lines.push(...streaming.split('\n').slice(-limit));
   if (entry.currentTool) lines.push(`▸ ${entry.currentTool.name}`);
   return lines
     .map((l) => l.trimEnd())
     .filter((l) => l.trim() !== '')
-    .slice(-max);
+    .slice(-limit);
 }
 
 // ── store ────────────────────────────────────────────────────────────────

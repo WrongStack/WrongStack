@@ -14,9 +14,10 @@ export function reduceMessageJump(state: State, action: MessageJumpAction): Stat
   if (userIds.length === 0) return state;
   const current = state.messageJump.entryId;
   const at = current === null ? -1 : userIds.indexOf(current);
+  const dir = Number.isFinite(action.direction) ? Math.trunc(action.direction) : 0;
   let next: number;
-  if (at === -1) next = action.direction < 0 ? userIds.length - 1 : 0;
-  else next = Math.min(userIds.length - 1, Math.max(0, at + action.direction));
+  if (at === -1) next = dir < 0 ? userIds.length - 1 : 0;
+  else next = Math.min(userIds.length - 1, Math.max(0, at + dir));
   return {
     ...state,
     messageJump: { entryId: userIds[next] ?? null, seq: state.messageJump.seq + 1 },

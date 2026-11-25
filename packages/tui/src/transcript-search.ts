@@ -138,7 +138,8 @@ export function transcriptMatchSnippet(
 ): { before: string; hit: string; after: string } {
   const line = match.line.replace(/\t/g, ' ');
   const hitEnd = match.column + match.length;
-  const budget = Math.max(match.length + 2, width);
+  const safeWidth = Number.isFinite(width) && width > 0 ? Math.floor(width) : line.length;
+  const budget = Math.max(match.length + 2, safeWidth);
   if (line.length <= budget) {
     return {
       before: line.slice(0, match.column),

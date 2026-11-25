@@ -95,8 +95,12 @@ export function answerMarker(question: UserInputQuestion, answer?: AnswerDraft):
 }
 
 export function progressBar(completed: number, total: number, width: number): string {
-  const filled = total > 0 ? Math.round((completed / total) * width) : 0;
-  return `[${'█'.repeat(filled)}${'░'.repeat(Math.max(0, width - filled))}]`;
+  const safeWidth = Number.isFinite(width) && width > 0 ? Math.floor(width) : 0;
+  const safeTotal = Number.isFinite(total) && total > 0 ? total : 0;
+  const safeCompleted = Number.isFinite(completed) && completed > 0 ? completed : 0;
+  const ratio = safeTotal > 0 ? Math.max(0, Math.min(1, safeCompleted / safeTotal)) : 0;
+  const filled = Math.max(0, Math.min(safeWidth, Math.round(ratio * safeWidth)));
+  return `[${'█'.repeat(filled)}${'░'.repeat(Math.max(0, safeWidth - filled))}]`;
 }
 
 /** Match one-based SGR mouse cells against Ink's measured zero-based rectangle. */

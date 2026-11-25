@@ -418,8 +418,10 @@ export function personaLabel(settings: BrainPanelSettings, id: string | undefine
 
 /** Cycle helper: step through a preset ladder from the current value. */
 export function cyclePreset<T>(presets: ReadonlyArray<T>, current: T, delta: number): T {
+  if (presets.length === 0) return current;
   const idx = presets.indexOf(current);
   const from = Math.max(idx, 0);
-  const next = (from + delta + presets.length) % presets.length;
+  const step = Number.isFinite(delta) ? Math.trunc(delta) : 0;
+  const next = (((from + step) % presets.length) + presets.length) % presets.length;
   return presets[next] as T;
 }

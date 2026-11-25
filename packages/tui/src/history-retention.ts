@@ -148,7 +148,7 @@ function slicePrefixUtf16Safe(value: string, maxChars: number): string {
 }
 
 function clampHistoryBudget(value: number | undefined, fallback: number): number {
-  if (value === undefined || Number.isNaN(value)) return fallback;
+  if (value === undefined || !Number.isFinite(value)) return fallback;
   return Math.max(1, Math.floor(value));
 }
 

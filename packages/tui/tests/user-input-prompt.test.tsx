@@ -4,6 +4,45 @@ import { UserInputPrompt } from '../src/components/user-input-prompt.js';
 import { renderRealTty, settle } from './helpers/real-tty.js';
 
 describe('TUI structured user input prompt', () => {
+  it.each([
+    ['x', 'declined'],
+    ['\u001b', 'cancelled'],
+  ])('can close an ACP form with %s', async (key, status) => {
+    const resolve = vi.fn();
+    const view = render(
+      <UserInputPrompt
+        pending={{
+          resolve,
+          request: {
+            id: 'form',
+            title: 'ACP agent is asking for input',
+            declineLabel: 'Decline',
+            tabs: [
+              {
+                id: 'main',
+                label: 'Agent',
+                questions: [{ id: 'a', kind: 'text', prompt: 'Choice?', required: true }],
+              },
+            ],
+          },
+        }}
+      />,
+    );
+    try {
+      expect(view.lastFrame()).toContain('x Decline');
+      view.stdin.write(key);
+      await vi.waitFor(() =>
+        expect(resolve).toHaveBeenCalledWith({
+          requestId: 'form',
+          status,
+          answers: [],
+        }),
+      );
+    } finally {
+      view.unmount();
+    }
+  });
+
   it('renders tabs and recommendations and submits choices plus text', async () => {
     const resolve = vi.fn();
     const view = render(

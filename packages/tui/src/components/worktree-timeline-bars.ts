@@ -24,6 +24,9 @@ export interface WorktreeBarRun {
 }
 
 function column(at: number, start: number, span: number, width: number): number {
+  if (!Number.isFinite(at) || !Number.isFinite(start) || !Number.isFinite(span) || span <= 0) {
+    return 0;
+  }
   return Math.min(width - 1, Math.max(0, Math.floor(((at - start) / span) * width)));
 }
 
@@ -52,11 +55,19 @@ export function worktreeBarRuns(
   end: number,
   width: number,
 ): WorktreeBarRun[] {
-  if (width <= 0) return [];
-  const span = Math.max(1, end - start);
-  const cells: Array<WorktreeLanePhase | null> = Array.from({ length: width }, () => null);
-  const best: number[] = Array.from({ length: width }, () => 0);
-  const owner: number[] = Array.from({ length: width }, () => -1);
+  if (!Number.isFinite(width) || width <= 0) return [];
+  const safeWidth = Math.floor(width);
+  const safeStart = Number.isFinite(start) ? start : 0;
+  const maxSegEnd = lane.segments.reduce(
+    (acc, seg) =>
+      Math.max(acc, Number.isFinite(seg.end ?? seg.start) ? (seg.end ?? seg.start) : acc),
+    safeStart,
+  );
+  const safeEnd = Number.isFinite(end) ? end : maxSegEnd;
+  const span = Math.max(1, safeEnd - safeStart);
+  const cells: Array<WorktreeLanePhase | null> = Array.from({ length: safeWidth }, () => null);
+  const best: number[] = Array.from({ length: safeWidth }, () => 0);
+  const owner: number[] = Array.from({ length: safeWidth }, () => -1);
   const owned: number[] = [];
   const instant = new Set<number>();
   const take = (i: number, index: number, phase: WorktreeLanePhase): void => {
@@ -67,13 +78,13 @@ export function worktreeBarRuns(
     cells[i] = phase;
   };
   lane.segments.forEach((seg, index) => {
-    const segEnd = seg.end ?? end;
-    const first = column(seg.start, start, span, width);
-    const last = column(Math.max(seg.start, segEnd - 1), start, span, width);
+    const segEnd = seg.end ?? safeEnd;
+    const first = column(seg.start, safeStart, span, safeWidth);
+    const last = column(Math.max(seg.start, segEnd - 1), safeStart, span, safeWidth);
     let won = false;
     for (let i = first; i <= last; i++) {
-      const c0 = start + (i * span) / width;
-      const c1 = start + ((i + 1) * span) / width;
+      const c0 = safeStart + (i * span) / safeWidth;
+      const c1 = safeStart + ((i + 1) * span) / safeWidth;
       const overlap = Math.min(c1, segEnd) - Math.max(c0, seg.start);
       if (overlap > best[i]!) {
         best[i] = overlap;

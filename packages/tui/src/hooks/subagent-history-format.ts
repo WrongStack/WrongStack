@@ -49,8 +49,9 @@ export function formatHistoryDuration(ms: number): string {
 export function shortenTaskPreview(task: string, maxChars = 56): string {
   const oneLine = task.replace(/\s+/g, ' ').trim();
   if (!oneLine) return '';
-  if (oneLine.length <= maxChars) return oneLine;
-  return `${oneLine.slice(0, Math.max(1, maxChars - 1))}…`;
+  const limit = Number.isFinite(maxChars) && maxChars > 0 ? Math.floor(maxChars) : 56;
+  if (oneLine.length <= limit) return oneLine;
+  return `${oneLine.slice(0, Math.max(1, limit - 1))}…`;
 }
 
 interface SubagentCompletionLike {

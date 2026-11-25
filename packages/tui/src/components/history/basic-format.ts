@@ -27,7 +27,8 @@ export function fmtDuration(ms: number): string {
 }
 
 export function fmtBytes(n: number): string {
-  if (n < 1024) return `${n}B`;
+  if (!Number.isFinite(n) || n <= 0) return '0B';
+  if (n < 1024) return `${Math.round(n)}B`;
   // Promote on the rounded value: 1_048_575 B is "1.0MB", not "1024.0KB".
   const kb = (n / 1024).toFixed(1);
   if (Number(kb) < 1024) return `${kb}KB`;

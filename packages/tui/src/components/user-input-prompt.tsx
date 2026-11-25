@@ -214,6 +214,15 @@ function UserInputForm({ pending, onInterrupt }: UserInputPromptProps): React.Re
         return;
       }
 
+      if (pending.request.declineLabel && (key.escape || input === 'x') && !key.ctrl && !key.meta) {
+        settledRef.current = true;
+        pending.resolve({
+          requestId: pending.request.id,
+          status: key.escape ? 'cancelled' : 'declined',
+          answers: [],
+        });
+        return;
+      }
       if (
         !key.meta &&
         ((key.ctrl && input.toLowerCase() === 's') || (!key.ctrl && input === 's'))
@@ -540,6 +549,9 @@ function UserInputForm({ pending, onInterrupt }: UserInputPromptProps): React.Re
             <Text dimColor>e manual · r recommended · d decide · Ctrl+C cancel</Text>
             <Text dimColor>R recommend all · D delegate blanks · s submit</Text>
           </Box>
+        ) : null}
+        {pending.request.declineLabel && !editing ? (
+          <Text dimColor>x {pending.request.declineLabel} · Esc cancel form</Text>
         ) : null}
         <Box justifyContent="space-between">
           <Text color={validation.valid ? 'green' : 'yellow'}>

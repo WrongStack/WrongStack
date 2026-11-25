@@ -41,7 +41,9 @@ export const SCROLLBAR_HIT_WIDTH = 8;
 
 /** Rows available to managed history after reserving the measured bottom UI. */
 export function historyViewportRows(termRows: number, bottomHeight: number): number {
-  return Math.max(1, Math.floor(termRows) - Math.max(0, Math.floor(bottomHeight)));
+  const safeRows = Number.isFinite(termRows) ? Math.floor(termRows) : 1;
+  const safeBottom = Number.isFinite(bottomHeight) ? Math.max(0, Math.floor(bottomHeight)) : 0;
+  return Math.max(1, safeRows - safeBottom);
 }
 
 /**
@@ -50,6 +52,15 @@ export function historyViewportRows(termRows: number, bottomHeight: number): num
  */
 export function hitRegion(layout: MouseLayout, x: number, y: number): HitRegion | null {
   const { termRows, termCols, viewportRows } = layout;
+  if (
+    !Number.isFinite(x) ||
+    !Number.isFinite(y) ||
+    !Number.isFinite(termRows) ||
+    !Number.isFinite(termCols) ||
+    !Number.isFinite(viewportRows)
+  ) {
+    return null;
+  }
   if (y < 1 || y > termRows || x < 1 || x > termCols) return null;
   if (y <= viewportRows) {
     if (x > termCols - SCROLLBAR_HIT_WIDTH) return { kind: 'scrollbar', cell: y - 1 };
@@ -87,6 +98,15 @@ export function statusBarLineRow(opts: {
   /** 0-based content line index (line 1 = 0, line 2 = 1, …). */
   line: number;
 }): number | null {
+  if (
+    !Number.isFinite(opts.termRows) ||
+    !Number.isFinite(opts.statusBarHeight) ||
+    !Number.isFinite(opts.belowHeight) ||
+    !Number.isFinite(opts.headerRows) ||
+    !Number.isFinite(opts.line)
+  ) {
+    return null;
+  }
   const contentLines = opts.statusBarHeight - opts.headerRows;
   if (opts.line < 0 || opts.line >= contentLines) return null;
   const bandTop = opts.termRows - opts.belowHeight - opts.statusBarHeight + 1;

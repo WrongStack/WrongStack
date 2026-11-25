@@ -107,7 +107,9 @@ export class EntryHeightCache {
    * mounting the entire history tree just to discover its height.
    */
   sync(entryIds: readonly number[], estimatedHeight = DEFAULT_ENTRY_HEIGHT): boolean {
-    const clampedEstimate = Math.max(1, Math.round(estimatedHeight));
+    const clampedEstimate = Number.isFinite(estimatedHeight)
+      ? Math.max(1, Math.round(estimatedHeight))
+      : DEFAULT_ENTRY_HEIGHT;
     const retained = new Set(entryIds);
     let changed = this.ids.length !== entryIds.length;
     for (const id of this.heights.keys()) {
@@ -350,7 +352,12 @@ export function computeWindow(
   cache: EntryHeightCache,
 ): ComputeWindowResult {
   // Trivial case: no content or viewport fits all content.
-  if (totalHeight <= 0 || entryCount === 0) {
+  if (
+    !Number.isFinite(totalHeight) ||
+    totalHeight <= 0 ||
+    !Number.isFinite(entryCount) ||
+    entryCount <= 0
+  ) {
     return {
       startIdx: 0,
       endIdx: 0,
@@ -360,9 +367,11 @@ export function computeWindow(
       windowed: false,
     };
   }
+  const safeViewportRows = Number.isFinite(viewportRows) && viewportRows > 0 ? viewportRows : 0;
+  const safeScrollOffset = Number.isFinite(scrollOffset) && scrollOffset > 0 ? scrollOffset : 0;
 
   // When all content fits in the viewport, don't window.
-  if (totalHeight <= viewportRows) {
+  if (totalHeight <= safeViewportRows) {
     return {
       startIdx: 0,
       endIdx: entryCount,
@@ -375,8 +384,8 @@ export function computeWindow(
 
   // Viewport top in content-space: maximum is totalHeight - viewportRows
   // (scrolled to oldest), minimum is 0 (pinned to newest).
-  const viewportTop = Math.max(0, totalHeight - viewportRows - scrollOffset);
-  const viewportBottom = viewportTop + viewportRows;
+  const viewportTop = Math.max(0, totalHeight - safeViewportRows - safeScrollOffset);
+  const viewportBottom = viewportTop + safeViewportRows;
 
   // Binary-search for the first entry that starts at or before viewportTop.
   const startIdx = cache.entryIndexAtOffset(viewportTop);

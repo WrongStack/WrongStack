@@ -56,8 +56,12 @@ export function findToolViewControl(
   row: number,
   col: number,
 ): { hit: CopyHit; delta: -1 | 1 } | null {
+  if (!Number.isFinite(row) || !Number.isFinite(col)) return null;
   const within = (start: number | undefined): boolean =>
-    start !== undefined && col >= start && col < start + VIEW_CONTROL_HIT_WIDTH;
+    start !== undefined &&
+    Number.isFinite(start) &&
+    col >= start &&
+    col < start + VIEW_CONTROL_HIT_WIDTH;
   for (let i = hits.length - 1; i >= 0; i--) {
     const hit = hits[i];
     if (!hit?.toolEntryIds || !hit.toolViewMode || row !== hit.startRow) continue;
@@ -83,9 +87,16 @@ export const SELECTION_COPY_ID = -2;
  * the most recently rendered card. Exported-shape pure helper for unit tests.
  */
 export function findCopyHit(hits: readonly CopyHit[], row: number, col: number): CopyHit | null {
+  if (!Number.isFinite(row) || !Number.isFinite(col)) return null;
   for (let i = hits.length - 1; i >= 0; i--) {
     const hit = hits[i];
     if (!hit) continue;
+    if (
+      !Number.isFinite(hit.startRow) ||
+      !Number.isFinite(hit.endRow) ||
+      !Number.isFinite(hit.iconCol)
+    )
+      continue;
     if (row < hit.startRow || row >= hit.endRow) continue;
     if (col < hit.iconCol || col >= hit.iconCol + COPY_ICON_WIDTH) continue;
     return hit;
@@ -95,9 +106,16 @@ export function findCopyHit(hits: readonly CopyHit[], row: number, col: number):
 
 /** Resolve the inspect-icon target under a viewport cell, or null. */
 export function findInspectHit(hits: readonly CopyHit[], row: number, col: number): CopyHit | null {
+  if (!Number.isFinite(row) || !Number.isFinite(col)) return null;
   for (let i = hits.length - 1; i >= 0; i--) {
     const hit = hits[i];
     if (!hit || hit.inspectCol === undefined) continue;
+    if (
+      !Number.isFinite(hit.startRow) ||
+      !Number.isFinite(hit.endRow) ||
+      !Number.isFinite(hit.inspectCol)
+    )
+      continue;
     if (row < hit.startRow || row >= hit.endRow) continue;
     if (col < hit.inspectCol || col >= hit.inspectCol + INSPECT_ICON_WIDTH) continue;
     return hit;

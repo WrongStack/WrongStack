@@ -50,7 +50,12 @@ export function buildCopyRegistry(opts: {
   // copy icon row stays visually aligned with the card row — without this,
   // icons render at row 0 while the card itself sits at row `vp - h`.
   const pinnedSlack = !opts.scrolled
-    ? Math.max(0, opts.viewportRows - mountedGroupRows - opts.tailRows)
+    ? Math.max(
+        0,
+        Number.isFinite(opts.viewportRows - mountedGroupRows - opts.tailRows)
+          ? opts.viewportRows - mountedGroupRows - opts.tailRows
+          : 0,
+      )
     : 0;
   const hits: CopyHit[] = [];
   let offset = 0;
@@ -70,7 +75,13 @@ export function buildCopyRegistry(opts: {
           ? [group.entry.id]
           : [];
     const entryId = groupEntryIds[0];
-    if (entryId === undefined || startRow < 0 || startRow >= opts.viewportRows) continue;
+    if (
+      entryId === undefined ||
+      !Number.isFinite(startRow) ||
+      startRow < 0 ||
+      startRow >= opts.viewportRows
+    )
+      continue;
     const toolEntryIds =
       group.type === 'tool-group'
         ? group.data.entries.filter((entry) => entry.kind === 'tool').map((entry) => entry.id)

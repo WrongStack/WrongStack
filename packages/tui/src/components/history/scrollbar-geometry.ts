@@ -17,14 +17,17 @@ export function scrollbarThumb(
   offset: number,
   total: number,
 ): { top: number; size: number; scrollable: boolean } {
-  const scrollable = total > rows;
-  if (!scrollable) return { top: 0, size: rows, scrollable: false };
-  const windowTop = Math.max(0, total - rows - offset);
-  const size = Math.max(1, Math.round((rows / total) * rows));
-  const maxWindowTop = total - rows;
+  const safeRows = Number.isFinite(rows) && rows > 0 ? Math.floor(rows) : 0;
+  const safeTotal = Number.isFinite(total) && total > 0 ? total : 0;
+  const safeOffset = Number.isFinite(offset) && offset > 0 ? offset : 0;
+  const scrollable = safeRows > 0 && safeTotal > safeRows;
+  if (!scrollable) return { top: 0, size: safeRows, scrollable: false };
+  const windowTop = Math.max(0, safeTotal - safeRows - safeOffset);
+  const size = Math.max(1, Math.min(safeRows, Math.round((safeRows / safeTotal) * safeRows)));
+  const maxWindowTop = safeTotal - safeRows;
   const top = Math.max(
     0,
-    Math.min(rows - size, Math.round((windowTop / maxWindowTop) * (rows - size))),
+    Math.min(safeRows - size, Math.round((windowTop / maxWindowTop) * (safeRows - size))),
   );
   return { top, size, scrollable: true };
 }
@@ -34,10 +37,13 @@ export function scrollbarThumb(
  *  that lands the visible window there. Cell 0 (top) → oldest content (max
  *  offset); cell rows-1 (bottom) → newest (offset 0). Exported for testing. */
 export function scrollOffsetForTrackRow(rows: number, total: number, cell: number): number {
-  if (total <= rows) return 0;
-  const maxOffset = total - rows;
-  const clampedCell = Math.max(0, Math.min(rows - 1, cell));
-  const windowTop = Math.round((clampedCell / Math.max(1, rows - 1)) * maxOffset);
+  const safeRows = Number.isFinite(rows) && rows > 0 ? Math.floor(rows) : 0;
+  const safeTotal = Number.isFinite(total) && total > 0 ? total : 0;
+  if (safeRows <= 0 || safeTotal <= safeRows) return 0;
+  const maxOffset = safeTotal - safeRows;
+  const safeCell = Number.isFinite(cell) ? cell : 0;
+  const clampedCell = Math.max(0, Math.min(safeRows - 1, safeCell));
+  const windowTop = Math.round((clampedCell / Math.max(1, safeRows - 1)) * maxOffset);
   return Math.max(0, Math.min(maxOffset, maxOffset - windowTop));
 }
 

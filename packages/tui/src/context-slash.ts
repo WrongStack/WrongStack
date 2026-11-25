@@ -30,7 +30,7 @@ interface ContextPanelSummary {
 
 /** Compact context-pressure bar shared by the interactive Ink panel. */
 export function contextBar(pct: number, width: number): string {
-  const w = Math.max(0, Math.floor(width));
+  const w = Number.isFinite(width) ? Math.max(0, Math.floor(width)) : 0;
   const clamped = Math.max(0, Math.min(1, Number.isFinite(pct) ? pct : 0));
   if (clamped <= 0 || w === 0) return `[${'░'.repeat(w)}]   0%`;
   // Keep the glyph track exactly `w` cells: a tiny non-zero fill still shows
@@ -103,7 +103,7 @@ export function createContextSlashCommand(deps: ContextSlashDeps): SlashCommand 
 export function formatContextPanelSummary(summary: ContextPanelSummary | undefined): string {
   if (!summary) return 'Context panel opened.';
   const contextParts = ['Context panel opened'];
-  if (summary.contextPct !== undefined) {
+  if (summary.contextPct !== undefined && Number.isFinite(summary.contextPct)) {
     contextParts.push(fmtRatioPct(Math.max(0, summary.contextPct)));
   }
   if (
@@ -127,6 +127,7 @@ export function formatContextPanelSummary(summary: ContextPanelSummary | undefin
 }
 
 function formatTokens(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '0';
   if (value >= 1_000_000) return `${Number((value / 1_000_000).toFixed(1))}m`;
   if (value >= 1_000) return `${Math.round(value / 1_000)}k`;
   return String(Math.max(0, Math.round(value)));

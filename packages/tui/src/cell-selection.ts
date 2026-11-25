@@ -23,8 +23,18 @@ export function orderedRange(range: CellRange): [CellPoint, CellPoint] {
   return a.row < b.row || (a.row === b.row && a.col <= b.col) ? [a, b] : [b, a];
 }
 
+function isFiniteRange(range: CellRange): boolean {
+  return (
+    Number.isFinite(range.anchor.row) &&
+    Number.isFinite(range.anchor.col) &&
+    Number.isFinite(range.head.row) &&
+    Number.isFinite(range.head.col)
+  );
+}
+
 /** Display cells, never UTF-16 offsets; touching either half selects a whole grapheme. */
 export function selectedRuns(runs: readonly TextRun[], range: CellRange): TextRun[] {
+  if (!isFiniteRange(range)) return [];
   const [start, end] = orderedRange(range);
   return runs.flatMap((run) => {
     if (run.row < start.row || run.row > end.row) return [];
@@ -46,6 +56,7 @@ export function selectedRuns(runs: readonly TextRun[], range: CellRange): TextRu
 }
 
 export function selectionText(runs: readonly TextRun[], range: CellRange): string {
+  if (!isFiniteRange(range)) return '';
   const selected = selectedRuns(runs, range);
   const rows = new Map<number, TextRun[]>();
   for (const run of selected) rows.set(run.row, [...(rows.get(run.row) ?? []), run]);

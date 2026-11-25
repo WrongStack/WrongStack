@@ -45,7 +45,7 @@ function parseDate(ts: string): Date | null {
 
 export function daysAgo(ts: string, now: number = Date.now()): number | null {
   const d = parseDate(ts);
-  if (!d) return null;
+  if (!d || !Number.isFinite(now)) return null;
   return (now - d.getTime()) / (1000 * 60 * 60 * 24);
 }
 
@@ -56,7 +56,7 @@ export function fmtDate(ts: string): string {
 }
 
 export function recencyLabel(days: number | null): string {
-  if (days === null) return '—';
+  if (days === null || !Number.isFinite(days)) return '—';
   if (days < 1) return 'today';
   if (days < 7) return `${Math.round(days)}d ago`;
   if (days < 30) return `${Math.round(days / 7)}w ago`;

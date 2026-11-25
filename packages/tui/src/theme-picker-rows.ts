@@ -110,7 +110,8 @@ export function windowThemeRows(
     }
   }
 
-  const capacity = Math.max(2, budget);
+  const safeBudget = Number.isFinite(budget) ? Math.floor(budget) : 2;
+  const capacity = Math.max(2, safeBudget);
   // Deep inside a family the governing header can sit many rows above the
   // focused option, so header..focus can already exceed the budget on its own.
   // The budget is a hard contract (`maxRows` is what keeps the box inside a

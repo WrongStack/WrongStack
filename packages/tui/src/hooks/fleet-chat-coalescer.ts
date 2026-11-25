@@ -55,11 +55,12 @@ function formatDuration(ms: number): string {
 export function formatToolSummary(agg: ToolAgg, maxTools = 4): string {
   if (agg.total === 0) return '';
   const parts: string[] = [`${agg.total} tool${agg.total === 1 ? '' : 's'}`];
+  const limit = Number.isFinite(maxTools) ? Math.max(0, Math.floor(maxTools)) : 4;
   const sorted = [...agg.byTool.entries()].sort((a, b) => b[1] - a[1]);
   const top = sorted
-    .slice(0, maxTools)
+    .slice(0, limit)
     .map(([name, count]) => (count > 1 ? `${name}×${count}` : name));
-  const restCount = sorted.length - maxTools;
+  const restCount = sorted.length - limit;
   if (restCount > 0) top.push(`+${restCount} more`);
   if (top.length > 0) parts.push(top.join(' '));
   if (agg.totalMs > 0) parts.push(formatDuration(agg.totalMs));

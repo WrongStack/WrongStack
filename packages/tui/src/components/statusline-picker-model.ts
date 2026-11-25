@@ -65,8 +65,9 @@ export function isChipExpired(meta: ChipMeta, now = Date.now()): boolean {
  */
 export function getExpiresInLabel(meta: ChipMeta, now = Date.now()): string | null {
   if (meta.expiresIn == null || meta.expiresIn === 0 || meta.shownAt == null) return null;
-  const remainingMs = meta.shownAt + meta.expiresIn * 60 * 1000 - now;
-  if (remainingMs <= 0) return null;
+  const safeNow = Number.isFinite(now) ? now : Date.now();
+  const remainingMs = meta.shownAt + meta.expiresIn * 60 * 1000 - safeNow;
+  if (!Number.isFinite(remainingMs) || remainingMs <= 0) return null;
   if (remainingMs < 60_000) return 'expires in <1 m';
   const remainingMin = Math.ceil(remainingMs / 60_000);
   return `expires in ${remainingMin} m`;
@@ -79,7 +80,8 @@ export const STREAM_CHIP_KEYS: StatuslineItem[] = ['brain', 'mailbox', 'enhance'
 export function nextDensity(current: StatuslineDensity, delta = 1): StatuslineDensity {
   const index = STATUSLINE_DENSITY_CYCLE.indexOf(current);
   const size = STATUSLINE_DENSITY_CYCLE.length;
-  const at = Math.max(index, 0) + delta;
+  const step = Number.isFinite(delta) ? Math.trunc(delta) : 0;
+  const at = Math.max(index, 0) + step;
   return STATUSLINE_DENSITY_CYCLE[((at % size) + size) % size]!;
 }
 

@@ -89,6 +89,7 @@ export function cycleEffort(
 ): ModelEffortChoice {
   if (options.length === 0) return EFFORT_KEEP;
   const base = Math.max(0, options.indexOf(current as ModelEffortChoice));
-  const next = (base + delta + options.length) % options.length;
+  const step = Number.isFinite(delta) ? Math.trunc(delta) : 0;
+  const next = (((base + step) % options.length) + options.length) % options.length;
   return options[next] ?? EFFORT_KEEP;
 }

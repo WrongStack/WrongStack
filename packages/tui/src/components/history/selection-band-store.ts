@@ -35,7 +35,11 @@ export interface SelectionBandStore {
 function sameBand(a: SelectionBandSnapshot, b: SelectionBandSnapshot): boolean {
   if (a === b) return true;
   if (a === null || b === null) return false;
-  return a.topRow === b.topRow && a.bottomRow === b.bottomRow && a.headRow === b.headRow;
+  return (
+    Object.is(a.topRow, b.topRow) &&
+    Object.is(a.bottomRow, b.bottomRow) &&
+    Object.is(a.headRow, b.headRow)
+  );
 }
 
 /** Band covering the anchor..head row span of an in-progress drag. */

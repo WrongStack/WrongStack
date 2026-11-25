@@ -62,7 +62,7 @@ const MODE_ICONS: Record<string, string> = {
 
 export function modeIcon(label?: string): string {
   if (!label) return '';
-  const icon = MODE_ICONS[label] ?? '▪';
+  const icon = Object.hasOwn(MODE_ICONS, label) ? MODE_ICONS[label] : '▪';
   return `${icon} ${label}`;
 }
 

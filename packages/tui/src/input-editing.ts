@@ -73,8 +73,13 @@ export function isInputWordSeparator(ch: string | undefined): boolean {
  * chip's start index (whole-chip jump). Otherwise walks left over trailing
  * separators, then over the preceding word run.
  */
+function clampCursor(cursor: number, length: number): number {
+  if (!Number.isFinite(cursor)) return 0;
+  return Math.max(0, Math.min(Math.trunc(cursor), length));
+}
+
 export function previousInputWordStart(buffer: string, cursor: number): number {
-  let i = Math.max(0, Math.min(cursor, buffer.length));
+  let i = clampCursor(cursor, buffer.length);
   const chipAtCursor = tokenSpanAt(buffer, i);
   if (chipAtCursor && i > chipAtCursor.start) return chipAtCursor.start;
   while (i > 0 && isInputWordSeparator(buffer[i - 1])) i--;
@@ -98,7 +103,7 @@ export function previousInputWordStart(buffer: string, cursor: number): number {
  * not in the gap.
  */
 export function nextInputWordStart(buffer: string, cursor: number): number {
-  let i = Math.max(0, Math.min(cursor, buffer.length));
+  let i = clampCursor(cursor, buffer.length);
   const chipAtCursor = tokenSpanAt(buffer, i);
   if (chipAtCursor && i < chipAtCursor.end) i = chipAtCursor.end;
   else
@@ -137,13 +142,15 @@ interface WordDeleteResult {
  * is removed along with any trailing separators.
  */
 export function deleteWordBackward(buffer: string, cursor: number): WordDeleteResult | null {
-  if (cursor === 0) return null;
-  const chip = tokenSpanAt(buffer, cursor);
+  const safeCursor = clampCursor(cursor, buffer.length);
+  if (safeCursor === 0) return null;
+  const chip = tokenSpanAt(buffer, safeCursor);
   const deleteStart =
-    chip && cursor > chip.start && cursor < chip.end
+    chip && safeCursor > chip.start && safeCursor < chip.end
       ? chip.start
-      : previousInputWordStart(buffer, cursor);
-  const deleteEnd = chip && cursor > chip.start && cursor < chip.end ? chip.end : cursor;
+      : previousInputWordStart(buffer, safeCursor);
+  const deleteEnd =
+    chip && safeCursor > chip.start && safeCursor < chip.end ? chip.end : safeCursor;
   if (deleteStart === deleteEnd) return null;
   return {
     buffer: buffer.slice(0, deleteStart) + buffer.slice(deleteEnd),
@@ -159,13 +166,15 @@ export function deleteWordBackward(buffer: string, cursor: number): WordDeleteRe
  * following word run is removed.
  */
 export function deleteWordForward(buffer: string, cursor: number): WordDeleteResult | null {
-  if (cursor >= buffer.length) return null;
-  const chip = tokenSpanAt(buffer, cursor);
-  const deleteStart = chip && cursor > chip.start && cursor < chip.end ? chip.start : cursor;
+  const safeCursor = clampCursor(cursor, buffer.length);
+  if (safeCursor >= buffer.length) return null;
+  const chip = tokenSpanAt(buffer, safeCursor);
+  const deleteStart =
+    chip && safeCursor > chip.start && safeCursor < chip.end ? chip.start : safeCursor;
   const deleteEnd =
-    chip && cursor > chip.start && cursor < chip.end
+    chip && safeCursor > chip.start && safeCursor < chip.end
       ? chip.end
-      : nextInputWordStart(buffer, cursor);
+      : nextInputWordStart(buffer, safeCursor);
   if (deleteStart === deleteEnd) return null;
   return {
     buffer: buffer.slice(0, deleteStart) + buffer.slice(deleteEnd),

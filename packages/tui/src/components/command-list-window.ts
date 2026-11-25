@@ -8,8 +8,10 @@ export function commandListWindow<T extends { category: string }>(
   selected: number,
   capacity: number,
 ): { rows: CommandRow<T>[]; above: number; below: number; focus: number } {
-  const focus = Math.max(0, Math.min(selected, items.length - 1));
-  const limit = Math.max(1, Math.floor(capacity));
+  const safeSelected = Number.isFinite(selected) ? Math.floor(selected) : 0;
+  const safeCapacity = Number.isFinite(capacity) ? Math.floor(capacity) : 1;
+  const focus = Math.max(0, Math.min(safeSelected, items.length - 1));
+  const limit = Math.max(1, safeCapacity);
   if (items.length === 0) return { rows: [], above: 0, below: 0, focus };
   const rows: CommandRow<T>[] = [];
   let category = '';

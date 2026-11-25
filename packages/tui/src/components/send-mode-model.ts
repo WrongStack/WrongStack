@@ -50,8 +50,12 @@ export const SEND_MODE_OPTIONS: SendModeOption[] = [
  * Pure — unit-tested independently of Ink.
  */
 export function nextSendModeIndex(selected: number, delta: number, len: number): number {
-  if (len <= 0) return 0;
-  return (((selected + delta) % len) + len) % len;
+  if (!Number.isFinite(len) || len <= 0) return 0;
+  const safeSelected = Number.isFinite(selected) ? Math.trunc(selected) : 0;
+  const safeDelta = Number.isFinite(delta) ? Math.trunc(delta) : 0;
+  const safeLen = Math.floor(len);
+  if (safeLen <= 0) return 0;
+  return (((safeSelected + safeDelta) % safeLen) + safeLen) % safeLen;
 }
 
 /** A minimal structural view of the key event — keeps the helper pure/testable. */
@@ -86,6 +90,8 @@ export function sendModeFromKey(
 
 export function formatSendModeMessagePreview(text: string, maxChars = 120): string {
   const singleLine = text.replace(/\s+/g, ' ').trim();
-  if (singleLine.length <= maxChars) return singleLine;
-  return `${singleLine.slice(0, Math.max(0, maxChars - 1))}…`;
+  const safeMax = Number.isFinite(maxChars) ? Math.max(0, Math.floor(maxChars)) : 120;
+  if (safeMax === 0) return '';
+  if (singleLine.length <= safeMax) return singleLine;
+  return `${singleLine.slice(0, Math.max(0, safeMax - 1))}…`;
 }

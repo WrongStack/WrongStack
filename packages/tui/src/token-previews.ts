@@ -30,8 +30,22 @@ export function createTokenPreview(
   maxChars = TOKEN_PREVIEW_MAX_CHARS,
   maxLines = TOKEN_PREVIEW_MAX_LINES,
 ): string {
-  const charLimit = Math.max(1, Math.floor(maxChars));
-  const lineLimit = Math.max(1, Math.floor(maxLines));
+  const charLimit = Math.max(
+    1,
+    Math.floor(
+      typeof maxChars === 'number' && Number.isFinite(maxChars)
+        ? maxChars
+        : TOKEN_PREVIEW_MAX_CHARS,
+    ),
+  );
+  const lineLimit = Math.max(
+    1,
+    Math.floor(
+      typeof maxLines === 'number' && Number.isFinite(maxLines)
+        ? maxLines
+        : TOKEN_PREVIEW_MAX_LINES,
+    ),
+  );
   let end = value.length;
   let lines = 1;
   let lineTruncated = false;

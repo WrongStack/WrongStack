@@ -97,6 +97,7 @@ export function setTuiHistoryMemoryGauges(
   >,
 ): void {
   for (const [key, value] of Object.entries(gauges) as Array<[keyof typeof gauges, number]>) {
+    if (!Object.hasOwn(counters, key)) continue;
     counters[key] = Number.isFinite(value) ? Math.max(0, value) : 0;
   }
 }
