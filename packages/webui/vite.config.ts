@@ -116,6 +116,19 @@ export default defineConfig({
     // expected — raise the threshold instead of silencing per-chunk.
     chunkSizeWarningLimit: 4500,
     rollupOptions: {
+      onwarn(warning, warn) {
+        // `react-compiler-runtime` (pulled in by `@xyflow/react`) ships a
+        // top-level `"use no memo"` React Compiler hint. Rolldown strips
+        // non-`"use strict"` module directives when merging chunks; the hint
+        // is compile-time only and a no-op at runtime.
+        if (
+          warning.code === 'MODULE_LEVEL_DIRECTIVE' &&
+          warning.message.includes('"use no memo"')
+        ) {
+          return;
+        }
+        warn(warning);
+      },
       output: {
         // ── Chunking ────────────────────────────────────────────────────
         //

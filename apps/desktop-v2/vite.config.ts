@@ -26,5 +26,22 @@ export default defineConfig({
   css: { postcss: {} },
   server: { port: 1420, strictPort: true, host: '127.0.0.1' },
   clearScreen: false,
-  build: { target: 'es2022' },
+  build: {
+    target: 'es2022',
+    rolldownOptions: {
+      onwarn(warning, warn) {
+        // `react-compiler-runtime` (pulled in by `@xyflow/react`) ships a
+        // top-level `"use no memo"` React Compiler hint. Rolldown strips
+        // non-`"use strict"` module directives when merging chunks; the hint
+        // is compile-time only and a no-op at runtime.
+        if (
+          warning.code === 'MODULE_LEVEL_DIRECTIVE' &&
+          warning.message.includes('"use no memo"')
+        ) {
+          return;
+        }
+        warn(warning);
+      },
+    },
+  },
 });
