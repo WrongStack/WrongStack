@@ -11,17 +11,12 @@ export interface MCPTaskOwner {
 }
 
 export function taskOwner(context: MCPTaskContext | undefined): MCPTaskOwner | undefined {
-  const sessionId = context?.eventSessionId?.() ?? context?.session?.id;
-  const agentId = context?.agentId;
-  if (
-    typeof sessionId !== 'string' ||
-    !sessionId ||
-    sessionId.length > 256 ||
-    typeof agentId !== 'string' ||
-    !agentId ||
-    agentId.length > 256
-  )
-    return undefined;
+  const rawSessionId = context?.eventSessionId?.() ?? context?.session?.id;
+  const rawAgentId = context?.agentId;
+  if (typeof rawSessionId !== 'string' || typeof rawAgentId !== 'string') return undefined;
+  const sessionId = rawSessionId.trim();
+  const agentId = rawAgentId.trim();
+  if (!sessionId || sessionId.length > 256 || !agentId || agentId.length > 256) return undefined;
   return { sessionId, agentId };
 }
 

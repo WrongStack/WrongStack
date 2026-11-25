@@ -24,7 +24,8 @@ function normalizePresence(
   entries: readonly KanbanBoardPresence[] | undefined,
   now = new Date(),
 ): KanbanBoardPresence[] {
-  const nowMs = now.getTime();
+  const rawNowMs = now.getTime();
+  const nowMs = Number.isFinite(rawNowMs) ? rawNowMs : Date.now();
   return (entries ?? [])
     .map((entry) => ({ ...entry, active: Date.parse(entry.activeUntil) > nowMs }))
     .sort((left, right) => right.lastSeenAt.localeCompare(left.lastSeenAt));

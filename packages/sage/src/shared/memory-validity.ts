@@ -14,15 +14,15 @@ export function normalizeValidity(value: unknown): MemoryValidity | undefined {
   const checks = (v.checks as unknown[] | undefined)?.map((entry) => {
     if (!entry || typeof entry !== 'object') throw new Error('Invalid SAGE validity check.');
     const c = entry as Record<string, unknown>;
+    const rawPath = typeof c.path === 'string' ? c.path.trim() : '';
     if (
       Object.keys(c).some((key) => !['type', 'path', 'text'].includes(key)) ||
       c.type !== 'source_contains' ||
-      typeof c.path !== 'string' ||
-      !c.path.trim() ||
-      c.path.length > 500 ||
-      /^[\\/]|^[a-z]:/i.test(c.path) ||
-      c.path.split(/[\\/]/).some((part) => part === '..') ||
-      /[\x00-\x1f]/.test(c.path) ||
+      !rawPath ||
+      rawPath.length > 500 ||
+      /^[\\/]|^[a-z]:/i.test(rawPath) ||
+      rawPath.split(/[\\/]/).some((part) => part === '..') ||
+      /[\x00-\x1f]/.test(rawPath) ||
       typeof c.text !== 'string' ||
       !c.text.trim() ||
       c.text.length > 400
@@ -30,7 +30,7 @@ export function normalizeValidity(value: unknown): MemoryValidity | undefined {
       throw new Error(
         'SAGE validity checks require a relative project path and a literal of 1–400 characters.',
       );
-    return { type: 'source_contains' as const, path: c.path.replaceAll('\\', '/'), text: c.text };
+    return { type: 'source_contains' as const, path: rawPath.replaceAll('\\', '/'), text: c.text };
   });
   return { statement: v.statement.trim(), ...(checks?.length ? { checks } : {}) };
 }
@@ -56,6 +56,10 @@ export function validityKey(value: MemoryValidity | undefined): string {
   try {
     return JSON.stringify(normalizeValidity(value) ?? null);
   } catch {
-    return JSON.stringify(['\u0000invalid', value ?? null]);
+    try {
+      return JSON.stringify(['\u0000invalid', value ?? null]);
+    } catch {
+      return JSON.stringify(['\u0000invalid', '[Unserializable]']);
+    }
   }
 }

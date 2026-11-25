@@ -34,7 +34,7 @@ export function appendModelFeedback(memory: Sage, input: MemoryFeedbackInput, at
   }
   if (
     input.sessionId !== undefined &&
-    (typeof input.sessionId !== 'string' || input.sessionId.length > 200)
+    (typeof input.sessionId !== 'string' || !input.sessionId.trim() || input.sessionId.length > 200)
   ) {
     throw new Error('Invalid SAGE feedback sessionId.');
   }
@@ -42,7 +42,7 @@ export function appendModelFeedback(memory: Sage, input: MemoryFeedbackInput, at
     verdict: input.verdict,
     observedRevision: input.observedRevision,
     evidence: input.evidence.trim(),
-    sessionId: input.sessionId,
+    sessionId: input.sessionId?.trim(),
     at,
   };
   const history = memory.feedback ?? [];

@@ -13,7 +13,9 @@ export function isAssignmentHeartbeatDue(
   if (!lastSignal || !assignment.leaseExpiresAt) return false;
   const lastHeartbeat = new Date(lastSignal).getTime();
   const expiresAt = new Date(assignment.leaseExpiresAt).getTime();
-  const now = new Date(checkedAt).getTime();
+  const parsedNow = new Date(checkedAt).getTime();
+  const now = Number.isFinite(parsedNow) ? parsedNow : Date.now();
+  if (!Number.isFinite(lastHeartbeat) || !Number.isFinite(expiresAt)) return true;
   const lease = expiresAt - lastHeartbeat;
   if (lease <= 0) return true;
   return now - lastHeartbeat >= lease / 2;

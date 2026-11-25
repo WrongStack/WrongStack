@@ -13,7 +13,7 @@ export function taskInputFingerprint(value: unknown): string {
           )
         : v;
   return createHash('sha256')
-    .update(JSON.stringify(canonical(value)))
+    .update(JSON.stringify(canonical(value)) ?? 'undefined')
     .digest('hex');
 }
 

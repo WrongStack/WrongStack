@@ -59,7 +59,10 @@ export function scheduleRegistryReconnect({
     safeMax,
   );
   const jitter = base * MCP_CONSTANTS.RECONNECT.JITTER_FACTOR * (Math.random() * 2 - 1);
-  const delay = Number.isFinite(base + jitter) ? Math.max(100, Math.round(base + jitter)) : 100;
+  const MAX_TIMEOUT_MS = 2_147_483_647;
+  const delay = Number.isFinite(base + jitter)
+    ? Math.min(MAX_TIMEOUT_MS, Math.max(100, Math.round(base + jitter)))
+    : 100;
   slot.reconnectTimer = setTimeout(() => {
     slot.reconnectTimer = undefined;
     void attemptReconnect(slot);

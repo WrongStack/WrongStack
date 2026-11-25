@@ -2,7 +2,7 @@ import type { MemoryCandidate, Sage } from '../types.js';
 import { consolidationHoldReasons } from './review-hold.js';
 
 /** A consolidation proposal nobody rejected within this window is applied. */
-export const CONSOLIDATION_AUTO_ACCEPT_MS = 7 * 86_400_000;
+const CONSOLIDATION_AUTO_ACCEPT_MS = 7 * 86_400_000;
 
 export interface ConsolidationAutoAcceptStore {
   listCandidates(includeResolved?: boolean): Promise<MemoryCandidate[]>;
@@ -22,13 +22,18 @@ export async function acceptDueConsolidations(
   nowMs: number,
   windowMs = CONSOLIDATION_AUTO_ACCEPT_MS,
 ): Promise<{ accepted: string[]; failed: number; held: number }> {
+  const safeNowMs = Number.isFinite(nowMs) ? nowMs : Date.now();
+  const safeWindowMs =
+    typeof windowMs === 'number' && Number.isFinite(windowMs) && windowMs >= 0
+      ? windowMs
+      : CONSOLIDATION_AUTO_ACCEPT_MS;
   const accepted: string[] = [];
   let failed = 0;
   let held = 0;
   for (const candidate of await store.listCandidates(false)) {
     if (candidate.suggestedAction !== 'consolidate') continue;
     const createdAt = Date.parse(candidate.createdAt);
-    if (!Number.isFinite(createdAt) || nowMs - createdAt < windowMs) continue;
+    if (!Number.isFinite(createdAt) || safeNowMs - createdAt < safeWindowMs) continue;
     // Reads like an instruction to the agent: a person decides.
     if (consolidationHoldReasons(candidate.text).length > 0) {
       held++;

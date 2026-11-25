@@ -129,6 +129,11 @@ function extractChange(input: Record<string, unknown>): ActivityChange | undefin
     let sawHunk = false;
     let oldRemaining = 0;
     let newRemaining = 0;
+    // A header that declares its line counts bounds the body. A counts-less
+    // header (`@@`) leaves the body extent unknown, so its zeroed counters are
+    // not "the body is over" — the same distinction core's
+    // countUnifiedDiffLines draws.
+    let hunkCountsDeclared = false;
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index] ?? '';
       if (line.startsWith('@@')) {
@@ -136,11 +141,14 @@ function extractChange(input: Record<string, unknown>): ActivityChange | undefin
         const hunk = /^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@/.exec(line);
         oldRemaining = hunk ? Number(hunk[1] ?? 1) : 0;
         newRemaining = hunk ? Number(hunk[2] ?? 1) : 0;
+        hunkCountsDeclared = hunk !== null;
         continue;
       }
       if (line.startsWith('diff --git ')) {
+        sawHunk = false;
         oldRemaining = 0;
         newRemaining = 0;
+        hunkCountsDeclared = false;
         continue;
       }
       if (!sawHunk) continue;
@@ -153,6 +161,7 @@ function extractChange(input: Record<string, unknown>): ActivityChange | undefin
         index += 1;
         continue;
       }
+      if (hunkCountsDeclared && oldRemaining <= 0 && newRemaining <= 0) continue;
       if (line.startsWith('+')) {
         added += 1;
         newRemaining -= 1;

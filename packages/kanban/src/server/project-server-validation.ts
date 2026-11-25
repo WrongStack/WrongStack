@@ -38,7 +38,13 @@ export function errorFromThrown(value: unknown): KanbanErrorResponse['error'] {
   if (value instanceof Error) {
     return { code: 'INTERNAL_ERROR', message: value.message, cause: value.stack ?? null };
   }
-  return { code: 'INTERNAL_ERROR', message: String(value) };
+  let message: string;
+  try {
+    message = String(value);
+  } catch {
+    message = 'Unknown error';
+  }
+  return { code: 'INTERNAL_ERROR', message };
 }
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────

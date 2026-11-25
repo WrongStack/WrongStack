@@ -115,6 +115,10 @@ function patchDelta(value: string): { added: number; removed: number } | null {
   let sawHunk = false;
   let oldRemaining = 0;
   let newRemaining = 0;
+  // A header that declares its line counts bounds the body; a counts-less
+  // header (`@@`) leaves the extent unknown, so its zeroed counters do not
+  // mean the body is over.
+  let hunkCountsDeclared = false;
   const lines = value.split(/\r?\n/);
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? '';
@@ -123,11 +127,14 @@ function patchDelta(value: string): { added: number; removed: number } | null {
       const hunk = /^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@/.exec(line);
       oldRemaining = hunk ? Number(hunk[1] ?? 1) : 0;
       newRemaining = hunk ? Number(hunk[2] ?? 1) : 0;
+      hunkCountsDeclared = hunk !== null;
       continue;
     }
     if (line.startsWith('diff --git ')) {
+      sawHunk = false;
       oldRemaining = 0;
       newRemaining = 0;
+      hunkCountsDeclared = false;
       continue;
     }
     if (!sawHunk) continue;
@@ -140,6 +147,7 @@ function patchDelta(value: string): { added: number; removed: number } | null {
       index += 1;
       continue;
     }
+    if (hunkCountsDeclared && oldRemaining <= 0 && newRemaining <= 0) continue;
     if (line.startsWith('+')) {
       added += 1;
       newRemaining -= 1;

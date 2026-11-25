@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T20:53:24.330Z",
+  "generatedAt": "2026-11-25T20:55:24.704Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6570,
-    "testFiles": 6283,
-    "sourceLines": 1348076,
+    "testFiles": 6297,
+    "sourceLines": 1348111,
     "workspaceEdges": 261,
     "moduleEdges": 19241,
     "nonCommandSlashImports": 0,
@@ -577,7 +577,7 @@
       "name": "@wrongstack/kanban",
       "dir": "packages/kanban",
       "sourceFiles": 108,
-      "testFiles": 123,
+      "testFiles": 127,
       "workspaceDependencies": [
         "@wrongstack/persistence",
         "@wrongstack/primitives"
@@ -591,7 +591,7 @@
         {
           "path": "packages/kanban/tsconfig.test.json",
           "error": null,
-          "testFiles": 123
+          "testFiles": 127
         }
       ]
     },
@@ -648,7 +648,7 @@
       "name": "@wrongstack/mcp",
       "dir": "packages/mcp",
       "sourceFiles": 76,
-      "testFiles": 122,
+      "testFiles": 125,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -662,7 +662,7 @@
         {
           "path": "packages/mcp/tsconfig.test.json",
           "error": null,
-          "testFiles": 122
+          "testFiles": 125
         }
       ]
     },
@@ -780,7 +780,7 @@
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
       "sourceFiles": 263,
-      "testFiles": 51,
+      "testFiles": 54,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -797,7 +797,7 @@
         {
           "path": "packages/project-surfaces/tsconfig.test.json",
           "error": null,
-          "testFiles": 51
+          "testFiles": 54
         }
       ]
     },
@@ -913,7 +913,7 @@
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
       "sourceFiles": 179,
-      "testFiles": 196,
+      "testFiles": 200,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -933,7 +933,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 196
+          "testFiles": 200
         }
       ]
     },
@@ -18768,6 +18768,12 @@
         ]
       },
       {
+        "file": "packages/kanban/tests/board-kind-empty-include.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/board-kind-filter.test.ts",
         "projects": [
           "root-node"
@@ -18984,13 +18990,31 @@
         ]
       },
       {
+        "file": "packages/kanban/tests/kanban-error-null-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/kanban-export-order-nan.test.ts",
         "projects": [
           "root-node"
         ]
       },
       {
+        "file": "packages/kanban/tests/kanban-heartbeat-nan-expiry.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/kanban-order-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/kanban-presence-invalid-date.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19669,6 +19693,24 @@
       },
       {
         "file": "packages/mcp/tests/mcp-100-coverage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/mcp-reconnect-timeout-overflow.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/mcp-task-fingerprint-undef.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/mcp-task-owner-blank.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22242,6 +22284,12 @@
         ]
       },
       {
+        "file": "packages/project-surfaces/tests/codemap-diff-rule-parity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/project-surfaces/tests/codemap-nan-steps.test.ts",
         "projects": [
           "root-node"
@@ -22255,6 +22303,12 @@
       },
       {
         "file": "packages/project-surfaces/tests/codemap-stale-refresh-cancel.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/codemap-symbol-nan-line.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22381,6 +22435,12 @@
       },
       {
         "file": "packages/project-surfaces/tests/office-age-unit-rollover.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/office-diff-rule-parity.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24594,6 +24654,12 @@
         ]
       },
       {
+        "file": "packages/sage/tests/memory-validity-circular.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sage/tests/memory-validity.test.ts",
         "projects": [
           "root-node"
@@ -24942,6 +25008,12 @@
         ]
       },
       {
+        "file": "packages/sage/tests/sage-auto-accept-nan-window.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sage/tests/sage-context-carry.test.ts",
         "projects": [
           "root-node"
@@ -24949,6 +25021,12 @@
       },
       {
         "file": "packages/sage/tests/sage-doctor.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/sage-feedback-blank-session.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24973,6 +25051,12 @@
       },
       {
         "file": "packages/sage/tests/sage-kinds-parity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/sage-validity-whitespace-path.test.ts",
         "projects": [
           "root-node"
         ]

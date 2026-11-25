@@ -26,7 +26,7 @@ export function resolveKindFilter(filter: BoardKindFilter | undefined): {
   include: Set<KanbanBoardKind> | undefined;
   exclude: Set<KanbanBoardKind>;
 } {
-  if (filter?.includeBoardKinds?.length) {
+  if (filter?.includeBoardKinds !== undefined) {
     return {
       include: new Set(filter.includeBoardKinds),
       exclude: new Set(),

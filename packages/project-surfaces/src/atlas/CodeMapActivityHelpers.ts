@@ -142,10 +142,12 @@ export function resolveSymbolForActivity(
   );
   if (localSymbols.length === 0) return undefined;
   if (activity.line) {
+    const safeLine = (line: number | undefined): number =>
+      typeof line === 'number' && Number.isFinite(line) ? line : 0;
     return (
       [...localSymbols]
-        .sort((left, right) => (right.line ?? 0) - (left.line ?? 0))
-        .find((node) => (node.line ?? 0) <= activity.line!) ?? localSymbols[0]
+        .sort((left, right) => safeLine(right.line) - safeLine(left.line))
+        .find((node) => safeLine(node.line) <= activity.line!) ?? localSymbols[0]
     );
   }
   const summary = activity.summary.toLocaleLowerCase();
