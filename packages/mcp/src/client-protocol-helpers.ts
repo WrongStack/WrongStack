@@ -22,7 +22,7 @@ export function validateProtocolString(
   label: string,
   allowEmpty = false,
 ): asserts value is string {
-  if (typeof value !== 'string' || (!allowEmpty && value.length === 0)) {
+  if (typeof value !== 'string' || (!allowEmpty && value.trim().length === 0)) {
     throw new Error(`MCP ${label} must be ${allowEmpty ? 'a string' : 'a non-empty string'}`);
   }
   if (value.length > MAX_PROTOCOL_INPUT_CHARS) {

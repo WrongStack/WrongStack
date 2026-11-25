@@ -15,6 +15,7 @@ export function stripBom(text: string): string {
 }
 
 export function stripInlineComment(line: string, marker = '#'): string {
+  if (marker.length === 0) return line;
   let quote: '"' | "'" | undefined;
   let escaped = false;
   for (let index = 0; index < line.length; index++) {

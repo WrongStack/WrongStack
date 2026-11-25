@@ -50,7 +50,12 @@ export function retireOlderDaemon(
     const timer = setTimeout(() => socket.destroy(), 25);
     timer.unref?.();
   }
-  const version = String(hello.runtimeVersion);
+  let version: string;
+  try {
+    version = String(hello.runtimeVersion);
+  } catch {
+    version = 'unknown';
+  }
   const pid =
     typeof hello.pid === 'number' && Number.isSafeInteger(hello.pid) && hello.pid > 0
       ? hello.pid

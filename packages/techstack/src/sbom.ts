@@ -91,12 +91,16 @@ export function toCycloneDX(snapshot: Snapshot): CycloneDXBom {
       timestamp: snapshot.createdAt,
       tools: [{ name: 'WrongStack TechStack Engine', version: snapshot.adapterVersion }],
     },
-    components: snapshot.dependencies.map((dep) => ({
-      type: 'library',
-      name: dep.name,
-      version: dep.locked ?? dep.installed ?? dep.requested,
-      ...(dep.purl ? { purl: dep.purl } : {}),
-      ...(dep.license ? { licenses: [{ license: { id: dep.license } }] } : {}),
-    })),
+    components: snapshot.dependencies.map((dep) => {
+      const purl = dep.purl?.trim();
+      const license = dep.license?.trim();
+      return {
+        type: 'library',
+        name: dep.name,
+        version: dep.locked ?? dep.installed ?? dep.requested,
+        ...(purl ? { purl } : {}),
+        ...(license ? { licenses: [{ license: { id: license } }] } : {}),
+      };
+    }),
   };
 }

@@ -216,7 +216,7 @@ export function isLoopbackHostname(rawHostname: string): boolean {
 }
 
 function isLoopbackAddress(address: string, family: number): boolean {
-  if (family === 4) return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(address);
+  if (family === 4) return net.isIPv4(address) && address.startsWith('127.');
   const lower = address.toLowerCase();
   if (lower === '::1' || lower === '0:0:0:0:0:0:0:1') return true;
   const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(lower);

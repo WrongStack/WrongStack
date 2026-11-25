@@ -21,7 +21,8 @@ export interface PublishAcpLiveProgressOpts {
 function toolName(title: string | undefined, kind: string | undefined): string {
   const t = title?.trim();
   if (t) return t;
-  return kind && kind.length > 0 ? kind : 'tool';
+  const k = kind?.trim();
+  return k && k.length > 0 ? k : 'tool';
 }
 
 export function publishAcpLiveProgress(opts: PublishAcpLiveProgressOpts): void {
@@ -102,7 +103,7 @@ export function publishAcpLiveProgress(opts: PublishAcpLiveProgressOpts): void {
       return;
     }
     case 'diff': {
-      const filePath = event.diff.path;
+      const filePath = event.diff.path?.trim();
       if (!filePath) return;
       hostEvents?.emit('file.activity', {
         filePath,

@@ -38,8 +38,11 @@ export function shouldReplaceOlderDaemon(
 }
 
 function releaseParts(version: string): [number, number, number] | undefined {
+  if (typeof version !== 'string') return undefined;
   const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version.trim());
-  return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : undefined;
+  if (!match) return undefined;
+  const parts: [number, number, number] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  return parts.every((n) => Number.isSafeInteger(n)) ? parts : undefined;
 }
 
 /** A release mismatch is advisory; wire compatibility is checked separately. */

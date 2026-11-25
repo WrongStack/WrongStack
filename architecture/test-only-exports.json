@@ -1078,6 +1078,9 @@
     "packages/kanban/src/verification/verification-report.ts": [
       "renderVerificationReportMarkdown"
     ],
+    "packages/mcp/src/client-lifecycle.ts": [
+      "notifyListeners"
+    ],
     "packages/mcp/src/registry-connect-loop.ts": [
       "discoverSlotCapabilities"
     ],

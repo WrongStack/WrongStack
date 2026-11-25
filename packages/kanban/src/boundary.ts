@@ -174,6 +174,7 @@ function warnIfBoundaryRulesInactive(policy: KanbanBoundaryPolicy): void {
 }
 
 export function normalizeBoundaryPath(value: string): string | null {
+  if (typeof value !== 'string') return null;
   const trimmed = value.trim().replace(/\\/g, '/');
   if (
     !trimmed ||

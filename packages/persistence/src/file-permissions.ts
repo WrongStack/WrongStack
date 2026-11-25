@@ -190,7 +190,7 @@ async function applyPermissions(
       // files warn — and the warning carries icacls's own error so operators
       // can act on it instead of guessing.
       if (await pathIsGone(targetPath)) return;
-      const reason = error instanceof Error ? error.message : String(error);
+      const reason = formatPermissionError(error);
       warn(
         `[${label}] Could not restrict permissions on ${targetPath} (${reason}) — it may be readable by other users on this system.`,
       );
@@ -206,11 +206,19 @@ async function applyPermissions(
       // as the Windows branch above — a path that vanished mid-hardening has
       // nothing left to protect, a live one gets the warning.
       if (await pathIsGone(targetPath)) return;
-      const reason = error instanceof Error ? error.message : String(error);
+      const reason = formatPermissionError(error);
       warn(
         `[${label}] Could not restrict permissions on ${targetPath} (${reason}) — it may be readable by other users on this system.`,
       );
     }
+  }
+}
+
+function formatPermissionError(error: unknown): string {
+  try {
+    return error instanceof Error ? error.message : String(error);
+  } catch {
+    return 'unknown error';
   }
 }
 

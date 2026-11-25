@@ -226,21 +226,24 @@ function shareStructuralAnchor(a: MemoryAnchor[], b: MemoryAnchor[]): boolean {
 
 function structuralAnchorKey(anchor: MemoryAnchor): string | undefined {
   if (anchor.type === 'command' && anchor.command) {
-    return `command:${anchor.command.normalize('NFKC').trim().toLowerCase()}`;
+    const cmd = anchor.command.normalize('NFKC').trim().toLowerCase();
+    return cmd ? `command:${cmd}` : undefined;
   }
   if (anchor.type === 'agent' && anchor.role) {
-    return `agent:${anchor.role.toLowerCase()}`;
+    const role = anchor.role.trim().toLowerCase();
+    return role ? `agent:${role}` : undefined;
   }
   if (anchor.type === 'symbol' && anchor.symbol) {
     const sym = anchor.symbol.trim().toLowerCase();
-    if (anchor.path) {
-      const p = normalizeSlashes(anchor.path).toLowerCase();
+    if (!sym) return undefined;
+    if (anchor.path?.trim()) {
+      const p = normalizeSlashes(anchor.path.trim()).toLowerCase();
       return `symbol:${p}#${sym}`;
     }
     return `symbol:${sym}`;
   }
-  if (anchor.path) {
-    const path = normalizeSlashes(anchor.path).toLowerCase();
+  if (anchor.path?.trim()) {
+    const path = normalizeSlashes(anchor.path.trim()).toLowerCase();
     return `${anchor.type}:${path}`;
   }
   return undefined;

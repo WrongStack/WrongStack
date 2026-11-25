@@ -76,7 +76,10 @@ export function gitConfigEnv(
 ): Record<string, string> {
   if (entries.length === 0) return {};
   const parsed = Number(baseEnv['GIT_CONFIG_COUNT'] ?? 0);
-  let n = Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 0;
+  let n =
+    Number.isSafeInteger(parsed) && parsed > 0 && parsed <= Number.MAX_SAFE_INTEGER - entries.length
+      ? parsed
+      : 0;
   const env: Record<string, string> = {};
   for (const [key, value] of entries) {
     env[`GIT_CONFIG_KEY_${n}`] = key;

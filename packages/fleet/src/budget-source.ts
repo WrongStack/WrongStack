@@ -19,7 +19,7 @@ interface ResolvedFleetBudget {
 function positiveInt(raw: unknown): number | undefined {
   if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
     const floored = Math.floor(raw);
-    return floored > 0 ? floored : undefined;
+    return Number.isSafeInteger(floored) && floored > 0 ? floored : undefined;
   }
   if (typeof raw === 'string' && raw.trim() !== '') {
     const value = raw.trim();

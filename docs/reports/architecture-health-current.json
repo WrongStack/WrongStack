@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T21:30:16.940Z",
+  "generatedAt": "2026-11-25T21:32:42.105Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6571,
-    "testFiles": 6393,
-    "sourceLines": 1348819,
+    "testFiles": 6417,
+    "sourceLines": 1348888,
     "workspaceEdges": 261,
     "moduleEdges": 19249,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 12,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1061
+    "testOnlyExports": 1062
   },
   "errors": [],
   "packageCycles": [],
@@ -161,7 +161,7 @@
       "name": "@wrongstack/browser-tools",
       "dir": "packages/browser-tools",
       "sourceFiles": 14,
-      "testFiles": 25,
+      "testFiles": 27,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -176,7 +176,7 @@
         {
           "path": "packages/browser-tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 25
+          "testFiles": 27
         }
       ]
     },
@@ -455,7 +455,7 @@
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
       "sourceFiles": 64,
-      "testFiles": 35,
+      "testFiles": 37,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -476,7 +476,7 @@
         {
           "path": "packages/fleet/tsconfig.test.json",
           "error": null,
-          "testFiles": 35
+          "testFiles": 37
         }
       ]
     },
@@ -484,7 +484,7 @@
       "name": "@wrongstack/goal",
       "dir": "packages/goal",
       "sourceFiles": 24,
-      "testFiles": 34,
+      "testFiles": 37,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -499,7 +499,7 @@
         {
           "path": "packages/goal/tsconfig.test.json",
           "error": null,
-          "testFiles": 34
+          "testFiles": 37
         }
       ]
     },
@@ -577,7 +577,7 @@
       "name": "@wrongstack/kanban",
       "dir": "packages/kanban",
       "sourceFiles": 108,
-      "testFiles": 127,
+      "testFiles": 129,
       "workspaceDependencies": [
         "@wrongstack/persistence",
         "@wrongstack/primitives"
@@ -591,7 +591,7 @@
         {
           "path": "packages/kanban/tsconfig.test.json",
           "error": null,
-          "testFiles": 127
+          "testFiles": 129
         }
       ]
     },
@@ -648,7 +648,7 @@
       "name": "@wrongstack/mcp",
       "dir": "packages/mcp",
       "sourceFiles": 76,
-      "testFiles": 125,
+      "testFiles": 127,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -662,7 +662,7 @@
         {
           "path": "packages/mcp/tsconfig.test.json",
           "error": null,
-          "testFiles": 125
+          "testFiles": 127
         }
       ]
     },
@@ -670,7 +670,7 @@
       "name": "@wrongstack/persistence",
       "dir": "packages/persistence",
       "sourceFiles": 10,
-      "testFiles": 28,
+      "testFiles": 30,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -681,7 +681,7 @@
         {
           "path": "packages/persistence/tsconfig.test.json",
           "error": null,
-          "testFiles": 28
+          "testFiles": 30
         }
       ]
     },
@@ -761,7 +761,7 @@
       "name": "@wrongstack/primitives",
       "dir": "packages/primitives",
       "sourceFiles": 27,
-      "testFiles": 50,
+      "testFiles": 55,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -772,7 +772,7 @@
         {
           "path": "packages/primitives/tsconfig.test.json",
           "error": null,
-          "testFiles": 50
+          "testFiles": 55
         }
       ]
     },
@@ -913,7 +913,7 @@
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
       "sourceFiles": 179,
-      "testFiles": 200,
+      "testFiles": 202,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -933,7 +933,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 200
+          "testFiles": 202
         }
       ]
     },
@@ -965,7 +965,7 @@
       "name": "@wrongstack/sdd",
       "dir": "packages/sdd",
       "sourceFiles": 45,
-      "testFiles": 64,
+      "testFiles": 65,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -984,7 +984,7 @@
         {
           "path": "packages/sdd/tsconfig.test.json",
           "error": null,
-          "testFiles": 64
+          "testFiles": 65
         }
       ]
     },
@@ -1014,7 +1014,7 @@
       "name": "@wrongstack/techstack",
       "dir": "packages/techstack",
       "sourceFiles": 55,
-      "testFiles": 70,
+      "testFiles": 72,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1030,7 +1030,7 @@
         {
           "path": "packages/techstack/tsconfig.test.json",
           "error": null,
-          "testFiles": 70
+          "testFiles": 72
         }
       ]
     },
@@ -1294,7 +1294,7 @@
       "name": "@wrongstack/worktree",
       "dir": "packages/worktree",
       "sourceFiles": 10,
-      "testFiles": 10,
+      "testFiles": 11,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -1308,7 +1308,7 @@
         {
           "path": "packages/worktree/tsconfig.test.json",
           "error": null,
-          "testFiles": 10
+          "testFiles": 11
         }
       ]
     },
@@ -4974,6 +4974,12 @@
         ]
       },
       {
+        "file": "packages/browser-tools/tests/browser-loopback-octet-spoof.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/browser-tools/tests/browser-manager-guard-regressions.test.ts",
         "projects": [
           "root-node"
@@ -5077,6 +5083,12 @@
       },
       {
         "file": "packages/browser-tools/tests/browser-tools.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-transient-origin-blank.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17196,6 +17208,18 @@
         ]
       },
       {
+        "file": "packages/fleet/tests/fleet-acp-progress-blank.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/fleet/tests/fleet-budget-unsafe-int.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/fleet/tests/fleet-quota-hold-nan-now.test.ts",
         "projects": [
           "root-node"
@@ -17370,6 +17394,12 @@
         ]
       },
       {
+        "file": "packages/goal/tests/goal-budget-nan-limit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/goal/tests/goal-budget.test.ts",
         "projects": [
           "root-node"
@@ -17406,6 +17436,12 @@
         ]
       },
       {
+        "file": "packages/goal/tests/goal-queries-cut-head-neg.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/goal/tests/goal-run-lifecycle.test.ts",
         "projects": [
           "root-node"
@@ -17437,6 +17473,12 @@
       },
       {
         "file": "packages/goal/tests/goal-runner.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/goal-verify-gate-nan-attempts.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19332,6 +19374,12 @@
         ]
       },
       {
+        "file": "packages/kanban/tests/kanban-boundary-nonstring-path.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/kanban-emitter-reentrant.test.ts",
         "projects": [
           "root-node"
@@ -19351,6 +19399,12 @@
       },
       {
         "file": "packages/kanban/tests/kanban-heartbeat-nan-expiry.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/kanban-mgmt-fence-blank-token.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20046,6 +20100,18 @@
         ]
       },
       {
+        "file": "packages/mcp/tests/mcp-notify-listeners-reentrant.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/mcp-protocol-blank-string.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/mcp/tests/mcp-reconnect-timeout-overflow.test.ts",
         "projects": [
           "root-node"
@@ -20731,6 +20797,18 @@
       },
       {
         "file": "packages/persistence/tests/persistence-100-coverage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/persistence/tests/persistence-file-perms-null-proto-err.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/persistence/tests/persistence-text-index-undef-id.test.ts",
         "projects": [
           "root-node"
         ]
@@ -22375,6 +22453,36 @@
       },
       {
         "file": "packages/primitives/tests/opaque-media-mime-boundary.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/primitives-fence-blank-tag.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/primitives-git-config-env-overflow.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/primitives-opaque-media-null-parent.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/primitives-retire-daemon-null-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/primitives-runtime-version-nonstring.test.ts",
         "projects": [
           "root-node"
         ]
@@ -25476,6 +25584,18 @@
         ]
       },
       {
+        "file": "packages/sage/tests/sage-service-registry-alias.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/sage-similarity-blank-anchor.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sage/tests/sage-validity-whitespace-path.test.ts",
         "projects": [
           "root-node"
@@ -26125,6 +26245,12 @@
       },
       {
         "file": "packages/sdd/tests/sdd-parallel-run.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sdd/tests/sdd-reassign-blank-agent.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26983,6 +27109,18 @@
       },
       {
         "file": "packages/techstack/tests/techstack-100-coverage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/techstack/tests/techstack-sbom-cyclonedx-blank.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/techstack/tests/techstack-strip-comment-empty-marker.test.ts",
         "projects": [
           "root-node"
         ]
@@ -39624,6 +39762,12 @@
         ]
       },
       {
+        "file": "packages/worktree/tests/worktree-list-blank-dir.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/worktree/tests/worktree-manager.test.ts",
         "projects": [
           "root-node"
@@ -43465,6 +43609,10 @@
     {
       "file": "packages/kanban/src/verification/verification-report.ts",
       "name": "renderVerificationReportMarkdown"
+    },
+    {
+      "file": "packages/mcp/src/client-lifecycle.ts",
+      "name": "notifyListeners"
     },
     {
       "file": "packages/mcp/src/registry-connect-loop.ts",

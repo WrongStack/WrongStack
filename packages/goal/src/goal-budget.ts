@@ -86,17 +86,22 @@ export function goalBudgetExceeded(
 ): string | undefined {
   if (
     budget?.maxTasks !== undefined &&
-    (!Number.isFinite(usage.tasks) || usage.tasks >= budget.maxTasks)
+    (!Number.isFinite(budget.maxTasks) ||
+      !Number.isFinite(usage.tasks) ||
+      usage.tasks >= budget.maxTasks)
   )
     return `Budget reached: ${usage.tasks} of ${budget.maxTasks} tasks started.`;
   if (
     budget?.maxMinutes !== undefined &&
-    (!Number.isFinite(usage.elapsedMs) || usage.elapsedMs >= budget.maxMinutes * 60_000)
+    (!Number.isFinite(budget.maxMinutes) ||
+      !Number.isFinite(usage.elapsedMs) ||
+      usage.elapsedMs >= budget.maxMinutes * 60_000)
   )
     return `Budget reached: ${Math.floor(usage.elapsedMs / 60_000)} of ${budget.maxMinutes} minutes of run time used.`;
   if (
     budget?.maxTokens !== undefined &&
-    ((usage.tokens !== undefined && !Number.isFinite(usage.tokens)) ||
+    (!Number.isFinite(budget.maxTokens) ||
+      (usage.tokens !== undefined && !Number.isFinite(usage.tokens)) ||
       (usage.tokens ?? 0) >= budget.maxTokens)
   )
     return `Budget reached: ${(usage.tokens ?? 0).toLocaleString('en-US')} of ${budget.maxTokens.toLocaleString('en-US')} provider tokens used.`;
@@ -107,6 +112,7 @@ export function goalBudgetExceeded(
     )
       return `Budget reached: the cost of ${usage.unpricedResponses} provider responses is unknown, so the $${budget.maxCostUsd} cost limit cannot be checked.`;
     if (
+      !Number.isFinite(budget.maxCostUsd) ||
       (usage.costUsd !== undefined && !Number.isFinite(usage.costUsd)) ||
       (usage.costUsd ?? 0) >= budget.maxCostUsd
     )

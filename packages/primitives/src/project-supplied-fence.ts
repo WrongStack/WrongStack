@@ -92,8 +92,12 @@ export function sanitizeProjectSuppliedBody(
   text: string,
   tag: string = PROJECT_SUPPLIED_TAG,
 ): string {
-  return text.replace(fenceDelimiter(tag), (_match, head: string, tail: string | undefined) =>
-    tail === undefined ? `(${head}` : `(${head}${tail.slice(0, -1)})`,
+  const effectiveTag =
+    typeof tag === 'string' && tag.trim().length > 0 ? tag.trim() : PROJECT_SUPPLIED_TAG;
+  return text.replace(
+    fenceDelimiter(effectiveTag),
+    (_match, head: string, tail: string | undefined) =>
+      tail === undefined ? `(${head}` : `(${head}${tail.slice(0, -1)})`,
   );
 }
 
@@ -141,7 +145,10 @@ export interface ProjectSuppliedBlockOptions {
  * section, heading included, rather than emitting an empty fence.
  */
 export function formatProjectSuppliedBlock(opts: ProjectSuppliedBlockOptions): string {
-  const tag = opts.tag ?? PROJECT_SUPPLIED_TAG;
+  const tag =
+    typeof opts.tag === 'string' && opts.tag.trim().length > 0
+      ? opts.tag.trim()
+      : PROJECT_SUPPLIED_TAG;
   const body = sanitizeProjectSuppliedBody(opts.body, tag).trim();
   if (body.length === 0) return '';
   const source = sanitizeProjectSuppliedSource(opts.source);

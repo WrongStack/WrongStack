@@ -66,6 +66,8 @@ export function assertManagementWrite(
   const lease = board.management?.lease;
   if (
     !lease ||
+    typeof lease.token !== 'string' ||
+    lease.token.trim().length === 0 ||
     lease.token !== context.expectedManagementToken ||
     typeof lease.expiresAt !== 'number' ||
     !Number.isFinite(lease.expiresAt) ||

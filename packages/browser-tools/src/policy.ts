@@ -116,7 +116,12 @@ export async function withTransientPrivateOrigin<T>(
 ): Promise<T> {
   const key = resolve(root);
   const parsed = parsePrivateOriginAllowlist(origin);
-  const canonicalOrigin = parsed.length === 1 ? parsed[0]! : origin.trim();
+  if (parsed.length !== 1 || !parsed[0]) {
+    throw new Error(
+      'Expected one HTTP(S) origin, for example http://localhost:3000, or "loopback" for every local port',
+    );
+  }
+  const canonicalOrigin = parsed[0];
   const live = browserPrivateOrigins(key);
   const counts = transientOrigins.get(key) ?? new Map<string, number>();
   transientOrigins.set(key, counts);

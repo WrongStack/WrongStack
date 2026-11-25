@@ -182,8 +182,10 @@ export function setIntegrationMetadata(
  * dropped whole rather than left as a lone surrogate.
  */
 export function keepTail(text: string, max: number): string {
-  if (text.length <= max) return text;
-  let from = text.length - max;
+  if (!Number.isFinite(max) || max <= 0) return '';
+  const limit = Math.trunc(max);
+  if (text.length <= limit) return text;
+  let from = text.length - limit;
   const firstKept = text.charCodeAt(from);
   if (firstKept >= 0xdc00 && firstKept <= 0xdfff) from += 1;
   return text.slice(from);
@@ -201,8 +203,10 @@ export function keepTail(text: string, max: number): string {
  * shipped raw `slice()` caps until this fix.
  */
 export function cutHead(text: string, max: number): string {
-  if (text.length <= max) return text;
-  let end = max;
+  if (!Number.isFinite(max) || max <= 0) return '';
+  const limit = Math.trunc(max);
+  if (text.length <= limit) return text;
+  let end = limit;
   const lastKept = text.charCodeAt(end - 1);
   if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1;
   return text.slice(0, end);

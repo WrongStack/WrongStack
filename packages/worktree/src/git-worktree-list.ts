@@ -53,7 +53,10 @@ function parseWorktreePorcelain(output: string, projectRoot: string): GitWorktre
   let mainRoot: string | undefined;
   for (const record of records) {
     const lines = record.split(/\r?\n/).filter(Boolean);
-    const dir = lines.find((l) => l.startsWith('worktree '))?.slice('worktree '.length);
+    const dir = lines
+      .find((l) => l.startsWith('worktree '))
+      ?.slice('worktree '.length)
+      .trim();
     if (!dir) continue;
     // The first record is always the main worktree.
     mainRoot ??= dir;

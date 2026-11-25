@@ -33,7 +33,8 @@ export function recordSageServiceBackend(
 
 /** The backend recorded for `projectRoot`, or `undefined` when none was chosen here. */
 export function sageServiceBackendFor(projectRoot: string): SageServiceBackendRecord | undefined {
-  return records.get(key(projectRoot));
+  const record = records.get(key(projectRoot));
+  return record ? { ...record } : undefined;
 }
 
 /** Test helper. */

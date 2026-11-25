@@ -10,7 +10,7 @@ export function notifyListeners<A extends unknown[]>(
   listeners: Iterable<(...args: A) => void>,
   ...args: A
 ): void {
-  for (const listener of listeners) {
+  for (const listener of [...listeners]) {
     try {
       listener(...args);
     } catch {

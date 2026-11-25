@@ -12,7 +12,9 @@ export function isOpaqueMediaStringField(
   key: string,
   value: unknown,
 ): value is string {
-  if (typeof value !== 'string' || value.length === 0) return false;
+  if (!parent || typeof parent !== 'object' || typeof value !== 'string' || value.length === 0) {
+    return false;
+  }
 
   if (key === 'data') {
     const sourceMediaType =

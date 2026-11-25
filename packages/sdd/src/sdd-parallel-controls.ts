@@ -77,8 +77,9 @@ export function reassignTask(
   taskId: string,
   agentName: string,
 ): boolean {
-  if (!host.opts.tracker.getNode(taskId)) return false;
-  host.opts.tracker.updateNode(taskId, { assignee: agentName });
+  const trimmed = typeof agentName === 'string' ? agentName.trim() : '';
+  if (!trimmed || !host.opts.tracker.getNode(taskId)) return false;
+  host.opts.tracker.updateNode(taskId, { assignee: trimmed });
   return true;
 }
 

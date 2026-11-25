@@ -11,7 +11,9 @@ export interface SqliteTextIndex {
 
 function identifiers(index: SqliteTextIndex): void {
   for (const value of [index.table, index.key, index.source, index.field, index.column]) {
-    if (!/^[a-z_][a-z_0-9]*$/i.test(value)) throw new Error('Invalid SQLite text index identifier');
+    if (typeof value !== 'string' || !/^[a-z_][a-z_0-9]*$/i.test(value)) {
+      throw new Error('Invalid SQLite text index identifier');
+    }
   }
 }
 

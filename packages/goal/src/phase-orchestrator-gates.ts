@@ -114,7 +114,14 @@ export async function runPhaseVerifyGate(
   if (!int.ctx.verifyPhase) return { ok: true };
   const env = worktreeEnv(int, phase);
 
-  for (let attempt = 0; attempt <= maxVerifyAttempts; attempt++) {
+  const maxAttempts =
+    typeof maxVerifyAttempts === 'number' &&
+    Number.isFinite(maxVerifyAttempts) &&
+    maxVerifyAttempts >= 0
+      ? Math.min(Math.trunc(maxVerifyAttempts), 100)
+      : 0;
+
+  for (let attempt = 0; attempt <= maxAttempts; attempt++) {
     if (isStopped()) return { ok: false, output: 'stopped before verification completed' };
 
     int.emit('phase.verifying', { phaseId: phase.id, name: phase.name, attempt });
@@ -136,7 +143,7 @@ export async function runPhaseVerifyGate(
     });
 
     // Out of attempts, no repair pass available, or aborted → give up.
-    if (attempt >= maxVerifyAttempts || !int.ctx.repairPhase || isStopped()) {
+    if (attempt >= maxAttempts || !int.ctx.repairPhase || isStopped()) {
       return { ok: false, output: verdict.output };
     }
 
