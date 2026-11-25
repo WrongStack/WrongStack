@@ -38,6 +38,8 @@ export interface UserInputRequest {
   title: string;
   description?: string | undefined;
   submitLabel?: string | undefined;
+  /** An explicit decline, distinct from dismissing or cancelling the form. */
+  declineLabel?: string | undefined;
   tabs: UserInputTab[];
 }
 
@@ -53,7 +55,7 @@ export interface UserInputAnswer {
 
 export interface UserInputResponse {
   requestId: string;
-  status: 'submitted' | 'cancelled';
+  status: 'submitted' | 'declined' | 'cancelled';
   answers: UserInputAnswer[];
 }
 

@@ -424,6 +424,35 @@ export interface ProviderContextLimit {
 export interface Provider {
   readonly id: string;
   readonly capabilities: Capabilities;
+  /** Resolve native image input for providers whose capabilities are scoped to a live conversation. */
+  supportsVisionFor?(model: string, sessionId: string): Promise<boolean>;
+  /** Commands advertised by the current external agent session. */
+  listNativeCommands?(
+    model: string,
+    sessionId: string,
+  ): Promise<import('./acp-runtime.js').AcpRuntimeCommand[]>;
+  /** Read or update the internal model settings of the current external agent session. */
+  configureNativeRuntime?(
+    model: string,
+    sessionId: string,
+    edit?: import('./acp-runtime.js').AcpRuntimeEdit,
+  ): Promise<import('./acp-runtime.js').AcpNativeRuntimeResult>;
+  /** Inspect or change the active external agent session's operating mode. */
+  configureNativeMode?(
+    model: string,
+    sessionId: string,
+    choice?: import('./acp-runtime.js').AcpNativeModeChoice,
+  ): Promise<import('./acp-runtime.js').AcpNativeModeSelector[]>;
+  /** The external agent's latest plans for the current conversation. */
+  listNativePlans?(
+    model: string,
+    sessionId: string,
+  ): Promise<import('./acp-runtime.js').AcpSessionPlan[]>;
+  /** Child sessions announced by the external agent for this conversation. */
+  listNativeChildren?(
+    model: string,
+    sessionId: string,
+  ): Promise<import('./acp-runtime.js').AcpChildSession[]>;
   /**
    * Resolve the tools this provider can send before prompt composition and
    * context accounting. Preserve array identity while the selection is unchanged.

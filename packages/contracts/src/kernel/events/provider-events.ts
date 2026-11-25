@@ -2,6 +2,7 @@ import type { ContentBlock } from '../../types/blocks.js';
 import type { ChroniclePromptManifest } from '../../types/chronicle-prompt-manifest.js';
 import type { AgentContext } from '../../types/context.js';
 import type { ProviderErrorBody, ProviderErrorKind, Usage } from '../../types/provider.js';
+import type { TodoItem } from '../../types/todo.js';
 
 export interface ProviderEventMap {
   /** Fired before every physical provider/model attempt, including attempt zero. */
@@ -84,6 +85,12 @@ export interface ProviderEventMap {
   };
   'provider.text_delta': { sessionId?: string | undefined; ctx: AgentContext; text: string };
   'provider.thinking_delta': { sessionId?: string | undefined; ctx: AgentContext; text: string };
+  'provider.todos_updated': {
+    sessionId: string;
+    ctx: AgentContext;
+    todos: TodoItem[];
+    revision: number;
+  };
   /**
    * Model output a provider measured but never streamed as text: an external
    * agent's tool-call steps (WrongForge leader). `tokens` were generated over

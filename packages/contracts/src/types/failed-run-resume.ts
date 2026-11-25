@@ -48,6 +48,7 @@ export function isResumableRunFailure(
  */
 export function failedRunResumeDelayMs(attempt: number, baseMs: number): number {
   const base = Number.isFinite(baseMs) && baseMs > 0 ? baseMs : 0;
+  if (base === 0) return 0;
   const step = failedRunResumeAttempt(attempt);
   return Math.min(MAX_FAILED_RUN_RESUME_DELAY_MS, base * 2 ** (step - 1));
 }

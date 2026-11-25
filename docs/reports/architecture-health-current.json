@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T15:18:40.511Z",
+  "generatedAt": "2026-11-25T15:24:51.302Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6556,
-    "testFiles": 5868,
-    "sourceLines": 1343481,
+    "testFiles": 5870,
+    "sourceLines": 1343572,
     "workspaceEdges": 261,
-    "moduleEdges": 19189,
+    "moduleEdges": 19198,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 2,
@@ -357,7 +357,7 @@
       "name": "@wrongstack/contracts",
       "dir": "packages/contracts",
       "sourceFiles": 133,
-      "testFiles": 10,
+      "testFiles": 12,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/primitives"
@@ -371,7 +371,7 @@
         {
           "path": "packages/contracts/tsconfig.test.json",
           "error": null,
-          "testFiles": 10
+          "testFiles": 12
         }
       ]
     },
@@ -10109,6 +10109,12 @@
         ]
       },
       {
+        "file": "packages/contracts/tests/failed-run-resume-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/contracts/tests/live-context-authored-length.test.ts",
         "projects": [
           "root-node"
@@ -10140,6 +10146,12 @@
       },
       {
         "file": "packages/contracts/tests/stream-activity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/contracts/tests/task-graph-progress-nan.test.ts",
         "projects": [
           "root-node"
         ]

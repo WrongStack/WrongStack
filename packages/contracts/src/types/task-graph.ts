@@ -95,7 +95,9 @@ export interface CriticalPathResult {
  * "all tasks completed" (the SDD executing phase announces it to the model).
  */
 export function completionPercent(completed: number, total: number): number {
-  if (total <= 0) return 0;
+  if (!Number.isFinite(total) || total <= 0 || !Number.isFinite(completed) || completed <= 0) {
+    return 0;
+  }
   if (completed >= total) return 100;
   return Math.min(99, Math.round((completed / total) * 100));
 }
@@ -130,8 +132,16 @@ export function computeTaskProgress(graph: TaskGraph): TaskProgress {
         review++;
         break;
     }
-    estimatedHours += n.estimateHours ?? 0;
-    actualHours += n.actualHours ?? 0;
+    if (
+      typeof n.estimateHours === 'number' &&
+      Number.isFinite(n.estimateHours) &&
+      n.estimateHours > 0
+    ) {
+      estimatedHours += n.estimateHours;
+    }
+    if (typeof n.actualHours === 'number' && Number.isFinite(n.actualHours) && n.actualHours > 0) {
+      actualHours += n.actualHours;
+    }
   }
   const total = graph.nodes.size;
 
