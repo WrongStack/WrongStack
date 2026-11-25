@@ -20,7 +20,7 @@ export function assertProjectAgentRole(role: string): string {
 }
 
 export function isProjectAgentRoleName(name: string): boolean {
-  return AGENT_ROLE_PATTERN.test(name) && name !== '.' && name !== '..';
+  return typeof name === 'string' && AGENT_ROLE_PATTERN.test(name) && name !== '.' && name !== '..';
 }
 
 export function agentsDir(projectRoot?: string): string {

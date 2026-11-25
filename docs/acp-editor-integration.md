@@ -179,6 +179,12 @@ work and `/acp` workers. Repeated turns in an ACP companion reuse its child
 session while the parent conversation is open. `session/load` restores child
 labels and recent output, without resending previous live tool activity.
 
+The model can call `delegate` inside an ACP session. Workers apply the
+editor session's permission policy after their own restrictions. This also
+covers permission requests sent by external ACP workers. If a background
+worker finishes after the turn ends, the editor can send another prompt to
+continue with its result.
+
 ### Session modes and permissions
 
 WrongStack offers a Session Mode selector in `configOptions`. Clients can

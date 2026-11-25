@@ -32,7 +32,16 @@ export function isJsonRpcError(v: unknown): v is JsonRpcError {
  * (~19/31 in the 2026-09 protocol matrix) instead of creating a session.
  */
 export function isAuthRequiredError(err: unknown): boolean {
-  const message = err instanceof Error ? err.message : String(err);
+  let message = '';
+  if (err instanceof Error) {
+    message = err.message;
+  } else {
+    try {
+      message = String(err);
+    } catch {
+      message = '';
+    }
+  }
   if (/auth(_|-)?required|authentication required/i.test(message)) return true;
   const cause =
     err instanceof ACPSessionError

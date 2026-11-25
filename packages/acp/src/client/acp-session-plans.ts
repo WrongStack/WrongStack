@@ -46,8 +46,10 @@ export function applyPlanUpdate(
     return typeof update.planId === 'string' && plans.delete(update.planId);
   }
   if (update.sessionUpdate !== 'plan_update' || !isRecord(update.plan)) return false;
-  const { planId, type, entries, content } = update.plan;
-  if (typeof planId !== 'string' || !planId || planId.length > 500) return false;
+  const { planId: rawPlanId, type, entries, content } = update.plan;
+  if (typeof rawPlanId !== 'string') return false;
+  const planId = rawPlanId.trim();
+  if (!planId || planId.length > 500) return false;
   if (!plans.has(planId) && plans.size >= MAX_PLANS) return false;
   if (type === 'items') {
     const parsed = readPlanEntries(entries);

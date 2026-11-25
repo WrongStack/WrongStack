@@ -57,8 +57,10 @@ export function recordProviderReportedMaxOutput(
   modelId: string | undefined,
   cap: number,
 ): boolean {
-  if (!providerId || !modelId || !Number.isSafeInteger(cap) || cap <= 0) return false;
-  const key = capKey(providerId, modelId);
+  const safeProvider = providerId?.trim();
+  const safeModel = modelId?.trim();
+  if (!safeProvider || !safeModel || !Number.isSafeInteger(cap) || cap <= 0) return false;
+  const key = capKey(safeProvider, safeModel);
   const known = reportedCaps.get(key);
   if (known !== undefined && known <= cap) return false;
   reportedCaps.set(key, cap);
@@ -70,8 +72,10 @@ export function providerReportedMaxOutput(
   providerId: string | undefined,
   modelId: string | undefined,
 ): number | undefined {
-  if (!providerId || !modelId) return undefined;
-  return reportedCaps.get(capKey(providerId, modelId));
+  const safeProvider = providerId?.trim();
+  const safeModel = modelId?.trim();
+  if (!safeProvider || !safeModel) return undefined;
+  return reportedCaps.get(capKey(safeProvider, safeModel));
 }
 
 /** Test seam: forget every reported cap. */

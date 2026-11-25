@@ -36,14 +36,19 @@ export function workspaceSnapshotFenceId(
 export function isWorkspaceSnapshotFenceDescriptorValid(
   snapshot: WorkspaceSnapshotFenceDescriptor,
 ): boolean {
+  if (!snapshot || typeof snapshot !== 'object') return false;
   return (
     snapshot.schemaVersion === WORKSPACE_SNAPSHOT_FENCE_SCHEMA_VERSION &&
+    typeof snapshot.snapshotId === 'string' &&
     /^[a-f0-9]{64}$/u.test(snapshot.snapshotId) &&
+    typeof snapshot.projectId === 'string' &&
     snapshot.projectId.trim().length > 0 &&
     snapshot.projectId.length <= 512 &&
     Number.isSafeInteger(snapshot.revision) &&
     snapshot.revision > 0 &&
+    typeof snapshot.manifestHash === 'string' &&
     /^[a-f0-9]{64}$/u.test(snapshot.manifestHash) &&
+    typeof snapshot.capturedAt === 'string' &&
     Number.isSafeInteger(Date.parse(snapshot.capturedAt)) &&
     workspaceSnapshotFenceId(
       snapshot.projectId,

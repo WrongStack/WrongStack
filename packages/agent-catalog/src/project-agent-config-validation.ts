@@ -111,7 +111,7 @@ export function validateProjectAgentConfig(value: unknown): ProjectAgentConfig {
       if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) {
         throw new Error(`Project agent budget "${field}" must be a finite non-negative number.`);
       }
-      if (field !== 'maxCostUsd' && !Number.isInteger(amount)) {
+      if (field !== 'maxCostUsd' && !Number.isSafeInteger(amount)) {
         throw new Error(`Project agent budget "${field}" must be an integer.`);
       }
     }

@@ -34,7 +34,9 @@ export function rejectPendingRequests(
   pending: Map<string | number, PendingRequest>,
   reason?: string,
 ): void {
-  for (const p of pending.values()) {
+  const entries = [...pending.values()];
+  pending.clear();
+  for (const p of entries) {
     clearTimeout(p.timeoutHandle);
     const message =
       reason === undefined
@@ -42,5 +44,4 @@ export function rejectPendingRequests(
         : `agent connection closed (${reason}) during ${p.method}`;
     p.reject(new ACPSessionError('closed', message));
   }
-  pending.clear();
 }

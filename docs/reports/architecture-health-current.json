@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T21:00:43.037Z",
+  "generatedAt": "2026-11-25T21:03:50.263Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6570,
-    "testFiles": 6326,
-    "sourceLines": 1348254,
+    "testFiles": 6335,
+    "sourceLines": 1348282,
     "workspaceEdges": 261,
     "moduleEdges": 19242,
     "nonCommandSlashImports": 0,
@@ -93,7 +93,7 @@
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
       "sourceFiles": 69,
-      "testFiles": 92,
+      "testFiles": 95,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -109,7 +109,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 92
+          "testFiles": 95
         }
       ]
     },
@@ -117,7 +117,7 @@
       "name": "@wrongstack/agent-catalog",
       "dir": "packages/agent-catalog",
       "sourceFiles": 44,
-      "testFiles": 19,
+      "testFiles": 21,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/persistence",
@@ -132,7 +132,7 @@
         {
           "path": "packages/agent-catalog/tsconfig.test.json",
           "error": null,
-          "testFiles": 19
+          "testFiles": 21
         }
       ]
     },
@@ -355,7 +355,7 @@
       "name": "@wrongstack/contracts",
       "dir": "packages/contracts",
       "sourceFiles": 133,
-      "testFiles": 14,
+      "testFiles": 15,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/primitives"
@@ -369,7 +369,7 @@
         {
           "path": "packages/contracts/tsconfig.test.json",
           "error": null,
-          "testFiles": 14
+          "testFiles": 15
         }
       ]
     },
@@ -507,7 +507,7 @@
       "name": "@wrongstack/governance",
       "dir": "packages/governance",
       "sourceFiles": 45,
-      "testFiles": 43,
+      "testFiles": 46,
       "workspaceDependencies": [
         "@wrongstack/persistence"
       ],
@@ -520,7 +520,7 @@
         {
           "path": "packages/governance/tsconfig.test.json",
           "error": null,
-          "testFiles": 43
+          "testFiles": 46
         }
       ]
     },
@@ -3858,6 +3858,12 @@
         ]
       },
       {
+        "file": "packages/acp/tests/acp-auth-err-null-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/acp-bench.test.ts",
         "projects": [
           "root-node"
@@ -3954,6 +3960,12 @@
         ]
       },
       {
+        "file": "packages/acp/tests/acp-plan-blank-id.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/acp-platform-key-boundary.test.ts",
         "projects": [
           "root-node"
@@ -3997,6 +4009,12 @@
       },
       {
         "file": "packages/acp/tests/acp-registry-metadata-boundary.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/acp/tests/acp-reject-pending-reentrant.test.ts",
         "projects": [
           "root-node"
         ]
@@ -4393,6 +4411,18 @@
       },
       {
         "file": "packages/agent-catalog/tests/acp-runtime-config.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/agent-catalog/tests/agent-catalog-role-name-undef.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/agent-catalog/tests/agent-catalog-unsafe-int-budget.test.ts",
         "projects": [
           "root-node"
         ]
@@ -10429,6 +10459,12 @@
       },
       {
         "file": "packages/contracts/tests/container-reentrant-decorate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/contracts/tests/contracts-output-caps-blank.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17365,6 +17401,24 @@
       },
       {
         "file": "packages/governance/tests/evidence-candidate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/governance/tests/gov-lease-secret-nonstring.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/governance/tests/gov-snapshot-fence-null.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/governance/tests/gov-transition-unknown-from.test.ts",
         "projects": [
           "root-node"
         ]

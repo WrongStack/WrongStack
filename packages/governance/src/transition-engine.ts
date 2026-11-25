@@ -151,7 +151,10 @@ export function decideTransition(proposal: TransitionProposal): TransitionDecisi
     );
   }
 
-  if (!LEGAL_TRANSITIONS[proposal.from].includes(proposal.to)) {
+  const allowedNext = Object.hasOwn(LEGAL_TRANSITIONS, proposal.from)
+    ? LEGAL_TRANSITIONS[proposal.from]
+    : undefined;
+  if (!allowedNext?.includes(proposal.to)) {
     return reject(
       'illegal_transition',
       `Transition ${proposal.from} -> ${proposal.to} is not legal.`,
