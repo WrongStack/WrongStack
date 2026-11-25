@@ -307,7 +307,11 @@ function buildProviderWithKey(
   const keyOptional =
     resolveProviderDefinition(factoryType)?.local !== undefined ||
     isKeylessLocalProvider({ apiBase: cfg.baseUrl ?? p.apiBase, envVars });
-  const apiKey = explicitApiKey ?? readFromEnv(envVars) ?? (keyOptional ? 'no-key' : undefined);
+  // A lease that lapsed between waitForLease and this build fails closed: no
+  // environment key and no keyless placeholder in its place.
+  const apiKey =
+    explicitApiKey ??
+    (awaitsLease(cfg) ? undefined : (readFromEnv(envVars) ?? (keyOptional ? 'no-key' : undefined)));
   if (!apiKey && family !== 'unsupported') {
     throw new ConfigError({
       message: `Provider "${id}" requires an API key. Set ${

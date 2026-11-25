@@ -9,6 +9,7 @@
  */
 import type { Config, ProviderConfig } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { setAccountQuotaReporting } from '../src/account-quota.js';
 import { resolveDiscoveryTargets } from '../src/auto-discover.js';
 import {
   isExternallyRenewed,
@@ -122,6 +123,40 @@ describe('lease resolution', () => {
   it('a lapsed lease resolves to nothing', () => {
     setLeasedCredentials(HQ, live(Date.now() - 1));
     expect(resolveActiveKey(leaseConfig())).toBeUndefined();
+  });
+
+  it('the post-turn quota read never falls back to the environment key once the lease lapses', async () => {
+    process.env[ENV] = 'sk-from-the-environment';
+    setAccountQuotaReporting(true);
+    const sent: Array<{ url: string; auth: string }> = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: unknown, init?: RequestInit) => {
+        sent.push({
+          url: String(url),
+          auth: new Headers(init?.headers).get('authorization') ?? '',
+        });
+        return new Response(JSON.stringify({ error: { message: 'stop here' } }), { status: 400 });
+      }),
+    );
+    try {
+      setLeasedCredentials(HQ, live());
+      const provider = makeProviderFromConfig(
+        'team',
+        leaseConfig({ quotaEndpoint: { url: 'https://llm.internal.example/quota', percent: 'p' } }),
+      );
+      setLeasedCredentials(HQ, []); // HQ withdrew the lease, or it ran out
+      await provider
+        .complete({ model: 'm', messages: [{ role: 'user', content: 'hi' }] } as never, {
+          signal: AbortSignal.timeout(5_000),
+        })
+        .catch(() => undefined);
+      await new Promise((resolve) => setTimeout(resolve, 50)); // the detached quota read
+      expect(sent.map((call) => call.auth)).not.toContain('Bearer sk-from-the-environment');
+    } finally {
+      setAccountQuotaReporting(false);
+      vi.unstubAllGlobals();
+    }
   });
 
   it('a leased OAuth account is never renewed by the refresh coordinator', () => {

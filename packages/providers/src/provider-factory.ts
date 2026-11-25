@@ -17,7 +17,13 @@ import {
   catalogProviderIdFor,
 } from './capabilities.js';
 import { OpenAICompatibleProvider } from './openai-compatible.js';
-import { buildProvider, readFromEnv, resolveActiveKey, validateQuirks } from './provider-build.js';
+import {
+  awaitsLease,
+  buildProvider,
+  readFromEnv,
+  resolveActiveKey,
+  validateQuirks,
+} from './provider-build.js';
 import { SubscriptionOAuthProvider } from './subscription-oauth.js';
 import { withCurrentPresetEndpoint } from './trusted-presets.js';
 import { withZaiAccountPlane, zaiWireContract } from './zai.js';
@@ -215,11 +221,15 @@ export function makeProvider(
     type: factoryType,
     baseUrl: cfg.baseUrl ?? p.apiBase,
     get apiKey() {
-      return provider instanceof SubscriptionOAuthProvider
-        ? provider.accountQuotaToken
-        : (resolveActiveKey(cfg) ??
-            readFromEnv(Array.isArray(cfg.envVars) ? cfg.envVars : p.envVars) ??
-            '');
+      if (provider instanceof SubscriptionOAuthProvider) return provider.accountQuotaToken;
+      // A memory-only HQ lease this process no longer holds reads nothing: the
+      // environment's key must never stand in for it at the profile's endpoint.
+      if (awaitsLease(cfg)) return '';
+      return (
+        resolveActiveKey(cfg) ??
+        readFromEnv(Array.isArray(cfg.envVars) ? cfg.envVars : p.envVars) ??
+        ''
+      );
     },
     managementToken: cfg.managementToken,
     quotaEndpoint: cfg.quotaEndpoint,
