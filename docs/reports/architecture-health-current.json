@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T20:40:57.428Z",
+  "generatedAt": "2026-11-25T20:43:09.872Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6566,
-    "testFiles": 6256,
-    "sourceLines": 1347290,
+    "sourceFiles": 6570,
+    "testFiles": 6257,
+    "sourceLines": 1348003,
     "workspaceEdges": 261,
-    "moduleEdges": 19230,
+    "moduleEdges": 19241,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -92,8 +92,8 @@
     {
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
-      "sourceFiles": 65,
-      "testFiles": 91,
+      "sourceFiles": 69,
+      "testFiles": 92,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -109,7 +109,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 91
+          "testFiles": 92
         }
       ]
     },
@@ -3871,6 +3871,12 @@
       },
       {
         "file": "packages/acp/tests/acp-child-sessions.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/acp/tests/acp-command-blank-runtext.test.ts",
         "projects": [
           "root-node"
         ]
@@ -39992,13 +39998,13 @@
   "hotspotCandidates": [
     {
       "file": "packages/acp/src/agent/protocol-session-management.ts",
-      "lines": 726,
-      "relativeImports": 2
+      "lines": 864,
+      "relativeImports": 3
     },
     {
       "file": "packages/acp/src/agent/server-agent-turn.ts",
-      "lines": 730,
-      "relativeImports": 4
+      "lines": 869,
+      "relativeImports": 7
     },
     {
       "file": "packages/acp/src/client/acp-session.ts",
@@ -40508,8 +40514,18 @@
       "relativeImports": 4
     },
     {
+      "file": "packages/acp/src/agent/server-agent-turn.ts",
+      "lines": 869,
+      "relativeImports": 7
+    },
+    {
       "file": "packages/runtime/src/chimera/execution-chimera-review.ts",
       "lines": 869,
+      "relativeImports": 3
+    },
+    {
+      "file": "packages/acp/src/agent/protocol-session-management.ts",
+      "lines": 864,
       "relativeImports": 3
     },
     {
@@ -40661,16 +40677,6 @@
       "file": "packages/vibeui/src/components/provider-manager.tsx",
       "lines": 740,
       "relativeImports": 7
-    },
-    {
-      "file": "packages/tools/src/bash-kill-guard.ts",
-      "lines": 739,
-      "relativeImports": 5
-    },
-    {
-      "file": "packages/core/src/execution/auto-compaction-middleware.ts",
-      "lines": 732,
-      "relativeImports": 19
     }
   ],
   "testOnlyExports": [

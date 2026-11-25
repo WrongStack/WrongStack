@@ -79,6 +79,162 @@ function makeHandler(opts: Partial<ProtocolHandlerOptions> = {}) {
 }
 
 describe('session config options built per session', () => {
+  it('drops the persisted YOLO+ choice when the new host offers only standard modes', async () => {
+    const mode = (currentValue: string, values: string[]): SessionConfigOption => ({
+      id: 'mode',
+      name: 'Mode',
+      category: 'mode',
+      type: 'select',
+      currentValue,
+      options: values.map((value) => ({ value, name: value })),
+    });
+    const standard = { id: 'default', name: 'Default', description: 'Ask' };
+    const plus = { id: 'yolo-plus', name: 'YOLO+', description: 'Host opted in' };
+    const store = memoryStore();
+    const first = makeHandler({
+      store,
+      modes: [plus, standard],
+      configOptions: [mode('yolo-plus', ['yolo-plus', 'default'])],
+    });
+    await first.call(1, 'initialize', { protocolVersion: 1 });
+    const { result } = await first.call(2, 'session/new', { cwd: CWD, mcpServers: [] });
+    const sessionId = result?.['sessionId'];
+    const second = makeHandler({
+      store,
+      modes: [standard],
+      configOptions: [mode('default', ['default'])],
+    });
+    await second.call(1, 'initialize', { protocolVersion: 1 });
+    const reopened = await second.call(2, 'session/load', { sessionId, cwd: CWD, mcpServers: [] });
+    expect(reopened.result?.['modes']).toMatchObject({
+      currentModeId: 'default',
+      availableModes: [standard],
+    });
+    expect(reopened.result?.['configOptions']).toEqual([mode('default', ['default'])]);
+    const rejected = await second.call(3, 'session/set_config_option', {
+      sessionId,
+      configId: 'mode',
+      value: 'yolo-plus',
+    });
+    expect(rejected.error?.code).toBe(-32602);
+  });
+  it('keeps the modern mode selector and legacy mode endpoint synchronized', async () => {
+    const seen: Array<string | undefined> = [];
+    const modes = [
+      { id: 'default', name: 'Default', description: 'Ask' },
+      { id: 'plan', name: 'Plan', description: 'Read only' },
+    ];
+    const { call, sent } = makeHandler({
+      modes,
+      configOptions: [
+        {
+          id: 'mode',
+          name: 'Session Mode',
+          category: 'mode',
+          type: 'select',
+          currentValue: 'default',
+          options: modes.map(({ id, name }) => ({ value: id, name })),
+        },
+      ],
+      sessionConfigOptions: async () => [modelOption()],
+      runTurn: async ({ modeId }) => {
+        seen.push(modeId);
+        return { stopReason: 'end_turn' };
+      },
+    });
+    await call(1, 'initialize', { protocolVersion: 1 });
+    const { result } = await call(2, 'session/new', { cwd: CWD, mcpServers: [] });
+    const sessionId = result?.['sessionId'];
+    await call(3, 'session/set_config_option', { sessionId, configId: 'mode', value: 'plan' });
+    await call(4, 'session/prompt', { sessionId, prompt: [{ type: 'text', text: 'hi' }] });
+    expect(seen).toEqual(['plan']);
+
+    await call(5, 'session/set_mode', { sessionId, modeId: 'default' });
+    expect(sent).toContainEqual(
+      expect.objectContaining({
+        method: 'session/update',
+        params: expect.objectContaining({
+          sessionId,
+          update: expect.objectContaining({
+            sessionUpdate: 'config_option_update',
+            configOptions: expect.arrayContaining([
+              expect.objectContaining({ id: 'mode', currentValue: 'default' }),
+            ]),
+          }),
+        }),
+      }),
+    );
+    await call(6, 'session/prompt', { sessionId, prompt: [{ type: 'text', text: 'hi' }] });
+    expect(seen).toEqual(['plan', 'default']);
+  });
+
+  it('keeps the committed selection when a picker refresh fails', async () => {
+    let modelUsed: unknown;
+    const { call } = makeHandler({
+      sessionConfigOptions: async (current) => {
+        if (current?.[0]?.currentValue === 'openai/gpt-y') throw Error('catalog offline');
+        return [modelOption()];
+      },
+      runTurn: async ({ configOptions }) => {
+        modelUsed = configOptions?.[0]?.currentValue;
+        return { stopReason: 'end_turn' };
+      },
+    });
+    await call(1, 'initialize', { protocolVersion: 1 });
+    const { result } = await call(2, 'session/new', { cwd: CWD, mcpServers: [] });
+    const sessionId = result?.['sessionId'];
+    const rejected = await call(3, 'session/set_config_option', {
+      sessionId,
+      configId: 'model',
+      value: 'openai/gpt-y',
+    });
+    expect(rejected.error?.code).toBe(-32603);
+    await call(4, 'session/prompt', { sessionId, prompt: [{ type: 'text', text: 'hi' }] });
+    expect(modelUsed).toBe('openai/gpt-x');
+  });
+
+  it('keeps pending model changes out of prompts and applies overlapping selections in order', async () => {
+    const started = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const seen: unknown[] = [];
+    const { call } = makeHandler({
+      sessionConfigOptions: async (current) => {
+        if (current?.[0]?.currentValue === 'openai/gpt-y') {
+          started.resolve();
+          await release.promise;
+        }
+        return [modelOption()];
+      },
+      runTurn: async ({ configOptions }) => {
+        seen.push(configOptions?.[0]?.currentValue);
+        return { stopReason: 'end_turn' };
+      },
+    });
+    await call(1, 'initialize', { protocolVersion: 1 });
+    const { result } = await call(2, 'session/new', { cwd: CWD, mcpServers: [] });
+    const sessionId = result?.['sessionId'];
+    const first = call(3, 'session/set_config_option', {
+      sessionId,
+      configId: 'model',
+      value: 'openai/gpt-y',
+    });
+    await started.promise;
+    const second = call(4, 'session/set_config_option', {
+      sessionId,
+      configId: 'model',
+      value: 'openrouter/a/b',
+    });
+    const prompt = { sessionId, prompt: [{ type: 'text', text: 'hi' }] };
+    try {
+      await call(5, 'session/prompt', prompt);
+      expect(seen).toEqual(['openai/gpt-x']);
+    } finally {
+      release.resolve();
+      await Promise.all([first, second]);
+    }
+    await call(6, 'session/prompt', prompt);
+    expect(seen).toEqual(['openai/gpt-x', 'openrouter/a/b']);
+  });
   it('appends the host options to session/new, after the static ones', async () => {
     const builder = vi.fn(async () => [modelOption()]);
     const { call } = makeHandler({

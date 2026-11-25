@@ -49,6 +49,7 @@
  * disposed, and a notice failure never reaches the event bus.
  */
 import type { Agent } from '@wrongstack/core/agent';
+import { formatPlan, loadPlan } from '@wrongstack/core/storage';
 import type { McpServer } from '../types/acp-v1.js';
 import type {
   RunTurn,
@@ -71,6 +72,9 @@ import {
   toolNameToKind,
   toolTitle,
 } from './server-agent-turn-content.js';
+import { acpAssistantText, makeAcpAssistantStream } from './server-assistant-text.js';
+import { observeChildSessions } from './server-child-sessions.js';
+import { clarifyInChat, clarifyViaAcp } from './server-clarify.js';
 export interface ACPServerAgentTurnOptions {
   /**
    * Factory that creates a fresh `Agent` for a given session.
@@ -194,6 +198,8 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
   const timeouts = new Map<string, ReturnType<typeof setTimeout>>();
   const history = new Map<string, SessionReplayUpdate[]>();
   const historyBytes = new Map<string, number>();
+  const todoSnapshots = new Map<string, string>();
+  const strategySnapshots = new Map<string, string>();
   // Sessions restored from a durable store whose freshly-created Agent must
   // be primed with the prior conversation before its first turn runs.
   const pendingSeed = new Set<string>();
@@ -202,6 +208,13 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
   const maxHistoryBytes = finitePositiveLimit(opts.maxHistoryBytes, 8 * 1024 * 1024);
   const deliveryNoticeDebounceMs = finiteNonNegativeLimit(opts.deliveryNoticeDebounceMs, 1_500);
   const notifiers = new Map<string, DeliveryNotifier>();
+  const childObservers = new Map<
+    string,
+    {
+      dispose: () => void;
+      publish: Parameters<RunTurn>[1];
+    }
+  >();
   // The turn in flight per session. dispose() drops it, so a turn can tell
   // its session was closed or deleted while it awaited the agent or the run.
   const liveTurns = new Map<string, symbol>();
@@ -325,8 +338,8 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
     const token = Symbol(input.sessionId);
     liveTurns.set(input.sessionId, token);
     const alive = (): boolean => liveTurns.get(input.sessionId) === token;
-    const emit: Parameters<RunTurn>[1] = (update) => {
-      if (alive()) publish(update);
+    const emit: Parameters<RunTurn>[1] = (update, childSessionId) => {
+      if (alive()) publish(update, childSessionId);
     };
     // Lazily create an agent for this session on the first turn.
     let agent = agents.get(input.sessionId);
@@ -359,6 +372,23 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
     if (opts.applyConfigOptions && input.configOptions && input.configOptions.length > 0) {
       await opts.applyConfigOptions(agent, input.configOptions, input.sessionId);
       if (!alive()) return { stopReason: 'cancelled' };
+    }
+    if (isRecord(api?.clientCapabilities?.subagents) && typeof agent.events?.on === 'function') {
+      let observer = childObservers.get(input.sessionId);
+      if (!observer) {
+        const state = { dispose: () => {}, publish: emit };
+        state.dispose = observeChildSessions(
+          agent.events,
+          (sessionId) => agentOwnsSession(agent, input.sessionId, sessionId),
+          (update, childId) => state.publish(update, childId),
+        );
+        childObservers.set(input.sessionId, state);
+        observer = state;
+      }
+      observer.publish = (update, childId) => {
+        if (alive()) emit(update, childId);
+        else void api?.sendSessionUpdate?.(update, childId).catch(() => {});
+      };
     }
 
     // This turn's loop injects every result queued so far, so any notice still
@@ -397,20 +427,66 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
     // ACP client so editors (Zed, JetBrains, …) render incremental output and
     // live tool cards instead of seeing a silent gap until the final text.
     const unsub: Array<() => void> = [];
+    const identifiedPlan = isRecord(api?.clientCapabilities?.plan);
+    let strategyUpdate = Promise.resolve();
+    const syncStrategy = () => {
+      const path = agent.ctx?.meta?.['plan.path'];
+      if (!identifiedPlan || typeof path !== 'string') return;
+      strategyUpdate = strategyUpdate
+        .then(async () => {
+          const plan = await loadPlan(path, undefined, { strict: true });
+          if (!alive() || turnAbort.signal.aborted) return;
+          const content = plan?.items.length ? formatPlan(plan) : '';
+          if (content === (strategySnapshots.get(input.sessionId) ?? '')) return;
+          if (content) {
+            strategySnapshots.set(input.sessionId, content);
+            emit({
+              sessionUpdate: 'plan_update',
+              plan: { type: 'markdown', planId: 'wrongstack-plan', content },
+            });
+          } else {
+            strategySnapshots.delete(input.sessionId);
+            emit({ sessionUpdate: 'plan_removed', planId: 'wrongstack-plan' });
+          }
+        })
+        .catch(() => {});
+    };
+    const syncTodos = () => {
+      const entries = (agent.ctx?.todos ?? []).map(({ content, status }) => ({
+        content,
+        status,
+        priority: 'medium' as const,
+      }));
+      const snapshot = JSON.stringify(entries);
+      const previous = todoSnapshots.get(input.sessionId);
+      if (snapshot === previous || (!previous && entries.length === 0)) return;
+      todoSnapshots.set(input.sessionId, snapshot);
+      if (!identifiedPlan) emit({ sessionUpdate: 'plan', entries });
+      else if (entries.length > 0) {
+        emit({
+          sessionUpdate: 'plan_update',
+          plan: { type: 'items', planId: 'wrongstack-todos', entries },
+        });
+      } else emit({ sessionUpdate: 'plan_removed', planId: 'wrongstack-todos' });
+    };
     let streamedInIteration = false;
+    const assistantStream = makeAcpAssistantStream((text) => {
+      streamedInIteration = true;
+      emit({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } });
+    });
     let liveUsage: { used: number; size: number } | null = null;
     // Real `Agent` always exposes `.events`; guard for Agent-like fakes.
     const bus = (agent as { events?: { on?: typeof agent.events.on } }).events;
     if (bus?.on) {
       unsub.push(
+        bus.on('iteration.completed', (e) => {
+          if (agentOwnsSession(agent, input.sessionId, e.sessionId)) syncTodos();
+        }),
+        bus.on('provider.todos_updated', (e) => {
+          if (agentOwnsSession(agent, input.sessionId, e.sessionId)) syncTodos();
+        }),
         bus.on('provider.text_delta', (e) => {
-          if (typeof e.text === 'string' && e.text.length > 0) {
-            streamedInIteration = true;
-            emit({
-              sessionUpdate: 'agent_message_chunk',
-              content: { type: 'text', text: e.text },
-            });
-          }
+          if (typeof e.text === 'string' && e.text.length > 0) assistantStream.push(e.text);
         }),
         bus.on('provider.thinking_delta', (e) => {
           if (typeof e.text === 'string' && e.text.length > 0) {
@@ -421,6 +497,7 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
           }
         }),
         bus.on('provider.response', (e) => {
+          if (!turnAbort.signal.aborted) assistantStream.flush();
           const u = e.usage;
           if (!u) return;
           const cacheWrite = u.cacheWrite ?? (u.cacheWrite5m ?? 0) + (u.cacheWrite1h ?? 0);
@@ -440,6 +517,7 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
           }
         }),
         bus.on('tool.started', (e) => {
+          if (!turnAbort.signal.aborted) assistantStream.flush();
           streamedInIteration = false;
           const locations = toolLocations(e.input, input.cwd);
           emit({
@@ -464,10 +542,20 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
                 }
               : {}),
           });
+          if (!e.sessionId || agentOwnsSession(agent, input.sessionId, e.sessionId)) syncTodos();
+          if (
+            e.name === 'plan' &&
+            e.ok &&
+            (!e.sessionId || agentOwnsSession(agent, input.sessionId, e.sessionId))
+          )
+            syncStrategy();
         }),
       );
     }
 
+    const agentContext = agent.ctx;
+    const previousUserInput = agentContext?.userInputAwaiter;
+    let clarification: string | undefined;
     try {
       const command = opts.runCommand
         ? await runPromptCommand(opts.runCommand, agent, input, {
@@ -494,17 +582,63 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
       const userInput = promptToAgentInput(
         command.kind === 'continue' ? command.prompt : input.prompt,
       );
-      const result = await agent.run(userInput, {
-        signal: turnAbort.signal,
-        inputOrigin: 'user',
-      });
+      if (agentContext) {
+        agentContext.userInputAwaiter = async (request, { signal }) => {
+          const formSignal = AbortSignal.any([signal, turnAbort.signal]);
+          if (api?.requestForm && !formSignal.aborted) {
+            const answer = await clarifyViaAcp(request, api.requestForm, formSignal).catch(
+              () => undefined,
+            );
+            if (answer) return answer;
+          }
+          if (!formSignal.aborted && alive()) {
+            clarification = clarifyInChat(request);
+            turnAbort.abort();
+          }
+          return { requestId: request.id, status: 'cancelled', answers: [] };
+        };
+      }
+      agent.ctx?.state?.setMeta?.('nextStepsMode', 'off');
+      syncTodos();
+      syncStrategy();
+      const result = await agent
+        .run(userInput, {
+          signal: turnAbort.signal,
+          inputOrigin: 'user',
+        })
+        .catch((error: unknown) => {
+          if (clarification === undefined) throw error;
+          return undefined;
+        });
       if (!alive()) return { stopReason: 'cancelled' };
+      await strategyUpdate;
+      if (!alive()) return { stopReason: 'cancelled' };
+      if (clarification !== undefined && !input.signal.aborted) {
+        const update = {
+          sessionUpdate: 'agent_message_chunk' as const,
+          content: { type: 'text' as const, text: clarification },
+        };
+        emit(update);
+        recordExchange(input.sessionId, promptToText(input.prompt), clarification);
+        seedAgentContext(agent, [update]);
+        return { stopReason: 'end_turn', text: clarification };
+      }
+      if (!turnAbort.signal.aborted && result?.error?.code === 'PROVIDER_AUTH_FAILED') {
+        throw Object.assign(
+          new Error('The provider rejected authentication. Run `wstack auth`, then reconnect.'),
+          { code: -32000 },
+        );
+      }
+      if (!turnAbort.signal.aborted) syncTodos();
+      if (!turnAbort.signal.aborted) assistantStream.flush();
 
       // Stream the agent's final text back unless it was already streamed
       // token-by-token via `provider.text_delta`. A failed run with no text
       // would otherwise reach the client as an empty, successful-looking
       // end_turn (#421), so its error becomes the visible reply.
-      const text = extractText(result) || (turnAbort.signal.aborted ? '' : extractRunError(result));
+      const text = acpAssistantText(
+        extractText(result) || (turnAbort.signal.aborted ? '' : extractRunError(result)),
+      );
       if (text && !streamedInIteration) {
         emit({
           sessionUpdate: 'agent_message_chunk',
@@ -550,6 +684,7 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
       if (usage) result_out.usage = usage;
       return result_out;
     } finally {
+      if (agentContext) agentContext.userInputAwaiter = previousUserInput;
       if (alive()) liveTurns.delete(input.sessionId);
       clearTimeout(timer);
       if (timeouts.get(input.sessionId) === timer) timeouts.delete(input.sessionId);
@@ -599,6 +734,10 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
 
   const dispose = (sessionId: string): void => {
     liveTurns.delete(sessionId);
+    todoSnapshots.delete(sessionId);
+    strategySnapshots.delete(sessionId);
+    childObservers.get(sessionId)?.dispose();
+    childObservers.delete(sessionId);
     const timer = timeouts.get(sessionId);
     if (timer) clearTimeout(timer);
     timeouts.delete(sessionId);

@@ -50,6 +50,7 @@ export interface WrongStackACPServerOptions {
   authGate?: ProtocolHandlerOptions['authGate'];
   /** Per-session config options; see `ProtocolHandlerOptions.sessionConfigOptions`. */
   sessionConfigOptions?: ProtocolHandlerOptions['sessionConfigOptions'];
+  configOptions?: ProtocolHandlerOptions['configOptions'];
   /** Slash commands per session; see `ProtocolHandlerOptions.sessionCommands`. */
   sessionCommands?: ProtocolHandlerOptions['sessionCommands'];
   /** Session modes; the first is the one a new session opens in. See `ProtocolHandlerOptions.modes`. */
@@ -115,11 +116,13 @@ export class WrongStackACPServer {
     const runTurn: RunTurn = opts.runTurn ?? defaultEchoRunTurn;
     this.handler = new ACPProtocolHandler({
       transport: this.transport,
+      duplex: typeof opts.transport !== 'number',
       defaultCwd: opts.defaultCwd ?? process.cwd(),
       runTurn,
       agentName: opts.agentName,
       ...(opts.agentVersion ? { agentVersion: opts.agentVersion } : {}),
       ...(opts.authGate ? { authGate: opts.authGate } : {}),
+      ...(opts.configOptions ? { configOptions: opts.configOptions } : {}),
       ...(opts.sessionConfigOptions ? { sessionConfigOptions: opts.sessionConfigOptions } : {}),
       ...(opts.sessionCommands ? { sessionCommands: opts.sessionCommands } : {}),
       ...(opts.modes ? { modes: opts.modes } : {}),

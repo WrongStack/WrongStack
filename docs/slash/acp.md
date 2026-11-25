@@ -120,9 +120,10 @@ finding"` to continue with the agent's original history. Use `/acp companion`
 to list the external sessions linked to the current WrongStack conversation
 and `/acp companion forget codex-cli` to remove a link. Companion turns use
 the same permission flow as inline `/acp` tasks. Follow-ups require the
-agent to support ACP resume or load. Links belong to the open WrongStack conversation.
-To revisit an external session after closing the conversation, use
-`/acp sessions` and `/acp continue`.
+agent to support ACP resume or load. WrongStack restores saved links when you
+reopen the same conversation. New conversations and forks start with their
+own links. Forgetting a link leaves the external agent's session available
+through `/acp sessions` and `/acp continue`.
 
 WrongStack's built-in Explore and Memory companions keep their own tools and
 budgets. With an ACP leader, configure a native model for the companion role

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-25T20:40:57.428Z
+**Generated:** 2026-11-25T20:43:09.872Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 51 |
-| Production source files | 6566 |
-| Production source lines | 1347290 |
-| Test files | 6256 |
+| Production source files | 6570 |
+| Production source lines | 1348003 |
+| Test files | 6257 |
 | Workspace dependency edges | 261 |
-| Relative module edges | 19230 |
+| Relative module edges | 19241 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -27,7 +27,7 @@ PASS — no blocking architecture-health errors.
 
 | Package | Sources | Tests | Workspace dependencies |
 |---|---:|---:|---|
-| @wrongstack/acp | 65 | 91 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
+| @wrongstack/acp | 69 | 92 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/agent-catalog | 44 | 19 | @wrongstack/contracts, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/bench | 33 | 68 | @wrongstack/core |
 | @wrongstack/browser-tools | 14 | 25 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
@@ -110,7 +110,9 @@ None.
 | 883 | `packages/builtin-plugins/src/review-followup-briefing.ts` |
 | 878 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
 | 872 | `packages/builtin-plugins/src/review-claim-registry.ts` |
+| 869 | `packages/acp/src/agent/server-agent-turn.ts` |
 | 869 | `packages/runtime/src/chimera/execution-chimera-review.ts` |
+| 864 | `packages/acp/src/agent/protocol-session-management.ts` |
 | 855 | `packages/plugins/src/adversary-mode/evaluator.ts` |
 | 853 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
 | 853 | `packages/tools/src/design-reference.ts` |
@@ -141,8 +143,6 @@ None.
 | 741 | `packages/builtin-plugins/src/auto-review-plugin.ts` |
 | 741 | `packages/project-surfaces/src/analytics/AnalyticsDashboard.tsx` |
 | 740 | `packages/vibeui/src/components/provider-manager.tsx` |
-| 739 | `packages/tools/src/bash-kill-guard.ts` |
-| 732 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 
 ## Exports only tests reference
 

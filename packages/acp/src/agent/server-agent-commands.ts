@@ -90,7 +90,7 @@ export async function runPromptCommand(
   if (message && !turn.signal.aborted) {
     turn.emit({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: message } });
   }
-  if (!result.runText || turn.signal.aborted) return { kind: 'done', message };
+  if (!result.runText?.trim() || turn.signal.aborted) return { kind: 'done', message };
   const prompt = input.prompt.slice();
   prompt[command.index] = { type: 'text', text: result.runText };
   return { kind: 'continue', prompt };

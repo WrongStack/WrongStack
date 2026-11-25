@@ -33,6 +33,7 @@ import {
 } from './protocol-session-management.js';
 import {
   buildInitializeResult,
+  CONFIG_AUTH_METHOD_ID,
   DEFAULT_MAX_SESSIONS,
   DEFAULT_MODES,
   errorToJsonRpc,
@@ -69,6 +70,7 @@ export class ACPProtocolHandler {
   private readonly sessionCommands: ProtocolHandlerOptions['sessionCommands'];
   private readonly agentVersion: string;
   private readonly authGate: (() => Promise<AuthGateResult>) | undefined;
+  private readonly duplex: boolean;
   private readonly agentName: string;
   private readonly replayFor:
     | ((sessionId: string) => Array<{ sessionUpdate: string; content: unknown }>)
@@ -81,6 +83,7 @@ export class ACPProtocolHandler {
   private readonly store: SessionPersistence | undefined;
 
   private initialized = false;
+  private loggedOut = false;
   private clientProtocolVersion: number | undefined;
   private clientCapabilities: ClientCapabilities = {};
   private readonly sessions = new Map<string, SessionState>();
@@ -112,6 +115,7 @@ export class ACPProtocolHandler {
     this.agentName = opts.agentName ?? 'wrongstack';
     this.agentVersion = opts.agentVersion?.trim() || WRONGSTACK_VERSION;
     this.authGate = opts.authGate;
+    this.duplex = opts.duplex !== false;
     this.replayFor = opts.replayFor;
     this.seedFor = opts.seedFor;
     this.disposeFor = opts.disposeFor;
@@ -130,16 +134,25 @@ export class ACPProtocolHandler {
    * server-initiated calls like `session/request_permission`. Rejects on
    * timeout or transport error so the caller can pick a safe fallback.
    */
-  private request(method: string, params: unknown, timeoutMs = 60_000): Promise<unknown> {
+  private request(
+    method: string,
+    params: unknown,
+    timeoutMs = 60_000,
+    turnSignal?: AbortSignal,
+  ): Promise<unknown> {
     const id = `srv_${this.nextOutId++}`;
     const sessionId = (params as { sessionId?: string } | null)?.sessionId;
     // `terminal/release` runs from `runTerminal`'s `finally` block after a turn
     // is cancelled to kill the client-side process; binding it to the already-
     // aborted turn signal would fail closed before the release reaches the wire.
-    const signal =
+    const sessionSignal =
       method !== 'terminal/release' && sessionId
         ? this.sessions.get(sessionId)?.abort.signal
         : undefined;
+    const signal =
+      sessionSignal && turnSignal
+        ? AbortSignal.any([sessionSignal, turnSignal])
+        : (turnSignal ?? sessionSignal);
     return new Promise<unknown>((resolve, reject) => {
       const cleanup = (): void => {
         clearTimeout(timer);
@@ -157,7 +170,8 @@ export class ACPProtocolHandler {
           .catch(() => {});
       };
       const timer = setTimeout(() => {
-        fail(new Error(`${method} timed out after ${timeoutMs}ms`));
+        if (method === 'elicitation/create') abort();
+        else fail(new Error(`${method} timed out after ${timeoutMs}ms`));
       }, timeoutMs);
       if (signal?.aborted) {
         fail(new Error('client request cancelled'));
@@ -266,9 +280,16 @@ export class ACPProtocolHandler {
       sendNotification: (params) => this.sendNotification(params),
       sendError: (id, code, message, data) => this.sendError(id, code, message, data),
       sendResult: (id, result) => this.sendResult(id, result),
-      request: (method, params, timeoutMs) => this.request(method, params, timeoutMs),
+      request: (method, params, timeoutMs, signal) =>
+        this.request(method, params, timeoutMs, signal),
       runTurn: this.runTurn,
-      clientCapabilities: this.clientCapabilities,
+      clientCapabilities: this.duplex
+        ? this.clientCapabilities
+        : {
+            ...this.clientCapabilities,
+            elicitation: undefined,
+            subagents: undefined,
+          },
     };
   }
 
@@ -308,6 +329,7 @@ export class ACPProtocolHandler {
         case 'session/delete':
           return await this.handleSessionDelete(id, params);
         case 'session/prompt': {
+          if (this.loggedOut && !(await this.passAuthGate(id))) return false;
           const sessionId = (params as { sessionId?: unknown } | null)?.sessionId;
           const tracked =
             typeof sessionId === 'string' &&
@@ -365,16 +387,30 @@ export class ACPProtocolHandler {
     void this.clientProtocolVersion;
     await this.sendResult(
       id,
-      buildInitializeResult(this.agentName, this.agentVersion, this.clientCapabilities),
+      buildInitializeResult(
+        this.agentName,
+        this.agentVersion,
+        this.clientCapabilities,
+        this.duplex && !!this.authGate,
+      ),
     );
     return false;
   }
 
-  private async handleAuthenticate(id: string | number, _params: unknown): Promise<boolean> {
+  private async handleAuthenticate(id: string | number, params: unknown): Promise<boolean> {
+    if ((params as { methodId?: unknown } | null)?.methodId !== CONFIG_AUTH_METHOD_ID) {
+      await this.sendError(
+        id,
+        ACP_ERROR.INVALID_PARAMS,
+        'Select an advertised protocol login method.',
+      );
+      return false;
+    }
     // Credentials are the host's `wstack auth` provider config. Re-check them
     // instead of answering success unconditionally: a blind `{}` followed by
     // `auth_required` on session/new would loop an editor between the two.
-    if (!(await this.passAuthGate(id))) return false;
+    if (!(await this.passAuthGate(id, true))) return false;
+    this.loggedOut = false;
     await this.sendResult(id, {});
     return false;
   }
@@ -383,7 +419,11 @@ export class ACPProtocolHandler {
    * Answer `auth_required` and return false while the host cannot run turns.
    * A gate that throws counts as not ready, with its message.
    */
-  private async passAuthGate(id: string | number): Promise<boolean> {
+  private async passAuthGate(id: string | number, authenticate = false): Promise<boolean> {
+    if (this.loggedOut && !authenticate) {
+      await this.sendError(id, ACP_ERROR.AUTH_REQUIRED, 'Authentication required. Sign in again.');
+      return false;
+    }
     if (!this.authGate) return true;
     let result: AuthGateResult;
     try {
@@ -406,6 +446,11 @@ export class ACPProtocolHandler {
   }
 
   private async handleLogout(id: string | number, _params: unknown): Promise<boolean> {
+    if (this.duplex && this.authGate) {
+      this.loggedOut = true;
+      await this.sendResult(id, {});
+      return false;
+    }
     await this.sendError(
       id,
       -32601,

@@ -30,10 +30,12 @@ which editors turn into a login prompt:
 | Method id | Type | What the editor does |
 |---|---|---|
 | `wrongstack-auth` | `terminal` | Offered when the client announces `auth.terminal` (or the legacy `_meta["terminal-auth"]`). The editor relaunches the agent with `auth` appended (`wstack acp auth`) in a terminal, then reconnects. |
-| `wrongstack-config` | `agent` (default) | Always offered. `authenticate` re-reads the saved configuration and succeeds once `wstack auth` has configured a provider anywhere. |
+| `wrongstack-config` | `agent` (default) | Always offered. `authenticate` succeeds when the configured provider initializes. |
 
-The configuration is re-read on each of those requests, so a login finished in
-another terminal takes effect without restarting the agent.
+Until provider initialization succeeds, the server retries with updated
+settings. A login finished in another terminal can take effect without a
+restart. On stdio and WebSocket, `logout` signs out the ACP connection and
+requires `authenticate` again before a new turn or session.
 
 `wstack acp --echo` answers the protocol but runs a no-op turn — use it to
 confirm an editor can *connect and handshake* before involving a model.
@@ -153,11 +155,35 @@ as by you, so nothing that writes your settings or files runs unasked. A
 command's exchange stays in the conversation: it is replayed on load and the
 model sees it on the next turn.
 
+Hunt commands, the performance commands and the prompt library use the same
+bundled dataset as the terminal. The ACP agent also exposes the `skill` tool
+when skills are enabled. Command aliases such as `/ratchet` and `/checkup`
+use the same permission rules as their canonical commands.
+
+Use the editor's session controls for ACP conversations. `/tree` uses the
+local WrongStack journal, and `/panel` requires the WrongStack plugin UI.
+ACP companion links in the editor are scoped to the open ACP session.
+
+ACP streams assistant replies as standard text. Todo changes are sent live as
+a checklist. Clients that advertise `plan` also receive the session's saved
+plan as a separate Markdown document. Follow-up suggestions are disabled in
+ACP sessions.
+
+On duplex transports, `clarify` opens a form when the client advertises
+`elicitation.form`. Otherwise the question is sent in chat and the turn ends
+so the user can reply in the next prompt. Form answers stay separate from
+tool permissions, including in YOLO modes.
+
+Clients that advertise `subagents` receive live child sessions for delegated
+work and `/acp` workers. Repeated turns in an ACP companion reuse its child
+session while the parent conversation is open. `session/load` restores child
+labels and recent output, without resending previous live tool activity.
+
 ### Session modes and permissions
 
-Every session offers four modes through standard `session/set_mode`
-(`modes.availableModes` in the `session/new` / `session/load` result, and a
-`current_mode_update` whenever the mode changes):
+WrongStack offers a Session Mode selector in `configOptions`. Clients can
+change it with `session/set_config_option`. Clients that use
+`modes.availableModes` and `session/set_mode` see the same current mode.
 
 | Mode id | Name | Gated tool calls |
 | --- | --- | --- |
@@ -165,13 +191,17 @@ Every session offers four modes through standard `session/set_mode`
 | `plan` | Plan | Read-only: refuses writes and commands without asking. |
 | `auto-edit` | Auto-edit | Edits project files unasked; asks before shell commands and destructive actions. |
 | `yolo` | YOLO | Acts unasked, like `wstack --yolo`; still asks before the destructive kinds and calls your deny rules forbid. |
+| `yolo-plus` | YOLO+ | Uses the host's YOLO+ policy. Explicit deny rules still apply. |
 
 `auto-edit` and `yolo` use the same project policy as `wstack --yolo` (trust and
 directory deny rules, `autonomy.yoloConfirm`, the locked destructive kinds), so
 whatever that policy would still confirm comes to the editor as a permission
 request. A mode changed during a turn applies to the turn's next tool call.
-`wstack acp serve --yolo` or `--mode <id>` picks the mode new sessions start in;
-a loaded session keeps its saved mode while it is still offered.
+`wstack acp serve --yolo` or `--mode <id>` picks the mode new sessions start
+in. YOLO+ is offered only when the host explicitly starts the process with
+`--yolo-plus` or `--mode yolo-plus`. The profile's YOLO+ preference does not
+upgrade a plain YOLO session. A loaded session keeps its saved mode while it
+is still offered.
 
 Every permission request offers `allow_once`, `allow_always`, `reject_once` and
 `reject_always`. "Always" lasts for the session and covers the tool, named in

@@ -31,8 +31,9 @@ const TERMINAL_AUTH_METHOD = {
  * configuration (written by `wstack auth`) and succeeds once a model is
  * configured. The ACP registry lists only agents that advertise a method.
  */
+export const CONFIG_AUTH_METHOD_ID = 'wrongstack-config';
 const CONFIG_AUTH_METHOD = {
-  id: 'wrongstack-config',
+  id: CONFIG_AUTH_METHOD_ID,
   name: 'Use WrongStack provider settings',
   description:
     'Uses the provider configured with `wstack auth`. Run it in a terminal first if none is set up.',
@@ -83,13 +84,15 @@ export async function openSessionConfigOptions(
     sessionConfigOptions?: ProtocolHandlerOptions['sessionConfigOptions'];
   },
   persisted?: readonly SessionConfigOption[] | undefined,
+  strict = false,
 ): Promise<SessionConfigOption[]> {
   if (!ctx.sessionConfigOptions) return structuredClone([...(persisted ?? ctx.configOptions)]);
   let dynamic: readonly SessionConfigOption[] = [];
   try {
     dynamic = await ctx.sessionConfigOptions(persisted);
-  } catch {
+  } catch (error) {
     // A picker that cannot be built must not keep the session from opening.
+    if (strict) throw error;
   }
   const fresh = structuredClone([...ctx.configOptions, ...dynamic]);
   for (const option of fresh) {
@@ -271,12 +274,22 @@ export function errorToJsonRpc(err: unknown): { code: number; message: string; d
 export function createRunTurnApi(
   sessionId: string,
   clientCapabilities: ClientCapabilities,
-  request: (method: string, params: unknown) => Promise<unknown>,
-  sendSessionUpdate?: (update: unknown) => Promise<boolean>,
+  request: (method: string, params: unknown, signal?: AbortSignal) => Promise<unknown>,
+  sendSessionUpdate?: RunTurnApi['sendSessionUpdate'],
   currentModeId?: () => string | undefined,
 ): RunTurnApi {
   return {
     clientCapabilities,
+    ...(clientCapabilities.elicitation?.form &&
+    typeof clientCapabilities.elicitation.form === 'object' &&
+    !Array.isArray(clientCapabilities.elicitation.form)
+      ? {
+          requestForm: (
+            params: { message: string; requestedSchema: Record<string, unknown> },
+            signal: AbortSignal,
+          ) => request('elicitation/create', { sessionId, mode: 'form', ...params }, signal),
+        }
+      : {}),
     ...(currentModeId ? { currentModeId } : {}),
     requestPermission: async (req) => {
       const res = await request('session/request_permission', {
@@ -333,12 +346,14 @@ export function buildInitializeResult(
   agentName: string,
   agentVersion: string,
   clientCapabilities: ClientCapabilities = {},
+  logout = false,
 ) {
   // Modes and config options are per-session; they travel in the session
   // responses, and InitializeResponse has no field for them.
   return {
     protocolVersion: ACP_PROTOCOL_VERSION,
     agentCapabilities: {
+      ...(logout ? { auth: { logout: {} } } : {}),
       loadSession: true,
       promptCapabilities: {
         image: true,

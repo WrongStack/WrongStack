@@ -485,11 +485,53 @@ describe('ACPProtocolHandler', () => {
   });
 
   describe('authenticate', () => {
+    it('signs out this connection and requires protocol login again', async () => {
+      const { handler, transport } = makeHandler({ authGate: async () => ({ ok: true }) });
+      await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
+      expect(transport.sent[0]).toMatchObject({
+        result: { agentCapabilities: { auth: { logout: {} } } },
+      });
+      await handler.handleMessage({ id: 2, method: 'logout', params: {} });
+      expect(transport.sent.at(-1)).toMatchObject({ id: 2, result: {} });
+      await handler.handleMessage({ id: 3, method: 'session/new', params: { cwd: CWD_PROJ } });
+      expect(transport.sent.at(-1)).toMatchObject({ id: 3, error: { code: -32000 } });
+      await handler.handleMessage({
+        id: 4,
+        method: 'authenticate',
+        params: { methodId: 'wrongstack-config' },
+      });
+      await handler.handleMessage({ id: 5, method: 'session/new', params: { cwd: CWD_PROJ } });
+      expect(transport.sent.at(-1)).toMatchObject({
+        id: 5,
+        result: { sessionId: expect.any(String) },
+      });
+      handler.close();
+    });
+    it.each([{}, { methodId: 'unknown' }, { methodId: 'wrongstack-auth' }])(
+      'rejects a method that cannot be used for protocol login (%j)',
+      async (params) => {
+        const authGate = vi.fn(async () => ({ ok: true as const }));
+        const { handler, transport } = makeHandler({ authGate });
+        await handler.handleMessage({
+          id: 1,
+          method: 'initialize',
+          params: { protocolVersion: 1, clientCapabilities: { auth: { terminal: true } } },
+        });
+        await handler.handleMessage({ id: 2, method: 'authenticate', params });
+        expect(transport.sent.at(-1)).toMatchObject({ id: 2, error: { code: -32602 } });
+        expect(authGate).not.toHaveBeenCalled();
+      },
+    );
+
     it('returns success so editors can proceed to session/new', async () => {
       const { handler, transport } = makeHandler();
       await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
       transport.sent.length = 0; // clear the initialize response
-      await handler.handleMessage({ id: 2, method: 'authenticate', params: {} });
+      await handler.handleMessage({
+        id: 2,
+        method: 'authenticate',
+        params: { methodId: 'wrongstack-config' },
+      });
       const resp = transport.sent[0] as { result?: unknown };
       expect(resp.result).toEqual({});
     });
@@ -505,7 +547,11 @@ describe('ACPProtocolHandler', () => {
       await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
       transport.sent.length = 0;
 
-      await handler.handleMessage({ id: 2, method: 'authenticate', params: { methodId: 'x' } });
+      await handler.handleMessage({
+        id: 2,
+        method: 'authenticate',
+        params: { methodId: 'wrongstack-config' },
+      });
       await handler.handleMessage({ id: 3, method: 'session/new', params: { cwd: CWD_PROJ } });
       await handler.handleMessage({
         id: 4,
@@ -530,7 +576,11 @@ describe('ACPProtocolHandler', () => {
 
       configured = true;
       transport.sent.length = 0;
-      await handler.handleMessage({ id: 6, method: 'authenticate', params: { methodId: 'x' } });
+      await handler.handleMessage({
+        id: 6,
+        method: 'authenticate',
+        params: { methodId: 'wrongstack-config' },
+      });
       await handler.handleMessage({ id: 7, method: 'session/new', params: { cwd: CWD_PROJ } });
       expect(transport.sent[0]).toMatchObject({ id: 6, result: {} });
       expect(transport.sent[1]).toMatchObject({

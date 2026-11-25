@@ -9,6 +9,7 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import { isSafePathSegment, resolveContainedPath, withFileLock } from '@wrongstack/core/utils';
+import { readChildHistory } from './protocol-child-history.js';
 import type { McpServer, SessionConfigOption } from './protocol-contract.js';
 import type { SessionState } from './protocol-handler.js';
 
@@ -218,6 +219,8 @@ function parsePersistedSession(raw: string): PersistedSession | null {
     if (!isPersistedHistory(history)) return null;
     session.history = history;
   }
+  const childHistory = readChildHistory(parsed['childHistory'], session.id ?? '');
+  if (childHistory.length) session.childHistory = childHistory;
   return session;
 }
 
@@ -346,6 +349,7 @@ export class ACPSessionStore {
             : {}),
           ...(state.systemPrompt ? { systemPrompt: state.systemPrompt } : {}),
           ...(history && history.length > 0 ? { history } : {}),
+          ...(state.childHistory?.length ? { childHistory: state.childHistory } : {}),
         });
         try {
           await fsp.writeFile(tmp, data, 'utf8');

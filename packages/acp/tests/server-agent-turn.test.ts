@@ -13,6 +13,8 @@
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { TodoItem, UserInputAwaiter } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
 import { describe, expect, it, vi } from 'vitest';
 import { ACPProtocolHandler } from '../src/agent/protocol-handler.js';
@@ -30,6 +32,424 @@ import type { AgentServerTransport } from '../src/agent/stdio-transport.js';
 // D:\test on some Windows hosts) and failed on Linux CI. process.cwd() is
 // the workspace root — absolute and always present on every platform.
 const ACP_TEST_CWD = process.cwd();
+
+describe('ACP editor session features', () => {
+  it('replays child output after a restart without replaying old live state', async () => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-acp-child-replay-'));
+    const transport = fakeTransport();
+    const opts = { defaultCwd: ACP_TEST_CWD, store: new ACPSessionStore({ dir }) };
+    const source = new ACPProtocolHandler({
+      ...opts,
+      transport: transport as never,
+      runTurn: async (_input, emit) => {
+        emit({
+          sessionUpdate: 'subagent_update',
+          sessionId: 'child',
+          title: 'Reviewer',
+          state: { state: 'running' },
+        });
+        emit(
+          { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Reviewed' } },
+          'child',
+        );
+        return { stopReason: 'end_turn' };
+      },
+    });
+    const receiver = new ACPProtocolHandler({
+      ...opts,
+      transport: transport as never,
+      runTurn: async () => ({ stopReason: 'end_turn' }),
+    });
+    const init = {
+      id: 1,
+      method: 'initialize',
+      params: { protocolVersion: 1, clientCapabilities: { subagents: {} } },
+    };
+    try {
+      await source.handleMessage(init);
+      await source.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
+      const sessionId = (
+        transport.sent.find((item) => (item as { id?: number }).id === 2) as {
+          result: { sessionId: string };
+        }
+      ).result.sessionId;
+      await source.handleMessage({
+        id: 3,
+        method: 'session/prompt',
+        params: { sessionId, prompt: [{ type: 'text', text: 'Review' }] },
+      });
+      source.close();
+      transport.sent.length = 0;
+      await receiver.handleMessage(init);
+      await receiver.handleMessage({
+        id: 4,
+        method: 'session/load',
+        params: { sessionId, cwd: ACP_TEST_CWD, mcpServers: [] },
+      });
+      const announce = transport.sent.find(
+        (item) =>
+          (item as { params?: { update?: { sessionUpdate?: string } } }).params?.update
+            ?.sessionUpdate === 'subagent_update',
+      );
+      expect(announce).toMatchObject({
+        params: { sessionId, update: { sessionId: 'child', title: 'Reviewer' } },
+      });
+      expect(announce).not.toHaveProperty('params.update.state');
+      expect(transport.sent.slice(transport.sent.indexOf(announce) + 1)).toContainEqual(
+        expect.objectContaining({
+          params: {
+            sessionId: 'child',
+            update: {
+              sessionUpdate: 'agent_message_chunk',
+              content: { type: 'text', text: 'Reviewed' },
+            },
+          },
+        }),
+      );
+    } finally {
+      source.close();
+      receiver.close();
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  });
+  it('publishes the saved strategy separately from the todo checklist', async () => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-acp-plan-'));
+    const file = path.join(dir, 'session.plan.json');
+    const updates: unknown[] = [];
+    const turn = makeACPServerAgentTurn({
+      agentFor: async () =>
+        ({
+          ctx: {
+            meta: { 'plan.path': file },
+            todos: [{ id: 'test', content: 'Run tests', status: 'pending' }],
+          },
+          run: async () => ({ status: 'done', finalText: 'Done.' }),
+        }) as never as Agent,
+    });
+    try {
+      const date = new Date().toISOString();
+      await fsp.writeFile(
+        file,
+        JSON.stringify({
+          version: 1,
+          sessionId: 'plan',
+          updatedAt: date,
+          items: [
+            {
+              id: 'strategy',
+              title: 'Define rollout',
+              status: 'open',
+              createdAt: date,
+              updatedAt: date,
+            },
+          ],
+        }),
+      );
+      await turn(
+        {
+          sessionId: 'plan',
+          signal: new AbortController().signal,
+          prompt: [{ type: 'text', text: 'go' }],
+        },
+        (update) => updates.push(update),
+        { clientCapabilities: { plan: {} } } as never,
+      );
+      expect(updates).toContainEqual(
+        expect.objectContaining({
+          sessionUpdate: 'plan_update',
+          plan: {
+            type: 'markdown',
+            planId: 'wrongstack-plan',
+            content: expect.stringContaining('Define rollout'),
+          },
+        }),
+      );
+      expect(updates).toContainEqual(
+        expect.objectContaining({
+          sessionUpdate: 'plan_update',
+          plan: {
+            type: 'items',
+            planId: 'wrongstack-todos',
+            entries: [{ content: 'Run tests', status: 'pending', priority: 'medium' }],
+          },
+        }),
+      );
+    } finally {
+      turn.dispose('plan');
+      await fsp.rm(file, { force: true });
+      await fsp.rmdir(dir);
+    }
+  });
+  it.each([false, true])(
+    'waits for the client form and honors cancellation (cancel: %s)',
+    async (cancel) => {
+      const ctx = { userInputAwaiter: undefined as UserInputAwaiter | undefined };
+      const transport = fakeTransport();
+      const turn = makeACPServerAgentTurn({
+        agentFor: async () =>
+          ({
+            ctx,
+            run: async (_: unknown, options: { signal: AbortSignal }) => {
+              const answer = await ctx.userInputAwaiter?.(
+                {
+                  id: 'decision',
+                  title: 'Decision',
+                  tabs: [
+                    {
+                      id: 'scope',
+                      label: 'Scope',
+                      questions: [
+                        {
+                          id: 'scope',
+                          prompt: 'Pick scope',
+                          kind: 'single_select',
+                          required: true,
+                          options: [
+                            { id: 'local', label: 'Local' },
+                            { id: 'remote', label: 'Remote' },
+                          ],
+                        },
+                        { id: 'details', prompt: 'Details?', kind: 'text' },
+                      ],
+                    },
+                  ],
+                },
+                options,
+              );
+              return { status: 'done', finalText: JSON.stringify(answer?.answers) };
+            },
+          }) as never as Agent,
+      });
+      const handler = new ACPProtocolHandler({
+        transport: transport as never,
+        defaultCwd: ACP_TEST_CWD,
+        runTurn: turn,
+      });
+      await handler.handleMessage({
+        id: 1,
+        method: 'initialize',
+        params: { protocolVersion: 1, clientCapabilities: { elicitation: { form: {} } } },
+      });
+      await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
+      const sessionId = (
+        transport.sent.find((item) => (item as { id?: number }).id === 2) as {
+          result: { sessionId: string };
+        }
+      ).result.sessionId;
+      const running = handler.handleMessage({
+        id: 3,
+        method: 'session/prompt',
+        params: { sessionId, prompt: [{ type: 'text', text: 'go' }] },
+      });
+      try {
+        const form = () =>
+          transport.sent.find(
+            (item) => (item as { method?: string }).method === 'elicitation/create',
+          ) as { id: string } | undefined;
+        await vi.waitFor(() =>
+          expect(form()).toMatchObject({
+            params: { sessionId, mode: 'form', requestedSchema: { required: ['q1'] } },
+          }),
+        );
+        expect(transport.sent.some((item) => (item as { id?: number }).id === 3)).toBe(false);
+        if (cancel) {
+          await handler.handleMessage({ method: 'session/cancel', params: { sessionId } });
+          await running;
+          expect(transport.sent).toContainEqual(
+            expect.objectContaining({
+              method: '$/cancel_request',
+              params: { requestId: form()?.id },
+            }),
+          );
+          expect(transport.sent.at(-1)).toMatchObject({
+            id: 3,
+            result: { stopReason: 'cancelled' },
+          });
+          expect(turn.replay(sessionId)).toEqual([]);
+          return;
+        }
+        await handler.handleMessage({
+          id: form()?.id,
+          result: { action: 'accept', content: { q1: 'local', q2: 'work offline' } },
+        });
+        await running;
+        expect(turn.replay(sessionId).at(-1)?.content.text).toContain('work offline');
+        expect(turn.replay(sessionId).at(-1)?.content.text).toContain(
+          '"selectedOptionIds":["local"]',
+        );
+      } finally {
+        handler.close();
+        turn.dispose(sessionId);
+      }
+    },
+  );
+  it('announces child sessions before streaming their results on the child transcript', async () => {
+    const events = new EventBus();
+    const transport = fakeTransport();
+    const turn = makeACPServerAgentTurn({
+      agentFor: async (sessionId) =>
+        ({
+          events,
+          run: async () => {
+            events.emit('delegate.started', {
+              sessionId,
+              subagentId: 'worker',
+              target: 'Reviewer',
+              task: 'Review patch',
+            });
+            events.emit('delegate.completed', {
+              sessionId,
+              subagentId: 'worker',
+              target: 'Reviewer',
+              task: 'Review patch',
+              ok: true,
+              summary: 'Looks good',
+              durationMs: 1,
+              iterations: 1,
+              toolCalls: 0,
+            });
+            return { status: 'done', finalText: 'Parent reply.' };
+          },
+        }) as never as Agent,
+    });
+    const handler = new ACPProtocolHandler({
+      transport: transport as never,
+      defaultCwd: ACP_TEST_CWD,
+      runTurn: turn,
+    });
+    await handler.handleMessage({
+      id: 1,
+      method: 'initialize',
+      params: { protocolVersion: 1, clientCapabilities: { subagents: {} } },
+    });
+    await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: ACP_TEST_CWD } });
+    const sessionId = (
+      transport.sent.find((item) => (item as { id?: number }).id === 2) as {
+        result: { sessionId: string };
+      }
+    ).result.sessionId;
+    await handler.handleMessage({
+      id: 3,
+      method: 'session/prompt',
+      params: { sessionId, prompt: [{ type: 'text', text: 'Review this' }] },
+    });
+    const frames = transport.sent.filter(
+      (item) => (item as { method?: string }).method === 'session/update',
+    ) as Array<{
+      params: { sessionId: string; update: { sessionUpdate: string; sessionId?: string } };
+    }>;
+    const announced = frames.findIndex(
+      ({ params }) => params.update.sessionUpdate === 'subagent_update',
+    );
+    expect(announced).toBeGreaterThanOrEqual(0);
+    expect(frames[announced]?.params).toMatchObject({
+      sessionId,
+      update: { title: 'Reviewer', state: { state: 'running' } },
+    });
+    const childId = frames[announced]?.params.update.sessionId;
+    expect(frames.slice(announced + 1)).toContainEqual(
+      expect.objectContaining({
+        params: {
+          sessionId: childId,
+          update: {
+            sessionUpdate: 'agent_message_chunk',
+            content: { type: 'text', text: 'Looks good' },
+          },
+        },
+      }),
+    );
+    handler.close();
+    turn.dispose(sessionId);
+  });
+  it.each([true, false])(
+    'publishes live todos as a plan (identified plans: %s)',
+    async (identified) => {
+      const events = new EventBus();
+      const ctx = { todos: [] as TodoItem[] };
+      const updates: unknown[] = [];
+      const entries = [{ content: 'Inspect sources', status: 'in_progress', priority: 'medium' }];
+      const expected = identified
+        ? {
+            sessionUpdate: 'plan_update',
+            plan: { type: 'items', planId: 'wrongstack-todos', entries },
+          }
+        : { sessionUpdate: 'plan', entries };
+      const turn = makeACPServerAgentTurn({
+        agentFor: async () =>
+          ({
+            events,
+            ctx,
+            run: async () => {
+              ctx.todos = [{ id: '1', content: 'Inspect sources', status: 'in_progress' }];
+              events.emit('iteration.completed', { sessionId: 'todos', index: 0 } as never);
+              expect(updates).toContainEqual(expected);
+              ctx.todos = [];
+              events.emit('iteration.completed', { sessionId: 'todos', index: 1 } as never);
+              return { status: 'done', finalText: 'Done.' };
+            },
+          }) as never as Agent,
+      });
+      await turn(
+        {
+          sessionId: 'todos',
+          signal: new AbortController().signal,
+          prompt: [{ type: 'text', text: 'go' }],
+        },
+        (update) => updates.push(update),
+        { clientCapabilities: identified ? { plan: {} } : {} } as never,
+      );
+      expect(updates).toContainEqual(
+        identified
+          ? { sessionUpdate: 'plan_removed', planId: 'wrongstack-todos' }
+          : { sessionUpdate: 'plan', entries: [] },
+      );
+    },
+  );
+
+  it('asks for clarification in chat when the editor has no form support', async () => {
+    const ctx = { userInputAwaiter: undefined as UserInputAwaiter | undefined };
+    const updates: unknown[] = [];
+    const turn = makeACPServerAgentTurn({
+      agentFor: async () =>
+        ({
+          ctx,
+          run: async () => {
+            await ctx.userInputAwaiter?.(
+              {
+                id: 'which',
+                title: 'Choose scope',
+                tabs: [
+                  {
+                    id: 'scope',
+                    label: 'Scope',
+                    questions: [{ id: 'branch', prompt: 'Which branch?', kind: 'text' }],
+                  },
+                ],
+              },
+              { signal: new AbortController().signal },
+            );
+            return { status: 'done', finalText: 'I chose myself.' };
+          },
+        }) as never as Agent,
+    });
+    const out = await turn(
+      {
+        sessionId: 'clarify',
+        signal: new AbortController().signal,
+        prompt: [{ type: 'text', text: 'go' }],
+      },
+      (update) => updates.push(update),
+      { clientCapabilities: {} } as never,
+    );
+    expect(out.stopReason).toBe('end_turn');
+    expect(out.text).toContain('Which branch?');
+    expect(updates).toContainEqual({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: out.text },
+    });
+    expect(turn.replay('clarify').at(-1)?.content).toEqual({ type: 'text', text: out.text });
+  });
+});
 
 interface FakeAgent {
   run: ReturnType<typeof vi.fn>;
@@ -1425,6 +1845,61 @@ describe('serverAgentTurn deterministic helpers', () => {
       { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'lo' } },
     ]);
   });
+
+  it.each([true, false])(
+    'keeps nextsteps metadata out of ACP replies (streaming: %s)',
+    async (streaming) => {
+      const handlers: Record<string, (event: never) => void> = {};
+      const setMeta = vi.fn();
+      const example = '\n\n```xml\n<nextsteps>Example</nextsteps>\n```';
+      const parts = [
+        'Done.',
+        '<next',
+        'steps>\n1. Run a follow-up\n</next',
+        'steps>',
+        '<next_steps>Legacy</next_steps>',
+        example,
+        '\n<nextsteps-complete/>',
+      ];
+      const agent = {
+        ctx: { state: { setMeta } },
+        events: {
+          on: (name: string, handler: (event: never) => void) => {
+            handlers[name] = handler;
+            return () => delete handlers[name];
+          },
+        },
+        run: vi.fn(async () => {
+          if (streaming) {
+            for (const text of parts) handlers['provider.text_delta']?.({ text } as never);
+            handlers['provider.response']?.({} as never);
+          }
+          return { finalText: parts.join('') };
+        }),
+      };
+      const updates: Array<{ sessionUpdate: string; content?: { text?: string } }> = [];
+      const turn = makeACPServerAgentTurn({ agentFor: async () => agent as never as Agent });
+      const out = await turn(
+        {
+          sessionId: 'nextsteps-acp',
+          prompt: [{ type: 'text', text: 'hi' }],
+          signal: new AbortController().signal,
+        },
+        (update) => updates.push(update as (typeof updates)[number]),
+      );
+      const body = updates
+        .filter((event) => event.sessionUpdate === 'agent_message_chunk')
+        .map((event) => event.content?.text)
+        .join('');
+      expect(body.trimEnd()).toBe('Done.' + example);
+      expect(out.text?.trimEnd()).toBe('Done.' + example);
+      expect(turn.replay('nextsteps-acp').at(-1)?.content).toEqual({
+        type: 'text',
+        text: out.text,
+      });
+      expect(setMeta).toHaveBeenCalledWith('nextStepsMode', 'off');
+    },
+  );
 
   it('emits live usage_update from provider.response using provider maxContext', async () => {
     const handlers: Record<string, (event: never) => void> = {};

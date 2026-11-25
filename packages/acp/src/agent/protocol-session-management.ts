@@ -1,3 +1,4 @@
+import { rememberChildUpdate } from './protocol-child-history.js';
 import {
   ACP_ERROR,
   type ClientCapabilities,
@@ -46,9 +47,87 @@ export interface ProtocolSessionContext {
   sendNotification: (params: unknown) => Promise<void>;
   sendError: (id: string | number, code: number, message: string, data?: unknown) => Promise<void>;
   sendResult: (id: string | number, result: unknown) => Promise<void>;
-  request: (method: string, params: unknown, timeoutMs?: number) => Promise<unknown>;
+  request: (
+    method: string,
+    params: unknown,
+    timeoutMs?: number,
+    signal?: AbortSignal,
+  ) => Promise<unknown>;
   runTurn: RunTurn;
   clientCapabilities: ClientCapabilities;
+}
+
+const replayingChildren = new WeakMap<SessionState, Promise<void>>();
+
+function declaredModeOption(ctx: ProtocolSessionContext): SessionConfigOption | undefined {
+  return ctx.configOptions.find(
+    (option) => option.id === 'mode' && option.category === 'mode' && option.type === 'select',
+  );
+}
+
+async function replayChildren(ctx: ProtocolSessionContext, parent: SessionState): Promise<void> {
+  const supportsChildren = ctx.clientCapabilities.subagents;
+  if (!supportsChildren || typeof supportsChildren !== 'object' || Array.isArray(supportsChildren))
+    return;
+  const previous = replayingChildren.get(parent);
+  const replay = Promise.resolve(previous).then(async () => {
+    for (const child of parent.childHistory ?? []) {
+      if (ctx.sessions.get(parent.id) !== parent) return;
+      await ctx.sendNotification({
+        sessionId: parent.id,
+        update: {
+          sessionUpdate: 'subagent_update',
+          sessionId: child.id,
+          title: child.title,
+          description: child.description,
+        },
+      });
+      if (child.text && ctx.sessions.get(parent.id) === parent) {
+        await ctx.sendNotification({
+          sessionId: child.id,
+          update: {
+            sessionUpdate: 'agent_message_chunk',
+            content: { type: 'text', text: child.text },
+          },
+        });
+      }
+    }
+  });
+  replayingChildren.set(parent, replay);
+  try {
+    await replay;
+  } finally {
+    if (replayingChildren.get(parent) === replay) replayingChildren.delete(parent);
+  }
+}
+
+function syncModeOption(ctx: ProtocolSessionContext, session: SessionState): boolean {
+  const declared = declaredModeOption(ctx);
+  if (!declared) return false;
+  const mode = { ...structuredClone(declared), currentValue: session.modeId };
+  const options = session.configOptions ?? [...ctx.configOptions];
+  session.configOptions = options.some((option) => option.id === mode.id)
+    ? options.map((option) => (option.id === mode.id ? mode : option))
+    : [mode, ...options];
+  return true;
+}
+
+const settingsUpdates = new WeakMap<SessionState, Promise<boolean>>();
+
+async function updateSessionSettings(
+  session: SessionState,
+  update: () => Promise<boolean>,
+): Promise<boolean> {
+  const prior = settingsUpdates.get(session);
+  const pending = Promise.resolve(prior)
+    .catch(() => undefined)
+    .then(update);
+  settingsUpdates.set(session, pending);
+  try {
+    return await pending;
+  } finally {
+    if (settingsUpdates.get(session) === pending) settingsUpdates.delete(session);
+  }
 }
 
 export async function handleSessionNewOp(
@@ -100,6 +179,7 @@ export async function handleSessionNewOp(
     ...(mcpServers.length > 0 ? { mcpServers } : {}),
     ...(systemPrompt ? { systemPrompt } : {}),
   };
+  syncModeOption(ctx, state);
   ctx.sessions.set(sessionId, state);
   ctx.onSessionNew(state);
   await ctx.persist(state);
@@ -198,7 +278,9 @@ export async function handleSessionLoadOp(
           ? { mcpServers: restoredMcpServers }
           : {}),
         ...(restoredSystemPrompt ? { systemPrompt: restoredSystemPrompt } : {}),
+        ...(persisted.childHistory?.length ? { childHistory: persisted.childHistory } : {}),
       };
+      syncModeOption(ctx, restored);
       ctx.sessions.set(sessionId, restored);
       ctx.seedFor?.(sessionId, persisted.history ?? []);
       if (loadCwd !== undefined || Array.isArray(p.mcpServers)) {
@@ -208,6 +290,7 @@ export async function handleSessionLoadOp(
         if (ctx.sessions.get(sessionId) !== restored) return false;
         await ctx.sendNotification({ sessionId, update });
       }
+      if (replayHistory) await replayChildren(ctx, restored);
       if (ctx.sessions.get(sessionId) !== restored) return false;
       if (replayHistory && restored.title !== undefined) {
         await ctx.sendNotification({
@@ -304,6 +387,7 @@ export async function handleSessionLoadOp(
         await ctx.sendNotification({ sessionId, update });
       }
     }
+    if (replayHistory) await replayChildren(ctx, existing);
     if (ctx.sessions.get(sessionId!) !== existing) return false;
     if (replayHistory)
       await ctx.sendNotification({
@@ -416,6 +500,7 @@ export async function handleSessionForkOp(
     ...(forkMcpServers && forkMcpServers.length > 0 ? { mcpServers: forkMcpServers } : {}),
     ...(forkedSystemPrompt ? { systemPrompt: forkedSystemPrompt } : {}),
   };
+  syncModeOption(ctx, forked);
   const sourceHistory = liveSource
     ? (ctx.replayFor?.(sourceId) ?? [])
     : (persistedSource?.history ?? []);
@@ -477,13 +562,18 @@ export async function handleSessionPromptOp(
   const api = createRunTurnApi(
     sessionId,
     ctx.clientCapabilities ?? {},
-    (method, req) => ctx.request(method, req),
-    async (update) => {
+    (method, req, signal) => ctx.request(method, req, signal ? 5 * 60_000 : undefined, signal),
+    async (update, childSessionId) => {
       // Unprompted updates outlive this turn. Identity (not just the id) is
       // checked so nothing reaches a client for a session it closed, deleted,
       // or replaced with a fresh `session/load` state.
+      const replay = replayingChildren.get(session);
+      if (replay) await replay.catch(() => {});
       if (ctx.sessions.get(sessionId) !== session) return false;
-      await ctx.sendNotification({ sessionId, update });
+      const finishedChild = rememberChildUpdate(session, update, childSessionId);
+      await ctx.sendNotification({ sessionId: childSessionId ?? sessionId, update });
+      if (finishedChild && !session.prompting && ctx.sessions.get(sessionId) === session)
+        await ctx.persist(session);
       return true;
     },
     () => ctx.sessions.get(sessionId)?.modeId,
@@ -491,7 +581,7 @@ export async function handleSessionPromptOp(
 
   let result: RunTurnResult;
   const pendingNotifications: Array<Promise<void>> = [];
-  const emit = (update: unknown): void => {
+  const emit: Parameters<RunTurn>[1] = (update, childSessionId) => {
     // Same identity guard as the unprompted updater above, and for the same
     // reason: a turn keeps draining after `session/close` / `session/delete`
     // aborts it, or after a cold `session/load` replaces the state under this
@@ -502,7 +592,8 @@ export async function handleSessionPromptOp(
     // no sessionId check of its own. Silently drop the update instead; the
     // turn still settles normally through the `sendResult` below.
     if (ctx.sessions.get(sessionId) !== session) return;
-    const notifPromise = ctx.sendNotification({ sessionId, update });
+    rememberChildUpdate(session, update, childSessionId);
+    const notifPromise = ctx.sendNotification({ sessionId: childSessionId ?? sessionId, update });
     pendingNotifications.push(notifPromise.catch(() => {}));
   };
   try {
@@ -562,22 +653,20 @@ export async function handleSetModeOp(
     await ctx.sendError(id, ACP_ERROR.INVALID_PARAMS, 'invalid modeId');
     return false;
   }
-  session.modeId = modeId;
-  session.updatedAt = new Date().toISOString();
-  await ctx.sendNotification({
-    sessionId,
-    update: {
-      sessionUpdate: 'current_mode_update',
-      currentModeId: modeId,
-    },
+  return updateSessionSettings(session, async () => {
+    if (ctx.sessions.get(session.id) !== session) {
+      await sendSessionNotFound(ctx, id, session.id);
+      return false;
+    }
+    session.modeId = modeId;
+    session.updatedAt = new Date().toISOString();
+    const mirrored = syncModeOption(ctx, session);
+    await announceMode(ctx, session);
+    if (mirrored) await announceConfig(ctx, session);
+    if (ctx.sessions.get(session.id) === session) await ctx.persist(session);
+    await ctx.sendResult(id, {});
+    return false;
   });
-  // Identity check, as session/prompt does: a session/delete that landed
-  // during the notification await removed the file, and persisting now
-  // would write the deleted session back.
-  if (ctx.sessions.get(session.id) === session) await ctx.persist(session);
-  await ctx.sendResult(id, {});
-
-  return false;
 }
 
 export async function handleSetConfigOptionOp(
@@ -589,39 +678,88 @@ export async function handleSetConfigOptionOp(
   const sessionId = typeof p.sessionId === 'string' ? p.sessionId : null;
   const optionId = typeof p.configId === 'string' ? p.configId : null;
   const session = sessionId ? ctx.sessions.get(sessionId) : undefined;
-  const options = session?.configOptions ?? structuredClone([...ctx.configOptions]);
-  const option = optionId ? options.find((o) => o.id === optionId) : undefined;
   if (!session) {
     await sendSessionNotFound(ctx, id, sessionId);
     return false;
   }
-  const validBoolean = option?.type === 'boolean' && typeof p.value === 'boolean';
-  const validSelect =
-    option !== undefined &&
-    option.type !== 'boolean' &&
-    typeof p.value === 'string' &&
-    configOptionValues(option).some((o) => o.value === p.value);
-  if (!option || (!validBoolean && !validSelect)) {
-    await ctx.sendError(id, ACP_ERROR.INVALID_PARAMS, 'invalid configId or value');
+  return updateSessionSettings(session, async () => {
+    if (ctx.sessions.get(session.id) !== session) {
+      await sendSessionNotFound(ctx, id, session.id);
+      return false;
+    }
+    const options = structuredClone(session.configOptions ?? [...ctx.configOptions]);
+    const option = optionId ? options.find((o) => o.id === optionId) : undefined;
+    const value = p.value;
+    const valid =
+      option?.type === 'boolean'
+        ? typeof value === 'boolean'
+        : typeof value === 'string' &&
+          !!option &&
+          configOptionValues(option).some((o) => o.value === value);
+    if (!option || !valid) {
+      await ctx.sendError(id, ACP_ERROR.INVALID_PARAMS, 'invalid configId or value');
+      return false;
+    }
+    const modeChanged = option.id === declaredModeOption(ctx)?.id && typeof value === 'string';
+    if (modeChanged) {
+      if (!ctx.modes.some((mode) => mode.id === value)) {
+        await ctx.sendError(id, ACP_ERROR.INVALID_PARAMS, 'invalid modeId');
+        return false;
+      }
+      session.modeId = value;
+      syncModeOption(ctx, session);
+    } else {
+      option.currentValue = value as string | boolean;
+      let next: SessionConfigOption[];
+      try {
+        next = await openSessionConfigOptions(ctx, options, true);
+      } catch {
+        await ctx.sendError(
+          id,
+          ACP_ERROR.INTERNAL,
+          'session config options could not be refreshed',
+        );
+        return false;
+      }
+      if (ctx.sessions.get(session.id) !== session) {
+        await sendSessionNotFound(ctx, id, session.id);
+        return false;
+      }
+      if (next.find((entry) => entry.id === option.id)?.currentValue !== value) {
+        await ctx.sendError(
+          id,
+          ACP_ERROR.INVALID_PARAMS,
+          'config option value is no longer available',
+        );
+        return false;
+      }
+      session.configOptions = next;
+      syncModeOption(ctx, session);
+    }
+    session.updatedAt = new Date().toISOString();
+    if (modeChanged) await announceMode(ctx, session);
+    await announceConfig(ctx, session);
+    if (ctx.sessions.get(session.id) === session) await ctx.persist(session);
+    await ctx.sendResult(id, { configOptions: session.configOptions });
     return false;
-  }
-  option.currentValue = p.value as string | boolean;
-  const nextOptions = ctx.sessionConfigOptions
-    ? await openSessionConfigOptions(ctx, options)
-    : options;
-  if (ctx.sessions.get(session.id) !== session) return false;
-  session.configOptions = nextOptions;
-  session.updatedAt = new Date().toISOString();
+  });
+}
+
+async function announceMode(ctx: ProtocolSessionContext, session: SessionState): Promise<void> {
   await ctx.sendNotification({
-    sessionId,
+    sessionId: session.id,
+    update: { sessionUpdate: 'current_mode_update', currentModeId: session.modeId },
+  });
+}
+
+async function announceConfig(ctx: ProtocolSessionContext, session: SessionState): Promise<void> {
+  await ctx.sendNotification({
+    sessionId: session.id,
     update: {
       sessionUpdate: 'config_option_update',
-      configOptions: nextOptions,
+      configOptions: session.configOptions,
     },
   });
-  if (ctx.sessions.get(session.id) === session) await ctx.persist(session);
-  await ctx.sendResult(id, { configOptions: nextOptions });
-  return false;
 }
 
 /**

@@ -123,6 +123,9 @@ export interface ClientCapabilities {
   _meta?: Record<string, unknown> | undefined;
   fs?: { readTextFile?: boolean | undefined; writeTextFile?: boolean | undefined } | undefined;
   terminal?: boolean | undefined;
+  plan?: Record<string, never> | null | undefined;
+  elicitation?: { form?: Record<string, never> | null | undefined } | null | undefined;
+  subagents?: Record<string, never> | null | undefined;
 }
 
 /**
@@ -141,6 +144,11 @@ export interface RunTurnApi {
   requestPermission(req: RunTurnPermissionRequest): Promise<RequestPermissionOutcome>;
   /** Capabilities the client advertised at initialize — gate tool wiring on these. */
   clientCapabilities: ClientCapabilities;
+  /** Request a flat ACP form from the client during this turn. */
+  requestForm?(
+    params: { message: string; requestedSchema: Record<string, unknown> },
+    signal: AbortSignal,
+  ): Promise<unknown>;
   /** Read a text file from the client's filesystem (`fs/read_text_file`). */
   readTextFile(params: { path: string; line?: number; limit?: number }): Promise<string>;
   /** Write a text file in the client's filesystem (`fs/write_text_file`). */
@@ -163,7 +171,7 @@ export interface RunTurnApi {
    * the session was closed or deleted. Optional: embedders that build their
    * own `RunTurnApi` may omit it.
    */
-  sendSessionUpdate?(update: unknown): Promise<boolean>;
+  sendSessionUpdate?(update: unknown, childSessionId?: string): Promise<boolean>;
   /**
    * The session's current mode (`session/set_mode`), read at call time so a
    * mode changed during a turn applies to the turn's next tool call. Optional:
@@ -182,7 +190,7 @@ export interface RunTurnApi {
  */
 export type RunTurn = (
   input: RunTurnInput,
-  emit: (update: unknown) => void,
+  emit: (update: unknown, childSessionId?: string) => void,
   api?: RunTurnApi,
 ) => Promise<RunTurnResult>;
 
@@ -195,6 +203,7 @@ export interface SessionState {
   modeId: string;
   configOptions?: SessionConfigOption[] | undefined;
   prompting?: boolean | undefined;
+  childHistory?: ChildHistoryEntry[] | undefined;
   /** Created at, for session/list ordering. */
   createdAt: string;
   /** Last activity timestamp, for session/info_update. */
@@ -210,6 +219,13 @@ export interface SessionState {
   mcpServers?: readonly McpServer[] | undefined;
   /** Optional client-provided system prompt (ACP v2 RFD). */
   systemPrompt?: SessionSystemPrompt | undefined;
+}
+
+export interface ChildHistoryEntry {
+  id: string;
+  title?: string | undefined;
+  description?: string | undefined;
+  text?: string | undefined;
 }
 
 /** MCP-style session mode advertised in current_mode_update. */
@@ -320,6 +336,8 @@ export interface ProtocolHandlerOptions {
    * means always ready.
    */
   authGate?: (() => Promise<AuthGateResult>) | undefined;
+  /** False for request/response transports that cannot receive client callbacks mid-turn. */
+  duplex?: boolean | undefined;
   /**
    * Optional source of replayable conversation history for `session/load`.
    * Returns the `session/update` payloads (user/agent message chunks) to

@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 548,
-      "typeOnly": 400,
+      "files": 549,
+      "typeOnly": 401,
       "runtimeOrMixed": 180
     },
     "@wrongstack/core/boot": {
@@ -149,9 +149,9 @@
       "runtimeOrMixed": 30
     },
     "@wrongstack/core/storage": {
-      "files": 224,
+      "files": 225,
       "typeOnly": 62,
-      "runtimeOrMixed": 199
+      "runtimeOrMixed": 200
     },
     "@wrongstack/core/tasking": {
       "files": 48,
@@ -189,9 +189,9 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/utils/next-steps": {
-      "files": 3,
+      "files": 4,
       "typeOnly": 0,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 4
     },
     "@wrongstack/core/utils/residency-labels": {
       "files": 6,
@@ -246,6 +246,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/acp/src/agent/server-agent-turn.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/acp/tests/acp-command-blank-runtext.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -10169,6 +10175,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/acp/src/agent/server-agent-turn.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/builtin-plugins/src/cloud-config-sync-plugin.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -18462,6 +18474,12 @@
     {
       "specifier": "@wrongstack/core/utils/next-steps",
       "file": "apps/desktop-v2/src/engine-state.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/next-steps",
+      "file": "packages/acp/src/agent/server-assistant-text.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
