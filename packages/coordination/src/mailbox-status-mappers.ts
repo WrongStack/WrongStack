@@ -10,6 +10,8 @@ export function mapRegisteredAgentsToStatuses(
   now: number,
   staleMs: number,
 ): MailboxAgentStatus[] {
+  const safeNow = Number.isFinite(now) ? now : Date.now();
+  const safeStaleMs = Number.isFinite(staleMs) && staleMs > 0 ? staleMs : 60_000;
   return Array.from(registry.values())
     .map((agent) => ({
       agentId: agent.agentId,
@@ -23,7 +25,7 @@ export function mapRegisteredAgentsToStatuses(
       toolCalls: agent.toolCalls,
       lastActivityAt: agent.lastSeenAt,
       lastSeenAt: agent.lastSeenAt,
-      online: now - new Date(agent.lastSeenAt).getTime() < staleMs,
+      online: safeNow - new Date(agent.lastSeenAt).getTime() < safeStaleMs,
       pid: agent.pid,
       source: agent.source,
     }))
@@ -35,6 +37,8 @@ export function mapRegisteredClientsToStatuses(
   now: number,
   staleMs: number,
 ): ClientStatus[] {
+  const safeNow = Number.isFinite(now) ? now : Date.now();
+  const safeStaleMs = Number.isFinite(staleMs) && staleMs > 0 ? staleMs : 60_000;
   return Array.from(registry.values())
     .map((client) => ({
       clientId: client.clientId,
@@ -42,7 +46,7 @@ export function mapRegisteredClientsToStatuses(
       source: client.source,
       sessionId: client.sessionId,
       lastSeenAt: client.lastSeenAt,
-      online: now - new Date(client.lastSeenAt).getTime() < staleMs,
+      online: safeNow - new Date(client.lastSeenAt).getTime() < safeStaleMs,
       pid: client.pid,
     }))
     .sort((a, b) => b.lastSeenAt.localeCompare(a.lastSeenAt));

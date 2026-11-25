@@ -10,9 +10,9 @@ export class InMemoryBridgeTransport implements BridgeTransport {
   send(msg: BridgeMessage, to: string): Promise<void> {
     // Broadcast: deliver to every subscriber except the sender.
     if (to === '*') {
-      for (const [id, handlers] of this.subs) {
+      for (const [id, handlers] of [...this.subs.entries()]) {
         if (id === msg.from) continue;
-        for (const h of handlers) {
+        for (const h of [...handlers]) {
           try {
             void Promise.resolve(h(msg)).catch(() => {
               /* ignore subscriber rejection */
@@ -26,7 +26,7 @@ export class InMemoryBridgeTransport implements BridgeTransport {
     }
     const handlers = this.subs.get(to);
     if (handlers) {
-      for (const h of handlers) {
+      for (const h of [...handlers]) {
         try {
           void Promise.resolve(h(msg)).catch(() => {
             /* ignore subscriber rejection */

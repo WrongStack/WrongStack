@@ -77,6 +77,8 @@ export interface CreateDelegateToolOptions {
    * `fleet.delegate.defaultWait`). Default false = background.
    */
   defaultWait?: boolean | (() => boolean | undefined) | undefined;
+  /** Use when the host can announce a result but needs the client to open the next turn. */
+  backgroundNote?: string | undefined;
   /** See {@link DelegationRuntimeOptions.suggestTier}. */
   suggestTier?: DelegationRuntimeOptions['suggestTier'];
   /**
@@ -380,7 +382,7 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
           taskId: first.taskId,
           subagentId: first.subagentId,
           target: prepared.target,
-          note: BACKGROUND_NOTE,
+          note: opts.backgroundNote ?? BACKGROUND_NOTE,
         };
       } catch (err) {
         // Input errors surface before any spawn; there is no started line to resolve.

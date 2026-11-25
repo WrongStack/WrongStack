@@ -18,8 +18,8 @@ export function callerSessionId(ctx: unknown, fallback?: string): string | undef
     | { session?: { id?: string } | undefined; activeRunSessionId?: string | undefined }
     | undefined;
   const pinned = c?.activeRunSessionId;
-  if (typeof pinned === 'string' && pinned.length > 0) return pinned;
+  if (typeof pinned === 'string' && pinned.trim().length > 0) return pinned.trim();
   const live = c?.session?.id;
-  if (typeof live === 'string' && live.length > 0) return live;
+  if (typeof live === 'string' && live.trim().length > 0) return live.trim();
   return fallback;
 }

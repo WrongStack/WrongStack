@@ -9,13 +9,17 @@ function dagProgressKey(dag: TaskDAG): string {
 export function waitForDagProgress(dag: TaskDAG, timeoutMs: number): Promise<void> {
   const before = dagProgressKey(dag);
   if (dag.isDone()) return Promise.resolve();
+  const safeTimeout =
+    typeof timeoutMs === 'number' && Number.isFinite(timeoutMs) && timeoutMs >= 0
+      ? Math.min(2_147_483_647, Math.floor(timeoutMs))
+      : 1000;
 
   return new Promise((resolve) => {
     let off: (() => void) | undefined;
     const timer = setTimeout(() => {
       off?.();
       resolve();
-    }, timeoutMs);
+    }, safeTimeout);
 
     off = dag.onEvent(() => {
       if (dagProgressKey(dag) === before) return;

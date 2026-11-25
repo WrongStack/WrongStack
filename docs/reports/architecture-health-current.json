@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T21:11:12.689Z",
+  "generatedAt": "2026-11-25T21:13:41.835Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6570,
-    "testFiles": 6366,
-    "sourceLines": 1348465,
+    "testFiles": 6371,
+    "sourceLines": 1348486,
     "workspaceEdges": 261,
     "moduleEdges": 19245,
     "nonCommandSlashImports": 0,
@@ -377,7 +377,7 @@
       "name": "@wrongstack/coordination",
       "dir": "packages/coordination",
       "sourceFiles": 193,
-      "testFiles": 234,
+      "testFiles": 239,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -395,7 +395,7 @@
         {
           "path": "packages/coordination/tsconfig.test.json",
           "error": null,
-          "testFiles": 234
+          "testFiles": 239
         }
       ]
     },
@@ -10831,6 +10831,36 @@
       },
       {
         "file": "packages/coordination/tests/consensus-protocol.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/coord-dag-wait-overflow.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/coord-mailbox-limiter-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/coord-mailbox-status-nan-now.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/coord-origin-session-blank.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/coord-transport-reentrant-sub.test.ts",
         "projects": [
           "root-node"
         ]

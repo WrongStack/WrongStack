@@ -4,11 +4,22 @@ export const MAILBOX_HTTP_RATE_LIMIT_WINDOW_MS = 60_000;
 /** Sliding-window request limiter shared by every mailbox HTTP host. */
 export class MailboxHttpRateLimiter {
   private readonly hits = new Map<string, number[]>();
+  readonly limit: number;
+  readonly windowMs: number;
 
   constructor(
-    readonly limit = MAILBOX_HTTP_RATE_LIMIT_PER_MINUTE,
-    readonly windowMs = MAILBOX_HTTP_RATE_LIMIT_WINDOW_MS,
-  ) {}
+    limit = MAILBOX_HTTP_RATE_LIMIT_PER_MINUTE,
+    windowMs = MAILBOX_HTTP_RATE_LIMIT_WINDOW_MS,
+  ) {
+    this.limit =
+      typeof limit === 'number' && Number.isFinite(limit) && limit >= 1
+        ? Math.floor(limit)
+        : MAILBOX_HTTP_RATE_LIMIT_PER_MINUTE;
+    this.windowMs =
+      typeof windowMs === 'number' && Number.isFinite(windowMs) && windowMs >= 1
+        ? Math.floor(windowMs)
+        : MAILBOX_HTTP_RATE_LIMIT_WINDOW_MS;
+  }
 
   allow(key: string): boolean {
     const now = Date.now();
