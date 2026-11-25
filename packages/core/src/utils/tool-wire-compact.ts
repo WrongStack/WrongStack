@@ -192,11 +192,13 @@ function compactSchemaNode(
 }
 
 export function compactDescription(text: string, maxChars: number): string {
+  const limit = Number.isFinite(maxChars) ? Math.floor(maxChars) : 0;
+  if (limit <= 0) return '';
   const normalized = text.replace(/\s+/g, ' ').trim();
-  if (normalized.length <= maxChars) return normalized;
-  if (maxChars <= 20) return dropSplitSurrogate(normalized.slice(0, maxChars));
+  if (normalized.length <= limit) return normalized;
+  if (limit <= 20) return dropSplitSurrogate(normalized.slice(0, limit));
 
-  const hardLimit = maxChars - 12;
+  const hardLimit = limit - 12;
   const boundary = findSemanticBoundary(normalized, hardLimit);
   const head = dropSplitSurrogate(
     normalized.slice(0, boundary > 0 ? boundary : hardLimit),

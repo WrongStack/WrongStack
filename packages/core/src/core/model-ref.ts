@@ -26,7 +26,7 @@ export function parseModelRef(ref: string): ModelRef {
 }
 
 export function formatModelRef(ref: ModelRef, defaultProvider?: string | undefined): string {
-  const provider = ref.provider ?? defaultProvider;
+  const provider = ref.provider?.trim() || defaultProvider?.trim();
   return provider ? `${provider}/${ref.model}` : ref.model;
 }
 

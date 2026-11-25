@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T15:50:10.076Z",
+  "generatedAt": "2026-11-25T15:57:03.728Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6564,
-    "testFiles": 6009,
-    "sourceLines": 1346002,
+    "testFiles": 6053,
+    "sourceLines": 1346159,
     "workspaceEdges": 261,
     "moduleEdges": 19226,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 3,
     "testsWithoutTypecheck": 10,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1053
+    "testOnlyExports": 1054
   },
   "errors": [
     "2 unexcepted module cycle(s)"
@@ -405,7 +405,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 665,
-      "testFiles": 789,
+      "testFiles": 833,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -422,7 +422,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 789
+          "testFiles": 833
         }
       ]
     },
@@ -12025,6 +12025,24 @@
         ]
       },
       {
+        "file": "packages/core/tests/brain-cache-ttl-zero.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/brain-risk-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/brain-telemetry-duration-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/brain/brain-decision-key-unicode.test.ts",
         "projects": [
           "root-node"
@@ -12055,7 +12073,43 @@
         ]
       },
       {
+        "file": "packages/core/tests/cache-key-fn-prop.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/clip-inline-small-max.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/cloud-provider.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/compact-description-bounds.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/compaction-preview-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/compaction-tail-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/context-evidence-trim.test.ts",
         "projects": [
           "root-node"
         ]
@@ -12697,6 +12751,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/crash-shield-double-off.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/data/builtin-prompts.test.ts",
         "projects": [
           "root-node"
@@ -12704,6 +12764,24 @@
       },
       {
         "file": "packages/core/tests/data/fluidflow-prompts.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/design-dna-hex-anchor.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/enhance-recovery-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/env-typed-proto-ws.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13387,6 +13465,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/fallback-config-helpers-disabled.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/fallback-profile-manager.test.ts",
         "projects": [
           "root-node"
@@ -13400,6 +13484,36 @@
       },
       {
         "file": "packages/core/tests/fleet-notifier.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/fleet-pulse-bounds.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/flight-recorder-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/history-page-budget-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/history-policy-inf.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/history-retention-inf.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13507,6 +13621,18 @@
         ]
       },
       {
+        "file": "packages/core/tests/instruction-template-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/iteration-limit-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/jev-activity-content.test.ts",
         "projects": [
           "root-node"
@@ -13550,6 +13676,24 @@
       },
       {
         "file": "packages/core/tests/leak-smoke.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/loader-semver-empty-or.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/merge-models-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/model-ref-blank-provider.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13717,6 +13861,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/perf-profile-alias.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/performance/perf-guard.test.ts",
         "projects": [
           "root-node"
@@ -13831,6 +13981,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/price-cliff-meta-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/project-server-client-sync-write-failure.test.ts",
         "projects": [
           "root-node"
@@ -13921,6 +14077,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/registry/slash-command-whitespace.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/registry/tool-governance.test.ts",
         "projects": [
           "root-node"
@@ -13964,6 +14126,18 @@
       },
       {
         "file": "packages/core/tests/replay/replay.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/require-positive-ms-zero.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/required-skill-proto.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14072,6 +14246,12 @@
       },
       {
         "file": "packages/core/tests/security/config-secrets.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/security/directory-permission-array-trim.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14509,6 +14689,30 @@
         ]
       },
       {
+        "file": "packages/core/tests/shell-hooks-nonarray.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/signal-abort-blank-reason.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/skill-eval-gold-ws.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/skill-mentions-neg-span.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/skills/bundled-frontmatter.test.ts",
         "projects": [
           "root-node"
@@ -14707,6 +14911,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/sleep-nan-overflow.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/source-hygiene-nul.test.ts",
         "projects": [
           "root-node"
@@ -14738,6 +14948,12 @@
       },
       {
         "file": "packages/core/tests/storage/architecture-decision-transfer.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/attachment-store-clear-race.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15631,7 +15847,25 @@
         ]
       },
       {
+        "file": "packages/core/tests/task-format-nan-hours.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/tasking/task-tracker.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/terminal-sanitize-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/token-estimation-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15709,6 +15943,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/typesafe-breaker-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/typesafe-client.test.ts",
         "projects": [
           "root-node"
@@ -15746,6 +15986,12 @@
       },
       {
         "file": "packages/core/tests/typesafe/activity-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/unified-diff-nan-context.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15835,7 +16081,19 @@
         ]
       },
       {
+        "file": "packages/core/tests/utils/connectivity-reset-race.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/utils/context-breakdown.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/utils/context-budget-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15926,6 +16184,12 @@
       },
       {
         "file": "packages/core/tests/utils/crash-shield.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/utils/deep-merge-nested-proto.test.ts",
         "projects": [
           "root-node"
         ]
@@ -40481,6 +40745,10 @@
     {
       "file": "packages/core/src/execution/autonomy-brain.ts",
       "name": "quickDecide"
+    },
+    {
+      "file": "packages/core/src/execution/compaction-token-estimation.ts",
+      "name": "tokensFromAnchor"
     },
     {
       "file": "packages/core/src/execution/council-brain.ts",

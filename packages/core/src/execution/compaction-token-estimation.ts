@@ -94,7 +94,9 @@ export function tokensFromAnchor(ctx: Context, anchored: number): number {
   const prefix = ctx.lastRealInputTokens;
   if (
     typeof covered !== 'number' ||
+    !Number.isFinite(covered) ||
     typeof prefix !== 'number' ||
+    !Number.isFinite(prefix) ||
     covered < 0 ||
     covered >= ctx.messages.length
   ) {
@@ -117,7 +119,7 @@ export function tryStashedTokens(
 ): number | null {
   if (!requestTokenBasisStillCurrent(ctx)) return null;
   const stashed = ctx.lastRequestTokens;
-  if (typeof stashed !== 'number' || stashed <= 0) return null;
+  if (typeof stashed !== 'number' || !Number.isFinite(stashed) || stashed <= 0) return null;
   // The agent loop writes the (msg, tool) count it computed the stash at
   // into ctx.meta['lastRequestTokensAt']. When the counts disagree the
   // caller has already recomputed and refreshed the stash, but we verify

@@ -64,7 +64,8 @@ export function countShellHooks(
   if (!hooks) return 0;
   let n = 0;
   for (const list of Object.values(hooks)) {
-    for (const h of list ?? []) {
+    if (!Array.isArray(list)) continue;
+    for (const h of list) {
       if (!h) continue;
       if (h.type === 'http' ? Boolean(h.url?.trim()) : Boolean(h.command?.trim())) {
         n++;

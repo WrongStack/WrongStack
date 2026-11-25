@@ -70,12 +70,12 @@ function satisfiesComparator(token: string, version: [number, number, number]): 
 export function satisfies(range: string, version: string): boolean {
   const parsed = parseSemver(version);
   const normalized = range.trim().replace(/(\^|~|>=|<=|>|<|=)\s+/g, '$1');
-  return normalized.split('||').some((set) =>
-    set
-      .trim()
-      .split(/\s+/)
-      .every((token) => satisfiesComparator(token, parsed)),
-  );
+  if (normalized === '') return true;
+  return normalized.split('||').some((set) => {
+    const trimmed = set.trim();
+    if (!trimmed) return false;
+    return trimmed.split(/\s+/).every((token) => satisfiesComparator(token, parsed));
+  });
 }
 
 /** Normalize either `string` or `PluginDependency` into the structured form. */

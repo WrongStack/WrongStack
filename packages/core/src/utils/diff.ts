@@ -165,7 +165,10 @@ export function unifiedDiff(
   opts: UnifiedDiffOptions = {},
 ): string {
   if (typeof oldText !== 'string' || typeof newText !== 'string') return '';
-  const context = Math.max(0, opts.context ?? 3);
+  const context =
+    typeof opts.context === 'number' && Number.isFinite(opts.context)
+      ? Math.max(0, Math.floor(opts.context))
+      : 3;
   const a = oldText.replace(/\r\n/g, '\n').split('\n');
   const b = newText.replace(/\r\n/g, '\n').split('\n');
   // Handle trailing newline: split adds an empty string we don't want to diff

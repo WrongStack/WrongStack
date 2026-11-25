@@ -119,7 +119,7 @@ export class BrainDecisionCache {
     this.enabled = opts.enabled === true;
     this.ttlMs =
       typeof opts.ttlMs === 'number' && Number.isFinite(opts.ttlMs) && opts.ttlMs > 0
-        ? Math.floor(opts.ttlMs)
+        ? Math.max(1, Math.floor(opts.ttlMs))
         : 300_000;
     this.maxEntries =
       typeof opts.maxEntries === 'number' &&

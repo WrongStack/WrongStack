@@ -19,15 +19,16 @@ const WHITESPACE_COLLAPSE_PATTERN = /\s+/g;
  * on execution at runtime.
  */
 export function buildCompactionPreview(message: Message, maxChars = 600): string {
-  if (maxChars <= 0) return '';
+  const safeMaxChars = Number.isFinite(maxChars) ? Math.floor(maxChars) : 0;
+  if (safeMaxChars <= 0) return '';
   if (typeof message.content === 'string') {
-    return truncatePreview(message.content, maxChars);
+    return truncatePreview(message.content, safeMaxChars);
   }
 
   const parts: string[] = [];
   for (const block of message.content) {
     if (isTextBlock(block)) {
-      const text = truncatePreview(block.text, maxChars);
+      const text = truncatePreview(block.text, safeMaxChars);
       if (text) parts.push(text);
       continue;
     }
@@ -51,7 +52,7 @@ export function buildCompactionPreview(message: Message, maxChars = 600): string
     }
     parts.push(`[${block.type}]`);
   }
-  return truncatePreview(parts.join(' '), maxChars);
+  return truncatePreview(parts.join(' '), safeMaxChars);
 }
 
 function safePreviewString(value: unknown): string {

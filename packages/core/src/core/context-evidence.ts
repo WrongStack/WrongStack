@@ -29,5 +29,6 @@ export function clearMemoryEvidenceList(
   if (source === undefined) {
     return [];
   }
-  return currentList.filter((entry) => entry.source !== source);
+  const key = source.trim();
+  return currentList.filter((entry) => entry.source !== key);
 }

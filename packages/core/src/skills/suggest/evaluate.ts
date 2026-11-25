@@ -72,11 +72,16 @@ export interface ScoredCase {
   outcome: 'correct' | 'wrong' | 'missed' | 'needless' | 'correctly-silent';
 }
 
+function normalizedGold(gold: string | null | undefined): string | undefined {
+  const trimmed = typeof gold === 'string' ? gold.trim() : '';
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export function classifyCase(
   request: LabeledRequest,
   suggested: string | undefined,
 ): ScoredCase['outcome'] {
-  const gold = request.gold ?? undefined;
+  const gold = normalizedGold(request.gold);
   if (gold) {
     if (!suggested) return 'missed';
     return suggested === gold ? 'correct' : 'wrong';
@@ -99,7 +104,7 @@ export function scoreSuggestions(
   });
   // Same emptiness convention as classifyCase (an empty-string gold is not a
   // covering skill), so the covered denominator and the outcome buckets agree.
-  const covered = cases.filter((c) => Boolean(c.request.gold)).length;
+  const covered = cases.filter((c) => normalizedGold(c.request.gold) !== undefined).length;
   const uncovered = cases.length - covered;
   const count = (outcome: ScoredCase['outcome']): number =>
     cases.filter((c) => c.outcome === outcome).length;
@@ -198,7 +203,8 @@ export function parseEvalJsonl(source: string): {
       errors.push({ line: i + 1, reason: '"gold" must be a skill name, null, or absent' });
       continue;
     }
-    requests.push({ text: text.trim(), gold: typeof gold === 'string' ? gold : null });
+    const trimmedGold = typeof gold === 'string' ? gold.trim() : '';
+    requests.push({ text: text.trim(), gold: trimmedGold.length > 0 ? trimmedGold : null });
   }
   return { requests, errors };
 }

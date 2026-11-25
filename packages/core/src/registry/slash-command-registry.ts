@@ -368,7 +368,7 @@ export class SlashCommandRegistry {
   } | null> {
     if (!line.startsWith('/')) return null;
     const trimmed = line.slice(1);
-    const spaceIdx = trimmed.indexOf(' ');
+    const spaceIdx = trimmed.search(/\s/);
     const firstColonIdx = trimmed.indexOf(':');
 
     let name: string;

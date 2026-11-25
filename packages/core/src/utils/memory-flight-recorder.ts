@@ -265,11 +265,18 @@ export function createMemoryFlightRecorder(
       ? new ContinuousMemoryCaptureWriter(root)
       : disabledWriter(path.join(root, `${timestampSlug()}-pid-${process.pid}`)));
   const observations: MemoryFlightObservation[] = [];
-  const windowMs = options.windowMs ?? DEFAULT_WINDOW_MS;
-  const minimumWindowMs = options.minimumWindowMs ?? DEFAULT_MINIMUM_WINDOW_MS;
-  const cooldownMs = options.cooldownMs ?? DEFAULT_COOLDOWN_MS;
-  const continuousCaptureMs = options.continuousCaptureMs ?? DEFAULT_CONTINUOUS_CAPTURE_MS;
-  const warmupMs = options.warmupMs ?? 60_000;
+  const finitePos = (value: number | undefined, fallback: number): number =>
+    typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
+  const windowMs = finitePos(options.windowMs, DEFAULT_WINDOW_MS);
+  const minimumWindowMs = finitePos(options.minimumWindowMs, DEFAULT_MINIMUM_WINDOW_MS);
+  const cooldownMs = finitePos(options.cooldownMs, DEFAULT_COOLDOWN_MS);
+  const continuousCaptureMs = finitePos(options.continuousCaptureMs, DEFAULT_CONTINUOUS_CAPTURE_MS);
+  const warmupMs =
+    typeof options.warmupMs === 'number' &&
+    Number.isFinite(options.warmupMs) &&
+    options.warmupMs >= 0
+      ? options.warmupMs
+      : 60_000;
   let lastSignalCaptureAt = Number.NEGATIVE_INFINITY;
   let lastContinuousCaptureAt = startedAt;
   let captureInFlight = false;
@@ -284,17 +291,23 @@ export function createMemoryFlightRecorder(
     const lastGcAgoMs = typeof stats['lastGcAgoMs'] === 'number' ? stats['lastGcAgoMs'] : -1;
     const lastMajorGcAgoMs =
       typeof stats['lastMajorGcAgoMs'] === 'number' ? stats['lastMajorGcAgoMs'] : -1;
+    const sampleHeapUsed = Number.isFinite(sample.heapUsed) ? sample.heapUsed : 0;
+    const sampleRss = Number.isFinite(sample.rss) ? sample.rss : 0;
+    const sampleNativeResidual =
+      typeof sample.nativeResidual === 'number' && Number.isFinite(sample.nativeResidual)
+        ? sample.nativeResidual
+        : 0;
     const retainedHeapUsed =
       postMajorGcHeapUsed > 0 && lastMajorGcAgoMs >= 0 && lastMajorGcAgoMs <= windowMs
         ? postMajorGcHeapUsed
         : postGcHeapUsed > 0 && lastGcAgoMs >= 0 && lastGcAgoMs <= minimumWindowMs
           ? postGcHeapUsed
-          : sample.heapUsed;
+          : sampleHeapUsed;
     observations.push({
       at,
       heapUsed: retainedHeapUsed,
-      rss: sample.rss,
-      nativeResidual: sample.nativeResidual ?? 0,
+      rss: sampleRss,
+      nativeResidual: sampleNativeResidual,
     });
     while (
       observations.length > MAX_OBSERVATIONS ||
@@ -306,8 +319,8 @@ export function createMemoryFlightRecorder(
     const first = observations[0] ?? observations.at(-1);
     const elapsedMs = first ? Math.max(0, at - first.at) : 0;
     const heapGrowthBytes = first ? retainedHeapUsed - first.heapUsed : 0;
-    const rssGrowthBytes = first ? sample.rss - first.rss : 0;
-    const nativeGrowthBytes = first ? (sample.nativeResidual ?? 0) - first.nativeResidual : 0;
+    const rssGrowthBytes = first ? sampleRss - first.rss : 0;
+    const nativeGrowthBytes = first ? sampleNativeResidual - first.nativeResidual : 0;
     const heapGrowthBytesPerHour =
       elapsedMs > 0 ? Math.round((heapGrowthBytes / elapsedMs) * HOUR_MS) : 0;
     const rssGrowthBytesPerHour =

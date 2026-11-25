@@ -56,7 +56,10 @@ function extractPathInputs(input: unknown): string[] {
     }
     if (Array.isArray(value)) {
       for (const item of value) {
-        if (typeof item === 'string' && item.length > 0) paths.push(item);
+        if (typeof item === 'string') {
+          const trimmed = item.trim();
+          if (trimmed.length > 0) paths.push(trimmed);
+        }
       }
     }
   }

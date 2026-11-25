@@ -81,7 +81,13 @@ export function computeTaskItemProgress(tasks: TaskItem[]): TaskGraphProgress {
         review++;
         break;
     }
-    estimatedHours += t.estimateHours ?? 0;
+    if (
+      typeof t.estimateHours === 'number' &&
+      Number.isFinite(t.estimateHours) &&
+      t.estimateHours > 0
+    ) {
+      estimatedHours += t.estimateHours;
+    }
   }
   return {
     total: tasks.length,

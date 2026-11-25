@@ -713,6 +713,9 @@
     "packages/core/src/execution/autonomy-brain.ts": [
       "quickDecide"
     ],
+    "packages/core/src/execution/compaction-token-estimation.ts": [
+      "tokensFromAnchor"
+    ],
     "packages/core/src/execution/council-brain.ts": [
       "makeSeatCallerForVoter"
     ],

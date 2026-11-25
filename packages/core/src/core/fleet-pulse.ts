@@ -91,8 +91,14 @@ export function buildFleetPulseBlock(
   statuses: MailboxAgentStatus[],
   opts: FleetPulseOptions,
 ): { type: 'text'; text: string } | null {
-  const maxAgents = opts.maxAgents ?? DEFAULT_MAX_AGENTS;
-  const maxChars = opts.maxChars ?? DEFAULT_MAX_CHARS;
+  const maxAgents =
+    typeof opts.maxAgents === 'number' && Number.isFinite(opts.maxAgents)
+      ? Math.max(0, Math.floor(opts.maxAgents))
+      : DEFAULT_MAX_AGENTS;
+  const maxChars =
+    typeof opts.maxChars === 'number' && Number.isFinite(opts.maxChars)
+      ? Math.max(0, Math.floor(opts.maxChars))
+      : DEFAULT_MAX_CHARS;
   const peers = statuses.filter((s) => s.online && s.agentId !== opts.selfId);
   if (peers.length === 0) return null;
 
@@ -107,7 +113,8 @@ export function buildFleetPulseBlock(
   };
   const sorted = [...peers].sort(
     (x, y) =>
-      (order[x.status] ?? 5) - (order[y.status] ?? 5) ||
+      ((Object.hasOwn(order, x.status) ? order[x.status] : undefined) ?? 5) -
+        ((Object.hasOwn(order, y.status) ? order[y.status] : undefined) ?? 5) ||
       visibleLineKey(x).localeCompare(visibleLineKey(y)),
   );
   const shown = sorted.slice(0, maxAgents);

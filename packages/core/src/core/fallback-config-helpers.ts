@@ -51,6 +51,7 @@ export function visibleProviderModels(
 export function disabledModelKeys(config: Config): ReadonlySet<string> {
   const keys = new Set<string>();
   for (const ref of asRefList(config.disabledModels) ?? []) {
+    if (typeof ref !== 'string') continue;
     const parsed = parseModelRef(ref);
     if (!parsed.model) continue;
     keys.add(`${parsed.provider ?? config.provider}/${parsed.model}`.toLowerCase());

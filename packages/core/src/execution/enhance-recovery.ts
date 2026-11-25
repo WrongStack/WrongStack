@@ -52,12 +52,16 @@ export function nextEnhanceTimeout(
   baseMs: number,
   config?: { enhanceRetryTimeoutMs?: number | undefined } | undefined,
 ): number {
+  const safeBase =
+    typeof baseMs === 'number' && Number.isFinite(baseMs) && baseMs > 0
+      ? baseMs
+      : ENHANCE_BASE_TIMEOUT_MS;
   const configured = config?.enhanceRetryTimeoutMs;
   if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0) {
     // Never let an override shorten the window below the base attempt.
-    return Math.max(configured, baseMs);
+    return Math.max(configured, safeBase);
   }
-  return Math.max(baseMs * 2, ENHANCE_MIN_RETRY_TIMEOUT_MS);
+  return Math.max(safeBase * 2, ENHANCE_MIN_RETRY_TIMEOUT_MS);
 }
 
 /**

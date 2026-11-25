@@ -110,7 +110,7 @@ export function resolvePreserveK(this: CompactionHistoryPolicyHost, ctx: Context
     policy && typeof policy === 'object'
       ? (policy as { preserveK?: unknown }).preserveK
       : undefined;
-  return typeof k === 'number' && k > 0 ? Math.floor(k) : 6;
+  return typeof k === 'number' && Number.isFinite(k) && k > 0 ? Math.floor(k) : 6;
 }
 
 export function resolveToolResultRetention(

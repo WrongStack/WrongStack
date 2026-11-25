@@ -77,7 +77,11 @@ export function historyPageFromSummaries(
 ) {
   const options = historyPageOptions(raw);
   const filtered = rows.filter((row) => row.id !== options.excludeId);
-  const pool = filtered.slice(0, budget),
+  const safeBudget =
+    typeof budget === 'number' && Number.isFinite(budget) && budget >= 0
+      ? Math.floor(budget)
+      : 10000;
+  const pool = filtered.slice(0, safeBudget),
     revision = historyPageRevision(
       pool.map((row) => row.id),
       options.excludeId,
@@ -96,6 +100,6 @@ export function historyPageFromSummaries(
     limit: options.limit,
     nextOffset: end < pool.length ? end : null,
     revision,
-    truncated: filtered.length >= budget,
+    truncated: filtered.length >= safeBudget,
   };
 }

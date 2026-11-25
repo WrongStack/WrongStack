@@ -64,7 +64,8 @@ export function widenTailCut(
   messages: readonly Message[],
   countCut: number,
 ): number {
+  const safeCut = Number.isFinite(countCut) ? Math.max(0, Math.floor(countCut)) : messages.length;
   const keep = effectiveKeepTokens(ctx);
-  if (keep === undefined) return countCut;
-  return Math.min(countCut, tokenTailStart(messages, keep));
+  if (keep === undefined) return safeCut;
+  return Math.min(safeCut, tokenTailStart(messages, keep));
 }

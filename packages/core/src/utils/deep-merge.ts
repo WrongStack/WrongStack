@@ -190,7 +190,20 @@ function deepMergeInternal(
         // Own keys only: `in` also sees Object.prototype, so a patch key named
         // `valueOf`/`toString` absent from base kept the inherited FUNCTION,
         // which JSON then dropped — the patch value was silently lost.
-        out[k] = conflictResolution === 'prefer-base' && Object.hasOwn(baseObj, k) ? existing : v;
+        const keepExisting = conflictResolution === 'prefer-base' && Object.hasOwn(baseObj, k);
+        if (keepExisting) {
+          out[k] = existing;
+        } else if (
+          protectProto &&
+          v !== null &&
+          typeof v === 'object' &&
+          !Array.isArray(v) &&
+          (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null)
+        ) {
+          out[k] = deepMergeInternal({}, v, options, seen);
+        } else {
+          out[k] = v;
+        }
       }
       // When v === undefined, leave the existing value untouched
       // (this matches config-loader's behaviour: undefined in patch

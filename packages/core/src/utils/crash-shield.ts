@@ -32,7 +32,10 @@ const fatalSalvageHooks: Array<() => void> = [];
 /** Register a synchronous salvage hook. Returns an unregister function. */
 export function addFatalSalvageHook(hook: () => void): () => void {
   fatalSalvageHooks.push(hook);
+  let removed = false;
   return () => {
+    if (removed) return;
+    removed = true;
     const idx = fatalSalvageHooks.indexOf(hook);
     if (idx >= 0) fatalSalvageHooks.splice(idx, 1);
   };

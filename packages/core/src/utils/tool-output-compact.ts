@@ -199,10 +199,12 @@ export function formatInlineValue(value: unknown): string {
 }
 
 export function clipInline(value: string, max = INLINE_LIMIT): string {
+  const limit = Number.isFinite(max) ? Math.floor(max) : 0;
+  if (limit <= 0) return '';
   const compact = value.replace(/\s+/g, ' ').trim();
-  if (compact.length <= max) return compact;
+  if (compact.length <= limit) return compact;
   // Never cut a surrogate pair: a lone half is invalid text in the rendered header.
-  let end = max - 15;
+  let end = Math.max(0, limit - 15);
   if (end > 0 && /[\uD800-\uDBFF]/.test(compact[end - 1]!)) end--;
   return `${compact.slice(0, end)}...(${compact.length} chars)`;
 }

@@ -14,7 +14,10 @@ function canonicalJson(value: unknown): string {
     // Match JSON.stringify / the provider wire: an `undefined` object value is
     // omitted, not serialized as `null`. Keeping it as null made an omitted
     // schema property collide with an explicit null in the cache partition key.
-    .filter((key) => object[key] !== undefined)
+    .filter((key) => {
+      const member = object[key];
+      return member !== undefined && typeof member !== 'function' && typeof member !== 'symbol';
+    })
     .sort()
     .map((key) => `${JSON.stringify(key)}:${canonicalJson(object[key])}`)
     .join(',')}}`;

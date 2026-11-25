@@ -61,8 +61,14 @@ export function recordAutonomousContinue(a: RetryJournalHost, text: string): voi
 
 export function signalAbortReason(signal: AbortSignal): string {
   const r = signal.reason;
-  if (r instanceof Error) return r.message || r.name;
-  if (typeof r === 'string' && r.length > 0) return r;
+  if (r instanceof Error) {
+    const msg = r.message.trim();
+    return msg || r.name.trim() || 'aborted';
+  }
+  if (typeof r === 'string') {
+    const trimmed = r.trim();
+    if (trimmed.length > 0) return trimmed;
+  }
   return 'aborted';
 }
 

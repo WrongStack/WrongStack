@@ -278,7 +278,8 @@ function substitute(text: string, ctx: InstructionTemplateContext | undefined): 
         .filter((n) => !ctx || ctx.toolNames.has(n));
       return names.map((n) => `\`${n}\``).join(', ');
     }
-    const value = ctx?.vars?.[body.trim()];
+    const key = body.trim();
+    const value = ctx?.vars && Object.hasOwn(ctx.vars, key) ? ctx.vars[key] : undefined;
     return value === undefined ? match : String(value);
   });
 }

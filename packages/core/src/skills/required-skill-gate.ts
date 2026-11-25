@@ -217,7 +217,8 @@ export function pendingRequiredSkills(ctx: MetaHolder): string[] {
   return state.required.filter((name) => {
     if (state.unavailable.includes(name)) return false;
     if (!state.loaded.includes(name)) return true;
-    return messages ? !deliveryInContext(messages, name, state.deliveries[name]) : false;
+    const deliveryId = Object.hasOwn(state.deliveries, name) ? state.deliveries[name] : undefined;
+    return messages ? !deliveryInContext(messages, name, deliveryId) : false;
   });
 }
 

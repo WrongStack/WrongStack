@@ -68,7 +68,9 @@ export class TypeSafeDisabledError extends Error {
 }
 
 export function createTypeSafeBreaker(opts: TypeSafeBreakerOptions): TypeSafeBreaker {
-  const threshold = Math.max(1, opts.threshold ?? 3);
+  const rawThreshold =
+    typeof opts.threshold === 'number' && Number.isFinite(opts.threshold) ? opts.threshold : 3;
+  const threshold = Math.max(1, Math.floor(rawThreshold));
   const label = opts.label ?? 'TypeSafe';
   let consecutive = 0;
   let open = false;

@@ -85,7 +85,7 @@ export function mergeModelsPayload(
     if (id === REMOVE_PROVIDERS_KEY || id === REMOVE_MODELS_KEY) continue;
     if (id === '__proto__' || id === 'constructor' || id === 'prototype') continue;
     if (!ovProvider || typeof ovProvider !== 'object') continue;
-    const existing = out[id];
+    const existing = Object.hasOwn(out, id) ? out[id] : undefined;
     out[id] = existing ? mergeProvider(existing, ovProvider) : cloneProvider(ovProvider);
   }
 
@@ -116,7 +116,7 @@ function mergeProvider(base: ModelsDevProvider, overlay: ModelsDevProvider): Mod
   }
   for (const [mid, ovModel] of Object.entries(overlay.models ?? {})) {
     if (isReservedKey(mid)) continue;
-    const existing = models[mid];
+    const existing = Object.hasOwn(models, mid) ? models[mid] : undefined;
     models[mid] = existing ? mergeModel(existing, ovModel) : cloneModel(ovModel);
   }
   return {

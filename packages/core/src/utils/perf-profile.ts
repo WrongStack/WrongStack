@@ -28,11 +28,12 @@ export function useDaemonPerfDefaults(): void {
 
 /** Resolve the active profile from the environment (evaluated each call). */
 export function getPerfProfile(): PerfProfile {
-  const explicit = process.env.WRONGSTACK_PERF_PROFILE ?? process.env.WSTACK_PERF_PROFILE;
-  if (explicit === undefined || explicit.trim() === '') {
+  const main = process.env.WRONGSTACK_PERF_PROFILE?.trim();
+  const explicit = main || process.env.WSTACK_PERF_PROFILE?.trim();
+  if (!explicit) {
     return daemonDefaults ? 'frugal' : 'balanced';
   }
-  const raw = explicit.trim().toLowerCase();
+  const raw = explicit.toLowerCase();
   if (raw === 'frugal' || raw === 'cimri' || raw === 'low' || raw === 'eco') {
     return 'frugal';
   }

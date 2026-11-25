@@ -49,11 +49,17 @@ export function insertSkillMention(
   mention: SkillMention,
   name: string,
 ): { text: string; cursor: number } {
+  const start = Number.isFinite(mention.start)
+    ? Math.max(0, Math.min(Math.trunc(mention.start), text.length))
+    : 0;
+  const end = Number.isFinite(mention.end)
+    ? Math.max(start, Math.min(Math.trunc(mention.end), text.length))
+    : start;
   const inserted = `$${name} `;
-  const after = text.slice(mention.end).replace(/^[ \t]+/, '');
+  const after = text.slice(end).replace(/^[ \t]+/, '');
   return {
-    text: text.slice(0, mention.start) + inserted + after,
-    cursor: mention.start + inserted.length,
+    text: text.slice(0, start) + inserted + after,
+    cursor: start + inserted.length,
   };
 }
 

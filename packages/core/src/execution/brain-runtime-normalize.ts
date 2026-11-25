@@ -53,7 +53,7 @@ export function requirePositiveMs(value: number, label: string): number {
       `Invalid ${label}: ${String(value)} (must be a positive number of milliseconds)`,
     );
   }
-  return Math.round(value);
+  return Math.max(1, Math.round(value));
 }
 
 /** Compact a normalized entry to the friendliest lossless config form. */

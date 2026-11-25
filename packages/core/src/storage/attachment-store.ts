@@ -131,18 +131,20 @@ export class DefaultAttachmentStore implements AttachmentStore {
 
   async clear(): Promise<void> {
     this.clearEpoch++;
-    // Unlink any spooled files so we don't leak disk space.
+    const toDelete: string[] = [];
     if (this.spoolDir) {
-      const toDelete: string[] = [];
       for (const att of this.items.values()) {
         if (att.path) toDelete.push(att.path);
       }
-      /* v8 ignore next -- best-effort: unlink of a just-spooled file does not reject */
-      await Promise.all(toDelete.map((p) => fsp.unlink(p).catch(() => undefined)));
     }
     this.items.clear();
     this.refs.length = 0;
     this.nextSeq = { text: 0, image: 0, file: 0, document: 0 };
+    // Unlink any spooled files so we don't leak disk space.
+    if (toDelete.length > 0) {
+      /* v8 ignore next -- best-effort: unlink of a just-spooled file does not reject */
+      await Promise.all(toDelete.map((p) => fsp.unlink(p).catch(() => undefined)));
+    }
   }
 
   private async toBlock(att: Attachment): Promise<ContentBlock> {

@@ -99,7 +99,8 @@ export function stripTerminalEscapes(value: string): string {
  * return to the start of a line and overwrite what was already drawn.
  */
 export function sanitizeTerminalText(value: string, tabWidth = 2): string {
-  const tab = ' '.repeat(Math.max(1, Math.min(8, Math.floor(tabWidth))));
+  const safeTabWidth = Number.isFinite(tabWidth) ? Math.floor(tabWidth) : 2;
+  const tab = ' '.repeat(Math.max(1, Math.min(8, safeTabWidth)));
   const withoutEscapes = stripTerminalEscapes(value)
     .replace(BIDI_AND_ZERO_WIDTH_RE, '')
     .replace(/\t/g, tab)
@@ -137,8 +138,18 @@ export function sanitizeTerminalPreview(
   sanitizedLength: number;
   sanitizedLines: number;
 } {
-  const maxLines = opts.maxLines ?? 40;
-  const maxChars = opts.maxChars ?? 8_000;
+  const maxLines =
+    opts.maxLines === undefined
+      ? 40
+      : Number.isFinite(opts.maxLines)
+        ? Math.max(0, Math.floor(opts.maxLines))
+        : 0;
+  const maxChars =
+    opts.maxChars === undefined
+      ? 8_000
+      : Number.isFinite(opts.maxChars)
+        ? Math.max(0, Math.floor(opts.maxChars))
+        : 0;
 
   const safe = sanitizeTerminalText(value, opts.tabWidth);
   let truncated = false;

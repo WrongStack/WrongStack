@@ -22,6 +22,7 @@ interface ConnectivityCache {
 }
 
 let cached: ConnectivityCache | undefined;
+let cacheGeneration = 0;
 
 /**
  * Returns `true` when the probe endpoint responds successfully (any HTTP
@@ -42,16 +43,26 @@ export async function checkConnectivity(opts?: {
   ttlMs?: number;
 }): Promise<boolean> {
   const url = opts?.probeUrl ?? DEFAULT_PROBE_URL;
-  const timeout = opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const ttl = opts?.ttlMs ?? DEFAULT_TTL_MS;
+  const rawTimeout = opts?.timeoutMs;
+  const timeout =
+    typeof rawTimeout === 'number' && Number.isFinite(rawTimeout) && rawTimeout > 0
+      ? Math.min(2_147_483_647, rawTimeout)
+      : DEFAULT_TIMEOUT_MS;
+  const rawTtl = opts?.ttlMs;
+  const ttl =
+    typeof rawTtl === 'number' && Number.isFinite(rawTtl) && rawTtl >= 0 ? rawTtl : DEFAULT_TTL_MS;
 
   // Respect a non-expired cache entry
   if (cached && cached.url === url && ttl > 0 && Date.now() - cached.at < ttl) {
     return cached.ok;
   }
 
-  cached = { ok: await probe(url, timeout), at: Date.now(), url };
-  return cached.ok;
+  const gen = cacheGeneration;
+  const ok = await probe(url, timeout);
+  if (gen === cacheGeneration) {
+    cached = { ok, at: Date.now(), url };
+  }
+  return ok;
 }
 
 async function probe(url: string, timeoutMs: number): Promise<boolean> {
@@ -77,5 +88,6 @@ async function probe(url: string, timeoutMs: number): Promise<boolean> {
  * changed.
  */
 export function resetConnectivityCache(): void {
+  cacheGeneration += 1;
   cached = undefined;
 }

@@ -46,7 +46,7 @@ function policyNumber(meta: Record<string, unknown> | undefined, key: string): u
 
 function resolvePreserveK(meta: Record<string, unknown> | undefined): number {
   const k = policyNumber(meta, 'preserveK');
-  return typeof k === 'number' && k > 0 ? Math.floor(k) : DEFAULT_PRESERVE_K;
+  return typeof k === 'number' && Number.isFinite(k) && k > 0 ? Math.floor(k) : DEFAULT_PRESERVE_K;
 }
 
 function resolveEliseThreshold(meta: Record<string, unknown> | undefined): number {

@@ -275,12 +275,17 @@ export function readPriceCliffMeta(value: unknown): ContextPriceCliffMeta | unde
     return undefined;
   }
   if (cliffTokens < MIN_CLIFF_TOKENS) return undefined;
+  const finiteOpt = (v: unknown): number | undefined =>
+    typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+  const multiplier = finiteOpt(record['multiplier']);
+  const baseRate = finiteOpt(record['baseRate']);
+  const cliffRate = finiteOpt(record['cliffRate']);
   return {
     cliffTokens: Math.floor(cliffTokens),
-    ...(typeof record['multiplier'] === 'number' ? { multiplier: record['multiplier'] } : {}),
+    ...(multiplier !== undefined ? { multiplier } : {}),
     ...(typeof record['field'] === 'string' ? { field: record['field'] as PriceCliffField } : {}),
-    ...(typeof record['baseRate'] === 'number' ? { baseRate: record['baseRate'] } : {}),
-    ...(typeof record['cliffRate'] === 'number' ? { cliffRate: record['cliffRate'] } : {}),
+    ...(baseRate !== undefined ? { baseRate } : {}),
+    ...(cliffRate !== undefined ? { cliffRate } : {}),
     ...(typeof record['routeKey'] === 'string' ? { routeKey: record['routeKey'] } : {}),
   };
 }

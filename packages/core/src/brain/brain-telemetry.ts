@@ -148,7 +148,7 @@ export function emitBrainTierTransition(
     outcome,
     terminal,
     ...(reason ? { reason } : {}),
-    durationMs: Math.max(0, at - startedAt),
+    durationMs: Number.isFinite(startedAt) ? Math.max(0, at - startedAt) : 0,
     at,
   });
 }

@@ -86,7 +86,7 @@ export function requestLimitExtension(opts: RequestLimitExtensionOptions): Promi
       if (!resolved) {
         resolved = true;
         clearPendingTimer();
-        resolve(Math.max(0, extra));
+        resolve(Number.isFinite(extra) ? Math.max(0, Math.floor(extra)) : 0);
       }
     };
     events.emit('iteration.limit_reached', {

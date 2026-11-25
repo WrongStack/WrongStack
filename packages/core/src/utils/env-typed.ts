@@ -21,11 +21,19 @@
  * Returns `false` for unset, empty, `0`, `false`, `no`, `off` (case-insensitive).
  * Returns `true` for any other non-empty value.
  */
+function ownEnvValue(env: NodeJS.ProcessEnv, key: string): string | undefined {
+  if (!Object.hasOwn(env, key)) return undefined;
+  const raw = env[key];
+  return typeof raw === 'string' ? raw : undefined;
+}
+
 export function envBool(key: string, env: NodeJS.ProcessEnv = process.env): boolean {
   if (!env || typeof env !== 'object') return false;
-  const raw = env[key];
-  if (raw === undefined || raw === '') return false;
-  return !/^(0|false|no|off)$/i.test(raw.trim());
+  const raw = ownEnvValue(env, key);
+  if (raw === undefined) return false;
+  const trimmed = raw.trim();
+  if (trimmed === '') return false;
+  return !/^(0|false|no|off)$/i.test(trimmed);
 }
 
 /**
@@ -37,9 +45,11 @@ export function envBoolOptional(
   env: NodeJS.ProcessEnv = process.env,
 ): boolean | undefined {
   if (!env || typeof env !== 'object') return undefined;
-  const raw = env[key];
-  if (raw === undefined || raw === '') return undefined;
-  return !/^(0|false|no|off)$/i.test(raw.trim());
+  const raw = ownEnvValue(env, key);
+  if (raw === undefined) return undefined;
+  const trimmed = raw.trim();
+  if (trimmed === '') return undefined;
+  return !/^(0|false|no|off)$/i.test(trimmed);
 }
 
 /**
@@ -57,7 +67,7 @@ export function envInt(
   env: NodeJS.ProcessEnv = process.env,
 ): number {
   if (!env || typeof env !== 'object') return options.default;
-  const raw = env[key];
+  const raw = ownEnvValue(env, key);
   if (raw === undefined) return options.default;
   const trimmed = raw.trim();
   if (trimmed === '') return options.default;
@@ -80,7 +90,7 @@ export function envFloat(
   env: NodeJS.ProcessEnv = process.env,
 ): number {
   if (!env || typeof env !== 'object') return options.default;
-  const raw = env[key];
+  const raw = ownEnvValue(env, key);
   if (raw === undefined) return options.default;
   const trimmed = raw.trim();
   if (trimmed === '') return options.default;
@@ -98,7 +108,7 @@ export function envFloat(
  */
 export function envString(key: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
   if (!env || typeof env !== 'object') return undefined;
-  const raw = env[key];
+  const raw = ownEnvValue(env, key);
   if (raw === undefined) return undefined;
   const trimmed = raw.trim();
   return trimmed === '' ? undefined : trimmed;

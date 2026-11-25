@@ -42,7 +42,8 @@ export interface ContextWindowBudgetSnapshot {
  * output ceiling. A genuinely smaller output ceiling can reduce the reserve.
  */
 export function defaultContextOutputReserve(maxContext: number, maxOutput?: number): number {
-  const heuristic = Math.floor(Math.min(8192, maxContext * 0.08));
+  const safeMax = Number.isFinite(maxContext) && maxContext > 0 ? maxContext : 0;
+  const heuristic = Math.floor(Math.min(8192, safeMax * 0.08));
   if (typeof maxOutput === 'number' && Number.isFinite(maxOutput) && maxOutput > 0) {
     return Math.min(heuristic, Math.floor(maxOutput));
   }
@@ -58,31 +59,42 @@ export function computeContextWindowBudget({
   safetyBufferTokens,
   requestOverheadTokens,
 }: ContextWindowBudgetInput): ContextWindowBudgetSnapshot {
+  const safeMaxContext = Number.isFinite(maxContext) && maxContext > 0 ? maxContext : 1;
+  const safeInputTokens = Number.isFinite(inputTokens) && inputTokens >= 0 ? inputTokens : 0;
   const reservedOutputTokens =
-    outputReserveTokens ?? defaultContextOutputReserve(maxContext, maxOutput);
-  const reservedSafetyTokens = safetyBufferTokens ?? Math.floor(Math.min(4096, maxContext * 0.02));
+    typeof outputReserveTokens === 'number' &&
+    Number.isFinite(outputReserveTokens) &&
+    outputReserveTokens >= 0
+      ? Math.floor(outputReserveTokens)
+      : defaultContextOutputReserve(safeMaxContext, maxOutput);
+  const reservedSafetyTokens =
+    typeof safetyBufferTokens === 'number' &&
+    Number.isFinite(safetyBufferTokens) &&
+    safetyBufferTokens >= 0
+      ? Math.floor(safetyBufferTokens)
+      : Math.floor(Math.min(4096, safeMaxContext * 0.02));
   const overhead =
     typeof requestOverheadTokens === 'number' &&
     Number.isFinite(requestOverheadTokens) &&
     requestOverheadTokens > 0
       ? Math.floor(requestOverheadTokens)
       : 0;
-  const baseInputTokens = maxContext - reservedOutputTokens - reservedSafetyTokens;
+  const baseInputTokens = safeMaxContext - reservedOutputTokens - reservedSafetyTokens;
   // Overhead that fills the whole window on its own is not something history
   // compaction can make room for; the pre-send check reports that case.
   const availableInputTokens = Math.max(
     1,
     overhead < baseInputTokens ? baseInputTokens - overhead : baseInputTokens,
   );
-  const remainingInputTokens = availableInputTokens - inputTokens;
+  const remainingInputTokens = availableInputTokens - safeInputTokens;
   return {
-    maxContext,
-    inputTokens,
+    maxContext: safeMaxContext,
+    inputTokens: safeInputTokens,
     availableInputTokens,
     remainingInputTokens,
     reservedOutputTokens,
     reservedSafetyTokens,
-    load: inputTokens / availableInputTokens,
+    load: safeInputTokens / availableInputTokens,
     overflowTokens: Math.max(0, -remainingInputTokens),
   };
 }
