@@ -8,8 +8,9 @@
  * must fall in, which a restart outlives anyway.
  */
 import { randomBytes } from 'node:crypto';
-import { hqVaultRandom } from './crypto.js';
-import type { HqVaultFetchMode, HqVaultFetchRequest } from './protocol.js';
+import { type HqVaultKeyPair, hqVaultRandom, hqVaultVerify } from './crypto.js';
+import type { HqVaultDeviceRecord, HqVaultFetchMode, HqVaultFetchRequest } from './protocol.js';
+import { signHqVaultRevocation } from './store-bundle.js';
 import { HqVaultError } from './store-model.js';
 
 /** Enrollment codes live this long. */
@@ -112,4 +113,61 @@ export function checkHqVaultFetchRequest(request: HqVaultFetchRequest): {
     throw new HqVaultError('VAULT_INVALID', 'features must be an array of names.');
   }
   return { mode, features: features ?? [] };
+}
+
+/**
+ * Authenticate a signed device request (fetch, upload): the device's
+ * signature under `purpose`, its status, the timestamp window and the nonce.
+ * Returns the approved device it came from.
+ */
+export function authenticateHqVaultDevice(
+  ctx: {
+    devices: readonly HqVaultDeviceRecord[];
+    identity: HqVaultKeyPair;
+    hqId: string;
+    nonces: HqVaultNonceCache;
+    now: number;
+  },
+  request: { deviceId?: unknown; ts?: unknown; nonce?: unknown; sig?: unknown },
+  purpose: string,
+): HqVaultDeviceRecord {
+  const device = ctx.devices.find((d) => d.id === request.deviceId);
+  const { sig, ...rest } = request;
+  // One answer for every authentication failure: an unknown device, a bad
+  // signature and a pending device must not be distinguishable to a caller
+  // who cannot sign.
+  if (!device || !hqVaultVerify({ ...rest, purpose }, sig, device.signPublic)) {
+    throw new HqVaultError('VAULT_DENIED', 'Device authentication failed.');
+  }
+  // Before the clock/replay checks on purpose: the statement is bound to this request's nonce.
+  if (device.status === 'revoked') {
+    const revocation = signHqVaultRevocation(ctx.identity, {
+      hqId: ctx.hqId,
+      deviceId: device.id,
+      requestNonce: String(request.nonce),
+      revokedAt: device.revokedAt ?? new Date(ctx.now).toISOString(),
+    });
+    throw new HqVaultError('VAULT_DENIED', 'This device was revoked.', { revocation });
+  }
+  if (device.status !== 'approved') {
+    throw new HqVaultError('VAULT_DENIED', 'This device is waiting for approval in HQ.');
+  }
+  const ts = typeof request.ts === 'string' ? Date.parse(request.ts) : Number.NaN;
+  if (!Number.isFinite(ts) || Math.abs(ctx.now - ts) > HQ_VAULT_FETCH_SKEW_MS) {
+    throw new HqVaultError(
+      'VAULT_DENIED',
+      'Request timestamp is outside the accepted window; check the clock.',
+    );
+  }
+  if (
+    typeof request.nonce !== 'string' ||
+    request.nonce.length < 16 ||
+    request.nonce.length > 128
+  ) {
+    throw new HqVaultError('VAULT_INVALID', 'nonce is malformed.');
+  }
+  if (!ctx.nonces.remember(`${device.id}:${request.nonce}`, ts, ctx.now)) {
+    throw new HqVaultError('VAULT_DENIED', 'Request replayed.');
+  }
+  return device;
 }

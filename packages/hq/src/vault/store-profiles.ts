@@ -67,7 +67,7 @@ function invalid(message: string): never {
 /** Provider ids a machine reserves for itself (`provider-config-state.ts`). */
 const RESERVED_IDS = new Set(['acp', 'wrongforge']);
 
-function profileId(value: unknown, field = 'id'): string {
+export function parseHqVaultProfileId(value: unknown, field = 'id'): string {
   const id = hqVaultText(value, 64);
   if (id === undefined || !PROFILE_ID.test(id)) {
     invalid(`${field} must be a provider id (letters, digits, . _ : -).`);
@@ -105,7 +105,7 @@ export function parseHqVaultProfileFields(
   const cleared = (v: unknown) => v === null || v === '';
   if (input.type !== undefined) {
     if (cleared(input.type)) out.clear.push('type');
-    else out.type = profileId(input.type, 'type');
+    else out.type = parseHqVaultProfileId(input.type, 'type');
   }
   if (input.family !== undefined) {
     if (cleared(input.family)) out.clear.push('family');
@@ -209,7 +209,7 @@ export function createHqVaultProfile(
   input: Record<string, unknown>,
   at: string,
 ): HqVaultStoredProfile {
-  const id = profileId(input.id);
+  const id = parseHqVaultProfileId(input.id);
   if (file.profiles.some((p) => p.id === id)) {
     throw new HqVaultError('VAULT_CONFLICT', `A provider profile "${id}" already exists.`);
   }
@@ -390,8 +390,8 @@ export function applyHqVaultSignIn(
   at: string,
 ): { profile: HqVaultStoredProfile; key: HqVaultStoredKey } {
   const { result } = input;
-  const id = profileId(input.profileId ?? result.providerId);
-  const type = profileId(result.providerId, 'providerId');
+  const id = parseHqVaultProfileId(input.profileId ?? result.providerId);
+  const type = parseHqVaultProfileId(result.providerId, 'providerId');
   const models = result.models.length > 0 ? stringList(result.models, 'models', 256) : undefined;
   let profile = file.profiles.find((p) => p.id === id);
   if (profile && profile.type !== type) {

@@ -24,9 +24,12 @@
  *   GET    /api/vault/grants
  *   POST   /api/vault/enrollment-codes        { label?, autoApprove? } → one-time enrollment token
  *
- * Device routes — no browser credential; exempt from the router's auth gate:
- *   POST   /api/vault/enroll                  MACed with the one-time code
- *   POST   /api/vault/fetch                   signed with the device key
+ *   GET    /api/vault/uploads                 providers devices uploaded, waiting (labels + hints only)
+ *   POST   /api/vault/uploads/:id/approve     { profileId?, lease? } → profile, granted back to the device
+ *   DELETE /api/vault/uploads/:id             reject
+ *
+ * Device routes (`vault-device.ts`) — no browser credential; exempt from the
+ * router's auth gate: enroll, fetch, upload.
  *
  * Three rules hold for every operator write (and the unseal):
  *  1. The vault needs an operator password. A fresh HQ has only a browser
@@ -55,9 +58,7 @@ import {
   formatHqVaultEnrollmentToken,
   HQ_VAULT_FILE,
   type HqVaultChangedNotice,
-  type HqVaultEnrollRequest,
   HqVaultError,
-  type HqVaultFetchRequest,
   type HqVaultRefresher,
   HqVaultStore,
   hqVaultPassphraseFromEnv,
@@ -72,7 +73,6 @@ import {
 import { resolveClientAddress } from '../client-address.js';
 import type { LoginAttemptStore } from '../login-attempt-store.js';
 import type { HqRouterMutableAuth, HqSessionEntry } from '../types.js';
-import { readRequestBody, writeInvalidBody } from '../utils.js';
 import { handleHqVaultRevisionRoute } from '../vault-notice.js';
 import {
   type ApplyHqAuthFile,
@@ -82,6 +82,8 @@ import {
   requireAdminCredential,
 } from './auth/common.js';
 import { createHqVaultModelsRegistry, listHqVaultCatalog } from './vault-catalog.js';
+import { handleHqVaultDeviceRoute } from './vault-device.js';
+import { readJsonObject, writeError, writeJson, writeVaultFailure } from './vault-http.js';
 import {
   createHqVaultAuthRegistry,
   type HqVaultAuthRegistry,
@@ -91,7 +93,6 @@ import {
 } from './vault-oauth.js';
 
 export const HQ_VAULT_ELEVATION_MS = 10 * 60_000;
-const BODY_LIMIT = 64 * 1024;
 
 export interface HqVaultRouteDeps {
   mutableAuth: HqRouterMutableAuth;
@@ -205,52 +206,6 @@ export class HqVaultRouteState {
   }
 }
 
-function writeJson(res: http.ServerResponse, status: number, body: unknown): void {
-  res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-  res.end(JSON.stringify(body));
-}
-
-function writeError(res: http.ServerResponse, status: number, code: string, message: string): void {
-  writeJson(res, status, { error: { code, message } });
-}
-
-const VAULT_ERROR_STATUS: Record<HqVaultError['code'], number> = {
-  VAULT_SEALED: 423,
-  VAULT_NOT_FOUND: 404,
-  VAULT_INVALID: 400,
-  VAULT_CONFLICT: 409,
-  VAULT_DENIED: 403,
-};
-
-function writeVaultFailure(res: http.ServerResponse, error: unknown): void {
-  if (error instanceof HqVaultError) {
-    writeJson(res, VAULT_ERROR_STATUS[error.code], {
-      ...error.details,
-      error: { code: error.code, message: error.message },
-    });
-    return;
-  }
-  // Never echo an unexpected error: it could quote file content.
-  writeError(res, 500, 'VAULT_ERROR', 'The vault could not complete the request.');
-}
-
-async function readJsonObject(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-): Promise<Record<string, unknown> | undefined> {
-  try {
-    const parsed: unknown = JSON.parse(await readRequestBody(req, BODY_LIMIT));
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-      writeError(res, 400, 'BAD_REQUEST', 'Expected a JSON object.');
-      return undefined;
-    }
-    return parsed as Record<string, unknown>;
-  } catch (error) {
-    writeInvalidBody(res, error);
-    return undefined;
-  }
-}
-
 /**
  * Whether the request arrived over a channel that keeps a pasted key off the
  * wire: a loopback TCP peer (which covers a reverse proxy on the same host),
@@ -295,12 +250,14 @@ const PROFILE_DEVICE = new RegExp(
 const OAUTH_ONE = /^\/api\/vault\/oauth\/([0-9a-f]{24})$/;
 const OAUTH_CODE = /^\/api\/vault\/oauth\/([0-9a-f]{24})\/code$/;
 const DEVICE_ACTION = /^\/api\/vault\/devices\/([0-9a-f]{32})\/(approve|revoke)$/;
+const UPLOAD_ONE = /^\/api\/vault\/uploads\/([A-Za-z0-9_-]{16,64})(\/approve)?$/;
 
 /** Paths a device reaches without a browser credential. */
 export function isHqVaultDevicePath(pathname: string): boolean {
   return (
     pathname === '/api/vault/enroll' ||
     pathname === '/api/vault/fetch' ||
+    pathname === '/api/vault/upload' ||
     pathname === HQ_VAULT_REVISION_PATH
   );
 }
@@ -328,7 +285,7 @@ export async function handleApiVault(
       writeError(res, 405, 'METHOD_NOT_ALLOWED', 'POST only.');
       return true;
     }
-    await handleDeviceRoute(req, res, pathname, deps);
+    await handleHqVaultDeviceRoute(req, res, pathname, deps);
     return true;
   }
 
@@ -436,7 +393,13 @@ export async function handleApiVault(
     } else if (pathname === '/api/vault/devices')
       writeJson(res, 200, { devices: store.listDevices() });
     else if (pathname === '/api/vault/grants') writeJson(res, 200, { grants: store.listGrants() });
-    else if (pathname === '/api/vault/audit') {
+    else if (pathname === '/api/vault/uploads') {
+      try {
+        writeJson(res, 200, { uploads: store.uploads().list() });
+      } catch (error) {
+        writeVaultFailure(res, error);
+      }
+    } else if (pathname === '/api/vault/audit') {
       const limit = Number.parseInt(url.searchParams.get('limit') ?? '200', 10);
       writeJson(res, 200, { entries: await store.readAudit(Number.isFinite(limit) ? limit : 200) });
     } else writeError(res, 404, 'NOT_FOUND', 'Unknown vault route.');
@@ -504,6 +467,18 @@ export async function handleApiVault(
       }
       await store.setGrant(profileDevice[1]!, profileDevice[2]!, granted, actor, lease);
       writeJson(res, 200, { profile: store.getProfile(profileDevice[1]!) });
+      return true;
+    }
+    const upload = pathname.match(UPLOAD_ONE);
+    if (upload?.[2] && req.method === 'POST') {
+      const body = await readJsonObject(req, res);
+      if (!body) return true;
+      writeJson(res, 200, { profile: await store.uploads().approve(upload[1]!, body, actor) });
+      return true;
+    }
+    if (upload && !upload[2] && req.method === 'DELETE') {
+      await store.uploads().reject(upload[1]!, actor);
+      writeJson(res, 200, { rejected: true });
       return true;
     }
     const device = pathname.match(DEVICE_ACTION);
@@ -662,36 +637,4 @@ async function handleUnseal(
   }
   deps.loginAttempts.delete(clientIp);
   writeJson(res, 200, { state: 'unsealed' });
-}
-
-async function handleDeviceRoute(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  pathname: string,
-  deps: HqVaultRouteDeps,
-): Promise<void> {
-  // The vault exists only on an HQ with an operator password; until then
-  // there is no code to enroll with and nothing to fetch.
-  if (deps.mutableAuth.passwordHash === undefined) {
-    writeError(res, 404, 'NOT_FOUND', 'The key vault is not enabled on this HQ.');
-    return;
-  }
-  const body = await readJsonObject(req, res);
-  if (!body) return;
-  try {
-    const store = await deps.vault.store();
-    if (pathname === '/api/vault/enroll') {
-      writeJson(res, 200, await store.enroll(body as unknown as HqVaultEnrollRequest));
-    } else {
-      writeJson(
-        res,
-        200,
-        await store.fetch(body as unknown as HqVaultFetchRequest, {
-          refresher: deps.vault.refresher(),
-        }),
-      );
-    }
-  } catch (error) {
-    writeVaultFailure(res, error);
-  }
 }

@@ -305,6 +305,12 @@ export function auditSentence(
       const count = entry.profileIds?.length ?? 0;
       return `${device} fetched ${count} provider${count === 1 ? '' : 's'}`;
     }
+    case 'upload.receive':
+      return `${device} uploaded ${profile}`;
+    case 'upload.approve':
+      return `Approved the upload of ${profile} from ${device}`;
+    case 'upload.reject':
+      return `Rejected an upload from ${device}`;
     default:
       return entry.kind;
   }

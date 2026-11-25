@@ -14,12 +14,14 @@ export {
   type HqImportReport,
   type HqLeasedValue,
   type HqLeaseSink,
+  type HqPushReport,
   HqVaultClientRequestError,
   HqVaultDeviceRevokedError,
   normalizeHqOrigin,
 } from './device-service.js';
 export {
   type HqDeviceRecord,
+  type HqPendingUpload,
   hqDeviceFilePath,
   hqDeviceFingerprint,
   readHqDevice,
@@ -55,3 +57,4 @@ export {
   type HqVaultRefresher,
   type HqVaultRenewal,
 } from './store-refresh.js';
+export { HQ_VAULT_UPLOAD_TTL_MS, HqVaultUploads } from './store-uploads.js';

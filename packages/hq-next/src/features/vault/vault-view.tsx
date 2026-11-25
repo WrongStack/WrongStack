@@ -20,9 +20,11 @@ import {
   fetchVaultProfiles,
   fetchVaultSignInStrategies,
   fetchVaultStatus,
+  fetchVaultUploads,
   type HqVaultAuditEntry,
   type HqVaultDeviceRecord,
   type HqVaultProfileMeta,
+  type HqVaultUploadMeta,
   type VaultCatalogProvider,
   type VaultSignInStrategy,
   type VaultStatus,
@@ -40,16 +42,18 @@ import { auditActor, auditSentence, vaultGate } from './model';
 import { ProfileCard } from './profile-card';
 import { smallButton } from './shared';
 import { SignInPanel } from './signin-panel';
+import { UploadsPanel } from './uploads-panel';
 
-type Tab = 'saved' | 'add' | 'signin' | 'devices' | 'activity';
+type Tab = 'saved' | 'add' | 'signin' | 'devices' | 'uploads' | 'activity';
 
 interface VaultData {
   profiles: HqVaultProfileMeta[];
   devices: HqVaultDeviceRecord[];
+  uploads: HqVaultUploadMeta[];
   audit: HqVaultAuditEntry[];
 }
 
-const EMPTY: VaultData = { profiles: [], devices: [], audit: [] };
+const EMPTY: VaultData = { profiles: [], devices: [], uploads: [], audit: [] };
 
 export function VaultView(): ReactNode {
   const [status, setStatus] = useState<VaultStatus | null>(null);
@@ -77,13 +81,20 @@ export function VaultView(): ReactNode {
         setData(EMPTY);
         return;
       }
-      const [profiles, devices, audit] = await Promise.all([
+      const [profiles, devices, uploads, audit] = await Promise.all([
         fetchVaultProfiles(),
         fetchVaultDevices(),
+        // A sealed vault cannot open uploads; the rest of the page still loads.
+        fetchVaultUploads().catch(() => ({ uploads: [] })),
         fetchVaultAudit(80),
       ]);
       if (seqRef.current !== seq) return;
-      setData({ profiles: profiles.profiles, devices: devices.devices, audit: audit.entries });
+      setData({
+        profiles: profiles.profiles,
+        devices: devices.devices,
+        uploads: uploads.uploads,
+        audit: audit.entries,
+      });
     } catch (cause) {
       if (seqRef.current !== seq) return;
       if (cause instanceof HqHttpError && cause.status === 403) setForbidden(true);
@@ -135,11 +146,22 @@ export function VaultView(): ReactNode {
   const gate = status ? vaultGate(status, now) : null;
   const pending = data.devices.filter((d) => d.status === 'pending').length;
   const liveDevices = data.devices.filter((d) => d.status !== 'revoked').length;
-  const tabs: { id: Tab; label: string; count?: number; alert?: boolean }[] = [
+  const tabs: { id: Tab; label: string; count?: number; alert?: string }[] = [
     { id: 'saved', label: 'Saved', count: data.profiles.length },
     { id: 'add', label: 'Add provider' },
     { id: 'signin', label: 'Sign in' },
-    { id: 'devices', label: 'Devices', count: liveDevices, alert: pending > 0 },
+    {
+      id: 'devices',
+      label: 'Devices',
+      count: liveDevices,
+      ...(pending > 0 ? { alert: 'A device is waiting for approval' } : {}),
+    },
+    {
+      id: 'uploads',
+      label: 'Uploads',
+      count: data.uploads.length,
+      ...(data.uploads.length > 0 ? { alert: 'An upload is waiting for approval' } : {}),
+    },
     { id: 'activity', label: 'Activity' },
   ];
 
@@ -206,14 +228,14 @@ export function VaultView(): ReactNode {
                     {t.count !== undefined && (
                       <span className="bg-muted px-1.5 text-xs tabular-nums">{t.count}</span>
                     )}
-                    {t.alert && (
+                    {t.alert !== undefined && (
                       <span
                         className="size-2 rounded-full bg-warning"
-                        title="A device is waiting for approval"
+                        title={t.alert}
                         aria-hidden
                       />
                     )}
-                    {t.alert && <span className="sr-only">, a device is waiting for approval</span>}
+                    {t.alert !== undefined && <span className="sr-only">, {t.alert}</span>}
                   </button>
                 ))}
               </div>
@@ -255,6 +277,14 @@ export function VaultView(): ReactNode {
                   devices={data.devices}
                   profiles={data.profiles}
                   identity={status.identity}
+                  canWrite={gate.canWrite}
+                  now={now}
+                  onChanged={load}
+                />
+              )}
+              {tab === 'uploads' && (
+                <UploadsPanel
+                  uploads={data.uploads}
                   canWrite={gate.canWrite}
                   now={now}
                   onChanged={load}

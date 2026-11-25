@@ -1,6 +1,6 @@
 /**
  * HQ key vault wire protocol — what a device and HQ exchange over
- * `POST /api/vault/enroll` and `POST /api/vault/fetch`, and the metadata the
+ * `POST /api/vault/enroll`, `/fetch` and `/upload`, and the metadata the
  * dashboard reads.
  *
  * The unit HQ manages and grants is a **provider profile** — the same shape a
@@ -58,6 +58,8 @@ export interface HqVaultProfileMeta {
   deviceIds: string[];
   /** Of those, the devices that hold it in memory only (lease grants). */
   leaseDeviceIds?: string[];
+  /** Made from this device's upload. */
+  origin?: { deviceId: string; uploadId: string };
 }
 
 export interface HqVaultDeviceRecord {
@@ -214,6 +216,12 @@ export interface HqVaultBundleProfile {
    * then carry no seal and the device must be updated.
    */
   lease?: { ttlSeconds: number; withheld?: true };
+  /**
+   * The upload this profile was made from, sent only to the device that
+   * uploaded it: that machine's own provider becomes this profile instead of
+   * getting an `-hq` copy beside it.
+   */
+  uploadId?: string;
 }
 
 /** HQ's signed answer. `sig` covers every other member plus `purpose: HQ_VAULT_BUNDLE_PURPOSE`. */
@@ -232,6 +240,78 @@ export interface HqVaultBundle {
    */
   revision?: number;
   sig: string;
+}
+
+// ── Upload ──────────────────────────────────────────────────────────────────
+
+export const HQ_VAULT_UPLOAD_PURPOSE = 'wstack-hq-vault/v2/upload';
+
+/**
+ * A provider this machine moves into HQ, sealed to HQ's identity key — the
+ * endpoint and key labels too, since device routes may run over plain HTTP.
+ * API keys only: an OAuth account is signed in on HQ, which then renews it.
+ */
+export interface HqVaultUploadPayload {
+  /** The provider's id in the uploading machine's config. */
+  localId: string;
+  profile: {
+    id: string;
+    type: string;
+    family?: string;
+    baseUrl?: string;
+    envVars?: string[];
+    models?: string[];
+    activeKey?: string;
+  };
+  keys: { label: string; apiKey: string }[];
+}
+
+/**
+ * A device's upload. HQ holds it until an operator approves (it then becomes
+ * a profile granted back to the device) or rejects it. `uploadId` is the
+ * device's own random id, so the device never relies on HQ's unsigned answer
+ * to recognise the profile later. `sig` covers every other member plus
+ * `purpose: HQ_VAULT_UPLOAD_PURPOSE`; the seal's associated data is
+ * {@link hqVaultUploadAad}.
+ */
+export interface HqVaultUploadRequest {
+  v: 2;
+  deviceId: string;
+  ts: string;
+  nonce: string;
+  uploadId: string;
+  sealed: HqSealedBox;
+  sig: string;
+}
+
+export interface HqVaultUploadResponse {
+  v: 2;
+  uploadId: string;
+  status: 'pending';
+  expiresAt: string;
+}
+
+/** A pending upload as the dashboard sees it — the values never, their last characters only. */
+export interface HqVaultUploadMeta {
+  id: string;
+  deviceId: string;
+  /** The device's label, or its hostname. */
+  device: string;
+  receivedAt: string;
+  expiresAt: string;
+  localId: string;
+  profile: HqVaultUploadPayload['profile'];
+  keys: { label: string; hint: string }[];
+  /** A profile with this id exists already: approve it under another id. */
+  conflict: boolean;
+}
+
+export function hqVaultUploadAad(item: {
+  deviceId: string;
+  uploadId: string;
+  nonce: string;
+}): string {
+  return `${HQ_VAULT_UPLOAD_PURPOSE}|${item.deviceId}|${item.uploadId}|${item.nonce}`;
 }
 
 /** The associated data a bundle key is sealed under. */

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T08:45:11.299Z",
+  "generatedAt": "2026-11-25T10:27:08.919Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,19 +12,21 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6550,
-    "testFiles": 5856,
-    "sourceLines": 1342324,
+    "sourceFiles": 6555,
+    "testFiles": 5857,
+    "sourceLines": 1343374,
     "workspaceEdges": 261,
-    "moduleEdges": 19164,
+    "moduleEdges": 19183,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
-    "typeModuleCycles": 1,
+    "typeModuleCycles": 2,
     "testsWithoutTypecheck": 1,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1048
   },
-  "errors": [],
+  "errors": [
+    "1 unexcepted module cycle(s)"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -231,8 +233,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 652,
-      "testFiles": 725,
+      "sourceFiles": 654,
+      "testFiles": 726,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -284,7 +286,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 725
+          "testFiles": 726
         }
       ]
     },
@@ -527,7 +529,7 @@
     {
       "name": "@wrongstack/hq",
       "dir": "packages/hq",
-      "sourceFiles": 91,
+      "sourceFiles": 93,
       "testFiles": 65,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -551,7 +553,7 @@
     {
       "name": "@wrongstack/hq-next",
       "dir": "packages/hq-next",
-      "sourceFiles": 204,
+      "sourceFiles": 205,
       "testFiles": 72,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1383,6 +1385,13 @@
       {
         "kind": "type-module-cycle",
         "members": [
+          "packages/cli/src/hq-server/routes/vault-device.ts",
+          "packages/cli/src/hq-server/routes/vault-handlers.ts"
+        ]
+      },
+      {
+        "kind": "type-module-cycle",
+        "members": [
           "packages/contracts/src/types/blocks.ts",
           "packages/contracts/src/types/context.ts",
           "packages/contracts/src/types/conversation-state.ts",
@@ -1399,7 +1408,15 @@
     "matchedExceptions": [
       "ARCH-CYCLE-TYPE-12"
     ],
-    "unexcepted": []
+    "unexcepted": [
+      {
+        "kind": "type-module-cycle",
+        "members": [
+          "packages/cli/src/hq-server/routes/vault-device.ts",
+          "packages/cli/src/hq-server/routes/vault-handlers.ts"
+        ]
+      }
+    ]
   },
   "testOwnership": {
     "runtimeAssignments": [
@@ -7489,6 +7506,12 @@
       },
       {
         "file": "packages/cli/tests/hq-vault-routes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/hq-vault-upload.test.ts",
         "projects": [
           "root-node"
         ]

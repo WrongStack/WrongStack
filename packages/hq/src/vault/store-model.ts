@@ -13,7 +13,12 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { restrictDirPermissions, restrictFilePermissions } from '@wrongstack/core/security';
 import { atomicWrite } from '@wrongstack/core/utils';
-import { type HqVaultCipherText, hqVaultDecrypt, hqVaultEncrypt } from './crypto.js';
+import {
+  type HqSealedBox,
+  type HqVaultCipherText,
+  hqVaultDecrypt,
+  hqVaultEncrypt,
+} from './crypto.js';
 import type {
   HqVaultDeviceRecord,
   HqVaultGrantRecord,
@@ -56,6 +61,18 @@ export interface HqVaultStoredProfile {
   createdAt: string;
   updatedAt: string;
   keys: HqVaultStoredKey[];
+  /** Made from a device's upload: that device takes it back in place of its own provider. */
+  origin?: { deviceId: string; uploadId: string };
+}
+
+/** A device's upload awaiting an operator, still sealed to HQ's identity key. */
+export interface HqVaultStoredUpload {
+  id: string;
+  deviceId: string;
+  nonce: string;
+  receivedAt: string;
+  expiresAt: string;
+  sealed: HqSealedBox;
 }
 
 export interface HqVaultStoredIdentity {
@@ -75,6 +92,7 @@ export interface HqVaultFile {
   grants: HqVaultGrantRecord[];
   /** Grows with every operator change devices should hear about (see `HqVaultBundle.revision`). */
   revision?: number;
+  uploads?: HqVaultStoredUpload[];
 }
 
 export type HqVaultState = 'sealed' | 'unsealed';
@@ -90,6 +108,7 @@ export interface HqVaultStatus {
     devices: number;
     pendingDevices: number;
     grants: number;
+    pendingUploads: number;
   };
 }
 
@@ -108,7 +127,10 @@ export type HqVaultAuditKind =
   | 'grant.create'
   | 'grant.revoke'
   | 'enrollment.mint'
-  | 'fetch';
+  | 'fetch'
+  | 'upload.receive'
+  | 'upload.approve'
+  | 'upload.reject';
 
 export interface HqVaultAuditEntry {
   at: string;
@@ -305,6 +327,7 @@ export class HqVaultFileIO {
       devices: Array.isArray(parsed.devices) ? parsed.devices : [],
       grants: Array.isArray(parsed.grants) ? parsed.grants : [],
       ...(Number.isSafeInteger(parsed.revision) ? { revision: parsed.revision } : {}),
+      ...(Array.isArray(parsed.uploads) ? { uploads: parsed.uploads } : {}),
     };
   }
 

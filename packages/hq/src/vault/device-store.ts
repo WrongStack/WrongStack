@@ -27,6 +27,30 @@ import type { HqVaultDeviceStatus, HqVaultIdentity } from './protocol.js';
 
 const HQ_DEVICE_FILE = 'hq-device.json';
 
+/** A provider this machine uploaded to HQ, waiting for an operator (`device-upload.ts`). */
+export interface HqPendingUpload {
+  uploadId: string;
+  /** The provider's id in this machine's config. */
+  localId: string;
+  /** SHA-256 of each uploaded key value, to recognise those keys when HQ's copies arrive. */
+  keyHashes: string[];
+  uploadedAt: string;
+  /** HQ drops an upload nobody approved by then; so does this machine. */
+  expiresAt: string;
+}
+
+function isPendingUpload(value: unknown): value is HqPendingUpload {
+  const u = value as HqPendingUpload | null;
+  return (
+    typeof u?.uploadId === 'string' &&
+    typeof u.localId === 'string' &&
+    Array.isArray(u.keyHashes) &&
+    u.keyHashes.every((h) => typeof h === 'string') &&
+    typeof u.uploadedAt === 'string' &&
+    typeof u.expiresAt === 'string'
+  );
+}
+
 export interface HqDeviceRecord {
   /** The HQ origin the device talks to, e.g. `https://hq.example.com:3499`. */
   hqUrl: string;
@@ -43,6 +67,7 @@ export interface HqDeviceRecord {
   revokedAt?: string;
   /** HQ profiles this machine holds as memory-only leases (each process fetches them at start). */
   leaseProfileIds?: string[];
+  pendingUploads?: HqPendingUpload[];
 }
 
 interface HqDeviceFile {
@@ -60,6 +85,7 @@ interface HqDeviceFile {
   syncedRevision?: number;
   revokedAt?: string;
   leaseProfileIds?: string[];
+  pendingUploads?: HqPendingUpload[];
 }
 
 export function hqDeviceFilePath(globalRoot: string): string {
@@ -115,6 +141,9 @@ export async function readHqDevice(
     ...(Array.isArray(file.leaseProfileIds)
       ? { leaseProfileIds: file.leaseProfileIds.filter((id) => typeof id === 'string') }
       : {}),
+    ...(Array.isArray(file.pendingUploads)
+      ? { pendingUploads: file.pendingUploads.filter(isPendingUpload) }
+      : {}),
   };
 }
 
@@ -137,6 +166,7 @@ export async function writeHqDevice(
     ...(record.syncedRevision !== undefined ? { syncedRevision: record.syncedRevision } : {}),
     ...(record.revokedAt !== undefined ? { revokedAt: record.revokedAt } : {}),
     ...(record.leaseProfileIds?.length ? { leaseProfileIds: record.leaseProfileIds } : {}),
+    ...(record.pendingUploads?.length ? { pendingUploads: record.pendingUploads } : {}),
   };
   await fs.mkdir(globalRoot, { recursive: true });
   const target = hqDeviceFilePath(globalRoot);

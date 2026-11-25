@@ -360,6 +360,9 @@ function printHelp(deps: SubcommandDeps): void {
   deps.renderer.write(
     `  wstack hq sync                 Import granted keys, apply rotations, drop revoked ones.\n`,
   );
+  deps.renderer.write(
+    `  wstack hq keys push <provider>… | --all [--again]  Move providers into HQ (an operator approves them).\n`,
+  );
   deps.renderer.write(`  wstack hq unenroll [--remove-keys]  Forget this machine's HQ identity.\n`);
   deps.renderer.write('\n');
   deps.renderer.write(`Flags (apply to all subcommands):\n`);

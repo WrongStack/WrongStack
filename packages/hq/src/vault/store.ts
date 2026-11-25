@@ -25,7 +25,6 @@ import {
   hqVaultFingerprint,
   hqVaultKeyId,
   hqVaultSign,
-  hqVaultVerify,
   isHqVaultKeyString,
 } from './crypto.js';
 import {
@@ -45,11 +44,12 @@ import {
   type HqVaultIdentity,
   type HqVaultKeyMeta,
   type HqVaultProfileMeta,
+  type HqVaultUploadRequest,
 } from './protocol.js';
-import { buildHqVaultBundleProfiles, signHqVaultRevocation } from './store-bundle.js';
+import { buildHqVaultBundleProfiles } from './store-bundle.js';
 import {
+  authenticateHqVaultDevice,
   checkHqVaultFetchRequest,
-  HQ_VAULT_FETCH_SKEW_MS,
   HqVaultEnrollmentCodes,
   HqVaultNonceCache,
 } from './store-guards.js';
@@ -78,6 +78,7 @@ import {
   upsertHqVaultKey,
 } from './store-profiles.js';
 import { dueHqVaultKeys, type HqVaultRefresher, renewHqVaultKey } from './store-refresh.js';
+import { HqVaultUploads } from './store-uploads.js';
 
 export interface HqVaultStoreOptions {
   now?: () => number;
@@ -151,6 +152,7 @@ export class HqVaultStore {
         devices: this.file.devices.filter((d) => d.status !== 'revoked').length,
         pendingDevices: this.file.devices.filter((d) => d.status === 'pending').length,
         grants: this.file.grants.length,
+        pendingUploads: this.file.uploads?.length ?? 0,
       },
     };
   }
@@ -458,8 +460,7 @@ export class HqVaultStore {
    * sealed to that device. A stolen client token gets nothing here: the
    * request must carry the device's signature and the values open only with
    * its private key.
-   */
-  /**
+   *
    * @param options.refresher renews OAuth keys that are about to expire, after
    * the device has authenticated and before the bundle is sealed — so a device
    * always gets a live access token and HQ alone ever spends the refresh token.
@@ -470,48 +471,8 @@ export class HqVaultStore {
   ): Promise<HqVaultBundle> {
     const master = this.requireUnsealed();
     const { mode, features } = checkHqVaultFetchRequest(request);
-    const device = this.file.devices.find((d) => d.id === request.deviceId);
-    const { sig, ...rest } = request;
-    // One answer for every authentication failure: an unknown device, a bad
-    // signature and a pending device must not be distinguishable to a caller
-    // who cannot sign.
-    if (
-      !device ||
-      !hqVaultVerify({ ...rest, purpose: HQ_VAULT_FETCH_PURPOSE }, sig, device.signPublic)
-    ) {
-      throw new HqVaultError('VAULT_DENIED', 'Device authentication failed.');
-    }
-    // Before the clock/replay checks on purpose: the statement is bound to this request's nonce.
-    if (device.status === 'revoked') {
-      const revocation = signHqVaultRevocation(this.identityKeys!, {
-        hqId: this.file.identity!.hqId,
-        deviceId: device.id,
-        requestNonce: String(request.nonce),
-        revokedAt: device.revokedAt ?? new Date(this.now()).toISOString(),
-      });
-      throw new HqVaultError('VAULT_DENIED', 'This device was revoked.', { revocation });
-    }
-    if (device.status !== 'approved') {
-      throw new HqVaultError('VAULT_DENIED', 'This device is waiting for approval in HQ.');
-    }
-    const ts = typeof request.ts === 'string' ? Date.parse(request.ts) : Number.NaN;
     const now = this.now();
-    if (!Number.isFinite(ts) || Math.abs(now - ts) > HQ_VAULT_FETCH_SKEW_MS) {
-      throw new HqVaultError(
-        'VAULT_DENIED',
-        'Request timestamp is outside the accepted window; check the clock.',
-      );
-    }
-    if (
-      typeof request.nonce !== 'string' ||
-      request.nonce.length < 16 ||
-      request.nonce.length > 128
-    ) {
-      throw new HqVaultError('VAULT_INVALID', 'nonce is malformed.');
-    }
-    if (!this.nonces.remember(`${device.id}:${request.nonce}`, ts, now)) {
-      throw new HqVaultError('VAULT_DENIED', 'Request replayed.');
-    }
+    const device = this.authenticate(request, HQ_VAULT_FETCH_PURPOSE, now);
 
     if (mode === 'fetch' && options.refresher) {
       await this.refreshDue(device.id, request.profileIds, options.refresher, now);
@@ -551,7 +512,38 @@ export class HqVaultStore {
     return { ...body, sig: hqVaultSign({ ...body, purpose: HQ_VAULT_BUNDLE_PURPOSE }, identity) };
   }
 
+  private uploadsView: HqVaultUploads | undefined;
+
+  /** Providers devices moved into HQ, waiting for an operator (`store-uploads.ts`). */
+  uploads(): HqVaultUploads {
+    this.uploadsView ??= new HqVaultUploads({
+      file: () => this.file,
+      master: () => this.requireUnsealed(),
+      identity: () => this.identityKeys!,
+      authenticate: (request: HqVaultUploadRequest, purpose: string, now: number) =>
+        this.authenticate(request, purpose, now),
+      change: <T>(fn: (file: HqVaultFile) => Promise<T>) => this.change(fn),
+      mutate: <T>(fn: (file: HqVaultFile) => Promise<T>) => this.mutate(fn),
+      audit: (entry: Omit<HqVaultAuditEntry, 'at'>) => this.audit(entry),
+      now: () => this.now(),
+    });
+    return this.uploadsView;
+  }
+
   // ── Internals ─────────────────────────────────────────────────────────────
+
+  private authenticate(
+    request: { deviceId?: unknown; ts?: unknown; nonce?: unknown; sig?: unknown },
+    purpose: string,
+    now: number,
+  ): HqVaultDeviceRecord {
+    const ctx = { devices: this.file.devices, identity: this.identityKeys!, nonces: this.nonces };
+    return authenticateHqVaultDevice(
+      { ...ctx, hqId: this.file.identity!.hqId, now },
+      request,
+      purpose,
+    );
+  }
 
   private readonly refreshing = new Map<string, Promise<void>>();
 

@@ -86,6 +86,7 @@ export function buildHqVaultBundleProfiles(
       version: profile.version,
       keys,
       ...(lease ? { lease } : {}),
+      ...(profile.origin?.deviceId === device.id ? { uploadId: profile.origin.uploadId } : {}),
     });
   }
   return out;

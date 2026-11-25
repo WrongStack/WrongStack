@@ -17,6 +17,9 @@
  *  - `sync` mirrors HQ's changes and removes profiles HQ stopped granting,
  *    and touches nothing it did not create.
  *  - OAuth keys arrive as access tokens only; HQ alone holds the refresh token.
+ *  - `push` moves a provider of this machine into HQ (`device-upload.ts`): it
+ *    waits there for an operator, and the sync after the approval makes the
+ *    original provider HQ's instead of adding a copy.
  */
 import * as os from 'node:os';
 import type { ProviderApiKey, ProviderConfig } from '@wrongstack/contracts/types/config';
@@ -39,7 +42,10 @@ import {
   removeHqDevice,
   writeHqDevice,
 } from './device-store.js';
+import { adoptHqUpload, type HqPushReport, sendHqUploads } from './device-upload.js';
 import type { HqVaultBundle, HqVaultEnrollResponse } from './protocol.js';
+
+export type { HqPushReport } from './device-upload.js';
 
 export interface HqCredentialServiceDeps {
   globalRoot: string;
@@ -234,6 +240,36 @@ export class HqCredentialService {
   /** When the leases this service delivered last are due for renewal. */
   nextLeaseRenewal(): number | undefined {
     return this.leaseRenewalAt;
+  }
+
+  /**
+   * Upload providers of this machine (`localIds`; every one that can move
+   * when `all`) to HQ, each sealed to HQ's identity key. Nothing local
+   * changes now. `again` sends a provider whose earlier upload is still
+   * pending here (the operator rejected it, say).
+   */
+  async push(
+    localIds: readonly string[],
+    options: { all?: boolean | undefined; again?: boolean | undefined } = {},
+  ): Promise<HqPushReport> {
+    const device = await this.requireDevice();
+    return sendHqUploads(
+      {
+        device,
+        now: this.now(),
+        mutateProviders: this.deps.mutateProviders,
+        send: (request) => this.request(device.hqUrl, '/api/vault/upload', request),
+        save: async (update) => {
+          const current = (await this.device()) ?? device;
+          await writeHqDevice(this.deps.globalRoot, this.deps.vault, {
+            ...current,
+            pendingUploads: update(current.pendingUploads ?? []),
+          });
+        },
+      },
+      localIds,
+      options,
+    );
   }
 
   /** Bring HQ profiles in step with HQ: changes mirrored, ungranted ones removed. */
@@ -496,8 +532,18 @@ export class HqCredentialService {
   ): Promise<HqImportReport> {
     const report = emptyReport();
     const granted = new Set(profiles.map((p) => p.id));
+    const pending = device.pendingUploads ?? [];
+    const settled = new Set<string>();
     await this.deps.mutateProviders((all) => {
       for (const profile of profiles) {
+        // An approved upload of this machine: its provider becomes this profile's home.
+        const upload = profile.uploadId
+          ? pending.find((u) => u.uploadId === profile.uploadId)
+          : undefined;
+        if (upload) {
+          adoptHqUpload(all, upload, device.hq.hqId, profile.id);
+          settled.add(upload.uploadId);
+        }
         const localId = resolveHqLocalId(all, device.hq.hqId, profile.id);
         const change: HqImportChange = { providerId: localId, profileId: profile.id };
         const existing = all[localId];
@@ -522,6 +568,16 @@ export class HqCredentialService {
         }
       }
     });
+    const now = this.now();
+    if (pending.some((u) => settled.has(u.uploadId) || Date.parse(u.expiresAt) <= now)) {
+      const current = (await this.device()) ?? device;
+      await writeHqDevice(this.deps.globalRoot, this.deps.vault, {
+        ...current,
+        pendingUploads: (current.pendingUploads ?? []).filter(
+          (u) => !settled.has(u.uploadId) && Date.parse(u.expiresAt) > now,
+        ),
+      });
+    }
     return report;
   }
 

@@ -12,6 +12,7 @@ import type {
   HqVaultIdentity,
   HqVaultKeyMeta,
   HqVaultProfileMeta,
+  HqVaultUploadMeta,
 } from '@wrongstack/hq';
 import { fetchJson, postJson, sendJson } from './api.js';
 
@@ -22,6 +23,7 @@ export type {
   HqVaultIdentity,
   HqVaultKeyMeta,
   HqVaultProfileMeta,
+  HqVaultUploadMeta,
 };
 
 export interface VaultStatus {
@@ -38,6 +40,7 @@ export interface VaultStatus {
     devices: number;
     pendingDevices: number;
     grants: number;
+    pendingUploads?: number;
   };
   elevatedUntil?: string;
 }
@@ -188,6 +191,29 @@ export function mintVaultEnrollment(input: {
   autoApprove: boolean;
 }): Promise<VaultEnrollment> {
   return postJson('/api/vault/enrollment-codes', input, 'creating the enrollment code');
+}
+
+/** Providers devices uploaded (`wstack hq keys push`), waiting for an operator. */
+export function fetchVaultUploads(): Promise<{ uploads: HqVaultUploadMeta[] }> {
+  return fetchJson('/api/vault/uploads');
+}
+
+/** Keep an upload as a provider (under `profileId` when its own id is taken) and give it back to its device. */
+export function approveVaultUpload(
+  id: string,
+  input: { profileId?: string; lease?: boolean },
+): Promise<{ profile: HqVaultProfileMeta }> {
+  return postJson(
+    `/api/vault/uploads/${encodeURIComponent(id)}/approve`,
+    input,
+    'approving the upload',
+  );
+}
+
+export function rejectVaultUpload(id: string): Promise<{ rejected: boolean }> {
+  return sendJson(`/api/vault/uploads/${encodeURIComponent(id)}`, 'rejecting the upload', {
+    method: 'DELETE',
+  });
 }
 
 export function fetchVaultAudit(limit = 100): Promise<{ entries: HqVaultAuditEntry[] }> {

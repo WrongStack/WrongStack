@@ -12,6 +12,7 @@ import {
   hqVaultKeyId,
   hqVaultOpen,
   hqVaultRandom,
+  hqVaultSeal,
   hqVaultSign,
   hqVaultVerify,
   isHqVaultKeyString,
@@ -21,6 +22,7 @@ import {
   HQ_VAULT_FEATURE_LEASE,
   HQ_VAULT_FETCH_PURPOSE,
   HQ_VAULT_REVOKED_PURPOSE,
+  HQ_VAULT_UPLOAD_PURPOSE,
   type HqVaultBundle,
   type HqVaultBundleKey,
   type HqVaultBundleProfile,
@@ -31,7 +33,10 @@ import {
   type HqVaultIdentity,
   type HqVaultRevocation,
   type HqVaultSealedKeyFields,
+  type HqVaultUploadPayload,
+  type HqVaultUploadRequest,
   hqVaultKeyAad,
+  hqVaultUploadAad,
   parseHqVaultEnrollmentToken,
 } from './protocol.js';
 
@@ -116,6 +121,35 @@ export function buildHqVaultFetchRequest(
     features: [HQ_VAULT_FEATURE_LEASE],
   };
   return { ...body, sig: hqVaultSign({ ...body, purpose: HQ_VAULT_FETCH_PURPOSE }, keys) };
+}
+
+/**
+ * Seal a provider to HQ and sign the upload as this device. The upload id is
+ * this device's own, inside the signature, so it never trusts HQ's unsigned
+ * answer to recognise the profile when it comes back.
+ */
+export function buildHqVaultUploadRequest(
+  keys: HqVaultKeyPair,
+  hq: HqVaultIdentity,
+  payload: HqVaultUploadPayload,
+  options: { now?: number } = {},
+): HqVaultUploadRequest {
+  const deviceId = hqVaultKeyId(keys);
+  const nonce = hqVaultRandom(24);
+  const uploadId = hqVaultRandom(24);
+  const body = {
+    v: 2 as const,
+    deviceId,
+    ts: new Date(options.now ?? Date.now()).toISOString(),
+    nonce,
+    uploadId,
+    sealed: hqVaultSeal(
+      JSON.stringify(payload),
+      hq.encPublic,
+      hqVaultUploadAad({ deviceId, uploadId, nonce }),
+    ),
+  };
+  return { ...body, sig: hqVaultSign({ ...body, purpose: HQ_VAULT_UPLOAD_PURPOSE }, keys) };
 }
 
 export interface HqVaultOpenedKey extends Omit<HqVaultBundleKey, 'sealed'> {

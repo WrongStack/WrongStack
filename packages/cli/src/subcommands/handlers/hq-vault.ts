@@ -1,10 +1,13 @@
 /**
- * `wstack hq enroll|device|sync|unenroll` — this machine's side of the HQ key
- * vault. Everything goes through HqCredentialService; see `hq-vault/service.ts`.
+ * `wstack hq enroll|device|sync|keys push|unenroll` — this machine's side of
+ * the HQ key vault. Everything goes through HqCredentialService; see
+ * `hq-vault/service.ts`.
  *
  *   wstack hq enroll <hq-url> <token> [--label <name>] [--replace]
  *   wstack hq device                     enrollment, fingerprints, granted keys
  *   wstack hq sync                       import granted keys, apply rotations, drop revoked ones
+ *   wstack hq keys push <provider…> | --all [--again]
+ *                                        move providers into HQ (an operator approves them there)
  *   wstack hq unenroll [--remove-keys]   forget the HQ identity (and the keys it delivered)
  */
 import { color } from '@wrongstack/core/utils';
@@ -17,7 +20,7 @@ import {
 import { activeProfileConfigPath } from '../../profile-config-path.js';
 import type { SubcommandDeps } from '../contracts.js';
 
-export const HQ_VAULT_SUBCOMMANDS = new Set(['enroll', 'device', 'sync', 'unenroll']);
+export const HQ_VAULT_SUBCOMMANDS = new Set(['enroll', 'device', 'sync', 'keys', 'unenroll']);
 
 function flagOn(deps: SubcommandDeps, name: string): boolean {
   const value = deps.flags?.[name];
@@ -94,6 +97,38 @@ export async function hqVaultCmd(
       const report = await service.sync();
       for (const line of formatHqImportReport(report)) deps.renderer.write(`${line}\n`);
       return 0;
+    }
+
+    if (sub === 'keys') {
+      const [action, ...ids] = args;
+      const all = flagOn(deps, 'all');
+      if (action !== 'push' || (ids.length === 0 && !all)) {
+        deps.renderer.writeError(
+          'Usage: wstack hq keys push <provider>… | --all [--again]\n' +
+            'Moves providers of this profile (endpoint, models, API keys) into HQ. Each waits in\n' +
+            'HQ → Keys → Uploads until an operator approves it; the next sync then makes the\n' +
+            'provider HQ-managed. OAuth sign-ins are not moved: sign in on HQ instead.\n',
+        );
+        return 1;
+      }
+      const report = await service.push(ids, { all, again: flagOn(deps, 'again') });
+      for (const sent of report.sent) {
+        deps.renderer.write(
+          `${color.green('✓')} ${sent.providerId}: sent (${sent.keys.join(', ')}) — approve it in HQ → Keys → Uploads\n`,
+        );
+      }
+      for (const skipped of report.skipped) {
+        deps.renderer.write(`${color.yellow('–')} ${skipped.providerId}: ${skipped.reason}\n`);
+      }
+      if (report.sent.length === 0 && report.skipped.length === 0) {
+        deps.renderer.write('No provider here can be moved to HQ.\n');
+      }
+      if (report.sent.length > 0) {
+        deps.renderer.write(
+          'Nothing changes here until HQ approves; the provider then keeps its id and HQ manages its keys.\n',
+        );
+      }
+      return report.skipped.length > 0 && !all ? 1 : 0;
     }
 
     if (sub === 'unenroll') {
