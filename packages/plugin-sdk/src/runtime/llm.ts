@@ -58,6 +58,14 @@ export function parseLlmJsonObject(text: string): Record<string, unknown> | null
   }
 }
 
+function safeErrorText(error: unknown): string {
+  try {
+    return error instanceof Error ? error.message : String(error);
+  } catch {
+    return 'unknown error';
+  }
+}
+
 /**
  * Run optional enrichment without turning a provider outage into a tool
  * failure. Abort remains observable as a fallback reason and the caller's
@@ -95,7 +103,7 @@ export async function runOptionalPluginLlm<T>(
   } catch (error) {
     const cancelled = request.options?.signal?.aborted === true;
     request.api.log.warn(`${request.label}: LLM enrichment failed; using deterministic fallback`, {
-      error: error instanceof Error ? error.message : String(error),
+      error: safeErrorText(error),
     });
     return {
       used: false,
@@ -155,7 +163,7 @@ export async function runOptionalPluginCouncil<T>(
         return { used: false, value: null, fallbackReason: 'cancelled' };
       }
       request.api.log.warn(`${request.label}: Council failed; trying One Shot`, {
-        error: error instanceof Error ? error.message : String(error),
+        error: safeErrorText(error),
       });
     }
   }

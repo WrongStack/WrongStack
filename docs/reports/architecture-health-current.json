@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T21:32:42.105Z",
+  "generatedAt": "2026-11-25T21:34:21.379Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6571,
-    "testFiles": 6417,
-    "sourceLines": 1348888,
+    "testFiles": 6420,
+    "sourceLines": 1348906,
     "workspaceEdges": 261,
     "moduleEdges": 19249,
     "nonCommandSlashImports": 0,
@@ -712,7 +712,7 @@
       "name": "@wrongstack/plugin-sdk",
       "dir": "packages/plugin-sdk",
       "sourceFiles": 12,
-      "testFiles": 16,
+      "testFiles": 18,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -727,7 +727,7 @@
         {
           "path": "packages/plugin-sdk/tsconfig.test.json",
           "error": null,
-          "testFiles": 16
+          "testFiles": 18
         }
       ]
     },
@@ -780,7 +780,7 @@
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
       "sourceFiles": 263,
-      "testFiles": 54,
+      "testFiles": 55,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -797,7 +797,7 @@
         {
           "path": "packages/project-surfaces/tsconfig.test.json",
           "error": null,
-          "testFiles": 54
+          "testFiles": 55
         }
       ]
     },
@@ -21336,6 +21336,18 @@
         ]
       },
       {
+        "file": "packages/plugin-sdk/tests/plugin-sdk-llm-null-proto-err.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugin-sdk/tests/plugin-sdk-safe-path-nul.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plugin-sdk/tests/redos-guard-timeout-overflow.test.ts",
         "projects": [
           "root-node"
@@ -23023,6 +23035,12 @@
       },
       {
         "file": "packages/project-surfaces/tests/surface-host-fetch-routing.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/surfaces-atlas-frame-nan.test.ts",
         "projects": [
           "root-node"
         ]

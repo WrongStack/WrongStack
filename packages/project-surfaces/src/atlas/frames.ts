@@ -32,9 +32,11 @@ export function applyAtlasFrame(frame: Frame): void {
         durationMs?: unknown;
         ok?: unknown;
       };
-      if (typeof payload.id !== 'string') return;
+      if (typeof payload.id !== 'string' || payload.id.trim().length === 0) return;
       activity.finishTool(payload.id, {
-        ...(typeof payload.durationMs === 'number' ? { durationMs: payload.durationMs } : {}),
+        ...(typeof payload.durationMs === 'number' && Number.isFinite(payload.durationMs)
+          ? { durationMs: payload.durationMs }
+          : {}),
         ok: payload.ok !== false,
       });
       return;
@@ -46,7 +48,9 @@ export function applyAtlasFrame(frame: Frame): void {
       return;
     case 'codemap.index_updated': {
       const at = (frame.payload as { at?: unknown } | undefined)?.at;
-      useCodemapIndexStore.getState().notifyIndexUpdated(typeof at === 'number' ? at : undefined);
+      useCodemapIndexStore
+        .getState()
+        .notifyIndexUpdated(typeof at === 'number' && Number.isFinite(at) ? at : undefined);
       return;
     }
   }

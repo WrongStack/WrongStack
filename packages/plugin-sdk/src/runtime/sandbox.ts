@@ -68,7 +68,13 @@ const MAX_PATH_BYTES = 4096;
  */
 export function safePath(input: string, options: SafePathOptions = {}): string | null {
   if (typeof input !== 'string') return null;
-  if (input.length === 0 || Buffer.byteLength(input, 'utf8') > MAX_PATH_BYTES) return null;
+  if (
+    input.trim().length === 0 ||
+    input.includes('\0') ||
+    Buffer.byteLength(input, 'utf8') > MAX_PATH_BYTES
+  ) {
+    return null;
+  }
   if (input.startsWith('-')) return null;
 
   const configuredRoot = resolve(options.projectRoot ?? process.cwd());
