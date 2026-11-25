@@ -120,6 +120,7 @@ const JUSTIFIED_RAW_VARIANTS: Record<string, string> = {
   subagent_model_plan: 'normalized lanes — provider/model ids only',
   acp_runtime_settings:
     "ACP agents' config-option selections (model/mode/effort ids from the agent's own vocabulary), bounded by acpRuntimeSelectionsError and replayed only when they pass it",
+  acp_companion_link: 'bounded opaque agent and session ids, scoped to the journal owner',
   leader_effort: 'normalized override (ids/enums)',
   permission_overrides: 'normalized override ids',
   file_event: 'paths + ids + counters (see file-event-record.ts)',

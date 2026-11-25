@@ -376,7 +376,7 @@ export function createAgentResponseHandler(
     const continuity = buildConversationContinuityBlock(a.ctx);
     const liveNextStepsGate = buildLiveNextStepsGateBlock(
       a.ctx,
-      readNextStepsMode(a),
+      readNextStepsMode(a, provider.id),
       hasLeaderNextStepsPolicy(a.ctx.systemPrompt),
     );
     const liveTailEntries = liveTailEntriesOf({
@@ -530,7 +530,9 @@ export function createAgentResponseHandler(
     // response is observed by anyone. This single point feeds the event, the
     // session journal, the conversation history, and `finalText` at once, so
     // tool-produced suggestions travel the same path as model-typed ones.
-    res = maybeAppendPendingNextSteps(a.ctx, res);
+    if (readNextStepsMode(a, requestProvider.id) !== 'off') {
+      res = maybeAppendPendingNextSteps(a.ctx, res);
+    }
     // `autonomy.nextSteps: 'required'`: a finished turn with neither a block
     // nor the completion marker is asked once more, before anyone observes it.
     res = await maybeRequireNextSteps(a, res, req, requestProvider);

@@ -74,7 +74,7 @@ export function envInt(
   // Strict numeric parse: `parseInt` accepts trailing junk ("30s" -> 30) and
   // silently truncates fractions ("12.9" -> 12), hiding the misconfiguration.
   const parsed = Number(trimmed);
-  if (!Number.isInteger(parsed)) return options.default;
+  if (!Number.isSafeInteger(parsed)) return options.default;
   if (options.min !== undefined && parsed < options.min) return options.default;
   if (options.max !== undefined && parsed > options.max) return options.default;
   return parsed;

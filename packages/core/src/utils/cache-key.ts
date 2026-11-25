@@ -6,21 +6,28 @@ const keyCache = new WeakMap<readonly TextBlock[], string>();
 const toolsKeyCache = new WeakMap<readonly TextBlock[], WeakMap<readonly Tool[], string>>();
 
 /** Canonicalize JSON-like values without changing array semantics. */
-function canonicalJson(value: unknown): string {
+function canonicalJson(value: unknown, seen = new Set<object>()): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  const object = value as Record<string, unknown>;
-  return `{${Object.keys(object)
-    // Match JSON.stringify / the provider wire: an `undefined` object value is
-    // omitted, not serialized as `null`. Keeping it as null made an omitted
-    // schema property collide with an explicit null in the cache partition key.
-    .filter((key) => {
-      const member = object[key];
-      return member !== undefined && typeof member !== 'function' && typeof member !== 'symbol';
-    })
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${canonicalJson(object[key])}`)
-    .join(',')}}`;
+  if (seen.has(value)) return '"[Circular]"';
+  seen.add(value);
+  try {
+    if (Array.isArray(value))
+      return `[${value.map((item) => canonicalJson(item, seen)).join(',')}]`;
+    const object = value as Record<string, unknown>;
+    return `{${Object.keys(object)
+      // Match JSON.stringify / the provider wire: an `undefined` object value is
+      // omitted, not serialized as `null`. Keeping it as null made an omitted
+      // schema property collide with an explicit null in the cache partition key.
+      .filter((key) => {
+        const member = object[key];
+        return member !== undefined && typeof member !== 'function' && typeof member !== 'symbol';
+      })
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(object[key], seen)}`)
+      .join(',')}}`;
+  } finally {
+    seen.delete(value);
+  }
 }
 
 /**

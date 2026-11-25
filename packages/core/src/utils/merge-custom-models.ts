@@ -22,8 +22,8 @@ export function mergeCustomModelDefs(
     !Array.isArray(providerCustomModels)
   ) {
     for (const [id, def] of Object.entries(providerCustomModels)) {
-      if (id === '__proto__' || id === 'constructor' || id === 'prototype') continue;
-      if (def && typeof def === 'object') {
+      if (!id.trim() || id === '__proto__' || id === 'constructor' || id === 'prototype') continue;
+      if (def && typeof def === 'object' && !Array.isArray(def)) {
         out[id] = { ...def };
       }
     }
@@ -32,8 +32,8 @@ export function mergeCustomModelDefs(
   // Layer 2: top-level definitions (stronger).
   if (configModels && typeof configModels === 'object' && !Array.isArray(configModels)) {
     for (const [id, def] of Object.entries(configModels)) {
-      if (id === '__proto__' || id === 'constructor' || id === 'prototype') continue;
-      if (def && typeof def === 'object') {
+      if (!id.trim() || id === '__proto__' || id === 'constructor' || id === 'prototype') continue;
+      if (def && typeof def === 'object' && !Array.isArray(def)) {
         out[id] = { ...def }; // top-level overwrites provider-level
       }
     }

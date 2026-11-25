@@ -1,12 +1,28 @@
 import type { Message } from '@wrongstack/contracts/types/messages';
 import type { SessionEvent } from '@wrongstack/contracts/types/session';
 
+/**
+ * A persisted journal is external input: a line can hold `null`, a primitive,
+ * or a block without a kind (torn write, hand edit, older shape). Replay must
+ * report and skip that one event, so the guard below is what rejects it —
+ * `trackMessageToolState` dereferences `block.type` and would otherwise throw
+ * out of the whole session load.
+ */
+function isContentBlock(value: unknown): boolean {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { type?: unknown }).type === 'string'
+  );
+}
+
 export function isReplayableMessage(value: unknown): value is Message {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Partial<Message>;
   return (
     (candidate.role === 'user' || candidate.role === 'assistant' || candidate.role === 'system') &&
-    (typeof candidate.content === 'string' || Array.isArray(candidate.content))
+    (typeof candidate.content === 'string' ||
+      (Array.isArray(candidate.content) && candidate.content.every(isContentBlock)))
   );
 }
 
@@ -55,6 +71,7 @@ export function inheritsIntoFork(event: SessionEvent): boolean {
     case 'rewound':
     case 'agent_spawned':
     case 'agent_session_linked':
+    case 'acp_companion_link':
     case 'agent_stopped':
     case 'agent_error':
     case 'delegate_started':

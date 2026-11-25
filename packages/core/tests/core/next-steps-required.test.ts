@@ -121,6 +121,18 @@ describe('readNextStepsMode', () => {
 });
 
 describe('maybeRequireNextSteps', () => {
+  it.each(['ACP host', 'ACP provider'] as const)(
+    'skips the extra request for an %s',
+    async (kind) => {
+      const s = setup({ mode: 'required', metaMode: kind === 'ACP host' ? 'off' : 'required' });
+      const provider = kind === 'ACP provider' ? { ...s.provider, id: 'acp' } : s.provider;
+      const response = text('Done.');
+
+      expect(await maybeRequireNextSteps(s.a, response, s.req, provider)).toBe(response);
+      expect(s.complete).not.toHaveBeenCalled();
+    },
+  );
+
   it('asks once and appends the suggested block when the turn ended with neither', async () => {
     const s = setup({
       mode: 'required',

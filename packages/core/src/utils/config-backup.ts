@@ -17,8 +17,9 @@ interface ConfigBackupPaths {
  * recover from accidental changes. Backups are never cleaned up automatically.
  */
 export function configHistoryDir(globalRoot: string): string {
-  if (typeof globalRoot !== 'string' || !globalRoot) return 'config-history';
-  return path.join(globalRoot, 'config-history');
+  const trimmed = typeof globalRoot === 'string' ? globalRoot.trim() : '';
+  if (!trimmed) return 'config-history';
+  return path.join(trimmed, 'config-history');
 }
 
 /**
@@ -48,7 +49,8 @@ export async function backupConfigFile(filePath: string, paths: ConfigBackupPath
   // whatever directory the process started in (leaked snapshots even got
   // committed into the repo). Callers holding partial paths objects skip the
   // best-effort backup instead of misdirecting it.
-  if (typeof paths.globalRoot !== 'string' || !paths.globalRoot) return;
+  const root = typeof paths.globalRoot === 'string' ? paths.globalRoot.trim() : '';
+  if (!root) return;
   let currentContent: string;
   try {
     currentContent = await fs.readFile(filePath, 'utf8');

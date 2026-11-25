@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T21:08:51.696Z",
+  "generatedAt": "2026-11-25T21:11:12.689Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6570,
-    "testFiles": 6347,
-    "sourceLines": 1348345,
+    "testFiles": 6366,
+    "sourceLines": 1348465,
     "workspaceEdges": 261,
-    "moduleEdges": 19244,
+    "moduleEdges": 19245,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -403,7 +403,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 665,
-      "testFiles": 833,
+      "testFiles": 852,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -420,7 +420,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 833
+          "testFiles": 852
         }
       ]
     },
@@ -12306,6 +12306,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/brain-persistence-null-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/brain-risk-proto.test.ts",
         "projects": [
           "root-node"
@@ -12354,6 +12360,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/catalog-refresh-inf-interval.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/clip-inline-small-max.test.ts",
         "projects": [
           "root-node"
@@ -12384,6 +12396,18 @@
         ]
       },
       {
+        "file": "packages/core/tests/config-backup-blank-root.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/config-json-fractional-index.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/context-evidence-trim.test.ts",
         "projects": [
           "root-node"
@@ -12391,6 +12415,48 @@
       },
       {
         "file": "packages/core/tests/coordinator-stop.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/core-cache-key-circular.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/core-compaction-preview-circ-null.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/core-env-int-unsafe.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/core-merge-custom-models-array.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/core-path-segment-win-reserved-space.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/core-trust-entry-undef-override.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/core-yolo-cred-whitespace-bypass.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13032,6 +13098,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/crash-shield-null-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/data/builtin-prompts.test.ts",
         "projects": [
           "root-node"
@@ -13045,6 +13117,12 @@
       },
       {
         "file": "packages/core/tests/design-dna-hex-anchor.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/directory-policy-blank.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13735,6 +13813,12 @@
       },
       {
         "file": "packages/core/tests/extension/registry.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/fallback-archetype-proto.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14976,6 +15060,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/size-hint-overflow-params.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/skill-eval-gold-ws.test.ts",
         "projects": [
           "root-node"
@@ -15193,6 +15283,12 @@
       },
       {
         "file": "packages/core/tests/source-hygiene-nul.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/statusline-effective-line-unknown.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15462,6 +15558,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/storage/load-session-damaged-content.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/storage/memory-backend-copy-hardening.test.ts",
         "projects": [
           "root-node"
@@ -15601,6 +15703,12 @@
       },
       {
         "file": "packages/core/tests/storage/recovery-lock.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/replay-malformed-content.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15985,6 +16093,12 @@
       },
       {
         "file": "packages/core/tests/storage/session-transcript-archive.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/session-tree-damaged-content.test.ts",
         "projects": [
           "root-node"
         ]
@@ -40652,8 +40766,8 @@
     },
     {
       "file": "packages/core/src/core/agent-loop.ts",
-      "lines": 707,
-      "relativeImports": 33
+      "lines": 711,
+      "relativeImports": 34
     },
     {
       "file": "packages/core/src/core/agent-tools.ts",

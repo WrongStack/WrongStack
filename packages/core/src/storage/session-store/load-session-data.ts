@@ -15,7 +15,12 @@ import { repairToolUseAdjacency } from '../../utils/message-invariants.js';
 import type { EventBus } from '../event-bus-port.js';
 import { scrubPersistedSessionEvent } from '../session-read-scrubber.js';
 import { extractToolCallEnds } from '../session-tool-call-ends.js';
-import { applyContextSnapshot, replayableMessage, trackMessageToolState } from './replay.js';
+import {
+  applyContextSnapshot,
+  isReplayableMessage,
+  replayableMessage,
+  trackMessageToolState,
+} from './replay.js';
 import { createTranscriptLineReader } from './transcript-io.js';
 import { MAIN_BRANCH_ID, SessionTreeTracker } from './tree-replay.js';
 
@@ -501,13 +506,27 @@ function replaySessionEvent(params: {
     // unreadable journal look like an empty one; say so instead.
     emitDamaged(params, `Ignored ${ev.type} event with unsupported version`);
   } else if (!exactJournalActive && ev.type === 'user_input') {
-    openToolUses.clear();
-    messages.push({ role: 'user', content: ev.content, ts: ev.ts });
+    // Journal content is external input: validate it before it enters the
+    // message array the post-loop repair pass walks. Otherwise one damaged
+    // line throws out of `repairToolUseAdjacency` — outside the per-line catch
+    // — and rejects the whole load instead of skipping this event.
+    const message: Message = { role: 'user', content: ev.content, ts: ev.ts };
+    if (!isReplayableMessage(message)) {
+      emitDamaged(params, 'Ignored malformed user_input event');
+    } else {
+      openToolUses.clear();
+      messages.push(message);
+    }
   } else if (ev.type === 'llm_response') {
     if (!exactJournalActive) {
-      messages.push({ role: 'assistant', content: ev.content, ts: ev.ts });
-      for (const b of ev.content) {
-        if (b.type === 'tool_use') openToolUses.add(b.id);
+      const message: Message = { role: 'assistant', content: ev.content, ts: ev.ts };
+      if (!Array.isArray(ev.content) || !isReplayableMessage(message)) {
+        emitDamaged(params, 'Ignored malformed llm_response event');
+      } else {
+        messages.push(message);
+        for (const b of ev.content) {
+          if (b.type === 'tool_use') openToolUses.add(b.id);
+        }
       }
     }
     return { exactJournalActive, messageIndexOffset, usage: accumulateUsage(params.usage, ev) };

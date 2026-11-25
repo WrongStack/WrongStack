@@ -59,6 +59,7 @@ export const CORE_RECONSTRUCT_EVENTS = new Set<SessionEvent['type']>([
   'session_resumed',
   'session_forked',
   'session_moved',
+  'acp_companion_link',
   'user_input',
   'llm_response',
   'tool_use',

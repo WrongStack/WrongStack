@@ -307,8 +307,9 @@ export function effectiveLine(
   item: StatuslineItem,
   lines: StatuslineLines | undefined,
 ): StatuslineLine {
-  const override = lines?.[item];
-  return override != null ? clampLine(override) : DEFAULT_LINES[item];
+  const override = lines && Object.hasOwn(lines, item) ? lines[item] : undefined;
+  if (override != null) return clampLine(override);
+  return Object.hasOwn(DEFAULT_LINES, item) ? DEFAULT_LINES[item] : 1;
 }
 
 /** Resolve a chip's effective density ('auto' when unset or invalid). */

@@ -67,8 +67,12 @@ export const NEXT_STEPS_REQUIRED_PROMPT = [
  * 'optional', so a plain `Agent` never makes a provider call it did not ask
  * for — with a scripted provider that call would consume the next turn.
  */
-export function readNextStepsMode(a: Pick<NextStepsHost, 'container' | 'ctx'>): NextStepsMode {
+export function readNextStepsMode(
+  a: Pick<NextStepsHost, 'container' | 'ctx'>,
+  providerId?: string,
+): NextStepsMode | 'off' {
   const sessionMode = (a.ctx.meta as Record<string, unknown> | undefined)?.['nextStepsMode'];
+  if (sessionMode === 'off' || providerId === 'acp') return 'off';
   if (sessionMode === 'optional' || sessionMode === 'required') return sessionMode;
   try {
     const store = a.container?.safeResolve?.(TOKENS.ConfigStore);
@@ -108,7 +112,7 @@ export async function maybeRequireNextSteps(
   if (ctx.signal.aborted) return res;
   if (hasOpenTodos(ctx.todos)) return res;
   if (!hasMeaningfulContent(res.content)) return res;
-  if (readNextStepsMode(a) !== 'required') return res;
+  if (readNextStepsMode(a, provider.id) !== 'required') return res;
 
   const text = res.content
     .filter(isTextBlock)

@@ -402,7 +402,10 @@ function parseWithHeading(raw: string): ParseNextStepsResult {
  * outside fences are removed; an unpaired open tag outside a fence is
  * reduced to nothing so raw XML never reaches the user.
  */
-export function stripNextStepsBlock(text: string): string {
+export function stripNextStepsBlock(
+  text: string,
+  options?: { preserveWhitespace?: boolean },
+): string {
   const spans = fenceSpans(text);
   const outsideFences = (index: number): boolean =>
     !spans.some(([start, end]) => index >= start && index < end);
@@ -441,7 +444,7 @@ export function stripNextStepsBlock(text: string): string {
     openTagRe.lastIndex = cursor;
   }
   result += text.slice(cursor);
-  return result.replace(/\n{3,}/g, '\n\n').trim();
+  return options?.preserveWhitespace ? result : result.replace(/\n{3,}/g, '\n\n').trim();
 }
 
 export const stripNextSteps = stripNextStepsBlock;

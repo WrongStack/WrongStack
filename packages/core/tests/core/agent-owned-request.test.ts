@@ -72,7 +72,7 @@ describe('the request for a provider that keeps its own context', () => {
     capabilities: { cacheControl: 'none', keepsOwnContext: true, tools: true, systemPrompt: true },
   } as unknown as Provider;
 
-  it('carries the conversation and the next-steps gate: no system prompt, tools, live context or middleware', async () => {
+  it('carries the conversation without adding an internal suggestion gate to ACP prompts', async () => {
     const history: Message[] = [
       { role: 'user', content: 'first question' },
       { role: 'assistant', content: [{ type: 'text', text: 'first answer' }] },
@@ -84,10 +84,7 @@ describe('the request for a provider that keeps its own context', () => {
     expect(request.tools ?? []).toEqual([]);
     expect(request.messages.slice(0, 2).map(text)).toEqual(['first question', 'first answer']);
     const last = text(request.messages.at(-1));
-    expect(last.startsWith('fix the failing test|[nextsteps_gate]')).toBe(true);
-    // The gate carries the whole policy and never points at a tool the agent cannot call.
-    expect(last).toContain('<nextsteps> is optional');
-    expect(last).not.toContain('`nextsteps` tool');
+    expect(last).toBe('fix the failing test');
     for (const leaked of [
       '[live_context]',
       'PLAN: step 1 of 3',
@@ -106,13 +103,11 @@ describe('the request for a provider that keeps its own context', () => {
     const { ctx, handler } = harness(agent, [{ role: 'user', content: 'go on' }]);
     addRequestScopedBlock(ctx, { type: 'text', text: '<mail from="w1">tests pass</mail>' });
     const { request } = await handler.buildAndRunRequestPipeline({});
-    expect(text(request.messages.at(-1))).toMatch(
-      /^go on\|<mail from="w1">tests pass<\/mail>\|\[nextsteps_gate\]/,
-    );
+    expect(text(request.messages.at(-1))).toBe('go on|<mail from="w1">tests pass</mail>');
   });
 
   it('opens a user turn for the additions when the conversation ends on the agent', async () => {
-    const { handler } = harness(agent, [
+    const { handler } = harness({ ...agent, id: 'wrongforge' } as Provider, [
       { role: 'user', content: 'start' },
       { role: 'assistant', content: [{ type: 'text', text: 'working' }] },
     ]);

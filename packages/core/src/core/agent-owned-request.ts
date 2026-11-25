@@ -54,7 +54,7 @@ export function buildAgentOwnedRequest(
   // whole policy, and it cannot call WrongStack's `nextsteps` tool directly.
   const gate = buildLiveNextStepsGateBlock(
     { agentId: ctx.agentId, todos: ctx.todos, meta: ctx.meta, tools: [] },
-    readNextStepsMode(a),
+    readNextStepsMode(a, provider.id),
     false,
   );
   if (gate) additions.push(gate);

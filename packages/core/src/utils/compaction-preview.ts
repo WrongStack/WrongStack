@@ -61,7 +61,11 @@ function safePreviewString(value: unknown): string {
     // JSON.stringify yields undefined (not a string) for undefined/functions.
     return JSON.stringify(value) ?? '';
   } catch {
-    return String(value);
+    try {
+      return String(value);
+    } catch {
+      return '[unserializable]';
+    }
   }
 }
 

@@ -135,7 +135,10 @@ export function sizeHint(id: string): SizeHint {
   for (const token of tokens) {
     // `a3b` / `a22b` are MoE ACTIVE params — total size is the other token.
     const m = /^(\d+(?:\.\d+)?)b$/u.exec(token);
-    if (m) params = Math.max(params ?? 0, Number(m[1]));
+    if (m) {
+      const parsed = Number(m[1]);
+      if (Number.isFinite(parsed)) params = Math.max(params ?? 0, parsed);
+    }
   }
   if (tokens.some((t) => ULTRA_LIGHT_TOKENS.has(t)) || (params !== undefined && params <= 4)) {
     return 'ultralight';

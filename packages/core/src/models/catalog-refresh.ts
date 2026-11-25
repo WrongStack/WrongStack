@@ -86,7 +86,12 @@ export async function startCatalog(opts: CatalogStartupOptions): Promise<Catalog
   }
 
   const settled = refreshLogged('background');
-  const intervalMs = opts.intervalMs ?? BACKGROUND_CATALOG_REFRESH_INTERVAL_MS;
+  const rawInterval = opts.intervalMs ?? BACKGROUND_CATALOG_REFRESH_INTERVAL_MS;
+  const intervalMs = Number.isFinite(rawInterval)
+    ? rawInterval > 0
+      ? Math.max(1, Math.min(Math.floor(rawInterval), 2_147_483_647))
+      : 0
+    : BACKGROUND_CATALOG_REFRESH_INTERVAL_MS;
   let timer: ReturnType<typeof setInterval> | undefined;
   if (intervalMs > 0) {
     timer = setInterval(() => {

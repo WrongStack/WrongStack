@@ -8,7 +8,12 @@ import type {
   WorkspaceCheckpointRef,
 } from '@wrongstack/contracts/types/session';
 import type { EventBus } from '../event-bus-port.js';
-import { applyContextSnapshot, replayableMessage, trackMessageToolState } from './replay.js';
+import {
+  applyContextSnapshot,
+  isReplayableMessage,
+  replayableMessage,
+  trackMessageToolState,
+} from './replay.js';
 
 export const MAIN_BRANCH_ID = 'main';
 
@@ -169,10 +174,30 @@ export function applyEventToBranchState(
   }
 
   if (!state.exactJournalActive && ev.type === 'user_input') {
+    // Journal content is external input (the event guard only checks `type` /
+    // `ts`). A malformed block must be skipped here: otherwise the loader's
+    // post-loop repair pass dereferences it outside its per-line catch and the
+    // whole session fails to load.
+    const message: Message = { role: 'user', content: ev.content, ts: ev.ts };
+    if (!isReplayableMessage(message)) {
+      events?.emit('session.damaged', {
+        sessionId,
+        detail: 'Ignored malformed user_input event',
+      });
+      return;
+    }
     state.openToolUses.clear();
-    state.messages.push({ role: 'user', content: ev.content, ts: ev.ts });
+    state.messages.push(message);
   } else if (!state.exactJournalActive && ev.type === 'llm_response') {
-    state.messages.push({ role: 'assistant', content: ev.content, ts: ev.ts });
+    const message: Message = { role: 'assistant', content: ev.content, ts: ev.ts };
+    if (!Array.isArray(ev.content) || !isReplayableMessage(message)) {
+      events?.emit('session.damaged', {
+        sessionId,
+        detail: 'Ignored malformed llm_response event',
+      });
+      return;
+    }
+    state.messages.push(message);
     for (const b of ev.content) {
       if (b.type === 'tool_use') state.openToolUses.add(b.id);
     }

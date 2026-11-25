@@ -43,10 +43,10 @@ export function hasLeaderNextStepsPolicy(systemPrompt: readonly TextBlock[]): bo
 export function buildLiveNextStepsGateBlock(
   ctx: Pick<Context, 'agentId' | 'todos'> &
     Partial<Pick<Context, 'meta'>> & { tools?: readonly { name: string }[] | undefined },
-  mode: NextStepsMode = 'optional',
+  mode: NextStepsMode | 'off' = 'optional',
   policyInPrompt = false,
 ): TextBlock | undefined {
-  if (ctx.agentId !== 'leader') return undefined;
+  if (mode === 'off' || ctx.agentId !== 'leader') return undefined;
 
   const todos = Array.isArray(ctx.todos) ? ctx.todos : [];
   const openTodos = todos.filter(

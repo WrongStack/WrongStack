@@ -85,8 +85,9 @@ export const ARCHETYPE_STRENGTH_FLOOR: Record<FallbackSuggestionId, number> = {
 };
 
 export function archetypeScore(s: ScoredFallbackCandidate, id: FallbackSuggestionId): number {
-  const [ws, wv, wc] = ARCHETYPE_WEIGHTS[id];
-  const shortfall = Math.max(0, ARCHETYPE_STRENGTH_FLOOR[id] - s.strength);
+  const safeId: FallbackSuggestionId = Object.hasOwn(ARCHETYPE_WEIGHTS, id) ? id : 'balanced';
+  const [ws, wv, wc] = ARCHETYPE_WEIGHTS[safeId];
+  const shortfall = Math.max(0, ARCHETYPE_STRENGTH_FLOOR[safeId] - s.strength);
   return (
     ws * s.strength +
     wv * s.speed +

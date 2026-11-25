@@ -17,9 +17,12 @@ export function mergeTrustEntries(
   if (!wildcard) return exact;
 
   const deny = [...(wildcard.deny ?? []), ...(exact.deny ?? [])];
+  const definedExact = Object.fromEntries(
+    Object.entries(exact).filter(([, value]) => value !== undefined),
+  ) as TrustPolicy[string];
   const merged: TrustPolicy[string] = {
     ...wildcard,
-    ...exact,
+    ...definedExact,
   };
   if (deny.length > 0) merged.deny = [...new Set(deny)];
   return merged;

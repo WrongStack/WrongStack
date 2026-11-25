@@ -92,9 +92,17 @@ export function installCrashShield(options: CrashShieldOptions = {}): () => void
     }
     return recent.length > CRASH_STORM_LIMIT;
   };
+  const formatReason = (reason: unknown): string => {
+    if (reason instanceof Error) return reason.stack ?? reason.message;
+    try {
+      return String(reason);
+    } catch {
+      return '[unprintable error]';
+    }
+  };
   const report = (kind: string, reason: unknown): void => {
     try {
-      const detail = reason instanceof Error ? (reason.stack ?? reason.message) : String(reason);
+      const detail = formatReason(reason);
       // WS-SEC-08: this text is printed under an explicit "please report"
       // banner — the one string in the process most likely to be pasted into a
       // public issue — and it was the raw stack. A provider error that quotes

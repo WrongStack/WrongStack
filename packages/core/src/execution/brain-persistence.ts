@@ -10,10 +10,19 @@ export function createBrainPersistenceQueue(persist?: (config: BrainConfig) => P
       .then(() => persist(config))
       .then(
         () => ({ ok: true }),
-        (error: unknown) => ({
-          ok: false,
-          error: error instanceof Error ? error.message : String(error),
-        }),
+        (error: unknown) => {
+          let message: string;
+          if (error instanceof Error) {
+            message = error.message;
+          } else {
+            try {
+              message = String(error);
+            } catch {
+              message = 'Unknown persistence error';
+            }
+          }
+          return { ok: false, error: message };
+        },
       );
     queue = result;
     return result;

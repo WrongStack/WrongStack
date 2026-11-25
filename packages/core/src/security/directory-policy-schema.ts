@@ -101,7 +101,7 @@ function validateStringList(
   const out: string[] = [];
   for (const [index, entry] of value.entries()) {
     const itemPath = `${path}[${index}]`;
-    if (typeof entry !== 'string' || entry.length === 0 || entry.length > limits.maxChars) {
+    if (typeof entry !== 'string' || entry.trim().length === 0 || entry.length > limits.maxChars) {
       error(
         diagnostics,
         limits.itemErrorCode,
@@ -151,7 +151,7 @@ function validateRule(
   const directory = value['directory'];
   if (
     typeof directory !== 'string' ||
-    directory.length === 0 ||
+    directory.trim().length === 0 ||
     directory.length > DIRECTORY_POLICY_LIMITS.maxDirectoryChars
   ) {
     error(

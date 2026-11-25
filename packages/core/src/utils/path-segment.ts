@@ -39,7 +39,7 @@ export function isSafePathSegment(value: string): boolean {
   if (value.includes('/') || value.includes('\\')) return false;
   if (value.includes('\0')) return false;
   if (value.includes(':')) return false;
-  if (WINDOWS_RESERVED_NAMES_RE.test(value)) return false;
+  if (WINDOWS_RESERVED_NAMES_RE.test(value.trim())) return false;
   return true;
 }
 

@@ -153,7 +153,8 @@ export function removeJsonPath(root: JsonObject, path: JsonPath): boolean {
   const parent = getJsonPath(root, path.slice(0, -1));
   const leaf = lastPathSegment(path);
   if (typeof leaf === 'number') {
-    if (!Array.isArray(parent) || leaf < 0 || leaf >= parent.length) return false;
+    if (!Array.isArray(parent) || !Number.isInteger(leaf) || leaf < 0 || leaf >= parent.length)
+      return false;
     parent.splice(leaf, 1);
     return true;
   }

@@ -108,17 +108,18 @@ export function isEnvCarrierKey(key: string): boolean {
 
 export function namesAWellKnownCredential(value: unknown): boolean {
   if (typeof value === 'string') {
-    return WELL_KNOWN_CREDENTIAL_ENV_VARS.has(value.toUpperCase());
+    return WELL_KNOWN_CREDENTIAL_ENV_VARS.has(value.trim().toUpperCase());
   }
   if (Array.isArray(value)) {
     return value.some(
-      (name) => typeof name === 'string' && WELL_KNOWN_CREDENTIAL_ENV_VARS.has(name.toUpperCase()),
+      (name) =>
+        typeof name === 'string' && WELL_KNOWN_CREDENTIAL_ENV_VARS.has(name.trim().toUpperCase()),
     );
   }
   if (value && typeof value === 'object') {
     // MCP-server style env maps: the KEYS are the variable names.
     return Object.keys(value as Record<string, unknown>).some((name) =>
-      WELL_KNOWN_CREDENTIAL_ENV_VARS.has(name.toUpperCase()),
+      WELL_KNOWN_CREDENTIAL_ENV_VARS.has(name.trim().toUpperCase()),
     );
   }
   return false;

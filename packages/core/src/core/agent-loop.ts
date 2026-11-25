@@ -36,6 +36,7 @@ import { resolveRunInputOrigin } from './context-environment.js';
 import { recordContextUsageAnchor, requestPromptStillCurrent } from './context-usage-anchor.js';
 import { consumeAutonomousContinue } from './continue-to-next-iteration.js';
 import { injectPendingMailboxMessages } from './mailbox-loop.js';
+import { readNextStepsMode } from './next-steps-required.js';
 import { clearPendingNextSteps } from './next-steps-slot.js';
 import { runProviderWithRetry } from './provider-runner.js';
 import { publishResidency } from './request-layout-capture.js';
@@ -561,8 +562,11 @@ export function createAgentLoopHandler(
             queueLoopSteer(
               '[todo-reconciliation] The live todo/Kanban list still has open work, but you tried to end the turn without reconciling it. ' +
                 'Call the `todo` tool now with the complete current list. Mark work you actually finished as completed (and any obsolete or out-of-scope items as cancelled); if all requested work is already done, mark every item completed so the turn can end immediately. ' +
-                'Only if an item is genuinely unfinished, put that one item in_progress, leave the rest pending, and continue doing the work before answering; do not merely repeat the previous final response or emit <nextsteps>.\n' +
-                'Canonical live list:\n' +
+                'Only if an item is genuinely unfinished, put that one item in_progress, leave the rest pending, and continue doing the work before answering; do not merely repeat the previous final response' +
+                (readNextStepsMode(a, responseProvider.id) === 'off'
+                  ? ''
+                  : ' or emit <nextsteps>') +
+                '.\nCanonical live list:\n' +
                 formatTodosForModel(a.ctx.todos) +
                 (hasKanbanBoundTodos(a.ctx.todos)
                   ? '\nEach <kanban board/task> binding must be resent verbatim as `kanbanBoardId`/`kanbanTaskId`; a row without it is not applied to its card.'

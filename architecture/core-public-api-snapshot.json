@@ -1094,7 +1094,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 82,
-      "sourceLines": 17629
+      "sourceLines": 17639
     },
     {
       "directory": "design",
@@ -1108,7 +1108,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 112,
-      "sourceLines": 31457
+      "sourceLines": 31466
     },
     {
       "directory": "extension",
@@ -1136,7 +1136,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or Providers",
       "sourceFiles": 19,
-      "sourceLines": 4464
+      "sourceLines": 4473
     },
     {
       "directory": "notifications",
@@ -1206,7 +1206,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 40,
-      "sourceLines": 10311
+      "sourceLines": 10315
     },
     {
       "directory": "session-catalog",
@@ -1227,14 +1227,14 @@
       "classification": "host/application concern",
       "intendedOwner": "CLI/TUI presentation contract; host rendering stays outside Core",
       "sourceFiles": 1,
-      "sourceLines": 376
+      "sourceLines": 377
     },
     {
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 129,
-      "sourceLines": 30187
+      "sourceLines": 30249
     },
     {
       "directory": "tasking",
@@ -1255,7 +1255,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 98,
-      "sourceLines": 16093
+      "sourceLines": 16118
     },
     {
       "directory": "vcs",

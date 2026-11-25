@@ -83,8 +83,8 @@
       "relativeImports": 8
     },
     "packages/core/src/core/agent-loop.ts": {
-      "lines": 707,
-      "relativeImports": 33
+      "lines": 711,
+      "relativeImports": 34
     },
     "packages/core/src/core/agent-tools.ts": {
       "lines": 708,
