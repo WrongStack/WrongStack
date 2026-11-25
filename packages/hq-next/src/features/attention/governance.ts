@@ -76,7 +76,7 @@ export function governanceDetail(payload: HqGovernanceSnapshotPayload): Governan
   if (broker !== undefined && broker !== null) {
     facts.push({
       label: 'Broker',
-      value: `${broker.state.replace('_', ' ')} · ${broker.health}`,
+      value: `${broker.state.replaceAll('_', ' ')} · ${broker.health}`,
       warn: broker.health === 'degraded' || broker.health === 'stopped',
     });
     if (broker.consecutiveFailures > 0)

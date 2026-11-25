@@ -21,8 +21,11 @@ export function matchesPattern(
   pattern: string,
   ecosystem: Ecosystem | null,
 ): boolean {
-  const normalized = normalizePackageName(name, ecosystem);
-  if (pattern.endsWith('*'))
-    return normalized.startsWith(normalizePackageName(pattern.slice(0, -1), ecosystem));
-  return normalized === normalizePackageName(pattern, ecosystem);
+  const trimmedName = name.trim();
+  const trimmedPattern = pattern.trim();
+  if (!trimmedName || !trimmedPattern) return false;
+  const normalized = normalizePackageName(trimmedName, ecosystem);
+  if (trimmedPattern.endsWith('*'))
+    return normalized.startsWith(normalizePackageName(trimmedPattern.slice(0, -1), ecosystem));
+  return normalized === normalizePackageName(trimmedPattern, ecosystem);
 }

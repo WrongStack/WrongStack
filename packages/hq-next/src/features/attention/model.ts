@@ -414,6 +414,7 @@ export function buildAttentionItems(sources: AttentionSources): AttentionItem[] 
 
 /** "just now", "4m ago", "3h ago", "2d ago". */
 export function relativeTime(value: string | number | undefined, now: number): string {
+  if (!Number.isFinite(now)) return '';
   const at = toMillis(value);
   if (at === 0) return '';
   const seconds = Math.max(0, Math.round((now - at) / 1000));
@@ -427,6 +428,7 @@ export function relativeTime(value: string | number | undefined, now: number): s
 
 /** "45s left", "3m 05s left"; never negative. */
 export function remainingLabel(ms: number): string {
+  if (!Number.isFinite(ms)) return '0s left';
   const seconds = Math.max(0, Math.ceil(ms / 1000));
   if (seconds < 60) return `${seconds}s left`;
   return `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s left`;

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-25T16:13:19.985Z
+**Generated:** 2026-11-25T16:15:59.486Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6565 |
-| Production source lines | 1346847 |
-| Test files | 6169 |
+| Production source lines | 1347102 |
+| Test files | 6233 |
 | Workspace dependency edges | 261 |
 | Relative module edges | 19228 |
 | Non-command slash imports | 0 |
@@ -45,22 +45,22 @@
 | @wrongstack/goal | 24 | 33 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 43 | @wrongstack/persistence |
 | @wrongstack/hq | 93 | 88 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/hq-next | 205 | 72 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/hq, @wrongstack/tools, @wrongstack/webui-protocol |
-| @wrongstack/kanban | 108 | 112 | @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/hq-next | 205 | 95 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/hq, @wrongstack/tools, @wrongstack/webui-protocol |
+| @wrongstack/kanban | 108 | 123 | @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/kanban-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/mailbox-mcp | 7 | 12 | @wrongstack/coordination, @wrongstack/core, @wrongstack/mcp |
-| @wrongstack/mcp | 76 | 117 | @wrongstack/contracts, @wrongstack/core |
+| @wrongstack/mcp | 76 | 122 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/persistence | 10 | 28 | — |
 | @wrongstack/plug-lsp | 52 | 70 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugin-sdk | 12 | 16 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
-| @wrongstack/plugins | 157 | 153 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
+| @wrongstack/plugins | 157 | 165 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 27 | 50 | — |
 | @wrongstack/project-surfaces | 263 | 51 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers, @wrongstack/tools |
 | @wrongstack/providers | 142 | 159 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/requirement-intake | 18 | 23 | @wrongstack/core |
 | @wrongstack/requirement-intake-mcp | 6 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/requirement-intake |
 | @wrongstack/runtime | 130 | 95 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/governance, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/sage, @wrongstack/security-scanner, @wrongstack/telegram, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
-| @wrongstack/sage | 179 | 183 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/hq, @wrongstack/persistence, @wrongstack/primitives, @wrongstack/tools, @wrongstack/wrongmemory-client |
+| @wrongstack/sage | 179 | 196 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/hq, @wrongstack/persistence, @wrongstack/primitives, @wrongstack/tools, @wrongstack/wrongmemory-client |
 | @wrongstack/sage-mcp | 7 | 7 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/sage |
 | @wrongstack/sdd | 45 | 63 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/requirement-intake, @wrongstack/worktree |
 | @wrongstack/security-scanner | 21 | 41 | @wrongstack/contracts, @wrongstack/core |
@@ -113,8 +113,8 @@ None.
 | 878 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
 | 872 | `packages/builtin-plugins/src/review-claim-registry.ts` |
 | 869 | `packages/runtime/src/chimera/execution-chimera-review.ts` |
+| 855 | `packages/plugins/src/adversary-mode/evaluator.ts` |
 | 853 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
-| 853 | `packages/plugins/src/adversary-mode/evaluator.ts` |
 | 853 | `packages/tools/src/design-reference.ts` |
 | 848 | `packages/webui/src/components/DesignGalleryView.tsx` |
 | 839 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
@@ -148,7 +148,7 @@ None.
 
 ## Exports only tests reference
 
-- 1056 runtime exports are referenced by tests and by no other production file.
+- 1060 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

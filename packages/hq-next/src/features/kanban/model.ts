@@ -57,7 +57,10 @@ export interface ColumnLoad {
 
 export function columnLoad(column: HqKanbanColumnView): ColumnLoad {
   const count = column.tasks.length;
-  const limit = column.wipLimit !== undefined && column.wipLimit > 0 ? column.wipLimit : undefined;
+  const limit =
+    typeof column.wipLimit === 'number' && Number.isFinite(column.wipLimit) && column.wipLimit > 0
+      ? column.wipLimit
+      : undefined;
   return { count, limit, over: limit !== undefined && count > limit };
 }
 

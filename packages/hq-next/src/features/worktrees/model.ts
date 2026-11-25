@@ -101,7 +101,11 @@ export function laneSentence(lane: WorktreeLane): string {
       : 'The merge stopped on a conflict.';
   }
   if (lane.outcome === 'failed') {
-    return lane.failedStage !== undefined ? `${STAGE_LABEL[lane.failedStage]}.` : 'Failed.';
+    const label =
+      lane.failedStage !== undefined && Object.hasOwn(STAGE_LABEL, lane.failedStage)
+        ? STAGE_LABEL[lane.failedStage]
+        : undefined;
+    return label !== undefined ? `${label}.` : 'Failed.';
   }
   if (lane.outcome === 'kept') return 'Finished and left on disk for review.';
   if (lane.outcome === 'live') {

@@ -45,13 +45,22 @@ export class StoreFaultBreaker {
   private probing = false;
 
   constructor(options: StoreFaultBreakerOptions = {}) {
-    this.threshold = Math.max(1, options.threshold ?? DEFAULT_STORE_FAULT_THRESHOLD);
-    this.cooldownMs = Math.max(0, options.cooldownMs ?? DEFAULT_STORE_FAULT_COOLDOWN_MS);
+    const rawThreshold =
+      typeof options.threshold === 'number' && Number.isFinite(options.threshold)
+        ? options.threshold
+        : DEFAULT_STORE_FAULT_THRESHOLD;
+    const rawCooldown =
+      typeof options.cooldownMs === 'number' && Number.isFinite(options.cooldownMs)
+        ? options.cooldownMs
+        : DEFAULT_STORE_FAULT_COOLDOWN_MS;
+    this.threshold = Math.max(1, Math.floor(rawThreshold));
+    this.cooldownMs = Math.max(0, rawCooldown);
   }
 
   /** True while injection should be skipped. Lapse of the cooldown arms a probe. */
   isOpen(now: number): boolean {
     if (this.openUntil === 0) return false;
+    if (!Number.isFinite(now)) return true;
     if (now < this.openUntil) return true;
     this.openUntil = 0;
     this.probing = true;
@@ -77,7 +86,7 @@ export class StoreFaultBreaker {
     if (!this.probing && this.consecutive < this.threshold) return { tripped: false };
     this.probing = false;
     this.consecutive = 0;
-    this.openUntil = now + this.cooldownMs;
+    this.openUntil = (Number.isFinite(now) ? now : Date.now()) + this.cooldownMs;
     const detail = error instanceof Error ? error.message : String(error);
     return {
       tripped: true,

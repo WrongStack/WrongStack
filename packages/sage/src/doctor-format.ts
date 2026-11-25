@@ -19,11 +19,14 @@ const MARK: Record<SageDoctorSeverity, string> = {
 };
 
 function percent(value: number): string {
+  if (!Number.isFinite(value)) return '0.0%';
   return `${(value * 100).toFixed(value < 0.01 ? 2 : 1)}%`;
 }
 
 function megabytes(bytes: number | undefined): string {
-  return bytes === undefined ? '?' : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return bytes === undefined || !Number.isFinite(bytes) || bytes < 0
+    ? '?'
+    : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 /** Repairs the report suggests, in canonical order. */

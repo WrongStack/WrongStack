@@ -127,7 +127,7 @@
       "relativeImports": 3
     },
     "packages/plugins/src/adversary-mode/evaluator.ts": {
-      "lines": 853,
+      "lines": 855,
       "relativeImports": 2
     },
     "packages/plugins/src/adversary-mode/index.ts": {

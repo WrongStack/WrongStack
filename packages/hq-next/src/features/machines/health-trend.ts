@@ -62,9 +62,14 @@ export function healthTrend(points: readonly HqHealthPoint[]): HealthTrend {
     .filter((entry) => Number.isFinite(entry.at))
     .sort((a, b) => a.at - b.at);
   const disk = sorted
-    .filter((entry) => entry.point.diskFreeBytes !== undefined)
+    .filter(
+      (entry) =>
+        typeof entry.point.diskFreeBytes === 'number' && Number.isFinite(entry.point.diskFreeBytes),
+    )
     .map((entry) => ({ at: entry.at, value: entry.point.diskFreeBytes as number }));
-  const memory = sorted.map((entry) => ({ at: entry.at, value: entry.point.memUsedPct }));
+  const memory = sorted
+    .filter((entry) => Number.isFinite(entry.point.memUsedPct))
+    .map((entry) => ({ at: entry.at, value: entry.point.memUsedPct }));
 
   let diskSummary: string | undefined;
   let diskFullInDays: number | undefined;
@@ -95,6 +100,7 @@ export function healthTrend(points: readonly HqHealthPoint[]): HealthTrend {
 
 /** "in about 3 days", "within a day". */
 export function fullInWords(days: number): string {
+  if (!Number.isFinite(days)) return 'unknown';
   if (days < 1) return 'within a day';
   const rounded = Math.round(days);
   return `in about ${rounded} day${rounded === 1 ? '' : 's'}`;

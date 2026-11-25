@@ -275,7 +275,8 @@ export class VerdictCache {
   get(key: string, now = Date.now()): AdversaryVerdict | null {
     const entry = this.entries.get(key);
     if (!entry) return null;
-    if (now >= entry.expiresAt) {
+    const safeNow = Number.isFinite(now) ? now : Date.now();
+    if (!Number.isFinite(entry.expiresAt) || safeNow >= entry.expiresAt) {
       this.entries.delete(key);
       return null;
     }
@@ -285,13 +286,14 @@ export class VerdictCache {
   }
 
   set(key: string, verdict: AdversaryVerdict, now = Date.now()): void {
+    const safeNow = Number.isFinite(now) ? now : Date.now();
     if (this.entries.has(key)) {
       this.entries.delete(key);
     } else if (this.entries.size >= MAX_CACHE_ENTRIES) {
       const oldest = this.entries.keys().next().value;
       if (oldest !== undefined) this.entries.delete(oldest);
     }
-    this.entries.set(key, { verdict, expiresAt: now + CACHE_TTL_MS });
+    this.entries.set(key, { verdict, expiresAt: safeNow + CACHE_TTL_MS });
   }
 }
 

@@ -22,7 +22,9 @@ export const DEFAULTS: AccessibilityAuditorConfig = {
 };
 
 export function readConfig(raw: unknown): AccessibilityAuditorConfig {
-  if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
+  if (!raw || typeof raw !== 'object') {
+    return { ...DEFAULTS, includeExtensions: [...DEFAULTS.includeExtensions] };
+  }
   const r = raw as Record<string, unknown>;
   const rawExts = r['includeExtensions'] ?? r['include_extensions'] ?? r['extensions'];
   const rawMax = r['maxFindings'] ?? r['max_findings'] ?? r['limit'];
@@ -37,9 +39,11 @@ export function readConfig(raw: unknown): AccessibilityAuditorConfig {
     enabled: r['enabled'] !== false,
     includeExtensions: Array.isArray(rawExts)
       ? (rawExts as unknown[]).filter((x): x is string => typeof x === 'string')
-      : DEFAULTS.includeExtensions,
+      : [...DEFAULTS.includeExtensions],
     maxFindings:
-      typeof rawMax === 'number' && rawMax >= 1 && rawMax <= 500 ? rawMax : DEFAULTS.maxFindings,
+      typeof rawMax === 'number' && Number.isFinite(rawMax) && rawMax >= 1 && rawMax <= 500
+        ? Math.floor(rawMax)
+        : DEFAULTS.maxFindings,
     severity,
     onWriteEdit: (r['onWriteEdit'] ?? r['on_write_edit'] ?? r['onSave']) !== false,
   };
@@ -58,5 +62,8 @@ export async function assertPathExists(rawPath: string): Promise<void> {
 }
 
 export function normalizeExtensions(exts: string[]): string[] {
-  return exts.map((e) => (e.startsWith('.') ? e.toLowerCase() : `.${e.toLowerCase()}`));
+  return exts
+    .map((e) => e.trim().toLowerCase())
+    .filter((e) => e.length > 0 && e !== '.')
+    .map((e) => (e.startsWith('.') ? e : `.${e}`));
 }

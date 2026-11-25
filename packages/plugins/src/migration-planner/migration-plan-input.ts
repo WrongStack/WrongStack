@@ -81,36 +81,45 @@ export function resolveMigrationPlanInput(input: MigrationPlanInput): {
   rawUseLlm: unknown;
 } {
   const raw = (input ?? {}) as Record<string, unknown>;
-  const rawPackage =
-    input.packageName ||
-    raw['package'] ||
-    raw['pkg'] ||
-    raw['name'] ||
-    raw['package_name'] ||
-    raw['packageName'] ||
-    raw['dependency'] ||
-    raw['dep'] ||
-    raw['module'];
-  const rawFrom =
-    input.fromVersion ||
-    raw['from'] ||
-    raw['from_version'] ||
-    raw['fromVersion'] ||
-    raw['currentVersion'] ||
-    raw['since'] ||
-    raw['start'];
-  const rawTo =
-    input.toVersion ||
-    raw['to'] ||
-    raw['to_version'] ||
-    raw['toVersion'] ||
-    raw['targetVersion'] ||
-    raw['until'] ||
-    raw['end'];
-  const rawUseLlm = input.use_llm ?? raw['useLlm'] ?? raw['use_ai'] ?? raw['useAi'];
-  const packageName = String(rawPackage ?? '').trim();
-  const fromVersion = String(rawFrom ?? '').trim();
-  const toVersion = String(rawTo ?? '').trim();
+  const firstNonBlankString = (...candidates: unknown[]): string => {
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string') {
+        const trimmed = candidate.trim();
+        if (trimmed.length > 0) return trimmed;
+      }
+    }
+    return '';
+  };
+  const packageName = firstNonBlankString(
+    input?.packageName,
+    raw['package'],
+    raw['pkg'],
+    raw['name'],
+    raw['package_name'],
+    raw['packageName'],
+    raw['dependency'],
+    raw['dep'],
+    raw['module'],
+  );
+  const fromVersion = firstNonBlankString(
+    input?.fromVersion,
+    raw['from'],
+    raw['from_version'],
+    raw['fromVersion'],
+    raw['currentVersion'],
+    raw['since'],
+    raw['start'],
+  );
+  const toVersion = firstNonBlankString(
+    input?.toVersion,
+    raw['to'],
+    raw['to_version'],
+    raw['toVersion'],
+    raw['targetVersion'],
+    raw['until'],
+    raw['end'],
+  );
+  const rawUseLlm = input?.use_llm ?? raw['useLlm'] ?? raw['use_ai'] ?? raw['useAi'];
   if (!packageName || !fromVersion || !toVersion) {
     throw new ToolValidationError({
       message: 'packageName, fromVersion, and toVersion are required',

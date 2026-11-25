@@ -53,7 +53,12 @@ export function fleetPulse(snapshot: HqSnapshot | null): FleetPulse {
     working,
     projects: activeProjects.size,
     workingProjects: workingProjects.size,
-    costUsd: snapshot?.totals?.totalCostUsd ?? 0,
+    costUsd:
+      typeof snapshot?.totals?.totalCostUsd === 'number' &&
+      Number.isFinite(snapshot.totals.totalCostUsd) &&
+      snapshot.totals.totalCostUsd >= 0
+        ? snapshot.totals.totalCostUsd
+        : 0,
   };
 }
 

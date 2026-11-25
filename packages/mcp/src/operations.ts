@@ -263,11 +263,12 @@ export function applyHealthThresholds(
 }
 
 export function summarizeLatency(samples: readonly number[]): MCPLatencySummary {
-  if (samples.length === 0) return { count: 0 };
-  const sorted = [...samples].sort((a, b) => a - b);
+  const finite = samples.filter((s) => typeof s === 'number' && Number.isFinite(s) && s >= 0);
+  if (finite.length === 0) return { count: 0 };
+  const sorted = [...finite].sort((a, b) => a - b);
   return {
-    count: samples.length,
-    lastMs: samples[samples.length - 1],
+    count: finite.length,
+    lastMs: finite[finite.length - 1],
     minMs: sorted[0],
     maxMs: sorted[sorted.length - 1],
     p50Ms: percentile(sorted, 0.5),
@@ -276,8 +277,13 @@ export function summarizeLatency(samples: readonly number[]): MCPLatencySummary 
 }
 
 export function pushBounded<T>(target: T[], value: T, limit: number): void {
+  const safeLimit = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 0;
+  if (safeLimit === 0) {
+    target.length = 0;
+    return;
+  }
   target.push(value);
-  if (target.length > limit) target.splice(0, target.length - limit);
+  if (target.length > safeLimit) target.splice(0, target.length - safeLimit);
 }
 
 export function safeOperationReason(reason: string): string {

@@ -73,9 +73,9 @@ export function trendWindow(
     inside.push(sample);
     const column = columns[Math.floor((sample.ts - start) / range.bucketMs)];
     if (column === undefined) continue;
-    column.costUsd += sample.costUsd;
-    column.tokens += sample.inputTokens + sample.outputTokens;
-    column.toolCalls += sample.toolCalls;
+    column.costUsd += finiteNum(sample.costUsd);
+    column.tokens += finiteNum(sample.inputTokens) + finiteNum(sample.outputTokens);
+    column.toolCalls += finiteNum(sample.toolCalls);
   }
   return { range, start, end, columns, samples: inside, lastActivity };
 }
@@ -89,6 +89,10 @@ export interface TrendTotals {
   cacheShare: number | null;
 }
 
+function finiteNum(value: number | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
 export function trendTotals(samples: readonly HqTimeseriesSample[]): TrendTotals {
   let costUsd = 0;
   let inputTokens = 0;
@@ -96,11 +100,12 @@ export function trendTotals(samples: readonly HqTimeseriesSample[]): TrendTotals
   let toolCalls = 0;
   let cacheRead = 0;
   for (const sample of samples) {
-    costUsd += sample.costUsd;
-    inputTokens += sample.inputTokens;
-    outputTokens += sample.outputTokens;
-    toolCalls += sample.toolCalls;
-    for (const entry of Object.values(sample.byModel ?? {})) cacheRead += entry.cacheRead ?? 0;
+    costUsd += finiteNum(sample.costUsd);
+    inputTokens += finiteNum(sample.inputTokens);
+    outputTokens += finiteNum(sample.outputTokens);
+    toolCalls += finiteNum(sample.toolCalls);
+    for (const entry of Object.values(sample.byModel ?? {}))
+      cacheRead += finiteNum(entry.cacheRead);
   }
   return {
     costUsd,
@@ -250,7 +255,8 @@ export function count(value: number): string {
 }
 
 export function percent(fraction: number, digits = 0): string {
-  return Number.isFinite(fraction) ? `${(fraction * 100).toFixed(digits)}%` : '0%';
+  const safeDigits = Number.isFinite(digits) ? Math.min(20, Math.max(0, Math.floor(digits))) : 0;
+  return Number.isFinite(fraction) ? `${(fraction * 100).toFixed(safeDigits)}%` : '0%';
 }
 
 /**

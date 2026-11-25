@@ -13,7 +13,9 @@ export async function readTranscriptTail(
   transcriptPath: string | undefined,
   n: number,
 ): Promise<TranscriptEvent[]> {
-  if (!transcriptPath || n <= 0) return [];
+  if (!transcriptPath || !Number.isFinite(n) || n <= 0) return [];
+  const limit = Math.floor(n);
+  if (limit <= 0) return [];
   let handle: import('node:fs/promises').FileHandle | undefined;
   try {
     const { open } = await import('node:fs/promises');
@@ -59,7 +61,7 @@ export async function readTranscriptTail(
       // suffix. The +1 overshoot guarantees that even when the read
       // budget stops between two adjacent events, `slice(-n)` below will
       // land on event boundaries rather than byte boundaries.
-      if (newlines > n) break;
+      if (newlines > limit) break;
     }
     const joined = Buffer.concat(chunks).toString('utf8');
     // If the read loop bailed before reaching the file head, the very
@@ -69,7 +71,7 @@ export async function readTranscriptTail(
     const truncatedHead = position > 0;
     const allLines = joined.split('\n');
     const candidateLines = truncatedHead ? allLines.slice(1) : allLines;
-    const tail = candidateLines.filter((line) => line.length > 0).slice(-n);
+    const tail = candidateLines.filter((line) => line.length > 0).slice(-limit);
     const out: TranscriptEvent[] = [];
     for (const l of tail) {
       try {

@@ -85,7 +85,7 @@ export type {
   MCPElicitationRequest,
   MCPElicitationResult,
 } from './elicitation.js';
-export { elicitViaUserInput } from './elicitation-form.js';
+export { elicitAcpFormViaUserInput, elicitViaUserInput } from './elicitation-form.js';
 export {
   addMcp,
   disableMcp,

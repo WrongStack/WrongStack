@@ -101,11 +101,13 @@ export function exportBoardAsMarkdown(board: KanbanBoard): string {
       }
     }
   }
-  for (const column of [...board.columns].sort((a, b) => a.order - b.order)) {
+  const safeOrder = (order: number): number =>
+    Number.isFinite(order) ? order : Number.MAX_SAFE_INTEGER;
+  for (const column of [...board.columns].sort((a, b) => safeOrder(a.order) - safeOrder(b.order))) {
     lines.push('', `## ${column.title}`, '');
     const tasks = board.tasks
       .filter((task) => task.columnId === column.id)
-      .sort((a, b) => a.order - b.order);
+      .sort((a, b) => safeOrder(a.order) - safeOrder(b.order));
     if (!tasks.length) {
       lines.push('_Empty_');
       continue;

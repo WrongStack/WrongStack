@@ -177,6 +177,7 @@ export function normalizeBoundaryPath(value: string): string | null {
   const trimmed = value.trim().replace(/\\/g, '/');
   if (
     !trimmed ||
+    trimmed.includes('\0') ||
     /^[a-zA-Z]:/.test(trimmed) ||
     path.posix.isAbsolute(trimmed) ||
     path.win32.isAbsolute(trimmed)

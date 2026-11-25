@@ -24,10 +24,13 @@ export function updateNotice(status: HqUpdateStatus | null | undefined): UpdateN
   if (status.outdated !== true || status.checkFailed === true) return null;
   const { current, latest, command } = status;
   if (typeof current !== 'string' || typeof latest !== 'string') return null;
-  if (!VERSION.test(current) || !VERSION.test(latest) || current === latest) return null;
+  if (!VERSION.test(current) || !VERSION.test(latest)) return null;
+  const normalizedCurrent = current.replace(/^v/, '');
+  const normalizedLatest = latest.replace(/^v/, '');
+  if (normalizedCurrent === normalizedLatest) return null;
   return {
-    current: current.replace(/^v/, ''),
-    latest: latest.replace(/^v/, ''),
+    current: normalizedCurrent,
+    latest: normalizedLatest,
     command: typeof command === 'string' && command.trim() !== '' ? command : 'wstack update',
   };
 }

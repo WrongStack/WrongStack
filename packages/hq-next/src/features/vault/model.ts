@@ -108,7 +108,9 @@ const FAMILY_TITLE: Record<string, string> = {
 };
 
 export function familyTitle(family: string | undefined): string {
-  return (family && FAMILY_TITLE[family]) ?? 'Other';
+  return (
+    (family && Object.hasOwn(FAMILY_TITLE, family) ? FAMILY_TITLE[family] : undefined) ?? 'Other'
+  );
 }
 
 export interface CatalogGroup {

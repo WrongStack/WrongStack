@@ -58,7 +58,17 @@ export function isIdleProgressLog(
   if (memory.persistence === 'permanent') return false;
   const created = Date.parse(memory.createdAt);
   const used = Date.parse(memory.lastUsedAt ?? '');
-  const lastTouch = Number.isFinite(used) ? Math.max(used, created) : created;
-  if (!Number.isFinite(lastTouch) || nowMs - lastTouch < PROGRESS_LOG_IDLE_MS) return false;
+  const lastTouch =
+    Number.isFinite(used) && Number.isFinite(created)
+      ? Math.max(used, created)
+      : Number.isFinite(used)
+        ? used
+        : created;
+  if (
+    !Number.isFinite(nowMs) ||
+    !Number.isFinite(lastTouch) ||
+    nowMs - lastTouch < PROGRESS_LOG_IDLE_MS
+  )
+    return false;
   return isProgressLogText(memory.text);
 }

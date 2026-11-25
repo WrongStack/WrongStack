@@ -43,13 +43,18 @@ export function registerCostTools(
     mutating: false,
     async execute() {
       const { budgetLimit, warningThreshold } = cfg;
+      const safeTotalCost =
+        Number.isFinite(sessionCost.totalCostUsd) && sessionCost.totalCostUsd >= 0
+          ? sessionCost.totalCostUsd
+          : 0;
+      const safeBudget = Number.isFinite(budgetLimit) && budgetLimit > 0 ? budgetLimit : 0;
 
       const usage = {
         totalRequests: sessionCost.requests.length,
         totalPromptTokens: sessionCost.totalPromptTokens,
         totalCompletionTokens: sessionCost.totalCompletionTokens,
         totalTokens: sessionCost.totalTokens,
-        totalCostUsd: Math.round(sessionCost.totalCostUsd * 1_000_000) / 1_000_000,
+        totalCostUsd: Math.round(safeTotalCost * 1_000_000) / 1_000_000,
         byModel: sessionCost.byModel,
         recentRequests: sessionCost.requests.slice(-5).map((r) => ({
           model: r.model,
@@ -60,12 +65,12 @@ export function registerCostTools(
       };
 
       const budgetStatus =
-        budgetLimit > 0
+        safeBudget > 0
           ? {
-              limit: budgetLimit,
-              spent: sessionCost.totalCostUsd,
-              percentUsed: Math.round((sessionCost.totalCostUsd / budgetLimit) * 100),
-              warning: (sessionCost.totalCostUsd / budgetLimit) * 100 >= warningThreshold,
+              limit: safeBudget,
+              spent: safeTotalCost,
+              percentUsed: Math.round((safeTotalCost / safeBudget) * 100),
+              warning: (safeTotalCost / safeBudget) * 100 >= warningThreshold,
             }
           : null;
 
@@ -123,6 +128,8 @@ export function registerCostTools(
       const includeModel = (input['includeModel'] as boolean) ?? true;
 
       if (format === 'csv') {
+        const csvField = (value: string): string =>
+          /[",\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
         const header = includeModel
           ? 'model,timestamp,prompt_tokens,completion_tokens,total_tokens,cost_usd'
           : 'timestamp,prompt_tokens,completion_tokens,total_tokens,cost_usd';
@@ -130,8 +137,8 @@ export function registerCostTools(
           /* v8 ignore next -- costUsd is always set by estimateCost; the ?? 0 fallback is defensive. */
           const cost = r.costUsd ?? 0;
           return includeModel
-            ? `${r.model},${r.timestamp},${r.promptTokens},${r.completionTokens},${r.totalTokens},${cost}`
-            : `${r.timestamp},${r.promptTokens},${r.completionTokens},${r.totalTokens},${cost}`;
+            ? `${csvField(r.model)},${csvField(r.timestamp)},${r.promptTokens},${r.completionTokens},${r.totalTokens},${cost}`
+            : `${csvField(r.timestamp)},${r.promptTokens},${r.completionTokens},${r.totalTokens},${cost}`;
         });
         return {
           ok: true,

@@ -77,15 +77,19 @@ export interface MailFigures {
   onlineAgents: number;
 }
 
+function safeCount(value: number | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
+}
+
 /** Server-side totals: they count messages this tab has never streamed. */
 export function mailFigures(mailboxes: readonly HqMailboxSummary[]): MailFigures {
   return mailboxes.reduce<MailFigures>(
     (sum, mailbox) => ({
-      messages: sum.messages + mailbox.messageCount,
-      unread: sum.unread + mailbox.unreadCount,
-      open: sum.open + mailbox.incompleteCount,
-      high: sum.high + mailbox.highPriorityCount,
-      onlineAgents: sum.onlineAgents + mailbox.onlineAgentCount,
+      messages: sum.messages + safeCount(mailbox.messageCount),
+      unread: sum.unread + safeCount(mailbox.unreadCount),
+      open: sum.open + safeCount(mailbox.incompleteCount),
+      high: sum.high + safeCount(mailbox.highPriorityCount),
+      onlineAgents: sum.onlineAgents + safeCount(mailbox.onlineAgentCount),
     }),
     { messages: 0, unread: 0, open: 0, high: 0, onlineAgents: 0 },
   );

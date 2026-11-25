@@ -43,7 +43,8 @@ export function relativeTime(timestamp: string, now = Date.now()): string {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return timestamp;
   if (date.getTime() <= 0) return 'never';
-  const delta = Math.max(0, now - date.getTime());
+  const safeNow = Number.isFinite(now) ? now : Date.now();
+  const delta = Math.max(0, safeNow - date.getTime());
   if (delta < 60_000) return `${Math.floor(delta / 1000)}s ago`;
   if (delta < 3_600_000) return `${Math.floor(delta / 60_000)}m ago`;
   return date.toLocaleTimeString();

@@ -47,7 +47,7 @@ export function emitBoardEvent(
       timestamp: new Date().toISOString(),
     },
   };
-  for (const l of listeners) {
+  for (const l of [...listeners]) {
     try {
       l(ev);
     } catch {

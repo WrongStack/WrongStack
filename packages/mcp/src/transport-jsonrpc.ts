@@ -32,7 +32,8 @@ export function encodeJsonRpcMessage(id: number, method: string, params: unknown
 export function isJsonRpcResult(v: unknown): v is JsonRpcResult {
   if (typeof v !== 'object' || v === null) return false;
   const r = v as Record<string, unknown>;
-  if (r['jsonrpc'] !== '2.0' || typeof r['id'] !== 'number') return false;
+  if (r['jsonrpc'] !== '2.0' || typeof r['id'] !== 'number' || !Number.isFinite(r['id']))
+    return false;
   if (Object.hasOwn(r, 'method')) return false;
 
   const hasResult = Object.hasOwn(r, 'result');
@@ -44,6 +45,7 @@ export function isJsonRpcResult(v: unknown): v is JsonRpcResult {
       typeof error === 'object' &&
       error !== null &&
       typeof (error as Record<string, unknown>)['code'] === 'number' &&
+      Number.isFinite((error as Record<string, unknown>)['code']) &&
       typeof (error as Record<string, unknown>)['message'] === 'string'
     );
   }

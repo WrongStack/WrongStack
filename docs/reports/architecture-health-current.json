@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T16:13:19.985Z",
+  "generatedAt": "2026-11-25T16:15:59.486Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6565,
-    "testFiles": 6169,
-    "sourceLines": 1346847,
+    "testFiles": 6233,
+    "sourceLines": 1347102,
     "workspaceEdges": 261,
     "moduleEdges": 19228,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 3,
     "testsWithoutTypecheck": 10,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1056
+    "testOnlyExports": 1060
   },
   "errors": [
     "2 unexcepted module cycle(s)"
@@ -554,7 +554,7 @@
       "name": "@wrongstack/hq-next",
       "dir": "packages/hq-next",
       "sourceFiles": 205,
-      "testFiles": 72,
+      "testFiles": 95,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -571,7 +571,7 @@
         {
           "path": "packages/hq-next/tsconfig.test.json",
           "error": null,
-          "testFiles": 72
+          "testFiles": 95
         }
       ]
     },
@@ -579,7 +579,7 @@
       "name": "@wrongstack/kanban",
       "dir": "packages/kanban",
       "sourceFiles": 108,
-      "testFiles": 112,
+      "testFiles": 123,
       "workspaceDependencies": [
         "@wrongstack/persistence",
         "@wrongstack/primitives"
@@ -593,7 +593,7 @@
         {
           "path": "packages/kanban/tsconfig.test.json",
           "error": null,
-          "testFiles": 112
+          "testFiles": 123
         }
       ]
     },
@@ -650,7 +650,7 @@
       "name": "@wrongstack/mcp",
       "dir": "packages/mcp",
       "sourceFiles": 76,
-      "testFiles": 117,
+      "testFiles": 122,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -664,7 +664,7 @@
         {
           "path": "packages/mcp/tsconfig.test.json",
           "error": null,
-          "testFiles": 117
+          "testFiles": 122
         }
       ]
     },
@@ -737,7 +737,7 @@
       "name": "@wrongstack/plugins",
       "dir": "packages/plugins",
       "sourceFiles": 157,
-      "testFiles": 153,
+      "testFiles": 165,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -755,7 +755,7 @@
         {
           "path": "packages/plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 153
+          "testFiles": 165
         }
       ]
     },
@@ -915,7 +915,7 @@
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
       "sourceFiles": 179,
-      "testFiles": 183,
+      "testFiles": 196,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -935,7 +935,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 183
+          "testFiles": 196
         }
       ]
     },
@@ -17479,6 +17479,12 @@
         ]
       },
       {
+        "file": "packages/hq-next/tests/alerts-duration-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq-next/tests/alerts-model.test.ts",
         "projects": [
           "root-node"
@@ -17486,6 +17492,12 @@
       },
       {
         "file": "packages/hq-next/tests/attention-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/attention-time-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17503,7 +17515,25 @@
         ]
       },
       {
+        "file": "packages/hq-next/tests/console-receipt-trim.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq-next/tests/control-fanout.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/control-format-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/control-merge-audit-neg.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17527,7 +17557,19 @@
         ]
       },
       {
+        "file": "packages/hq-next/tests/fanout-blocker-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq-next/tests/fleet-health-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/fleet-health-pct.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17545,7 +17587,37 @@
         ]
       },
       {
+        "file": "packages/hq-next/tests/format-uptime-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/governance-state-underscore.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq-next/tests/health-trend-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/health-trend-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq-format-usd-neg.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/hq-selectors-unread-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17785,6 +17857,12 @@
         ]
       },
       {
+        "file": "packages/hq-next/tests/kanban-wip-infinity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq-next/tests/machine-health-model.test.ts",
         "projects": [
           "root-node"
@@ -17803,7 +17881,19 @@
         ]
       },
       {
+        "file": "packages/hq-next/tests/mailbox-figures-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq-next/tests/mailbox-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/mcp-model-format.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17816,6 +17906,12 @@
       },
       {
         "file": "packages/hq-next/tests/overview-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/overview-pulse-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17863,13 +17959,37 @@
         ]
       },
       {
+        "file": "packages/hq-next/tests/system-health-gateway-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq-next/tests/system-model.test.ts",
         "projects": [
           "root-node"
         ]
       },
       {
+        "file": "packages/hq-next/tests/telemetry-model-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq-next/tests/telemetry-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/telemetry-window-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/toast-store-nan-ttl.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17887,13 +18007,31 @@
         ]
       },
       {
+        "file": "packages/hq-next/tests/update-v-prefix.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq-next/tests/vault-api-profile-path.test.ts",
         "projects": [
           "root-node"
         ]
       },
       {
+        "file": "packages/hq-next/tests/vault-family-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq-next/tests/vault-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/hq-next/tests/worktrees-stage-proto.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18481,6 +18619,12 @@
         ]
       },
       {
+        "file": "packages/kanban/tests/assignment-staleness-now.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/assignment-time-integrity.test.ts",
         "projects": [
           "root-node"
@@ -18511,6 +18655,12 @@
         ]
       },
       {
+        "file": "packages/kanban/tests/basic-helpers-unique-id-ws.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/batch-creation-atomicity.test.ts",
         "projects": [
           "root-node"
@@ -18524,6 +18674,18 @@
       },
       {
         "file": "packages/kanban/tests/board-kind-filter.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/board-normalize-nan-order.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/boundary-nul-bytes.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18721,6 +18883,36 @@
         ]
       },
       {
+        "file": "packages/kanban/tests/kanban-emitter-reentrant.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/kanban-export-order-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/kanban-order-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/kanban-presence-ttl-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/kanban-recovery-later.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/kanban-supervisor-bridge-dispose-race.test.ts",
         "projects": [
           "root-node"
@@ -18853,6 +19045,12 @@
         ]
       },
       {
+        "file": "packages/kanban/tests/queue-anomalies-inf.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/queue-startability-agreement.test.ts",
         "projects": [
           "root-node"
@@ -18962,6 +19160,12 @@
       },
       {
         "file": "packages/kanban/tests/task-classifier.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/task-column-next-order-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19375,6 +19579,12 @@
         ]
       },
       {
+        "file": "packages/mcp/tests/mcp-uri-credentials.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/mcp/tests/modern-mrtr-controls.test.ts",
         "projects": [
           "root-node"
@@ -19418,6 +19628,12 @@
       },
       {
         "file": "packages/mcp/tests/oauth-callback-abort-race.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/operations-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19520,6 +19736,12 @@
       },
       {
         "file": "packages/mcp/tests/registry-placeholder-url-authorization.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/registry-reconnect-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19741,6 +19963,12 @@
         ]
       },
       {
+        "file": "packages/mcp/tests/task-journal-update-validation.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/mcp/tests/task-journal.test.ts",
         "projects": [
           "root-node"
@@ -19844,6 +20072,12 @@
       },
       {
         "file": "packages/mcp/tests/transport-body-cap.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/transport-jsonrpc-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20593,6 +20827,18 @@
         ]
       },
       {
+        "file": "packages/plugins/tests/a11y-config-defaults-alias.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugins/tests/a11y-config-normalize.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plugins/tests/accessibility-auditor.test.ts",
         "projects": [
           "root-node"
@@ -20761,6 +21007,12 @@
         ]
       },
       {
+        "file": "packages/plugins/tests/commit-message-ws.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plugins/tests/commit-validator-extraction.test.ts",
         "projects": [
           "root-node"
@@ -20792,6 +21044,18 @@
       },
       {
         "file": "packages/plugins/tests/context-pins.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugins/tests/cost-session-csv-escape.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugins/tests/cost-session-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20839,6 +21103,12 @@
         ]
       },
       {
+        "file": "packages/plugins/tests/dep-guard-name-match.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plugins/tests/dep-guard-name-normalization.test.ts",
         "projects": [
           "root-node"
@@ -20876,6 +21146,12 @@
       },
       {
         "file": "packages/plugins/tests/doc-sync-guard.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugins/tests/duplicate-code-comments-neg.test.ts",
         "projects": [
           "root-node"
         ]
@@ -21097,6 +21373,18 @@
         ]
       },
       {
+        "file": "packages/plugins/tests/migration-config-bounds.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugins/tests/migration-input-coercion.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plugins/tests/migration-planner-empty-range.test.ts",
         "projects": [
           "root-node"
@@ -21260,6 +21548,12 @@
       },
       {
         "file": "packages/plugins/tests/provider-plugin-host-isolation.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugins/tests/recap-format-nan-sort.test.ts",
         "projects": [
           "root-node"
         ]
@@ -21475,7 +21769,19 @@
         ]
       },
       {
+        "file": "packages/plugins/tests/transcript-tail-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plugins/tests/type-gate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugins/tests/verdict-cache-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -23893,6 +24199,12 @@
         ]
       },
       {
+        "file": "packages/sage/tests/doctor-format-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sage/tests/doctor-maintenance-ipc.test.ts",
         "projects": [
           "root-node"
@@ -23924,6 +24236,12 @@
       },
       {
         "file": "packages/sage/tests/domain-terms-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/domain-terms-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24031,6 +24349,12 @@
         ]
       },
       {
+        "file": "packages/sage/tests/hybrid-rerank-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sage/tests/hygiene-contradiction.test.ts",
         "projects": [
           "root-node"
@@ -24050,6 +24374,18 @@
       },
       {
         "file": "packages/sage/tests/injected-evidence-freshness.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/injection-recency-inf.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/injection-recency-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24080,6 +24416,18 @@
       },
       {
         "file": "packages/sage/tests/maintenance-state-unreadable.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/memory-anchor-type-validation.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/memory-breaker-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24122,6 +24470,12 @@
       },
       {
         "file": "packages/sage/tests/memory-service-registry.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/memory-similarity-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24205,6 +24559,12 @@
         ]
       },
       {
+        "file": "packages/sage/tests/pagination-bounded-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sage/tests/pagination.test.ts",
         "projects": [
           "root-node"
@@ -24224,6 +24584,18 @@
       },
       {
         "file": "packages/sage/tests/progress-log-injection.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/progress-log-nan-now.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/progress-log-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24457,6 +24829,12 @@
         ]
       },
       {
+        "file": "packages/sage/tests/review-freshness-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sage/tests/sage-100-coverage.test.ts",
         "projects": [
           "root-node"
@@ -24536,6 +24914,12 @@
       },
       {
         "file": "packages/sage/tests/shared/path-remap.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/slow-ops-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -39656,7 +40040,7 @@
     },
     {
       "file": "packages/plugins/src/adversary-mode/evaluator.ts",
-      "lines": 853,
+      "lines": 855,
       "relativeImports": 2
     },
     {
@@ -40022,14 +40406,14 @@
       "relativeImports": 3
     },
     {
+      "file": "packages/plugins/src/adversary-mode/evaluator.ts",
+      "lines": 855,
+      "relativeImports": 2
+    },
+    {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
       "lines": 853,
       "relativeImports": 17
-    },
-    {
-      "file": "packages/plugins/src/adversary-mode/evaluator.ts",
-      "lines": 853,
-      "relativeImports": 2
     },
     {
       "file": "packages/tools/src/design-reference.ts",
@@ -42352,6 +42736,14 @@
       "name": "lockfileDriftNote"
     },
     {
+      "file": "packages/plugins/src/duplicate-code-detector/duplicate-code-analysis.ts",
+      "name": "findDuplicates"
+    },
+    {
+      "file": "packages/plugins/src/duplicate-code-detector/duplicate-code-analysis.ts",
+      "name": "removeInlineComments"
+    },
+    {
       "file": "packages/plugins/src/error-lens/index.ts",
       "name": "extractErrorLine"
     },
@@ -42812,12 +43204,20 @@
       "name": "REVIEW_SUPPRESSION_MS"
     },
     {
+      "file": "packages/sage/src/shared/injection-recency.ts",
+      "name": "INJECTION_AGE_OUT_MS"
+    },
+    {
       "file": "packages/sage/src/shared/pagination.ts",
       "name": "compareByUpdatedDesc"
     },
     {
       "file": "packages/sage/src/shared/pagination.ts",
       "name": "DEFAULT_PAGE_LIMIT"
+    },
+    {
+      "file": "packages/sage/src/shared/progress-log.ts",
+      "name": "PROGRESS_LOG_IDLE_MS"
     },
     {
       "file": "packages/sdd/src/sdd-board-store.ts",

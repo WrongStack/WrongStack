@@ -24,7 +24,13 @@ export function topN<T>(map: Map<string, T>, n: number): Array<[string, T]> {
       // Sort by numeric value when possible
       const av = a[1] as unknown;
       const bv = b[1] as unknown;
-      if (typeof av === 'number' && typeof bv === 'number') return bv - av;
+      if (typeof av === 'number' && typeof bv === 'number') {
+        const aFinite = Number.isFinite(av);
+        const bFinite = Number.isFinite(bv);
+        if (aFinite && bFinite) return bv - av;
+        if (aFinite !== bFinite) return bFinite ? 1 : -1;
+        return 0;
+      }
       return 0;
     })
     .slice(0, limit);

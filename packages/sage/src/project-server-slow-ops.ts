@@ -32,7 +32,7 @@ export function createSlowOperationReporter(
   })();
   const lastSlowReportAt = new Map<string, number>();
   return function reportSlowOperation(op: SageServerOperationName, durationMs: number): void {
-    if (durationMs < SLOW_OPERATION_WARN_MS) return;
+    if (!Number.isFinite(durationMs) || durationMs < SLOW_OPERATION_WARN_MS) return;
     const now = Date.now();
     const previous = lastSlowReportAt.get(op);
     if (previous !== undefined && now - previous < SLOW_OPERATION_THROTTLE_MS) return;

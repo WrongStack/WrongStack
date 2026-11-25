@@ -62,7 +62,8 @@ export function hybridRerankMemories(
   if (candidates.length <= 1) return candidates;
   const q = query.trim();
   if (q.length < 3) return candidates;
-  const weight = Math.min(1, Math.max(0, semanticWeight));
+  const safeWeight = Number.isFinite(semanticWeight) ? semanticWeight : 0.25;
+  const weight = Math.min(1, Math.max(0, safeWeight));
   if (weight === 0) return candidates;
 
   try {

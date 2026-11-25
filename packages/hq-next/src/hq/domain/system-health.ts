@@ -45,7 +45,12 @@ export function summarizeHealthDetail(
       gateways === null
         ? null
         : {
-            total: gateways.gatewayCount,
+            total:
+              typeof gateways.gatewayCount === 'number' &&
+              Number.isFinite(gateways.gatewayCount) &&
+              gateways.gatewayCount >= 0
+                ? gateways.gatewayCount
+                : gateways.gateways.length,
             streaming: gateways.gateways.filter((gateway) => gateway.hasActiveStreams).length,
           },
   };

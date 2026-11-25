@@ -405,7 +405,8 @@ export function mergeTerm(byKey: Map<string, ExtractedTerm>, cand: ExtractedTerm
  */
 export function applyFrequencyBonus(terms: ExtractedTerm[]): void {
   for (const t of terms) {
-    if (t.mentionCount <= 1) continue;
+    if (!Number.isFinite(t.mentionCount) || t.mentionCount <= 1) continue;
+    if (!Number.isFinite(t.confidence)) continue;
     const bonus = Math.min(0.15, Math.log2(t.mentionCount) * 0.05);
     t.confidence = Math.min(0.99, t.confidence + bonus);
   }

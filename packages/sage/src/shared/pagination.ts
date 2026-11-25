@@ -115,8 +115,18 @@ export function boundedLimit(
   defaultLimit: number,
   maxLimit: number,
 ): number {
-  if (typeof limit !== 'number' || !Number.isFinite(limit)) return defaultLimit;
-  return Math.max(0, Math.min(maxLimit, Math.floor(limit)));
+  const safeDefault =
+    typeof defaultLimit === 'number' && Number.isFinite(defaultLimit)
+      ? Math.max(0, Math.floor(defaultLimit))
+      : 0;
+  const safeMax =
+    typeof maxLimit === 'number' && Number.isFinite(maxLimit)
+      ? Math.max(0, Math.floor(maxLimit))
+      : safeDefault;
+  if (typeof limit !== 'number' || !Number.isFinite(limit)) {
+    return Math.min(safeMax, safeDefault);
+  }
+  return Math.max(0, Math.min(safeMax, Math.floor(limit)));
 }
 
 // ─── Sorting ────────────────────────────────────────────────────────────

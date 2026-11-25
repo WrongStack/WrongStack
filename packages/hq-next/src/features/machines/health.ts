@@ -27,6 +27,7 @@ export function formatBytes(bytes: number): string {
 }
 
 export function formatUptime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return '—';
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);

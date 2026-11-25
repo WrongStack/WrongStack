@@ -59,5 +59,9 @@ export function msUntilExpiry(leaseExpiresAt: string, nowIso: string): number {
 
 export function later(a: string | undefined, b: string): string {
   if (a === undefined) return b;
-  return new Date(a).getTime() >= new Date(b).getTime() ? a : b;
+  const aMs = new Date(a).getTime();
+  const bMs = new Date(b).getTime();
+  if (!Number.isFinite(bMs)) return a;
+  if (!Number.isFinite(aMs)) return b;
+  return aMs >= bMs ? a : b;
 }

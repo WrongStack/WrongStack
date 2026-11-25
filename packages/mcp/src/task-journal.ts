@@ -3,9 +3,9 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { atomicWrite, withFileLock } from '@wrongstack/core/utils';
 import { objectRecord } from './modern-protocol.js';
-import { parseTask, type MCPTask } from './task-protocol.js';
-import { sameTaskOwner, type MCPTaskOwner } from './task-identity.js';
+import { type MCPTaskOwner, sameTaskOwner } from './task-identity.js';
 import { validateAnsweredInputs } from './task-input-state.js';
+import { type MCPTask, parseTask } from './task-protocol.js';
 
 export interface MCPTaskReceipt extends MCPTaskOwner {
   id: string;
@@ -185,6 +185,7 @@ export class MCPTaskJournal {
       if (patch.retryAfter !== undefined) e.retryAfter = patch.retryAfter;
       e.updatedAt = Date.now();
       e.lease.until = Date.now() + MCP_TASK_LEASE_MS;
+      parseEntry(e);
     });
   }
   async release(id: string, token: string): Promise<void> {

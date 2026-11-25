@@ -44,7 +44,11 @@ export async function touchKanbanPresence(
   if (!input.sessionId?.trim() || !input.agentId?.trim()) return readBoard(projectRoot, boardId);
   const seenAt = input.seenAt ?? new Date().toISOString();
   const seenMs = Date.parse(seenAt);
-  const ttlMs = Math.max(1_000, Math.floor(input.ttlMs ?? DEFAULT_KANBAN_PRESENCE_TTL_MS));
+  const rawTtl =
+    typeof input.ttlMs === 'number' && Number.isFinite(input.ttlMs)
+      ? input.ttlMs
+      : DEFAULT_KANBAN_PRESENCE_TTL_MS;
+  const ttlMs = Math.max(1_000, Math.floor(rawTtl));
   const activeUntil = new Date(
     (Number.isFinite(seenMs) ? seenMs : Date.now()) + ttlMs,
   ).toISOString();

@@ -28,16 +28,25 @@ export function readConfig(raw: unknown): MigrationPlannerConfig {
   return {
     enabled: r['enabled'] !== false,
     changelogPaths: Array.isArray(rawPaths)
-      ? (rawPaths as unknown[]).filter((x): x is string => typeof x === 'string')
+      ? (rawPaths as unknown[])
+          .filter((x): x is string => typeof x === 'string')
+          .map((x) => x.trim())
+          .filter((x) => x.length > 0)
       : DEFAULTS.changelogPaths,
     maxChars:
-      typeof rawMax === 'number' && rawMax >= 1_000 && rawMax <= 1_000_000
-        ? rawMax
+      typeof rawMax === 'number' &&
+      Number.isFinite(rawMax) &&
+      rawMax >= 1_000 &&
+      rawMax <= 1_000_000
+        ? Math.floor(rawMax)
         : DEFAULTS.maxChars,
     useLlm: rawUseLlm === true,
     maxLlmChars:
-      typeof rawMaxLlm === 'number' && rawMaxLlm >= 1_000 && rawMaxLlm <= 100_000
-        ? rawMaxLlm
+      typeof rawMaxLlm === 'number' &&
+      Number.isFinite(rawMaxLlm) &&
+      rawMaxLlm >= 1_000 &&
+      rawMaxLlm <= 100_000
+        ? Math.floor(rawMaxLlm)
         : DEFAULTS.maxLlmChars,
   };
 }

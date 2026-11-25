@@ -187,7 +187,7 @@ export function relativePath(p: string): string {
 // ---------------------------------------------------------------------------
 
 export function removeInlineComments(line: string): string {
-  return line.replace(/\/\/.*$/, '').replace(/\/\*[\s\S]*?\*\//, '');
+  return line.replace(/\/\/.*$/, '').replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
 export function normalizeLine(line: string): string {
@@ -467,7 +467,8 @@ export function findDuplicates(
 
   // maxFindings cap (applied AFTER merging so it counts logical
   // duplications, not fingerprint explosions).
-  const capped = findings.slice(0, maxFindings);
+  const safeMax = Number.isFinite(maxFindings) ? Math.max(0, Math.floor(maxFindings)) : 0;
+  const capped = findings.slice(0, safeMax);
   return capped;
 }
 

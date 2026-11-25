@@ -288,25 +288,29 @@ export function validateMemoryAnchors(anchors: MemoryAnchor[] | undefined): void
     if (!anchor || !VALID_ANCHOR_TYPES.has(anchor.type))
       throw new Error('Invalid SAGE anchor type.');
     if (anchor.type === 'command') {
-      if (!anchor.command?.trim()) throw new Error('Command memory anchors require a command.');
+      if (typeof anchor.command !== 'string' || !anchor.command.trim()) {
+        throw new Error('Command memory anchors require a command.');
+      }
     } else if (anchor.type === 'agent') {
-      if (!anchor.role?.trim()) throw new Error('Agent memory anchors require a role.');
+      if (typeof anchor.role !== 'string' || !anchor.role.trim()) {
+        throw new Error('Agent memory anchors require a role.');
+      }
       if (!/^[a-z0-9][a-z0-9._-]{0,95}$/i.test(anchor.role.trim())) {
         throw new Error('Agent memory anchor role is invalid.');
       }
-    } else if (!anchor.path?.trim()) {
+    } else if (typeof anchor.path !== 'string' || !anchor.path.trim()) {
       throw new Error(`${anchor.type} memory anchors require a path.`);
     }
-    if (anchor.type === 'symbol' && !anchor.symbol?.trim()) {
+    if (anchor.type === 'symbol' && (typeof anchor.symbol !== 'string' || !anchor.symbol.trim())) {
       throw new Error('Symbol memory anchors require a symbol.');
     }
     // Per-type caps: paths can be deep absolute paths (Windows `C:\...`,
     // node_modules chains), commands can be long shell one-liners. A flat 256
     // rejects legitimate input — the stored form is relativized/short anyway.
     if (
-      (anchor.path?.length ?? 0) > 4_096 ||
-      (anchor.symbol?.length ?? 0) > 1_024 ||
-      (anchor.command?.length ?? 0) > 8_192
+      (typeof anchor.path === 'string' && anchor.path.length > 4_096) ||
+      (typeof anchor.symbol === 'string' && anchor.symbol.length > 1_024) ||
+      (typeof anchor.command === 'string' && anchor.command.length > 8_192)
     ) {
       throw new Error(
         'SAGE anchor strings are too long (path ≤ 4096, symbol ≤ 1024, command ≤ 8192, role ≤ 96 characters).',

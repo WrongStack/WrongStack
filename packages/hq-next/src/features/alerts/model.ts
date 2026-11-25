@@ -73,7 +73,10 @@ export function episodes(active: readonly HqAlert[], history: readonly HqAlert[]
     .map((alert) => ({
       alert,
       active: activeIds.has(alert.id),
-      durationMs: Math.max(0, alert.lastFiredAt - alert.firstFiredAt),
+      durationMs:
+        Number.isFinite(alert.lastFiredAt) && Number.isFinite(alert.firstFiredAt)
+          ? Math.max(0, alert.lastFiredAt - alert.firstFiredAt)
+          : 0,
     }))
     .sort((left, right) => right.alert.firstFiredAt - left.alert.firstFiredAt);
 }
@@ -106,6 +109,7 @@ export function ruleCounts(list: readonly Episode[]): RuleCount[] {
 }
 
 export function duration(ms: number): string {
+  if (!Number.isFinite(ms)) return '—';
   if (ms < 60_000) return 'under a minute';
   if (ms < 3_600_000) return `${Math.round(ms / 60_000)} min`;
   if (ms < 48 * 3_600_000) return `${(ms / 3_600_000).toFixed(1)} h`;

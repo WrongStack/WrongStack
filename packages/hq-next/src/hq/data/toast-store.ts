@@ -35,17 +35,30 @@ let counter = 0;
 export const useToastStore = create<ToastState>()((set) => ({
   toasts: [],
   addToast: (message, severity = 'info', ttlMs = DEFAULT_TTL_MS, action) => {
+    const effectiveTtlMs =
+      ttlMs === 0
+        ? 0
+        : typeof ttlMs === 'number' && Number.isFinite(ttlMs) && ttlMs > 0
+          ? Math.min(Math.floor(ttlMs), 2_147_483_647)
+          : DEFAULT_TTL_MS;
     const id = `toast-${++counter}-${Date.now()}`;
-    const entry: ToastEntry = { id, message, severity, createdAt: Date.now(), ttlMs, action };
+    const entry: ToastEntry = {
+      id,
+      message,
+      severity,
+      createdAt: Date.now(),
+      ttlMs: effectiveTtlMs,
+      action,
+    };
     set((state) => ({
       toasts: [...state.toasts.slice(-(MAX_TOASTS - 1)), entry],
     }));
-    if (ttlMs > 0) {
+    if (effectiveTtlMs > 0) {
       setTimeout(() => {
         set((state) => ({
           toasts: state.toasts.filter((t) => t.id !== id),
         }));
-      }, ttlMs);
+      }, effectiveTtlMs);
     }
   },
   removeToast: (id) =>

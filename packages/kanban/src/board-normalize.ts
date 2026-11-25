@@ -108,7 +108,8 @@ export function normalizeBoard(board: KanbanBoard): KanbanBoard {
   const columns = [...(board.columns?.length ? board.columns : DEFAULT_COLUMNS)]
     .map((column, index) => ({
       ...column,
-      order: column.order ?? index,
+      order:
+        typeof column.order === 'number' && Number.isFinite(column.order) ? column.order : index,
     }))
     .sort((a, b) => a.order - b.order)
     .map((column, index) => ({ ...column, order: index }));
@@ -118,7 +119,7 @@ export function normalizeBoard(board: KanbanBoard): KanbanBoard {
     (board.tasks ?? []).map((task, index) => ({
       ...task,
       columnId: columnIds.has(task.columnId) ? task.columnId : fallbackColumnId,
-      order: task.order ?? index,
+      order: typeof task.order === 'number' && Number.isFinite(task.order) ? task.order : index,
       priority: task.priority ?? 'medium',
       status: task.status ?? 'pending',
       createdAt: task.createdAt ?? now,

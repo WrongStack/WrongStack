@@ -1195,6 +1195,10 @@
       "isCommitCall",
       "lockfileDriftNote"
     ],
+    "packages/plugins/src/duplicate-code-detector/duplicate-code-analysis.ts": [
+      "findDuplicates",
+      "removeInlineComments"
+    ],
     "packages/plugins/src/error-lens/index.ts": [
       "extractErrorLine",
       "extractFrames"
@@ -1454,9 +1458,15 @@
     "packages/sage/src/shared/candidate-dedupe.ts": [
       "REVIEW_SUPPRESSION_MS"
     ],
+    "packages/sage/src/shared/injection-recency.ts": [
+      "INJECTION_AGE_OUT_MS"
+    ],
     "packages/sage/src/shared/pagination.ts": [
       "compareByUpdatedDesc",
       "DEFAULT_PAGE_LIMIT"
+    ],
+    "packages/sage/src/shared/progress-log.ts": [
+      "PROGRESS_LOG_IDLE_MS"
     ],
     "packages/sdd/src/sdd-board-store.ts": [
       "sameIndexSignature"

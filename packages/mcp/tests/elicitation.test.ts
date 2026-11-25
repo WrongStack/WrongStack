@@ -19,7 +19,7 @@ import {
   type MCPElicitationRequest,
   ServerRequestResponder,
 } from '../src/elicitation.js';
-import { elicitViaUserInput } from '../src/elicitation-form.js';
+import { elicitAcpFormViaUserInput, elicitViaUserInput } from '../src/elicitation-form.js';
 import { MCPRegistry } from '../src/registry.js';
 
 const silentLog = {
@@ -32,6 +32,23 @@ const silentLog = {
 } as never as Logger;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+it('rejects an ACP credential field before showing the form', async () => {
+  const requestUserInput = vi.fn();
+  const response = await elicitAcpFormViaUserInput(
+    'agent',
+    {
+      message: 'Complete setup',
+      requestedSchema: { type: 'object', properties: { client_secret: { type: 'string' } } },
+    },
+    { requestUserInput },
+    new AbortController().signal,
+  );
+  expect(response).toEqual({
+    invalidParams: 'Credentials cannot be requested through an ACP form.',
+  });
+  expect(requestUserInput).not.toHaveBeenCalled();
+});
 /**
  * Request timeout vs. how long the "user" takes to answer. The answer outlasts
  * the timeout by more than two windows, so only a held timeout lets the call

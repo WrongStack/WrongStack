@@ -79,7 +79,7 @@ export function freezeFanout(input: Omit<FanoutReview, 'confirmWord'>): FanoutRe
 
 /** Why the review cannot be sent at all, or null. */
 export function fanoutBlocker(targetCount: number): string | null {
-  if (targetCount === 0) return 'Pick at least one session.';
+  if (!Number.isFinite(targetCount) || targetCount <= 0) return 'Pick at least one session.';
   if (targetCount > MAX_FANOUT_TARGETS)
     return `At most ${MAX_FANOUT_TARGETS} sessions at once — narrow the scope or the selection.`;
   return null;

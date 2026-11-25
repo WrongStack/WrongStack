@@ -39,7 +39,7 @@ export function isoFromTimestamp(value: number | undefined, fallback: string): s
 export { nowIso } from '@wrongstack/primitives';
 
 export function uniqueIdFromSet(usedIds: Set<string>, requested: string): string {
-  const base = requested || 'item';
+  const base = requested.trim() || 'item';
   let candidate = base;
   let suffix = 2;
   while (usedIds.has(candidate)) {

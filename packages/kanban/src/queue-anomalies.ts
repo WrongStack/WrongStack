@@ -50,7 +50,7 @@ export function kanbanQueueAnomalySignals(health: KanbanQueueHealth): KanbanQueu
     { code: 'dependency_blocked', count: health.dependencyBlocked.count },
     { code: 'heartbeat_due', count: health.heartbeatDue.count },
   ];
-  return signals.filter((signal) => signal.count > 0);
+  return signals.filter((signal) => Number.isFinite(signal.count) && signal.count > 0);
 }
 
 /**

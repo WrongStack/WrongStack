@@ -36,7 +36,7 @@ export function pendingReceipts(
     return !entries.some(
       (entry) =>
         entry.role === 'user' &&
-        entry.text.trim() === receipt.preview &&
+        entry.text.trim() === receipt.preview.trim() &&
         Math.abs(Date.parse(entry.ts) - sentAt) < RECEIPT_ECHO_WINDOW_MS,
     );
   });

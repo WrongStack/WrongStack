@@ -46,6 +46,15 @@ export function isAgedOutForInjection(
   if (EVERGREEN_KINDS.has(memory.kind) && !memory.tags?.includes(CONSOLIDATED_TAG)) return false;
   const created = Date.parse(memory.createdAt);
   const used = Date.parse(memory.lastUsedAt ?? '');
-  const lastTouch = Number.isFinite(used) ? Math.max(used, created) : created;
-  return Number.isFinite(lastTouch) && nowMs - lastTouch >= INJECTION_AGE_OUT_MS;
+  const lastTouch =
+    Number.isFinite(used) && Number.isFinite(created)
+      ? Math.max(used, created)
+      : Number.isFinite(used)
+        ? used
+        : created;
+  return (
+    Number.isFinite(nowMs) &&
+    Number.isFinite(lastTouch) &&
+    nowMs - lastTouch >= INJECTION_AGE_OUT_MS
+  );
 }

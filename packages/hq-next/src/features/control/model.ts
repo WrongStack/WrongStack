@@ -117,9 +117,10 @@ export function mergeAudit(
   live: readonly HqCommandAuditEntry[],
   limit: number,
 ): HqCommandAuditEntry[] {
+  const safeLimit = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 0;
   const merged = new Map(polled.map((entry) => [entry.commandId, entry]));
   for (const entry of live) merged.set(entry.commandId, entry);
   return [...merged.values()]
     .sort((left, right) => right.enqueuedAt.localeCompare(left.enqueuedAt))
-    .slice(0, limit);
+    .slice(0, safeLimit);
 }

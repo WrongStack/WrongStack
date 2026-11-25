@@ -44,10 +44,17 @@ export function columnIdForKanbanStatus(
   return board.columns[0]?.id;
 }
 
+function safeTaskOrder(order: number): number {
+  return Number.isFinite(order) ? order : Number.MAX_SAFE_INTEGER;
+}
+
 export function normalizeColumnTaskOrders(board: KanbanBoard, columnId: string): void {
   board.tasks
     .filter((task) => task.columnId === columnId)
-    .sort((a, b) => a.order - b.order || a.createdAt.localeCompare(b.createdAt))
+    .sort(
+      (a, b) =>
+        safeTaskOrder(a.order) - safeTaskOrder(b.order) || a.createdAt.localeCompare(b.createdAt),
+    )
     .forEach((task, index) => {
       task.order = index;
     });
@@ -73,7 +80,10 @@ export function placeTaskInColumn(
 ): void {
   const tasks = board.tasks
     .filter((candidate) => candidate.columnId === columnId && candidate.id !== task.id)
-    .sort((a, b) => a.order - b.order || a.createdAt.localeCompare(b.createdAt));
+    .sort(
+      (a, b) =>
+        safeTaskOrder(a.order) - safeTaskOrder(b.order) || a.createdAt.localeCompare(b.createdAt),
+    );
   const index = clampOrder(targetOrder, tasks.length);
   tasks.splice(index, 0, task);
   tasks.forEach((candidate, order) => {
@@ -89,13 +99,15 @@ export function nextTaskOrder(
   return (
     board.tasks
       .filter((task) => task.columnId === columnId && task.id !== excludeTaskId)
-      .reduce((max, task) => Math.max(max, task.order), -1) + 1
+      .reduce((max, task) => (Number.isFinite(task.order) ? Math.max(max, task.order) : max), -1) +
+    1
   );
 }
 
 export function clampOrder(order: number | undefined, max: number): number {
-  if (!Number.isFinite(order)) return max;
-  return Math.max(0, Math.min(Math.trunc(order as number), max));
+  const safeMax = Number.isFinite(max) ? Math.max(0, Math.trunc(max)) : 0;
+  if (!Number.isFinite(order)) return safeMax;
+  return Math.max(0, Math.min(Math.trunc(order as number), safeMax));
 }
 
 export function applyCompletedAtForStatus(task: KanbanTask, timestamp: string): void {

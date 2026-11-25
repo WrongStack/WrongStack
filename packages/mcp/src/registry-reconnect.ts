@@ -25,7 +25,10 @@ export function scheduleRegistryReconnect({
   attemptReconnect,
 }: ScheduleReconnectOptions): void {
   if (slot.reconnectPending) return;
-  if (slot.reconnectCycles >= maxReconnectCycles) {
+  const maxCycles = Number.isFinite(maxReconnectCycles)
+    ? Math.max(0, Math.floor(maxReconnectCycles))
+    : 0;
+  if (slot.reconnectCycles >= maxCycles) {
     slot.state = 'failed';
     recordReconnectExhausted(slot);
     log.error(
@@ -43,12 +46,20 @@ export function scheduleRegistryReconnect({
     clearTimeout(slot.reconnectTimer);
     slot.reconnectTimer = undefined;
   }
+  const safeBase =
+    Number.isFinite(baseReconnectDelayMs) && baseReconnectDelayMs > 0
+      ? baseReconnectDelayMs
+      : MCP_CONSTANTS.RECONNECT.BASE_DELAY_MS;
+  const safeMax =
+    Number.isFinite(maxReconnectDelayMs) && maxReconnectDelayMs > 0
+      ? maxReconnectDelayMs
+      : Math.max(safeBase, 30_000);
   const base = Math.min(
-    baseReconnectDelayMs * MCP_CONSTANTS.RECONNECT.BACKOFF_MULTIPLIER ** slot.reconnectCycles,
-    maxReconnectDelayMs,
+    safeBase * MCP_CONSTANTS.RECONNECT.BACKOFF_MULTIPLIER ** slot.reconnectCycles,
+    safeMax,
   );
   const jitter = base * MCP_CONSTANTS.RECONNECT.JITTER_FACTOR * (Math.random() * 2 - 1);
-  const delay = Math.max(100, Math.round(base + jitter));
+  const delay = Number.isFinite(base + jitter) ? Math.max(100, Math.round(base + jitter)) : 100;
   slot.reconnectTimer = setTimeout(() => {
     slot.reconnectTimer = undefined;
     void attemptReconnect(slot);

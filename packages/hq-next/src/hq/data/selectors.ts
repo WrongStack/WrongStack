@@ -65,5 +65,6 @@ export function attentionBreakdown(
 }
 
 export function unreadMailboxCount(snapshot: HqSnapshot | null): number {
-  return snapshot?.totals?.unreadMailboxMessages ?? 0;
+  const count = snapshot?.totals?.unreadMailboxMessages;
+  return typeof count === 'number' && Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
 }

@@ -74,14 +74,10 @@ export function scoreMemoryRelationship(
   ].includes(candidate.kind)
     ? 1
     : 0;
-  return (
-    relation +
-    candidate.importance * 2 +
-    candidate.confidence +
-    candidate.freshness +
-    persistenceBonus +
-    durableKindBonus
-  );
+  const importance = Number.isFinite(candidate.importance) ? candidate.importance : 0;
+  const confidence = Number.isFinite(candidate.confidence) ? candidate.confidence : 0;
+  const freshness = Number.isFinite(candidate.freshness) ? candidate.freshness : 0;
+  return relation + importance * 2 + confidence + freshness + persistenceBonus + durableKindBonus;
 }
 
 function normalizeCommand(command: string): string {

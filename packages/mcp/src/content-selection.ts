@@ -148,7 +148,7 @@ function validateUri(uri: string, policy: MCPInsertionPolicy): void {
   if (!allowed.has(scheme)) {
     throw new Error(`MCP insertion URI scheme "${scheme}" is not allowed`);
   }
-  if ((scheme === 'http' || scheme === 'https') && (parsed.username || parsed.password)) {
+  if (parsed.username || parsed.password) {
     throw new Error('MCP insertion URI must not contain credentials');
   }
 }

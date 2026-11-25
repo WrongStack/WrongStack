@@ -51,12 +51,12 @@ export function checkLabel(name: string): string {
 
 /** Latency checks carry milliseconds; the concurrency check carries a count. */
 export function checkValue(check: HqMcpHealthCheck, value: number | undefined): string {
-  if (value === undefined) return '—';
+  if (value === undefined || !Number.isFinite(value)) return '—';
   return check.name === 'in-flight-calls' ? String(value) : formatMs(value);
 }
 
 export function formatMs(ms: number | undefined): string {
-  if (ms === undefined || !Number.isFinite(ms)) return '—';
+  if (ms === undefined || !Number.isFinite(ms) || ms < 0) return '—';
   if (ms < 1_000) return `${Math.round(ms)} ms`;
   return `${(ms / 1_000).toFixed(ms < 10_000 ? 1 : 0)} s`;
 }

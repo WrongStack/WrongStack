@@ -51,8 +51,12 @@ export function fleetHealthRows(
       diskFreeBytes: freeBytes,
       diskTotalBytes: totalBytes,
       diskFreePct:
-        freeBytes !== undefined && totalBytes !== undefined && totalBytes > 0
-          ? Math.round((1000 * freeBytes) / totalBytes) / 10
+        typeof freeBytes === 'number' &&
+        typeof totalBytes === 'number' &&
+        Number.isFinite(freeBytes) &&
+        Number.isFinite(totalBytes) &&
+        totalBytes > 0
+          ? Math.min(100, Math.max(0, Math.round((1000 * freeBytes) / totalBytes) / 10))
           : undefined,
       diskFullInDays: trend.diskFullInDays,
       disk: trend.disk,

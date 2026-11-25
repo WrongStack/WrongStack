@@ -12,6 +12,7 @@ import {
   type ElicitationRequester,
   type MCPElicitationRequest,
   type MCPElicitationResult,
+  parseElicitationParams,
   type UrlElicitation,
   validateElicitationContent,
 } from './elicitation.js';
@@ -166,7 +167,11 @@ function toPageRequest(request: PageRequest, canOpen: boolean): UserInputRequest
   };
 }
 
-function toUserInputRequest(request: FormRequest, problem?: string): UserInputRequest {
+function toUserInputRequest(
+  request: FormRequest,
+  problem: string | undefined,
+  origin: 'mcp' | 'acp',
+): UserInputRequest {
   const questions: UserInputQuestion[] =
     request.fields.length > 0
       ? request.fields.map(toQuestion)
@@ -184,16 +189,19 @@ function toUserInputRequest(request: FormRequest, problem?: string): UserInputRe
         ];
   const description = [
     request.message,
-    `Only share what you are comfortable sending to "${request.server}".`,
+    origin === 'acp'
+      ? 'Share project information only. Use the agent’s sign-in flow for credentials.'
+      : `Only share what you are comfortable sending to "${request.server}".`,
     problem ? `The last answer was not accepted: ${problem}.` : undefined,
   ]
     .filter(Boolean)
     .join('\n\n');
   return {
-    id: `mcp-elicitation-${randomUUID()}`,
-    title: `MCP server "${request.server}" is asking for input`,
+    id: `${origin}-elicitation-${randomUUID()}`,
+    title: `${origin === 'acp' ? 'ACP agent' : 'MCP server'} "${request.server}" is asking for input`,
     description,
     submitLabel: `Send to ${request.server}`,
+    ...(origin === 'acp' ? { declineLabel: 'Decline' } : {}),
     tabs: [{ id: 'form', label: request.server, questions }],
   };
 }
@@ -272,16 +280,58 @@ export async function elicitViaUserInput(
     if (choice === 'self') return { action: 'accept', content: {} };
     return { action: 'decline' };
   }
-  const form = request;
+  return askForm(request, target, 'mcp');
+}
+
+/** Reuse the restricted MCP form schema and UI for ACP's session-scoped form mode. */
+export async function elicitAcpFormViaUserInput(
+  agent: string,
+  form: { message: string; requestedSchema: unknown },
+  requester: ElicitationRequester,
+  signal: AbortSignal,
+): Promise<MCPElicitationResult | { invalidParams: string }> {
+  const parsed = parseElicitationParams({ ...form, mode: 'form' });
+  if (!parsed.ok) return { invalidParams: parsed.error };
+  if (parsed.value.mode === 'url') return { invalidParams: 'Expected form elicitation.' };
+  if (parsed.value.fields.some(requestsCredential)) {
+    return { invalidParams: 'Credentials cannot be requested through an ACP form.' };
+  }
+  return askForm(
+    { ...parsed.value, server: sanitizeTerminalText(agent), signal },
+    requester,
+    'acp',
+  );
+}
+
+function requestsCredential(field: ElicitationField): boolean {
+  const name = field.name.toLowerCase().replace(/[^a-z]/g, '');
+  return (
+    /^(?:password|passphrase|apikey|apitoken|token|authtoken|accesstoken|refreshtoken|secret|clientsecret|secretkey|privatekey|sshprivatekey|recoverycodes?|creditcardnumber|cardnumber|cvv|cvc)$/.test(
+      name,
+    ) ||
+    /\b(?:password|passphrase|api[ -]?(?:key|token)|(?:access|refresh) token|client secret|secret key|private key|recovery code|card number|security code)\b/i.test(
+      field.title ?? '',
+    ) ||
+    (field.kind === 'string' && field.format?.toLowerCase() === 'password')
+  );
+}
+
+async function askForm(
+  form: FormRequest & { signal: AbortSignal },
+  target: ElicitationRequester,
+  origin: 'mcp' | 'acp',
+): Promise<MCPElicitationResult> {
   let problem: string | undefined;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    if (request.signal.aborted) return { action: 'cancel' };
+    if (form.signal.aborted) return { action: 'cancel' };
     const response = await target.requestUserInput(
-      toUserInputRequest(form, problem),
-      request.signal,
+      toUserInputRequest(form, problem, origin),
+      form.signal,
     );
-    if (!response || request.signal.aborted) return { action: 'cancel' };
-    if (response.status !== 'submitted') return { action: 'decline' };
+    if (!response || form.signal.aborted) return { action: 'cancel' };
+    if (response.status !== 'submitted') {
+      return { action: origin === 'acp' && response.status === 'cancelled' ? 'cancel' : 'decline' };
+    }
     const byId = new Map(response.answers.map((answer) => [answer.questionId, answer]));
     if (form.fields.length === 0) {
       return byId.get(CONFIRM_QUESTION)?.selectedOptionIds[0] === 'yes'

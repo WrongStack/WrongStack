@@ -23,9 +23,11 @@ export function generateCommitMessage(
   summary: string,
   body?: string | undefined,
 ): string {
-  const scopePart = scope ? `(${scope})` : '';
-  const footer = body ? `\n\n${body}` : '';
-  return `${type}${scopePart}: ${summary}${footer}`;
+  const trimmedScope = scope?.trim();
+  const trimmedBody = body?.trim();
+  const scopePart = trimmedScope ? `(${trimmedScope})` : '';
+  const footer = trimmedBody ? `\n\n${trimmedBody}` : '';
+  return `${type}${scopePart}: ${summary.trim()}${footer}`;
 }
 
 const VALID_TYPES: ConventionalType[] = [

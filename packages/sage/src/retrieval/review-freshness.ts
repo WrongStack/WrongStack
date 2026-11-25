@@ -15,6 +15,7 @@ export function memoryReviewReason(memory: Sage, now = Date.now()): string | und
     return;
   const verifiedAt = Date.parse(memory.lastVerifiedAt ?? '');
   if (!Number.isFinite(verifiedAt)) return 'unverified_anchor';
-  if (now - verifiedAt >= 30 * 24 * 60 * 60_000) return 'verification_old';
+  const safeNow = Number.isFinite(now) ? now : Date.now();
+  if (safeNow - verifiedAt >= 30 * 24 * 60 * 60_000) return 'verification_old';
   return undefined;
 }

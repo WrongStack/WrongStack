@@ -9,7 +9,9 @@ export const STAMPLESS_ASSIGNMENT_STALE_MS = 10 * 60 * 1000;
 export function isLeaseExpired(expiresAt: string | undefined, now: string): boolean {
   if (expiresAt === undefined) return false;
   const expiresMs = Date.parse(expiresAt);
-  return !Number.isFinite(expiresMs) || expiresMs <= Date.parse(now);
+  const parsedNow = Date.parse(now);
+  const nowMs = Number.isFinite(parsedNow) ? parsedNow : Date.now();
+  return !Number.isFinite(expiresMs) || expiresMs <= nowMs;
 }
 
 /** Shared by recovery, claiming and queue classification; timestamps are instants. */
