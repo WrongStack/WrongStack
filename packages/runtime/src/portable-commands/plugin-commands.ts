@@ -7,6 +7,7 @@ import type {
   ConfigStore,
   Plugin,
   PluginAPI,
+  PromptLoader,
   SkillLoader,
   SlashCommand,
 } from '@wrongstack/contracts/types';
@@ -15,6 +16,7 @@ import type { WstackPaths } from '@wrongstack/core/utils';
 /** What the builtin plugins' commands read: the skill library, the profile paths and config. */
 export interface PluginCommandHost {
   skillLoader?: SkillLoader | undefined;
+  promptLoader?: PromptLoader | undefined;
   paths?: WstackPaths | undefined;
   configStore?: ConfigStore | undefined;
   /** Encrypts the sync token before `/sync` stores it. */
@@ -34,7 +36,7 @@ const quietLog = { debug() {}, info() {}, warn() {}, error() {} };
 export async function buildPluginCommands(host: PluginCommandHost): Promise<SlashCommand[]> {
   const plugins: Plugin[] = [
     createSkillsPlugin({ skillLoader: host.skillLoader }),
-    createPromptsPlugin({ paths: host.paths }),
+    createPromptsPlugin({ paths: host.paths, loader: host.promptLoader }),
     createSyncPlugin({
       paths: host.paths,
       configStore: host.configStore,

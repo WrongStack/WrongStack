@@ -76,7 +76,8 @@ export function evaluateGitHubFilters(
   const sender = record(data['sender']);
   if (
     filters.excludeBots &&
-    (!['User', 'Organization'].includes(String(sender['type'])) ||
+    (typeof sender['type'] !== 'string' ||
+      !['User', 'Organization'].includes(sender['type']) ||
       typeof sender['login'] !== 'string' ||
       sender['login'].endsWith('[bot]'))
   )

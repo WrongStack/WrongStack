@@ -34,6 +34,10 @@ export function deferShutdownForRemoteWork(): () => void {
 export async function drainRemoteWork(timeoutMs = 2500): Promise<void> {
   const all = pending();
   if (all.size === 0) return;
+  const safeTimeout =
+    typeof timeoutMs === 'number' && Number.isFinite(timeoutMs) && timeoutMs >= 0
+      ? Math.min(2_147_483_647, Math.floor(timeoutMs))
+      : 2500;
   let deadline: ReturnType<typeof setTimeout> | undefined;
   try {
     // Remote cancellation has a 2s HTTP deadline; a broken caller must still
@@ -41,7 +45,7 @@ export async function drainRemoteWork(timeoutMs = 2500): Promise<void> {
     await Promise.race([
       Promise.all([...all]),
       new Promise<void>((resolve) => {
-        deadline = setTimeout(resolve, timeoutMs);
+        deadline = setTimeout(resolve, safeTimeout);
       }),
     ]);
   } finally {

@@ -184,7 +184,7 @@ export function installPluginToolQuiescence(
       }
       set.add(done);
       if (Number.isFinite(timeoutMs)) {
-        timer = setTimeout(done, Math.max(0, timeoutMs));
+        timer = setTimeout(done, Math.min(2_147_483_647, Math.max(0, timeoutMs)));
         timer.unref?.();
       }
     });

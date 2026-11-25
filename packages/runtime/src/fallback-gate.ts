@@ -159,7 +159,7 @@ function runGate(
         from,
         status,
         candidates,
-        autoSwitchSeconds,
+        autoSwitchSeconds: safeAutoSwitchSeconds,
         requestId,
         timestamp: Date.now(),
       });

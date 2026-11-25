@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   type ACPProgressEvent,
   type AcpAgentCommandOverrides,
@@ -154,17 +155,21 @@ export function buildAcpCommand(opts: AcpCommandHost): SlashCommand {
       if (head === 'bench') return benchAgents(rest, overrides, live, opts);
       const originSessionId = askingSessionId(ctx);
       if (head === 'companion') {
-        return acpCompanionCommand(rest, ctx, (agentId, task, sessionTarget, remember) =>
-          runSingle(
-            agentId,
-            task,
-            overrides,
-            live,
-            opts,
-            ctx?.eventSessionId?.(),
-            originSessionId,
-            { sessionTarget, remember },
-          ),
+        return acpCompanionCommand(
+          rest,
+          ctx,
+          opts.persistCompanionLinks === false ? undefined : opts.sessionStore,
+          (agentId, task, sessionTarget, remember) =>
+            runSingle(
+              agentId,
+              task,
+              overrides,
+              live,
+              opts,
+              ctx?.eventSessionId?.(),
+              originSessionId,
+              { sessionTarget, remember },
+            ),
         );
       }
       if (head === 'parallel') return parallelAgents(rest, overrides, live, opts, originSessionId);
@@ -574,7 +579,7 @@ async function runSingle(
   originSessionId?: string | undefined,
   turn?: {
     sessionTarget?: AcpSessionTarget | undefined;
-    remember?: ((sessionId: string) => void) | undefined;
+    remember?: ((sessionId: string) => Promise<void>) | undefined;
   },
 ): Promise<{ message: string }> {
   // Detect a `--bg` flag anywhere in the remaining tokens.
@@ -626,6 +631,10 @@ async function runSingle(
 
   // Inline path: run now, stream progress to the UI, return the result.
   opts.renderer.writeInfo(`Running task on '${agentId}'…\n`);
+  const owner = originSessionId ?? sessionId;
+  const report = owner === undefined ? undefined : opts.onAcpWorkerUpdate;
+  const workerId = report ? (turn?.remember ? `companion:${agentId}` : randomUUID()) : '';
+  if (owner && report) report({ sessionId: owner, workerId, agentId, state: 'running', task });
   try {
     const result = await runOneAcpTask({
       command: cmd.command,
@@ -648,18 +657,29 @@ async function runSingle(
         if (line) opts.renderer.writeInfo(`  ${line}\n`);
       },
     });
-    if (result.agentSessionId) turn?.remember?.(result.agentSessionId);
+    let saveNotice = '';
+    if (result.agentSessionId && turn?.remember) {
+      try {
+        await turn.remember(result.agentSessionId);
+      } catch (error) {
+        saveNotice = `\nACP companion link could not be saved: ${toErrorMessage(error)}`;
+      }
+    }
     const body = result.result && result.result.length > 0 ? result.result : '(no text output)';
+    if (owner && report)
+      report({ sessionId: owner, workerId, agentId, state: 'finished', text: body });
     const reference = result.agentSessionId
       ? `\nACP session: ${JSON.stringify(result.agentSessionId)}`
       : '';
     return {
-      message: `=== ${agentId} ===\n${body}\n\n[${agentId}] done — iterations=${result.iterations} toolCalls=${result.toolCalls}${reference}`,
+      message: `=== ${agentId} ===\n${body}\n\n[${agentId}] done — iterations=${result.iterations} toolCalls=${result.toolCalls}${reference}${saveNotice}`,
     };
   } catch (err) {
     const e = err as { kind?: string; message?: string };
     const detail = e.kind ? `[${e.kind}] ` : '';
     const message = e.message ?? toErrorMessage(err);
+    if (owner && report)
+      report({ sessionId: owner, workerId, agentId, state: 'finished', text: message });
     return { message: `ACP agent '${agentId}' failed: ${detail}${message}` };
   }
 }

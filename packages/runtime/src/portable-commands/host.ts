@@ -100,7 +100,12 @@ type AcpRunPermissionPolicy = Parameters<typeof runOneAcpTask>[0]['permissionPol
 type AcpBridgeConfig = NonNullable<Config['acp']>['bridge'];
 
 /** `/acp` and `/ensemble`: the external ACP agents installed on this machine. */
-export interface AcpCommandHost {
+export interface AcpCommandHost extends Pick<SessionCommandHost, 'sessionStore'> {
+  onAcpWorkerUpdate?:
+    | ((event: import('@wrongstack/contracts/kernel/events').EventMap['acp.worker_update']) => void)
+    | undefined;
+  /** False for hosts whose conversation writer belongs to a separate transcript store. */
+  persistCompanionLinks?: boolean | undefined;
   renderer: CommandNotices;
   projectRoot: string;
   cwd: string;

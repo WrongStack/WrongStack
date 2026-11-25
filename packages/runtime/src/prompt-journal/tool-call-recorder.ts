@@ -39,7 +39,8 @@ export function createPromptJournalToolCallRecorder(): PromptJournalToolCallReco
       const ctx = payload.ctx;
       const projectRoot = ctx.projectRoot;
       const toolName = payload.toolUse?.name;
-      const category = toolName ? TOOL_CATEGORY[toolName] : undefined;
+      const category =
+        toolName && Object.hasOwn(TOOL_CATEGORY, toolName) ? TOOL_CATEGORY[toolName] : undefined;
       if (projectRoot && category) {
         const input = payload.toolUse.input as Record<string, unknown> | undefined;
         const sessionId = ctx.session?.id ?? ctx.activeRunSessionId ?? 'general';

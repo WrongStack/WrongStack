@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T20:58:30.916Z",
+  "generatedAt": "2026-11-25T21:00:43.037Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6570,
-    "testFiles": 6320,
-    "sourceLines": 1348162,
+    "testFiles": 6326,
+    "sourceLines": 1348254,
     "workspaceEdges": 261,
     "moduleEdges": 19242,
     "nonCommandSlashImports": 0,
@@ -871,7 +871,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 130,
-      "testFiles": 96,
+      "testFiles": 102,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -905,7 +905,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 96
+          "testFiles": 102
         }
       ]
     },
@@ -24078,6 +24078,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/fallback-gate-nan-seconds.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/fallback-gate-ownership-and-clamp.test.ts",
         "projects": [
           "root-node"
@@ -24247,6 +24253,36 @@
       },
       {
         "file": "packages/runtime/tests/runtime-100-coverage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/runtime-acp-native-blank-input.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/runtime-drain-timeout-overflow.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/runtime-gh-filter-null-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/runtime-journal-proto-tool.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/runtime-quiescence-timeout-overflow.test.ts",
         "projects": [
           "root-node"
         ]
@@ -40600,7 +40636,7 @@
     },
     {
       "file": "packages/runtime/src/portable-commands/acp.ts",
-      "lines": 714,
+      "lines": 734,
       "relativeImports": 8
     },
     {

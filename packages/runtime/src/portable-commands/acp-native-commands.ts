@@ -10,7 +10,8 @@ export async function acpNativeCommand(
   if (!ctx?.provider?.listNativeCommands || !ctx.session?.id) {
     return { message: 'Select an ACP session leader in this conversation first.' };
   }
-  if ((action === 'commands' && input) || (action === 'command' && !input)) {
+  const trimmed = input.trim();
+  if ((action === 'commands' && trimmed) || (action === 'command' && !trimmed)) {
     return { message: 'Usage: /acp commands or /acp command <name> [args]' };
   }
   const commands = await ctx.provider.listNativeCommands(ctx.model, ctx.session.id);
