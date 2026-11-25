@@ -19,7 +19,7 @@ const safePrefix = (value: string, max: number): string => {
 };
 const applied = new WeakMap<
   AcpRuntimeSession,
-  { original: AcpRuntimeValues; requested: AcpRuntimeValues }
+  { original: AcpRuntimeValues; requested: AcpRuntimeValues; changedByModel: Set<string> }
 >();
 const ALLOWED_CATEGORIES = new Set([
   'model',
@@ -48,6 +48,31 @@ function isModelCategoryOrId(category: string | undefined, id: string): boolean 
 
 /** Permission and automation modes are deliberately outside model configuration. */
 export function acpRuntimeOptions(input: unknown): AcpRuntimeOption[] {
+  return parseOptions(
+    input,
+    (raw, category) =>
+      category !== 'mode' && (ALLOWED_CATEGORIES.has(String(category)) || ALLOWED_IDS.has(raw.id)),
+  );
+}
+
+export function acpSessionModeOptions(input: unknown): AcpRuntimeOption[] {
+  return parseOptions(
+    input,
+    (raw, category) =>
+      raw.type === 'select' &&
+      (category === 'mode' ||
+        (category === undefined && raw.id === 'mode') ||
+        (category === 'collaboration_mode' && raw.id === 'collaboration_mode')),
+  ).map((option) => ({
+    ...option,
+    category: option.id === 'collaboration_mode' ? 'collaboration_mode' : 'mode',
+  }));
+}
+
+function parseOptions(
+  input: unknown,
+  include: (raw: { id: string; type: string }, category: string | undefined) => boolean,
+): AcpRuntimeOption[] {
   if (!Array.isArray(input)) return [];
   const seen = new Set<string>();
   return input.slice(0, 64).flatMap((raw): AcpRuntimeOption[] => {
@@ -75,8 +100,7 @@ export function acpRuntimeOptions(input: unknown): AcpRuntimeOption[] {
     if (!isBool && !Array.isArray(raw.options)) return [];
     if (acpRuntimeValuesError({ [raw.id]: currentValue })) return [];
     const category = typeof raw.category === 'string' ? raw.category : undefined;
-    if (category === 'mode') return [];
-    if (!ALLOWED_CATEGORIES.has(String(category)) && !ALLOWED_IDS.has(raw.id)) return [];
+    if (!include({ id: raw.id, type: raw.type }, category)) return [];
     const options = isBool
       ? [
           { value: 'true', name: 'Enabled' },
@@ -106,6 +130,7 @@ export function acpRuntimeOptions(input: unknown): AcpRuntimeOption[] {
       {
         id: raw.id,
         name: typeof raw.name === 'string' ? safePrefix(raw.name, 2000) : raw.id,
+        ...(isBool ? { type: 'boolean' as const } : {}),
         category: inferredCategory,
         description:
           typeof raw.description === 'string' ? safePrefix(raw.description, 2000) : undefined,
@@ -156,6 +181,7 @@ export function acpLegacyModelOption(input: unknown): AcpRuntimeOption | undefin
 export async function applyAcpRuntimeValues(
   session: AcpRuntimeSession,
   values: AcpRuntimeValues,
+  onUnavailableRestore?: (id: string, value: string) => void,
 ): Promise<AcpRuntimeOption[]> {
   const invalid = acpRuntimeValuesError(values);
   if (invalid) throw new Error(invalid);
@@ -163,6 +189,7 @@ export async function applyAcpRuntimeValues(
   const state = applied.get(session) ?? {
     original: Object.fromEntries(session.getConfigOptions().map((x) => [x.id, x.currentValue])),
     requested: {},
+    changedByModel: new Set<string>(),
   };
   // Retain the baseline even when a later dependent option is rejected.
   applied.set(session, state);
@@ -175,26 +202,57 @@ export async function applyAcpRuntimeValues(
   const replacingModel = Object.keys(values).some(
     (id) => rank(id) < 2 && state.requested[id] !== values[id],
   );
-  const restoreIds = Object.keys(state.requested).filter(
+  const restoringModel = Object.keys(state.requested).some(
+    (id) => rank(id) < 2 && !(id in values) && Object.hasOwn(state.original, id),
+  );
+  const restoreIds = Object.keys(state.original).filter(
     (id) =>
-      !(id in values) && state.original[id] !== undefined && !(replacingModel && rank(id) === 2),
+      !(id in values) &&
+      (Object.hasOwn(state.requested, id) || (restoringModel && state.changedByModel.has(id))) &&
+      !(replacingModel && rank(id) === 2),
   );
   const effective = {
     ...Object.fromEntries(restoreIds.map((id) => [id, state.original[id]!])),
     ...values,
   };
   for (const [id, value] of Object.entries(effective).sort(([a], [b]) => rank(a) - rank(b))) {
-    const option = session.getConfigOptions().find((x) => x.id === id);
+    const before = session.getConfigOptions();
+    const option = before.find((x) => x.id === id);
+    const offered = option?.options.some((x) => x.value === value);
+    if (!Object.hasOwn(values, id) && !offered) {
+      if (option?.currentValue === value) continue;
+      if (onUnavailableRestore) {
+        onUnavailableRestore(id, value);
+        continue;
+      }
+      if (!Object.hasOwn(state.requested, id)) continue;
+    }
     if (!option) throw new Error(`ACP agent does not advertise a model setting named "${id}"`);
-    if (!option.options.some((x) => x.value === value))
+    if (!offered)
       throw new Error(`ACP setting "${id}" does not offer "${value}" for the selected model`);
     if (option.currentValue === value) continue;
     await session.setConfigOption(sessionId, id, value);
     state.requested[id] = value;
-    if (session.getConfigOptions().find((x) => x.id === id)?.currentValue !== value)
+    const after = session.getConfigOptions();
+    if (id === 'provider' || isModelCategoryOrId(option.category, id)) {
+      const afterValues = new Map(after.map((item) => [item.id, item.currentValue]));
+      // Switching a model can reset its effort or other dependent settings without a separate write.
+      for (const item of before) {
+        if (
+          item.id !== 'provider' &&
+          !isModelCategoryOrId(item.category, item.id) &&
+          Object.hasOwn(state.original, item.id) &&
+          item.currentValue !== afterValues.get(item.id)
+        ) {
+          state.changedByModel.add(item.id);
+        }
+      }
+    }
+    if (after.find((x) => x.id === id)?.currentValue !== value)
       throw new Error(`ACP agent did not confirm "${id}" = "${value}"`);
   }
   state.requested = { ...values };
+  if (!Object.keys(values).some((id) => rank(id) < 2)) state.changedByModel.clear();
   applied.set(session, state);
   return session.getConfigOptions();
 }

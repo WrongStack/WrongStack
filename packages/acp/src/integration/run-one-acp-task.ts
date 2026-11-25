@@ -31,6 +31,8 @@ export interface RunOneAcpTaskOptions {
   permissionPolicy?: PermissionPolicy | undefined;
   /** Owning WrongStack session for session-scoped ACP operations. */
   sessionId?: string | undefined;
+  /** External agent session to resume or fork before sending the task. */
+  sessionTarget?: ACPSubagentRunnerOptions['sessionTarget'];
   /** Per-session MCP servers and `_meta`; see {@link ACPSubagentRunnerOptions.sessionSetup}. */
   sessionSetup?: ACPSubagentRunnerOptions['sessionSetup'];
 }
@@ -39,6 +41,7 @@ export interface RunOneAcpTaskResult {
   result: string;
   iterations: number;
   toolCalls: number;
+  agentSessionId?: string;
 }
 
 /**
@@ -49,6 +52,7 @@ export interface RunOneAcpTaskResult {
 export async function runOneAcpTask(opts: RunOneAcpTaskOptions): Promise<RunOneAcpTaskResult> {
   const role = opts.role ?? 'acp';
   const timeoutMs = opts.timeoutMs ?? 5 * 60_000;
+  let agentSessionId: string | null = null;
   const { runner, stop } = await makeACPSubagentRunnerWithStop({
     command: opts.command,
     ...(opts.args !== undefined ? { args: opts.args } : {}),
@@ -57,6 +61,10 @@ export async function runOneAcpTask(opts: RunOneAcpTaskOptions): Promise<RunOneA
     ...(opts.projectRoot !== undefined ? { projectRoot: opts.projectRoot } : {}),
     role,
     timeoutMs,
+    onSession: (id) => {
+      agentSessionId = id;
+    },
+    ...(opts.sessionTarget ? { sessionTarget: opts.sessionTarget } : {}),
     ...(opts.onProgress !== undefined ? { onProgress: opts.onProgress } : {}),
     ...(opts.permissionPolicy !== undefined ? { permissionPolicy: opts.permissionPolicy } : {}),
     ...(opts.sessionSetup !== undefined ? { sessionSetup: opts.sessionSetup } : {}),
@@ -88,6 +96,7 @@ export async function runOneAcpTask(opts: RunOneAcpTaskOptions): Promise<RunOneA
       result: result.result == null ? '' : String(result.result),
       iterations: result.iterations,
       toolCalls: result.toolCalls,
+      ...(agentSessionId ? { agentSessionId } : {}),
     };
   } finally {
     try {

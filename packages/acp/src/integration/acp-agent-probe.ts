@@ -1,7 +1,12 @@
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { ACPSession } from '../client/acp-session.js';
+import { canonicalAcpAgentId, REGISTRY_ID_ALIASES } from '../registry/agent-ids.js';
+import { acpCommandOnPath } from '../registry/agent-on-path.js';
 import { findAgentDescriptor } from '../registry/agents.catalog.js';
+import type { AgentCapabilities } from '../types/acp-v1.js';
 import type { ACPSubagentRunnerOptions } from './acp-subagent-runner-options.js';
+
+export { REGISTRY_ID_ALIASES } from '../registry/agent-ids.js';
 
 /**
  * Static catalog of agent ids → spawn options.
@@ -60,94 +65,55 @@ export type AcpAgentCommandOverrides = Record<
 /** A synced-registry catalog keyed by registry id (from `fetchAcpRegistry`). */
 export type AcpLiveCatalog = Record<
   string,
-  { command: string; args?: readonly string[]; env?: Record<string, string> }
+  {
+    command: string;
+    args?: readonly string[];
+    env?: Record<string, string>;
+    quarantineReason?: string;
+  }
 >;
 
 /**
- * Map our stable, human-friendly catalog ids to the official registry's ids,
- * so a live-synced registry (keyed by registry id) still resolves when the
- * user types our id. Our id is preferred in the UI; the alias is the bridge.
- */
-export const REGISTRY_ID_ALIASES: Readonly<Record<string, string>> = {
-  'claude-code': 'claude-acp',
-  'gemini-cli': 'gemini',
-  'codex-cli': 'codex-acp',
-  copilot: 'github-copilot-cli',
-  'kimi-code': 'kimi-code',
-  kimi: 'kimi',
-  'kiro-cli': 'kiro',
-  'pi-acp': 'pi-acp',
-  cline: 'cline',
-  goose: 'goose',
-  opencode: 'opencode',
-  cursor: 'cursor',
-  'qwen-code': 'qwen-code',
-  'mistral-vibe': 'mistral-vibe',
-  'antigravity-acp': 'antigravity-acp',
-  'amp-acp': 'amp-acp',
-  auggie: 'auggie',
-  devin: 'devin',
-  'factory-droid': 'factory-droid',
-  'grok-build': 'grok-build',
-  junie: 'junie',
-  kilo: 'kilo',
-};
-
-/**
  * Resolve an agent id to its spawn command. Precedence:
- *   1. user override (`config.acp.agents[id]`)
- *   2. the bundled static `AGENTS_CATALOG` (curated LOCAL-binary invocations)
- *   3. live synced registry (`fetchAcpRegistry` → cache), by id or alias
- *   4. legacy `ACP_AGENT_COMMANDS` map (last resort, kept for back-compat)
- * Returns `null` for an id present in none of them.
- *
- * Why catalog BEFORE the live registry: our goal is to drive the user's
- * already-installed, logged-in CLI. The catalog hand-curates the LOCAL-binary
- * ACP entry for each popular agent (`gemini --acp`, `opencode acp`, …), which
- * preserves the agent's own login and starts instantly. The official registry,
- * by contrast, encodes "run a fresh copy" invocations — pinned `npx <pkg>@ver`
- * downloads (no local login, slow first run) and platform binaries like
- * `opencode.exe` that may not match a shim on PATH. So the registry is the
- * source for the long tail of agents the catalog doesn't cover, NOT an
- * override of the curated 12. Users force a specific command via the override.
+ *   1. user override for the requested id or its catalog/registry equivalent
+ *   2. installed local ACP entry, when a curated invocation is available
+ *   3. live synced registry, including pinned package versions
+ *   4. bundled offline catalog and legacy launcher map
  */
 export function resolveAcpAgentCommand(
   id: string,
   overrides?: AcpAgentCommandOverrides,
   live?: AcpLiveCatalog,
 ): ACPSubagentRunnerOptions | null {
-  const ov = overrides && Object.hasOwn(overrides, id) ? overrides[id] : undefined;
-  if (ov && typeof ov.command === 'string' && ov.command.length > 0) {
-    const out: ACPSubagentRunnerOptions = {
-      command: ov.command,
-      args: [...(ov.args ?? [])],
+  const canonical = canonicalAcpAgentId(id);
+  const registry = Object.hasOwn(REGISTRY_ID_ALIASES, canonical)
+    ? REGISTRY_ID_ALIASES[canonical]!
+    : canonical;
+  const keys = [...new Set([id, canonical, registry])];
+  if (canonical === 'opencode' && !keys.includes('opencode-v2')) keys.push('opencode-v2');
+  const lookup = (catalog: AcpLiveCatalog | undefined) =>
+    keys
+      .filter((key) => catalog && Object.hasOwn(catalog, key))
+      .map((key) => catalog?.[key])
+      .find((entry) => typeof entry?.command === 'string' && entry.command.length > 0);
+  const bundled = findAgentDescriptor(canonical)?.acp;
+  const liveEntry = lookup(live);
+  const override = lookup(overrides);
+  const registryEntry = live && Object.hasOwn(live, registry) ? live[registry] : undefined;
+  if (!override && (liveEntry?.quarantineReason || registryEntry?.quarantineReason)) return null;
+  const installed =
+    bundled &&
+    bundled.command !== 'npx' &&
+    bundled.command !== 'uvx' &&
+    (!liveEntry || acpCommandOnPath(bundled.command));
+  const launch = override ?? (installed ? bundled : (liveEntry ?? bundled));
+  if (launch) {
+    return {
+      command: launch.command,
+      args: [...(launch.args ?? [])],
+      ...(launch.env ? { env: launch.env } : {}),
       role: id,
     };
-    if (ov.env) out.env = ov.env;
-    return out;
-  }
-  const desc = findAgentDescriptor(id);
-  if (desc) {
-    const out: ACPSubagentRunnerOptions = {
-      command: desc.acp.command,
-      args: [...(desc.acp.args ?? [])],
-      role: id,
-    };
-    if (desc.acp.env) out.env = desc.acp.env;
-    return out;
-  }
-  const alias = Object.hasOwn(REGISTRY_ID_ALIASES, id) ? REGISTRY_ID_ALIASES[id] : undefined;
-  const liveEntry =
-    (live && Object.hasOwn(live, id) ? live[id] : undefined) ??
-    (live && alias && Object.hasOwn(live, alias) ? live[alias] : undefined);
-  if (liveEntry && typeof liveEntry.command === 'string' && liveEntry.command.length > 0) {
-    const out: ACPSubagentRunnerOptions = {
-      command: liveEntry.command,
-      args: [...(liveEntry.args ?? [])],
-      role: id,
-    };
-    if (liveEntry.env) out.env = liveEntry.env;
-    return out;
   }
   const fromMap = Object.hasOwn(ACP_AGENT_COMMANDS, id) ? ACP_AGENT_COMMANDS[id] : undefined;
   if (fromMap) return fromMap;
@@ -159,6 +125,8 @@ export interface AcpProbeResult {
   ok: boolean;
   ms: number;
   agentInfo?: { name: string; title?: string | undefined; version: string } | undefined;
+  capabilities?: AgentCapabilities | undefined;
+  steering?: boolean | undefined;
   error?: string | undefined;
 }
 
@@ -187,6 +155,7 @@ export async function probeAcpAgent(
   if (!cmd) return { id, ok: false, ms: 0, error: 'unknown agent' };
 
   const timeoutMs = opts?.timeoutMs ?? 8_000;
+  const projectRoot = opts?.projectRoot ?? process.cwd();
   const startedAt = Date.now();
   let session: ACPSession | null = null;
   try {
@@ -194,7 +163,9 @@ export async function probeAcpAgent(
       command: cmd.command,
       ...(cmd.args !== undefined ? { args: cmd.args } : {}),
       ...(cmd.env !== undefined ? { env: cmd.env } : {}),
-      projectRoot: opts?.projectRoot ?? process.cwd(),
+      role: cmd.role ?? id,
+      cwd: projectRoot,
+      projectRoot,
       // Bounds the `initialize` request: a CLI that spawns but never answers
       // the handshake fails after this instead of blocking.
       timeoutMs,
@@ -205,6 +176,8 @@ export async function probeAcpAgent(
       ok: true,
       ms: Date.now() - startedAt,
       ...(info ? { agentInfo: info } : {}),
+      capabilities: session.getCapabilities(),
+      steering: session.canSteer(),
     };
   } catch (err) {
     return {

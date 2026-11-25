@@ -45,6 +45,17 @@ const modes = (current: string) => ({
   },
 });
 
+const modernModes = (currentValue: string) => [
+  {
+    id: 'mode',
+    category: 'mode',
+    type: 'select',
+    name: 'Mode',
+    currentValue,
+    options: ['auto', 'default', 'plan'].map((value) => ({ value, name: value })),
+  },
+];
+
 describe('executeCreateSession initialModeId', () => {
   it('switches to the requested mode when the agent offers it', async () => {
     const { c, calls } = ctx(modes('auto'), 'default');
@@ -64,6 +75,31 @@ describe('executeCreateSession initialModeId', () => {
       await executeCreateSession(c);
       expect(calls.map((x) => x.method)).toEqual(['session/new']);
     }
+  });
+
+  it('uses modern mode state when the legacy state disagrees', async () => {
+    const { c, calls } = ctx(
+      { ...modes('auto'), configOptions: modernModes('default') },
+      'default',
+      true,
+    );
+    await expect(executeCreateSession(c)).resolves.toBe('s1');
+    expect(calls.map((x) => x.method)).toEqual(['session/new']);
+  });
+
+  it('requires the requested initial mode to be confirmed by a modern selector', async () => {
+    const { c, calls } = ctx(
+      { sessionId: 's1', configOptions: modernModes('auto') },
+      'default',
+      true,
+    );
+    await expect(executeCreateSession(c)).rejects.toThrow(
+      'did not confirm the "default" session mode',
+    );
+    expect(calls).toContainEqual({
+      method: 'session/set_config_option',
+      params: { sessionId: 's1', configId: 'mode', value: 'default' },
+    });
   });
 
   it('fails the session when the switch fails, rather than run in the wrong mode', async () => {
@@ -113,7 +149,11 @@ describe('executeCreateSession initialModeId', () => {
       },
     );
     await expect(executeCreateSession(c)).rejects.toThrow('session/set_mode failed: mode refused');
-    expect(calls.map((x) => x.method)).toEqual(['session/new', 'session/set_mode', 'session/close']);
+    expect(calls.map((x) => x.method)).toEqual([
+      'session/new',
+      'session/set_mode',
+      'session/close',
+    ]);
   });
 
   it('never closes a refused resume: that session already belongs to the agent', async () => {

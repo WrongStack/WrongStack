@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { restrictFilePermissions } from '@wrongstack/core/security';
 import { resolveAcpClientProfile } from '../registry/acp-client-profiles.js';
+import { acpCommandOnPath } from '../registry/agent-on-path.js';
 import type { McpServer } from '../types/acp-v1.js';
 import type { ACPSessionOptions } from './acp-session-types.js';
 
@@ -43,6 +44,15 @@ export function prepareAcpLaunch(
   const args = [...(opts.args ?? [])];
   let env = opts.env;
   let directory: string | undefined;
+  const profile = resolveAcpClientProfile(opts.role);
+  if (
+    profile.id === 'pi-acp' &&
+    process.platform === 'win32' &&
+    !env?.PI_ACP_PI_COMMAND &&
+    acpCommandOnPath('pi.exe')
+  ) {
+    env = { ...env, PI_ACP_PI_COMMAND: process.env.PI_ACP_PI_COMMAND ?? 'pi.exe' };
+  }
   const prepared: PreparedAcpLaunch = {
     args,
     env,
@@ -52,7 +62,6 @@ export function prepareAcpLaunch(
       if (owned) await rm(owned, { recursive: true, force: true });
     },
   };
-  const profile = resolveAcpClientProfile(opts.role);
   if (opts.mcpServers?.length && profile.mcpInjection === 'copilot-temp-json') {
     const servers = opts.mcpServers;
     return (async () => {
@@ -77,7 +86,7 @@ export function prepareAcpLaunch(
     profile.mcpInjection === 'pi-env-json' &&
     opts.env?.WRONGSTACK_PI_MCP_EXTENSION
   ) {
-    env = { ...opts.env, WRONGSTACK_PI_SESSION_MCP: JSON.stringify(opts.mcpServers) };
+    env = { ...env, WRONGSTACK_PI_SESSION_MCP: JSON.stringify(opts.mcpServers) };
     prepared.env = env;
   }
   return prepared;

@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1023,
+      "files": 1026,
       "typeOnly": 77,
-      "runtimeOrMixed": 981
+      "runtimeOrMixed": 984
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -11999,6 +11999,18 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/acp/src/client/acp-child-sessions.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/acp/src/client/acp-session-plans.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/acp/src/client/terminal-server.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -12012,6 +12024,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/acp/src/integration/acp-agent-probe.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/acp/src/registry/acp-registry-cache.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

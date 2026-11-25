@@ -77,11 +77,16 @@ describe('native startup MCP compatibility', () => {
   it('injects Pi MCP definitions only with the explicit extension opt-in', async () => {
     const base = { command: 'pi-acp', projectRoot: '/p', role: 'pi-acp', mcpServers: servers };
     const untouched = await prepareAcpLaunch(base);
-    expect(untouched.env).toBeUndefined();
-    const env = { WRONGSTACK_PI_MCP_EXTENSION: '/extension.mjs', KEEP: 'original' };
+    expect(untouched.env?.WRONGSTACK_PI_SESSION_MCP).toBeUndefined();
+    const env = {
+      PI_ACP_PI_COMMAND: 'custom-pi',
+      WRONGSTACK_PI_MCP_EXTENSION: '/extension.mjs',
+      KEEP: 'original',
+    };
     const launch = await prepareAcpLaunch({ ...base, env });
     expect(JSON.parse(launch.env!.WRONGSTACK_PI_SESSION_MCP!)).toEqual(servers);
     expect(launch.env?.KEEP).toBe('original');
+    expect(launch.env?.PI_ACP_PI_COMMAND).toBe('custom-pi');
     expect(env).not.toHaveProperty('WRONGSTACK_PI_SESSION_MCP');
   });
 

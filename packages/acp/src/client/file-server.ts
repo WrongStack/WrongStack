@@ -154,9 +154,23 @@ export class FileServer {
     this.realRoot = safeRealpathSync(this.root);
     // Node turns a delay above 2^31-1 ms into 1 ms: a longer deadline would
     // time out every call at once, so cap it (as acp-session-callbacks does).
-    this.timeoutMs = Math.min(opts.timeoutMs ?? 30_000, 2_147_483_647);
-    this.maxReadBytes = opts.maxReadBytes ?? DEFAULT_MAX_READ_BYTES;
-    this.maxWriteBytes = opts.maxWriteBytes ?? DEFAULT_MAX_WRITE_BYTES;
+    const rawTimeout =
+      typeof opts.timeoutMs === 'number' && Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0
+        ? opts.timeoutMs
+        : 30_000;
+    this.timeoutMs = Math.min(rawTimeout, 2_147_483_647);
+    this.maxReadBytes =
+      typeof opts.maxReadBytes === 'number' &&
+      Number.isFinite(opts.maxReadBytes) &&
+      opts.maxReadBytes >= 0
+        ? opts.maxReadBytes
+        : DEFAULT_MAX_READ_BYTES;
+    this.maxWriteBytes =
+      typeof opts.maxWriteBytes === 'number' &&
+      Number.isFinite(opts.maxWriteBytes) &&
+      opts.maxWriteBytes >= 0
+        ? opts.maxWriteBytes
+        : DEFAULT_MAX_WRITE_BYTES;
     this.operations = opts.operations ?? DEFAULT_FILE_OPERATIONS;
   }
 

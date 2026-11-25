@@ -68,12 +68,16 @@ export function classifyAgentFailure(
     errorKind === 'billing_error' ||
     errorKind === 'account_on_hold';
   if (isQuota) {
-    const resetAt = parseQuotaResetAt(text, now);
+    const safeNow = Number.isFinite(now) ? now : Date.now();
+    const resetAt = parseQuotaResetAt(text, safeNow);
     return {
       kind: 'provider_quota',
       message: `${agent}: usage quota spent — ${text || 'the account has no usage left'}`,
       retryable: false,
-      backoffMs: resetAt !== undefined ? Math.max(0, resetAt - now) : DEFAULT_QUOTA_HOLD_MS,
+      backoffMs:
+        resetAt !== undefined && Number.isFinite(resetAt)
+          ? Math.max(0, resetAt - safeNow)
+          : DEFAULT_QUOTA_HOLD_MS,
     };
   }
   const message = `${agent}: ${text}`;

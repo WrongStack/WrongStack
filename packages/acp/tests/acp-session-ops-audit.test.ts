@@ -28,6 +28,25 @@ function makeOpCtx(overrides?: Partial<ACPSessionOpContext>): ACPSessionOpContex
 }
 
 describe('acp-session-ops lifecycle & null-result guards', () => {
+  it('does not start a fresh session when an explicit resume is rejected', async () => {
+    const requests: string[] = [];
+    const ctx = makeOpCtx({
+      opts: {
+        command: 'fixture',
+        projectRoot: '/tmp',
+        sessionTarget: { action: 'resume', sessionId: 'missing' },
+      },
+      sendRequest: async (_id, method) => {
+        requests.push(method);
+        return method === 'session/load'
+          ? { code: -32602, message: 'Session not found' }
+          : { sessionId: 'fresh' };
+      },
+    });
+
+    await expect(executeCreateSession(ctx)).rejects.toThrow('Session not found');
+    expect(requests).toEqual(['session/load']);
+  });
   it('executeOpenSession rejects and clears sessionId when closed while create() is in flight', async () => {
     const ctx = makeOpCtx();
     let release!: (id: SessionId) => void;

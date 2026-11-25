@@ -8,6 +8,7 @@
  * `if (id === 'claude-code')` / `if (id === 'copilot')` checks across packages.
  */
 
+import { canonicalAcpAgentId } from './agent-ids.js';
 import { AGENTS_CATALOG } from './agents.catalog.js';
 
 export type AcpMcpInjectionMode = 'acp-session-new' | 'copilot-temp-json' | 'pi-env-json';
@@ -33,6 +34,8 @@ export interface AcpClientProfile {
   readonly mcpToolNaming: AcpMcpToolNamingStyle;
   /** Initial ACP mode forced when WrongStack's permission bridge is active. */
   readonly initialMode?: { readonly id: string; readonly require: boolean } | undefined;
+  /** Documented modes available as interactive WrongStack leader controls. */
+  readonly leaderModes?: Readonly<Record<string, readonly string[]>> | undefined;
   /**
    * Whether WrongStack's internal MCP bridge (sage, codebase-index, kanban, mailbox)
    * should attach by default when the user has not explicitly restricted `acp.bridge.agents`.
@@ -68,6 +71,7 @@ const CLAUDE_PROFILE: AcpClientProfile = {
   systemPromptChannel: 'meta-system-prompt-append',
   mcpToolNaming: 'claude-double-underscore',
   initialMode: { id: 'default', require: true },
+  leaderModes: { mode: ['default', 'plan'] },
   bridgeByDefault: true,
 };
 
@@ -87,6 +91,15 @@ const PI_ACP_PROFILE: AcpClientProfile = {
   bridgeByDefault: true,
 };
 
+const CODEX_PROFILE: AcpClientProfile = {
+  ...DEFAULT_GENERIC_ACP_PROFILE,
+  id: 'codex-cli',
+  leaderModes: {
+    mode: ['read-only', 'workspace-write', 'agent'],
+    collaboration_mode: ['default', 'plan'],
+  },
+};
+
 const ACP_CLIENT_PROFILES: Readonly<Record<string, AcpClientProfile>> = {
   'claude-code': CLAUDE_PROFILE,
   'claude-acp': CLAUDE_PROFILE,
@@ -94,11 +107,15 @@ const ACP_CLIENT_PROFILES: Readonly<Record<string, AcpClientProfile>> = {
   'github-copilot-cli': COPILOT_PROFILE,
   'pi-acp': PI_ACP_PROFILE,
   // First-class native & adapter ACP clients (standard session/new mcpServers)
-  'codex-cli': { ...DEFAULT_GENERIC_ACP_PROFILE, id: 'codex-cli' },
-  'codex-acp': { ...DEFAULT_GENERIC_ACP_PROFILE, id: 'codex-acp' },
+  'codex-cli': CODEX_PROFILE,
+  'codex-acp': { ...CODEX_PROFILE, id: 'codex-acp' },
   'gemini-cli': { ...DEFAULT_GENERIC_ACP_PROFILE, id: 'gemini-cli' },
   gemini: { ...DEFAULT_GENERIC_ACP_PROFILE, id: 'gemini' },
-  opencode: { ...DEFAULT_GENERIC_ACP_PROFILE, id: 'opencode' },
+  opencode: {
+    ...DEFAULT_GENERIC_ACP_PROFILE,
+    id: 'opencode',
+    leaderModes: { mode: ['build', 'plan'] },
+  },
   'kimi-code': {
     ...DEFAULT_GENERIC_ACP_PROFILE,
     id: 'kimi-code',
@@ -118,7 +135,16 @@ const ACP_CLIENT_PROFILES: Readonly<Record<string, AcpClientProfile>> = {
   'kiro-cli': { ...DEFAULT_GENERIC_ACP_PROFILE, id: 'kiro-cli' },
   'qwen-code': { ...DEFAULT_GENERIC_ACP_PROFILE, id: 'qwen-code' },
   'mistral-vibe': { ...DEFAULT_GENERIC_ACP_PROFILE, id: 'mistral-vibe' },
-  'antigravity-acp': { ...DEFAULT_GENERIC_ACP_PROFILE, id: 'antigravity-acp' },
+  'antigravity-acp': {
+    ...DEFAULT_GENERIC_ACP_PROFILE,
+    id: 'antigravity-acp',
+    leaderModes: { mode: ['default', 'plan'] },
+  },
+  'command-code': {
+    ...DEFAULT_GENERIC_ACP_PROFILE,
+    id: 'command-code',
+    leaderModes: { mode: ['default', 'plan'] },
+  },
   'amp-acp': { ...DEFAULT_GENERIC_ACP_PROFILE, id: 'amp-acp' },
   auggie: { ...DEFAULT_GENERIC_ACP_PROFILE, id: 'auggie' },
   devin: { ...DEFAULT_GENERIC_ACP_PROFILE, id: 'devin' },
@@ -135,8 +161,11 @@ export function resolveAcpClientProfile(agentId: string | undefined): AcpClientP
   if (!agentId) return DEFAULT_GENERIC_ACP_PROFILE;
   const normalized = agentId.trim().toLowerCase();
   if (!normalized) return DEFAULT_GENERIC_ACP_PROFILE;
-  return Object.hasOwn(ACP_CLIENT_PROFILES, normalized)
-    ? ACP_CLIENT_PROFILES[normalized]!
+  const profileId = Object.hasOwn(ACP_CLIENT_PROFILES, normalized)
+    ? normalized
+    : canonicalAcpAgentId(normalized);
+  return Object.hasOwn(ACP_CLIENT_PROFILES, profileId)
+    ? ACP_CLIENT_PROFILES[profileId]!
     : { ...DEFAULT_GENERIC_ACP_PROFILE, id: normalized };
 }
 

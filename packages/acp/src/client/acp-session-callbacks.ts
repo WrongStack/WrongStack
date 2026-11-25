@@ -5,6 +5,7 @@ import type {
   ToolCallId,
   ToolCallUpdateNotification,
 } from '../types/acp-v1.js';
+import type { AcpChildSource } from './acp-session-types.js';
 import { type FileServer, FsError } from './file-server.js';
 import type { PermissionPolicy } from './permission.js';
 import type { TerminalServer } from './terminal-server.js';
@@ -17,6 +18,8 @@ export interface ACPResponseSender {
 export interface ACPCallbackOptions {
   /** Abort when the owning ACP session/prompt is closed or cancelled. */
   signal?: AbortSignal | undefined;
+  child?: AcpChildSource | undefined;
+  ownerSessionId?: string | undefined;
   /**
    * Maximum time to wait for callback authorization before failing closed.
    * Defaults to {@link DEFAULT_PERMISSION_TIMEOUT_MS}. Pass
@@ -193,7 +196,16 @@ export async function handleAcpTerminalRequest(
   const id = msg.id;
   if (id === undefined) return;
   const params = (msg as { params?: Record<string, unknown> }).params ?? {};
+  const ownerId = callbackOptions.ownerSessionId;
   try {
+    if (
+      ownerId &&
+      typeof params.terminalId === 'string' &&
+      !terminalServer.owns(params.terminalId, ownerId)
+    ) {
+      await sender.sendErrorResponse(id, -32602, 'Terminal is outside this ACP session.');
+      return;
+    }
     switch (msg.method) {
       case 'terminal/create': {
         // The env changes what an approved command does (GIT_CONFIG_* hooks,
@@ -239,7 +251,7 @@ export async function handleAcpTerminalRequest(
           return;
         }
         const createOpts: Parameters<TerminalServer['create']>[0] = {
-          sessionId: String(params.sessionId ?? ''),
+          sessionId: ownerId ?? String(params.sessionId ?? ''),
           command: String(params.command ?? ''),
           args: Array.isArray(params.args) ? (params.args as string[]) : [],
         };
@@ -366,6 +378,7 @@ async function runPermissionWithDeadline(
         toolCall: call.toolCall,
         options: call.options,
         signal: controller.signal,
+        ...(callbackOptions.child ? { child: callbackOptions.child } : {}),
       }),
       rejectOnAbort(controller.signal),
     ]);

@@ -9,12 +9,8 @@
  *
  * Design notes
  * ────────────
- * • The stable v1 spec defines 11 `sessionUpdate` discriminator values. We
- *   type exactly those 11, plus an `_unstable_*` escape hatch for v2-RFD
- *   kinds (e.g. `next_edit_suggestions`, `elicitation`) that real agents
- *   may emit before the spec stabilises them, and an `unknown` fallback for
- *   everything else. We do NOT synthesise 32 fake variants to match a
- *   number cited in passing — the union is honest about the surface.
+ * • The union covers the standard updates the client receives and includes
+ *   an escape hatch for negotiated or agent-specific extensions.
  *
  * • Per the spec's conventions, discriminator values use snake_case. The
  *   property keys inside each variant are camelCase (the JSON-RPC envelope
@@ -72,6 +68,9 @@ export interface ClientCapabilities {
       }
     | undefined;
   terminal?: boolean | undefined;
+  plan?: Record<string, never> | undefined;
+  subagents?: Record<string, never> | undefined;
+  elicitation?: { form?: Record<string, never> | undefined } | undefined;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -516,7 +515,7 @@ export type StopReason =
 // SessionUpdate — the discriminated union
 // ────────────────────────────────────────────────────────────────────────────
 
-/** Stable v1 variants. The spec currently defines exactly 11. */
+/** Standard v1 session updates. */
 export type SessionUpdate =
   | UserMessageChunkUpdate
   | AgentMessageChunkUpdate
@@ -524,6 +523,8 @@ export type SessionUpdate =
   | ToolCallUpdateUpdate
   | ToolCallUpdateNotification
   | PlanUpdate
+  | IdentifiedPlanUpdate
+  | PlanRemovedUpdate
   | AvailableCommandsUpdate
   | CurrentModeUpdate
   | ConfigOptionUpdate
@@ -582,6 +583,18 @@ export interface ToolCallUpdateNotification {
 export interface PlanUpdate {
   sessionUpdate: 'plan';
   entries: PlanEntry[];
+}
+
+export interface IdentifiedPlanUpdate {
+  sessionUpdate: 'plan_update';
+  plan:
+    | { type: 'items'; planId: string; entries: PlanEntry[] }
+    | { type: 'markdown'; planId: string; content: string; path?: string | null | undefined };
+}
+
+export interface PlanRemovedUpdate {
+  sessionUpdate: 'plan_removed';
+  planId: string;
 }
 
 // --- Commands / modes / config ---------------------------------------------

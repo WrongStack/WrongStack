@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T15:24:51.302Z",
+  "generatedAt": "2026-11-25T15:28:25.160Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,20 +12,20 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6556,
-    "testFiles": 5870,
-    "sourceLines": 1343572,
+    "sourceFiles": 6561,
+    "testFiles": 5878,
+    "sourceLines": 1344666,
     "workspaceEdges": 261,
-    "moduleEdges": 19198,
+    "moduleEdges": 19219,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
-    "typeModuleCycles": 2,
+    "typeModuleCycles": 3,
     "testsWithoutTypecheck": 1,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1048
   },
   "errors": [
-    "1 unexcepted module cycle(s)"
+    "2 unexcepted module cycle(s)"
   ],
   "packageCycles": [],
   "coreAreas": {
@@ -94,8 +94,8 @@
     {
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
-      "sourceFiles": 59,
-      "testFiles": 83,
+      "sourceFiles": 64,
+      "testFiles": 91,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -111,7 +111,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 83
+          "testFiles": 91
         }
       ]
     },
@@ -1385,6 +1385,13 @@
       {
         "kind": "type-module-cycle",
         "members": [
+          "packages/acp/src/client/acp-session-types.ts",
+          "packages/acp/src/client/permission.ts"
+        ]
+      },
+      {
+        "kind": "type-module-cycle",
+        "members": [
           "packages/cli/src/hq-server/routes/vault-device.ts",
           "packages/cli/src/hq-server/routes/vault-handlers.ts"
         ]
@@ -1409,6 +1416,13 @@
       "ARCH-CYCLE-TYPE-12"
     ],
     "unexcepted": [
+      {
+        "kind": "type-module-cycle",
+        "members": [
+          "packages/acp/src/client/acp-session-types.ts",
+          "packages/acp/src/client/permission.ts"
+        ]
+      },
       {
         "kind": "type-module-cycle",
         "members": [
@@ -3857,6 +3871,12 @@
         ]
       },
       {
+        "file": "packages/acp/tests/acp-agent-failure-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/acp-agent-failure.test.ts",
         "projects": [
           "root-node"
@@ -3881,7 +3901,19 @@
         ]
       },
       {
+        "file": "packages/acp/tests/acp-child-sessions.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/acp-concurrent-prompt.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/acp/tests/acp-elicitation.test.ts",
         "projects": [
           "root-node"
         ]
@@ -4013,6 +4045,12 @@
         ]
       },
       {
+        "file": "packages/acp/tests/acp-session-command-announcement.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/acp-session-extra.test.ts",
         "projects": [
           "root-node"
@@ -4026,6 +4064,12 @@
       },
       {
         "file": "packages/acp/tests/acp-session-ops-audit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/acp/tests/acp-session-plans.test.ts",
         "projects": [
           "root-node"
         ]
@@ -4103,6 +4147,12 @@
         ]
       },
       {
+        "file": "packages/acp/tests/file-server-nan-limits.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/file-server.test.ts",
         "projects": [
           "root-node"
@@ -4128,6 +4178,12 @@
       },
       {
         "file": "packages/acp/tests/mcp-servers-passthrough.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/acp/tests/permission-unknown-kind.test.ts",
         "projects": [
           "root-node"
         ]
@@ -4272,6 +4328,12 @@
       },
       {
         "file": "packages/acp/tests/terminal-server-cwd-case.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/acp/tests/terminal-server-nan-timeout.test.ts",
         "projects": [
           "root-node"
         ]
@@ -37640,8 +37702,8 @@
     },
     {
       "file": "packages/acp/src/client/acp-session.ts",
-      "lines": 881,
-      "relativeImports": 25
+      "lines": 1146,
+      "relativeImports": 27
     },
     {
       "file": "packages/builtin-plugins/src/auto-review-plugin.ts",
@@ -38071,6 +38133,11 @@
       "relativeImports": 2
     },
     {
+      "file": "packages/acp/src/client/acp-session.ts",
+      "lines": 1146,
+      "relativeImports": 27
+    },
+    {
       "file": "packages/project-surfaces/src/atlas/codemap-model.ts",
       "lines": 1116,
       "relativeImports": 0
@@ -38119,11 +38186,6 @@
       "file": "packages/builtin-plugins/src/review-followup-briefing.ts",
       "lines": 883,
       "relativeImports": 5
-    },
-    {
-      "file": "packages/acp/src/client/acp-session.ts",
-      "lines": 881,
-      "relativeImports": 25
     },
     {
       "file": "apps/desktop-v2/src/ProjectDesignStudio.tsx",

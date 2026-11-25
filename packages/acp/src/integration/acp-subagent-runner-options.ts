@@ -2,6 +2,7 @@
 import type { SubagentRunContext, TaskSpec } from '@wrongstack/contracts/types';
 import type { ACPProgressEvent, ACPProgressHandler } from '../client/acp-session.js';
 import type { AcpSteerOutcome } from '../client/acp-session-ops.js';
+import type { AcpSessionTarget } from '../client/acp-session-types.js';
 import type { PermissionPolicy } from '../client/permission.js';
 import type { McpServer } from '../types/acp-v1.js';
 
@@ -68,6 +69,8 @@ export interface ACPSubagentRunnerOptions {
   initialModeId?: string | undefined;
   /** Fail the session when the agent does not offer `initialModeId`. */
   requireInitialMode?: boolean | undefined;
+  sessionTarget?: AcpSessionTarget | undefined;
+  onSession?: ((sessionId: string | null) => void) | undefined;
   /**
    * MCP servers to expose to the external agent (passed through
    * `session/new` / `session/load`). Stdio servers are always sent;

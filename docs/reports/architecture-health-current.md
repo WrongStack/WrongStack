@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-25T15:24:51.302Z
+**Generated:** 2026-11-25T15:28:25.160Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,26 +8,26 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 51 |
-| Production source files | 6556 |
-| Production source lines | 1343572 |
-| Test files | 5870 |
+| Production source files | 6561 |
+| Production source lines | 1344666 |
+| Test files | 5878 |
 | Workspace dependency edges | 261 |
-| Relative module edges | 19198 |
+| Relative module edges | 19219 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
-| Type-inclusive module cycles | 2 |
+| Type-inclusive module cycles | 3 |
 | Tests without TypeScript test-project coverage | 1 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
 
-- 1 unexcepted module cycle(s)
+- 2 unexcepted module cycle(s)
 
 ## Workspace packages
 
 | Package | Sources | Tests | Workspace dependencies |
 |---|---:|---:|---|
-| @wrongstack/acp | 59 | 83 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
+| @wrongstack/acp | 64 | 91 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/agent-catalog | 44 | 17 | @wrongstack/contracts, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/bench | 33 | 68 | @wrongstack/core |
 | @wrongstack/browser-tools | 14 | 23 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
@@ -87,6 +87,7 @@ None.
 
 ### Type-inclusive
 
+- packages/acp/src/client/acp-session-types.ts ↔ packages/acp/src/client/permission.ts
 - packages/cli/src/hq-server/routes/vault-device.ts ↔ packages/cli/src/hq-server/routes/vault-handlers.ts
 - packages/contracts/src/types/blocks.ts ↔ packages/contracts/src/types/context.ts ↔ packages/contracts/src/types/conversation-state.ts ↔ packages/contracts/src/types/messages.ts ↔ packages/contracts/src/types/provider.ts ↔ packages/contracts/src/types/run-env.ts ↔ packages/contracts/src/types/session-events.ts ↔ packages/contracts/src/types/session-storage.ts ↔ packages/contracts/src/types/session.ts ↔ packages/contracts/src/types/tool.ts
 
@@ -97,6 +98,7 @@ None.
 | 1589 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1519 | `packages/core/src/execution/design-dna.ts` |
 | 1162 | `packages/core/src/execution/design-md.ts` |
+| 1146 | `packages/acp/src/client/acp-session.ts` |
 | 1116 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
 | 1082 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 1080 | `apps/desktop-v2/src/ProjectGoals.tsx` |
@@ -107,7 +109,6 @@ None.
 | 904 | `packages/codebase/src/infra-parser.ts` |
 | 898 | `apps/desktop-v2/src/SkillLibrary.tsx` |
 | 883 | `packages/builtin-plugins/src/review-followup-briefing.ts` |
-| 881 | `packages/acp/src/client/acp-session.ts` |
 | 878 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
 | 869 | `packages/runtime/src/chimera/execution-chimera-review.ts` |
 | 864 | `packages/builtin-plugins/src/review-claim-registry.ts` |

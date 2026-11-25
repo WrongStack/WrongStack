@@ -41,6 +41,13 @@ export {
 } from './client/acp-session.js';
 export { type AcpSteerOutcome, filterMcpServers } from './client/acp-session-ops.js';
 export type {
+  AcpChildSource,
+  AcpFormElicitation,
+  AcpFormElicitationHandler,
+  AcpFormElicitationResult,
+  AcpSessionTarget,
+} from './client/acp-session-types.js';
+export type {
   FileServerOptions,
   FsErrorCode,
   ReadFileParams,
@@ -120,6 +127,12 @@ export {
   defaultBridgeAgentIds,
   resolveAcpClientProfile,
 } from './registry/acp-client-profiles.js';
+export {
+  acpRegistryCachePath,
+  type LoadedAcpRegistry,
+  parseAcpRegistryCache,
+  readCachedAcpRegistry,
+} from './registry/acp-registry-cache.js';
 export type {
   FetchAcpRegistryOptions,
   FetchAcpRegistryResult,
@@ -131,6 +144,8 @@ export {
   fetchAcpRegistry,
   mapRegistryEntry,
 } from './registry/acp-registry-fetch.js';
+export { canonicalAcpAgentId } from './registry/agent-ids.js';
+export { acpCommandOnPath } from './registry/agent-on-path.js';
 // Discovery — the catalog + registry (added in feat/acp-ensemble).
 export { AGENTS_CATALOG, findAgentDescriptor } from './registry/agents.catalog.js';
 export type { ACPAgentDescriptor } from './registry/contracts.js';

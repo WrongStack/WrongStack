@@ -338,10 +338,11 @@ it('runs WrongStack as a client of an official SDK agent with callbacks and stre
       await expect(
         peer.request('elicitation/create', {
           sessionId: params.sessionId,
+          mode: 'form',
           message: 'unsupported',
           requestedSchema: { type: 'object', properties: {} },
         }),
-      ).rejects.toMatchObject({ code: -32601 });
+      ).rejects.toMatchObject({ code: -32602 });
       return { stopReason: 'end_turn' };
     })
     .connect({

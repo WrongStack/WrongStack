@@ -9,7 +9,7 @@ import {
   handleAcpTerminalRequest,
 } from './acp-session-callbacks.js';
 import { ACPSessionError } from './acp-session-errors.js';
-import type { ACPProgressEvent } from './acp-session-types.js';
+import type { ACPProgressEvent, AcpFormElicitationHandler } from './acp-session-types.js';
 import { handleAcpSessionUpdate } from './acp-session-updates.js';
 
 export interface AcpSessionMessagesHost {
@@ -23,12 +23,14 @@ export interface AcpSessionMessagesHost {
   emitProgress: (event: import('./acp-session-types.js').ACPProgressEvent) => void;
   permissionPolicy: import('./permission.js').PermissionPolicy;
   responseSender: () => import('./acp-session-callbacks.js').ACPResponseSender;
-  callbackOptions: () => import('./acp-session-callbacks.js').ACPCallbackOptions;
+  callbackOptions: (msg: ACPMessage) => ACPCallbackOptions | null;
   fileServer: import('./file-server.js').FileServer;
   terminalServer: import('./terminal-server.js').TerminalServer;
   progressHandler: import('./acp-session-types.js').ACPProgressHandler | null;
   /** Agent→client requests still being answered; the turn's idle clock waits for them. */
   callbacksInFlight: number;
+  elicitForm: AcpFormElicitationHandler | undefined;
+  pendingElicitations: Map<string | number, AbortController>;
 }
 
 /**
@@ -47,6 +49,89 @@ function trackCallback(host: AcpSessionMessagesHost, run: () => Promise<void>): 
     });
 }
 
+const ELICITATION_TIMEOUT_MS = 10 * 60_000;
+
+async function handleElicitation(
+  host: AcpSessionMessagesHost,
+  msg: ACPMessage,
+  options: ACPCallbackOptions,
+): Promise<void> {
+  if (msg.id === undefined) return;
+  const id = msg.id;
+  const params = msg.params as {
+    mode?: unknown;
+    sessionId?: unknown;
+    requestId?: unknown;
+    message?: unknown;
+    requestedSchema?: unknown;
+  } | null;
+  if (!host.elicitForm || params?.mode !== 'form') {
+    await host.sendErrorResponse(id, -32602, 'Elicitation mode is not available.');
+    return;
+  }
+  const owner = options.ownerSessionId ?? host.sessionId;
+  if (!owner || params.sessionId !== owner || params.requestId !== undefined) {
+    await host.sendErrorResponse(id, -32602, 'Elicitation must address the active ACP session.');
+    return;
+  }
+  if (
+    typeof params.message !== 'string' ||
+    !params.message.trim() ||
+    params.requestedSchema === undefined
+  ) {
+    await host.sendErrorResponse(
+      id,
+      -32602,
+      'An elicitation message and form schema are required.',
+    );
+    return;
+  }
+  if (host.pendingElicitations.size > 0) {
+    await host.sendResult(id, { action: 'cancel' });
+    return;
+  }
+
+  const cancellation = new AbortController();
+  host.pendingElicitations.set(id, cancellation);
+  const signal = AbortSignal.any([
+    options.signal ?? host.callbackAbort.signal,
+    host.callbackAbort.signal,
+    cancellation.signal,
+    AbortSignal.timeout(ELICITATION_TIMEOUT_MS),
+  ]);
+  try {
+    const result = signal.aborted
+      ? { action: 'cancel' as const }
+      : await invokeElicitation(
+          host.elicitForm,
+          {
+            message: params.message,
+            requestedSchema: params.requestedSchema,
+            ...(options.child ? { child: options.child } : {}),
+          },
+          signal,
+        );
+    if (signal.aborted) await host.sendResult(id, { action: 'cancel' });
+    else if ('invalidParams' in result)
+      await host.sendErrorResponse(id, -32602, result.invalidParams);
+    else await host.sendResult(id, result);
+  } finally {
+    host.pendingElicitations.delete(id);
+  }
+}
+
+async function invokeElicitation(
+  handler: AcpFormElicitationHandler,
+  form: Parameters<AcpFormElicitationHandler>[0],
+  signal: AbortSignal,
+): ReturnType<AcpFormElicitationHandler> {
+  try {
+    return await handler(form, signal);
+  } catch {
+    return { action: 'cancel' };
+  }
+}
+
 export function responseSender(this: AcpSessionMessagesHost): ACPResponseSender {
   return {
     sendResult: (id, result) => this.sendResult(id, result),
@@ -60,6 +145,23 @@ export function callbackOptions(this: AcpSessionMessagesHost): ACPCallbackOption
     ? AbortSignal.any([this.callbackAbort.signal, promptSignal])
     : this.callbackAbort.signal;
   return { signal, permissionTimeoutMs: Number.POSITIVE_INFINITY };
+}
+
+function dispatchCallback(
+  host: AcpSessionMessagesHost,
+  msg: ACPMessage,
+  run: (options: ACPCallbackOptions) => Promise<void>,
+): void {
+  const options = host.callbackOptions(msg);
+  if (!options) {
+    if (msg.id !== undefined) {
+      void host
+        .sendErrorResponse(msg.id, -32602, 'The ACP session is not active or announced.')
+        .catch(() => {});
+    }
+    return;
+  }
+  trackCallback(host, () => run(options));
 }
 
 export function handleMessage(this: AcpSessionMessagesHost, msg: ACPMessage): void {
@@ -106,38 +208,38 @@ export function handleMessage(this: AcpSessionMessagesHost, msg: ACPMessage): vo
   }
 
   if (msg.method === 'session/request_permission') {
-    trackCallback(this, () =>
-      handleAcpPermissionRequest(
-        msg,
-        this.permissionPolicy,
-        this.responseSender(),
-        this.callbackOptions(),
-      ),
+    dispatchCallback(this, msg, (options) =>
+      handleAcpPermissionRequest(msg, this.permissionPolicy, this.responseSender(), options),
     );
     return;
   }
 
+  if (msg.method === 'elicitation/create') {
+    dispatchCallback(this, msg, (options) => handleElicitation(this, msg, options));
+    return;
+  }
+
   if (msg.method === 'fs/read_text_file' || msg.method === 'fs/write_text_file') {
-    trackCallback(this, () =>
+    dispatchCallback(this, msg, (options) =>
       handleAcpFsRequest(
         msg,
         this.fileServer,
         this.permissionPolicy,
         this.responseSender(),
-        this.callbackOptions(),
+        options,
       ),
     );
     return;
   }
 
   if (msg.method?.startsWith('terminal/')) {
-    trackCallback(this, () =>
+    dispatchCallback(this, msg, (options) =>
       handleAcpTerminalRequest(
         msg,
         this.terminalServer,
         this.permissionPolicy,
         this.responseSender(),
-        this.callbackOptions(),
+        options,
       ),
     );
     return;
@@ -151,6 +253,10 @@ export function handleMessage(this: AcpSessionMessagesHost, msg: ACPMessage): vo
   }
 
   if (msg.method === '$/cancel_request') {
+    const requestId = (msg.params as { requestId?: unknown } | null)?.requestId;
+    if (typeof requestId === 'string' || typeof requestId === 'number') {
+      this.pendingElicitations.get(requestId)?.abort();
+    }
     return;
   }
 

@@ -58,4 +58,10 @@ export interface ACPAgentDescriptor {
   contextWindow?: number;
   /** Documentation URL — shown in `wstack acp list` and the ensemble UI. */
   docs: string;
+  /** Release metadata for the selected distribution in the official registry. */
+  registry?: {
+    version?: string;
+    archive?: string;
+    quarantineReason?: string;
+  };
 }

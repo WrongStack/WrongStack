@@ -257,6 +257,23 @@ describe('fetchAcpRegistry', () => {
 });
 
 describe('resolveAcpAgentCommand with a live registry', () => {
+  it('requires a profile command for an upstream-quarantined agent', () => {
+    const entries = { opencode: { command: 'opencode', quarantineReason: 'Missing build' } };
+    expect(resolveAcpAgentCommand('opencode-v2', undefined, entries)).toBeNull();
+    expect(
+      resolveAcpAgentCommand('opencode', { opencode: { command: '/local/agent' } }, entries),
+    ).toMatchObject({ command: '/local/agent' });
+  });
+  it('uses one local OpenCode entry and respects the override through its legacy id', () => {
+    expect(resolveAcpAgentCommand('opencode-v2')).toMatchObject({
+      command: 'opencode',
+      args: ['acp'],
+    });
+    expect(
+      resolveAcpAgentCommand('opencode-v2', { opencode: { command: 'my-opencode' } }),
+    ).toMatchObject({ command: 'my-opencode' });
+  });
+
   const live = {
     'claude-acp': { command: 'npx', args: ['-y', '@agentclientprotocol/claude-agent-acp'] },
     gemini: { command: 'npx', args: ['-y', '@google/gemini-cli', '--acp'] },

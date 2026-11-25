@@ -19,9 +19,8 @@
  * common case for goose/opencode/cursor) still launches. Agents distributed
  * ONLY as a binary with no current-platform target are dropped (not runnable).
  *
- * Network is never required at runtime: this is invoked by an explicit
- * `wstack acp sync` / `/acp sync`, the result is cached, and resolution falls
- * back to the static catalog when no cache exists.
+ * Discovery and explicit sync update the cache. Launching an agent can use
+ * the cached snapshot or the bundled catalog without querying the registry.
  */
 import type { ACPAgentDescriptor } from './contracts.js';
 import type { ACPAgentVendor } from './ensemble-registry.js';
@@ -29,6 +28,10 @@ import type { ACPAgentVendor } from './ensemble-registry.js';
 /** Canonical CDN endpoint for the latest registry snapshot. */
 export const ACP_REGISTRY_URL =
   'https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json';
+const ACP_REGISTRY_RELEASE_URL =
+  'https://github.com/agentclientprotocol/registry/releases/latest/download/registry.json';
+const ACP_REGISTRY_QUARANTINE_URL =
+  'https://raw.githubusercontent.com/agentclientprotocol/registry/main/quarantine.json';
 
 /** One raw entry from the registry JSON (only the fields we consume). */
 export interface RegistryAgentEntry {
@@ -54,6 +57,8 @@ export interface FetchAcpRegistryResult {
   fetchedAt: string;
   /** Mapped, runnable descriptors (entries we could not map are dropped). */
   agents: ACPAgentDescriptor[];
+  /** Upstream exclusions from verification and version updates, when available. */
+  quarantine?: Record<string, string>;
 }
 
 export interface FetchAcpRegistryOptions {
@@ -67,6 +72,7 @@ export interface FetchAcpRegistryOptions {
   now?: string | undefined;
   /** Platform key for binary selection (tests). Defaults to this host. */
   platformKey?: string | undefined;
+  includeQuarantine?: boolean | undefined;
 }
 
 /** Map Node's platform/arch to the registry's `<os>-<arch>` key form. */
@@ -129,6 +135,7 @@ export function mapRegistryEntry(
   if (/[\u0000-\u001f\u007f]/.test(id)) return null;
   const dist = entry.distribution;
   let acp: { command: string; args?: string[]; env?: Record<string, string> } | null = null;
+  let archive: string | undefined;
 
   if (isValidLauncherSpec(dist?.npx?.package)) {
     if (!isValidLauncherArgs(dist.npx.args) || !isValidLauncherEnv(dist.npx.env)) return null;
@@ -150,6 +157,10 @@ export function mapRegistryEntry(
       if (!isValidLauncherArgs(target.args) || !isValidLauncherEnv(target.env)) return null;
       const binCmd = basename(target.cmd);
       if (isValidLauncherSpec(binCmd)) {
+        archive =
+          typeof target.archive === 'string' && target.archive.startsWith('https://')
+            ? target.archive
+            : undefined;
         acp = {
           command: binCmd,
           args: [...(target.args ?? [])],
@@ -172,6 +183,10 @@ export function mapRegistryEntry(
     acp,
     supports: { loadSession: true, promptImages: true, terminal: true, fs: true },
     integration: 'native',
+    registry: {
+      ...(typeof entry.version === 'string' ? { version: entry.version } : {}),
+      ...(archive ? { archive } : {}),
+    },
     docs:
       typeof entry.repository === 'string'
         ? entry.repository
@@ -195,6 +210,20 @@ function inferVendor(entry: RegistryAgentEntry): ACPAgentVendor {
   return 'community';
 }
 
+async function fetchQuarantine(signal: AbortSignal): Promise<Record<string, string> | undefined> {
+  try {
+    const response = await fetch(ACP_REGISTRY_QUARANTINE_URL, { signal });
+    if (!response.ok) return undefined;
+    const body: unknown = await response.json();
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return undefined;
+    const reasons = Object.entries(body);
+    if (reasons.some(([, value]) => typeof value !== 'string' || !value.trim())) return undefined;
+    return Object.fromEntries(reasons);
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Fetch the live registry and return mapped descriptors. Throws on network /
  * parse failure so the caller (`wstack acp sync`) can surface it; callers that
@@ -203,7 +232,7 @@ function inferVendor(entry: RegistryAgentEntry): ACPAgentVendor {
 export async function fetchAcpRegistry(
   opts: FetchAcpRegistryOptions = {},
 ): Promise<FetchAcpRegistryResult> {
-  const url = opts.url ?? ACP_REGISTRY_URL;
+  const urls = opts.url ? [opts.url] : [ACP_REGISTRY_RELEASE_URL, ACP_REGISTRY_URL];
   const timeoutMs = opts.timeoutMs ?? 15_000;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -212,28 +241,34 @@ export async function fetchAcpRegistry(
     if (opts.signal.aborted) controller.abort();
     else opts.signal.addEventListener('abort', onParentAbort, { once: true });
   }
+  const quarantineRequest = opts.includeQuarantine ? fetchQuarantine(controller.signal) : undefined;
   try {
-    const res = await fetch(url, { signal: controller.signal });
-    if (!res.ok) {
-      throw new Error(`ACP registry fetch failed: HTTP ${res.status}`);
-    }
-    const body = (await res.json()) as { agents?: unknown };
-    const rawAgents = Array.isArray(body) ? body : Array.isArray(body?.agents) ? body.agents : null;
-    if (!rawAgents) {
-      throw new Error('ACP registry response had no agents array');
-    }
-    const platformKey = opts.platformKey ?? currentPlatformKey();
-    const agents: ACPAgentDescriptor[] = [];
-    const seenIds = new Set<string>();
-    for (const raw of rawAgents) {
-      const mapped = mapRegistryEntry(raw as RegistryAgentEntry, platformKey);
-      if (mapped && !seenIds.has(mapped.id)) {
-        seenIds.add(mapped.id);
-        agents.push(mapped);
+    for (const [index, url] of urls.entries()) {
+      try {
+        const res = await fetch(url, { signal: controller.signal });
+        if (!res.ok) throw new Error(`ACP registry fetch failed: HTTP ${res.status}`);
+        const body = (await res.json()) as { agents?: unknown };
+        const rawAgents = Array.isArray(body) ? body : body?.agents;
+        if (!Array.isArray(rawAgents)) throw new Error('ACP registry response had no agents array');
+        const platformKey = opts.platformKey ?? currentPlatformKey();
+        const agents = new Map<string, ACPAgentDescriptor>();
+        for (const raw of rawAgents) {
+          const mapped = mapRegistryEntry(raw as RegistryAgentEntry, platformKey);
+          if (mapped && !agents.has(mapped.id)) agents.set(mapped.id, mapped);
+        }
+        const quarantine = await quarantineRequest;
+        return {
+          fetchedAt: opts.now ?? new Date().toISOString(),
+          agents: [...agents.values()],
+          ...(quarantine ? { quarantine } : {}),
+        };
+      } catch (error) {
+        if (controller.signal.aborted || index === urls.length - 1) throw error;
       }
     }
-    return { fetchedAt: opts.now ?? new Date().toISOString(), agents };
+    throw new Error('No ACP registry endpoints available');
   } finally {
+    if (quarantineRequest) controller.abort();
     clearTimeout(timer);
     opts.signal?.removeEventListener('abort', onParentAbort);
   }

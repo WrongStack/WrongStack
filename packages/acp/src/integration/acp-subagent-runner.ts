@@ -167,6 +167,7 @@ export async function makeACPSubagentRunnerWithStop(
       ...(setup?.meta ? { sessionMeta: setup.meta } : {}),
       ...(options.initialModeId ? { initialModeId: options.initialModeId } : {}),
       ...(options.requireInitialMode ? { requireInitialMode: true } : {}),
+      ...(options.sessionTarget ? { sessionTarget: options.sessionTarget } : {}),
     });
   };
 
@@ -251,7 +252,9 @@ export async function makeACPSubagentRunnerWithStop(
           if (settings && Object.keys(settings).length) runtimeConfigured.add(session);
           else runtimeConfigured.delete(session);
         }
-        return session.prompt([textContent(prompt)], ctx.signal, onProgress);
+        const result = await session.prompt([textContent(prompt)], ctx.signal, onProgress);
+        options.onSession?.(session.getSessionId());
+        return result;
       };
       const run = persistent ? turns.then(turn, turn) : turn();
       if (persistent) turns = run;

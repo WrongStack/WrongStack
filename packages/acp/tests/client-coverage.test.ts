@@ -56,7 +56,7 @@ describe('isBestEffortAckMethod', () => {
     expect(isBestEffortAckMethod('mcp/connect')).toBe(true);
     expect(isBestEffortAckMethod('mcp/message')).toBe(true);
     expect(isBestEffortAckMethod('mcp/disconnect')).toBe(true);
-    expect(isBestEffortAckMethod('elicitation/create')).toBe(true);
+    expect(isBestEffortAckMethod('elicitation/create')).toBe(false);
     expect(isBestEffortAckMethod('elicitation/complete')).toBe(true);
   });
 

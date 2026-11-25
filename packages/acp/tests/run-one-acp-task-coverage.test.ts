@@ -46,6 +46,7 @@ describe('runOneAcpTask option coverage', () => {
       role: 'reviewer',
       timeoutMs: 1234,
       onProgress,
+      onSession: expect.any(Function),
       permissionPolicy,
     });
     expect(mocks.runner).toHaveBeenCalledWith(

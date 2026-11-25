@@ -6,6 +6,29 @@ import {
 import { fetchAcpRegistry, mapRegistryEntry } from '../src/registry/acp-registry-fetch.js';
 
 describe('ACP registry fallback behavior', () => {
+  it('falls back from the GitHub release to the CDN and retains release metadata', async () => {
+    const fetch = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(
+        Response.json({
+          agents: [
+            { id: 'demo', version: '2.4.1', distribution: { npx: { package: 'demo@2.4.1' } } },
+          ],
+        }),
+      );
+    try {
+      const result = await fetchAcpRegistry();
+      expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+        'https://github.com/agentclientprotocol/registry/releases/latest/download/registry.json',
+        'https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json',
+      ]);
+      expect(result.agents[0]).toMatchObject({ registry: { version: '2.4.1' } });
+    } finally {
+      fetch.mockRestore();
+    }
+  });
+
   it('uses the generic profile for unknown identifiers inherited by object maps', () => {
     expect(resolveAcpClientProfile('constructor')).toMatchObject({
       id: 'constructor',

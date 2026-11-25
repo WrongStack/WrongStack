@@ -8,6 +8,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const startMock = vi.fn();
 const closeMock = vi.fn(async () => {});
 const getAgentInfoMock = vi.fn(() => ({ name: 'fake', version: '1.0.0' }));
+const fakeSession = {
+  getAgentInfo: getAgentInfoMock,
+  close: closeMock,
+  getCapabilities: () => ({ promptCapabilities: { image: true } }),
+  canSteer: () => true,
+};
 
 // Mock the client session so probe never spawns a real process.
 vi.mock('../src/client/acp-session.js', () => ({
@@ -64,14 +70,13 @@ describe('resolveAcpAgentCommand', () => {
 
 describe('probeAcpAgent', () => {
   it('reports ok=true with agentInfo when the handshake succeeds', async () => {
-    startMock.mockResolvedValueOnce({
-      getAgentInfo: getAgentInfoMock,
-      close: closeMock,
-    });
+    startMock.mockResolvedValueOnce(fakeSession);
     const res = await probeAcpAgent('opencode', { timeoutMs: 1000 });
     expect(res.ok).toBe(true);
     expect(res.id).toBe('opencode');
     expect(res.agentInfo?.name).toBe('fake');
+    expect(res.capabilities?.promptCapabilities?.image).toBe(true);
+    expect(res.steering).toBe(true);
     expect(closeMock).toHaveBeenCalled();
   });
 
@@ -92,7 +97,7 @@ describe('probeAcpAgent', () => {
 
 describe('probeAcpAgents (bounded, phased)', () => {
   it('probes a set, preserves input order, and marks unknown ids', async () => {
-    startMock.mockResolvedValue({ getAgentInfo: getAgentInfoMock, close: closeMock });
+    startMock.mockResolvedValue(fakeSession);
     const results = await probeAcpAgents({
       agentIds: ['opencode', 'nope', 'gemini-cli'],
       resolveCmd: (id) => (id === 'nope' ? null : { command: id, args: [], role: id }),
@@ -110,7 +115,7 @@ describe('probeAcpAgents (bounded, phased)', () => {
     const order: string[] = [];
     startMock.mockImplementation(async () => {
       // record the command at start time via the most recent call args
-      return { getAgentInfo: getAgentInfoMock, close: closeMock };
+      return fakeSession;
     });
     await probeAcpAgents({
       agentIds: ['pkg', 'local'],

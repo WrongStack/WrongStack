@@ -1,4 +1,4 @@
-import type { AcpRuntimeOption } from '@wrongstack/contracts/types/acp-runtime';
+import type { AcpRuntimeOption, AcpSessionPlan } from '@wrongstack/contracts/types/acp-runtime';
 import type {
   TrustActor,
   TrustAuthContext,
@@ -17,6 +17,33 @@ import type {
   UsageCost,
 } from '../types/acp-v1.js';
 import type { PermissionPolicy } from './permission.js';
+
+export interface AcpSessionTarget {
+  action: 'resume' | 'fork';
+  sessionId: string;
+}
+
+/** A session-scoped ACP form after checking the wire context. */
+export interface AcpFormElicitation {
+  message: string;
+  requestedSchema: unknown;
+  child?: AcpChildSource | undefined;
+}
+
+export interface AcpChildSource {
+  id: string;
+  title: string | null;
+}
+
+export type AcpFormElicitationResult =
+  | { action: 'accept'; content: Record<string, string | number | boolean | string[]> }
+  | { action: 'decline' | 'cancel' }
+  | { invalidParams: string };
+
+export type AcpFormElicitationHandler = (
+  form: AcpFormElicitation,
+  signal: AbortSignal,
+) => Promise<AcpFormElicitationResult>;
 
 export interface ACPSessionOptions {
   command: string;
@@ -43,6 +70,8 @@ export interface ACPSessionOptions {
    */
   promptIdleTimeoutMs?: number | undefined;
   permissionPolicy?: PermissionPolicy | undefined;
+  /** Interactive form elicitation for this external agent's session. */
+  elicitForm?: AcpFormElicitationHandler | undefined;
   trustBoundary?: TrustBoundary | undefined;
   trustActor?: TrustActor | undefined;
   trustScope?: TrustScope | undefined;
@@ -76,11 +105,17 @@ export interface ACPSessionOptions {
    * the session, a new session starts. `openSession()` says which happened.
    */
   resumeSessionId?: string | undefined;
+  /** Explicit existing session to use. Fail if the agent cannot open it. */
+  sessionTarget?: AcpSessionTarget | undefined;
   /**
    * Extra workspace roots forwarded on `session/new`, `session/load`, and
    * `session/resume` when the agent advertises `sessionCapabilities.additionalDirectories`.
    */
   additionalDirectories?: string[] | undefined;
+  /** Observe the session's plan snapshots, including updates between prompt turns. */
+  onPlansChanged?: ((plans: AcpSessionPlan[]) => void) | undefined;
+  /** Register and observe native ACP child sessions for this connection. */
+  observeSubagents?: boolean | undefined;
 }
 
 export interface ACPCapturedDiff {

@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { acpRuntimeOptions, applyAcpRuntimeValues } from '../src/client/acp-runtime-options.js';
 import { ACPSession } from '../src/client/acp-session.js';
 import { runOneAcpTask } from '../src/integration/run-one-acp-task.js';
@@ -21,6 +21,28 @@ async function start(env = {}) {
   return session;
 }
 describe('ACP runtime configuration over real stdio', () => {
+  it('reports a reset value that the agent no longer offers without sending it', async () => {
+    const session = await start({ ACP_UNLISTED_DEFAULT: '1' });
+    expect(session.getConfigOptions().find((x) => x.id === 'thought')?.currentValue).toBe(
+      'default',
+    );
+    await applyAcpRuntimeValues(session, { thought: 'medium' });
+    const unavailable = vi.fn();
+    const result = await applyAcpRuntimeValues(session, {}, unavailable);
+    expect(unavailable).toHaveBeenCalledExactlyOnceWith('thought', 'default');
+    expect(result.find((x) => x.id === 'thought')?.currentValue).toBe('medium');
+  });
+
+  it('sends a typed boolean for a wire-level boolean selector', async () => {
+    const session = await start({ ACP_BOOLEAN_SETTING: '1' });
+    const selected = await applyAcpRuntimeValues(session, { thinking: 'true' });
+    expect(selected.find((option) => option.id === 'thinking')?.currentValue).toBe('true');
+    await applyAcpRuntimeValues(session, {});
+    expect(
+      session.getConfigOptions().find((option) => option.id === 'thinking')?.currentValue,
+    ).toBe('false');
+  });
+
   it('accepts acknowledged config updates delivered as session notifications', async () => {
     const session = await start({ ACP_NOTIFY_ONLY: '1' });
     await applyAcpRuntimeValues(session, { engine: 'deep', thought: 'ultra' });
@@ -108,6 +130,12 @@ describe('ACP runtime configuration over real stdio', () => {
         ],
       },
     ]);
+  });
+
+  it('uses the native model config option when the same model is also advertised in legacy models', async () => {
+    const session = await start({ ACP_MODERN_AND_LEGACY_MODELS: '1' });
+    await applyAcpRuntimeValues(session, { model: 'deep', thought: 'ultra' });
+    expect(session.getConfigOptions().map((x) => x.currentValue)).toEqual(['deep', 'ultra']);
   });
 
   it('supports legacy ACP models + session/set_model over real stdio', async () => {

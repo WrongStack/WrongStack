@@ -1,4 +1,5 @@
 import type { AgentCapabilities, McpServer, SessionId, SessionInfo } from '../types/acp-v1.js';
+import { acpSessionModeOptions } from './acp-runtime-options.js';
 import { ACPSessionError, isJsonRpcError } from './acp-session-errors.js';
 import type { ACPSessionOptions } from './acp-session-types.js';
 
@@ -41,6 +42,7 @@ export interface ACPSessionOpContext {
     timeoutMs?: number,
   ) => Promise<unknown>;
   setSessionId: (id: SessionId | null) => void;
+  setCurrentMode?: (id: string) => void;
   resetScratch: () => void;
   closeSession: () => Promise<void>;
 }
@@ -248,14 +250,15 @@ export async function executeSetConfigOption(
   ctx: ACPSessionOpContext,
   sessionId: SessionId,
   configId: string,
-  value: string,
-): Promise<void> {
+  value: string | boolean,
+): Promise<unknown> {
   if (ctx.closed) throw new ACPSessionError('closed', 'session is closed');
   const id = ctx.allocId();
   const result = await ctx.sendRequest(id, 'session/set_config_option', {
     sessionId,
     configId,
     value,
+    ...(typeof value === 'boolean' ? { type: 'boolean' } : {}),
   });
   if (isJsonRpcError(result)) {
     throw new ACPSessionError(
@@ -264,6 +267,7 @@ export async function executeSetConfigOption(
       result,
     );
   }
+  return result;
 }
 
 export async function executeSetModel(
@@ -347,13 +351,65 @@ export async function executeCreateSession(ctx: ACPSessionOpContext): Promise<Se
     ...additionalDirectoriesParam(ctx),
     ...(ctx.opts.sessionMeta ? { _meta: ctx.opts.sessionMeta } : {}),
   };
-  const resumeId = ctx.opts.resumeSessionId;
+  const target = ctx.opts.sessionTarget;
+  if (target && !target.sessionId.trim()) {
+    throw new ACPSessionError('protocol_error', 'Explicit ACP session target requires an ID');
+  }
+  if (target?.action === 'fork') {
+    if (!ctx.agentCapabilities.sessionCapabilities?.fork) {
+      throw new ACPSessionError('unsupported_capability', 'agent does not support session/fork');
+    }
+    const forked = await ctx.sendRequest(ctx.allocId(), 'session/fork', {
+      ...params,
+      sessionId: target.sessionId,
+    });
+    if (isJsonRpcError(forked)) {
+      throw new ACPSessionError(
+        'session_create_failed',
+        `session/fork failed: ${forked.message}`,
+        forked,
+      );
+    }
+    const forkId = (forked as { sessionId?: unknown } | null)?.sessionId;
+    if (typeof forkId !== 'string' || !forkId || forkId === target.sessionId) {
+      throw new ACPSessionError('protocol_error', 'session/fork did not return a new session ID');
+    }
+    try {
+      return await adoptSessionMode(ctx, forkId as SessionId, forked);
+    } catch (error) {
+      await discardCreatedSession(ctx, forkId as SessionId);
+      throw error;
+    }
+  }
+  const resumeId = target?.sessionId ?? ctx.opts.resumeSessionId;
   if (resumeId) {
     const resumeMethod = ctx.agentCapabilities.sessionCapabilities?.resume
       ? 'session/resume'
       : ctx.agentCapabilities.loadSession
         ? 'session/load'
         : null;
+    if (target) {
+      if (!resumeMethod) {
+        throw new ACPSessionError(
+          'unsupported_capability',
+          'agent does not support session resume or load',
+        );
+      }
+      const resumed = await ctx.sendRequest(ctx.allocId(), resumeMethod, {
+        ...params,
+        sessionId: resumeId,
+      });
+      if (ctx.closed) throw new ACPSessionError('closed', 'session is closed');
+      if (isJsonRpcError(resumed)) {
+        throw new ACPSessionError(
+          'session_create_failed',
+          `${resumeMethod} failed: ${resumed.message}`,
+          resumed,
+        );
+      }
+      if (resumeMethod === 'session/load') ctx.resetScratch();
+      return adoptSessionMode(ctx, resumeId as SessionId, resumed);
+    }
     if (resumeMethod) {
       // An agent that no longer has the session (deleted, another machine)
       // refuses it; a new session starts instead.
@@ -426,7 +482,11 @@ export async function executeOpenSession(
     throw new ACPSessionError('closed', 'session is closed');
   }
   ctx.setSessionId(sessionId);
-  return { sessionId, resumed: sessionId === ctx.opts.resumeSessionId };
+  const resumeId =
+    ctx.opts.sessionTarget?.action === 'resume'
+      ? ctx.opts.sessionTarget.sessionId
+      : ctx.opts.resumeSessionId;
+  return { sessionId, resumed: sessionId === resumeId };
 }
 
 /** Put a new or resumed session in the mode the host asked for (`initialModeId`). */
@@ -436,22 +496,52 @@ async function adoptSessionMode(
   result: unknown,
 ): Promise<SessionId> {
   const want = ctx.opts.initialModeId;
-  const modes = (
-    result as { modes?: { currentModeId?: unknown; availableModes?: unknown } } | null | undefined
-  )?.modes;
+  if (!want) return sessionId;
+  const state = result as
+    | {
+        configOptions?: unknown;
+        modes?: { currentModeId?: unknown; availableModes?: unknown };
+      }
+    | null
+    | undefined;
+  const modern = acpSessionModeOptions(state?.configOptions).find(
+    (option) => option.category === 'mode',
+  );
+  if (modern?.options.some((value) => value.value === want)) {
+    if (modern.currentValue !== want) {
+      const reply = (await executeSetConfigOption(ctx, sessionId, modern.id, want)) as
+        | {
+            configOptions?: unknown;
+          }
+        | null
+        | undefined;
+      if (
+        acpSessionModeOptions(reply?.configOptions).find((option) => option.id === modern.id)
+          ?.currentValue !== want
+      ) {
+        throw new ACPSessionError(
+          'session_create_failed',
+          `the agent did not confirm the "${want}" session mode`,
+        );
+      }
+    }
+    return sessionId;
+  }
+  const modes = modern ? undefined : state?.modes;
   const offered =
     Array.isArray(modes?.availableModes) &&
     modes.availableModes.some((m) => (m as { id?: unknown } | null)?.id === want);
-  if (want && !offered && ctx.opts.requireInitialMode) {
+  if (!offered && ctx.opts.requireInitialMode) {
     throw new ACPSessionError(
       'session_create_failed',
       `the agent does not offer the "${want}" session mode this host requires`,
       result,
     );
   }
-  if (want && offered && modes?.currentModeId !== want) {
+  if (offered && modes?.currentModeId !== want) {
     // A failed switch must not start the turn in a mode the host did not ask for.
     await executeSetMode(ctx, sessionId, want);
+    ctx.setCurrentMode?.(want);
   }
   return sessionId;
 }

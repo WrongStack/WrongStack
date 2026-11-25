@@ -75,6 +75,8 @@ vi.mock('../src/client/acp-session.js', () => {
       if (hoisted.closeError !== undefined) throw hoisted.closeError;
     });
     getAgentInfo = vi.fn(() => hoisted.agentInfo);
+    getSessionId = vi.fn(() => null);
+    getCapabilities = vi.fn(() => ({}));
     canSteer = vi.fn(() => hoisted.canSteer);
     steer = vi.fn(async (_text: string) => 'injected');
     static start = vi.fn(

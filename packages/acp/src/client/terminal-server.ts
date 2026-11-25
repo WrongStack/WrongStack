@@ -83,6 +83,7 @@ export interface TerminalServerOptions {
 
 interface TerminalState {
   proc: ReturnType<typeof spawn>;
+  sessionId: string;
   cwd: string;
   command: string;
   args: string[];
@@ -125,7 +126,13 @@ export class TerminalServer {
     this.projectRoot = path.resolve(opts.projectRoot);
     // Node turns a delay above 2^31-1 ms into 1 ms: a longer deadline would
     // kill every command at once, so cap it (as acp-session-callbacks does).
-    this.commandTimeoutMs = Math.min(opts.commandTimeoutMs ?? 5 * 60_000, 2_147_483_647);
+    const rawTimeout =
+      typeof opts.commandTimeoutMs === 'number' &&
+      Number.isFinite(opts.commandTimeoutMs) &&
+      opts.commandTimeoutMs > 0
+        ? opts.commandTimeoutMs
+        : 5 * 60_000;
+    this.commandTimeoutMs = Math.min(rawTimeout, 2_147_483_647);
     this.outputByteLimit = this.clampFiniteInt(opts.outputByteLimit, 1024 * 1024);
     this.maxOutputByteLimit = this.clampFiniteInt(opts.maxOutputByteLimit, 16 * 1024 * 1024);
     // Short, grep-friendly, no PII. 8 hex chars ≈ 4B values — plenty to
@@ -191,6 +198,7 @@ export class TerminalServer {
 
     const state: TerminalState = {
       proc,
+      sessionId: params.sessionId,
       cwd,
       command: params.command,
       args: params.args ?? [],
@@ -287,6 +295,10 @@ export class TerminalServer {
 
     this.terminals.set(id, state);
     return { terminalId: id };
+  }
+
+  owns(terminalId: string, sessionId: string): boolean {
+    return this.terminals.get(terminalId)?.sessionId === sessionId;
   }
 
   /** Return captured output and (if available) the exit status. */

@@ -129,6 +129,8 @@ async function benchOne(
       command: cmd.command,
       ...(cmd.args !== undefined ? { args: [...cmd.args] } : {}),
       ...(cmd.env !== undefined ? { env: cmd.env } : {}),
+      role: cmd.role ?? agentId,
+      cwd: opts.projectRoot,
       projectRoot: opts.projectRoot,
       timeoutMs: opts.timeoutMs,
     });

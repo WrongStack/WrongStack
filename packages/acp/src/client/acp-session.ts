@@ -9,7 +9,11 @@
  * Design: see ./acp-session.design.md in this directory.
  */
 
-import type { AcpRuntimeOption } from '@wrongstack/contracts/types/acp-runtime';
+import type {
+  AcpChildSession,
+  AcpRuntimeOption,
+  AcpSessionPlan,
+} from '@wrongstack/contracts/types/acp-runtime';
 import { type ACPClientTransport, ClientTransport } from '../agent/stdio-transport.js';
 import type { ACPMessage } from '../types/acp-messages.js';
 import {
@@ -24,10 +28,20 @@ import {
   type SessionMode,
 } from '../types/acp-v1.js';
 import { ACP_PACKAGE_VERSION } from '../version.js';
+import { AcpChildSessions } from './acp-child-sessions.js';
 import { cancelLateAcpSession } from './acp-late-session.js';
 import { prepareAcpLaunch } from './acp-launch-compat.js';
-import { type PendingRequest, rejectPendingRequests, type State } from './acp-request-state.js';
-import { acpLegacyModelOption, acpRuntimeOptions } from './acp-runtime-options.js';
+import {
+  type PendingRequest,
+  rejectPendingRequests,
+  type State,
+  touchIdleRequests,
+} from './acp-request-state.js';
+import {
+  acpLegacyModelOption,
+  acpRuntimeOptions,
+  acpSessionModeOptions,
+} from './acp-runtime-options.js';
 import {
   type AcpSessionAuthHost,
   authenticate as delegateAuthenticate,
@@ -62,6 +76,7 @@ import {
   executeSetProvider,
   executeSteer,
 } from './acp-session-ops.js';
+import { applyPlanUpdate } from './acp-session-plans.js';
 import { type AcpSessionPromptHost, prompt as promptFromHost } from './acp-session-prompt.js';
 import type {
   ACPProgressEvent,
@@ -104,7 +119,15 @@ export class ACPSession {
   private promptCallbackAbort: AbortController | null = null;
 
   private state: State = 'init';
-  private sessionId: SessionId | null = null;
+  private activeSessionId: SessionId | null = null;
+  private openingSession:
+    | {
+        sessionId: string;
+        commands?: AvailableCommand[];
+        plans: Map<string | null, AcpSessionPlan>;
+        children?: AcpChildSessions | undefined;
+      }
+    | undefined;
   /** Pending outbound requests (initialize, session/new, session/prompt, etc). */
   private readonly pending = new Map<string | number, PendingRequest>();
   private nextId = 1;
@@ -112,10 +135,16 @@ export class ACPSession {
   private closed = false;
   private disposeLaunch: (() => Promise<void>) | undefined;
   private configOptions: AcpRuntimeOption[] = [];
+  private modeOptions: AcpRuntimeOption[] = [];
   private legacyModelOption: AcpRuntimeOption | undefined;
   private availableModes: SessionMode[] = [];
   private currentModeId: string | null = null;
   private availableCommands: AvailableCommand[] = [];
+  private plans = new Map<string | null, AcpSessionPlan>();
+  private children: AcpChildSessions | undefined;
+  private restoringChildren:
+    | { requestId: number; tree: AcpChildSessions; historical: boolean }
+    | undefined;
   private sessionInfo: {
     title?: string | null | undefined;
     updatedAt?: string | null | undefined;
@@ -126,15 +155,104 @@ export class ACPSession {
   }
 
   getAvailableModes(): SessionMode[] {
+    const modern = this.modeOptions.find((option) => option.category === 'mode');
+    if (modern) {
+      const legacy = new Map(this.availableModes.map((mode) => [mode.id, mode.description]));
+      return modern.options.map(({ value, name }) => {
+        const id = value as SessionMode['id'];
+        const description = legacy.get(id);
+        return { id, name, ...(description ? { description } : {}) };
+      });
+    }
     return structuredClone(this.availableModes);
   }
 
   getCurrentModeId(): string | null {
-    return this.currentModeId;
+    return (
+      this.modeOptions.find((option) => option.category === 'mode')?.currentValue ??
+      this.currentModeId
+    );
+  }
+
+  getSessionModeOptions(): AcpRuntimeOption[] {
+    const modern = structuredClone(this.modeOptions);
+    if (modern.some((option) => option.category === 'mode') || this.availableModes.length === 0)
+      return modern;
+    const legacy = acpSessionModeOptions([
+      {
+        id: 'mode',
+        name: 'Session mode',
+        type: 'select',
+        currentValue: this.currentModeId ?? '',
+        options: this.availableModes.map(({ id, name }) => ({ value: id, name })),
+      },
+    ]);
+    return [...legacy, ...modern];
+  }
+
+  private updateConfigOptions(options: unknown[]): void {
+    this.configOptions = this.mergeLegacyModelOption(acpRuntimeOptions(options));
+    this.modeOptions = acpSessionModeOptions(options);
+  }
+
+  private updateCurrentMode(id: string): void {
+    this.currentModeId = id;
+    const modern = this.modeOptions.find((option) => option.category === 'mode');
+    if (modern?.options.some((value) => value.value === id)) modern.currentValue = id;
   }
 
   getAvailableCommands(): AvailableCommand[] {
     return structuredClone(this.availableCommands);
+  }
+
+  getSessionPlans(): AcpSessionPlan[] {
+    return structuredClone([...this.plans.values()]);
+  }
+
+  getChildSessions(): AcpChildSession[] {
+    return this.closed ? [] : (this.children?.list() ?? []);
+  }
+
+  private ensureRootTarget(sessionId: string): void {
+    if (
+      this.children?.has(sessionId) ||
+      this.openingSession?.children?.has(sessionId) ||
+      this.restoringChildren?.tree.has(sessionId)
+    ) {
+      throw new ACPSessionError(
+        'unsupported_capability',
+        'ACP child sessions are owned by their parent',
+      );
+    }
+  }
+
+  private publishPlans(): void {
+    try {
+      this.opts.onPlansChanged?.(this.getSessionPlans());
+    } catch {
+      // Keep a failing observer from interrupting the transport.
+    }
+  }
+
+  private get sessionId(): SessionId | null {
+    return this.activeSessionId;
+  }
+
+  private set sessionId(next: SessionId | null) {
+    if (this.activeSessionId === next) return;
+    for (const elicitation of this.pendingElicitations.values()) elicitation.abort();
+    this.activeSessionId = next;
+    const opening = this.openingSession?.sessionId === next ? this.openingSession : undefined;
+    const hadPlans = this.plans.size > 0;
+    this.availableCommands = opening?.commands ?? [];
+    this.children?.close();
+    if (!opening) this.openingSession?.children?.close();
+    this.children =
+      opening?.children ??
+      (next && this.opts.observeSubagents ? new AcpChildSessions(next) : undefined);
+    this.plans = opening?.plans ?? new Map();
+    this.openingSession = undefined;
+    if (next && (hadPlans || this.plans.size > 0)) this.publishPlans();
   }
 
   getSessionInfo(): { title?: string | null | undefined; updatedAt?: string | null | undefined } {
@@ -144,7 +262,7 @@ export class ACPSession {
   private mergeLegacyModelOption(options: AcpRuntimeOption[]): AcpRuntimeOption[] {
     if (!this.legacyModelOption) return options;
     if (options.some((x) => x.category === 'model' || x.id === 'model')) return options;
-    return [structuredClone(this.legacyModelOption), ...options];
+    return [this.legacyModelOption, ...options];
   }
 
   // Agent-provided info from the initialize handshake
@@ -335,6 +453,9 @@ export class ACPSession {
       clientCapabilities: {
         fs: { readTextFile: true, writeTextFile: true },
         terminal: true,
+        ...(this.opts.observeSubagents ? { subagents: {} } : {}),
+        ...(this.opts.onPlansChanged ? { plan: {} } : {}),
+        ...(this.opts.elicitForm ? { elicitation: { form: {} } } : {}),
       },
       clientInfo: { name: 'wrongstack', title: 'WrongStack', version: ACP_PACKAGE_VERSION },
     });
@@ -410,6 +531,7 @@ export class ACPSession {
       setSessionId: (id) => {
         this.sessionId = id;
       },
+      setCurrentMode: (id) => this.updateCurrentMode(id),
       resetScratch: () => this.resetScratch(),
       closeSession: () => this.closeSession(),
     };
@@ -421,10 +543,12 @@ export class ACPSession {
   }
 
   async loadSession(sessionId: SessionId, mcpServers?: McpServer[], cwd?: string): Promise<void> {
+    this.ensureRootTarget(sessionId);
     return executeLoadSession(this.opContext(), sessionId, mcpServers, cwd);
   }
 
   async resumeSession(sessionId: SessionId, mcpServers?: McpServer[], cwd?: string): Promise<void> {
+    this.ensureRootTarget(sessionId);
     return executeResumeSession(this.opContext(), sessionId, mcpServers, cwd);
   }
 
@@ -436,6 +560,7 @@ export class ACPSession {
   }
 
   async deleteSession(sessionId: SessionId): Promise<void> {
+    this.ensureRootTarget(sessionId);
     return executeDeleteSession(this.opContext(), sessionId);
   }
 
@@ -444,24 +569,58 @@ export class ACPSession {
     cwd?: string,
     mcpServers?: McpServer[],
   ): Promise<SessionId> {
+    this.ensureRootTarget(sourceSessionId);
     return executeForkSession(this.opContext(), sourceSessionId, cwd, mcpServers);
   }
 
   async setMode(sessionId: SessionId, modeId: string): Promise<void> {
     await executeSetMode(this.opContext(), sessionId, modeId);
-    this.currentModeId = modeId;
+    if (this.sessionId === sessionId) this.updateCurrentMode(modeId);
+  }
+
+  async setSessionModeOption(optionId: string, value: string): Promise<void> {
+    const sessionId = this.sessionId;
+    if (!sessionId) throw new ACPSessionError('closed', 'no active ACP session');
+    const option = this.getSessionModeOptions().find((entry) => entry.id === optionId);
+    if (!option?.options.some((choice) => choice.value === value)) {
+      throw new ACPSessionError('protocol_error', 'ACP agent does not offer that mode');
+    }
+    if (option.currentValue === value) return;
+    if (this.modeOptions.some((entry) => entry.id === optionId)) {
+      await this.setConfigOption(sessionId, optionId, value);
+      if (this.modeOptions.find((entry) => entry.id === optionId)?.currentValue !== value) {
+        throw new ACPSessionError('protocol_error', 'ACP agent did not confirm the mode change');
+      }
+    } else {
+      await this.setMode(sessionId, value);
+    }
   }
 
   async setConfigOption(sessionId: SessionId, configId: string, value: string): Promise<void> {
-    if (this.legacyModelOption && configId === this.legacyModelOption.id) {
+    const legacy = this.legacyModelOption;
+    // Agents can advertise both models and configOptions. Only use the legacy
+    // request when the displayed option actually came from the legacy response.
+    if (legacy?.id === configId && this.configOptions.includes(legacy)) {
       await executeSetModel(this.opContext(), sessionId, value);
-      this.legacyModelOption = { ...this.legacyModelOption, currentValue: value };
-      this.configOptions = this.configOptions.map((opt) =>
-        opt.id === configId ? { ...opt, currentValue: value } : opt,
-      );
+      if (this.legacyModelOption === legacy) {
+        const updated = { ...legacy, currentValue: value };
+        this.legacyModelOption = updated;
+        this.configOptions = this.configOptions.map((opt) => (opt === legacy ? updated : opt));
+      }
       return;
     }
-    return executeSetConfigOption(this.opContext(), sessionId, configId, value);
+    const isBoolean = this.configOptions.some(
+      (opt) => opt.id === configId && opt.type === 'boolean',
+    );
+    if (isBoolean && value !== 'true' && value !== 'false') {
+      throw new ACPSessionError('protocol_error', 'ACP boolean setting requires true or false');
+    }
+    await executeSetConfigOption(
+      this.opContext(),
+      sessionId,
+      configId,
+      isBoolean ? value === 'true' : value,
+    );
   }
 
   async listProviders(): Promise<{ providers: unknown[]; currentProviderId: string | null }> {
@@ -563,6 +722,9 @@ export class ACPSession {
     this.promptCallbackAbort?.abort();
     this.promptCallbackAbort = null;
     this.terminalServer.dispose();
+    this.children?.close();
+    this.openingSession?.children?.close();
+    this.restoringChildren?.tree.close();
 
     if (this.sessionId && this.agentCapabilities.sessionCapabilities?.close) {
       try {
@@ -611,7 +773,30 @@ export class ACPSession {
     timeoutMs?: number,
     idle = false,
   ): Promise<unknown> {
+    const target = (params as { sessionId?: unknown } | null)?.sessionId;
+    if (typeof target === 'string') this.ensureRootTarget(target);
+    const restore =
+      this.opts.observeSubagents &&
+      typeof target === 'string' &&
+      (method === 'session/load' || method === 'session/resume');
+    if (restore) {
+      this.children?.close();
+      this.children = undefined;
+      this.restoringChildren?.tree.close();
+      this.restoringChildren = {
+        requestId: id,
+        tree: new AcpChildSessions(target),
+        historical: method === 'session/load',
+      };
+    }
     return new Promise<unknown>((resolve, reject) => {
+      const fail = (error: unknown): void => {
+        if (this.restoringChildren?.requestId === id) {
+          this.restoringChildren.tree.close();
+          this.restoringChildren = undefined;
+        }
+        reject(error);
+      };
       const effectiveTimeout = timeoutMs ?? this.timeoutMs;
       // `idle`: the clock restarts whenever the agent is heard from
       // (touchIdleRequests), so it measures silence, not the request's length.
@@ -623,7 +808,7 @@ export class ACPSession {
           return;
         }
         this.pending.delete(id);
-        reject(
+        fail(
           idle
             ? new ACPSessionError(
                 'stalled',
@@ -640,9 +825,29 @@ export class ACPSession {
         resolve: (value: unknown) => {
           if (['session/new', 'session/load', 'session/resume', 'session/fork'].includes(method)) {
             this.configOptions = [];
+            this.modeOptions = [];
             this.legacyModelOption = undefined;
             this.availableModes = [];
             this.currentModeId = null;
+            const next =
+              method === 'session/new' || method === 'session/fork'
+                ? (value as { sessionId?: unknown } | null)?.sessionId
+                : (params as { sessionId?: unknown } | null)?.sessionId;
+            const restored =
+              this.restoringChildren?.requestId === id ? this.restoringChildren.tree : undefined;
+            if (restored) this.restoringChildren = undefined;
+            const children =
+              this.opts.observeSubagents && typeof next === 'string' && !isJsonRpcError(value)
+                ? (restored ?? new AcpChildSessions(next))
+                : undefined;
+            if (!children) restored?.close();
+            // A stdio chunk can deliver the reply and session updates
+            // before the awaited session setup has adopted the returned ID.
+            this.openingSession =
+              typeof next === 'string' && next !== this.sessionId
+                ? { sessionId: next, plans: new Map(), children }
+                : undefined;
+            if (next === this.sessionId && children) this.children = children;
           }
           if (
             [
@@ -681,16 +886,14 @@ export class ACPSession {
               this.legacyModelOption = acpLegacyModelOption(response.models);
             }
             if (Array.isArray(response.configOptions)) {
-              this.configOptions = this.mergeLegacyModelOption(
-                acpRuntimeOptions(response.configOptions),
-              );
+              this.updateConfigOptions(response.configOptions);
             } else if (this.legacyModelOption && this.configOptions.length === 0) {
-              this.configOptions = [structuredClone(this.legacyModelOption)];
+              this.configOptions = [this.legacyModelOption];
             }
           }
           resolve(value);
         },
-        reject,
+        reject: fail,
         timeoutMs: effectiveTimeout,
         timeoutHandle: setTimeout(expire, effectiveTimeout),
       };
@@ -707,7 +910,7 @@ export class ACPSession {
           clearTimeout(entry.timeoutHandle);
           this.pending.delete(id);
           const msg = err instanceof Error ? err.message : String(err);
-          reject(new ACPSessionError('protocol_error', `send ${method} failed: ${msg}`, err));
+          fail(new ACPSessionError('protocol_error', `send ${method} failed: ${msg}`, err));
         });
     });
   }
@@ -746,8 +949,25 @@ export class ACPSession {
     return responseSenderFromHost.call(this.acpSessionMessagesHost());
   }
 
-  private callbackOptions(): ACPCallbackOptions {
-    return callbackOptionsFromHost.call(this.acpSessionMessagesHost());
+  private callbackOptions(msg: ACPMessage): ACPCallbackOptions | null {
+    const base = callbackOptionsFromHost.call(this.acpSessionMessagesHost());
+    if (!this.opts.observeSubagents) return base;
+    const target = (msg.params as { sessionId?: unknown } | null | undefined)?.sessionId;
+    const tree = this.restoringChildren?.tree ?? this.openingSession?.children ?? this.children;
+    const root = tree?.rootId ?? this.sessionId;
+    if (target === undefined || (root && target === root)) {
+      return { ...base, ...(root ? { ownerSessionId: root } : {}) };
+    }
+    if (typeof target !== 'string') return null;
+    const source = tree?.source(target);
+    if (!source) return null;
+    return {
+      ...base,
+      child: source.child,
+      ownerSessionId: target,
+      // A child can still be running after the parent turn has ended.
+      signal: AbortSignal.any([this.callbackAbort.signal, source.signal]),
+    };
   }
 
   private handleMessage(msg: ACPMessage): void {
@@ -766,22 +986,43 @@ export class ACPSession {
             };
           }
         | undefined;
-      if (params?.sessionId === this.sessionId && params.update) {
+      const opening =
+        this.openingSession?.sessionId === params?.sessionId ? this.openingSession : undefined;
+      const update = params?.update;
+      const tree = this.restoringChildren?.tree ?? this.openingSession?.children ?? this.children;
+      if (
+        tree &&
+        typeof params?.sessionId === 'string' &&
+        update &&
+        tree.receive(params.sessionId, update, this.restoringChildren?.historical === true)
+      ) {
+        touchIdleRequests(this.pending);
+        return;
+      }
+      if (update) {
+        // Legacy checklist notifications without a session ID are tolerated
+        // on the active connection, like other legacy progress updates.
+        const active =
+          this.sessionId !== null &&
+          (params?.sessionId === this.sessionId ||
+            (params?.sessionId === undefined && update.sessionUpdate === 'plan'));
+        const plans = active ? this.plans : opening?.plans;
+        if (plans && applyPlanUpdate(plans, update, !!this.opts.onPlansChanged) && active)
+          this.publishPlans();
+      }
+      if (
+        params?.update?.sessionUpdate === 'available_commands_update' &&
+        Array.isArray(params.update.availableCommands)
+      ) {
+        if (params.sessionId === this.sessionId) {
+          this.availableCommands = normalizeCommands(params.update.availableCommands);
+        } else if (opening) {
+          opening.commands = normalizeCommands(params.update.availableCommands);
+        }
+      } else if (params?.sessionId === this.sessionId && params.update) {
         if (params.update.sessionUpdate === 'config_option_update') {
-          this.configOptions = this.mergeLegacyModelOption(
-            acpRuntimeOptions(params.update.configOptions),
-          );
-        } else if (
-          params.update.sessionUpdate === 'available_commands_update' &&
-          Array.isArray(params.update.availableCommands)
-        ) {
-          this.availableCommands = params.update.availableCommands.filter(
-            (c): c is AvailableCommand =>
-              !!c &&
-              typeof c === 'object' &&
-              typeof (c as { name?: unknown }).name === 'string' &&
-              ((c as { name: string }).name.length ?? 0) > 0,
-          );
+          if (Array.isArray(params.update.configOptions))
+            this.updateConfigOptions(params.update.configOptions);
         } else if (params.update.sessionUpdate === 'current_mode_update') {
           const nextMode =
             typeof params.update.currentModeId === 'string'
@@ -789,7 +1030,7 @@ export class ACPSession {
               : typeof params.update.modeId === 'string'
                 ? params.update.modeId
                 : null;
-          if (nextMode) this.currentModeId = nextMode;
+          if (nextMode) this.updateCurrentMode(nextMode);
         } else if (params.update.sessionUpdate === 'session_info_update') {
           if (params.update.title !== undefined) this.sessionInfo.title = params.update.title;
           if (params.update.updatedAt !== undefined)
@@ -807,6 +1048,10 @@ export class ACPSession {
   private progressHandler: ACPProgressHandler | null = null;
   /** Agent→client requests (permission, fs, terminal) still being answered. */
   private callbacksInFlight = 0;
+  private readonly pendingElicitations = new Map<string | number, AbortController>();
+  private get elicitForm() {
+    return this.opts.elicitForm;
+  }
   private scratch: ACPSessionScratch = createSessionScratch();
 
   private resetScratch(): void {
@@ -854,6 +1099,8 @@ export class ACPSession {
     void (this.terminalServer satisfies AcpSessionMessagesHost['terminalServer']);
     void (this.progressHandler satisfies AcpSessionMessagesHost['progressHandler']);
     void (this.callbacksInFlight satisfies AcpSessionMessagesHost['callbacksInFlight']);
+    void (this.elicitForm satisfies AcpSessionMessagesHost['elicitForm']);
+    void (this.pendingElicitations satisfies AcpSessionMessagesHost['pendingElicitations']);
     return this as unknown as AcpSessionMessagesHost;
   }
 
@@ -877,4 +1124,22 @@ export class ACPSession {
     } satisfies AcpSessionPromptHost);
     return this as unknown as AcpSessionPromptHost;
   }
+}
+
+function normalizeCommands(items: readonly unknown[]): AvailableCommand[] {
+  const commands = new Map<string, AvailableCommand>();
+  for (const item of items) {
+    if (!item || typeof item !== 'object') continue;
+    const candidate = item as { name?: unknown; description?: unknown; input?: { hint?: unknown } };
+    const name = typeof candidate.name === 'string' ? candidate.name.trim().replace(/^\//, '') : '';
+    if (!name || /[\s/\p{Cc}]/u.test(name) || commands.has(name)) continue;
+    commands.set(name, {
+      name,
+      description: typeof candidate.description === 'string' ? candidate.description : '',
+      ...(typeof candidate.input?.hint === 'string'
+        ? { input: { hint: candidate.input.hint } }
+        : {}),
+    });
+  }
+  return [...commands.values()];
 }

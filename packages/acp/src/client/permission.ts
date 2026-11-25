@@ -13,12 +13,14 @@ import type {
   RequestPermissionOutcome,
   ToolCallUpdateNotification,
 } from '../types/acp-v1.js';
+import type { AcpChildSource } from './acp-session-types.js';
 
 /** A single permission decision request. */
 export interface PermissionRequest {
   toolCall: ToolCallUpdateNotification;
   options: readonly PermissionOption[];
   signal: AbortSignal;
+  child?: AcpChildSource | undefined;
 }
 
 /** A permission policy decides how to respond to a request. */
@@ -46,7 +48,7 @@ function pickAllow(options: readonly PermissionOption[]): RequestPermissionOutco
     return score(a.kind) - score(b.kind);
   });
   const chosen = ranked[0];
-  if (!chosen || chosen.kind === 'reject_once' || chosen.kind === 'reject_always') {
+  if (!chosen || (chosen.kind !== 'allow_once' && chosen.kind !== 'allow_always')) {
     return { outcome: 'cancelled' };
   }
   return { outcome: 'selected', optionId: chosen.optionId };
