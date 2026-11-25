@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T16:27:15.347Z",
+  "generatedAt": "2026-11-25T18:22:34.435Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6566,
-    "testFiles": 6253,
-    "sourceLines": 1347263,
+    "testFiles": 6254,
+    "sourceLines": 1347268,
     "workspaceEdges": 261,
     "moduleEdges": 19230,
     "nonCommandSlashImports": 0,
@@ -871,7 +871,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 130,
-      "testFiles": 95,
+      "testFiles": 96,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -905,7 +905,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 95
+          "testFiles": 96
         }
       ]
     },
@@ -23545,6 +23545,12 @@
       },
       {
         "file": "packages/requirement-intake/tests/vibe.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/acp-agent-list-terminal-escape.test.ts",
         "projects": [
           "root-node"
         ]

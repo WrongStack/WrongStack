@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1030,
+      "files": 1031,
       "typeOnly": 78,
-      "runtimeOrMixed": 987
+      "runtimeOrMixed": 988
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -15840,6 +15840,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/src/plugin-management/package-install.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/acp-agent-list.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

@@ -8,6 +8,7 @@ import {
   type DetectedAgent,
   resolveAcpAgentCommand,
 } from '@wrongstack/acp';
+import { sanitizeTerminalText } from '@wrongstack/core/utils';
 import type { LoadedAcpRegistry } from './acp-registry-cache.js';
 
 function distKind(command: string): 'npx' | 'uvx' | 'local' {
@@ -107,6 +108,10 @@ function formatRegistryRow(
   };
 }
 
+/**
+ * Registry fields come from a remote document and versions from local
+ * binaries' output, so every listing is sanitized before it reaches a terminal.
+ */
 export function formatAcpAgentList(opts: {
   live: LoadedAcpRegistry | null;
   detected: readonly DetectedAgent[];
@@ -166,7 +171,7 @@ export function formatAcpAgentList(opts: {
     lines.push(
       'Spawn: /acp <id> <task>   Background: /acp <id> --bg <task>   Probe: /acp probe <id>',
     );
-    return lines.join('\n');
+    return sanitizeTerminalText(lines.join('\n'));
   }
 
   const installed = detected.filter(isLocallyDetected);
@@ -193,5 +198,5 @@ export function formatAcpAgentList(opts: {
   }
   lines.push('');
   lines.push(`${installed.length} of ${detected.length} bundled agents installed locally.`);
-  return lines.join('\n');
+  return sanitizeTerminalText(lines.join('\n'));
 }
