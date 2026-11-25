@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-25T16:10:39.948Z
+**Generated:** 2026-11-25T16:13:19.985Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6565 |
-| Production source lines | 1346737 |
-| Test files | 6145 |
+| Production source lines | 1346847 |
+| Test files | 6169 |
 | Workspace dependency edges | 261 |
 | Relative module edges | 19228 |
 | Non-command slash imports | 0 |
@@ -71,7 +71,7 @@
 | @wrongstack/tui | 517 | 495 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 18 | 30 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/vibeui | 101 | 47 | @wrongstack/webui-protocol |
-| @wrongstack/webui | 799 | 543 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
+| @wrongstack/webui | 799 | 567 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-protocol | 29 | 19 | @wrongstack/contracts, @wrongstack/core, @wrongstack/hq |
 | @wrongstack/webui-server | 360 | 427 | @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/worktree, @wrongstack/wrongtrace |
 | @wrongstack/worktree | 10 | 9 | @wrongstack/contracts, @wrongstack/core |
@@ -148,7 +148,7 @@ None.
 
 ## Exports only tests reference
 
-- 1055 runtime exports are referenced by tests and by no other production file.
+- 1056 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

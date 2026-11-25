@@ -59,7 +59,7 @@ export function splitProviderModel(ref: string): { providerId: string; model: st
   const slash = trimmed.indexOf('/');
   if (slash > 0) {
     return {
-      providerId: trimmed.slice(0, slash),
+      providerId: trimmed.slice(0, slash).trim(),
       model: trimmed.slice(slash + 1).trim(),
     };
   }
@@ -128,8 +128,10 @@ export function buildKnownModelSet<T extends { provider: string; model: string }
 ): Set<string> {
   const out = new Set<string>();
   for (const c of candidates) {
-    if (!c.provider || !c.model) continue;
-    out.add(`${c.provider}/${c.model}`);
+    const provider = c.provider?.trim();
+    const model = c.model?.trim();
+    if (!provider || !model) continue;
+    out.add(`${provider}/${model}`);
   }
   return out;
 }

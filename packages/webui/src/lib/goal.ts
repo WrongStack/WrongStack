@@ -56,6 +56,34 @@ function isGoalJournalEntry(x: unknown): x is GoalJournalEntry {
   return true;
 }
 
+function parseGoalDeliverable(d: unknown, i: number): GoalDeliverable | null {
+  if (typeof d === 'string') {
+    return {
+      id: `d${i}`,
+      text: d,
+      // The done marker must sit at the START of the text. `|` binds loosest,
+      // so the previous `/^\[[x✓]\]|✅|\(done\)/i` parsed as
+      // `(^\[[x✓]\])|(✅)|(\(done\))` — `^` guarded only the FIRST branch, so
+      // ✅ / (done) matched ANYWHERE and a pending deliverable like
+      // "Add the ✅ badge" was reported complete. Grouping the alternatives
+      // under a single `^` fixes that and stays position-anchored: leading
+      // whitespace still means NOT done (pinned by goal-store.test.ts,
+      // which expects '  [x] partial  ' to be pending).
+      status: /^(?:\[[x✓]\]|✅|\(done\))/i.test(d) ? ('done' as const) : ('pending' as const),
+    };
+  }
+  if (!d || typeof d !== 'object' || Array.isArray(d)) return null;
+  const obj = d as Record<string, unknown>;
+  if (
+    typeof obj.id !== 'string' ||
+    typeof obj.text !== 'string' ||
+    (obj.status !== 'pending' && obj.status !== 'done')
+  ) {
+    return null;
+  }
+  return { id: obj.id, text: obj.text, status: obj.status };
+}
+
 /**
  * Formats raw goal JSON from the server into a GoalState.
  * Gracefully handles missing / partial data.
@@ -70,8 +98,14 @@ export function parseGoalState(raw: Record<string, unknown> | null): GoalState |
     )
       ? (raw.goalState as GoalState['goalState'])
       : 'active') as GoalState['goalState'],
-    iterations: typeof raw.iterations === 'number' ? raw.iterations : 0,
-    progress: typeof raw.progress === 'number' ? raw.progress : 0,
+    iterations:
+      typeof raw.iterations === 'number' && Number.isFinite(raw.iterations)
+        ? Math.max(0, Math.floor(raw.iterations))
+        : 0,
+    progress:
+      typeof raw.progress === 'number' && Number.isFinite(raw.progress)
+        ? Math.max(0, raw.progress)
+        : 0,
     progressNote: typeof raw.progressNote === 'string' ? raw.progressNote : undefined,
     progressTrend:
       raw.progressTrend === 'accelerating'
@@ -82,25 +116,9 @@ export function parseGoalState(raw: Record<string, unknown> | null): GoalState |
             ? 'stable'
             : undefined,
     deliverables: Array.isArray(raw.deliverables)
-      ? (raw.deliverables as unknown[]).map((d, i) =>
-          typeof d === 'string'
-            ? {
-                id: `d${i}`,
-                text: d,
-                // The done marker must sit at the START of the text. `|` binds loosest,
-                // so the previous `/^\[[x✓]\]|✅|\(done\)/i` parsed as
-                // `(^\[[x✓]\])|(✅)|(\(done\))` — `^` guarded only the FIRST branch, so
-                // ✅ / (done) matched ANYWHERE and a pending deliverable like
-                // "Add the ✅ badge" was reported complete. Grouping the alternatives
-                // under a single `^` fixes that and stays position-anchored: leading
-                // whitespace still means NOT done (pinned by goal-store.test.ts,
-                // which expects '  [x] partial  ' to be pending).
-                status: /^(?:\[[x✓]\]|✅|\(done\))/i.test(d)
-                  ? ('done' as const)
-                  : ('pending' as const),
-              }
-            : (d as GoalDeliverable),
-        )
+      ? (raw.deliverables as unknown[])
+          .map((d, i) => parseGoalDeliverable(d, i))
+          .filter((d): d is GoalDeliverable => d !== null)
       : undefined,
     journal: Array.isArray(raw.journal)
       ? (raw.journal as unknown[]).filter(isGoalJournalEntry)

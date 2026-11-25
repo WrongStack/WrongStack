@@ -33,21 +33,25 @@ function parseAngle(s: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function parseOklchComponent(token: string, pctScale: number): number | null {
+  const match = /^([-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)(%?)$/i.exec(token.trim());
+  if (!match?.[1]) return null;
+  const raw = Number.parseFloat(match[1]);
+  if (!Number.isFinite(raw)) return null;
+  return match[2] === '%' ? (raw / 100) * pctScale : raw;
+}
+
 function parseOklch(value: string): [number, number, number] | null {
   const m = /^oklch\(\s*([^)]+)\)$/i.exec(value.trim());
   if (!m?.[1]) return null;
   const coords = m[1].split('/')[0] ?? '';
   const parts = coords.trim().split(/\s+/);
   if (parts.length < 3 || !parts[0] || !parts[1] || !parts[2]) return null;
-  const L = parts[0].endsWith('%')
-    ? Number.parseFloat(parts[0]) / 100
-    : Number.parseFloat(parts[0]);
+  const L = parseOklchComponent(parts[0], 1);
   // Chroma percentage reference (CSS Color 4): 100% → 0.4. L stays 100% → 1.0.
-  const C = parts[1].endsWith('%')
-    ? (Number.parseFloat(parts[1]) / 100) * 0.4
-    : Number.parseFloat(parts[1]);
+  const C = parseOklchComponent(parts[1], 0.4);
   const H = parseAngle(parts[2]);
-  if (H === null || ![L, C].every(Number.isFinite)) return null;
+  if (L === null || C === null || H === null) return null;
   return [clamp(L, 0, 1), Math.max(0, C), H];
 }
 

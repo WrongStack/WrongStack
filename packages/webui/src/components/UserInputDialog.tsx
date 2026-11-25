@@ -152,7 +152,7 @@ export function UserInputDialog() {
     }
   };
 
-  const cancel = () => {
+  const dismiss = (status: 'cancelled' | 'declined') => {
     if (!request || !entry) return;
     // 'cancelled' is a first-class UserInputResponse.status (core
     // types/user-input.ts): the server-side awaiter settles on any matching
@@ -165,7 +165,7 @@ export function UserInputDialog() {
       type: 'user.input_submit',
       payload: {
         sessionId: entry.sessionId,
-        response: { requestId: request.id, status: 'cancelled', answers: [] },
+        response: { requestId: request.id, status, answers: [] },
       },
     });
     setSubmitting(false);
@@ -324,9 +324,14 @@ export function UserInputDialog() {
                 ? t('activity:userInput.readyToSubmit')
                 : t('activity:userInput.missingAnswers', { count: missing.length }))}
           </span>
-          <Button type="button" variant="outline" onClick={cancel}>
+          <Button type="button" variant="outline" onClick={() => dismiss('cancelled')}>
             {t('common:action.cancel')}
           </Button>
+          {request.declineLabel && (
+            <Button type="button" variant="outline" onClick={() => dismiss('declined')}>
+              {request.declineLabel}
+            </Button>
+          )}
           <Button disabled={submitting} onClick={submit}>
             {submitting
               ? t('activity:userInput.submitting')

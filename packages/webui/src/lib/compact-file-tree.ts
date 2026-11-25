@@ -64,8 +64,8 @@ function finish<F extends TreeFileLike>(dir: MutableDir<F>, prefix: string): Com
           deleted += c.deleted;
         } else {
           fileCount += 1;
-          added += c.file.added;
-          deleted += c.file.deleted;
+          added += Number.isFinite(c.file.added) ? c.file.added : 0;
+          deleted += Number.isFinite(c.file.deleted) ? c.file.deleted : 0;
         }
       }
       return { kind: 'dir', name: folded, path, children, fileCount, added, deleted };

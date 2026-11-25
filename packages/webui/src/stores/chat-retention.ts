@@ -29,13 +29,17 @@ export const MAX_CHAT_RETAINED_BYTES = 48 * 1024 * 1024;
 export const MAX_CHAT_FIELD_CHARS = 2 * 1024 * 1024;
 
 export function boundChatField(text: string, maxChars = MAX_CHAT_FIELD_CHARS): string {
-  if (text.length <= maxChars) return text;
+  const safeMax =
+    typeof maxChars === 'number' && Number.isFinite(maxChars) && maxChars > 0
+      ? Math.floor(maxChars)
+      : MAX_CHAT_FIELD_CHARS;
+  if (text.length <= safeMax) return text;
   const marker = '\n\n… [older streamed text omitted to protect memory] …\n\n';
-  if (maxChars <= marker.length) {
-    const head = Math.ceil(maxChars / 2);
-    return text.slice(0, head) + text.slice(text.length - (maxChars - head));
+  if (safeMax <= marker.length) {
+    const head = Math.ceil(safeMax / 2);
+    return text.slice(0, head) + text.slice(text.length - (safeMax - head));
   }
-  const available = maxChars - marker.length;
+  const available = safeMax - marker.length;
   const head = Math.ceil(available / 2);
   return text.slice(0, head) + marker + text.slice(text.length - (available - head));
 }
@@ -108,9 +112,30 @@ export function retainWebChatMessages(
   messages: readonly ChatMessage[],
   budget: ChatRetentionBudget = {},
 ): ChatMessage[] {
-  const maxMessages = Math.max(1, Math.floor(budget.maxMessages ?? MAX_CHAT_MESSAGES));
-  const maxBytes = Math.max(1, Math.floor(budget.maxBytes ?? MAX_CHAT_RETAINED_BYTES));
-  const maxFieldChars = Math.max(1, Math.floor(budget.maxFieldChars ?? MAX_CHAT_FIELD_CHARS));
+  const maxMessages = Math.max(
+    1,
+    Math.floor(
+      typeof budget.maxMessages === 'number' && Number.isFinite(budget.maxMessages)
+        ? budget.maxMessages
+        : MAX_CHAT_MESSAGES,
+    ),
+  );
+  const maxBytes = Math.max(
+    1,
+    Math.floor(
+      typeof budget.maxBytes === 'number' && Number.isFinite(budget.maxBytes)
+        ? budget.maxBytes
+        : MAX_CHAT_RETAINED_BYTES,
+    ),
+  );
+  const maxFieldChars = Math.max(
+    1,
+    Math.floor(
+      typeof budget.maxFieldChars === 'number' && Number.isFinite(budget.maxFieldChars)
+        ? budget.maxFieldChars
+        : MAX_CHAT_FIELD_CHARS,
+    ),
+  );
   const retained: ChatMessage[] = [];
   let bytes = 0;
 

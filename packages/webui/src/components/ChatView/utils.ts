@@ -2,9 +2,10 @@ import { expectDefined } from '@wrongstack/core/utils/expect-defined';
 import type { ChatMessage } from '@/stores';
 
 export function fmtTok(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return '0';
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1000) return `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k`;
-  return String(n);
+  return String(Math.round(n));
 }
 
 // ── Chat row model ──

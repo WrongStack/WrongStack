@@ -12,7 +12,10 @@
 /** Trim a single-line preview, matching the live handler's 180-char budget. */
 export function truncateDelegateTask(text: string, max = 180): string {
   const line = text.replace(/\s+/g, ' ').trim();
-  return line.length > max ? `${line.slice(0, max - 1)}…` : line;
+  const limit = Number.isFinite(max) ? Math.floor(max) : 180;
+  if (limit <= 0) return '';
+  if (line.length <= limit) return line;
+  return limit === 1 ? '…' : `${line.slice(0, limit - 1)}…`;
 }
 
 export function delegateStartedText(target: string, task: string): string {
@@ -29,14 +32,22 @@ export function delegateCompletedText(input: {
   toolCalls: number;
   costUsd?: number | undefined;
 }): string {
-  const seconds = Math.max(0, Math.round(input.durationMs / 100) / 10);
+  const seconds = Number.isFinite(input.durationMs)
+    ? Math.max(0, Math.round(input.durationMs / 100) / 10)
+    : 0;
   const cost =
-    typeof input.costUsd === 'number' && input.costUsd > 0 ? ` · $${input.costUsd.toFixed(4)}` : '';
+    typeof input.costUsd === 'number' && Number.isFinite(input.costUsd) && input.costUsd > 0
+      ? ` · $${input.costUsd.toFixed(4)}`
+      : '';
+  const iterations = Number.isFinite(input.iterations)
+    ? Math.max(0, Math.floor(input.iterations))
+    : 0;
+  const toolCalls = Number.isFinite(input.toolCalls) ? Math.max(0, Math.floor(input.toolCalls)) : 0;
   return [
     `Delegate ${input.ok ? 'completed' : 'failed'} for \`${input.target}\`${
       input.status ? ` (${input.status})` : ''
     }.`,
     input.summary,
-    `${input.iterations} iteration(s), ${input.toolCalls} tool call(s), ${seconds}s${cost}`,
+    `${iterations} iteration(s), ${toolCalls} tool call(s), ${seconds}s${cost}`,
   ].join('\n');
 }

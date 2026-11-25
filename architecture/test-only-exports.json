@@ -2189,6 +2189,9 @@
       "shuffleAllCards",
       "SLASH_REFS"
     ],
+    "packages/webui/src/lib/delegate-format.ts": [
+      "delegateCompletedText"
+    ],
     "packages/webui/src/lib/fallback-ref.ts": [
       "refInactiveReason",
       "splitProviderModel"

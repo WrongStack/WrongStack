@@ -59,7 +59,9 @@ const SLOT_ACCENTS = [
 ] as const;
 
 export function slotAccent(slot: number) {
-  return SLOT_ACCENTS[slot % SLOT_ACCENTS.length]!;
+  const n = Number.isFinite(slot) ? Math.trunc(slot) : 0;
+  const idx = ((n % SLOT_ACCENTS.length) + SLOT_ACCENTS.length) % SLOT_ACCENTS.length;
+  return SLOT_ACCENTS[idx]!;
 }
 
 /** Live summaries for every open slot, in slot order. */
@@ -135,11 +137,12 @@ export function useTabSummaries(titles?: Map<string, string>): TabSummary[] {
 }
 
 export function formatTokens(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return '0';
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) {
     const k = (n / 1_000).toFixed(1);
     // 999_950+ rounds to "1000.0": past the unit, so it renders as millions.
     return Number(k) >= 1_000 ? `${(n / 1_000_000).toFixed(1)}M` : `${k}k`;
   }
-  return String(n);
+  return String(Math.round(n));
 }

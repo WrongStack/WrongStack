@@ -131,17 +131,25 @@ const STAGE_LABELS: Readonly<Record<string, string>> = {
 
 export function resumeStageLabel(stage: string | undefined): string {
   if (!stage) return 'Reading journal';
-  return STAGE_LABELS[stage] ?? stage.replaceAll('_', ' ');
+  return Object.hasOwn(STAGE_LABELS, stage) ? STAGE_LABELS[stage]! : stage.replaceAll('_', ' ');
 }
 
 export function resumeProgressPercent(progress: ResumeProgressDetail | undefined): number | null {
-  if (!progress || progress.totalBytes <= 0) return null;
+  if (
+    !progress ||
+    !Number.isFinite(progress.totalBytes) ||
+    progress.totalBytes <= 0 ||
+    !Number.isFinite(progress.loadedBytes)
+  ) {
+    return null;
+  }
   const pct = Math.round((progress.loadedBytes / progress.totalBytes) * 100);
   return Math.max(0, Math.min(100, pct));
 }
 
 export function formatResumeBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${bytes} B`;
+  return `${Math.round(bytes)} B`;
 }

@@ -43,7 +43,9 @@ export function compareAgentsByActivity<T extends { status: string; startedAt: n
   const aActive = isAgentActive(a.status) ? 0 : 1;
   const bActive = isAgentActive(b.status) ? 0 : 1;
   if (aActive !== bActive) return aActive - bActive;
-  return a.startedAt - b.startedAt;
+  const aStart = Number.isFinite(a.startedAt) ? a.startedAt : Number.MAX_SAFE_INTEGER;
+  const bStart = Number.isFinite(b.startedAt) ? b.startedAt : Number.MAX_SAFE_INTEGER;
+  return aStart - bStart;
 }
 
 interface AgentTally {

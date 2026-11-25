@@ -18,6 +18,14 @@ export function enqueueMessage(
   maxQueuedMessages: number,
   maxQueuedChars: number,
 ): boolean {
+  if (
+    !Number.isFinite(maxQueuedMessages) ||
+    maxQueuedMessages <= 0 ||
+    !Number.isFinite(maxQueuedChars) ||
+    maxQueuedChars <= 0
+  ) {
+    return false;
+  }
   let firstDropped: WSClientMessage | undefined;
   while (
     queueState.messageQueue.length > 0 &&

@@ -15,5 +15,6 @@ export function clampTerminalHeight(height: number): number {
             window.innerHeight - MIN_MAIN_AREA_WHEN_TERMINAL_OPEN,
           ),
         );
-  return Math.min(Math.max(Math.round(height), MIN_TERMINAL_HEIGHT), viewportMax);
+  const safeHeight = Number.isFinite(height) ? Math.round(height) : MIN_TERMINAL_HEIGHT;
+  return Math.min(Math.max(safeHeight, MIN_TERMINAL_HEIGHT), viewportMax);
 }

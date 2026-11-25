@@ -111,5 +111,5 @@ export function fileIconColor(name: string, isDirectory: boolean): string {
 
 export function fileIcon(name: string): React.ComponentType<{ className?: string }> {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
-  return EXT_ICONS[ext] ?? File;
+  return (Object.hasOwn(EXT_ICONS, ext) ? EXT_ICONS[ext] : undefined) ?? File;
 }

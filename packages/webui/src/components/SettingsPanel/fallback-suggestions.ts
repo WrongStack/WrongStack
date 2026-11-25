@@ -9,10 +9,10 @@ export function suggestionProfileName(
   id: FallbackSuggestion['id'],
   existing: Readonly<Record<string, readonly string[]>>,
 ): string {
-  if (!(id in existing)) return id;
+  if (!Object.hasOwn(existing, id)) return id;
   for (let n = 2; ; n++) {
     const candidate = `${id}-${n}`;
-    if (!(candidate in existing)) return candidate;
+    if (!Object.hasOwn(existing, candidate)) return candidate;
   }
 }
 
@@ -33,15 +33,19 @@ export function sameChain(a: readonly string[], b: readonly string[]): boolean {
 
 /** `$0.30 / $1.20` per 1M tokens; `free` at zero; empty when unpriced. */
 export function formatPricePair(input?: number, output?: number): string {
-  if (input === undefined && output === undefined) return '';
-  if ((input ?? 0) === 0 && (output ?? 0) === 0) return 'free';
+  const safeIn =
+    typeof input === 'number' && Number.isFinite(input) && input >= 0 ? input : undefined;
+  const safeOut =
+    typeof output === 'number' && Number.isFinite(output) && output >= 0 ? output : undefined;
+  if (safeIn === undefined && safeOut === undefined) return '';
+  if ((safeIn ?? 0) === 0 && (safeOut ?? 0) === 0) return 'free';
   const fmt = (n: number | undefined) =>
     n === undefined ? '?' : `$${n < 1 ? n.toFixed(2) : n.toFixed(n < 10 ? 1 : 0)}`;
-  return `${fmt(input)} / ${fmt(output)}`;
+  return `${fmt(safeIn)} / ${fmt(safeOut)}`;
 }
 
 export function formatContextWindow(tokens?: number): string {
-  if (!tokens) return '';
+  if (typeof tokens !== 'number' || !Number.isFinite(tokens) || tokens <= 0) return '';
   return tokens >= 1_000_000
     ? `${Number((tokens / 1_000_000).toFixed(1))}M`
     : `${Math.round(tokens / 1000)}K`;

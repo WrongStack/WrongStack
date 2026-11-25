@@ -50,20 +50,28 @@ export const useChimeraReportsStore = create<ChimeraReportsState>()((set, get) =
 
   recordReport: (notice) => {
     if (!notice.reportId) return false;
-    const existing = get().bySession[notice.sessionId];
+    const bySession = get().bySession;
+    const existing = Object.hasOwn(bySession, notice.sessionId)
+      ? bySession[notice.sessionId]
+      : undefined;
     if (existing?.some((r) => r.reportId === notice.reportId)) return false;
-    set((s) => ({
-      bySession: {
-        ...s.bySession,
-        [notice.sessionId]: [...(s.bySession[notice.sessionId] ?? []), notice],
-      },
-    }));
+    set((s) => {
+      const prev = Object.hasOwn(s.bySession, notice.sessionId)
+        ? (s.bySession[notice.sessionId] ?? [])
+        : [];
+      return {
+        bySession: {
+          ...s.bySession,
+          [notice.sessionId]: [...prev, notice],
+        },
+      };
+    });
     return true;
   },
 
   markActioned: (sessionId, reportId, at) => {
     set((s) => {
-      const list = s.bySession[sessionId];
+      const list = Object.hasOwn(s.bySession, sessionId) ? s.bySession[sessionId] : undefined;
       if (!list?.some((r) => r.reportId === reportId)) return s;
       return {
         bySession: {

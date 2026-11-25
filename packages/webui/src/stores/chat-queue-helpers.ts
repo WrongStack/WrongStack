@@ -12,7 +12,7 @@ export function cancelDispatchedGraceTimer(itemId: number): void {
 export let enqueueSequence = 0;
 
 export function setEnqueueSequence(seq: number): void {
-  enqueueSequence = seq;
+  enqueueSequence = Number.isFinite(seq) ? Math.max(0, Math.floor(seq)) : 0;
 }
 
 export function nextQueueItemId(): number {

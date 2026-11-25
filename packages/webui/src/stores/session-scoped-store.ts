@@ -62,7 +62,10 @@ export function createSessionScopedStore<S>(
   initializer: StateCreator<S, [], []>,
   options: { max?: number } = {},
 ): SessionScopedStore<S> {
-  const max = Math.max(1, options.max ?? DEFAULT_MAX_SESSIONS);
+  const max =
+    typeof options.max === 'number' && Number.isFinite(options.max)
+      ? Math.max(1, Math.floor(options.max))
+      : DEFAULT_MAX_SESSIONS;
   const instances = new Map<string, StoreApi<S>>();
 
   const key = (sessionId: string | null | undefined): string =>

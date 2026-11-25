@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T16:10:39.948Z",
+  "generatedAt": "2026-11-25T16:13:19.985Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6565,
-    "testFiles": 6145,
-    "sourceLines": 1346737,
+    "testFiles": 6169,
+    "sourceLines": 1346847,
     "workspaceEdges": 261,
     "moduleEdges": 19228,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 3,
     "testsWithoutTypecheck": 10,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1055
+    "testOnlyExports": 1056
   },
   "errors": [
     "2 unexcepted module cycle(s)"
@@ -1196,7 +1196,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 799,
-      "testFiles": 543,
+      "testFiles": 567,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1222,7 +1222,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 543
+          "testFiles": 567
         }
       ]
     },
@@ -34867,6 +34867,54 @@
         ]
       },
       {
+        "file": "packages/webui/tests/activity-bar-unknown-pin.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/agent-status-sort-nan.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/chat-queue-seq-nan.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/chat-retention-nan.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/chatview-fmttok-nan.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/chimera-store-proto.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/color-oklch-units.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/compact-file-tree-nan.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/ChatInput/code-detect.test.ts",
         "projects": [
           "webui-jsdom"
@@ -36643,6 +36691,54 @@
         ]
       },
       {
+        "file": "packages/webui/tests/delegate-format-bounds.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/delegate-format-nan.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/fallback-known-set-trim.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/fallback-ref-provider-trim.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/fallback-suggestions-proto.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/file-icons-proto.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/goal-negative-progress.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/goal-parse-malformed.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/helpers/nested-buttons.test.ts",
         "projects": [
           "webui-jsdom"
@@ -37681,6 +37777,24 @@
         ]
       },
       {
+        "file": "packages/webui/tests/repo-history-initials.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/resume-progress-proto-nan.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/sample-n-neg.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/server/providers-json.test.ts",
         "projects": [
           "webui-jsdom"
@@ -37694,6 +37808,12 @@
       },
       {
         "file": "packages/webui/tests/server/worktree-ws-handler.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/session-scoped-max-nan.test.ts",
         "projects": [
           "webui-jsdom"
         ]
@@ -38119,7 +38239,31 @@
         ]
       },
       {
+        "file": "packages/webui/tests/tabbar-slot-accent-nan.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/task-brief-preview-neg.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/terminal-dock-nan.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/types/sage-type-contract.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/ws-client-queue-nan.test.ts",
         "projects": [
           "webui-jsdom"
         ]
@@ -44062,6 +44206,10 @@
     {
       "file": "packages/webui/src/lib/default-prompt-pools.ts",
       "name": "SLASH_REFS"
+    },
+    {
+      "file": "packages/webui/src/lib/delegate-format.ts",
+      "name": "delegateCompletedText"
     },
     {
       "file": "packages/webui/src/lib/fallback-ref.ts",

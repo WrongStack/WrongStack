@@ -122,12 +122,14 @@ export const SLASH_REFS: Array<{ id: string; name: string; hint: string }> = [
 
 /** Pick `n` distinct random items from `pool` (Fisher–Yates on a copy). */
 export function sampleN<T>(pool: readonly T[], n: number): T[] {
+  if (Number.isNaN(n) || n <= 0) return [];
   const copy = pool.slice();
   for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
-  return copy.slice(0, Math.min(n, copy.length));
+  const count = Number.isFinite(n) ? Math.min(Math.floor(n), copy.length) : copy.length;
+  return copy.slice(0, count);
 }
 
 /** Sample a fresh subset of prompts for every card. */

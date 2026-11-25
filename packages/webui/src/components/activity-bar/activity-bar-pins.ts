@@ -123,13 +123,14 @@ export function isAtBudget(draft: PinDraft): boolean {
  */
 export function togglePin(draft: PinDraft, group: PinGroup, id: string): PinDraft {
   if (group === 'panels') {
-    if (isFixedPanelId(id)) return draft;
+    if (!PANEL_IDS.has(id) || isFixedPanelId(id)) return draft;
     if (draft.pinnedPanels.includes(id)) {
       return { ...draft, pinnedPanels: draft.pinnedPanels.filter((entry) => entry !== id) };
     }
     if (isAtBudget(draft)) return draft;
     return { ...draft, pinnedPanels: [...draft.pinnedPanels, id] };
   }
+  if (!VIEW_IDS.has(id)) return draft;
   if (draft.pinnedViews.includes(id)) {
     return { ...draft, pinnedViews: draft.pinnedViews.filter((entry) => entry !== id) };
   }

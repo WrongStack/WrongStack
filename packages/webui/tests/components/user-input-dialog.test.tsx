@@ -92,6 +92,7 @@ function request(id: string, title: string) {
 }
 
 import { i18n } from '../../src/i18n';
+
 describe('WebUI structured user input dialog', () => {
   // Pin the language before rendering: the component renders t()-derived
   // labels, and an unpinned translator can race initialization into raw keys.
@@ -104,6 +105,25 @@ describe('WebUI structured user input dialog', () => {
     ensureSessionLane('s1');
     ensureSessionLane('s2');
     setActiveSessionLane('s1');
+  });
+
+  it('can explicitly decline an ACP form without answering required fields', () => {
+    render(<UserInputDialog />);
+    const form = request('r1', 'ACP agent “example” is asking for input');
+    act(() =>
+      socket.emit('user.input_requested', {
+        ...form,
+        payload: { ...form.payload, request: { ...form.payload.request, declineLabel: 'Decline' } },
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
+    expect(socket.client.send).toHaveBeenCalledWith({
+      type: 'user.input_submit',
+      payload: {
+        sessionId: 's1',
+        response: { requestId: 'r1', status: 'declined', answers: [] },
+      },
+    });
   });
 
   it('keeps concurrent session forms queued and submits the active session atomically', async () => {
