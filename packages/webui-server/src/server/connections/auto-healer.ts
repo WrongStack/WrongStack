@@ -118,9 +118,24 @@ export function isAutoHealEnabled(): boolean {
 
 export function createAutoHealer(options: AutoHealerOptions): AutoHealer {
   const enabled = options.enabled ?? isAutoHealEnabled();
-  const intervalMs = options.intervalMs ?? AUTO_HEAL_DEFAULT_INTERVAL_MS;
-  const cooldownMs = options.cooldownMs ?? AUTO_HEAL_DEFAULT_COOLDOWN_MS;
-  const maxAttempts = options.maxAttempts ?? AUTO_HEAL_DEFAULT_MAX_ATTEMPTS;
+  const intervalMs =
+    typeof options.intervalMs === 'number' &&
+    Number.isFinite(options.intervalMs) &&
+    options.intervalMs > 0
+      ? Math.min(options.intervalMs, 2_147_483_647)
+      : AUTO_HEAL_DEFAULT_INTERVAL_MS;
+  const cooldownMs =
+    typeof options.cooldownMs === 'number' &&
+    Number.isFinite(options.cooldownMs) &&
+    options.cooldownMs >= 0
+      ? options.cooldownMs
+      : AUTO_HEAL_DEFAULT_COOLDOWN_MS;
+  const maxAttempts =
+    typeof options.maxAttempts === 'number' &&
+    Number.isFinite(options.maxAttempts) &&
+    options.maxAttempts >= 0
+      ? Math.floor(options.maxAttempts)
+      : AUTO_HEAL_DEFAULT_MAX_ATTEMPTS;
   const collect =
     options.collect ??
     (() =>

@@ -65,7 +65,7 @@ vi.mock('../../acp/dist/index.js', async (importOriginal) => ({
 // Which ACP agents are installed here: whatever the test config names.
 vi.mock('@wrongstack/fleet', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@wrongstack/fleet')>()),
-  installedBridgeAgents: (cfg: { agents?: Record<string, unknown> } | undefined) =>
+  installedAcpAgents: (cfg: { agents?: Record<string, unknown> } | undefined) =>
     cfg?.agents ? Object.keys(cfg.agents) : [],
   // The pickers also list WrongForge: none here, whatever this machine has set up.
   resolveWrongForgeEndpoint: () => undefined,

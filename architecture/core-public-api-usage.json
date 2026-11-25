@@ -99,9 +99,9 @@
       "runtimeOrMixed": 12
     },
     "@wrongstack/core/quota": {
-      "files": 62,
+      "files": 64,
       "typeOnly": 2,
-      "runtimeOrMixed": 60
+      "runtimeOrMixed": 62
     },
     "@wrongstack/core/registry": {
       "files": 217,
@@ -124,8 +124,8 @@
       "runtimeOrMixed": 18
     },
     "@wrongstack/core/security": {
-      "files": 307,
-      "typeOnly": 27,
+      "files": 308,
+      "typeOnly": 28,
       "runtimeOrMixed": 283
     },
     "@wrongstack/core/session-catalog": {
@@ -6017,6 +6017,18 @@
     },
     {
       "specifier": "@wrongstack/core/quota",
+      "file": "packages/fleet/tests/acp-quota-reading-nan.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/quota",
+      "file": "packages/fleet/tests/acp-quota-reset-zero.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/quota",
       "file": "packages/providers/src/anthropic-rate-limits.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -9464,6 +9476,12 @@
       "file": "packages/webui-server/tests/auth-process-smoke.mjs",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/tests/auto-healer-nan-options.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/security",

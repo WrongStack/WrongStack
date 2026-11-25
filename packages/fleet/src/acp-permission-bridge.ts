@@ -381,7 +381,11 @@ export interface AcpPermissionBridgeOptions {
     | ((
         tool: Tool,
         call: WrongStackCall,
-        request: { toolCallId: string | undefined; signal: AbortSignal },
+        request: {
+          toolCallId: string | undefined;
+          signal: AbortSignal;
+          child?: AcpPermissionRequest['child'];
+        },
       ) => Promise<boolean>)
     | undefined;
   /** Told about every refusal, for the host's log. */
@@ -452,6 +456,7 @@ export function wrongstackAcpPermissionPolicy(
           approved = await opts.confirm(tool, call, {
             toolCallId: req.toolCall.toolCallId,
             signal: req.signal,
+            ...(req.child ? { child: req.child } : {}),
           });
         } catch {
           approved = false;

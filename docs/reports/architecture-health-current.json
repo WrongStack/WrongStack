@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T16:15:59.486Z",
+  "generatedAt": "2026-11-25T16:18:32.728Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6565,
-    "testFiles": 6233,
-    "sourceLines": 1347102,
+    "testFiles": 6253,
+    "sourceLines": 1347244,
     "workspaceEdges": 261,
     "moduleEdges": 19228,
     "nonCommandSlashImports": 0,
@@ -457,7 +457,7 @@
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
       "sourceFiles": 64,
-      "testFiles": 27,
+      "testFiles": 34,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -478,7 +478,7 @@
         {
           "path": "packages/fleet/tsconfig.test.json",
           "error": null,
-          "testFiles": 27
+          "testFiles": 34
         }
       ]
     },
@@ -1253,7 +1253,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 360,
-      "testFiles": 427,
+      "testFiles": 440,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1288,7 +1288,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 427
+          "testFiles": 440
         }
       ]
     },
@@ -16879,6 +16879,18 @@
         ]
       },
       {
+        "file": "packages/fleet/tests/acp-quota-reading-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/fleet/tests/acp-quota-reset-zero.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/fleet/tests/acp-steer-and-quota-audit.test.ts",
         "projects": [
           "root-node"
@@ -16915,7 +16927,25 @@
         ]
       },
       {
+        "file": "packages/fleet/tests/host-acp-setup-cleanup.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/fleet/tests/host-budget-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/fleet/tests/host-context-skill-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/fleet/tests/host-dispatch-cost-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -16981,6 +17011,12 @@
         ]
       },
       {
+        "file": "packages/fleet/tests/quota-hold-overflow.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/fleet/tests/skill-companion-outcomes.test.ts",
         "projects": [
           "root-node"
@@ -16994,6 +17030,12 @@
       },
       {
         "file": "packages/fleet/tests/status-broadcast-removed-timer.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/fleet/tests/turn-reminders-interval.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32695,6 +32737,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/acp-turn-images.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/adr-command-route.test.ts",
         "projects": [
           "root-node"
@@ -32743,6 +32791,18 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/app-update-nan-timeout.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/app-update-timeout-zero.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/architecture/err-message-parity.test.ts",
         "projects": [
           "root-node"
@@ -32762,6 +32822,12 @@
       },
       {
         "file": "packages/webui-server/tests/audit-high-risk-regressions.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/auto-healer-nan-options.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32792,6 +32858,12 @@
       },
       {
         "file": "packages/webui-server/tests/backend-services.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/boot-timing-proto.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32911,6 +32983,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/code-assist-prompt-line.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/code-assist-routes.test.ts",
         "projects": [
           "root-node"
@@ -32966,6 +33044,12 @@
       },
       {
         "file": "packages/webui-server/tests/codemap-transfer.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/collab-annotations-index.test.ts",
         "projects": [
           "root-node"
         ]
@@ -33313,6 +33397,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/fleet-concurrency-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/fleet-concurrency.test.ts",
         "projects": [
           "root-node"
@@ -33518,6 +33608,12 @@
       },
       {
         "file": "packages/webui-server/tests/instance-registry.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/integration-connect-src-trim.test.ts",
         "projects": [
           "root-node"
         ]
@@ -34262,6 +34358,12 @@
       },
       {
         "file": "packages/webui-server/tests/provider-probe-timeout-bound.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/provider-projection-trim.test.ts",
         "projects": [
           "root-node"
         ]
@@ -35083,7 +35185,19 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/usage-cost-inf.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/usage-cost.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/usage-pricing-nan.test.ts",
         "projects": [
           "root-node"
         ]
@@ -35210,6 +35324,12 @@
       },
       {
         "file": "packages/webui-server/tests/ws-auth.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/ws-clamp-limit-nan.test.ts",
         "projects": [
           "root-node"
         ]

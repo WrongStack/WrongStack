@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { readCachedAcpRegistry } from '@wrongstack/acp';
 import { TOKENS } from '@wrongstack/contracts/kernel';
 import type { Config } from '@wrongstack/contracts/types';
 import {
@@ -65,6 +66,7 @@ export function acpCommandOpts(this: HostAcpRunnerHost): BuildAcpSubagentRunnerO
       : undefined;
   return {
     ...(overrides ? { overrides } : {}),
+    live: readCachedAcpRegistry()?.byId,
     projectRoot: this.deps.projectRoot,
     allowOutsideProjectRoot,
     bridge: { projectRoot: this.deps.projectRoot, config: acp?.bridge },

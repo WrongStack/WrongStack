@@ -79,9 +79,24 @@ function lifetimeRate(
   cacheWriteRate: number | null,
   rate: (value: unknown) => number | null,
 ): number | null {
-  const total = usage.cacheWrite ?? 0;
-  const write5m = Math.max(0, usage.cacheWrite5m ?? 0);
-  const write1h = Math.max(0, usage.cacheWrite1h ?? 0);
+  const total =
+    typeof usage.cacheWrite === 'number' &&
+    Number.isFinite(usage.cacheWrite) &&
+    usage.cacheWrite > 0
+      ? usage.cacheWrite
+      : 0;
+  const write5m =
+    typeof usage.cacheWrite5m === 'number' &&
+    Number.isFinite(usage.cacheWrite5m) &&
+    usage.cacheWrite5m > 0
+      ? usage.cacheWrite5m
+      : 0;
+  const write1h =
+    typeof usage.cacheWrite1h === 'number' &&
+    Number.isFinite(usage.cacheWrite1h) &&
+    usage.cacheWrite1h > 0
+      ? usage.cacheWrite1h
+      : 0;
   if (!(total > 0) || (!write5m && !write1h)) return cacheWriteRate;
   const rate5m =
     cost['cache_write_5m'] === undefined ? cacheWriteRate : rate(cost['cache_write_5m']);

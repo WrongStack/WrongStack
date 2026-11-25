@@ -355,6 +355,35 @@ describe('setupEvents worklist board pairing', () => {
       .map(([, msg]) => msg as { type: string; payload: { sessionId?: string; todos?: unknown[] } })
       .filter((msg) => msg.type === 'todos.updated');
 
+  it('routes a provider checklist to the tab that owns it', () => {
+    const events = new EventBus();
+    const broadcast = vi.fn();
+    const dispose = setupEvents({
+      events,
+      broadcast,
+      clients: new Map(),
+      config: {},
+      context: hostContext(),
+      pendingConfirms: new Map(),
+    });
+    try {
+      events.emit('provider.todos_updated', {
+        sessionId: 'sess-b',
+        ctx: { session: { id: 'sess-b' } } as unknown as Context,
+        todos: B_BOARD,
+        revision: 12,
+      });
+      expect(broadcast).toHaveBeenCalledWith(
+        expect.any(Map),
+        { type: 'todos.updated', payload: { sessionId: 'sess-b', todos: B_BOARD, revision: 12 } },
+        'sess-b',
+      );
+      expect(todosFrames(broadcast)).toHaveLength(1);
+    } finally {
+      dispose();
+    }
+  });
+
   it("a foreign session's todo event broadcasts THAT session's board", () => {
     const events = new EventBus();
     const broadcast = vi.fn();

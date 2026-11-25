@@ -32,10 +32,17 @@ interface PromptContext {
   allowEdits: boolean;
 }
 
+function validLine(line: number | undefined): number | undefined {
+  return typeof line === 'number' && Number.isFinite(line) && line >= 1
+    ? Math.floor(line)
+    : undefined;
+}
+
 /** A short, human-readable description of the focus of the run. */
 function symbolHint(request: CodeAssistRunRequest): string {
   if (request.symbol) return '`' + request.symbol + '`';
-  if (request.line !== undefined) return 'the code at line ' + String(request.line);
+  const line = validLine(request.line);
+  if (line !== undefined) return 'the code at line ' + String(line);
   return 'this file';
 }
 
@@ -230,12 +237,13 @@ function closingInstruction(ctx: PromptContext): string {
 }
 
 export function buildCodeAssistPrompt(request: CodeAssistRunRequest, ctx: PromptContext): string {
+  const line = validLine(request.line);
   return [
     preamble(ctx),
     '',
     'TARGET FILE: ' + request.filePath,
     ...(request.symbol ? ['TARGET SYMBOL: ' + request.symbol] : []),
-    ...(request.line !== undefined ? ['TARGET LINE: ' + String(request.line)] : []),
+    ...(line !== undefined ? ['TARGET LINE: ' + String(line)] : []),
     '',
     presetInstruction(request.preset, request),
     '',

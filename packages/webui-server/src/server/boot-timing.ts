@@ -19,8 +19,13 @@ export function beginBootTiming(): void {
 
 /** Records the first time `name` finished in the current boot. A no-op outside a boot. */
 export function markBoot(name: string): void {
-  if (!current || current.marks[name] !== undefined) return;
-  current.marks[name] = Math.round(performance.now() - current.started);
+  if (!current || Object.hasOwn(current.marks, name)) return;
+  Object.defineProperty(current.marks, name, {
+    value: Math.round(performance.now() - current.started),
+    enumerable: true,
+    configurable: true,
+    writable: true,
+  });
 }
 
 /** Ends the current boot and returns its marks, or undefined when none is running. */

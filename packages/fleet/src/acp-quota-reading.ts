@@ -36,6 +36,7 @@ function windowFrom(name: string, raw: unknown): ProviderQuotaWindow | undefined
   const utilization = num((raw as { utilization?: unknown }).utilization);
   if (utilization === undefined) return undefined;
   const resetsAt = num((raw as { resetsAt?: unknown }).resetsAt);
+  const resetSec = resetsAt !== undefined ? toSeconds(resetsAt) : 0;
   return {
     id: spec.id,
     label: spec.id,
@@ -45,7 +46,7 @@ function windowFrom(name: string, raw: unknown): ProviderQuotaWindow | undefined
       Math.round((utilization <= 1 ? utilization * 100 : utilization) * 100) / 100,
     ),
     windowMinutes: spec.minutes,
-    ...(resetsAt !== undefined && resetsAt > 0 ? { resetsAt: toSeconds(resetsAt) } : {}),
+    ...(resetSec > 0 ? { resetsAt: resetSec } : {}),
   };
 }
 
@@ -66,6 +67,7 @@ export function recordAcpRateLimit(
   const type = typeof info.rateLimitType === 'string' ? info.rateLimitType : undefined;
   const reached = info.status === 'rejected' && type ? WINDOWS[type]?.id : undefined;
   if (known.size === 0 && reached === undefined) return;
+  const safeNow = Number.isFinite(now) ? now : Date.now();
   lastWindows.set(agentId, known);
   recordProviderQuota(
     agentId,
@@ -76,9 +78,9 @@ export function recordAcpRateLimit(
         meterLabel: 'Claude subscription (delegated worker)',
         windows: [...known.values()],
         ...(reached !== undefined ? { reachedWindowId: reached } : {}),
-        capturedAt: now,
+        capturedAt: safeNow,
       },
     ],
-    now,
+    safeNow,
   );
 }

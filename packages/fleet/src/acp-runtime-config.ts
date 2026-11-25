@@ -1,7 +1,10 @@
 import { createHash } from 'node:crypto';
 import {
   ACPSession,
+  type AcpLiveCatalog,
   applyAcpRuntimeValues,
+  canonicalAcpAgentId,
+  readCachedAcpRegistry,
   readOnlyPermissionPolicy,
   resolveAcpAgentCommand,
 } from '@wrongstack/acp';
@@ -11,7 +14,7 @@ import type {
   AcpRuntimeValues,
 } from '@wrongstack/contracts/types/acp-runtime';
 import { acpRuntimeValuesError } from '@wrongstack/contracts/types/acp-runtime';
-import { installedBridgeAgents } from './acp-wrongstack-bridge.js';
+import { installedAcpAgents } from './acp-wrongstack-bridge.js';
 
 const pending = new Map<string, Promise<AcpRuntimeOptionsResult>>();
 let active = 0;
@@ -21,15 +24,16 @@ export function inspectAcpRuntime(
   projectRoot: string,
   agentId: string,
   values: AcpRuntimeValues = {},
+  live: AcpLiveCatalog = readCachedAcpRegistry()?.byId ?? {},
 ): Promise<AcpRuntimeOptionsResult> {
   const invalid = acpRuntimeValuesError(values);
   if (invalid) return Promise.reject(new Error(invalid));
   if (
-    !installedBridgeAgents(config.acp).includes(agentId) ||
+    !installedAcpAgents(config.acp, undefined, live).includes(canonicalAcpAgentId(agentId)) ||
     config.disabledProviders?.includes('acp')
   )
     return Promise.reject(new Error('ACP agent is not enabled in the installed agent list'));
-  const cmd = resolveAcpAgentCommand(agentId, config.acp?.agents);
+  const cmd = resolveAcpAgentCommand(agentId, config.acp?.agents, live);
   if (!cmd) return Promise.reject(new Error(`Unknown ACP agent: ${agentId}`));
   const desiredValues =
     Object.keys(values).length > 0
@@ -66,6 +70,7 @@ export function inspectAcpRuntime(
         .map((c) => ({
           name: c.name.slice(0, 100),
           ...(c.description ? { description: c.description.slice(0, 300) } : {}),
+          ...(c.input?.hint ? { inputHint: c.input.hint.slice(0, 300) } : {}),
         }));
       const modes = session
         .getAvailableModes()

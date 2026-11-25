@@ -62,8 +62,16 @@ export async function buildTurnInput(
   ];
   if (attached.pdfs.length > 0 || payload.blocks) input = blocks;
   if (blocks.some((block) => block.type === 'image')) {
-    let supportsVision = Boolean(agent.ctx.provider.capabilities.vision);
-    if (!supportsVision && agent.container?.has(TOKENS.ModelsRegistry)) {
+    const nativeVision = await agent.ctx.provider.supportsVisionFor?.(
+      agent.ctx.model,
+      agent.ctx.session.id,
+    );
+    let supportsVision = nativeVision ?? Boolean(agent.ctx.provider.capabilities.vision);
+    if (
+      nativeVision === undefined &&
+      !supportsVision &&
+      agent.container?.has(TOKENS.ModelsRegistry)
+    ) {
       try {
         const registry = agent.container.resolve(TOKENS.ModelsRegistry);
         const cfg = agent.container.has(TOKENS.ConfigStore)

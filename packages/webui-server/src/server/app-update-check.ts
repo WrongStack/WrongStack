@@ -126,7 +126,13 @@ export function createAppUpdateCheck(options: AppUpdateCheckOptions): AppUpdateC
     if (latest && now() - checkedAt < DAY_MS) return Promise.resolve();
     inflight ??= (async () => {
       try {
-        const found = await fetchLatest(fetchImpl, options.timeoutMs ?? 5000);
+        const timeoutMs =
+          typeof options.timeoutMs === 'number' &&
+          Number.isFinite(options.timeoutMs) &&
+          options.timeoutMs >= 1
+            ? Math.min(Math.floor(options.timeoutMs), 2_147_483_647)
+            : 5000;
+        const found = await fetchLatest(fetchImpl, timeoutMs);
         latest = found;
         checkedAt = now();
         failed = false;

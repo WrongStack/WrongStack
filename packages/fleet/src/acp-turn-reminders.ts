@@ -90,11 +90,16 @@ export function startAcpTurnReminders(options: AcpTurnRemindersOptions): () => v
     }
   };
 
+  const safeInterval = (value: number | undefined, fallback: number): number =>
+    typeof value === 'number' && Number.isFinite(value) && value > 0
+      ? Math.min(value, 2_147_483_647)
+      : fallback;
+
   const btwTimer = options.context
-    ? setInterval(() => void checkBtw(), options.btwPollMs ?? 1_000)
+    ? setInterval(() => void checkBtw(), safeInterval(options.btwPollMs, 1_000))
     : undefined;
   const mailTimer = options.unreadCount
-    ? setInterval(() => void checkMail(), options.mailPollMs ?? 15_000)
+    ? setInterval(() => void checkMail(), safeInterval(options.mailPollMs, 15_000))
     : undefined;
   btwTimer?.unref?.();
   mailTimer?.unref?.();

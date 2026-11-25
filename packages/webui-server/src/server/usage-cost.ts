@@ -94,7 +94,7 @@ function contextTier(cost: Record<string, unknown>, contextTokens: number): Pric
 export function getCostRates(model: unknown, contextTokens?: number): CostRates {
   const base = (model as { cost?: PriceFields & Record<string, unknown> } | null | undefined)?.cost;
   const tier =
-    base && typeof contextTokens === 'number' && contextTokens > 0
+    base && typeof contextTokens === 'number' && Number.isFinite(contextTokens) && contextTokens > 0
       ? contextTier(base, contextTokens)
       : null;
   const cost: PriceFields | undefined = tier

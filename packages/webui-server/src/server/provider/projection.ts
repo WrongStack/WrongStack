@@ -92,7 +92,7 @@ function modelIds(models: unknown): string[] | undefined {
   for (const entry of models) {
     const id =
       typeof entry === 'string'
-        ? entry
+        ? entry.trim()
         : entry && typeof entry === 'object' && typeof (entry as { id?: unknown }).id === 'string'
           ? (entry as { id: string }).id.trim()
           : '';

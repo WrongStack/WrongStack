@@ -11,12 +11,23 @@ export interface HostBudgetHost {
 
 export function budgetView(this: HostBudgetHost): import('./host-status.js').FleetBudgetView {
   const snap = this.fleetManager?.budgetSnapshot?.();
-  const maxSpawns =
+  const rawMaxSpawns =
     snap?.maxSpawns ?? this.opts.maxSpawns ?? this.director?.maxSpawns ?? Number.POSITIVE_INFINITY;
-  const usedSpawns = snap?.usedSpawns ?? this.director?.spawnCount ?? 0;
+  const maxSpawns =
+    rawMaxSpawns === Number.POSITIVE_INFINITY
+      ? Number.POSITIVE_INFINITY
+      : Number.isFinite(rawMaxSpawns)
+        ? Math.max(0, Math.floor(rawMaxSpawns))
+        : 0;
+  const rawUsedSpawns = snap?.usedSpawns ?? this.director?.spawnCount ?? 0;
+  const usedSpawns = Number.isFinite(rawUsedSpawns) ? Math.max(0, Math.floor(rawUsedSpawns)) : 0;
   const remainingSpawns =
-    snap?.remainingSpawns ??
-    Math.max(0, (Number.isFinite(maxSpawns) ? maxSpawns : Number.POSITIVE_INFINITY) - usedSpawns);
+    snap?.remainingSpawns !== undefined &&
+    (snap.remainingSpawns === Number.POSITIVE_INFINITY || Number.isFinite(snap.remainingSpawns))
+      ? snap.remainingSpawns
+      : maxSpawns === Number.POSITIVE_INFINITY
+        ? Number.POSITIVE_INFINITY
+        : Math.max(0, maxSpawns - usedSpawns);
   const live = this.director
     ? this.getCoordinator()
         .getStatus()

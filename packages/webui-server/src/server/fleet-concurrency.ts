@@ -56,7 +56,9 @@ export function installFleetConcurrencyFrames(deps: {
   emit();
   const off = [
     deps.events.on('concurrency.changed', (event) => {
-      ceiling = Math.max(1, event.n);
+      if (typeof event.n === 'number' && Number.isFinite(event.n)) {
+        ceiling = Math.max(1, Math.floor(event.n));
+      }
       emit();
     }),
     deps.events.on('subagent.spawned', () => {

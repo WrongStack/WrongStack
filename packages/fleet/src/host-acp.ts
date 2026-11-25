@@ -188,15 +188,28 @@ export function buildAcpSubagentRunner(
           const cleanup =
             baseCleanup || grantRevoke
               ? async () => {
-                  await Promise.resolve(baseCleanup?.()).catch(() => undefined);
-                  await Promise.resolve(grantRevoke?.()).catch(() => undefined);
+                  await Promise.resolve()
+                    .then(() => baseCleanup?.())
+                    .catch(() => undefined);
+                  await Promise.resolve()
+                    .then(() => grantRevoke?.())
+                    .catch(() => undefined);
                 }
               : undefined;
+          let permissionPolicy: AcpPermissionPolicy | undefined;
+          if (permissions) {
+            try {
+              permissionPolicy = permissions(ctx);
+            } catch (err) {
+              await cleanup?.();
+              throw err;
+            }
+          }
           return {
             ...base,
             ...(grant ? { mcpServers: [...grant.mcpServers, ...(base?.mcpServers ?? [])] } : {}),
             ...(cleanup ? { cleanup } : {}),
-            ...(permissions ? { permissionPolicy: permissions(ctx) } : {}),
+            ...(permissionPolicy ? { permissionPolicy } : {}),
           };
         }
       : undefined;

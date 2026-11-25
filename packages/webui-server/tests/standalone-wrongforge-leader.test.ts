@@ -21,7 +21,7 @@ vi.mock('@wrongstack/fleet', async (importOriginal) => ({
   refreshWrongForgeInfoCache: () => {},
   reportWrongForgeQuota: async () => false,
   // No ACP agent installed: only WrongForge is offered.
-  installedBridgeAgents: () => [],
+  installedAcpAgents: () => [],
 }));
 
 const { registerStandaloneAcpLeaderProvider, standaloneHostProviders } = await import(

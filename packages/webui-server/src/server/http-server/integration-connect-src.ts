@@ -19,8 +19,8 @@ export function integrationConnectSources(config: Config | undefined): string[] 
   if (!config) return [];
   const out: string[] = [];
   const hqUrl = (config as { hq?: { url?: unknown } }).hq?.url;
-  if (typeof hqUrl === 'string' && hqUrl.trim()) out.push(hqUrl);
+  if (typeof hqUrl === 'string' && hqUrl.trim()) out.push(hqUrl.trim());
   const proxyUrl = config.tools?.wrongProxy?.url;
-  if (typeof proxyUrl === 'string' && proxyUrl.trim()) out.push(proxyUrl);
+  if (typeof proxyUrl === 'string' && proxyUrl.trim()) out.push(proxyUrl.trim());
   return out;
 }

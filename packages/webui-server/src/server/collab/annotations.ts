@@ -37,6 +37,8 @@ export class AnnotateFeature implements CollabFeature {
     if (
       !payload?.sessionId ||
       typeof payload.atEventIndex !== 'number' ||
+      !Number.isSafeInteger(payload.atEventIndex) ||
+      payload.atEventIndex < 0 ||
       typeof payload.text !== 'string'
     ) {
       ctx.send(ws, ctx.errorMessage('annotate requires { sessionId, atEventIndex, text }'));

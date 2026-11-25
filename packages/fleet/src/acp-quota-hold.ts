@@ -11,6 +11,8 @@ import type { SubagentError } from '@wrongstack/contracts/types';
 
 /** Without a reset time from the agent, hold it this long. */
 const DEFAULT_HOLD_MS = 15 * 60_000;
+/** Cap hold duration so extreme backoffMs values cannot overflow Date or hold indefinitely. */
+const MAX_HOLD_MS = 24 * 60 * 60_000;
 
 const holds = new Map<string, { until: number; error: SubagentError }>();
 
@@ -46,9 +48,10 @@ export async function runWithQuotaHold<T>(
     if (isQuotaError(err)) {
       const holdMs =
         typeof err.backoffMs === 'number' && Number.isFinite(err.backoffMs) && err.backoffMs > 0
-          ? err.backoffMs
+          ? Math.min(err.backoffMs, MAX_HOLD_MS)
           : DEFAULT_HOLD_MS;
-      const nextUntil = now() + holdMs;
+      const nowMs = now();
+      const nextUntil = (Number.isFinite(nowMs) ? nowMs : Date.now()) + holdMs;
       const existing = holds.get(agentId);
       if (!existing || nextUntil > existing.until) {
         holds.set(agentId, { until: nextUntil, error: err });

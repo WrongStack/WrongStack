@@ -14,7 +14,9 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
  * fails the architecture test instead of degrading silently.
  */
 export function clampLimit(value: unknown, def: number, max: number): number {
-  const n = typeof value === 'number' && Number.isFinite(value) ? Math.floor(value) : def;
+  const safeDef = Number.isFinite(def) ? Math.max(1, Math.floor(def)) : 1;
+  const safeMax = Number.isFinite(max) ? Math.max(1, Math.floor(max)) : safeDef;
+  const n = typeof value === 'number' && Number.isFinite(value) ? Math.floor(value) : safeDef;
   if (n < 1) return 1;
-  return Math.min(n, max);
+  return Math.min(n, safeMax);
 }

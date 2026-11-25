@@ -44,6 +44,26 @@ export function registerSetupEventsCoreWatchers(
       }),
     );
   }
+  disposers.push(
+    deps.events.on('provider.todos_updated', (event) => {
+      // The shared context's state watcher already published the same update.
+      if (
+        event.ctx === context &&
+        typeof conversationState?.onChange === 'function' &&
+        context.session?.id === event.sessionId
+      ) {
+        return;
+      }
+      broadcast(
+        clients,
+        {
+          type: 'todos.updated',
+          payload: { sessionId: event.sessionId, todos: event.todos, revision: event.revision },
+        },
+        event.sessionId,
+      );
+    }),
+  );
 
   const projectRoot = context.projectRoot;
   if (projectRoot) {

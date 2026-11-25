@@ -1,3 +1,4 @@
+import { resolveAcpAgentCommand } from '@wrongstack/acp';
 import type { SubagentRunner } from '@wrongstack/contracts/types';
 import { type BuildAcpSubagentRunnerOptions, buildAcpSubagentRunner } from './host-acp.js';
 import { setBoundedLruEntry, touchLruKey } from './host-helpers.js';
@@ -10,7 +11,7 @@ function optsFingerprint(
   return JSON.stringify({
     projectRoot: opts.projectRoot ?? null,
     allowOutsideProjectRoot: opts.allowOutsideProjectRoot ?? false,
-    override: opts.overrides?.[subagentId] ?? null,
+    launch: resolveAcpAgentCommand(subagentId, opts.overrides, opts.live),
     bridgeRoot: opts.bridge?.projectRoot ?? null,
     bridge: opts.bridge?.config ?? null,
   });

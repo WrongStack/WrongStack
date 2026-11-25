@@ -16,14 +16,15 @@
  * Mailbox identity is per worker (`--actor` = subagent id) and `@session`
  * resolves to the WrongStack session that delegated the task.
  */
-import { statSync } from 'node:fs';
-import { join } from 'node:path';
 import {
   type AcpLiveCatalog,
   type AcpSessionSetup,
+  acpCommandOnPath,
+  canonicalAcpAgentId,
   defaultBridgeAgentIds,
   findAgentDescriptor,
-  REGISTRY_ID_ALIASES,
+  readCachedAcpRegistry,
+  resolveAcpAgentCommand,
   resolveAcpClientProfile,
 } from '@wrongstack/acp';
 import type { Config, SubagentRunContext, TaskSpec } from '@wrongstack/contracts/types';
@@ -353,27 +354,21 @@ export function leaderBridgeNote(servers: readonly BridgeServer[], indexCli?: st
   ].join('\n');
 }
 
-/** True when `command` resolves to a file on PATH (PATHEXT-aware on Windows). */
-export function onPath(
-  command: string,
-  env: NodeJS.ProcessEnv = process.env,
-  platform: NodeJS.Platform = process.platform,
-): boolean {
-  const pathVar = env.PATH ?? env.Path ?? '';
-  const exts =
-    platform === 'win32' ? ['', ...(env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';')] : [''];
-  const sep = platform === 'win32' ? ';' : ':';
-  for (const dir of pathVar.split(sep)) {
-    if (!dir) continue;
-    for (const ext of exts) {
-      try {
-        if (statSync(join(dir, command + ext)).isFile()) return true;
-      } catch {
-        // not here
-      }
-    }
-  }
-  return false;
+export { acpCommandOnPath as onPath };
+
+/** Available session leaders and runtime settings, independent of MCP access. */
+export function installedAcpAgents(
+  acp: Config['acp'] | undefined,
+  isOnPath: (command: string) => boolean = acpCommandOnPath,
+  live: AcpLiveCatalog | undefined = readCachedAcpRegistry()?.byId,
+): string[] {
+  const candidates = defaultBridgeAgentIds(Object.keys(live ?? {}));
+  return detectAcpCommands(
+    [...candidates, ...Object.keys(acp?.agents ?? {}), ...(acp?.bridge?.agents ?? [])],
+    acp?.agents,
+    isOnPath,
+    live,
+  );
 }
 
 /**
@@ -383,22 +378,37 @@ export function onPath(
  */
 export function installedBridgeAgents(
   acp: Config['acp'] | undefined,
-  isOnPath: (command: string) => boolean = (c) => onPath(c),
-  live?: AcpLiveCatalog | undefined,
+  isOnPath: (command: string) => boolean = acpCommandOnPath,
+  live: AcpLiveCatalog | undefined = readCachedAcpRegistry()?.byId,
 ): string[] {
   if ((acp?.bridge?.servers ?? DEFAULT_BRIDGE_SERVERS).length === 0) return [];
-  const toCatalogId = new Map(Object.entries(REGISTRY_ID_ALIASES).map(([c, r]) => [r, c]));
-  const candidates =
-    acp?.bridge?.agents ?? defaultBridgeAgentIds(live ? Object.keys(live) : undefined);
-  const out: string[] = [];
+  const allowed =
+    acp?.bridge?.agents ??
+    defaultBridgeAgentIds([...Object.keys(live ?? {}), ...Object.keys(acp?.agents ?? {})]);
+  return detectAcpCommands(allowed, acp?.agents, isOnPath, live);
+}
+
+function detectAcpCommands(
+  candidates: readonly string[],
+  overrides: NonNullable<Config['acp']>['agents'],
+  isOnPath: (command: string) => boolean,
+  live: AcpLiveCatalog | undefined,
+): string[] {
+  const out = new Set<string>();
   for (const listed of candidates) {
-    const id = findAgentDescriptor(listed) ? listed : (toCatalogId.get(listed) ?? listed);
-    if (out.includes(id)) continue;
-    const probe =
-      findAgentDescriptor(id)?.probe.command ?? live?.[listed]?.command ?? live?.[id]?.command;
-    if (acp?.agents?.[id] || acp?.agents?.[listed] || (probe && isOnPath(probe))) out.push(id);
+    const id = canonicalAcpAgentId(listed);
+    const command = resolveAcpAgentCommand(listed, overrides, live)?.command;
+    const configured = overrides && [id, listed].some((key) => Object.hasOwn(overrides, key));
+    if (configured) {
+      out.add(id);
+    } else if (command === 'npx' || command === 'uvx') {
+      const probe = findAgentDescriptor(id)?.probe.command;
+      if (probe && isOnPath(probe) && isOnPath(command)) out.add(id);
+    } else if (command && isOnPath(command)) {
+      out.add(id);
+    }
   }
-  return out;
+  return [...out];
 }
 
 /**
@@ -415,8 +425,8 @@ export function wrongstackBridgeSetup(
   const profile = resolveAcpClientProfile(agentId);
   if (config?.agents !== undefined) {
     // Explicit user allowlist in `acp.bridge.agents` (empty array disables bridge).
-    const listed = (a: string) =>
-      a === agentId || REGISTRY_ID_ALIASES[a] === agentId || REGISTRY_ID_ALIASES[agentId] === a;
+    const canonical = canonicalAcpAgentId(agentId);
+    const listed = (a: string) => canonicalAcpAgentId(a) === canonical;
     if (!config.agents.some(listed)) return undefined;
   } else if (!profile.bridgeByDefault) {
     return undefined;

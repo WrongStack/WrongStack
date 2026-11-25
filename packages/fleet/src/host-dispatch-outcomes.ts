@@ -38,8 +38,10 @@ export function createDispatchOutcomeRecorder(opts: {
     const usage = director?.usage.snapshot().perSubagent[e.subagentId];
     const resolved = director?.resolvedModelFor(e.subagentId);
     const cost = usage?.cost;
-    const taskCost = typeof cost === 'number' ? Math.max(0, cost - worker.costSeen) : undefined;
-    if (typeof cost === 'number') worker.costSeen = cost;
+    const finiteCost = typeof cost === 'number' && Number.isFinite(cost) ? cost : undefined;
+    const taskCost =
+      finiteCost !== undefined ? Math.max(0, finiteCost - worker.costSeen) : undefined;
+    if (finiteCost !== undefined) worker.costSeen = finiteCost;
     recordDispatchOutcome(
       {
         at: new Date().toISOString(),
