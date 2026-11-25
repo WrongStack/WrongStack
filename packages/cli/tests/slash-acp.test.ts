@@ -2,6 +2,11 @@
  * Tests for the `/acp` slash command — dispatch + routing only. The heavy
  * ACP runner/registry/probe layer is mocked (covered in packages/acp tests).
  */
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import type { SessionWriter } from '@wrongstack/contracts/types';
+import { DefaultSessionStore } from '@wrongstack/core/storage';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const runEnsemble = vi.fn();
@@ -83,8 +88,63 @@ beforeEach(() => {
 });
 
 describe('/acp dispatch', () => {
+  it('restores a journaled ACP companion after reopen without sharing it with a fork', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-acp-companion-'));
+    let writer: SessionWriter | undefined;
+    const options = (sessionStore: DefaultSessionStore) =>
+      Object.assign({}, fakeOpts() as object, { sessionStore }) as never;
+    resolveAcpAgentCommand.mockReturnValue({ command: 'codex-acp' });
+    runOneAcpTask
+      .mockResolvedValueOnce({ result: 'started', agentSessionId: 'codex session 1' })
+      .mockResolvedValueOnce({ result: 'continued', agentSessionId: 'codex session 1' });
+    try {
+      const store = new DefaultSessionStore({ dir });
+      writer = await store.create({ id: 'acp-companion-journal' });
+      const original = writer.id;
+      await cmd(options(store)).run('companion codex-cli Inspect the diff', {
+        session: writer,
+      } as never);
+      await writer.close();
+      writer = undefined;
+
+      const reopened = new DefaultSessionStore({ dir });
+      const forked = await reopened.fork(original);
+      expect(forked.data.events).not.toContainEqual(
+        expect.objectContaining({ type: 'acp_companion_link' }),
+      );
+      const restored = await reopened.resume(original);
+      writer = restored.writer;
+      const command = cmd(options(reopened));
+      const context = { session: writer } as never;
+      expect(await command.run('companion', context)).toMatchObject({
+        message: expect.stringContaining('codex session 1'),
+      });
+      await command.run('companion codex-cli Explain your finding', context);
+      expect(runOneAcpTask).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          sessionTarget: { action: 'resume', sessionId: 'codex session 1' },
+        }),
+      );
+      await command.run('companion forget codex-cli', context);
+      await writer.close();
+      writer = undefined;
+
+      const reopenedAgain = new DefaultSessionStore({ dir });
+      writer = (await reopenedAgain.resume(original)).writer;
+      expect(
+        await cmd(options(reopenedAgain)).run('companion', { session: writer } as never),
+      ).toMatchObject({
+        message: 'No ACP companions in this conversation.',
+      });
+    } finally {
+      await writer?.close().catch(() => {});
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it('reuses an ACP companion session only in the conversation that opened it', async () => {
-    const command = cmd();
+    const observe = vi.fn();
+    const command = cmd({ ...fakeOpts(), onAcpWorkerUpdate: observe } as never);
     const first = { session: { id: 'first' } } as never;
     const second = { session: { id: 'second' } } as never;
     resolveAcpAgentCommand.mockReturnValue({ command: 'codex-acp' });
@@ -101,6 +161,20 @@ describe('/acp dispatch', () => {
     });
     await command.run('companion codex-cli Explain the earlier finding', first);
     await command.run('companion codex-cli Start a new review', second);
+    expect(observe).toHaveBeenNthCalledWith(1, {
+      sessionId: 'first',
+      workerId: 'companion:codex-cli',
+      agentId: 'codex-cli',
+      state: 'running',
+      task: 'Read the diff',
+    });
+    expect(observe).toHaveBeenNthCalledWith(4, {
+      sessionId: 'first',
+      workerId: 'companion:codex-cli',
+      agentId: 'codex-cli',
+      state: 'finished',
+      text: 'continued',
+    });
 
     expect(runOneAcpTask).toHaveBeenNthCalledWith(
       2,
@@ -116,6 +190,29 @@ describe('/acp dispatch', () => {
     });
     expect(await command.run('companion', second)).toMatchObject({
       message: expect.stringContaining('codex session 2'),
+    });
+  });
+
+  it('keeps the answer and reports a journal failure without publishing a link', async () => {
+    const command = cmd(
+      Object.assign({}, fakeOpts() as object, {
+        sessionStore: { load: async () => ({ events: [] }) },
+      }) as never,
+    );
+    const context = {
+      session: { id: 'first', append: vi.fn().mockRejectedValue(new Error('journal unavailable')) },
+    } as never;
+    resolveAcpAgentCommand.mockReturnValue({ command: 'codex-acp' });
+    runOneAcpTask.mockResolvedValueOnce({ result: 'answer', agentSessionId: 'first-id' });
+
+    const result = await command.run('companion codex-cli Review', context);
+    expect(result).toMatchObject({
+      message: expect.stringMatching(
+        /answer[\s\S]+ACP companion link could not be saved: journal unavailable/,
+      ),
+    });
+    expect(await command.run('companion', context)).toMatchObject({
+      message: 'No ACP companions in this conversation.',
     });
   });
 

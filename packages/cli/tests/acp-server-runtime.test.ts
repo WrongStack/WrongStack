@@ -14,6 +14,7 @@ const built = vi.hoisted(() => ({
   }>,
   telemetryStops: 0,
   detached: [] as string[],
+  prepareProvider: vi.fn(async () => {}),
 }));
 
 vi.mock('../src/acp-server-agent.js', () => {
@@ -29,6 +30,7 @@ vi.mock('../src/acp-server-agent.js', () => {
       };
       built.factories.push(record);
       return Object.assign(async (sessionId: string) => ({ sessionId }) as never, {
+        prepareProvider: built.prepareProvider,
         disposeSession: (sessionId: string) => record.disposed.push(sessionId),
         selectModel: async (_agent: unknown, providerId: string, modelId: string) => {
           record.selected.push(`${providerId}/${modelId}`);
@@ -67,9 +69,18 @@ beforeEach(() => {
   built.factories.length = 0;
   built.telemetryStops = 0;
   built.detached.length = 0;
+  built.prepareProvider.mockReset();
 });
 
 describe('createAcpServerRuntime', () => {
+  it('requires provider initialization before auth succeeds and re-reads repaired settings', async () => {
+    built.prepareProvider.mockRejectedValueOnce(new Error('missing api key'));
+    const reloadConfig = vi.fn(async () => CONFIGURED as never);
+    const runtime = createAcpServerRuntime(deps(CONFIGURED), { reloadConfig });
+    expect(await runtime.authGate()).toMatchObject({ ok: false });
+    expect(await runtime.authGate()).toEqual({ ok: true });
+    expect(reloadConfig).toHaveBeenCalledOnce();
+  });
   it('starts unconfigured and stays not ready while the saved config has no provider', async () => {
     const reloadConfig = vi.fn(async () => ({}) as never);
     const runtime = createAcpServerRuntime(deps(), { reloadConfig });
@@ -229,6 +240,11 @@ describe('createAcpServerRuntime', () => {
     ]);
     expect(built.factories[0]?.selected).toEqual(['openai/o3']);
     expect(built.factories[0]?.efforts).toEqual(['high']);
+
+    await runtime.sessionConfigOptions([{ ...options[0]!, currentValue: 'openai/removed' }]);
+    expect(buildEffortOption).toHaveBeenLastCalledWith(
+      expect.objectContaining({ providerId: 'openai', modelId: 'o3' }),
+    );
   });
 
   it('still runs the turn teardown while unconfigured', () => {

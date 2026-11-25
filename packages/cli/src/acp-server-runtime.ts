@@ -119,6 +119,7 @@ export function createAcpServerRuntime(
   const reloadConfig = options.reloadConfig ?? defaultReload(deps);
   const projectRoot = deps.cwd ?? process.cwd();
   let built: Built | undefined;
+  let providerReady = false;
   let pending: Promise<AuthGateResult> | undefined;
   const commands = createAcpServerCommands({
     paths: deps.paths,
@@ -143,25 +144,38 @@ export function createAcpServerRuntime(
   if (isConfigured(deps.config)) built = build(deps.config);
 
   const check = async (): Promise<AuthGateResult> => {
-    if (built) return { ok: true };
-    let config: Config;
+    let candidate = built;
+    if (!candidate) {
+      let config: Config;
+      try {
+        config = await reloadConfig();
+      } catch (err) {
+        return {
+          ok: false,
+          message: `${ACP_LOGIN_HINT} (configuration could not be read: ${toErrorMessage(err)})`,
+        };
+      }
+      if (!isConfigured(config)) return { ok: false, message: ACP_LOGIN_HINT };
+      candidate = build(config);
+    }
     try {
-      config = await reloadConfig();
-    } catch (err) {
-      const reason = toErrorMessage(err);
+      await candidate.raw.prepareProvider();
+    } catch {
+      candidate.telemetry.stop();
+      built = undefined;
       return {
         ok: false,
-        message: `${ACP_LOGIN_HINT} (configuration could not be read: ${reason})`,
+        message:
+          'The configured provider could not be initialized. Run `wstack auth` to check its settings, then retry.',
       };
     }
-    if (!isConfigured(config)) return { ok: false, message: ACP_LOGIN_HINT };
-    // Another caller may have finished building while the reload ran.
-    built ??= build(config);
+    built = candidate;
+    providerReady = true;
     return { ok: true };
   };
 
   const authGate = (): Promise<AuthGateResult> => {
-    if (built) return Promise.resolve({ ok: true });
+    if (providerReady) return Promise.resolve({ ok: true });
     // Concurrent session/new requests share one reload and one build.
     pending ??= check().finally(() => {
       pending = undefined;
@@ -177,13 +191,17 @@ export function createAcpServerRuntime(
       mcpServers?: readonly McpServer[],
       systemPrompt?: SessionSystemPrompt,
     ): Promise<Agent> => {
-      if (!built) {
+      if (!providerReady) {
         const gate = await authGate();
         if (!gate.ok) throw new AcpServerConfigError(gate.message);
       }
       return built!.wrapped(sessionId, cwd, api, mcpServers, systemPrompt);
     },
     {
+      prepareProvider: async () => {
+        const gate = await authGate();
+        if (!gate.ok) throw new AcpServerConfigError(gate.message);
+      },
       disposeSession(sessionId: string): void {
         built?.raw.disposeSession(sessionId);
       },
@@ -217,8 +235,17 @@ export function createAcpServerRuntime(
         config: built.config,
         modelsRegistry: deps.modelsRegistry,
       });
+      const requested = current ? selectedAcpModel(current) : null;
+      const requestedValue = requested ? `${requested.providerId}/${requested.modelId}` : undefined;
+      const isOffered =
+        modelOption?.type === 'select' &&
+        modelOption.options?.some((entry) =>
+          'options' in entry
+            ? entry.options.some((choice) => choice.value === requestedValue)
+            : entry.value === requestedValue,
+        );
       const activeModel =
-        (current ? selectedAcpModel(current) : null) ??
+        (isOffered ? requested : null) ??
         (modelOption && typeof modelOption.currentValue === 'string'
           ? parseAcpModelValue(modelOption.currentValue)
           : null);

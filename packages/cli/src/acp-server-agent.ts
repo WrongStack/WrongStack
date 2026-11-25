@@ -30,7 +30,7 @@ import { createModelRuntimeMiddleware, ToolExecutor } from '@wrongstack/core/exe
 import { DefaultLogger, DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import { ToolRegistry } from '@wrongstack/core/registry';
 import { AutoApprovePermissionPolicy } from '@wrongstack/core/security';
-import { resolveWstackPaths, type WstackPaths } from '@wrongstack/core/utils';
+import { resolveWstackPaths, sessionScopedPath, type WstackPaths } from '@wrongstack/core/utils';
 import { WRONGFORGE_REASONING } from '@wrongstack/fleet';
 import { type MCPRegistry, mcpServerInstructionsSection } from '@wrongstack/mcp';
 import { catalogProviderIdFor, withCatalogCapabilities } from '@wrongstack/providers';
@@ -39,8 +39,12 @@ import {
   createProjectPermissionPolicy,
   wireKanbanPorts,
 } from '@wrongstack/runtime';
+import { makeSkillTool } from '@wrongstack/tools';
 import { connectAcpSessionMcpServers } from './acp-mcp-servers.js';
+import { installAcpNativeDelegation } from './acp-native-delegation.js';
 import { ACPClientPermissionPolicy } from './acp-session-modes.js';
+import { resolveBundledPromptsDir } from './cli-bundled-prompts.js';
+import { resolveBundledSkillsDir } from './cli-bundled-skills.js';
 
 export { ACPClientPermissionPolicy } from './acp-session-modes.js';
 
@@ -99,6 +103,7 @@ export interface AcpServerAgentFactory {
     mcpServers?: readonly McpServer[],
     systemPrompt?: SessionSystemPrompt,
   ): Promise<Agent>;
+  prepareProvider(): Promise<void>;
   /** Stop and forget the MCP servers connected for this ACP session. */
   disposeSession(sessionId: string): void;
   /**
@@ -301,12 +306,15 @@ export function buildAcpServerAgentFactory(
     wpaths,
     logger,
     modelsRegistry: deps.modelsRegistry,
+    bundledPromptsDir: config.features.prompts === false ? undefined : resolveBundledPromptsDir(),
+    bundledSkillsDir: config.features.skills === false ? undefined : resolveBundledSkillsDir(),
   });
 
   // Per-session MCP registries, keyed by ACP session id. Held here (not on the
   // Agent) because teardown is driven by `session/close`, which reaches this
   // module through `disposeSession` rather than through the Agent.
   const sessionMcp = new Map<string, MCPRegistry>();
+  const sessionDelegation = new Map<string, () => Promise<void>>();
   // A broken `.wrongstack/directory-rules.json` leaves no arbiter: `yolo` and
   // `auto-edit` then ask for every gated call rather than guess.
   const yoloArbiter = (cwd: string): PermissionPolicy | undefined => {
@@ -352,6 +360,11 @@ export function buildAcpServerAgentFactory(
     wireKanbanPorts();
     const source = deps.toolRegistry ?? new ToolRegistry();
     const tools = source.clone();
+    tools.unregister('nextsteps');
+    if (config.features.skills !== false && !tools.get('skill')) {
+      const skillLoader = container.safeResolve(TOKENS.SkillLoader);
+      if (skillLoader) tools.register(makeSkillTool(skillLoader));
+    }
     if (api) {
       wireClientBackedTools(tools, api);
     }
@@ -414,6 +427,49 @@ export function buildAcpServerAgentFactory(
     // leader-delivery drain matched no session and a queued result could
     // never reach this conversation.
     const session = createAcpSessionWriter(sessionId);
+    const sessionDir = resolveWstackPaths({ projectRoot: cwd }).projectSessions;
+    const ownsSession = () =>
+      sessionGeneration.get(sessionId) === generation && !disposedSessions.has(sessionId);
+    let leader: Context | undefined;
+    const stopDelegation = installAcpNativeDelegation({
+      deps: {
+        container,
+        events,
+        providerRegistry,
+        toolRegistry: tools,
+        tokenCounter,
+        session,
+        projectRoot: cwd,
+        modelsRegistry: deps.modelsRegistry,
+      },
+      config,
+      flags: deps.flags,
+      sessionsDir: sessionDir,
+      api,
+      authorizeSubagentTool: api
+        ? async (tool, input, worker) => {
+            const context = worker ?? leader;
+            return context && ownsSession()
+              ? permissionPolicy.evaluate(tool, input, context)
+              : {
+                  permission: 'deny',
+                  source: 'default',
+                  reason: 'ACP session is no longer available',
+                };
+          }
+        : undefined,
+      userInputAwaiter: async (request, { signal }) =>
+        (await (ownsSession() ? leader?.requestUserInput(request, signal) : undefined)) ?? {
+          requestId: request.id,
+          status: 'cancelled',
+          answers: [],
+        },
+    });
+    if (ownsSession()) {
+      const priorDelegation = sessionDelegation.get(sessionId);
+      if (priorDelegation) void priorDelegation().catch(() => {});
+      sessionDelegation.set(sessionId, stopDelegation);
+    } else void stopDelegation().catch(() => {});
 
     const context = new Context({
       systemPrompt: [
@@ -435,6 +491,9 @@ export function buildAcpServerAgentFactory(
       agentId: 'leader',
       agentName: 'wrongstack-acp',
     });
+    leader = context;
+    context.state.setMeta('plan.path', sessionScopedPath(sessionDir, sessionId, '.plan.json'));
+    context.state.setMeta('task.path', sessionScopedPath(sessionDir, sessionId, '.tasks.json'));
 
     const toolExecutor = new ToolExecutor(tools, {
       permissionPolicy,
@@ -527,9 +586,19 @@ export function buildAcpServerAgentFactory(
     }
   };
 
+  agentFor.prepareProvider = async () => {
+    await bootProvider();
+  };
+
   agentFor.disposeSession = (sessionId: string): void => {
     disposedSessions.add(sessionId);
     sessionGeneration.set(sessionId, (sessionGeneration.get(sessionId) ?? 0) + 1);
+    const stopDelegation = sessionDelegation.get(sessionId);
+    sessionDelegation.delete(sessionId);
+    if (stopDelegation)
+      void stopDelegation().catch((err) =>
+        logger.warn(`ACP session ${sessionId}: delegation teardown failed`, err),
+      );
     const mcp = sessionMcp.get(sessionId);
     if (!mcp) return;
     sessionMcp.delete(sessionId);

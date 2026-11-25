@@ -50,9 +50,17 @@ export function setupTeardownRegistrar(args: TeardownRegistrarArgs): TeardownReg
       try {
         store.close();
       } catch (error) {
-        logger.debug?.(
-          `vector memory close failed: ${error instanceof Error ? error.message : String(error)}`,
-        );
+        let msg: string;
+        if (error instanceof Error) {
+          msg = error.message;
+        } else {
+          try {
+            msg = String(error);
+          } catch {
+            msg = 'unknown error';
+          }
+        }
+        logger.debug?.(`vector memory close failed: ${msg}`);
       }
     });
   }

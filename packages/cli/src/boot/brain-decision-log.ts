@@ -72,7 +72,11 @@ export function subscribeBrainDecisionLog(
   const tierCounter = new BrainTierCounter();
   const pushBrainLog = (entry: BrainDecisionEntry): void => {
     brainLog.push(entry);
-    const maxEntries = getMaxEntries();
+    const rawMax = getMaxEntries();
+    const maxEntries =
+      typeof rawMax === 'number' && Number.isFinite(rawMax) && rawMax >= 1
+        ? Math.floor(rawMax)
+        : MAX_BRAIN_LOG_ENTRIES;
     if (brainLog.length > maxEntries) brainLog.splice(0, brainLog.length - maxEntries);
   };
 

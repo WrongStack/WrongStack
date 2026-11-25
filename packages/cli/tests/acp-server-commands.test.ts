@@ -6,9 +6,14 @@
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { TOKENS } from '@wrongstack/contracts/kernel';
 import type { Agent } from '@wrongstack/core/agent';
+import { DefaultPromptLoader } from '@wrongstack/core/execution';
+import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { createAcpSessionWriter } from '../src/acp-server-agent.js';
 import { createAcpServerCommands } from '../src/acp-server-commands.js';
+import { resolveBundledPromptsDir } from '../src/cli-bundled-prompts.js';
 
 let projectRoot: string;
 beforeAll(async () => {
@@ -21,7 +26,13 @@ afterAll(async () => {
 const agentIn = (root: string) =>
   ({
     container: { safeResolve: () => undefined },
-    ctx: { projectRoot: root, meta: {}, messages: [], todos: [] },
+    ctx: {
+      projectRoot: root,
+      meta: {},
+      messages: [],
+      todos: [],
+      session: createAcpSessionWriter('acp-cmd-test'),
+    },
     tools: undefined,
     permission: undefined,
   }) as unknown as Agent;
@@ -39,6 +50,71 @@ const turn = (api?: { requestPermission: ReturnType<typeof vi.fn> }, signal?: Ab
 };
 
 describe('the ACP server’s slash commands', () => {
+  it('prepares all builtin hunt and performance prompts and exposes the same prompt library', async () => {
+    const paths = resolveWstackPaths({
+      projectRoot,
+      globalRoot: path.join(projectRoot, 'profile'),
+    });
+    const bundledDir = resolveBundledPromptsDir();
+    expect(bundledDir).toBeDefined();
+    const loader = new DefaultPromptLoader({ paths, bundledDir });
+    const agent = agentIn(projectRoot);
+    Reflect.set(agent.container, 'safeResolve', (token: unknown) =>
+      token === TOKENS.PromptLoader ? loader : undefined,
+    );
+    const commands = createAcpServerCommands({ projectRoot, paths });
+    const check = async (name: string, args: string) =>
+      commands.run(agent, 'builtin-prompts', { name, args }, turn().ctx);
+    const rounds = [
+      'bughunt',
+      'sechunt',
+      'racehunt',
+      'debloat',
+      'uipolish',
+      'typehunt',
+      'testgap',
+      'secproof',
+      'leakhunt',
+      'flakehunt',
+      'deadcode',
+      'excise',
+      'a11yhunt',
+      'uihunt',
+      'boundaryhunt',
+      'covhunt',
+      'invarianthunt',
+    ];
+    expect((await commands.list()).map((c) => c.name)).toEqual(
+      expect.arrayContaining([
+        'bughunt',
+        'sechunt',
+        'racehunt',
+        'debloat',
+        'uipolish',
+        'typehunt',
+        'testgap',
+        'perf',
+      ]),
+    );
+    for (const name of rounds) {
+      const result = await check(name, 'packages/acp');
+      expect(result?.runText, `${name}: ${result?.message}`).toContain('## User-selected target');
+    }
+    for (const args of ['ratchet', 'audit', 'triage', 'memory', 'io', 'cpu', 'guard', 'contract']) {
+      const result = await check('perf', `${args} packages/acp --no-stack`);
+      expect(result?.runText, `${args}: ${result?.message}`).toContain('packages/acp');
+    }
+    expect((await check('ratchet', 'packages/acp --no-stack'))?.runText).toContain('packages/acp');
+    expect((await check('prompt', 'insert proof-driven-bug-hunter'))?.runText).toContain(
+      'Proof-Driven Bug Hunter',
+    );
+    expect((await check('prompts', 'view proof-driven-bug-hunter'))?.message).toContain(
+      'Proof-Driven Bug Hunter',
+    );
+    expect((await check('prompts', 'show Proof-Driven Bug Hunter'))?.message).toContain(
+      'Proof-Driven Bug Hunter',
+    );
+  });
   it('lists canonical names with hints, and none of the fleet commands', async () => {
     const list = await createAcpServerCommands({ projectRoot }).list();
     const names = list.map((c) => c.name);
@@ -49,6 +125,69 @@ describe('the ACP server’s slash commands', () => {
     expect(new Set(names).size).toBe(names.length);
     expect(list.find((c) => c.name === 'git')?.input?.hint).toMatch(/status/);
     for (const command of list) expect(command.description.length).toBeGreaterThan(0);
+  });
+
+  it('uses the active profile for plugin listing and keeps aliases behind the canonical gate', async () => {
+    const paths = resolveWstackPaths({
+      projectRoot,
+      globalRoot: path.join(projectRoot, 'profile'),
+      profileName: 'acp-command-test',
+    });
+    const agent = agentIn(projectRoot);
+    let readConfig = false;
+    Reflect.set(agent.container, 'safeResolve', (token: unknown) =>
+      token === TOKENS.ConfigStore
+        ? {
+            get: () => {
+              readConfig = true;
+              return { plugins: [] };
+            },
+          }
+        : undefined,
+    );
+    const commands = createAcpServerCommands({ projectRoot, paths });
+    const listing = await commands.run(
+      agent,
+      'profile',
+      { name: 'plugins', args: 'list' },
+      turn().ctx,
+    );
+    expect(readConfig).toBe(true);
+    expect(listing?.message).toMatch(/plugin/i);
+    expect(listing?.message).not.toMatch(/not available|failed:/);
+    const refused = await commands.run(
+      agent,
+      'profile',
+      { name: 'checkup', args: 'fix' },
+      turn().ctx,
+    );
+    expect(refused?.message).toBe('/tuneup was not run: the request was rejected.');
+  });
+
+  it('uses the live ACP conversation without reading the unrelated local transcript store', async () => {
+    const commands = createAcpServerCommands({ projectRoot });
+    const agent = agentIn(projectRoot);
+    const load = vi.fn().mockRejectedValue(new Error('not a local journal'));
+    Reflect.set(agent.container, 'safeResolve', (token: unknown) =>
+      token === TOKENS.SessionStore ? { load } : undefined,
+    );
+    const names = (await commands.list()).map(({ name }) => name);
+    expect(names).not.toContain('tree');
+    expect(names).not.toContain('panel');
+    expect(
+      (await commands.run(agent, 'live', { name: 'tree', args: 'list' }, turn().ctx))?.message,
+    ).toContain('Use the editor’s session controls');
+    const allow = {
+      requestPermission: vi.fn(async () => ({ outcome: 'selected', optionId: 'allow_once' })),
+    };
+    const companion = await commands.run(
+      agent,
+      'live',
+      { name: 'acp', args: 'companion' },
+      turn(allow).ctx,
+    );
+    expect(companion?.message).toBe('No ACP companions in this conversation.');
+    expect(load).not.toHaveBeenCalled();
   });
 
   it('runs every listed command against a session host without a missing-piece failure', async () => {

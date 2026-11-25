@@ -46,7 +46,8 @@ function normalizeAddress(raw: string): string {
 
 /** The actual TCP peer, with IPv4-mapped IPv6 normalized. Never reads headers. */
 export function resolveSocketAddress(req: http.IncomingMessage): string | undefined {
-  return req.socket.remoteAddress ? normalizeAddress(req.socket.remoteAddress) : undefined;
+  const normalized = req.socket.remoteAddress ? normalizeAddress(req.socket.remoteAddress) : '';
+  return normalized || undefined;
 }
 
 /**

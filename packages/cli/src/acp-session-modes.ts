@@ -12,14 +12,20 @@
  * policy would still confirm goes to the client as a permission request.
  */
 
+import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { RunTurnApi, WrongStackACPServerOptions } from '@wrongstack/acp/agent';
+import type {
+  RunTurnApi,
+  SessionConfigOption,
+  WrongStackACPServerOptions,
+} from '@wrongstack/acp/agent';
 import type { PermissionDecision, PermissionPolicy, Tool } from '@wrongstack/contracts/types';
 import type { AgentContext } from '@wrongstack/contracts/types/context';
 import { ToolCapabilities } from '@wrongstack/core/security';
+import { isRestrictedMode } from './boot/restricted-mode.js';
 
-export const ACP_MODE_IDS = ['default', 'plan', 'auto-edit', 'yolo'] as const;
+export const ACP_MODE_IDS = ['default', 'plan', 'auto-edit', 'yolo', 'yolo-plus'] as const;
 export type AcpModeId = (typeof ACP_MODE_IDS)[number];
 export type SessionMode = NonNullable<WrongStackACPServerOptions['modes']>[number];
 
@@ -46,6 +52,11 @@ const MODES: Record<AcpModeId, SessionMode> = {
     description:
       'Acts without asking, like `wstack --yolo`; still asks before destructive actions and calls your deny rules forbid.',
   },
+  'yolo-plus': {
+    id: 'yolo-plus',
+    name: 'YOLO+',
+    description: 'Uses the host’s YOLO+ permission policy. Explicit deny rules still apply.',
+  },
 };
 
 export function isAcpModeId(value: unknown): value is AcpModeId {
@@ -54,7 +65,22 @@ export function isAcpModeId(value: unknown): value is AcpModeId {
 
 /** The advertised modes, the start mode first: a new session opens in the first one. */
 export function acpSessionModes(start: AcpModeId = 'default'): SessionMode[] {
-  return [MODES[start], ...ACP_MODE_IDS.filter((id) => id !== start).map((id) => MODES[id])];
+  return [
+    MODES[start],
+    ...ACP_MODE_IDS.filter((id) => id !== start && id !== 'yolo-plus').map((id) => MODES[id]),
+  ];
+}
+
+export function acpModeConfigOption(modes: readonly SessionMode[]): SessionConfigOption {
+  return {
+    id: 'mode',
+    name: 'Session Mode',
+    description: 'Controls when the session needs approval for a tool call.',
+    category: 'mode',
+    type: 'select',
+    currentValue: modes[0]?.id ?? 'default',
+    options: modes.map(({ id, name, description }) => ({ value: id, name, description })),
+  };
 }
 
 /**
@@ -65,15 +91,21 @@ export function resolveAcpStartMode(
   flags: Record<string, unknown> | undefined,
 ): { modeId: AcpModeId } | { error: string } {
   const yolo = flags?.['yolo'] === true || flags?.['yolo'] === 'true';
+  const plus = flags?.['yolo-plus'] === true || flags?.['yolo-plus'] === 'true';
   const raw = flags?.['mode'];
-  if (raw === undefined || raw === false) return { modeId: yolo ? 'yolo' : 'default' };
-  if (!isAcpModeId(raw)) {
+  if (raw !== undefined && raw !== false && !isAcpModeId(raw)) {
     return {
       error: `Unknown ACP mode "${String(raw)}". Choose one of: ${ACP_MODE_IDS.join(', ')}.`,
     };
   }
-  if (yolo && raw !== 'yolo') return { error: `--yolo conflicts with --mode ${raw}.` };
-  return { modeId: raw };
+  if (yolo && plus) return { error: '--yolo conflicts with --yolo-plus.' };
+  const flagMode = plus ? 'yolo-plus' : yolo ? 'yolo' : undefined;
+  if (flagMode && raw && raw !== flagMode)
+    return { error: `--${flagMode} conflicts with --mode ${raw}.` };
+  const modeId = raw || flagMode || 'default';
+  if (modeId === 'yolo-plus' && isRestrictedMode(flags ?? {}))
+    return { error: 'ACP YOLO+ is unavailable in restricted mode.' };
+  return { modeId };
 }
 
 /** Capabilities considered safe to auto-approve without asking the client. */
@@ -140,21 +172,27 @@ export class ACPClientPermissionPolicy implements PermissionPolicy {
   ) {}
 
   async evaluate(tool: Tool, input: unknown, ctx?: AgentContext): Promise<PermissionDecision> {
+    if (tool.permission === 'deny') {
+      return { permission: 'deny', source: 'default', reason: 'tool default deny' };
+    }
     const caps = tool.capabilities ?? [];
     // Safe iff every declared capability is in the safe set (and at least
     // one exists). A tool with no declared caps is treated as unsafe.
-    if (caps.length > 0 && caps.every((c) => SAFE_CAPS.has(c))) {
-      return { permission: 'auto', source: 'default' };
-    }
+    const safe = tool.mutating !== true && caps.length > 0 && caps.every((c) => SAFE_CAPS.has(c));
     if (this.alwaysDenied.has(tool.name)) {
       return { permission: 'deny', source: 'user', reason: 'always rejected by ACP client' };
     }
     const mode = this.opts.mode?.();
-    if (mode === 'plan') {
+    if (mode === 'plan' && !safe) {
       return { permission: 'deny', source: 'default', reason: 'plan mode is read-only' };
     }
-    const verdict = await this.arbiterVerdict(tool, input, ctx);
+    const verdict = await this.arbiterVerdict(tool, input, ctx, mode === 'yolo-plus');
     if (verdict?.permission === 'deny') return verdict;
+    if (mode === 'yolo-plus' && verdict?.permission === 'auto') return verdict;
+    if (safe && verdict?.permission !== 'confirm') return { permission: 'auto', source: 'default' };
+    if (mode === 'plan' && verdict?.permission === 'confirm') {
+      return { ...verdict, permission: 'deny' };
+    }
     const guarded = verdict?.permission === 'confirm';
     const exactKey = guarded ? `${tool.name}\u0000${stableJson(input)}` : undefined;
     if (
@@ -174,10 +212,16 @@ export class ACPClientPermissionPolicy implements PermissionPolicy {
     tool: Tool,
     input: unknown,
     ctx: AgentContext | undefined,
+    yoloPlus: boolean,
   ): Promise<PermissionDecision | undefined> {
     if (!this.opts.arbiter || !ctx) return undefined;
     try {
-      return await this.opts.arbiter.evaluate(tool, input, ctx);
+      // The ACP selector owns this decision. Profile defaults and mutable session
+      // metadata cannot silently upgrade a plain YOLO session to YOLO+.
+      const policyContext = Object.create(ctx, {
+        meta: { value: { ...ctx.meta, yolo: true, yoloPlus } },
+      }) as AgentContext;
+      return await this.opts.arbiter.evaluate(tool, input, policyContext);
     } catch {
       // An unreadable trust or rule file must not run anything unasked.
       return { permission: 'confirm', source: 'default', reason: 'permission rules unreadable' };
@@ -201,7 +245,7 @@ export class ACPClientPermissionPolicy implements PermissionPolicy {
     try {
       const outcome = await this.requestPermission({
         toolCall: {
-          toolCallId: `tc_${tool.name}_${Date.now()}`,
+          toolCallId: `tc_${tool.name}_${randomUUID()}`,
           title: reason && exactKey !== undefined ? `${title} — ${reason}` : title,
           kind,
         },
@@ -228,7 +272,7 @@ export class ACPClientPermissionPolicy implements PermissionPolicy {
         this.alwaysAllowed.delete(tool.name);
         this.alwaysDenied.add(tool.name);
       }
-      const allowed = typeof optionId === 'string' && optionId.startsWith('allow');
+      const allowed = optionId === 'allow_once' || optionId === 'allow_always';
       return allowed
         ? { permission: 'auto', source: 'user' }
         : { permission: 'deny', source: 'user', reason: 'rejected by ACP client' };

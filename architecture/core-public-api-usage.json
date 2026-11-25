@@ -39,9 +39,9 @@
       "runtimeOrMixed": 17
     },
     "@wrongstack/core/execution": {
-      "files": 113,
+      "files": 115,
       "typeOnly": 25,
-      "runtimeOrMixed": 102
+      "runtimeOrMixed": 104
     },
     "@wrongstack/core/execution/refine-decisions": {
       "files": 2,
@@ -149,9 +149,9 @@
       "runtimeOrMixed": 30
     },
     "@wrongstack/core/storage": {
-      "files": 225,
+      "files": 226,
       "typeOnly": 62,
-      "runtimeOrMixed": 200
+      "runtimeOrMixed": 201
     },
     "@wrongstack/core/tasking": {
       "files": 48,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1031,
-      "typeOnly": 78,
-      "runtimeOrMixed": 988
+      "files": 1033,
+      "typeOnly": 77,
+      "runtimeOrMixed": 991
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -4052,6 +4052,18 @@
       "file": "packages/cli/src/wiring/runtime-lifecycle-deps.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
+      "file": "packages/cli/tests/acp-server-agent.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
+      "file": "packages/cli/tests/acp-server-commands.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/execution",
@@ -10595,6 +10607,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/tests/slash-acp.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/tests/slash-context.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -12461,6 +12479,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/acp-native-delegation.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/acp-server-agent.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -14256,8 +14280,14 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/tests/acp-server-agent.test.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/acp-server-commands.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",

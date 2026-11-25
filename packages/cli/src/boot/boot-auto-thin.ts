@@ -12,9 +12,9 @@
  * the same set without re-running the policy.
  */
 
+import type { ChronicleMetricsStore } from '@wrongstack/chronicle';
 import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { AutoThinConfig, ConfigStore, DisabledToolMeta } from '@wrongstack/contracts/types';
-import type { ChronicleMetricsStore } from '@wrongstack/chronicle';
 import {
   createToolUsageSource,
   filterUnderused,
@@ -57,9 +57,14 @@ function resolvePolicy(
   config: AutoThinConfig,
 ): Required<Pick<UnderusedQueryOptions, 'idleDays' | 'minInvocations'>> {
   return {
-    idleDays: typeof config.idleDays === 'number' && config.idleDays > 0 ? config.idleDays : 30,
+    idleDays:
+      typeof config.idleDays === 'number' && Number.isFinite(config.idleDays) && config.idleDays > 0
+        ? config.idleDays
+        : 30,
     minInvocations:
-      typeof config.minInvocations === 'number' && config.minInvocations >= 0
+      typeof config.minInvocations === 'number' &&
+      Number.isFinite(config.minInvocations) &&
+      config.minInvocations >= 0
         ? config.minInvocations
         : 3,
   };

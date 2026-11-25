@@ -17,7 +17,12 @@ import {
 import { leaderDeliveryHub } from '@wrongstack/coordination';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { type AcpServerRuntime, createAcpServerRuntime } from '../../acp-server-runtime.js';
-import { acpSessionModes, resolveAcpStartMode, type SessionMode } from '../../acp-session-modes.js';
+import {
+  acpModeConfigOption,
+  acpSessionModes,
+  resolveAcpStartMode,
+  type SessionMode,
+} from '../../acp-session-modes.js';
 import { createGracefulShutdown } from '../../shutdown-cleanup.js';
 import { CLI_VERSION } from '../../version.js';
 import { WebSocketServer } from '../../ws-runtime.js';
@@ -153,12 +158,9 @@ async function runACPWebSocketServer(
     store = sessionStoreFor(deps);
   }
 
-  // WS-006: the WS transport admitted anything — the Origin check was
-  // `if (origin && …)`, so every non-browser client skipped it, and
-  // `handleAuthenticate` returns success unconditionally. A token is minted per
-  // run and required on connect; it is printed with the URL, and
-  // `WRONGSTACK_ACP_TOKEN` lets a supervisor pin it. The admission logic lives
-  // in acp-connection-gate.ts so it is directly testable.
+  // The upgrade token protects the localhost listener before ACP initialization.
+  // The protocol handler checks provider readiness separately. A supervisor can
+  // set WRONGSTACK_ACP_TOKEN for its clients; otherwise the server mints a token.
   const acpToken = process.env['WRONGSTACK_ACP_TOKEN']?.trim() || randomBytes(32).toString('hex');
   const gate = createAcpConnectionGate({ host, port, token: acpToken });
   let liveConnections = 0;
@@ -227,6 +229,7 @@ async function runACPWebSocketServer(
       agentVersion: CLI_VERSION,
       runTurn: connectionTurn ?? echoTurn!,
       modes,
+      configOptions: [acpModeConfigOption(modes)],
       ...(connectionTurn && runtime
         ? {
             authGate: runtime.authGate,
@@ -342,10 +345,16 @@ export async function runACPServer(deps: SubcommandDeps): Promise<number> {
             seedFor: turn.seed,
             disposeFor: runtime.composeDispose(turn.dispose),
             modes,
+            configOptions: [acpModeConfigOption(modes)],
             ...(store ? { store } : {}),
           };
         })()
-      : { defaultCwd: deps.cwd ?? process.cwd(), agentVersion: CLI_VERSION, modes },
+      : {
+          defaultCwd: deps.cwd ?? process.cwd(),
+          agentVersion: CLI_VERSION,
+          modes,
+          configOptions: [acpModeConfigOption(modes)],
+        },
   );
 
   if (!runtime) {

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-25T21:13:41.835Z
+**Generated:** 2026-11-25T21:16:09.912Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 51 |
-| Production source files | 6570 |
-| Production source lines | 1348486 |
-| Test files | 6371 |
+| Production source files | 6571 |
+| Production source lines | 1348782 |
+| Test files | 6378 |
 | Workspace dependency edges | 261 |
-| Relative module edges | 19245 |
+| Relative module edges | 19249 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -33,7 +33,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/browser-tools | 14 | 25 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/builtin-plugins | 40 | 52 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/chronicle | 54 | 66 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/cli | 654 | 743 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/bench, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/codebase-index-mcp, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/hq-next, @wrongstack/kanban, @wrongstack/kanban-mcp, @wrongstack/mailbox-mcp, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/requirement-intake-mcp, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sage-mcp, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/vibeui, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/worktree, @wrongstack/wrongtrace |
+| @wrongstack/cli | 655 | 750 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/bench, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/codebase-index-mcp, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/hq-next, @wrongstack/kanban, @wrongstack/kanban-mcp, @wrongstack/mailbox-mcp, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/requirement-intake-mcp, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sage-mcp, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/vibeui, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/worktree, @wrongstack/wrongtrace |
 | @wrongstack/client | 7 | 11 | @wrongstack/webui-protocol |
 | @wrongstack/codebase | 115 | 11 | @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/codebase-index-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
@@ -146,7 +146,7 @@ None.
 
 ## Exports only tests reference
 
-- 1060 runtime exports are referenced by tests and by no other production file.
+- 1061 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

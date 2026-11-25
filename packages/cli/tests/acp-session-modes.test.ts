@@ -79,14 +79,75 @@ describe('ACP session modes: start flags and advertised list', () => {
     expect(resolveAcpStartMode({ mode: 'bypass' })).toHaveProperty('error');
     expect(resolveAcpStartMode({ mode: 'plan', yolo: true })).toHaveProperty('error');
   });
+
+  it('offers YOLO+ only after an explicit launch and rejects conflicting flags', () => {
+    expect(acpSessionModes('yolo').some((mode) => mode.id === 'yolo-plus')).toBe(false);
+    expect(resolveAcpStartMode({ 'yolo-plus': true })).toEqual({ modeId: 'yolo-plus' });
+    expect(resolveAcpStartMode({ mode: 'yolo-plus' })).toEqual({ modeId: 'yolo-plus' });
+    expect(resolveAcpStartMode({ yolo: true, 'yolo-plus': true })).toHaveProperty('error');
+    expect(resolveAcpStartMode({ mode: 'yolo', 'yolo-plus': true })).toHaveProperty('error');
+    expect(resolveAcpStartMode({ mode: 'yolo-plus', restricted: true })).toHaveProperty('error');
+  });
 });
 
 describe('ACP session modes: permission decisions', () => {
+  it('gives concurrent calls to the same tool distinct permission cards', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const ask = client('allow_once', 'reject_once');
+    const policy = new ACPClientPermissionPolicy(ask);
+    try {
+      await Promise.all([
+        policy.evaluate(write, { path: 'first.txt' }, ctx),
+        policy.evaluate(write, { path: 'second.txt' }, ctx),
+      ]);
+      expect(ask).toHaveBeenCalledTimes(2);
+      expect(new Set(ask.mock.calls.map(([request]) => request.toolCall.toolCallId)).size).toBe(2);
+    } finally {
+      now.mockRestore();
+    }
+  });
+  it('plain YOLO keeps the guard even when the profile has YOLO+ enabled', async () => {
+    const arbiter = createProjectPermissionPolicy({
+      projectRoot: ROOT,
+      trustFile: path.join(ROOT, 'trust.json'),
+      config: { autonomy: { yoloPlus: true } } as never,
+      permission: { yolo: true },
+    })();
+    let mode = 'yolo';
+    const ask = client('reject_once');
+    const policy = new ACPClientPermissionPolicy(ask, { mode: () => mode, arbiter });
+    const removal = { command: 'rm -rf /' };
+    expect((await policy.evaluate(bash, removal, ctx)).permission).toBe('deny');
+    expect(ask).toHaveBeenCalledTimes(1);
+    mode = 'yolo-plus';
+    expect(await policy.evaluate(bash, removal, ctx)).toMatchObject({
+      permission: 'auto',
+      allowAll: true,
+    });
+    expect(ask).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a permission option the server never offered', async () => {
+    const policy = new ACPClientPermissionPolicy(client('allow_unknown'));
+    expect((await policy.evaluate(write, { path: 'a.ts' }, ctx)).permission).toBe('deny');
+  });
   it('plan refuses a write without asking, and still reads', async () => {
     const ask = vi.fn();
     const policy = new ACPClientPermissionPolicy(ask, { mode: () => 'plan' });
     expect((await policy.evaluate(write, { path: 'a.ts' }, ctx)).permission).toBe('deny');
     expect((await policy.evaluate(read, { path: 'a.ts' }, ctx)).permission).toBe('auto');
+    expect(
+      (await policy.evaluate({ ...read, mutating: true }, { path: 'a.ts' }, ctx)).permission,
+    ).toBe('deny');
+    expect(ask).not.toHaveBeenCalled();
+  });
+
+  it('honors a tool-level refusal even without a project arbiter', async () => {
+    const ask = vi.fn();
+    const policy = new ACPClientPermissionPolicy(ask, { mode: () => 'yolo-plus' });
+    expect(
+      await policy.evaluate({ ...read, permission: 'deny' }, { path: 'a.ts' }, ctx),
+    ).toMatchObject({ permission: 'deny' });
     expect(ask).not.toHaveBeenCalled();
   });
 

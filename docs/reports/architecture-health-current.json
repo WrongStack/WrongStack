@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T21:13:41.835Z",
+  "generatedAt": "2026-11-25T21:16:09.912Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6570,
-    "testFiles": 6371,
-    "sourceLines": 1348486,
+    "sourceFiles": 6571,
+    "testFiles": 6378,
+    "sourceLines": 1348782,
     "workspaceEdges": 261,
-    "moduleEdges": 19245,
+    "moduleEdges": 19249,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 12,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1060
+    "testOnlyExports": 1061
   },
   "errors": [],
   "packageCycles": [],
@@ -231,8 +231,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 654,
-      "testFiles": 743,
+      "sourceFiles": 655,
+      "testFiles": 750,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -284,7 +284,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 743
+          "testFiles": 750
         }
       ]
     },
@@ -6264,6 +6264,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/boot-auto-thin-inf-policy.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/boot-config-backup-recovery.test.ts",
         "projects": [
           "root-node"
@@ -6295,6 +6301,12 @@
       },
       {
         "file": "packages/cli/tests/boot-provider-acp-leader.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/boot-seed-unhandled-rejection.test.ts",
         "projects": [
           "root-node"
         ]
@@ -6391,6 +6403,12 @@
       },
       {
         "file": "packages/cli/tests/brain-decision-log.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/brain-log-nan-max.test.ts",
         "projects": [
           "root-node"
         ]
@@ -6528,6 +6546,18 @@
         ]
       },
       {
+        "file": "packages/cli/tests/cli-suggestion-store-alias.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/cli-teardown-null-proto.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/cli-tui-startup-output.test.ts",
         "projects": [
           "root-node"
@@ -6541,6 +6571,18 @@
       },
       {
         "file": "packages/cli/tests/cli-utils-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/cli-wrongtrace-nan-telemetry.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/client-address-blank-socket.test.ts",
         "projects": [
           "root-node"
         ]
@@ -41969,6 +42011,10 @@
     {
       "file": "packages/cli/src/acp-model-option.ts",
       "name": "acpModelValue"
+    },
+    {
+      "file": "packages/cli/src/acp-server-agent.ts",
+      "name": "createAcpSessionWriter"
     },
     {
       "file": "packages/cli/src/acp-server-runtime.ts",

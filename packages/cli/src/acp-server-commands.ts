@@ -24,6 +24,7 @@ import {
 
 /** Commands that start fleet workers; this host has no fleet to start them in. */
 const NEEDS_FLEET = new Set(['spawn', 'delegate', 'director', 'supervisor', 'ensemble']);
+const NEEDS_LOCAL_HOST = new Set(['tree', 'panel']);
 /**
  * The commands that only read, which run without asking. An ACP prompt need not
  * come from a person — WrongStack's own ACP client sends a model-written task
@@ -38,7 +39,9 @@ const READ_ONLY: Readonly<Record<string, 'any' | readonly string[]>> = {
   'scout-stats': 'any',
   sandbox: 'any',
   'skill-search': 'any',
+  skill: 'any',
   prompt: 'any',
+  'prompt-gen': ['list', 'ls', 'edit', 'view'],
   bughunt: 'any',
   perf: 'any',
   sechunt: 'any',
@@ -115,7 +118,9 @@ export function createAcpServerCommands(deps: AcpServerCommandsDeps): AcpServerC
   return {
     list: () =>
       (listed ??= buildCommands(hostFor(undefined, deps), undefined, deps)
-        .then((commands) => commands.map(availableCommand))
+        .then((commands) =>
+          commands.filter((command) => !NEEDS_LOCAL_HOST.has(command.name)).map(availableCommand),
+        )
         .catch(() => {
           listed = undefined;
           return [];
@@ -123,6 +128,15 @@ export function createAcpServerCommands(deps: AcpServerCommandsDeps): AcpServerC
     async run(agent, sessionId, { name, args }, turn) {
       const command = find(await commandsFor(sessionId, agent), name);
       if (!command) return undefined;
+      if (command.name === 'tree' && !agent.ctx.session?.transcriptPath) {
+        return {
+          message:
+            '/tree requires a local WrongStack session journal. Use the editor’s session controls for ACP conversations.',
+        };
+      }
+      if (command.name === 'panel') {
+        return { message: '/panel requires the WrongStack plugin UI host.' };
+      }
       if (!readsOnly(command.name, args) && !(await approved(command, args, turn))) {
         return { message: `/${command.name} was not run: the request was rejected.` };
       }
@@ -143,7 +157,10 @@ export function createAcpServerCommands(deps: AcpServerCommandsDeps): AcpServerC
 }
 
 function find(commands: readonly SlashCommand[], name: string): SlashCommand | undefined {
-  return commands.find((command) => command.name === name);
+  return (
+    commands.find((command) => command.name === name) ??
+    commands.find((command) => command.aliases?.includes(name))
+  );
 }
 
 function availableCommand(command: SlashCommand): AvailableCommand {
@@ -195,7 +212,7 @@ async function approved(
         else turn.signal.addEventListener('abort', onAbort, { once: true });
       }),
     ]);
-    allowed = outcome.outcome === 'selected' && outcome.optionId.startsWith('allow');
+    allowed = outcome.outcome === 'selected' && outcome.optionId === 'allow_once';
   } catch {
     allowed = false;
   } finally {
@@ -245,6 +262,7 @@ function hostFor(agent: Agent | undefined, deps: AcpServerCommandsDeps): Portabl
     get configStore() {
       return container?.safeResolve(TOKENS.ConfigStore);
     },
+    getProfileConfigPath: () => deps.paths?.profileConfig?.(deps.paths.profileName),
     get memoryStore() {
       return container?.safeResolve(TOKENS.MemoryStore);
     },
@@ -262,6 +280,8 @@ function hostFor(agent: Agent | undefined, deps: AcpServerCommandsDeps): Portabl
       return container?.safeResolve(TOKENS.SkillLoader);
     },
     acpSessionSetup: wrongstackBridgeSetup,
+    persistCompanionLinks: false,
+    onAcpWorkerUpdate: (event) => agent?.events.emit('acp.worker_update', event),
     inlineAcpRuns: false,
     renderer: { write() {}, writeInfo() {}, writeWarning() {} },
   } as PortableCommandHost;
@@ -277,6 +297,7 @@ async function buildCommands(
   const taken = new Set(own.flatMap((command) => [command.name, ...(command.aliases ?? [])]));
   const plugins = await buildPluginCommands({
     skillLoader: agent?.container.safeResolve(TOKENS.SkillLoader),
+    promptLoader: agent?.container.safeResolve(TOKENS.PromptLoader),
     paths: deps.paths,
     configStore: agent?.container.safeResolve(TOKENS.ConfigStore),
     vault: deps.vault,

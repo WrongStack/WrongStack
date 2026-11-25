@@ -34,6 +34,7 @@ const EFFORT_LABELS: Readonly<Record<string, string>> = {
   high: 'High',
   xhigh: 'Extra High',
   max: 'Max',
+  ultra: 'Ultra',
 };
 
 /** The option value naming a provider's model. */
@@ -92,7 +93,10 @@ export async function buildAcpModelOption(args: {
   const { config, modelsRegistry } = args;
   if (!config.provider || !config.model) return undefined;
   const current = acpModelValue(config.provider, config.model);
-  const providers = await (args.loadProviders ?? buildPickableProviders)(modelsRegistry, config);
+  const providers = await (args.loadProviders ?? buildPickableProviders)(
+    modelsRegistry,
+    config,
+  ).catch(() => []);
   const off = switchedOff(config);
 
   const groups: SessionConfigSelectGroup[] = [];

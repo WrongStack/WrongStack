@@ -22,22 +22,22 @@ let sharedAutoSuggestions: string[] = [];
 
 /** Store suggestions (called by /suggest and onSuggestionsParsed). */
 export function setSuggestions(suggestions: string[]): void {
-  sharedSuggestions = suggestions;
+  sharedSuggestions = [...suggestions];
 }
 
 /** Store auto suggestions (items with auto="true" attribute). Called by onAutoSuggestionsParsed. */
 export function setAutoSuggestions(suggestions: string[]): void {
-  sharedAutoSuggestions = suggestions;
+  sharedAutoSuggestions = [...suggestions];
 }
 
 /** Retrieve current suggestions (called by /next selection and getSuggestions). */
 export function getSuggestions(): string[] {
-  return sharedSuggestions;
+  return [...sharedSuggestions];
 }
 
 /** Retrieve current auto suggestions (called by YOLO+auto autonomy). */
 export function getAutoSuggestions(): string[] {
-  return sharedAutoSuggestions;
+  return [...sharedAutoSuggestions];
 }
 
 /**

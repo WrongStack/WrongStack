@@ -19,7 +19,7 @@ describe('ACP server commands for /tree, /panel, and /image', () => {
     }
   });
 
-  it('advertises tree, panel, and image commands and runs read-only /tree list without permission prompt while gating /tree branch', async () => {
+  it('advertises image and supports /tree when the host supplies a local writer', async () => {
     const store = new DefaultSessionStore({ dir: path.join(tmpDir, 'sessions') });
     const writer = await store.create({
       id: 'acp-tree-fixture',
@@ -46,7 +46,9 @@ describe('ACP server commands for /tree, /panel, and /image', () => {
     const acpCmds = createAcpServerCommands({ projectRoot: tmpDir });
     const advertised = await acpCmds.list();
     const names = advertised.map((c) => c.name);
-    expect(names).toEqual(expect.arrayContaining(['tree', 'panel', 'image']));
+    expect(names).toContain('image');
+    expect(names).not.toContain('tree');
+    expect(names).not.toContain('panel');
 
     const requestPermission = vi.fn(async () => ({
       outcome: { outcome: 'cancelled' as const },

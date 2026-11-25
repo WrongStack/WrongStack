@@ -11,12 +11,14 @@
  * filled to construct Context + Agent.
  */
 
+import { TOKENS } from '@wrongstack/contracts/kernel';
 import type { Config, Provider, ResolvedProvider } from '@wrongstack/contracts/types';
 import { Agent } from '@wrongstack/core/agent';
+import { DefaultPromptLoader, DefaultSkillLoader } from '@wrongstack/core/execution';
 import type { ProviderRegistry } from '@wrongstack/core/registry';
 import { ToolRegistry as RealToolRegistry } from '@wrongstack/core/registry';
-import type { WstackPaths } from '@wrongstack/core/utils';
-import { builtinToolsPack } from '@wrongstack/tools';
+import { resolveWstackPaths, type WstackPaths } from '@wrongstack/core/utils';
+import { builtinToolsPack, nextStepsTool } from '@wrongstack/tools';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock setupProvider so we control provider/registry construction without
@@ -31,13 +33,27 @@ vi.mock('../src/wiring/provider.js', () => ({
 // and TOKENS.SecretScrubber from it during Agent construction.
 vi.mock('@wrongstack/runtime', () => ({
   wireKanbanPorts: vi.fn(),
-  createDefaultContainer: () => ({
+  createDefaultContainer: (
+    options: Parameters<typeof import('@wrongstack/runtime').createDefaultContainer>[0],
+  ) => ({
     resolve: () => ({
       initialize: async () => {},
       child: () => ({ info() {}, warn() {}, error() {}, debug() {} }),
       scrub: (s: string) => s,
     }),
-    safeResolve: () => undefined,
+    safeResolve: (token: unknown) => {
+      if (token === TOKENS.PromptLoader)
+        return new DefaultPromptLoader({
+          paths: options.wpaths,
+          bundledDir: options.bundledPromptsDir,
+        });
+      if (token === TOKENS.SkillLoader)
+        return new DefaultSkillLoader({
+          paths: options.wpaths,
+          bundledDir: options.bundledSkillsDir,
+        });
+      return undefined;
+    },
     has: () => false,
   }),
 }));
@@ -141,6 +157,13 @@ describe('buildAcpServerAgentFactory', () => {
     expect(a1.ctx).not.toBe(a2.ctx);
     // The configured model flows through to the context.
     expect(a1.ctx.model).toBe('test-model');
+    expect(a1.tools.get('delegate')).toBeDefined();
+    expect(a2.tools.get('delegate')).toBeDefined();
+    expect(a1.tools.get('delegate')).not.toBe(a2.tools.get('delegate'));
+    expect(a1.ctx.tools.some((tool) => tool.name === 'delegate')).toBe(true);
+    expect(deps.toolRegistry?.get('delegate')).toBeUndefined();
+    expect(a1.ctx.meta['plan.path']).toMatch(/sess-1\.plan\.json$/u);
+    expect(a2.ctx.meta['plan.path']).toMatch(/sess-2\.plan\.json$/u);
   });
 
   it('binds the agent as its ACP session leader so background delegation results can drain', async () => {
@@ -155,6 +178,41 @@ describe('buildAcpServerAgentFactory', () => {
     // 'acp-server' id with an id-less writer, neither held.
     expect(agent.ctx.agentId).toBe('leader');
     expect(agent.ctx.session.id).toBe('sess-lead');
+  });
+
+  it('omits the native suggestion tool from the ACP session registry', async () => {
+    mockSetupProvider.mockResolvedValue({
+      provider: makeStubProvider(),
+      providerRegistry: { has: () => true } as never as ProviderRegistry,
+      resolvedProvider: {} as ResolvedProvider,
+    });
+    const deps = makeDeps();
+    deps.toolRegistry?.register(nextStepsTool);
+
+    const agent = await buildAcpServerAgentFactory(deps)('sess-tools', '/tmp');
+
+    expect(deps.toolRegistry?.get('nextsteps')).toBeDefined();
+    expect(agent.tools.get('nextsteps')).toBeUndefined();
+    expect(agent.tools.get('read')).toBeDefined();
+  });
+
+  it('wires bundled prompts and lets the ACP agent load every required bug-hunt skill', async () => {
+    mockSetupProvider.mockResolvedValue({
+      provider: makeStubProvider(),
+      providerRegistry: { has: () => true } as never as ProviderRegistry,
+      resolvedProvider: {} as ResolvedProvider,
+    });
+    const paths = resolveWstackPaths({ projectRoot: '/tmp', userHome: '/tmp' });
+    const agent = await buildAcpServerAgentFactory(makeDeps({ paths }))('sess-library', '/tmp');
+    const prompt = await agent.container
+      .safeResolve(TOKENS.PromptLoader)
+      ?.find('proof-driven-bug-hunter');
+    expect(prompt?.source).toBe('builtin');
+    expect(agent.tools.get('skill')).toBeDefined();
+    const skills = agent.container.safeResolve(TOKENS.SkillLoader);
+    for (const name of ['bug-hunter', 'debugging', 'testing', 'verify-before-done']) {
+      expect(await skills?.find(name), name).toBeDefined();
+    }
   });
 
   it('reaches the provider on a turn instead of failing on the session writer (#421)', async () => {
@@ -515,6 +573,7 @@ describe('ACPClientPermissionPolicy', () => {
     const policy = new ACPClientPermissionPolicy(requestPermission as never);
     const safeTool: Tool = {
       ...sideEffectingTool,
+      mutating: false,
       capabilities: [ToolCapabilities.FS_READ],
     };
 

@@ -39,6 +39,10 @@ interface WrongTraceTelemetryInput {
  * ride along as extras (the payload allows free-form pass-through), so
  * downstream attribution keeps the full token picture.
  */
+function nonNegFinite(value: number | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
 export function buildWrongTraceTelemetryReport(
   input: WrongTraceTelemetryInput,
 ): WrongTraceTelemetryReport {
@@ -47,12 +51,12 @@ export function buildWrongTraceTelemetryReport(
     agent_name: input.agentName,
     model_name: input.model,
     provider: input.provider,
-    prompt_tokens: input.usage.input,
-    completion_tokens: input.usage.output,
-    cost_usd: input.costUsd,
+    prompt_tokens: nonNegFinite(input.usage.input),
+    completion_tokens: nonNegFinite(input.usage.output),
+    cost_usd: nonNegFinite(input.costUsd),
     intent: 'session_complete',
-    cache_read_tokens: input.usage.cacheRead ?? 0,
-    cache_write_tokens: input.usage.cacheWrite ?? 0,
+    cache_read_tokens: nonNegFinite(input.usage.cacheRead),
+    cache_write_tokens: nonNegFinite(input.usage.cacheWrite),
     source: 'wrongstack',
   };
 }

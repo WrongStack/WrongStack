@@ -359,6 +359,9 @@
     "packages/cli/src/acp-model-option.ts": [
       "acpModelValue"
     ],
+    "packages/cli/src/acp-server-agent.ts": [
+      "createAcpSessionWriter"
+    ],
     "packages/cli/src/acp-server-runtime.ts": [
       "ACP_LOGIN_HINT"
     ],
