@@ -95,6 +95,9 @@ export function sanitizeJsonString(s: string): string | null {
   // Stage 2: strip trailing commas before } or ] outside of string values
   out = stripTrailingCommas(out);
 
+  // Stage 2b: quote bare identifier keys (`{path: "a"}`), outside strings.
+  out = quoteUnquotedKeys(out);
+
   // Stage 3: escape literal control characters that appear *inside* string
   // values. Models frequently emit raw newlines/tabs inside a code payload
   // (e.g. edit's old_string/new_string) instead of the required \n / \t, which
@@ -208,6 +211,43 @@ function escapeControlCharsInStrings(s: string): string {
       inString = true;
     }
     out += c;
+  }
+  return out;
+}
+
+/** Quote an identifier that follows `{` or `,` and precedes `:`, outside strings. */
+function quoteUnquotedKeys(s: string): string {
+  let inString = false;
+  let escaped = false;
+  let lastSignificant = '';
+  let out = '';
+  let i = 0;
+  while (i < s.length) {
+    const c = s.charAt(i);
+    if (inString) {
+      out += c;
+      if (escaped) escaped = false;
+      else if (c === '\\') escaped = true;
+      else if (c === '"') inString = false;
+      i++;
+      continue;
+    }
+    if ((lastSignificant === '{' || lastSignificant === ',') && /[A-Za-z_$]/.test(c)) {
+      let end = i + 1;
+      while (end < s.length && /[\w$]/.test(s.charAt(end))) end++;
+      let next = end;
+      while (next < s.length && /[ \t\r\n]/.test(s.charAt(next))) next++;
+      if (s.charAt(next) === ':') {
+        out += `"${s.slice(i, end)}"`;
+        lastSignificant = '"';
+        i = end;
+        continue;
+      }
+    }
+    if (c === '"') inString = true;
+    if (!/[ \t\r\n]/.test(c)) lastSignificant = c;
+    out += c;
+    i++;
   }
   return out;
 }

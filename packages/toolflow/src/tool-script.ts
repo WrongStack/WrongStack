@@ -504,9 +504,13 @@ export const toolScriptTool: Tool<ToolScriptInput, string> = {
   },
 };
 
-function describeError(error: { name?: string; message?: string }, state: RunState): string {
+function describeError(
+  // A script may reject with any value: `throw null` dumps as null.
+  error: { name?: string; message?: string } | null | undefined,
+  state: RunState,
+): string {
   const reason = state.stopped
     ? `The script was stopped: ${state.stopped}.`
-    : `The script failed: ${error.name ?? 'Error'}: ${error.message ?? String(error)}`;
+    : `The script failed: ${error?.name ?? 'Error'}: ${error?.message ?? String(error)}`;
   return `${reason} (${callSummary(state.calls)})`;
 }

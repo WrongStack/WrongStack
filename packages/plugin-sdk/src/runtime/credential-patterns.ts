@@ -242,7 +242,7 @@ export const CREDENTIAL_PATTERNS: readonly CredentialPattern[] = [
     // rewrites, which is why it is written with capture groups instead.
     type: 'json_credential_key',
     regex:
-      /(?<="[A-Za-z0-9_]{0,64}(?:apiKey|api_key|token|secret|password|authorization|bearer|private_key|access_token|refresh_token|client_secret)"\s{0,8}:\s{0,8}")(?:[^"\\]|\\[\s\S]){8,512}(?=")/gi,
+      /(?<="[A-Za-z0-9_-]{0,64}(?:api[-_]?key|token|secret|password|authorization|bearer|private_key|access_token|refresh_token|client_secret)"\s{0,8}:\s{0,8}")(?:[^"\\]|\\[\s\S]){8,512}(?=")/gi,
   },
 ];
 

@@ -137,7 +137,12 @@ export async function* parseSSE(
   let eventBytes = 0;
 
   const flush = (): SSEMessage | undefined => {
-    if (dataLines.length === 0 && event === 'message') return undefined;
+    // A named block without a data field does not dispatch. An explicit
+    // empty data field still contributes a line and dispatches normally.
+    if (dataLines.length === 0) {
+      event = 'message';
+      return undefined;
+    }
     const data = dataLines.join('\n');
     const msg: SSEMessage = { event, data };
     event = 'message';

@@ -39,6 +39,31 @@ describe('GoAdapter', () => {
     }
   });
 
+  it.each([
+    ['example.com/spaced', '1.0.0', 'runtime', true],
+    ['example.com/tabbed', '1.2.3', 'runtime', true],
+    ['example.com/indirect', '1.4.5', 'transitive', false],
+  ] as const)('inventories single-line requirement %s', async (name, locked, scope, direct) => {
+    const { dir, ws } = mkWorkspace({
+      'go.mod': [
+        'module example.com/app',
+        '',
+        'go 1.21',
+        '',
+        'require example.com/spaced v1.0.0',
+        'require\texample.com/tabbed v1.2.3',
+        'require\texample.com/indirect v1.4.5 // indirect',
+        '',
+      ].join('\n'),
+    });
+    try {
+      const deps = await new GoAdapter().inventory(ws, {});
+      expect(deps.find((dep) => dep.name === name)).toMatchObject({ name, locked, scope, direct });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('marks indirect deps as transitive', async () => {
     const { dir, ws } = mkWorkspace({ 'go.mod': GOMOD });
     try {

@@ -226,6 +226,10 @@ describe('json_credential_key detection', () => {
     ['prefixed camelCase key', '{"anthropicApiKey": "abcdef0123456789"}', true],
     ['camelCase accessToken', '{"accessToken":"abcdef0123456789"}', true],
     ['client_secret', '{"client_secret":"abcdef0123456789"}', true],
+    // Header-style keys, as the core scrubber has caught them since H-7.
+    ['hyphenated x-api-key', '{"x-api-key": "abcdef0123456789"}', true],
+    ['hyphenated api-key', '{"api-key":"abcdef0123456789"}', true],
+    ['hyphenated x-goog-api-key', '{"x-goog-api-key":"abcdef0123456789"}', true],
     // JSON escapes inside the value are part of the value. Built at runtime so
     // no credential-shaped literal sits in the source.
     ...(

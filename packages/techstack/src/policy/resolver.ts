@@ -302,14 +302,14 @@ function parseToken(token: string, position: number, input: string): ParsedRange
   return { kind: 'exact', version: mustVersion(token, input, position) };
 }
 
-function parseConjunction(part: string, input: string): ParsedRange {
+function parseConjunction(part: string, input: string, offset: number): ParsedRange {
   const tokens = part.trim().split(/\s+/);
   const ranges: ParsedRange[] = [];
   let searched = 0;
   for (const token of tokens) {
     const at = part.indexOf(token, searched);
     searched = at + token.length;
-    ranges.push(parseToken(token, at, input));
+    ranges.push(parseToken(token, offset + at, input));
   }
   if (ranges.length === 1) {
     return ranges[0] ?? { kind: 'exact', version: '0' };
@@ -331,16 +331,20 @@ function parseConjunction(part: string, input: string): ParsedRange {
  * Invalid inputs throw `RangeParseError`.
  */
 export function parseRange(input: string): ParsedRange {
-  const trimmed = input.trim();
-  if (trimmed === '') {
+  if (input.trim() === '') {
     throw new RangeParseError(input, 0, 'empty range');
   }
-  const orParts = trimmed.split('||');
+  const orParts = input.split('||');
   if (orParts.length > 1) {
-    const ranges = orParts.map((part) => parseConjunction(part, input));
+    let offset = 0;
+    const ranges = orParts.map((part) => {
+      const range = parseConjunction(part, input, offset);
+      offset += part.length + 2;
+      return range;
+    });
     return { kind: 'or', ranges };
   }
-  return parseConjunction(trimmed, input);
+  return parseConjunction(input, input, 0);
 }
 
 // ── Range evaluation ─────────────────────────────────────────────────────

@@ -25,6 +25,29 @@ describe('parseSSE', () => {
     expect(events).toEqual([{ event: 'message_start', data: '{"type":"message_start"}' }]);
   });
 
+  it.each([
+    [
+      'discards an event name with no data before the next message',
+      'event: update\n\ndata: next\n\n',
+      [{ event: 'message', data: 'next' }],
+    ],
+    ['discards an event name with no data at EOF', 'event: update', []],
+    [
+      'dispatches an explicitly empty data field',
+      'event: update\ndata:\n\n',
+      [{ event: 'update', data: '' }],
+    ],
+    [
+      'still flushes real data at EOF',
+      'event: update\ndata: final',
+      [{ event: 'update', data: 'final' }],
+    ],
+  ] as const)('%s', async (_name, wire, expected) => {
+    const events = [];
+    for await (const msg of parseSSE(bodyFrom([wire]))) events.push(msg);
+    expect(events).toEqual(expected);
+  });
+
   it('accumulates multi-line data fields', async () => {
     const body = bodyFrom(['data: line1\ndata: line2\n\n']);
     const events = [];

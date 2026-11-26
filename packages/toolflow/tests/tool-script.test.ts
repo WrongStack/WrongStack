@@ -237,6 +237,15 @@ describe('tool_script', () => {
     await expect(h.run('return (;')).rejects.toThrow('SyntaxError');
   });
 
+  it('reports a thrown non-Error value with the calls that already ran', async () => {
+    const h = harness(echo);
+    for (const tail of ['throw null;', 'throw undefined;', 'return Promise.reject();']) {
+      await expect(h.run(`await tools.grep({ q: 'x' }); ${tail}`)).rejects.toThrow(
+        '(1 tool call: grep)',
+      );
+    }
+  });
+
   it('has no filesystem, network, process or module access', async () => {
     const h = harness(echo);
     const out = await h.run(

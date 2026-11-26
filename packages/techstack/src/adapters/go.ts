@@ -77,7 +77,7 @@ function parseGoMod(content: string): GoRequireStmt[] {
       inRequireBlock = true;
       continue;
     }
-    if (line.startsWith('require ') && !line.includes('(')) {
+    if (/^require[ \t]+/.test(line) && !line.includes('(')) {
       // Single-line require
       const m = line.match(/^require\s+(\S+)\s+(\S+)/);
       if (m) deps.push({ modulePath: unquoteGo(m[1]!), version: cleanGoVersion(m[2]!), indirect });

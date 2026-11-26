@@ -62,11 +62,15 @@ let contributorUnregister: (() => void) | null = null;
 const identity = (value: string): string => value;
 
 function escapeHtmlValue(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return (
+    value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      // Single-quoted attributes are just as common; leaving `'` broke out of them.
+      .replace(/'/g, '&#39;')
+  );
 }
 
 function expandTemplate(
