@@ -1,4 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
+import { isIP } from 'node:net';
 import type {
   HealthRegistry,
   MetricsSink,
@@ -168,7 +169,9 @@ function isLoopbackBindHost(host: string): boolean {
     .trim()
     .toLowerCase()
     .replace(/^\[|\]$/g, '');
-  return h === '127.0.0.1' || h === 'localhost' || h === '::1' || h.startsWith('127.');
+  // Only an IPv4 LITERAL in 127/8: a name like `127.attacker.example` can
+  // resolve to any address, so it must meet the non-loopback token rule.
+  return h === 'localhost' || h === '::1' || (isIP(h) === 4 && h.startsWith('127.'));
 }
 
 /** Constant-time bearer comparison, so the token cannot be recovered by timing. */

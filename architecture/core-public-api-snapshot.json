@@ -1150,7 +1150,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "preferred Runtime pilot",
       "sourceFiles": 15,
-      "sourceLines": 2431
+      "sourceLines": 2434
     },
     {
       "directory": "performance",
@@ -1164,7 +1164,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 13,
-      "sourceLines": 3767
+      "sourceLines": 3773
     },
     {
       "directory": "prompts",

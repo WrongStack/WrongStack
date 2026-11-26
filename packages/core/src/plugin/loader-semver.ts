@@ -30,6 +30,12 @@ function satisfiesComparator(token: string, version: [number, number, number]): 
   ) as [number, number, number];
   const [vMaj, vMin, vPatch] = version;
   const cmp = compareSemver(version, [rMaj, rMin, rPatch]);
+  // Comparators read only the written components (npm): `>1.2` is `>=1.3.0`,
+  // `<=1.x` is `<2.0.0`. Padding with zeros made `>`/`<=` compare `1.2.0`.
+  let cmpWritten = 0;
+  for (let i = 0; i < specified && cmpWritten === 0; i++) {
+    cmpWritten = (version[i] ?? 0) - ([rMaj, rMin, rPatch][i] ?? 0);
+  }
   switch (op) {
     // Both branches bound the range by the axis npm uses, which is also what this
     // repo already encodes in techstack/policy/resolver.ts (`caretUpper`,
@@ -50,13 +56,13 @@ function satisfiesComparator(token: string, version: [number, number, number]): 
       if (vMaj !== rMaj || cmp < 0) return false;
       return specified === 1 || vMin === rMin;
     case '>=':
-      return cmp >= 0;
+      return cmpWritten >= 0;
     case '>':
-      return cmp > 0;
+      return cmpWritten > 0;
     case '<=':
-      return cmp <= 0;
+      return cmpWritten <= 0;
     case '<':
-      return cmp < 0;
+      return cmpWritten < 0;
     default:
       return [vMaj, vMin, vPatch]
         .slice(0, specified)
