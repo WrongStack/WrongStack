@@ -63,6 +63,18 @@ describe('versionDrift', () => {
     expect(driftLine(versionDrift([client('a', undefined)], '1.3.0')).tone).toBe('muted');
   });
 
+  it('does not claim All on the release hub when the only client runs a prerelease', () => {
+    // A prerelease is neither behind nor ahead (compareVersions returns null),
+    // so behind/ahead stay empty and one distinct version is not "mixed".
+    // "All on <hub>" would still be false: warn with the version in use.
+    for (const version of ['1.7.22-dev', '1.7.21-rc.1']) {
+      const line = driftLine(versionDrift([client('a', version)], '1.7.22'));
+      expect(line.tone).toBe('warn');
+      expect(line.value).not.toContain('All on 1.7.22');
+      expect(line.value).toContain(version);
+    }
+  });
+
   it('puts one fleet-wide item in the attention queue', () => {
     const snapshot = {
       hqVersion: '1.3.0',

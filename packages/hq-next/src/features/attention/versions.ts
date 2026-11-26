@@ -70,9 +70,14 @@ export function driftLine(drift: VersionDrift): { value: string; tone: 'ok' | 'w
   if (drift.reporting === 0) return { value: 'No client reported one', tone: 'muted' };
   if (drift.hub !== undefined) {
     const off = drift.behind.length + drift.ahead.length;
-    // A client on a version that is not a release is neither behind nor ahead,
-    // but "All on" would still be false: fall through to the mixed line.
-    if (off === 0 && !drift.mixed) return { value: `All on ${drift.hub}`, tone: 'ok' };
+    // A client on a version that is not a release is neither behind nor ahead
+    // (compareVersions returns null), but "All on <hub>" would still be false:
+    // check the one version actually IS the hub release before claiming it.
+    if (off === 0 && !drift.mixed) {
+      const version = drift.versions[0]?.version;
+      if (version === drift.hub) return { value: `All on ${drift.hub}`, tone: 'ok' };
+      return { value: `${version ?? 'unknown'} on clients; HQ is ${drift.hub}`, tone: 'warn' };
+    }
     if (off > 0) {
       const parts: string[] = [];
       if (drift.behind.length > 0) parts.push(`${drift.behind.length} behind`);
