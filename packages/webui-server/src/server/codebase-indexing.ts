@@ -93,19 +93,23 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
       ): Promise<void> => {
         if (disposed) return;
         let operation: 'delete' | 'edit' = 'edit';
+        let probeFailure: { error: unknown } | undefined;
         if (eventType === 'rename') {
           const probe = Symbol();
           pendingRenameProbes.set(abs, probe);
           try {
             await fs.promises.access(abs);
-          } catch {
-            operation = 'delete';
+          } catch (error) {
+            const code = (error as NodeJS.ErrnoException | null | undefined)?.code;
+            if (code === 'ENOENT' || code === 'ENOTDIR') operation = 'delete';
+            else probeFailure = { error };
           }
           if (pendingRenameProbes.get(abs) !== probe) return;
         }
         // A newer event for this path supersedes any unfinished rename probe.
         pendingRenameProbes.delete(abs);
         if (disposed) return;
+        if (probeFailure) throw probeFailure.error;
         const previous = lastWatcherEvent.get(abs);
         if (previous?.operation === operation && now - previous.at <= 75) return;
 

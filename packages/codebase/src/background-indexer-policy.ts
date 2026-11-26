@@ -17,6 +17,16 @@ export const DEFAULT_FULL_INDEX_TIMEOUT_MS = 240_000;
 export const DEFAULT_INCREMENTAL_TIMEOUT_MS = 60_000;
 
 /**
+ * A configured watchdog timeout, or the run kind's default when it is not a
+ * usable one. `indexing.indexTimeoutMs: 0` (or NaN / negative) would otherwise
+ * arm a ~1 ms watchdog that aborts every run; it reads as "not set".
+ */
+export function usableTimeoutMs(value: number | undefined, kind: 'full' | 'incremental'): number {
+  if (value !== undefined && Number.isFinite(value) && value > 0) return value;
+  return kind === 'full' ? DEFAULT_FULL_INDEX_TIMEOUT_MS : DEFAULT_INCREMENTAL_TIMEOUT_MS;
+}
+
+/**
  * Watchdog timeout for read operations (search / stats).
  *
  * Reads normally finish quickly, but a cold or contended SQLite index can take

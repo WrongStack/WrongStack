@@ -47,7 +47,7 @@
       "relativeImports": 4
     },
     "packages/codebase/src/background-indexer.ts": {
-      "lines": 727,
+      "lines": 726,
       "relativeImports": 17
     },
     "packages/codebase/src/infra-parser.ts": {

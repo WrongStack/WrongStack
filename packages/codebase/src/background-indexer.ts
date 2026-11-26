@@ -3,8 +3,6 @@ import {
   circuitOpenError,
   DEFAULT_COALESCE_WINDOW_MS,
   DEFAULT_DEBOUNCE_MS,
-  DEFAULT_FULL_INDEX_TIMEOUT_MS,
-  DEFAULT_INCREMENTAL_TIMEOUT_MS,
   DEFAULT_QUERY_TIMEOUT_MS,
   debounceKey,
   isIndexableFile,
@@ -12,6 +10,7 @@ import {
   reindexBatchKey,
   resolveLastError,
   settleReindexCompletions,
+  usableTimeoutMs,
 } from './background-indexer-policy.js';
 /**
  * Index host — the main-thread coordinator for all codebase-index operations.
@@ -422,7 +421,7 @@ function runIndexPass(opts: {
         langs: opts.langs,
       },
       {
-        timeoutMs: opts.timeoutMs ?? DEFAULT_FULL_INDEX_TIMEOUT_MS,
+        timeoutMs: usableTimeoutMs(opts.timeoutMs, 'full'),
         signal: opts.signal,
         onProgress: setIndexProgress,
       },
@@ -479,7 +478,7 @@ export function enqueueReindex(opts: {
         projectRoot: opts.projectRoot,
         file,
         indexDir: opts.indexDir,
-        timeoutMs: opts.timeoutMs ?? DEFAULT_INCREMENTAL_TIMEOUT_MS,
+        timeoutMs: usableTimeoutMs(opts.timeoutMs, 'incremental'),
         onError: opts.onError,
         coalesceWindowMs: opts.coalesceWindowMs,
       });

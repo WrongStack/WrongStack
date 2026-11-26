@@ -39,6 +39,7 @@ function start(projectRoot = resolve('webui-watcher-fixture'), indexOnEdit = fal
   const events = new EventBus();
   const seen: string[] = [];
   events.on('file.activity', (event) => seen.push(event.operation));
+  const debug = vi.fn();
   const now = vi.spyOn(Date, 'now').mockReturnValue(1_000);
   const owner = setupWebUICodebaseIndexing({
     config: indexOnEdit
@@ -46,7 +47,7 @@ function start(projectRoot = resolve('webui-watcher-fixture'), indexOnEdit = fal
       : {},
     context: { meta: {} } as never,
     projectRoot,
-    logger: { debug: vi.fn() } as never,
+    logger: { debug } as never,
     events,
   });
   const emit = (eventType: WatchEvent['eventType'], at: number) => {
@@ -67,7 +68,7 @@ function start(projectRoot = resolve('webui-watcher-fixture'), indexOnEdit = fal
       },
     };
   };
-  return { owner, seen, emit, deferAccess };
+  return { owner, seen, emit, deferAccess, debug };
 }
 
 it('publishes a deletion immediately after an edit of the same file', async () => {
@@ -116,3 +117,23 @@ it('accepts watcher events and reindexes editor saves when the project is a file
     owner.dispose();
   }
 });
+
+it.each(['EACCES', 'EPERM'])(
+  'does not report a deletion when the access probe returns %s',
+  async (code) => {
+    const { owner, seen, emit, debug } = start();
+    try {
+      watcher.access.mockRejectedValueOnce(
+        Object.assign(new Error('cannot inspect path'), { code }),
+      );
+      emit('rename', 1_000);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(seen).toEqual([]);
+      expect(debug).toHaveBeenCalledWith(expect.stringContaining('cannot inspect path'));
+    } finally {
+      owner.dispose();
+    }
+  },
+);
