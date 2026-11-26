@@ -127,7 +127,8 @@ vi.mock('@wrongstack/core/execution', () => ({
   },
 }));
 
-vi.mock('@wrongstack/core/design', () => ({
+vi.mock('@wrongstack/core/design', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/core/design')>()),
   installDesignStudioMiddleware: vi.fn(),
   installDesignTurnGate: vi.fn(),
 }));

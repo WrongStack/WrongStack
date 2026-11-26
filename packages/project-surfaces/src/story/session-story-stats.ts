@@ -111,7 +111,7 @@ export function storyStats(story: ReturnType<typeof buildSessionStory>, projectR
     // damaged, with zero counts: a failed call yields no line evidence, and a
     // silent zero row would be indistinguishable from "never touched".
     if (call.end?.raw?.outcome === 'failure') {
-      conflictedTruncated ||= markConflicted(files, call, normalize, projectRoot);
+      if (markConflicted(files, call, normalize, projectRoot)) conflictedTruncated = true;
       continue;
     }
     if (call.end?.raw?.outcome !== 'success' || !FILE_TOOLS.has(call.name)) continue;

@@ -65,6 +65,8 @@ export function blockingCalendarRules(
   const groups = new Map<string, ModelBlackoutRule[]>();
   for (const rule of rules) {
     if (rule.enabled === false || !isCalendarRuleValid(rule)) continue;
+    // The runtime ignores a rule that names neither a provider nor a model.
+    if (!rule.provider && !rule.model) continue;
     const key = ruleTarget(rule);
     groups.set(key, [...(groups.get(key) ?? []), rule]);
   }

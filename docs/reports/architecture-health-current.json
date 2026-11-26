@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T14:44:06.702Z",
+  "generatedAt": "2026-11-26T14:50:14.540Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6572,
-    "testFiles": 6481,
-    "sourceLines": 1350230,
+    "testFiles": 6483,
+    "sourceLines": 1350299,
     "workspaceEdges": 261,
     "moduleEdges": 19254,
     "nonCommandSlashImports": 0,
@@ -1112,7 +1112,7 @@
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
       "sourceFiles": 517,
-      "testFiles": 505,
+      "testFiles": 506,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1141,7 +1141,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 505
+          "testFiles": 506
         }
       ]
     },
@@ -1228,7 +1228,7 @@
       "name": "@wrongstack/webui-protocol",
       "dir": "packages/webui-protocol",
       "sourceFiles": 29,
-      "testFiles": 19,
+      "testFiles": 20,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1243,7 +1243,7 @@
         {
           "path": "packages/webui-protocol/tsconfig.test.json",
           "error": null,
-          "testFiles": 19
+          "testFiles": 20
         }
       ]
     },
@@ -31512,6 +31512,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/markdown-table-header.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/markdown-table-nan-width.test.ts",
         "projects": [
           "root-node"
@@ -33847,6 +33853,12 @@
       },
       {
         "file": "packages/webui-protocol/tests/environment-profile.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-protocol/tests/frame-resume-focus.test.ts",
         "projects": [
           "root-node"
         ]

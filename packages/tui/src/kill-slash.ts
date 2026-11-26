@@ -46,7 +46,9 @@ export function createKillSlashCommand(): SlashCommand {
         return { message: 'Circuit breaker reset to closed. Bash/exec calls allowed.' };
       }
 
-      const pid = Number.parseInt(sub, 10);
+      // Digits only: parseInt read "4321x" / "4321,4322" / "4321.5" as pid 4321
+      // and killed it.
+      const pid = /^\d+$/.test(sub) ? Number(sub) : Number.NaN;
       if (!Number.isNaN(pid) && pid > 0) {
         const found = getProcessRegistry().kill(pid);
         if (found) return { message: `Killed process ${pid}.` };

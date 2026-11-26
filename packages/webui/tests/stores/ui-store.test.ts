@@ -905,3 +905,29 @@ describe('resetUiNavigationToHome', () => {
     });
   });
 });
+
+describe('draft attachments', () => {
+  const att = (id: string, mediaType: string) => ({
+    id,
+    dataUrl: `data:${mediaType};base64,a`,
+    mediaType,
+    bytes: 1,
+  });
+
+  it('keeps a draft the composer admits: images and PDFs are capped separately', () => {
+    const images = Array.from({ length: 8 }, (_, i) => att(`img-${i}`, 'image/png'));
+    useUIStore.getState().setDraftImages([...images, att('pdf-0', 'application/pdf')]);
+    expect(useUIStore.getState().draftImages.map((a) => a.id)).toEqual([
+      ...images.map((a) => a.id),
+      'pdf-0',
+    ]);
+  });
+
+  it('drops the oldest attachment of a kind past its cap', () => {
+    const images = Array.from({ length: 9 }, (_, i) => att(`img-${i}`, 'image/png'));
+    useUIStore.getState().setDraftImages(images);
+    expect(useUIStore.getState().draftImages.map((a) => a.id)).toEqual(
+      images.slice(1).map((a) => a.id),
+    );
+  });
+});

@@ -34,8 +34,8 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/design": {
-      "files": 16,
-      "typeOnly": 1,
+      "files": 17,
+      "typeOnly": 2,
       "runtimeOrMixed": 17
     },
     "@wrongstack/core/execution": {
@@ -3860,6 +3860,12 @@
       "file": "packages/webui-server/src/server/design-handlers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/design",
+      "file": "packages/webui-server/tests/backend-services.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/design",

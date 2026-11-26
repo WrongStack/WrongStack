@@ -94,7 +94,8 @@ export function colorToHex(value: string): string | null {
   if (ok) return ok.toLowerCase();
   const hx = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(v);
   if (hx?.[1]) return `#${hx[1].toLowerCase()}`;
-  const short = /^#([0-9a-f]{3})$/i.exec(v);
+  // `#rgb` and `#rgba` (core accepts both); alpha dropped as for `#rrggbbaa`.
+  const short = /^#([0-9a-f]{3})[0-9a-f]?$/i.exec(v);
   if (short?.[1]) {
     return `#${short[1]
       .split('')

@@ -489,6 +489,35 @@ describe('dashboard evidence', () => {
       edits: 1,
     });
   });
+  it.each([true, false])(
+    'keeps later failed patch paths when the first list is truncated: %s',
+    (truncated) => {
+      const stats = storyStats(
+        buildSessionStory('a', [
+          record('first', 'tool.failed', 'patch', {
+            outcome: 'failure',
+            attributes: {
+              toolName: 'patch',
+              modifiedPaths: ['src/first.ts'],
+              ...(truncated ? { modifiedPathsTruncated: true } : {}),
+            },
+          }),
+          record('second', 'tool.failed', 'patch', {
+            outcome: 'failure',
+            attributes: { toolName: 'patch', modifiedPaths: ['tests/second.ts'] },
+          }),
+        ]),
+      );
+      expect(stats.tools).toMatchObject([{ name: 'patch', failed: 2 }]);
+      expect(stats.conflictedTruncated).toBe(truncated);
+      expect(stats.files).toMatchObject([
+        { path: 'src/first.ts', conflicted: true, changeMeasured: 0 },
+        { path: 'tests/second.ts', conflicted: true, changeMeasured: 0 },
+      ]);
+      expect(stats.directories).toBe(2);
+    },
+  );
+
   it('reports conflictedTruncated when the chronicle dropped conflicted paths', () => {
     // The chronicle caps modifiedPaths at 64; the flag must survive to the UI so
     // an operator never reads the surviving rows as a complete manifest.

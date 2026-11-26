@@ -24,7 +24,12 @@ import {
 import { ComposerButtonBar } from './ChatInput/composer-button-bar.js';
 import { DraftTokenCounter } from './ChatInput/draft-token-counter.js';
 import { FileMentionPicker, type FileMentionState } from './ChatInput/file-mention-picker.js';
-import { MAX_ATTACHED_IMAGES, toMessageAttachments } from './ChatInput/image-attachments.js';
+import {
+  isPdfAttachment,
+  MAX_ATTACHED_IMAGES,
+  MAX_ATTACHED_PDFS,
+  toMessageAttachments,
+} from './ChatInput/image-attachments.js';
 import { handleNextList, handleNextSelect } from './ChatInput/next-steps-helpers.js';
 import { QueuedMessages } from './ChatInput/queued-messages.js';
 import { ChatInputRefinePanelHost } from './ChatInput/refine-panel-host.js';
@@ -322,10 +327,16 @@ export function ChatInput({
     setInput((prev) => (prev.trim() ? `${prev}\n${promptInsertRequest}` : promptInsertRequest));
     if (promptInsertImages.length) {
       const pending = pendingImagesRef.current;
-      const available = Math.max(0, MAX_ATTACHED_IMAGES - pending.length);
-      if (promptInsertImages.length > available)
+      // Images and PDFs fill separate caps, as the paste/drop path counts them:
+      // an attached PDF must not take an image's slot.
+      let imageRoom = MAX_ATTACHED_IMAGES - pending.filter((a) => !isPdfAttachment(a)).length;
+      let pdfRoom = MAX_ATTACHED_PDFS - pending.filter(isPdfAttachment).length;
+      const admitted = promptInsertImages.filter((a) =>
+        isPdfAttachment(a) ? pdfRoom-- > 0 : imageRoom-- > 0,
+      );
+      if (admitted.length < promptInsertImages.length)
         toast.error(t('chat:input.tooManyImages', { max: MAX_ATTACHED_IMAGES }));
-      setPendingImages([...pending, ...promptInsertImages.slice(0, available)]);
+      setPendingImages([...pending, ...admitted]);
     }
     clearPromptInsert();
     requestAnimationFrame(() => textareaRef.current?.focus());

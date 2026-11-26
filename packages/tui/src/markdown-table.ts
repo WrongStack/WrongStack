@@ -248,6 +248,11 @@ function computeWidths(
 const MIN_COL_WIDTH = 4;
 
 function renderStackedRows(header: string[], rows: string[][], maxWidth: number): string {
+  if (rows.length === 0) {
+    return header
+      .flatMap((label) => wrapCell(breakLigatures(stripInlineMarkers(label)), maxWidth))
+      .join('\n');
+  }
   const rendered: string[] = [];
   for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
     if (rowIndex > 0) rendered.push('─'.repeat(maxWidth));

@@ -92,14 +92,16 @@ function isTextBlock(
   return typeof block === 'object' && block !== null && block.type === 'text';
 }
 
-function userContentPreview(content: string | ContentBlock[]): string {
+function userContentPreview(content: unknown): string {
   const text = (
     typeof content === 'string'
       ? content
-      : content
-          .filter(isTextBlock)
-          .map((block) => block.text)
-          .join(' ')
+      : Array.isArray(content)
+        ? content
+            .filter(isTextBlock)
+            .map((block) => block.text)
+            .join(' ')
+        : ''
   )
     .trim()
     .replace(/\s+/g, ' ');
@@ -397,9 +399,9 @@ function detailForEvent(e: SessionEvent): string {
     case 'provider_error':
       return `${e.retryable ? 'retryable' : 'fatal'}${e.status ? ` · HTTP ${e.status}` : ''}`;
     case 'user_input':
-      return typeof e.content === 'string'
-        ? `${e.content.length} chars`
-        : `${e.content.length} blocks`;
+      if (typeof e.content === 'string') return `${e.content.length} chars`;
+      if (Array.isArray(e.content)) return `${e.content.length} blocks`;
+      return 'content unavailable';
     case 'tool_result':
       return `${e.isError ? 'error' : 'ok'}`;
     case 'checkpoint':

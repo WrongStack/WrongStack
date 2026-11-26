@@ -231,6 +231,8 @@ export class FrameResume<T extends SequencedFrame & { type: string }> {
     const sessionId = payload.sessionId;
     if (typeof sessionId !== 'string') return msg;
     if (payload.reset === true) {
+      // Focusing a live tab changes the foreground, not its frame sequence.
+      if (payload.replayReason === 'focus') return msg;
       this.gate.resetSession(sessionId);
       if (this.timer && !this.requested.some((id) => this.gate.isResuming(id))) {
         timers.clearTimeout(this.timer);

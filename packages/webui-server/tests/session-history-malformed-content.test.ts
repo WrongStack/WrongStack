@@ -56,4 +56,22 @@ describe('session inspect projection tolerates malformed content (F2233)', () =>
       'Message appended: user',
     ]);
   });
+
+  it('keeps the surrounding events when a user input has null content', () => {
+    const payload = buildInspectPayload(
+      undefined,
+      [
+        { type: 'user_input', ts, content: 'before' },
+        { type: 'user_input', ts, content: null },
+        { type: 'user_input', ts, content: 'after' },
+      ] as never,
+      fallback,
+    );
+    expect(payload.lastUserMessage).toBe('after');
+    expect(payload.events.map((event) => event.label)).toEqual([
+      'User: before',
+      'User: [input]',
+      'User: after',
+    ]);
+  });
 });

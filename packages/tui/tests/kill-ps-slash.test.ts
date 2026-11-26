@@ -198,6 +198,16 @@ describe('createKillSlashCommand', () => {
     expect(messageOf(res)).toContain('Unknown subcommand');
     expect(messageOf(res)).toContain('Usage');
   });
+
+  it('kills nothing for a token that only starts with a pid', async () => {
+    registryState.procs = [{ pid: 42, name: 'a', command: '', startedAt: 0, killed: false }];
+    const cmd = createKillSlashCommand();
+    for (const token of ['42x', '42,43', '42.5']) {
+      expect(messageOf(await cmd.run(token))).toContain('Unknown subcommand');
+    }
+    expect(fakeRegistry.kill).not.toHaveBeenCalled();
+    expect(registryState.procs).toHaveLength(1);
+  });
 });
 
 // ── /ps ──────────────────────────────────────────────────────────────────────

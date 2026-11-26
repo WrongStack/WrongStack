@@ -27,10 +27,19 @@ export function useHorizontalScroll(
       // Only intercept when there's actual horizontal range and the
       // wheel event originated from within (or on) this element.
       if (el.scrollWidth <= el.clientWidth + 1) return;
+      // Read the mode before the deltas: their units are not always pixels.
+      const { deltaMode } = e;
       const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
       if (delta === 0) return;
+      let pixelsPerUnit = 1;
+      if (deltaMode === WheelEvent.DOM_DELTA_LINE) {
+        // Computed line-height may be `normal` rather than a pixel value.
+        pixelsPerUnit = Number.parseFloat(getComputedStyle(el).lineHeight) || 16;
+      } else if (deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+        pixelsPerUnit = el.clientWidth;
+      }
       e.preventDefault();
-      el.scrollLeft += delta;
+      el.scrollLeft += delta * pixelsPerUnit;
     };
 
     const onKeyDown = (e: KeyboardEvent) => {

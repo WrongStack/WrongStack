@@ -6,7 +6,8 @@
  */
 import type { HqClientRecord } from '@wrongstack/hq';
 
-const SEMVER = /^v?(\d+)\.(\d+)\.(\d+)/;
+// Anchored: a prerelease (`1.7.21-rc.1`, a `-dev` build) is not a release.
+const SEMVER = /^v?(\d+)\.(\d+)\.(\d+)(?:\+[0-9A-Za-z.-]+)?$/;
 
 /** -1, 0 or 1; null when either side is not a release version. */
 export function compareVersions(left: string, right: string): number | null {
@@ -69,11 +70,15 @@ export function driftLine(drift: VersionDrift): { value: string; tone: 'ok' | 'w
   if (drift.reporting === 0) return { value: 'No client reported one', tone: 'muted' };
   if (drift.hub !== undefined) {
     const off = drift.behind.length + drift.ahead.length;
-    if (off === 0) return { value: `All on ${drift.hub}`, tone: 'ok' };
-    const parts: string[] = [];
-    if (drift.behind.length > 0) parts.push(`${drift.behind.length} behind`);
-    if (drift.ahead.length > 0) parts.push(`${drift.ahead.length} ahead`);
-    return { value: `${parts.join(' · ')} of HQ ${drift.hub}`, tone: 'warn' };
+    // A client on a version that is not a release is neither behind nor ahead,
+    // but "All on" would still be false: fall through to the mixed line.
+    if (off === 0 && !drift.mixed) return { value: `All on ${drift.hub}`, tone: 'ok' };
+    if (off > 0) {
+      const parts: string[] = [];
+      if (drift.behind.length > 0) parts.push(`${drift.behind.length} behind`);
+      if (drift.ahead.length > 0) parts.push(`${drift.ahead.length} ahead`);
+      return { value: `${parts.join(' · ')} of HQ ${drift.hub}`, tone: 'warn' };
+    }
   }
   if (!drift.mixed) return { value: `All on ${drift.versions[0]?.version}`, tone: 'ok' };
   return { value: `${drift.versions.length} versions in use`, tone: 'warn' };

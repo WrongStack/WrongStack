@@ -291,15 +291,19 @@ export const useCodemapActivityStore = create<CodemapActivityState>((set, get) =
 
   resolveActivitySymbol(toolUseId, filePath, symbol) {
     set((state) => {
-      const history = new Map(state.history);
-      history.set(
-        filePath,
-        (history.get(filePath) ?? []).map((entry) =>
-          entry.toolUseId === toolUseId ? { ...entry, symbol } : entry,
-        ),
-      );
-      const activeOperations = new Map(state.activeOperations);
-      const active = activeOperations.get(toolUseId);
+      const existingHistory = state.history.get(filePath);
+      const active = state.activeOperations.get(toolUseId);
+      if (!existingHistory && !active) return state;
+      const history = existingHistory ? new Map(state.history) : state.history;
+      if (existingHistory) {
+        history.set(
+          filePath,
+          existingHistory.map((entry) =>
+            entry.toolUseId === toolUseId ? { ...entry, symbol } : entry,
+          ),
+        );
+      }
+      const activeOperations = active ? new Map(state.activeOperations) : state.activeOperations;
       if (active) {
         activeOperations.set(
           toolUseId,

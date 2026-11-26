@@ -124,10 +124,14 @@ export function MailboxComposeDialog(props: MailboxComposeDialogProps) {
   const onlineCount = props.agents.filter((agent) => agent.online).length;
 
   // Mirrors the server rule in validateMailboxSendPayload: assign/steer
-  // must name a specific recipient — '*'/'all' is rejected there.
+  // must name a specific recipient — '*'/'all' and a session scope
+  // ('@session' / '@session:<id>', checkMailboxSendType) are rejected there.
   const needsSpecificRecipient =
     (props.type === 'assign' || props.type === 'steer') &&
-    (effectiveTo === '*' || effectiveTo.toLowerCase() === 'all');
+    (effectiveTo === '*' ||
+      effectiveTo.toLowerCase() === 'all' ||
+      effectiveTo.toLowerCase() === '@session' ||
+      effectiveTo.startsWith('@session:'));
 
   const canSend =
     props.ready &&

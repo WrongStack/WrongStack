@@ -1,3 +1,4 @@
+import { CONTEXT_WINDOW_MODES } from '@wrongstack/contracts/types/context-window';
 import { expectDefined } from '@wrongstack/core/utils/expect-defined';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { cn } from '@/lib/utils';
@@ -5,6 +6,8 @@ import { useAppTranslation } from '@/i18n';
 import { useSessionStore } from '@/stores';
 import { Check, ChevronDown, Gauge, Wrench, Zap, FileSearch } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+
+const BALANCED = expectDefined(CONTEXT_WINDOW_MODES.find((m) => m.id === 'balanced'));
 
 export function ContextModePicker() {
   const { t } = useAppTranslation();
@@ -69,9 +72,10 @@ export function ContextModePicker() {
             id: 'balanced',
             name: t('activity:ctxMode.fallbackName'),
             description: t('activity:ctxMode.fallbackDesc'),
-            thresholds: { warn: 0.6, soft: 0.75, hard: 0.9 },
-            preserveK: 10,
-            eliseThreshold: 2000,
+            // The runtime's own Balanced numbers, until the server lists its modes.
+            thresholds: BALANCED.thresholds,
+            preserveK: BALANCED.preserveK,
+            eliseThreshold: BALANCED.eliseThreshold,
           },
         ];
   const active = items.find((m) => m.id === contextMode) ?? expectDefined(items[0]);

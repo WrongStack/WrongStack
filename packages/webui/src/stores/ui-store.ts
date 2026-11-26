@@ -16,7 +16,12 @@ export {
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { MAX_ATTACHED_IMAGES } from '../components/ChatInput/image-attachments.js';
+import {
+  type ImageAttachment,
+  isPdfAttachment,
+  MAX_ATTACHED_IMAGES,
+  MAX_ATTACHED_PDFS,
+} from '../components/ChatInput/image-attachments.js';
 import {
   defaultSessionChrome,
   defaultSkillsState,
@@ -33,6 +38,18 @@ import {
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_MIN_WIDTH,
 } from './ui-store-types.js';
+
+/** Keeps the newest attachments within the composer's per-kind caps
+ *  (use-paste-drop.ts): images and PDFs are counted separately, as core's
+ *  parseIncomingAttachments does, so 8 images + 1 PDF is a whole draft. */
+function capDraftAttachments(attachments: ImageAttachment[]): ImageAttachment[] {
+  let extraImages = attachments.filter((a) => !isPdfAttachment(a)).length - MAX_ATTACHED_IMAGES;
+  let extraPdfs = attachments.filter(isPdfAttachment).length - MAX_ATTACHED_PDFS;
+  return attachments.filter((a) => {
+    if (isPdfAttachment(a)) return extraPdfs-- <= 0;
+    return extraImages-- <= 0;
+  });
+}
 
 export const useUIStore = create<UIState>()(
   persist(
@@ -527,7 +544,7 @@ export const useUIStore = create<UIState>()(
         // Trust boundary: data URLs are heavy — enforce the same per-message
         // cap the composer enforces so no caller can bloat memory.
         set((state) => {
-          const draftImages = images.slice(-MAX_ATTACHED_IMAGES);
+          const draftImages = capDraftAttachments(images);
           return { draftImages, ...parkChrome(state, { draftImages }) };
         }),
       setSideContextBreakdownOpen: (open: boolean) =>

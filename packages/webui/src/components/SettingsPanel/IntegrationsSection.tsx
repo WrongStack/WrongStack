@@ -67,7 +67,8 @@ export function IntegrationsSection({ syncPref }: IntegrationsSectionProps) {
       setChatInvalid(true);
       return;
     }
-    if (trimmed !== '' && Number(trimmed) === 0) {
+    // As the server: an ID past Number.MAX_SAFE_INTEGER is refused there too.
+    if (trimmed !== '' && (Number(trimmed) === 0 || !Number.isSafeInteger(Number(trimmed)))) {
       setChatInvalid(true);
       return;
     }

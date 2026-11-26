@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { createRef } from 'react';
+import { describe, expect, it } from 'vitest';
 import { useHorizontalScroll } from '../../src/hooks/useHorizontalScroll';
 
 /**
@@ -44,6 +44,39 @@ describe('useHorizontalScroll — Shift+Wheel', () => {
     const e = wheel(el, { shiftKey: true, deltaY: 120 });
     expect(el.scrollLeft).toBe(120);
     expect(e.defaultPrevented).toBe(true);
+  });
+
+  it.each([
+    { unit: 'pixels', mode: WheelEvent.DOM_DELTA_PIXEL, deltaY: 3, deltaX: 0, expected: 3 },
+    { unit: 'lines', mode: WheelEvent.DOM_DELTA_LINE, deltaY: 3, deltaX: 0, expected: 72 },
+    { unit: 'pages', mode: WheelEvent.DOM_DELTA_PAGE, deltaY: 0, deltaX: -1, expected: -400 },
+  ])('converts Shift+Wheel $unit to horizontal pixels', ({ mode, deltaY, deltaX, expected }) => {
+    const el = scroller({ clientWidth: 400, scrollWidth: 1600 });
+    el.style.lineHeight = '24px';
+    el.scrollLeft = 600;
+    const { unmount } = mount(el);
+    try {
+      const event = wheel(el, { shiftKey: true, deltaMode: mode, deltaY, deltaX });
+      expect(event.defaultPrevented).toBe(true);
+      expect(el.scrollLeft - 600).toBe(expected);
+    } finally {
+      unmount();
+      el.remove();
+    }
+  });
+
+  it('still scrolls by a line when the browser reports normal line height', () => {
+    const el = scroller();
+    el.style.lineHeight = 'normal';
+    const { unmount } = mount(el);
+    try {
+      const event = wheel(el, { shiftKey: true, deltaMode: WheelEvent.DOM_DELTA_LINE, deltaY: 1 });
+      expect(event.defaultPrevented).toBe(true);
+      expect(el.scrollLeft).toBeGreaterThan(1);
+    } finally {
+      unmount();
+      el.remove();
+    }
   });
 
   it('scrolls left on a negative delta', () => {
