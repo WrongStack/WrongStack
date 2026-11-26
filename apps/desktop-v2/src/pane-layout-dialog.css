@@ -26,6 +26,62 @@
   flex-wrap: wrap;
   margin-block: 12px;
 }
+.pane-layout-presets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-inline-size: 0;
+  margin: 12px 0;
+  padding: 0;
+  border: 0;
+}
+.pane-layout-presets > legend {
+  margin-block-end: 6px;
+  padding: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.pane-layout-preset {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  background: var(--raised);
+  color: var(--text);
+  font-size: 12px;
+  text-align: start;
+}
+.pane-layout-preset:hover {
+  background: var(--accent-soft);
+}
+.pane-layout-preset[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: inset 0 -2px var(--accent);
+}
+.pane-layout-thumbnail {
+  display: flex;
+  gap: 2px;
+  height: 28px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  background: var(--base);
+}
+.pane-layout-thumbnail > i {
+  flex: 1;
+  background: var(--border);
+}
+.pane-layout-thumbnail > .pane-layout-thumbnail-explorer {
+  flex-grow: 1.3;
+}
+.pane-layout-thumbnail > .pane-layout-thumbnail-inspector {
+  flex-grow: 2;
+}
+.pane-layout-thumbnail > .pane-layout-thumbnail-center {
+  flex-grow: 4;
+  border: 1px solid var(--border);
+  background: var(--raised);
+}
 .pane-layout-row {
   flex-wrap: wrap;
   padding-block: 8px;

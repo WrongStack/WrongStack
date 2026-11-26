@@ -23,17 +23,12 @@
     ],
     "security": {
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost; frame-src blob:; object-src 'none'; base-uri 'self'",
-      "capabilities": [
-        "shell"
-      ]
+      "capabilities": ["shell", "windows-titlebar"]
     }
   },
   "bundle": {
     "active": false,
-    "icon": [
-      "icons/icon.ico",
-      "icons/icon.png"
-    ]
+    "icon": ["icons/icon.ico", "icons/icon.png"]
   },
   "plugins": {
     "updater": {

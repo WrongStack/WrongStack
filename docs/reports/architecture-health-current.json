@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T17:17:41.364Z",
+  "generatedAt": "2026-11-26T17:19:12.192Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6580,
-    "testFiles": 6499,
-    "sourceLines": 1351779,
+    "sourceFiles": 6582,
+    "testFiles": 6500,
+    "sourceLines": 1352081,
     "workspaceEdges": 261,
-    "moduleEdges": 19290,
+    "moduleEdges": 19294,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -427,8 +427,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 569,
-      "testFiles": 408,
+      "sourceFiles": 571,
+      "testFiles": 409,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -447,7 +447,7 @@
         {
           "path": "apps/desktop-v2/tsconfig.test.json",
           "error": null,
-          "testFiles": 408
+          "testFiles": 409
         }
       ]
     },
@@ -3811,6 +3811,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/user-btw-delivery.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/windows-title-bar.test.ts",
         "projects": [
           "root-node"
         ]
@@ -40865,6 +40871,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/DesktopStatusBar.tsx",
+      "specifier": "./desktop-chrome.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/DraftCounter.tsx",
       "specifier": "./draft-counter.css",
       "syntax": "import"
@@ -41477,6 +41488,11 @@
     {
       "from": "apps/desktop-v2/src/UpdateNotice.tsx",
       "specifier": "./update-notice.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/WindowsTitleBar.tsx",
+      "specifier": "./windows-title-bar.css",
       "syntax": "import"
     },
     {

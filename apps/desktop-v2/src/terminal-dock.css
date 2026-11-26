@@ -21,9 +21,18 @@
 .terminal-dock > header {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   padding-inline: 10px 4px;
-  min-height: 34px;
+  min-height: 36px;
+}
+.terminal-dock-icon {
+  flex: none;
+  color: var(--muted);
+}
+.terminal-dock > header > .icon-button {
+  flex: none;
+  min-width: 32px;
+  min-height: 32px;
 }
 .terminal-dock > header > strong {
   flex: 1;

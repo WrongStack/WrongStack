@@ -165,6 +165,7 @@ export function SessionWorkbench({
             className="icon-button"
             aria-label="Dock terminal"
             title="Dock terminal"
+            ref={terminal.dockButtonRef}
             onClick={terminal.dock}
           >
             <PanelBottom size={16} aria-hidden="true" />

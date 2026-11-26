@@ -1,0 +1,14 @@
+{
+  "identifier": "windows-titlebar",
+  "description": "Windows-only custom caption on the app shell: removes native decorations and lets the shell drive dragging, minimize, maximize and close. Preview windows receive no capabilities.",
+  "local": true,
+  "windows": ["main", "project-*"],
+  "platforms": ["windows"],
+  "permissions": [
+    "core:window:allow-set-decorations",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-close",
+    "core:window:allow-start-dragging"
+  ]
+}

@@ -305,9 +305,14 @@ try {
           const layout = page.getByRole('dialog', { name: 'Workspace layout' });
           await layout.waitFor();
           await assertSquareCorners(page, 'Workspace layout');
-          await layout.getByRole('button', { name: 'Focus', exact: true }).click();
+          const focusPreset = layout.getByRole('button', { name: 'Focus', exact: true });
+          const codePreset = layout.getByRole('button', { name: 'Code', exact: true });
+          await focusPreset.press('Enter');
           await explorer.waitFor({ state: 'hidden' });
-          await layout.getByRole('button', { name: 'Code', exact: true }).click();
+          assert.equal(await focusPreset.getAttribute('aria-pressed'), 'true');
+          assert.equal(await codePreset.getAttribute('aria-pressed'), 'false');
+          await page.screenshot({ path: join(artifacts, `${mode}-workspace-layout.png`) });
+          await codePreset.click();
           await explorer.waitFor();
           await layout.getByRole('spinbutton', { name: 'Projects and sessions width' }).fill('300');
           await layout.getByRole('button', { name: 'Apply pane settings' }).click();
@@ -323,6 +328,10 @@ try {
           });
           if (mode === 'light' && (await lightSwitch.isVisible())) await lightSwitch.click();
         }
+        const statusBar = page.locator('.desktop-status-bar');
+        await statusBar.getByRole('status', { name: 'Local engine connected' }).waitFor();
+        const statusBox = await statusBar.boundingBox();
+        assert.ok(statusBox && Math.abs(statusBox.y + statusBox.height - height) <= 1);
         await assertSquareCorners(page, 'Fleet');
         await page.screenshot({ path: join(artifacts, `${mode}-${width}-${height}-fleet.png`) });
         assert.equal(
@@ -690,9 +699,15 @@ try {
       await page.waitForFunction(() => window.terminalAcks.length >= 1);
       await expectTerminalIntact('terminal tab', 'fixture-ok');
       // Dock: the panel joins the focused chat without remounting the terminal.
-      await dockButton.click();
+      await dockButton.press('Enter');
       const panel = page.getByRole('region', { name: 'Terminal panel' });
+      const hideToggle = panel.getByRole('button', { name: 'Hide terminal panel', exact: true });
       await panel.waitFor();
+      assert.equal(
+        await hideToggle.evaluate((button) => button === document.activeElement),
+        true,
+        'Docking moves focus to the panel toggle',
+      );
       await composer.waitFor();
       assert.ok(await panel.locator('.xterm').isVisible(), 'docked panel hosts the live xterm');
       await expectTerminalIntact('docked', 'fixture-ok');
@@ -723,11 +738,15 @@ try {
       assert.ok(await page.locator('.xterm').isVisible(), 'shown panel reveals xterm again');
       await expectTerminalIntact('reshown', 'docked-ok');
       // Back to a tab: same node and stream, panel gone, dock action available again.
-      await panel.getByRole('button', { name: 'Move terminal to tab', exact: true }).click();
+      await panel.getByRole('button', { name: 'Move terminal to tab', exact: true }).press('Enter');
       await panel.waitFor({ state: 'detached' });
       await expectTerminalIntact('tab again', 'docked-ok');
-      await page.getByRole('tab', { name: /Fixture terminal/ }).click();
       await dockButton.waitFor();
+      assert.equal(
+        await dockButton.evaluate((button) => button === document.activeElement),
+        true,
+        'Returning to the tab restores focus to Dock terminal',
+      );
       assert.equal(
         await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
         false,

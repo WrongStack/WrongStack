@@ -35,18 +35,28 @@ export function PaneLayoutDialog({ onClose }: { onClose: () => void }) {
           Resize by dragging a pane edge, using the arrow keys on its divider, or entering a width
           here. Narrow windows adapt without changing saved widths.
         </p>
-        <div className="pane-layout-actions" role="group" aria-label="Layout presets">
+        <fieldset className="pane-layout-presets">
+          <legend>Layout presets</legend>
           {Object.entries(panePresets).map(([name, preset]) => (
             <button
-              className="button secondary small"
+              className="pane-layout-preset"
               key={name}
               type="button"
+              aria-pressed={paneIds.every(
+                (id) => panes[id].open === preset[id].open && panes[id].width === preset[id].width,
+              )}
               onClick={() => apply(preset)}
             >
-              {name}
+              <span className="pane-layout-thumbnail" aria-hidden="true">
+                {preset.explorer.open && <i className="pane-layout-thumbnail-explorer" />}
+                {preset.fileTree.open && <i className="pane-layout-thumbnail-tree" />}
+                <i className="pane-layout-thumbnail-center" />
+                {preset.inspector.open && <i className="pane-layout-thumbnail-inspector" />}
+              </span>
+              <span>{name}</span>
             </button>
           ))}
-        </div>
+        </fieldset>
         <form
           onSubmit={(event) => {
             event.preventDefault();

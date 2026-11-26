@@ -1,0 +1,97 @@
+.app-shell {
+  --desktop-status-height: 28px;
+  --desktop-caption-height: 0px;
+  --desktop-content-height: calc(
+    100dvh -
+    var(--desktop-caption-height) -
+    var(--desktop-status-height)
+  );
+  padding-block: var(--desktop-caption-height) var(--desktop-status-height);
+}
+.app-shell[data-custom-caption="true"] {
+  --desktop-caption-height: 36px;
+}
+.app-shell > .sidebar {
+  top: var(--desktop-caption-height);
+  bottom: var(--desktop-status-height);
+}
+.app-shell > .workspace-shell {
+  min-height: var(--desktop-content-height);
+}
+.app-shell > .workspace-shell:is(.workspace-focused, .project-focused, .settings-focused) {
+  height: var(--desktop-content-height);
+  min-height: 0;
+}
+/* Upward-opening composer menus need to leave room for both fixed chrome rows. */
+@media (max-height: 600px) {
+  .app-shell .composer-options > div {
+    max-height: min(
+      420px,
+      calc(45dvh - var(--desktop-status-height) - var(--desktop-caption-height))
+    );
+  }
+}
+.desktop-status-bar {
+  position: fixed;
+  z-index: 4;
+  inset: auto 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  height: var(--desktop-status-height);
+  padding-inline: 10px;
+  border-block-start: 1px solid var(--border);
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 11px;
+}
+.desktop-status-context,
+.desktop-status-meta,
+.desktop-status-context > span,
+.desktop-status-connection {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.desktop-status-context > span > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.desktop-status-context svg {
+  flex: none;
+}
+.desktop-status-session {
+  border-inline-start: 1px solid var(--border);
+  padding-inline-start: 8px;
+}
+.desktop-status-meta {
+  flex: none;
+  gap: 10px;
+  white-space: nowrap;
+}
+.desktop-status-live {
+  min-height: 24px;
+  padding-inline: 5px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.desktop-status-live:hover {
+  background: var(--accent-soft);
+}
+.desktop-status-connection > i {
+  width: 6px;
+  height: 6px;
+  background: var(--danger);
+}
+.desktop-status-connection[data-connected="true"] > i {
+  background: hsl(var(--ws-success));
+}
+@media (max-width: 619px) {
+  .desktop-status-context > .desktop-status-session,
+  .desktop-status-version {
+    display: none;
+  }
+}

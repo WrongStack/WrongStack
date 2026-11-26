@@ -1,4 +1,4 @@
-import { PanelBottom, PanelTop } from 'lucide-react';
+import { PanelBottom, PanelTop, Terminal } from 'lucide-react';
 import { lazy, Suspense, useId, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDesktopText } from './desktop-i18n';
@@ -12,6 +12,7 @@ const TerminalPane = lazy(() =>
 export type TerminalTabPlacement = {
   setSlot: (node: HTMLDivElement | null) => void;
   dock: (() => void) | undefined;
+  dockButtonRef?: (button: HTMLButtonElement | null) => void;
   docked: boolean;
 };
 
@@ -61,9 +62,11 @@ export function TerminalDock({
   setSlot,
   toggle,
   undock,
+  toggleButtonRef,
 }: {
   session: Session;
   open: boolean;
+  toggleButtonRef: (button: HTMLButtonElement | null) => void;
   setSlot: (node: HTMLDivElement | null) => void;
   toggle: () => void;
   undock: () => void;
@@ -73,12 +76,14 @@ export function TerminalDock({
   return (
     <section className="terminal-dock" aria-label="Terminal panel">
       <header>
+        <Terminal className="terminal-dock-icon" size={15} aria-hidden="true" />
         <strong title={session.title}>{sessionTitle(session, t('workbench.untitled'))}</strong>
         <button
           type="button"
           className="icon-button"
           aria-expanded={open}
           aria-controls={id}
+          ref={toggleButtonRef}
           aria-label={open ? 'Hide terminal panel' : 'Show terminal panel'}
           title={open ? 'Hide terminal panel' : 'Show terminal panel'}
           onClick={toggle}

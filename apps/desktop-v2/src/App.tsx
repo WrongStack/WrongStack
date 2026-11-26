@@ -1,8 +1,8 @@
 import { ExternalLink, Moon, Plus, Radio, Sun, X } from 'lucide-react';
 import { type CSSProperties, lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Trans } from 'react-i18next';
+import { DesktopStatusBar } from './DesktopStatusBar';
 import { useDesktopText } from './desktop-i18n';
-import { desktopVersion } from './desktop-version';
 import { FleetPanel } from './FleetPanel';
 import { HostBuildNotice } from './HostBuildNotice';
 import { NotificationMenu } from './NotificationMenu';
@@ -20,6 +20,7 @@ import { cachedLanguage, surfaceI18n } from './surface-i18n';
 import { UpdateNotice } from './UpdateNotice';
 import { useDesktop } from './useDesktop';
 import { useWorkbenchExplorer } from './useWorkbenchExplorer';
+import { WindowsTitleBar } from './WindowsTitleBar';
 import { WorkbenchMenu } from './WorkbenchMenu';
 import { HostedTerminal, TerminalDock } from './WorkbenchTerminals';
 import { WorkspaceDialogs } from './WorkspaceDialogs';
@@ -51,6 +52,7 @@ function DesktopShell() {
   // Use the remembered language (or English) at launch. Read the profile when settings opens,
   // rather than booting an entire settings engine just to learn its display language.
   const [readLanguage, setReadLanguage] = useState(() => native && cachedLanguage() === null);
+  const [customCaption, setCustomCaption] = useState(false);
   const {
     snapshot,
     setProject,
@@ -73,6 +75,22 @@ function DesktopShell() {
   const [dock, setDock] = useState<{ id: string; open: boolean }>();
   const [tabSlot, setTabSlot] = useState<HTMLDivElement | null>(null);
   const [dockSlot, setDockSlot] = useState<HTMLDivElement | null>(null);
+  // Only explicit placement changes request focus; merely revisiting the project does not.
+  const terminalFocus = useRef<{ id: string; placement: 'dock' | 'tab' } | null>(null);
+  const focusTerminalControl = (
+    button: HTMLButtonElement | null,
+    id: string,
+    placement: 'dock' | 'tab',
+  ) => {
+    if (
+      button &&
+      terminalFocus.current?.id === id &&
+      terminalFocus.current.placement === placement
+    ) {
+      terminalFocus.current = null;
+      button.focus({ preventScroll: true });
+    }
+  };
   const dockId = dock?.id;
   const dockAttached = dockId !== undefined && vm.openSessionIds?.includes(dockId);
   useEffect(() => {
@@ -93,6 +111,7 @@ function DesktopShell() {
     if (conversationId) lastConversation.current = conversationId;
   }, [conversationId]);
   const dockTerminal = (terminal: NonNullable<typeof tabTerminal>) => {
+    terminalFocus.current = { id: terminal.id, placement: 'dock' };
     setDock({ id: terminal.id, open: true });
     const previous = snapshot.sessions.find(
       (session) =>
@@ -120,11 +139,13 @@ function DesktopShell() {
   return (
     <div
       className="app-shell"
+      data-custom-caption={customCaption}
       style={{ '--explorer-width': `${explorer.width ?? 220}px` } as CSSProperties}
     >
       {readLanguage && section === 'wrongstack' && (
         <SurfaceLanguageSync onKnown={() => setReadLanguage(false)} />
       )}
+      <WindowsTitleBar onActiveChange={setCustomCaption} />
       <Sidebar vm={vm} explorer={explorer} />
       <div
         className={`workspace-shell ${focused ? 'workspace-focused' : ''} ${section === 'project' ? 'project-focused' : ''} ${section === 'wrongstack' ? 'settings-focused' : ''}`}
@@ -148,23 +169,6 @@ function DesktopShell() {
                     }[section]}
           </h1>
           <div className="topbar-right">
-            {vm.active.length > 0 && (
-              <button
-                type="button"
-                className="topbar-live"
-                title={t('topbar.liveTitle')}
-                onClick={() => {
-                  setFilter('active');
-                  setProject(null);
-                  setSection('fleet');
-                  setSelected(null);
-                }}
-              >
-                <i aria-hidden="true" />
-                {t('topbar.live', { count: vm.active.length })}
-              </button>
-            )}
-            {desktopVersion() && <span className="topbar-version">v{desktopVersion()}</span>}
             {currentProject && !focused && section !== 'wrongstack' && (
               <button
                 type="button"
@@ -207,12 +211,6 @@ function DesktopShell() {
                 setSection('fleet');
                 setSelected(null);
               }}
-            />
-            <span
-              className={`connection-dot ${connected ? 'running' : 'stopped'}`}
-              role="status"
-              title={t(connected ? 'topbar.connected' : 'topbar.disconnected')}
-              aria-label={t(connected ? 'topbar.connected' : 'topbar.disconnected')}
             />
           </div>
         </header>
@@ -258,6 +256,9 @@ function DesktopShell() {
                     terminal={{
                       setSlot: setTabSlot,
                       dock: tabTerminal && !docked ? () => dockTerminal(tabTerminal) : undefined,
+                      dockButtonRef: (button) => {
+                        if (tabTerminal) focusTerminalControl(button, tabTerminal.id, 'tab');
+                      },
                       docked: Boolean(docked && docked.id === tabTerminal?.id),
                     }}
                   />
@@ -277,8 +278,10 @@ function DesktopShell() {
             session={docked}
             open={dock?.open === true}
             setSlot={setDockSlot}
+            toggleButtonRef={(button) => focusTerminalControl(button, docked.id, 'dock')}
             toggle={() => setDock((previous) => previous && { ...previous, open: !previous.open })}
             undock={() => {
+              terminalFocus.current = { id: docked.id, placement: 'tab' };
               setDock(undefined);
               vm.jumpToSession(docked);
             }}
@@ -294,6 +297,18 @@ function DesktopShell() {
           />
         ))}
       </div>
+      <DesktopStatusBar
+        project={section !== 'wrongstack' && section !== 'engine' ? currentProject : undefined}
+        session={focused ? currentSession : undefined}
+        connected={connected}
+        liveCount={vm.active.length}
+        onShowLive={() => {
+          setFilter('active');
+          setProject(null);
+          setSection('fleet');
+          setSelected(null);
+        }}
+      />
       <WorkspaceDialogs vm={vm} />
     </div>
   );

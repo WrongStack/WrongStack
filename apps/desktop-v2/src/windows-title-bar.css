@@ -1,0 +1,74 @@
+/* Windows-only custom caption, mounted by WindowsTitleBar inside .app-shell.
+   The header owns the fixed 36px top row; the shell toggles
+   .app-shell[data-custom-caption="true"] from the bar's onActiveChange state,
+   raising --desktop-caption-height in desktop-chrome.css so the offsets
+   follow. This bar must not size itself from that variable: .app-shell
+   defines it as 0px until activation. */
+.desktop-titlebar {
+  position: fixed;
+  z-index: 4;
+  inset: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  height: 36px;
+  background: var(--raised);
+  border-block-end: 1px solid var(--border);
+  user-select: none;
+  cursor: default;
+}
+.desktop-titlebar-title {
+  display: flex;
+  align-items: center;
+  max-width: 50%;
+  padding-inline: 12px;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.desktop-titlebar--inactive .desktop-titlebar-title {
+  color: var(--muted);
+}
+.desktop-titlebar-drag {
+  flex: 1;
+  min-width: 0;
+}
+.desktop-titlebar-controls {
+  display: flex;
+  align-items: stretch;
+  flex: none;
+}
+.desktop-titlebar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: default;
+}
+.desktop-titlebar-button:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.desktop-titlebar-button:active {
+  background: color-mix(in srgb, var(--accent-soft) 70%, var(--border));
+}
+.desktop-titlebar-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.desktop-titlebar-button--close:hover {
+  background: var(--danger);
+  color: var(--on-accent);
+}
+.desktop-titlebar-button--close:active {
+  background: color-mix(in srgb, var(--danger) 85%, var(--base));
+}
+.desktop-titlebar-glyph {
+  width: 10px;
+  height: 10px;
+}
