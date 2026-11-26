@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T14:50:14.540Z",
+  "generatedAt": "2026-11-26T14:54:09.552Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6572,
-    "testFiles": 6483,
-    "sourceLines": 1350299,
+    "testFiles": 6489,
+    "sourceLines": 1350380,
     "workspaceEdges": 261,
     "moduleEdges": 19254,
     "nonCommandSlashImports": 0,
@@ -403,7 +403,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 665,
-      "testFiles": 863,
+      "testFiles": 868,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -420,7 +420,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 863
+          "testFiles": 868
         }
       ]
     },
@@ -1082,7 +1082,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 347,
-      "testFiles": 415,
+      "testFiles": 416,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/browser-tools",
@@ -1104,7 +1104,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 415
+          "testFiles": 416
         }
       ]
     },
@@ -15114,13 +15114,37 @@
         ]
       },
       {
+        "file": "packages/core/tests/security/yolo-git-global-option-value.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/security/yolo-git-long-option-abbrev.test.ts",
         "projects": [
           "root-node"
         ]
       },
       {
+        "file": "packages/core/tests/security/yolo-kubectl-delete-type-list.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/security/yolo-plus.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/security/yolo-pwsh-env-home-delete.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/security/yolo-pwsh-trailing-backslash-separator.test.ts",
         "projects": [
           "root-node"
         ]
@@ -16459,6 +16483,12 @@
       },
       {
         "file": "packages/core/tests/storage/tool-audit-log-hardening.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/tool-audit-log-torn-tail.test.ts",
         "projects": [
           "root-node"
         ]
@@ -28597,6 +28627,12 @@
       },
       {
         "file": "packages/tools/tests/codebase-writer-integrity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/danger-cmd-yarn-kubectl-list.test.ts",
         "projects": [
           "root-node"
         ]

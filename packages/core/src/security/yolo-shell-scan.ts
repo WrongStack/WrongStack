@@ -14,6 +14,8 @@ export const SHELL_OPERATORS = new Set(['&&', '&', '||', '|', ';', '>', '>>', '<
 interface ShellScanState {
   quote: string | undefined;
   escaped: boolean;
+  /** PowerShell/cmd reading: `\` is a literal character, never an escape. */
+  literalBackslash?: boolean;
 }
 
 /**
@@ -29,7 +31,7 @@ function advanceShellScan(state: ShellScanState, ch: string): boolean {
     if (ch === "'") state.quote = undefined;
     return true;
   }
-  if (ch === '\\') {
+  if (ch === '\\' && !state.literalBackslash) {
     state.escaped = true;
     return true;
   }
@@ -65,17 +67,26 @@ function advanceShellScan(state: ShellScanState, ch: string): boolean {
 function spaceOutUnquotedSeparators(command: string): string {
   const separators = ';&|';
   let out = '';
+  // PowerShell and cmd read `\` literally, so `"C:\dir\";next` closes its
+  // string where a POSIX shell would not. Track both readings and treat a
+  // separator as live when EITHER sees it unquoted: wrongly splitting a POSIX
+  // string only adds tokens (stricter gates); missing a live one hides a command.
   const state: ShellScanState = { quote: undefined, escaped: false };
+  const literal: ShellScanState = { quote: undefined, escaped: false, literalBackslash: true };
   for (let i = 0; i < command.length; i++) {
     const ch = command[i];
     if (ch === undefined) continue;
-    if (advanceShellScan(state, ch) || !separators.includes(ch)) {
+    const posixInert = advanceShellScan(state, ch);
+    const literalInert = advanceShellScan(literal, ch);
+    if ((posixInert && literalInert) || !separators.includes(ch)) {
       out += ch;
       continue;
     }
     let run = ch;
     let next = command[i + 1];
     while (next !== undefined && separators.includes(next)) {
+      advanceShellScan(state, next);
+      advanceShellScan(literal, next);
       run += next;
       i += 1;
       next = command[i + 1];

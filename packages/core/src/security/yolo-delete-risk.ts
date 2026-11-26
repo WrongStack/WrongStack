@@ -228,7 +228,14 @@ function isCatastrophicDeleteTarget(rawTarget: string): boolean {
   // Home, in every spelling the shell expands to it. `${HOME}` is the same
   // variable as `$HOME` — probe-verified 2026-09-22: `rm -rf ${HOME}` classified
   // as not destructive while `rm -rf $HOME` was gated.
-  if (s === '~' || /^\$(?:HOME|\{HOME\})$/i.test(s) || /^%USERPROFILE%$/i.test(s)) return true;
+  // PowerShell's env drive (`$env:USERPROFILE`, `${env:HOME}`) is the same home.
+  if (
+    s === '~' ||
+    /^\$(?:HOME|\{HOME\})$/i.test(s) ||
+    /^%USERPROFILE%$/i.test(s) ||
+    /^\$(?:env:(?:USERPROFILE|HOME)|\{env:(?:USERPROFILE|HOME)\})$/i.test(s)
+  )
+    return true;
   if (/^[A-Za-z]:$/.test(s)) return true; // Windows drive root: C:, C:\, C:\*
   const norm = s.toLowerCase().replace(/\\/g, '/');
   if (CATASTROPHIC_POSIX_ROOTS.has(norm)) return true; // /etc, /usr, /home, …

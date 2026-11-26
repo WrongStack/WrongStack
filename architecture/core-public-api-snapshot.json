@@ -1206,7 +1206,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 40,
-      "sourceLines": 10315
+      "sourceLines": 10353
     },
     {
       "directory": "session-catalog",
@@ -1234,7 +1234,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 129,
-      "sourceLines": 30311
+      "sourceLines": 30332
     },
     {
       "directory": "tasking",

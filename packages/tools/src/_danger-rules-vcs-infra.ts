@@ -298,7 +298,14 @@ export const VCS_INFRA_DANGER_RULES: readonly DangerRule[] = [
         previousWasBareOption = false;
       }
       const verbs = cmd === 'cargo' ? ['publish', 'yank'] : ['publish'];
-      return candidates.some((c) => verbs.includes(c));
+      if (candidates.some((c) => verbs.includes(c))) return true;
+      // Yarn 2+ publishes with `yarn npm publish` (also behind
+      // `workspaces foreach`), so the subcommand scan above stops at `npm`.
+      if (cmd === 'yarn') {
+        const positionals = args.filter((a) => !a.startsWith('-'));
+        return positionals.some((a, i) => a === 'npm' && positionals[i + 1] === 'publish');
+      }
+      return false;
     },
     reason: 'publishing to a public package registry (hard to reverse)',
   },
@@ -366,8 +373,9 @@ export const VCS_INFRA_DANGER_RULES: readonly DangerRule[] = [
       // in the resource slot. Only the value-taking flags are skipped, so a
       // boolean flag (`--force`) does not swallow the resource that follows it.
       const resource = kubectlDeleteResource(args.slice(delIdx + 1));
-      // The TYPE/NAME form (`ns/prod`) names the same resource.
-      return /^(?:namespaces?|ns)(?:\/|$)/i.test(resource ?? '');
+      // The TYPE/NAME form (`ns/prod`) names the same resource, and a
+      // comma-separated TYPE list (`pods,ns prod`) deletes every listed type.
+      return (resource ?? '').split(',').some((type) => /^(?:namespaces?|ns)(?:\/|$)/i.test(type));
     },
     reason: 'kubectl delete namespace (deletes all resources in the namespace)',
   },
@@ -394,7 +402,12 @@ export const VCS_INFRA_DANGER_RULES: readonly DangerRule[] = [
         if (delIdx < 0) return false;
         if (args.some((a) => a === '--all' || a === '-A' || a === '--all-namespaces')) return true;
         const resource = kubectlDeleteResource(args.slice(delIdx + 1)) ?? '';
-        return /^(?:pvc|pv|persistentvolumeclaims?|persistentvolumes?)(?:\/|$)/i.test(resource);
+        // A comma-separated TYPE list deletes every listed type.
+        return resource
+          .split(',')
+          .some((type) =>
+            /^(?:pvc|pv|persistentvolumeclaims?|persistentvolumes?)(?:\/|$)/i.test(type),
+          );
       }
       if (cmd === 'terraform' || cmd === 'tofu') {
         const sub = args.find((a) => !a.startsWith('-'));

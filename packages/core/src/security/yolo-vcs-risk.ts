@@ -176,12 +176,32 @@ export function hasGitHistoryRewrite(command: string): boolean {
  *     bring discarded commits back.
  * `args` is lowercased.
  */
-function discardsLocalWork(args: readonly string[]): boolean {
+/**
+ * Git global options whose value may be the NEXT word (git.c handle_options):
+ * `-c k=v` and `-C <dir>` (both `-c` once lowercased), plus the long forms that
+ * also accept `--opt <value>` besides `--opt=<value>`. Skipping only `-c` read
+ * `git --work-tree . checkout -- src` as subcommand `.`, ungated.
+ */
+const GIT_GLOBAL_VALUE_OPTIONS: ReadonlySet<string> = new Set([
+  '-c',
+  '--git-dir',
+  '--work-tree',
+  '--namespace',
+  '--config-env',
+  '--super-prefix',
+]);
+
+/** Index of the git subcommand in lowercased `args`, past the global options. */
+function gitSubcommandIndex(args: readonly string[]): number {
   let i = 0;
-  // Global options; `-c k=v` and `-C <dir>` (both `-c` once lowercased) take a value.
   while (i < args.length && args[i]!.startsWith('-')) {
-    i += args[i] === '-c' ? 2 : 1;
+    i += GIT_GLOBAL_VALUE_OPTIONS.has(args[i]!) ? 2 : 1;
   }
+  return i;
+}
+
+function discardsLocalWork(args: readonly string[]): boolean {
+  const i = gitSubcommandIndex(args);
   const sub = args[i];
   const rest = args.slice(i + 1);
   // F8: checkout's only f-option is --force (--f…--forc unambiguous, minLen 1);
@@ -264,11 +284,7 @@ function discardsLocalWork(args: readonly string[]): boolean {
  * an abbreviated list-mode flag may over-gate (fail-safe).
  */
 function forceBranchManipulation(args: readonly string[], rawArgs: readonly string[]): boolean {
-  let i = 0;
-  // Global options, same skip as discardsLocalWork (`-c k=v` takes a value).
-  while (i < args.length && args[i]!.startsWith('-')) {
-    i += args[i] === '-c' ? 2 : 1;
-  }
+  const i = gitSubcommandIndex(args);
   const sub = args[i];
   const rest = args.slice(i + 1);
   const rawRest = rawArgs.slice(i + 1);
@@ -391,7 +407,9 @@ export function hasExternalPublish(command: string): boolean {
       // The resource is the first positional after `delete` (flags go anywhere),
       // in any documented spelling: plural, short, or the TYPE/NAME form.
       const resource = deleteIdx >= 0 ? kubectlDeleteResource(args.slice(deleteIdx + 1)) : '';
-      if (/^(?:namespaces?|ns)(?:\/|$)/.test(resource)) return true;
+      // A comma-separated TYPE list (`pods,ns prod`) deletes every listed type.
+      const types = resource.split(',');
+      if (types.some((type) => /^(?:namespaces?|ns)(?:\/|$)/.test(type))) return true;
       if (args.includes('drain')) return true;
       // Cluster-wide (`--all`, `-A` → `-a` once lowercased) or data-bearing
       // (persistent volumes) deletes are as irreversible as a namespace.
@@ -400,7 +418,9 @@ export function hasExternalPublish(command: string): boolean {
         (args.includes('--all') ||
           args.includes('-a') ||
           args.includes('--all-namespaces') ||
-          /^(?:pvc|pv|persistentvolumeclaims?|persistentvolumes?)(?:\/|$)/.test(resource))
+          types.some((type) =>
+            /^(?:pvc|pv|persistentvolumeclaims?|persistentvolumes?)(?:\/|$)/.test(type),
+          ))
       ) {
         return true;
       }

@@ -24,7 +24,14 @@ const INLINE_PAYLOAD_HOSTS = new Set([
   'python3',
   'perl',
   'ruby',
+  'cmd',
 ]);
+
+/**
+ * cmd.exe's command-line switches. Host-keyed: `/c` is an ordinary path for
+ * every other host, so it must not join the shared flag set.
+ */
+const CMD_PAYLOAD_FLAGS = new Set(['/c', '/k']);
 
 /**
  * Hosts whose short options may be CLUSTERED: `bash -lc "<cmd>"`, `sh -ec`,
@@ -91,7 +98,9 @@ export function inlinePayloadPairs(
     const flag = args[i]?.toLowerCase();
     if (
       flag === undefined ||
-      !(INLINE_PAYLOAD_FLAGS.has(flag) || isClusteredCommandStringFlag(base, flag))
+      !(base === 'cmd'
+        ? CMD_PAYLOAD_FLAGS.has(flag)
+        : INLINE_PAYLOAD_FLAGS.has(flag) || isClusteredCommandStringFlag(base, flag))
     ) {
       continue;
     }

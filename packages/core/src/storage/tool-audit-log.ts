@@ -175,7 +175,10 @@ export class ToolAuditLog {
           // record; a 1000-call session rewrote a multi-MB audit file 1000
           // times (quadratic in session length). `withFileLock` above
           // guarantees no concurrent writer interleaves with our append.
-          await fs.appendFile(fp, JSON.stringify(entry) + '\n', {
+          // A crash mid-append can leave a newline-less fragment at the tail;
+          // start on a fresh line so this entry is not glued onto it.
+          const separator = tip.tornTail ? '\n' : '';
+          await fs.appendFile(fp, separator + JSON.stringify(entry) + '\n', {
             encoding: 'utf8',
             // WS-035: this file records raw tool INPUT and OUTPUT. Created
             // without a mode it lands 0644 — world-readable — while its
@@ -246,7 +249,7 @@ export class ToolAuditLog {
   private async _resolveChainTip(
     sessionId: string,
     fp: string,
-  ): Promise<{ prevHash: string; nextIndex: number }> {
+  ): Promise<{ prevHash: string; nextIndex: number; tornTail?: boolean }> {
     const cachedHash = this.tailHash.get(sessionId);
     const cachedIndex = this.tailIndex.get(sessionId);
     const cachedStat = this.tailStat.get(sessionId);
@@ -286,7 +289,7 @@ export class ToolAuditLog {
     } catch {
       /* leave cache empty; next record re-reads */
     }
-    return { prevHash, nextIndex };
+    return { prevHash, nextIndex, tornTail: await endsWithoutNewline(fp) };
   }
 
   /**
@@ -492,6 +495,24 @@ export class ToolAuditLog {
       if (this.writeChains.get(sessionId) === settled) this.writeChains.delete(sessionId);
     });
     return next;
+  }
+}
+
+/** True when a non-empty file's last byte is not `\n` (a torn final line). */
+async function endsWithoutNewline(fp: string): Promise<boolean> {
+  let fh: fs.FileHandle | undefined;
+  try {
+    fh = await fs.open(fp, 'r');
+    const { size } = await fh.stat();
+    if (size === 0) return false;
+    const last = Buffer.alloc(1);
+    await fh.read(last, 0, 1, size - 1);
+    return last[0] !== 0x0a;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw err;
+  } finally {
+    await fh?.close();
   }
 }
 
