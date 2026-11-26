@@ -11,13 +11,13 @@ describe('fmtTok', () => {
   it('renders thousands with one decimal under 10k', () => {
     expect(fmtTok(1000)).toBe('1.0k');
     expect(fmtTok(1234)).toBe('1.2k');
-    expect(fmtTok(9999)).toBe('10.0k');
+    expect(fmtTok(9999)).toBe('10k'); // precision from the rounded value, as 10_000
   });
 
   it('drops the decimal at 10k and up', () => {
     expect(fmtTok(10_000)).toBe('10k');
     expect(fmtTok(12_345)).toBe('12k');
-    expect(fmtTok(999_999)).toBe('1000k');
+    expect(fmtTok(999_999)).toBe('1.0M'); // carries: never one step past its unit
   });
 
   it('switches to millions above 1M', () => {

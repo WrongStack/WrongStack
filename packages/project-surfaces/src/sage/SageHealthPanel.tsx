@@ -42,6 +42,11 @@ function formatBytes(bytes: number | undefined): string {
     value /= 1024;
     unit += 1;
   }
+  // Promote on the rounded value: 1_048_575 B is "1.0 MB", not "1024 KB".
+  if (unit < units.length - 1 && Math.round(value) >= 1024) {
+    value /= 1024;
+    unit += 1;
+  }
   return `${displayDecimal(value, value >= 10 ? 0 : 1)} ${units[unit]}`;
 }
 

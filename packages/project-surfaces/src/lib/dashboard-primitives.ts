@@ -17,7 +17,8 @@ export function fmtCost(n?: number): string {
 export function fmtTok(n?: number): string {
   if (n == null || !Number.isFinite(n)) return '0';
   if (n < 1000) return String(Math.round(n));
-  if (n < 1_000_000) return `${displayDecimal(n / 1000, 1)}k`;
+  // 999_950 is where one-decimal k rounds to 1000.0: carry to M instead.
+  if (n < 999_950) return `${displayDecimal(n / 1000, 1)}k`;
   return `${displayDecimal(n / 1_000_000, 1)}M`;
 }
 

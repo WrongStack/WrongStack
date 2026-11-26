@@ -7,6 +7,12 @@ import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { SessionState } from '../lib/session';
 import { effortOptions } from '../lib/workspace-model';
 
+/** Unit from the rounded value: a 1_000_000-token window is "1M", never "1000k". */
+function contextLabel(tokens: number): string {
+  const k = Math.round(tokens / 1000);
+  return k >= 1000 ? `${Number((tokens / 1_000_000).toFixed(1))}M` : `${k}k`;
+}
+
 export const ModelPicker = memo(function ModelPicker({
   models,
   providers,
@@ -149,7 +155,7 @@ export const ModelPicker = memo(function ModelPicker({
                   <small>
                     {entry.label} ·{' '}
                     {entry.contextWindow
-                      ? `${Math.round(entry.contextWindow / 1000)}k context`
+                      ? `${contextLabel(entry.contextWindow)} context`
                       : 'Context not listed'}
                   </small>
                 </span>

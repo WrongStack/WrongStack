@@ -16,12 +16,12 @@ describe('fmtTok', () => {
 
   it('rounds to one decimal when below 10k', () => {
     expect(fmtTok(1200)).toBe('1.2k');
-    expect(fmtTok(9999)).toBe('10.0k');
+    expect(fmtTok(9999)).toBe('10k'); // precision from the rounded value, as 10_000
   });
 
   it('rounds to integer when 10k–1M', () => {
     expect(fmtTok(12_000)).toBe('12k');
-    expect(fmtTok(999_999)).toBe('1000k');
+    expect(fmtTok(999_999)).toBe('1.0M'); // carries: never one step past its unit
   });
 
   it('renders millions with one decimal', () => {

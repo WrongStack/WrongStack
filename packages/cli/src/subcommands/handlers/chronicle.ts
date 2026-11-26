@@ -342,7 +342,9 @@ function usage(): string {
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+  // Promote on the rounded value: 1_048_575 B is "1.0 MB", not "1024.0 KB".
+  const kb = (bytes / 1024).toFixed(1);
+  if (Number(kb) < 1024) return `${kb} KB`;
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
 

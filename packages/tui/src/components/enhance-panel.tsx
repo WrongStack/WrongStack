@@ -56,8 +56,12 @@ function normalizePreviewText(text: string): string {
 
 export function formatRefinementDuration(ms: number): string {
   const safe = Math.max(0, ms);
-  if (safe < 1000) return `${Math.round(safe)}ms`;
-  if (safe < 60_000) return `${(safe / 1000).toFixed(1)}s`;
+  if (Math.round(safe) < 1000) return `${Math.round(safe)}ms`;
+  if (safe < 60_000) {
+    // Unit from the rounded value: 59.96s is "1m 00s", never "60.0s".
+    const secs = (safe / 1000).toFixed(1);
+    return Number(secs) < 60 ? `${secs}s` : '1m 00s';
+  }
   const minutes = Math.floor(safe / 60_000);
   const seconds = Math.floor((safe % 60_000) / 1000);
   return `${minutes}m ${seconds.toString().padStart(2, '0')}s`;

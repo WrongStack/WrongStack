@@ -106,8 +106,12 @@ export function snippet(s: string, max = 72): string {
 }
 
 function fmtShortDuration(ms: number): string {
-  if (ms < 1000) return `${Math.max(0, Math.round(ms))}ms`;
-  if (ms < 60_000) return `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s`;
+  if (Math.round(ms) < 1000) return `${Math.max(0, Math.round(ms))}ms`;
+  if (ms < 60_000) {
+    // Unit and precision from the rounded value: 59.6s is "1m00s", never "60s".
+    const secs = (ms / 1000).toFixed(ms < 9_950 ? 1 : 0);
+    return Number(secs) < 60 ? `${secs}s` : '1m00s';
+  }
   const m = Math.floor(ms / 60_000);
   const s = Math.floor((ms % 60_000) / 1000);
   return `${m}m${s.toString().padStart(2, '0')}s`;

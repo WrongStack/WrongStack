@@ -339,19 +339,22 @@ export function applyFleetEvent(
         message: `${next.name} extended budget ⚡×${next.extensions}`,
       });
       break;
-    case 'ctx_pct':
-      next.ctxPct = clampContextPct(Math.round(Math.max(0, e.load ?? 0) * 100));
+    case 'ctx_pct': {
+      const load = Math.max(0, e.load ?? 0);
+      next.ctxPct = clampContextPct(Math.round(load * 100));
       next.ctxTokens = e.tokens ?? next.ctxTokens;
       next.maxContext = e.maxContext ?? next.maxContext;
 
       // Derive a budget_warning when the agent crosses 80% context fill.
       // This matches the TUI's warn threshold behaviour. budget_extended
       // clears the warning, so it only fires once until the next extension.
-      if (next.ctxPct >= 80 && !next.budgetWarning) {
+      // The TUI compares the raw load: a 79.6% load must not warn, and 99.6%
+      // is not yet the hard limit.
+      if (load >= 0.8 && !next.budgetWarning) {
         next.budgetWarning =
-          next.ctxPct >= 100
+          load >= 1
             ? { kind: 'hard', used: next.ctxPct, limit: 100 }
-            : { kind: 'soft', used: next.ctxPct, limit: 100 };
+            : { kind: 'soft', used: Math.min(99, next.ctxPct), limit: 100 };
       }
 
       if (typeof e.costUsd === 'number') next.costUsd = e.costUsd;
@@ -373,6 +376,7 @@ export function applyFleetEvent(
         value: next.ctxPct,
       });
       break;
+    }
     case 'task_completed': {
       const finalStatus = e.status === 'success' ? 'completed' : (e.status ?? 'completed');
       next.status = finalStatus;

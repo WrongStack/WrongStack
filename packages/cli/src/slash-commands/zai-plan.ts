@@ -38,8 +38,10 @@ const DEFAULT_DAYS = 7;
 /** `8371727911` → `8.37B`. */
 function formatTokenCount(n: number): string {
   const abs = Math.abs(n);
-  if (abs >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
-  if (abs >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+  // Each step starts where the previous unit's one decimal rounds to 1000.0:
+  // 999_960 is "1.0M", never "1000.0K".
+  if (abs >= 999_950_000) return `${(n / 1e9).toFixed(2)}B`;
+  if (abs >= 999_950) return `${(n / 1e6).toFixed(1)}M`;
   if (abs >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
   return String(n);
 }

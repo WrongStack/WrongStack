@@ -22,7 +22,7 @@ import { createMessageBubbleActions } from './message-bubble-actions.js';
 import { createMessageBubbleSubmitters } from './message-bubble-submit.js';
 import { StreamingMarkdown } from './StreamingMarkdown.js';
 import { ToolLedgerCard } from './ToolLedgerCard.js';
-import { markdownComponents, rehypePlugins } from './utils.js';
+import { formatRunDuration, markdownComponents, rehypePlugins } from './utils.js';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -507,10 +507,7 @@ export const MessageBubble = memo(function MessageBubble({
               {message.runSummary.tools > 0
                 ? ` · ${message.runSummary.tools} tool${message.runSummary.tools === 1 ? '' : 's'}`
                 : ''}{' '}
-              ·{' '}
-              {message.runSummary.durationMs < 60_000
-                ? `${(message.runSummary.durationMs / 1000).toFixed(1)}s`
-                : `${Math.floor(message.runSummary.durationMs / 60_000)}m ${Math.floor((message.runSummary.durationMs % 60_000) / 1000)}s`}
+              · {formatRunDuration(message.runSummary.durationMs)}
               {message.runSummary.costDelta > 0
                 ? ` · ${message.runSummary.costDelta >= 0.01 ? message.runSummary.costDelta.toFixed(4) : message.runSummary.costDelta.toFixed(6).replace(/0+$/, '').replace(/\.$/, '')}`
                 : ''}

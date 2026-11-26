@@ -222,7 +222,8 @@ const LIFECYCLE_EMOJI: Record<string, string> = {
 
 function formatCompactTokens(tokens: number): string {
   if (!Number.isFinite(tokens) || tokens <= 0) return '0';
-  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(2)}M`;
+  // 999_500 rounds to 1000k: carry into M instead ("1.00M", never "1000k").
+  if (tokens >= 999_500) return `${(tokens / 1_000_000).toFixed(2)}M`;
   if (tokens >= 10_000) return `${Math.round(tokens / 1000)}k`;
   if (tokens >= 1_000) return `${(tokens / 1000).toFixed(1)}k`;
   return String(Math.round(tokens));

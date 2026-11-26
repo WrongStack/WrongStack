@@ -43,8 +43,9 @@ export function formatSubagentModelFailedText(description: string | undefined): 
 /** Format a duration for a history chip. */
 export function formatHistoryDuration(ms: number): string {
   if (!Number.isFinite(ms) || ms < 0) return '0s';
-  if (ms < 10_000) return `${(ms / 1000).toFixed(1)}s`;
-  if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
+  // Unit and precision from the rounded value: 9.96s is "10s", 59.6s is "1m".
+  if (ms < 9_950) return `${(ms / 1000).toFixed(1)}s`;
+  if (ms < 59_500) return `${Math.round(ms / 1000)}s`;
   const totalSec = Math.round(ms / 1000);
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;

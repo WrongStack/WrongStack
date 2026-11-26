@@ -8,7 +8,11 @@
 export function fmtTok(n: number): string {
   const safe = Number.isFinite(n) && n > 0 ? n : 0;
   if (safe < 1000) return String(safe);
-  if (safe < 1_000_000) return `${(safe / 1000).toFixed(safe < 10_000 ? 1 : 0)}k`;
+  // Unit and precision from the ROUNDED mantissa: 9_960 is "10k" (as 10_000)
+  // and 999_600 is "1.0M", never "1000k" — one step past its own unit.
+  const k = safe / 1000;
+  const text = k.toFixed(Number(k.toFixed(1)) < 10 ? 1 : 0);
+  if (Number(text) < 1000) return `${text}k`;
   return `${(safe / 1_000_000).toFixed(1)}M`;
 }
 

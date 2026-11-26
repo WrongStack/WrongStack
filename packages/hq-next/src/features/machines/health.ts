@@ -23,7 +23,10 @@ export function formatBytes(bytes: number): string {
     value /= 1024;
     unit += 1;
   }
-  return `${value >= 100 || unit === 0 ? Math.round(value) : Number(value.toFixed(1))} ${units[unit]}`;
+  const shown = value >= 100 || unit === 0 ? Math.round(value) : Number(value.toFixed(1));
+  // As formatCount: 1023.6 GB rounds to 1024, one step past its unit — carry.
+  if (shown >= 1024 && unit < units.length - 1) return `1 ${units[unit + 1]}`;
+  return `${shown} ${units[unit]}`;
 }
 
 export function formatUptime(seconds: number): string {

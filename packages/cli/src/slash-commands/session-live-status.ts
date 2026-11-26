@@ -39,7 +39,9 @@ function agentStatusIcon(status: string): string {
 export function formatBytes(value: number | undefined): string {
   if (!value || !Number.isFinite(value) || value <= 0) return '0B';
   if (value < 1024) return `${value}B`;
-  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)}KB`;
+  // Promote on the rounded value: 1_048_575 B is "1.0MB", not "1024.0KB".
+  const kb = (value / 1024).toFixed(1);
+  if (Number(kb) < 1024) return `${kb}KB`;
   return `${(value / (1024 * 1024)).toFixed(1)}MB`;
 }
 

@@ -18,8 +18,10 @@ import type { SubcommandDeps, SubcommandHandler } from '../contracts.js';
 const ICON = { error: color.red('✗'), warn: color.amber('!'), info: color.dim('·') } as const;
 
 function fmtBytes(bytes: number): string {
-  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(2)} GB`;
-  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(1)} MB`;
+  // Each unit starts where the one below rounds to 1000: 999_999 B is
+  // "1.0 MB", never "1000 KB".
+  if (bytes >= 999_950_000) return `${(bytes / 1e9).toFixed(2)} GB`;
+  if (bytes >= 999_500) return `${(bytes / 1e6).toFixed(1)} MB`;
   if (bytes >= 1e3) return `${Math.round(bytes / 1e3)} KB`;
   return `${bytes} B`;
 }

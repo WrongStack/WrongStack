@@ -28,7 +28,11 @@ type ToolGroupFilter = 'all' | 'failed' | 'running';
 
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
-  if (ms < 60_000) return `${(ms / 1000).toFixed(ms < 10_000 ? 2 : 1)}s`;
+  if (ms < 60_000) {
+    const secs = (ms / 1000).toFixed(ms < 10_000 ? 2 : 1);
+    // 59.95s rounds to "60.0": past the unit, so it reads as the next minute.
+    return Number(secs) < 60 ? `${secs}s` : '1m0s';
+  }
   const m = Math.floor(ms / 60_000);
   const s = Math.floor((ms % 60_000) / 1000);
   return `${m}m${s}s`;

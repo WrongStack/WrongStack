@@ -187,10 +187,13 @@ export function MetricCard({
 }
 
 export function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
+  if (!(bytes > 0) || !Number.isFinite(bytes)) return '0 B';
   const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  // Clamp to the unit list: a sub-byte or multi-TB value printed "undefined".
+  let i = Math.min(sizes.length - 1, Math.max(0, Math.floor(Math.log(bytes) / Math.log(k))));
+  // Promote on the rounded value: 1_048_575 B is "1.0 MB", not "1024.0 KB".
+  if (i < sizes.length - 1 && Number((bytes / k ** i).toFixed(1)) >= k) i += 1;
   return `${displayDecimal(bytes / k ** i, 1)} ${sizes[i]}`;
 }
 

@@ -17,7 +17,7 @@ const noColor = {
 
 describe('fmtTok', () => {
   it('handles boundary between k and M', () => {
-    expect(fmtTok(999_999)).toBe('1000k');
+    expect(fmtTok(999_999)).toBe('1.0M'); // carries: never one step past its unit
     expect(fmtTok(1_000_000)).toBe('1.0M');
   });
 });

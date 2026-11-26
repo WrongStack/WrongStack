@@ -430,7 +430,8 @@ export function buildSkillUninstallCommand(skillLoader?: SkillLoader): SlashComm
 // ── Formatting helpers ────────────────────────────────────────────────────
 
 function formatCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  // 999_950 is where one-decimal k rounds to 1000.0: carry to M instead.
+  if (n >= 999_950) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return String(n);
 }

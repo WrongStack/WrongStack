@@ -8,7 +8,8 @@ import { displayDecimal } from '../lib/i18n';
  */
 export function fmtTok(n: number | undefined | null): string {
   if (n == null || !Number.isFinite(n) || n < 0) return '0';
-  if (n >= 1_000_000) return `${displayDecimal(n / 1_000_000, 1)}M`;
+  // 999_950 is where one-decimal k rounds to 1000.0: carry to M instead.
+  if (n >= 999_950) return `${displayDecimal(n / 1_000_000, 1)}M`;
   if (n >= 1_000) return `${displayDecimal(n / 1_000, 1)}K`;
   return String(Math.round(n));
 }

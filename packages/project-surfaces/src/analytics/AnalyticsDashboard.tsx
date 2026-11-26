@@ -89,7 +89,7 @@ function fmtDuration(ms: number): string {
 }
 
 function fmtTokens(n: number): string {
-  if (n >= 1_000_000) return `${displayDecimal(n / 1_000_000, 1)}M`;
+  if (n >= 999_950) return `${displayDecimal(n / 1_000_000, 1)}M`; // 1000.0K carries to M
   if (n >= 1_000) return `${displayDecimal(n / 1_000, 1)}K`;
   return String(n);
 }
