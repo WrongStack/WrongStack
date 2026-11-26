@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-26T00:57:01.645Z
+**Generated:** 2026-11-26T02:33:12.448Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -10,7 +10,7 @@
 | Workspace packages | 51 |
 | Production source files | 6571 |
 | Production source lines | 1348906 |
-| Test files | 6420 |
+| Test files | 6421 |
 | Workspace dependency edges | 261 |
 | Relative module edges | 19249 |
 | Non-command slash imports | 0 |
@@ -27,7 +27,7 @@ PASS — no blocking architecture-health errors.
 
 | Package | Sources | Tests | Workspace dependencies |
 |---|---:|---:|---|
-| @wrongstack/acp | 69 | 95 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
+| @wrongstack/acp | 69 | 96 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/agent-catalog | 44 | 21 | @wrongstack/contracts, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/bench | 33 | 68 | @wrongstack/core |
 | @wrongstack/browser-tools | 14 | 27 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
