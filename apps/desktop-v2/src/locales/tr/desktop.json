@@ -5779,16 +5779,9 @@
     "label": "Brain modelleri ve konsey düzenleyicisi",
     "catalogPartial": "Bazı kayıtlı model katalogları kullanılamıyor. Mevcut ve özel başvurular düzenlenebilir kalır.",
     "field": {
-      "saved": "Kayıtlı model",
-      "savedLabel": "{{target}} kayıtlı modeli",
-      "choose": "Kayıtlı kataloglardan seç…",
-      "custom": "Özel model",
-      "provider": "Sağlayıcı",
-      "providerLabel": "{{target}} sağlayıcısı",
-      "providerPlaceholder": "Çalışma zamanı sağlayıcısını devral",
-      "model": "Model kimliği",
-      "modelLabel": "{{target}} model kimliği",
-      "modelPlaceholder": "Varsa ad alanıyla birlikte model kimliği"
+      "model": "Model",
+      "modelLabel": "{{target}} modeli",
+      "referenceHelp": "Kayıtlı bir model seç ya da sağlayıcı/model yaz. Tek başına bir model kimliği çalışma ortamı sağlayıcısını devralır."
     },
     "moveUp": "Yukarı taşı: {{target}}",
     "moveDown": "Aşağı taşı: {{target}}",
@@ -7329,7 +7322,8 @@
     "chainTitle": "Son kaydedilen etkin yedek zinciri",
     "stale": "Yönlendirme düzenlemeleri, ayarlar kaydedilip yeniden okunana kadar burada görünmez.",
     "noChain": "Motor bir yedek zinciri bildirmedi.",
-    "savedNote": "Kayıtlı inceleme ayarları, yeni bir motor oturumu eklentilerini yüklediğinde uygulanır. Mevcut çalışmalar yüklenmiş inceleme yapılandırmasını korur."
+    "savedNote": "Kayıtlı inceleme ayarları, yeni bir motor oturumu eklentilerini yüklediğinde uygulanır. Mevcut çalışmalar yüklenmiş inceleme yapılandırmasını korur.",
+    "catalogError": "Bazı kayıtlı model katalogları kullanılamıyor. Mevcut ve özel model başvuruları düzenlenebilir kalır."
   },
   "toolAccess": {
     "permission_deny": "Reddedilir",
@@ -7513,7 +7507,8 @@
       "times": "saatleri SS:dd biçiminde gir.",
       "days": "geçerli hafta günleri seç.",
       "timezone": "Europe/Kyiv ya da UTC gibi bir IANA saat dilimi kullan."
-    }
+    },
+    "anyProvider": "Herhangi bir sağlayıcı"
   },
   "bgServices": {
     "restarted_one": "{{count}} servisten {{done}} tanesi yeniden başlatıldı.",
@@ -7560,19 +7555,14 @@
     "english": "İngilizce",
     "chooseNote": "Bir sürüm seç, gerekirse düzenle, göndermeye hazır olduğunda onayla.",
     "routeTitle": "Özel iyileştirici rotası",
-    "routeIntro": "Adlandırılmış bir profil önceliklidir. İstem iyileştirme onun ilk yapılandırılmış adayını kullanır; profil adayı seçilmediğinde açık sağlayıcı/model alanları kullanılır. Boş alanlar etkin çalışma ortamının sağlayıcısını ya da modelini devralır.",
+    "routeIntro": "Adlandırılmış bir profil önceliklidir. İstem iyileştirme onun ilk yapılandırılmış adayını kullanır; profil adayı seçilmediğinde açık bir model başvurusu kullanılır. Boş başvuru etkin çalışma ortamının sağlayıcısını ve modelini devralır.",
     "profile": "Adlandırılmış iyileştirici profili",
     "noProfile": "Adlandırılmış profil yok",
     "unavailable": "{{name}} · kullanılamıyor",
     "candidates": "Profil adayları:",
     "emptyProfile": "Boş profil",
     "unavailableProfile": "Kullanılamayan profil; Yedekler ve ajan varsayılanları altında yapılandır.",
-    "savedModel": "Kayıtlı iyileştirici modeli",
-    "chooseSaved": "Kayıtlı kataloglardan seç…",
-    "provider": "Açık iyileştirici sağlayıcısı",
-    "inheritProvider": "Etkin sağlayıcıyı devral",
-    "model": "Açık iyileştirici modeli",
-    "inheritModel": "Etkin modeli devral",
+    "savedModel": "İyileştirici modeli",
     "routeNote": "Hedefler ve görevler yapılandırılmış ek adayları deneyebilir. Kullanılamayan özel bir sağlayıcı etkin çalışma ortamına geri düşebilir. Aşağıdaki önizleme gerçekte kullanılan sağlayıcıyı ve modeli gösterir.",
     "tryTitle": "Kayıtlı iyileştiriciyi dene",
     "tryIntro": "Kayıtlı modele bir örnek gönder ve dönen metni incele. Bu bir sohbet mesajı göndermez ve konuşma oluşturmaz.",
@@ -7586,7 +7576,8 @@
     "unreportedProvider": "bildirilmeyen sağlayıcı",
     "unreportedModel": "bildirilmeyen model",
     "originalRefinement": "Özgün dilde iyileştirme",
-    "englishVersion": "İngilizce sürüm"
+    "englishVersion": "İngilizce sürüm",
+    "referenceHelp": "Kayıtlı bir model seç ya da sağlayıcı/model yaz. Tek başına bir model kimliği etkin sağlayıcıyı devralır."
   },
   "limitsPolicy": {
     "field": {
@@ -7684,7 +7675,8 @@
     "leaderMax": "Lider en yüksek kademe",
     "dwell": "Değiştirmeden önce en az tur",
     "savings": "En az tasarruf (USD)",
-    "contextFill": "Değiştirme için en yüksek bağlam doluluğu"
+    "contextFill": "Değiştirme için en yüksek bağlam doluluğu",
+    "catalogError": "Bazı kayıtlı model katalogları kullanılamıyor. Mevcut ve özel model başvuruları düzenlenebilir kalır."
   },
   "jevSettings": {
     "feature": {
@@ -9905,5 +9897,17 @@
     "noVote": "oy yok",
     "veto": "veto",
     "full": "Konseyin tam raporu"
+  },
+  "catalogPicker": {
+    "showOptions": "Seçenekleri göster",
+    "clear": "Temizle",
+    "loading": "Kayıtlı model katalogları okunuyor…",
+    "noMatch": "Kayıtlı hiçbir şey “{{query}}” ile eşleşmiyor. Yazıldığı gibi tutmak için Enter’a bas.",
+    "empty": "Seçilecek kayıtlı bir şey yok. Bunun yerine bir başvuru yaz.",
+    "customModel": "Kayıtlı kataloglarında yok · özel başvuru olarak korunuyor",
+    "customProvider": "Kayıtlı sağlayıcılarından biri değil · özel başvuru olarak korunuyor",
+    "modelPlaceholder": "Kayıtlı bir model seç ya da sağlayıcı/model yaz",
+    "providerPlaceholder": "Kayıtlı bir sağlayıcı seç",
+    "provider": "Sağlayıcı"
   }
 }

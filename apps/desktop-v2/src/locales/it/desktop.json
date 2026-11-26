@@ -5779,16 +5779,9 @@
     "label": "Editor dei modelli Brain e del consiglio",
     "catalogPartial": "Alcuni cataloghi di modelli salvati non sono disponibili. I riferimenti esistenti e personalizzati restano modificabili.",
     "field": {
-      "saved": "Modello salvato",
-      "savedLabel": "{{target}} – modello salvato",
-      "choose": "Scegli dai cataloghi salvati…",
-      "custom": "Modello personalizzato",
-      "provider": "Provider",
-      "providerLabel": "{{target}} – provider",
-      "providerPlaceholder": "Eredita il provider del runtime",
-      "model": "ID del modello",
-      "modelLabel": "{{target}} – ID del modello",
-      "modelPlaceholder": "ID del modello, incluso l’eventuale namespace"
+      "model": "Modello",
+      "modelLabel": "{{target}} – modello",
+      "referenceHelp": "Scegli un modello salvato oppure digita provider/modello. Un ID modello da solo eredita il provider del runtime."
     },
     "moveUp": "Sposta su {{target}}",
     "moveDown": "Sposta giù {{target}}",
@@ -7329,7 +7322,8 @@
     "chainTitle": "Ultima catena di riserva effettiva salvata",
     "stale": "Le modifiche di instradamento compaiono qui solo dopo aver salvato e riletto le impostazioni.",
     "noChain": "Nessuna catena di riserva segnalata dal motore.",
-    "savedNote": "Le impostazioni di revisione salvate si applicano quando una nuova sessione del motore carica i plugin. Le esecuzioni in corso mantengono la configurazione caricata."
+    "savedNote": "Le impostazioni di revisione salvate si applicano quando una nuova sessione del motore carica i plugin. Le esecuzioni in corso mantengono la configurazione caricata.",
+    "catalogError": "Alcuni cataloghi di modelli salvati non sono disponibili. I riferimenti modello esistenti e personalizzati restano modificabili."
   },
   "toolAccess": {
     "permission_deny": "Negato",
@@ -7513,7 +7507,8 @@
       "times": "inserisci gli orari nel formato HH:mm.",
       "days": "scegli giorni della settimana validi.",
       "timezone": "usa un fuso orario IANA come Europe/Kyiv o UTC."
-    }
+    },
+    "anyProvider": "Qualsiasi provider"
   },
   "bgServices": {
     "restarted_one": "Riavviati {{done}} servizio su {{count}}.",
@@ -7560,19 +7555,14 @@
     "english": "Inglese",
     "chooseNote": "Scegli una versione, modificala se serve, poi approvala quando sei pronto a inviare.",
     "routeTitle": "Percorso dedicato del perfezionatore",
-    "routeIntro": "Un profilo con nome ha la precedenza. Il perfezionamento usa il suo primo candidato configurato; i campi provider/modello espliciti valgono quando non è scelto alcun candidato del profilo. I campi vuoti ereditano provider o modello del runtime attivo.",
+    "routeIntro": "Un profilo con nome ha la precedenza. Il perfezionamento usa il suo primo candidato configurato; un riferimento modello esplicito vale quando non è scelto alcun candidato del profilo. Un riferimento vuoto eredita provider e modello del runtime attivo.",
     "profile": "Profilo perfezionatore con nome",
     "noProfile": "Nessun profilo con nome",
     "unavailable": "{{name}} · non disponibile",
     "candidates": "Candidati del profilo:",
     "emptyProfile": "Profilo vuoto",
     "unavailableProfile": "Profilo non disponibile; configuralo in Fallback e predefiniti degli agenti.",
-    "savedModel": "Modello perfezionatore salvato",
-    "chooseSaved": "Scegli dai cataloghi salvati…",
-    "provider": "Provider perfezionatore esplicito",
-    "inheritProvider": "Eredita il provider attivo",
-    "model": "Modello perfezionatore esplicito",
-    "inheritModel": "Eredita il modello attivo",
+    "savedModel": "Modello perfezionatore",
     "routeNote": "Obiettivi e missioni possono provare altri candidati configurati. Un provider dedicato non disponibile può ripiegare sul runtime attivo. L’anteprima qui sotto indica provider e modello effettivamente usati.",
     "tryTitle": "Prova il perfezionatore salvato",
     "tryIntro": "Invia un esempio al modello salvato ed esamina il testo restituito. Non invia un messaggio di chat né crea una conversazione.",
@@ -7586,7 +7576,8 @@
     "unreportedProvider": "provider non segnalato",
     "unreportedModel": "modello non segnalato",
     "originalRefinement": "Perfezionamento nella lingua originale",
-    "englishVersion": "Versione inglese"
+    "englishVersion": "Versione inglese",
+    "referenceHelp": "Scegli un modello salvato oppure digita provider/modello. Un ID modello da solo eredita il provider attivo."
   },
   "limitsPolicy": {
     "field": {
@@ -7684,7 +7675,8 @@
     "leaderMax": "Livello massimo del leader",
     "dwell": "Turni minimi prima del cambio",
     "savings": "Risparmio minimo (USD)",
-    "contextFill": "Riempimento massimo del contesto per il cambio"
+    "contextFill": "Riempimento massimo del contesto per il cambio",
+    "catalogError": "Alcuni cataloghi di modelli salvati non sono disponibili. I riferimenti modello esistenti e personalizzati restano modificabili."
   },
   "jevSettings": {
     "feature": {
@@ -9905,5 +9897,17 @@
     "noVote": "nessun voto",
     "veto": "veto",
     "full": "Rapporto completo del consiglio"
+  },
+  "catalogPicker": {
+    "showOptions": "Mostra opzioni",
+    "clear": "Cancella",
+    "loading": "Lettura dei cataloghi modelli salvati…",
+    "noMatch": "Nulla di salvato corrisponde a «{{query}}». Premi Invio per mantenerlo così com’è.",
+    "empty": "Non c’è ancora nulla di salvato tra cui scegliere. Digita invece un riferimento.",
+    "customModel": "Non presente nei tuoi cataloghi salvati · mantenuto come riferimento personalizzato",
+    "customProvider": "Non è uno dei tuoi provider salvati · mantenuto come riferimento personalizzato",
+    "modelPlaceholder": "Scegli un modello salvato oppure digita provider/modello",
+    "providerPlaceholder": "Scegli un provider salvato",
+    "provider": "Provider"
   }
 }

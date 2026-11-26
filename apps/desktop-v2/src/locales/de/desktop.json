@@ -5779,16 +5779,9 @@
     "label": "Editor für Brain-Modelle und Rat",
     "catalogPartial": "Einige gespeicherte Modellkataloge sind nicht verfügbar. Vorhandene und eigene Verweise bleiben bearbeitbar.",
     "field": {
-      "saved": "Gespeichertes Modell",
-      "savedLabel": "{{target}} – gespeichertes Modell",
-      "choose": "Aus gespeicherten Katalogen wählen…",
-      "custom": "Eigenes Modell",
-      "provider": "Anbieter",
-      "providerLabel": "{{target}} – Anbieter",
-      "providerPlaceholder": "Anbieter der Laufzeit übernehmen",
-      "model": "Modell-ID",
-      "modelLabel": "{{target}} – Modell-ID",
-      "modelPlaceholder": "Modell-ID, einschließlich eines Namensraums"
+      "model": "Modell",
+      "modelLabel": "{{target}} – Modell",
+      "referenceHelp": "Wähle ein gespeichertes Modell oder gib Anbieter/Modell ein. Eine Modell-ID allein erbt den Laufzeitanbieter."
     },
     "moveUp": "{{target}} nach oben verschieben",
     "moveDown": "{{target}} nach unten verschieben",
@@ -7329,7 +7322,8 @@
     "chainTitle": "Zuletzt gespeicherte wirksame Fallback-Kette",
     "stale": "Routing-Änderungen erscheinen hier erst, wenn die Einstellungen gespeichert und neu gelesen sind.",
     "noChain": "Die Engine meldet keine Fallback-Kette.",
-    "savedNote": "Gespeicherte Review-Einstellungen gelten, wenn eine neue Engine-Sitzung ihre Plugins lädt. Laufende Läufe behalten ihre geladene Konfiguration."
+    "savedNote": "Gespeicherte Review-Einstellungen gelten, wenn eine neue Engine-Sitzung ihre Plugins lädt. Laufende Läufe behalten ihre geladene Konfiguration.",
+    "catalogError": "Einige gespeicherte Modellkataloge sind nicht verfügbar. Vorhandene und eigene Modellverweise bleiben bearbeitbar."
   },
   "toolAccess": {
     "permission_deny": "Verweigert",
@@ -7513,7 +7507,8 @@
       "times": "Zeiten im Format HH:mm eingeben.",
       "days": "gültige Wochentage wählen.",
       "timezone": "eine IANA-Zeitzone wie Europe/Kyiv oder UTC verwenden."
-    }
+    },
+    "anyProvider": "Beliebiger Anbieter"
   },
   "bgServices": {
     "restarted_one": "{{done}} von {{count}} Dienst neu gestartet.",
@@ -7560,19 +7555,14 @@
     "english": "Englisch",
     "chooseNote": "Wähle eine Version, bearbeite sie bei Bedarf und gib sie frei, wenn du senden willst.",
     "routeTitle": "Eigene Route für die Verfeinerung",
-    "routeIntro": "Ein benanntes Profil hat Vorrang. Die Prompt-Verfeinerung nutzt seinen ersten konfigurierten Kandidaten; ohne Profilkandidat gelten die expliziten Anbieter-/Modellfelder. Leere Felder erben Anbieter oder Modell der aktiven Laufzeit.",
+    "routeIntro": "Ein benanntes Profil hat Vorrang. Die Prompt-Verfeinerung nutzt seinen ersten konfigurierten Kandidaten; ohne Profilkandidat gilt der explizite Modellverweis. Ein leerer Verweis erbt Anbieter und Modell der aktiven Laufzeit.",
     "profile": "Benanntes Verfeinerungsprofil",
     "noProfile": "Kein benanntes Profil",
     "unavailable": "{{name}} · nicht verfügbar",
     "candidates": "Profilkandidaten:",
     "emptyProfile": "Leeres Profil",
     "unavailableProfile": "Profil nicht verfügbar; richte es unter Fallbacks & Agenten-Standards ein.",
-    "savedModel": "Gespeichertes Verfeinerungsmodell",
-    "chooseSaved": "Aus gespeicherten Katalogen wählen…",
-    "provider": "Expliziter Verfeinerungsanbieter",
-    "inheritProvider": "Aktiven Anbieter erben",
-    "model": "Explizites Verfeinerungsmodell",
-    "inheritModel": "Aktives Modell erben",
+    "savedModel": "Verfeinerungsmodell",
     "routeNote": "Ziele und Missionen können weitere konfigurierte Kandidaten durchgehen. Ein nicht verfügbarer eigener Anbieter kann auf die aktive Laufzeit zurückfallen. Die Vorschau unten zeigt Anbieter und Modell, die tatsächlich genutzt wurden.",
     "tryTitle": "Gespeicherte Verfeinerung ausprobieren",
     "tryIntro": "Sende ein Beispiel an das gespeicherte Modell und prüfe den zurückgegebenen Text. Dabei wird weder eine Chatnachricht gesendet noch eine Unterhaltung angelegt.",
@@ -7586,7 +7576,8 @@
     "unreportedProvider": "nicht gemeldeter Anbieter",
     "unreportedModel": "nicht gemeldetes Modell",
     "originalRefinement": "Verfeinerung in der Originalsprache",
-    "englishVersion": "Englische Fassung"
+    "englishVersion": "Englische Fassung",
+    "referenceHelp": "Wähle ein gespeichertes Modell oder gib Anbieter/Modell ein. Eine Modell-ID allein erbt den aktiven Anbieter."
   },
   "limitsPolicy": {
     "field": {
@@ -7684,7 +7675,8 @@
     "leaderMax": "Höchste Stufe des Leiters",
     "dwell": "Mindestzahl an Zügen vor einem Wechsel",
     "savings": "Mindestersparnis (USD)",
-    "contextFill": "Maximale Kontextfüllung für einen Wechsel"
+    "contextFill": "Maximale Kontextfüllung für einen Wechsel",
+    "catalogError": "Einige gespeicherte Modellkataloge sind nicht verfügbar. Vorhandene und eigene Modellverweise bleiben bearbeitbar."
   },
   "jevSettings": {
     "feature": {
@@ -9905,5 +9897,17 @@
     "noVote": "keine Stimme",
     "veto": "Veto",
     "full": "Vollständiger Ratsbericht"
+  },
+  "catalogPicker": {
+    "showOptions": "Optionen anzeigen",
+    "clear": "Leeren",
+    "loading": "Gespeicherte Modellkataloge werden gelesen…",
+    "noMatch": "Nichts Gespeichertes entspricht „{{query}}“. Mit Enter als Getipptes übernehmen.",
+    "empty": "Noch nichts Gespeichertes zur Auswahl. Gib stattdessen einen Verweis ein.",
+    "customModel": "Nicht in deinen gespeicherten Katalogen · als eigener Verweis beibehalten",
+    "customProvider": "Keiner deiner gespeicherten Anbieter · als eigener Verweis beibehalten",
+    "modelPlaceholder": "Gespeichertes Modell wählen oder Anbieter/Modell eingeben",
+    "providerPlaceholder": "Gespeicherten Anbieter wählen",
+    "provider": "Anbieter"
   }
 }

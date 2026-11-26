@@ -5779,16 +5779,9 @@
     "label": "Editor de modelos do Brain e do conselho",
     "catalogPartial": "Alguns catálogos de modelos salvos estão indisponíveis. As referências existentes e personalizadas continuam editáveis.",
     "field": {
-      "saved": "Modelo salvo",
-      "savedLabel": "{{target}} – modelo salvo",
-      "choose": "Escolher nos catálogos salvos…",
-      "custom": "Modelo personalizado",
-      "provider": "Provedor",
-      "providerLabel": "{{target}} – provedor",
-      "providerPlaceholder": "Herdar o provedor do runtime",
-      "model": "ID do modelo",
-      "modelLabel": "{{target}} – ID do modelo",
-      "modelPlaceholder": "ID do modelo, incluindo o namespace, se houver"
+      "model": "Modelo",
+      "modelLabel": "{{target}} – modelo",
+      "referenceHelp": "Escolha um modelo salvo ou digite provedor/modelo. Um ID de modelo sozinho herda o provedor do ambiente."
     },
     "moveUp": "Mover {{target}} para cima",
     "moveDown": "Mover {{target}} para baixo",
@@ -7329,7 +7322,8 @@
     "chainTitle": "Última cadeia de fallback efetiva salva",
     "stale": "As alterações de roteamento só aparecem aqui depois que as configurações forem salvas e relidas.",
     "noChain": "Nenhuma cadeia de fallback informada pelo motor.",
-    "savedNote": "As configurações de revisão salvas valem quando uma nova sessão do motor carrega seus plugins. As execuções em andamento mantêm a configuração carregada."
+    "savedNote": "As configurações de revisão salvas valem quando uma nova sessão do motor carrega seus plugins. As execuções em andamento mantêm a configuração carregada.",
+    "catalogError": "Alguns catálogos de modelos salvos não estão disponíveis. As referências de modelo existentes e personalizadas continuam editáveis."
   },
   "toolAccess": {
     "permission_deny": "Negado",
@@ -7513,7 +7507,8 @@
       "times": "informe os horários no formato HH:mm.",
       "days": "escolha dias da semana válidos.",
       "timezone": "use um fuso horário IANA como Europe/Kyiv ou UTC."
-    }
+    },
+    "anyProvider": "Qualquer provedor"
   },
   "bgServices": {
     "restarted_one": "{{done}} de {{count}} serviço reiniciado.",
@@ -7560,19 +7555,14 @@
     "english": "Inglês",
     "chooseNote": "Escolha uma versão, edite se precisar e aprove quando estiver pronto para enviar.",
     "routeTitle": "Rota dedicada do refinador",
-    "routeIntro": "Um perfil nomeado tem prioridade. O refinamento usa o primeiro candidato configurado; os campos explícitos de provedor/modelo valem quando nenhum candidato do perfil é escolhido. Campos vazios herdam o provedor ou o modelo do ambiente ativo.",
+    "routeIntro": "Um perfil nomeado tem prioridade. O refinamento usa o primeiro candidato configurado; uma referência de modelo explícita vale quando nenhum candidato do perfil é escolhido. Uma referência vazia herda o provedor e o modelo do ambiente ativo.",
     "profile": "Perfil de refinador nomeado",
     "noProfile": "Nenhum perfil nomeado",
     "unavailable": "{{name}} · indisponível",
     "candidates": "Candidatos do perfil:",
     "emptyProfile": "Perfil vazio",
     "unavailableProfile": "Perfil indisponível; configure-o em Fallbacks e padrões de agentes.",
-    "savedModel": "Modelo de refinador salvo",
-    "chooseSaved": "Escolher dos catálogos salvos…",
-    "provider": "Provedor de refinador explícito",
-    "inheritProvider": "Herdar o provedor ativo",
-    "model": "Modelo de refinador explícito",
-    "inheritModel": "Herdar o modelo ativo",
+    "savedModel": "Modelo do refinador",
     "routeNote": "Objetivos e missões podem percorrer candidatos configurados adicionais. Um provedor dedicado indisponível pode recorrer ao ambiente ativo. A pré-visualização abaixo mostra o provedor e o modelo realmente usados.",
     "tryTitle": "Testar o refinador salvo",
     "tryIntro": "Envie um exemplo ao modelo salvo e veja o texto retornado. Isso não envia mensagem de chat nem cria uma conversa.",
@@ -7586,7 +7576,8 @@
     "unreportedProvider": "provedor não informado",
     "unreportedModel": "modelo não informado",
     "originalRefinement": "Refinamento no idioma original",
-    "englishVersion": "Versão em inglês"
+    "englishVersion": "Versão em inglês",
+    "referenceHelp": "Escolha um modelo salvo ou digite provedor/modelo. Um ID de modelo sozinho herda o provedor ativo."
   },
   "limitsPolicy": {
     "field": {
@@ -7684,7 +7675,8 @@
     "leaderMax": "Nível máximo do líder",
     "dwell": "Turnos mínimos antes da troca",
     "savings": "Economia mínima (USD)",
-    "contextFill": "Preenchimento máximo do contexto para trocar"
+    "contextFill": "Preenchimento máximo do contexto para trocar",
+    "catalogError": "Alguns catálogos de modelos salvos não estão disponíveis. As referências de modelo existentes e personalizadas continuam editáveis."
   },
   "jevSettings": {
     "feature": {
@@ -9905,5 +9897,17 @@
     "noVote": "sem voto",
     "veto": "veto",
     "full": "Relatório completo do conselho"
+  },
+  "catalogPicker": {
+    "showOptions": "Mostrar opções",
+    "clear": "Limpar",
+    "loading": "Lendo os catálogos de modelos salvos…",
+    "noMatch": "Nada salvo corresponde a “{{query}}”. Pressione Enter para manter como digitado.",
+    "empty": "Ainda não há nada salvo para escolher. Digite uma referência em vez disso.",
+    "customModel": "Não está nos seus catálogos salvos · mantido como referência personalizada",
+    "customProvider": "Não é um dos seus provedores salvos · mantido como referência personalizada",
+    "modelPlaceholder": "Escolha um modelo salvo ou digite provedor/modelo",
+    "providerPlaceholder": "Escolha um provedor salvo",
+    "provider": "Provedor"
   }
 }

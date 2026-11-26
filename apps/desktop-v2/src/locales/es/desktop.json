@@ -5779,16 +5779,9 @@
     "label": "Editor de modelos de Brain y del consejo",
     "catalogPartial": "Algunos catálogos de modelos guardados no están disponibles. Las referencias existentes y personalizadas siguen siendo editables.",
     "field": {
-      "saved": "Modelo guardado",
-      "savedLabel": "{{target}} – modelo guardado",
-      "choose": "Elegir de los catálogos guardados…",
-      "custom": "Modelo personalizado",
-      "provider": "Proveedor",
-      "providerLabel": "{{target}} – proveedor",
-      "providerPlaceholder": "Heredar el proveedor del entorno de ejecución",
-      "model": "ID del modelo",
-      "modelLabel": "{{target}} – ID del modelo",
-      "modelPlaceholder": "ID del modelo, con su espacio de nombres si lo hay"
+      "model": "Modelo",
+      "modelLabel": "{{target}} – modelo",
+      "referenceHelp": "Elige un modelo guardado o escribe proveedor/modelo. Un ID de modelo por sí solo hereda el proveedor del entorno."
     },
     "moveUp": "Subir {{target}}",
     "moveDown": "Bajar {{target}}",
@@ -7329,7 +7322,8 @@
     "chainTitle": "Última cadena de respaldo efectiva guardada",
     "stale": "Los cambios de enrutamiento no se reflejan aquí hasta guardar y releer los ajustes.",
     "noChain": "El motor no informa ninguna cadena de respaldo.",
-    "savedNote": "Los ajustes de revisión guardados se aplican cuando una nueva sesión del motor carga sus plugins. Las ejecuciones en curso conservan su configuración cargada."
+    "savedNote": "Los ajustes de revisión guardados se aplican cuando una nueva sesión del motor carga sus plugins. Las ejecuciones en curso conservan su configuración cargada.",
+    "catalogError": "Algunos catálogos de modelos guardados no están disponibles. Las referencias de modelo existentes y personalizadas siguen siendo editables."
   },
   "toolAccess": {
     "permission_deny": "Denegado",
@@ -7513,7 +7507,8 @@
       "times": "introduce las horas en formato HH:mm.",
       "days": "elige días de la semana válidos.",
       "timezone": "usa una zona horaria IANA como Europe/Kyiv o UTC."
-    }
+    },
+    "anyProvider": "Cualquier proveedor"
   },
   "bgServices": {
     "restarted_one": "Se reiniciaron {{done}} de {{count}} servicio.",
@@ -7560,19 +7555,14 @@
     "english": "Inglés",
     "chooseNote": "Elige una versión, edítala si hace falta y apruébala cuando estés listo para enviar.",
     "routeTitle": "Ruta dedicada del refinador",
-    "routeIntro": "Un perfil con nombre tiene prioridad. El refinamiento usa su primer candidato configurado; los campos explícitos de proveedor/modelo se usan cuando no se elige ningún candidato del perfil. Los campos vacíos heredan el proveedor o el modelo del entorno activo.",
+    "routeIntro": "Un perfil con nombre tiene prioridad. El refinamiento usa su primer candidato configurado; una referencia de modelo explícita se usa cuando no se elige ningún candidato del perfil. Una referencia vacía hereda el proveedor y el modelo del entorno activo.",
     "profile": "Perfil de refinador con nombre",
     "noProfile": "Sin perfil con nombre",
     "unavailable": "{{name}} · no disponible",
     "candidates": "Candidatos del perfil:",
     "emptyProfile": "Perfil vacío",
     "unavailableProfile": "Perfil no disponible; configúralo en Alternativas y valores predeterminados de agentes.",
-    "savedModel": "Modelo de refinador guardado",
-    "chooseSaved": "Elegir de los catálogos guardados…",
-    "provider": "Proveedor de refinador explícito",
-    "inheritProvider": "Heredar el proveedor activo",
-    "model": "Modelo de refinador explícito",
-    "inheritModel": "Heredar el modelo activo",
+    "savedModel": "Modelo del refinador",
     "routeNote": "Los objetivos y misiones pueden recorrer candidatos configurados adicionales. Un proveedor dedicado no disponible puede recurrir al entorno activo. La vista previa de abajo indica el proveedor y el modelo realmente usados.",
     "tryTitle": "Probar el refinador guardado",
     "tryIntro": "Envía un ejemplo al modelo guardado y revisa el texto devuelto. No envía un mensaje de chat ni crea una conversación.",
@@ -7586,7 +7576,8 @@
     "unreportedProvider": "proveedor no informado",
     "unreportedModel": "modelo no informado",
     "originalRefinement": "Refinamiento en el idioma original",
-    "englishVersion": "Versión en inglés"
+    "englishVersion": "Versión en inglés",
+    "referenceHelp": "Elige un modelo guardado o escribe proveedor/modelo. Un ID de modelo por sí solo hereda el proveedor activo."
   },
   "limitsPolicy": {
     "field": {
@@ -7684,7 +7675,8 @@
     "leaderMax": "Nivel máximo del líder",
     "dwell": "Turnos mínimos antes de cambiar",
     "savings": "Ahorro mínimo (USD)",
-    "contextFill": "Llenado máximo del contexto para cambiar"
+    "contextFill": "Llenado máximo del contexto para cambiar",
+    "catalogError": "Algunos catálogos de modelos guardados no están disponibles. Las referencias de modelo existentes y personalizadas siguen siendo editables."
   },
   "jevSettings": {
     "feature": {
@@ -9905,5 +9897,17 @@
     "noVote": "sin voto",
     "veto": "veto",
     "full": "Informe completo del consejo"
+  },
+  "catalogPicker": {
+    "showOptions": "Mostrar opciones",
+    "clear": "Borrar",
+    "loading": "Leyendo los catálogos de modelos guardados…",
+    "noMatch": "Nada guardado coincide con «{{query}}». Pulsa Intro para mantenerlo tal como está escrito.",
+    "empty": "Todavía no hay nada guardado para elegir. Escribe una referencia en su lugar.",
+    "customModel": "No está en tus catálogos guardados · se conserva como referencia personalizada",
+    "customProvider": "No es uno de tus proveedores guardados · se conserva como referencia personalizada",
+    "modelPlaceholder": "Elige un modelo guardado o escribe proveedor/modelo",
+    "providerPlaceholder": "Elige un proveedor guardado",
+    "provider": "Proveedor"
   }
 }

@@ -5779,16 +5779,9 @@
     "label": "Brain models and council editor",
     "catalogPartial": "Some saved model catalogs are unavailable. Existing and custom references remain editable.",
     "field": {
-      "saved": "Saved model",
-      "savedLabel": "{{target}} saved model",
-      "choose": "Choose from saved catalogs…",
-      "custom": "Custom model",
-      "provider": "Provider",
-      "providerLabel": "{{target}} provider",
-      "providerPlaceholder": "Inherit runtime provider",
-      "model": "Model ID",
-      "modelLabel": "{{target}} model ID",
-      "modelPlaceholder": "Model ID, including any namespace"
+      "model": "Model",
+      "modelLabel": "{{target}} model",
+      "referenceHelp": "Pick a saved model, or type provider/model. A model ID alone inherits the runtime provider."
     },
     "moveUp": "Move {{target}} up",
     "moveDown": "Move {{target}} down",
@@ -7329,7 +7322,8 @@
     "chainTitle": "Last saved effective fallback chain",
     "stale": "Routing edits are not reflected here until settings are saved and read back.",
     "noChain": "No fallback chain reported by the engine.",
-    "savedNote": "Saved review settings apply when a new engine session loads its plugins. Existing runs keep their loaded review configuration."
+    "savedNote": "Saved review settings apply when a new engine session loads its plugins. Existing runs keep their loaded review configuration.",
+    "catalogError": "Some saved model catalogs are unavailable. Existing and custom model references remain editable."
   },
   "toolAccess": {
     "permission_deny": "Denied",
@@ -7513,7 +7507,8 @@
       "times": "enter times in HH:mm format.",
       "days": "choose valid weekdays.",
       "timezone": "use an IANA timezone such as Europe/Kyiv or UTC."
-    }
+    },
+    "anyProvider": "Any provider"
   },
   "bgServices": {
     "restarted_one": "Restarted {{done}} of {{count}} service.",
@@ -7560,19 +7555,14 @@
     "english": "English",
     "chooseNote": "Choose a version, edit it if needed, then approve when you are ready to send.",
     "routeTitle": "Dedicated refiner route",
-    "routeIntro": "A named profile takes precedence. Prompt refinement uses its first configured candidate; explicit provider/model fields are used when no profile candidate is selected. Empty fields inherit the active runtime’s provider or model.",
+    "routeIntro": "A named profile takes precedence. Prompt refinement uses its first configured candidate; an explicit model reference is used when no profile candidate is selected. An empty reference inherits the active runtime’s provider and model.",
     "profile": "Named refiner profile",
     "noProfile": "No named profile",
     "unavailable": "{{name}} · unavailable",
     "candidates": "Profile candidates:",
     "emptyProfile": "Empty profile",
     "unavailableProfile": "Unavailable profile; configure it under Fallbacks & agent defaults.",
-    "savedModel": "Saved refiner model",
-    "chooseSaved": "Choose from saved catalogs…",
-    "provider": "Explicit refiner provider",
-    "inheritProvider": "Inherit active provider",
-    "model": "Explicit refiner model",
-    "inheritModel": "Inherit active model",
+    "savedModel": "Refiner model",
     "routeNote": "Goals and missions can walk additional configured candidates. An unavailable dedicated provider can fall back to the active runtime. The preview below identifies the provider and model actually used.",
     "tryTitle": "Try the saved refiner",
     "tryIntro": "Send a sample to the saved model and inspect the returned text. This does not submit a chat message or create a conversation.",
@@ -7586,7 +7576,8 @@
     "unreportedProvider": "unreported provider",
     "unreportedModel": "unreported model",
     "originalRefinement": "Original-language refinement",
-    "englishVersion": "English version"
+    "englishVersion": "English version",
+    "referenceHelp": "Pick a saved model, or type provider/model. A model ID alone inherits the active provider."
   },
   "limitsPolicy": {
     "field": {
@@ -7684,7 +7675,8 @@
     "leaderMax": "Leader maximum tier",
     "dwell": "Minimum turns before switching",
     "savings": "Minimum savings (USD)",
-    "contextFill": "Maximum context fill for switching"
+    "contextFill": "Maximum context fill for switching",
+    "catalogError": "Some saved model catalogs are unavailable. Existing and custom model references remain editable."
   },
   "jevSettings": {
     "feature": {
@@ -9905,5 +9897,17 @@
     "noVote": "no vote",
     "veto": "veto",
     "full": "Full council report"
+  },
+  "catalogPicker": {
+    "showOptions": "Show options",
+    "clear": "Clear",
+    "loading": "Reading saved model catalogs…",
+    "noMatch": "Nothing saved matches “{{query}}”. Press Enter to keep it as typed.",
+    "empty": "Nothing saved to choose from yet. Type a reference instead.",
+    "customModel": "Not in your saved catalogs · kept as a custom reference",
+    "customProvider": "Not one of your saved providers · kept as a custom reference",
+    "modelPlaceholder": "Choose a saved model, or type provider/model",
+    "providerPlaceholder": "Choose a saved provider",
+    "provider": "Provider"
   }
 }

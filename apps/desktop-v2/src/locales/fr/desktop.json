@@ -5779,16 +5779,9 @@
     "label": "Éditeur des modèles Brain et du conseil",
     "catalogPartial": "Certains catalogues de modèles enregistrés sont indisponibles. Les références existantes et personnalisées restent modifiables.",
     "field": {
-      "saved": "Modèle enregistré",
-      "savedLabel": "{{target}} – modèle enregistré",
-      "choose": "Choisir dans les catalogues enregistrés…",
-      "custom": "Modèle personnalisé",
-      "provider": "Fournisseur",
-      "providerLabel": "{{target}} – fournisseur",
-      "providerPlaceholder": "Hériter du fournisseur du runtime",
-      "model": "ID du modèle",
-      "modelLabel": "{{target}} – ID du modèle",
-      "modelPlaceholder": "ID du modèle, espace de noms compris"
+      "model": "Modèle",
+      "modelLabel": "{{target}} – modèle",
+      "referenceHelp": "Choisis un modèle enregistré ou saisis fournisseur/modèle. Un ID de modèle seul hérite du fournisseur de l’environnement."
     },
     "moveUp": "Monter {{target}}",
     "moveDown": "Descendre {{target}}",
@@ -7329,7 +7322,8 @@
     "chainTitle": "Dernière chaîne de repli effective enregistrée",
     "stale": "Les modifications de routage n’apparaissent ici qu’une fois les réglages enregistrés et relus.",
     "noChain": "Aucune chaîne de repli signalée par le moteur.",
-    "savedNote": "Les réglages de revue enregistrés s’appliquent quand une nouvelle session du moteur charge ses plugins. Les exécutions en cours gardent leur configuration chargée."
+    "savedNote": "Les réglages de revue enregistrés s’appliquent quand une nouvelle session du moteur charge ses plugins. Les exécutions en cours gardent leur configuration chargée.",
+    "catalogError": "Certains catalogues de modèles enregistrés sont indisponibles. Les références de modèle existantes et personnalisées restent modifiables."
   },
   "toolAccess": {
     "permission_deny": "Refusé",
@@ -7513,7 +7507,8 @@
       "times": "saisis les heures au format HH:mm.",
       "days": "choisis des jours de semaine valides.",
       "timezone": "utilise un fuseau horaire IANA comme Europe/Kyiv ou UTC."
-    }
+    },
+    "anyProvider": "N’importe quel fournisseur"
   },
   "bgServices": {
     "restarted_one": "{{done}} service sur {{count}} redémarré.",
@@ -7560,19 +7555,14 @@
     "english": "Anglais",
     "chooseNote": "Choisis une version, modifie-la si besoin, puis approuve-la quand tu es prêt à envoyer.",
     "routeTitle": "Route dédiée de l’affineur",
-    "routeIntro": "Un profil nommé est prioritaire. L’affinage utilise son premier candidat configuré ; les champs fournisseur/modèle explicites servent quand aucun candidat de profil n’est choisi. Les champs vides héritent du fournisseur ou du modèle de l’environnement actif.",
+    "routeIntro": "Un profil nommé est prioritaire. L’affinage utilise son premier candidat configuré ; une référence de modèle explicite sert quand aucun candidat de profil n’est choisi. Une référence vide hérite du fournisseur et du modèle de l’environnement actif.",
     "profile": "Profil d’affineur nommé",
     "noProfile": "Aucun profil nommé",
     "unavailable": "{{name}} · indisponible",
     "candidates": "Candidats du profil :",
     "emptyProfile": "Profil vide",
     "unavailableProfile": "Profil indisponible ; configure-le dans Replis et valeurs par défaut des agents.",
-    "savedModel": "Modèle d’affineur enregistré",
-    "chooseSaved": "Choisir dans les catalogues enregistrés…",
-    "provider": "Fournisseur d’affineur explicite",
-    "inheritProvider": "Hériter du fournisseur actif",
-    "model": "Modèle d’affineur explicite",
-    "inheritModel": "Hériter du modèle actif",
+    "savedModel": "Modèle d’affineur",
     "routeNote": "Les objectifs et missions peuvent parcourir d’autres candidats configurés. Un fournisseur dédié indisponible peut se replier sur l’environnement actif. L’aperçu ci-dessous indique le fournisseur et le modèle réellement utilisés.",
     "tryTitle": "Essayer l’affineur enregistré",
     "tryIntro": "Envoie un exemple au modèle enregistré et examine le texte renvoyé. Cela n’envoie aucun message ni ne crée de conversation.",
@@ -7586,7 +7576,8 @@
     "unreportedProvider": "fournisseur non signalé",
     "unreportedModel": "modèle non signalé",
     "originalRefinement": "Affinage dans la langue d’origine",
-    "englishVersion": "Version anglaise"
+    "englishVersion": "Version anglaise",
+    "referenceHelp": "Choisis un modèle enregistré ou saisis fournisseur/modèle. Un ID de modèle seul hérite du fournisseur actif."
   },
   "limitsPolicy": {
     "field": {
@@ -7684,7 +7675,8 @@
     "leaderMax": "Palier maximal du meneur",
     "dwell": "Tours minimum avant changement",
     "savings": "Économie minimale (USD)",
-    "contextFill": "Remplissage maximal du contexte pour changer"
+    "contextFill": "Remplissage maximal du contexte pour changer",
+    "catalogError": "Certains catalogues de modèles enregistrés sont indisponibles. Les références de modèle existantes et personnalisées restent modifiables."
   },
   "jevSettings": {
     "feature": {
@@ -9905,5 +9897,17 @@
     "noVote": "pas de vote",
     "veto": "veto",
     "full": "Rapport complet du conseil"
+  },
+  "catalogPicker": {
+    "showOptions": "Afficher les options",
+    "clear": "Effacer",
+    "loading": "Lecture des catalogues de modèles enregistrés…",
+    "noMatch": "Rien d’enregistré ne correspond à « {{query}} ». Appuie sur Entrée pour le conserver tel quel.",
+    "empty": "Rien d’enregistré à choisir pour l’instant. Saisis plutôt une référence.",
+    "customModel": "Absent de tes catalogues enregistrés · conservé comme référence personnalisée",
+    "customProvider": "Ce n’est pas l’un de tes fournisseurs enregistrés · conservé comme référence personnalisée",
+    "modelPlaceholder": "Choisis un modèle enregistré ou saisis fournisseur/modèle",
+    "providerPlaceholder": "Choisis un fournisseur enregistré",
+    "provider": "Fournisseur"
   }
 }
