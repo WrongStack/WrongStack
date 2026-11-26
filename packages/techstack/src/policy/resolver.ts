@@ -89,26 +89,86 @@ export interface ResolvedTarget {
 
 // ── Selector matching ────────────────────────────────────────────────────
 
-const REGEX_SPECIAL = /[.*+?^${}()|[\]\\]/g;
+type NamePatternToken =
+  | { readonly kind: 'literal'; readonly ch: string }
+  /** `*` — zero or more characters, never `/`. */
+  | { readonly kind: 'star' }
+  /** `**` — zero or more characters, `/` included. */
+  | { readonly kind: 'globstar' };
 
-/** Translate a rulebook wildcard pattern into an anchored RegExp. */
-function patternToRegex(pattern: string): RegExp {
-  let source = '';
+/** What `**` (formerly `.*`) never crosses. */
+const LINE_TERMINATOR = /[\n\r\u2028\u2029]/;
+
+/** Case folding of a non-unicode `i` regex: one code unit, never non-ASCII → ASCII. */
+function foldCase(ch: string): string {
+  const upper = ch.toUpperCase();
+  if (upper.length !== 1) return ch;
+  if (ch.charCodeAt(0) >= 128 && upper.charCodeAt(0) < 128) return ch;
+  return upper;
+}
+
+/**
+ * Compile a rulebook wildcard pattern into an anchored, case-insensitive
+ * matcher.
+ *
+ * Patterns come from the repo-committed `.wrongstack/techstack.rulebook.json`.
+ * They used to compile to a regex (`*` → `[^/]*`, `**` → `.*`), which
+ * backtracks exponentially on a non-matching name: an 11-character pattern
+ * took seconds against one package name and a 21-character one wedged the
+ * process, once per dependency. This advances one state set per character —
+ * O(pattern × name), with the regex's exact semantics.
+ */
+function compileNamePattern(pattern: string): (name: string) => boolean {
+  const tokens: NamePatternToken[] = [];
   for (let i = 0; i < pattern.length; i++) {
-    const ch = pattern[i];
-    if (ch === undefined) break;
+    const ch = pattern[i] as string;
     if (ch === '*') {
       if (pattern[i + 1] === '*') {
-        source += '.*'; // `**` crosses `/`
+        tokens.push({ kind: 'globstar' });
         i++;
       } else {
-        source += '[^/]*'; // `*` stays within one path segment
+        tokens.push({ kind: 'star' });
       }
     } else {
-      source += ch.replace(REGEX_SPECIAL, '\\$&');
+      tokens.push({ kind: 'literal', ch: foldCase(ch) });
     }
   }
-  return new RegExp(`^${source}$`, 'i');
+  const accept = tokens.length;
+  /** A star may match nothing: reach past it. Edges point forward, so one pass suffices. */
+  const close = (set: Uint8Array): void => {
+    for (let j = 0; j < accept; j++) {
+      if (set[j] && tokens[j]?.kind !== 'literal') set[j + 1] = 1;
+    }
+  };
+  return (name) => {
+    let cur = new Uint8Array(accept + 1);
+    let next = new Uint8Array(accept + 1);
+    cur[0] = 1;
+    close(cur);
+    for (let i = 0; i < name.length; i++) {
+      const c = name[i] as string;
+      const folded = foldCase(c);
+      next.fill(0);
+      let live = false;
+      for (let j = 0; j < accept; j++) {
+        if (!cur[j]) continue;
+        const token = tokens[j] as NamePatternToken;
+        if (token.kind === 'literal') {
+          if (token.ch === folded) {
+            next[j + 1] = 1;
+            live = true;
+          }
+        } else if (token.kind === 'star' ? c !== '/' : !LINE_TERMINATOR.test(c)) {
+          next[j] = 1;
+          live = true;
+        }
+      }
+      if (!live) return false;
+      close(next);
+      [cur, next] = [next, cur];
+    }
+    return cur[accept] === 1;
+  };
 }
 
 function hasValue(value: string | undefined): boolean {
@@ -150,7 +210,7 @@ export function matchesSelector(
 
   const nameOk = hasName && selector.name?.trim().toLowerCase() === name.trim().toLowerCase();
   const patternOk =
-    hasPattern && patternToRegex(selector.namePattern?.trim() ?? '').test(name.trim());
+    hasPattern && compileNamePattern(selector.namePattern?.trim() ?? '')(name.trim());
   return nameOk === true || patternOk === true;
 }
 

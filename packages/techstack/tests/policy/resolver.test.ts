@@ -88,6 +88,30 @@ describe('matchesSelector', () => {
     expect(matchesSelector({ namePattern: '@types/**' }, 'npm', '@types/node/fs')).toBe(true);
     expect(matchesSelector({ namePattern: '@types/**' }, 'npm', '@other/node')).toBe(false);
   });
+
+  it('matches namePattern case-insensitively and treats regex characters literally', () => {
+    expect(matchesSelector({ namePattern: 'React-*' }, 'npm', 'react-dom')).toBe(true);
+    expect(matchesSelector({ namePattern: 'a.b+c' }, 'npm', 'a.b+c')).toBe(true);
+    expect(matchesSelector({ namePattern: 'a.b' }, 'npm', 'axb')).toBe(false);
+    expect(matchesSelector({ namePattern: '@a/***' }, 'npm', '@a/b/c')).toBe(true);
+  });
+
+  it('answers a repo-committed wildcard pattern in linear time on a non-matching name', () => {
+    // As a backtracking regex these took ~2.4 s, ~0.9 s and ~41 s; a few
+    // wildcards more and a single package name wedged the process. The linear
+    // matcher answers all of them in well under a millisecond.
+    const cases = [
+      ['*a'.repeat(5) + 'b', 'a'.repeat(200)],
+      ['**a'.repeat(6) + 'b', 'a'.repeat(100)],
+      ['*a'.repeat(7) + 'b', 'a'.repeat(120)],
+    ] as const;
+    const started = performance.now();
+    for (const [namePattern, name] of cases) {
+      expect(matchesSelector({ namePattern }, 'npm', name)).toBe(false);
+      expect(matchesSelector({ namePattern }, 'npm', `${name}b`)).toBe(true);
+    }
+    expect(performance.now() - started).toBeLessThan(5_000);
+  });
 });
 
 // ── parseRange ───────────────────────────────────────────────────────────
