@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T09:52:45.944Z",
+  "generatedAt": "2026-11-26T10:44:38.277Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6571,
-    "testFiles": 6421,
-    "sourceLines": 1348989,
+    "testFiles": 6422,
+    "sourceLines": 1349219,
     "workspaceEdges": 261,
     "moduleEdges": 19249,
     "nonCommandSlashImports": 0,
@@ -403,7 +403,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 665,
-      "testFiles": 855,
+      "testFiles": 856,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -420,7 +420,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 855
+          "testFiles": 856
         }
       ]
     },
@@ -17071,6 +17071,12 @@
       },
       {
         "file": "packages/core/tests/utils/tree-kill-native-windows.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/utils/tree-kill-spawn-race-windows.test.ts",
         "projects": [
           "root-node"
         ]
@@ -41236,7 +41242,7 @@
     },
     {
       "file": "packages/tools/src/process-registry.ts",
-      "lines": 744,
+      "lines": 758,
       "relativeImports": 3
     },
     {
@@ -41622,6 +41628,11 @@
       "relativeImports": 5
     },
     {
+      "file": "packages/tools/src/process-registry.ts",
+      "lines": 758,
+      "relativeImports": 3
+    },
+    {
       "file": "packages/vector-memory/src/store.ts",
       "lines": 758,
       "relativeImports": 8
@@ -41650,11 +41661,6 @@
       "file": "packages/coordination/src/sqlite-mailbox.ts",
       "lines": 748,
       "relativeImports": 14
-    },
-    {
-      "file": "packages/tools/src/process-registry.ts",
-      "lines": 744,
-      "relativeImports": 3
     },
     {
       "file": "packages/webui-server/src/server/completion-handlers.ts",

@@ -1,11 +1,17 @@
 import { spawn } from 'node:child_process';
 import { buildChildEnv } from './child-env.js';
 import {
+  stopWin32TreeSuspended,
   terminateWin32Descendants,
   WIN32_NATIVE_CLEANUP_TIMEOUT_MS,
+  WIN32_SUSPEND_STOP_TIMEOUT_MS,
 } from './win32-process-tree.js';
 
-export { terminateWin32Descendants } from './win32-process-tree.js';
+export {
+  stopWin32TreeSuspended,
+  terminateWin32Descendants,
+  WIN32_SUSPEND_STOP_TIMEOUT_MS,
+} from './win32-process-tree.js';
 
 /**
  * Minimal shape shared by Node's `ChildProcess` and lighter child wrappers.
@@ -48,9 +54,9 @@ export interface TreeKillOptions {
  * Successful taskkill completion still settles immediately.
  */
 export const WIN32_TASKKILL_BACKSTOP_MS = 30_000;
-/** Complete Windows stop budget: taskkill plus its bounded native fallback. */
+/** Complete Windows stop budget: the suspend-then-walk step, taskkill and its native fallback. */
 export const WIN32_TREE_KILL_BUDGET_MS =
-  WIN32_TASKKILL_BACKSTOP_MS + WIN32_NATIVE_CLEANUP_TIMEOUT_MS;
+  WIN32_SUSPEND_STOP_TIMEOUT_MS + WIN32_TASKKILL_BACKSTOP_MS + WIN32_NATIVE_CLEANUP_TIMEOUT_MS;
 
 /** The parts of a spawned taskkill process the backstop listens to. */
 export interface TaskkillHandle {
@@ -126,18 +132,17 @@ export function treeKill(child: KillableChild, opts: TreeKillOptions = {}): void
     // exit (a code, or a signal after an earlier kill), `taskkill /T /F` by
     // that PID may hit an unrelated process tree.
     if (child.exitCode != null || child.signalCode != null) return;
-    try {
-      const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
-        stdio: 'ignore',
-        // H-8 convention (spawn-convention test): taskkill needs PATH only —
-        // do not hand it the credential-bearing parent environment.
-        env: buildChildEnv(),
-        windowsHide: true,
-      });
-      settleWin32Kill(killer, child, directKill);
-    } catch {
-      directKill();
-    }
+    // Suspend-then-walk first: taskkill alone misses a child launched during
+    // its walk. Its usual chain stays as the fallback when the helper fails.
+    if (
+      stopWin32TreeSuspended(child, {
+        onSettled: (stopped) => {
+          if (!stopped) taskkillTree(child, directKill);
+        },
+      })
+    )
+      return;
+    taskkillTree(child, directKill);
     return;
   }
 
@@ -178,4 +183,22 @@ export function treeKill(child: KillableChild, opts: TreeKillOptions = {}): void
       /* already gone */
     }
   }, opts.graceMs ?? 2000).unref();
+}
+
+/** `taskkill /T /F` the child's tree, with the direct kill chained after it settles. */
+function taskkillTree(child: KillableChild, directKill: () => void): void {
+  // Same stale-PID rule: once Node has observed the exit, the PID may be reused.
+  if (child.pid === undefined || child.exitCode != null || child.signalCode != null) return;
+  try {
+    const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
+      stdio: 'ignore',
+      // H-8 convention (spawn-convention test): taskkill needs PATH only —
+      // do not hand it the credential-bearing parent environment.
+      env: buildChildEnv(),
+      windowsHide: true,
+    });
+    settleWin32Kill(killer, child, directKill);
+  } catch {
+    directKill();
+  }
 }

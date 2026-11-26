@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-26T09:52:45.944Z
+**Generated:** 2026-11-26T10:44:38.277Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6571 |
-| Production source lines | 1348989 |
-| Test files | 6421 |
+| Production source lines | 1349219 |
+| Test files | 6422 |
 | Workspace dependency edges | 261 |
 | Relative module edges | 19249 |
 | Non-command slash imports | 0 |
@@ -39,7 +39,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/codebase-index-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
 | @wrongstack/contracts | 133 | 15 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 193 | 239 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/core | 665 | 855 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/core | 665 | 856 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop-v2 | 561 | 405 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 64 | 37 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 24 | 37 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
@@ -132,13 +132,13 @@ None.
 | 763 | `packages/plugins/src/adversary-mode/index.ts` |
 | 761 | `packages/coordination/src/agent-monitor.ts` |
 | 760 | `packages/tools/src/read.ts` |
+| 758 | `packages/tools/src/process-registry.ts` |
 | 758 | `packages/vector-memory/src/store.ts` |
 | 756 | `packages/fleet/src/host-skill-companion.ts` |
 | 755 | `apps/desktop-v2/src/ProjectSdd.tsx` |
 | 754 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
 | 753 | `apps/desktop-v2/src/useFileWorkspace.ts` |
 | 748 | `packages/coordination/src/sqlite-mailbox.ts` |
-| 744 | `packages/tools/src/process-registry.ts` |
 | 744 | `packages/webui-server/src/server/completion-handlers.ts` |
 | 741 | `packages/builtin-plugins/src/auto-review-plugin.ts` |
 | 741 | `packages/project-surfaces/src/analytics/AnalyticsDashboard.tsx` |

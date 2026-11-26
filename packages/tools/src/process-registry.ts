@@ -15,6 +15,7 @@ import type { ChildProcess } from 'node:child_process';
 import { spawn } from 'node:child_process';
 import * as os from 'node:os';
 import {
+  stopWin32TreeSuspended,
   terminateWin32Descendants,
   WIN32_TASKKILL_BACKSTOP_MS,
 } from '@wrongstack/core/utils/tree-kill';
@@ -578,13 +579,26 @@ export class ProcessRegistryImpl {
           }
         }
       };
-      if (
-        liveRealChild &&
+      const taskkillChain = (): boolean =>
         killWin32Tree(pid, {
           timeoutMs: Math.max(graceMs, WIN32_TASKKILL_TIMEOUT_MS),
           onSettled: directFallback,
+        });
+      if (
+        liveRealChild &&
+        p.child !== null &&
+        // Suspend-then-walk first: taskkill alone misses a child the shell
+        // launches during its walk (a stop while the shell is starting its
+        // command), orphaning it with our stdio pipes. The taskkill chain
+        // stays as the fallback when the helper cannot stop the root.
+        stopWin32TreeSuspended(p.child, {
+          onSettled: (stopped) => {
+            if (!stopped && !taskkillChain()) directFallback();
+          },
         })
       ) {
+        // The helper's fallback runs from its completion.
+      } else if (liveRealChild && taskkillChain()) {
         // The direct fallback is intentionally chained from taskkill's
         // completion. Killing cmd.exe before taskkill has walked the tree can
         // orphan the real command and leave stdio pipes open forever.

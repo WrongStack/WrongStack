@@ -195,7 +195,7 @@
       "relativeImports": 1
     },
     "packages/tools/src/process-registry.ts": {
-      "lines": 744,
+      "lines": 758,
       "relativeImports": 3
     },
     "packages/tools/src/read.ts": {

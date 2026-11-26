@@ -426,7 +426,7 @@
         "export interface KillableChild",
         "export interface TaskkillHandle",
         "export interface TreeKillOptions",
-        "export { terminateWin32Descendants } from './win32-process-tree.js';"
+        "export { stopWin32TreeSuspended, terminateWin32Descendants, WIN32_SUSPEND_STOP_TIMEOUT_MS, } from './win32-process-tree.js';"
       ]
     },
     {
@@ -1255,7 +1255,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 98,
-      "sourceLines": 16118
+      "sourceLines": 16334
     },
     {
       "directory": "vcs",
