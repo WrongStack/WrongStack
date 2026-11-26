@@ -1,11 +1,21 @@
-import { FileDiff, LayoutList, LoaderCircle } from 'lucide-react';
+import { FileDiff, LayoutList, LoaderCircle, PanelLeftClose } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { FileChangeCounts, StageAllButton } from './FileChangeCounts';
 import { FileExplorerFooter } from './FileExplorerChrome';
 import { FileTreeView } from './FileTreeView';
 import { fileName, parentPath } from './file-model';
 import type { FileWorkspaceModel } from './file-workspace-model';
+import { PaneSplitter } from './PaneSplitter';
+import { paneBounds } from './pane-layout';
 
-export function FileWorkspaceNavigation({ model }: { model: FileWorkspaceModel }) {
+export function FileWorkspaceNavigation({
+  model,
+  pane,
+}: {
+  model: FileWorkspaceModel;
+  /** Present when the saved pane layout controls the tree; width applies via CSS. */
+  pane?: { width: number; onResize: (width: number) => void } | undefined;
+}) {
   const {
     mode,
     t,
@@ -31,20 +41,49 @@ export function FileWorkspaceNavigation({ model }: { model: FileWorkspaceModel }
     stage,
     selected,
     setSelected,
+    treeCollapsed,
+    setTreeCollapsed,
+    treePanelId,
   } = model;
+  const panelTitle = mode === 'files' ? t('fileView.explorer') : t('fileView.sourceControl');
+  const collapseButton = useRef<HTMLButtonElement>(null);
+  const wasCollapsed = useRef(treeCollapsed);
+  useEffect(() => {
+    // After reopening from the rail, hand focus back to this header control.
+    if (wasCollapsed.current && !treeCollapsed) collapseButton.current?.focus();
+    wasCollapsed.current = treeCollapsed;
+  }, [treeCollapsed]);
   return (
-    <aside className="file-navigation">
+    <aside
+      id={treePanelId}
+      className="file-navigation"
+      data-pane-width={pane ? pane.width : undefined}
+      style={pane ? { ['--file-tree-width' as string]: `${pane.width}px` } : undefined}
+    >
       <header>
-        <span>{mode === 'files' ? t('fileView.explorer') : t('fileView.sourceControl')}</span>
-        {mode === 'files' && (
+        <span>{panelTitle}</span>
+        <span className="file-navigation-actions">
+          {mode === 'files' && (
+            <button
+              type="button"
+              aria-label={t('fileView.collapseAll')}
+              onClick={() => setExpanded([])}
+            >
+              <LayoutList size={13} />
+            </button>
+          )}
           <button
             type="button"
-            aria-label={t('fileView.collapseAll')}
-            onClick={() => setExpanded([])}
+            ref={collapseButton}
+            aria-label={panelTitle}
+            title={panelTitle}
+            aria-expanded={!treeCollapsed}
+            aria-controls={treePanelId}
+            onClick={() => setTreeCollapsed(true)}
           >
-            <LayoutList size={13} />
+            <PanelLeftClose size={13} />
           </button>
-        )}
+        </span>
       </header>
       {treeLoading ? (
         <div className="file-quiet-state">
@@ -176,6 +215,17 @@ export function FileWorkspaceNavigation({ model }: { model: FileWorkspaceModel }
         <FileExplorerFooter
           count={all.filter((n) => n.type === 'file').length}
           includeIgnored={includeIgnored}
+        />
+      )}
+      {pane && (
+        <PaneSplitter
+          label={panelTitle}
+          controls={treePanelId}
+          side="left"
+          width={pane.width}
+          min={paneBounds.fileTree.min}
+          max={paneBounds.fileTree.max}
+          onResize={pane.onResize}
         />
       )}
     </aside>

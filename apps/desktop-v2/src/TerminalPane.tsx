@@ -30,15 +30,21 @@ export function TerminalPane({
   id,
   writable,
   onError,
+  autoFocus = true,
 }: {
   id: string;
   writable: boolean;
   onError: (error: unknown) => void;
+  autoFocus?: boolean;
 }) {
   const { t } = useDesktopText();
   const container = useRef<HTMLDivElement>(null);
+  const latest = useRef({ writable, onError, autoFocus });
+  latest.current = { writable, onError, autoFocus };
   useEffect(() => {
-    if (!container.current) return;
+    const element = container.current;
+    if (!element) return;
+    const report = (error: unknown) => latest.current.onError(error);
     const terminal = new Terminal({
       cursorBlink: true,
       fontSize: 13,
@@ -65,23 +71,24 @@ export function TerminalPane({
     });
     const fit = new FitAddon();
     terminal.loadAddon(fit);
-    terminal.open(container.current);
+    terminal.open(element);
     let pending = Promise.resolve();
     const input = terminal.onData((data) => {
-      if (writable)
-        pending = pending.then(() => request<void>('session.write', { id, data })).catch(onError);
+      if (latest.current.writable)
+        pending = pending.then(() => request<void>('session.write', { id, data })).catch(report);
     });
     let resizeFrame = 0;
     let lastSize = '';
     const resize = () => {
       cancelAnimationFrame(resizeFrame);
       resizeFrame = requestAnimationFrame(() => {
+        if (element.clientWidth === 0 || element.clientHeight === 0) return;
         fit.fit();
         const size = `${terminal.cols}x${terminal.rows}`;
-        if (writable && size !== lastSize) {
+        if (latest.current.writable && size !== lastSize) {
           lastSize = size;
           void request('session.resize', { id, rows: terminal.rows, cols: terminal.cols }).catch(
-            onError,
+            report,
           );
         }
       });
@@ -92,15 +99,15 @@ export function TerminalPane({
       resize();
     });
     const observer = new ResizeObserver(resize);
-    observer.observe(container.current);
+    observer.observe(element);
     const stop = streamTerminal(
       id,
       (data, acknowledge) => terminal.write(data, acknowledge),
-      onError,
+      report,
     );
     const frame = requestAnimationFrame(() => {
       resize();
-      terminal.focus();
+      if (latest.current.autoFocus && element.clientHeight > 0) terminal.focus();
     });
     return () => {
       cancelAnimationFrame(frame);
@@ -112,7 +119,7 @@ export function TerminalPane({
       input.dispose();
       terminal.dispose();
     };
-  }, [id, writable, onError]);
+  }, [id]);
   return (
     <section className="terminal-surface" ref={container} aria-label={t('terminalPane.label')} />
   );

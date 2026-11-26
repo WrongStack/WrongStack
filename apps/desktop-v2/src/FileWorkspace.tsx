@@ -1,3 +1,5 @@
+import { PanelLeftOpen } from 'lucide-react';
+import { type Dispatch, type SetStateAction, useEffect, useRef } from 'react';
 import { FileReviewEmpty } from './FileReviewEmpty';
 import { FileWorkspaceActionDialogs } from './FileWorkspaceActionDialogs';
 import { FileWorkspaceDocument } from './FileWorkspaceDocument';
@@ -6,12 +8,28 @@ import { FileWorkspaceFolder } from './FileWorkspaceFolder';
 import { FileWorkspaceNavigation } from './FileWorkspaceNavigation';
 import { FileWorkspaceToolbar } from './FileWorkspaceToolbar';
 import { GitHistory } from './GitHistory';
+import { usePaneLayout } from './pane-layout-context';
 import { ReviewNotesTray } from './ReviewNotesTray';
 import { useFileWorkspace } from './useFileWorkspace';
 import './file-draft.css';
+import './file-tree-collapse.css';
 
 export function FileWorkspace(props: Parameters<typeof useFileWorkspace>[0]) {
   const model = useFileWorkspace(props);
+  const paneLayout = usePaneLayout();
+  const fileTree = paneLayout?.panes.fileTree;
+  // The saved pane layout owns collapse and width when the App provider is
+  // present; standalone fixtures keep the per-window fallback state.
+  const treeCollapsed = paneLayout && fileTree ? !fileTree.open : model.treeCollapsed;
+  const setTreeCollapsed: Dispatch<SetStateAction<boolean>> =
+    paneLayout && fileTree
+      ? (collapsed) => {
+          // Collapse callers pass plain booleans; the layout stores open state.
+          if (typeof collapsed !== 'boolean') return;
+          paneLayout.setOpen('fileTree', !collapsed);
+        }
+      : model.setTreeCollapsed;
+  const view = { ...model, treeCollapsed, setTreeCollapsed };
   const {
     command,
     mode,
@@ -32,7 +50,13 @@ export function FileWorkspace(props: Parameters<typeof useFileWorkspace>[0]) {
     isDirty,
     setViewerFind,
     review,
-  } = model;
+    treePanelId,
+  } = view;
+  const reopenControl = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    // Collapsing unmounts the header control, so keyboard focus moves to the reopen control.
+    if (treeCollapsed) reopenControl.current?.focus();
+  }, [treeCollapsed]);
   if (history)
     return (
       <GitHistory
@@ -67,17 +91,42 @@ export function FileWorkspace(props: Parameters<typeof useFileWorkspace>[0]) {
         }
       }}
     >
-      <FileWorkspaceToolbar model={model} />
-      <FileWorkspaceDraftDialogs model={model} />
-      <div className="file-workspace-body">
-        <FileWorkspaceNavigation model={model} />
+      <FileWorkspaceToolbar model={view} />
+      <FileWorkspaceDraftDialogs model={view} />
+      <div className={`file-workspace-body${treeCollapsed ? ' tree-collapsed' : ''}`}>
+        {treeCollapsed && (
+          <div className="file-tree-rail">
+            <button
+              type="button"
+              ref={reopenControl}
+              title={t('fileView.explorerTab')}
+              aria-expanded={false}
+              aria-controls={treePanelId}
+              onClick={() => setTreeCollapsed(false)}
+            >
+              <PanelLeftOpen size={14} />
+              <span>{t('fileView.explorerTab')}</span>
+            </button>
+          </div>
+        )}
+        <FileWorkspaceNavigation
+          model={view}
+          pane={
+            paneLayout && fileTree?.open
+              ? {
+                  width: fileTree.width,
+                  onResize: (width) => paneLayout.setWidth('fileTree', width),
+                }
+              : undefined
+          }
+        />
         <div className="file-center">
-          <FileWorkspaceDocument model={model} />
+          <FileWorkspaceDocument model={view} />
           {!active &&
             (mode === 'changes' ? (
               <FileReviewEmpty hasChanges={changes.length > 0} />
             ) : (
-              <FileWorkspaceFolder model={model} />
+              <FileWorkspaceFolder model={view} />
             ))}
           {mode === 'changes' && (
             <ReviewNotesTray
@@ -93,7 +142,7 @@ export function FileWorkspace(props: Parameters<typeof useFileWorkspace>[0]) {
           )}
         </div>
       </div>
-      <FileWorkspaceActionDialogs model={model} />
+      <FileWorkspaceActionDialogs model={view} />
     </section>
   );
 }

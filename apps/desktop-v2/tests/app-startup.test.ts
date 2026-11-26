@@ -14,7 +14,7 @@ vi.mock('../src/useDesktop', () => ({
     connected: true,
   }),
 }));
-vi.mock('../src/platform', () => ({ native: true }));
+vi.mock('../src/platform', () => ({ native: true, layoutKey: 'layout' }));
 vi.mock('../src/desktop-i18n', () => ({ useDesktopText: () => ({ t: (key: string) => key }) }));
 vi.mock('../src/surface-i18n', () => ({ cachedLanguage: () => null, surfaceI18n: {} }));
 vi.mock('../src/settings-section-request', () => ({ useShownSettingsSection: () => 'models' }));

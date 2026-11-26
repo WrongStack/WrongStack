@@ -5,6 +5,9 @@ import { SessionAgentRail } from './AgentTranscripts';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
+import { PaneSplitter } from './PaneSplitter';
+import { paneBounds } from './pane-layout';
+import { usePaneLayout } from './pane-layout-context';
 import { native, scanOrphanEngines } from './platform';
 import { SessionTodos } from './SessionTodos';
 import { SessionToolSummary } from './SessionToolSummary';
@@ -93,7 +96,23 @@ export function SessionInspector({
   const { t: words } = useTranslation('sessionInspector', { i18n: surfaceI18n });
   const id = useId();
   const [tab, setTab] = useState<InspectorTab>('agents');
-  const [collapsed, setCollapsed] = useState(false);
+  const [localCollapsed, setLocalCollapsed] = useState(false);
+  const paneLayout = usePaneLayout();
+  const inspector = paneLayout?.panes.inspector;
+  // The saved pane layout owns collapse and width when the App provider is
+  // present; standalone fixtures keep the local fallback state.
+  const collapsed = paneLayout && inspector ? !inspector.open : localCollapsed;
+  const setCollapsed =
+    paneLayout && inspector
+      ? (value: boolean) => paneLayout.setOpen('inspector', !value)
+      : setLocalCollapsed;
+  const pane =
+    paneLayout && inspector?.open
+      ? {
+          width: inspector.width,
+          setWidth: (width: number) => paneLayout.setWidth('inspector', width),
+        }
+      : undefined;
   /** The icon rail lives at the screen edge, so choosing a section also opens the sidebar. */
   const open = (value: InspectorTab) => {
     setTab(value);
@@ -119,7 +138,24 @@ export function SessionInspector({
   };
   return (
     <>
-      <aside className="session-inspector" data-collapsed={collapsed} aria-label={words('title')}>
+      <aside
+        className="session-inspector"
+        data-collapsed={collapsed}
+        data-pane-width={pane ? pane.width : undefined}
+        style={pane ? { ['--session-inspector-width' as string]: `${pane.width}px` } : undefined}
+        aria-label={words('title')}
+      >
+        {pane && (
+          <PaneSplitter
+            label={words('title')}
+            controls={`${id}-body`}
+            side="right"
+            width={pane.width}
+            min={paneBounds.inspector.min}
+            max={paneBounds.inspector.max}
+            onResize={pane.setWidth}
+          />
+        )}
         <header className="session-inspector-heading" hidden={collapsed}>
           <h2>{words(tab)}</h2>
         </header>

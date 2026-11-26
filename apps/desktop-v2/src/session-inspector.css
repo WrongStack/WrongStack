@@ -6,6 +6,16 @@
 .session-conversation-panes:has(> .session-inspector[data-collapsed="true"]) {
   grid-template-columns: minmax(0, 1fr) 0 var(--session-rail);
 }
+/* Controlled pane width: when the saved pane layout drives the inspector it
+   sets --session-inspector-width and data-pane-width on the aside, and the
+   middle track follows the pane. The transcript keeps minmax(0, 1fr), so a
+   wide inspector shrinks it instead of overflowing narrow windows. */
+.session-conversation-panes:has(> .session-inspector[data-pane-width]) {
+  grid-template-columns: minmax(0, 1fr) auto var(--session-rail);
+}
+.session-conversation-panes > .session-inspector[data-pane-width] {
+  width: var(--session-inspector-width, clamp(264px, 28%, 336px));
+}
 .session-conversation-panes > :where(.session-leader-column) {
   grid-column: 1;
   grid-row: 1;
@@ -51,13 +61,17 @@
   justify-content: space-between;
   gap: 8px;
   flex: none;
-  padding: 10px 12px;
+  min-height: 36px;
+  padding: 6px 12px;
   border-bottom: 1px solid var(--border);
+  background: var(--sidebar);
 }
 .session-inspector-heading h2 {
   margin: 0;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -359,7 +373,8 @@
 }
 @container conversation (max-width: 760px) {
   .session-conversation-panes,
-  .session-conversation-panes:has(> .session-inspector[data-collapsed="true"]) {
+  .session-conversation-panes:has(> .session-inspector[data-collapsed="true"]),
+  .session-conversation-panes:has(> .session-inspector[data-pane-width]) {
     grid-template-columns: minmax(0, 1fr) var(--session-rail);
     grid-template-rows: minmax(0, auto) minmax(120px, 1fr);
   }
@@ -373,6 +388,13 @@
     border-left: 0;
     border-bottom: 1px solid var(--border);
     max-height: min(30dvh, 240px);
+  }
+  /* Saved width and the resize handle only apply to the side-by-side layout. */
+  .session-conversation-panes > .session-inspector[data-pane-width] {
+    width: auto;
+  }
+  .session-conversation-panes > .session-inspector > .pane-splitter {
+    display: none;
   }
   .session-conversation-panes > .session-inspector[data-collapsed="true"] {
     display: none;

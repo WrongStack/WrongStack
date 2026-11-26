@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { plainEditorPreferred } from './CodeEditorSlot';
 import type { ComposerFileReference } from './composer-resources-model';
 import { useDesktopText } from './desktop-i18n';
@@ -34,6 +34,7 @@ interface Chrome {
   expanded: string[];
   notes: ReviewNote[];
   includeIgnored: boolean;
+  treeCollapsed: boolean;
 }
 const chrome = new Map<string, Chrome>();
 // A window retains the same draft revisions when its project tools remount.
@@ -101,7 +102,11 @@ export function useFileWorkspace({
     [history, setHistory] = useState(false),
     [treeReady, setTreeReady] = useState(false),
     [includeIgnored, setIncludeIgnored] = useState(cached?.includeIgnored ?? false),
+    [treeCollapsed, setTreeCollapsed] = useState(cached?.treeCollapsed ?? false),
     [treeFilter, setTreeFilter] = useState<boolean | null>(null);
+  // Collapse controls point at the tree panel via aria-controls; useId keeps the id unique
+  // when several file workspaces are mounted at once.
+  const treePanelId = useId();
   const revealed = useRef('');
   const reviewNotes = useReviewNotes(projectId, cached?.notes ?? []);
   const notes = reviewNotes.notes;
@@ -146,8 +151,8 @@ export function useFileWorkspace({
     activeFile.current = active;
   }, [active]);
   useEffect(() => {
-    chrome.set(key, { documents, active, folder, expanded, notes, includeIgnored });
-  }, [key, documents, active, folder, expanded, notes, includeIgnored]);
+    chrome.set(key, { documents, active, folder, expanded, notes, includeIgnored, treeCollapsed });
+  }, [key, documents, active, folder, expanded, notes, includeIgnored, treeCollapsed]);
   const all = useMemo(() => flattenFiles(tree), [tree]);
   const prefix = typeof git['repoPrefix'] === 'string' ? git['repoPrefix'] : '';
   const changes = entries(git['files']).filter((file) => String(file['path']).startsWith(prefix));
@@ -684,6 +689,9 @@ export function useFileWorkspace({
     setHistory,
     includeIgnored,
     setIncludeIgnored,
+    treeCollapsed,
+    setTreeCollapsed,
+    treePanelId,
     reviewNotes,
     notes,
     contentElement,

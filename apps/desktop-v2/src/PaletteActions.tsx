@@ -2,6 +2,8 @@ import { ArrowRight, Zap } from 'lucide-react';
 import { commandDescription } from './desktop-command-text';
 import { desktopCommands } from './desktop-commands';
 import { useDesktopText } from './desktop-i18n';
+import { paneLayoutTitle } from './PaneLayoutDialog';
+import { usePaneLayout } from './pane-layout-context';
 import { requestSettingsSection } from './settings-section-request';
 import type { DesktopController } from './useDesktop';
 
@@ -100,7 +102,11 @@ function paletteActions(
 export function PaletteActions({ vm, search }: { vm: DesktopController; search: string }) {
   const { t } = useDesktopText();
   const wanted = search.trim().toLowerCase();
-  const actions = paletteActions(vm, t).filter(
+  const layout = usePaneLayout();
+  const layoutAction: PaletteAction[] = layout
+    ? [{ id: 'pane-layout', label: paneLayoutTitle, run: layout.showSettings }]
+    : [];
+  const actions = [...layoutAction, ...paletteActions(vm, t)].filter(
     (action) =>
       !wanted ||
       action.label.toLowerCase().includes(wanted) ||

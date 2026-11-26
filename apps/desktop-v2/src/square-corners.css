@@ -1,0 +1,17 @@
+/* Desktop v2 has no rounded corners. Keep this the first cascade layer so the
+   invariant also wins over lazy widgets, portal content and normal inline styles. */
+@layer desktop-geometry {
+  *,
+  *::before,
+  *::after {
+    /* design-ignore: radius.hardcoded -- Zero is invariant across themes. */
+    border-radius: 0 !important;
+  }
+
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-thumb,
+  ::-webkit-scrollbar-corner {
+    /* design-ignore: radius.hardcoded -- Zero is invariant across themes. */
+    border-radius: 0 !important;
+  }
+}

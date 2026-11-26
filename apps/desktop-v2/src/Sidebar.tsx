@@ -15,14 +15,18 @@ import {
   Settings,
   Shapes,
 } from 'lucide-react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
+import { isTypingTarget } from './desktop-shortcuts';
+import { PaneSplitter } from './PaneSplitter';
 import { ProjectToolsMenu } from './ProjectToolsMenu';
+import { paneBounds } from './pane-layout';
 import { addProject, native } from './platform';
 import { owningTool, projectTools } from './project-tools';
 import { SidebarProjects } from './SidebarProjects';
 import { requestSettingsSection, useShownSettingsSection } from './settings-section-request';
 import type { DesktopController, ProjectPage } from './useDesktop';
+import type { WorkbenchExplorer } from './useWorkbenchExplorer';
 
 /**
  * WebUI's calm layout: a narrow icon rail with a few pinned views and a Tools launcher for the
@@ -100,13 +104,12 @@ function ToolsLauncher({
   );
 }
 
-export function Sidebar({ vm }: { vm: DesktopController }) {
+export function Sidebar({ vm, explorer }: { vm: DesktopController; explorer: WorkbenchExplorer }) {
   const { t } = useDesktopText();
   const {
     snapshot,
     project,
     setProject,
-    selected,
     setSelected,
     section,
     setSection,
@@ -116,36 +119,62 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
     run,
     currentProject,
   } = vm;
-  const [explorerOpen, setExplorerOpen] = useState(false);
+  const { compact, open: explorerOpen, id: explorerId, toggle, dismissOverlay } = explorer;
   const sidebar = useRef<HTMLElement>(null);
   const explorerToggle = useRef<HTMLButtonElement>(null);
   const explorerSearch = useRef<HTMLButtonElement>(null);
-  const explorerId = useId();
   useEffect(() => {
-    setExplorerOpen(false);
-  }, [project, selected, section, vm.projectPage]);
-  useEffect(() => {
-    if (!explorerOpen) return;
+    if (!compact || !explorerOpen) return;
     explorerSearch.current?.focus();
     const outside = (event: PointerEvent) => {
-      if (!sidebar.current?.contains(event.target as Node)) setExplorerOpen(false);
+      const target = event.target;
+      if (
+        !(target instanceof Element) ||
+        sidebar.current?.contains(target) ||
+        target.closest('.workbench-menu')
+      )
+        return;
+      dismissOverlay();
     };
     const onEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || document.querySelector('dialog[open]')) return;
-      setExplorerOpen(false);
+      if (
+        event.defaultPrevented ||
+        event.key !== 'Escape' ||
+        document.querySelector('dialog[open]')
+      )
+        return;
+      if (event.target instanceof Element && event.target.closest('.workbench-menu')) return;
+      dismissOverlay();
       explorerToggle.current?.focus();
     };
-    const compact = matchMedia('(max-width: 619px)');
-    const reset = () => setExplorerOpen(false);
     window.addEventListener('pointerdown', outside);
     window.addEventListener('keydown', onEscape);
-    compact.addEventListener('change', reset);
     return () => {
       window.removeEventListener('pointerdown', outside);
       window.removeEventListener('keydown', onEscape);
-      compact.removeEventListener('change', reset);
     };
-  }, [explorerOpen]);
+  }, [compact, explorerOpen, dismissOverlay]);
+  useEffect(() => {
+    const shortcut = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.repeat ||
+        !(event.ctrlKey || event.metaKey) ||
+        event.altKey ||
+        event.shiftKey ||
+        event.key.toLowerCase() !== 'b' ||
+        isTypingTarget(event.target) ||
+        document.querySelector('dialog[open]')
+      )
+        return;
+      event.preventDefault();
+      explorerToggle.current?.focus();
+      toggle();
+    };
+    window.addEventListener('keydown', shortcut);
+    return () => window.removeEventListener('keydown', shortcut);
+  }, [toggle]);
   const connectProject = () => run(addProject);
   const page = section === 'project' ? vm.projectPage : undefined;
   const shownSettings = useShownSettingsSection();
@@ -174,7 +203,7 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
     </button>
   );
   return (
-    <aside className="sidebar" ref={sidebar}>
+    <aside className="sidebar" ref={sidebar} data-explorer-open={explorerOpen}>
       <nav className="rail" aria-label={t('rail.navigation')}>
         <button
           type="button"
@@ -192,13 +221,14 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
         {main('activity', t('rail.activity'), Activity)}
         <button
           type="button"
-          className="rail-button compact-explorer-toggle"
+          className={`rail-button explorer-toggle ${explorerOpen ? 'active' : ''}`}
           ref={explorerToggle}
           aria-label={t('explorer.toggle')}
-          title={t('explorer.toggle')}
+          title={`${t('explorer.toggle')} (Ctrl+B)`}
           aria-controls={explorerId}
           aria-expanded={explorerOpen}
-          onClick={() => setExplorerOpen(!explorerOpen)}
+          aria-keyshortcuts="Control+B Meta+B"
+          onClick={toggle}
         >
           <PanelLeft size={17} />
         </button>
@@ -294,6 +324,16 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
           </button>
         </div>
       </div>
+      {explorerOpen && explorer.width !== undefined && (
+        <PaneSplitter
+          label={t('explorer.toggle')}
+          controls={explorerId}
+          side="left"
+          width={explorer.width}
+          {...paneBounds.explorer}
+          onResize={(width) => explorer.setWidth?.('explorer', width)}
+        />
+      )}
     </aside>
   );
 }

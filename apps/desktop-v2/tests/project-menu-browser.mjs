@@ -13,6 +13,7 @@ const source = `
 import {createRoot} from 'react-dom/client';
 import {Sidebar} from '/src/Sidebar.tsx';
 import {useDesktop} from '/src/useDesktop.ts';
+import {useWorkbenchExplorer} from '/src/useWorkbenchExplorer.ts';
 import '/src/styles.css'; import '/src/brand-tokens.css'; import '/src/appearance.css';
 import '/src/workbench.css'; import '/src/controls.css'; import '/src/shell.css';
 let projects=['Alpha','Beta','Unicode 検証 '+ 'long-name-'.repeat(15)].map((name,i)=>({id:'p'+i,name,root:'D:/fixture/'+name,createdAt:i}));
@@ -34,7 +35,7 @@ window.proofInvoke=async(command,args)=>{
  if(method==='project.register'){const p=original[0];if(!projects.some(row=>row.id===p.id))projects.push(p);return p;}
  throw Error('Unexpected request '+method);
 };
-function Fixture(){const vm=useDesktop();window.proofVm=vm;return <div className="app-shell"><Sidebar vm={vm}/><main className="workspace-shell"><div role="alert">{vm.error}</div><p>Project menu fixture</p></main></div>;}
+function Fixture(){const vm=useDesktop();const explorer=useWorkbenchExplorer(JSON.stringify([vm.section,vm.project,vm.selected,vm.projectPage]));window.proofVm=vm;return <div className="app-shell"><Sidebar vm={vm} explorer={explorer}/><main className="workspace-shell"><div role="alert">{vm.error}</div><p>Project menu fixture</p></main></div>;}
 createRoot(document.getElementById('root')).render(<Fixture/>);`;
 const server = await createServer({
   root,

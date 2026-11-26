@@ -9,8 +9,31 @@ import { createServer, transformWithOxc } from 'vite';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const artifacts = resolve(root, '../../.temp_files/desktop-ui-browser');
 const cacheDir = join(artifacts, `vite-${process.pid}`);
+
+async function assertSquareCorners(page, state) {
+  const rounded = await page.evaluate(() => {
+    const corners = ['TopLeft', 'TopRight', 'BottomLeft', 'BottomRight'];
+    const offenders = [];
+    for (const element of document.body.querySelectorAll('*')) {
+      for (const pseudo of [null, '::before', '::after']) {
+        const style = getComputedStyle(element, pseudo);
+        if (pseudo && style.content === 'none') continue;
+        if (corners.some((corner) => style[`border${corner}Radius`] !== '0px')) {
+          offenders.push(
+            `${element.tagName}.${element.getAttribute('class') ?? ''}${pseudo ?? ''}`,
+          );
+        }
+        if (offenders.length >= 12) return offenders;
+      }
+    }
+    return offenders;
+  });
+  assert.deepEqual(rounded, [], `${state} must have square corners`);
+}
+
 // Production App and controller. Only native transport, storage and runtime data are fixtures.
 const source = `
+import '/src/square-corners.css';
 import {createRoot} from 'react-dom/client';
 import {App} from '/src/App.tsx';
 import {defaultAppearance} from '/src/appearance.ts';
@@ -22,7 +45,8 @@ import '/src/skills.css'; import '/src/shell.css'; import '/src/controls.css';
 const now=Date.now();
 const projects=[{id:'p1',name:'WrongStack UI',root:'D:/fixture/ui',createdAt:now},{id:'p2',name:'Unicode 検証 '+ 'long-project-'.repeat(5),root:'D:/fixture/unicode',createdAt:now}];
 const titles=['Review the session workspace','Verify keyboard navigation','Investigate a failed build','Unicode 検証 '+ 'long-session-'.repeat(6)];
-const sessions=titles.map((title,i)=>({id:'s'+i,projectId:i===3?'p2':'p1',title,kind:'agent',workdir:projects[i===3?1:0].root,status:i===2?'error':i===1?'interrupted':'running',createdAt:now-600000,updatedAt:now-60000*i,exitCode:null,error:i===2?'Fixture: build exited with a diagnostic':null}));
+const terminal=location.search.includes('terminal');
+const sessions=titles.map((title,i)=>({id:'s'+i,projectId:i===3?'p2':'p1',title,kind:'agent',workdir:projects[i===3?1:0].root,status:i===2?'error':i===1?'interrupted':'running',createdAt:now-600000,updatedAt:now-60000*i,exitCode:null,error:i===2?'Fixture: build exited with a diagnostic':null})).concat(terminal?[{id:'st0',projectId:'p1',title:'Fixture terminal',kind:'terminal',workdir:projects[0].root,status:'running',createdAt:now-300000,updatedAt:now-1000,exitCode:null,error:null}]:[]);
 const acp=location.search.includes('acp');
 const model=acp?'fixture-agent':'Fixture model';
 let runtime={};
@@ -30,7 +54,7 @@ const longModel='review-model-with-a-long-qualified-name';
 let appearance={...defaultAppearance,mode:location.pathname.endsWith('/light')?'light':'dark'};
 const initialLayout=location.pathname.includes('/session')?JSON.stringify({project:'p1',selected:'s0',section:'fleet',openSessionIds:['s0']}):null;
 const queues=new Map(),offsets=new Map();
-window.uiCalls=[]; window.uiUnexpected=[];
+window.uiCalls=[]; window.uiUnexpected=[]; window.terminalStreams=[]; window.terminalAcks=[]; window.terminalStops=[];
 const orphan={pid:912,identity:'123',image:'C:/Desktop/hosts/fixture/wrongstack-engine.exe'};
 window.cleanup={rows:[orphan],scans:0,failScan:false,stops:[],fail:false};
 const enqueue=(id,event)=>{const queue=queues.get(id)||[];queue.push(event);queues.set(id,queue);};
@@ -50,6 +74,9 @@ window.uiInvoke=async(command,args={})=>{
   window.cleanup.rows=[];
   return null;
  }
+ if(command==='terminal_stream'){window.terminalStreams.push({id:args.id,subscription:args.subscription,channel:args.channel});return null;}
+ if(command==='terminal_ack'){window.terminalAcks.push(args.subscription);return null;}
+ if(command==='terminal_stop'){window.terminalStops.push(args.subscription);return null;}
  if(command!=='host_request')throw Error('Unexpected native command '+command);
  const {method,params}=args;window.uiCalls.push({method,params});
  if(method==='snapshot')return {projects,sessions,hostPid:1,layout:initialLayout,appearance:JSON.stringify(appearance)};
@@ -91,6 +118,7 @@ window.uiInvoke=async(command,args={})=>{
  }
  if(method==='project.events')return {offset:1,events:params.offset===0?[{type:'session.start',payload:{sessionId:'carrier-'+params.projectId,provider:'fixture',model:'Fixture model'}}]:[],hasMore:false};
  if(method==='project.send')return null;
+ if(method==='session.resize'||method==='session.write')return null;
  window.uiUnexpected.push(method);throw Error('Unexpected host method '+method);
 };
 createRoot(document.getElementById('root')).render(<App/>);`;
@@ -119,6 +147,8 @@ const server = await createServer({
       'virtua',
       '@xyflow/react',
       '@monaco-editor/react',
+      '@xterm/addon-fit',
+      '@xterm/xterm',
     ],
   },
   server: { host: '127.0.0.1', port: 0, strictPort: false, watch: null },
@@ -198,6 +228,102 @@ try {
         await page.locator('.session-card').first().waitFor();
         if (mode === 'light')
           await page.getByRole('button', { name: 'Switch to light mode', exact: true }).click();
+        const desktopMenu = page.getByRole('button', { name: 'Desktop', exact: true });
+        const explorerToggle = page.getByRole('button', {
+          name: 'Projects and sessions',
+          exact: true,
+        });
+        const explorer = page.locator('.sidebar .explorer');
+        const workspace = page.locator('.workspace-shell');
+        const originalWidth = (await workspace.boundingBox()).width;
+        const compact = width < 620;
+        assert.equal(await explorer.isVisible(), !compact);
+        await desktopMenu.press('ArrowDown');
+        const desktopPopup = page.getByRole('menu', { name: 'Desktop', exact: true });
+        await desktopPopup.waitFor();
+        await assertSquareCorners(page, 'Desktop menu');
+        assert.ok(
+          await desktopPopup
+            .getByRole('menuitem')
+            .first()
+            .evaluate((el) => el === document.activeElement),
+        );
+        await page.keyboard.press('ArrowDown');
+        const menuExplorer = desktopPopup.getByRole('menuitemcheckbox');
+        assert.ok(await menuExplorer.evaluate((el) => el === document.activeElement));
+        await page.keyboard.press('Enter');
+        await desktopPopup.waitFor({ state: 'hidden' });
+        await explorer.waitFor({ state: compact ? 'visible' : 'hidden' });
+        const toggledWidth = (await workspace.boundingBox()).width;
+        if (compact)
+          assert.equal(
+            toggledWidth,
+            originalWidth,
+            'compact Explorer overlays instead of resizing',
+          );
+        else
+          assert.ok(
+            toggledWidth > originalWidth,
+            'collapsing Explorer gives width back to the workspace',
+          );
+        await page.keyboard.press(compact ? 'Escape' : 'Control+b');
+        await explorer.waitFor({ state: compact ? 'hidden' : 'visible' });
+        assert.ok(await explorerToggle.evaluate((el) => el === document.activeElement));
+        await desktopMenu.press('ArrowUp');
+        await desktopPopup.waitFor();
+        await page.keyboard.press('Escape');
+        await desktopPopup.waitFor({ state: 'hidden' });
+        assert.ok(await desktopMenu.evaluate((el) => el === document.activeElement));
+        await desktopMenu.click();
+        await desktopPopup.getByRole('menuitem').first().click();
+        const palette = page.getByRole('dialog');
+        await palette.waitFor();
+        await page.keyboard.press('Escape');
+        await palette.waitFor({ state: 'hidden' });
+        if (width === 1440) {
+          const splitter = page.getByRole('separator', { name: 'Projects and sessions' });
+          const original = Number(await splitter.getAttribute('aria-valuenow'));
+          await splitter.press('ArrowRight');
+          assert.equal(await splitter.getAttribute('aria-valuenow'), String(original + 8));
+          const box = await splitter.boundingBox();
+          assert.ok(box);
+          await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+          await page.mouse.down();
+          await page.mouse.move(box.x + box.width / 2 + 20, box.y + box.height / 2);
+          await page.mouse.up();
+          assert.equal(await splitter.getAttribute('aria-valuenow'), String(original + 28));
+          await page.setViewportSize({ width: 590, height });
+          await splitter.waitFor({ state: 'hidden' });
+          await page.setViewportSize({ width, height });
+          await splitter.waitFor();
+          assert.equal(await splitter.getAttribute('aria-valuenow'), String(original + 28));
+          await page.reload();
+          await splitter.waitFor();
+          assert.equal(await splitter.getAttribute('aria-valuenow'), String(original + 28));
+          await desktopMenu.click();
+          await desktopPopup.getByRole('menuitem', { name: 'Workspace layout' }).click();
+          const layout = page.getByRole('dialog', { name: 'Workspace layout' });
+          await layout.waitFor();
+          await assertSquareCorners(page, 'Workspace layout');
+          await layout.getByRole('button', { name: 'Focus', exact: true }).click();
+          await explorer.waitFor({ state: 'hidden' });
+          await layout.getByRole('button', { name: 'Code', exact: true }).click();
+          await explorer.waitFor();
+          await layout.getByRole('spinbutton', { name: 'Projects and sessions width' }).fill('300');
+          await layout.getByRole('button', { name: 'Apply pane settings' }).click();
+          assert.equal(await splitter.getAttribute('aria-valuenow'), '300');
+          await layout.getByRole('button', { name: 'Reset layout' }).click();
+          assert.equal(await splitter.getAttribute('aria-valuenow'), String(original));
+          await page.keyboard.press('Escape');
+          await layout.waitFor({ state: 'hidden' });
+          await page.locator('.session-card').first().waitFor();
+          const lightSwitch = page.getByRole('button', {
+            name: 'Switch to light mode',
+            exact: true,
+          });
+          if (mode === 'light' && (await lightSwitch.isVisible())) await lightSwitch.click();
+        }
+        await assertSquareCorners(page, 'Fleet');
         await page.screenshot({ path: join(artifacts, `${mode}-${width}-${height}-fleet.png`) });
         assert.equal(
           await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
@@ -222,6 +348,17 @@ try {
           .locator('.native-chat-messages')
           .getByText('The session layout is ready for review.', { exact: false })
           .waitFor();
+        if (width === 1440) {
+          const inspector = page.locator('.session-inspector');
+          const divider = inspector.getByRole('separator');
+          const start = Number(await divider.getAttribute('aria-valuenow'));
+          const startWidth = (await inspector.boundingBox()).width;
+          await divider.press('ArrowLeft');
+          assert.equal(await divider.getAttribute('aria-valuenow'), String(start + 8));
+          assert.equal((await inspector.boundingBox()).width, startWidth + 8);
+          await divider.press('ArrowRight');
+        }
+        await assertSquareCorners(page, 'Session');
         await page.screenshot({ path: join(artifacts, `${mode}-${width}-${height}-session.png`) });
         assert.equal(
           await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
@@ -257,6 +394,7 @@ try {
         await modelSearch.fill('Review model');
         assert.equal(await picker.locator('.composer-model-list > button').count(), 1);
         await modelSearch.fill('');
+        await assertSquareCorners(page, 'Model picker');
         await page.screenshot({ path: join(artifacts, `${mode}-${width}-${height}-models.png`) });
         await page.keyboard.press('Escape');
         await picker.waitFor({ state: 'hidden' });
@@ -468,6 +606,139 @@ try {
         );
         await context.close();
       }
+    }
+    // Standalone terminal dock flow in a fresh ?terminal context: the query adds exactly
+    // one terminal session ('st0'), so every context above keeps its four fleet cards.
+    // Docking must move the live xterm between tab and panel: the same DOM node, one
+    // terminal_stream, no terminal_stop and no session.kill anywhere in the flow.
+    {
+      const context = await browser.newContext({
+        viewport: { width: 1440, height: 900 },
+        reducedMotion: 'reduce',
+      });
+      page = await context.newPage();
+      page.setDefaultTimeout(20000);
+      const errors = [];
+      pageErrors = errors;
+      page.on('pageerror', (error) => errors.push(String(error)));
+      page.on('console', (message) => {
+        if (message.type() === 'error') errors.push(message.text());
+      });
+      await page.goto(`${url}?terminal`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await page.locator('.session-card').first().waitFor();
+      assert.equal(
+        await page.locator('.session-card').count(),
+        5,
+        '?terminal adds exactly one terminal session',
+      );
+      await page
+        .locator('.session-card')
+        .filter({ hasText: 'Review the session workspace' })
+        .locator('.session-card-main')
+        .click();
+      const composer = page.getByRole('textbox', { name: 'Message WrongStack', exact: true });
+      await composer.waitFor();
+      await page
+        .locator('.sidebar')
+        .getByRole('button', { name: /Fixture terminal/ })
+        .first()
+        .click();
+      const dockButton = page.getByRole('button', { name: 'Dock terminal', exact: true });
+      await dockButton.waitFor();
+      await page.locator('.xterm').waitFor();
+      await page.waitForFunction(() =>
+        window.uiCalls.some((call) => call.method === 'session.resize'),
+      );
+      const tag = 'dock-flow-probe';
+      // One live xterm with the probe tag and the accumulated output, one stream that was
+      // never stopped, and no kill: the invariants every placement change must preserve.
+      const expectTerminalIntact = async (state, needle) => {
+        await page.waitForFunction(
+          ([probe, text]) => {
+            const pane = document.querySelector('.xterm');
+            return (
+              document.querySelectorAll('.xterm').length === 1 &&
+              pane?.dataset.probe === probe &&
+              (document.querySelector('.xterm-rows')?.textContent ?? '').includes(text)
+            );
+          },
+          [tag, needle],
+        );
+        assert.deepEqual(
+          await page.evaluate(() => window.terminalStreams.map((stream) => stream.id)),
+          ['st0'],
+          `${state}: exactly one terminal stream`,
+        );
+        assert.equal(
+          await page.evaluate(() => window.terminalStops.length),
+          0,
+          `${state}: stream never stopped`,
+        );
+        assert.equal(
+          await page.evaluate(() => window.uiCalls.some((call) => call.method === 'session.kill')),
+          false,
+          `${state}: terminal never killed`,
+        );
+      };
+      // Representative ANSI output travels the real subscription channel into xterm.
+      await page.evaluate((probe) => {
+        document.querySelector('.xterm').dataset.probe = probe;
+        window.terminalStreams[0].channel.onmessage(
+          new TextEncoder().encode('\x1b[32mfixture-ok\x1b[0m \x1b[36mready\x1b[0m $ ').buffer,
+        );
+      }, tag);
+      await page.waitForFunction(() => window.terminalAcks.length >= 1);
+      await expectTerminalIntact('terminal tab', 'fixture-ok');
+      // Dock: the panel joins the focused chat without remounting the terminal.
+      await dockButton.click();
+      const panel = page.getByRole('region', { name: 'Terminal panel' });
+      await panel.waitFor();
+      await composer.waitFor();
+      assert.ok(await panel.locator('.xterm').isVisible(), 'docked panel hosts the live xterm');
+      await expectTerminalIntact('docked', 'fixture-ok');
+      // The stream survives the dock: output written while docked still arrives.
+      await page.evaluate(() => {
+        window.terminalStreams[0].channel.onmessage(
+          new TextEncoder().encode('\r\n\x1b[91mdocked-ok\x1b[0m').buffer,
+        );
+      });
+      await page.waitForFunction(() => window.terminalAcks.length >= 2);
+      await expectTerminalIntact('docked stream', 'docked-ok');
+      await assertSquareCorners(page, 'Terminal dock');
+      await page.screenshot({ path: join(artifacts, 'terminal-dock.png') });
+      assert.equal(
+        await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+        false,
+        'Docked terminal has no page overflow',
+      );
+      // Hide keeps the terminal mounted but out of view; Show restores it unchanged.
+      await panel.getByRole('button', { name: 'Hide terminal panel', exact: true }).click();
+      const showToggle = panel.getByRole('button', { name: 'Show terminal panel', exact: true });
+      await showToggle.waitFor();
+      assert.equal(await showToggle.getAttribute('aria-expanded'), 'false');
+      assert.equal(await page.locator('.xterm').isVisible(), false, 'hidden panel hides xterm');
+      await expectTerminalIntact('hidden', 'docked-ok');
+      await showToggle.click();
+      await panel.getByRole('button', { name: 'Hide terminal panel', exact: true }).waitFor();
+      assert.ok(await page.locator('.xterm').isVisible(), 'shown panel reveals xterm again');
+      await expectTerminalIntact('reshown', 'docked-ok');
+      // Back to a tab: same node and stream, panel gone, dock action available again.
+      await panel.getByRole('button', { name: 'Move terminal to tab', exact: true }).click();
+      await panel.waitFor({ state: 'detached' });
+      await expectTerminalIntact('tab again', 'docked-ok');
+      await page.getByRole('tab', { name: /Fixture terminal/ }).click();
+      await dockButton.waitFor();
+      assert.equal(
+        await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+        false,
+        'Undocked terminal has no page overflow',
+      );
+      assert.deepEqual(errors, []);
+      assert.deepEqual(await page.evaluate(() => window.uiUnexpected), []);
+      console.log(
+        'PASS: terminal dock flow; dock, hide, show, tab round trip, single stream, no kill',
+      );
+      await context.close();
     }
   }
 } catch (error) {

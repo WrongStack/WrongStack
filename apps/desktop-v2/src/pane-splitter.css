@@ -1,0 +1,35 @@
+.pane-splitter {
+  position: absolute;
+  z-index: 2;
+  inset-block: 0;
+  width: 12px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+.pane-splitter[data-side="left"] {
+  right: 0;
+}
+.pane-splitter[data-side="right"] {
+  left: 0;
+}
+.pane-splitter::after {
+  position: absolute;
+  inset-block: 0;
+  width: 2px;
+  content: "";
+  pointer-events: none;
+}
+.pane-splitter[data-side="left"]::after {
+  right: 0;
+}
+.pane-splitter[data-side="right"]::after {
+  left: 0;
+}
+.pane-splitter:is(:hover, :focus-visible, [data-dragging])::after {
+  background: var(--accent);
+}
+.pane-splitter:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}

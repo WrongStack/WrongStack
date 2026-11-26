@@ -283,7 +283,7 @@
       "relativeImports": 17
     },
     "apps/desktop-v2/src/EngineWorkspace.tsx": {
-      "lines": 792,
+      "lines": 818,
       "relativeImports": 61
     },
     "apps/desktop-v2/src/ModelCatalogSettings.tsx": {
@@ -343,7 +343,7 @@
       "relativeImports": 14
     },
     "apps/desktop-v2/src/useFileWorkspace.ts": {
-      "lines": 753,
+      "lines": 761,
       "relativeImports": 19
     },
     "apps/desktop-v2/src/WrongStackSettings.tsx": {

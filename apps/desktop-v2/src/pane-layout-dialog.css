@@ -1,0 +1,50 @@
+.pane-layout-dialog {
+  width: min(440px, calc(100vw - 32px));
+  padding: 16px;
+  color: var(--text);
+}
+.pane-layout-dialog header,
+.pane-layout-row,
+.pane-layout-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pane-layout-dialog header,
+.pane-layout-row {
+  justify-content: space-between;
+}
+.pane-layout-dialog h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.pane-layout-dialog p {
+  color: var(--muted);
+  font-size: 13px;
+}
+.pane-layout-actions {
+  flex-wrap: wrap;
+  margin-block: 12px;
+}
+.pane-layout-row {
+  flex-wrap: wrap;
+  padding-block: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.pane-layout-row label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pane-layout-row input[type="number"] {
+  width: 76px;
+  padding: 5px;
+  background: var(--base);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.pane-layout-dialog footer {
+  justify-content: flex-end;
+  margin-bottom: 0;
+}

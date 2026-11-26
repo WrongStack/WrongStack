@@ -411,6 +411,32 @@ export function EngineWorkspace({
           {state.error}
         </div>
       )}
+      {state.approvals.length > 0 && (showLatest || !chatActive) && (
+        <div className="input-waiting-controls" role="status">
+          <span>
+            {t('chatView.approvalPending', {
+              count: state.approvals.length,
+              tool: String(state.approvals[0]?.['toolName'] ?? 'Tool'),
+              defaultValue:
+                state.approvals.length === 1
+                  ? `Approval needed for ${String(state.approvals[0]?.['toolName'] ?? 'Tool')}`
+                  : `${state.approvals.length} tool approvals waiting`,
+            })}
+          </span>
+          <button
+            type="button"
+            className="button secondary"
+            onClick={() => {
+              setTab('chat');
+              following.current = true;
+              setShowLatest(false);
+              requestAnimationFrame(() => end.current?.scrollIntoView({ block: 'nearest' }));
+            }}
+          >
+            {t('chatView.reviewApproval', { defaultValue: 'Review approval' })}
+          </button>
+        </div>
+      )}
       <div className="session-conversation-layout" hidden={!chatActive}>
         <div className="session-conversation-panes">
           <div className="session-leader-column">
@@ -543,7 +569,7 @@ export function EngineWorkspace({
                     />
                     {state.running && (
                       <AgentWorking
-                        waiting={state.inputs.length > 0}
+                        waiting={state.inputs.length > 0 || state.approvals.length > 0}
                         since={state.runStartAt}
                         timeline={state.runTimeline}
                         showThinking={display.showThinkingLogs}

@@ -517,6 +517,10 @@
   max-width: none;
   white-space: normal;
 }
+.session-model-controls .acp-runtime-controls > summary > span + span {
+  /* The muted toolbar color already provides the contrast hierarchy. */
+  opacity: 1;
+}
 .session-model-controls .acp-runtime-controls > summary::after {
   content: "";
   flex: none;

@@ -1,0 +1,45 @@
+.terminal-tab-slot,
+.workbench-terminal-host {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.workbench-terminal-host > .terminal-surface {
+  flex: 1;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.terminal-dock {
+  flex: none;
+  min-width: 0;
+  background: var(--raised);
+  border-block-start: 1px solid var(--border);
+}
+.terminal-dock > header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-inline: 10px 4px;
+  min-height: 34px;
+}
+.terminal-dock > header > strong {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+.terminal-dock-slot:not([hidden]) {
+  display: flex;
+  height: min(240px, 30dvh);
+  min-width: 0;
+  border-block-start: 1px solid var(--border);
+}
+.terminal-docked-note {
+  padding: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}

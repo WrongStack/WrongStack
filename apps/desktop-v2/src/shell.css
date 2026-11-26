@@ -1,5 +1,5 @@
-/* Application shell in WebUI's calm layout: icon rail, one project/session list, one header row.
-   Colors come from the shared brand tokens only, so every palette and mode applies. */
+/* Desktop workbench chrome: activity rail, project explorer and editor tabs.
+   Shared brand tokens keep the pane hierarchy consistent across palettes and modes. */
 
 .sidebar {
   width: 272px;
@@ -14,10 +14,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 12px 0;
+  padding: 4px 0;
   border-right: 1px solid var(--border);
-  background: var(--base);
+  background: var(--raised);
 }
 .rail-brand {
   display: grid;
@@ -39,9 +38,11 @@
   position: relative;
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+  width: 100%;
+  height: 42px;
+  flex-shrink: 0;
+  border-inline-start: 2px solid transparent;
+  border-inline-end: 2px solid transparent;
   color: var(--muted);
 }
 .rail-button:hover {
@@ -49,8 +50,9 @@
   color: var(--text);
 }
 .rail-button.active {
+  border-inline-start-color: var(--accent);
   background: var(--accent-soft);
-  color: var(--accent-ink);
+  color: var(--text);
 }
 .rail-count {
   position: absolute;
@@ -148,8 +150,10 @@
   justify-content: space-between;
   padding: 2px 9px 6px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 .explorer-caption button {
   display: flex;
@@ -204,9 +208,10 @@
   margin-left: 272px;
 }
 .topbar {
-  height: 48px;
+  height: 42px;
   padding: 0 16px;
   gap: 12px;
+  background: var(--raised);
 }
 .topbar .topbar-title {
   display: flex;
@@ -277,12 +282,39 @@
   }
 }
 
-.rail .compact-explorer-toggle {
+.sidebar > .pane-splitter {
   display: none;
 }
-/* At high window zoom the explorer can share the rail's space on demand. */
+@media (min-width: 1001px) {
+  .app-shell {
+    --expanded-sidebar-width: calc(52px + var(--explorer-width, 220px));
+  }
+  .sidebar[data-explorer-open="true"] {
+    width: var(--expanded-sidebar-width);
+  }
+  .sidebar[data-explorer-open="true"] + .workspace-shell {
+    width: calc(100% - var(--expanded-sidebar-width));
+    margin-left: var(--expanded-sidebar-width);
+  }
+  .sidebar > .pane-splitter {
+    display: block;
+  }
+}
+
+.sidebar[data-explorer-open="false"] {
+  width: 52px;
+}
+.sidebar[data-explorer-open="false"] + .workspace-shell {
+  width: calc(100% - 52px);
+  margin-left: 52px;
+}
+.sidebar .explorer[data-expanded="false"] {
+  display: none;
+}
+/* At high window zoom the explorer overlays the workspace on demand. */
 @media (max-width: 619px) {
   .sidebar,
+  .sidebar[data-explorer-open="false"],
   .sidebar .rail {
     width: 48px;
   }
@@ -292,9 +324,6 @@
   .sidebar .rail > button {
     flex-shrink: 0;
   }
-  .rail .compact-explorer-toggle {
-    display: grid;
-  }
   .sidebar .explorer {
     position: absolute;
     inset: 0 auto 0 48px;
@@ -302,10 +331,8 @@
     border-right: 1px solid var(--border);
     background: var(--sidebar);
   }
-  .sidebar .explorer:not([data-expanded="true"]) {
-    display: none;
-  }
-  .workspace-shell {
+  .workspace-shell,
+  .sidebar[data-explorer-open="false"] + .workspace-shell {
     width: calc(100% - 48px);
     margin-left: 48px;
   }
@@ -635,6 +662,24 @@
 }
 .explorer .tree-session.chosen {
   box-shadow: inset 2px 0 0 var(--accent);
+}
+/* Tabs share the editor edge; the active tab has a top rule rather than a floating frame. */
+.workspace-shell .session-tabs {
+  gap: 0;
+  padding: 0 8px 0 0;
+  min-height: 44px;
+  border-bottom: 1px solid var(--border);
+}
+.workspace-shell .session-tab-list {
+  gap: 0;
+}
+.workspace-shell .session-tab {
+  border: 0;
+  border-inline-end: 1px solid var(--border);
+  border-top: 2px solid transparent;
+}
+.workspace-shell .session-tab.active-session-tab {
+  border-top-color: var(--accent);
 }
 .workspace-shell .session-tab.active-session-tab .session-tab-label,
 .workspace-shell .workspace-tabs button.chosen-tab {

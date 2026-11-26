@@ -8,11 +8,19 @@ import { type Session, sessionTitle } from './model';
  * conversation names it, and the user can rename it in place (double-click, or F2). However
  * long the name, the tab keeps a bounded width; the name ends in an ellipsis and the tooltip
  * shows it whole.
+ *
+ * The strip is a roving-tabindex tablist: only one tab is a Tab stop, arrows/Home/End move
+ * that focus between tabs, Enter or Space opens the focused session, and Delete detaches
+ * it — so the close control stays reachable without widening the Tab order. The workbench
+ * wires each tab to the shared session panel through `tabId`/`panelId`.
  */
 export function SessionTab({
   session,
   active,
   projectName,
+  focusable = true,
+  tabId,
+  panelId,
   onOpen,
   onClose,
   onRename,
@@ -21,6 +29,11 @@ export function SessionTab({
   active: boolean;
   /** Named only for a session from another project than the active one. */
   projectName?: string | undefined;
+  /** False while the strip's roving keyboard focus sits on another tab. */
+  focusable?: boolean | undefined;
+  /** Strip wiring: identifies this tab and the shared session panel it controls. */
+  tabId?: string | undefined;
+  panelId?: string | undefined;
   onOpen: () => void;
   onClose: () => void;
   onRename: (title: string) => void;
@@ -40,7 +53,10 @@ export function SessionTab({
     if (next && (session.untitled || next !== session.title)) onRename(next);
   };
   return (
-    <div className={`session-tab ${active ? 'active-session-tab' : ''}`}>
+    <div
+      className={`session-tab ${active ? 'active-session-tab' : ''}`}
+      data-session-id={session.id}
+    >
       {editing ? (
         <span className="session-tab-label session-tab-editing">
           {session.kind === 'terminal' ? <Terminal size={13} /> : <Workflow size={13} />}
@@ -71,7 +87,11 @@ export function SessionTab({
         <button
           type="button"
           className="session-tab-label"
-          aria-current={active ? 'page' : undefined}
+          id={tabId}
+          role="tab"
+          aria-selected={active}
+          aria-controls={panelId}
+          tabIndex={focusable ? 0 : -1}
           title={t('workbench.tabHint', { title: full })}
           onClick={onOpen}
           onDoubleClick={startRename}
@@ -91,9 +111,11 @@ export function SessionTab({
           </span>
         </button>
       )}
+      {/* Delete on a focused tab detaches it; this button leaves the Tab order. */}
       <button
         type="button"
         className="session-tab-close"
+        tabIndex={-1}
         title={t('workbench.detach', { title })}
         aria-label={t('workbench.detach', { title })}
         onClick={onClose}

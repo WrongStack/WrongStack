@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T14:54:09.552Z",
+  "generatedAt": "2026-11-26T14:56:21.724Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6572,
-    "testFiles": 6489,
-    "sourceLines": 1350380,
+    "sourceFiles": 6580,
+    "testFiles": 6492,
+    "sourceLines": 1351599,
     "workspaceEdges": 261,
-    "moduleEdges": 19254,
+    "moduleEdges": 19289,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -427,8 +427,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 561,
-      "testFiles": 405,
+      "sourceFiles": 569,
+      "testFiles": 408,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -447,7 +447,7 @@
         {
           "path": "apps/desktop-v2/tsconfig.test.json",
           "error": null,
-          "testFiles": 405
+          "testFiles": 408
         }
       ]
     },
@@ -2304,6 +2304,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/file-tree-collapse.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/file-tree-rows.test.ts",
         "projects": [
           "root-node"
@@ -2839,6 +2845,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/palette-actions.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/pane-layout.test.ts",
         "projects": [
           "root-node"
         ]
@@ -3523,6 +3535,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-status-memory.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-tab-navigation.test.ts",
         "projects": [
           "root-node"
         ]
@@ -40845,6 +40863,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/FileWorkspace.tsx",
+      "specifier": "./file-tree-collapse.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/FleetPolicySettings.tsx",
       "specifier": "./fleet-policy.css",
       "syntax": "import"
@@ -40877,6 +40900,11 @@
     {
       "from": "apps/desktop-v2/src/KanbanContractMap.tsx",
       "specifier": "./kanban-contract-map.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/main.tsx",
+      "specifier": "./square-corners.css",
       "syntax": "import"
     },
     {
@@ -41027,6 +41055,16 @@
     {
       "from": "apps/desktop-v2/src/OfficeShortcut.tsx",
       "specifier": "./office-shortcut.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/PaneLayoutDialog.tsx",
+      "specifier": "./pane-layout-dialog.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/PaneSplitter.tsx",
+      "specifier": "./pane-splitter.css",
       "syntax": "import"
     },
     {
@@ -41397,6 +41435,16 @@
     {
       "from": "apps/desktop-v2/src/UpdateNotice.tsx",
       "specifier": "./update-notice.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/WorkbenchMenu.tsx",
+      "specifier": "./workbench-menu.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/WorkbenchTerminals.tsx",
+      "specifier": "./terminal-dock.css",
       "syntax": "import"
     },
     {
@@ -41775,7 +41823,7 @@
     },
     {
       "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 792,
+      "lines": 818,
       "relativeImports": 61
     },
     {
@@ -41850,7 +41898,7 @@
     },
     {
       "file": "apps/desktop-v2/src/useFileWorkspace.ts",
-      "lines": 753,
+      "lines": 761,
       "relativeImports": 19
     },
     {
@@ -41991,6 +42039,11 @@
       "relativeImports": 1
     },
     {
+      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
+      "lines": 818,
+      "relativeImports": 61
+    },
+    {
       "file": "packages/client/src/client.ts",
       "lines": 816,
       "relativeImports": 4
@@ -42004,11 +42057,6 @@
       "file": "packages/vibeui/src/components/resource-hub.tsx",
       "lines": 800,
       "relativeImports": 12
-    },
-    {
-      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 792,
-      "relativeImports": 61
     },
     {
       "file": "packages/plugins/src/branch-guard/index.ts",
@@ -42051,6 +42099,11 @@
       "relativeImports": 5
     },
     {
+      "file": "apps/desktop-v2/src/useFileWorkspace.ts",
+      "lines": 761,
+      "relativeImports": 19
+    },
+    {
       "file": "packages/coordination/src/agent-monitor.ts",
       "lines": 761,
       "relativeImports": 1
@@ -42089,11 +42142,6 @@
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
       "lines": 754,
       "relativeImports": 16
-    },
-    {
-      "file": "apps/desktop-v2/src/useFileWorkspace.ts",
-      "lines": 753,
-      "relativeImports": 19
     },
     {
       "file": "packages/coordination/src/sqlite-mailbox.ts",

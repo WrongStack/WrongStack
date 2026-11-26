@@ -1,0 +1,78 @@
+/* Collapsible file tree: header actions, the collapsed grid, and the reopen rail.
+   Lives beside file-draft.css because files.css exceeds the 800-line cap. */
+
+.file-navigation-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Controlled pane width: when the saved pane layout drives the tree it sets
+   --file-tree-width and data-pane-width on the aside, and the body swaps the
+   fixed tree column for the pane's width. The center keeps minmax(0, 1fr),
+   so a wide tree shrinks the center instead of overflowing narrow windows. */
+.file-navigation {
+  position: relative;
+}
+
+.file-workspace-body:has(> .file-navigation[data-pane-width]) {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.file-navigation[data-pane-width] {
+  width: var(--file-tree-width, 230px);
+}
+
+/* Narrow windows fall back to the compact tree: the saved width is capped at
+   the breakpoint widths and the resize handle hides with the compact layout. */
+@media (max-width: 1100px) {
+  .file-navigation[data-pane-width] {
+    width: min(var(--file-tree-width, 230px), 195px);
+  }
+  .file-navigation > .pane-splitter {
+    display: none;
+  }
+}
+@media (max-width: 850px) {
+  .file-navigation[data-pane-width] {
+    width: min(var(--file-tree-width, 230px), 165px);
+  }
+}
+
+.file-workspace-body.tree-collapsed {
+  /* The rail takes the tree column; the tree stays mounted and is merely hidden. */
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.file-workspace-body.tree-collapsed > .file-navigation {
+  display: none;
+}
+
+.file-tree-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 8px 6px;
+  border-right: 1px solid var(--border);
+  background: var(--sidebar);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.file-tree-rail > button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 9px;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.file-tree-rail > button:hover,
+.file-tree-rail > button:focus-visible {
+  color: var(--accent);
+  background: var(--accent-soft);
+}

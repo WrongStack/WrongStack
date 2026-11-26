@@ -1,5 +1,5 @@
 import { ExternalLink, Moon, Plus, Radio, Sun, X } from 'lucide-react';
-import { lazy, Suspense, useState } from 'react';
+import { type CSSProperties, lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Trans } from 'react-i18next';
 import { useDesktopText } from './desktop-i18n';
 import { desktopVersion } from './desktop-version';
@@ -8,8 +8,10 @@ import { HostBuildNotice } from './HostBuildNotice';
 import { NotificationMenu } from './NotificationMenu';
 import { useNotificationFeed } from './notification-feed';
 import { OfficeShortcut } from './OfficeShortcut';
+import { PaneLayoutDialog } from './PaneLayoutDialog';
 import { ProjectViews } from './ProjectViews';
-import { native, openProjectWindow } from './platform';
+import { PaneLayoutProvider } from './pane-layout-context';
+import { layoutKey, native, openProjectWindow } from './platform';
 import { RenderErrorBoundary } from './RenderErrorBoundary';
 import { Sidebar } from './Sidebar';
 import { SurfaceLanguageSync } from './SurfaceLanguageSync';
@@ -17,6 +19,9 @@ import { useShownSettingsSection } from './settings-section-request';
 import { cachedLanguage, surfaceI18n } from './surface-i18n';
 import { UpdateNotice } from './UpdateNotice';
 import { useDesktop } from './useDesktop';
+import { useWorkbenchExplorer } from './useWorkbenchExplorer';
+import { WorkbenchMenu } from './WorkbenchMenu';
+import { HostedTerminal, TerminalDock } from './WorkbenchTerminals';
 import { WorkspaceDialogs } from './WorkspaceDialogs';
 
 const SessionWorkbench = lazy(() =>
@@ -29,6 +34,16 @@ const WrongStackSettings = lazy(() =>
   import('./WrongStackSettings').then((module) => ({ default: module.WrongStackSettings })),
 );
 export function App() {
+  const [layoutOpen, setLayoutOpen] = useState(false);
+  return (
+    <PaneLayoutProvider scope={layoutKey ?? 'layout'} showSettings={() => setLayoutOpen(true)}>
+      <DesktopShell />
+      {layoutOpen && <PaneLayoutDialog onClose={() => setLayoutOpen(false)} />}
+    </PaneLayoutProvider>
+  );
+}
+
+function DesktopShell() {
   const vm = useDesktop();
   const { t } = useDesktopText();
   // Plan quota is a settings section with its own rail button: the title names it too.
@@ -55,16 +70,67 @@ export function App() {
   } = vm;
   useNotificationFeed(error, snapshot.sessions);
   const focused = section === 'fleet' && currentSession !== undefined;
+  const [dock, setDock] = useState<{ id: string; open: boolean }>();
+  const [tabSlot, setTabSlot] = useState<HTMLDivElement | null>(null);
+  const [dockSlot, setDockSlot] = useState<HTMLDivElement | null>(null);
+  const dockId = dock?.id;
+  const dockAttached = dockId !== undefined && vm.openSessionIds?.includes(dockId);
+  useEffect(() => {
+    if (dockId && !dockAttached) setDock(undefined);
+  }, [dockId, dockAttached]);
+  const docked =
+    dock &&
+    snapshot.sessions.find(
+      (session) =>
+        session.kind === 'terminal' &&
+        session.id === dock.id &&
+        vm.openSessionIds.includes(session.id),
+    );
+  const tabTerminal = focused && currentSession?.kind === 'terminal' ? currentSession : undefined;
+  const lastConversation = useRef<string | null>(null);
+  const conversationId = focused && currentSession?.kind === 'agent' ? currentSession.id : null;
+  useEffect(() => {
+    if (conversationId) lastConversation.current = conversationId;
+  }, [conversationId]);
+  const dockTerminal = (terminal: NonNullable<typeof tabTerminal>) => {
+    setDock({ id: terminal.id, open: true });
+    const previous = snapshot.sessions.find(
+      (session) =>
+        session.id === lastConversation.current &&
+        session.kind === 'agent' &&
+        session.projectId === terminal.projectId &&
+        vm.openSessionIds.includes(session.id),
+    );
+    if (previous) vm.jumpToSession(previous);
+    else vm.openProjectPage(terminal.projectId, 'files');
+  };
+  const dockVisible =
+    docked && (focused || section === 'project') && currentProject?.id === docked.projectId;
+  const terminals =
+    docked && docked.id !== tabTerminal?.id
+      ? tabTerminal
+        ? [docked, tabTerminal]
+        : [docked]
+      : tabTerminal
+        ? [tabTerminal]
+        : [];
+  const explorer = useWorkbenchExplorer(
+    JSON.stringify([section, vm.project, vm.selected, vm.projectPage]),
+  );
   return (
-    <div className="app-shell">
+    <div
+      className="app-shell"
+      style={{ '--explorer-width': `${explorer.width ?? 220}px` } as CSSProperties}
+    >
       {readLanguage && section === 'wrongstack' && (
         <SurfaceLanguageSync onKnown={() => setReadLanguage(false)} />
       )}
-      <Sidebar vm={vm} />
+      <Sidebar vm={vm} explorer={explorer} />
       <div
         className={`workspace-shell ${focused ? 'workspace-focused' : ''} ${section === 'project' ? 'project-focused' : ''} ${section === 'wrongstack' ? 'settings-focused' : ''}`}
       >
         <header className="topbar">
+          <WorkbenchMenu vm={vm} explorer={explorer} />
           <h1 className="topbar-title">
             {focused
               ? (currentProject?.name ?? t('rail.missionControl'))
@@ -186,7 +252,18 @@ export function App() {
           >
             <Suspense fallback={<div className="runtime-state">{t('topbar.opening')}</div>}>
               {section === 'fleet' &&
-                (focused ? <SessionWorkbench vm={vm} /> : <FleetPanel vm={vm} />)}
+                (focused ? (
+                  <SessionWorkbench
+                    vm={vm}
+                    terminal={{
+                      setSlot: setTabSlot,
+                      dock: tabTerminal && !docked ? () => dockTerminal(tabTerminal) : undefined,
+                      docked: Boolean(docked && docked.id === tabTerminal?.id),
+                    }}
+                  />
+                ) : (
+                  <FleetPanel vm={vm} />
+                ))}
               <ProjectViews vm={vm} />
               {section === 'project' && currentProject && (
                 <ProjectWorkspace key={currentProject.id} project={currentProject} vm={vm} />
@@ -195,6 +272,27 @@ export function App() {
             </Suspense>
           </RenderErrorBoundary>
         </main>
+        {dockVisible && (
+          <TerminalDock
+            session={docked}
+            open={dock?.open === true}
+            setSlot={setDockSlot}
+            toggle={() => setDock((previous) => previous && { ...previous, open: !previous.open })}
+            undock={() => {
+              setDock(undefined);
+              vm.jumpToSession(docked);
+            }}
+          />
+        )}
+        {terminals.map((session) => (
+          <HostedTerminal
+            key={session.id}
+            session={session}
+            slot={session.id === docked?.id ? (dockVisible ? dockSlot : null) : tabSlot}
+            onError={vm.reportError}
+            autoFocus={session.id !== docked?.id}
+          />
+        ))}
       </div>
       <WorkspaceDialogs vm={vm} />
     </div>
