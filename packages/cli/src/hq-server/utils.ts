@@ -8,7 +8,10 @@ import * as fs from 'node:fs/promises';
 import type * as http from 'node:http';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { isSafeSessionId as coreIsSafeSessionId } from '@wrongstack/core/utils';
+import {
+  isSafePathSegment as coreIsSafePathSegment,
+  isSafeSessionId as coreIsSafeSessionId,
+} from '@wrongstack/core/utils';
 import type { HqEventEnvelope, HqPersistence, HqTranscriptEntry } from '@wrongstack/hq';
 import { resolveHqDataDir } from '@wrongstack/hq';
 
@@ -168,24 +171,16 @@ export function decodeSessionId(value: string): string | null {
   return isSafeSessionId(decoded) ? decoded : null;
 }
 
-/** Longest id accepted in a path position. */
-const MAX_PATH_SEGMENT_LENGTH = 256;
-
 /**
  * True when `value` is usable as exactly one filesystem path component.
  *
- * Exported so the traversal rule has one definition — a second copy is how a
- * guard and its callers drift apart, which is the shape of several findings in
- * this audit.
+ * Delegates to the canonical rule in `@wrongstack/core/utils`. The local copy
+ * had drifted by omitting the Windows reserved-name check, so HQ route ids
+ * like `CON` were accepted even though they cannot name a file. The export
+ * stays for its existing callers.
  */
 export function isSafePathSegment(value: string): boolean {
-  if (value.length === 0 || value.length > MAX_PATH_SEGMENT_LENGTH) return false;
-  if (value === '.' || value === '..') return false;
-  if (value.includes('/') || value.includes('\\')) return false;
-  if (value.includes('\0')) return false;
-  // A Windows drive-relative form (`C:foo`) is not a plain component.
-  if (value.includes(':')) return false;
-  return true;
+  return coreIsSafePathSegment(value);
 }
 
 /**

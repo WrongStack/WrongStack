@@ -61,6 +61,17 @@ describe('decodePathSegment (WS-019)', () => {
     expect(decodePathSegment('sess%20name')).toBe('sess name');
   });
 
+  it('rejects Windows reserved names like the canonical path guard', () => {
+    // The local copy of the rule omitted core's reserved-name check, so HQ
+    // route ids such as `CON` were accepted even though they cannot name a
+    // file on Windows. Generated ids never use these names.
+    for (const id of ['CON', 'nul.txt', 'LPT1', 'COM1', 'AUX']) {
+      expect(isSafePathSegment(id)).toBe(false);
+      expect(decodePathSegment(id)).toBeNull();
+    }
+    expect(decodePathSegment('agent-1')).toBe('agent-1');
+  });
+
   it('isSafePathSegment is the single definition both layers use', () => {
     expect(isSafePathSegment('ok')).toBe(true);
     expect(isSafePathSegment('..')).toBe(false);
