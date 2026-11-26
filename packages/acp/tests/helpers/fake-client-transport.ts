@@ -27,7 +27,12 @@ export class FakeClientTransport {
     this.handlers.push(h);
     return () => {};
   }
-  emit(m: ACPMessage): void {
-    for (const h of [...this.handlers]) h(m);
+  /**
+   * Accepts raw JSON-RPC wire frames too: suites emit `{ jsonrpc: '2.0', id,
+   * result }` responses that carry no `method`, which `ACPMessage` does not
+   * model. The handlers receive the frame unchanged.
+   */
+  emit(m: Omit<ACPMessage, 'method'> & { method?: string; jsonrpc?: '2.0' }): void {
+    for (const h of [...this.handlers]) h(m as ACPMessage);
   }
 }

@@ -12,5 +12,6 @@ describe('auto-wake notice non-finite/negative count guards', () => {
       '0 background delegation results ready (d1).',
     );
     expect(formatAutoWakeSuppressedNotice(-2)).toContain('0 background results held');
+    expect(formatAutoWakeSuppressedNotice(Number.NaN)).toContain('0 background results held');
   });
 });

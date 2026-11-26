@@ -144,7 +144,7 @@ describe('/acp dispatch', () => {
 
   it('reuses an ACP companion session only in the conversation that opened it', async () => {
     const observe = vi.fn();
-    const command = cmd({ ...fakeOpts(), onAcpWorkerUpdate: observe } as never);
+    const command = cmd({ ...(fakeOpts() as object), onAcpWorkerUpdate: observe } as never);
     const first = { session: { id: 'first' } } as never;
     const second = { session: { id: 'second' } } as never;
     resolveAcpAgentCommand.mockReturnValue({ command: 'codex-acp' });

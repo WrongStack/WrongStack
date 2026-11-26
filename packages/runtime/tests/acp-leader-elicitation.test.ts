@@ -28,7 +28,7 @@ it.each([
       },
       bridge: { servers: [] },
     },
-  } as Config;
+  } as unknown as Config;
   const formContext = { userInputAwaiter: createEventUserInputAwaiter(events), meta: {} };
   bindAcpLeaderHost({
     events,

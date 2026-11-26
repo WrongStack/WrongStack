@@ -7,7 +7,9 @@ function makeHost(maxSpawns: number, spawnCount: number): HostBudgetHost {
     opts: { maxSpawns } as HostBudgetHost['opts'],
     director: { maxSpawns, spawnCount } as HostBudgetHost['director'],
     getCoordinator: () =>
-      ({ getStatus: () => ({ subagents: [] }) }) as ReturnType<HostBudgetHost['getCoordinator']>,
+      ({ getStatus: () => ({ subagents: [] }) }) as unknown as ReturnType<
+        HostBudgetHost['getCoordinator']
+      >,
     getMaxConcurrent: () => 4,
     shadowManager: {} as HostBudgetHost['shadowManager'],
   };

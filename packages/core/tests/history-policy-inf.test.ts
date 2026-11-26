@@ -7,7 +7,7 @@ describe('resolvePreserveK non-finite guard', () => {
       {} as Parameters<typeof resolvePreserveK>[0] extends never ? never : never,
       {
         meta: { contextWindowPolicy: { preserveK: Number.POSITIVE_INFINITY } },
-      } as Parameters<typeof resolvePreserveK>[0],
+      } as unknown as Parameters<typeof resolvePreserveK>[0],
     );
     expect(res).toBe(6);
   });

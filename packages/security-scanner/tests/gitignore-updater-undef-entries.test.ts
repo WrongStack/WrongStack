@@ -11,7 +11,7 @@ describe('GitignoreUpdater (F2189)', () => {
       const updater = new GitignoreUpdater({
         gitignorePath: join(dir, '.gitignore'),
         entries: undefined,
-      });
+      } as never);
       const res = await updater.update();
       expect(res.errors).toEqual([]);
       expect(res.added).toEqual(['security-reports/', 'security-reports/*']);

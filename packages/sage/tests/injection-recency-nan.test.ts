@@ -11,7 +11,7 @@ describe('isAgedOutForInjection invalid createdAt with valid lastUsedAt', () => 
       isAgedOutForInjection(
         {
           kind: 'fact',
-          persistence: 'session',
+          persistence: 'short_lived',
           importance: 0.5,
           createdAt: 'not-a-date',
           lastUsedAt: oldIso,
@@ -23,7 +23,7 @@ describe('isAgedOutForInjection invalid createdAt with valid lastUsedAt', () => 
       isAgedOutForInjection(
         {
           kind: 'fact',
-          persistence: 'session',
+          persistence: 'short_lived',
           importance: 0.5,
           createdAt: 'not-a-date',
           lastUsedAt: recentIso,

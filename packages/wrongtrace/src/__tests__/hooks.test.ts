@@ -418,9 +418,14 @@ describe('createWrongTraceHookPair gate events', () => {
     const dir = mkdtempSync(join(tmpdir(), 'wt-gate-counters-'));
     try {
       resetGateDecisions();
-      recordGateDecision({ kind: 'deny', sessionId: 's1', path: 'src/a.ts', reason: 'locked' });
-      recordGateDecision({ kind: 'lock-acquired', sessionId: 's1', path: 'src/b.ts' });
-      recordGateDecision({ kind: 'lock-released', sessionId: 's1', path: 'src/b.ts' });
+      recordGateDecision({
+        kind: 'deny',
+        sessionId: 's1',
+        path: 'src/a.ts',
+        reason: 'locked',
+      } as never);
+      recordGateDecision({ kind: 'lock-acquired', sessionId: 's1', path: 'src/b.ts' } as never);
+      recordGateDecision({ kind: 'lock-released', sessionId: 's1', path: 'src/b.ts' } as never);
       const snap = snapshotGateDecisions();
       expect(snap.total).toBe(3);
       await persistWrongTraceGateCounters(dir, snap);

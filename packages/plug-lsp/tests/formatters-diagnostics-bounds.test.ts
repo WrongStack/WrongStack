@@ -3,7 +3,7 @@ import type { Diagnostic } from 'vscode-languageserver-protocol';
 import { formatDiagnostics } from '../src/formatters/diagnostics.js';
 
 describe('formatDiagnostics non-positive/non-finite limits', () => {
-  it('returns empty output when maxPerFile is negative or maxTotal is NaN', () => {
+  it('returns empty output when maxPerFile is negative or NaN, or maxTotal is NaN', () => {
     const diags: Diagnostic[] = [
       {
         range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
@@ -32,6 +32,14 @@ describe('formatDiagnostics non-positive/non-finite limits', () => {
         severityFilter: ['error'],
         maxPerFile: 5,
         maxTotal: Number.NaN,
+      }),
+    ).toBe('No LSP diagnostics.');
+    expect(
+      formatDiagnostics(map, {
+        cwd: '/repo',
+        severityFilter: ['error'],
+        maxPerFile: Number.NaN,
+        maxTotal: 10,
       }),
     ).toBe('No LSP diagnostics.');
   });

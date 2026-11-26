@@ -23,7 +23,7 @@ describe('buildAcpSubagentRunner sessionSetup cleanup', () => {
     });
 
     const task: TaskSpec = { id: 't1', description: 'test task' };
-    const ctx: SubagentRunContext = {
+    const ctx = {
       subagentId: 'test-agent',
       sessionId: 'sess-1',
       signal: new AbortController().signal,
@@ -35,7 +35,7 @@ describe('buildAcpSubagentRunner sessionSetup cleanup', () => {
         model: 'test-agent',
         cwd: process.cwd(),
       },
-    };
+    } as SubagentRunContext;
 
     await expect(runner(task, ctx)).rejects.toMatchObject({
       message: expect.stringContaining('permission policy construction failed'),

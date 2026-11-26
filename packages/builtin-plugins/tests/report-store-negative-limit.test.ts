@@ -15,7 +15,7 @@ describe('JsonlReportStore.list non-positive and non-finite limits (F1857)', () 
           sessionId: 's1',
           agentId: 'a1',
           reviewerModel: 'm1',
-          source: 'manual',
+          source: 'manual' as never,
           reviewStatus: 'success',
           files: [],
           counts: { critical: 0, high: 0, medium: 0, low: 0 },

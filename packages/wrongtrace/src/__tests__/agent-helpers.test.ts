@@ -402,7 +402,7 @@ describe('getRecentActivity', () => {
           is_fragile: false,
           recent_thrashing_count: 0,
           is_locked: false,
-        };
+        } as never;
       },
       async getFrictionMatrix() {
         return [
@@ -426,7 +426,7 @@ describe('getRecentActivity', () => {
           is_fragile: false,
           recent_thrashing_count: 0,
           is_locked: false,
-        };
+        } as never;
       },
       async getFrictionMatrix() {
         return [null, { files: [null, 123, 'src/foo.ts'], conflict_count: 4 }] as never;
@@ -519,7 +519,7 @@ describe('digestAtlas', () => {
             is_fragile: true,
             recent_thrashing_count: 0,
             is_locked: false,
-          };
+          } as never;
         },
       },
       'src/fragile.ts',
@@ -538,7 +538,7 @@ describe('digestAtlas', () => {
             is_fragile: false,
             recent_thrashing_count: 0,
             is_locked: false,
-          };
+          } as never;
         },
         async getFrictionMatrix() {
           return [

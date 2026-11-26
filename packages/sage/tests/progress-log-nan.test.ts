@@ -11,13 +11,18 @@ describe('isIdleProgressLog invalid createdAt with valid lastUsedAt', () => {
 
     expect(
       isIdleProgressLog(
-        { text: logText, persistence: 'session', createdAt: 'not-a-date', lastUsedAt: oldIso },
+        { text: logText, persistence: 'short_lived', createdAt: 'not-a-date', lastUsedAt: oldIso },
         now,
       ),
     ).toBe(true);
     expect(
       isIdleProgressLog(
-        { text: logText, persistence: 'session', createdAt: 'not-a-date', lastUsedAt: recentIso },
+        {
+          text: logText,
+          persistence: 'short_lived',
+          createdAt: 'not-a-date',
+          lastUsedAt: recentIso,
+        },
         now,
       ),
     ).toBe(false);

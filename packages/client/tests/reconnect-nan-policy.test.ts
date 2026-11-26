@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { WrongStackClient } from '../src/client.js';
-import type { WebSocketLike } from '../src/connection.js';
 
 function makeMockWsClass(outcomes: Array<'open' | 'fail'>) {
   let index = 0;
   const sockets: MockWs[] = [];
-  class MockWs implements WebSocketLike {
+  class MockWs {
     readyState = 1;
     private listeners = new Map<string, Array<(ev: unknown) => void>>();
     constructor(_url: string) {

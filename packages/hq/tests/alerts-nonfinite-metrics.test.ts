@@ -15,7 +15,7 @@ describe('HqAlertEngine non-finite snapshot metrics guard', () => {
       getSnapshot: () => snapshot,
       onAlert: () => {},
       config: { costThresholdUsd: 50, throughputBudgetUsd: 50 },
-    });
+    } as ConstructorParameters<typeof HqAlertEngine>[0]);
     const alerts = engine.evaluate(snapshot, { costThresholdUsd: 50, throughputBudgetUsd: 50 });
 
     expect(alerts.some((a) => a.message.includes('Infinity'))).toBe(false);

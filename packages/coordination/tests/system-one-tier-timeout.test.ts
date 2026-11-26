@@ -9,7 +9,7 @@ describe('createSystemOneTierSuggester option sanitization', () => {
         default: 'fast',
         levels: { fast: { provider: 'p', model: 'm1' }, strong: { provider: 'p', model: 'm2' } },
       },
-    } as ReturnType<Parameters<typeof createSystemOneTierSuggester>[0]['getConfig']>;
+    } as unknown as ReturnType<Parameters<typeof createSystemOneTierSuggester>[0]['getConfig']>;
     const judge = {
       feature: 'tier',
       model: 'judge',
@@ -18,7 +18,7 @@ describe('createSystemOneTierSuggester option sanitization', () => {
           answers: { tier: { type: 'choice', choice: 'strong', confidence: 0.9 } },
         }),
       },
-    } as ReturnType<Parameters<typeof createSystemOneTierSuggester>[0]['getJudge']>;
+    } as unknown as ReturnType<Parameters<typeof createSystemOneTierSuggester>[0]['getJudge']>;
 
     const suggest = createSystemOneTierSuggester({
       getConfig: () => config,

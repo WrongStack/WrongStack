@@ -23,7 +23,7 @@ describe('prune --dry-run invalid lastActivityAt fallback', () => {
       } as never,
     });
 
-    const out = await cmd.run('--dry-run 30', {} as never);
+    const out = (await cmd.run('--dry-run 30', {} as never)) as { message?: string };
     expect(out.message).toContain('sess-old');
     expect(out.message).not.toContain('sess-fresh');
   });

@@ -24,7 +24,7 @@ it('shows native child sessions and labels a child approval without mixing the p
       },
       bridge: { agents: [], servers: [] },
     },
-  } as Config;
+  } as unknown as Config;
   const events = new EventBus();
   bindAcpLeaderHost({
     events,

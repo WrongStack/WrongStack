@@ -19,7 +19,7 @@ describe('makeTypeSafeDispatchClassifier option sanitization', () => {
           any_fits: { type: 'noul', noul: 0.9 },
         },
       }),
-    } as Parameters<typeof makeTypeSafeDispatchClassifier>[0]['client'];
+    } as unknown as Parameters<typeof makeTypeSafeDispatchClassifier>[0]['client'];
 
     const classify = makeTypeSafeDispatchClassifier({
       client,

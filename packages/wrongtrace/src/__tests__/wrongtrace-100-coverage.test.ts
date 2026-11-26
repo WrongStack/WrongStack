@@ -11,7 +11,7 @@ import {
   getRecentActivity,
   summarizeFriction,
 } from '../agent-helpers.js';
-import type { WrongTraceClient, WrongTraceClientInternal } from '../client.js';
+import type { WrongTraceClientInternal } from '../client.js';
 import { _httpJson, createWrongTraceClient } from '../client.js';
 import { defaultSocketPath, discover } from '../discovery.js';
 import { getWrongTrace, preflightFileEdit, resetWrongTraceGate, withFileLock } from '../gate.js';
@@ -31,6 +31,7 @@ import {
   createWrongTracePostToolUseHook,
   createWrongTracePreToolUseHook,
 } from '../hooks.js';
+import type { WrongTraceClient } from '../types.js';
 
 describe('wrongtrace 100% coverage suite', () => {
   let tmpDir: string;
@@ -273,14 +274,15 @@ describe('wrongtrace 100% coverage suite', () => {
       expect(riskNull.band).toBe('unknown');
       expect(riskNull.reasons).toContain('file health endpoint unreachable');
 
-      mockClient.getFileHealth = async () => ({
-        path: 'mid.ts',
-        health_score: 55,
-        is_fragile: false,
-        is_locked: false,
-        recent_thrashing_count: 0,
-        collaborator_count: 1,
-      });
+      mockClient.getFileHealth = async () =>
+        ({
+          path: 'mid.ts',
+          health_score: 55,
+          is_fragile: false,
+          is_locked: false,
+          recent_thrashing_count: 0,
+          collaborator_count: 1,
+        }) as never;
       mockClient.getFrictionMatrix = async () => [
         { file_path: 'mid.ts', conflict_count: 4 } as never,
         { files: ['mid.ts'], conflict_count: 2 } as never,
@@ -653,22 +655,25 @@ describe('wrongtrace 100% coverage suite', () => {
 
       // Fragile verdict
       resetWrongTraceGate();
-      mockClient.getFileHealth = async () => ({
-        path: 'fragile.ts',
-        health_score: 20,
-        is_fragile: true,
-        is_locked: false,
-        recent_thrashing_count: 0,
-        collaborator_count: 1,
-      });
-      mockClient.lockFile = async () => ({ ok: true });
+      mockClient.getFileHealth = async () =>
+        ({
+          path: 'fragile.ts',
+          health_score: 20,
+          is_fragile: true,
+          is_locked: false,
+          recent_thrashing_count: 0,
+          collaborator_count: 1,
+        }) as never;
+      mockClient.lockFile = async () => ({ ok: true }) as never;
 
       const resFragile = await pair.preToolUse({
         toolName: 'edit',
         toolInput: { path: 'fragile.ts' },
       });
       expect(resFragile?.action).toBe('allow');
-      expect(resFragile?.additionalContext).toContain('fragile');
+      expect(
+        (resFragile as { additionalContext?: string } | undefined)?.additionalContext,
+      ).toContain('fragile');
       expect(emitted.some((e) => e.kind === 'allow-fragile')).toBe(true);
 
       expect(await pair.preToolUse({ toolName: 'read_file', toolInput: {} })).toBeUndefined();
@@ -680,41 +685,44 @@ describe('wrongtrace 100% coverage suite', () => {
 
       // Lock conflict race branch in preToolUse and postToolUse
       resetWrongTraceGate();
-      mockClient.getFileHealth = async () => ({
-        path: 'race.ts',
-        health_score: 80,
-        is_fragile: false,
-        is_locked: false,
-        recent_thrashing_count: 0,
-        collaborator_count: 1,
-      });
-      mockClient.lockFile = async () => ({ ok: false }); // race lost
+      mockClient.getFileHealth = async () =>
+        ({
+          path: 'race.ts',
+          health_score: 80,
+          is_fragile: false,
+          is_locked: false,
+          recent_thrashing_count: 0,
+          collaborator_count: 1,
+        }) as never;
+      mockClient.lockFile = async () => ({ ok: false }) as never; // race lost
       await pair.preToolUse({ toolName: 'edit', toolInput: { path: 'race.ts' } });
       expect(emitted.some((e) => e.kind === 'lock-conflict-race')).toBe(true);
 
       // postToolUse where lock_owner !== expectedOwner
-      mockClient.getFileHealth = async () => ({
-        path: 'race.ts',
-        health_score: 80,
-        is_fragile: false,
-        is_locked: true,
-        lock_owner: 'someone-else',
-        recent_thrashing_count: 0,
-        collaborator_count: 1,
-      });
+      mockClient.getFileHealth = async () =>
+        ({
+          path: 'race.ts',
+          health_score: 80,
+          is_fragile: false,
+          is_locked: true,
+          lock_owner: 'someone-else',
+          recent_thrashing_count: 0,
+          collaborator_count: 1,
+        }) as never;
       await pair.postToolUse({ toolName: 'edit', toolInput: { path: 'race.ts' } });
 
       // postToolUse where lock_owner === expectedOwner
       await pair.preToolUse({ toolName: 'edit', toolInput: { path: 'race.ts' } });
-      mockClient.getFileHealth = async () => ({
-        path: 'race.ts',
-        health_score: 80,
-        is_fragile: false,
-        is_locked: true,
-        lock_owner: 'wrongstack:my-sess',
-        recent_thrashing_count: 0,
-        collaborator_count: 1,
-      });
+      mockClient.getFileHealth = async () =>
+        ({
+          path: 'race.ts',
+          health_score: 80,
+          is_fragile: false,
+          is_locked: true,
+          lock_owner: 'wrongstack:my-sess',
+          recent_thrashing_count: 0,
+          collaborator_count: 1,
+        }) as never;
       await pair.postToolUse({ toolName: 'edit', toolInput: { path: 'race.ts' } });
 
       // toolName undefined / empty
@@ -725,15 +733,16 @@ describe('wrongtrace 100% coverage suite', () => {
 
       // sibling lock decrement: releaseLock where next > 0 (lines 195, 196)
       // Call preToolUse twice with ok:true so counter reaches 2
-      mockClient.getFileHealth = async () => ({
-        path: 'multi-hold.ts',
-        health_score: 80,
-        is_fragile: false,
-        is_locked: false,
-        recent_thrashing_count: 0,
-        collaborator_count: 1,
-      });
-      mockClient.lockFile = async () => ({ ok: true });
+      mockClient.getFileHealth = async () =>
+        ({
+          path: 'multi-hold.ts',
+          health_score: 80,
+          is_fragile: false,
+          is_locked: false,
+          recent_thrashing_count: 0,
+          collaborator_count: 1,
+        }) as never;
+      mockClient.lockFile = async () => ({ ok: true }) as never;
       await pair.preToolUse({ toolName: 'edit', toolInput: { path: 'multi-hold.ts' } });
       await pair.preToolUse({ toolName: 'edit', toolInput: { path: 'multi-hold.ts' } });
       // First release decrements counter from 2 to 1 (shouldUnlock stays false)
@@ -773,7 +782,7 @@ describe('wrongtrace 100% coverage suite', () => {
   describe('adapters', () => {
     it('covers mcp helper mappings and ipc timeout', async () => {
       expect(mcp.health(null)).toBeNull();
-      expect(mcp.lockResult({ ok: true })).toEqual({ ok: true });
+      expect(mcp.lockResult({ ok: true } as never)).toEqual({ ok: true });
 
       const err = new TimeoutError(100);
       expect(err.name).toBe('TimeoutError');
@@ -866,7 +875,7 @@ describe('wrongtrace 100% coverage suite', () => {
       const mcpWithSlowTool = createMcpTransport(
         {
           slow_tool: () => new Promise(() => {}),
-        },
+        } as never,
         50,
       );
       const mcpSlowRes = await mcpWithSlowTool.invoke('slow_tool' as never, {});
@@ -1030,6 +1039,7 @@ describe('wrongtrace 100% coverage suite', () => {
 
       // 4. IPC unlockFile returning result with file_path instead of path (line 299, 300)
       const _origConnect = _connectSocket.connect;
+      void _origConnect;
       const sockIpc = new EventEmitter() as any;
       sockIpc.destroy = vi.fn();
       sockIpc.write = vi.fn((data: string) => {
@@ -1103,6 +1113,7 @@ describe('wrongtrace 100% coverage suite', () => {
         unlock_file: async () => ({ ok: true }),
         report_telemetry: async () => ({ ok: true }),
       });
+      void _mcpOffline;
       const clientMcpFallback = await createWrongTraceClient({
         baseUrl: 'http://127.0.0.1:1', // unreachable
         socketPath: '',

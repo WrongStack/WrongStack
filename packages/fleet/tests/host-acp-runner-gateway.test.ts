@@ -49,19 +49,28 @@ describe('WrongForge gateway injection', () => {
     const h = host();
     const approve = vi.fn(async () => ({ permission: 'deny' as const, source: 'user' as const }));
     Object.assign(h.deps, { authorizeSubagentTool: approve });
-    const write = { name: 'write', permission: 'confirm', capabilities: ['fs.write'] } as Tool;
+    const write = {
+      name: 'write',
+      permission: 'confirm',
+      capabilities: ['fs.write'],
+    } as unknown as Tool;
     vi.mocked(h.deps.toolRegistry.get).mockReturnValue(write);
     const policy = acpCommandOpts.call(h).permissions?.({ sessionId: 'session' } as never);
     const input = { path: 'fixture.txt', content: 'fixture only' };
     const decision = await policy?.({
       sessionId: 'external',
       signal: new AbortController().signal,
-      toolCall: { toolCallId: 'edit1', title: 'Write fixture.txt', kind: 'edit', rawInput: input },
+      toolCall: {
+        toolCallId: 'edit1',
+        title: 'Write fixture.txt',
+        kind: 'edit',
+        rawInput: input,
+      },
       options: [
         { optionId: 'allow_once', name: 'Allow', kind: 'allow_once' },
         { optionId: 'reject_once', name: 'Reject', kind: 'reject_once' },
       ],
-    });
+    } as never);
     expect(decision).toEqual({ outcome: 'selected', optionId: 'reject_once' });
     expect(approve).toHaveBeenCalledWith(write, input);
   });

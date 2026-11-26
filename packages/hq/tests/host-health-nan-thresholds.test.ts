@@ -13,7 +13,7 @@ describe('hqHostHealthThresholds non-finite guards (F1846)', () => {
       cpuCount: 8,
       loadAvg1m: 1,
       uptimeSec: 1000,
-    };
+    } as unknown as Parameters<typeof hqHostHealthProblems>[0];
 
     const sanitized = hqHostHealthThresholds({
       hostDiskFreePct: Number.NaN,

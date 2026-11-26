@@ -5,7 +5,7 @@ describe('isAgedOutForInjection non-finite clock guard', () => {
   it('does not age out memories when nowMs is non-finite', () => {
     const mem = {
       kind: 'fact' as const,
-      persistence: 'session' as const,
+      persistence: 'short_lived' as const,
       importance: 0.5,
       createdAt: '2026-01-01T00:00:00.000Z',
       lastUsedAt: '2026-01-01T00:00:00.000Z',

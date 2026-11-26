@@ -85,7 +85,9 @@ describe('createTokenBucket.isFull', () => {
     expect(bucket.fill()).toBe(2);
 
     // Also exercise sleep()'s own signal.aborted guard when signal becomes aborted right after throwIfAborted
-    const emptyBucket = createTokenBucket({ tokensPerSecond: 1, burst: 0 });
+    // A burst below 1 falls back to the default, so drain a one-token bucket.
+    const emptyBucket = createTokenBucket({ tokensPerSecond: 1, burst: 1 });
+    await emptyBucket.waitForToken(0);
     const lateAbortSignal = {
       aborted: true,
       throwIfAborted: () => {
@@ -112,7 +114,8 @@ describe('createTokenBucket.isFull', () => {
     // Negative tokensPerSecond falls back to default positive rate instead of draining negative (F261)
     const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
     try {
-      const negRateBucket = createTokenBucket({ tokensPerSecond: -1, burst: 0 });
+      const negRateBucket = createTokenBucket({ tokensPerSecond: -1, burst: 1 });
+      await negRateBucket.waitForToken(0);
       const p = negRateBucket.waitForToken(2);
       expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 2);
       await vi.advanceTimersByTimeAsync(5);

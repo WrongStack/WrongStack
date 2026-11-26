@@ -3,9 +3,9 @@ import { createChronicleContext } from '../src/context.js';
 
 describe('createChronicleContext blank traceId guard (F2248)', () => {
   it('generates a UUID when traceId is blank and trims explicit traceIds', () => {
-    const blank = createChronicleContext({}, '   ');
+    const blank = createChronicleContext({} as never, '   ');
     expect(blank.correlation.traceId.trim().length).toBeGreaterThan(0);
-    const explicit = createChronicleContext({}, ' trace-1 ');
+    const explicit = createChronicleContext({} as never, ' trace-1 ');
     expect(explicit.correlation.traceId).toBe('trace-1');
   });
 });

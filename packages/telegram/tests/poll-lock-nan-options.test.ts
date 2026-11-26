@@ -17,7 +17,7 @@ describe('PollLock non-finite interval options', () => {
         ...args: unknown[]
       ) => {
         passedDelay = delay;
-        return origSetInterval(
+        return (origSetInterval as (...a: unknown[]) => ReturnType<typeof setInterval>)(
           () => {
             intervalCalls += 1;
             fn();

@@ -23,7 +23,11 @@ describe('telegram_read non-finite guards', () => {
         },
       } as never,
     });
-    const out = (await tool.execute({ ack_last: Number.POSITIVE_INFINITY }, {} as never)) as {
+    const out = (await tool.execute(
+      { ack_last: Number.POSITIVE_INFINITY },
+      {} as never,
+      {} as never,
+    )) as {
       messages: Array<{ ts: string }>;
       acked: number;
     };

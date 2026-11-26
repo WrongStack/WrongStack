@@ -25,7 +25,7 @@ it('shows ACP checklists and Markdown separately while updating the conversation
       },
       bridge: { agents: [], servers: [] },
     },
-  } as Config;
+  } as unknown as Config;
   const manual = { id: 'manual', content: 'Keep the local work item', status: 'pending' as const };
   const ctx = {
     model,

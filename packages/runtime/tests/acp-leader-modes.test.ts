@@ -25,7 +25,7 @@ it.each(['modern', 'legacy'])(
         },
         bridge: { agents: [], servers: [] },
       },
-    } as Config;
+    } as unknown as Config;
     bindAcpLeaderHost({
       events: new EventBus(),
       projectRoot: process.cwd(),

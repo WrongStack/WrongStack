@@ -1,5 +1,6 @@
+import type { KanbanEvent } from '@wrongstack/kanban';
 import { describe, expect, it } from 'vitest';
-import { eventDescription, type KanbanEvent } from '../src/kanban/task-activity-model';
+import { eventDescription } from '../src/kanban/task-activity-model';
 
 describe('eventDescription non-finite file metrics', () => {
   it('omits NaN and Infinity durationMs and lines', () => {

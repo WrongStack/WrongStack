@@ -8,7 +8,7 @@ describe('tokensFromAnchor non-finite anchor guard', () => {
       meta: { realAnchorMsgCount: 0 },
       lastRealInputTokens: Number.NaN,
       model: 'test',
-    } as Parameters<typeof tokensFromAnchor>[0];
+    } as unknown as Parameters<typeof tokensFromAnchor>[0];
     expect(tokensFromAnchor(ctx, 500)).toBe(500);
   });
 });

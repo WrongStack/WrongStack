@@ -24,7 +24,9 @@ describe('createDispatchOutcomeRecorder non-finite cost guard', () => {
           ({
             usage: { snapshot: () => ({ perSubagent: { s1: { cost: currentCost } } }) },
             resolvedModelFor: () => undefined,
-          }) as ReturnType<Parameters<typeof createDispatchOutcomeRecorder>[0]['director']>,
+          }) as unknown as ReturnType<
+            Parameters<typeof createDispatchOutcomeRecorder>[0]['director']
+          >,
         projectRoot: dir,
       });
 
@@ -35,7 +37,7 @@ describe('createDispatchOutcomeRecorder non-finite cost guard', () => {
         provider: 'p',
         model: 'm',
         reason: 'r',
-      } as Parameters<typeof recorder.onSpawnRouted>[0]);
+      } as unknown as Parameters<typeof recorder.onSpawnRouted>[0]);
 
       for (const fn of listeners) fn({ subagentId: 's1', status: 'success', durationMs: 100 });
       currentCost = 1.5;

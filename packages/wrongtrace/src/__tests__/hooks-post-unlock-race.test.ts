@@ -31,7 +31,7 @@ describe('WrongTrace postToolUse cross-session unlock race', () => {
     let healthGate: ReturnType<typeof deferred<Response>> | undefined;
     let healthGateReady: ReturnType<typeof deferred<void>> | undefined;
 
-    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
       if (url.endsWith('/api/health')) {
         return new Response(JSON.stringify({ ok: true, socket_path: '' }), { status: 200 });
@@ -70,7 +70,7 @@ describe('WrongTrace postToolUse cross-session unlock race', () => {
     const pair = createWrongTraceHookPair({
       sessionId: () => 'sess-1',
       cwd: () => '/tmp/project',
-    });
+    } as never);
 
     await pair.preToolUse({
       toolName: 'edit',

@@ -14,19 +14,20 @@ const makeMemory = (id: string, text: string): Sage =>
     updatedAt: new Date().toISOString(),
   }) as unknown as Sage;
 
-const makeHit = (sageId: string, score: number): VectorSearchHit => ({
-  score,
-  entry: {
-    id: `vec-${sageId}`,
-    scope: 'project',
-    kind: 'fact',
-    text: `text for ${sageId}`,
-    tags: [],
-    metadata: { sageId },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-});
+const makeHit = (sageId: string, score: number): VectorSearchHit =>
+  ({
+    score,
+    entry: {
+      id: `vec-${sageId}`,
+      scope: 'project',
+      kind: 'fact',
+      text: `text for ${sageId}`,
+      tags: [],
+      metadata: { sageId },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  }) as unknown as VectorSearchHit;
 
 describe('fuseWithVectorMemory non-finite score filtering (F1832)', () => {
   it('does not let NaN or non-finite vector scores bypass threshold filtering', async () => {

@@ -26,7 +26,7 @@ it('reads, changes and resets the ACP leader configuration in the current conver
       },
       bridge: { servers: [] },
     },
-  } as Config;
+  } as unknown as Config;
   const meta: Record<string, unknown> = {};
   const journal: SessionEvent[] = [];
   let rejectJournalWrite = false;

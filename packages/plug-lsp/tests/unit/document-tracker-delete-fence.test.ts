@@ -6,12 +6,12 @@ import { describe, expect, it } from 'vitest';
 import { DocumentTracker } from '../../src/document-tracker.js';
 import type { LSPServer } from '../../src/server/lsp-server.js';
 
-const noopLog: Logger = {
+const noopLog = {
   debug: () => {},
   info: () => {},
   warn: () => {},
   error: () => {},
-};
+} as unknown as Logger;
 
 describe('DocumentTracker delete fencing (F1826)', () => {
   it('fences in-flight open and fileWritten reads when workspace materialization deletes the file', async () => {

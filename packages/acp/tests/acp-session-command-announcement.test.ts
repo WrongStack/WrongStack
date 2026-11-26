@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import { ACPSession } from '../src/client/acp-session.js';
+import type { SessionId } from '../src/types/acp-v1.js';
 import { FakeClientTransport } from './helpers/fake-client-transport.js';
 
 it('retains command announcements delivered with the session/new response', async () => {
@@ -53,7 +54,7 @@ it('retains command announcements delivered with the session/new response', asyn
   try {
     await session.openSession();
     expect(session.getAvailableCommands()).toEqual([advertised]);
-    await session.loadSession('other');
+    await session.loadSession('other' as SessionId);
     expect(session.getAvailableCommands()).toEqual([]);
   } finally {
     await session.close();

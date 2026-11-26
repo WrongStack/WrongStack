@@ -245,6 +245,11 @@ export default defineConfig({
       'packages/webui/tests/fixtures/**',
       'packages/webui/tests/setup/**',
       'packages/webui/tests/types/**',
+      // Top-level `tests/*.test.{ts,tsx}` files (no subdirectory) are owned by
+      // the webui-jsdom project too; without this they were collected twice
+      // (root-node + webui-jsdom) and failed the test-inventory gate. `*`
+      // does not cross `/`, so `tests/pure/**` stays collectible here.
+      'packages/webui/tests/*.test.{ts,tsx}',
       // hq-dashboard.test.ts requires jsdom environment which the root
       // forks pool may fail to resolve from the global vitest binary.
       // Run it with the CLI package's dedicated config — a bare standalone

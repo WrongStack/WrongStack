@@ -8,7 +8,7 @@ describe('laneSentence prototype-safe stage lookup', () => {
       failedStage: 'toString' as never,
       conflictFiles: [],
       segments: [],
-    } as Parameters<typeof laneSentence>[0]);
+    } as unknown as Parameters<typeof laneSentence>[0]);
     expect(out).toBe('Failed.');
   });
 });
