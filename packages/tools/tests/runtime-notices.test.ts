@@ -3,6 +3,7 @@
  * process_watch output lines, and background bash exits.
  */
 
+import { existsSync, readFileSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { type LeaderDelivery, leaderDeliveryHub } from '@wrongstack/coordination';
@@ -213,6 +214,59 @@ describe('process_watch', () => {
     },
     processCleanupDeadline(10_000) + 10_000,
   );
+
+  it('ends a stopped watch whose shell exited while a descendant still holds its pipes', async () => {
+    // On Windows a stop issued while the shell is still starting races
+    // `taskkill /T`: the shell launches the command after the tree walk and
+    // dies, and the orphaned command keeps the pipes open so 'close' never
+    // came. Build that end state deterministically: once the command runs,
+    // end only the shell, leaving the command on the inherited stdout/stderr.
+    const { sb, ctx, sessionId } = await leaderSandbox();
+    const pidFile = path.join(sb.dir, 'descendant.pid');
+    const tick = await fixture(
+      sb,
+      'held-tick.js',
+      [
+        `require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid));`,
+        "setInterval(() => console.log('tick'), 50);",
+      ].join('\n'),
+    );
+    let descendant: number | undefined;
+    try {
+      const out = await processWatchTool.execute(
+        { command: runtimeFixtureCommand(tick), description: 'held', filter: 'never-matches' },
+        ctx,
+        { signal: newSignal() },
+      );
+      const pid = out.watch?.pid as number;
+      descendant = await waitFor(() => {
+        const text = existsSync(pidFile) ? readFileSync(pidFile, 'utf8') : '';
+        return Number(text) > 0 ? Number(text) : undefined;
+      });
+      const shell = getProcessRegistry().get(pid)?.child;
+      shell?.kill('SIGKILL'); // the shell only, as the lost race leaves it
+      await waitFor(() =>
+        shell && (shell.exitCode != null || shell.signalCode != null) ? true : undefined,
+      );
+      // The shell is gone but its pipes are not, so the watch is still live.
+      expect(listProcessWatches(sessionId).map((w) => w.id)).toEqual([out.watch?.id]);
+
+      await processWatchControlTool.execute({ action: 'stop', id: out.watch?.id }, ctx, {
+        signal: newSignal(),
+      });
+      await waitFor(() => (getProcessRegistry().get(pid) === undefined ? true : undefined), 10_000);
+      expect(listProcessWatches(sessionId)).toEqual([]);
+      expect(drain(sessionId)).toEqual([]);
+    } finally {
+      if (descendant) {
+        try {
+          process.kill(descendant);
+        } catch {
+          /* already ended */
+        }
+      }
+    }
+  }, 30_000);
 
   it('matches the filter against the whole line before truncating it (F1661)', async () => {
     const { sb, ctx, sessionId } = await leaderSandbox();

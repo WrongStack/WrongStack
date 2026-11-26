@@ -216,11 +216,32 @@ function attachLineReader(w: Watch, stream: 'stdout' | 'stderr'): void {
   (source as { unref?: () => void }).unref?.();
 }
 
+/**
+ * Once WrongStack has ended a watch and its root process is gone, stop reading.
+ *
+ * 'close' — which removes the watch and its registry entry — waits for every
+ * holder of the stdout/stderr pipes. On Windows a stop issued while the shell
+ * is still starting races `taskkill /T`: the shell launches the command after
+ * the tree walk and dies, and the orphaned command holds the pipes, so 'close'
+ * never came and the watch lingered for good. Its output is no longer wanted;
+ * releasing our read ends lets 'close' fire, and a descendant that keeps
+ * writing ends on the broken pipe. A watch that ends on its own keeps reading
+ * until every holder is done, as before.
+ */
+function releaseStdioIfRootExited(w: Watch): void {
+  if (w.ended || !w.endReason) return;
+  if (w.child.exitCode == null && w.child.signalCode == null) return;
+  w.child.stdout?.destroy();
+  w.child.stderr?.destroy();
+}
+
 /** Kill the watch's process tree. Its 'close' handler sends the final notice. */
 function terminate(w: Watch): void {
   if (w.lifetimeTimer) clearTimeout(w.lifetimeTimer);
   w.lifetimeTimer = null;
   if (w.ended) return;
+  // The root may already be gone (killed by an earlier stop, or the race above).
+  releaseStdioIfRootExited(w);
   const registry = getProcessRegistry();
   if (typeof w.pid === 'number' && registry.kill(w.pid, { force: true })) return;
   try {
@@ -442,6 +463,8 @@ async function startWatch(input: ProcessWatchInput, ctx: unknown): Promise<Proce
   attachLineReader(w, 'stdout');
   attachLineReader(w, 'stderr');
   child.on('close', (code, signal) => onClose(w, code, signal));
+  // The root can exit while a descendant still holds the pipes.
+  child.on('exit', () => releaseStdioIfRootExited(w));
   // Errors after launch (a failed kill) do not end the watch; 'close' does.
   child.on('error', () => undefined);
   const lifetime = setTimeout(() => {
