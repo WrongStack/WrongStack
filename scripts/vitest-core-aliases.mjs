@@ -82,6 +82,10 @@ export function coreAliases(corePackageDir) {
   aliases['@wrongstack/goal'] = resolve(corePackageDir, '../goal/src');
   aliases['@wrongstack/chronicle'] = resolve(corePackageDir, '../chronicle/src');
   aliases['@wrongstack/worktree'] = resolve(corePackageDir, '../worktree/src');
+  // As in the root config: core's file-permissions shim re-exports persistence,
+  // so a test patching persistence's `_filePermOps` seam must see the same
+  // module the code under test reaches (dist would be a second instance).
+  aliases['@wrongstack/persistence'] = resolve(corePackageDir, '../persistence/src');
   aliases['@wrongstack/builtin-plugins'] = resolve(corePackageDir, '../builtin-plugins/src');
   aliases['@wrongstack/agent-catalog'] = resolve(corePackageDir, '../agent-catalog/src');
   aliases['@wrongstack/coordination'] = resolve(corePackageDir, '../coordination/src');
