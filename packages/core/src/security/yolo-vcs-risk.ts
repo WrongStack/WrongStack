@@ -189,6 +189,7 @@ const GIT_GLOBAL_VALUE_OPTIONS: ReadonlySet<string> = new Set([
   '--namespace',
   '--config-env',
   '--super-prefix',
+  '--attr-source',
 ]);
 
 /** Index of the git subcommand in lowercased `args`, past the global options. */

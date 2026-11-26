@@ -22,6 +22,17 @@ describe('a quoted path ending in a backslash cannot hide the next command', () 
     expect(classifyDestructiveCommand(cmd, ROOT)).toBe('delete-outside');
   });
 
+  // Each shell's own escape: PowerShell's backtick and cmd's caret make the
+  // quote literal, so no string opens and the separator runs the next command.
+  it.each([
+    'Write-Output `";Remove-Item -Recurse -Force C:\\Windows',
+    'echo `"|Remove-Item -Recurse -Force C:\\Windows',
+    'echo ^"&rd /s /q C:\\Users',
+    'echo ^"&&rd /s /q C:\\Users',
+  ])('gates `%s` (escaped quote opens no string)', (cmd) => {
+    expect(classifyDestructiveCommand(cmd, ROOT)).toBe('delete-outside');
+  });
+
   it('a separator inside an ordinary quoted string is still prose', () => {
     const cmd = 'git commit -m "fix;Remove-Item -Recurse -Force C:\\Windows"';
     expect(tokenizeShell(cmd)).toContain('fix;Remove-Item -Recurse -Force C:\\Windows');

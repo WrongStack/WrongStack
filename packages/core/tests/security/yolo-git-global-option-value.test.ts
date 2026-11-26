@@ -18,6 +18,8 @@ describe('git global options with a separate value do not hide the subcommand', 
     'git --namespace ns restore src/app.ts',
     'git --config-env core.x=X --work-tree . checkout .',
     'git --git-dir .git branch -D feature',
+    'git --attr-source HEAD checkout -- src',
+    'git --attr-source HEAD branch -D feature',
   ])('gates `%s`', (cmd) => {
     expect(classifyDestructiveCommand(cmd, ROOT)).toBe('git-history');
   });

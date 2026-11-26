@@ -152,15 +152,7 @@ export const VCS_INFRA_DANGER_RULES: readonly DangerRule[] = [
     level: 'destructive',
     test: (cmd, args) => {
       if (cmd !== 'git') return false;
-      let i = 0;
-      while (i < args.length && args[i]!.startsWith('-')) {
-        const a = args[i]!;
-        i += ['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--config-env'].includes(a)
-          ? 2
-          : 1;
-      }
-      const sub = args[i];
-      const rest = args.slice(i + 1);
+      const { sub, rest } = gitSubcommand(args);
       // F11: checkout's only f-option is --force (--f… unambiguous, minLen 1);
       // switch also has --force-create, so every --force abbreviation is
       // ambiguous there and git rejects it — switch passes the full length.

@@ -59,6 +59,8 @@ const GIT_GLOBAL_VALUE_OPTIONS: readonly string[] = [
   '--work-tree',
   '--namespace',
   '--config-env',
+  '--super-prefix',
+  '--attr-source',
 ];
 
 /**

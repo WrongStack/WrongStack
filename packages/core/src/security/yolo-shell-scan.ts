@@ -14,9 +14,44 @@ export const SHELL_OPERATORS = new Set(['&&', '&', '||', '|', ';', '>', '>>', '<
 interface ShellScanState {
   quote: string | undefined;
   escaped: boolean;
-  /** PowerShell/cmd reading: `\` is a literal character, never an escape. */
-  literalBackslash?: boolean;
+  /**
+   * Whose escape rule applies. POSIX: `\` escapes the next character.
+   * PowerShell: `\` is literal and the backtick escapes, also inside double
+   * quotes. cmd: `\` is literal and `^` escapes, but only outside double quotes.
+   */
+  dialect: 'posix' | 'pwsh' | 'cmd';
 }
+
+/**
+ * One scan state per shell reading. The command's shell is not known here, so
+ * a separator counts as live when ANY reading leaves it unquoted and
+ * unescaped: wrongly splitting one reading's string only adds tokens (stricter
+ * gates), while missing a live separator hides the command behind it — e.g.
+ * PowerShell's `` echo `";Remove-Item … `` or cmd's `echo ^"&rd /s /q …`,
+ * where the escaped quote opens no string.
+ */
+function newShellScanStates(): ShellScanState[] {
+  return [
+    { quote: undefined, escaped: false, dialect: 'posix' },
+    { quote: undefined, escaped: false, dialect: 'pwsh' },
+    { quote: undefined, escaped: false, dialect: 'cmd' },
+  ];
+}
+
+/** Advance every reading over `ch`; true only when `ch` is inert in all of them. */
+function advanceShellScans(states: readonly ShellScanState[], ch: string): boolean {
+  let inert = true;
+  for (const state of states) {
+    if (!advanceShellScan(state, ch)) inert = false;
+  }
+  return inert;
+}
+
+const SHELL_ESCAPE_CHAR: Readonly<Record<ShellScanState['dialect'], string>> = {
+  posix: '\\',
+  pwsh: '`',
+  cmd: '^',
+};
 
 /**
  * Advance `state` over `ch`; true when `ch` is INERT (quoted or escaped) and
@@ -31,7 +66,10 @@ function advanceShellScan(state: ShellScanState, ch: string): boolean {
     if (ch === "'") state.quote = undefined;
     return true;
   }
-  if (ch === '\\' && !state.literalBackslash) {
+  if (
+    ch === SHELL_ESCAPE_CHAR[state.dialect] &&
+    !(state.dialect === 'cmd' && state.quote === '"')
+  ) {
     state.escaped = true;
     return true;
   }
@@ -68,25 +106,20 @@ function spaceOutUnquotedSeparators(command: string): string {
   const separators = ';&|';
   let out = '';
   // PowerShell and cmd read `\` literally, so `"C:\dir\";next` closes its
-  // string where a POSIX shell would not. Track both readings and treat a
-  // separator as live when EITHER sees it unquoted: wrongly splitting a POSIX
-  // string only adds tokens (stricter gates); missing a live one hides a command.
-  const state: ShellScanState = { quote: undefined, escaped: false };
-  const literal: ShellScanState = { quote: undefined, escaped: false, literalBackslash: true };
+  // string where a POSIX shell would not (and each has its own escape char).
+  // See newShellScanStates: a separator is live when ANY reading sees it.
+  const states = newShellScanStates();
   for (let i = 0; i < command.length; i++) {
     const ch = command[i];
     if (ch === undefined) continue;
-    const posixInert = advanceShellScan(state, ch);
-    const literalInert = advanceShellScan(literal, ch);
-    if ((posixInert && literalInert) || !separators.includes(ch)) {
+    if (advanceShellScans(states, ch) || !separators.includes(ch)) {
       out += ch;
       continue;
     }
     let run = ch;
     let next = command[i + 1];
     while (next !== undefined && separators.includes(next)) {
-      advanceShellScan(state, next);
-      advanceShellScan(literal, next);
+      advanceShellScans(states, next);
       run += next;
       i += 1;
       next = command[i + 1];
@@ -333,12 +366,17 @@ export function flagLetters(args: readonly string[]): Set<string> {
 export function splitShellSegments(command: string): string[] {
   const segments: string[] = [];
   let current = '';
-  const state: ShellScanState = { quote: undefined, escaped: false };
+  // Every shell reading at once (newShellScanStates): PowerShell's backtick
+  // and cmd's caret escape a quote that POSIX would read as an opener.
+  const states = newShellScanStates();
   for (let i = 0; i < command.length; i++) {
     const ch = command[i] as string;
-    const inert = advanceShellScan(state, ch);
+    const inert = advanceShellScans(states, ch);
     if (!inert && (ch === ';' || ch === '\n' || ch === '&' || ch === '|')) {
-      if (command[i + 1] === ch) i++; // consume the second half of && / ||
+      if (command[i + 1] === ch) {
+        advanceShellScans(states, ch);
+        i++; // consume the second half of && / ||
+      }
       segments.push(current);
       current = '';
       continue;

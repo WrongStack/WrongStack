@@ -38,6 +38,20 @@ describe('yarn npm publish is a registry publish', () => {
   });
 });
 
+describe('git global options with a separate value do not hide the subcommand', () => {
+  it.each([
+    [['--attr-source', 'HEAD', 'checkout', '--', 'src']],
+    [['--super-prefix', 'sub/', 'checkout', '--', 'src']],
+    [['--attr-source', 'HEAD', 'clean', '-fd']],
+  ])('git %j → destructive', (args) => {
+    expect(detectDanger('git', args).level).toBe('destructive');
+  });
+
+  it('control: the same options before git status stay non-destructive', () => {
+    expect(detectDanger('git', ['--attr-source', 'HEAD', 'status']).level).not.toBe('destructive');
+  });
+});
+
 describe('kubectl delete with a TYPE list', () => {
   it.each([
     [['delete', 'pods,ns', 'prod']],
