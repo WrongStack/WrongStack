@@ -47,6 +47,7 @@ describe('tool.confirm_needed carries the declared write targets', () => {
       toolUseId: 'confirm-writes',
       suggestedPattern: 'patch',
       writeTargets: ['src/a.ts', '.github/workflows/release.yml'],
+      deadlineAt: 120_000,
       resolve: vi.fn(),
     });
 

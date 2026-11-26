@@ -1,11 +1,11 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.7.21',
-  title: 'ACP leaders, fully native.',
+  version: '1.7.22',
+  title: 'An IDE-style desktop workbench.',
   summary:
-    "ACP leaders run the agent's own slash commands, modes, plans and subagents, HQ vault leases keep provider keys in memory only, machines can push their providers to HQ for approval, and a repository-wide input-validation hardening round.",
+    "An IDE-style desktop workbench with a saved pane layout, ACP mode switching from WebUI and the desktop, a suspend-first Windows tree kill that no longer orphans a shell's command, and an edge-case round across approvals, YOLO gates, planning and display formatting.",
   socialDescription:
-    "WrongStack 1.7.21: ACP leaders run the agent's own commands, modes and plans, HQ leases keep keys in memory, and an input-hardening round.",
+    'WrongStack 1.7.22: an IDE-style desktop workbench, ACP mode switching from WebUI and desktop, steadier Windows process stops and tighter YOLO gates.',
   cards: [
     {
       title: 'ACP session modes',

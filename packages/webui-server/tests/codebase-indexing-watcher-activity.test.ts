@@ -42,9 +42,9 @@ function start(projectRoot = resolve('webui-watcher-fixture'), indexOnEdit = fal
   const debug = vi.fn();
   const now = vi.spyOn(Date, 'now').mockReturnValue(1_000);
   const owner = setupWebUICodebaseIndexing({
-    config: indexOnEdit
+    config: (indexOnEdit
       ? { indexing: { onSessionStart: false, onEdit: true, watchExternal: false } }
-      : {},
+      : {}) as never,
     context: { meta: {} } as never,
     projectRoot,
     logger: { debug } as never,

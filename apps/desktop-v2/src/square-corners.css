@@ -5,6 +5,7 @@
   *::before,
   *::after {
     /* design-ignore: radius.hardcoded -- Zero is invariant across themes. */
+    /* biome-ignore lint/complexity/noImportantStyles: the square-corner invariant must beat inline and portal styles. */
     border-radius: 0 !important;
   }
 
@@ -12,6 +13,7 @@
   ::-webkit-scrollbar-thumb,
   ::-webkit-scrollbar-corner {
     /* design-ignore: radius.hardcoded -- Zero is invariant across themes. */
+    /* biome-ignore lint/complexity/noImportantStyles: the square-corner invariant must beat inline and portal styles. */
     border-radius: 0 !important;
   }
 }
