@@ -293,10 +293,13 @@ function buildUsageSnapshot() {
 function emit(name, value) {
   const target = path.join(architectureRoot, name);
   // Formatting must not turn a current data snapshot into a stale one.
-  const spawn = bunSpawnInvocation(
-    process.versions.bun ? process.execPath : resolveBunExecutable(),
-    ['run', 'biome', 'format', '--stdin-file-path', target],
-  );
+  const spawn = bunSpawnInvocation(resolveBunExecutable(), [
+    'run',
+    'biome',
+    'format',
+    '--stdin-file-path',
+    target,
+  ]);
   const serialized = execFileSync(spawn.command, spawn.args, {
     input: `${JSON.stringify(value, null, 2)}\n`,
     encoding: 'utf8',
