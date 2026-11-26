@@ -11,7 +11,7 @@
  * The empty/loading `knownModels` path is the most important regression
  * check: it must NOT flash inactive badges on cold start.
  */
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { FallbackEditor } from '../../src/components/FallbackEditor';
 
@@ -50,7 +50,7 @@ describe('FallbackEditor — inactive badge parity with /fallback', () => {
     expect(screen.queryByTestId(/^fallback-row-\d+-inactive-badge$/)).toBeNull();
   });
 
-  it('flags only the rows whose (provider, model) is missing from the known set', () => {
+  it('keeps unlisted rows active with the CLI advisory — the runtime still tries them', () => {
     render(
       <FallbackEditor
         value={[
@@ -65,32 +65,23 @@ describe('FallbackEditor — inactive badge parity with /fallback', () => {
       />,
     );
 
-    // The active rows must NOT carry the inactive badge.
-    expect(
-      within(screen.getByTestId('fallback-row-0')).queryByTestId('fallback-row-0-inactive-badge'),
-    ).toBeNull();
-    expect(
-      within(screen.getByTestId('fallback-row-2')).queryByTestId('fallback-row-2-inactive-badge'),
-    ).toBeNull();
-
-    // The inactive rows must carry it, with the same wording the slash command uses.
-    expect(screen.getByTestId('fallback-row-1-inactive-badge')).toBeTruthy();
-    expect(screen.getByTestId('fallback-row-3-inactive-badge')).toBeTruthy();
-    const row1 = screen.getByTestId('fallback-row-1');
-    const row3 = screen.getByTestId('fallback-row-3');
-    expect(row1.getAttribute('data-active')).toBe('false');
-    expect(row3.getAttribute('data-active')).toBe('false');
-
-    // Tooltip attribute carries the reason — same wording the slash command renders.
-    expect(screen.getByTestId('fallback-row-1').getAttribute('data-inactive-reason')).toBe(
-      '"gpt-99-not-real" not in openai model list',
+    expect(screen.queryByTestId(/^fallback-row-\d+-inactive-badge$/)).toBeNull();
+    for (const i of [0, 1, 2, 3]) {
+      expect(screen.getByTestId(`fallback-row-${i}`).getAttribute('data-active')).toBe('true');
+    }
+    expect(screen.getByTestId('fallback-row-0').getAttribute('data-advisory')).toBeNull();
+    expect(screen.getByTestId('fallback-row-1').getAttribute('data-advisory')).toBe(
+      'not in openai saved model list — will still be tried',
     );
-    expect(screen.getByTestId('fallback-row-3').getAttribute('data-inactive-reason')).toBe(
-      '"some-model" not in ghost model list',
+    expect(screen.getByTestId('fallback-row-3').getAttribute('data-advisory')).toBe(
+      'not in ghost saved model list — will still be tried',
+    );
+    expect(screen.getByTestId('fallback-row-1').getAttribute('title')).toBe(
+      'not in openai saved model list — will still be tried',
     );
   });
 
-  it('flags a leading-slash ref as inactive (no provider)', () => {
+  it('keeps a leading-slash ref active with a "uses the active provider" advisory', () => {
     render(
       <FallbackEditor
         value={['/gpt-4o-mini']}
@@ -100,8 +91,10 @@ describe('FallbackEditor — inactive badge parity with /fallback', () => {
       />,
     );
     const row = screen.getByTestId('fallback-row-0');
-    expect(row.getAttribute('data-active')).toBe('false');
-    expect(row.getAttribute('data-inactive-reason')).toBe('no provider in reference');
+    expect(row.getAttribute('data-active')).toBe('true');
+    expect(row.getAttribute('data-advisory')).toBe(
+      'no provider in reference — uses the active provider',
+    );
   });
 
   it('flags an empty ref as inactive (no model)', () => {

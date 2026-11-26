@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { refInactiveReason, splitProviderModel } from '../src/lib/fallback-ref.js';
+import { refAdvisory, splitProviderModel } from '../src/lib/fallback-ref.js';
 
 describe('splitProviderModel provider whitespace trimming (F1877)', () => {
   it('trims providerId around the slash so knownModels lookups succeed', () => {
@@ -8,7 +8,9 @@ describe('splitProviderModel provider whitespace trimming (F1877)', () => {
       providerId: 'openai',
       model: 'gpt-5',
     });
-    expect(refInactiveReason('  openai  /  gpt-5  ', known)).toBeUndefined();
-    expect(refInactiveReason('   / gpt-5', known)).toBe('no provider in reference');
+    expect(refAdvisory('  openai  /  gpt-5  ', known)).toBeUndefined();
+    expect(refAdvisory('   / gpt-5', known)).toBe(
+      'no provider in reference — uses the active provider',
+    );
   });
 });

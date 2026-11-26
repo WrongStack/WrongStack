@@ -1,13 +1,13 @@
 /**
  * Unit tests for packages/webui/src/lib/fallback-ref.ts — the WebUI side of
- * the inactive-warning helper that mirrors `refInactiveReason` in
- * `packages/cli/src/slash-commands/fallback.ts`.
+ * the ref checks that mirror `refInvalidReason` / `refStaleModelListWarning`
+ * in `packages/cli/src/slash-commands/fallback-ref-validation.ts`.
  *
  * Cross-surface contract:
  *  - A ref parses to `{ providerId, model }` via `splitProviderModel`.
- *  - `refInactiveReason` returns `undefined` when the ref is active and a
- *    short reason string otherwise. The wording matches the slash command
- *    so the WebUI and CLI render consistent messages.
+ *  - `refInactiveReason` returns a reason only when the runtime cannot use
+ *    the ref at all (no model). A model missing from the saved list, or a
+ *    bare model, is still tried, so `refAdvisory` notes it instead.
  *  - `classifyRef` wraps the same logic and returns a `RefActiveState`.
  *  - `buildKnownModelSet` flattens `ModelCandidate[]` into the keyed set
  *    the inactive check consumes.
@@ -19,6 +19,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildKnownModelSet,
   classifyRef,
+  refAdvisory,
   refInactiveReason,
   splitProviderModel,
 } from '../../src/lib/fallback-ref';
@@ -65,46 +66,55 @@ describe('splitProviderModel', () => {
     const { providerId, model } = splitProviderModel('openai /gpt-4o');
     expect(providerId).toBe('openai');
     expect(model).toBe('gpt-4o');
-    expect(refInactiveReason('openai /gpt-4o', new Set(['openai/gpt-4o']))).toBeUndefined();
+    expect(refAdvisory('openai /gpt-4o', new Set(['openai/gpt-4o']))).toBeUndefined();
   });
 });
 
 describe('refInactiveReason', () => {
   const knownModels = new Set(['openai/gpt-4o', 'openai/gpt-4o-mini', 'anthropic/claude-opus-4']);
 
-  it('returns undefined for a ref whose (provider, model) is in the known set', () => {
+  it('returns undefined for any ref that names a model — the runtime tries it', () => {
     expect(refInactiveReason('anthropic/claude-opus-4', knownModels)).toBeUndefined();
-  });
-
-  it('returns a "not in model list" reason for an unknown model on a known provider', () => {
-    expect(refInactiveReason('anthropic/claude-99-not-real', knownModels)).toBe(
-      '"claude-99-not-real" not in anthropic model list',
-    );
-  });
-
-  it('returns a "not in model list" reason for an unknown provider', () => {
-    expect(refInactiveReason('ghost/some-model', knownModels)).toBe(
-      '"some-model" not in ghost model list',
-    );
-  });
-
-  it('returns undefined when knownModels is undefined (still loading)', () => {
-    expect(refInactiveReason('anthropic/claude-opus-4', undefined)).toBeUndefined();
+    expect(refInactiveReason('anthropic/claude-99-not-real', knownModels)).toBeUndefined();
+    expect(refInactiveReason('ghost/some-model', knownModels)).toBeUndefined();
+    expect(refInactiveReason('claude-opus-4', knownModels)).toBeUndefined();
     expect(refInactiveReason('anthropic/claude-99', undefined)).toBeUndefined();
-  });
-
-  it('returns undefined when knownModels is empty (no allow-list configured)', () => {
-    expect(refInactiveReason('anthropic/claude-opus-4', new Set())).toBeUndefined();
   });
 
   it('reports an empty-model ref as inactive (no model in reference)', () => {
     expect(refInactiveReason('', knownModels)).toBe('"" has no model');
     expect(refInactiveReason('   ', knownModels)).toBe('"   " has no model');
   });
+});
 
-  it('reports a leading-slash / bare-model ref as inactive (no provider)', () => {
-    expect(refInactiveReason('/gpt-4o-mini', knownModels)).toBe('no provider in reference');
-    expect(refInactiveReason('claude-opus-4', knownModels)).toBe('no provider in reference');
+describe('refAdvisory', () => {
+  const knownModels = new Set(['openai/gpt-4o', 'openai/gpt-4o-mini', 'anthropic/claude-opus-4']);
+
+  it('says nothing for a ref whose (provider, model) is in the known set', () => {
+    expect(refAdvisory('anthropic/claude-opus-4', knownModels)).toBeUndefined();
+  });
+
+  it('notes a model missing from the saved list, as the CLI does', () => {
+    expect(refAdvisory('anthropic/claude-99-not-real', knownModels)).toBe(
+      'not in anthropic saved model list — will still be tried',
+    );
+    expect(refAdvisory('ghost/some-model', knownModels)).toBe(
+      'not in ghost saved model list — will still be tried',
+    );
+  });
+
+  it('notes a bare / leading-slash ref resolves through the active provider', () => {
+    expect(refAdvisory('/gpt-4o-mini', knownModels)).toBe(
+      'no provider in reference — uses the active provider',
+    );
+    expect(refAdvisory('claude-opus-4', knownModels)).toBe(
+      'no provider in reference — uses the active provider',
+    );
+  });
+
+  it('says nothing while the known set is unknown or empty', () => {
+    expect(refAdvisory('anthropic/claude-99', undefined)).toBeUndefined();
+    expect(refAdvisory('anthropic/claude-99', new Set())).toBeUndefined();
   });
 });
 
@@ -115,11 +125,15 @@ describe('classifyRef', () => {
     expect(classifyRef('openai/gpt-4o', knownModels)).toEqual({ active: true });
   });
 
-  it('returns inactive with a reason when the ref is unknown', () => {
+  it('keeps an unlisted model active with an advisory', () => {
     expect(classifyRef('openai/gpt-99', knownModels)).toEqual({
-      active: false,
-      reason: '"gpt-99" not in openai model list',
+      active: true,
+      advisory: 'not in openai saved model list — will still be tried',
     });
+  });
+
+  it('returns inactive only for a ref with no model', () => {
+    expect(classifyRef('', knownModels)).toEqual({ active: false, reason: '"" has no model' });
   });
 
   it('returns active while the known set is still loading', () => {

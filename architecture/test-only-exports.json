@@ -2209,6 +2209,7 @@
       "delegateCompletedText"
     ],
     "packages/webui/src/lib/fallback-ref.ts": [
+      "refAdvisory",
       "refInactiveReason",
       "splitProviderModel"
     ],

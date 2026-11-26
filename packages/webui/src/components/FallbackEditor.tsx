@@ -11,10 +11,10 @@ import { ModelPicker } from './ModelPicker';
  * extension). Reused by the run-config wizard, the board header, and global
  * settings. Inline only; no native dialogs.
  *
- * `knownModels` powers the per-row inactive badge that mirrors the
- * `/fallback` slash command's `refInactiveReason` warning. When the
- * caller is still loading provider catalogues, pass `undefined` and the
- * editor leaves every row unmarked (no flash on cold start).
+ * `knownModels` powers the per-row advisory that mirrors the `/fallback`
+ * command's "not in saved model list — will still be tried" note; only a ref
+ * with no model gets the inactive badge. When the caller is still loading
+ * provider catalogues, pass `undefined` and every row stays unmarked.
  */
 export function FallbackEditor({
   value,
@@ -57,18 +57,23 @@ export function FallbackEditor({
         <ol className="space-y-1">
           {value.map((ref, i) => {
             const state = classifyRef(ref, knownModels);
-            const inactiveTitle = state.active ? undefined : state.reason;
+            const rowTitle = state.active ? state.advisory : state.reason;
             return (
               <li
                 key={`${ref}-${i}`}
                 className={cn(
                   'flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs',
-                  state.active ? 'border-border bg-muted' : 'border-warning/60 bg-warning/10',
+                  !state.active
+                    ? 'border-warning/60 bg-warning/10'
+                    : state.advisory
+                      ? 'border-warning/30 bg-muted'
+                      : 'border-border bg-muted',
                 )}
-                title={inactiveTitle ?? undefined}
+                title={rowTitle ?? undefined}
                 data-testid={`fallback-row-${i}`}
                 data-active={state.active ? 'true' : 'false'}
                 data-inactive-reason={state.active ? undefined : state.reason}
+                data-advisory={state.active ? state.advisory : undefined}
               >
                 <span className="font-mono text-[10px] text-muted-foreground">{i + 1}</span>
                 <span className="min-w-0 flex-1 break-words font-mono text-foreground">{ref}</span>
