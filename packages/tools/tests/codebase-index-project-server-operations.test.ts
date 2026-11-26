@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { indexService } from '../../codebase/src/index-service.js';
 import {
   dispatchOperation,
   isShareableFullIndex,
@@ -149,6 +150,39 @@ describe('runFullIndex and shared indexing', () => {
     cancelFn!();
 
     await expect(p).rejects.toThrow('Indexing cancelled');
+  });
+
+  it('starts a fresh run for a client that asks after the shared run was cancelled', async () => {
+    const indexMock = vi.mocked(indexService);
+    const original = indexMock.getMockImplementation();
+    // Honour the abort like the real indexer's yield points.
+    indexMock.mockImplementation(async (_args, opts) => {
+      if (opts?.signal?.aborted) throw opts.signal.reason;
+      return { totalFiles: 10, parsedFiles: 10, indexedFiles: 10, durationMs: 50 } as never;
+    });
+    try {
+      const { ctx } = createMockContext();
+      let release!: () => void;
+      const writeMutexFree = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      // Another write holds the mutex while both clients arrive.
+      ctx.withIndexWrite = async (job) => {
+        await writeMutexFree;
+        return job(() => {});
+      };
+      const stateA = createClientState();
+      const stateB = createClientState();
+      const runA = runFullIndex(ctx, stateA, 1, {} as never);
+      stateA.cancel.get(1)?.(); // the only subscriber cancels: the shared run aborts
+      const runB = runFullIndex(ctx, stateB, 1, {} as never);
+      release();
+      await expect(runA).rejects.toThrow('Indexing cancelled');
+      await expect(runB).resolves.toMatchObject({ indexedFiles: 10 });
+      expect(ctx.getActiveFullIndex()).toBeNull();
+    } finally {
+      indexMock.mockImplementation(original as never);
+    }
   });
 });
 

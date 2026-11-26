@@ -568,6 +568,8 @@ export class ProjectServerConnection {
           type: 'shutdown',
           id: 0,
           reason: 'stale-build-replacement',
+          // The daemon refuses every unauthenticated message but `cancel`.
+          authToken: this.currentAuthToken(),
         }),
       );
       const timer = setTimeout(() => socket.destroy(), 25);

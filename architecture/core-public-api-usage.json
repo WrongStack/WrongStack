@@ -164,8 +164,8 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1033,
-      "typeOnly": 77,
+      "files": 1034,
+      "typeOnly": 78,
       "runtimeOrMixed": 991
     },
     "@wrongstack/core/utils/child-env": {
@@ -14834,6 +14834,12 @@
       "file": "packages/codebase/src/yaml-parser.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/codebase/tests/project-server-watcher-generation.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/utils",

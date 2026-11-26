@@ -42,6 +42,7 @@ import {
   CircuitOpenError,
   IndexTimeoutError,
   indexCircuitBreaker,
+  LockError,
   resetIndexCircuitBreaker,
 } from '../src/codebase-index/circuit-breaker.js';
 
@@ -474,6 +475,71 @@ describe('circuit breaker integration', () => {
     ac.abort(new Error('session teardown'));
     await expect(run).rejects.toThrow('session teardown');
     expect(indexCircuitBreaker.snapshot().consecutiveFailures).toBe(0);
+  });
+
+  it('an older run settling during a half-open probe does not admit a second probe', async () => {
+    const breaker = indexCircuitBreaker as unknown as { now: () => number };
+    const realNow = breaker.now;
+    const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+    let releaseProbe: () => void = () => {};
+    try {
+      for (const settleOlder of ['lock', 'abort'] as const) {
+        resetIndexCircuitBreaker();
+        breaker.now = realNow;
+        indexServiceMock.mockReset();
+        let releaseOlder!: (err: unknown) => void;
+        for (let i = 0; i < 3; i++) indexServiceMock.mockRejectedValueOnce(new Error(`boom ${i}`));
+        indexServiceMock.mockImplementationOnce(
+          () => new Promise((_resolve, reject) => (releaseOlder = reject)),
+        );
+        indexServiceMock.mockImplementationOnce(
+          () => new Promise((resolve) => (releaseProbe = () => resolve(OK_RESULT))),
+        );
+        const ac = new AbortController();
+        // Four runs admitted while the circuit is closed; the fourth (older) run
+        // holds the mutex while the first three fail and open the circuit.
+        const failing = [0, 1, 2].map((i) =>
+          expect(runStartupIndex({ projectRoot: '/proj' })).rejects.toThrow(`boom ${i}`),
+        );
+        const older = runStartupIndex({ projectRoot: '/proj', signal: ac.signal }).catch(
+          (err: unknown) => err,
+        );
+        await Promise.all(failing);
+        expect(indexCircuitBreaker.snapshot().state).toBe('open');
+
+        const later = realNow() + 61_000;
+        breaker.now = () => later;
+        const probe = runStartupIndex({ projectRoot: '/proj' });
+        expect(indexCircuitBreaker.snapshot().state).toBe('half-open');
+
+        if (settleOlder === 'lock') releaseOlder(new LockError('SQLITE_BUSY'));
+        else {
+          ac.abort(new Error('session teardown'));
+          releaseOlder(new Error('session teardown'));
+        }
+        await older;
+        await flush();
+
+        // The probe is still in flight: another run must be refused.
+        const second = runStartupIndex({ projectRoot: '/proj' }).then(
+          () => 'admitted',
+          (err: unknown) => (err instanceof CircuitOpenError ? 'refused' : String(err)),
+        );
+        let outcome = 'pending';
+        void second.then((value) => (outcome = value));
+        await flush();
+        expect({ settleOlder, outcome }).toEqual({ settleOlder, outcome: 'refused' });
+
+        releaseProbe();
+        await expect(probe).resolves.toMatchObject({ filesIndexed: 1 });
+        await second;
+        expect(indexCircuitBreaker.snapshot().state).toBe('closed');
+      }
+    } finally {
+      breaker.now = realNow;
+      // A failed assertion must not leave the probe holding the index mutex.
+      releaseProbe();
+    }
   });
 
   it('a successful run closes a tripped (cooled-down) circuit again', async () => {

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T14:22:17.671Z",
+  "generatedAt": "2026-11-26T14:24:55.298Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6572,
-    "testFiles": 6453,
-    "sourceLines": 1349865,
+    "testFiles": 6456,
+    "sourceLines": 1349928,
     "workspaceEdges": 261,
-    "moduleEdges": 19252,
+    "moduleEdges": 19253,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 13,
+    "testsWithoutTypecheck": 15,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1062
   },
@@ -313,7 +313,7 @@
       "name": "@wrongstack/codebase",
       "dir": "packages/codebase",
       "sourceFiles": 115,
-      "testFiles": 12,
+      "testFiles": 14,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/persistence",
@@ -1251,7 +1251,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 360,
-      "testFiles": 447,
+      "testFiles": 448,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1286,7 +1286,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 447
+          "testFiles": 448
         }
       ]
     },
@@ -10471,6 +10471,18 @@
       },
       {
         "file": "packages/codebase/tests/project-server-cache-bounds.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/codebase/tests/project-server-watcher-generation.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/codebase/tests/project-server-watcher-retirement.test.ts",
         "projects": [
           "root-node"
         ]
@@ -34050,6 +34062,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/codebase-indexing-watcher-activity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/codebase-indexing.test.ts",
         "projects": [
           "root-node"
@@ -40168,6 +40186,20 @@
       },
       {
         "file": "packages/codebase/tests/project-server-cache-bounds.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "packages/codebase/tests/project-server-watcher-generation.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "packages/codebase/tests/project-server-watcher-retirement.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

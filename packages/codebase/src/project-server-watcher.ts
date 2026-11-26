@@ -35,6 +35,12 @@ export interface ProjectServerWatcherOptions {
   onFilesChanged: (files: string[]) => void;
 }
 
+const MAX_WATCHER_DELAY_MS = 2_147_483_647;
+
+function sanitizeWatcherDelay(value: number, fallback: number): number {
+  return Number.isFinite(value) && value >= 0 ? Math.min(value, MAX_WATCHER_DELAY_MS) : fallback;
+}
+
 export class ProjectServerWatcherManager {
   private externalWatcher: ProjectWatchSubscription | undefined;
   private externalDebounceMs = DEFAULT_EXTERNAL_DEBOUNCE_MS;
@@ -79,7 +85,7 @@ export class ProjectServerWatcherManager {
   private ensureExternalWatcher(): void {
     if (this.externalWatcher) return;
     const projectRoot = this.options.projectRoot;
-    this.externalWatcher = watchProjectTree(
+    const watcher = watchProjectTree(
       projectRoot,
       ({ eventType, filename }) => {
         if (!filename || isIgnoredRelativePath(filename)) return;
@@ -104,16 +110,18 @@ export class ProjectServerWatcherManager {
         // file under it in the index; the indexer expands the path instead.
         if (eventType !== 'rename') return;
         void isDirectoryWatchCandidate(absolute).then((candidate) => {
-          if (candidate && this.externalWatcher) this.enqueueExternalFile(absolute);
+          if (candidate && this.externalWatcher === watcher) this.enqueueExternalFile(absolute);
         });
       },
       {
-        onError: () => {
-          // Watch errors are non-fatal; explicit edit/startup requests remain
-          // available through the same server.
+        onClose: () => {
+          if (this.externalWatcher !== watcher) return;
+          this.externalWatcher = undefined;
+          watcher.close();
         },
       },
     );
+    this.externalWatcher = watcher;
   }
 
   stop(): void {
@@ -138,8 +146,16 @@ export class ProjectServerWatcherManager {
       this.stop();
       return;
     }
-    this.externalDebounceMs = Math.min(...owners.map((client) => client.debounceMs));
-    this.externalCoalesceWindowMs = Math.min(...owners.map((client) => client.coalesceWindowMs));
+    this.externalDebounceMs = Math.min(
+      ...owners.map((client) =>
+        sanitizeWatcherDelay(client.debounceMs, DEFAULT_EXTERNAL_DEBOUNCE_MS),
+      ),
+    );
+    this.externalCoalesceWindowMs = Math.min(
+      ...owners.map((client) =>
+        sanitizeWatcherDelay(client.coalesceWindowMs, DEFAULT_EXTERNAL_COALESCE_WINDOW_MS),
+      ),
+    );
     this.ensureExternalWatcher();
   }
 }

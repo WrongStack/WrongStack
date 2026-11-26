@@ -1,3 +1,4 @@
+import * as fs from 'node:fs';
 import * as net from 'node:net';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -94,6 +95,60 @@ describe('project index server client cancellation', () => {
     } finally {
       if (previousBuildId === undefined) delete process.env['WRONGSTACK_INDEX_SERVER_BUILD_ID'];
       else process.env['WRONGSTACK_INDEX_SERVER_BUILD_ID'] = previousBuildId;
+    }
+  });
+
+  // The real daemon authenticates every message except `cancel` (WS-027), so a
+  // stale-build shutdown sent without the token was refused and the old daemon
+  // kept running until the third stale attempt force-killed it.
+  it('authenticates the stale-build shutdown with the daemon token', async () => {
+    const projectRoot = path.join(os.tmpdir(), `wstack-project-server-stale-auth-${process.pid}`);
+    const indexDir = path.join(projectRoot, '.index');
+    const endpoint = projectIndexServerEndpoint(projectRoot, indexDir);
+    fs.mkdirSync(indexDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(indexDir, 'server.json'),
+      JSON.stringify({ authToken: 'old-token' }),
+    );
+    const previousBuildId = process.env['WRONGSTACK_INDEX_SERVER_BUILD_ID'];
+    process.env['WRONGSTACK_INDEX_SERVER_BUILD_ID'] = 'current-build';
+    let shutdown: ProjectServerClientMessage | undefined;
+
+    const server = net.createServer((socket) => {
+      let buffer = '';
+      socket.setEncoding('utf8');
+      socket.write(
+        encodeProjectServerMessage({
+          type: 'hello',
+          protocolVersion: PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
+          buildId: 'old-build',
+          pid: process.pid,
+          projectRoot,
+          indexDir,
+          endpoint,
+          startedAt: new Date(0).toISOString(),
+        }),
+      );
+      socket.on('data', (chunk: string) => {
+        buffer += chunk;
+        const newline = buffer.indexOf('\n');
+        if (newline < 0) return;
+        const message = JSON.parse(buffer.slice(0, newline)) as ProjectServerClientMessage;
+        if (message.type === 'shutdown') shutdown = message;
+      });
+    });
+    await listen(server, endpoint);
+
+    try {
+      await expect(
+        checkProjectIndexServerHealth(projectRoot, indexDir, { timeoutMs: 1_000 }),
+      ).rejects.toThrow(/build mismatch/);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      expect(shutdown).toMatchObject({ reason: 'stale-build-replacement', authToken: 'old-token' });
+    } finally {
+      if (previousBuildId === undefined) delete process.env['WRONGSTACK_INDEX_SERVER_BUILD_ID'];
+      else process.env['WRONGSTACK_INDEX_SERVER_BUILD_ID'] = previousBuildId;
+      fs.rmSync(projectRoot, { recursive: true, force: true });
     }
   });
 

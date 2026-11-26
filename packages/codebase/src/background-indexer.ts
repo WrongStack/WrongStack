@@ -255,8 +255,8 @@ function flushReadyReindexBatch(key: string): void {
   const batch = readyReindexBatches.get(key);
   if (!batch) return;
   readyReindexBatches.delete(key);
-
-  if (!indexCircuitBreaker.allowRequest()) {
+  const admission = indexCircuitBreaker.admit();
+  if (!admission) {
     const error = circuitOpenError();
     for (const onError of batch.onErrors) onError(error);
     settleReindexCompletions(batch.completions, error);
@@ -275,11 +275,11 @@ function flushReadyReindexBatch(key: string): void {
     ),
   ).then(
     () => {
-      indexCircuitBreaker.recordSuccess();
+      indexCircuitBreaker.recordSuccess(admission);
       settleReindexCompletions(batch.completions);
     },
     (err) => {
-      indexCircuitBreaker.recordFailure(err);
+      indexCircuitBreaker.recordFailure(err, admission);
       for (const onError of batch.onErrors) onError(err);
       settleReindexCompletions(batch.completions, err);
     },
@@ -340,9 +340,9 @@ export async function runStartupIndex(opts: {
   /** Watchdog timeout for the whole run. Default: 120s. */
   timeoutMs?: number | undefined;
 }): Promise<IndexResult> {
-  // Circuit breaker: after repeated failures/timeouts, fail fast instead of
-  // queuing yet another run behind a possibly-wedged pipeline.
-  if (!indexCircuitBreaker.allowRequest()) throw circuitOpenError();
+  // Circuit breaker: fail fast instead of queuing behind a possibly-wedged pipeline.
+  const admission = indexCircuitBreaker.admit();
+  if (!admission) throw circuitOpenError();
 
   _activeIndexRuns += 1;
   _indexing = true;
@@ -370,7 +370,7 @@ export async function runStartupIndex(opts: {
       };
     }
     _ready = true;
-    indexCircuitBreaker.recordSuccess();
+    indexCircuitBreaker.recordSuccess(admission);
     return result;
   } catch (err) {
     // A caller-initiated abort (session teardown, Ctrl+C, project switch) is
@@ -386,8 +386,8 @@ export async function runStartupIndex(opts: {
     // failures — only genuine errors and watchdog timeouts trip the breaker.
     // An aborted half-open probe must still be released, or the circuit stays
     // half-open and refuses every later run.
-    if (opts.signal?.aborted) indexCircuitBreaker.abandonProbe();
-    else indexCircuitBreaker.recordFailure(err);
+    if (opts.signal?.aborted) indexCircuitBreaker.abandonProbe(admission);
+    else indexCircuitBreaker.recordFailure(err, admission);
     throw err;
   } finally {
     _activeIndexRuns = Math.max(0, _activeIndexRuns - 1);

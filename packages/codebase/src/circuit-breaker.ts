@@ -58,6 +58,17 @@ export class LockError extends Error {
   override readonly name = 'LockError';
 }
 
+/**
+ * One admitted run. Pass it back to recordSuccess/recordFailure/abandonProbe:
+ * only the half-open probe's own admission may free the probe slot. A run
+ * admitted earlier, while the circuit was closed, can settle during the probe
+ * (it was queued behind the index mutex) and must not admit a second probe.
+ */
+export interface CircuitAdmission {
+  /** Set only for the half-open probe; identifies which probe it was. */
+  readonly probeId: number | null;
+}
+
 interface CircuitBreakerOptions {
   /** Consecutive failures before the circuit opens. Default: 3. */
   failureThreshold?: number | undefined;
@@ -76,7 +87,9 @@ export class IndexCircuitBreaker {
   private consecutiveFailures = 0;
   private openedAt = 0;
   private lastFailure: string | null = null;
-  private probeInFlight = false;
+  /** The half-open probe in flight, or null. */
+  private probeId: number | null = null;
+  private nextProbeId = 1;
 
   constructor(opts: CircuitBreakerOptions = {}) {
     this.failureThreshold =
@@ -100,37 +113,48 @@ export class IndexCircuitBreaker {
    * are rejected until that probe settles via recordSuccess/recordFailure.
    */
   allowRequest(): boolean {
-    if (this.state === 'closed') return true;
-    if (this.state === 'open') {
-      if (this.now() - this.openedAt < this.cooldownMs) return false;
-      this.state = 'half-open';
-      this.probeInFlight = true;
-      return true;
-    }
-    // half-open: admit only one probe at a time.
-    if (this.probeInFlight) return false;
-    this.probeInFlight = true;
-    return true;
+    return this.admit() !== null;
   }
 
-  recordSuccess(): void {
+  /** Like {@link allowRequest}, returning the admission to settle with. */
+  admit(): CircuitAdmission | null {
+    if (this.state === 'closed') return { probeId: null };
+    if (this.state === 'open') {
+      if (this.now() - this.openedAt < this.cooldownMs) return null;
+      this.state = 'half-open';
+    }
+    // half-open: admit only one probe at a time.
+    if (this.probeId !== null) return null;
+    this.probeId = this.nextProbeId++;
+    return { probeId: this.probeId };
+  }
+
+  /** No admission (older callers) settles as the probe, as before. */
+  private ownsProbe(admission: CircuitAdmission | undefined): boolean {
+    return admission === undefined || admission.probeId === this.probeId;
+  }
+
+  recordSuccess(_admission?: CircuitAdmission): void {
+    // Any success is evidence the indexer works, so it closes the circuit.
     this.state = 'closed';
     this.consecutiveFailures = 0;
     this.lastFailure = null;
-    this.probeInFlight = false;
+    this.probeId = null;
   }
 
-  recordFailure(err: unknown): void {
+  recordFailure(err: unknown, admission?: CircuitAdmission): void {
     // LockError means "another process is writing — try again later", not a
     // broken indexer. Do not count it against the failure threshold.
     if (err instanceof LockError) {
       this.lastFailure = `[transient/lock] ${err.message}`;
-      this.probeInFlight = false;
+      if (this.ownsProbe(admission)) this.probeId = null;
       return;
     }
     this.lastFailure = err instanceof Error ? err.message : String(err);
-    this.probeInFlight = false;
     this.consecutiveFailures++;
+    // Another run's failure while the probe is in flight: the probe decides.
+    if (!this.ownsProbe(admission) && this.probeId !== null) return;
+    this.probeId = null;
     if (this.state === 'half-open' || this.consecutiveFailures >= this.failureThreshold) {
       this.state = 'open';
       this.openedAt = this.now();
@@ -143,8 +167,8 @@ export class IndexCircuitBreaker {
    * able to admit the next probe — otherwise it refuses every request until a
    * manual reset.
    */
-  abandonProbe(): void {
-    this.probeInFlight = false;
+  abandonProbe(admission?: CircuitAdmission): void {
+    if (this.ownsProbe(admission)) this.probeId = null;
   }
 
   /** Force-close the circuit (manual recovery: `/codebase-reindex`). */
@@ -152,7 +176,7 @@ export class IndexCircuitBreaker {
     this.state = 'closed';
     this.consecutiveFailures = 0;
     this.lastFailure = null;
-    this.probeInFlight = false;
+    this.probeId = null;
     this.openedAt = 0;
   }
 

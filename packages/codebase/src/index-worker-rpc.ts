@@ -144,6 +144,9 @@ export function warnEndpointInvalidOnce(
   );
 }
 
+/** The longest delay a Node timer honours. */
+const MAX_WATCHDOG_MS = 2 ** 31 - 1;
+
 /**
  * Run one operation, in the worker when available, inline otherwise. Both
  * paths share the watchdog: the returned promise ALWAYS settles within
@@ -156,6 +159,9 @@ export function dispatchIndexOp<O extends OpName>(
   opts: CallOpts,
   indexing: boolean,
 ): Promise<OpShapes[O]['result']> {
+  // Every watchdog below is a setTimeout, which fires a delay above its ceiling
+  // (or Infinity) after ~1 ms: a longer configured timeout must not abort sooner.
+  if (opts.timeoutMs > MAX_WATCHDOG_MS) opts = { ...opts, timeoutMs: MAX_WATCHDOG_MS };
   // Production builds route every operation through one detached server per
   // project. The worker/inline path below still exists for source-tree tests
   // and exotic runtimes, but it has to be asked for: reaching it because the
@@ -244,6 +250,9 @@ function dispatchLocal<O extends OpName>(
 
     const timer = setTimeout(() => {
       pending.delete(id);
+      // This path settles without the pending entry, so release the caller's
+      // abort listener here too; it would otherwise post `cancel` to a dead worker.
+      cleanup();
       const err = new IndexTimeoutError(
         `Index ${op} exceeded its ${opts.timeoutMs}ms watchdog timeout`,
       );

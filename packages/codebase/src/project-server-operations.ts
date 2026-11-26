@@ -89,6 +89,8 @@ export async function runFullIndex(
 ): Promise<OpShapes['index']['result']> {
   const subscriber: FullIndexSubscriber = { state, id };
   let active = ctx.getActiveFullIndex();
+  // Its last subscriber cancelled it: aborted, though still settling. Never join it.
+  if (active?.controller.signal.aborted) active = null;
   if (!active) {
     const controller = new AbortController();
     const subscribers = new Set<FullIndexSubscriber>([subscriber]);

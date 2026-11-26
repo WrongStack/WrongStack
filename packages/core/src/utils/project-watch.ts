@@ -30,6 +30,7 @@ export interface ProjectWatchSubscription {
 interface Subscriber {
   listener: (event: ProjectWatchEvent) => void;
   onError?: ((error: unknown) => void) | undefined;
+  onClose?: (() => void) | undefined;
 }
 
 function reportSubscriberError(subscriber: Subscriber, error: unknown): void {
@@ -68,7 +69,11 @@ function registryKey(root: string): string {
 export function watchProjectTree(
   root: string,
   listener: (event: ProjectWatchEvent) => void,
-  opts?: { onError?: ((error: unknown) => void) | undefined },
+  opts?: {
+    onError?: ((error: unknown) => void) | undefined;
+    /** Called once if the underlying watcher retires while subscribed. */
+    onClose?: (() => void) | undefined;
+  },
 ): ProjectWatchSubscription {
   const key = registryKey(root);
   let entry = registry.get(key);
@@ -100,8 +105,16 @@ export function watchProjectTree(
     );
     const created: WatchEntry = { watcher, subscribers, dead: false };
     const retire = (): void => {
+      if (created.dead) return;
       created.dead = true;
       if (registry.get(key) === created) registry.delete(key);
+      for (const sub of subscribers) {
+        try {
+          sub.onClose?.();
+        } catch {
+          // A close observer must not interrupt the other subscribers.
+        }
+      }
     };
     watcher.on('error', (error) => {
       // A watcher that errored is closed by Node — mark the entry dead so the
@@ -130,7 +143,7 @@ export function watchProjectTree(
   }
 
   const active = entry;
-  const subscriber: Subscriber = { listener, onError: opts?.onError };
+  const subscriber: Subscriber = { listener, onError: opts?.onError, onClose: opts?.onClose };
   active.subscribers.add(subscriber);
 
   let closed = false;

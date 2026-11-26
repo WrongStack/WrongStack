@@ -19,6 +19,7 @@ import {
   shutdownCodebaseIndexHost,
 } from '@wrongstack/tools';
 import { clearCodemapGraphCache } from './codemap-cache.js';
+import { isPathInside } from './path-containment.js';
 import { errMessage } from './ws-utils.js';
 
 const WATCHER_DEDUP_TTL_MS = 60_000;
@@ -78,7 +79,8 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
   }
 
   let watcher: ProjectWatchSubscription | undefined;
-  const lastWatcherEvent = new Map<string, number>();
+  const pendingRenameProbes = new Map<string, symbol>();
+  const lastWatcherEvent = new Map<string, { at: number; operation: 'delete' | 'edit' }>();
   if (deps.events) {
     try {
       // Shares the process-wide recursive watcher with any other subscriber
@@ -92,13 +94,34 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
         if (disposed) return;
         let operation: 'delete' | 'edit' = 'edit';
         if (eventType === 'rename') {
+          const probe = Symbol();
+          pendingRenameProbes.set(abs, probe);
           try {
             await fs.promises.access(abs);
           } catch {
             operation = 'delete';
           }
+          if (pendingRenameProbes.get(abs) !== probe) return;
         }
+        // A newer event for this path supersedes any unfinished rename probe.
+        pendingRenameProbes.delete(abs);
         if (disposed) return;
+        const previous = lastWatcherEvent.get(abs);
+        if (previous?.operation === operation && now - previous.at <= 75) return;
+
+        // Refresh recency and cap history for a long-running WebUI process.
+        lastWatcherEvent.delete(abs);
+        lastWatcherEvent.set(abs, { at: now, operation });
+        if (lastWatcherEvent.size > WATCHER_DEDUP_MAX_PATHS) {
+          for (const [cachedPath, seen] of lastWatcherEvent) {
+            if (now - seen.at > WATCHER_DEDUP_TTL_MS) lastWatcherEvent.delete(cachedPath);
+          }
+          while (lastWatcherEvent.size > WATCHER_DEDUP_MAX_PATHS) {
+            const oldest = lastWatcherEvent.keys().next().value;
+            if (oldest === undefined) break;
+            lastWatcherEvent.delete(oldest);
+          }
+        }
         deps.events?.emit('file.activity', {
           filePath: path.normalize(abs),
           operation,
@@ -115,29 +138,10 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
           const rel = filename;
           if (isIgnored(rel)) return;
           const abs = path.resolve(deps.projectRoot, rel);
-          if (!isInside(deps.projectRoot, abs) || !isIndexableFile(abs)) return;
-          const now = Date.now();
-          const previousEventAt = lastWatcherEvent.get(abs) ?? 0;
-          if (now - previousEventAt > 75) {
-            // Treat the map as a small LRU and opportunistically evict expired
-            // paths. Generated files can otherwise leave one permanent entry per
-            // unique filename in a long-running WebUI process.
-            lastWatcherEvent.delete(abs);
-            lastWatcherEvent.set(abs, now);
-            if (lastWatcherEvent.size > WATCHER_DEDUP_MAX_PATHS) {
-              for (const [cachedPath, seenAt] of lastWatcherEvent) {
-                if (now - seenAt > WATCHER_DEDUP_TTL_MS) lastWatcherEvent.delete(cachedPath);
-              }
-              while (lastWatcherEvent.size > WATCHER_DEDUP_MAX_PATHS) {
-                const oldest = lastWatcherEvent.keys().next().value;
-                if (oldest === undefined) break;
-                lastWatcherEvent.delete(oldest);
-              }
-            }
-            void emitActivity(abs, eventType, now).catch((err) =>
-              deps.logger.debug(`webui codebase index watcher error: ${err}`),
-            );
-          }
+          if (!isPathInside(deps.projectRoot, abs) || !isIndexableFile(abs)) return;
+          void emitActivity(abs, eventType, Date.now()).catch((err) =>
+            deps.logger.debug(`webui codebase index watcher error: ${err}`),
+          );
           // External reindexing is owned by the detached project server. This
           // local shared watcher exists only to publish file.activity telemetry.
         },
@@ -154,7 +158,7 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
     const abs = path.isAbsolute(filePath)
       ? path.normalize(filePath)
       : path.resolve(deps.projectRoot, filePath);
-    if (!isInside(deps.projectRoot, abs) || !isIndexableFile(abs)) return;
+    if (!isPathInside(deps.projectRoot, abs) || !isIndexableFile(abs)) return;
     enqueueReindex({
       projectRoot: deps.projectRoot,
       files: [abs],
@@ -270,6 +274,7 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
       disposed = true;
       unsubscribeMaterialized?.();
       unsubscribeIndexState();
+      pendingRenameProbes.clear();
       lastWatcherEvent.clear();
       try {
         watcher?.close();
@@ -286,12 +291,4 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
 
 function isIgnored(rel: string): boolean {
   return rel.split(/[/\\]/).some((seg) => DEFAULT_WALK_IGNORE_SET.has(seg));
-}
-
-function isInside(root: string, target: string): boolean {
-  const normalizedRoot = path.resolve(root);
-  const normalizedTarget = path.resolve(target);
-  return (
-    normalizedTarget === normalizedRoot || normalizedTarget.startsWith(normalizedRoot + path.sep)
-  );
 }
