@@ -16,7 +16,7 @@ it('waits for the owner of a registered copy of an instrumented tool', async () 
         await gate.promise;
         return { content: 'done', isError: false };
       },
-    } as Tool,
+    } as unknown as Tool,
     'base-plugin',
   );
 

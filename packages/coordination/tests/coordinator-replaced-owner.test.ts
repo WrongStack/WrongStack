@@ -55,21 +55,21 @@ describe('coordinator replaced owner', () => {
       subagentId: 'reused',
     });
 
-    releases.get('task-old')?.({ result: 'stale' });
+    releases.get('task-old')?.({ result: 'stale', iterations: 0, toolCalls: 0 });
     await coord.awaitTasks(['task-old']);
 
     const worker = coord.getStatus().subagents.find((subagent) => subagent.id === 'reused');
     expect(worker).toMatchObject({ status: 'running', currentTask: 'task-new' });
     expect(coord.listPendingTasks().map((task) => task.id)).toEqual(['task-extra']);
 
-    releases.get('task-new')?.({ result: 'new' });
+    releases.get('task-new')?.({ result: 'new', iterations: 0, toolCalls: 0 });
     await coord.awaitTasks(['task-new']);
     await entered.get('task-extra');
     expect(coord.getStatus().subagents.find((subagent) => subagent.id === 'reused')).toMatchObject({
       status: 'running',
       currentTask: 'task-extra',
     });
-    releases.get('task-extra')?.({ result: 'extra' });
+    releases.get('task-extra')?.({ result: 'extra', iterations: 0, toolCalls: 0 });
     await coord.awaitTasks(['task-extra']);
   });
 });

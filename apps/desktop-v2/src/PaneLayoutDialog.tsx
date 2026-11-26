@@ -35,6 +35,7 @@ export function PaneLayoutDialog({ onClose }: { onClose: () => void }) {
           Resize by dragging a pane edge, using the arrow keys on its divider, or entering a width
           here. Narrow windows adapt without changing saved widths.
         </p>
+        {/* biome-ignore lint/a11y/useSemanticElements: a fieldset's border and padding would change this button row. */}
         <div className="pane-layout-actions" role="group" aria-label="Layout presets">
           {Object.entries(panePresets).map(([name, preset]) => (
             <button

@@ -20,7 +20,7 @@ describe('eternal directive journal notes keep valid UTF-16 (F2653)', () => {
     const out = buildDirective(
       {} as never,
       goal(`${'n'.repeat(79)}${ROCKET}tail`),
-      'agent',
+      'manual',
       'task',
     );
 
@@ -29,7 +29,7 @@ describe('eternal directive journal notes keep valid UTF-16 (F2653)', () => {
   });
 
   it('keeps a short note unchanged (control)', () => {
-    const out = buildDirective({} as never, goal('plain note'), 'agent', 'task');
+    const out = buildDirective({} as never, goal('plain note'), 'manual', 'task');
 
     expect(out).toContain('plain note');
   });

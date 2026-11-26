@@ -32,6 +32,7 @@ export function PaneSplitter({
     setPreview(null);
   }
   return (
+    // biome-ignore lint/a11y/useSemanticElements: a focusable, draggable splitter is a widget separator; <hr> is static and cannot take focus or pointer drags.
     <div
       className="pane-splitter"
       data-side={side}

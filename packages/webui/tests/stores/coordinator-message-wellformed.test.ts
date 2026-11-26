@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { useCoordinatorMonitorStore } from '../../src/stores/coordinator-monitor-store.js';
 
 const ROCKET = '\u{1F680}';
+// The WebUI test lib predates ES2024's String#isWellFormed typing.
+const isWellFormed = (text: string): boolean =>
+  (text as unknown as { isWellFormed(): boolean }).isWellFormed();
 
 /**
  * F2645: the coordinator monitor builds task toasts with a plain 60-unit
@@ -23,7 +26,7 @@ describe('coordinator monitor messages keep valid UTF-16 (F2645)', () => {
     );
     const message = useCoordinatorMonitorStore.getState().events[0]?.message ?? '';
 
-    expect(message.isWellFormed()).toBe(true);
+    expect(isWellFormed(message)).toBe(true);
     expect(message).toContain('d'.repeat(59));
   });
 
@@ -32,7 +35,7 @@ describe('coordinator monitor messages keep valid UTF-16 (F2645)', () => {
     state.pushEvent('task.failed', { taskId: 't2', error: `${'e'.repeat(59)}${ROCKET}tail` }, 1);
     const message = useCoordinatorMonitorStore.getState().events[0]?.message ?? '';
 
-    expect(message.isWellFormed()).toBe(true);
+    expect(isWellFormed(message)).toBe(true);
   });
 
   it('renders short values unchanged (control)', () => {

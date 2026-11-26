@@ -1,4 +1,3 @@
-import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -30,7 +29,7 @@ describe('eternal goal journal keeps valid UTF-16 (F2651)', () => {
       goalPath: path.join(dir, 'goal.json'),
       opts: {},
       appendIterationEntry: async (entry: { note?: string }) => {
-        captured.note = entry.note;
+        if (entry.note !== undefined) captured.note = entry.note;
       },
       onEternalStop: () => {},
     };
