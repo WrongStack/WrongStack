@@ -4,7 +4,7 @@
 
 ## What to avoid
 
-<!-- learned-stamp: category=warning; capturedAt=2026-11-26T12:41:59.117Z; skill=typescript-strict -->
+<!-- learned-stamp: category=warning; capturedAt=2026-11-26T12:41:59.117Z; skill=typescript-strict; skipped=1; skippedWins=1 -->
 - **- In `apps/desktop-v2` (tsconfig has `exactOptionalPropertyTypes: true`), declare new optional component props as `prop?: T | undefined` when callers may pass explicit `undefined`, or `pane={cond ? value : undefined}` fails typecheck. - When overriding a hook-returned setter from `useFileWorkspace` (model is `ReturnType<typeof useFileWorkspace>`), annotate the override as `Dispatch<SetStateAction<boolean>>` from `react` — a plain `(v: boolean) => void` is not assignable to `Dispatch<SetStateAction<boolean>>` under strict function types. - To drive a parent grid's column width from a child component you can't edit, set an inline CSS custom property + `data-*` marker on the child and switch the parent track to `auto` via `:has(> child[data-*])` with `width: var(--x, fallback)` on the child — custom properties never inherit upward, and this keeps media/container-query stacked overrides working by listing the controlled selector in those blocks.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `apps/desktop-v2`
@@ -22,7 +22,7 @@
   - *How:* `:has(> child[data-*])`
   - *How:* `width: var(--x, fallback)`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-11-26T11:19:50.937Z; skill=testing; applied=1; wins=1 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-11-26T11:19:50.937Z; skill=testing; applied=2; wins=2 -->
 - **Always write desktop-v2 component tests as plain `*.test.ts` using `createElement(...)` from `react` instead of JSX — `apps/desktop-v2/vitest.config.ts` includes only `tests/**/*.test.ts`, so a `.test.tsx` file is silently skipped by the package's own suite even though the root `vitest.config.ts` collects it (run `npx vitest run <file> --config vitest.config.ts` from `apps/desktop-v2` to prove inclusion). When a desktop-v2 jsdom test renders `FileWorkspace` (or anything calling `useFileWorkspace`), mock `../src/platform.js` with `vi.mock` before the dynamic component import: the real `request` rejects outside Tauri, so `FileDraftStore.load` rejects and `openFile` never creates a document — provide an in-memory `fileDraftStorage` (`get` → `{ revision, value: null }`, `save` → bumping revision) and return `{ drafts: [] }` for the `file-drafts.list` method.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `*.test.ts`
@@ -50,7 +50,16 @@
 
 ## What to do
 
-<!-- learned-stamp: category=convention; capturedAt=2026-10-20T14:46:47.430Z; skill=bug-hunter; skipped=3; skippedWins=3 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-11-26T16:19:56.965Z; skill=testing -->
+- **The `lint` tool cannot run biome on this host ("Executable not found in $PATH: biome") — verify repo lint/format with `bunx biome check <files>` scoped to the touched files instead of repo-wide `bun run lint`/`bun run format`. Same scoping trick works with `npx vitest run <specific test files> --maxWorkers=2` for focused suites.**
+  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
+  - *How:* `lint`
+  - *How:* `bunx biome check <files>`
+  - *How:* `bun run lint`
+  - *How:* `bun run format`
+  - *How:* `npx vitest run <specific test files> --maxWorkers=2`
+
+<!-- learned-stamp: category=convention; capturedAt=2026-10-20T14:46:47.430Z; skill=bug-hunter; skipped=4; skippedWins=4 -->
 - **When auditing glob/path-matching call sites that receive tool-input paths, always check which of `ctx.cwd` / `ctx.workingDir` is passed: file tools resolve relative paths against the mutable `workingDir` (reference: `path.resolve(ctx.workingDir, value)` in `packages/core/src/security/kanban-boundary.ts`; matcher contract in `packages/core/src/skills/skill-path-rules.ts`), so passing launch `ctx.cwd` silently misses nested matches. Match against the sibling caller of the same helper — disagreement between two halves of one feature is the fastest correctness signal.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `ctx.cwd`
@@ -61,4 +70,4 @@
   - *How:* `packages/core/src/skills/skill-path-rules.ts`
 
 ---
-*Last capture: 2026-11-26T12:41:59.117Z · 3 entries*
+*Last capture: 2026-11-26T16:19:56.965Z · 4 entries*
