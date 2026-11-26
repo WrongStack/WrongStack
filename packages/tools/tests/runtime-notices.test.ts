@@ -231,10 +231,14 @@ describe('process_watch', () => {
         "setInterval(() => console.log('tick'), 50);",
       ].join('\n'),
     );
+    // POSIX shells exec a lone simple command in place of themselves, so the
+    // "shell" would be the command itself; a trailing no-op keeps a real parent.
+    const fixtureCommand = runtimeFixtureCommand(tick);
+    const command = process.platform === 'win32' ? fixtureCommand : `${fixtureCommand}; :`;
     let descendant: number | undefined;
     try {
       const out = await processWatchTool.execute(
-        { command: runtimeFixtureCommand(tick), description: 'held', filter: 'never-matches' },
+        { command, description: 'held', filter: 'never-matches' },
         ctx,
         { signal: newSignal() },
       );
@@ -243,6 +247,7 @@ describe('process_watch', () => {
         const text = existsSync(pidFile) ? readFileSync(pidFile, 'utf8') : '';
         return Number(text) > 0 ? Number(text) : undefined;
       });
+      expect(descendant).not.toBe(pid);
       const shell = getProcessRegistry().get(pid)?.child;
       shell?.kill('SIGKILL'); // the shell only, as the lost race leaves it
       await waitFor(() =>
