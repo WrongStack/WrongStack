@@ -1,5 +1,6 @@
 .wrongstack/
-!/.wrongstack/
 /.wrongstack/*
-!/.wrongstack/project.json
 .temp_files/
+acp-sessions/
+!/.wrongstack/
+!/.wrongstack/project.json
