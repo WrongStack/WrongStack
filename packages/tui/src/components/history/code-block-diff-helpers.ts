@@ -50,20 +50,28 @@ export function countUnifiedDiffChanges(diff: string): { added: number; removed:
   // unconditionally dropped removed `-- comment` lines (SQL/Lua/Haskell) and
   // the added `++ x` lines that follow them. A hunkless snippet (`-a` / `+b`)
   // counts from line 1.
-  let sawHunk = !/^@@/m.test(diff);
+  const hasHunks = /^@@/m.test(diff);
+  let sawHunk = !hasHunks;
   let oldRemaining = 0;
   let newRemaining = 0;
+  // As in core: a header that declares its counts bounds the body, so a line
+  // after it (the format-patch `-- ` signature trailer) is not content; a new
+  // `diff --git` section starts outside any hunk.
+  let hunkCountsDeclared = false;
   let skipHeaderPlus = false;
   const processLine = (end: number): void => {
     const found = startsWithAny(['diff --git ', '@@'], end);
     if (found === 'diff --git ') {
+      sawHunk = !hasHunks;
       oldRemaining = 0;
       newRemaining = 0;
+      hunkCountsDeclared = false;
     } else if (found === '@@') {
       sawHunk = true;
       const hunk = /^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@/.exec(diff.slice(lineStart, end));
       oldRemaining = hunk ? Number(hunk[1] ?? 1) : 0;
       newRemaining = hunk ? Number(hunk[2] ?? 1) : 0;
+      hunkCountsDeclared = hunk !== null;
     } else if (skipHeaderPlus) {
       skipHeaderPlus = false;
     } else if (sawHunk) {
@@ -76,6 +84,7 @@ export function countUnifiedDiffChanges(diff: string): { added: number; removed:
         skipHeaderPlus = true;
         return;
       }
+      if (hunkCountsDeclared && oldRemaining <= 0 && newRemaining <= 0) return;
       const first = diff.charCodeAt(lineStart);
       if (first === 43) {
         added++;

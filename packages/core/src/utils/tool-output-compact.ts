@@ -32,18 +32,34 @@ function countDiffFiles(lines: string[]): number {
   // prefixed one (`a/src/only.ts`). Strip the prefix rather than emit two keys.
   const key = (path: string): string => path.replace(/^[ab]\//, '');
   const files = new Set<string>();
-  let inHunk = false;
+  // A hunk body ends when its declared line counts are consumed (as in
+  // countUnifiedDiffLines): a diff without `diff --git` lines (`diff -ruN`, a
+  // hand-written multi-file patch) has its next file header right after it.
+  let oldRemaining = 0;
+  let newRemaining = 0;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i] ?? '';
     if (line.startsWith('@@')) {
-      inHunk = true;
+      const hunk = /^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@/.exec(line);
+      oldRemaining = hunk ? Number(hunk[1] ?? 1) : 0;
+      newRemaining = hunk ? Number(hunk[2] ?? 1) : 0;
       continue;
     }
     if (line.startsWith('diff --git ')) {
-      inHunk = false;
+      oldRemaining = 0;
+      newRemaining = 0;
       const match = /^diff --git\s+a\/(.+?)\s+b\/(.+)$/.exec(line);
       if (match) files.add(key(match[1]!));
       continue;
+    }
+    const inHunk = oldRemaining > 0 || newRemaining > 0;
+    if (inHunk) {
+      if (line.startsWith('+')) newRemaining -= 1;
+      else if (line.startsWith('-')) oldRemaining -= 1;
+      else if (line.startsWith(' ')) {
+        oldRemaining -= 1;
+        newRemaining -= 1;
+      }
     }
     // Only a pair OUTSIDE a hunk is a header; inside one it is content.
     if (!inHunk && line.startsWith('--- ') && lines[i + 1]?.startsWith('+++ ')) {

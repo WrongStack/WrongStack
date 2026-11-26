@@ -282,6 +282,21 @@ describe('file tool numeric evidence', () => {
       fileToolStats('edit', 'edit (path=src/a.ts replacements=0 note=(no-op: no match))'),
     ).toBeUndefined();
   });
+  it.each(['\n', '\r\n'])('ignores summary-like text inside an edit hunk (%j)', (eol) => {
+    const output = [
+      'edit (path=src/file.ts replacements=1)',
+      '--- src/file.ts',
+      '+++ src/file.ts',
+      '@@ -1 +1 @@',
+      '-const note = "original";',
+      '+const note = "diff_summary (added=900 removed=400)";',
+    ].join(eol);
+    expect(fileToolStats('edit', output)).toEqual({
+      addedLines: 1,
+      removedLines: 1,
+      partial: false,
+    });
+  });
   it('prefers the exact totals in a clipped diff_summary header', () => {
     // compactDiff emits `diff_summary (… added=N removed=N …)` with EXACT
     // counts over the full diff even when only 8 hunks are shown.

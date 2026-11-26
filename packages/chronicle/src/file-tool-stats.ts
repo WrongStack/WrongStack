@@ -102,7 +102,10 @@ function serializedDiffStats(output: string): Record<string, unknown> | undefine
   }
   // No-op edits and identical overwrites produce no diff at all.
   if (start === -1) return undefined;
-  const summary = /diff_summary \([^)]*\badded=(\d+) removed=(\d+)/.exec(output);
+  // Only the renderer's pre-diff header carries totals; hunk content is source text.
+  const summary = /^diff_summary \([^\r\n)]*\badded=(\d+) removed=(\d+)\b[^\r\n)]*\)$/m.exec(
+    lines.slice(0, start).join('\n'),
+  );
   if (summary) {
     return {
       addedLines: Number(summary[1]),
