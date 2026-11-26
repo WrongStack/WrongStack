@@ -142,8 +142,12 @@ function stringifyInput(input: unknown): string {
     Object.entries(obj)
       .filter(([k]) => k !== 'content' && k !== 'new_string')
       // JSON.stringify escapes ESC/CR/LF but NOT bidi or zero-width controls, so
-      // it is not sufficient on its own to keep the rendered value honest.
-      .map(([k, v]) => `${k}: ${truncate(sanitizeTerminalText(JSON.stringify(v)), 80)}`)
+      // it is not sufficient on its own to keep the rendered value honest. The
+      // key is model-supplied too: an open schema lets it name any property.
+      .map(
+        ([k, v]) =>
+          `${sanitizeTerminalText(k)}: ${truncate(sanitizeTerminalText(JSON.stringify(v)), 80)}`,
+      )
       .join('  ')
   );
 }

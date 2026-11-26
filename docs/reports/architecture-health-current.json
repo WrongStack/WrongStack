@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T14:03:04.591Z",
+  "generatedAt": "2026-11-26T14:05:39.362Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6571,
-    "testFiles": 6422,
-    "sourceLines": 1349461,
+    "sourceFiles": 6572,
+    "testFiles": 6427,
+    "sourceLines": 1349529,
     "workspaceEdges": 261,
-    "moduleEdges": 19249,
+    "moduleEdges": 19250,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -551,8 +551,8 @@
     {
       "name": "@wrongstack/hq-next",
       "dir": "packages/hq-next",
-      "sourceFiles": 205,
-      "testFiles": 103,
+      "sourceFiles": 206,
+      "testFiles": 104,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -569,7 +569,7 @@
         {
           "path": "packages/hq-next/tsconfig.test.json",
           "error": null,
-          "testFiles": 103
+          "testFiles": 104
         }
       ]
     },
@@ -1112,7 +1112,7 @@
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
       "sourceFiles": 517,
-      "testFiles": 501,
+      "testFiles": 502,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1141,7 +1141,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 501
+          "testFiles": 502
         }
       ]
     },
@@ -1173,7 +1173,7 @@
       "name": "@wrongstack/vibeui",
       "dir": "packages/vibeui",
       "sourceFiles": 101,
-      "testFiles": 52,
+      "testFiles": 53,
       "workspaceDependencies": [
         "@wrongstack/webui-protocol"
       ],
@@ -1186,7 +1186,7 @@
         {
           "path": "packages/vibeui/tsconfig.test.json",
           "error": null,
-          "testFiles": 52
+          "testFiles": 53
         }
       ]
     },
@@ -1194,7 +1194,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 799,
-      "testFiles": 578,
+      "testFiles": 580,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1220,7 +1220,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 578
+          "testFiles": 580
         }
       ]
     },
@@ -17892,6 +17892,12 @@
         ]
       },
       {
+        "file": "packages/hq-next/tests/approval-detail-hidden-text.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq-next/tests/attention-model.test.ts",
         "projects": [
           "root-node"
@@ -30342,6 +30348,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/confirm-prompt-diff-sanitize.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/confirm-prompt.test.ts",
         "projects": [
           "root-node"
@@ -33229,6 +33241,12 @@
       },
       {
         "file": "packages/vibeui/tests/compose-message-empty-ref.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/vibeui/tests/confirm-hidden-text.test.ts",
         "projects": [
           "root-node"
         ]
@@ -36757,6 +36775,18 @@
       },
       {
         "file": "packages/webui/tests/components/composer-button-bar.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/confirm-dialog-hidden-text.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/confirm-dialog-hotkey-modifiers.test.tsx",
         "projects": [
           "webui-jsdom"
         ]

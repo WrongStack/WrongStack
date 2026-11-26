@@ -23,6 +23,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/cn';
 import { remainingLabel } from '../attention/model';
+import { withoutHiddenText } from './hidden-text';
 
 /** Under this, answering from HQ is a race against the Brain arbiter. */
 const URGENT_MS = 30_000;
@@ -85,13 +86,15 @@ function stringify(value: unknown): string | null {
 }
 
 export function ApprovalDetail({
-  approval,
+  approval: raw,
   projectName,
 }: {
   approval: PendingApproval;
   /** Display name from the fleet snapshot; falls back to the project id. */
   projectName?: string | undefined;
 }): ReactNode {
+  // Shown from a copy without bidi/invisible text; answered with the original.
+  const approval = withoutHiddenText(raw);
   const { answer, pendingFor } = useAnswerApproval();
   // Offer only what this login may do: the server re-checks every answer, and
   // a button that always comes back 403 is worse than no button. A phone login
@@ -195,7 +198,7 @@ export function ApprovalDetail({
             <button
               type="button"
               disabled={sending}
-              onClick={() => void answer(approval, 'yes')}
+              onClick={() => void answer(raw, 'yes')}
               className="h-10 bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               Allow once
@@ -203,7 +206,7 @@ export function ApprovalDetail({
             <button
               type="button"
               disabled={sending}
-              onClick={() => void answer(approval, 'no')}
+              onClick={() => void answer(raw, 'no')}
               className="h-10 border border-border px-5 text-sm font-medium hover:bg-muted disabled:opacity-50"
             >
               Refuse once
@@ -264,7 +267,7 @@ export function ApprovalDetail({
               type="button"
               disabled={sending}
               onClick={() => {
-                void answer(approval, pending.decision);
+                void answer(raw, pending.decision);
                 setConfirming(null);
               }}
               className={cn(

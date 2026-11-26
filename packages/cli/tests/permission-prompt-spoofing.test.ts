@@ -84,6 +84,16 @@ describe('the approval prompt cannot be repainted by its own payload', () => {
     expect(out).not.toMatch(/[​-‏‪-‮⁦-⁩﻿]/);
   });
 
+  it('strips escapes and bidi controls from an input key, not only its value', async () => {
+    // A schema with open additionalProperties (common on MCP tools) lets the
+    // model choose the key as freely as the value.
+    const out = await prompt({ [`${ESC}[2K${ESC}[1G‮path`]: '/a', content: 'x' });
+    expect(out).not.toContain(`${ESC}[2K`);
+    expect(out).not.toContain(`${ESC}[1G`);
+    expect(out).not.toMatch(/[‪-‮]/);
+    expect(out).toContain('path: "/a"');
+  });
+
   it('strips escapes from the always-allow suggested pattern', async () => {
     const out = await prompt({ path: '/a', content: 'x' }, `write:/a${ESC}[2J`);
     expect(out).not.toContain(`${ESC}[2J`);

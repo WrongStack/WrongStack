@@ -291,7 +291,13 @@ export function ConfirmPrompt({
   // one: the TUI's layout copy keeps ZWJ/tag sequences for emoji rendering.
   const inputSummary = sanitizeTerminalText(stringifyInput(input));
   const inp = input as { path?: unknown | undefined };
-  const diff = payloadDiff(input);
+  // The diff is the content being approved: same core sanitizer as the summary
+  // (DiffBlock's layout sanitizer keeps bidi/invisible characters). Tabs are
+  // kept so DiffBlock expands them to its tab stops, as in the history entry.
+  const diff = payloadDiff(input)
+    .split('\t')
+    .map((part) => sanitizeTerminalText(part))
+    .join('\t');
   const diffPath = typeof inp?.path === 'string' ? inp.path : undefined;
 
   // NOTE: no marginY here — the call site wraps this in a measured Box that
@@ -304,7 +310,7 @@ export function ConfirmPrompt({
         <MonitorShell
           accent="yellow"
           icon="⚠"
-          title={`APPROVAL REQUIRED · ${toolName}`}
+          title={`APPROVAL REQUIRED · ${sanitizeTerminalText(toolName)}`}
           footer={
             <Box flexDirection="row" flexWrap="wrap">
               {buttonLabels(suggestedPattern, toolName).map((label) => (
@@ -328,7 +334,9 @@ export function ConfirmPrompt({
           }
         >
           {inputSummary ? <Text dimColor>{inputSummary}</Text> : null}
-          {boundaryReason ? <Text color="yellow">KANBAN BOUNDARY: {boundaryReason}</Text> : null}
+          {boundaryReason ? (
+            <Text color="yellow">KANBAN BOUNDARY: {sanitizeTerminalText(boundaryReason)}</Text>
+          ) : null}
           {writeTargets && writeTargets.length > 0 ? (
             <Text color="yellow">
               WRITES:{' '}

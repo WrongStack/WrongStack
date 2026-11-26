@@ -44,12 +44,32 @@ export function isDestructiveConfirm(info: {
 }
 
 /**
+ * Bidi and zero-width controls, dropped from everything the approval shows: in
+ * an approval they only make the displayed text diverge from the real one (a
+ * U+202E reorders the command). Same character set as core's
+ * sanitizeTerminalText, which the TUI dialog uses.
+ */
+const HIDDEN_TEXT_RE = /[\p{Bidi_Control}\p{Default_Ignorable_Code_Point}]/gu;
+
+function withoutHiddenText(value: unknown): unknown {
+  if (typeof value === 'string') return value.replace(HIDDEN_TEXT_RE, '');
+  if (Array.isArray(value)) return value.map(withoutHiddenText);
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k.replace(HIDDEN_TEXT_RE, ''), withoutHiddenText(v)]),
+    );
+  }
+  return value;
+}
+
+/**
  * Render the tool input intelligently. For edit/write we drop the JSON
  * dump and show a proper diff. For shell-like tools we surface the
  * command as a single mono line. Everything else falls back to JSON.
  */
-function SmartInputPreview({ toolName, input }: { toolName: string; input: unknown }) {
+function SmartInputPreview({ toolName, input: raw }: { toolName: string; input: unknown }) {
   const { t } = useAppTranslation();
+  const input = withoutHiddenText(raw);
   const diff = diffFromToolInput(toolName, input);
   if (diff) {
     return (
@@ -213,6 +233,9 @@ export function ConfirmDialog() {
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName?.toLowerCase();
       if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      // Bare letters only, as the TUI prompt drops ctrl/meta chords:
+      // Ctrl/Cmd+A (select-all) must not approve with the "always" scope.
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === 'y' || e.key === 'Y') {
         e.preventDefault();
         handleConfirm('yes');
@@ -243,6 +266,8 @@ export function ConfirmDialog() {
   }
 
   const Icon = pickToolIcon(confirmInfo.toolName);
+  // MCP tool names come from the server that registered them.
+  const shownToolName = confirmInfo.toolName.replace(HIDDEN_TEXT_RE, '');
   const isEdit = /edit|write/i.test(confirmInfo.toolName);
   const riskLabel = confirmInfo.riskTier ?? 'standard';
   const remainingSeconds = confirmInfo.deadlineAt
@@ -263,10 +288,10 @@ export function ConfirmDialog() {
         <DialogHeader className="shrink-0 border-b border-border/60 px-3 py-3 pr-10 sm:px-6 sm:py-5 sm:pr-12">
           <DialogTitle className="flex items-center gap-2">
             <ShieldAlert className="h-5 w-5 text-warning animate-pulse" />
-            {t('confirm.title', { tool: confirmInfo.toolName })}
+            {t('confirm.title', { tool: shownToolName })}
           </DialogTitle>
           <DialogDescription>
-            {confirmInfo.boundaryReason ??
+            {confirmInfo.boundaryReason?.replace(HIDDEN_TEXT_RE, '') ??
               (isEdit ? t('confirm.descriptionEdit') : t('confirm.descriptionTool'))}
           </DialogDescription>
           {isUserRuleConfirm(confirmInfo) ? (
@@ -293,7 +318,7 @@ export function ConfirmDialog() {
           <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
             <Icon className="h-5 w-5 text-muted-foreground" />
             <div className="min-w-0">
-              <div className="font-medium font-mono truncate">{confirmInfo.toolName}</div>
+              <div className="font-medium font-mono truncate">{shownToolName}</div>
               <div className="text-xs text-muted-foreground">
                 {isEdit ? t('confirm.fileModification') : t('confirm.toolExecution')} —{' '}
                 {t('confirm.riskSuffix', { risk: riskLabel })}
@@ -319,7 +344,7 @@ export function ConfirmDialog() {
                   <option value="always-command">{t('confirm.scopeCommand')}</option>
                 )}
                 <option value="always-tool">
-                  {t('confirm.scopeTool', { tool: confirmInfo.toolName })}
+                  {t('confirm.scopeTool', { tool: shownToolName })}
                 </option>
               </select>
               <span className="block text-xs text-muted-foreground">{t('confirm.scopeHint')}</span>
@@ -332,7 +357,7 @@ export function ConfirmDialog() {
               <div className="text-sm min-w-0">
                 <div className="font-medium text-warning">{t('confirm.trustSuggestionTitle')}</div>
                 <div className="font-mono text-xs mt-1 break-all">
-                  {confirmInfo.suggestedPattern}
+                  {confirmInfo.suggestedPattern.replace(HIDDEN_TEXT_RE, '')}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
                   {t('confirm.trustSuggestionHint')}

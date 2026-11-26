@@ -26,17 +26,25 @@ export function resolveConfirmation(state: SessionState, id: string): SessionSta
     : { ...state, confirmQueue: state.confirmQueue.filter((c) => c.id !== id) };
 }
 
+/**
+ * Bidi and zero-width controls: JSON escaping leaves them raw, and in an
+ * approval they only make the shown arguments diverge from the real ones (a
+ * U+202E reorders the command). Never structural JSON, so dropping them from
+ * the text keeps it parseable.
+ */
+const HIDDEN_TEXT_RE = /[\p{Bidi_Control}\p{Default_Ignorable_Code_Point}]/gu;
+
 /** The first approval is shown; concurrent ones queue in arrival order. */
 const confirmNeeded: FrameReducer = (state, p) => {
   let input = '';
   try {
-    input = JSON.stringify(p.input, null, 2) ?? '';
+    input = (JSON.stringify(p.input, null, 2) ?? '').replace(HIDDEN_TEXT_RE, '');
   } catch {
     input = '';
   }
   const confirm = {
     id: text(p.id),
-    tool: text(p.toolName),
+    tool: text(p.toolName).replace(HIDDEN_TEXT_RE, ''),
     input,
     deadlineAt: number(p.deadlineAt),
   };
