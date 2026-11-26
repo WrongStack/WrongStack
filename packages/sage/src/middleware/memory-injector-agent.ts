@@ -86,6 +86,15 @@ function collectTaskSignals(ctx: ToolCallPipelinePayload['ctx']): string[] {
   ].slice(0, 12);
 }
 
+/** End a journal-field cut on a code-point boundary (never emit half a surrogate pair). */
+function clipSignal(value: string, max: number): string {
+  if (value.length <= max) return value;
+  let end = max;
+  const last = value.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+}
+
 function collectKanbanSignals(value: unknown, out: string[]): void {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return;
   const record = value as Record<string, unknown>;
@@ -112,7 +121,7 @@ function collectKanbanSignals(value: unknown, out: string[]): void {
           : [];
     for (const entry of values) {
       const text = entry.replace(/\s+/g, ' ').trim();
-      if (text) out.push(`${key} ${text.slice(0, 400)}`);
+      if (text) out.push(`${key} ${clipSignal(text, 400)}`);
       if (out.length >= 8) return;
     }
   }

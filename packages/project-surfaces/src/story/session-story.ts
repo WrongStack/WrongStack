@@ -80,6 +80,15 @@ export function storyKind(type: string, tool?: string): StoryKind {
 }
 
 /** Only explicit tab ownership is accepted. No project-wide or unscoped bleed. */
+/** End a detail cut on a code-point boundary (never emit half a surrogate pair). */
+function clipStoryText(value: string, max: number): string {
+  if (value.length <= max) return value;
+  let end = max;
+  const last = value.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+}
+
 export function buildSessionStory(
   sessionId: string,
   records: ChronicleEventView[],
@@ -331,7 +340,7 @@ export function buildSessionStory(
       actor: actorId,
       kind: 'mail',
       title: message.subject || message.type,
-      detail: `${message.from} → ${message.to} · ${message.priority}\n${message.body.slice(0, 3000)}`,
+      detail: `${message.from} → ${message.to} · ${message.priority}\n${clipStoryText(message.body, 3000)}`,
     });
   }
   for (const trace of traces) {

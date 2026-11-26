@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T15:52:08.543Z",
+  "generatedAt": "2026-11-26T15:54:36.159Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6580,
-    "testFiles": 6492,
-    "sourceLines": 1351668,
+    "testFiles": 6496,
+    "sourceLines": 1351698,
     "workspaceEdges": 261,
     "moduleEdges": 19289,
     "nonCommandSlashImports": 0,
@@ -455,7 +455,7 @@
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
       "sourceFiles": 64,
-      "testFiles": 38,
+      "testFiles": 39,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -476,7 +476,7 @@
         {
           "path": "packages/fleet/tsconfig.test.json",
           "error": null,
-          "testFiles": 38
+          "testFiles": 39
         }
       ]
     },
@@ -780,7 +780,7 @@
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
       "sourceFiles": 263,
-      "testFiles": 55,
+      "testFiles": 57,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -797,7 +797,7 @@
         {
           "path": "packages/project-surfaces/tsconfig.test.json",
           "error": null,
-          "testFiles": 55
+          "testFiles": 57
         }
       ]
     },
@@ -913,7 +913,7 @@
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
       "sourceFiles": 179,
-      "testFiles": 202,
+      "testFiles": 203,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -933,7 +933,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 202
+          "testFiles": 203
         }
       ]
     },
@@ -17346,6 +17346,12 @@
         ]
       },
       {
+        "file": "packages/fleet/tests/acp-live-progress-wellformed.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/fleet/tests/acp-p0-fixes.test.ts",
         "projects": [
           "root-node"
@@ -23196,6 +23202,12 @@
         ]
       },
       {
+        "file": "packages/project-surfaces/tests/office-tool-summary-wellformed.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/project-surfaces/tests/provider-key-save-race.test.tsx",
         "projects": [
           "root-node"
@@ -23287,6 +23299,12 @@
       },
       {
         "file": "packages/project-surfaces/tests/story-history-sync-throw-and-mask.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/project-surfaces/tests/story-mail-detail-wellformed.test.ts",
         "projects": [
           "root-node"
         ]
@@ -25507,6 +25525,12 @@
       },
       {
         "file": "packages/sage/tests/middleware-helpers-coverage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/middleware/memory-injector-query-wellformed.test.ts",
         "projects": [
           "root-node"
         ]

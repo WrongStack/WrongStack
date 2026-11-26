@@ -148,7 +148,11 @@ export function publishAcpLiveProgress(opts: PublishAcpLiveProgressOpts): void {
 function safeJson(value: unknown): string | undefined {
   try {
     const text = JSON.stringify(value);
-    return text.length > 4_096 ? `${text.slice(0, 4_095)}…` : text;
+    if (text.length <= 4_096) return text;
+    let end = 4_095;
+    const last = text.charCodeAt(end - 1);
+    if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+    return `${text.slice(0, end)}…`;
   } catch {
     return undefined;
   }

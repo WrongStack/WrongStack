@@ -162,9 +162,17 @@ function patchDelta(value: string): { added: number; removed: number } | null {
   return added || removed ? { added, removed } : null;
 }
 
+/** End a summary cut on a code-point boundary (never emit half a surrogate pair). */
+function clipSummary(value: string, max: number): string {
+  let end = max;
+  const last = value.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+}
+
 function compactCommand(value: string): string {
   const firstLine = value.split(/\r?\n/, 1)[0]?.trim() ?? value;
-  return firstLine.length > 72 ? `${firstLine.slice(0, 69)}…` : firstLine;
+  return firstLine.length > 72 ? `${clipSummary(firstLine, 69)}…` : firstLine;
 }
 
 export function classifyOfficeTool(toolName: string): OfficeToolKind {
