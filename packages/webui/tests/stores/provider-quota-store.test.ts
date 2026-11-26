@@ -133,5 +133,9 @@ describe('presentation', () => {
       formatQuotaResetIn({ id: 'p', usedPercent: 1, resetsAt: now / 1000 - 10 }, now),
     ).toBeUndefined();
     expect(formatQuotaResetIn({ id: 'p', usedPercent: 1 })).toBeUndefined();
+    // As core: 59.6s rounds up to a full minute, never "60s".
+    expect(formatQuotaResetIn({ id: 'p', usedPercent: 1, resetsAt: now / 1000 + 59.6 }, now)).toBe(
+      '1m',
+    );
   });
 });

@@ -22,7 +22,8 @@ function severityColor(severity: QuotaSeverity): string {
 }
 
 function pctText(usedPercent: number): string {
-  return `${Math.round(usedPercent)}%`;
+  // As core's formatQuotaPercent: 99.6 on a window with room is 99%, not a cut-off.
+  return `${usedPercent >= 100 ? 100 : Math.min(99, Math.round(usedPercent))}%`;
 }
 
 /** `5h [000o......]  73% ◷2h59m`, shedding the countdown, then the meter, as the rail narrows. */

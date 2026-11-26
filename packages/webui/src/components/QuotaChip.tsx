@@ -30,7 +30,9 @@ export function QuotaChip({ className }: { className?: string | undefined }) {
   if (!worst) return null;
 
   const { snapshot, window } = worst;
-  const pct = Math.round(window.usedPercent);
+  // As core's formatQuotaPercent: rounding must not announce a cut-off that has
+  // not happened (99.6 on a window with room reads 99%, not 100%).
+  const pct = window.usedPercent >= 100 ? 100 : Math.min(99, Math.round(window.usedPercent));
   const reached = snapshot.reachedWindowId === window.id;
   const label = quotaWindowLabel(window);
   const resetIn = formatQuotaResetIn(window);

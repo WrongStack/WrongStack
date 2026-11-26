@@ -105,8 +105,10 @@ export interface AgentFacts {
 
 function compact(value: number): string {
   if (!Number.isFinite(value) || value <= 0) return '0';
-  if (value >= 1_000_000) return `${Number((value / 1_000_000).toFixed(1))}M`;
-  if (value >= 1_000) return `${Number((value / 1_000).toFixed(1))}k`;
+  // Unit from the ROUNDED mantissa (as formatCount): 999_960 is "1M", not "1000k".
+  const thousands = Number((value / 1_000).toFixed(1));
+  if (thousands >= 1_000) return `${Number((value / 1_000_000).toFixed(1))}M`;
+  if (value >= 1_000) return `${thousands}k`;
   return String(Math.round(value));
 }
 

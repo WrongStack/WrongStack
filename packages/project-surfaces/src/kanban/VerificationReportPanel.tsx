@@ -71,7 +71,8 @@ function formatDuration(start: string, end: string): string {
   const ms = Date.parse(end) - Date.parse(start);
   if (Number.isNaN(ms) || ms < 0) return '';
   if (ms < 1000) return `${ms}ms`;
-  if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
+  // 59.5s and up round to 60: let the minute branch below carry them ("1m 0s").
+  if (ms < 59_500) return `${Math.round(ms / 1000)}s`;
   const m = Math.floor(ms / 60_000);
   const s = Math.round((ms % 60_000) / 1000);
   // Math.round(59.5) === 60: the last 500 ms of a minute must carry into the

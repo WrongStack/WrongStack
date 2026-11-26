@@ -35,8 +35,10 @@ function verdictColor(verdict: CacheVerdict): string {
 }
 
 function fmtTok(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}m`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}k`;
+  // Unit from the ROUNDED mantissa: 999_960 is "1.00m", not "1000.0k".
+  const k = (value / 1_000).toFixed(1);
+  if (value >= 1_000_000 || Number(k) >= 1_000) return `${(value / 1_000_000).toFixed(2)}m`;
+  if (value >= 1_000) return `${k}k`;
   return String(Math.round(value));
 }
 

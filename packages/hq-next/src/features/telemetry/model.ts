@@ -240,7 +240,13 @@ export function niceCeiling(value: number): number {
 export function usd(value: number): string {
   if (!Number.isFinite(value) || value === 0) return '$0';
   if (Math.abs(value) >= 0.1) return `$${value.toFixed(2)}`;
-  return `$${Number(value.toPrecision(2))}`;
+  // Positional, not Number#toString: that switches to "4.2e-7" below 1e-6.
+  const rounded = Number(value.toPrecision(2));
+  const digits = Math.min(100, Math.max(0, 1 - Math.floor(Math.log10(Math.abs(rounded)))));
+  return `$${rounded
+    .toFixed(digits)
+    .replace(/(\.\d*?)0+$/, '$1')
+    .replace(/\.$/, '')}`;
 }
 
 /** 1234 → "1.2k", 3_400_000 → "3.4M". */

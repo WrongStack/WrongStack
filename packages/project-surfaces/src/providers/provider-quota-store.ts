@@ -197,7 +197,11 @@ export function formatQuotaResetIn(
   const ms = window.resetsAt * 1000 - now;
   if (ms <= 0) return undefined;
   const totalMinutes = Math.floor(ms / 60_000);
-  if (totalMinutes < 1) return `${Math.max(1, Math.round(ms / 1000))}s`;
+  if (totalMinutes < 1) {
+    // As core: 59.6s rounds to a full minute, never "60s".
+    const secs = Math.max(1, Math.round(ms / 1000));
+    return secs >= 60 ? '1m' : `${secs}s`;
+  }
   const days = Math.floor(totalMinutes / 1440);
   const hours = Math.floor((totalMinutes % 1440) / 60);
   const minutes = totalMinutes % 60;

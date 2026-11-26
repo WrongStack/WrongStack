@@ -7,6 +7,11 @@ import { CodePanel } from './code-panel';
 import { Modal } from './dialogs';
 import { usePresentation } from './presentation-mode';
 
+// As core's formatQuotaPercent: rounding must not announce a cut-off that has
+// not happened (99.6% used on a window with room reads 1% remaining, not 0%).
+const remainingPercent = (used: number) =>
+  used >= 100 ? 0 : 100 - Math.min(99, Math.max(0, Math.round(used)));
+
 export function ProviderQuotas({ controller }: { controller: SessionController }) {
   const { mode } = usePresentation();
   const [open, setOpen] = useState(false);
@@ -84,7 +89,7 @@ export function ProviderQuotas({ controller }: { controller: SessionController }
       (window) => typeof window.usedPercent === 'number' && Number.isFinite(window.usedPercent),
     );
   const remaining = known.length
-    ? Math.max(0, 100 - Math.max(...known.map((window) => Number(window.usedPercent))))
+    ? remainingPercent(Math.max(...known.map((window) => Number(window.usedPercent))))
     : null;
   return (
     <>
@@ -98,7 +103,7 @@ export function ProviderQuotas({ controller }: { controller: SessionController }
         <span>
           Usage & quotas<small>{controller.state.provider || 'Providers'}</small>
         </span>
-        <strong>{remaining === null ? '—' : `${Math.round(remaining)}%`}</strong>
+        <strong>{remaining === null ? '—' : `${remaining}%`}</strong>
       </button>
       <Modal
         open={open}
@@ -165,7 +170,7 @@ export function ProviderQuotas({ controller }: { controller: SessionController }
                             <strong>
                               {used === null
                                 ? 'Not reported'
-                                : `${Math.round(100 - used)}% remaining`}
+                                : `${remainingPercent(used)}% remaining`}
                             </strong>
                           </div>
                           {used !== null && (

@@ -56,6 +56,9 @@ export function WindowRow({
 }) {
   const { t, i18n } = useAppTranslation();
   const pct = Math.max(0, Math.min(100, window.usedPercent));
+  // As core's formatQuotaPercent: rounding must not announce a cut-off that has
+  // not happened (99.6 on a window with room reads 99% used, 1% left).
+  const shownPct = pct >= 100 ? 100 : Math.min(99, Math.round(pct));
   const colors = LEVEL_TONE[quotaLevel(pct, reached)];
   const resetIn = formatQuotaResetIn(window);
   const fullIn =
@@ -76,10 +79,10 @@ export function WindowRow({
           {label}
         </span>
         <span className={cn('shrink-0 tabular-nums', colors.text)}>
-          <span className={roomy ? 'text-sm font-semibold' : undefined}>{Math.round(pct)}%</span>
+          <span className={roomy ? 'text-sm font-semibold' : undefined}>{shownPct}%</span>
           <span className="text-muted-foreground/70">
             {' · '}
-            {t('activity:quotaPanel.left', { pct: Math.round(100 - pct) })}
+            {t('activity:quotaPanel.left', { pct: 100 - shownPct })}
           </span>
         </span>
       </div>
@@ -88,7 +91,7 @@ export function WindowRow({
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-valuenow={Math.round(pct)}
+        aria-valuenow={shownPct}
         aria-label={label}
       >
         <div className={cn('h-full rounded-full', colors.bar)} style={{ width: `${pct}%` }} />

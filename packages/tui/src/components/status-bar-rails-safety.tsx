@@ -113,7 +113,9 @@ export function buildSafetyWorkEntries(p: StatusBarRailBuildParams): RailSpanEnt
     // A reader scanning for "why can't it just run" wants both in one place.
     quota && showChip('quota')
       ? (() => {
-          const pct = Math.round(quota.usedPercent);
+          // As core's formatQuotaPercent: rounding must not announce a cut-off
+          // that has not happened (99.6 on a window with room reads 99%).
+          const pct = quota.usedPercent >= 100 ? 100 : Math.min(99, Math.round(quota.usedPercent));
           // Amber from 70% is early enough to change what you spend the rest
           // of the window on; red at 90% (or once the backend has actually cut
           // the account off) is the point where the next turn may not run.
