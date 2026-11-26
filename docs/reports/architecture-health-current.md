@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-26T16:22:49.554Z
+**Generated:** 2026-11-26T17:17:41.364Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6580 |
-| Production source lines | 1351775 |
-| Test files | 6498 |
+| Production source lines | 1351779 |
+| Test files | 6499 |
 | Workspace dependency edges | 261 |
-| Relative module edges | 19289 |
+| Relative module edges | 19290 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -68,7 +68,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/telegram | 28 | 55 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/toolflow | 3 | 2 | @wrongstack/contracts |
 | @wrongstack/tools | 347 | 416 | @wrongstack/agent-catalog, @wrongstack/browser-tools, @wrongstack/codebase, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives, @wrongstack/toolflow |
-| @wrongstack/tui | 517 | 506 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
+| @wrongstack/tui | 517 | 507 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 18 | 31 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/vibeui | 101 | 53 | @wrongstack/webui-protocol |
 | @wrongstack/webui | 799 | 582 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |

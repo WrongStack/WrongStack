@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T16:22:49.554Z",
+  "generatedAt": "2026-11-26T17:17:41.364Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6580,
-    "testFiles": 6498,
-    "sourceLines": 1351775,
+    "testFiles": 6499,
+    "sourceLines": 1351779,
     "workspaceEdges": 261,
-    "moduleEdges": 19289,
+    "moduleEdges": 19290,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -1112,7 +1112,7 @@
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
       "sourceFiles": 517,
-      "testFiles": 506,
+      "testFiles": 507,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1141,7 +1141,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 506
+          "testFiles": 507
         }
       ]
     },
@@ -32461,6 +32461,12 @@
       },
       {
         "file": "packages/tui/tests/sidebar-mission-queue.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/sidebar-panel-frame-narrow.test.tsx",
         "projects": [
           "root-node"
         ]

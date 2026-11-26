@@ -39,6 +39,7 @@ import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { Box, Text } from '../ink.js';
 import { displayWidth, truncateDisplay } from '../terminal-width.js';
 import { theme } from '../theme.js';
+import { PILL_MIN_INNER_WIDTH } from '../ui-contracts.js';
 import { glyphs } from '../ui-glyphs.js';
 import { Card, type CardProps } from './sidebar-card.js';
 
@@ -338,7 +339,10 @@ export function SidebarPanelFrame({
   // RightSidebar already owns the rail border and padding. The routed frame
   // is full-width and relies on the shared Card for its corners / sides.
   const innerWidth = Math.max(8, width);
-  const showKicker = !!kicker && innerWidth >= 24;
+  // Quiet chrome (kicker, footer ornament) only on rails roomy enough to
+  // afford it; below this threshold every column goes to data.
+  const roomyRail = innerWidth >= 24;
+  const showKicker = !!kicker && roomyRail;
   const pillTone = pillColor ?? accent;
   const effectivePill = pillLabel ? (
     <SidebarStatusPill label={pillLabel} color={pillTone} />
@@ -376,27 +380,27 @@ export function SidebarPanelFrame({
                     2,
                     bodyWidth -
                       4 -
-                      (effectivePill && bodyWidth >= 22
+                      (effectivePill && bodyWidth >= PILL_MIN_INNER_WIDTH
                         ? displayWidth(getPillLabel(effectivePill)) + 2
                         : 0),
                   ),
                 )}
               </Text>
-              {effectivePill && bodyWidth >= 22 ? (
+              {effectivePill && bodyWidth >= PILL_MIN_INNER_WIDTH ? (
                 <>
                   <Box flexGrow={1} />
                   {effectivePill}
                 </>
               ) : null}
             </Box>
-            {/* Status row: pill (when not on title) + kicker (when wide). */}
-            {effectivePill && bodyWidth < 22 ? (
+            {/* Status row: the pill moves here on narrow rails (below
+                PILL_MIN_INNER_WIDTH) so title and status both fit in full.
+                No flanking decoration — on a narrow rail every column goes
+                to the status value itself, and the pill starts at the rail
+                edge where the eye already is. */}
+            {effectivePill && bodyWidth < PILL_MIN_INNER_WIDTH ? (
               <Box flexDirection="row" width={bodyWidth}>
-                <Text color={theme.borderSubtle}>{glyphs.dividerDash}</Text>
-                <Text> </Text>
                 <Text wrap="truncate">{effectivePill}</Text>
-                <Box flexGrow={1} />
-                <Text color={theme.borderSubtle}>{glyphs.dividerDash}</Text>
               </Box>
             ) : null}
             {showKicker ? (
@@ -421,7 +425,7 @@ export function SidebarPanelFrame({
       {footer ? (
         <Box height={1} marginTop={1} width={innerWidth}>
           <Text color={theme.borderSubtle} wrap="truncate" dimColor>
-            {`${glyphs.dividerDiamond} `}
+            {roomyRail ? `${glyphs.dividerDiamond} ` : ''}
             {footer}
           </Text>
         </Box>
