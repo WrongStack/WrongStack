@@ -1,5 +1,6 @@
 /** Cross-snapshot dependency health and remediation trend analysis. */
 
+import { compareVersions } from './policy/status.js';
 import type { Snapshot } from './types.js';
 
 export interface SnapshotSource {
@@ -30,6 +31,30 @@ export interface TrendReport {
     readonly outdated: number;
     readonly vulnerable: number;
   }>;
+}
+
+/**
+ * The highest of a package's sibling versions in one snapshot. Version order,
+ * not string order: a lexical sort put `9.0.0` above `10.0.0` and
+ * `2.0.0-rc.1` above `2.0.0`. Versions the comparator cannot read (git refs,
+ * dist-tags) keep the string order between them.
+ */
+function highestVersion(sortedVersions: readonly string[]): string | undefined {
+  let best: string | undefined;
+  for (const version of sortedVersions) {
+    if (best === undefined) {
+      best = version;
+      continue;
+    }
+    let cmp: number;
+    try {
+      cmp = compareVersions(version, best);
+    } catch {
+      cmp = version > best ? 1 : -1;
+    }
+    if (cmp > 0) best = version;
+  }
+  return best;
 }
 
 function median(values: readonly number[]): number | undefined {
@@ -124,7 +149,7 @@ export class TrendStore {
         const history = versionHistory.get(key) ?? [];
         history.push({
           at,
-          version: entry.directVersion ?? sortedVersions.at(-1) ?? entry.lastVersion,
+          version: entry.directVersion ?? highestVersion(sortedVersions) ?? entry.lastVersion,
           versionKey: sortedVersions.join('|'),
           vulnerable: entry.vulnerable,
           name: entry.name,

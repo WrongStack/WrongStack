@@ -100,3 +100,24 @@ describe('vulnerability intervals across package instances', () => {
     });
   });
 });
+
+describe('currentVersion among sibling instances in one snapshot', () => {
+  const currentOf = (versions: string[]) =>
+    analyze([
+      snapshot(
+        0,
+        versions.map((v) => dep(v, 'current')),
+      ),
+    ]).dependencies[0]?.currentVersion;
+
+  it('reports the highest version by version order, not string order', () => {
+    expect(currentOf(['1.0.0', '2.0.0'])).toBe('2.0.0');
+    expect(currentOf(['9.0.0', '10.0.0'])).toBe('10.0.0');
+    expect(currentOf(['10.0.0', '9.0.0'])).toBe('10.0.0');
+    expect(currentOf(['2.0.0', '2.0.0-rc.1'])).toBe('2.0.0');
+  });
+
+  it('keeps string order for versions the comparator cannot read', () => {
+    expect(currentOf(['main', 'feature'])).toBe('main');
+  });
+});
