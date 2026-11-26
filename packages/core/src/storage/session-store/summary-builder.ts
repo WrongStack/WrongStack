@@ -4,7 +4,7 @@ import type { SessionEvent, SessionSummary } from '@wrongstack/contracts/types/s
 import { sessionContentPreview, userInputTitle } from '../session-helpers.js';
 import { isSessionErrorEvent, resolveSessionOutcome } from '../session-outcome.js';
 import { scrubPersistedSessionEvent } from '../session-read-scrubber.js';
-import { createTranscriptLineReader } from './transcript-io.js';
+import { createTranscriptLineReader, stripTranscriptBom } from './transcript-io.js';
 
 export async function summarizeSessionFile(opts: {
   id: string;
@@ -213,7 +213,7 @@ export async function* iterateSessionEvents(
     for await (const line of reader.lines) {
       if (!line.trim()) continue;
       try {
-        const parsed: unknown = JSON.parse(line);
+        const parsed: unknown = JSON.parse(stripTranscriptBom(line));
         if (
           parsed !== null &&
           typeof parsed === 'object' &&

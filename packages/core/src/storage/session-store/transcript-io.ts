@@ -9,6 +9,22 @@ export function isGzipTranscriptPath(file: string): boolean {
 }
 
 /**
+ * Strip a leading byte-order mark from one transcript line.
+ *
+ * Journals are UTF-8 JSONL, but editors and shell redirects (`Set-Content
+ * -Encoding utf8BOM`, Notepad "UTF-8 with BOM") may prefix the file with U+FEFF.
+ * Every other persisted-JSON reader in core strips it before `JSON.parse`
+ * (`config-json`, `goal-store`, `task-store`, `plan-store`, `annotations-store`,
+ * …). Without the same rule here the marker makes the first line unparseable and
+ * silently drops `session_start` — the session then reports 1970 / unknown model
+ * and loses its start-of-session metadata. Only the first line of a file can
+ * carry it, and a JSON object cannot legitimately begin with U+FEFF.
+ */
+export function stripTranscriptBom(line: string): string {
+  return line.charCodeAt(0) === 0xfeff ? line.slice(1) : line;
+}
+
+/**
  * Byte stream of transcript *lines* (uncompressed JSONL). Gzip archives are
  * inflated here so every reader stays encoding-agnostic.
  */

@@ -3,7 +3,7 @@ import * as fsp from 'node:fs/promises';
 import type { SessionMetadata } from '@wrongstack/contracts/types/session';
 import type { SessionCatalogProjectClient } from '../../session-catalog/client.js';
 import { atomicWrite } from '../../utils/atomic-write.js';
-import { createTranscriptLineReader } from './transcript-io.js';
+import { createTranscriptLineReader, stripTranscriptBom } from './transcript-io.js';
 
 export interface ClearSessionHistoryParams {
   id: string;
@@ -118,7 +118,7 @@ async function readToolSchemaPins(
   try {
     for await (const line of reader.lines) {
       if (!line.trim()) continue;
-      const header = JSON.parse(line);
+      const header = JSON.parse(stripTranscriptBom(line));
       if (header?.type === 'session_start') {
         const {
           quickToolSchemaVersion,

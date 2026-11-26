@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { SessionEvent } from '@wrongstack/contracts/types/session';
+import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
 import {
   isColdSessionTranscriptFileName,
   isSessionTranscriptFileName,
@@ -8,9 +9,23 @@ import {
   stripSessionTranscriptExtension,
 } from '../utils/session-scoped-path.js';
 import { resolveSessionId, sessionIdResolutionError } from './session-id-resolver.js';
+import { scrubPersistedSessionEvent } from './session-read-scrubber.js';
 import { collectSessionIds } from './session-store/directory-session-files.js';
-import { createTranscriptLineReader, isGzipTranscriptPath } from './session-store/transcript-io.js';
+import {
+  createTranscriptLineReader,
+  isGzipTranscriptPath,
+  stripTranscriptBom,
+} from './session-store/transcript-io.js';
 import { locateTranscript, locateTranscriptSync } from './session-store/transcript-location.js';
+
+/**
+ * Recovery reads the journal itself, so the store's configured scrubber is not
+ * in scope here. Every string this module hands back — plan context, checkpoint
+ * preview, interrupted tool args, stale-listing context — is rendered by a
+ * caller, so it uses the same default redaction policy the store falls back to
+ * when no scrubber is configured.
+ */
+const RECOVERY_SCRUBBER = new DefaultSecretScrubber();
 /**
  * Idea #1 from IDEAS.md — Stateful Session Recovery.
  *
@@ -338,7 +353,9 @@ export class SessionRecovery {
         sessionId,
         path: fp,
         lastEventTs: scan.boundary.ts,
-        context: scan.boundary.context,
+        // The stale listing prints this context; it is a surface response and
+        // must cross the same read-side scrub boundary as the plan.
+        context: RECOVERY_SCRUBBER.scrub(scan.boundary.context),
         eventCount: scan.eventCount,
       };
       /* v8 ignore start -- defensive: reverse scan failure after a successful stat is rare */
@@ -372,13 +389,18 @@ export class SessionRecovery {
     try {
       for await (const line of reader.lines) {
         if (!line.trim()) continue;
-        let event: SessionEvent;
+        let parsedEvent: SessionEvent;
         try {
-          event = JSON.parse(line) as SessionEvent;
+          parsedEvent = JSON.parse(stripTranscriptBom(line)) as SessionEvent;
         } catch {
           continue;
         }
-        if (!event || typeof event !== 'object' || typeof event.type !== 'string') continue;
+        if (!parsedEvent || typeof parsedEvent !== 'object' || typeof parsedEvent.type !== 'string')
+          continue;
+        // Same read-side boundary the store applies: the plan is rendered
+        // (context, checkpoint preview, interrupted tool args), so a journal
+        // written before write-time scrubbing must not leak through it.
+        const event = scrubPersistedSessionEvent(parsedEvent, RECOVERY_SCRUBBER);
         sawEvent = true;
         if (event.type === 'checkpoint') {
           lastCheckpoint = event;

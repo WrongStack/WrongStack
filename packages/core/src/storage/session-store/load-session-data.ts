@@ -21,7 +21,7 @@ import {
   replayableMessage,
   trackMessageToolState,
 } from './replay.js';
-import { createTranscriptLineReader } from './transcript-io.js';
+import { createTranscriptLineReader, stripTranscriptBom } from './transcript-io.js';
 import { MAIN_BRANCH_ID, SessionTreeTracker } from './tree-replay.js';
 
 type UsageTotals = { input: number; output: number; cacheRead: number; cacheWrite: number };
@@ -139,7 +139,7 @@ export async function loadSessionDataFromFile(params: {
       }
       if (!line.trim()) continue;
       try {
-        const parsed: unknown = JSON.parse(line);
+        const parsed: unknown = JSON.parse(stripTranscriptBom(line));
         if (!isSessionEventLike(parsed)) continue;
         const ev = scrubPersistedSessionEvent(parsed as SessionEvent, params.secretScrubber);
         // A snapshot event carries a full copy of the conversation, and one is

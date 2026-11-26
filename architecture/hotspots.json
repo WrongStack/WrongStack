@@ -114,6 +114,10 @@
       "lines": 727,
       "relativeImports": 12
     },
+    "packages/core/src/storage/session-recovery.ts": {
+      "lines": 709,
+      "relativeImports": 7
+    },
     "packages/fleet/src/host-skill-companion.ts": {
       "lines": 756,
       "relativeImports": 3

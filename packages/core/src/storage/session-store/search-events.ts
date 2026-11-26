@@ -3,7 +3,11 @@ import { StringDecoder } from 'node:string_decoder';
 import type { SecretScrubber } from '@wrongstack/contracts/types/secret-scrubber';
 import type { SessionEvent } from '@wrongstack/contracts/types/session';
 import { scrubPersistedSessionEvent } from '../session-read-scrubber.js';
-import { createTranscriptLineReader, isGzipTranscriptPath } from './transcript-io.js';
+import {
+  createTranscriptLineReader,
+  isGzipTranscriptPath,
+  stripTranscriptBom,
+} from './transcript-io.js';
 
 export async function searchSessionEvents(args: {
   file: string;
@@ -90,10 +94,13 @@ export async function searchSessionEvents(args: {
   }
 }
 
-function parseSessionEventLine(line: string, secretScrubber: SecretScrubber): SessionEvent | null {
+export function parseSessionEventLine(
+  line: string,
+  secretScrubber: SecretScrubber,
+): SessionEvent | null {
   if (!line) return null;
   try {
-    const parsed: unknown = JSON.parse(line);
+    const parsed: unknown = JSON.parse(stripTranscriptBom(line));
     if (
       parsed === null ||
       typeof parsed !== 'object' ||

@@ -1,4 +1,4 @@
-import { createTranscriptLineReader } from './transcript-io.js';
+import { createTranscriptLineReader, stripTranscriptBom } from './transcript-io.js';
 
 const EMPTY_SESSION_EVENT_TYPES = new Set([
   'session_start',
@@ -21,7 +21,7 @@ export async function isStrictlyEmptySessionFile(file: string): Promise<boolean>
       if (!line.trim()) continue;
       let event: unknown;
       try {
-        event = JSON.parse(line);
+        event = JSON.parse(stripTranscriptBom(line));
       } catch {
         return false;
       }

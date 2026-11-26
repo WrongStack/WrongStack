@@ -73,7 +73,7 @@ const SCRUBBED_FREE_TEXT_FIELDS: Record<string, readonly string[]> = {
   task_completed: ['title'],
   agent_error: ['error'],
   delegate_started: ['task'],
-  delegate_completed: ['task', 'summary'],
+  delegate_completed: ['task', 'summary', 'resultExcerpt'],
   provider_error: ['description'],
   provider_retry: ['description'],
   branch_created: ['name', 'label'],
@@ -461,7 +461,7 @@ describe('session writer scrubs free-text fields', () => {
       { read: (out) => ofType(out[0], 'sandbox_audit').detail, matches: { granted: false } },
     ],
     [
-      'scrubs delegate_started.task and delegate_completed.task/summary',
+      'scrubs delegate_started.task and delegate_completed.task/summary/excerpt',
       RAW,
       () => [
         {
@@ -480,12 +480,19 @@ describe('session writer scrubs free-text fields', () => {
           durationMs: 1,
           iterations: 1,
           toolCalls: 1,
+          resultExcerpt: `report: env had ${bearer(RAW)}`,
         },
       ],
       (out) => [
         { text: ofType(out[0], 'delegate_started').task, kept: ['call the API'] },
         { text: ofType(out[1], 'delegate_completed').task },
         { text: ofType(out[1], 'delegate_completed').summary },
+        // Re-delivered into the leader's context after a resume — same class as
+        // `tool_result.content`, so it must be redacted in the durable journal.
+        {
+          text: ofType(out[1], 'delegate_completed').resultExcerpt ?? '',
+          kept: ['report: env had'],
+        },
       ],
     ],
   ];

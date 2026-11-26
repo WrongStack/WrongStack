@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T14:13:44.671Z",
+  "generatedAt": "2026-11-26T14:16:23.918Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6572,
-    "testFiles": 6451,
-    "sourceLines": 1349775,
+    "testFiles": 6453,
+    "sourceLines": 1349828,
     "workspaceEdges": 261,
-    "moduleEdges": 19250,
+    "moduleEdges": 19252,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -403,7 +403,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 665,
-      "testFiles": 861,
+      "testFiles": 863,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -420,7 +420,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 861
+          "testFiles": 863
         }
       ]
     },
@@ -15702,6 +15702,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/storage/journal-bom-first-line.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/storage/load-progress.test.ts",
         "projects": [
           "root-node"
@@ -16051,6 +16057,12 @@
       },
       {
         "file": "packages/core/tests/storage/session-recovery-plan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/session-recovery-scrub.test.ts",
         "projects": [
           "root-node"
         ]
@@ -41320,6 +41332,11 @@
       "file": "packages/core/src/storage/file-session-writer.ts",
       "lines": 727,
       "relativeImports": 12
+    },
+    {
+      "file": "packages/core/src/storage/session-recovery.ts",
+      "lines": 709,
+      "relativeImports": 7
     },
     {
       "file": "packages/fleet/src/host-skill-companion.ts",

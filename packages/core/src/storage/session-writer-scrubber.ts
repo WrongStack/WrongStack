@@ -169,6 +169,14 @@ export function scrubSessionWriterEvent(
       ...event,
       task: secretScrubber.scrub(event.task),
       summary: secretScrubber.scrub(event.summary),
+      // `resultExcerpt` is the subagent's structured report or raw `result`
+      // text (<=4k chars), and it is RE-DELIVERED into the leader's context
+      // after a resume (`delegation-tracker` re-queues from it). That is the
+      // same class as `tool_result.content` above — the text a tool or model
+      // produced — so it belongs on the durable-journal side of the boundary.
+      ...(typeof event.resultExcerpt === 'string'
+        ? { resultExcerpt: secretScrubber.scrub(event.resultExcerpt) }
+        : {}),
     };
   }
   // `errorBody` on these two is documented as scrubbed at the emit site, but
