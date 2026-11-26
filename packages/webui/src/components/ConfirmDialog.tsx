@@ -326,6 +326,20 @@ export function ConfirmDialog() {
             </div>
           </div>
 
+          {confirmInfo.writeTargets && confirmInfo.writeTargets.length > 0 && (
+            <div
+              className="rounded-lg border border-warning/40 p-3 text-xs"
+              data-testid="confirm-write-targets"
+            >
+              <div className="mb-1 font-medium text-warning">{t('confirm.writes')}</div>
+              <ul className="space-y-0.5 break-all font-mono">
+                {confirmInfo.writeTargets.map((target, i) => (
+                  <li key={`${i}:${target}`}>{target.replace(HIDDEN_TEXT_RE, '')}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {confirmInfo.input !== undefined && (
             <SmartInputPreview toolName={confirmInfo.toolName} input={confirmInfo.input} />
           )}

@@ -242,6 +242,8 @@ export interface WSToolConfirmNeeded {
     riskTier?: 'safe' | 'standard' | 'destructive' | undefined;
     boundaryReason?: string | undefined;
     deadlineAt?: number | undefined;
+    /** Files the call writes, as the tool declares them (`Tool.writeTargets`). */
+    writeTargets?: string[] | undefined;
   };
 }
 export interface WSToolConfirmResolved {

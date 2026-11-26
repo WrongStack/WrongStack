@@ -62,6 +62,7 @@
     "yoloDestructiveNote": "YOLO está ativado. Esta confirmação ainda é exibida porque a solicitação foi classificada como destrutiva.",
     "yoloUserRuleNote": "YOLO está ativado. Ele parou porque uma regra que você escreveu proíbe esta chamada — Sim a executa uma vez; a regra continua. Sem resposta, continua recusada.",
     "brainCountdown": "Aguardando sua aprovação · Brain assume em {{time}}",
+    "writes": "Grava em",
     "brainDeciding": "Tempo esgotado · Brain está decidindo…",
     "skipApprovalsTitle": "Pular aprovações futuras",
     "skipApprovalsHint": "Ative o modo YOLO e o agente executará sem perguntar. Operações destrutivas ainda exigem confirmação.",

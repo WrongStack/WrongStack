@@ -385,6 +385,9 @@ export function registerSetupEventsToolHandlers(options: {
       riskTier: e.riskTier,
       boundaryReason: e.boundaryReason,
       deadlineAt: e.deadlineAt,
+      // Where the call writes (patch/format targets): the TUI lists them as
+      // WRITES, and the WebUI prompt can only if they reach it.
+      ...(e.writeTargets?.length ? { writeTargets: e.writeTargets } : {}),
     });
     pendingConfirms.set(id, {
       resolve: e.resolve,

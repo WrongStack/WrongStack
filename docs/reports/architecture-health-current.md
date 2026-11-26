@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-26T15:57:33.138Z
+**Generated:** 2026-11-26T15:59:53.057Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6580 |
-| Production source lines | 1351731 |
-| Test files | 6496 |
+| Production source lines | 1351755 |
+| Test files | 6498 |
 | Workspace dependency edges | 261 |
 | Relative module edges | 19289 |
 | Non-command slash imports | 0 |
@@ -71,9 +71,9 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/tui | 517 | 506 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 18 | 31 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/vibeui | 101 | 53 | @wrongstack/webui-protocol |
-| @wrongstack/webui | 799 | 581 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
+| @wrongstack/webui | 799 | 582 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-protocol | 29 | 20 | @wrongstack/contracts, @wrongstack/core, @wrongstack/hq |
-| @wrongstack/webui-server | 360 | 448 | @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/worktree, @wrongstack/wrongtrace |
+| @wrongstack/webui-server | 360 | 449 | @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/worktree, @wrongstack/wrongtrace |
 | @wrongstack/worktree | 10 | 12 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/wrongmemory-client | 6 | 5 | — |
 | @wrongstack/wrongtrace | 11 | 17 | — |

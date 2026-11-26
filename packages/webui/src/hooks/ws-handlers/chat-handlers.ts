@@ -241,6 +241,7 @@ export function handleToolConfirmNeeded(msg: WSServerMessage) {
     riskTier?: 'safe' | 'standard' | 'destructive' | undefined;
     boundaryReason?: string | undefined;
     deadlineAt?: number | undefined;
+    writeTargets?: string[] | undefined;
   };
   // YOLO belongs to the session that raised the prompt. Reading the flat
   // field asks the tab in FRONT, which auto-approved a background tab's tool
@@ -280,6 +281,7 @@ export function handleToolConfirmNeeded(msg: WSServerMessage) {
     riskTier: payload.riskTier,
     boundaryReason: payload.boundaryReason,
     deadlineAt: payload.deadlineAt,
+    writeTargets: payload.writeTargets,
   });
   try {
     playPermissionChime();

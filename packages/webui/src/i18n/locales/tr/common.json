@@ -62,6 +62,7 @@
     "yoloDestructiveNote": "YOLO açık. Bu onay yine de gösteriliyor çünkü istek yıkıcı olarak sınıflandırıldı.",
     "yoloUserRuleNote": "YOLO açık. Durdu çünkü bu çağrıyı senin yazdığın bir kural yasaklıyor — Evet bir kez çalıştırır; kural yerinde kalır. Cevapsız kalırsa reddedilir.",
     "brainCountdown": "Onayın bekleniyor · Brain {{time}} sonra devralacak",
+    "writes": "Yazacağı yerler",
     "brainDeciding": "Süre doldu · Brain karar veriyor…",
     "skipApprovalsTitle": "Sonraki onayları atla",
     "skipApprovalsHint": "YOLO modunu etkinleştir; vekil izin istemeden çalışır. Yıkıcı işlemler yine de onay ister.",

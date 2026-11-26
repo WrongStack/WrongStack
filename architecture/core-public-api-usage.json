@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 549,
-      "typeOnly": 401,
+      "files": 550,
+      "typeOnly": 402,
       "runtimeOrMixed": 180
     },
     "@wrongstack/core/boot": {
@@ -3366,6 +3366,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/tests/backend-services.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/tests/confirm-write-targets.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

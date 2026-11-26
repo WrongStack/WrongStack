@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T15:57:33.138Z",
+  "generatedAt": "2026-11-26T15:59:53.057Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6580,
-    "testFiles": 6496,
-    "sourceLines": 1351731,
+    "testFiles": 6498,
+    "sourceLines": 1351755,
     "workspaceEdges": 261,
     "moduleEdges": 19289,
     "nonCommandSlashImports": 0,
@@ -1194,7 +1194,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 799,
-      "testFiles": 581,
+      "testFiles": 582,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1220,7 +1220,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 581
+          "testFiles": 582
         }
       ]
     },
@@ -1251,7 +1251,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 360,
-      "testFiles": 448,
+      "testFiles": 449,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1286,7 +1286,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 448
+          "testFiles": 449
         }
       ]
     },
@@ -34392,6 +34392,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/confirm-write-targets.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/connection-fsm.test.ts",
         "projects": [
           "root-node"
@@ -37183,6 +37189,12 @@
       },
       {
         "file": "packages/webui/tests/components/confirm-dialog-hotkey-modifiers.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/confirm-dialog-write-targets.test.tsx",
         "projects": [
           "webui-jsdom"
         ]

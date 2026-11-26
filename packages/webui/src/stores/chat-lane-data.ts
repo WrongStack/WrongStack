@@ -68,6 +68,7 @@ export interface PendingConfirm {
   riskTier?: 'safe' | 'standard' | 'destructive' | undefined;
   boundaryReason?: string | undefined;
   deadlineAt?: number | undefined;
+  writeTargets?: string[] | undefined;
 }
 
 export function createLaneData(): ChatLaneData {

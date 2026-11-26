@@ -62,6 +62,7 @@
     "yoloDestructiveNote": "YOLO ist aktiv. Diese Abfrage wird trotzdem angezeigt, da die Anfrage als destruktiv eingestuft wurde.",
     "yoloUserRuleNote": "YOLO ist aktiv. Es hält an, weil eine von dir geschriebene Regel diesen Aufruf verbietet — Ja führt ihn einmal aus; die Regel bleibt. Ohne Antwort bleibt er abgelehnt.",
     "brainCountdown": "Warte auf deine Bestätigung · Brain übernimmt in {{time}}",
+    "writes": "Schreibt in",
     "brainDeciding": "Zeit abgelaufen · Brain entscheidet…",
     "skipApprovalsTitle": "Zukünftige Freigaben überspringen",
     "skipApprovalsHint": "Aktiviere den YOLO-Modus und der Agent läuft ohne Nachfrage. Destruktive Vorgänge fragen weiterhin nach.",
