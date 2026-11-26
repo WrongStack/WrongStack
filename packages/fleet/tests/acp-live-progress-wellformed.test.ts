@@ -13,7 +13,7 @@ function progress(rawOutput: unknown): unknown {
         title: 'bash',
         kind: 'execute',
         status: 'completed',
-        rawOutput,
+        rawOutput: rawOutput as Record<string, unknown> | undefined,
       },
     },
     subagentId: 'a1',
