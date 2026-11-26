@@ -136,7 +136,12 @@ function documentationText(value: CompletionItem['documentation']): string | und
 function compact(value: string | undefined): string | undefined {
   const cleaned = value?.replace(/\s*\r?\n\s*/g, ' ').trim();
   if (!cleaned) return undefined;
-  return cleaned.length <= 160 ? cleaned : `${cleaned.slice(0, 157)}...`;
+  if (cleaned.length <= 160) return cleaned;
+  // Never end the documentation on half of a surrogate pair.
+  let end = 157;
+  const last = cleaned.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return `${cleaned.slice(0, end)}...`;
 }
 
 function completionKindName(kind: number): string {

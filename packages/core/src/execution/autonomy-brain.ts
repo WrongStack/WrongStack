@@ -451,6 +451,15 @@ export function createAutonomyBrain(opts: AutonomyBrainOptions): BrainArbiter {
   };
 }
 
+/** End a cut on a code-point boundary: never emit half a surrogate pair. */
+function clipDecisionText(value: string, max: number): string {
+  if (value.length <= max) return value;
+  let end = max;
+  const last = value.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+}
+
 /**
  * Format a decision as a human-readable one-liner for chat history.
  */
@@ -459,7 +468,7 @@ export function formatDecisionSummary(
   request: BrainDecisionRequest,
 ): string {
   const question =
-    request.question.length > 80 ? request.question.slice(0, 77) + '…' : request.question;
+    request.question.length > 80 ? clipDecisionText(request.question, 77) + '…' : request.question;
 
   if (decision.type === 'deny') {
     return `🧠 Brain: DENIED — "${question}" → ${decision.reason}`;
@@ -469,7 +478,7 @@ export function formatDecisionSummary(
     const action = decision.optionId
       ? `chose [${decision.optionId}]`
       : decision.text.length > 60
-        ? decision.text.slice(0, 57) + '…'
+        ? clipDecisionText(decision.text, 57) + '…'
         : decision.text;
     return `🧠 Brain: DECIDED — "${question}" → ${action}`;
   }

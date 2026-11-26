@@ -431,6 +431,15 @@ export function summarizeUsage(goal: GoalFile): {
 
 const DOLLAR = '\u0024';
 
+/** End a snippet cut on a code-point boundary (never emit half a surrogate pair). */
+function clipGoalText(value: string, max: number): string {
+  if (value.length <= max) return value;
+  let end = max;
+  const last = value.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+}
+
 /** Format the goal + recent journal as a human-readable status block. */
 export function formatGoal(goal: GoalFile, journalLimit = 10): string {
   const lines: string[] = [];
@@ -439,7 +448,7 @@ export function formatGoal(goal: GoalFile, journalLimit = 10): string {
   const displayGoal = goal.refinedGoal || goal.goal;
   lines.push(color.bold('Goal') + ': ' + displayGoal);
   if (goal.refinedGoal && goal.refinedGoal !== goal.goal) {
-    const snippet = goal.goal.length > 60 ? goal.goal.slice(0, 60) + '…' : goal.goal;
+    const snippet = goal.goal.length > 60 ? clipGoalText(goal.goal, 60) + '…' : goal.goal;
     lines.push(color.dim('  (original: "' + snippet + '")'));
   }
 

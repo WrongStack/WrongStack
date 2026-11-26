@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T14:08:19.840Z",
+  "generatedAt": "2026-11-26T14:11:07.863Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6572,
-    "testFiles": 6427,
-    "sourceLines": 1349557,
+    "testFiles": 6446,
+    "sourceLines": 1349736,
     "workspaceEdges": 261,
     "moduleEdges": 19250,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 12,
+    "testsWithoutTypecheck": 13,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1062
   },
@@ -93,7 +93,7 @@
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
       "sourceFiles": 69,
-      "testFiles": 96,
+      "testFiles": 97,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -109,7 +109,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 96
+          "testFiles": 97
         }
       ]
     },
@@ -117,7 +117,7 @@
       "name": "@wrongstack/agent-catalog",
       "dir": "packages/agent-catalog",
       "sourceFiles": 44,
-      "testFiles": 21,
+      "testFiles": 22,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/persistence",
@@ -132,7 +132,7 @@
         {
           "path": "packages/agent-catalog/tsconfig.test.json",
           "error": null,
-          "testFiles": 21
+          "testFiles": 22
         }
       ]
     },
@@ -313,7 +313,7 @@
       "name": "@wrongstack/codebase",
       "dir": "packages/codebase",
       "sourceFiles": 115,
-      "testFiles": 11,
+      "testFiles": 12,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/persistence",
@@ -403,7 +403,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 665,
-      "testFiles": 856,
+      "testFiles": 861,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -420,7 +420,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 856
+          "testFiles": 861
         }
       ]
     },
@@ -507,7 +507,7 @@
       "name": "@wrongstack/governance",
       "dir": "packages/governance",
       "sourceFiles": 45,
-      "testFiles": 46,
+      "testFiles": 47,
       "workspaceDependencies": [
         "@wrongstack/persistence"
       ],
@@ -520,7 +520,7 @@
         {
           "path": "packages/governance/tsconfig.test.json",
           "error": null,
-          "testFiles": 46
+          "testFiles": 47
         }
       ]
     },
@@ -689,7 +689,7 @@
       "name": "@wrongstack/plug-lsp",
       "dir": "packages/plug-lsp",
       "sourceFiles": 52,
-      "testFiles": 70,
+      "testFiles": 71,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -704,7 +704,7 @@
         {
           "path": "packages/plug-lsp/tsconfig.test.json",
           "error": null,
-          "testFiles": 70
+          "testFiles": 71
         }
       ]
     },
@@ -871,7 +871,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 130,
-      "testFiles": 102,
+      "testFiles": 103,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -905,7 +905,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 102
+          "testFiles": 103
         }
       ]
     },
@@ -965,7 +965,7 @@
       "name": "@wrongstack/sdd",
       "dir": "packages/sdd",
       "sourceFiles": 45,
-      "testFiles": 65,
+      "testFiles": 66,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -984,7 +984,7 @@
         {
           "path": "packages/sdd/tsconfig.test.json",
           "error": null,
-          "testFiles": 65
+          "testFiles": 66
         }
       ]
     },
@@ -992,7 +992,7 @@
       "name": "@wrongstack/security-scanner",
       "dir": "packages/security-scanner",
       "sourceFiles": 21,
-      "testFiles": 44,
+      "testFiles": 45,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -1006,7 +1006,7 @@
         {
           "path": "packages/security-scanner/tsconfig.test.json",
           "error": null,
-          "testFiles": 44
+          "testFiles": 45
         }
       ]
     },
@@ -1082,7 +1082,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 347,
-      "testFiles": 414,
+      "testFiles": 415,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/browser-tools",
@@ -1104,7 +1104,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 414
+          "testFiles": 415
         }
       ]
     },
@@ -1112,7 +1112,7 @@
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
       "sourceFiles": 517,
-      "testFiles": 502,
+      "testFiles": 504,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1141,7 +1141,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 502
+          "testFiles": 504
         }
       ]
     },
@@ -1194,7 +1194,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 799,
-      "testFiles": 580,
+      "testFiles": 581,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1220,7 +1220,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 580
+          "testFiles": 581
         }
       ]
     },
@@ -1251,7 +1251,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 360,
-      "testFiles": 445,
+      "testFiles": 447,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1286,7 +1286,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 445
+          "testFiles": 447
         }
       ]
     },
@@ -4110,6 +4110,12 @@
         ]
       },
       {
+        "file": "packages/acp/tests/child-history-wellformed.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/client-coverage.test.ts",
         "projects": [
           "root-node"
@@ -4441,6 +4447,12 @@
       },
       {
         "file": "packages/agent-catalog/tests/capture-window-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/agent-catalog/tests/conflict-snippet-wellformed.test.ts",
         "projects": [
           "root-node"
         ]
@@ -10446,6 +10458,12 @@
         ]
       },
       {
+        "file": "packages/codebase/tests/parser-output-signature-wellformed.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/codebase/tests/perf-metrics-nan.test.ts",
         "projects": [
           "root-node"
@@ -13284,6 +13302,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/execution/autonomy-brain-format-wellformed.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/execution/autonomy-prompt-contributor.test.ts",
         "projects": [
           "root-node"
@@ -13681,6 +13705,18 @@
       },
       {
         "file": "packages/core/tests/execution/eternal-autonomy.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/execution/eternal-completion-wellformed.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/execution/eternal-directives-wellformed.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15594,6 +15630,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/storage/goal-format-wellformed.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/storage/goal-kanban.test.ts",
         "projects": [
           "root-node"
@@ -16597,6 +16639,12 @@
       },
       {
         "file": "packages/core/tests/utils/context-budget.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/utils/context-evidence-wellformed.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17761,6 +17809,12 @@
       },
       {
         "file": "packages/governance/tests/runtime-compatibility.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/governance/tests/sanitize-wellformed.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20989,6 +21043,12 @@
       },
       {
         "file": "packages/plug-lsp/tests/unit/command-resolver-platform.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plug-lsp/tests/unit/completion-compact-wellformed.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24456,6 +24516,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/chimera-card-display-wellformed.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/clipboard-exit-before-stdout.test.ts",
         "projects": [
           "root-node"
@@ -26436,6 +26502,12 @@
         ]
       },
       {
+        "file": "packages/sdd/tests/task-visualizer-blocker-wellformed.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sdd/tests/task-visualizer-legend.test.ts",
         "projects": [
           "root-node"
@@ -26605,6 +26677,12 @@
       },
       {
         "file": "packages/security-scanner/tests/package-audit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/security-scanner/tests/read-file-head-surrogate.test.ts",
         "projects": [
           "root-node"
         ]
@@ -27631,6 +27709,12 @@
       },
       {
         "file": "packages/tools/tests/auto-proceed-advancement-bounds.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/auto-proceed-advancement-wellformed.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30504,6 +30588,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/cron-list-wellformed.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/cron-slash.test.ts",
         "projects": [
           "root-node"
@@ -32431,6 +32521,12 @@
       },
       {
         "file": "packages/tui/tests/subagent-history-format.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/subagent-history-wellformed.test.ts",
         "projects": [
           "root-node"
         ]
@@ -34842,6 +34938,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/memory-summary-wellformed.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/message-dispatcher-session-gate.test.ts",
         "projects": [
           "root-node"
@@ -36085,6 +36187,12 @@
       },
       {
         "file": "packages/webui-server/tests/terminal-ws-handler.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/token-estimator-preview-wellformed.test.ts",
         "projects": [
           "root-node"
         ]
@@ -39360,6 +39468,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/stores/coordinator-message-wellformed.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/stores/coordinator-monitor-store.test.ts",
         "projects": [
           "webui-jsdom"
@@ -39991,6 +40105,13 @@
       },
       {
         "file": "packages/codebase/tests/parser-output-boundaries.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "packages/codebase/tests/parser-output-signature-wellformed.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

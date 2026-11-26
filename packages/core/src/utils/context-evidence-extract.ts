@@ -8,6 +8,15 @@ import type {
 /** Only scan the last N lines for error patterns — errors surface at the bottom. */
 const EXTRACT_ERROR_TAIL_LINES = 200;
 
+/** Cap evidence text without leaving half of a surrogate pair (it reaches the prompt). */
+function clipEvidence(text: string, max: number): string {
+  if (text.length <= max) return text;
+  let end = max;
+  const last = text.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return text.slice(0, end);
+}
+
 export function normalizeWhitespace(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
 }
@@ -92,7 +101,7 @@ export function extractCommands(toolName: string, input: unknown): string[] {
   if (!input || typeof input !== 'object') return [];
   const command = (input as Record<string, unknown>)['command'];
   if (typeof command !== 'string') return [];
-  return [command.slice(0, 220)];
+  return [clipEvidence(command, 220)];
 }
 
 export function extractErrors(content: string): string[] {
@@ -113,7 +122,7 @@ export function extractErrors(content: string): string[] {
       )
     )
       continue;
-    errors.push(normalizeWhitespace(line).slice(0, 260));
+    errors.push(clipEvidence(normalizeWhitespace(line), 260));
     if (errors.length >= 5) break;
   }
   return errors;
@@ -125,7 +134,7 @@ export function summarizeInput(input: unknown): string | undefined {
   const parts: string[] = [];
   for (const key of ['path', 'file', 'pattern', 'glob', 'command']) {
     const value = obj[key];
-    if (typeof value === 'string') parts.push(`${key}=${value.slice(0, 160)}`);
+    if (typeof value === 'string') parts.push(`${key}=${clipEvidence(value, 160)}`);
   }
   return parts.length > 0 ? parts.join(', ') : undefined;
 }
@@ -149,7 +158,7 @@ export function summarizeToolOutput(
     return `${toolName === 'write' ? 'wrote' : 'edited'} ${opts.files[0]}`;
   }
   const firstLine = normalizeWhitespace(content.split(/\r?\n/).find((line) => line.trim()) ?? '');
-  return firstLine ? firstLine.slice(0, 220) : `${toolName} returned no text`;
+  return firstLine ? clipEvidence(firstLine, 220) : `${toolName} returned no text`;
 }
 
 export function updateRepeatedReadSignals(

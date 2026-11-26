@@ -272,6 +272,15 @@ const ADVANCE_PREAMBLES = [
  * @param todos         The full current todo list for board context.
  * @returns A varied advancement prompt for the next auto-feed.
  */
+/** End a label cut on a code-point boundary (never emit half a surrogate pair). */
+function clipLabel(value: string, max: number): string {
+  if (value.length <= max) return value;
+  let end = max;
+  const last = value.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+}
+
 export function generateAdvancementPrompt(
   stalledTodo: { id: string; content: string },
   nextTodo: { id: string; content: string; status: string; activeForm?: string | undefined } | null,
@@ -287,7 +296,7 @@ export function generateAdvancementPrompt(
   const idx = Math.max(0, Math.min(safeAttempts - 1, ADVANCE_PREAMBLES.length - 1));
   const preamble = ADVANCE_PREAMBLES[idx]!.replace(/\{attempts\}/g, () =>
     String(safeAttempts),
-  ).replace(/\{label\}/g, () => stalledTodo.content.slice(0, 72));
+  ).replace(/\{label\}/g, () => clipLabel(stalledTodo.content, 72));
 
   if (!nextTodo) {
     return [

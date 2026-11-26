@@ -23,12 +23,21 @@ export function formatSubagentFallbackText(
   return src ? `fallback  ${src} → ${dest}` : `fallback  ${dest}`;
 }
 
+/** End a cut on a code-point boundary: never emit half a surrogate pair. */
+function clipText(value: string, max: number): string {
+  if (value.length <= max) return value;
+  let end = max;
+  const last = value.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+}
+
 /** One-line recoverable model failure (the hop usually follows). */
 export function formatSubagentModelFailedText(description: string | undefined): string {
   if (!description) return 'model failed';
   const one = description.replace(/\s+/g, ' ').trim();
   if (!one) return 'model failed';
-  return one.length > 72 ? `model failed · ${one.slice(0, 71)}…` : `model failed · ${one}`;
+  return one.length > 72 ? `model failed · ${clipText(one, 71)}…` : `model failed · ${one}`;
 }
 
 /** Format a duration for a history chip. */
@@ -51,7 +60,7 @@ export function shortenTaskPreview(task: string, maxChars = 56): string {
   if (!oneLine) return '';
   const limit = Number.isFinite(maxChars) && maxChars > 0 ? Math.floor(maxChars) : 56;
   if (oneLine.length <= limit) return oneLine;
-  return `${oneLine.slice(0, Math.max(1, limit - 1))}…`;
+  return `${clipText(oneLine, Math.max(1, limit - 1))}…`;
 }
 
 interface SubagentCompletionLike {

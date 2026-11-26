@@ -103,6 +103,15 @@ export async function brainstormTask(
   }
 }
 
+/** End a journal-note cut on a code-point boundary (never emit half a surrogate pair). */
+function clipNote(value: string, max: number): string {
+  if (value.length <= max) return value;
+  let end = max;
+  const last = value.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+}
+
 export function buildDirective(
   _host: EternalAutonomyDirectivesHost,
   goal: GoalFile,
@@ -113,7 +122,7 @@ export function buildDirective(
     .slice(-5)
     .map(
       (e) =>
-        `  #${e.iteration} [${e.status}] ${e.task}${e.note ? ` — ${e.note.slice(0, 80)}` : ''}`,
+        `  #${e.iteration} [${e.status}] ${e.task}${e.note ? ` — ${clipNote(e.note, 80)}` : ''}`,
     )
     .join('\n');
   return [

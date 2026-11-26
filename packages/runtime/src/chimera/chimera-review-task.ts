@@ -201,7 +201,7 @@ export function buildChimeraReviewTaskDescription(p: ChimeraReviewNeededPayload)
     lines.push('');
     lines.push(`**Kanban card: ${p.kanbanCard.title}**`);
     if (p.kanbanCard.description) {
-      lines.push(`  ${p.kanbanCard.description.slice(0, 500)}`);
+      lines.push(`  ${truncateAtCodePointBoundary(p.kanbanCard.description, 500)}`);
     }
     if (p.kanbanCard.successCriteria && p.kanbanCard.successCriteria.length > 0) {
       lines.push('  **Success criteria:**');

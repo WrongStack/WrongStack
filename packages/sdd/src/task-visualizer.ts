@@ -101,6 +101,15 @@ export function renderTaskGraph(
   return lines.join('\n');
 }
 
+/** End a label cut on a code-point boundary (never emit half a surrogate pair). */
+function clipLabel(value: string, max: number): string {
+  if (value.length <= max) return value;
+  let end = max;
+  const last = value.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+}
+
 function renderNode(
   graph: TaskGraph,
   nodeId: string,
@@ -124,7 +133,12 @@ function renderNode(
   const blockedBy = blockersMap.get(nodeId) ?? [];
   const depsStr =
     blockedBy.length > 0
-      ? ` ← [${blockedBy.map((d) => graph.nodes.get(d)?.title?.slice(0, 12) ?? '?').join(', ')}]`
+      ? ` ← [${blockedBy
+          .map((d) => {
+            const label = graph.nodes.get(d)?.title;
+            return label === undefined ? '?' : clipLabel(label, 12);
+          })
+          .join(', ')}]`
       : '';
 
   lines.push(`${prefix}${icon} ${typeIcon} ${prioIcon} ${title}${depsStr}`);

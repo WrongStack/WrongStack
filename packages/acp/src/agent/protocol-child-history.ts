@@ -12,6 +12,28 @@ function validId(id: unknown): id is string {
   return typeof id === 'string' && id.length > 0 && id.length <= ID_LIMIT;
 }
 
+/**
+ * Never end a stored slice on half of a surrogate pair: a lone unit goes out in
+ * the ACP JSON-RPC frame as a `\udXXX` escape and strict client parsers reject
+ * the whole frame (`server-agent-commands.ts` walks back for the same reason).
+ */
+function clip(value: string, max: number): string {
+  if (value.length <= max) return value;
+  let end = max;
+  const last = value.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+}
+
+/** Same rule for a tail slice: never START on the low half of a pair. */
+function clipTail(value: string, max: number): string {
+  if (value.length <= max) return value;
+  let start = value.length - max;
+  const first = value.charCodeAt(start);
+  if (first >= 0xdc00 && first <= 0xdfff) start += 1;
+  return value.slice(start);
+}
+
 export function readChildHistory(value: unknown, rootId: string): ChildHistoryEntry[] {
   if (!Array.isArray(value)) return [];
   const entries = new Map<string, ChildHistoryEntry>();
@@ -19,10 +41,9 @@ export function readChildHistory(value: unknown, rootId: string): ChildHistoryEn
     if (!isRecord(item) || !validId(item.id) || item.id === rootId) continue;
     entries.set(item.id, {
       id: item.id,
-      title: typeof item.title === 'string' ? item.title.slice(0, 300) : undefined,
-      description:
-        typeof item.description === 'string' ? item.description.slice(0, 1_000) : undefined,
-      text: typeof item.text === 'string' ? item.text.slice(-TEXT_LIMIT) : undefined,
+      title: typeof item.title === 'string' ? clip(item.title, 300) : undefined,
+      description: typeof item.description === 'string' ? clip(item.description, 1_000) : undefined,
+      text: typeof item.text === 'string' ? clipTail(item.text, TEXT_LIMIT) : undefined,
     });
   }
   return [...entries.values()];
@@ -46,9 +67,8 @@ export function rememberChildUpdate(
       child = { id };
       children.push(child);
     }
-    if (typeof update.title === 'string') child.title = update.title.slice(0, 300);
-    if (typeof update.description === 'string')
-      child.description = update.description.slice(0, 1_000);
+    if (typeof update.title === 'string') child.title = clip(update.title, 300);
+    if (typeof update.description === 'string') child.description = clip(update.description, 1_000);
     return isRecord(update.state) && update.state.state === 'idle';
   }
   if (
@@ -58,7 +78,7 @@ export function rememberChildUpdate(
     typeof update.content.text === 'string'
   ) {
     const child = state.childHistory?.find((entry) => entry.id === childId);
-    if (child) child.text = ((child.text ?? '') + update.content.text).slice(-TEXT_LIMIT);
+    if (child) child.text = clipTail((child.text ?? '') + update.content.text, TEXT_LIMIT);
   }
   return false;
 }

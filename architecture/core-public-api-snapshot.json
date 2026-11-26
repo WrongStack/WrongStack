@@ -1108,7 +1108,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 112,
-      "sourceLines": 31467
+      "sourceLines": 31494
     },
     {
       "directory": "extension",
@@ -1234,7 +1234,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 129,
-      "sourceLines": 30249
+      "sourceLines": 30258
     },
     {
       "directory": "tasking",
@@ -1255,7 +1255,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 98,
-      "sourceLines": 16334
+      "sourceLines": 16343
     },
     {
       "directory": "vcs",

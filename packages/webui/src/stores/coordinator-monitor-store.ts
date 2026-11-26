@@ -104,6 +104,15 @@ function alertLevel(kind: BudgetKind, pct: number): 'warning' | 'danger' {
   return pct >= 100 ? 'danger' : pct >= 85 ? 'warning' : 'warning';
 }
 
+/** End a cut on a code-point boundary: never emit half a surrogate pair. */
+function clipText(value: string, max: number): string {
+  if (value.length <= max) return value;
+  let end = max;
+  const last = value.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+}
+
 function buildEventMessage(type: string, payload: Record<string, unknown>): string {
   switch (type) {
     case 'budget.threshold_reached': {
@@ -129,7 +138,7 @@ function buildEventMessage(type: string, payload: Record<string, unknown>): stri
     }
     case 'task.pending': {
       const p = payload as { taskId: string; description: string };
-      return `Task queued: "${p.description.slice(0, 60)}"`;
+      return `Task queued: "${clipText(p.description, 60)}"`;
     }
     case 'task.started': {
       const p = payload as { taskId: string; subagentId: string };
@@ -141,7 +150,7 @@ function buildEventMessage(type: string, payload: Record<string, unknown>): stri
     }
     case 'task.failed': {
       const p = payload as { taskId: string; error: string };
-      return `Task ${p.taskId} failed: ${p.error.slice(0, 60)}`;
+      return `Task ${p.taskId} failed: ${clipText(p.error, 60)}`;
     }
     case 'subagent.budget_extended': {
       const p = payload as { subagentId: string; kind: string; extendedTo?: number };

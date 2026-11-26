@@ -25,6 +25,15 @@ interface RawParsedSymbol {
   doc: string;
 }
 
+/** End a signature cut on a code-point boundary (never emit half a surrogate pair). */
+function clipSignature(value: string, max: number): string {
+  if (value.length <= max) return value;
+  let end = max;
+  const last = value.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+}
+
 /** Map decoded parser symbols onto index rows for `file`. */
 export function toIndexSymbols(
   raw: readonly RawParsedSymbol[],
@@ -32,7 +41,7 @@ export function toIndexSymbols(
   lang: SymbolLang,
 ): IndexSymbol[] {
   return raw.map((s) => {
-    const signature = s.signature.slice(0, 500);
+    const signature = clipSignature(s.signature, 500);
     return {
       id: 0,
       lang,

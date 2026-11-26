@@ -208,6 +208,15 @@ export function getProjectAgentLearnStats(
   };
 }
 
+/** End a cut on a code-point boundary: never emit half a surrogate pair. */
+function clipWellFormed(value: string, max: number): string {
+  if (value.length <= max) return value;
+  let end = max;
+  const last = value.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+}
+
 export function detectLearnedConflicts(projectRoot?: string): Array<{
   roleA: string;
   roleB: string;
@@ -243,8 +252,8 @@ export function detectLearnedConflicts(projectRoot?: string): Array<{
         conflicts.push({
           roleA: a.role,
           roleB: b.role,
-          snippetA: a.raw.slice(0, 200),
-          snippetB: b.raw.slice(0, 200),
+          snippetA: clipWellFormed(a.raw, 200),
+          snippetB: clipWellFormed(b.raw, 200),
           similarity: sim,
           detectedAt: new Date().toISOString(),
         });

@@ -16,6 +16,15 @@ export interface EternalCompletionHost {
   consecutiveBrainstormDone: number;
 }
 
+/** End a journal-field cut on a code-point boundary (never emit half a surrogate pair). */
+function clipJournalText(value: string, max: number): string {
+  if (value.length <= max) return value;
+  let end = max;
+  const last = value.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+}
+
 export async function markGoalCompleted(
   this: EternalCompletionHost,
   action: { source: JournalEntry['source']; task: string; directive: string },
@@ -27,9 +36,9 @@ export async function markGoalCompleted(
   const withFlag: GoalFile = { ...current, goalState: 'completed' };
   const withEntry = appendJournal(withFlag, {
     source: action.source,
-    task: `MISSION COMPLETE — ${action.task}`.slice(0, 240),
+    task: clipJournalText(`MISSION COMPLETE — ${action.task}`, 240),
     status: 'success',
-    note: note.slice(0, 240),
+    note: clipJournalText(note, 240),
   });
   await saveGoal(this.goalPath, withEntry, this.opts.events);
   // Remove the goal file so it doesn't persist as stale state.
@@ -66,7 +75,7 @@ export async function clearGoalManually(this: EternalCompletionHost, note: strin
     source: 'manual',
     task: 'goal cleared',
     status: 'success',
-    note: note.slice(0, 240),
+    note: clipJournalText(note, 240),
   }).catch(() => {});
 }
 

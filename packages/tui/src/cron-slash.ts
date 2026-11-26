@@ -137,6 +137,15 @@ function fmtTime(iso: string | null): string {
   });
 }
 
+/** End a cut on a code-point boundary: never emit half a surrogate pair. */
+function clipText(value: string, max: number): string {
+  if (value.length <= max) return value;
+  let end = max;
+  const last = value.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+}
+
 export function renderCronList(result: CronListResult): string {
   const { jobs, count, maxConcurrent } = result;
 
@@ -167,8 +176,8 @@ export function renderCronList(result: CronListResult): string {
     const next = fmtTime(job.nextRun);
     const last = fmtTime(job.lastRun);
     const runs = String(job.runCount);
-    const action = job.action.length > 50 ? job.action.slice(0, 47) + '…' : job.action;
-    const name = job.name.length > 24 ? job.name.slice(0, 21) + '…' : job.name.padEnd(24);
+    const action = job.action.length > 50 ? `${clipText(job.action, 47)}…` : job.action;
+    const name = job.name.length > 24 ? `${clipText(job.name, 21)}…` : job.name.padEnd(24);
 
     return `  ${status}  ${name}  ${interval.padEnd(8)}  runs:${runs.padStart(3)}  next:${next.padEnd(9)}  last:${last.padEnd(9)}  ${action}`;
   });

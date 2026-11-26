@@ -60,7 +60,13 @@ export async function readFileHead(filePath: string, maxChars: number): Promise<
     const buffer = Buffer.allocUnsafe(maxChars * MAX_BYTES_PER_UTF16_UNIT);
     const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
     const decoded = new StringDecoder('utf8').write(buffer.subarray(0, bytesRead));
-    return decoded.length > maxChars ? decoded.slice(0, maxChars) : decoded;
+    if (decoded.length <= maxChars) return decoded;
+    // Never end the head on half of a surrogate pair: a lone unit is ill-formed
+    // and this text is scanned, reported and shown as the file's preview.
+    let end = maxChars;
+    const last = decoded.charCodeAt(end - 1);
+    if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+    return decoded.slice(0, end);
   } finally {
     await handle.close();
   }

@@ -101,23 +101,34 @@ export function messageTokens(content: unknown): number {
   return tk;
 }
 
+/** End a preview cut on a code-point boundary (never emit half a surrogate pair). */
+function clipPreview(value: string, max: number): string {
+  if (value.length <= max) return value;
+  let end = max;
+  const last = value.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return value.slice(0, end);
+}
+
 export function messagePreview(content: unknown): string {
-  if (typeof content === 'string') return content.slice(0, 60);
+  if (typeof content === 'string') return clipPreview(content, 60);
   if (!Array.isArray(content)) return '';
-  return (content as unknown[])
-    .map((raw) => {
-      const b = raw !== null && typeof raw === 'object' ? (raw as ContentBlock) : undefined;
-      const type = b?.type ?? (b ? 'undefined' : stringifyContent(raw));
-      return type === 'text'
-        ? (b?.text ?? '').slice(0, 40)
-        : type === 'tool_use'
-          ? `[tool_use: ${b?.name}]`
-          : type === 'tool_result'
-            ? '[tool_result]'
-            : `[${type}]`;
-    })
-    .join(' ')
-    .slice(0, 60);
+  return clipPreview(
+    (content as unknown[])
+      .map((raw) => {
+        const b = raw !== null && typeof raw === 'object' ? (raw as ContentBlock) : undefined;
+        const type = b?.type ?? (b ? 'undefined' : stringifyContent(raw));
+        return type === 'text'
+          ? clipPreview(b?.text ?? '', 40)
+          : type === 'tool_use'
+            ? `[tool_use: ${b?.name}]`
+            : type === 'tool_result'
+              ? '[tool_result]'
+              : `[${type}]`;
+      })
+      .join(' '),
+    60,
+  );
 }
 
 /**
