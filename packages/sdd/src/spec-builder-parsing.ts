@@ -109,6 +109,47 @@ export function parseSpecificationJSON(
   return spec;
 }
 
+/**
+ * Every top-level `{...}` / `[...]` group in `text`, in source order.
+ *
+ * Tracking string state here (not just depth) keeps a delimiter inside a
+ * quoted value — or in quoted preamble prose — from opening or closing a
+ * candidate. A greedy first-open/last-close regex instead extends the match
+ * through trailing prose such as `{"a":1} Hope {that} helps.`, one big slice
+ * that JSON.parse rejects even though a complete object is present.
+ */
+function balancedContainers(text: string, open: '{' | '[', close: '}' | ']'): string[] {
+  const out: string[] = [];
+  let inString = false;
+  let escaped = false;
+  let start = -1;
+  let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === open) {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (ch === close && depth > 0) {
+      depth--;
+      if (depth === 0 && start >= 0) {
+        out.push(text.slice(start, i + 1));
+        start = -1;
+      }
+    }
+  }
+  return out;
+}
+
 /** Extract JSON from AI output (handles ```json blocks and raw JSON). */
 export function extractJSONFromText(text: string): string | null {
   // Try ```json ... ``` first
@@ -126,14 +167,14 @@ export function extractJSONFromText(text: string): string | null {
     }
   }
 
-  // Try raw JSON object
-  const jsonMatch = text.match(/(\{[\s\S]*\})/);
-  if (jsonMatch?.[1]) {
+  // Try raw JSON object one balanced group at a time, so trailing prose that
+  // contains its own braces cannot extend the candidate past a complete object.
+  for (const candidate of balancedContainers(text, '{', '}')) {
     try {
-      JSON.parse(jsonMatch[1]);
-      return jsonMatch[1];
+      JSON.parse(candidate);
+      return candidate;
     } catch {
-      // not valid JSON
+      // not valid JSON — try the next group
     }
   }
 
@@ -148,13 +189,12 @@ export function extractJSONArrayFromText(text: string): string | null {
     if (trimmed.startsWith('[')) return trimmed;
   }
 
-  const arrayMatch = text.match(/(\[[\s\S]*\])/);
-  if (arrayMatch?.[1]) {
+  for (const candidate of balancedContainers(text, '[', ']')) {
     try {
-      const parsed = JSON.parse(arrayMatch[1]);
-      if (Array.isArray(parsed)) return arrayMatch[1];
+      const parsed = JSON.parse(candidate);
+      if (Array.isArray(parsed)) return candidate;
     } catch {
-      // not valid
+      // not valid — try the next group
     }
   }
 

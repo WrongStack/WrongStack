@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T23:51:08.672Z",
+  "generatedAt": "2026-11-26T23:54:08.461Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6587,
-    "testFiles": 6501,
-    "sourceLines": 1352367,
+    "testFiles": 6502,
+    "sourceLines": 1352407,
     "workspaceEdges": 267,
     "moduleEdges": 19312,
     "nonCommandSlashImports": 0,
@@ -971,7 +971,7 @@
       "name": "@wrongstack/sdd",
       "dir": "packages/sdd",
       "sourceFiles": 45,
-      "testFiles": 67,
+      "testFiles": 68,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -990,7 +990,7 @@
         {
           "path": "packages/sdd/tsconfig.test.json",
           "error": null,
-          "testFiles": 67
+          "testFiles": 68
         }
       ]
     },
@@ -26641,6 +26641,12 @@
       },
       {
         "file": "packages/sdd/tests/sdd-worktree-integration.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sdd/tests/spec-builder-json-extraction.test.ts",
         "projects": [
           "root-node"
         ]
