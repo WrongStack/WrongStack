@@ -287,6 +287,21 @@
       "fingerprint": "11431a943697546e"
     },
     {
+      "file": "packages/core/tests/utils/tree-kill-spawn-race-windows.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "6507f35136ed2a03"
+    },
+    {
+      "file": "packages/core/tests/utils/tree-kill-spawn-race-windows.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "8db7c7dca325f48c"
+    },
+    {
+      "file": "packages/core/tests/utils/tree-kill-spawn-race-windows.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "b840e0eaa0a84a70"
+    },
+    {
       "file": "packages/core/tests/utils/win32-cmd.test.ts",
       "kind": "skipIf",
       "fingerprint": "c8f344b51764590b"

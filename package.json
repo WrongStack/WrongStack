@@ -1,7 +1,7 @@
 {
   "name": "wrongstack-monorepo",
   "private": true,
-  "version": "1.7.21",
+  "version": "1.7.22",
   "license": "MIT",
   "type": "module",
   "packageManager": "bun@1.4.5",

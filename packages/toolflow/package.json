@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/toolflow",
-  "version": "1.7.21",
+  "version": "1.7.22",
   "private": true,
   "license": "MIT",
   "description": "WrongStack ToolFlow runtime, QuickJS interpreter, and result presentation.",

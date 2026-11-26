@@ -55,14 +55,17 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
-### What's new in 1.7.21
+### What's new in 1.7.22
 
-- **ACP leaders, fully native:** an ACP agent leading a conversation runs its
-  own slash commands, modes, plans and subagents.
-- **HQ vault leases** keep provider keys in memory only, and
-  `wstack hq keys push` sends a machine's provider to HQ for approval.
-- **Input hardening** across the repository: non-finite limits, blank ids,
-  prototype keys and spoofed loopback addresses are refused.
+- **IDE-style desktop workbench:** a saved pane layout with Code / Review /
+  Focus presets, a keyboard tab strip and a terminal dock that keeps its
+  scrollback.
+- **ACP mode switching** from WebUI and the desktop.
+- **Steadier Windows process stops:** a stopped shell no longer orphans the
+  command it was starting.
+- **Tighter gates:** approvals hide bidi and invisible text and the WebUI
+  dialog lists the files a call writes; PowerShell and cmd escapes no longer
+  hide a command from the YOLO gate.
 
 Every earlier release is in the [changelog](CHANGELOG.md).
 
@@ -380,7 +383,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.7.21**; versions follow semver
+- Release notes: **v1.7.22**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements

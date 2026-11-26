@@ -1,4 +1,4 @@
-// Changelog — recent 1.x era (1.7.21 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
+// Changelog — recent 1.x era (1.7.22 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
 // Historical entries mirror CHANGELOG.md release notes. 1.1.0 absorbs the 1.0.38
 // bump, which was never published; 1.7.8 and 1.7.10 were never tagged either.
 // The 1.1.5 entry summarizes the commits in v1.1.4..v1.1.5, the 1.1.6 entry
@@ -11,10 +11,22 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.22',
+    date: '2026-11-26',
+    tagline: 'An IDE-style desktop workbench',
+    latest: true,
+    highlights: [
+      'Desktop workbench with a saved pane layout, keyboard tab strip and terminal dock',
+      "Switch an ACP agent's native mode from WebUI and the desktop",
+      "Windows process stops no longer orphan a starting shell's command",
+      'Approvals hide bidi and invisible text on every surface',
+      'More YOLO command shapes gated, and an edge-case round across the repository',
+    ],
+  },
+  {
     version: '1.7.21',
     date: '2026-11-26',
     tagline: 'ACP leaders, fully native',
-    latest: true,
     highlights: [
       "ACP leaders run the agent's own slash commands, modes, plans and subagents",
       'HQ vault leases keep provider keys in memory only',

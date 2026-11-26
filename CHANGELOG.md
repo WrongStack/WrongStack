@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.22] — 2026-11-26
+
+An IDE-style desktop workbench, native ACP mode switching from WebUI and the
+desktop, a suspend-first Windows tree kill that no longer orphans a shell's
+command, and a round of edge-case fixes across approvals, YOLO gates,
+planning, coordination and display formatting.
+
+### Added
+
+- Desktop: IDE-style workbench. The project explorer, file tree and session
+  inspector share one saved pane layout with Code / Review / Focus presets;
+  a workbench menu and activity rail; a keyboard-driven session tab strip;
+  a terminal dock that keeps xterm and its scrollback when it moves; pending
+  tool approvals with a review action in the engine workspace.
+- ACP: WebUI and the desktop switch an ACP agent's native mode through a new
+  `acp.mode` request; each mode selector renders as its own select.
+- WebUI: the approval dialog lists the files a call writes ("Writes to"), as
+  the TUI already did.
+
+### Fixed
+
+- Windows process stops: the tree kill suspends the root and every
+  descendant before terminating, so a shell stopped while it is still
+  starting no longer orphans its command; a stopped `process_watch` whose
+  shell exited while a descendant holds its pipes now ends.
+- Approvals: every surface strips bidi and invisible characters from what it
+  shows, and the WebUI y/n/a hotkeys ignore Ctrl/Cmd chords.
+- YOLO gates: command splitting reads PowerShell backtick and cmd caret
+  escapes, so an escaped quote no longer hides the next command; PowerShell
+  env-drive home paths, `cmd /c` payloads, value-taking git global options,
+  kubectl TYPE lists and `yarn npm publish` are gated.
+- Techstack: rulebook `namePattern` matches in linear time instead of
+  backtracking exponentially.
+- Core: BOM-prefixed session journals load; session recovery output is
+  scrubbed; the Prometheus host check accepts only IPv4 loopback literals;
+  plugin version ranges follow npm semantics for partial versions.
+- Codebase: the index circuit breaker, project watchers and shared full-index
+  runs stay consistent under cancellation and replacement.
+- Coordination: `fleet.delegate.autoWake` obeys only an explicit boolean, a
+  reused worker id no longer inherits the old run's result, and delegation
+  hints share the result-size bound.
+- Planning: goal phases verify work added mid-verification, the SDD critical
+  path lists only pending tasks, and Kanban compaction keeps prerequisites.
+- Text and numbers: display and journal text is cut on code-point
+  boundaries, non-finite numeric options fall back to their defaults, timer
+  delays are clamped, and quotas, counts, bytes, tokens, durations and costs
+  carry their unit correctly at rounding boundaries.
+- WebUI fallback editor: a ref whose model is missing from the saved model
+  list, or that names no provider, gets an advisory instead of an inactive
+  badge, since the runtime still tries it.
+- Diffs, daemon frames and parsers: unified-diff hunks end at their declared
+  line counts, non-object daemon frames are rejected, and tool-input JSON,
+  SSE, template escaping and version-range parsing handle their edge cases.
+- CLI, Telegram, WebUI, TUI and HQ: `wstack auth remove --force`, `/modelcaps`,
+  `/plan`, `/kill`, Telegram queue overflow, attachment caps and mailbox
+  recipient validation behave as documented.
+
 ## [1.7.21] — 2026-11-26
 
 ACP leaders run the agent's own slash commands, modes, plans and subagents,
