@@ -128,6 +128,15 @@ export function buildRoutes(
   const providerRoutes: ProviderRouteHandlers = {
     acpConfigOptions: (agentId, values) =>
       inspectAcpRuntime(state.getConfig(), state.getProjectRoot(), agentId, values),
+    acpMode: async (agentId, sessionId, choice) => {
+      const targetSessionId = sessionId ?? state.getSession().id;
+      const provider = sessionContext(targetSessionId).provider;
+      if (!provider?.configureNativeMode) {
+        throw new Error('ACP mode switching is only available when an ACP agent is active.');
+      }
+      const modes = await provider.configureNativeMode(agentId, targetSessionId, choice);
+      return { agentId, modes };
+    },
     statusTracker,
     ...(statusPersistence
       ? {

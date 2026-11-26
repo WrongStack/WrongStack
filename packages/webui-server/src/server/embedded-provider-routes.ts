@@ -78,6 +78,16 @@ export function createEmbeddedProviderRoutes(
       if (!config) throw new Error('ACP agent configuration is unavailable.');
       return inspectAcpRuntime(config, opts.projectRoot ?? process.cwd(), agentId, values);
     },
+    acpMode: async (agentId, sessionId, choice) => {
+      const targetSessionId = sessionId ?? deps.agentConfigCtx.agent.ctx.session?.id;
+      const ctx = sessionContextOf(targetSessionId);
+      const resolvedSessionId = targetSessionId ?? ctx.session?.id;
+      if (!ctx.provider?.configureNativeMode || !resolvedSessionId) {
+        throw new Error('ACP mode switching is only available when an ACP agent is active.');
+      }
+      const modes = await ctx.provider.configureNativeMode(agentId, resolvedSessionId, choice);
+      return { agentId, modes };
+    },
     listProviders: (ws) => providerOperations.handleProvidersList(ws),
     listSavedProviders: (ws) => providerOperations.handleProvidersSaved(ws),
     listProviderModels: (ws, msg) =>

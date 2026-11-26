@@ -201,6 +201,7 @@ export interface WSCodeAssistResult {
 
 export type WSServerMessage =
   | { type: 'acp.config_options'; payload: Record<string, unknown> }
+  | { type: 'acp.mode'; payload: Record<string, unknown> }
   | {
       type: 'plugin.ui.updated';
       payload: {

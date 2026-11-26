@@ -1,4 +1,8 @@
 import type { ProviderConfig } from '@wrongstack/contracts/types';
+import type {
+  AcpNativeModeChoice,
+  AcpNativeModeSelector,
+} from '@wrongstack/contracts/types/acp-runtime';
 import type { ProviderModelStatusTracker } from '@wrongstack/coordination';
 import type { WebSocket } from 'ws';
 import type { WSClientMessage } from './types.js';
@@ -96,6 +100,13 @@ export interface ProviderMutationHandlers {
 export interface ProviderRouteHandlers {
   acpConfigOptions?:
     | ((agentId: string, values: Record<string, string>) => Promise<unknown>)
+    | undefined;
+  acpMode?:
+    | ((
+        agentId: string,
+        sessionId: string | undefined,
+        choice?: AcpNativeModeChoice,
+      ) => Promise<{ agentId: string; modes: AcpNativeModeSelector[] }>)
     | undefined;
   listProviders: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   listSavedProviders: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;

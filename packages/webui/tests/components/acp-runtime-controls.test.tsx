@@ -173,3 +173,56 @@ it('displays advertised ACP capabilities, modes, and native slash commands', asy
   expect(screen.getByText('/compact')).toBeTruthy();
   expect(screen.getByText('/review')).toBeTruthy();
 });
+
+it('loads interactive ACP mode selectors and applies mode changes via modeRequest', async () => {
+  const request = vi.fn().mockResolvedValue(snapshot);
+  const modeRequest = vi
+    .fn()
+    .mockResolvedValueOnce({
+      modes: [
+        {
+          id: 'mode',
+          name: 'Mode',
+          currentValue: 'default',
+          options: [
+            { value: 'default', name: 'Default' },
+            { value: 'plan', name: 'Plan' },
+            { value: 'bypassPermissions', name: 'Bypass Permissions' },
+          ],
+          selectableValues: ['default', 'plan'],
+        },
+      ],
+    })
+    .mockResolvedValueOnce({
+      modes: [
+        {
+          id: 'mode',
+          name: 'Mode',
+          currentValue: 'plan',
+          options: [
+            { value: 'default', name: 'Default' },
+            { value: 'plan', name: 'Plan' },
+            { value: 'bypassPermissions', name: 'Bypass Permissions' },
+          ],
+          selectableValues: ['default', 'plan'],
+        },
+      ],
+    });
+  const { container } = render(
+    <AcpRuntimeControls
+      agentId="claude-code"
+      request={request}
+      modeRequest={modeRequest}
+      onChange={vi.fn()}
+    />,
+  );
+  container.querySelector('details')!.open = true;
+  fireEvent(container.querySelector('details')!, new Event('toggle'));
+  const select = (await screen.findByLabelText('ACP Mode')) as HTMLSelectElement;
+  expect(select.value).toBe('default');
+  fireEvent.change(select, { target: { value: 'plan' } });
+  await waitFor(() =>
+    expect(modeRequest).toHaveBeenCalledWith('claude-code', { optionId: 'mode', value: 'plan' }),
+  );
+  expect(select.value).toBe('plan');
+});

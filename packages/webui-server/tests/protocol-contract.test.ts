@@ -56,8 +56,10 @@ describe('surface protocol contract', () => {
     // +2: btw.add / btw.get (a BTW note delivered as a same-session user instruction).
     // +1: tools.group.set (turn a session's tool group on or off).
     // +5: hq.status / hq.enroll / hq.import / hq.sync / hq.unenroll (Import from HQ).
-    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(327);
+    // +1: acp.mode (switch an active ACP session's native mode).
+    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(328);
     expect(CLIENT_MESSAGE_TYPES).toContain('acp.config_options');
+    expect(CLIENT_MESSAGE_TYPES).toContain('acp.mode');
     expect(CLIENT_MESSAGE_TYPES).toEqual(expect.arrayContaining(['mcp.tools', 'mcp.tool.call']));
     expect(CLIENT_MESSAGE_TYPES).toEqual(
       expect.arrayContaining([
@@ -96,8 +98,10 @@ describe('surface protocol contract', () => {
     // +4: design.draw / design.kept / design.photos / design.snapshot (Design Studio).
     // +1: btw.state (pending same-session BTW instructions).
     // +1: hq.state (Import from HQ).
-    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(334);
+    // +1: acp.mode (its reply).
+    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(335);
     expect(SERVER_MESSAGE_TYPES).toContain('acp.config_options');
+    expect(SERVER_MESSAGE_TYPES).toContain('acp.mode');
     expect(SERVER_MESSAGE_TYPES).toEqual(expect.arrayContaining(['mcp.tools', 'mcp.tool.result']));
     expect(SERVER_MESSAGE_TYPES).toContain('provider.primary_restored');
     expect(SERVER_MESSAGE_TYPES).toEqual(

@@ -68,6 +68,7 @@ export const SERVER_CONFIGURATION_MESSAGE_TYPES = [
   'provider.catalog',
   'provider.models',
   'acp.config_options',
+  'acp.mode',
   'provider.models.search_result',
   'provider.probe',
   'provider.quota',

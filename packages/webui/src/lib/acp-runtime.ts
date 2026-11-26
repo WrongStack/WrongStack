@@ -1,4 +1,6 @@
 import type {
+  AcpNativeModeChoice,
+  AcpNativeModeSelector,
   AcpRuntimeOptionsResult,
   AcpRuntimeValues,
 } from '@wrongstack/contracts/types/acp-runtime';
@@ -66,6 +68,48 @@ export function requestAcpRuntime(
       clearTimeout(timer);
       off();
       reject(new Error('ACP settings require a connected session.'));
+    }
+  });
+}
+
+export function requestAcpMode(
+  agentId: string,
+  sessionId: string | null,
+  choice?: AcpNativeModeChoice,
+): Promise<{ modes: AcpNativeModeSelector[] }> {
+  const client = getWSClient();
+  if (client.status.state !== 'open')
+    return Promise.reject(new Error('ACP mode requires a connected session.'));
+  const requestId = safeId();
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      off();
+      reject(new Error('ACP mode request timed out.'));
+    }, 100_000);
+    const off = client.on('acp.mode', (message) => {
+      const payload = message.payload as Record<string, unknown>;
+      if (payload['requestId'] !== requestId) return;
+      clearTimeout(timer);
+      off();
+      if (payload['ok'] !== true)
+        reject(new Error(String(payload['error'] ?? 'ACP mode request failed.')));
+      else resolve({ modes: (payload['modes'] as AcpNativeModeSelector[] | undefined) ?? [] });
+    });
+    if (
+      !client.send({
+        type: 'acp.mode',
+        payload: {
+          agentId,
+          ...(sessionId ? { sessionId } : {}),
+          ...(choice?.optionId ? { optionId: choice.optionId } : {}),
+          ...(choice?.value ? { value: choice.value } : {}),
+          requestId,
+        },
+      })
+    ) {
+      clearTimeout(timer);
+      off();
+      reject(new Error('ACP mode requires a connected session.'));
     }
   });
 }

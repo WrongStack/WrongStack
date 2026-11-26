@@ -1,4 +1,6 @@
 import type {
+  AcpNativeModeChoice,
+  AcpNativeModeSelector,
   AcpRuntimeOption,
   AcpRuntimeOptionsResult,
   AcpRuntimeValues,
@@ -11,6 +13,11 @@ export type AcpRuntimeRequest = (
   agentId: string,
   values: AcpRuntimeValues,
 ) => Promise<AcpRuntimeOptionsResult>;
+
+export type AcpModeRequest = (
+  agentId: string,
+  choice?: AcpNativeModeChoice,
+) => Promise<{ modes: AcpNativeModeSelector[] }>;
 
 const EFFORT_CATEGORIES = new Set([
   'thought_level',
@@ -90,17 +97,21 @@ export function AcpRuntimeControls({
   agentId,
   values = {},
   request,
+  modeRequest,
   onChange,
   disabled = false,
 }: {
   agentId: string;
   values?: AcpRuntimeValues | undefined;
   request: AcpRuntimeRequest;
+  modeRequest?: AcpModeRequest | undefined;
   onChange: (values: AcpRuntimeValues) => void | Promise<void>;
   disabled?: boolean | undefined;
 }) {
   const { t } = useAppTranslation();
   const [result, setResult] = useState<AcpRuntimeOptionsResult>();
+  const [modeSelectors, setModeSelectors] = useState<AcpNativeModeSelector[]>();
+  const [modeBusy, setModeBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [pendingValues, setPendingValues] = useState<AcpRuntimeValues | undefined>();
@@ -110,6 +121,8 @@ export function AcpRuntimeControls({
   useEffect(() => {
     sequence.current++;
     setResult(undefined);
+    setModeSelectors(undefined);
+    setModeBusy(false);
     setPendingValues(undefined);
     setError('');
     setBusy(false);
@@ -118,6 +131,22 @@ export function AcpRuntimeControls({
       sequence.current++;
     };
   }, [agentId]);
+
+  const loadModes = async (choice?: AcpNativeModeChoice) => {
+    if (!modeRequest) return;
+    const version = sequence.current;
+    setModeBusy(true);
+    if (choice) setError('');
+    try {
+      const response = await modeRequest(agentId, choice);
+      if (sequence.current !== version) return;
+      setModeSelectors(response.modes);
+    } catch (e) {
+      if (sequence.current === version && choice) setError(toErrorMessage(e));
+    } finally {
+      if (sequence.current === version) setModeBusy(false);
+    }
+  };
 
   const load = async (next: AcpRuntimeValues, save: boolean) => {
     const version = ++sequence.current;
@@ -165,7 +194,10 @@ export function AcpRuntimeControls({
         }
       }}
       onToggle={(event) => {
-        if (event.currentTarget.open && !result && !busy) void load(values, false);
+        if (event.currentTarget.open && !result && !busy) {
+          void load(values, false);
+          void loadModes();
+        }
       }}
     >
       <summary className="cursor-pointer select-none">
@@ -280,15 +312,67 @@ export function AcpRuntimeControls({
             )}
           </div>
         )}
-        {result?.modes && result.modes.length > 0 && (
-          <div className="grid gap-1 text-[11px] text-muted-foreground">
-            <span>
-              Modes:{' '}
-              {result.modes
-                .map((m) => (m.id === result.currentModeId ? `${m.name} (active)` : m.name))
-                .join(' · ')}
-            </span>
+        {modeSelectors && modeSelectors.length > 0 ? (
+          <div className="grid min-w-0 gap-2">
+            {modeSelectors.map((selector) => {
+              const selectable = new Set(selector.selectableValues);
+              return (
+                <label
+                  key={selector.id}
+                  className="grid min-w-0 gap-1"
+                  title={selector.description}
+                >
+                  <span className="font-medium text-foreground/90">
+                    {t('activity:acp.modeLabel', {
+                      defaultValue: 'ACP {{name}}',
+                      name: selector.name,
+                    })}
+                  </span>
+                  <select
+                    className="w-full min-w-0 max-w-full rounded border border-border bg-background px-2 py-1 text-xs text-foreground outline-none focus:border-primary"
+                    aria-label={`ACP ${selector.name}`}
+                    disabled={disabled || busy || modeBusy || selectable.size === 0}
+                    value={selector.currentValue}
+                    onChange={(event) =>
+                      void loadModes({ optionId: selector.id, value: event.target.value })
+                    }
+                  >
+                    {!selector.options.some((x) => x.value === selector.currentValue) && (
+                      <option
+                        className="bg-background text-foreground"
+                        value={selector.currentValue}
+                      >
+                        {selector.currentValue}
+                      </option>
+                    )}
+                    {selector.options.map((x) => (
+                      <option
+                        key={x.value}
+                        className="bg-background text-foreground"
+                        value={x.value}
+                        disabled={!selectable.has(x.value)}
+                      >
+                        {x.name}
+                        {!selectable.has(x.value) ? ' (managed)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              );
+            })}
           </div>
+        ) : (
+          result?.modes &&
+          result.modes.length > 0 && (
+            <div className="grid gap-1 text-[11px] text-muted-foreground">
+              <span>
+                Modes:{' '}
+                {result.modes
+                  .map((m) => (m.id === result.currentModeId ? `${m.name} (active)` : m.name))
+                  .join(' · ')}
+              </span>
+            </div>
+          )
         )}
         {result?.commands && result.commands.length > 0 && (
           <div className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">

@@ -65,4 +65,83 @@ describe('ACP runtime settings routes', () => {
     expect(meta).toEqual({});
     expect(persist).not.toHaveBeenCalled();
   });
+
+  it('switches and reads native ACP modes via acp.mode', async () => {
+    const send = vi.fn();
+    const ws = { readyState: 1, send } as unknown as WebSocket;
+    const acpMode = vi
+      .fn()
+      .mockResolvedValueOnce({
+        agentId: 'claude-code',
+        modes: [
+          {
+            id: 'mode',
+            name: 'Mode',
+            currentValue: 'default',
+            options: [
+              { value: 'default', name: 'Default' },
+              { value: 'plan', name: 'Plan' },
+            ],
+            selectableValues: ['default', 'plan'],
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        agentId: 'claude-code',
+        modes: [
+          {
+            id: 'mode',
+            name: 'Mode',
+            currentValue: 'plan',
+            options: [
+              { value: 'default', name: 'Default' },
+              { value: 'plan', name: 'Plan' },
+            ],
+            selectableValues: ['default', 'plan'],
+          },
+        ],
+      });
+    expect(
+      await handleProviderRoute(
+        ws,
+        { type: 'acp.mode', payload: { agentId: 'claude-code', requestId: 'read-mode' } },
+        { acpMode } as unknown as ProviderRouteHandlers,
+      ),
+    ).toBe(true);
+    expect(
+      await handleProviderRoute(
+        ws,
+        {
+          type: 'acp.mode',
+          payload: {
+            agentId: 'claude-code',
+            sessionId: 'sess-1',
+            optionId: 'mode',
+            value: 'plan',
+            requestId: 'set-mode',
+          },
+        },
+        { acpMode } as unknown as ProviderRouteHandlers,
+      ),
+    ).toBe(true);
+    expect(acpMode).toHaveBeenNthCalledWith(1, 'claude-code', undefined, undefined);
+    expect(acpMode).toHaveBeenNthCalledWith(2, 'claude-code', 'sess-1', {
+      optionId: 'mode',
+      value: 'plan',
+    });
+    expect(send.mock.calls.map((call) => JSON.parse(call[0]).payload)).toEqual([
+      {
+        ok: true,
+        agentId: 'claude-code',
+        modes: expect.any(Array),
+        requestId: 'read-mode',
+      },
+      {
+        ok: true,
+        agentId: 'claude-code',
+        modes: expect.arrayContaining([expect.objectContaining({ currentValue: 'plan' })]),
+        requestId: 'set-mode',
+      },
+    ]);
+  });
 });

@@ -7,6 +7,16 @@ export type ClientMessageSettings =
       type: 'acp.config_options';
       payload: { agentId: string; values: Record<string, string>; requestId: string };
     }
+  | {
+      type: 'acp.mode';
+      payload: {
+        agentId: string;
+        sessionId?: string | undefined;
+        optionId?: string | undefined;
+        value?: string | undefined;
+        requestId: string;
+      };
+    }
   | { type: 'providers.list' }
   | {
       type: 'provider.models';

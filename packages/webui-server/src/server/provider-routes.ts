@@ -201,7 +201,8 @@ export async function handleProviderRoute(
   else if (
     msg.type === 'providers.saved' ||
     msg.type === 'provider.models' ||
-    msg.type === 'acp.config_options'
+    msg.type === 'acp.config_options' ||
+    msg.type === 'acp.mode'
   )
     ws = correlatedReply(ws, msg.payload, [msg.type, 'key.operation_result']).socket;
   else if (msg.type.startsWith('hq.'))
@@ -270,6 +271,51 @@ async function dispatchProviderRoute(
       } catch (error) {
         send(ws, {
           type: 'acp.config_options',
+          payload: {
+            ok: false,
+            agentId,
+            error: errMessage(error),
+          },
+        });
+      }
+      return true;
+    }
+    case 'acp.mode': {
+      const payload = asPayloadRecord(msg);
+      const agentId = payload && requiredString(payload, 'agentId');
+      const sessionId =
+        typeof payload?.['sessionId'] === 'string' && payload['sessionId'].trim().length > 0
+          ? payload['sessionId'].trim()
+          : undefined;
+      const value =
+        typeof payload?.['value'] === 'string' && payload['value'].trim().length > 0
+          ? payload['value'].trim()
+          : undefined;
+      const optionId =
+        typeof payload?.['optionId'] === 'string' && payload['optionId'].trim().length > 0
+          ? payload['optionId'].trim()
+          : undefined;
+      if (!agentId) {
+        send(ws, {
+          type: 'acp.mode',
+          payload: { ok: false, error: 'An ACP agent id is required' },
+        });
+        return true;
+      }
+      try {
+        if (!routes.acpMode) throw new Error('ACP mode switching is unavailable in this host');
+        const result = await routes.acpMode(
+          agentId,
+          sessionId,
+          value ? { ...(optionId ? { optionId } : {}), value } : undefined,
+        );
+        send(ws, {
+          type: 'acp.mode',
+          payload: { ok: true, ...result },
+        });
+      } catch (error) {
+        send(ws, {
+          type: 'acp.mode',
           payload: {
             ok: false,
             agentId,

@@ -98,6 +98,7 @@ export function SessionModelControls({
         <AcpRuntimeSettings
           key={state.model}
           agentId={state.model}
+          sessionId={state.sessionId || undefined}
           command={command}
           disabled={!state.connected || busy}
           values={

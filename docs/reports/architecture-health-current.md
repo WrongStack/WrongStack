@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-26T14:00:34.269Z
+**Generated:** 2026-11-26T14:03:04.591Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6571 |
-| Production source lines | 1349219 |
+| Production source lines | 1349461 |
 | Test files | 6422 |
 | Workspace dependency edges | 261 |
 | Relative module edges | 19249 |
@@ -129,6 +129,7 @@ None.
 | 780 | `packages/tools/src/design.ts` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
 | 774 | `packages/mailbox-mcp/src/adapter.ts` |
+| 770 | `packages/webui-server/src/server/provider-routes.ts` |
 | 763 | `packages/plugins/src/adversary-mode/index.ts` |
 | 761 | `packages/coordination/src/agent-monitor.ts` |
 | 760 | `packages/tools/src/read.ts` |
@@ -142,7 +143,6 @@ None.
 | 744 | `packages/webui-server/src/server/completion-handlers.ts` |
 | 741 | `packages/builtin-plugins/src/auto-review-plugin.ts` |
 | 741 | `packages/project-surfaces/src/analytics/AnalyticsDashboard.tsx` |
-| 740 | `packages/vibeui/src/components/provider-manager.tsx` |
 
 ## Exports only tests reference
 
