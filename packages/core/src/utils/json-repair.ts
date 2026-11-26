@@ -139,7 +139,19 @@ function repairTruncated(s: string): string {
     result += '"';
   } else if (isKey) {
     // An object key with no colon or value (e.g. `{"k"` or `{"a": 1, "b"`)
-    result += ':null';
+    const keys = objectKeys[objectKeys.length - 1];
+    const repeat =
+      closedStringWasKey && memberStarts.length > 0 && keys?.has(decodeKeyName(closedStringRaw));
+    if (repeat) {
+      // The key is complete and REPEATS an earlier member of this object.
+      // Completing it to null would make the duplicate win in JSON.parse and
+      // erase the complete field — the same harm the mid-name branch above and
+      // the dangling-value branch below avoid. Drop the dangling member.
+      result = s.slice(0, memberStarts[memberStarts.length - 1] as number).trimEnd();
+      if (result.endsWith(',')) result = result.slice(0, -1).trimEnd();
+    } else {
+      result += ':null';
+    }
     isKey = false;
   } else if (prevSig === ':') {
     if (danglingKeyIsDuplicate && memberStarts.length > 0) {

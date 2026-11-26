@@ -192,8 +192,15 @@ describe('completePartialObject', () => {
     // the same harm the mid-name branch above avoids.
     expect(JSON.parse(completePartialObject('{"a": 1, "a":'))).toEqual({ a: 1 });
     expect(JSON.parse(completePartialObject('{"a": 1, "a": '))).toEqual({ a: 1 });
+    // The key is complete and only the colon was cut — the third truncation
+    // shape. It used to be completed to `:null` unconditionally.
+    expect(JSON.parse(completePartialObject('{"a": 1, "a"'))).toEqual({ a: 1 });
+    expect(JSON.parse(completePartialObject('{"a": 1, "a"  '))).toEqual({ a: 1 });
     // Nested objects track their own keys.
     expect(JSON.parse(completePartialObject('{"outer": {"a": 1, "a":'))).toEqual({
+      outer: { a: 1 },
+    });
+    expect(JSON.parse(completePartialObject('{"outer": {"a": 1, "a"'))).toEqual({
       outer: { a: 1 },
     });
     // `"\u0061"` is the same member as `"a"` to JSON.parse.

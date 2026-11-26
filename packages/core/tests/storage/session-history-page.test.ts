@@ -99,6 +99,12 @@ it('preserves legacy file-backed paging and explicitly marks a reached scan budg
     const bounded = historyPageFromSummaries(await store.list(20), { limit: 2 }, 3);
     expect(bounded.truncated).toBe(true);
     expect(bounded.total).toBe(3);
+    const exact = historyPageFromSummaries(await store.list(20), { limit: 10 }, 6);
+    expect(exact.total).toBe(6);
+    expect(exact.truncated).toBe(false);
+    const emptyZero = historyPageFromSummaries([], { limit: 10 }, 0);
+    expect(emptyZero.total).toBe(0);
+    expect(emptyZero.truncated).toBe(false);
     expect(() => historyPageFromSummaries([], { offset: -1 })).toThrow();
     expect(() => historyPageFromSummaries([], { offset: 1 })).toThrow('requires');
   } finally {

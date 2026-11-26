@@ -100,6 +100,6 @@ export function historyPageFromSummaries(
     limit: options.limit,
     nextOffset: end < pool.length ? end : null,
     revision,
-    truncated: filtered.length >= safeBudget,
+    truncated: filtered.length > safeBudget,
   };
 }

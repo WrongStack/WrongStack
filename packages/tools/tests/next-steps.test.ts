@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { isFinalTurnStopReason, parseNextSteps, stripNextStepsBlock } from '../src/next-steps.js';
+import {
+  hasNextStepsCompleteMarker,
+  isFinalTurnStopReason,
+  parseNextSteps,
+  stripNextStepsBlock,
+} from '../src/next-steps.js';
 
 /**
  * Tests for the canonical `<nextsteps>` block parser, now extracted into
@@ -684,5 +689,34 @@ describe('parseNextSteps (<nextstep> item elements)', () => {
       '```',
     ].join('\n');
     expect(parseNextSteps(text).steps).toEqual([]);
+  });
+});
+
+describe('completion marker casing (canonical /gi regex)', () => {
+  it('detects and strips the canonical lowercase marker', () => {
+    const text = 'All done.\n<nextsteps-complete/>';
+    expect(hasNextStepsCompleteMarker(text)).toBe(true);
+    expect(parseNextSteps(text).stripped).toBe('All done.');
+  });
+
+  // The COMPLETE_MARKER_RE carries the `i` flag; every casing it matches must
+  // be honoured by both the detection guard and the stripper. A case-sensitive
+  // `includes` fast-path previously skipped these, leaking control metadata
+  // into the rendered body and hiding completion from the required gate.
+  it.each([
+    '<NEXTSTEPS-COMPLETE/>',
+    '<NextSteps-Complete/>',
+    '<Nextsteps-complete/>',
+    '<NextSteps-Complete />',
+  ])('detects and strips %s (a casing the /gi regex accepts)', (marker) => {
+    const text = `All done.\n${marker}`;
+    expect(hasNextStepsCompleteMarker(text)).toBe(true);
+    expect(parseNextSteps(text).stripped.toLowerCase()).not.toContain('nextsteps-complete');
+  });
+
+  it('keeps a fenced mixed-case marker verbatim', () => {
+    const text = ['```', '<NEXTSTEPS-COMPLETE/>', '```'].join('\n');
+    expect(hasNextStepsCompleteMarker(text)).toBe(false);
+    expect(parseNextSteps(text).stripped).toContain('<NEXTSTEPS-COMPLETE/>');
   });
 });

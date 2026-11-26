@@ -127,10 +127,14 @@ export function isFinalTurnStopReason(stopReason: string | undefined): boolean {
 export const NEXT_STEPS_COMPLETE_MARKER = '<nextsteps-complete/>';
 
 const COMPLETE_MARKER_RE = /<nextsteps-complete\s*\/>[ \t]*\n?/gi;
+// Fast-path guard for the two /gi consumers below. It must be case-insensitive
+// too: a case-sensitive `includes` here silently skipped every casing the /gi
+// regex accepts, so a mixed-case marker was neither detected nor stripped.
+const COMPLETE_MARKER_PREFIX_RE = /<nextsteps-complete/i;
 
 /** Whether `content` carries the completion marker outside code fences. */
 export function hasNextStepsCompleteMarker(content: string): boolean {
-  if (!content.includes('<nextsteps-complete')) return false;
+  if (!COMPLETE_MARKER_PREFIX_RE.test(content)) return false;
   const spans = fenceSpans(content);
   for (const match of content.matchAll(COMPLETE_MARKER_RE)) {
     if (!spans.some(([start, end]) => match.index >= start && match.index < end)) return true;
@@ -140,7 +144,7 @@ export function hasNextStepsCompleteMarker(content: string): boolean {
 
 /** Remove completion markers outside code fences; fenced examples stay verbatim. */
 function stripCompleteMarkers(content: string): string {
-  if (!content.includes('<nextsteps-complete')) return content;
+  if (!COMPLETE_MARKER_PREFIX_RE.test(content)) return content;
   const spans = fenceSpans(content);
   return content.replace(COMPLETE_MARKER_RE, (marker, offset: number) =>
     spans.some(([start, end]) => offset >= start && offset < end) ? marker : '',
