@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T14:27:27.943Z",
+  "generatedAt": "2026-11-26T14:30:06.323Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6572,
-    "testFiles": 6461,
-    "sourceLines": 1350066,
+    "testFiles": 6467,
+    "sourceLines": 1350077,
     "workspaceEdges": 261,
     "moduleEdges": 19253,
     "nonCommandSlashImports": 0,
@@ -484,7 +484,7 @@
       "name": "@wrongstack/goal",
       "dir": "packages/goal",
       "sourceFiles": 24,
-      "testFiles": 37,
+      "testFiles": 39,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -499,7 +499,7 @@
         {
           "path": "packages/goal/tsconfig.test.json",
           "error": null,
-          "testFiles": 37
+          "testFiles": 39
         }
       ]
     },
@@ -577,7 +577,7 @@
       "name": "@wrongstack/kanban",
       "dir": "packages/kanban",
       "sourceFiles": 108,
-      "testFiles": 129,
+      "testFiles": 130,
       "workspaceDependencies": [
         "@wrongstack/persistence",
         "@wrongstack/primitives"
@@ -591,7 +591,7 @@
         {
           "path": "packages/kanban/tsconfig.test.json",
           "error": null,
-          "testFiles": 129
+          "testFiles": 130
         }
       ]
     },
@@ -827,7 +827,7 @@
       "name": "@wrongstack/requirement-intake",
       "dir": "packages/requirement-intake",
       "sourceFiles": 18,
-      "testFiles": 23,
+      "testFiles": 24,
       "workspaceDependencies": [
         "@wrongstack/core"
       ],
@@ -840,7 +840,7 @@
         {
           "path": "packages/requirement-intake/tsconfig.test.json",
           "error": null,
-          "testFiles": 23
+          "testFiles": 24
         }
       ]
     },
@@ -848,7 +848,7 @@
       "name": "@wrongstack/requirement-intake-mcp",
       "dir": "packages/requirement-intake-mcp",
       "sourceFiles": 6,
-      "testFiles": 4,
+      "testFiles": 5,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/mcp",
@@ -863,7 +863,7 @@
         {
           "path": "packages/requirement-intake-mcp/tsconfig.test.json",
           "error": null,
-          "testFiles": 4
+          "testFiles": 5
         }
       ]
     },
@@ -965,7 +965,7 @@
       "name": "@wrongstack/sdd",
       "dir": "packages/sdd",
       "sourceFiles": 45,
-      "testFiles": 66,
+      "testFiles": 67,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -984,7 +984,7 @@
         {
           "path": "packages/sdd/tsconfig.test.json",
           "error": null,
-          "testFiles": 66
+          "testFiles": 67
         }
       ]
     },
@@ -17496,6 +17496,12 @@
         ]
       },
       {
+        "file": "packages/goal/tests/checkpoint-duration.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/goal/tests/checkpoint-task-shape.test.ts",
         "projects": [
           "root-node"
@@ -17671,6 +17677,12 @@
       },
       {
         "file": "packages/goal/tests/phase-task-timeout-overflow.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/goal/tests/phase-verification-added-task.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19363,6 +19375,12 @@
       },
       {
         "file": "packages/kanban/tests/client-request-lifecycle.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/compact-session-mirror-dependencies.test.ts",
         "projects": [
           "root-node"
         ]
@@ -24192,6 +24210,12 @@
         ]
       },
       {
+        "file": "packages/requirement-intake-mcp/tests/adapter-empty-status-filter.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/requirement-intake-mcp/tests/adapter.test.ts",
         "projects": [
           "root-node"
@@ -24229,6 +24253,12 @@
       },
       {
         "file": "packages/requirement-intake/tests/answer-update-create-input.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/requirement-intake/tests/answer-update-legacy-ownership.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26263,6 +26293,12 @@
       },
       {
         "file": "packages/sdd/tests/coverage-completion.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sdd/tests/critical-path-ready-status.test.ts",
         "projects": [
           "root-node"
         ]

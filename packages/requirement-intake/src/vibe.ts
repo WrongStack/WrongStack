@@ -45,16 +45,8 @@ export function hasVibeTag(text: string | undefined | null): boolean {
  */
 export function stripVibeTag(text: string): string {
   return text
-    .replace(/(?:\[VIBE\])+/gi, (tags, offset: number, source: string) => {
-      const before = source[offset - 1];
-      const after = source[offset + tags.length];
-      return before !== undefined &&
-        after !== undefined &&
-        /[\p{L}\p{N}_]/u.test(before) &&
-        /[\p{L}\p{N}_]/u.test(after)
-        ? ' '
-        : '';
-    })
+    .replace(/(?<=[\p{L}\p{N}_])(?:\[VIBE\])+(?=[\p{L}\p{N}_])/giu, ' ')
+    .replace(/(?:\[VIBE\])+/gi, '')
     .replace(/[ \t]{2,}/g, ' ')
     .trim();
 }

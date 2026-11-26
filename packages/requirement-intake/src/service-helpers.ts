@@ -527,11 +527,10 @@ export function applyAnswerUpdateToRecord(
         list.splice(at, 1);
       } else if (stillGiven.has(item)) {
         const successor = otherAnswers.find((other) => splitItems(other.answer).includes(item));
-        if (successor) {
-          const existing = successor.contributedItems ?? [];
-          if (!existing.includes(item)) {
-            successor.contributedItems = [...existing, item];
-          }
+        // Legacy answers already own this item through the full-text fallback.
+        // A partial contribution list would hide their other items on the next edit.
+        if (successor?.contributedItems && !successor.contributedItems.includes(item)) {
+          successor.contributedItems = [...successor.contributedItems, item];
         }
       }
     }

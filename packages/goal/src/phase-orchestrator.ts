@@ -337,42 +337,45 @@ export class PhaseOrchestrator {
         );
         return;
       }
-      await this.executePhaseTasks(phase);
-      // A timeout's grace period is not worker settlement. Do not commit,
-      // verify, or release the run lease while an old worker can still write.
-      await this.taskOwnership.drain(phase.id);
+      do {
+        await this.executePhaseTasks(phase);
+        // A timeout's grace period is not worker settlement. Do not commit,
+        // verify, or release the run lease while an old worker can still write.
+        await this.taskOwnership.drain(phase.id);
 
-      // stop() marks running phases 'paused' before the aborted batch
-      // settles; continuing to the completion gate would overwrite that with
-      // 'completed' and merge a phase whose tasks were aborted mid-flight.
-      if (this.stopped) return;
+        // stop() marks running phases 'paused' before the aborted batch
+        // settles; continuing to the completion gate would overwrite that with
+        // 'completed' and merge a phase whose tasks were aborted mid-flight.
+        if (this.stopped) return;
 
-      const failedTasks = this.getFailedTaskCount(phase);
-      const completedTasks = this.getCompletedTaskCount(phase);
+        const failedTasks = this.getFailedTaskCount(phase);
+        const completedTasks = this.getCompletedTaskCount(phase);
 
-      this.emit('phase.allTasksDone', {
-        phaseId: phase.id,
-        completed: completedTasks,
-        failed: failedTasks,
-      });
+        this.emit('phase.allTasksDone', {
+          phaseId: phase.id,
+          completed: completedTasks,
+          failed: failedTasks,
+        });
 
-      if (failedTasks > 0 && this.opts.stopOnFailure) {
-        await this.failPhaseAfterTasks(phase, `${failedTasks} task(s) failed`);
-        return;
-      }
+        if (failedTasks > 0 && this.opts.stopOnFailure) {
+          await this.failPhaseAfterTasks(phase, `${failedTasks} task(s) failed`);
+          return;
+        }
 
-      // Verification gate: all tasks succeeded, but the produced code must still
-      // pass (typecheck/test/…) before we mark the phase done and merge it back.
-      // Skipped entirely when no verifyPhase callback is wired (back-compat).
-      const verdict = await this.runVerifyGate(phase);
-      if (this.stopped) return;
-      if (!verdict.ok) {
-        await this.failPhaseAfterTasks(
-          phase,
-          `verification failed${verdict.output ? `: ${this.truncate(verdict.output)}` : ''}`,
-        );
-        return;
-      }
+        // Verification gate: all tasks succeeded, but the produced code must still
+        // pass (typecheck/test/…) before we mark the phase done and merge it back.
+        // Skipped entirely when no verifyPhase callback is wired (back-compat).
+        const verdict = await this.runVerifyGate(phase);
+        if (this.stopped) return;
+        if (!verdict.ok) {
+          await this.failPhaseAfterTasks(
+            phase,
+            `verification failed${verdict.output ? `: ${this.truncate(verdict.output)}` : ''}`,
+          );
+          return;
+        }
+        // Work added during verification was not covered by this verdict.
+      } while (this.getExecutableTasks(phase).length > 0);
 
       this.updatePhaseStatus(phase, 'completed');
       phase.completedAt = Date.now();

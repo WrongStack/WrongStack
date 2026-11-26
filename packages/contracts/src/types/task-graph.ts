@@ -212,12 +212,19 @@ export function deserializeTaskGraph(input: SerializableTaskGraph): TaskGraph {
   const nodes = new Map<string, TaskNode>();
   if (Array.isArray(input.nodes)) {
     for (const entry of input.nodes) {
-      if (Array.isArray(entry)) nodes.set(entry[0], { ...entry[1], id: entry[1].id || entry[0] });
-      else nodes.set(entry.id, entry);
+      if (Array.isArray(entry)) {
+        if (entry[1] && typeof entry[1] === 'object') {
+          nodes.set(entry[0], { ...entry[1], id: entry[1].id || entry[0] });
+        }
+      } else if (entry && typeof entry === 'object') {
+        nodes.set(entry.id, entry);
+      }
     }
-  } else {
+  } else if (input.nodes && typeof input.nodes === 'object') {
     for (const [id, node] of Object.entries(input.nodes)) {
-      nodes.set(id, { ...node, id: node.id || id });
+      if (node && typeof node === 'object') {
+        nodes.set(id, { ...node, id: node.id || id });
+      }
     }
   }
   return { ...input, nodes };

@@ -352,8 +352,12 @@ function filterStatuses(value: unknown): IntakeStatus[] | undefined {
   const statuses = value.filter(
     (item): item is IntakeStatus => typeof item === 'string' && known.includes(item),
   );
-  if (value.length > 0 && statuses.length === 0) {
-    throw new Error(`No known status in ${JSON.stringify(value)} — expected: ${known.join(', ')}`);
+  if (statuses.length === 0) {
+    throw new Error(
+      value.length === 0
+        ? '"statuses" is empty — omit it to list every status, or name at least one.'
+        : `No known status in ${JSON.stringify(value)} — expected: ${known.join(', ')}`,
+    );
   }
   return statuses;
 }

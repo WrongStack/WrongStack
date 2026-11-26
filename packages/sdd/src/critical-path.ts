@@ -15,7 +15,7 @@ export interface CriticalPathAnalysis {
   parallelGroups: string[][];
   /** Recommended execution order respecting dependencies. */
   executionOrder: string[];
-  /** Tasks with no blockers (can start immediately). */
+  /** Pending tasks with no unfinished prerequisites (can start immediately). */
   readyTasks: string[];
   /** Tasks that are blocked and cannot start. */
   blockedTasks: string[];
@@ -54,25 +54,19 @@ export function analyzeCriticalPath(graph: TaskGraph): CriticalPathAnalysis {
     }
   }
 
-  // Find ready tasks (no blockers or all blockers completed)
   const readyTasks: string[] = [];
   const blockedTasks: string[] = [];
 
   for (const node of nodes) {
     if (node.status === 'completed') continue;
     const blockers = blockedByMap.get(node.id);
-    if (!blockers || blockers.size === 0) {
+    if (
+      blockers &&
+      Array.from(blockers).some((id) => graph.nodes.get(id)?.status !== 'completed')
+    ) {
+      blockedTasks.push(node.id);
+    } else if (node.status === 'pending') {
       readyTasks.push(node.id);
-    } else {
-      const allCompleted = Array.from(blockers).every((id) => {
-        const n = graph.nodes.get(id);
-        return n?.status === 'completed';
-      });
-      if (allCompleted) {
-        readyTasks.push(node.id);
-      } else {
-        blockedTasks.push(node.id);
-      }
     }
   }
 

@@ -41,6 +41,15 @@ describe('VIBE Protocol — Requirement Intake', () => {
       expect(stripVibeTag('son[VIBE]')).toBe('son');
     });
 
+    it.each([
+      ['\u{10400}[VIBE]next', '\u{10400} next'], // Deseret letter before the tag
+      ['item[VIBE][vibe]\u{1D7CF}', 'item \u{1D7CF}'], // Mathematical digit after the tags
+      ['item[VIBE]next', 'item next'],
+      ['item[VIBE]!', 'item!'],
+    ])('preserves word boundaries when stripping the tag from %s', (prompt, expected) => {
+      expect(stripVibeTag(prompt)).toBe(expected);
+    });
+
     it('does not leave hasVibeTag sticky across repeated calls', () => {
       expect(hasVibeTag('[VIBE] bir')).toBe(true);
       expect(hasVibeTag('[VIBE] iki')).toBe(true);

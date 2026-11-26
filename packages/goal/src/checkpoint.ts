@@ -146,13 +146,13 @@ export class CheckpointManager {
       phase.updatedAt = now;
       if (checkpoint.phaseStatus !== 'completed' && checkpoint.phaseStatus !== 'failed') {
         phase.completedAt = undefined;
+        phase.actualDurationMs = undefined;
       }
       if (checkpoint.phaseStatus !== 'completed') {
         clearIntegrationMeta(phase);
       }
       if (checkpoint.phaseStatus === 'pending') {
         phase.startedAt = undefined;
-        phase.actualDurationMs = undefined;
       }
 
       // Remove tasks added to this phase after the checkpoint was captured.

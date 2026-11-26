@@ -63,7 +63,19 @@ export async function compactSessionMirrorBoard(
     const dropCount = Math.min(droppable.length, terminal.length - limit);
     if (dropCount <= 0) return null;
 
-    const dropped = new Set(droppable.slice(0, dropCount).map((task) => task.id));
+    const candidates = new Map(droppable.slice(0, dropCount).map((task) => [task.id, task]));
+    const retained = board.tasks.filter((task) => !candidates.has(task.id));
+    // Follow prerequisites from every survivor, including newly rescued cards.
+    for (const task of retained) {
+      for (const id of task.dependsOn ?? []) {
+        const prerequisite = candidates.get(id);
+        if (!prerequisite) continue;
+        candidates.delete(id);
+        retained.push(prerequisite);
+      }
+    }
+    if (candidates.size === 0) return null;
+    const dropped = new Set(candidates.keys());
     board.tasks = board.tasks.filter((task) => !dropped.has(task.id));
     const affectedTasks = new Set<KanbanTask>();
     for (const task of board.tasks) {
