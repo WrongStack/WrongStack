@@ -15,14 +15,13 @@
  * they would arrive in the user's session as prompts.
  *
  * `@wrongstack/acp` is loaded on first use: it must stay off the boot graph.
+ *
+ * Beside this file: what a session is given when it starts
+ * (`acp-leader-session-setup.ts`), its prompt blocks (`acp-leader-prompt.ts`),
+ * its call approvals (`acp-leader-approvals.ts`) and the side-model rules
+ * (`acp-leader-side-model.ts`).
  */
-import {
-  type ACPProgressEvent,
-  type ACPSession,
-  type AcpChildSource,
-  type AcpFormElicitationHandler,
-  findAgentDescriptor,
-} from '@wrongstack/acp';
+import { type ACPProgressEvent, type ACPSession, findAgentDescriptor } from '@wrongstack/acp';
 import type {
   AgentContextUsage,
   Capabilities,
@@ -32,10 +31,8 @@ import type {
   Request,
   Response,
   StreamEvent,
-  SubagentRunContext,
-  Tool,
 } from '@wrongstack/contracts/types';
-import { documentAsText, ProviderError } from '@wrongstack/contracts/types';
+import { ProviderError } from '@wrongstack/contracts/types';
 import type {
   AcpChildSession,
   AcpNativeModeChoice,
@@ -48,46 +45,28 @@ import type {
 } from '@wrongstack/contracts/types/acp-runtime';
 import type { TodoItem } from '@wrongstack/contracts/types/todo';
 import { type Context, consumeBtwNotes } from '@wrongstack/core/agent';
-import {
-  base64DecodedBytes,
-  MAX_INCOMING_IMAGE_BYTES,
-  MAX_INCOMING_IMAGES,
-  sanitizeTerminalPreview,
-  subjectForToolInput,
-  toErrorMessage,
-} from '@wrongstack/core/utils';
-import {
-  acpBtwBlock,
-  recordAcpRateLimit,
-  startAcpTurnReminders,
-  wrongstackAcpPermissionPolicy,
-  wrongstackBridgeSetup,
-} from '@wrongstack/fleet';
-import { assertSafeVisionUrl } from '../vision.js';
+import { toErrorMessage } from '@wrongstack/core/utils';
+import { acpBtwBlock, recordAcpRateLimit, startAcpTurnReminders } from '@wrongstack/fleet';
+import { LeaderApprovals } from './acp-leader-approvals.js';
 import { advertisedNativeCommand } from './acp-leader-commands.js';
-import { confirmThroughEvents, rememberConfirmAnswer } from './acp-leader-confirm.js';
 import { LeaderContext, publishLeaderContext } from './acp-leader-context.js';
-import {
-  FLEET_SERVER_NAME,
-  FLEET_TOOLS,
-  type FleetEndpoint,
-  fleetNote,
-  fleetToolName,
-  startFleetEndpoint,
-} from './acp-leader-fleet.js';
+import { FLEET_SERVER_NAME } from './acp-leader-fleet.js';
 import {
   ACP_LEADER_PROVIDER_ID,
   acpLeaderHost,
   trackAcpLeader,
   untrackAcpLeader,
 } from './acp-leader-host.js';
+import { nativeCommandText, promptBlocks } from './acp-leader-prompt.js';
 import { readLeaderSession, writeLeaderSession } from './acp-leader-resume.js';
+import type { AcpModule, LeaderSession } from './acp-leader-session.js';
+import { prepareLeaderSession } from './acp-leader-session-setup.js';
+import { explicitLeaderSideModel, isLeaderTurn, leaderSideModel } from './acp-leader-side-model.js';
 import { externalSkillDirective, externalSkillLoader } from './acp-leader-skills.js';
 import {
   agentTurnError,
   earlierConversation,
   latestUserText,
-  pendingUserMessages,
   StreamQueue,
   TextBlocks,
   ToolCardRelay,
@@ -95,15 +74,7 @@ import {
   turnUsage,
 } from './acp-leader-stream.js';
 
-export { ACP_LEADER_PROVIDER_ID };
-
-/**
- * `--restricted` (CLI) sets this for the whole process and its children; MCP
- * servers are not started then, so the agent's own are refused as well. Read
- * from the environment so every host (CLI, standalone engine) answers alike.
- */
-const RESTRICTED_PROCESS_ENV = 'WRONGSTACK_RESTRICTED';
-const isRestrictedProcess = (): boolean => process.env[RESTRICTED_PROCESS_ENV] === '1';
+export { ACP_LEADER_PROVIDER_ID, explicitLeaderSideModel, isLeaderTurn, leaderSideModel };
 
 const CAPABILITIES: Capabilities = {
   tools: true,
@@ -130,119 +101,6 @@ const CAPABILITIES: Capabilities = {
   keepsOwnContext: true,
 };
 
-type AcpModule = typeof import('@wrongstack/acp');
-
-function nativeCommandText(messages: Request['messages']): string {
-  const content = pendingUserMessages(messages).at(-1)?.content;
-  if (typeof content === 'string') return content.trim();
-  if (!content?.every((block) => block.type === 'text')) return '';
-  return content
-    .map((block) => block.text)
-    .join('\n\n')
-    .trim();
-}
-
-/** Fit handoff images in the existing incoming-image budget after the active turn's attachments. */
-function recentHistoryImages(
-  acp: AcpModule,
-  messages: Request['messages'],
-  attachments: Parameters<ACPSession['prompt']>[0],
-): Parameters<ACPSession['prompt']>[0] {
-  const images: Parameters<ACPSession['prompt']>[0] = [];
-  let remainingImages = MAX_INCOMING_IMAGES;
-  let remainingBytes = MAX_INCOMING_IMAGE_BYTES;
-  for (const block of attachments) {
-    if (block.type === 'image') {
-      remainingImages--;
-      remainingBytes -= base64DecodedBytes(block.data);
-    } else if (block.type === 'resource' && 'blob' in block.resource) {
-      remainingBytes -= base64DecodedBytes(block.resource.blob);
-    }
-  }
-
-  const lastReply = messages.findLastIndex((message) => message.role === 'assistant');
-  for (let i = lastReply - 1; i >= 0 && remainingImages > 0 && remainingBytes > 0; i--) {
-    const message = messages[i];
-    if (message?.role !== 'user' || !Array.isArray(message.content)) continue;
-    for (let j = message.content.length - 1; j >= 0 && remainingImages > 0; j--) {
-      const block = message.content[j];
-      if (block?.type !== 'image' || block.source.type !== 'base64' || !block.source.data?.trim())
-        continue;
-      const bytes = base64DecodedBytes(block.source.data);
-      if (bytes > remainingBytes) continue;
-      images.push(acp.imageContent(block.source.media_type ?? 'image/png', block.source.data));
-      remainingImages--;
-      remainingBytes -= bytes;
-    }
-  }
-  return images.reverse();
-}
-
-interface LeaderSession {
-  runtimeConfigured?: boolean;
-  runtimeUpdate?: Promise<unknown> | undefined;
-  agentId: string;
-  session: ACPSession;
-  context: LeaderContext;
-  promptPrefix?: string | undefined;
-  /** This session's fleet tools endpoint, when the leader has fleet tools. */
-  fleet?: FleetEndpoint | undefined;
-  /**
-   * The agent already has this conversation: it resumed its earlier session,
-   * or had a turn here. Until then its first turn carries the earlier one.
-   */
-  joined?: boolean;
-}
-
-/** A fleet call's identity: its session, tool and input, keys in a stable order. */
-function fleetGrantKey(sessionId: string, tool: string, input: unknown): string {
-  const stable = (value: unknown): unknown =>
-    Array.isArray(value)
-      ? value.map(stable)
-      : value && typeof value === 'object'
-        ? Object.fromEntries(
-            Object.keys(value as Record<string, unknown>)
-              .sort()
-              .map((k) => [k, stable((value as Record<string, unknown>)[k])]),
-          )
-        : value;
-  return JSON.stringify([sessionId, tool, stable(input)]);
-}
-
-/** `provider/model` → its parts; a bare id or the ACP provider itself is unusable here. */
-function parseSideModel(ref: string | undefined): { provider: string; model: string } | undefined {
-  const slash = ref?.indexOf('/') ?? -1;
-  if (!ref || slash <= 0 || slash === ref.length - 1) return undefined;
-  const provider = ref.slice(0, slash);
-  if (provider === ACP_LEADER_PROVIDER_ID) return undefined;
-  return { provider, model: ref.slice(slash + 1) };
-}
-
-/**
- * The side model the user set for an agent leader (`acp.leader.sideModel`),
- * without falling back to the fallback chain: a leader that can answer side
- * requests itself (WrongForge) must not hand them to `fallbackModels[0]`.
- */
-export function explicitLeaderSideModel(
-  config: Config,
-): { provider: string; model: string } | undefined {
-  return parseSideModel(config.acp?.leader?.sideModel);
-}
-
-export function leaderSideModel(config: Config): { provider: string; model: string } | undefined {
-  return (
-    explicitLeaderSideModel(config) ??
-    parseSideModel(config.fallbackBridge) ??
-    parseSideModel(config.fallbackModels?.[0])
-  );
-}
-
-/** A leader turn: the request's thread is its own conversation (a subagent's is not). */
-export function isLeaderTurn(req: Request): boolean {
-  const { sessionId, threadId } = req.cache ?? {};
-  return !sessionId || !threadId || sessionId === threadId;
-}
-
 export interface AcpLeaderProviderOptions {
   id?: string | undefined;
   /** The config at boot; the bound host's live config wins once available. */
@@ -258,12 +116,8 @@ export class AcpLeaderProvider implements Provider {
   private readonly sessions = new Map<string, Promise<LeaderSession>>();
   private readonly sessionLeaders = new WeakMap<Promise<LeaderSession>, LeaderSession>();
   private readonly sideProviders = new Map<string, Provider>();
-  /**
-   * Fleet calls the user already approved through the agent's permission
-   * request, by session, tool and input: the call that follows runs on that
-   * approval instead of asking again.
-   */
-  private readonly fleetGrants = new Map<string, number>();
+  /** The leader agent's calls the user has to approve, and the fleet calls already approved. */
+  private readonly approvals = new LeaderApprovals();
   private closed = false;
 
   constructor(private readonly opts: AcpLeaderProviderOptions) {
@@ -546,7 +400,7 @@ export class AcpLeaderProvider implements Provider {
       : undefined;
     const prompt = nativeCommand
       ? [acp.textContent(commandText)]
-      : await this.promptBlocks(acp, leader, req);
+      : await promptBlocks(acp, leader, req, () => this.promptText(leader, req), this.id);
     const stopReminders =
       !nativeCommand && leader.session.canSteer() && hostContext?.meta
         ? startAcpTurnReminders({
@@ -585,75 +439,6 @@ export class AcpLeaderProvider implements Provider {
       stopReminders?.();
       await turn;
     }
-  }
-
-  /**
-   * Preserve attachments across every user message waiting for this turn.
-   * Fresh external sessions also receive recent images from the handoff history.
-   */
-  private async promptBlocks(
-    acp: AcpModule,
-    leader: LeaderSession,
-    req: Request,
-  ): Promise<Parameters<ACPSession['prompt']>[0]> {
-    type PromptBlock = Parameters<ACPSession['prompt']>[0][number];
-    const attachments: PromptBlock[] = [];
-    const promptCaps = leader.session.getCapabilities?.().promptCapabilities;
-    for (const message of pendingUserMessages(req.messages)) {
-      if (!Array.isArray(message.content)) continue;
-      for (const block of message.content) {
-        if (block.type === 'image') {
-          const { source } = block;
-          if (source.type === 'url') {
-            await assertSafeVisionUrl(source.url);
-            attachments.push({
-              type: 'resource_link',
-              uri: source.url!,
-              name: 'Image',
-              ...(source.media_type ? { mimeType: source.media_type } : {}),
-            });
-            continue;
-          }
-          if (promptCaps?.image !== true || !source.data?.trim()) {
-            throw new ProviderError(
-              promptCaps?.image !== true
-                ? `ACP agent '${leader.agentId}' does not support image prompt content.`
-                : 'ACP image attachment has no image data.',
-              400,
-              false,
-              this.id,
-              { kind: 'invalid_request' },
-            );
-          }
-          attachments.push(acp.imageContent(source.media_type ?? 'image/png', source.data));
-        } else if (block.type === 'document') {
-          if (promptCaps?.embeddedContext) {
-            attachments.push({
-              type: 'resource',
-              resource: {
-                uri: `file:///${encodeURIComponent(block.name ?? 'document.pdf')}`,
-                mimeType: block.source.media_type,
-                blob: block.source.data,
-              },
-            });
-          } else {
-            attachments.push(acp.textContent(documentAsText(block).text));
-          }
-        }
-      }
-    }
-
-    const prior =
-      !leader.joined && promptCaps?.image === true
-        ? recentHistoryImages(acp, req.messages, attachments)
-        : [];
-    return [
-      acp.textContent(this.promptText(leader, req)),
-      ...(prior.length
-        ? [acp.textContent('Recent images from the earlier conversation, in order.'), ...prior]
-        : []),
-      ...attachments,
-    ];
   }
 
   /** The turn's prompt; an agent joining a conversation under way gets the turns before it. */
@@ -763,26 +548,14 @@ export class AcpLeaderProvider implements Provider {
     return this.acp;
   }
 
-  private dropFleetGrants(sessionId: string): void {
-    for (const grantKey of this.fleetGrants.keys()) {
-      try {
-        const parsed = JSON.parse(grantKey) as unknown;
-        if (Array.isArray(parsed) && parsed[0] === sessionId) {
-          this.fleetGrants.delete(grantKey);
-        }
-      } catch {
-        // ignore
-      }
-    }
-  }
-
   private drop(key: string, leader: LeaderSession): void {
     const current = this.sessions.get(key);
     if (!current || this.sessionLeaders.get(current) !== leader) return;
     this.sessions.delete(key);
-    this.dropFleetGrants(key);
+    this.approvals.dropSession(key);
     void leader.session.close().catch(() => {});
     void leader.fleet?.close().catch(() => {});
+    void Promise.resolve(leader.projectMcp?.revoke()).catch(() => {});
   }
 
   /** The persistent agent session for this conversation, started on first use. */
@@ -811,211 +584,19 @@ export class AcpLeaderProvider implements Provider {
     return starting;
   }
 
-  /**
-   * Ask the user about one of the agent's calls on the prompt the surface
-   * has: the REPL's own, or the TUI/WebUI approval prompt in the session's tab.
-   */
-  private async confirm(
-    sessionId: string,
-    tool: Tool,
-    input: Record<string, unknown>,
-    request: {
-      toolCallId: string | undefined;
-      signal: AbortSignal;
-      child?: AcpChildSource | undefined;
-    },
-  ): Promise<boolean> {
-    const approved = await this.ask(sessionId, tool, input, request);
-    // A fleet tool runs in this process right after; that run must not ask again.
-    if (approved && !request.child && FLEET_TOOLS.includes(tool.name)) {
-      const key = fleetGrantKey(sessionId, tool.name, input);
-      this.fleetGrants.set(key, (this.fleetGrants.get(key) ?? 0) + 1);
-    }
-    return approved;
-  }
-
-  /**
-   * A fleet call the policy wants confirmed: the approval the user gave the
-   * agent's permission request for it, once, or a question now (an agent
-   * whose own settings let it call the tool without asking).
-   */
-  private async approveFleetCall(
-    sessionId: string,
-    tool: Tool,
-    input: Record<string, unknown>,
-  ): Promise<boolean> {
-    const key = fleetGrantKey(sessionId, tool.name, input);
-    const granted = this.fleetGrants.get(key) ?? 0;
-    if (granted > 0) {
-      if (granted === 1) this.fleetGrants.delete(key);
-      else this.fleetGrants.set(key, granted - 1);
-      return true;
-    }
-    return this.ask(sessionId, tool, input, {
-      toolCallId: undefined,
-      signal: new AbortController().signal,
-    });
-  }
-
-  private async ask(
-    sessionId: string,
-    tool: Tool,
-    input: Record<string, unknown>,
-    request: {
-      toolCallId: string | undefined;
-      signal: AbortSignal;
-      child?: AcpChildSource | undefined;
-    },
-  ): Promise<boolean> {
-    const host = acpLeaderHost();
-    const suggestedPattern =
-      subjectForToolInput(tool.name, input, tool.subjectKey, tool.subjectFields) ?? tool.name;
-    const callId = request.toolCallId ?? `acp-${Date.now()}`;
-    const toolUseId = request.child
-      ? JSON.stringify(['acp-child', request.child.id, callId])
-      : callId;
-    if (host?.confirmAwaiter) {
-      const answer = await host.confirmAwaiter(tool, input, toolUseId, suggestedPattern);
-      await rememberConfirmAnswer(
-        {
-          tool,
-          input,
-          suggestedPattern,
-          permission: host.permission(sessionId),
-          context: host.context(sessionId),
-        },
-        answer,
-      );
-      return answer !== 'no' && answer !== 'deny';
-    }
-    if (!host?.confirmThroughEvents) return false;
-    return confirmThroughEvents({
-      events: host.events,
-      sessionId,
-      tool,
-      input,
-      toolUseId,
-      suggestedPattern,
-      signal: request.signal,
-      ...(request.child
-        ? {
-            boundaryReason: `ACP subagent ${sanitizeTerminalPreview(request.child.title ?? request.child.id, { maxLines: 1, maxChars: 300 }).text}`,
-          }
-        : {}),
-      permission: host.permission(sessionId),
-      context: host.context(sessionId),
-    });
-  }
-
   private async startSession(key: string, agentId: string): Promise<LeaderSession> {
     const acp = await this.loadAcp();
-    const config = this.config();
     const host = acpLeaderHost();
-    const projectRoot = host?.projectRoot ?? process.cwd();
-    const cmd = acp.resolveAcpAgentCommand(
+    const config = this.config();
+    const prepared = await prepareLeaderSession({
+      acp,
+      key,
       agentId,
-      config.acp?.agents,
-      acp.readCachedAcpRegistry()?.byId,
-    );
-    if (!cmd) {
-      throw new ProviderError(
-        `Unknown ACP agent "${agentId}". Run /acp to see the agents installed here.`,
-        400,
-        false,
-        this.id,
-        { kind: 'invalid_request' },
-      );
-    }
-    // The bridge's MCP servers and the leader note. The bridge builds them for
-    // a fleet run; the leader has no task or budget, only an identity.
-    const leaderCtx = {
-      subagentId: 'leader',
-      config: { id: 'leader', name: agentId, role: 'leader' },
-      sessionId: key,
-    } as unknown as SubagentRunContext;
-    const setup = wrongstackBridgeSetup(
-      agentId,
-      projectRoot,
-      config.acp?.bridge,
-      'leader',
-    )?.({ id: 'leader', description: '' }, leaderCtx);
-    const fleet = host
-      ? await startFleetEndpoint(host, {
-          sessionId: key,
-          approve: (tool, input) => this.approveFleetCall(key, tool, input),
-        }).catch(() => undefined)
-      : undefined;
-    const mcpServers = [
-      ...(setup?.mcpServers ?? []),
-      ...(fleet
-        ? [
-            {
-              type: 'http' as const,
-              name: FLEET_SERVER_NAME,
-              url: fleet.url,
-              headers: [{ name: 'Authorization', value: `Bearer ${fleet.token}` }],
-            },
-          ]
-        : []),
-    ];
-    const meta = setup?.meta as { systemPrompt?: { append?: string } } | undefined;
-    const fleetAppendix = fleet ? fleetNote(fleet.tools) : undefined;
-    const sessionMeta =
-      meta?.systemPrompt?.append !== undefined
-        ? {
-            ...meta,
-            systemPrompt: {
-              ...meta.systemPrompt,
-              append: meta.systemPrompt.append + (fleetAppendix ? `\n${fleetAppendix}` : ''),
-            },
-          }
-        : fleetAppendix
-          ? {
-              ...(meta ?? {}),
-              systemPrompt: {
-                ...(meta?.systemPrompt ?? {}),
-                append: fleetAppendix,
-              },
-            }
-          : meta;
-    const permissionPolicy = host
-      ? wrongstackAcpPermissionPolicy({
-          evaluate: (tool, input) => host.permission(key).evaluate(tool, input, host.context(key)),
-          // A fleet tool is decided as the leader tool it runs, not as an MCP proxy.
-          getTool: (name) => host.getTool(fleetToolName(name) ?? name),
-          projectRoot,
-          allowMcp: !isRestrictedProcess(),
-          registeredMcpServers: mcpServers.map((s) => s.name),
-          ...(host.confirmAwaiter || host.confirmThroughEvents
-            ? {
-                confirm: (tool, call, request) => this.confirm(key, tool, call.input, request),
-              }
-            : {}),
-        })
-      : undefined;
-    const elicitForm: AcpFormElicitationHandler | undefined =
-      host?.confirmThroughEvents && (host.context(key) as Context | undefined)?.userInputAwaiter
-        ? async (form, signal) => {
-            const { elicitAcpFormViaUserInput } = await import('@wrongstack/mcp');
-            return elicitAcpFormViaUserInput(
-              form.child ? `${agentId} / ${form.child.title ?? form.child.id}` : agentId,
-              form,
-              {
-                requestUserInput: (request, formSignal = signal) => {
-                  const ctx = host.context(key) as Context | undefined;
-                  return (
-                    ctx?.userInputAwaiter?.(request, {
-                      sessionId: key,
-                      signal: formSignal,
-                      meta: ctx.meta,
-                    }) ?? Promise.resolve(undefined)
-                  );
-                },
-              },
-              signal,
-            );
-          }
-        : undefined;
+      providerId: this.id,
+      config,
+      host,
+      approvals: this.approvals,
+    });
     // A WrongStack session this agent led before (a resume): continue the
     // agent's own conversation rather than starting it over from a recap.
     const stateDir = host?.stateDir;
@@ -1026,16 +607,16 @@ export class AcpLeaderProvider implements Provider {
     let opened: { sessionId: string; resumed: boolean };
     try {
       session = await acp.ACPSession.start({
-        command: cmd.command,
-        ...(cmd.args ? { args: cmd.args } : {}),
-        ...(cmd.env ? { env: cmd.env } : {}),
-        cwd: projectRoot,
-        projectRoot,
+        command: prepared.cmd.command,
+        ...(prepared.cmd.args ? { args: prepared.cmd.args } : {}),
+        ...(prepared.cmd.env ? { env: prepared.cmd.env } : {}),
+        cwd: prepared.projectRoot,
+        projectRoot: prepared.projectRoot,
         // Same reach as the leader's own file tools (features.allowOutsideProjectRoot),
         // and only behind the bridge policy: reads outside the project are put
         // to it, and without it nothing applies the sensitive-path rules.
         allowOutsideProjectRoot:
-          permissionPolicy !== undefined &&
+          prepared.permissionPolicy !== undefined &&
           (config.features?.allowOutsideProjectRoot ??
             !(config.tools?.restrictToProjectRoot ?? false)),
         role: agentId,
@@ -1046,12 +627,12 @@ export class AcpLeaderProvider implements Provider {
             this.projectPlanTodos(key, plans);
           }
         },
-        ...(permissionPolicy ? { permissionPolicy } : {}),
-        ...(elicitForm ? { elicitForm } : {}),
-        ...(mcpServers.length > 0 ? { mcpServers } : {}),
-        ...(sessionMeta ? { sessionMeta } : {}),
+        ...(prepared.permissionPolicy ? { permissionPolicy: prepared.permissionPolicy } : {}),
+        ...(prepared.elicitForm ? { elicitForm: prepared.elicitForm } : {}),
+        ...(prepared.mcpServers.length > 0 ? { mcpServers: prepared.mcpServers } : {}),
+        ...(prepared.sessionMeta ? { sessionMeta: prepared.sessionMeta } : {}),
         // Claude asks before edits and commands only in `default`.
-        ...(permissionPolicy
+        ...(prepared.permissionPolicy
           ? {
               initialModeId: 'default',
               requireInitialMode:
@@ -1065,9 +646,9 @@ export class AcpLeaderProvider implements Provider {
       opened = await session.openSession();
     } catch (err) {
       // An agent that never started (not installed, failed handshake) must not
-      // leave this session's fleet endpoint listening.
+      // leave this session's endpoints listening.
       void session?.close().catch(() => undefined);
-      void fleet?.close().catch(() => undefined);
+      await prepared.close();
       throw err;
     }
     if (stateDir) {
@@ -1077,9 +658,10 @@ export class AcpLeaderProvider implements Provider {
       agentId,
       session,
       context: new LeaderContext(),
-      fleet,
+      fleet: prepared.fleet,
+      projectMcp: prepared.projectMcp,
       joined: opened.resumed,
-      ...(setup?.promptPrefix ? { promptPrefix: setup.promptPrefix } : {}),
+      ...(prepared.promptPrefix ? { promptPrefix: prepared.promptPrefix } : {}),
     };
   }
 
@@ -1089,12 +671,12 @@ export class AcpLeaderProvider implements Provider {
     untrackAcpLeader(this);
     const all = [...this.sessions.values()];
     this.sessions.clear();
-    this.fleetGrants.clear();
     await Promise.all(
       all.map((p) =>
         p
           .then((leader) => {
             void leader.fleet?.close().catch(() => undefined);
+            void Promise.resolve(leader.projectMcp?.revoke()).catch(() => undefined);
             return leader.session.close({ graceMs: 500 });
           })
           .catch(() => undefined),

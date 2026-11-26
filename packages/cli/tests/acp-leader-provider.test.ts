@@ -77,6 +77,11 @@ vi.mock('@wrongstack/acp', async (importOriginal) => ({
     },
   },
 }));
+// The loopback project services open real project daemons (acp-leader-project-mcp.test.ts).
+vi.mock('@wrongstack/fleet', async (original) => ({
+  ...(await original<typeof import('@wrongstack/fleet')>()),
+  sharedAcpProjectMcpGateway: async () => undefined,
+}));
 
 const { acpLeaderHost, bindAcpLeaderHost, closeAcpLeaderSessions, confirmAcpLeaderThroughEvents } =
   await import('../src/acp-leader/acp-leader-host.js');
@@ -124,6 +129,12 @@ async function collect(stream: AsyncIterable<StreamEvent>): Promise<StreamEvent[
   for await (const ev of stream) out.push(ev);
   return out;
 }
+
+/** The provider's call approvals (`ask`, `confirm`, `approveFleetCall`), kept privately. */
+type Answer = (...args: unknown[]) => Promise<boolean>;
+type Approvals = Record<'ask' | 'confirm' | 'approveFleetCall', Answer>;
+const approvalsOf = (provider: InstanceType<typeof AcpLeaderProvider>) =>
+  (provider as unknown as { approvals: Approvals }).approvals;
 
 const CONFIG = { acp: { leader: { sideModel: 'zai/glm-5' } } } as unknown as Config;
 
@@ -687,17 +698,14 @@ describe('the fleet endpoint for a leader', () => {
       const closesBefore = acp.closes.length;
 
       let askCount = 0;
-      (provider as unknown as { ask: () => Promise<boolean> }).ask = async () => {
+      approvalsOf(provider).ask = async () => {
         askCount++;
         return true;
       };
 
       // User confirms in session 's-leak'
-      await (
-        provider as unknown as {
-          confirm: (s: string, t: unknown, i: unknown, r: unknown) => Promise<boolean>;
-        }
-      ).confirm('s-leak', tool, input, { toolCallId: '1', signal: SIGNAL });
+      const request = { toolCallId: '1', signal: SIGNAL };
+      await approvalsOf(provider).confirm('s-leak', tool, input, request);
 
       // A current owner loses its grants. A delayed duplicate drop from the old
       // owner must leave the replacement's grants and session intact.
@@ -705,11 +713,7 @@ describe('the fleet endpoint for a leader', () => {
 
       // New session on 's-leak' must ask user again rather than auto-approving
       askCount = 0;
-      await (
-        provider as unknown as {
-          approveFleetCall: (s: string, t: unknown, i: unknown) => Promise<boolean>;
-        }
-      ).approveFleetCall('s-leak', tool, input);
+      await approvalsOf(provider).approveFleetCall('s-leak', tool, input);
 
       expect(askCount).toBe(kind === 'current' ? 1 : 0);
       expect(acp.closes.length).toBe(closesBefore + (kind === 'current' ? 1 : 0));
@@ -741,11 +745,8 @@ describe('the host binding', () => {
         confirmAwaiter: async () => answer,
       });
     const provider = new AcpLeaderProvider({ bootConfig: CONFIG, buildProvider: () => undefined });
-    const confirm = (
-      provider as unknown as {
-        confirm: (s: string, t: unknown, i: unknown, r: unknown) => Promise<boolean>;
-      }
-    ).confirm.bind(provider);
+    const approvals = approvalsOf(provider);
+    const confirm = (...args: unknown[]) => approvals.confirm(...args);
     const tool = { name: 'write', description: 'write', inputSchema: { type: 'object' } };
     bindRepl('always');
     expect(await confirm('s1', tool, { path: 'a.ts' }, { toolCallId: '1', signal: SIGNAL })).toBe(

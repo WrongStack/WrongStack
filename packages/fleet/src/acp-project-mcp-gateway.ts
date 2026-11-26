@@ -1,11 +1,16 @@
 /**
- * Shared loopback HTTP `ProjectMcpGateway` for ACP workers spawned by `MultiAgentHost`.
+ * Shared loopback HTTP `ProjectMcpGateway` for the ACP agents a host serves.
  *
  * Mirrors `wrongforge-gateway.ts`: started lazily once per process on `127.0.0.1`
- * with an ephemeral port, serving per-worker isolated MCP servers behind single-use
+ * with an ephemeral port, serving per-agent isolated MCP servers behind single-use
  * bearer grants. When an ACP client advertises `mcpCapabilities.http`, WrongStack's
  * `filterMcpServers()` picks these zero-subprocess HTTP endpoints automatically;
  * stdio-only clients seamlessly fall back to `wstack mcp serve <name>`.
+ *
+ * One implementation for the fleet's delegated workers (`host-acp.ts`) and for an
+ * agent leading the session (`@wrongstack/runtime` `acp-leader`): in the standalone
+ * desktop engine the stdio fallback cannot run, because that executable's main is
+ * the engine, not the CLI, so the leader depends on these HTTP endpoints.
  */
 import { createCodebaseIndexMcpServer } from '@wrongstack/codebase-index-mcp';
 import {
@@ -14,13 +19,13 @@ import {
   resolveProjectDir,
 } from '@wrongstack/coordination';
 import { canonicalProjectRoot, wstackGlobalRoot } from '@wrongstack/core/utils';
-import type { AcpProjectMcpGrantRequest, AcpProjectMcpGrantResult } from '@wrongstack/fleet';
 import { createKanbanMcpServer } from '@wrongstack/kanban-mcp';
 import { createMailboxMcpServer } from '@wrongstack/mailbox-mcp';
 import { type MCPServer, ProjectMcpGateway } from '@wrongstack/mcp';
 import { createRequirementIntakeMcpServer } from '@wrongstack/requirement-intake-mcp';
 import { ProjectSageMemoryPort } from '@wrongstack/sage';
 import { createAttachedSageMcp } from '@wrongstack/sage-mcp';
+import type { AcpProjectMcpGrantRequest, AcpProjectMcpGrantResult } from './host-types.js';
 
 let sharedGatewayPromise: Promise<ProjectMcpGateway> | undefined;
 
@@ -48,7 +53,7 @@ export async function closeSharedAcpProjectMcpGateway(): Promise<void> {
 }
 
 /**
- * Mint a per-worker bearer grant on the shared `ProjectMcpGateway`.
+ * Mint a per-agent bearer grant on the shared `ProjectMcpGateway`.
  *
  * Every requested service is initialized fail-open: if a project daemon
  * (e.g. Mailbox or SAGE) is unavailable, that service is omitted from the HTTP

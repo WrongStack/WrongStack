@@ -5,10 +5,12 @@ export {
 } from '@wrongstack/contracts/types/live-context';
 export {
   cliSpawnArgs,
+  installedCliExecutable,
   isStandaloneBinary,
   moduleDirFor,
   moduleUrlFor,
   scriptSpawnArgs,
+  standaloneMain,
   standalonePackageDir,
   wrongstackPackageJsonPath,
 } from '@wrongstack/persistence';

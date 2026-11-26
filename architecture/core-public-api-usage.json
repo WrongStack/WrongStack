@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 550,
-      "typeOnly": 402,
+      "files": 551,
+      "typeOnly": 403,
       "runtimeOrMixed": 180
     },
     "@wrongstack/core/boot": {
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1034,
+      "files": 1036,
       "typeOnly": 78,
-      "runtimeOrMixed": 991
+      "runtimeOrMixed": 993
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -1604,6 +1604,12 @@
       "file": "packages/runtime/src/acp-leader/acp-leader-provider.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/acp-leader/acp-leader-session-setup.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -12869,12 +12875,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/fleet/acp-project-mcp-gateway.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/goal-commands.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -15113,6 +15113,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/fleet/src/acp-project-mcp-gateway.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/fleet/src/acp-wrongstack-bridge.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -15785,7 +15791,19 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/acp-leader/acp-leader-approvals.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/src/acp-leader/acp-leader-fleet.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/acp-leader/acp-leader-prompt.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

@@ -1,10 +1,12 @@
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   cliSpawnArgs,
   daemonSpawnArgs,
+  installedCliExecutable,
   isStandaloneBinary,
   moduleDirFor,
   moduleUrlFor,
@@ -15,6 +17,7 @@ import {
   standaloneAssetRoot,
   standaloneBinaryBuildId,
   standaloneDaemonUrl,
+  standaloneMain,
   standalonePackageDir,
   wrongstackPackageJsonPath,
 } from '../src/index.js';
@@ -22,19 +25,24 @@ import {
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const g = globalThis as Record<string | symbol, unknown>;
 const ASSET_KEY = Symbol.for('wrongstack.standalone-assets');
+const BUILD_KEY = Symbol.for('wrongstack.standalone-build');
 const WIN_ENTRY = 'B:/~BUN/root/wstack.exe';
 const POSIX_ENTRY = '/$bunfs/root/wstack';
 
 let savedArgv1: string | undefined;
 let hadBun = false;
 
-/** Pretend to be the compiled executable: Bun global + bunfs argv[1]. */
-function enterBinary(entry = WIN_ENTRY, assetRoot?: string): void {
+/**
+ * Pretend to be the compiled executable: Bun global + bunfs argv[1], and
+ * optionally the asset root the bootstrap extracted and the main it stamped.
+ */
+function enterBinary(entry = WIN_ENTRY, assetRoot?: string, main?: 'cli' | 'engine'): void {
   savedArgv1 = process.argv[1];
   hadBun = 'Bun' in g;
   if (!hadBun) g.Bun = {};
   process.argv[1] = entry;
   if (assetRoot !== undefined) g[ASSET_KEY] = assetRoot;
+  if (main !== undefined) g[BUILD_KEY] = { main };
 }
 
 afterEach(() => {
@@ -42,6 +50,7 @@ afterEach(() => {
   savedArgv1 = undefined;
   if (!hadBun) delete g.Bun;
   delete g[ASSET_KEY];
+  delete g[BUILD_KEY];
 });
 
 describe('isStandaloneBinary', () => {
@@ -57,6 +66,37 @@ describe('isStandaloneBinary', () => {
     expect(isStandaloneBinary('B:\\~BUN\\root\\wstack.exe')).toBe(true);
     expect(isStandaloneBinary(POSIX_ENTRY)).toBe(true);
     expect(isStandaloneBinary('')).toBe(false);
+  });
+});
+
+describe('standaloneMain', () => {
+  it('is undefined outside a compiled executable, whatever a stamp left behind says', () => {
+    g[BUILD_KEY] = { main: 'engine' };
+    enterBinary('/usr/lib/node_modules/@wrongstack/cli/dist/index.js');
+    expect(standaloneMain()).toBeUndefined();
+  });
+
+  it("reads the executable's main: the CLI unless its entry declared the engine", () => {
+    enterBinary();
+    expect(standaloneMain()).toBe('cli');
+    // What the desktop engine's entry hands the shared bootstrap.
+    g[BUILD_KEY] = { main: 'engine' };
+    expect(standaloneMain()).toBe('engine');
+  });
+});
+
+describe('installedCliExecutable', () => {
+  it("is the installer's `bin/wstack` under the global root, when it is there", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wrongstack-installed-cli-'));
+    const file = path.join(root, 'bin', process.platform === 'win32' ? 'wstack.exe' : 'wstack');
+    try {
+      expect(installedCliExecutable(root)).toBeUndefined();
+      fs.mkdirSync(path.dirname(file));
+      fs.writeFileSync(file, '');
+      expect(installedCliExecutable(root)).toBe(file);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 });
 
@@ -196,5 +236,13 @@ describe('binary entry contract', () => {
     expect(entry).toContain("from './runtime.mjs'");
     expect(runtime).toContain(`const DAEMON_ARG = '${STANDALONE_DAEMON_ARG}';`);
     expect(runtime).toContain(`const SCRIPT_ARG = '${STANDALONE_SCRIPT_ARG}';`);
+  });
+
+  it('declares the CLI as its main, which the shared runtime stamps for every binary', () => {
+    // `standaloneMain()` reads the stamp to tell the CLI binary from the desktop engine.
+    expect(entry).toContain("main: 'cli',");
+    const runtime = fs.readFileSync(path.join(repoRoot, 'scripts/binary/runtime.mjs'), 'utf8');
+    expect(runtime).toMatch(/\{ main = 'cli', runMain, runDaemon \}/);
+    expect(runtime).toMatch(/wrongstack\.standalone-build'\)\] = \{[^}]*\bmain,/);
   });
 });

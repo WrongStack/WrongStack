@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import {
   closeSharedAcpProjectMcpGateway,
   sharedAcpProjectMcpGateway,
-} from '../src/fleet/acp-project-mcp-gateway.js';
+} from '../src/acp-project-mcp-gateway.js';
 
 describe('sharedAcpProjectMcpGateway', () => {
   afterAll(async () => {

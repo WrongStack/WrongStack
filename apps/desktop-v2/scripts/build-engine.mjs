@@ -60,15 +60,19 @@ export function engineSidecarPath(triple, dir = appDir) {
 export function createEngineEntry(source) {
   // The staged entry lives in apps/desktop-v2/.engine-stage/, so every path the
   // canonical entry (scripts/binary/entry.mjs) resolves relative to itself moves.
+  // The engine takes no CLI subcommand: say so, so code that needs the CLI
+  // (`wstack mcp serve`, `wstack tools`) starts the installed one, not this executable.
+  const mainStamp = "main: 'cli',";
   const cliImport = "runMain: () => import('../../packages/cli/dist/index.js'),";
   const packImport = "'../../dist-bin/.stage/assets.pack'";
   const runtimeImport = "from './runtime.mjs';";
-  for (const marker of [cliImport, packImport, runtimeImport]) {
+  for (const marker of [mainStamp, cliImport, packImport, runtimeImport]) {
     if (source.split(marker).length !== 2) {
       throw new Error('Standalone bootstrap contract changed; review the desktop engine adapter.');
     }
   }
   return source
+    .replace(mainStamp, "main: 'engine',")
     .replace(cliImport, "runMain: () => import('../engine/main.ts'),")
     .replace(packImport, "'./assets.pack'")
     .replace(runtimeImport, "from '../../../scripts/binary/runtime.mjs';")

@@ -20,6 +20,10 @@ describe('native engine standalone bootstrap', () => {
     );
     const entry = createEngineEntry(canonical);
     expect(entry).toContain("runMain: () => import('../engine/main.ts')");
+    // Its main is not the CLI: `wstack mcp serve` and `wstack tools` start the
+    // installed CLI from the engine instead of the engine executable.
+    expect(entry).toContain("main: 'engine',");
+    expect(entry).not.toContain("main: 'cli',");
     expect(entry).toContain(
       "await import('../../../packages/core/dist/session-catalog/project-server.js')",
     );

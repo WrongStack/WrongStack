@@ -242,10 +242,15 @@ describe("the ACP leader's context", () => {
       confirmThroughEvents: true,
     });
     const provider = new AcpLeaderProvider({ bootConfig: CONFIG, buildProvider: () => undefined });
-    const internals = provider as unknown as {
-      confirm(s: string, t: { name: string }, i: unknown, r: unknown): Promise<boolean>;
-      approveFleetCall(s: string, t: { name: string }, i: unknown): Promise<boolean>;
-    };
+    // The provider keeps its call approvals privately (`LeaderApprovals`).
+    const internals = (
+      provider as unknown as {
+        approvals: {
+          confirm(s: string, t: { name: string }, i: unknown, r: unknown): Promise<boolean>;
+          approveFleetCall(s: string, t: { name: string }, i: unknown): Promise<boolean>;
+        };
+      }
+    ).approvals;
     const delegate = { name: 'delegate' };
     const signal = new AbortController().signal;
 

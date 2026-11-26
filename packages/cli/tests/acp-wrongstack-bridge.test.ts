@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { SubagentRunContext, TaskSpec } from '@wrongstack/contracts/types';
@@ -9,11 +9,13 @@ import {
   onPath,
   wrongstackBridgeSetup,
   wstackLaunch,
+  wstackToolsCommand,
 } from '@wrongstack/fleet';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 const ROOT = '/work/project';
 const task: TaskSpec = { id: 't-42', description: 'fix the flaky test' };
+const CLI_FILE = process.platform === 'win32' ? 'wstack.exe' : 'wstack';
 const ctx = {
   subagentId: 'claude-code',
   config: { id: 'claude-code', name: 'Claude worker', role: 'reviewer' },
@@ -273,6 +275,62 @@ describe('wstackLaunch', () => {
     expect(wstackLaunch(['mcp'], '/usr/lib/vitest/runner.mjs')).toEqual({
       command: 'wstack',
       args: ['mcp'],
+    });
+  });
+
+  describe('inside a compiled executable', () => {
+    const g = globalThis as Record<string | symbol, unknown>;
+    const BUILD_KEY = Symbol.for('wrongstack.standalone-build');
+    const BINARY_ENTRY = 'B:/~BUN/root/wrongstack-engine-x86_64-pc-windows-msvc.exe';
+    let saved: { argv1: string | undefined; bun: boolean; home: string | undefined };
+    let home: string;
+
+    /** A compiled executable under its own global root, with or without the CLI installed in its `bin`. */
+    function enterBinary(main: 'cli' | 'engine', installedCli: boolean): void {
+      saved = { argv1: process.argv[1], bun: 'Bun' in g, home: process.env['WRONGSTACK_HOME'] };
+      if (!saved.bun) g.Bun = {};
+      process.argv[1] = BINARY_ENTRY;
+      g[BUILD_KEY] = { main };
+      home = mkdtempSync(join(tmpdir(), 'wrongstack-wstack-launch-'));
+      process.env['WRONGSTACK_HOME'] = home;
+      if (installedCli) {
+        mkdirSync(join(home, 'bin'));
+        writeFileSync(join(home, 'bin', CLI_FILE), '');
+      }
+    }
+    const installedCli = () => join(home, 'bin', CLI_FILE);
+
+    afterEach(() => {
+      if (saved.argv1 !== undefined) process.argv[1] = saved.argv1;
+      if (!saved.bun) delete g.Bun;
+      delete g[BUILD_KEY];
+      if (saved.home === undefined) delete process.env['WRONGSTACK_HOME'];
+      else process.env['WRONGSTACK_HOME'] = saved.home;
+      rmSync(home, { recursive: true, force: true });
+    });
+
+    it('re-runs the CLI binary itself', () => {
+      enterBinary('cli', false);
+      expect(wstackLaunch(['mcp', 'serve', 'sage'])).toEqual({
+        command: process.execPath,
+        args: ['mcp', 'serve', 'sage'],
+      });
+    });
+
+    it('starts the installed CLI from the desktop engine, whose main takes no CLI subcommand', () => {
+      enterBinary('engine', true);
+      expect(wstackLaunch(['mcp', 'serve', 'sage'])).toEqual({
+        command: installedCli(),
+        args: ['mcp', 'serve', 'sage'],
+      });
+      // The `wstack tools` shell command an agent runs is built from the same launcher.
+      const tools = wstackToolsCommand(BINARY_ENTRY, 'win32');
+      expect(tools.startsWith(`${installedCli().replaceAll('\\', '/')} tools`)).toBe(true);
+    });
+
+    it('falls back to wstack on PATH when the CLI is not installed', () => {
+      enterBinary('engine', false);
+      expect(wstackLaunch(['mcp'])).toEqual({ command: 'wstack', args: ['mcp'] });
     });
   });
 });

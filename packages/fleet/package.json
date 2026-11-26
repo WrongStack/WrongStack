@@ -37,11 +37,17 @@
   "dependencies": {
     "@wrongstack/acp": "workspace:*",
     "@wrongstack/agent-catalog": "workspace:*",
+    "@wrongstack/codebase-index-mcp": "workspace:*",
     "@wrongstack/contracts": "workspace:*",
     "@wrongstack/coordination": "workspace:*",
     "@wrongstack/core": "workspace:*",
+    "@wrongstack/kanban-mcp": "workspace:*",
+    "@wrongstack/mailbox-mcp": "workspace:*",
+    "@wrongstack/mcp": "workspace:*",
     "@wrongstack/providers": "workspace:*",
+    "@wrongstack/requirement-intake-mcp": "workspace:*",
     "@wrongstack/sage": "workspace:*",
+    "@wrongstack/sage-mcp": "workspace:*",
     "@wrongstack/sdd": "workspace:*",
     "@wrongstack/worktree": "workspace:*"
   },

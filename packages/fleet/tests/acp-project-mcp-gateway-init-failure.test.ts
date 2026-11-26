@@ -23,7 +23,7 @@ vi.mock('@wrongstack/coordination', async (importOriginal) => {
     createProjectMailbox: vi.fn(() => ({
       initialize: vi.fn(async () => {
         // Concurrent shutdown lands while this worker's services initialize.
-        const mod = await import('../src/fleet/acp-project-mcp-gateway.js');
+        const mod = await import('../src/acp-project-mcp-gateway.js');
         await mod.closeSharedAcpProjectMcpGateway();
       }),
       close: vi.fn(async () => {
@@ -36,7 +36,7 @@ vi.mock('@wrongstack/coordination', async (importOriginal) => {
 import {
   closeSharedAcpProjectMcpGateway,
   sharedAcpProjectMcpGateway,
-} from '../src/fleet/acp-project-mcp-gateway.js';
+} from '../src/acp-project-mcp-gateway.js';
 
 afterAll(async () => {
   await closeSharedAcpProjectMcpGateway();

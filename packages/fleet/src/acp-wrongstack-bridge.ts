@@ -28,7 +28,12 @@ import {
   resolveAcpClientProfile,
 } from '@wrongstack/acp';
 import type { Config, SubagentRunContext, TaskSpec } from '@wrongstack/contracts/types';
-import { cliSpawnArgs, isStandaloneBinary } from '@wrongstack/core/utils';
+import {
+  installedCliExecutable,
+  isStandaloneBinary,
+  standaloneMain,
+  wstackGlobalRoot,
+} from '@wrongstack/core/utils';
 
 export { DEFAULT_BRIDGE_AGENTS, defaultBridgeAgentIds } from '@wrongstack/acp';
 
@@ -75,15 +80,29 @@ export interface WrongStackBridgeExtraOptions {
   httpGrant?: WrongStackBridgeHttpGrantFactory | undefined;
 }
 
-/** How to start this same `wstack`: the binary itself, or node/bun + the CLI entry. */
+/**
+ * How to start the WrongStack CLI's subcommands (`mcp serve`, `tools`) so a
+ * worker reaches this install: the standalone CLI binary itself, or
+ * node/bun with the CLI entry.
+ *
+ * The desktop engine is a second standalone binary on the same bootstrap whose
+ * main is the engine, not the CLI: `<engine> mcp serve …` dies on start
+ * ("Desktop engine requires a valid port …"). From there the installed CLI is
+ * started instead, or `wstack` on PATH when it is not installed.
+ */
 export function wstackLaunch(
   args: string[],
   entry: string | undefined = process.argv[1],
 ): { command: string; args: string[] } {
-  if (isStandaloneBinary() || (entry && /wstack|wrongstack|index\.(js|ts|mjs|cjs)$/.test(entry))) {
-    return { command: process.execPath, args: cliSpawnArgs(entry ?? '', args) };
+  if (isStandaloneBinary()) {
+    return standaloneMain() === 'cli'
+      ? { command: process.execPath, args: [...args] }
+      : { command: installedCliExecutable(wstackGlobalRoot()) ?? 'wstack', args: [...args] };
   }
-  return { command: 'wstack', args };
+  if (entry && /wstack|wrongstack|index\.(js|ts|mjs|cjs)$/.test(entry)) {
+    return { command: process.execPath, args: [entry, ...args] };
+  }
+  return { command: 'wstack', args: [...args] };
 }
 
 /**
@@ -154,6 +173,29 @@ const SERVER_NAMES: Record<BridgeServer, string> = {
   'codebase-index': 'wrongstack-index',
   'requirement-intake': 'wrongstack-intake',
 };
+
+const SERVER_OF_NAME: ReadonlyMap<string, BridgeServer> = new Map<string, BridgeServer>(
+  (Object.entries(SERVER_NAMES) as [BridgeServer, string][]).map(([server, name]) => [
+    name,
+    server,
+  ]),
+);
+
+/**
+ * The project services a bridge setup hands an agent as MCP servers (its
+ * stdio descriptors), each once — what a host asks the shared
+ * `ProjectMcpGateway` for when it serves them over HTTP instead.
+ */
+export function bridgeServersOf(
+  setup: Pick<AcpSessionSetup, 'mcpServers'> | undefined,
+): BridgeServer[] {
+  const servers: BridgeServer[] = [];
+  for (const server of setup?.mcpServers ?? []) {
+    const service = SERVER_OF_NAME.get(server.name);
+    if (service && !servers.includes(service)) servers.push(service);
+  }
+  return servers;
+}
 
 const SERVER_NOTES: Record<BridgeServer, (delegated: boolean) => string> = {
   sage: () =>

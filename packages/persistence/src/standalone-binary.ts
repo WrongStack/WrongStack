@@ -30,7 +30,10 @@
  *    as `<root>/<package>/…` with the package's own relative structure intact.
  *
  * 4. **Re-launching the CLI** is `process.execPath <cli/dist/index.js> …` in an
- *    install and `process.execPath …` in the binary: {@link cliSpawnArgs}.
+ *    install and `process.execPath …` in the CLI binary: {@link cliSpawnArgs}.
+ *    Another executable on this bootstrap (the desktop engine) is not the CLI
+ *    and starts the installed one instead: {@link standaloneMain},
+ *    {@link installedCliExecutable}.
  *
  * 5. **Running a project's own JS tool** (eslint, vitest, a bump script) as
  *    `process.execPath <bin.js>` would hand the script path to the CLI. The
@@ -78,6 +81,27 @@ export function isStandaloneBinary(entry: string | undefined = process.argv[1]):
 
 export function standaloneDaemonUrl(name: StandaloneDaemonName): URL {
   return new URL(`${STANDALONE_DAEMON_PROTOCOL}${name}`);
+}
+
+/** What a standalone executable's main entry is, as its entry declares to the bootstrap. */
+export type StandaloneMain = 'cli' | 'engine';
+
+const BUILD_KEY = Symbol.for('wrongstack.standalone-build');
+
+/**
+ * The main entry of the standalone executable this process runs in, or
+ * undefined outside one. `'cli'` is the WrongStack CLI, so `process.execPath
+ * <subcommand>` runs its subcommands (`mcp serve`, `tools`). The desktop engine
+ * is built on the same bootstrap with another main and takes none: what needs
+ * the CLI there must start the installed one ({@link installedCliExecutable}).
+ */
+export function standaloneMain(
+  entry: string | undefined = process.argv[1],
+): StandaloneMain | undefined {
+  if (!isStandaloneBinary(entry)) return undefined;
+  const build = (globalThis as Record<symbol, { main?: unknown } | undefined>)[BUILD_KEY];
+  // An executable built before the stamp was declared had only the CLI as its main.
+  return build?.main === 'engine' ? 'engine' : 'cli';
 }
 
 /**
@@ -167,10 +191,25 @@ export function moduleUrlFor(moduleUrl: string, packageName: string): string {
 
 /**
  * argv (after `process.execPath`) that re-launches the WrongStack CLI:
- * the resolved CLI entry script in an install, nothing in the binary.
+ * the resolved CLI entry script in an install, nothing in the CLI binary.
+ * In another standalone executable `process.execPath` is not the CLI
+ * (`standaloneMain`), so this does not apply there.
  */
 export function cliSpawnArgs(cliEntry: string, args: readonly string[]): string[] {
   return isStandaloneBinary() ? [...args] : [cliEntry, ...args];
+}
+
+/**
+ * The WrongStack CLI the installer put in `<global root>/bin`, for a process
+ * that is not the CLI itself; undefined when it is not installed there.
+ */
+export function installedCliExecutable(globalRoot: string): string | undefined {
+  const file = path.join(globalRoot, 'bin', process.platform === 'win32' ? 'wstack.exe' : 'wstack');
+  try {
+    return statSync(file).isFile() ? file : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**

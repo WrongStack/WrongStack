@@ -10,6 +10,10 @@ import assetPackPath from '../../dist-bin/.stage/assets.pack' with { type: 'file
 import { startStandalone } from './runtime.mjs';
 
 await startStandalone(assetPackPath, {
+  // This executable's main entry: the WrongStack CLI, which runs `wstack <subcommand>`.
+  // The desktop engine is built from this file with another main
+  // (apps/desktop-v2/scripts/build-engine.mjs).
+  main: 'cli',
   runMain: () => import('../../packages/cli/dist/index.js'),
   runDaemon,
 });

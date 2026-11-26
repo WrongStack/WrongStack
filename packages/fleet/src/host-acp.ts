@@ -26,7 +26,7 @@ import { registerAcpSteerInbox } from './acp-live-steer.js';
 import { type AcpPreflightSources, buildAcpPreflightContext } from './acp-preflight-context.js';
 import { startAcpTurnReminders } from './acp-turn-reminders.js';
 import {
-  type BridgeServer,
+  bridgeServersOf,
   DEFAULT_BRIDGE_SERVERS,
   wrongstackBridgeSetup,
 } from './acp-wrongstack-bridge.js';
@@ -162,16 +162,7 @@ export function buildAcpSubagentRunner(
               }
             | undefined;
           if (acpGateway && bridgeRoot && base?.mcpServers && base.mcpServers.length > 0) {
-            const serverMap: Record<string, BridgeServer> = {
-              'wrongstack-sage': 'sage',
-              'wrongstack-mailbox': 'mailbox',
-              'wrongstack-kanban': 'kanban',
-              'wrongstack-index': 'codebase-index',
-              'wrongstack-intake': 'requirement-intake',
-            };
-            const requestedServers = base.mcpServers
-              .map((s) => serverMap[s.name])
-              .filter((s): s is BridgeServer => s !== undefined);
+            const requestedServers = bridgeServersOf(base);
             if (requestedServers.length > 0) {
               grant = await acpGateway({
                 servers: requestedServers,

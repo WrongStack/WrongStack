@@ -423,9 +423,6 @@
     "packages/cli/src/fleet-statusline.ts": [
       "renderFleetLine"
     ],
-    "packages/cli/src/fleet/acp-project-mcp-gateway.ts": [
-      "closeSharedAcpProjectMcpGateway"
-    ],
     "packages/cli/src/fleet/wrongforge-gateway.ts": [
       "WORKER_WITHHELD_TOOLS"
     ],
@@ -860,6 +857,9 @@
       "__resetProxyConfigForTests",
       "PROXY_EXCLUDED_PROVIDERS",
       "subscribeToProxyConfig"
+    ],
+    "packages/fleet/src/acp-project-mcp-gateway.ts": [
+      "closeSharedAcpProjectMcpGateway"
     ],
     "packages/fleet/src/acp-wrongstack-bridge.ts": [
       "bridgeNote",

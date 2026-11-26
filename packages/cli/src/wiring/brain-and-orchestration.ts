@@ -30,7 +30,12 @@ import {
 } from '@wrongstack/core/execution';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import { resolveTypeSafeJudge } from '@wrongstack/core/typesafe';
-import { installedBridgeAgents, MultiAgentHost, wrongForgeDelegateEntry } from '@wrongstack/fleet';
+import {
+  installedBridgeAgents,
+  MultiAgentHost,
+  sharedAcpProjectMcpGateway,
+  wrongForgeDelegateEntry,
+} from '@wrongstack/fleet';
 import {
   createMcpControlTool,
   createMcpUseTool,
@@ -40,7 +45,6 @@ import {
   SESSION_RENAME_TOOL_NAME,
 } from '@wrongstack/tools/management';
 import { subscribeBrainDecisionLog } from '../boot/brain-decision-log.js';
-import { sharedAcpProjectMcpGateway } from '../fleet/acp-project-mcp-gateway.js';
 import { createSubagentWrongTraceHookRunner } from '../fleet/subagent-hook-runner.js';
 import { sharedWrongForgeGateway } from '../fleet/wrongforge-gateway.js';
 import { activeProfileConfigPath } from '../profile-config-path.js';

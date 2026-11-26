@@ -11,12 +11,19 @@ const PACK_ID = WRONGSTACK_BINARY_PACK_ID;
 const DAEMON_ARG = '__wstack_daemon';
 const SCRIPT_ARG = '__wstack_run_script';
 
-/** Prepare the runtime before loading a CLI or daemon module. */
-export async function startStandalone(assetPackPath, { runMain, runDaemon }) {
+/**
+ * Prepare the runtime before loading a CLI or daemon module. `main` names the
+ * executable's main entry: `'cli'` (the WrongStack CLI, which runs its
+ * subcommands) or `'engine'` (the desktop engine, which takes none).
+ */
+export async function startStandalone(assetPackPath, { main = 'cli', runMain, runDaemon }) {
   globalThis[Symbol.for('wrongstack.standalone-build')] = {
     version: VERSION,
     apiVersion: WRONGSTACK_BINARY_API_VERSION,
     target: WRONGSTACK_BINARY_TARGET,
+    // Read by `standaloneMain()` (packages/persistence/src/standalone-binary.ts):
+    // what needs the CLI starts the installed one unless this is `'cli'`.
+    main,
   };
 
   const [, , first, ...rest] = process.argv;

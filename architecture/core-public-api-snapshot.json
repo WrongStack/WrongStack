@@ -256,7 +256,7 @@
         "export { capSageLines, SAGE_INJECTOR_HEADINGS, type SageOutputSplit, splitSageOutputBlock, } from './sage-output-block.js';",
         "export { checkConnectivity, resetConnectivityCache } from './connectivity.js';",
         "export { clearLeaderEffortOverride, conversationEffort, LEADER_EFFORT_META_KEY, readLeaderEffortOverride, restoreLeaderEffortOverride, snapshotConversationEffort, } from './leader-effort-override.js';",
-        "export { cliSpawnArgs, isStandaloneBinary, moduleDirFor, moduleUrlFor, scriptSpawnArgs, standalonePackageDir, wrongstackPackageJsonPath, } from '@wrongstack/persistence';",
+        "export { cliSpawnArgs, installedCliExecutable, isStandaloneBinary, moduleDirFor, moduleUrlFor, scriptSpawnArgs, standaloneMain, standalonePackageDir, wrongstackPackageJsonPath, } from '@wrongstack/persistence';",
         "export { completePartialObject } from './json-repair.js';",
         "export { computeMessageTokens, estimateMessageTokens, estimateRequestTokens, estimateRequestTokensCalibrated, estimateTextTokens, estimateToolDefTokens, estimateToolInputTokens, estimateToolResultTokens, getCalibrationState, type RequestTokenBreakdown, recordActualUsage, resetCalibration, } from './token-estimate.js';",
         "export { countUnifiedDiffLines } from './unified-diff-count.js';",
@@ -1255,7 +1255,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 98,
-      "sourceLines": 16372
+      "sourceLines": 16374
     },
     {
       "directory": "vcs",
