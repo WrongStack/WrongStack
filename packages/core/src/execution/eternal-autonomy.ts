@@ -245,7 +245,11 @@ export class EternalAutonomyEngine {
 
     const ctrl = new AbortController();
     this.currentCtrl = ctrl;
-    const timer = setTimeout(() => ctrl.abort(), this.opts.iterationTimeoutMs ?? 5 * 60_000);
+    // Node fires a delay above 2^31-1 ms (or Infinity) after ~1 ms; see clampTimeoutMs.
+    const timer = setTimeout(
+      () => ctrl.abort(),
+      Math.min(this.opts.iterationTimeoutMs ?? 5 * 60_000, 2_147_483_647),
+    );
     // Snapshot usage before so the iteration delta can be journaled.
     // Token counter is optional in mock/test contexts — guard accordingly.
     const tc = this.opts.agent.ctx?.tokenCounter;

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T14:11:07.863Z",
+  "generatedAt": "2026-11-26T14:13:44.671Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6572,
-    "testFiles": 6446,
-    "sourceLines": 1349736,
+    "testFiles": 6451,
+    "sourceLines": 1349775,
     "workspaceEdges": 261,
     "moduleEdges": 19250,
     "nonCommandSlashImports": 0,
@@ -455,7 +455,7 @@
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
       "sourceFiles": 64,
-      "testFiles": 37,
+      "testFiles": 38,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -476,7 +476,7 @@
         {
           "path": "packages/fleet/tsconfig.test.json",
           "error": null,
-          "testFiles": 37
+          "testFiles": 38
         }
       ]
     },
@@ -648,7 +648,7 @@
       "name": "@wrongstack/mcp",
       "dir": "packages/mcp",
       "sourceFiles": 76,
-      "testFiles": 127,
+      "testFiles": 128,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -662,7 +662,7 @@
         {
           "path": "packages/mcp/tsconfig.test.json",
           "error": null,
-          "testFiles": 127
+          "testFiles": 128
         }
       ]
     },
@@ -805,7 +805,7 @@
       "name": "@wrongstack/providers",
       "dir": "packages/providers",
       "sourceFiles": 142,
-      "testFiles": 162,
+      "testFiles": 163,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -819,7 +819,7 @@
         {
           "path": "packages/providers/tsconfig.test.json",
           "error": null,
-          "testFiles": 162
+          "testFiles": 163
         }
       ]
     },
@@ -1014,7 +1014,7 @@
       "name": "@wrongstack/techstack",
       "dir": "packages/techstack",
       "sourceFiles": 55,
-      "testFiles": 72,
+      "testFiles": 73,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1030,7 +1030,7 @@
         {
           "path": "packages/techstack/tsconfig.test.json",
           "error": null,
-          "testFiles": 72
+          "testFiles": 73
         }
       ]
     },
@@ -1112,7 +1112,7 @@
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
       "sourceFiles": 517,
-      "testFiles": 504,
+      "testFiles": 505,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1141,7 +1141,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 504
+          "testFiles": 505
         }
       ]
     },
@@ -17226,6 +17226,12 @@
         ]
       },
       {
+        "file": "packages/fleet/tests/acp-preflight-options-bounds.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/fleet/tests/acp-quota-reading-nan.test.ts",
         "projects": [
           "root-node"
@@ -20179,6 +20185,12 @@
       },
       {
         "file": "packages/mcp/tests/mcp-protocol-blank-string.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/mcp-reconnect-backoff-cap.test.ts",
         "projects": [
           "root-node"
         ]
@@ -23808,6 +23820,12 @@
         ]
       },
       {
+        "file": "packages/providers/tests/output-limit-floor.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/providers/tests/overlay-invalidation.test.ts",
         "projects": [
           "root-node"
@@ -26983,6 +27001,12 @@
       },
       {
         "file": "packages/techstack/tests/http-audit-runner.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/techstack/tests/http-fetch-attempts-bounds.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32641,6 +32665,12 @@
       },
       {
         "file": "packages/tui/tests/thinking-word.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/token-previews-budget-bounds.test.ts",
         "projects": [
           "root-node"
         ]

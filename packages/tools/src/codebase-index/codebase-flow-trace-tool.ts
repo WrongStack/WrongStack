@@ -220,7 +220,7 @@ export function sliceExecutionFlow(
   options: { maxDepth?: number | undefined; maxSteps?: number | undefined } = {},
 ): ExecutionFlow {
   const maxDepth = Math.max(1, Math.min(options.maxDepth ?? 4, 10));
-  const maxSteps = Math.max(2, Math.min(options.maxSteps ?? 15, 50));
+  const maxSteps = Math.max(3, Math.min(options.maxSteps ?? 15, 50)); // documented 3..50
   const summaries = store.getReadyConceptSummaries();
 
   const absEntryFile = path.resolve(projectRoot, entry.file);

@@ -91,8 +91,18 @@ export function createFleetStatusBroadcaster(opts: FleetStatusBroadcasterOptions
   stop(): void;
 } {
   const cfg = opts.config;
-  const minIntervalMs = cfg?.minIntervalMsPerAgent ?? DEFAULT_MIN_INTERVAL_MS;
-  const perMinuteCap = cfg?.globalPerMinuteCap ?? DEFAULT_GLOBAL_PER_MINUTE;
+  const minIntervalMs =
+    typeof cfg?.minIntervalMsPerAgent === 'number' &&
+    Number.isFinite(cfg.minIntervalMsPerAgent) &&
+    cfg.minIntervalMsPerAgent >= 0
+      ? Math.min(cfg.minIntervalMsPerAgent, 2_147_483_647)
+      : DEFAULT_MIN_INTERVAL_MS;
+  const perMinuteCap =
+    typeof cfg?.globalPerMinuteCap === 'number' &&
+    Number.isFinite(cfg.globalPerMinuteCap) &&
+    cfg.globalPerMinuteCap >= 0
+      ? Math.floor(cfg.globalPerMinuteCap)
+      : DEFAULT_GLOBAL_PER_MINUTE;
   // Budget thresholds are local operational telemetry, and timeout thresholds
   // can be proactive (85% of the deadline) rather than exhaustion. Broadcasting
   // them project-wide by default floods every peer with recoverable internals.

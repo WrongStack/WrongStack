@@ -87,8 +87,10 @@ export async function buildAcpPreflightContext(params: {
   signal?: AbortSignal | undefined;
   options?: AcpPreflightOptions | undefined;
 }): Promise<string | undefined> {
-  const maxChars = Math.max(400, params.options?.maxChars ?? DEFAULT_MAX_CHARS);
-  const timeoutMs = Math.max(100, params.options?.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const finiteOption = (value: unknown, fallback: number): number =>
+    typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+  const maxChars = Math.max(400, finiteOption(params.options?.maxChars, DEFAULT_MAX_CHARS));
+  const timeoutMs = Math.max(100, finiteOption(params.options?.timeoutMs, DEFAULT_TIMEOUT_MS));
 
   const [memories, card] = await Promise.all([
     params.sources.fetchMemories

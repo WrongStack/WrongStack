@@ -199,7 +199,12 @@ export async function enhanceUserPrompt(
   const { provider, model, text } = opts;
   // Reasoning models ("thinking" models like DeepSeek reasoner / o1) take
   // longer to first token, so give a generous default window.
-  const timeoutMs = opts.timeoutMs ?? 90000;
+  // Clamped like mission-refinement's timer: Node fires a delay above 2^31-1 ms
+  // after ~1 ms, so a long configured retry window would time out at once.
+  const rawTimeoutMs = opts.timeoutMs ?? 90000;
+  const timeoutMs = Number.isFinite(rawTimeoutMs)
+    ? Math.max(0, Math.min(2_147_483_647, rawTimeoutMs))
+    : 90000;
   // No default cap: on some endpoints the model's hidden "thinking" tokens
   // count against this budget, so any fixed cap can leave NO room for the
   // refined text (→ empty completion → null). Unset = the model's ceiling.

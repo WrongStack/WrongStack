@@ -143,7 +143,12 @@ function requestOnce(options: HttpRequestOptions): Promise<HttpResponse> {
 }
 
 export async function requestWithRetry(options: HttpRequestOptions): Promise<HttpResponse> {
-  const maxAttempts = Math.max(1, options.maxAttempts ?? 3);
+  // A malformed attempt count must fall back to the default: NaN makes the loop
+  // condition false, so the request would fail without ever being attempted.
+  const maxAttempts =
+    typeof options.maxAttempts === 'number' && Number.isFinite(options.maxAttempts)
+      ? Math.max(1, Math.floor(options.maxAttempts))
+      : 3;
   let lastError: Error | undefined;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {

@@ -89,15 +89,20 @@ export class TokenPreviewStore {
   private readonly maxPreviewLines: number;
 
   constructor(budget: TokenPreviewBudget = {}) {
-    this.maxEntries = Math.max(1, Math.floor(budget.maxEntries ?? TOKEN_PREVIEWS_MAX_ENTRIES));
-    this.maxChars = Math.max(1, Math.floor(budget.maxChars ?? TOKEN_PREVIEWS_MAX_CHARS));
+    // A malformed (non-finite) budget must fall back to the defaults: NaN makes
+    // every eviction comparison false, which turns the cache into an unbounded
+    // map — the opposite of the constructor's job.
+    const limit = (value: unknown, fallback: number): number =>
+      typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+    this.maxEntries = Math.max(1, Math.floor(limit(budget.maxEntries, TOKEN_PREVIEWS_MAX_ENTRIES)));
+    this.maxChars = Math.max(1, Math.floor(limit(budget.maxChars, TOKEN_PREVIEWS_MAX_CHARS)));
     this.maxPreviewChars = Math.max(
       1,
-      Math.min(this.maxChars, Math.floor(budget.maxPreviewChars ?? TOKEN_PREVIEW_MAX_CHARS)),
+      Math.min(this.maxChars, Math.floor(limit(budget.maxPreviewChars, TOKEN_PREVIEW_MAX_CHARS))),
     );
     this.maxPreviewLines = Math.max(
       1,
-      Math.floor(budget.maxPreviewLines ?? TOKEN_PREVIEW_MAX_LINES),
+      Math.floor(limit(budget.maxPreviewLines, TOKEN_PREVIEW_MAX_LINES)),
     );
   }
 

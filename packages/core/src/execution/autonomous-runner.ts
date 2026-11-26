@@ -222,7 +222,11 @@ export class AutonomousRunner {
       this.opts.onIteration?.({ iteration: this.iterations, toolCalls: this.toolCalls });
 
       const ctrl = new AbortController();
-      const timeout = setTimeout(() => ctrl.abort(), this.opts.iterationTimeoutMs ?? 30_000);
+      // Node fires a delay above 2^31-1 ms (or Infinity) after ~1 ms; see clampTimeoutMs.
+      const timeout = setTimeout(
+        () => ctrl.abort(),
+        Math.min(this.opts.iterationTimeoutMs ?? 30_000, 2_147_483_647),
+      );
 
       try {
         // In directive mode with autonomous continue, pass it through so the

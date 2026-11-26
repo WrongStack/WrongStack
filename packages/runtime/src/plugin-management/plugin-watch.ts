@@ -181,7 +181,10 @@ export class PluginDevWatchController {
 
     this.unwatch(name);
 
-    const debounceMs = Math.max(40, opts.debounceMs ?? 200);
+    const debounceMs =
+      typeof opts.debounceMs === 'number' && Number.isFinite(opts.debounceMs)
+        ? Math.min(2_147_483_647, Math.max(40, Math.floor(opts.debounceMs)))
+        : 200;
     const trustPath = defaultPluginTrustPath(globalRoot);
 
     const triggerReload = async (state: ActivePluginWatch): Promise<void> => {

@@ -79,7 +79,7 @@ export type ModelOutputLimitResolver = (
 let activeResolver: ModelOutputLimitResolver | undefined;
 
 function positive(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0
+  return typeof value === 'number' && Number.isFinite(value) && value >= 1
     ? Math.floor(value)
     : undefined;
 }

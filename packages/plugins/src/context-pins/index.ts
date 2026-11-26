@@ -158,8 +158,10 @@ function readConfig(raw: unknown, roots: readonly string[] = [process.cwd()]): C
     // documented in-memory mode. They used to collapse into the same silent ''.
     filePathRejected: resolvedPath === null,
     maxPins:
+      // Whole pins: a fractional cap let pin_add store one more pin than the
+      // prompt's `slice(0, maxPins)` injects.
       typeof rawMaxPins === 'number' && rawMaxPins >= 1 && rawMaxPins <= 100
-        ? rawMaxPins
+        ? Math.floor(rawMaxPins)
         : DEFAULTS.maxPins,
     maxPinChars:
       typeof rawMaxChars === 'number' && rawMaxChars >= 20 ? rawMaxChars : DEFAULTS.maxPinChars,
