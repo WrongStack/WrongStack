@@ -28,7 +28,10 @@ interface ParsedTtl {
   error?: string | undefined;
 }
 
-const MAX_SAFE_TTL_MS = 8_640_000_000_000_000; // ±100,000,000 days, max ECMAScript Date range
+const MAX_DATE_MS = 8_640_000_000_000_000; // ±100,000,000 days, max ECMAScript Date range
+// The TTL is stamped as `now + ttl` (later than this parse; a day of slack), so
+// the room left is the range minus now.
+const maxSafeTtlMs = (): number => MAX_DATE_MS - Date.now() - 86_400_000;
 
 export function parseTokenTtlValue(raw: string): ParsedTtl {
   const trimmed = raw.trim();
@@ -41,7 +44,7 @@ export function parseTokenTtlValue(raw: string): ParsedTtl {
     if (!Number.isFinite(ms) || ms <= 0) {
       return { error: `TTL value must be positive (got ${raw})` };
     }
-    if (!Number.isSafeInteger(ms) || ms > MAX_SAFE_TTL_MS) {
+    if (!Number.isSafeInteger(ms) || ms > maxSafeTtlMs()) {
       return { error: `TTL value exceeds maximum safe duration (got ${raw})` };
     }
     return { value: ms };
@@ -59,7 +62,7 @@ export function parseTokenTtlValue(raw: string): ParsedTtl {
     if (
       !Number.isSafeInteger(value) ||
       !Number.isSafeInteger(totalMs) ||
-      totalMs > MAX_SAFE_TTL_MS
+      totalMs > maxSafeTtlMs()
     ) {
       return { error: `TTL value exceeds maximum safe duration (got ${raw})` };
     }

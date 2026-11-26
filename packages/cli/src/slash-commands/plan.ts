@@ -21,7 +21,8 @@ import type { SlashCommandContext } from './command-context.js';
 
 /** Find a plan item by 1-based index, exact id, or case-insensitive title substring. */
 function findPlanItemIndex(plan: PlanFile, query: string): number {
-  const asNum = Number.parseInt(query, 10);
+  // Digits only, as core's matchIndex: "2fa" is a title, not item #2.
+  const asNum = /^\d+$/.test(query.trim()) ? Number.parseInt(query, 10) : Number.NaN;
   if (!Number.isNaN(asNum) && asNum >= 1 && asNum <= plan.items.length) return asNum - 1;
   const byId = plan.items.findIndex((it) => it.id === query);
   if (byId >= 0) return byId;

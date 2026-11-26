@@ -411,7 +411,7 @@ export function toPersistedMenuChoice(result: LaunchMenuResult): LaunchMenuChoic
     return undefined;
   const port =
     typeof result.port === 'number' &&
-    Number.isFinite(result.port) &&
+    Number.isInteger(result.port) &&
     result.port > 0 &&
     result.port < 65536
       ? result.port

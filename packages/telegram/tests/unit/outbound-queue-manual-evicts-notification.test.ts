@@ -49,3 +49,46 @@ describe('OutboundQueue manual preemption over pending notifications', () => {
     expect(queue.stats().dropped).toBe(3);
   });
 });
+
+it.each([
+  { maxPerChat: 1, drops: 0, next: 'notification' },
+  { maxPerChat: 2, drops: 1, next: 'second manual' },
+])(
+  'only evicts a notification if a manual send fits (limit $maxPerChat)',
+  async ({ maxPerChat, drops, next }) => {
+    const release = Promise.withResolvers<void>();
+    const sent: string[] = [];
+    const queue = new OutboundQueue({
+      maxPerChat,
+      maxConcurrency: 1,
+      send: async (_chatId, text) => {
+        if (text === 'first manual') await release.promise;
+        sent.push(text);
+        return text;
+      },
+    });
+
+    const first = queue.enqueue({ chatId: 10, text: 'first manual', kind: 'manual' });
+    try {
+      expect(queue.stats().inflight).toBe(1);
+      await queue.enqueue({ chatId: 10, text: 'notification', kind: 'notification' });
+      expect(queue.stats().pending).toBe(2);
+      const second = queue.enqueue({ chatId: 10, text: 'second manual', kind: 'manual' });
+
+      if (maxPerChat === 1) {
+        await expect(second).rejects.toThrow(/per-chat limit reached/);
+      } else {
+        release.resolve();
+        await expect(second).resolves.toBe('second manual');
+      }
+      release.resolve();
+      await expect(first).resolves.toBe('first manual');
+      expect(sent).toEqual(['first manual', next]);
+      expect(queue.stats().dropped).toBe(drops);
+    } finally {
+      release.resolve();
+      await first;
+      await queue.stop();
+    }
+  },
+);

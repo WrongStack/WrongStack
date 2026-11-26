@@ -169,13 +169,16 @@ export function buildModelCapsCommand(opts: SlashCommandContext): SlashCommand {
       let shown = 0;
 
       for (const prov of providers) {
-        // Filter by provider if user specified a fragment without slash
-        if (
+        // A fragment without slash names a provider (all its models) or, for
+        // any other provider, filters its models by id fragment.
+        const modelFrag =
           trimmed &&
           !trimmed.includes('/') &&
           !prov.id.toLowerCase().includes(trimmed) &&
           !prov.name.toLowerCase().includes(trimmed)
-        ) {
+            ? trimmed
+            : undefined;
+        if (modelFrag && !(prov.models ?? []).some((m) => m.id.toLowerCase().includes(modelFrag))) {
           continue;
         }
 
@@ -190,6 +193,7 @@ export function buildModelCapsCommand(opts: SlashCommandContext): SlashCommand {
         }
 
         for (const m of models) {
+          if (modelFrag && !m.id.toLowerCase().includes(modelFrag)) continue;
           // Per-model fragment filter (after / in the filter string)
           if (trimmed?.includes('/')) {
             const frag = trimmed.split('/').pop() ?? '';

@@ -154,6 +154,7 @@ export class OutboundQueue {
       lane = { pending: [], running: false };
       this.#lanes.set(key, lane);
     }
+    const occupiedSlots = lane.pending.length + (lane.running ? 1 : 0);
     if (entry.kind === 'notification') {
       if (lane.pending.length >= this.#opts.maxPerChat) {
         // Only drop notification entries — never displace a pending manual.
@@ -175,23 +176,21 @@ export class OutboundQueue {
           `Telegram outbound queue dropped a notification for chat ${dropped.chatId} (per-chat limit ${this.#opts.maxPerChat})`,
         );
       }
-    } else if (lane.pending.length + (lane.running ? 1 : 0) >= this.#opts.maxPerChat) {
-      while (lane.pending.length + (lane.running ? 1 : 0) >= this.#opts.maxPerChat) {
-        const dropIndex = lane.pending.findIndex((e) => e.kind === 'notification');
-        if (dropIndex === -1) {
-          // Manual overflow: surface a real error instead of silently dropping.
-          // Per the P1.4 acceptance criterion, manual sends are never
-          // silently dropped or coalesced.
-          // Counts both pending and in-flight entries since `running` means one
-          // entry has been dequeued from pending but is still being sent.
-          return Promise.reject(
-            new Error(
-              `Telegram outbound queue per-chat limit reached for chat ${entry.chatId} (max ${this.#opts.maxPerChat})`,
-            ),
-          );
-        }
-        const dropped = lane.pending.splice(dropIndex, 1)[0]!;
-        this.#dropped += 1;
+    } else if (occupiedSlots >= this.#opts.maxPerChat) {
+      const slotsNeeded = occupiedSlots - this.#opts.maxPerChat + 1;
+      const evictions = lane.pending.filter((e) => e.kind === 'notification').slice(0, slotsNeeded);
+      // Do not drop anything if evicting notifications cannot make room.
+      if (evictions.length < slotsNeeded) {
+        return Promise.reject(
+          new Error(
+            `Telegram outbound queue per-chat limit reached for chat ${entry.chatId} (max ${this.#opts.maxPerChat})`,
+          ),
+        );
+      }
+      const evicted = new Set(evictions);
+      lane.pending = lane.pending.filter((e) => !evicted.has(e));
+      this.#dropped += evictions.length;
+      for (const dropped of evictions) {
         this.#opts.log?.debug(
           `Telegram outbound queue evicted a pending notification for chat ${dropped.chatId} to admit manual send (per-chat limit ${this.#opts.maxPerChat})`,
         );

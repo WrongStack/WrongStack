@@ -111,6 +111,13 @@ describe('project config write boundary', () => {
       expect(filterSafeForProject(source), dotted).not.toHaveProperty(dotted);
     }
   });
+
+  it('keeps the display-only keys the loader allows in a project config', () => {
+    // A project-scope write rewrites the whole file through this filter, so a
+    // key the loader accepts but the filter lacks is deleted by any /settings change.
+    const safe = filterSafeForProject({ icons: 'ascii', startupAnnounce: false });
+    expect(safe).toEqual({ icons: 'ascii', startupAnnounce: false });
+  });
 });
 
 describe('deriveFsAccessPair', () => {

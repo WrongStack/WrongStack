@@ -183,6 +183,15 @@ function renderWindow(window: ProviderQuotaWindow): string {
  * Render one meter. Provider-neutral by construction — everything it reads is
  * on the shared snapshot shape.
  */
+/** End a note cut on a code-point boundary (never emit half a surrogate pair). */
+function clipQuotaNote(note: string, max: number): string {
+  if (note.length <= max) return note;
+  let end = max;
+  const last = note.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return note.slice(0, end);
+}
+
 export function renderQuotaSnapshot(snapshot: ProviderQuotaSnapshot): string[] {
   const lines: string[] = [];
   const title = snapshot.meterLabel ?? snapshot.meterId;
@@ -203,7 +212,7 @@ export function renderQuotaSnapshot(snapshot: ProviderQuotaSnapshot): string[] {
     lines.push(`    ${color.red(`limit reached: ${snapshot.reachedWindowId}`)}`);
   }
   if (snapshot.note) {
-    lines.push(`    ${color.dim(snapshot.note.slice(0, 200))}`);
+    lines.push(`    ${color.dim(clipQuotaNote(snapshot.note, 200))}`);
   }
   const ageSec = Math.max(0, Math.round((Date.now() - snapshot.capturedAt) / 1000));
   const age = ageSec < 60 ? `${ageSec}s ago` : `${Math.floor(ageSec / 60)}m ago`;

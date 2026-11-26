@@ -9,6 +9,7 @@ import {
   formatToolExecuted,
   type SessionEndedLike,
 } from '../../src/format.js';
+import { truncateForTelegram } from '../../src/text-format.js';
 
 const base: DelegateCompletedLike = {
   target: 'bug-hunter',
@@ -77,6 +78,28 @@ describe('formatDelegateCompleted', () => {
     expect(msg).toContain('4 iter');
     expect(msg).toContain('37 tools');
     expect(msg).toContain('💲0.0820');
+  });
+
+  it('keeps delegation stats visible after delivery truncation of a long report', () => {
+    const body = formatDelegateCompleted({
+      ...base,
+      target: 'reviewer',
+      summary: `Review found two issues. ${'Details about the review. '.repeat(240)}`,
+    });
+    const delivered = truncateForTelegram(`ℹ️ Delegate: reviewer\n${body}`);
+    expect(delivered).toContain('⏱ 3m · 4 iter · 37 tools · 💲0.0820');
+    expect(body.length).toBeLessThanOrEqual(2000);
+    expect(body).toContain('Review found two issues.');
+    expect(body).toContain('…\n');
+  });
+
+  it('keeps a summary that exactly fills the preview budget', () => {
+    const headline = '✅ Delegate → reviewer · success';
+    const stats = '⏱ 3m · 4 iter · 37 tools · 💲0.0820';
+    const summary = 'x'.repeat(2000 - headline.length - stats.length - 2);
+    expect(formatDelegateCompleted({ ...base, target: 'reviewer', summary })).toBe(
+      `${headline}\n${summary}\n${stats}`,
+    );
   });
 
   it('marks failures with ❌ and the failure status', () => {

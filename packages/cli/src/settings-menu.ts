@@ -126,6 +126,10 @@ const PROJECT_SAFE_FIELDS = new Set([
   'maxConcurrent',
   'autonomy',
   'hints',
+  // Display-only, allowed by the loader too: without them every project-scope
+  // write deleted the user's `startupAnnounce` / `icons` from the file.
+  'startupAnnounce',
+  'icons',
   'nextPrediction',
   'debugStream',
   'configScope',

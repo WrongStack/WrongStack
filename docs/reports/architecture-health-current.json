@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T14:32:41.960Z",
+  "generatedAt": "2026-11-26T14:36:42.410Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6572,
-    "testFiles": 6474,
-    "sourceLines": 1350101,
+    "testFiles": 6475,
+    "sourceLines": 1350135,
     "workspaceEdges": 261,
     "moduleEdges": 19253,
     "nonCommandSlashImports": 0,
@@ -232,7 +232,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 655,
-      "testFiles": 750,
+      "testFiles": 751,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -284,7 +284,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 750
+          "testFiles": 751
         }
       ]
     },
@@ -8479,6 +8479,12 @@
       },
       {
         "file": "packages/cli/tests/proxy-wiring.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/quota-snapshot-wellformed.test.ts",
         "projects": [
           "root-node"
         ]

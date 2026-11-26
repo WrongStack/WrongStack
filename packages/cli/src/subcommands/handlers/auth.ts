@@ -208,7 +208,9 @@ export const authCmd: SubcommandHandler = async (args, deps) => {
       deps.renderer.writeError('Usage: wstack auth remove <provider> [--force]');
       return 1;
     }
-    return runAuthRemove(menuDeps, pid);
+    // The global parser lifts `--force` into deps.flags; a direct call keeps it in args.
+    const force = deps.flags?.['force'] === true || args.includes('--force');
+    return runAuthRemove(menuDeps, pid, force);
   }
 
   // `wstack auth login <strategy>` — registry-backed interactive provider auth.
@@ -388,7 +390,11 @@ async function runAuthStatus(deps: AuthMenuDeps, providerId: string): Promise<nu
 }
 
 /** Quick removal of a provider without the interactive menu. */
-async function runAuthRemove(deps: AuthMenuDeps, providerId: string): Promise<number> {
+async function runAuthRemove(
+  deps: AuthMenuDeps,
+  providerId: string,
+  force = false,
+): Promise<number> {
   const providers = await loadConfigProviders(deps.profileConfigPath, deps.vault);
   if (!providers[providerId]) {
     deps.renderer.writeError(`Provider "${providerId}" not found.`);
@@ -396,18 +402,20 @@ async function runAuthRemove(deps: AuthMenuDeps, providerId: string): Promise<nu
   }
 
   // Confirm before deleting unless --force
-  deps.renderer.write(
-    `${color.amber('!')} This will remove "${providerId}" and all its saved keys.\n`,
-  );
-  const answer = (
-    await deps.reader.readLine(`  ${color.amber('?')} Confirm removal? ${color.dim('[y/N]')} `)
-  )
-    .trim()
-    .toLowerCase();
+  if (!force) {
+    deps.renderer.write(
+      `${color.amber('!')} This will remove "${providerId}" and all its saved keys.\n`,
+    );
+    const answer = (
+      await deps.reader.readLine(`  ${color.amber('?')} Confirm removal? ${color.dim('[y/N]')} `)
+    )
+      .trim()
+      .toLowerCase();
 
-  if (answer !== 'y' && answer !== 'yes') {
-    deps.renderer.write(color.dim('Cancelled.\n'));
-    return 0;
+    if (answer !== 'y' && answer !== 'yes') {
+      deps.renderer.write(color.dim('Cancelled.\n'));
+      return 0;
+    }
   }
 
   try {

@@ -16,7 +16,9 @@
 // ---------------------------------------------------------------------------
 
 import { redactSecrets } from './redact.js';
-import { sliceUtf16Safe } from './text-format.js';
+import { sliceUtf16Safe, truncateForTelegram } from './text-format.js';
+
+const DELEGATE_PREVIEW_LIMIT = 2_000;
 
 // ---------------------------------------------------------------------------
 // Payload types (subsets of core event shapes)
@@ -139,7 +141,6 @@ export function formatDelegateCompleted(e: DelegateCompletedLike): string {
   // failure produced no summary. Both go through `redactSecrets` — a
   // delegate summary can contain raw tool output that itself leaks tokens.
   const rawBody = e.summary?.trim() || `(no summary) — ${task}`;
-  const body = redactSecrets(rawBody);
 
   const iterations = Number.isFinite(e.iterations) && e.iterations > 0 ? e.iterations : 0;
   const toolCalls = Number.isFinite(e.toolCalls) && e.toolCalls > 0 ? e.toolCalls : 0;
@@ -148,7 +149,12 @@ export function formatDelegateCompleted(e: DelegateCompletedLike): string {
     stats.push(`💲${e.costUsd.toFixed(4)}`);
   }
 
-  return [`${icon} Delegate → ${target} · ${status}`, body, stats.join(' · ')].join('\n');
+  const footer = stats.join(' · ');
+  // Leave room for the stats line before delivery truncates the whole message.
+  const headline = `${icon} Delegate → ${target} · ${status}`;
+  const bodyBudget = DELEGATE_PREVIEW_LIMIT - headline.length - footer.length - 2;
+  const body = truncateForTelegram(redactSecrets(rawBody), bodyBudget);
+  return [headline, body, footer].join('\n');
 }
 
 /**
