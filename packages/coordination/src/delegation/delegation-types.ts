@@ -94,7 +94,14 @@ export interface SubagentPartial {
   lastAssistantText?: string | undefined;
   lastStopReason?: string | undefined;
   toolUsesObserved: number;
+  /** Journal lines scanned — "how much of the transcript we read", not iterations. */
   events: number;
+  /**
+   * Iterations the worker actually started, counted from `in_flight_start`
+   * markers (the same definition `summary-builder` uses). Failure paths report
+   * this as `delegate.completed.iterations`; `events` is not a substitute.
+   */
+  iterationsObserved?: number | undefined;
 }
 
 /**

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T14:24:55.298Z",
+  "generatedAt": "2026-11-26T14:27:27.943Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6572,
-    "testFiles": 6456,
-    "sourceLines": 1349928,
+    "testFiles": 6461,
+    "sourceLines": 1350066,
     "workspaceEdges": 261,
     "moduleEdges": 19253,
     "nonCommandSlashImports": 0,
@@ -377,7 +377,7 @@
       "name": "@wrongstack/coordination",
       "dir": "packages/coordination",
       "sourceFiles": 193,
-      "testFiles": 239,
+      "testFiles": 244,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -395,7 +395,7 @@
         {
           "path": "packages/coordination/tsconfig.test.json",
           "error": null,
-          "testFiles": 239
+          "testFiles": 244
         }
       ]
     },
@@ -10980,6 +10980,12 @@
         ]
       },
       {
+        "file": "packages/coordination/tests/coordinator-replaced-owner.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/coordination/tests/coordinator-retarget.test.ts",
         "projects": [
           "root-node"
@@ -11005,6 +11011,12 @@
       },
       {
         "file": "packages/coordination/tests/delegate-background.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/delegate-completed-iterations.test.ts",
         "projects": [
           "root-node"
         ]
@@ -11047,6 +11059,18 @@
       },
       {
         "file": "packages/coordination/tests/delegate-tool.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/delegation-hint-bounds.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/delegation-rehydrate-damaged-payload.test.ts",
         "projects": [
           "root-node"
         ]
@@ -11383,6 +11407,12 @@
       },
       {
         "file": "packages/coordination/tests/large-answer-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/leader-auto-wake-config-types.test.ts",
         "projects": [
           "root-node"
         ]
@@ -41302,7 +41332,7 @@
     },
     {
       "file": "packages/coordination/src/multi-agent-coordinator.ts",
-      "lines": 726,
+      "lines": 761,
       "relativeImports": 13
     },
     {
@@ -41858,6 +41888,11 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/coordination/src/multi-agent-coordinator.ts",
+      "lines": 761,
+      "relativeImports": 13
+    },
+    {
       "file": "packages/tools/src/read.ts",
       "lines": 760,
       "relativeImports": 5
@@ -41906,11 +41941,6 @@
       "file": "packages/builtin-plugins/src/auto-review-plugin.ts",
       "lines": 741,
       "relativeImports": 7
-    },
-    {
-      "file": "packages/project-surfaces/src/analytics/AnalyticsDashboard.tsx",
-      "lines": 741,
-      "relativeImports": 6
     }
   ],
   "testOnlyExports": [

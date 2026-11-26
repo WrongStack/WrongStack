@@ -21,6 +21,13 @@ export function hintForKind(
   partial?: { lastAssistantText?: string | undefined } | undefined,
 ): string | undefined {
   if (!kind) return undefined;
+  // The same words become the journaled excerpt and the `[DELEGATION RESULT]`
+  // body, both capped at `subagentResultChars`. The hint is a third delivery of
+  // that text, so it carries the same bound instead of injecting the worker's
+  // last response in full.
+  const partialText = partial?.lastAssistantText
+    ? clipDelegationText(partial.lastAssistantText, delegationTextLimit())
+    : undefined;
   switch (kind) {
     case 'provider_rate_limit':
       return `Provider rate-limited. Retry safe after ${backoffMs ?? 5000}ms backoff. Consider a smaller model or fewer parallel delegates.`;
@@ -40,16 +47,16 @@ export function hintForKind(
     case 'budget_cost': {
       const base =
         'Subagent exhausted its budget. The coordinator may auto-extend; otherwise raise the matching `max*` field (e.g. maxToolCalls: 600) on the next delegate, or split the task.';
-      if (partial?.lastAssistantText) {
-        return `${base}\n\nPartial output produced before budget hit:\n${partial.lastAssistantText}`;
+      if (partialText) {
+        return `${base}\n\nPartial output produced before budget hit:\n${partialText}`;
       }
       return base;
     }
     case 'budget_timeout': {
       const base =
         'Subagent hit its wall-clock budget. Raise `timeoutMs` on the next delegate or split the task.';
-      if (partial?.lastAssistantText) {
-        return `${base}\n\nPartial output produced before timeout:\n${partial.lastAssistantText}`;
+      if (partialText) {
+        return `${base}\n\nPartial output produced before timeout:\n${partialText}`;
       }
       return base;
     }
@@ -59,8 +66,8 @@ export function hintForKind(
       return 'Subagent ended its turn with no text and no tool calls. Almost always a prompt / config issue — clarify the task or check the model.';
     case 'tool_failed': {
       const base = 'A tool inside the subagent returned ok:false. Retry with corrected inputs.';
-      if (partial?.lastAssistantText) {
-        return `${base}\n\nAgent reasoning before failure:\n${partial.lastAssistantText}`;
+      if (partialText) {
+        return `${base}\n\nAgent reasoning before failure:\n${partialText}`;
       }
       return base;
     }
@@ -105,6 +112,25 @@ export function buildDelegateSummary(role: string | undefined, result: TaskResul
 /** Max characters of a delegation result persisted / delivered as an excerpt. */
 const DELEGATION_RESULT_EXCERPT_CHARS = 4_000;
 
+/** Configured cap for delegation result text, shared by the excerpt and the hint. */
+function delegationTextLimit(): number {
+  return positiveLimit(activeLimits().subagentResultChars) ?? DELEGATION_RESULT_EXCERPT_CHARS;
+}
+
+/**
+ * Trim and cap delegation result text, never splitting a surrogate pair. The
+ * excerpt and the hint both render the subagent's own words, so both go through
+ * here and share one bound.
+ */
+function clipDelegationText(text: string, maxChars: number): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= maxChars) return trimmed;
+  let end = maxChars - 1;
+  const last = end > 0 ? trimmed.charCodeAt(end - 1) : 0;
+  if (last >= 0xd800 && last <= 0xdbff) end--;
+  return `${trimmed.slice(0, end)}…`;
+}
+
 /**
  * Bounded text rendering of a settled delegation, structured report first.
  * Used for the journal `resultExcerpt` and the leader delivery block.
@@ -139,13 +165,7 @@ export function buildDelegationResultExcerpt(
     const partial = result.partial as { lastAssistantText?: string } | undefined;
     text = partial?.lastAssistantText ?? '';
   }
-  text = text.trim();
-  if (text.length <= maxChars) return text;
-  // Never cut a surrogate pair: this excerpt reaches the leader's provider.
-  let end = maxChars - 1;
-  const last = end > 0 ? text.charCodeAt(end - 1) : 0;
-  if (last >= 0xd800 && last <= 0xdbff) end--;
-  return `${text.slice(0, end)}…`;
+  return clipDelegationText(text, maxChars);
 }
 
 /**
@@ -185,6 +205,7 @@ export async function readSubagentPartial(
     let lastAssistantText: string | undefined;
     let lastStopReason: string | undefined;
     let toolUses = 0;
+    let iterations = 0;
     for (const line of lines) {
       try {
         const parsed = safeParse<{
@@ -196,6 +217,8 @@ export async function readSubagentPartial(
         if (!parsed.ok || !parsed.value) continue;
         const ev = parsed.value;
         if (ev.type === 'tool_use') toolUses += 1;
+        // One marker per iteration, like `summary-builder`'s iterationCount.
+        if (ev.type === 'in_flight_start') iterations += 1;
         if (ev.type === 'llm_response') {
           if (typeof ev.stopReason === 'string') lastStopReason = ev.stopReason;
           if (Array.isArray(ev.content)) {
@@ -213,7 +236,13 @@ export async function readSubagentPartial(
         // best-effort: one corrupt JSONL line must not invalidate the transcript
       }
     }
-    return { lastAssistantText, lastStopReason, toolUsesObserved: toolUses, events: lines.length };
+    return {
+      lastAssistantText,
+      lastStopReason,
+      toolUsesObserved: toolUses,
+      events: lines.length,
+      iterationsObserved: iterations,
+    };
   }
   return undefined;
 }

@@ -35,7 +35,12 @@ export class InMemoryAgentBridge implements AgentBridge {
     this.agentId = config.agentId;
     this.coordinatorId = config.coordinatorId;
     this.transport = transport;
-    this.timeoutMs = config.timeoutMs ?? 30_000;
+    this.timeoutMs =
+      typeof config.timeoutMs === 'number' &&
+      Number.isFinite(config.timeoutMs) &&
+      config.timeoutMs > 0
+        ? config.timeoutMs
+        : 30_000;
 
     this._transportUnsubscribe = this.transport.subscribe(this.agentId, (msg) => {
       if (msg.type === 'heartbeat') return;
@@ -83,7 +88,10 @@ export class InMemoryAgentBridge implements AgentBridge {
         message: 'Bridge is stopped',
         code: ERROR_CODES.AGENT_ABORTED,
       });
-    const timeout = timeoutMs ?? this.timeoutMs;
+    const timeout =
+      typeof timeoutMs === 'number' && Number.isFinite(timeoutMs) && timeoutMs > 0
+        ? timeoutMs
+        : this.timeoutMs;
     const correlationId = msg.id;
 
     // Guard against concurrent calls reusing the same id. Without this check,

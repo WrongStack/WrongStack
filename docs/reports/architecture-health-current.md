@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-26T14:24:55.298Z
+**Generated:** 2026-11-26T14:27:27.943Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6572 |
-| Production source lines | 1349928 |
-| Test files | 6456 |
+| Production source lines | 1350066 |
+| Test files | 6461 |
 | Workspace dependency edges | 261 |
 | Relative module edges | 19253 |
 | Non-command slash imports | 0 |
@@ -38,7 +38,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/codebase | 115 | 14 | @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/codebase-index-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
 | @wrongstack/contracts | 133 | 15 | @wrongstack/kanban, @wrongstack/primitives |
-| @wrongstack/coordination | 193 | 239 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/coordination | 193 | 244 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 665 | 863 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop-v2 | 561 | 405 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 64 | 38 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
@@ -132,6 +132,7 @@ None.
 | 770 | `packages/webui-server/src/server/provider-routes.ts` |
 | 763 | `packages/plugins/src/adversary-mode/index.ts` |
 | 761 | `packages/coordination/src/agent-monitor.ts` |
+| 761 | `packages/coordination/src/multi-agent-coordinator.ts` |
 | 760 | `packages/tools/src/read.ts` |
 | 758 | `packages/tools/src/process-registry.ts` |
 | 758 | `packages/vector-memory/src/store.ts` |
@@ -142,7 +143,6 @@ None.
 | 748 | `packages/coordination/src/sqlite-mailbox.ts` |
 | 744 | `packages/webui-server/src/server/completion-handlers.ts` |
 | 741 | `packages/builtin-plugins/src/auto-review-plugin.ts` |
-| 741 | `packages/project-surfaces/src/analytics/AnalyticsDashboard.tsx` |
 
 ## Exports only tests reference
 

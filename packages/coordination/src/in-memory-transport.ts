@@ -40,9 +40,18 @@ export class InMemoryBridgeTransport implements BridgeTransport {
   }
 
   subscribe(agentId: string, handler: (msg: BridgeMessage) => void): () => void {
-    if (!this.subs.has(agentId)) this.subs.set(agentId, new Set());
-    this.subs.get(agentId)?.add(handler);
-    return () => this.subs.get(agentId)?.delete(handler);
+    let handlers = this.subs.get(agentId);
+    if (!handlers) {
+      handlers = new Set();
+      this.subs.set(agentId, handlers);
+    }
+    handlers.add(handler);
+    return () => {
+      handlers.delete(handler);
+      if (handlers.size === 0 && this.subs.get(agentId) === handlers) {
+        this.subs.delete(agentId);
+      }
+    };
   }
 
   close(agentId: string): Promise<void> {

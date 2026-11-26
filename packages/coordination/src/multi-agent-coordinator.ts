@@ -647,7 +647,42 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       sessionOf: (id) => this.sessionOf(id),
     });
 
+    // remove() drops the entry so this id can be spawned again. The object
+    // captured above is the owner that ran `task`. A different object now
+    // registered under the same id is a new worker; publishing this result
+    // through recordCompletion would mark that worker idle and hand it the
+    // next queued task while it is still running its own.
+    const current = this.subagents.get(subagentId);
+    if (current !== undefined && current !== subagent) {
+      this.settleDisplacedCompletion(result);
+      return;
+    }
     this.recordCompletion(result);
+  }
+
+  /**
+   * The worker that produced `result` was removed and a new entry reused its
+   * id before the run finished. Account for the slot and unblock waiters on
+   * this task id. Do not touch the replacement's status, task, or abort
+   * controller, and do not clear its terminating flag.
+   */
+  private settleDisplacedCompletion(result: TaskResult): void {
+    this.sealedInFlightTasks.delete(result.taskId);
+    this.pushCompletedResult(result);
+    if (this.inFlight > 0) this.inFlight -= 1;
+    else {
+      this.emit('warning', {
+        type: 'inFlight_underflow',
+        taskId: result.taskId,
+        subagentId: result.subagentId,
+      });
+    }
+    this.emit('task.completed', {
+      task: { id: result.taskId },
+      result,
+    });
+    this.tryDispatchNext();
+    this.emitCoordinatorStats();
   }
 
   private recordCompletion(result: TaskResult): void {

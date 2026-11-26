@@ -107,6 +107,11 @@ const ALLOWED: Record<DelegationState, readonly DelegationState[]> = {
   cancelled: [],
 };
 
+/** Journal text field: keep strings, drop whatever a damaged line may hold. */
+function journalText(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
 export class DelegationTracker implements DelegationLookupSource {
   private readonly entries = new Map<string, DelegationEntry>();
   private readonly byTaskId = new Map<string, string>();
@@ -313,11 +318,24 @@ export class DelegationTracker implements DelegationLookupSource {
     const delivered = new Set<string>();
     for (const ev of events) {
       if (!ev || typeof ev !== 'object') continue;
-      if (ev.type === 'delegate_started' && ev.delegationId && ev.mode === 'background') {
+      // Journal text fields are external input: a damaged or hand-edited line
+      // can hold `null`/numbers where the type promises strings. They must not
+      // reach the delivery payload — the renderer (and the agent loop that
+      // awaits the drain) assumes strings.
+      if (
+        ev.type === 'delegate_started' &&
+        typeof ev.delegationId === 'string' &&
+        ev.delegationId &&
+        ev.mode === 'background'
+      ) {
         started.set(ev.delegationId, ev);
-      } else if (ev.type === 'delegate_completed' && ev.delegationId) {
+      } else if (
+        ev.type === 'delegate_completed' &&
+        typeof ev.delegationId === 'string' &&
+        ev.delegationId
+      ) {
         completed.set(ev.delegationId, ev);
-      } else if (ev.type === 'delegation_delivered') {
+      } else if (ev.type === 'delegation_delivered' && typeof ev.delegationId === 'string') {
         delivered.add(ev.delegationId);
       }
     }
@@ -328,11 +346,11 @@ export class DelegationTracker implements DelegationLookupSource {
       started.set(delegationId, {
         type: 'delegate_started',
         ts: done.ts,
-        target: done.target,
-        task: done.task,
-        subagentId: done.subagentId,
+        target: journalText(done.target) ?? delegationId,
+        task: journalText(done.task) ?? '',
+        ...(journalText(done.subagentId) ? { subagentId: journalText(done.subagentId) } : {}),
         delegationId,
-        taskId: done.taskId,
+        ...(journalText(done.taskId) ? { taskId: journalText(done.taskId) } : {}),
         mode: 'background',
       });
     }
@@ -343,29 +361,30 @@ export class DelegationTracker implements DelegationLookupSource {
       const payload: DelegationDeliveryPayload = done
         ? {
             delegationId,
-            taskId: done.taskId,
-            subagentId: done.subagentId,
-            target: done.target,
-            task: done.task,
-            ok: done.ok,
-            status: done.status,
-            stopReason: done.stopReason,
+            taskId: journalText(done.taskId),
+            subagentId: journalText(done.subagentId),
+            target: journalText(done.target) ?? delegationId,
+            task: journalText(done.task) ?? '',
+            ok: done.ok === true,
+            status: journalText(done.status),
+            stopReason: journalText(done.stopReason),
             handoffs: 0,
-            summary: done.summary,
-            excerpt: done.resultExcerpt,
+            summary:
+              journalText(done.summary) ?? `[${journalText(done.target) ?? delegationId}] finished`,
+            excerpt: journalText(done.resultExcerpt),
             cause: 'restart',
           }
         : {
             delegationId,
-            taskId: ev.taskId,
-            subagentId: ev.subagentId,
-            target: ev.target,
-            task: ev.task,
+            taskId: journalText(ev.taskId),
+            subagentId: journalText(ev.subagentId),
+            target: journalText(ev.target) ?? delegationId,
+            task: journalText(ev.task) ?? '',
             ok: false,
             status: 'lost',
             stopReason: 'aborted',
             handoffs: 0,
-            summary: `[${ev.target}] lost on restart — the worker did not survive the process restart`,
+            summary: `[${journalText(ev.target) ?? delegationId}] lost on restart — the worker did not survive the process restart`,
             hint: 'Re-delegate the remaining work if it is still needed; inspect the workspace first.',
             cause: 'restart',
           };

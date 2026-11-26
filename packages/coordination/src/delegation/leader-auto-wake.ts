@@ -130,6 +130,24 @@ export const DEFAULT_RUNTIME_MIN_WAKE_INTERVAL_MS = 5_000;
 export const DEFAULT_MAX_CHAINED_RUNTIME_WAKES = 20;
 
 /**
+ * The config file is user-edited JSON and `fleet.delegate` has no runtime
+ * validation, so `autoWake` can arrive as `"false"`, `0` or `null`. Only an
+ * explicit boolean decides: absent keeps the documented default (on), `true`
+ * enables, and anything else disables. This switch is a consent boundary (the
+ * in-project policy denies `fleet` so a repo cannot enable autonomous turns),
+ * so a malformed opt-out must fail closed rather than start turns the user
+ * asked to stop.
+ */
+function autoWakeEnabled(config: LeaderAutoWakeConfig): boolean {
+  return config.autoWake === undefined || config.autoWake === true;
+}
+
+/** A finite number from config, else the fallback (a string/NaN must not erase a bound). */
+function finiteConfigNumber(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+/**
  * The woken turn's input. Carries the delegation ids and notice refs so two
  * wakes are never byte-identical (Agent.run burst-dedupes identical input)
  * and so the model can match the `[DELEGATION RESULT]` / `[RUNTIME NOTICE]`
@@ -244,7 +262,7 @@ export class LeaderAutoWakeController {
     if (this.disposed) return 'disabled';
     const sessionId = normalizeSessionId(rawSessionId);
     const config = this.readConfig();
-    if (config.autoWake === false) return 'disabled';
+    if (!autoWakeEnabled(config)) return 'disabled';
     const items = this.eligible(sessionId);
     if (items.length === 0) return 'nothing_pending';
     const port = this.port;
@@ -278,8 +296,14 @@ export class LeaderAutoWakeController {
     const noticeOnly = items.every((item) => item.kind === 'runtime_notice');
     const now = this.now();
     const interval = noticeOnly
-      ? Math.max(0, this.opts.runtimeMinWakeIntervalMs ?? DEFAULT_RUNTIME_MIN_WAKE_INTERVAL_MS)
-      : Math.max(0, this.opts.minWakeIntervalMs ?? DEFAULT_MIN_WAKE_INTERVAL_MS);
+      ? Math.max(
+          0,
+          finiteConfigNumber(
+            this.opts.runtimeMinWakeIntervalMs,
+            DEFAULT_RUNTIME_MIN_WAKE_INTERVAL_MS,
+          ),
+        )
+      : Math.max(0, finiteConfigNumber(this.opts.minWakeIntervalMs, DEFAULT_MIN_WAKE_INTERVAL_MS));
     const elapsed = now - state.lastWakeAt;
     if (state.lastWakeAt > 0 && elapsed >= 0 && elapsed < interval) {
       this.schedule(sessionId, interval - elapsed);
@@ -288,7 +312,7 @@ export class LeaderAutoWakeController {
     if (noticeOnly) {
       const maxNoticeChain = Math.max(
         0,
-        this.opts.maxChainedRuntimeWakes ?? DEFAULT_MAX_CHAINED_RUNTIME_WAKES,
+        finiteConfigNumber(this.opts.maxChainedRuntimeWakes, DEFAULT_MAX_CHAINED_RUNTIME_WAKES),
       );
       if (state.noticeChain >= maxNoticeChain) {
         if (!state.noticeCapNotified) {
@@ -298,7 +322,10 @@ export class LeaderAutoWakeController {
         return 'chain_cap';
       }
     } else {
-      const maxChain = Math.max(0, config.maxChainedWakes ?? DEFAULT_MAX_CHAINED_WAKES);
+      const maxChain = Math.max(
+        0,
+        finiteConfigNumber(config.maxChainedWakes, DEFAULT_MAX_CHAINED_WAKES),
+      );
       if (state.chain >= maxChain) {
         if (!state.capNotified) {
           state.capNotified = true;
@@ -358,7 +385,10 @@ export class LeaderAutoWakeController {
           if (!this.disposed && this.eligible(sessionId).length > 0) {
             const debounce = Math.max(
               1,
-              this.readConfig().autoWakeDebounceMs ?? DEFAULT_AUTO_WAKE_DEBOUNCE_MS,
+              finiteConfigNumber(
+                this.readConfig().autoWakeDebounceMs,
+                DEFAULT_AUTO_WAKE_DEBOUNCE_MS,
+              ),
             );
             this.schedule(sessionId, debounce);
           }
@@ -371,10 +401,11 @@ export class LeaderAutoWakeController {
 
   private onDeliveryPending(event: LeaderDeliveryPendingEvent): void {
     if (this.disposed || !event.wake) return;
-    if (this.readConfig().autoWake === false) return;
+    const config = this.readConfig();
+    if (!autoWakeEnabled(config)) return;
     const debounce = Math.max(
       0,
-      this.readConfig().autoWakeDebounceMs ?? DEFAULT_AUTO_WAKE_DEBOUNCE_MS,
+      finiteConfigNumber(config.autoWakeDebounceMs, DEFAULT_AUTO_WAKE_DEBOUNCE_MS),
     );
     this.schedule(normalizeSessionId(event.sessionId), debounce);
   }
