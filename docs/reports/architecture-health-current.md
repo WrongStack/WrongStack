@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-26T14:30:06.323Z
+**Generated:** 2026-11-26T14:32:41.960Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6572 |
-| Production source lines | 1350077 |
-| Test files | 6467 |
+| Production source lines | 1350101 |
+| Test files | 6474 |
 | Workspace dependency edges | 261 |
 | Relative module edges | 19253 |
 | Non-command slash imports | 0 |
@@ -32,9 +32,9 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/bench | 33 | 68 | @wrongstack/core |
 | @wrongstack/browser-tools | 14 | 27 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/builtin-plugins | 40 | 52 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives |
-| @wrongstack/chronicle | 54 | 66 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/chronicle | 54 | 68 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/cli | 655 | 750 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/bench, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/codebase-index-mcp, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/hq-next, @wrongstack/kanban, @wrongstack/kanban-mcp, @wrongstack/mailbox-mcp, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/requirement-intake-mcp, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sage-mcp, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/vibeui, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/worktree, @wrongstack/wrongtrace |
-| @wrongstack/client | 7 | 11 | @wrongstack/webui-protocol |
+| @wrongstack/client | 7 | 12 | @wrongstack/webui-protocol |
 | @wrongstack/codebase | 115 | 14 | @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/codebase-index-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
 | @wrongstack/contracts | 133 | 15 | @wrongstack/kanban, @wrongstack/primitives |
@@ -50,7 +50,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/kanban-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/mailbox-mcp | 7 | 12 | @wrongstack/coordination, @wrongstack/core, @wrongstack/mcp |
 | @wrongstack/mcp | 76 | 128 | @wrongstack/contracts, @wrongstack/core |
-| @wrongstack/persistence | 10 | 30 | — |
+| @wrongstack/persistence | 10 | 31 | — |
 | @wrongstack/plug-lsp | 52 | 71 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugin-sdk | 12 | 18 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugins | 157 | 168 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
@@ -69,14 +69,14 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/toolflow | 3 | 2 | @wrongstack/contracts |
 | @wrongstack/tools | 347 | 415 | @wrongstack/agent-catalog, @wrongstack/browser-tools, @wrongstack/codebase, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives, @wrongstack/toolflow |
 | @wrongstack/tui | 517 | 505 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
-| @wrongstack/vector-memory | 18 | 30 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
+| @wrongstack/vector-memory | 18 | 31 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/vibeui | 101 | 53 | @wrongstack/webui-protocol |
 | @wrongstack/webui | 799 | 581 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-protocol | 29 | 19 | @wrongstack/contracts, @wrongstack/core, @wrongstack/hq |
 | @wrongstack/webui-server | 360 | 448 | @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/worktree, @wrongstack/wrongtrace |
-| @wrongstack/worktree | 10 | 11 | @wrongstack/contracts, @wrongstack/core |
+| @wrongstack/worktree | 10 | 12 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/wrongmemory-client | 6 | 5 | — |
-| @wrongstack/wrongtrace | 11 | 16 | — |
+| @wrongstack/wrongtrace | 11 | 17 | — |
 | wrongstack | 1 | 1 | @wrongstack/cli |
 
 ## Module cycles

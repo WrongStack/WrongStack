@@ -161,7 +161,9 @@ export function hqVaultCanonicalJson(value: unknown): string {
 function sortValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortValue);
   if (value !== null && typeof value === 'object') {
-    const out: Record<string, unknown> = {};
+    // Null prototype: on `{}` an own `__proto__` member (JSON.parse makes one)
+    // became the prototype and silently dropped out of the signed bytes.
+    const out: Record<string, unknown> = Object.create(null);
     for (const key of Object.keys(value as Record<string, unknown>).sort()) {
       const member = (value as Record<string, unknown>)[key];
       if (member !== undefined) out[key] = sortValue(member);

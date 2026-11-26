@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T14:30:06.323Z",
+  "generatedAt": "2026-11-26T14:32:41.960Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6572,
-    "testFiles": 6467,
-    "sourceLines": 1350077,
+    "testFiles": 6474,
+    "sourceLines": 1350101,
     "workspaceEdges": 261,
     "moduleEdges": 19253,
     "nonCommandSlashImports": 0,
@@ -208,7 +208,7 @@
       "name": "@wrongstack/chronicle",
       "dir": "packages/chronicle",
       "sourceFiles": 54,
-      "testFiles": 66,
+      "testFiles": 68,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -224,7 +224,7 @@
         {
           "path": "packages/chronicle/tsconfig.test.json",
           "error": null,
-          "testFiles": 66
+          "testFiles": 68
         }
       ]
     },
@@ -292,7 +292,7 @@
       "name": "@wrongstack/client",
       "dir": "packages/client",
       "sourceFiles": 7,
-      "testFiles": 11,
+      "testFiles": 12,
       "workspaceDependencies": [
         "@wrongstack/webui-protocol"
       ],
@@ -305,7 +305,7 @@
         {
           "path": "packages/client/tsconfig.test.json",
           "error": null,
-          "testFiles": 11
+          "testFiles": 12
         }
       ]
     },
@@ -670,7 +670,7 @@
       "name": "@wrongstack/persistence",
       "dir": "packages/persistence",
       "sourceFiles": 10,
-      "testFiles": 30,
+      "testFiles": 31,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -681,7 +681,7 @@
         {
           "path": "packages/persistence/tsconfig.test.json",
           "error": null,
-          "testFiles": 30
+          "testFiles": 31
         }
       ]
     },
@@ -1149,7 +1149,7 @@
       "name": "@wrongstack/vector-memory",
       "dir": "packages/vector-memory",
       "sourceFiles": 18,
-      "testFiles": 30,
+      "testFiles": 31,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1165,7 +1165,7 @@
         {
           "path": "packages/vector-memory/tsconfig.test.json",
           "error": null,
-          "testFiles": 30
+          "testFiles": 31
         }
       ]
     },
@@ -1294,7 +1294,7 @@
       "name": "@wrongstack/worktree",
       "dir": "packages/worktree",
       "sourceFiles": 10,
-      "testFiles": 11,
+      "testFiles": 12,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -1308,7 +1308,7 @@
         {
           "path": "packages/worktree/tsconfig.test.json",
           "error": null,
-          "testFiles": 11
+          "testFiles": 12
         }
       ]
     },
@@ -1335,7 +1335,7 @@
       "name": "@wrongstack/wrongtrace",
       "dir": "packages/wrongtrace",
       "sourceFiles": 11,
-      "testFiles": 16,
+      "testFiles": 17,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -1346,7 +1346,7 @@
         {
           "path": "packages/wrongtrace/tsconfig.test.json",
           "error": null,
-          "testFiles": 15
+          "testFiles": 16
         }
       ]
     },
@@ -5442,7 +5442,19 @@
         ]
       },
       {
+        "file": "packages/chronicle/tests/chronicle-client-null-frame.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/chronicle/tests/chronicle-hash-undef.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/chronicle/tests/chronicle-null-frame.test.ts",
         "projects": [
           "root-node"
         ]
@@ -10369,6 +10381,12 @@
       },
       {
         "file": "packages/client/tests/reconnect-nan-policy.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/client/tests/run-listener.test.ts",
         "projects": [
           "root-node"
         ]
@@ -21001,6 +21019,12 @@
       },
       {
         "file": "packages/persistence/tests/sqlite-runtime.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/persistence/tests/sqlite-text-index-repair.test.ts",
         "projects": [
           "root-node"
         ]
@@ -33324,6 +33348,12 @@
         ]
       },
       {
+        "file": "packages/vector-memory/tests/sage-sweep-removal-count.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/vector-memory/tests/sage-sweep-scope.test.ts",
         "projects": [
           "root-node"
@@ -40026,6 +40056,12 @@
         ]
       },
       {
+        "file": "packages/worktree/tests/git-worktree-list-path.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/worktree/tests/windows-drive-case.test.ts",
         "projects": [
           "root-node"
@@ -40189,6 +40225,12 @@
       },
       {
         "file": "packages/wrongtrace/src/__tests__/nested-diagnostic-rows.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/wrongtrace/src/__tests__/recent-activity-order.test.ts",
         "projects": [
           "root-node"
         ]
@@ -41323,12 +41365,12 @@
     },
     {
       "file": "packages/chronicle/src/project-server-client.ts",
-      "lines": 709,
+      "lines": 717,
       "relativeImports": 6
     },
     {
       "file": "packages/chronicle/src/project-server.ts",
-      "lines": 706,
+      "lines": 713,
       "relativeImports": 17
     },
     {

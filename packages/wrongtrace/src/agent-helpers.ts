@@ -360,11 +360,15 @@ export async function getRecentActivity(
     matched.push(entry);
   }
   // Compare instants, not strings: RFC3339 stamps with different UTC offsets
-  // do not order lexically. Unparseable stamps fall back to string order.
+  // do not order lexically. Keep undated events behind all dated ones so
+  // they cannot displace known recent events when applying the limit.
   matched.sort((a, b) => {
     const ta = Date.parse(a.at);
     const tb = Date.parse(b.at);
-    if (!Number.isNaN(ta) && !Number.isNaN(tb) && ta !== tb) return tb - ta;
+    const aUndated = Number.isNaN(ta);
+    const bUndated = Number.isNaN(tb);
+    if (aUndated !== bUndated) return aUndated ? 1 : -1;
+    if (!aUndated && ta !== tb) return tb - ta;
     return a.at < b.at ? 1 : a.at > b.at ? -1 : 0;
   });
   return matched.slice(0, safeLimit);

@@ -333,8 +333,7 @@ export async function forgetStaleSageMirrors(
         if (memory !== null && memory.scope !== 'session' && isMirroredStatus(memory.status)) {
           continue;
         }
-        await store.forget(entry.id);
-        removed++;
+        if (await store.forget(entry.id)) removed++;
       } catch (err) {
         logger?.warn?.(`vector-memory stale-mirror sweep failed for ${sageId}: ${errMsg(err)}`);
       }

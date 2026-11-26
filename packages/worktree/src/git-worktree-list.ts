@@ -53,11 +53,9 @@ function parseWorktreePorcelain(output: string, projectRoot: string): GitWorktre
   let mainRoot: string | undefined;
   for (const record of records) {
     const lines = record.split(/\r?\n/).filter(Boolean);
-    const dir = lines
-      .find((l) => l.startsWith('worktree '))
-      ?.slice('worktree '.length)
-      .trim();
-    if (!dir) continue;
+    const dir = lines.find((l) => l.startsWith('worktree '))?.slice('worktree '.length);
+    // Reject blank records without trimming whitespace from valid paths.
+    if (!dir?.trim()) continue;
     // The first record is always the main worktree.
     mainRoot ??= dir;
     if (lines.includes('bare') || lines.some((l) => l.startsWith('prunable'))) continue;

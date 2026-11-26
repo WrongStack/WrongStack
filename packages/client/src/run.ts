@@ -157,7 +157,9 @@ export class Run implements AsyncIterable<RunEvent> {
     const waiter = this.waiters.shift();
     if (waiter) waiter({ value: event, done: false });
     else this.queue.push(event);
-    for (const listener of this.listeners) {
+    // A listener can re-register while handling this frame. Do not visit it twice.
+    for (const listener of [...this.listeners]) {
+      if (!this.listeners.has(listener)) continue;
       try {
         listener(event);
       } catch {

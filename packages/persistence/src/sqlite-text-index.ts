@@ -23,7 +23,8 @@ export function initializeSqliteTextIndex(db: DatabaseSync, index: SqliteTextInd
   const { table, key, source, field, column } = index;
   const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
   const columnLower = column.toLowerCase();
-  if (!columns.some((entry) => entry.name.toLowerCase() === columnLower)) {
+  const hasColumn = columns.some((entry) => entry.name.toLowerCase() === columnLower);
+  if (!hasColumn) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT`);
   }
   const triggerName = `${table}_${column}_invalidate`;
@@ -48,6 +49,9 @@ export function initializeSqliteTextIndex(db: DatabaseSync, index: SqliteTextInd
         UPDATE ${table} SET ${column}=NULL;
       `);
     }
+  } else if (hasColumn) {
+    // Updates made without the trigger could have left cached text behind.
+    db.exec(`UPDATE ${table} SET ${column}=NULL WHERE ${column} IS NOT NULL`);
   }
   db.exec(`
     CREATE TABLE IF NOT EXISTS ws_text_index_revisions (name TEXT PRIMARY KEY, revision TEXT NOT NULL);

@@ -429,6 +429,14 @@ export class ChronicleProjectServerClient {
           socket.destroy(new Error('Invalid Chronicle project server response'));
           return;
         }
+        // JSON `null` (and other non-objects) parses. onMessage reads
+        // message.type, and that throw is an uncaught exception on the data
+        // listener — the in-flight call then waits out its timeout. A response
+        // frame is an object; anything else is the same malformed frame as bad JSON.
+        if (typeof message !== 'object' || message === null) {
+          socket.destroy(new Error('Invalid Chronicle project server response'));
+          return;
+        }
         this.onMessage(message);
       }
       newline = chunk.indexOf('\n', start);

@@ -49,7 +49,9 @@ export function legacyScopeLabel(scope: MemoryScope): string {
 }
 
 export function matchesLegacyForget(memory: Sage, normalizedQuery: string): boolean {
-  const searchable = [
+  // Each field on its own: a query spanning the end of one field and the start
+  // of the next (text "… pnpm" + tag "tooling") is in none of them.
+  return [
     memory.id,
     memory.text,
     ...memory.tags,
@@ -61,9 +63,7 @@ export function matchesLegacyForget(memory: Sage, normalizedQuery: string): bool
     ]),
   ]
     .filter((value): value is string => typeof value === 'string')
-    .join(' ')
-    .toLowerCase();
-  return searchable.includes(normalizedQuery);
+    .some((value) => value.toLowerCase().includes(normalizedQuery));
 }
 
 export function isMigratableMemoryRecord(value: unknown): value is SageRecord {

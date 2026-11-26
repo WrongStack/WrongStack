@@ -468,6 +468,13 @@ function onData(state: ClientState, chunk: string): void {
       state.socket.destroy(new Error('Invalid Chronicle project server request'));
       return;
     }
+    // JSON `null` parses. handleMessage reads message.authToken, and that
+    // throw is an unhandled rejection that exits the daemon. A client message
+    // is an object; anything else is the same malformed frame as bad JSON.
+    if (typeof message !== 'object' || message === null) {
+      state.socket.destroy(new Error('Invalid Chronicle project server request'));
+      return;
+    }
     void handleMessage(state, message);
   }
 }

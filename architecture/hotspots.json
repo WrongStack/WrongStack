@@ -27,11 +27,11 @@
       "relativeImports": 5
     },
     "packages/chronicle/src/project-server-client.ts": {
-      "lines": 709,
+      "lines": 717,
       "relativeImports": 6
     },
     "packages/chronicle/src/project-server.ts": {
-      "lines": 706,
+      "lines": 713,
       "relativeImports": 17
     },
     "packages/cli/src/goal-host.ts": {
