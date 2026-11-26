@@ -45,6 +45,8 @@ function currentWindow(key: string, now: number): CaptureWindow {
         windows.delete(oldestKey);
       }
     }
+    // Updating an existing Map key does not refresh its insertion order.
+    windows.delete(key);
     windows.set(key, fresh);
     return fresh;
   }

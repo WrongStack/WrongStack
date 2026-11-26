@@ -74,7 +74,8 @@ export function parseAcpRegistryCache(raw: string): LoadedAcpRegistry | null {
           ? { quarantineReason: a.registry.quarantineReason }
           : {}),
       };
-      validAgents.push({ ...a, id, acp: { ...a.acp, command } });
+      const displayName = typeof a.displayName === 'string' ? a.displayName.trim() : '';
+      validAgents.push({ ...a, id, displayName: displayName || id, acp: { ...a.acp, command } });
     }
     return {
       fetchedAt: typeof env.fetchedAt === 'string' ? env.fetchedAt : '',

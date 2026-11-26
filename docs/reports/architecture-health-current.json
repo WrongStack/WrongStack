@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T14:40:51.594Z",
+  "generatedAt": "2026-11-26T14:44:06.702Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6572,
-    "testFiles": 6476,
-    "sourceLines": 1350192,
+    "testFiles": 6481,
+    "sourceLines": 1350230,
     "workspaceEdges": 261,
-    "moduleEdges": 19253,
+    "moduleEdges": 19254,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -117,7 +117,7 @@
       "name": "@wrongstack/agent-catalog",
       "dir": "packages/agent-catalog",
       "sourceFiles": 44,
-      "testFiles": 22,
+      "testFiles": 23,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/persistence",
@@ -132,7 +132,7 @@
         {
           "path": "packages/agent-catalog/tsconfig.test.json",
           "error": null,
-          "testFiles": 22
+          "testFiles": 23
         }
       ]
     },
@@ -140,7 +140,7 @@
       "name": "@wrongstack/bench",
       "dir": "packages/bench",
       "sourceFiles": 33,
-      "testFiles": 68,
+      "testFiles": 70,
       "workspaceDependencies": [
         "@wrongstack/core"
       ],
@@ -153,7 +153,7 @@
         {
           "path": "packages/bench/tsconfig.test.json",
           "error": null,
-          "testFiles": 68
+          "testFiles": 70
         }
       ]
     },
@@ -689,7 +689,7 @@
       "name": "@wrongstack/plug-lsp",
       "dir": "packages/plug-lsp",
       "sourceFiles": 52,
-      "testFiles": 71,
+      "testFiles": 72,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -704,7 +704,7 @@
         {
           "path": "packages/plug-lsp/tsconfig.test.json",
           "error": null,
-          "testFiles": 71
+          "testFiles": 72
         }
       ]
     },
@@ -871,7 +871,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 130,
-      "testFiles": 103,
+      "testFiles": 104,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -905,7 +905,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 103
+          "testFiles": 104
         }
       ]
     },
@@ -4452,6 +4452,12 @@
         ]
       },
       {
+        "file": "packages/agent-catalog/tests/capture-window-rollover.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/agent-catalog/tests/conflict-snippet-wellformed.test.ts",
         "projects": [
           "root-node"
@@ -4579,6 +4585,12 @@
       },
       {
         "file": "packages/bench/tests/child-env.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/bench/tests/compare-partial.test.ts",
         "projects": [
           "root-node"
         ]
@@ -4801,6 +4813,12 @@
       },
       {
         "file": "packages/bench/tests/runner-extra.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/bench/tests/runner-timeout-open-pipes.test.ts",
         "projects": [
           "root-node"
         ]
@@ -21222,6 +21240,12 @@
         ]
       },
       {
+        "file": "packages/plug-lsp/tests/unit/diagnostics-order.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plug-lsp/tests/unit/diagnostics-uri-matching.test.ts",
         "projects": [
           "root-node"
@@ -24853,6 +24877,12 @@
       },
       {
         "file": "packages/runtime/tests/plugin-management-lock-and-alias.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/plugin-quiescence-ownership.test.ts",
         "projects": [
           "root-node"
         ]

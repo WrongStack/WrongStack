@@ -1,7 +1,11 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import { performance } from 'node:perf_hooks';
 import { cliSpawnArgs } from '@wrongstack/core/utils';
-import { treeKill as killChildTree, settleWin32Kill } from '@wrongstack/core/utils/tree-kill';
+import {
+  treeKill as killChildTree,
+  settleWin32Kill,
+  WIN32_TREE_KILL_BUDGET_MS,
+} from '@wrongstack/core/utils/tree-kill';
 import { inheritedEnv } from './child-env.js';
 import { type BenchProfile, LEAN_BENCH_TOOL_NAMES } from './isolation.js';
 import { BENCH_DAEMON_IDLE_ENV } from './sandbox-reaper.js';
@@ -103,6 +107,7 @@ export async function runWstack(opts: RunWstackOptions): Promise<RawRun> {
     let stderr = '';
     let timedOut = false;
     let settled = false;
+    let killBackstop: ReturnType<typeof setTimeout> | undefined;
 
     const MAX_TIMEOUT_CHUNK_MS = 2_147_483_647;
     let remainingMs = Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0 ? opts.timeoutMs : 0;
@@ -117,6 +122,14 @@ export async function runWstack(opts: RunWstackOptions): Promise<RawRun> {
         }
         timedOut = true;
         treeKill(child);
+        // A surviving descendant can keep the output pipes open after the
+        // child exits. Let tree cleanup finish, but don't wait forever for close.
+        const graceMs = process.platform === 'win32' ? WIN32_TREE_KILL_BUDGET_MS + 1000 : 5_000;
+        killBackstop = setTimeout(() => {
+          child.stdout?.destroy();
+          child.stderr?.destroy();
+          finishTimeout(child.exitCode);
+        }, graceMs);
       }, chunkMs);
     };
     scheduleTimeout();
@@ -141,8 +154,21 @@ export async function runWstack(opts: RunWstackOptions): Promise<RawRun> {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearTimeout(killBackstop);
       opts.signal?.removeEventListener('abort', onAbort);
       resolve(run);
+    };
+    const finishTimeout = (code: number | null) => {
+      finish({
+        status: 'timeout',
+        finalText: null,
+        iterations: 0,
+        tokensIn: 0,
+        tokensOut: 0,
+        costUsd: 0,
+        elapsedMs: performance.now() - startedAt,
+        exitCode: code,
+      });
     };
 
     child.on('error', (err) => {
@@ -150,20 +176,11 @@ export async function runWstack(opts: RunWstackOptions): Promise<RawRun> {
     });
 
     child.on('close', (code) => {
-      const elapsedMs = performance.now() - startedAt;
       if (timedOut) {
-        finish({
-          status: 'timeout',
-          finalText: null,
-          iterations: 0,
-          tokensIn: 0,
-          tokensOut: 0,
-          costUsd: 0,
-          elapsedMs,
-          exitCode: code,
-        });
+        finishTimeout(code);
         return;
       }
+      const elapsedMs = performance.now() - startedAt;
       const parsed = parseOutputJson(stdout);
       if (!parsed) {
         finish({

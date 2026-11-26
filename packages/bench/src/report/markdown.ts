@@ -273,7 +273,7 @@ export function renderComparisonMarkdown(comparison: RunComparison): string {
   lines.push(
     comparison.comparable
       ? '**Comparable:** harness fingerprints match. Deltas are model/run variance, not a harness change.'
-      : '**Not comparable:** harness fingerprints differ. Read the deltas as directional, not as a leaderboard.',
+      : '**Not comparable:** see the reasons below. Read the deltas as directional, not as a leaderboard.',
   );
   lines.push('');
   if (comparison.reasons.length > 0) {

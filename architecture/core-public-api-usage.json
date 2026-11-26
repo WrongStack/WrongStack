@@ -104,9 +104,9 @@
       "runtimeOrMixed": 62
     },
     "@wrongstack/core/registry": {
-      "files": 217,
+      "files": 218,
       "typeOnly": 84,
-      "runtimeOrMixed": 142
+      "runtimeOrMixed": 143
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -209,9 +209,9 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/utils/tree-kill": {
-      "files": 34,
+      "files": 35,
       "typeOnly": 2,
-      "runtimeOrMixed": 32
+      "runtimeOrMixed": 33
     },
     "@wrongstack/core/vcs": {
       "files": 2,
@@ -7178,6 +7178,12 @@
       "file": "packages/runtime/tests/pack.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/runtime/tests/plugin-quiescence-ownership.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/registry",
@@ -18666,6 +18672,12 @@
     {
       "specifier": "@wrongstack/core/utils/tree-kill",
       "file": "packages/bench/tests/exec-command.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/bench/tests/runner-timeout-open-pipes.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

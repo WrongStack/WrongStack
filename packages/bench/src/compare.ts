@@ -1,3 +1,4 @@
+import { runProgress } from './report/json.js';
 import type { BenchReport, CellResult, HarnessFingerprint, TaskResult } from './types.js';
 
 /** Compact pass/fail view of one (task × cell) cell. */
@@ -45,7 +46,7 @@ export interface CrossRunTaskDelta {
   candidate: TaskOutcome;
 }
 
-/** Two finished runs, folded into deltas. Comparable only when fingerprints match. */
+/** Two runs, folded into deltas. Comparable only when finished and fingerprints match. */
 export interface RunComparison {
   comparable: boolean;
   reasons: string[];
@@ -177,13 +178,20 @@ export function buildIntraRunInsights(results: TaskResult[]): IntraRunInsights {
 }
 
 /**
- * Diff two finished reports. A fingerprint mismatch does not abort — the
- * reasons array explains why the numbers are not apples-to-apples, and the
- * numeric deltas are still emitted so a harness change is visible rather than
- * silent.
+ * Diff two reports. Incomplete runs or fingerprint mismatches make the deltas
+ * directional, but do not suppress them.
  */
 export function compareReports(baseline: BenchReport, candidate: BenchReport): RunComparison {
   const reasons: string[] = [];
+  for (const [side, report] of [
+    ['baseline', baseline],
+    ['candidate', candidate],
+  ] as const) {
+    const { interrupted, completed, planned } = runProgress(report);
+    if (interrupted) {
+      reasons.push(`${side} run incomplete (${completed}/${planned} attempts recorded)`);
+    }
+  }
   if (baseline.suite !== candidate.suite) {
     reasons.push(`suite mismatch: ${baseline.suite} vs ${candidate.suite}`);
   }

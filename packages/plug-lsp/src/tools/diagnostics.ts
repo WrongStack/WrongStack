@@ -34,7 +34,6 @@ export function createDiagnosticsTool(deps: ToolDeps): Tool<DiagnosticsInput, st
     async execute(input, ctx, opts) {
       try {
         const signal = opts?.signal ?? ctx?.signal;
-        const byFile = new Map<string, import('vscode-languageserver-protocol').Diagnostic[]>();
         const servers = new Set<string>();
         const files = input.path
           ? [resolveInputPath(input.path, ctx)]
@@ -61,16 +60,17 @@ export function createDiagnosticsTool(deps: ToolDeps): Tool<DiagnosticsInput, st
           servers.add(server.name);
           pending.push({ file, uri, server });
         }
-        await Promise.all(
+        // Apply the output cap in tracked-file order, not response arrival order.
+        const results = await Promise.all(
           pending.map(async ({ file, uri, server }) => {
             const diagnostics =
               server.capabilities && supportsPullDiagnostics(server.capabilities)
                 ? await server.pullDiagnostics(uri, LSP_CONSTANTS.TOOL_TIMEOUT_MS, signal)
                 : await server.waitForDiagnostics(uri, deps.cfg.diagnosticsWaitMs, signal, true);
-            byFile.set(file, diagnostics);
+            return [file, diagnostics] as const;
           }),
         );
-        const output = formatDiagnostics(byFile, {
+        const output = formatDiagnostics(new Map(results), {
           cwd: ctx.cwd,
           severityFilter: deps.cfg.severityFilter,
           maxPerFile: deps.cfg.maxDiagnosticsPerFile,

@@ -71,6 +71,14 @@ describe('ACP registry cache', () => {
     expect(parseAcpRegistryCache('{"agents":{}}')).toBeNull();
   });
 
+  it('uses the ID as the label for a legacy cache entry without a display name', () => {
+    const loaded = parseAcpRegistryCache(
+      JSON.stringify({ agents: [{ id: 'legacy', acp: { command: 'legacy-acp' } }] }),
+    );
+    expect(loaded?.byId.legacy?.command).toBe('legacy-acp');
+    expect(loaded?.agents[0]?.displayName).toBe('legacy');
+  });
+
   it('reads the snapshot from the cache directory and tolerates a missing file', () => {
     const dir = mkdtempSync(join(tmpdir(), 'acp-registry-cache-'));
     try {

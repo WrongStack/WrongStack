@@ -43,7 +43,9 @@ export function applyPlanUpdate(
   }
   if (!identifiedPlansSupported) return false;
   if (update.sessionUpdate === 'plan_removed') {
-    return typeof update.planId === 'string' && plans.delete(update.planId);
+    if (typeof update.planId !== 'string') return false;
+    const planId = update.planId.trim();
+    return planId.length > 0 && plans.delete(planId);
   }
   if (update.sessionUpdate !== 'plan_update' || !isRecord(update.plan)) return false;
   const { planId: rawPlanId, type, entries, content } = update.plan;

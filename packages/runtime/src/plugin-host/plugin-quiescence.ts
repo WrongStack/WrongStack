@@ -13,7 +13,10 @@ export function installPluginToolQuiescence(
 ): (pluginName: string, timeoutMs: number) => Promise<void> {
   const inFlight = new Map<string, number>();
   const waiters = new Map<string, Set<() => void>>();
-  const wrappedFns = new WeakSet<Function>();
+  type Execute = Tool['execute'];
+  type ExecuteStream = NonNullable<Tool['executeStream']>;
+  const wrappedExecs = new WeakMap<Execute, { name: string; original: Execute }>();
+  const wrappedStreams = new WeakMap<ExecuteStream, { name: string; original: ExecuteStream }>();
 
   const enterOwners = (owners: readonly string[]): void => {
     for (const owner of owners) {
@@ -56,13 +59,18 @@ export function installPluginToolQuiescence(
   };
 
   const instrumentTool = (tool: Tool): Tool => {
-    const origExec = tool.execute;
-    const origStream = tool.executeStream;
-    const needExec = typeof origExec === 'function' && !wrappedFns.has(origExec);
-    const needStream = typeof origStream === 'function' && !wrappedFns.has(origStream);
+    const currentExec = tool.execute;
+    const currentStream = tool.executeStream;
+    // A copy registered under another name must track its own owners.
+    const execWrapper = wrappedExecs.get(currentExec);
+    const streamWrapper = currentStream && wrappedStreams.get(currentStream);
+    const origExec = execWrapper?.original ?? currentExec;
+    const origStream = streamWrapper?.original ?? currentStream;
+    const needExec = typeof origExec === 'function' && execWrapper?.name !== tool.name;
+    const needStream = typeof origStream === 'function' && streamWrapper?.name !== tool.name;
     if (!needExec && !needStream) return tool;
 
-    let nextExec = origExec;
+    let nextExec = currentExec;
     if (needExec && origExec) {
       const wrappedExec: typeof origExec = async function (this: unknown, ...args) {
         const owners = resolveToolOwners(tool.name);
@@ -74,11 +82,11 @@ export function installPluginToolQuiescence(
           leaveOwners(owners);
         }
       };
-      wrappedFns.add(wrappedExec);
+      wrappedExecs.set(wrappedExec, { name: tool.name, original: origExec });
       nextExec = wrappedExec;
     }
 
-    let nextStream = origStream;
+    let nextStream = currentStream;
     if (needStream && origStream) {
       const wrappedStream: typeof origStream = async function* (this: unknown, ...args) {
         const owners = resolveToolOwners(tool.name);
@@ -93,7 +101,7 @@ export function installPluginToolQuiescence(
           leaveOwners(owners);
         }
       };
-      wrappedFns.add(wrappedStream);
+      wrappedStreams.set(wrappedStream, { name: tool.name, original: origStream });
       nextStream = wrappedStream;
     }
 
