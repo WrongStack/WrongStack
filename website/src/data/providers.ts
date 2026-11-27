@@ -7,11 +7,11 @@
                          + packages/providers/src/oauth/*
    - localProviders    → packages/cli/src/auth-menu/local-presets.ts (LOCAL_LLM_PRESETS)
 
-   Logo URLs and referral signup links are website-side presentation; referral
-   URLs resolve from coding-plans.ts so an affiliate change stays single-source.
+   Logo URLs and signup links are website-side presentation; signup URLs
+   resolve from coding-plans.ts so a vendor change stays single-source.
    ========================================================================= */
 
-import { codingConnections, connectionUrl } from './coding-plans';
+import { codingConnections } from './coding-plans';
 
 export type WireFamily = 'anthropic' | 'openai' | 'openai-compatible' | 'google';
 
@@ -31,14 +31,14 @@ export interface CuratedProvider {
   logoAlt: string;
   family: WireFamily;
   keyPlaceholder: string;
-  /** Referral/subscription sign-up link where one exists (resolved from coding-plans). */
+  /** Subscription sign-up link where one exists (resolved from coding-plans). */
   signupUrl?: string;
 }
 
-/** Resolve a coding connection's referral URL (affiliate link when available). */
+/** Resolve a coding connection's official subscription sign-up URL. */
 function signupUrlFor(connectionId: string): string | undefined {
   const connection = codingConnections.find((item) => item.id === connectionId);
-  return connection ? connectionUrl(connection) : undefined;
+  return connection?.subscribeUrl;
 }
 
 /** The setup-screen quick-start providers shipped in the WebUI. */

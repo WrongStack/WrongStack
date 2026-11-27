@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { createHttpServer } from '@wrongstack/webui-server';
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import * as fs from 'node:fs/promises';
+import { createHttpServer } from '@wrongstack/webui-server';
+import { describe, expect, it } from 'vitest';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, '../../dist');
@@ -47,15 +47,10 @@ describe('providers.json static file serving', () => {
       expect(Array.isArray(providers)).toBe(true);
       expect(providers).toEqual(expectedProviders);
 
-      // Check referral data is present
-      const minimax = providers.find(
-        (p: { id: string; referral?: { code: string; reward: string; url: string } }) =>
-          p.id === 'minimax',
-      );
-      if (!minimax) throw new Error('minimax provider not found in providers.json');
-      expect(minimax.referral).toBeDefined();
-      expect(minimax.referral!.code).toBe('JrA4R9QAEn');
-      expect(minimax.referral!.reward).toContain('10% off');
+      // No provider may advertise a referral/affiliate link.
+      const withReferral = providers.filter((p: { referral?: unknown }) => p.referral);
+      expect(withReferral).toEqual([]);
+      expect(JSON.stringify(providers)).not.toMatch(/\?ref=|&ic=|token-plan\?code=/);
     } finally {
       server.close();
     }
@@ -78,15 +73,8 @@ describe('providers.json static file serving', () => {
       expect(typeof provider.name).toBe('string');
       expect(typeof provider.family).toBe('string');
 
-      // If referral exists, validate its structure
-      if (provider.referral) {
-        expect(provider.referral).toHaveProperty('code');
-        expect(provider.referral).toHaveProperty('reward');
-        expect(provider.referral).toHaveProperty('url');
-        expect(typeof provider.referral.code).toBe('string');
-        expect(typeof provider.referral.reward).toBe('string');
-        expect(typeof provider.referral.url).toBe('string');
-      }
+      // Referral metadata was removed from the catalog; keep it that way.
+      expect(provider).not.toHaveProperty('referral');
     }
   });
 });

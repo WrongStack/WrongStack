@@ -145,25 +145,8 @@
     },
     "card": {
       "keySaved": "Anahtar kaydedildi",
-      "referral": "Davet",
       "save": "Kaydet",
-      "getKey": "API anahtarınızı alın",
-      "copied": "Kopyalandı",
-      "copyReferral": "Davet bağlantısını kopyala",
-      "share": "Paylaş",
-      "qrAlt": "{{name}} davet QR kodu"
-    },
-    "share": {
-      "title": "{{name}} davetini paylaş",
-      "description": "Bu davet bağlantısını arkadaşlarınızla paylaşın ve ödüller kazanın!",
-      "hint": "Paylaşmak için QR kodunu tarayın veya bağlantıyı kopyalayın",
-      "twitter": "X/Twitter'da paylaş",
-      "linkedin": "LinkedIn'de paylaş",
-      "telegram": "Telegram'da paylaş",
-      "whatsapp": "WhatsApp'ta paylaş",
-      "reddit": "Reddit'te paylaş",
-      "facebook": "Facebook'ta paylaş",
-      "email": "E-posta ile paylaş"
+      "getKey": "API anahtarınızı alın"
     },
     "contextWindow": "{{size}} bağlam",
     "maxOutput": "{{count}} çıktı",
@@ -207,8 +190,6 @@
     "toasts": {
       "keySaved": "{{name}} API anahtarı kaydedildi",
       "keySaveFailed": "{{name}} API anahtarı kaydedilemedi",
-      "referralCopied": "Davet bağlantısı panoya kopyalandı",
-      "referralCopyFailed": "Davet bağlantısı kopyalanamadı",
       "providerAdded": "\"{{id}}\" sağlayıcısı eklendi",
       "providerAddFailed": "Sağlayıcı eklenemedi",
       "providersLoadedNew": "{{count}} sağlayıcı yüklendi ({{diff}} yeni)",

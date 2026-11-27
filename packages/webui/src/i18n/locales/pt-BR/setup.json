@@ -145,25 +145,8 @@
     },
     "card": {
       "keySaved": "Chave salva",
-      "referral": "Indicação",
       "save": "Salvar",
-      "getKey": "Obtenha sua chave de API",
-      "copied": "Copiado",
-      "copyReferral": "Copiar link de indicação",
-      "share": "Compartilhar",
-      "qrAlt": "QR code de indicação do {{name}}"
-    },
-    "share": {
-      "title": "Compartilhar indicação do {{name}}",
-      "description": "Compartilhe este link de indicação com amigos e ganhe recompensas!",
-      "hint": "Escaneie o QR code ou copie o link para compartilhar",
-      "twitter": "Compartilhar no X/Twitter",
-      "linkedin": "Compartilhar no LinkedIn",
-      "telegram": "Compartilhar no Telegram",
-      "whatsapp": "Compartilhar no WhatsApp",
-      "reddit": "Compartilhar no Reddit",
-      "facebook": "Compartilhar no Facebook",
-      "email": "Compartilhar por e-mail"
+      "getKey": "Obtenha sua chave de API"
     },
     "contextWindow": "{{size}} de contexto",
     "maxOutput": "{{count}} de saída",
@@ -207,8 +190,6 @@
     "toasts": {
       "keySaved": "Chave de API do {{name}} salva",
       "keySaveFailed": "Falha ao salvar a chave de API do {{name}}",
-      "referralCopied": "Link de indicação copiado para a área de transferência",
-      "referralCopyFailed": "Falha ao copiar o link de indicação",
       "providerAdded": "Provedor \"{{id}}\" adicionado",
       "providerAddFailed": "Falha ao adicionar o provedor",
       "providersLoadedNew": "{{count}} provedores carregados ({{diff}} novo)",

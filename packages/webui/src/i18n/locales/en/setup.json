@@ -145,25 +145,8 @@
     },
     "card": {
       "keySaved": "Key saved",
-      "referral": "Referral",
       "save": "Save",
-      "getKey": "Get your API key",
-      "copied": "Copied",
-      "copyReferral": "Copy referral link",
-      "share": "Share",
-      "qrAlt": "{{name}} referral QR code"
-    },
-    "share": {
-      "title": "Share {{name}} Referral",
-      "description": "Share this referral link with friends and earn rewards!",
-      "hint": "Scan the QR code or copy the link to share",
-      "twitter": "Share on X/Twitter",
-      "linkedin": "Share on LinkedIn",
-      "telegram": "Share on Telegram",
-      "whatsapp": "Share on WhatsApp",
-      "reddit": "Share on Reddit",
-      "facebook": "Share on Facebook",
-      "email": "Share via Email"
+      "getKey": "Get your API key"
     },
     "contextWindow": "{{size}} context",
     "maxOutput": "{{count}} output",
@@ -207,8 +190,6 @@
     "toasts": {
       "keySaved": "{{name}} API key saved",
       "keySaveFailed": "Failed to save {{name}} API key",
-      "referralCopied": "Referral link copied to clipboard",
-      "referralCopyFailed": "Failed to copy referral link",
       "providerAdded": "Provider \"{{id}}\" added",
       "providerAddFailed": "Failed to add provider",
       "providersLoadedNew": "{{count}} providers loaded ({{diff}} new)",

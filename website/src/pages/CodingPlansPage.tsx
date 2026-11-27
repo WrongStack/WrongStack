@@ -1,4 +1,3 @@
-import { CodeBlock } from '@/components/site/primitives';
 import {
   ArrowRight,
   ArrowUpRight,
@@ -15,13 +14,18 @@ import {
 } from 'lucide-react';
 import { useEffect } from 'react';
 import { ConnectionLogo } from '@/components/site/ConnectionLogo';
-import { CopyCommand, PageHero, PageNext, SectionIntro } from '@/components/site/primitives';
+import {
+  CodeBlock,
+  CopyCommand,
+  PageHero,
+  PageNext,
+  SectionIntro,
+} from '@/components/site/primitives';
 import {
   apiKeyConnections,
   type CodingConnection,
   chatGptConnection,
   codingConnections,
-  connectionUrl,
 } from '@/data/coding-plans';
 
 const multiProviderExample = `"modelMatrix": {
@@ -84,18 +88,14 @@ const connectionFaq = [
     'Are the prices shown by WrongStack authoritative?',
     'No static website should be the final authority for a live subscription. The provider checkout controls current price, tax, region, quota, renewal and eligibility details.',
   ],
-  [
-    'Does a referral link change the technical setup?',
-    'No. Referral status only changes the outbound plan URL. Provider ids, endpoints, auth commands and model routing stay exactly the same.',
-  ],
 ] as const;
 
 function PlanLink({ connection, label }: { connection: CodingConnection; label: string }) {
   return (
     <a
-      href={connectionUrl(connection)}
+      href={connection.subscribeUrl}
       target="_blank"
-      rel={connection.affiliateUrl ? 'sponsored noreferrer' : 'noreferrer'}
+      rel="noreferrer"
       className="inline-flex items-center gap-2 rounded-full bg-fg px-4 py-2.5 text-sm font-black text-bg transition-transform hover:-translate-y-0.5"
     >
       {label} <ArrowUpRight className="size-4" />
@@ -270,11 +270,6 @@ export function CodingPlansPage() {
                           </h2>
                         </div>
                       </div>
-                      {connection.affiliateUrl && (
-                        <span className="rounded-full border border-brand/20 bg-brand/5 px-2.5 py-1 font-mono text-[8px] font-black uppercase tracking-[0.12em] text-brand">
-                          Referral
-                        </span>
-                      )}
                     </div>
                     <h3 className="mt-8 max-w-xl text-2xl font-black tracking-[-0.03em] text-fg">
                       {connection.headline}
@@ -336,12 +331,7 @@ export function CodingPlansPage() {
                       </div>
                     </div>
                     <div className="mt-auto flex flex-wrap items-center gap-3 pt-7">
-                      <PlanLink
-                        connection={connection}
-                        label={
-                          connection.affiliateUrl ? 'Open plan with referral' : 'Open official plan'
-                        }
-                      />
+                      <PlanLink connection={connection} label="Open official plan" />
                     </div>
                   </div>
                 </div>
@@ -515,43 +505,13 @@ export function CodingPlansPage() {
         </div>
       </section>
 
-      <section className="site-section site-container">
-        <SectionIntro
-          index="06"
-          eyebrow="Affiliate disclosure"
-          title="The recommendation stays useful even when a link earns something."
-          description="Referral status is data, not hidden page behavior. A referral link is marked, uses the sponsored relationship attribute and never changes the provider configuration instructions."
-        />
-        <div className="mt-12 grid gap-5 lg:grid-cols-3">
-          {[
-            [
-              'What may happen',
-              'OxogNet may receive credit, commission or account benefits when you subscribe through a marked referral link.',
-            ],
-            [
-              'What does not change',
-              'The software stays free and open source. Referral status does not change feature access, model routing or our technical explanation.',
-            ],
-            [
-              'What is authoritative',
-              'The provider checkout and terms control the current price, region, quota, renewal, refund and eligibility details.',
-            ],
-          ].map(([title, body]) => (
-            <article key={title} className="rounded-2xl border border-line bg-card p-6">
-              <h2 className="text-xl font-black text-fg">{title}</h2>
-              <p className="mt-3 text-sm leading-7 text-muted">{body}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
       <section className="border-t border-line bg-surface">
         <div className="site-section site-section--short site-container">
           <SectionIntro
-            index="07"
+            index="06"
             eyebrow="Connection FAQ"
             title="The questions that usually appear after the first key."
-            description="Short answers about multiple subscriptions, storage, quotas, provider ids and referral links."
+            description="Short answers about multiple subscriptions, storage, quotas, provider ids and endpoints."
           />
           <div className="mt-12 overflow-hidden rounded-2xl border border-line bg-card">
             {connectionFaq.map(([question, answer], index) => (

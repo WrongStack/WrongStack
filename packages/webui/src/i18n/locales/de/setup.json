@@ -145,25 +145,8 @@
     },
     "card": {
       "keySaved": "Schlüssel gespeichert",
-      "referral": "Empfehlung",
       "save": "Speichern",
-      "getKey": "API-Schlüssel abrufen",
-      "copied": "Kopiert",
-      "copyReferral": "Empfehlungslink kopieren",
-      "share": "Teilen",
-      "qrAlt": "{{name}} Empfehlungs-QR-Code"
-    },
-    "share": {
-      "title": "{{name}}-Empfehlung teilen",
-      "description": "Teile diesen Empfehlungslink mit Freunden und verdiene Belohnungen!",
-      "hint": "Scanne den QR-Code oder kopiere den Link zum Teilen",
-      "twitter": "Auf X/Twitter teilen",
-      "linkedin": "Auf LinkedIn teilen",
-      "telegram": "Auf Telegram teilen",
-      "whatsapp": "Auf WhatsApp teilen",
-      "reddit": "Auf Reddit teilen",
-      "facebook": "Auf Facebook teilen",
-      "email": "Per E-Mail teilen"
+      "getKey": "API-Schlüssel abrufen"
     },
     "contextWindow": "{{size}} Kontext",
     "maxOutput": "{{count}} Ausgabe",
@@ -207,8 +190,6 @@
     "toasts": {
       "keySaved": "{{name}} API-Schlüssel gespeichert",
       "keySaveFailed": "{{name}} API-Schlüssel konnte nicht gespeichert werden",
-      "referralCopied": "Empfehlungslink in die Zwischenablage kopiert",
-      "referralCopyFailed": "Empfehlungslink konnte nicht kopiert werden",
       "providerAdded": "Anbieter \"{{id}}\" hinzugefügt",
       "providerAddFailed": "Anbieter konnte nicht hinzugefügt werden",
       "providersLoadedNew": "{{count}} Anbieter geladen ({{diff}} neu)",

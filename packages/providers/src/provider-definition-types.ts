@@ -17,19 +17,12 @@ export type OpenAICompatiblePolicyId =
   | 'groq'
   | 'perplexity';
 
-export interface ProviderReferral {
-  code: string;
-  reward: string;
-  url: string;
-}
-
 /** Presentation metadata kept beside, but separate from, runtime facts. */
 export interface ProviderCatalogMetadata {
   description: string;
   icon: string;
   color: string;
   keyPlaceholder: string;
-  referral?: ProviderReferral;
 }
 
 /**

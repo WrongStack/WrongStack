@@ -205,7 +205,6 @@ export {
   PROVIDER_DEFINITIONS,
   type ProviderCatalogMetadata,
   type ProviderDefinition,
-  type ProviderReferral,
   type ProviderUsage,
   projectCompatibleProviderPresets,
   projectLocalProviderPresets,

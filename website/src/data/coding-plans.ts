@@ -8,7 +8,6 @@ export type CodingConnection = {
   logoAlt: string;
   kind: ConnectionKind;
   featured?: boolean;
-  affiliateUrl?: string;
   subscribeUrl: string;
   docsUrl: string;
   badge: string;
@@ -27,7 +26,7 @@ export type CodingConnection = {
 };
 
 /**
- * Keep subscription/referral URLs here so an affiliate change never requires
+ * Subscription URLs live here so a vendor pricing change never requires
  * touching page markup. Provider ids and endpoints mirror the runtime catalog.
  */
 export const codingConnections: readonly CodingConnection[] = [
@@ -67,7 +66,6 @@ export const codingConnections: readonly CodingConnection[] = [
     logoUrl: 'https://opencode.ai/favicon-96x96-v3.png',
     logoAlt: 'OpenCode',
     kind: 'api-key',
-    affiliateUrl: 'https://opencode.ai/go?ref=6VZAER87H4',
     subscribeUrl: 'https://opencode.ai/go',
     docsUrl: 'https://opencode.ai/docs/go/',
     badge: 'Low-cost subscription',
@@ -122,7 +120,6 @@ export const codingConnections: readonly CodingConnection[] = [
     logoUrl: 'https://file.cdn.minimax.io/public/25289820-59cd-4365-9829-a3f32b365451.ico',
     logoAlt: 'MiniMax',
     kind: 'api-key',
-    affiliateUrl: 'https://platform.minimax.io/subscribe/token-plan?code=JrA4R9QAEn&source=link',
     subscribeUrl: 'https://platform.minimax.io/subscribe/token-plan',
     docsUrl: 'https://platform.minimax.io/docs/token-plan/quickstart',
     badge: 'Formerly Coding Plan',
@@ -150,7 +147,6 @@ export const codingConnections: readonly CodingConnection[] = [
     logoUrl: 'https://z-cdn.chatglm.cn/z-ai/static/logo.svg',
     logoAlt: 'Z.AI',
     kind: 'api-key',
-    affiliateUrl: 'https://z.ai/subscribe?ic=JQZ7TPPRA6',
     subscribeUrl: 'https://z.ai/subscribe',
     docsUrl: 'https://docs.z.ai/devpack/quick-start',
     badge: 'GLM subscription',
@@ -202,7 +198,3 @@ export const codingConnections: readonly CodingConnection[] = [
 
 export const chatGptConnection = codingConnections[0];
 export const apiKeyConnections = codingConnections.filter((item) => item.kind === 'api-key');
-
-export function connectionUrl(connection: CodingConnection) {
-  return connection.affiliateUrl ?? connection.subscribeUrl;
-}

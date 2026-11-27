@@ -145,25 +145,8 @@
     },
     "card": {
       "keySaved": "Chiave salvata",
-      "referral": "Invito",
       "save": "Salva",
-      "getKey": "Ottieni la tua chiave API",
-      "copied": "Copiato",
-      "copyReferral": "Copia link di invito",
-      "share": "Condividi",
-      "qrAlt": "Codice QR di invito {{name}}"
-    },
-    "share": {
-      "title": "Condividi invito {{name}}",
-      "description": "Condividi questo link di invito con gli amici e ottieni ricompense!",
-      "hint": "Scansiona il codice QR o copia il link per condividere",
-      "twitter": "Condividi su X/Twitter",
-      "linkedin": "Condividi su LinkedIn",
-      "telegram": "Condividi su Telegram",
-      "whatsapp": "Condividi su WhatsApp",
-      "reddit": "Condividi su Reddit",
-      "facebook": "Condividi su Facebook",
-      "email": "Condividi via email"
+      "getKey": "Ottieni la tua chiave API"
     },
     "contextWindow": "{{size}} di contesto",
     "maxOutput": "{{count}} in uscita",
@@ -207,8 +190,6 @@
     "toasts": {
       "keySaved": "Chiave API {{name}} salvata",
       "keySaveFailed": "Salvataggio della chiave API {{name}} non riuscito",
-      "referralCopied": "Link di invito copiato negli appunti",
-      "referralCopyFailed": "Copia del link di invito non riuscita",
       "providerAdded": "Provider \"{{id}}\" aggiunto",
       "providerAddFailed": "Aggiunta del provider non riuscita",
       "providersLoadedNew": "{{count}} provider caricati ({{diff}} nuovo)",

@@ -145,25 +145,8 @@
     },
     "card": {
       "keySaved": "Clave guardada",
-      "referral": "Referido",
       "save": "Guardar",
-      "getKey": "Obtén tu clave de API",
-      "copied": "Copiado",
-      "copyReferral": "Copiar enlace de referido",
-      "share": "Compartir",
-      "qrAlt": "Código QR de referido de {{name}}"
-    },
-    "share": {
-      "title": "Compartir referido de {{name}}",
-      "description": "¡Comparte este enlace de referido con tus amigos y gana recompensas!",
-      "hint": "Escanea el código QR o copia el enlace para compartir",
-      "twitter": "Compartir en X/Twitter",
-      "linkedin": "Compartir en LinkedIn",
-      "telegram": "Compartir en Telegram",
-      "whatsapp": "Compartir en WhatsApp",
-      "reddit": "Compartir en Reddit",
-      "facebook": "Compartir en Facebook",
-      "email": "Compartir por correo"
+      "getKey": "Obtén tu clave de API"
     },
     "contextWindow": "{{size}} de contexto",
     "maxOutput": "{{count}} de salida",
@@ -207,8 +190,6 @@
     "toasts": {
       "keySaved": "Clave de API de {{name}} guardada",
       "keySaveFailed": "Error al guardar la clave de API de {{name}}",
-      "referralCopied": "Enlace de referido copiado al portapapeles",
-      "referralCopyFailed": "Error al copiar el enlace de referido",
       "providerAdded": "Proveedor «{{id}}» añadido",
       "providerAddFailed": "Error al añadir el proveedor",
       "providersLoadedNew": "{{count}} proveedores cargados ({{diff}} nuevo)",

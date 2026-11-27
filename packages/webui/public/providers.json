@@ -37,12 +37,7 @@
     "icon": "🌍",
     "color": "from-success/12 to-success/5 border-success/30 hover:border-success/50",
     "keyPlaceholder": "oc-...",
-    "docsUrl": "https://opencode.ai/go?ref=6VZAER87H4",
-    "referral": {
-      "code": "6VZAER87H4",
-      "reward": "Support the project by signing up with this referral link",
-      "url": "https://opencode.ai/go?ref=6VZAER87H4"
-    }
+    "docsUrl": "https://opencode.ai/go"
   },
   {
     "id": "ai-gateway",
@@ -102,12 +97,7 @@
     "icon": "🔷",
     "color": "from-primary/12 to-primary/5 border-primary/30 hover:border-primary/50",
     "keyPlaceholder": "...",
-    "docsUrl": "https://docs.z.ai/guides/overview/quick-start",
-    "referral": {
-      "code": "JQZ7TPPRA6",
-      "reward": "Limited-time deal for GLM Coding Plan subscription",
-      "url": "https://z.ai/subscribe?ic=JQZ7TPPRA6"
-    }
+    "docsUrl": "https://docs.z.ai/guides/overview/quick-start"
   },
   {
     "id": "minimax",
@@ -117,12 +107,7 @@
     "icon": "🔮",
     "color": "from-destructive/10 to-destructive/5 border-destructive/25 hover:border-destructive/45",
     "keyPlaceholder": "eyJ...",
-    "docsUrl": "https://platform.minimax.io/docs/api-reference/text-chat-openai",
-    "referral": {
-      "code": "JrA4R9QAEn",
-      "reward": "Friends get 10% off + Builder benefits. Referrers earn 10% cashback + community perks.",
-      "url": "https://platform.minimax.io/subscribe/token-plan?code=JrA4R9QAEn&source=link"
-    }
+    "docsUrl": "https://platform.minimax.io/docs/api-reference/text-chat-openai"
   },
   {
     "id": "mistral",

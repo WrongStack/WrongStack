@@ -1036,7 +1036,7 @@ export const pluginCatalog = [
     name: 'type-gate',
     risk: 'medium',
     summary:
-      'PostToolUse hook that runs TypeScript type-checking after every write or edit to a source file',
+      'PostToolUse hook that type-checks the package of the edited file (nearest tsconfig.json, solution-style roots skipped) after every write or edit to a source file',
     defaultState: 'inactive',
     source: 'Suite',
   },
@@ -1171,7 +1171,7 @@ export const pluginCatalog = [
     name: 'workspace-health',
     risk: 'medium',
     summary:
-      'Inspects supplied workspace configuration evidence for broken package-manager, Node, and script contracts',
+      'Checks the workspace manifests (or supplied output) for broken package-manager, Node engine, script and workspace-link contracts',
     defaultState: 'inactive',
     source: 'Suite',
   },
@@ -1179,7 +1179,7 @@ export const pluginCatalog = [
     name: 'test-impact-analyzer',
     risk: 'medium',
     summary:
-      'Inspects diffs and test output for untested changes, focused-test exclusions, and skipped coverage evidence',
+      'Maps changed source files to the tests that cover them, and flags focused/skipped tests and coverage-threshold failures in diffs or test output',
     defaultState: 'inactive',
     source: 'Suite',
   },
@@ -1187,7 +1187,7 @@ export const pluginCatalog = [
     name: 'ci-failure-triage',
     risk: 'medium',
     summary:
-      'Classifies supplied CI logs into actionable dependency, test, type-check, and infrastructure failure evidence',
+      'Classifies supplied CI logs into test, type-check, lint, build, missing-module, lockfile, out-of-memory, timeout, permission and network failure evidence',
     defaultState: 'inactive',
     source: 'Suite',
   },
@@ -1195,7 +1195,7 @@ export const pluginCatalog = [
     name: 'env-contract-guard',
     risk: 'medium',
     summary:
-      'Inspects environment templates and runtime diagnostics for missing, placeholder, or accidentally exposed configuration contracts',
+      'Compares the env template with variables the source reads, flags committed .env files and exposed secrets (or inspects a supplied template/diagnostic)',
     defaultState: 'inactive',
     source: 'Suite',
   },
@@ -1203,7 +1203,7 @@ export const pluginCatalog = [
     name: 'dependency-drift-detector',
     risk: 'medium',
     summary:
-      'Inspects manifests and package-manager output for unpinned ranges, lockfile mismatch, and peer dependency drift',
+      'Checks workspace manifests (or supplied output) for unbounded ranges, non-registry sources, cross-package version drift and lockfile mismatch',
     defaultState: 'inactive',
     source: 'Suite',
   },
@@ -1211,7 +1211,7 @@ export const pluginCatalog = [
     name: 'release-readiness',
     risk: 'medium',
     summary:
-      'Inspects supplied release-gate output for unmet validation, dirty-tree, publish, and version-alignment evidence',
+      'Checks release readiness of the working tree (dirty tree, version alignment, changelog entry, already-tagged version, upstream drift) or of supplied release-gate output',
     defaultState: 'inactive',
     source: 'Suite',
   },
@@ -1219,7 +1219,7 @@ export const pluginCatalog = [
     name: 'bundle-budget-guard',
     risk: 'medium',
     summary:
-      'Inspects build and bundle reports for budget breaches, unexpectedly large assets, and sourcemap publication signals',
+      'Measures browser build output on disk (or a supplied bundle report) against size budgets and flags published source maps',
     defaultState: 'inactive',
     source: 'Suite',
   },
@@ -1227,7 +1227,7 @@ export const pluginCatalog = [
     name: 'public-api-auditor',
     risk: 'medium',
     summary:
-      'Inspects public entry-point evidence for undocumented exports, deprecated contracts, and accidental internal API exposure',
+      'Audits package entry points for undocumented exports, missing export-map targets, deprecated contracts and accidental internal API exposure',
     defaultState: 'inactive',
     source: 'Suite',
   },
@@ -1235,7 +1235,7 @@ export const pluginCatalog = [
     name: 'lockfile-consistency-guard',
     risk: 'medium',
     summary:
-      'Inspects lockfile and install evidence for mixed package managers, integrity failures, and reproducibility breaks',
+      'Checks the project lockfiles (or supplied install output) for mixed package managers, missing, nested or untracked lockfiles, and integrity failures',
     defaultState: 'inactive',
     source: 'Suite',
   },
@@ -1243,7 +1243,7 @@ export const pluginCatalog = [
     name: 'change-risk-classifier',
     risk: 'medium',
     summary:
-      'Inspects diffs or change descriptions for authentication, persistence, destructive-operation, and compatibility risk signals',
+      'Classifies the working-tree change (or a supplied diff) into authentication, persistence, destructive-operation, CI, infrastructure and dependency risk signals per file',
     defaultState: 'inactive',
     source: 'Suite',
   },
@@ -1299,7 +1299,7 @@ export const pluginCatalog = [
     name: 'monorepo-change-planner',
     risk: 'low',
     summary:
-      'Computes transitive workspace consumers and dependency-first validation order from explicit package manifests and changed paths',
+      'Computes transitive workspace consumers and dependency-first validation order from the workspace manifests and the working-tree change (or supplied lists)',
     defaultState: 'inactive',
     source: 'Suite',
   },

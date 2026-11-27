@@ -145,25 +145,8 @@
     },
     "card": {
       "keySaved": "Clé enregistrée",
-      "referral": "Parrainage",
       "save": "Enregistrer",
-      "getKey": "Obtenir votre clé API",
-      "copied": "Copié",
-      "copyReferral": "Copier le lien de parrainage",
-      "share": "Partager",
-      "qrAlt": "QR code de parrainage {{name}}"
-    },
-    "share": {
-      "title": "Partager le parrainage {{name}}",
-      "description": "Partagez ce lien de parrainage avec vos amis et gagnez des récompenses !",
-      "hint": "Scannez le QR code ou copiez le lien pour partager",
-      "twitter": "Partager sur X/Twitter",
-      "linkedin": "Partager sur LinkedIn",
-      "telegram": "Partager sur Telegram",
-      "whatsapp": "Partager sur WhatsApp",
-      "reddit": "Partager sur Reddit",
-      "facebook": "Partager sur Facebook",
-      "email": "Partager par e-mail"
+      "getKey": "Obtenir votre clé API"
     },
     "contextWindow": "{{size}} de contexte",
     "maxOutput": "{{count}} en sortie",
@@ -207,8 +190,6 @@
     "toasts": {
       "keySaved": "Clé API {{name}} enregistrée",
       "keySaveFailed": "Échec de l'enregistrement de la clé API {{name}}",
-      "referralCopied": "Lien de parrainage copié dans le presse-papiers",
-      "referralCopyFailed": "Échec de la copie du lien de parrainage",
       "providerAdded": "Fournisseur « {{id}} » ajouté",
       "providerAddFailed": "Échec de l'ajout du fournisseur",
       "providersLoadedNew": "{{count}} fournisseurs chargés ({{diff}} nouveau)",

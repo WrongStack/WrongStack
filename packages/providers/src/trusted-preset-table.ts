@@ -270,11 +270,6 @@ export const TRUSTED_PROVIDER_PRESETS: Readonly<Record<string, TrustedProviderPr
       icon: '🔷',
       color: 'from-primary/12 to-primary/5 border-primary/30 hover:border-primary/50',
       keyPlaceholder: '...',
-      referral: {
-        code: 'JQZ7TPPRA6',
-        reward: 'Limited-time deal for GLM Coding Plan subscription',
-        url: 'https://z.ai/subscribe?ic=JQZ7TPPRA6',
-      },
     },
   },
 
@@ -300,12 +295,6 @@ export const TRUSTED_PROVIDER_PRESETS: Readonly<Record<string, TrustedProviderPr
       color:
         'from-destructive/10 to-destructive/5 border-destructive/25 hover:border-destructive/45',
       keyPlaceholder: 'eyJ...',
-      referral: {
-        code: 'JrA4R9QAEn',
-        reward:
-          'Friends get 10% off + Builder benefits. Referrers earn 10% cashback + community perks.',
-        url: 'https://platform.minimax.io/subscribe/token-plan?code=JrA4R9QAEn&source=link',
-      },
     },
   },
 

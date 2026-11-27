@@ -5,7 +5,6 @@ export type {
   OpenAICompatiblePolicyId,
   ProviderCatalogMetadata,
   ProviderDefinition,
-  ProviderReferral,
   ProviderUsage,
 } from './provider-definition-types.js';
 
@@ -120,18 +119,13 @@ const CORE_PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     envVars: ['OPENCODE_API_KEY'],
     models: [],
     usage: 'subscription-interactive',
-    docsUrl: 'https://opencode.ai/go?ref=6VZAER87H4',
+    docsUrl: 'https://opencode.ai/go',
     catalog: {
       description:
         'Global hosted API for 75+ LLM providers — stable access from US, EU, and Singapore',
       icon: '🌍',
       color: 'from-success/12 to-success/5 border-success/30 hover:border-success/50',
       keyPlaceholder: 'oc-...',
-      referral: {
-        code: '6VZAER87H4',
-        reward: 'Support the project by signing up with this referral link',
-        url: 'https://opencode.ai/go?ref=6VZAER87H4',
-      },
     },
   },
   {
@@ -306,7 +300,6 @@ export function projectPopularProviderCatalog(): PopularProviderProjection[] {
       color: definition.catalog.color,
       keyPlaceholder: definition.catalog.keyPlaceholder,
       ...(definition.docsUrl ? { docsUrl: definition.docsUrl } : {}),
-      ...(definition.catalog.referral ? { referral: { ...definition.catalog.referral } } : {}),
     }));
 }
 
