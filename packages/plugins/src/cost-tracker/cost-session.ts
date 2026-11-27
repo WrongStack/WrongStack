@@ -117,8 +117,18 @@ export function registerCostTools(
     inputSchema: {
       type: 'object',
       properties: {
-        format: { type: 'string', enum: ['json', 'csv'], default: 'json' },
-        includeModel: { type: 'boolean', default: true },
+        format: {
+          type: 'string',
+          enum: ['json', 'csv'],
+          default: 'json',
+          description:
+            'json returns the summary and request records; csv returns one row per request.',
+        },
+        includeModel: {
+          type: 'boolean',
+          default: true,
+          description: 'Include the model name in each request record.',
+        },
       },
     },
     permission: 'auto',

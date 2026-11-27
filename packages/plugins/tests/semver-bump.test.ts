@@ -57,8 +57,9 @@ describe('semver-bump plugin', () => {
     )?.[0];
 
     expect(tool.description).toBe(
-      'Determine the next version bump from conventional commits since the last tag, or force a specific bump. Creates a git tag.',
+      'Determine the next version bump from conventional commits since the last tag, or force a specific bump. Writes the new version to the package manifests, commits them and creates a git tag (when auto-tag is on) unless dry_run is true.',
     );
+    expect(tool.inputSchema.properties.dry_run.description).toContain('without writing');
     expect(tool.permission).toBe('confirm');
     expect(tool.mutating).toBe(true);
   });

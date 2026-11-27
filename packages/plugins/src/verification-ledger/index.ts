@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { filesOrChanged } from '../workflow-runtime/discover.js';
 import {
   commandField,
+  described,
   filesField,
   fingerprints,
   run,
@@ -30,7 +31,14 @@ export default workflowPlugin({
       mutating: true,
       description:
         'Execute a check and record its result against the exact supplied source files. Evidence is session-local; include all inputs influencing the check. files defaults to the working-tree change (git diff HEAD + untracked).',
-      properties: { command: commandField, files: filesField, label: stringField },
+      properties: {
+        command: described(commandField, 'Check to run and record.'),
+        files: described(
+          filesField,
+          'Files the check depends on; a later edit to any of them invalidates the record (default: the working-tree change, git diff HEAD + untracked).',
+        ),
+        label: described(stringField, 'Name of the check, shown by verification_status.'),
+      },
       required: ['command', 'label'],
       async run(input, context) {
         const { files } = await filesOrChanged(input.files, context, 'verification_record');

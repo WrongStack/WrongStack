@@ -329,14 +329,19 @@ export const pluginDetailsPart2: Record<string, PluginDetail> = {
         mutating: true,
         permission: 'confirm',
         summary:
-          'Determine the next version bump from conventional commits since the last tag, or force a specific bump. Creates a git tag.',
+          'Determine the next version bump from conventional commits since the last tag, or force a specific bump. Writes the new version to the package manifests, commits them and creates a git tag (when auto-tag is on) unless dry_run is true.',
         params: [
           {
             name: 'cwd',
             type: 'string',
             description: 'Working directory (defaults to project root)',
           },
-          { name: 'dry_run', type: 'boolean' },
+          {
+            name: 'dry_run',
+            type: 'boolean',
+            description:
+              'Report the next version without writing manifests, committing or tagging.',
+          },
           {
             name: 'part',
             type: '"major" | "minor" | "patch" | "auto"',

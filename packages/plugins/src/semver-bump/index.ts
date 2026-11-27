@@ -397,12 +397,17 @@ const plugin: Plugin = {
     api.tools.register({
       name: 'semver_bump',
       description:
-        'Determine the next version bump from conventional commits since the last tag, or force a specific bump. Creates a git tag.',
+        'Determine the next version bump from conventional commits since the last tag, or force a specific bump. Writes the new version to the package manifests, commits them and creates a git tag (when auto-tag is on) unless dry_run is true.',
       inputSchema: {
         type: 'object',
         properties: {
           cwd: { type: 'string', description: 'Working directory (defaults to project root)' },
-          dry_run: { type: 'boolean', default: false },
+          dry_run: {
+            type: 'boolean',
+            default: false,
+            description:
+              'Report the next version without writing manifests, committing or tagging.',
+          },
           part: {
             type: 'string',
             enum: ['major', 'minor', 'patch', 'auto'],
@@ -574,7 +579,12 @@ const plugin: Plugin = {
           from: { type: 'string', description: 'Starting tag (exclusive)' },
           to: { type: 'string', description: 'Ending tag or "HEAD"' },
           cwd: { type: 'string', description: 'Working directory' },
-          format: { type: 'string', enum: ['markdown', 'json'], default: 'markdown' },
+          format: {
+            type: 'string',
+            enum: ['markdown', 'json'],
+            default: 'markdown',
+            description: 'markdown changelog text, or json with the parsed commits.',
+          },
         },
       },
       permission: 'auto',

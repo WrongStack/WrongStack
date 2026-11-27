@@ -7,6 +7,9 @@ import { LSPError, LSPErrorCode } from '../types.js';
 import { pathToUri } from '../utils/uri.js';
 import {
   createLineTextReader,
+  LSP_CHARACTER_FIELD,
+  LSP_LINE_FIELD,
+  LSP_PATH_FIELD,
   readDocumentContent,
   requireServer,
   resolveInputPath,
@@ -31,10 +34,13 @@ export function createReferencesTool(deps: ToolDeps): Tool<Input, string> {
     inputSchema: {
       type: 'object',
       properties: {
-        path: { type: 'string' },
-        line: { type: 'integer' },
-        character: { type: 'integer' },
-        include_declaration: { type: 'boolean' },
+        path: LSP_PATH_FIELD,
+        line: LSP_LINE_FIELD,
+        character: LSP_CHARACTER_FIELD,
+        include_declaration: {
+          type: 'boolean',
+          description: 'Include the declaration itself in the results (default true).',
+        },
       },
       required: ['path', 'line', 'character'],
     },

@@ -1,4 +1,5 @@
 import {
+  described,
   parseJsonReport,
   read,
   run,
@@ -15,7 +16,17 @@ export default workflowPlugin({
       mutating: true,
       description:
         'Execute seed, up and optional down SQL files against an in-memory SQLite database in a child process. Requires Node with node:sqlite. SQL ATTACH and extension loading are not permitted.',
-      properties: { seed: stringField, up: stringField, down: stringField },
+      properties: {
+        seed: described(
+          stringField,
+          'Project-relative SQL file that builds the starting schema and data.',
+        ),
+        up: described(stringField, 'Project-relative SQL file of the forward migration.'),
+        down: described(
+          stringField,
+          'Project-relative SQL file of the rollback. When given, the result says whether it restores the seed state.',
+        ),
+      },
       required: ['seed', 'up'],
       async run(input, context) {
         const seed = await read(context.root, input.seed);

@@ -3,9 +3,13 @@
  * de-duplicates imports in a file after every `write` or `edit`.
  *
  * This is a heavier, post-write step than `format-on-save` (which only
- * handles whitespace/formatting). It runs `biome check --write --unsafe`
- * (or `eslint --fix` as a fallback) on the saved file. The `--unsafe`
- * flag enables import-organization rules:
+ * handles whitespace/formatting). It runs `biome check --write` limited
+ * by `--only` to the import rules (or `eslint --fix` as a fallback) on
+ * the saved file, with `--unsafe` because removing an unused import is an
+ * unsafe fix in Biome 2. The `--only` limit matters: a bare
+ * `check --write --unsafe` also applies every other unsafe fix and changes
+ * behaviour (`x!.y` becomes `x?.y`, an unused `z` becomes `_z`). Formatting
+ * still runs. `check --only` needs Biome 2.4 or later. Import work done:
  *  - Sort imports alphabetically within import groups
  *  - Group by source (builtin, external, internal, relative)
  *  - Remove unused imports
@@ -24,8 +28,7 @@
  *    so the LLM sees that imports were reorganized.
  *
  * Linter detection is lazy: on the first hook invocation, the plugin
- * tries `biome` first (since `--unsafe` is required for import
- * organization), then falls back to `eslint --fix`. If neither
+ * tries `biome` first, then falls back to `eslint --fix`. If neither
  * succeeds, the hook logs a one-time warning and becomes a no-op for
  * the rest of the session. Linter presence is re-checked on every
  * setup() call so plugin reload can recover if a linter is installed
@@ -36,7 +39,7 @@
  * ```jsonc
  * {
  *   "enabled": true,
- *   "command": "npx @biomejs/biome check --write --unsafe",
+ *   "command": "npx @biomejs/biome check --write --only=assist/source/organizeImports --only=lint/correctness/noUnusedImports --unsafe",
  *   "fallbackCommand": "npx eslint --fix",
  *   "timeoutMs": 10000
  * }
@@ -122,7 +125,8 @@ interface ImportOrganizerConfig {
 
 const DEFAULTS: ImportOrganizerConfig = {
   enabled: true,
-  command: 'npx @biomejs/biome check --write --unsafe',
+  command:
+    'npx @biomejs/biome check --write --only=assist/source/organizeImports --only=lint/correctness/noUnusedImports --unsafe',
   fallbackCommand: 'npx eslint --fix',
   timeoutMs: 10_000,
   notifyFormatOnSave: true,
@@ -252,7 +256,7 @@ const plugin: Plugin = {
         type: 'string',
         default: DEFAULTS.command,
         description:
-          'Primary linter command. Use the `--write` (or `--fix`) flag and biome-specific `--unsafe` so import organization runs.',
+          'Primary linter command. Keep `--write` (or `--fix`). For biome, keep the `--only` import rules next to `--unsafe`: without them every unsafe fix runs and can change behaviour.',
       },
       fallbackCommand: {
         type: 'string',
@@ -333,7 +337,7 @@ const plugin: Plugin = {
       state.probeComplete = true;
 
       // Cross-plugin coordination: announce that we just ran the
-      // linter (which, for `biome check --write --unsafe` or any
+      // linter (which, for `biome check --write` or any
       // `eslint --fix`-shaped command, also applies formatting).
       // format-on-save listens for this so it can skip its own
       // `biome format --write` pass on the same file.

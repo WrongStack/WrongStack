@@ -449,12 +449,14 @@ Skips test files themselves, tool errors, and missing test files (silent).
 **Tools**: `import_organizer_status`
 **Hooks**: `PostToolUse` (matcher `write|edit`)
 
-After every `write` or `edit`, runs `biome check --write --unsafe`
-(or `eslint --fix` if biome is not installed) on the just-saved file.
-The `--unsafe` flag enables auto-organizing imports: re-sorts them
-alphabetically within import groups, merges duplicate imports from
-the same module, and removes unused ones. Other safe fixes (formatting,
-style) are applied alongside.
+After every `write` or `edit`, runs `biome check --write` limited by
+`--only` to the import rules (or `eslint --fix` if biome is not
+installed) on the just-saved file. It re-sorts imports within import
+groups, merges duplicate imports from the same module, and removes
+unused ones (`--unsafe`, since that removal is an unsafe fix in Biome 2).
+Formatting is applied alongside. Other lint fixes are not: a bare
+`check --write --unsafe` would also rewrite `x!.y` to `x?.y`, which
+changes behaviour.
 
 The hook runs **after** the tool completes (PostToolUse) and reads the
 file from disk — so `write` tool's `content` parameter and `edit` tool's
@@ -462,15 +464,18 @@ post-edit disk state are both handled correctly. If the file no longer
 exists at hook time (e.g. immediately deleted), the hook silently skips.
 
 The hook is **idempotent**: running biome twice on the same file produces
-the same result. Lint issues that biome cannot auto-fix are reported in
-`additionalContext` so the LLM knows to clean them up manually.
+the same result. Because of `--only`, other lint rules are not checked;
+import diagnostics biome cannot fix are reported in `additionalContext`.
+`check --only` needs Biome 2.4 or later. On older Biome, set `command` to
+`npx @biomejs/biome check --write --unsafe` (which applies every unsafe
+fix).
 
 ```jsonc
 {
   "extensions": {
     "import-organizer": {
       "enabled": true,
-      "command": "npx @biomejs/biome check --write --unsafe",
+      "command": "npx @biomejs/biome check --write --only=assist/source/organizeImports --only=lint/correctness/noUnusedImports --unsafe",
       "fallbackCommand": "npx eslint --fix",
       "timeoutMs": 10000
     }

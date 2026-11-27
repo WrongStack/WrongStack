@@ -1,4 +1,4 @@
-import { read, run, stringField, workflowPlugin } from '../workflow-runtime/index.js';
+import { described, read, run, stringField, workflowPlugin } from '../workflow-runtime/index.js';
 export default workflowPlugin({
   name: 'executable-documentation',
   description:
@@ -9,7 +9,9 @@ export default workflowPlugin({
       mutating: true,
       description:
         'Run only fenced blocks beginning ```js verify or ```javascript verify from the selected Markdown file (default: README.md). Executes with Node ESM in the project directory; examples should contain assertions.',
-      properties: { path: stringField },
+      properties: {
+        path: described(stringField, 'Project-relative Markdown file (default: README.md).'),
+      },
       async run(input, context) {
         const docPath = input.path ?? 'README.md';
         const source = await read(context.root, docPath);

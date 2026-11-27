@@ -1,7 +1,13 @@
 import type { Tool } from '@wrongstack/contracts/types';
 import { LSP_CONSTANTS } from '../constants.js';
 import { LSPError, LSPErrorCode } from '../types.js';
-import { requireServer, resolveInputPath, type ToolDeps, toToolError } from './shared.js';
+import {
+  LSP_PATH_FIELD,
+  requireServer,
+  resolveInputPath,
+  type ToolDeps,
+  toToolError,
+} from './shared.js';
 
 interface Input {
   path: string;
@@ -19,9 +25,16 @@ export function createExecuteCommandTool(deps: ToolDeps): Tool<Input, string> {
     inputSchema: {
       type: 'object',
       properties: {
-        path: { type: 'string' },
-        command: { type: 'string' },
-        arguments: { type: 'array', items: {} },
+        path: { ...LSP_PATH_FIELD, description: 'File used to select the language server.' },
+        command: {
+          type: 'string',
+          description: 'Command name, as returned by lsp_code_actions or documented by the server.',
+        },
+        arguments: {
+          type: 'array',
+          items: {},
+          description: 'Command arguments, passed as-is (copy them from the code action).',
+        },
       },
       required: ['path', 'command'],
     },

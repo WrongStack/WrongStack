@@ -1,4 +1,5 @@
 import {
+  described,
   json,
   rows,
   str,
@@ -17,9 +18,13 @@ export default workflowPlugin({
       description:
         'Read JSON {spans:[{id,parentId?,traceId,layer,startMs,endMs,status}]} and inspect one trace. Optional layers declares required UI/API/service/storage stages.',
       properties: {
-        path: stringField,
-        traceId: stringField,
-        layers: { type: 'array', items: stringField },
+        path: described(stringField, 'Project-relative JSON trace export with a spans array.'),
+        traceId: described(stringField, 'Trace to inspect; spans of other traces are ignored.'),
+        layers: {
+          type: 'array',
+          items: stringField,
+          description: 'Layer names that must appear in the trace, e.g. ["ui", "api", "storage"].',
+        },
       },
       required: ['path', 'traceId'],
       async run(input, context) {

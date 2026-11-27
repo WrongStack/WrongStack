@@ -22,6 +22,8 @@ export default workflowPlugin({
       properties: {
         criteria: {
           type: 'array',
+          description:
+            'Criteria {id, requirement, command?, files?}. A criterion without command stays unverified; its files are fingerprinted before and after the command.',
           minItems: 1,
           maxItems: 50,
           items: {

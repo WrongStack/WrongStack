@@ -6,6 +6,7 @@ import { LSPError, LSPErrorCode } from '../types.js';
 import { pathToUri } from '../utils/uri.js';
 import {
   createLineTextReader,
+  LSP_PATH_FIELD,
   requireServer,
   resolveInputPath,
   type ToolDeps,
@@ -25,7 +26,16 @@ export function createDiagnosticsTool(deps: ToolDeps): Tool<DiagnosticsInput, st
       'Use after reading or editing a file when an LSP server is configured. Pass `path` for file diagnostics or omit it for tracked workspace diagnostics.',
     inputSchema: {
       type: 'object',
-      properties: { path: { type: 'string' }, limit: { type: 'integer' } },
+      properties: {
+        path: {
+          ...LSP_PATH_FIELD,
+          description: 'File to check (default: every file the session has open).',
+        },
+        limit: {
+          type: 'integer',
+          description: 'Maximum diagnostics in total (default: the configured limit).',
+        },
+      },
     },
     permission: 'auto',
     mutating: false,

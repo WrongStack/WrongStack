@@ -6,6 +6,9 @@ import { supportsCompletion } from '../server/capabilities.js';
 import { LSPError, LSPErrorCode } from '../types.js';
 import { pathToUri } from '../utils/uri.js';
 import {
+  LSP_CHARACTER_FIELD,
+  LSP_LINE_FIELD,
+  LSP_PATH_FIELD,
   readDocumentContent,
   requireServer,
   resolveInputPath,
@@ -32,13 +35,30 @@ export function createCompletionTool(deps: ToolDeps): Tool<CompletionInput, stri
     inputSchema: {
       type: 'object',
       properties: {
-        path: { type: 'string' },
-        line: { type: 'integer' },
-        character: { type: 'integer' },
-        content: { type: 'string', maxLength: 500_000 },
-        limit: { type: 'integer', minimum: 1, maximum: 100 },
-        trigger_character: { type: 'string' },
-        format: { type: 'string', enum: ['text', 'json'] },
+        path: LSP_PATH_FIELD,
+        line: LSP_LINE_FIELD,
+        character: LSP_CHARACTER_FIELD,
+        content: {
+          type: 'string',
+          maxLength: 500_000,
+          description: 'Unsaved file text to complete against (default: the file on disk).',
+        },
+        limit: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 100,
+          description: 'Maximum completions returned (default 25).',
+        },
+        trigger_character: {
+          type: 'string',
+          description: 'Character that triggered completion, e.g. "." for member access.',
+        },
+        format: {
+          type: 'string',
+          enum: ['text', 'json'],
+          description:
+            'text (default) or json with label, insertText, kind, detail and documentation.',
+        },
       },
       required: ['path', 'line', 'character'],
     },

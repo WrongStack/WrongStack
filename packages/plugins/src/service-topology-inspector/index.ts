@@ -1,6 +1,6 @@
-import { rows, str, strings, workflowPlugin } from '../workflow-runtime/index.js';
 import { cycles } from '../workflow-runtime/graph.js';
 import { localRequest, localUrl } from '../workflow-runtime/http.js';
+import { rows, str, strings, workflowPlugin } from '../workflow-runtime/index.js';
 export default workflowPlugin({
   name: 'service-topology-inspector',
   description:
@@ -13,7 +13,14 @@ export default workflowPlugin({
       description:
         'Supply services [{name,url,dependsOn?}]. Probe each health URL once and return unhealthy dependencies and cycles. Does not start or stop services.',
       properties: {
-        services: { type: 'array', minItems: 1, maxItems: 50, items: { type: 'object' } },
+        services: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 50,
+          items: { type: 'object' },
+          description:
+            'Services {name, url, dependsOn?}: url is a loopback health endpoint; dependsOn lists other service names.',
+        },
       },
       required: ['services'],
       async run(input, context) {

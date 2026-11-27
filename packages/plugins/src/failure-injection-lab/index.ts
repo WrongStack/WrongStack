@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import {
   commandField,
+  described,
   integer,
   object,
   run,
@@ -19,9 +20,22 @@ export default workflowPlugin({
       description:
         'Run command with {faultUrl} in an argv element replaced by the temporary endpoint. scenario: rate-limit, malformed-json, disconnect, delay. The test must assert recovery itself.',
       properties: {
-        command: commandField,
-        scenario: { type: 'string', enum: ['rate-limit', 'malformed-json', 'disconnect', 'delay'] },
-        delayMs: { type: 'integer', minimum: 1, maximum: 10000 },
+        command: described(
+          commandField,
+          'Recovery test command. One args element must contain {faultUrl}, which is replaced with the temporary endpoint URL.',
+        ),
+        scenario: {
+          type: 'string',
+          enum: ['rate-limit', 'malformed-json', 'disconnect', 'delay'],
+          description:
+            'Fault the endpoint serves: rate-limit (HTTP 429), malformed-json, disconnect (socket closed) or delay.',
+        },
+        delayMs: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 10000,
+          description: 'Response delay for the delay scenario, in milliseconds (default 500).',
+        },
       },
       required: ['command', 'scenario'],
       async run(input, context) {

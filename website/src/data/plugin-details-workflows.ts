@@ -631,17 +631,19 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'command',
             type: 'object',
-            description: 'Required.',
+            description: 'Reproducer command, run twice; it should fail while the bug exists.',
           },
           {
             name: 'files',
             type: 'array',
-            description: 'Optional.',
+            description:
+              'Files to fingerprint before and after the run (default: the working-tree change, git diff HEAD + untracked).',
           },
           {
             name: 'expectedOutput',
             type: 'string',
-            description: 'Required.',
+            description:
+              'Literal text the failing run prints to stdout or stderr. Both runs must contain it to count as reproduced.',
           },
           {
             name: 'review',
@@ -681,17 +683,18 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'command',
             type: 'object',
-            description: 'Required.',
+            description: 'Check to run and record.',
           },
           {
             name: 'files',
             type: 'array',
-            description: 'Optional.',
+            description:
+              'Files the check depends on; a later edit to any of them invalidates the record (default: the working-tree change, git diff HEAD + untracked).',
           },
           {
             name: 'label',
             type: 'string',
-            description: 'Required.',
+            description: 'Name of the check, shown by verification_status.',
           },
         ],
       },
@@ -734,7 +737,8 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'criteria',
             type: 'array',
-            description: 'Required.',
+            description:
+              'Criteria {id, requirement, command?, files?}. A criterion without command stays unverified; its files are fingerprinted before and after the command.',
           },
         ],
       },
@@ -768,17 +772,18 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'path',
             type: 'string',
-            description: 'Required.',
+            description: 'Project-relative JSON trace export with a spans array.',
           },
           {
             name: 'traceId',
             type: 'string',
-            description: 'Required.',
+            description: 'Trace to inspect; spans of other traces are ignored.',
           },
           {
             name: 'layers',
             type: 'array',
-            description: 'Optional.',
+            description:
+              'Layer names that must appear in the trace, e.g. ["ui", "api", "storage"].',
           },
         ],
       },
@@ -812,7 +817,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'path',
             type: 'string',
-            description: 'Optional.',
+            description: 'Project-relative package.json (default: package.json).',
           },
         ],
       },
@@ -827,7 +832,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'command',
             type: 'object',
-            description: 'Required.',
+            description: 'Command to run; cwd must be inside the project.',
           },
         ],
       },
@@ -861,12 +866,14 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'files',
             type: 'array',
-            description: 'Optional.',
+            description:
+              'Project-relative files to scan (default: the project source files, up to 3000).',
           },
           {
             name: 'forbidden',
             type: 'array',
-            description: 'Required.',
+            description:
+              'Forbidden edges {from, to} as directory prefixes: an import from a file under from into a file under to is a violation.',
           },
         ],
       },
@@ -900,12 +907,14 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'manifests',
             type: 'array',
-            description: 'Optional.',
+            description:
+              'Project-relative package.json files of the workspace packages (default: every declared workspace).',
           },
           {
             name: 'changedFiles',
             type: 'array',
-            description: 'Optional.',
+            description:
+              'Changed project-relative files (default: the working-tree change, git diff HEAD + untracked).',
           },
           {
             name: 'review',
@@ -945,17 +954,17 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'path',
             type: 'string',
-            description: 'Required.',
+            description: 'Project-relative JSON config file to migrate. It is read, never written.',
           },
           {
             name: 'renames',
             type: 'array',
-            description: 'Required.',
+            description: 'Top-level key renames {from, to}. A from key that is absent is skipped.',
           },
           {
             name: 'defaults',
             type: 'object',
-            description: 'Optional.',
+            description: 'Top-level values to add where the key is still absent after the renames.',
           },
         ],
       },
@@ -989,12 +998,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'flags',
             type: 'array',
-            description: 'Required.',
+            description: 'Flags {name, expiresAt?, owner?}; expiresAt is an ISO date.',
           },
           {
             name: 'files',
             type: 'array',
-            description: 'Optional.',
+            description:
+              'Project-relative files to scan (default: the project source files, up to 3000).',
           },
         ],
       },
@@ -1028,12 +1038,14 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'action',
             type: 'string',
-            description: 'Required.',
+            description:
+              'capture records the current fingerprints; check compares the files against the last capture.',
           },
           {
             name: 'rules',
             type: 'array',
-            description: 'Required.',
+            description:
+              'Generators {id, inputs, outputs, command?}: inputs and outputs are project-relative file lists; command is recorded with the baseline, not run.',
           },
         ],
       },
@@ -1067,12 +1079,14 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'baseUrl',
             type: 'string',
-            description: 'Required.',
+            description:
+              'Loopback base URL (127.0.0.1 or [::1]) that the case paths resolve against.',
           },
           {
             name: 'cases',
             type: 'array',
-            description: 'Required.',
+            description:
+              'Up to 100 cases {path, method?, body?, expectedStatus?, expectedJson?}. method defaults to GET, expectedStatus to 200; expectedJson compares only the listed top-level keys.',
           },
         ],
       },
@@ -1106,17 +1120,18 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'seed',
             type: 'string',
-            description: 'Required.',
+            description: 'Project-relative SQL file that builds the starting schema and data.',
           },
           {
             name: 'up',
             type: 'string',
-            description: 'Required.',
+            description: 'Project-relative SQL file of the forward migration.',
           },
           {
             name: 'down',
             type: 'string',
-            description: 'Optional.',
+            description:
+              'Project-relative SQL file of the rollback. When given, the result says whether it restores the seed state.',
           },
         ],
       },
@@ -1150,17 +1165,19 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'command',
             type: 'object',
-            description: 'Required.',
+            description:
+              'Recovery test command. One args element must contain {faultUrl}, which is replaced with the temporary endpoint URL.',
           },
           {
             name: 'scenario',
             type: 'string',
-            description: 'Required.',
+            description:
+              'Fault the endpoint serves: rate-limit (HTTP 429), malformed-json, disconnect (socket closed) or delay.',
           },
           {
             name: 'delayMs',
             type: 'integer',
-            description: 'Optional.',
+            description: 'Response delay for the delay scenario, in milliseconds (default 500).',
           },
         ],
       },
@@ -1194,32 +1211,33 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'url',
             type: 'string',
-            description: 'Required.',
+            description: 'Loopback URL (127.0.0.1 or [::1]) to send the concurrent requests to.',
           },
           {
             name: 'method',
             type: 'string',
-            description: 'Optional.',
+            description: 'HTTP method (default POST).',
           },
           {
             name: 'body',
             type: 'any',
-            description: 'Optional.',
+            description: 'JSON body sent with every request (optional).',
           },
           {
             name: 'count',
             type: 'integer',
-            description: 'Required.',
+            description: 'Number of concurrent requests.',
           },
           {
             name: 'expectedSuccesses',
             type: 'integer',
-            description: 'Required.',
+            description: 'How many requests must get a 2xx status; any other count fails.',
           },
           {
             name: 'invariant',
             type: 'object',
-            description: 'Optional.',
+            description:
+              '{url, expectedJson}: a same-origin GET after the burst whose listed top-level JSON keys must match.',
           },
         ],
       },
@@ -1253,17 +1271,17 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'fixture',
             type: 'string',
-            description: 'Required.',
+            description: 'Project-relative .mjs file exporting async start() and stop(handle).',
           },
           {
             name: 'cycles',
             type: 'integer',
-            description: 'Optional.',
+            description: 'start/stop cycles to run (default 3).',
           },
           {
             name: 'settleMs',
             type: 'integer',
-            description: 'Optional.',
+            description: 'Wait after each stop before sampling, in milliseconds (default 50).',
           },
         ],
       },
@@ -1297,22 +1315,22 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'baseline',
             type: 'string',
-            description: 'Required.',
+            description: 'Project-relative baseline PNG.',
           },
           {
             name: 'current',
             type: 'string',
-            description: 'Required.',
+            description: 'Project-relative PNG compared against the baseline.',
           },
           {
             name: 'tolerance',
             type: 'integer',
-            description: 'Optional.',
+            description: 'Per-channel difference still counted as unchanged (default 0).',
           },
           {
             name: 'maxChangedPixels',
             type: 'integer',
-            description: 'Optional.',
+            description: 'Changed pixels allowed before the comparison fails (default 0).',
           },
         ],
       },
@@ -1346,22 +1364,24 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'url',
             type: 'string',
-            description: 'Required.',
+            description: 'Loopback URL (127.0.0.1 or [::1]) to open.',
           },
           {
             name: 'viewports',
             type: 'array',
-            description: 'Required.',
+            description: '1..10 sizes {width, height}, each 200..4000 px.',
           },
           {
             name: 'steps',
             type: 'array',
-            description: 'Required.',
+            description:
+              'Up to 30 steps {action: click|fill|press, selector, value?}, run before the checks.',
           },
           {
             name: 'selectors',
             type: 'array',
-            description: 'Required.',
+            description:
+              'CSS selectors checked at every viewport for visibility, reachability and horizontal overflow.',
           },
         ],
       },
@@ -1395,12 +1415,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'base',
             type: 'string',
-            description: 'Required.',
+            description: 'Project-relative JSON file of the base language.',
           },
           {
             name: 'locales',
             type: 'object',
-            description: 'Required.',
+            description:
+              'Language name to project-relative JSON file, e.g. {"de": "locales/de.json"}.',
           },
         ],
       },
@@ -1434,7 +1455,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'path',
             type: 'string',
-            description: 'Optional.',
+            description: 'Project-relative Markdown file (default: README.md).',
           },
         ],
       },
@@ -1468,17 +1489,18 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'files',
             type: 'array',
-            description: 'Required.',
+            description:
+              'Project-relative files copied to the temporary directory. Must include package.json; add the lockfile and the sources the checks need.',
           },
           {
             name: 'dependency',
             type: 'string',
-            description: 'Required.',
+            description: 'Name of a dependency already declared in package.json.',
           },
           {
             name: 'version',
             type: 'string',
-            description: 'Required.',
+            description: 'Exact semver version to install, e.g. 1.2.3.',
           },
           {
             name: 'registry',
@@ -1489,7 +1511,8 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'checks',
             type: 'array',
-            description: 'Required.',
+            description:
+              '1..20 commands {program, args?, cwd?, timeoutMs?} run in the temporary directory after the install.',
           },
         ],
       },
@@ -1523,7 +1546,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'manifest',
             type: 'string',
-            description: 'Optional.',
+            description: 'Project-relative package.json to read (default: package.json).',
           },
         ],
       },
@@ -1557,7 +1580,8 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'services',
             type: 'array',
-            description: 'Required.',
+            description:
+              'Services {name, url, dependsOn?}: url is a loopback health endpoint; dependsOn lists other service names.',
           },
         ],
       },
@@ -1591,27 +1615,29 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'journal',
             type: 'string',
-            description: 'Required.',
+            description:
+              'Project-relative JSONL file the record is appended to (created if missing).',
           },
           {
             name: 'title',
             type: 'string',
-            description: 'Required.',
+            description: 'Short decision title (max 300 characters).',
           },
           {
             name: 'rationale',
             type: 'string',
-            description: 'Required.',
+            description: 'Why the decision was made (max 10000 characters).',
           },
           {
             name: 'files',
             type: 'array',
-            description: 'Required.',
+            description:
+              'Project-relative files the decision applies to; decision_lookup matches on them.',
           },
           {
             name: 'supersedes',
             type: 'string',
-            description: 'Optional.',
+            description: 'id of an earlier decision that this one replaces.',
           },
         ],
       },
@@ -1626,12 +1652,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'journal',
             type: 'string',
-            description: 'Required.',
+            description: 'Project-relative JSONL journal written by decision_record.',
           },
           {
             name: 'files',
             type: 'array',
-            description: 'Optional.',
+            description:
+              'Files to find decisions for (default: the working-tree change, git diff HEAD + untracked).',
           },
         ],
       },
@@ -1665,7 +1692,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'path',
             type: 'string',
-            description: 'Required.',
+            description: 'Project-relative built ESM plugin file with a default export.',
           },
         ],
       },

@@ -419,7 +419,7 @@ const plugin: Plugin = {
             type: 'string',
             description: 'Optional path to write the rendered result',
           },
-          raw: { type: 'boolean', default: false },
+          raw: { type: 'boolean', default: false, description: 'Disable HTML auto-escaping' },
         },
         required: ['template_path', 'variables'],
       },

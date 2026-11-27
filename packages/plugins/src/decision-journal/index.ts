@@ -4,6 +4,7 @@ import { dirname, relative } from 'node:path';
 import { restrictFilePermissions } from '@wrongstack/core/security';
 import { filesOrChanged } from '../workflow-runtime/discover.js';
 import {
+  described,
   filesField,
   projectPath,
   read,
@@ -28,11 +29,17 @@ export default workflowPlugin({
       description:
         'Append {title,rationale,files} to an explicit project-contained JSONL journal. Each record has an id and timestamp. Does not inject decisions into prompts automatically.',
       properties: {
-        journal: stringField,
-        title: stringField,
-        rationale: stringField,
-        files: filesField,
-        supersedes: stringField,
+        journal: described(
+          stringField,
+          'Project-relative JSONL file the record is appended to (created if missing).',
+        ),
+        title: described(stringField, 'Short decision title (max 300 characters).'),
+        rationale: described(stringField, 'Why the decision was made (max 10000 characters).'),
+        files: described(
+          filesField,
+          'Project-relative files the decision applies to; decision_lookup matches on them.',
+        ),
+        supersedes: described(stringField, 'id of an earlier decision that this one replaces.'),
       },
       required: ['journal', 'title', 'rationale', 'files'],
       async run(input, context) {
@@ -68,7 +75,16 @@ export default workflowPlugin({
       name: 'decision_lookup',
       description:
         'Read a JSONL decision journal; return decisions associated with the given paths (default: the working-tree change), along with explicit supersession links.',
-      properties: { journal: stringField, files: filesField },
+      properties: {
+        journal: described(
+          stringField,
+          'Project-relative JSONL journal written by decision_record.',
+        ),
+        files: described(
+          filesField,
+          'Files to find decisions for (default: the working-tree change, git diff HEAD + untracked).',
+        ),
+      },
       required: ['journal'],
       async run(input, context) {
         const scope = await filesOrChanged(input.files, context, 'decision_lookup');

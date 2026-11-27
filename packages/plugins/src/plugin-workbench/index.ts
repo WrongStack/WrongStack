@@ -1,5 +1,6 @@
 import { pathToFileURL } from 'node:url';
 import {
+  described,
   parseJsonReport,
   projectPath,
   run,
@@ -16,7 +17,12 @@ export default workflowPlugin({
       mutating: true,
       description:
         'Load a local built ESM plugin with a default export into a mocked host. Setup twice then teardown, report duplicate registrations and remaining hooks. Plugin code executes with user permissions; this is not an OS sandbox.',
-      properties: { path: stringField },
+      properties: {
+        path: described(
+          stringField,
+          'Project-relative built ESM plugin file with a default export.',
+        ),
+      },
       required: ['path'],
       async run(input, context) {
         const url = pathToFileURL(projectPath(context.root, input.path)).href;

@@ -1,6 +1,13 @@
 import { open } from 'node:fs/promises';
-import { integer, projectPath, stringField, workflowPlugin } from '../workflow-runtime/index.js';
+import {
+  described,
+  integer,
+  projectPath,
+  stringField,
+  workflowPlugin,
+} from '../workflow-runtime/index.js';
 import { decodePng } from '../workflow-runtime/png.js';
+
 async function png(root: string, path: unknown) {
   const file = await open(projectPath(root, path), 'r');
   try {
@@ -21,10 +28,19 @@ export default workflowPlugin({
       description:
         'Compare baseline and current 8-bit RGB/RGBA PNGs. tolerance is per-channel 0..255; maxChangedPixels is the allowed pixel count. Size changes always fail.',
       properties: {
-        baseline: stringField,
-        current: stringField,
-        tolerance: { type: 'integer', minimum: 0, maximum: 255 },
-        maxChangedPixels: { type: 'integer', minimum: 0 },
+        baseline: described(stringField, 'Project-relative baseline PNG.'),
+        current: described(stringField, 'Project-relative PNG compared against the baseline.'),
+        tolerance: {
+          type: 'integer',
+          minimum: 0,
+          maximum: 255,
+          description: 'Per-channel difference still counted as unchanged (default 0).',
+        },
+        maxChangedPixels: {
+          type: 'integer',
+          minimum: 0,
+          description: 'Changed pixels allowed before the comparison fails (default 0).',
+        },
       },
       required: ['baseline', 'current'],
       async run(input, context) {

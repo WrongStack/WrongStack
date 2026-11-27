@@ -4,7 +4,13 @@ import { LSP_CONSTANTS } from '../constants.js';
 import { supportsDocumentSymbol } from '../server/capabilities.js';
 import { LSPError, LSPErrorCode } from '../types.js';
 import { pathToUri } from '../utils/uri.js';
-import { requireServer, resolveInputPath, type ToolDeps, toToolError } from './shared.js';
+import {
+  LSP_PATH_FIELD,
+  requireServer,
+  resolveInputPath,
+  type ToolDeps,
+  toToolError,
+} from './shared.js';
 
 interface Input {
   path: string;
@@ -17,7 +23,7 @@ export function createSymbolsTool(deps: ToolDeps): Tool<Input, string> {
     description: 'List the semantic symbol tree of a source file.',
     usageHint:
       'Use to understand classes, functions, methods, and nesting in one file without reading the entire file.',
-    inputSchema: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] },
+    inputSchema: { type: 'object', properties: { path: LSP_PATH_FIELD }, required: ['path'] },
     permission: 'auto',
     mutating: false,
     timeoutMs: LSP_CONSTANTS.TOOL_TIMEOUT_MS,

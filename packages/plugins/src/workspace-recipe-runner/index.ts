@@ -1,6 +1,7 @@
 import { dirname, relative } from 'node:path';
 import {
   commandField,
+  described,
   json,
   object,
   projectPath,
@@ -18,7 +19,9 @@ export default workflowPlugin({
       name: 'workspace_recipes',
       description:
         'Read a package.json (default: the project root package.json) and list its scripts, working directory, declared package manager, engines and required workspace dependency builds.',
-      properties: { path: stringField },
+      properties: {
+        path: described(stringField, 'Project-relative package.json (default: package.json).'),
+      },
       async run(input, context) {
         const path = input.path ?? 'package.json';
         const manifest = await json(context.root, path);
@@ -55,7 +58,9 @@ export default workflowPlugin({
       mutating: true,
       description:
         'Execute a reviewed structured recipe with project-contained cwd, cancellation and timeout.',
-      properties: { command: commandField },
+      properties: {
+        command: described(commandField, 'Command to run; cwd must be inside the project.'),
+      },
       required: ['command'],
       async run(input, context) {
         return run(input.command, context);

@@ -16,8 +16,18 @@ export default workflowPlugin({
       description:
         'action=capture records a caller-approved source/output baseline in this host session. action=check compares it. rules: [{id,inputs,outputs,command}]. Capture does not prove a generator was run.',
       properties: {
-        action: { type: 'string', enum: ['capture', 'check'] },
-        rules: { type: 'array', items: { type: 'object' } },
+        action: {
+          type: 'string',
+          enum: ['capture', 'check'],
+          description:
+            'capture records the current fingerprints; check compares the files against the last capture.',
+        },
+        rules: {
+          type: 'array',
+          items: { type: 'object' },
+          description:
+            'Generators {id, inputs, outputs, command?}: inputs and outputs are project-relative file lists; command is recorded with the baseline, not run.',
+        },
       },
       required: ['action', 'rules'],
       async run(input, context) {

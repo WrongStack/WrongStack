@@ -1,5 +1,6 @@
 import { pathToFileURL } from 'node:url';
 import {
+  described,
   integer,
   parseJsonReport,
   projectPath,
@@ -19,9 +20,22 @@ export default workflowPlugin({
       description:
         'Import a local .mjs fixture exporting async start() and stop(handle). Runs cycles and reports retained observable resources after settling; fixture code executes with your user permissions.',
       properties: {
-        fixture: stringField,
-        cycles: { type: 'integer', minimum: 1, maximum: 50 },
-        settleMs: { type: 'integer', minimum: 1, maximum: 2000 },
+        fixture: described(
+          stringField,
+          'Project-relative .mjs file exporting async start() and stop(handle).',
+        ),
+        cycles: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 50,
+          description: 'start/stop cycles to run (default 3).',
+        },
+        settleMs: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 2000,
+          description: 'Wait after each stop before sampling, in milliseconds (default 50).',
+        },
       },
       required: ['fixture'],
       async run(input, context) {

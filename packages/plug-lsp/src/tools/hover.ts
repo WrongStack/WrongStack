@@ -6,6 +6,9 @@ import { supportsHover } from '../server/capabilities.js';
 import { LSPError, LSPErrorCode } from '../types.js';
 import { pathToUri } from '../utils/uri.js';
 import {
+  LSP_CHARACTER_FIELD,
+  LSP_LINE_FIELD,
+  LSP_PATH_FIELD,
   readDocumentContent,
   requireServer,
   resolveInputPath,
@@ -29,9 +32,9 @@ export function createHoverTool(deps: ToolDeps): Tool<Input, string> {
     inputSchema: {
       type: 'object',
       properties: {
-        path: { type: 'string' },
-        line: { type: 'integer' },
-        character: { type: 'integer' },
+        path: LSP_PATH_FIELD,
+        line: LSP_LINE_FIELD,
+        character: LSP_CHARACTER_FIELD,
       },
       required: ['path', 'line', 'character'],
     },

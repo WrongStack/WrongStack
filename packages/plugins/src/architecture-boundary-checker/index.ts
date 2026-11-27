@@ -1,6 +1,6 @@
 import { filesOrSources } from '../workflow-runtime/discover.js';
 import { cycles, importGraph } from '../workflow-runtime/graph.js';
-import { filesField, rows, str, workflowPlugin } from '../workflow-runtime/index.js';
+import { described, filesField, rows, str, workflowPlugin } from '../workflow-runtime/index.js';
 export default workflowPlugin({
   name: 'architecture-boundary-checker',
   description:
@@ -11,9 +11,14 @@ export default workflowPlugin({
       description:
         'Inspect imports in the supplied files (default: the project source files, up to 3000). forbidden contains {from,to} directory prefixes; unresolved external/alias imports remain visible.',
       properties: {
-        files: filesField,
+        files: described(
+          filesField,
+          'Project-relative files to scan (default: the project source files, up to 3000).',
+        ),
         forbidden: {
           type: 'array',
+          description:
+            'Forbidden edges {from, to} as directory prefixes: an import from a file under from into a file under to is a violation.',
           items: {
             type: 'object',
             required: ['from', 'to'],

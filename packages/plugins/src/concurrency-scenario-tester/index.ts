@@ -1,6 +1,13 @@
 import { isDeepStrictEqual } from 'node:util';
 import { localRequest, localUrl } from '../workflow-runtime/http.js';
-import { integer, object, str, stringField, workflowPlugin } from '../workflow-runtime/index.js';
+import {
+  described,
+  integer,
+  object,
+  str,
+  stringField,
+  workflowPlugin,
+} from '../workflow-runtime/index.js';
 export default workflowPlugin({
   name: 'concurrency-scenario-tester',
   description:
@@ -13,12 +20,29 @@ export default workflowPlugin({
       description:
         'Send count identical requests concurrently. expectedSuccesses is required; optional invariant {url,expectedJson} checks final state. Use only a disposable local test service.',
       properties: {
-        url: stringField,
-        method: stringField,
-        body: {},
-        count: { type: 'integer', minimum: 2, maximum: 32 },
-        expectedSuccesses: { type: 'integer', minimum: 0, maximum: 32 },
-        invariant: { type: 'object' },
+        url: described(
+          stringField,
+          'Loopback URL (127.0.0.1 or [::1]) to send the concurrent requests to.',
+        ),
+        method: described(stringField, 'HTTP method (default POST).'),
+        body: { description: 'JSON body sent with every request (optional).' },
+        count: {
+          type: 'integer',
+          minimum: 2,
+          maximum: 32,
+          description: 'Number of concurrent requests.',
+        },
+        expectedSuccesses: {
+          type: 'integer',
+          minimum: 0,
+          maximum: 32,
+          description: 'How many requests must get a 2xx status; any other count fails.',
+        },
+        invariant: {
+          type: 'object',
+          description:
+            '{url, expectedJson}: a same-origin GET after the burst whose listed top-level JSON keys must match.',
+        },
       },
       required: ['url', 'count', 'expectedSuccesses'],
       async run(input, context) {

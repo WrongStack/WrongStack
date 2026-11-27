@@ -2,6 +2,7 @@ import { copyFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import {
+  described,
   filesField,
   json,
   object,
@@ -24,15 +25,26 @@ export default workflowPlugin({
       description:
         'For standalone npm packages: copy files (must include package.json), update dependency to an exact version, npm install --ignore-scripts, then run checks. Original files stay unchanged; temporary files are removed afterward. This is directory isolation, not an OS security sandbox.',
       properties: {
-        files: filesField,
-        dependency: stringField,
-        version: stringField,
+        files: described(
+          filesField,
+          'Project-relative files copied to the temporary directory. Must include package.json; add the lockfile and the sources the checks need.',
+        ),
+        dependency: described(
+          stringField,
+          'Name of a dependency already declared in package.json.',
+        ),
+        version: described(stringField, 'Exact semver version to install, e.g. 1.2.3.'),
         registry: {
           type: 'string',
           description:
             'Optional HTTP(S) npm registry without embedded credentials; useful for private/offline test registries.',
         },
-        checks: { type: 'array', items: { type: 'object' } },
+        checks: {
+          type: 'array',
+          items: { type: 'object' },
+          description:
+            '1..20 commands {program, args?, cwd?, timeoutMs?} run in the temporary directory after the install.',
+        },
       },
       required: ['files', 'dependency', 'version', 'checks'],
       async run(input, context) {

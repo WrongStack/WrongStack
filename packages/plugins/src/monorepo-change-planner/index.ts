@@ -2,7 +2,14 @@ import { dirname } from 'node:path';
 import { advice, reviewField } from '../workflow-runtime/advice.js';
 import { filesOrChanged, workspaceManifests } from '../workflow-runtime/discover.js';
 import { cycles } from '../workflow-runtime/graph.js';
-import { filesField, json, object, strings, workflowPlugin } from '../workflow-runtime/index.js';
+import {
+  described,
+  filesField,
+  json,
+  object,
+  strings,
+  workflowPlugin,
+} from '../workflow-runtime/index.js';
 
 export default workflowPlugin({
   name: 'monorepo-change-planner',
@@ -13,7 +20,17 @@ export default workflowPlugin({
       name: 'monorepo_change_plan',
       description:
         'Plan validation for a change. manifests defaults to every declared workspace package.json, changedFiles to the working-tree change (git diff HEAD + untracked). Returns impacted packages, dependency-first build/test recipes, cycles and changes outside any package.',
-      properties: { manifests: filesField, changedFiles: filesField, review: reviewField },
+      properties: {
+        manifests: described(
+          filesField,
+          'Project-relative package.json files of the workspace packages (default: every declared workspace).',
+        ),
+        changedFiles: described(
+          filesField,
+          'Changed project-relative files (default: the working-tree change, git diff HEAD + untracked).',
+        ),
+        review: reviewField,
+      },
       async run(input, context) {
         const manifests =
           input.manifests === undefined

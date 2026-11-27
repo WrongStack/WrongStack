@@ -2,6 +2,7 @@ import { advice, reviewField } from '../workflow-runtime/advice.js';
 import { filesOrChanged } from '../workflow-runtime/discover.js';
 import {
   commandField,
+  described,
   digest,
   filesField,
   fingerprints,
@@ -23,9 +24,18 @@ export default workflowPlugin({
       description:
         'Run an explicit regression command twice. expectedOutput is a literal failure marker required to attribute the failure to the reported bug. files defaults to the working-tree change (git diff HEAD + untracked). Returns a portable Node test recipe and file fingerprints.',
       properties: {
-        command: commandField,
-        files: filesField,
-        expectedOutput: stringField,
+        command: described(
+          commandField,
+          'Reproducer command, run twice; it should fail while the bug exists.',
+        ),
+        files: described(
+          filesField,
+          'Files to fingerprint before and after the run (default: the working-tree change, git diff HEAD + untracked).',
+        ),
+        expectedOutput: described(
+          stringField,
+          'Literal text the failing run prints to stdout or stderr. Both runs must contain it to count as reproduced.',
+        ),
         review: reviewField,
       },
       required: ['command', 'expectedOutput'],

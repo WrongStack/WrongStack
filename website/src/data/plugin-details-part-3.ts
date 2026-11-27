@@ -193,7 +193,7 @@ export const pluginDetailsPart3: Record<string, PluginDetail> = {
   'import-organizer': {
     version: '0.1.0',
     longDescription:
-      'Runs biome check --write --unsafe (falling back to eslint --fix) on each file just written or edited: re-sorts imports within groups, merges duplicates, and removes unused ones alongside other safe fixes. The hook is idempotent and reports remaining unfixable lint issues as context. The --unsafe flag can affect edge-case runtime behavior; adjust the command to drop it for safe-only fixes.',
+      'Runs biome check --write limited by --only to the import rules (falling back to eslint --fix) on each file just written or edited: re-sorts imports within groups, merges duplicates and removes unused ones, and formats the file. --unsafe is kept because removing an unused import is an unsafe fix in Biome 2; the --only limit keeps every other unsafe fix (such as x!.y becoming x?.y) from running. Other lint rules are not checked. Needs Biome 2.4 or later (check --only); on older Biome set command to biome check --write --unsafe.',
     tools: [
       {
         name: 'import_organizer_status',
@@ -214,9 +214,10 @@ export const pluginDetailsPart3: Record<string, PluginDetail> = {
       {
         name: 'command',
         type: 'string',
-        defaultValue: '"npx @biomejs/biome check --write --unsafe"',
+        defaultValue:
+          '"npx @biomejs/biome check --write --only=assist/source/organizeImports --only=lint/correctness/noUnusedImports --unsafe"',
         description:
-          'Primary linter command. Use the `--write` (or `--fix`) flag and biome-specific `--unsafe` so import organization runs.',
+          'Primary linter command. Keep `--write` (or `--fix`). For biome, keep the `--only` import rules next to `--unsafe`: without them every unsafe fix runs and can change behaviour.',
       },
       {
         name: 'fallbackCommand',

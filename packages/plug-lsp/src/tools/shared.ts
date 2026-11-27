@@ -26,6 +26,17 @@ export interface ToolDeps {
  * No project-root containment: LSP legitimately navigates outside the session
  * cwd (dependency sources, SDK/stdlib files a definition jumps into).
  */
+/** Schema fields shared by the LSP tools. */
+export const LSP_PATH_FIELD = {
+  type: 'string',
+  description: 'File path, absolute or relative to the working directory.',
+} as const;
+export const LSP_LINE_FIELD = { type: 'integer', description: '1-based line.' } as const;
+export const LSP_CHARACTER_FIELD = {
+  type: 'integer',
+  description: '1-based column counted in UTF-8 bytes (the character column on an ASCII line).',
+} as const;
+
 export function resolveInputPath(inputPath: string, ctx: { cwd: string }): string {
   return path.isAbsolute(inputPath) ? path.normalize(inputPath) : path.resolve(ctx.cwd, inputPath);
 }

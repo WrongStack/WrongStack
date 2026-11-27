@@ -1,4 +1,12 @@
-import { json, object, str, stringField, workflowPlugin } from '../workflow-runtime/index.js';
+import {
+  described,
+  json,
+  object,
+  str,
+  stringField,
+  workflowPlugin,
+} from '../workflow-runtime/index.js';
+
 function flatten(value: Record<string, unknown>, prefix = '', depth = 0): Record<string, string> {
   if (depth > 30) throw new Error('Locale nesting exceeds 30');
   const result: Record<string, string> = Object.create(null);
@@ -26,8 +34,13 @@ export default workflowPlugin({
       description:
         'Compare base JSON locale with locales mapping language names to project file paths. Checks missing/extra keys, empty strings and placeholder sets; does not parse full ICU grammar.',
       properties: {
-        base: stringField,
-        locales: { type: 'object', additionalProperties: stringField },
+        base: described(stringField, 'Project-relative JSON file of the base language.'),
+        locales: {
+          type: 'object',
+          additionalProperties: stringField,
+          description:
+            'Language name to project-relative JSON file, e.g. {"de": "locales/de.json"}.',
+        },
       },
       required: ['base', 'locales'],
       async run(input, context) {

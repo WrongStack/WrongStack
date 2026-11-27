@@ -139,7 +139,7 @@ fire on `write|edit` either *before* (block / warn) or *after*
 | `shell-check` | on demand | `shellcheck` over files OR directories | — |
 | `lint-gate` | `PreToolUse` `write\|edit` | biome / eslint on would-be content | `block` / `warn` / `fix` |
 | `format-on-save` | `PostToolUse` `write\|edit` | `biome format --write` on disk | — |
-| `import-organizer` | `PostToolUse` `write\|edit` | `biome check --write --unsafe` (sort, group, remove unused) | — |
+| `import-organizer` | `PostToolUse` `write\|edit` | `biome check --write`, import rules only (sort, group, remove unused) | — |
 | `commit-validator` | `PreToolUse` `bash\|git_autocommit` | conventional-commit format gate | `block` / `warn` |
 | `test-runner-gate` | `PostToolUse` `write\|edit` | runs the matching test file | `block` / `injectOnPass` |
 | `spec-linker` | `PostToolUse` `write\|edit` + `PreToolUse` `write` (when `autoFix: true`) | surfaces unlinked plugin references in markdown files (read-only by default; opt-in auto-link via PreToolUse) | `enabled` / `fileGlobs` / `maxReferences` / `autoFix` |
@@ -263,7 +263,7 @@ noticeable per-tool overhead.
 | `*` | `notify-hub` | Optional webhook forward on tool errors / budget thresholds |
 | `write\|edit` | `diff-summary` | Injects compact git diff into context |
 | `write\|edit` | `format-on-save` | `biome format --write` on the file |
-| `write\|edit` | `import-organizer` | `biome check --write --unsafe` (sort, group, remove unused) |
+| `write\|edit` | `import-organizer` | `biome check --write`, import rules only (sort, group, remove unused) |
 | `write\|edit` | `test-runner-gate` | Runs the relevant test file |
 | `write\|edit` | `spec-linker` | Surfaces unlinked plugin references in markdown files |
 | `write\|edit` | `config-validator` | Validates JSON/JSONC/YAML/TOML/.env files in the same turn |

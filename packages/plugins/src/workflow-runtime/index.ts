@@ -29,6 +29,7 @@ export interface WorkflowSpec {
 export const stringField = { type: 'string', minLength: 1 } as const;
 export const filesField = {
   type: 'array',
+  description: 'Project-relative file paths.',
   items: stringField,
   minItems: 1,
   maxItems: 2000,
@@ -37,13 +38,30 @@ export const commandField: JSONSchema = {
   type: 'object',
   required: ['program'],
   additionalProperties: false,
+  description: 'Command {program, args?, cwd?, timeoutMs?}, run without a shell.',
   properties: {
-    program: stringField,
-    args: { type: 'array', items: { type: 'string' } },
-    cwd: stringField,
-    timeoutMs: { type: 'integer', minimum: 1, maximum: 300000 },
+    program: { ...stringField, description: 'Executable to run (no shell).' },
+    args: { type: 'array', items: { type: 'string' }, description: 'Arguments, passed as-is.' },
+    cwd: {
+      ...stringField,
+      description: 'Project-relative working directory (default: project root).',
+    },
+    timeoutMs: {
+      type: 'integer',
+      minimum: 1,
+      maximum: 300000,
+      description: 'Timeout in milliseconds (default 60000).',
+    },
   },
 };
+
+/** A shared field with a description of what it holds for one tool. */
+export function described<T extends object>(
+  field: T,
+  description: string,
+): T & { description: string } {
+  return { ...field, description };
+}
 
 export function object(value: unknown): Data {
   if (!value || typeof value !== 'object' || Array.isArray(value))

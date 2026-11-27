@@ -494,7 +494,7 @@ const plugin: Plugin = {
 
       // Cross-plugin coordination: skip if import-organizer already
       // touched this path within the TTL window. import-organizer's
-      // `biome check --write --unsafe` runs the full formatter as a
+      // `biome check --write` runs the full formatter as a
       // side-effect, so re-running `biome format --write` here is
       // redundant. Eviction is lazy — happens once per invocation —
       // so the cache never grows unbounded.

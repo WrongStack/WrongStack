@@ -7,6 +7,9 @@ import { LSPError, LSPErrorCode } from '../types.js';
 import { pathToUri } from '../utils/uri.js';
 import {
   createLineTextReader,
+  LSP_CHARACTER_FIELD,
+  LSP_LINE_FIELD,
+  LSP_PATH_FIELD,
   readDocumentContent,
   requireServer,
   resolveInputPath,
@@ -29,9 +32,9 @@ export function createDefinitionTool(deps: ToolDeps): Tool<PositionInput, string
     inputSchema: {
       type: 'object',
       properties: {
-        path: { type: 'string' },
-        line: { type: 'integer' },
-        character: { type: 'integer' },
+        path: LSP_PATH_FIELD,
+        line: LSP_LINE_FIELD,
+        character: LSP_CHARACTER_FIELD,
       },
       required: ['path', 'line', 'character'],
     },

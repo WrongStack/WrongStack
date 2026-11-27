@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T12:33:56.258Z",
+  "generatedAt": "2026-11-27T14:14:09.009Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6623,
-    "testFiles": 6556,
-    "sourceLines": 1359140,
+    "testFiles": 6557,
+    "sourceLines": 1359514,
     "workspaceEdges": 267,
     "moduleEdges": 19436,
     "nonCommandSlashImports": 0,
@@ -741,7 +741,7 @@
       "name": "@wrongstack/plugins",
       "dir": "packages/plugins",
       "sourceFiles": 170,
-      "testFiles": 173,
+      "testFiles": 174,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -759,7 +759,7 @@
         {
           "path": "packages/plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 173
+          "testFiles": 174
         }
       ]
     },
@@ -22237,6 +22237,12 @@
       },
       {
         "file": "packages/plugins/tests/handles.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugins/tests/import-organizer-default-command.test.ts",
         "projects": [
           "root-node"
         ]

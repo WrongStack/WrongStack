@@ -1,5 +1,6 @@
 import { localUrl } from '../workflow-runtime/http.js';
 import {
+  described,
   integer,
   parseJsonReport,
   rows,
@@ -20,10 +21,24 @@ export default workflowPlugin({
       description:
         'Requires locally installed playwright and Chromium. Navigate a loopback URL, run steps [{action:click|fill|press,selector,value?}], then check selectors at every viewport [{width,height}].',
       properties: {
-        url: stringField,
-        viewports: { type: 'array', items: { type: 'object' } },
-        steps: { type: 'array', items: { type: 'object' } },
-        selectors: { type: 'array', items: stringField },
+        url: described(stringField, 'Loopback URL (127.0.0.1 or [::1]) to open.'),
+        viewports: {
+          type: 'array',
+          items: { type: 'object' },
+          description: '1..10 sizes {width, height}, each 200..4000 px.',
+        },
+        steps: {
+          type: 'array',
+          items: { type: 'object' },
+          description:
+            'Up to 30 steps {action: click|fill|press, selector, value?}, run before the checks.',
+        },
+        selectors: {
+          type: 'array',
+          items: stringField,
+          description:
+            'CSS selectors checked at every viewport for visibility, reachability and horizontal overflow.',
+        },
       },
       required: ['url', 'viewports', 'steps', 'selectors'],
       async run(input, context) {

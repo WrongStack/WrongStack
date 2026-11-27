@@ -6,6 +6,9 @@ import { supportsCodeAction } from '../server/capabilities.js';
 import { LSPError, LSPErrorCode } from '../types.js';
 import { pathToUri } from '../utils/uri.js';
 import {
+  LSP_CHARACTER_FIELD,
+  LSP_LINE_FIELD,
+  LSP_PATH_FIELD,
   readDocumentContent,
   requireServer,
   resolveInputPath,
@@ -29,9 +32,12 @@ export function createCodeActionsTool(deps: ToolDeps): Tool<Input, string> {
     inputSchema: {
       type: 'object',
       properties: {
-        path: { type: 'string' },
-        line: { type: 'integer' },
-        character: { type: 'integer' },
+        path: LSP_PATH_FIELD,
+        line: { ...LSP_LINE_FIELD, description: '1-based line of the cursor (default 1).' },
+        character: {
+          ...LSP_CHARACTER_FIELD,
+          description: '1-based column of the cursor, counted in UTF-8 bytes (default 1).',
+        },
       },
       required: ['path'],
     },

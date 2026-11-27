@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from 'node:util';
 import { localRequest, localUrl } from '../workflow-runtime/http.js';
 import {
+  described,
   integer,
   object,
   rows,
@@ -20,8 +21,18 @@ export default workflowPlugin({
       description:
         'Replay cases [{path,method?,body?,expectedStatus,expectedJson?}] against baseUrl on 127.0.0.1/[::1]. Mutating methods require the normal tool approval.',
       properties: {
-        baseUrl: stringField,
-        cases: { type: 'array', minItems: 1, maxItems: 100, items: { type: 'object' } },
+        baseUrl: described(
+          stringField,
+          'Loopback base URL (127.0.0.1 or [::1]) that the case paths resolve against.',
+        ),
+        cases: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 100,
+          items: { type: 'object' },
+          description:
+            'Up to 100 cases {path, method?, body?, expectedStatus?, expectedJson?}. method defaults to GET, expectedStatus to 200; expectedJson compares only the listed top-level keys.',
+        },
       },
       required: ['baseUrl', 'cases'],
       async run(input, context) {

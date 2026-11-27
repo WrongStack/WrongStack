@@ -1,4 +1,12 @@
-import { json, object, rows, str, stringField, workflowPlugin } from '../workflow-runtime/index.js';
+import {
+  described,
+  json,
+  object,
+  rows,
+  str,
+  stringField,
+  workflowPlugin,
+} from '../workflow-runtime/index.js';
 export default workflowPlugin({
   name: 'config-migration-assistant',
   description:
@@ -9,16 +17,23 @@ export default workflowPlugin({
       description:
         'Return migrated JSON without writing. renames is [{from,to}] for top-level keys; defaults fill only absent keys. Conflicting destinations reject the migration.',
       properties: {
-        path: stringField,
+        path: described(
+          stringField,
+          'Project-relative JSON config file to migrate. It is read, never written.',
+        ),
         renames: {
           type: 'array',
+          description: 'Top-level key renames {from, to}. A from key that is absent is skipped.',
           items: {
             type: 'object',
             required: ['from', 'to'],
             properties: { from: stringField, to: stringField },
           },
         },
-        defaults: { type: 'object' },
+        defaults: {
+          type: 'object',
+          description: 'Top-level values to add where the key is still absent after the renames.',
+        },
       },
       required: ['path', 'renames'],
       async run(input, context) {

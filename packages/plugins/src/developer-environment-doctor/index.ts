@@ -1,6 +1,6 @@
 import { access } from 'node:fs/promises';
 import { join } from 'node:path';
-import { json, run, stringField, workflowPlugin } from '../workflow-runtime/index.js';
+import { described, json, run, stringField, workflowPlugin } from '../workflow-runtime/index.js';
 export default workflowPlugin({
   name: 'developer-environment-doctor',
   description:
@@ -11,7 +11,12 @@ export default workflowPlugin({
       mutating: true,
       description:
         'Probe Node and the declared npm/pnpm/yarn/bun launcher with --version; compare exact packageManager pin and detect a missing node_modules. Engine ranges are reported, not guessed. manifest defaults to the project root package.json.',
-      properties: { manifest: stringField },
+      properties: {
+        manifest: described(
+          stringField,
+          'Project-relative package.json to read (default: package.json).',
+        ),
+      },
       async run(input, context) {
         const manifest = await json(context.root, input.manifest ?? 'package.json');
         const declaration =

@@ -1,5 +1,12 @@
 import { filesOrSources } from '../workflow-runtime/discover.js';
-import { filesField, read, rows, str, workflowPlugin } from '../workflow-runtime/index.js';
+import {
+  described,
+  filesField,
+  read,
+  rows,
+  str,
+  workflowPlugin,
+} from '../workflow-runtime/index.js';
 export default workflowPlugin({
   name: 'feature-flag-lifecycle',
   description:
@@ -12,6 +19,7 @@ export default workflowPlugin({
       properties: {
         flags: {
           type: 'array',
+          description: 'Flags {name, expiresAt?, owner?}; expiresAt is an ISO date.',
           items: {
             type: 'object',
             required: ['name'],
@@ -22,7 +30,10 @@ export default workflowPlugin({
             },
           },
         },
-        files: filesField,
+        files: described(
+          filesField,
+          'Project-relative files to scan (default: the project source files, up to 3000).',
+        ),
       },
       required: ['flags'],
       async run(input, context) {
