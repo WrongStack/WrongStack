@@ -321,6 +321,14 @@ export class PhaseOrchestrator {
 
     // Allocate an isolated git worktree for this phase, if a manager is wired.
     if (!(await acquirePhaseWorktree(this.integrationCtx(), phase))) return;
+    if (this.stopped) {
+      const lateHandle = this.phaseWorktrees.get(phase.id);
+      if (lateHandle) {
+        this.phaseWorktrees.delete(phase.id);
+        await this.worktrees?.release(lateHandle, { keep: true }).catch(() => {});
+      }
+      return;
+    }
 
     this.emit('phase.started', {
       phaseId: phase.id,

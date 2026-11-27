@@ -81,6 +81,7 @@ export class ConsensusProtocol {
   private readonly fleet?: FleetBus | undefined;
   private readonly rules: QuorumRule;
   private readonly voters: Map<string, VoterConfig>; // agentId → config
+  private readonly changeQueues = new Map<string, Promise<void>>();
 
   constructor(opts: ConsensusOptions) {
     this.graph = opts.graph;
@@ -94,6 +95,22 @@ export class ConsensusProtocol {
     };
   }
 
+  private withChangeLock<T>(changeId: string, fn: () => Promise<T>): Promise<T> {
+    const prev = this.changeQueues.get(changeId) ?? Promise.resolve();
+    const run = prev.then(fn, fn);
+    const tail = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.changeQueues.set(changeId, tail);
+    void tail.finally(() => {
+      if (this.changeQueues.get(changeId) === tail) {
+        this.changeQueues.delete(changeId);
+      }
+    });
+    return run;
+  }
+
   // ── Vote lifecycle ────────────────────────────────────────────────────
 
   /**
@@ -101,18 +118,20 @@ export class ConsensusProtocol {
    * to 'proposed' and notifies eligible voters via FleetBus.
    */
   async initiateVote(changeId: string): Promise<void> {
-    const change = this.graph.get(changeId) as ChangeNode | undefined;
-    if (change?.type !== 'change') {
-      throw new Error(`ConsensusProtocol: no change found with id "${changeId}"`);
-    }
-    if (change.status === 'approved' || change.status === 'rejected') {
-      throw new Error(
-        `ConsensusProtocol: cannot initiate vote on already resolved change "${changeId}" (status: "${change.status}")`,
-      );
-    }
-    await this.graph.update(changeId, { status: 'proposed', votes: [] });
-    const eligible = this._eligibleVoters(change);
-    this._notifyVoters(change, eligible, 'vote_initiated');
+    return this.withChangeLock(changeId, async () => {
+      const change = this.graph.get(changeId) as ChangeNode | undefined;
+      if (change?.type !== 'change') {
+        throw new Error(`ConsensusProtocol: no change found with id "${changeId}"`);
+      }
+      if (change.status === 'approved' || change.status === 'rejected') {
+        throw new Error(
+          `ConsensusProtocol: cannot initiate vote on already resolved change "${changeId}" (status: "${change.status}")`,
+        );
+      }
+      await this.graph.update(changeId, { status: 'proposed', votes: [] });
+      const eligible = this._eligibleVoters(change);
+      this._notifyVoters(change, eligible, 'vote_initiated');
+    });
   }
 
   /**
@@ -125,52 +144,54 @@ export class ConsensusProtocol {
     value: VoteValue,
     rationale?: string,
   ): Promise<ConsensusResult> {
-    const change = this.graph.get(changeId) as ChangeNode | undefined;
-    if (change?.type !== 'change') {
-      throw new Error(`ConsensusProtocol: no change found for "${changeId}"`);
-    }
+    return this.withChangeLock(changeId, async () => {
+      const change = this.graph.get(changeId) as ChangeNode | undefined;
+      if (change?.type !== 'change') {
+        throw new Error(`ConsensusProtocol: no change found for "${changeId}"`);
+      }
 
-    if (change.status !== 'proposed') {
-      throw new Error(
-        `ConsensusProtocol: cannot cast vote on change "${changeId}" with status "${change.status}" (ballot is closed)`,
-      );
-    }
+      if (change.status !== 'proposed') {
+        throw new Error(
+          `ConsensusProtocol: cannot cast vote on change "${changeId}" with status "${change.status}" (ballot is closed)`,
+        );
+      }
 
-    const voter = this.voters.get(voterId);
-    if (!voter) {
-      throw new Error(`ConsensusProtocol: unknown voter "${voterId}"`);
-    }
+      const voter = this.voters.get(voterId);
+      if (!voter) {
+        throw new Error(`ConsensusProtocol: unknown voter "${voterId}"`);
+      }
 
-    const eligible = this._eligibleVoters(change);
-    if (!eligible.includes(voterId)) {
-      throw new Error(`ConsensusProtocol: voter "${voterId}" is not eligible for this vote`);
-    }
+      const eligible = this._eligibleVoters(change);
+      if (!eligible.includes(voterId)) {
+        throw new Error(`ConsensusProtocol: voter "${voterId}" is not eligible for this vote`);
+      }
 
-    const vote: VoteRecord = {
-      agentId: voterId,
-      agentName: voter.agentName,
-      value,
-      rationale,
-      votedAt: new Date().toISOString(),
-    };
+      const vote: VoteRecord = {
+        agentId: voterId,
+        agentName: voter.agentName,
+        value,
+        rationale,
+        votedAt: new Date().toISOString(),
+      };
 
-    // Update change node with new vote
-    const existingIdx = change.votes.findIndex((v) => v.agentId === voterId);
-    const newVotes =
-      existingIdx >= 0 ? change.votes.with(existingIdx, vote) : [...change.votes, vote];
+      // Update change node with new vote
+      const existingIdx = change.votes.findIndex((v) => v.agentId === voterId);
+      const newVotes =
+        existingIdx >= 0 ? change.votes.with(existingIdx, vote) : [...change.votes, vote];
 
-    const result = this._resolve(changeId, newVotes, eligible);
+      const result = this._resolve(changeId, newVotes, eligible);
 
-    // Update graph with votes and final status if resolved
-    await this.graph.update(changeId, {
-      votes: newVotes,
-      ...(result.outcome !== 'pending' ? { status: this._toChangeStatus(result.outcome) } : {}),
+      // Update graph with votes and final status if resolved
+      await this.graph.update(changeId, {
+        votes: newVotes,
+        ...(result.outcome !== 'pending' ? { status: this._toChangeStatus(result.outcome) } : {}),
+      });
+
+      // Notify all voters of the new vote and outcome
+      this._notifyVoters(change, eligible, 'vote_cast', { voterId, value, result });
+
+      return result;
     });
-
-    // Notify all voters of the new vote and outcome
-    this._notifyVoters(change, eligible, 'vote_cast', { voterId, value, result });
-
-    return result;
   }
 
   /**
@@ -178,17 +199,19 @@ export class ConsensusProtocol {
    * Useful when a timeout fires or an agent decides to finalize early.
    */
   async resolveNow(changeId: string): Promise<ConsensusResult> {
-    const change = this.graph.get(changeId) as ChangeNode | undefined;
-    if (!change) throw new Error(`ConsensusProtocol: unknown change "${changeId}"`);
-    const eligible = this._eligibleVoters(change);
-    const result = this._resolve(changeId, change.votes, eligible);
+    return this.withChangeLock(changeId, async () => {
+      const change = this.graph.get(changeId) as ChangeNode | undefined;
+      if (!change) throw new Error(`ConsensusProtocol: unknown change "${changeId}"`);
+      const eligible = this._eligibleVoters(change);
+      const result = this._resolve(changeId, change.votes, eligible);
 
-    if (result.outcome !== 'pending') {
-      await this.graph.update(changeId, { status: this._toChangeStatus(result.outcome) });
-      this._notifyVoters(change, eligible, 'vote_resolved', { result });
-    }
+      if (result.outcome !== 'pending') {
+        await this.graph.update(changeId, { status: this._toChangeStatus(result.outcome) });
+        this._notifyVoters(change, eligible, 'vote_resolved', { result });
+      }
 
-    return result;
+      return result;
+    });
   }
 
   /**

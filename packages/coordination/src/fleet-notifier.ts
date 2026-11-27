@@ -141,6 +141,9 @@ export class FleetNotifier {
 
   private async flush(): Promise<void> {
     const targets = await this.targets();
+    // dispose() can land while discovery is in flight; do not deliver a ping
+    // whose owner has already been torn down.
+    if (this.disposed) return;
     await Promise.all(targets.map((t) => this.doPost(t.url, t.token).catch(() => undefined)));
   }
 
@@ -164,9 +167,10 @@ export class FleetNotifier {
           .filter((i) => pidAlive(i.pid))
           .map((i) => {
             const host = i.host === '0.0.0.0' || i.host === '::' || !i.host ? '127.0.0.1' : i.host;
+            const urlHost = host.includes(':') && !host.startsWith('[') ? `[${host}]` : host;
             return {
               host,
-              url: `http://${host}:${i.httpPort}/api/fleet/ping`,
+              url: `http://${urlHost}:${i.httpPort}/api/fleet/ping`,
               token: typeof i.authToken === 'string' ? i.authToken : undefined,
             };
           })

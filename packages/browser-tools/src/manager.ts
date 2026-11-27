@@ -50,6 +50,7 @@ export class BrowserSessionManager {
   private readonly maxNetworkEntries: number;
   private browser?: Browser | undefined;
   private launching?: Promise<Browser> | undefined;
+  private disposed = false;
   /** open() calls that may hold the shared browser without a registered session yet. */
   private openers = 0;
 
@@ -96,6 +97,7 @@ export class BrowserSessionManager {
     input: BrowserOpenOptions,
     signal: AbortSignal,
   ): Promise<BrowserSessionSummary> {
+    if (this.disposed) throw new Error('browser: session manager is disposed');
     signal.throwIfAborted();
     if (input.url) {
       await assertBrowserUrlAllowed(input.url, {
@@ -104,8 +106,14 @@ export class BrowserSessionManager {
         navigation: true,
       });
     }
+    if (this.disposed) throw new Error('browser: session manager is disposed');
     const browser = await this.ensureBrowser(signal);
+    if (this.disposed) throw new Error('browser: session manager is disposed');
     const proxyServer = await this.networkProxy.start();
+    if (this.disposed) {
+      await this.networkProxy.close().catch(() => undefined);
+      throw new Error('browser: session manager is disposed');
+    }
     const context = await abortable(
       signal,
       async () => {
@@ -572,21 +580,34 @@ export class BrowserSessionManager {
   }
 
   async dispose(): Promise<void> {
+    this.disposed = true;
     for (const session of [...this.sessions.values()]) {
       await session.context.close().catch(() => undefined);
     }
     this.sessions.clear();
     const browser = this.browser;
+    const launching = this.launching;
     this.browser = undefined;
     this.launching = undefined;
     await browser?.close().catch(() => undefined);
+    if (launching) {
+      const lateBrowser = await launching.catch(() => undefined);
+      if (lateBrowser && lateBrowser !== browser) {
+        await lateBrowser.close().catch(() => undefined);
+      }
+    }
     await this.networkProxy.close();
   }
 
   private async ensureBrowser(signal: AbortSignal): Promise<Browser> {
+    if (this.disposed) throw new Error('browser: session manager is disposed');
     if (this.browser?.isConnected()) return this.browser;
     if (!this.launching) {
       this.launching = this.launcher(this.headless).then((browser) => {
+        if (this.disposed) {
+          void browser.close().catch(() => undefined);
+          throw new Error('browser: session manager is disposed');
+        }
         this.browser = browser;
         browser.on('disconnected', () => {
           if (this.browser === browser) this.browser = undefined;

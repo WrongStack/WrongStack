@@ -426,6 +426,10 @@ export class WrongForgeLeaderProvider implements Provider {
         leader.gateway = undefined;
       }
       joinedBefore = leader.joined ?? (await this.wfSessionExists(call, leader, opts.signal));
+      if (this.sessions.get(key) !== leader) {
+        await gateway?.close().catch(() => undefined);
+        return;
+      }
     } catch (err) {
       throw providerError(err, this.id);
     }

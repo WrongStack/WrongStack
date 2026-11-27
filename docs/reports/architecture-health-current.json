@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T11:53:42.081Z",
+  "generatedAt": "2026-11-27T11:56:16.328Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6597,
-    "testFiles": 6523,
-    "sourceLines": 1354391,
+    "testFiles": 6532,
+    "sourceLines": 1354556,
     "workspaceEdges": 267,
     "moduleEdges": 19358,
     "nonCommandSlashImports": 0,
@@ -93,7 +93,7 @@
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
       "sourceFiles": 69,
-      "testFiles": 97,
+      "testFiles": 98,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -109,7 +109,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 97
+          "testFiles": 98
         }
       ]
     },
@@ -161,7 +161,7 @@
       "name": "@wrongstack/browser-tools",
       "dir": "packages/browser-tools",
       "sourceFiles": 14,
-      "testFiles": 27,
+      "testFiles": 28,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -176,7 +176,7 @@
         {
           "path": "packages/browser-tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 27
+          "testFiles": 28
         }
       ]
     },
@@ -377,7 +377,7 @@
       "name": "@wrongstack/coordination",
       "dir": "packages/coordination",
       "sourceFiles": 193,
-      "testFiles": 244,
+      "testFiles": 246,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -395,7 +395,7 @@
         {
           "path": "packages/coordination/tsconfig.test.json",
           "error": null,
-          "testFiles": 244
+          "testFiles": 246
         }
       ]
     },
@@ -490,7 +490,7 @@
       "name": "@wrongstack/goal",
       "dir": "packages/goal",
       "sourceFiles": 24,
-      "testFiles": 39,
+      "testFiles": 40,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -505,7 +505,7 @@
         {
           "path": "packages/goal/tsconfig.test.json",
           "error": null,
-          "testFiles": 39
+          "testFiles": 40
         }
       ]
     },
@@ -695,7 +695,7 @@
       "name": "@wrongstack/plug-lsp",
       "dir": "packages/plug-lsp",
       "sourceFiles": 52,
-      "testFiles": 72,
+      "testFiles": 73,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -710,7 +710,7 @@
         {
           "path": "packages/plug-lsp/tsconfig.test.json",
           "error": null,
-          "testFiles": 72
+          "testFiles": 73
         }
       ]
     },
@@ -877,7 +877,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 135,
-      "testFiles": 104,
+      "testFiles": 105,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -911,7 +911,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 104
+          "testFiles": 105
         }
       ]
     },
@@ -1257,7 +1257,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 360,
-      "testFiles": 449,
+      "testFiles": 450,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1292,7 +1292,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 449
+          "testFiles": 450
         }
       ]
     },
@@ -1341,7 +1341,7 @@
       "name": "@wrongstack/wrongtrace",
       "dir": "packages/wrongtrace",
       "sourceFiles": 11,
-      "testFiles": 17,
+      "testFiles": 18,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -1352,7 +1352,7 @@
         {
           "path": "packages/wrongtrace/tsconfig.test.json",
           "error": null,
-          "testFiles": 16
+          "testFiles": 17
         }
       ]
     },
@@ -4140,6 +4140,12 @@
         ]
       },
       {
+        "file": "packages/acp/tests/acp-subagent-runner-stop-race.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/acp-subagent-runner.test.ts",
         "projects": [
           "root-node"
@@ -5059,6 +5065,12 @@
       },
       {
         "file": "packages/browser-tools/tests/browser-loopback-octet-spoof.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/browser-tools/tests/browser-manager-dispose-race.test.ts",
         "projects": [
           "root-node"
         ]
@@ -11616,6 +11628,12 @@
         ]
       },
       {
+        "file": "packages/coordination/tests/mailbox-health-stop-race.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/coordination/tests/mailbox-health.test.ts",
         "projects": [
           "root-node"
@@ -12079,6 +12097,12 @@
       },
       {
         "file": "packages/coordination/tests/system-one-tier-timeout.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/task-auctioneer-dispose-race.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17790,6 +17814,12 @@
         ]
       },
       {
+        "file": "packages/goal/tests/phase-orchestrator-stop-worktree-race.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/goal/tests/phase-orchestrator-truncate.test.ts",
         "projects": [
           "root-node"
@@ -21247,6 +21277,12 @@
       },
       {
         "file": "packages/plug-lsp/tests/lsp-location-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plug-lsp/tests/registry-bind-shutdown-race.test.ts",
         "projects": [
           "root-node"
         ]
@@ -25141,6 +25177,12 @@
       },
       {
         "file": "packages/runtime/tests/wrongforge-leader-close-race.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/wrongforge-leader-close-session-exists-race.test.ts",
         "projects": [
           "root-node"
         ]
@@ -35904,6 +35946,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/sdd-wizard-dispose-race.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/sdd-wizard-stale-sweep-order.test.ts",
         "projects": [
           "root-node"
@@ -40488,6 +40536,12 @@
         ]
       },
       {
+        "file": "packages/wrongtrace/src/__tests__/hooks-cross-pair-refcount.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/wrongtrace/src/__tests__/hooks-post-unlock-race.test.ts",
         "projects": [
           "root-node"
@@ -41714,6 +41768,11 @@
       "relativeImports": 27
     },
     {
+      "file": "packages/browser-tools/src/manager.ts",
+      "lines": 714,
+      "relativeImports": 9
+    },
+    {
       "file": "packages/builtin-plugins/src/auto-review-plugin.ts",
       "lines": 741,
       "relativeImports": 7
@@ -41795,7 +41854,7 @@
     },
     {
       "file": "packages/coordination/src/task-auctioneer.ts",
-      "lines": 701,
+      "lines": 710,
       "relativeImports": 8
     },
     {
@@ -41900,7 +41959,7 @@
     },
     {
       "file": "packages/runtime/src/acp-leader/acp-leader-provider.ts",
-      "lines": 706,
+      "lines": 720,
       "relativeImports": 12
     },
     {

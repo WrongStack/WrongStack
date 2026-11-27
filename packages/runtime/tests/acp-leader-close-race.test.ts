@@ -57,4 +57,55 @@ describe('AcpLeaderProvider closeAll() vs in-flight model switch and stream()', 
     expect(fleetClosed).toBe(1);
     expect((provider as unknown as { sessions: Map<string, unknown> }).sessions.size).toBe(0);
   });
+
+  it('aborts startSession before openSession when closeAll() arrives during ACPSession.start()', async () => {
+    const provider = new AcpLeaderProvider({
+      bootConfig: { model: 'acp/agent-a' } as never,
+      buildProvider: () => undefined,
+    });
+    const startEntered = deferred<void>();
+    const startGate = deferred<{
+      openSession: () => Promise<{ sessionId: string; resumed: boolean }>;
+      close: () => Promise<void>;
+      getSessionPlans: () => unknown[];
+    }>();
+    let openCalls = 0;
+    let closeCalls = 0;
+
+    (provider as unknown as { acp: unknown }).acp = {
+      resolveAcpAgentCommand: () => ({ command: 'fake-agent', args: [] }),
+      readCachedAcpRegistry: () => undefined,
+      resolveAcpClientProfile: () => ({}),
+      classifyAgentFailure: () => undefined,
+      ACPSession: {
+        start: () => {
+          startEntered.resolve();
+          return startGate.promise;
+        },
+      },
+    };
+
+    const sessionPromise = (
+      provider as unknown as { sessionFor: (k: string, a: string) => Promise<unknown> }
+    ).sessionFor('s-start-race', 'agent-a');
+
+    await startEntered.promise;
+
+    const closePromise = provider.closeAll();
+    startGate.resolve({
+      openSession: async () => {
+        openCalls += 1;
+        return { sessionId: 'late-sess', resumed: false };
+      },
+      close: async () => {
+        closeCalls += 1;
+      },
+      getSessionPlans: () => [],
+    });
+
+    const [sessRes] = await Promise.allSettled([sessionPromise, closePromise]);
+    expect(sessRes.status).toBe('rejected');
+    expect(openCalls).toBe(0);
+    expect(closeCalls).toBe(1);
+  });
 });

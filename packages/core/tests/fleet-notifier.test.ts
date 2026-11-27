@@ -248,4 +248,22 @@ describe('FleetNotifier.notify / flush / dispose', () => {
     await vi.advanceTimersByTimeAsync(50);
     expect(post).not.toHaveBeenCalled();
   });
+
+  it('does not ping after dispose lands during an in-flight flush', async () => {
+    await writeInstances([
+      { pid: process.pid, httpPort: 7001, host: '127.0.0.1', projectRoot: tmp },
+    ]);
+    const post = vi.fn(async () => undefined);
+    const n = new FleetNotifier({ baseDir: tmp, projectRoot: tmp, selfPid: 999, post });
+    await n.endpoints(); // warm discovery cache
+
+    n.notify();
+    // Fire the coalesce callback without draining microtasks: flush() has
+    // started and is parked on its discovery await when dispose() wins.
+    vi.advanceTimersByTime(50);
+    n.dispose();
+    await Promise.resolve();
+
+    expect(post).not.toHaveBeenCalled();
+  });
 });

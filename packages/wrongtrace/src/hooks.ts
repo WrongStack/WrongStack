@@ -202,6 +202,38 @@ function newWrongTraceLockCounter(): Map<string, number> {
   return new Map<string, number>();
 }
 
+/**
+ * Shared reference counts, one map per lock-owner identity.
+ *
+ * The daemon lock is keyed by path and stamped with an owner, so the unit that
+ * must agree on "how many edits hold this path" is the OWNER, not the hook-pair
+ * object. Production wires exactly that shape: the standalone WebUI builds one
+ * pair for the leader (`standalone-hooks.ts`) and one for the workers
+ * (`standalone-delegation.ts`), both stamping `wrongstack:<session.id>`.
+ *
+ * A fresh map per pair meant those two never saw each other's count: whichever
+ * finished first reached zero, passed its own (empty) guards, and unlocked the
+ * path while the sibling's edit was still in flight, the one outcome the
+ * refcount exists to prevent. Keying by owner makes the count mean what the
+ * contract above says it means, and it is safe because a different owner has a
+ * different claim key and therefore a disjoint entry.
+ *
+ * Entries live for the process lifetime (like the `legacyLocks` map below).
+ * They must not be evicted when they empty: a pair that already decided to
+ * unlock keeps a reference to the map while it awaits the daemon, and a
+ * replaced map would hide a concurrent re-claim from its epoch guard.
+ */
+const sharedLockCounters = new Map<string, Map<string, number>>();
+
+function sharedLockCounterFor(owner: string): Map<string, number> {
+  let counters = sharedLockCounters.get(owner);
+  if (!counters) {
+    counters = newWrongTraceLockCounter();
+    sharedLockCounters.set(owner, counters);
+  }
+  return counters;
+}
+
 // Race-flag ledger keyed by the counters map identity, so pairs AND the
 // legacy factories (which share the module-level `legacyLocks` map) see the
 // same "did a race touch this path" state for the same map.
@@ -323,9 +355,16 @@ function releaseLock(counters: Map<string, number>, path: string, onZero: () => 
 export function createWrongTraceHookPair(
   sessionId: () => string,
   opts: WrongTraceHookOptions = {},
-  counters: Map<string, number> = newWrongTraceLockCounter(),
+  counters?: Map<string, number>,
 ): WrongTraceHookPair {
   const emit = opts.emit;
+  // Resolve PER CALL: the claim key carries the session, and one pair can serve
+  // several sessions (WebUI tabs). A pair built without an explicit map shares
+  // the process-wide map of its owner, so two pairs wiring the same owner (the
+  // leader and worker pairs the standalone WebUI builds) count the same path.
+  // See `sharedLockCounters`.
+  const countersFor = (input: WrongTraceHookInput): Map<string, number> =>
+    counters ?? sharedLockCounterFor(`wrongstack:${input.sessionId || sessionId()}`);
 
   return {
     async preToolUse(input, _runtime) {
@@ -335,6 +374,7 @@ export function createWrongTraceHookPair(
       const path = absoluteTarget(target, opts);
       const owner = `wrongstack:${input.sessionId || sessionId()}`;
       const key = claimKey(input, path);
+      const counters = countersFor(input);
 
       // The host may stop waiting for this hook (its timeout) while the daemon
       // claim below still lands. The post hook then waits for it instead of
@@ -429,6 +469,7 @@ export function createWrongTraceHookPair(
       // the daemon unlock happens only when the LAST sibling release lands.
       if (!path) return;
       const key = claimKey(input, path);
+      const counters = countersFor(input);
       const inFlight = pendingFor(counters).get(key);
       if (inFlight) await settleWithin(inFlight, CLAIM_SETTLE_MS);
       if (!counters.has(key)) return;

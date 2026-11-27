@@ -128,6 +128,7 @@ export async function makeACPSubagentRunnerWithStop(
   // overwrite the shared one, leaking every process but the last.
   let shared: Promise<ACPSession> | null = null;
   let sharedCleanup: (() => void | Promise<void>) | undefined;
+  let stopped = false;
   // F106: the setup adopted into the shared session. Its cleanup lives with
   // the session (revoked at stop) because its MCP servers serve every turn.
   // Later turns' setups are NOT adopted — their cleanups must run after the
@@ -179,7 +180,12 @@ export async function makeACPSubagentRunnerWithStop(
     let setup: AcpSessionSetup | undefined;
     let perTurnCleanup: (() => void | Promise<void>) | undefined;
     try {
+      if (stopped) throw new ACPSessionError('closed', 'session is closed');
       setup = await options.sessionSetup?.(task, ctx);
+      if (stopped) {
+        await Promise.resolve(setup?.cleanup?.()).catch(() => undefined);
+        throw new ACPSessionError('closed', 'session is closed');
+      }
       if (persistent) {
         if (!shared) {
           sharedCleanup = setup?.cleanup;
@@ -201,8 +207,20 @@ export async function makeACPSubagentRunnerWithStop(
           }
           throw err;
         });
+        if (stopped) {
+          await session.close().catch(() => undefined);
+          if (perTurnCleanup) {
+            await Promise.resolve(perTurnCleanup()).catch(() => undefined);
+          }
+          throw new ACPSessionError('closed', 'session is closed');
+        }
       } else {
         session = await startSession(setup, ctx);
+        if (stopped) {
+          await session.close().catch(() => undefined);
+          await Promise.resolve(setup?.cleanup?.()).catch(() => undefined);
+          throw new ACPSessionError('closed', 'session is closed');
+        }
       }
     } catch (err) {
       if (!persistent) {
@@ -303,6 +321,7 @@ export async function makeACPSubagentRunnerWithStop(
   // In persistent mode stop() closes the long-lived session; in one-shot
   // mode it's a no-op (each session is closed in the runner's finally).
   const stop = async (): Promise<void> => {
+    stopped = true;
     if (shared) {
       const starting = shared;
       shared = null;

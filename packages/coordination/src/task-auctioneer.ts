@@ -84,6 +84,8 @@ export class TaskAuctioneer {
   /** Agent → current task count (from graph + in-flight). */
   private readonly agentTaskCounts = new Map<string, number>();
 
+  private disposed = false;
+
   constructor(opts: TaskAuctionOptions) {
     this.graph = opts.graph;
     this.fleet = opts.fleet;
@@ -118,6 +120,7 @@ export class TaskAuctioneer {
    * don't accumulate across cycles.
    */
   dispose(): void {
+    this.disposed = true;
     for (const off of this.unsubs.splice(0)) {
       try {
         off();
@@ -192,13 +195,16 @@ export class TaskAuctioneer {
     }
 
     // If blocked, do not assign or auction yet — complete() will unblock and assign or auction
-    if (blocked) {
+    if (this.disposed) {
+      return goal.id;
+    } else if (blocked) {
       // Stays blocked until all blockers reach 'done'
     } else if (input.targetAgent) {
       await this._assignDirect(goal.id, input.targetAgent);
     } else {
       // Broadcast to all agents via fleet + mailbox
       await this._broadcastTask(goal);
+      if (this.disposed) return goal.id;
       // Start the bid window
       this._startBidWindow(goal.id);
     }
@@ -575,11 +581,13 @@ export class TaskAuctioneer {
 
   private _startBidWindow(taskId: string): void {
     this._cancelBidWindow(taskId);
+    if (this.disposed) return;
     const safeBidWindowMs = Number.isFinite(this.bidWindowMs)
       ? Math.max(0, Math.min(2_147_483_647, this.bidWindowMs))
       : 30_000;
     const timer = setTimeout(() => {
       this.bidTimers.delete(taskId);
+      if (this.disposed) return;
       // Fire-and-forget: the timer owns this promise, so swallow rejections
       // (e.g. a graph write that lands after the surrounding scope has torn
       // down — EPERM on a removed dir) instead of letting them escape as an
@@ -601,6 +609,7 @@ export class TaskAuctioneer {
   }
 
   private async _evaluateBids(taskId: string): Promise<void> {
+    if (this.disposed) return;
     const bids = this.pendingBids.get(taskId);
     if (!bids || bids.length === 0) {
       // No bids received — check retry count
@@ -616,9 +625,9 @@ export class TaskAuctioneer {
 
       // Republish with the current retry count as a hint
       const goal = this.graph.get(taskId) as GoalNode | undefined;
-      if (goal) {
+      if (goal && !this.disposed) {
         await this._broadcastTask(goal);
-        this._startBidWindow(taskId);
+        if (!this.disposed) this._startBidWindow(taskId);
       }
       return;
     }
@@ -646,9 +655,9 @@ export class TaskAuctioneer {
 
       // Re-broadcast so additional agents can bid or existing bidders can be re-evaluated when capacity frees up
       const goal = this.graph.get(taskId) as GoalNode | undefined;
-      if (goal) {
+      if (goal && !this.disposed) {
         await this._broadcastTask(goal);
-        this._startBidWindow(taskId);
+        if (!this.disposed) this._startBidWindow(taskId);
       }
       return;
     }

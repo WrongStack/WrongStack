@@ -181,6 +181,7 @@ export class SddWizardWebSocketHandler {
     if (this.disposed) return;
     try {
       await this.ready;
+      if (this.disposed) return;
       if (this.resumeError) {
         // Latched transient failure. A surviving client message must not
         // be silently dropped — re-probe the IPC layer so a recovered
@@ -203,6 +204,7 @@ export class SddWizardWebSocketHandler {
           });
         }
         await this.resumeProbe;
+        if (this.disposed) return;
         if (this.resumeError) {
           // Re-probe did not recover; broadcast the error and reject.
           this.broadcast({ type: 'sdd.spec.error', payload: { message: this.resumeError } });

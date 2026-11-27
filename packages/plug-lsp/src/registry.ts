@@ -24,6 +24,7 @@ export class LSPRegistry {
   private readonly reconnectTimers = new Map<string, NodeJS.Timeout>();
   private cwd: string;
   private autoStart: AutoStartMode;
+  private generation = 0;
 
   constructor(
     private readonly cfg: PlugLSPConfig,
@@ -36,10 +37,14 @@ export class LSPRegistry {
   }
 
   async bind(cwd: string, autoStart: AutoStartMode = this.cfg.autoStart): Promise<void> {
+    const bindGen = ++this.generation;
     // Rebinding replaces every mounted LSPServer instance. Stop their child
     // processes first; clearing the maps alone would orphan those processes
     // and leave their stdout/stderr listeners alive for the rest of the host.
-    if (this.servers.size > 0 || this.reconnectTimers.size > 0) await this.shutdown();
+    if (this.servers.size > 0 || this.reconnectTimers.size > 0) {
+      await this.shutdownServers();
+      if (this.generation !== bindGen) return;
+    }
     this.reconnectAttempts.clear();
     this.cwd = cwd;
     this.autoStart = autoStart;
@@ -47,11 +52,19 @@ export class LSPRegistry {
     this.notifyAvailability();
     if (autoStart === 'eager') {
       const languages = await detectProjectLanguages(cwd, this.cfg.servers);
+      if (this.generation !== bindGen) return;
       await Promise.all(
         this.list()
           .filter((s) => s.config.languages.some((lang) => languages.has(lang)))
           .map(async (s) => {
+            if (this.generation !== bindGen) return;
             await startServerSafely(s, this.ctx.log);
+            if (this.generation !== bindGen) {
+              await s
+                .shutdown()
+                .catch((err) => this.ctx.log.warn(`LSP ${s.name} shutdown failed`, err));
+              return;
+            }
             if (s.state === 'ready') await this.tracker.reopenForServer(s);
           }),
       );
@@ -59,6 +72,11 @@ export class LSPRegistry {
   }
 
   async shutdown(): Promise<void> {
+    this.generation++;
+    await this.shutdownServers();
+  }
+
+  private async shutdownServers(): Promise<void> {
     for (const timer of this.reconnectTimers.values()) clearTimeout(timer);
     this.reconnectTimers.clear();
     await Promise.all(

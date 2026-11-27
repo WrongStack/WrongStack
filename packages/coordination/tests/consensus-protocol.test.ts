@@ -446,4 +446,35 @@ describe('ConsensusProtocol', () => {
       expect(result.quorumMet).toBe(false);
     });
   });
+
+  describe('concurrent voting serialization (F2704)', () => {
+    it('serializes concurrent castVote() calls per changeId so votes are never clobbered', async () => {
+      let releaseFirst!: () => void;
+      const firstGate = new Promise<void>((res) => {
+        releaseFirst = res;
+      });
+      const node = createChangeNode(graph, 'change-race');
+      let updates = 0;
+      graph.update = vi.fn(async (_id: string, patch: Record<string, unknown>) => {
+        updates += 1;
+        if (updates === 1) await firstGate;
+        Object.assign(node, patch);
+        return node;
+      }) as never;
+
+      const protocol = new ConsensusProtocol({
+        voters: defaultVoters(),
+        graph,
+        rules: { quorumFraction: 1, approvalFraction: 0.6, vetoRoles: [] },
+      });
+
+      const p1 = protocol.castVote('change-race', 'voter-1', 'approve');
+      const p2 = protocol.castVote('change-race', 'voter-2', 'approve');
+      await Promise.resolve();
+      releaseFirst();
+      await Promise.all([p1, p2]);
+
+      expect(node.votes.map((v) => v.agentId)).toEqual(['voter-1', 'voter-2']);
+    });
+  });
 });

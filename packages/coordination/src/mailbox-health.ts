@@ -117,9 +117,11 @@ export class MailboxHealthWatchdog {
     if (this.timer !== null || this.aborted) return;
     this.aborted = false;
     this.emit({ kind: 'started', intervalMs: this.intervalMs });
+    if (this.aborted) return;
     // First probe immediately so the operator sees a baseline within
     // `timeoutMs` instead of waiting `intervalMs` for the first tick.
     void this.tick();
+    if (this.aborted) return;
     this.timer = setInterval(
       () => {
         void this.tick();
@@ -132,11 +134,11 @@ export class MailboxHealthWatchdog {
 
   /** Stop probing. Safe to call multiple times. */
   async stop(): Promise<void> {
+    this.aborted = true;
     if (this.timer === null) return;
     clearInterval(this.timer);
     this.timer = null;
     this.emit({ kind: 'stopped' });
-    this.aborted = true;
   }
 
   /** True between start() and stop(). */

@@ -14,6 +14,10 @@
       "lines": 1146,
       "relativeImports": 27
     },
+    "packages/browser-tools/src/manager.ts": {
+      "lines": 714,
+      "relativeImports": 9
+    },
     "packages/builtin-plugins/src/auto-review-plugin.ts": {
       "lines": 741,
       "relativeImports": 7
@@ -79,7 +83,7 @@
       "relativeImports": 2
     },
     "packages/coordination/src/task-auctioneer.ts": {
-      "lines": 701,
+      "lines": 710,
       "relativeImports": 8
     },
     "packages/core/src/core/agent-loop.ts": {
@@ -163,7 +167,7 @@
       "relativeImports": 17
     },
     "packages/runtime/src/acp-leader/acp-leader-provider.ts": {
-      "lines": 706,
+      "lines": 720,
       "relativeImports": 12
     },
     "packages/runtime/src/chimera/execution-chimera-review.ts": {

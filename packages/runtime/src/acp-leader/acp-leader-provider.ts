@@ -597,12 +597,20 @@ export class AcpLeaderProvider implements Provider {
       host,
       approvals: this.approvals,
     });
+    if (this.closed) {
+      await prepared.close();
+      throw new Error('ACP leader provider is closed');
+    }
     // A WrongStack session this agent led before (a resume): continue the
     // agent's own conversation rather than starting it over from a recap.
     const stateDir = host?.stateDir;
     const resumeSessionId = stateDir
       ? await readLeaderSession(stateDir, key, agentId).catch(() => undefined)
       : undefined;
+    if (this.closed) {
+      await prepared.close();
+      throw new Error('ACP leader provider is closed');
+    }
     let session: ACPSession | undefined;
     let opened: { sessionId: string; resumed: boolean };
     try {
@@ -641,9 +649,15 @@ export class AcpLeaderProvider implements Provider {
           : {}),
         ...(resumeSessionId ? { resumeSessionId } : {}),
       });
+      if (this.closed) {
+        throw new Error('ACP leader provider is closed');
+      }
       // Open it now: whether the agent continued its earlier session decides
       // whether the first turn has to carry the earlier conversation.
       opened = await session.openSession();
+      if (this.closed) {
+        throw new Error('ACP leader provider is closed');
+      }
     } catch (err) {
       // An agent that never started (not installed, failed handshake) must not
       // leave this session's endpoints listening.
