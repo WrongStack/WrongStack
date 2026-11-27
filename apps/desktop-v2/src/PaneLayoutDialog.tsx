@@ -1,4 +1,5 @@
 import { X } from 'lucide-react';
+import { useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
 import {
   defaultPaneLayout,
@@ -11,17 +12,17 @@ import {
 import { usePaneLayout } from './pane-layout-context';
 import './pane-layout-dialog.css';
 
-export const paneLayoutTitle = 'Workspace layout';
-
 export function PaneLayoutDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useDesktopText();
   const layout = usePaneLayout();
   if (!layout) return null;
   const { panes, apply } = layout;
+  const title = t('workspaceDialog.layout');
   return (
-    <Modal onClose={onClose} title={paneLayoutTitle}>
+    <Modal onClose={onClose} title={title}>
       <div className="pane-layout-dialog">
         <header>
-          <h2>{paneLayoutTitle}</h2>
+          <h2>{title}</h2>
           <button
             className="icon-button"
             type="button"

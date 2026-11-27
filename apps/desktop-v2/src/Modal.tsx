@@ -1,4 +1,4 @@
-import { type ReactNode, useLayoutEffect, useRef } from 'react';
+import { type ReactNode, type RefObject, useLayoutEffect, useRef } from 'react';
 
 /** Whether a pointer position lies outside a dialog's box (on its backdrop). */
 export function outsideBox(
@@ -13,10 +13,14 @@ export function Modal({
   children,
   onClose,
   title,
+  className,
+  initialFocus,
 }: {
   children: ReactNode;
   onClose: () => void;
   title?: string;
+  className?: string | undefined;
+  initialFocus?: RefObject<HTMLElement | null>;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   // A backdrop click closes like Escape only when it also started on the backdrop, so a text
@@ -29,11 +33,19 @@ export function Modal({
     const dialog = ref.current;
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialog?.showModal();
+    initialFocus?.current?.focus();
     return () => {
       dialog?.close();
-      if (opener?.isConnected) opener.focus();
+      if (!opener?.isConnected) return;
+      opener.focus();
+      if (document.activeElement !== opener) {
+        // A busy opener can become enabled later in the same React commit.
+        queueMicrotask(() => {
+          if (opener.isConnected && document.activeElement === document.body) opener.focus();
+        });
+      }
     };
-  }, []);
+  }, [initialFocus]);
   const onBackdrop = (event: { target: EventTarget; clientX: number; clientY: number }) =>
     event.target === ref.current &&
     outsideBox(ref.current.getBoundingClientRect(), event.clientX, event.clientY);
@@ -41,7 +53,7 @@ export function Modal({
     // biome-ignore lint/a11y/useKeyWithClickEvents: Escape (onCancel) is the keyboard path to the same close.
     <dialog
       ref={ref}
-      className="modal"
+      className={className ? `modal ${className}` : 'modal'}
       aria-labelledby={title ? undefined : 'dialog-title'}
       aria-label={title}
       onCancel={(e) => {

@@ -2447,9 +2447,12 @@ try {
         .click();
       assert.equal(await page.locator('.timeline > button').count(), 4);
       await page.keyboard.press('Control+k');
-      await page.getByRole('dialog').waitFor();
-      await page.getByLabel('Search projects and sessions').fill('Project Beta');
-      await page.getByRole('dialog').getByRole('button', { name: 'Project Beta' }).click();
+      const palette = page.getByRole('dialog', { name: 'Find anything', exact: true });
+      await palette.getByRole('combobox').fill('Project Beta');
+      await palette
+        .getByRole('group', { name: 'Projects', exact: true })
+        .getByRole('option', { name: /^Project Beta/ })
+        .click();
       await page
         .getByRole('banner')
         .getByRole('heading', { name: 'Project Beta', exact: true })

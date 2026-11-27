@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T00:18:00.368Z",
+  "generatedAt": "2026-11-27T00:20:56.218Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6587,
+    "sourceFiles": 6588,
     "testFiles": 6514,
-    "sourceLines": 1352679,
+    "sourceLines": 1352822,
     "workspaceEdges": 267,
-    "moduleEdges": 19312,
+    "moduleEdges": 19315,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -427,7 +427,7 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 571,
+      "sourceFiles": 572,
       "testFiles": 409,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -41227,6 +41227,11 @@
     },
     {
       "from": "apps/desktop-v2/src/ProfileModelPicker.tsx",
+      "specifier": "./dialog-search.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/ProfileModelPicker.tsx",
       "specifier": "./profile-model-picker.css",
       "syntax": "import"
     },
@@ -41593,6 +41598,16 @@
     {
       "from": "apps/desktop-v2/src/WorkbenchTerminals.tsx",
       "specifier": "./terminal-dock.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/WorkspaceDialogs.tsx",
+      "specifier": "./workspace-dialogs.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/WorkspacePalette.tsx",
+      "specifier": "./dialog-search.css",
       "syntax": "import"
     },
     {

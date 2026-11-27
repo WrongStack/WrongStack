@@ -1,0 +1,167 @@
+.modal.new-session-dialog[open] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(508px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+}
+
+.modal.new-session-dialog > header {
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal.new-session-dialog h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: normal;
+}
+
+.new-session-form {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+}
+
+.new-session-fields {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 16px;
+}
+
+.new-session-dialog .new-session-fields label {
+  margin: 0 0 12px;
+}
+
+.new-session-dialog .new-session-fields :is(input, select) {
+  margin-top: 5px;
+  padding: 8px 10px;
+}
+
+.new-session-dialog .kind-picker {
+  margin: 0 0 12px;
+}
+
+.new-session-dialog .kind-picker > button {
+  min-width: 0;
+  padding: 10px 11px;
+}
+
+.new-session-dialog .kind-picker strong {
+  margin-top: 4px;
+}
+
+.new-session-dialog .form-note {
+  margin: 0;
+}
+
+.new-session-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--raised);
+}
+
+.modal.workspace-palette[open] {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  width: min(620px, calc(100vw - 28px));
+  max-height: min(600px, calc(100dvh - 32px));
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+}
+
+.modal.workspace-palette > header {
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 10px 15px;
+}
+
+.modal.workspace-palette h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: normal;
+}
+
+.workspace-palette-search {
+  margin: 0 15px 12px;
+}
+
+.workspace-palette-scroll {
+  min-height: 0;
+  padding: 0 9px 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.workspace-palette-scroll > p {
+  margin: 8px 7px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.workspace-palette-group-label {
+  margin: 5px 0 3px;
+  padding: 5px 7px 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.workspace-palette .workspace-palette-group > button {
+  display: grid;
+  width: 100%;
+  min-height: 35px;
+  grid-template-columns: 16px minmax(0, 1fr) minmax(0, auto) 13px;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  padding: 6px 7px;
+  text-align: left;
+}
+
+.workspace-palette-group > button :is(span, small) {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.workspace-palette-group > button small {
+  max-width: min(150px, 24vw);
+  color: var(--muted);
+}
+
+.workspace-palette-group > button:hover {
+  background: var(--base);
+}
+
+.workspace-palette-group > button[aria-selected="true"] {
+  background: var(--accent-soft);
+  box-shadow: inset 2px 0 var(--accent);
+  color: var(--text);
+}
+
+.workspace-palette-group > button > svg:last-child:not(:first-child) {
+  grid-column: 4;
+  color: var(--accent);
+}
+
+.workspace-palette > footer {
+  border-top: 1px solid var(--border);
+  padding: 9px 15px;
+  color: var(--muted);
+  font-size: 12px;
+}

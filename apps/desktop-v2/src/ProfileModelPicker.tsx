@@ -1,5 +1,5 @@
 import { Check, Columns3, LoaderCircle, RefreshCw, Search, Settings2, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { type EngineState, emptyEngineState } from './engine-state';
@@ -25,6 +25,7 @@ import { providerChoices } from './provider-settings-model';
 import { RuntimeGate } from './RuntimeGate';
 import { useProfileEngine } from './useEngine';
 import './composer-dialog.css';
+import './dialog-search.css';
 import './profile-model-picker.css';
 import { AgentRuntimeBadge } from '@wrongstack/project-surfaces/ui/AgentRuntimeBadge';
 
@@ -61,6 +62,18 @@ function LiveProfileModelPicker({
   onBusy,
 }: Props) {
   const { t } = useDesktopText();
+  const search = useRef<HTMLInputElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const modelList = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const field = search.current;
+    const modal = field?.closest('dialog[open]');
+    if (
+      modal &&
+      (document.activeElement === modal || document.activeElement === closeButton.current)
+    )
+      field?.focus();
+  }, []);
   const details: ModelDetailWords = {
     context: (value) => t('modelPicker.detail.context', { value }),
     output: (value) => t('modelPicker.detail.output', { value }),
@@ -249,14 +262,42 @@ function LiveProfileModelPicker({
       if (mounted.current) setSwitching(false);
     }
   };
+  const navigateModels = (event: KeyboardEvent<HTMLInputElement | HTMLButtonElement>) => {
+    if (
+      event.nativeEvent.isComposing ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.shiftKey
+    )
+      return;
+    const rows = Array.from(
+      modelList.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [],
+    );
+    if (!rows.length) return;
+    const atSearch = event.currentTarget === search.current;
+    const index = atSearch ? -1 : rows.indexOf(event.currentTarget as HTMLButtonElement);
+    if (atSearch && event.key === 'Enter' && rows.length === 1) {
+      event.preventDefault();
+      rows[0]?.click();
+      return;
+    }
+    let next: HTMLElement | undefined | null;
+    if (event.key === 'ArrowDown') next = rows[Math.min(index + 1, rows.length - 1)];
+    else if (event.key === 'ArrowUp')
+      next = index < 0 ? rows.at(-1) : index === 0 ? search.current : rows[index - 1];
+    else if (!atSearch && event.key === 'Home') next = rows[0];
+    else if (!atSearch && event.key === 'End') next = rows.at(-1);
+    if (!next) return;
+    event.preventDefault();
+    next.focus();
+  };
   return (
     <section className="composer-dialog profile-model-picker" aria-label={t('modelPicker.label')}>
       <header>
-        <div>
-          <span className="eyebrow">{t('modelPicker.eyebrow')}</span>
-          <h2 id="dialog-title">{title ?? t('modelPicker.title')}</h2>
-        </div>
+        <h2 id="dialog-title">{title ?? t('modelPicker.title')}</h2>
         <button
+          ref={closeButton}
           type="button"
           className="icon-button"
           aria-label={t('modelPicker.close')}
@@ -289,12 +330,14 @@ function LiveProfileModelPicker({
         </label>
         <label className="composer-model-search">
           {searchLabel ?? t('modelPicker.searchLabel')}
-          <span className="model-picker-query">
+          <span className="dialog-search-field">
             <Search size={15} aria-hidden="true" />
             <input
+              ref={search}
               aria-label={searchLabel ?? t('modelPicker.searchLabel')}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={navigateModels}
               placeholder={t('modelPicker.placeholder')}
             />
           </span>
@@ -351,11 +394,11 @@ function LiveProfileModelPicker({
           onBack={() => setComparisonOpen(false)}
         />
       ) : (
-        <div className="composer-model-list">
+        <div className="composer-model-list" ref={modelList} aria-busy={!ready || loading}>
           {error && !ready ? (
             <p>{t('modelPicker.unavailableChoices')}</p>
           ) : !ready || loading ? (
-            <p>
+            <p role="status">
               <LoaderCircle className="spin" size={15} /> {t('modelPicker.loading')}
             </p>
           ) : available.length ? (
@@ -370,6 +413,7 @@ function LiveProfileModelPicker({
                     : provider === session.provider && model.id === session.model
                 }
                 onClick={() => (comparing ? toggle(model) : void choose(model.id))}
+                onKeyDown={navigateModels}
               >
                 <AgentRuntimeBadge
                   provider={provider}
@@ -399,7 +443,7 @@ function LiveProfileModelPicker({
               </button>
             ))
           ) : (
-            <p>{t('modelPicker.none')}</p>
+            <p role="status">{t('modelPicker.none')}</p>
           )}
         </div>
       )}

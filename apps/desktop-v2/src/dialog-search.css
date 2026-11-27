@@ -1,0 +1,34 @@
+.dialog-search-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding-inline-start: 10px;
+  border: 1px solid var(--border);
+  background: var(--base);
+  color: var(--muted);
+}
+
+.dialog-search-field > svg {
+  pointer-events: none;
+}
+
+.modal .dialog-search-field > input:not([type="checkbox"]) {
+  min-height: 36px;
+  min-width: 0;
+  margin: 0;
+  padding: 6px 9px 6px 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.modal .dialog-search-field > input:not([type="checkbox"]):focus-visible {
+  outline: none;
+}
+
+.dialog-search-field:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

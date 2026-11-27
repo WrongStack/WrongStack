@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
-import { paneLayoutTitle } from './PaneLayoutDialog';
 import { usePaneLayout } from './pane-layout-context';
 import { native } from './platform';
 import type { DesktopController } from './useDesktop';
@@ -166,7 +165,7 @@ export function WorkbenchMenu({
               onClick={() => choose(layout.showSettings)}
             >
               <PanelLeft size={15} aria-hidden="true" />
-              <span>{paneLayoutTitle}</span>
+              <span>{t('workspaceDialog.layout')}</span>
             </button>
           )}
           <hr />

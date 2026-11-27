@@ -1,8 +1,6 @@
-import { ArrowRight, Zap } from 'lucide-react';
 import { commandDescription } from './desktop-command-text';
 import { desktopCommands } from './desktop-commands';
 import { useDesktopText } from './desktop-i18n';
-import { paneLayoutTitle } from './PaneLayoutDialog';
 import { usePaneLayout } from './pane-layout-context';
 import { requestSettingsSection } from './settings-section-request';
 import type { DesktopController } from './useDesktop';
@@ -33,7 +31,7 @@ function paletteActions(
         return target && 'page' in target
           ? [
               {
-                id: `page:${target.page}`,
+                id: `page:${command.name}`,
                 label: commandDescription(command, t),
                 hint: command.name,
                 run: () => vm.openProjectPage(project, target.page),
@@ -99,12 +97,12 @@ function paletteActions(
   ];
 }
 
-export function PaletteActions({ vm, search }: { vm: DesktopController; search: string }) {
+export function usePaletteActions(vm: DesktopController, search: string) {
   const { t } = useDesktopText();
   const wanted = search.trim().toLowerCase();
   const layout = usePaneLayout();
   const layoutAction: PaletteAction[] = layout
-    ? [{ id: 'pane-layout', label: paneLayoutTitle, run: layout.showSettings }]
+    ? [{ id: 'pane-layout', label: t('workspaceDialog.layout'), run: layout.showSettings }]
     : [];
   const actions = [...layoutAction, ...paletteActions(vm, t)].filter(
     (action) =>
@@ -112,26 +110,5 @@ export function PaletteActions({ vm, search }: { vm: DesktopController; search: 
       action.label.toLowerCase().includes(wanted) ||
       (action.hint?.toLowerCase().includes(wanted) ?? false),
   );
-  const shown = wanted ? actions : actions.slice(0, IDLE_ACTIONS);
-  if (!shown.length) return null;
-  return (
-    <>
-      {shown.map((action) => (
-        <button
-          type="button"
-          key={action.id}
-          onClick={() => {
-            vm.setDialog(null);
-            vm.setSearch('');
-            action.run();
-          }}
-        >
-          <Zap size={17} />
-          <span>{action.label}</span>
-          <small>{action.hint ?? t('paletteActions.action')}</small>
-          <ArrowRight size={15} />
-        </button>
-      ))}
-    </>
-  );
+  return wanted ? actions : actions.slice(0, IDLE_ACTIONS);
 }
