@@ -598,7 +598,8 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
     next = { ...next, ...expireEngineInteractions(state), connected: false };
     // Scheduled jobs live in the engine's memory; a new engine starts with none.
     delete next.results['cron.snapshot'];
-    next.error = String(p['message'] ?? 'Engine disconnected');
+    // A stop the host asked for (session stop or removal) is not an engine failure.
+    if (p['expected'] !== true) next.error = String(p['message'] ?? 'Engine disconnected');
   }
   if (
     event.type.startsWith('tool.') ||

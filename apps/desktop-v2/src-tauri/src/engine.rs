@@ -23,6 +23,9 @@ pub struct Engine {
     http: crate::http_bridge::EngineHttp,
     sender: SyncSender<Value>,
     pub connected: AtomicBool,
+    /// Set when the host asks for a stop: the connection closing is then expected, not a
+    /// failure, so its journal frame carries no error banner.
+    stopping: AtomicBool,
     identity: Mutex<Value>,
     /// The newest `browser.live.frame` and its sequence number. A screencast sends up to ten
     /// frames a second; they are kept in memory only, never in the event log on disk.
@@ -30,6 +33,18 @@ pub struct Engine {
     path: PathBuf,
     /// Kanban boards still supervised by this engine.
     kanban: Mutex<HashSet<String>>,
+}
+
+/// The frame a closed engine connection leaves in its journal. A stop the host asked for is
+/// expected: a reader keeps the conversation offline without reporting an engine failure.
+pub(crate) fn disconnected_frame(expected: bool, error: Option<String>) -> Value {
+    if expected {
+        json!({"type":"desktop.disconnected","payload":{"expected":true}})
+    } else {
+        json!({"type":"desktop.disconnected","payload":{
+            "message":error.unwrap_or_else(|| "Engine connection closed".into())
+        }})
+    }
 }
 
 /// Most complete journal lines one `events` page returns.
@@ -309,8 +324,8 @@ fn scope_message(message: &mut Value, identity: &Value, bind_session: bool) {
 #[cfg(test)]
 mod tests {
     use super::{
-        is_live_frame, kanban_supervision, scope_message, seed_path, stamp_frame, transient_io,
-        Engine, JournalSeeds, SnapshotGate,
+        disconnected_frame, is_live_frame, kanban_supervision, scope_message, seed_path,
+        stamp_frame, transient_io, Engine, JournalSeeds, SnapshotGate,
     };
     #[test]
     fn kanban_supervision_reads_each_boards_supervisor_status() {
@@ -349,6 +364,22 @@ mod tests {
     use std::fs;
     use std::time::Duration;
     use uuid::Uuid;
+
+    #[test]
+    fn a_requested_stop_disconnects_without_an_engine_error() {
+        let expected = disconnected_frame(true, None);
+        assert_eq!(expected["payload"]["expected"], json!(true));
+        assert_eq!(expected["payload"]["message"], json!(null));
+
+        let crash = disconnected_frame(false, None);
+        assert_eq!(
+            crash["payload"]["message"],
+            json!("Engine connection closed")
+        );
+        let failed = disconnected_frame(false, Some("socket closed".into()));
+        assert_eq!(failed["payload"]["message"], json!("socket closed"));
+        assert_eq!(failed["payload"]["expected"], json!(null));
+    }
 
     #[test]
     fn a_pending_or_timed_out_socket_operation_keeps_the_engine_connected() {
@@ -662,6 +693,7 @@ impl Engine {
             http: crate::http_bridge::EngineHttp::new(port, token)?,
             sender,
             connected: AtomicBool::new(true),
+            stopping: AtomicBool::new(false),
             identity: Mutex::new(json!({})),
             live_frame: Mutex::new((0, Value::Null)),
             path: path.into(),
@@ -743,11 +775,17 @@ impl Engine {
             for message in snapshots.due(Instant::now(), true) {
                 let _ = record(&mut log, &message);
             }
-            let disconnected = json!({"type":"desktop.disconnected","payload":{"message":result.err().unwrap_or_else(||"Engine connection closed".into())}});
+            let disconnected =
+                disconnected_frame(owner.stopping.load(Ordering::Acquire), result.err());
             let _ = record(&mut log, &disconnected);
             seeds.note(&disconnected);
         });
         Ok(engine)
+    }
+    /// Marks the coming disconnect as requested by the host, so closing the conversation
+    /// reports it as offline instead of as an engine failure.
+    pub fn request_stop(&self) {
+        self.stopping.store(true, Ordering::Release);
     }
     pub fn send(&self, message: Value) -> Result<Value> {
         if !self.connected.load(Ordering::Acquire) {

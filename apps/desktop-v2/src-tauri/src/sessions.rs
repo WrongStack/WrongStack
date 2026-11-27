@@ -114,6 +114,28 @@ fn spare_claim(history: Option<(&str, bool)>) -> Value {
     }
 }
 
+/// How an engine's exit is reported. A stop the host requested is a normal stop even when the
+/// process was stopped hard and its exit code is non-zero; only an unrequested exit is a
+/// failure worth a red warning.
+fn engine_exit_state(
+    success: bool,
+    expected_stop: bool,
+    restore_error: Option<&str>,
+) -> (&'static str, Option<String>) {
+    if success || expected_stop {
+        ("stopped", None)
+    } else {
+        (
+            "error",
+            Some(
+                restore_error
+                    .unwrap_or("WrongStack engine exited; inspect engine logs")
+                    .to_owned(),
+            ),
+        )
+    }
+}
+
 /// A command's program and arguments, to tell engines started from different builds apart.
 fn command_identity(command: &Command) -> String {
     let mut identity = command.get_program().to_string_lossy().into_owned();
@@ -1220,7 +1242,7 @@ impl HostState {
         if !matches!(exit, Ok(Some(_))) {
             return false;
         }
-        self.release_engine(runtime_id, owner);
+        let _ = self.release_engine(runtime_id, owner);
         let conversation = owner
             .lock()
             .map(|id| id.clone())
@@ -1239,7 +1261,7 @@ impl HostState {
             // The process may still be running. Keep its ownership and pending stop request.
             return false;
         };
-        self.release_engine(runtime_id, owner);
+        let expected_stop = self.release_engine(runtime_id, owner);
         let restore_error = restore_result
             .and_then(|path| std::fs::read(path).ok())
             .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
@@ -1248,34 +1270,36 @@ impl HostState {
             .lock()
             .map(|id| id.clone())
             .unwrap_or_else(|_| runtime_id.to_owned());
-        let _ = self.publish_runtime_state(
-            &conversation,
-            if code.success() { "stopped" } else { "error" },
-            code.code(),
-            (!code.success()).then(|| {
-                restore_error
-                    .as_deref()
-                    .unwrap_or("WrongStack engine exited; inspect engine logs")
-            }),
-        );
+        let (status, error) =
+            engine_exit_state(code.success(), expected_stop, restore_error.as_deref());
+        let _ = self.publish_runtime_state(&conversation, status, code.code(), error.as_deref());
         true
     }
     fn attach_ready_engine(&self, id: &str, session: &mut LiveSession, engine: Arc<Engine>) {
+        // A stop asked for while the engine was still starting could not mark it then: mark it
+        // now, so the disconnect its exit causes is reported as expected, not as a failure.
         if session.stop_requested {
+            engine.request_stop();
             return;
         }
         session.engine = Some(engine);
         let _ = self.publish_runtime_state(id, "running", None, None);
     }
-    fn release_engine(&self, runtime_id: &str, owner: &Mutex<String>) {
+    /// Releases an engine and reports whether the host had asked it to stop, so its exit is
+    /// reported as a normal stop rather than a failure.
+    fn release_engine(&self, runtime_id: &str, owner: &Mutex<String>) -> bool {
         let mut live = self.live.lock().unwrap();
         let conversation = owner
             .lock()
             .map(|id| id.clone())
             .unwrap_or_else(|_| runtime_id.to_owned());
+        let expected_stop = live
+            .get(&conversation)
+            .is_some_and(|session| session.stop_requested);
         // A cold reconnect can reuse this path as soon as the conversation is released.
         self.clear_engine_stop_request(runtime_id, &conversation);
         live.remove(&conversation);
+        expected_stop
     }
     fn clear_engine_stop_request(&self, runtime_id: &str, conversation: &str) {
         let _ = std::fs::remove_file(self.own_stop_file(runtime_id));
@@ -1333,6 +1357,11 @@ impl HostState {
             drop(live);
             return self.kill(id, None);
         };
+        // Mark the shutdown before asking for it: whichever way the engine leaves, its exit
+        // and disconnect are a stop the host requested, not an engine failure to report.
+        if let Some(engine) = session.engine.as_ref() {
+            engine.request_stop();
+        }
         // Keep exit and reconnect from replacing this engine during the stop request.
         let grace = if std::fs::write(self.stop_file(id), b"").is_ok() {
             ENGINE_STOP_GRACE
@@ -1519,6 +1548,26 @@ fn history_source(p: &Value) -> Result<Option<(&str, bool)>> {
 #[cfg(test)]
 mod history_tests {
     use super::*;
+
+    #[test]
+    fn an_engine_exit_the_host_requested_is_a_normal_stop() {
+        assert_eq!(engine_exit_state(true, false, None), ("stopped", None));
+        assert_eq!(
+            engine_exit_state(false, true, Some("fixture restore failed")),
+            ("stopped", None),
+            "a hard stop the host asked for must not surface as an engine failure"
+        );
+        let (status, error) = engine_exit_state(false, false, None);
+        assert_eq!(status, "error");
+        assert_eq!(
+            error.as_deref(),
+            Some("WrongStack engine exited; inspect engine logs")
+        );
+        assert_eq!(
+            engine_exit_state(false, false, Some("startup restore failed")),
+            ("error", Some("startup restore failed".into()))
+        );
+    }
 
     #[cfg(windows)]
     #[test]
@@ -2023,7 +2072,10 @@ mod history_tests {
         assert!(finished_after_exit);
         assert!(!still_tracked);
         assert!(!stop_after_exit);
-        assert_eq!(after_exit, if code.success() { "stopped" } else { "error" });
+        assert_eq!(
+            after_exit, "stopped",
+            "the accepted stop makes even a hard exit a normal stop"
+        );
         assert_ne!(id_after_exit, id);
     }
 
@@ -2614,6 +2666,90 @@ mod history_tests {
         assert_eq!(status, "stopping");
     }
 
+    #[test]
+    fn a_stop_asked_for_before_the_engine_is_ready_marks_its_disconnect_as_expected() {
+        let dir = std::env::temp_dir().join(format!("desktop-stop-early-{}", Uuid::new_v4()));
+        let host = HostState::new(&dir).unwrap();
+        let id = "stopping-engine";
+        {
+            let registry = host.registry.lock().unwrap();
+            let project = registry.register(dir.to_str().unwrap()).unwrap();
+            registry
+                .insert(&Session {
+                    id: id.into(),
+                    project_id: project.id,
+                    title: "Early stop".into(),
+                    kind: "agent".into(),
+                    workdir: dir.to_string_lossy().into(),
+                    status: "starting".into(),
+                    created_at: now(),
+                    updated_at: now(),
+                    exit_code: None,
+                    error: None,
+                    untitled: false,
+                })
+                .unwrap();
+        }
+        host.live.lock().unwrap().insert(
+            id.into(),
+            LiveSession {
+                master: None,
+                writer: None,
+                killer: None,
+                agent_pid: Some(u32::MAX),
+                engine: None,
+                stop_requested: false,
+            },
+        );
+        // Accepted while no engine exists yet, so the stop cannot have marked one.
+        host.request("session.kill", &json!({"id": id})).unwrap();
+
+        let journal = dir.join("early.events.jsonl");
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || tungstenite::accept(listener.accept().unwrap().0));
+        let engine = Engine::connect(port, "fixture", &journal, true).unwrap();
+        let socket = server.join().unwrap().unwrap();
+        let attached = {
+            let mut live = host.live.lock().unwrap();
+            let session = live.get_mut(id).unwrap();
+            host.attach_ready_engine(id, session, engine);
+            session.engine.is_some()
+        };
+        let status = host.registry.lock().unwrap().sessions().unwrap()[0]
+            .status
+            .clone();
+        host.live.lock().unwrap().remove(id);
+        // The refused engine then leaves, as one stopping from its stop file does.
+        drop(socket);
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        let disconnected = loop {
+            let journaled = std::fs::read_to_string(&journal).ok().and_then(|text| {
+                text.lines()
+                    .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+                    .find(|frame| frame["type"] == "desktop.disconnected")
+            });
+            if let Some(frame) = journaled {
+                break frame;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "the refused engine's disconnect was never journaled"
+            );
+            thread::sleep(Duration::from_millis(20));
+        };
+        drop(host);
+        let _ = std::fs::remove_dir_all(dir);
+        assert!(!attached);
+        assert_eq!(status, "stopping");
+        assert_eq!(
+            disconnected["payload"]["expected"],
+            json!(true),
+            "a stop asked for before the engine was ready must not leave an engine-failure frame"
+        );
+        assert_eq!(disconnected["payload"]["message"], json!(null));
+    }
+
     #[cfg(windows)]
     #[test]
     fn force_stop_without_a_stop_file_keeps_shutdown_owned_until_exit() {
@@ -2684,8 +2820,8 @@ mod history_tests {
         assert_eq!(rejected, Err("Engine is stopping".into()));
         assert!(finalized);
         assert_eq!(
-            status_after_exit,
-            if exit.success() { "stopped" } else { "error" }
+            status_after_exit, "stopped",
+            "a hard stop the host requested is a normal stop, never an engine failure"
         );
         assert!(!live_after_exit);
     }

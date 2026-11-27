@@ -251,6 +251,15 @@ describe('native agent session projection', () => {
     expect(state.connected).toBe(false);
     expect(state.error).toBe('Engine stopped');
   });
+  it('reports a stop the host asked for as offline without an engine error', () => {
+    const state = reduceEngine(started(), {
+      type: 'desktop.disconnected',
+      payload: { expected: true },
+    });
+    expect(state.connected).toBe(false);
+    expect(state.error).toBe('');
+    expect(state.approvals).toEqual([]);
+  });
 });
 
 describe('user-run MCP tool', () => {
