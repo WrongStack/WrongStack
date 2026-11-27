@@ -20,6 +20,7 @@ import {
   resolveContextWindowPolicy,
 } from '@wrongstack/contracts/types';
 import { getSharedProjectMailbox, type RemoteMailbox } from '@wrongstack/coordination';
+import { canConfigureSessionToolGroup, setSessionToolGroup } from '@wrongstack/core/agent';
 import { installDesignTurnGate } from '@wrongstack/core/design';
 import { bridgeLifecycleHooks, type HookRegistry, type HookRunner } from '@wrongstack/core/hooks';
 import { resolveMcpServerConfig } from '@wrongstack/core/infrastructure';
@@ -525,7 +526,7 @@ export async function setupLifecycleAndPlugins(
     toolRegistry,
     events,
     log: logger,
-    lazyMode: normalizeTokenSavingTier(config.features.tokenSavingMode) !== 'off',
+    lazyMode: normalizeTokenSavingTier(config.features.tokenSavingMode) === 'aggressive',
     cacheDir: wpaths.cacheDir,
     taskJournalDir: path.join(wpaths.projectDir, 'mcp-tasks'),
     taskRecoveryContext: () => context,
@@ -564,7 +565,14 @@ export async function setupLifecycleAndPlugins(
       logger.warn(`MCP server "${name}" has no transport and matches no preset — skipped`);
       continue;
     }
-    void mcpRegistry.start(resolved).catch((err) => {
+    const isLaunchMcp = launchMcpServers !== undefined && Object.hasOwn(launchMcpServers, name);
+    if (isLaunchMcp && canConfigureSessionToolGroup(context, `mcp:${name}`)) {
+      setSessionToolGroup(context, `mcp:${name}`, 'on');
+    }
+    const startPromise = isLaunchMcp
+      ? mcpRegistry.start(resolved, { activate: true, exposeToProvider: true })
+      : mcpRegistry.start(resolved);
+    void startPromise.catch((err) => {
       logger.warn(`MCP server "${name}" failed to start`, err);
     });
   }

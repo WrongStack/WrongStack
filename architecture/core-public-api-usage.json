@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 553,
+      "files": 555,
       "typeOnly": 405,
-      "runtimeOrMixed": 180
+      "runtimeOrMixed": 182
     },
     "@wrongstack/core/boot": {
       "files": 6,
@@ -104,9 +104,9 @@
       "runtimeOrMixed": 62
     },
     "@wrongstack/core/registry": {
-      "files": 218,
+      "files": 219,
       "typeOnly": 84,
-      "runtimeOrMixed": 143
+      "runtimeOrMixed": 144
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -815,6 +815,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/src/wiring/lifecycle-plugins.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/wiring/pipeline.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
@@ -990,6 +996,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/tests/light-subagent-rate-limit-end-to-end.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/tests/mcp-config-visibility.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -6666,6 +6678,12 @@
     {
       "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/tests/light-subagent-rate-limit-end-to-end.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/cli/tests/mcp-config-visibility.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

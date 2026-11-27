@@ -118,8 +118,11 @@ export class MCPRegistry extends MCPRegistryRuntime {
     return requireHttpServerConfig(this.servers, this.disabledServers, name, onUnsetVariable);
   }
 
-  async start(cfg: MCPServerConfig): Promise<void> {
-    return startFromHost(this.internals(), cfg);
+  async start(
+    cfg: MCPServerConfig,
+    options?: import('./registry-server-lifecycle.js').MCPStartOptions,
+  ): Promise<void> {
+    return startFromHost(this.internals(), cfg, options);
   }
 
   /**

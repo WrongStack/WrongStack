@@ -43,9 +43,17 @@ export interface RegistryServerLifecycleHost {
   idleContext(): RegistryIdleContext;
 }
 
+export interface MCPStartOptions {
+  /** Register discovered tools in the tool registry even when `lazyMode` is enabled. */
+  activate?: boolean | undefined;
+  /** Expose activated tools directly to the provider surface. */
+  exposeToProvider?: boolean | undefined;
+}
+
 export async function start(
   host: RegistryServerLifecycleHost,
   cfg: MCPServerConfig,
+  options?: MCPStartOptions,
 ): Promise<void> {
   if (cfg.enabled === false) {
     if (host.servers.has(cfg.name)) {
@@ -82,7 +90,16 @@ export async function start(
     operations: createMCPServerOperationState(),
   };
   host.servers.set(cfg.name, slot);
-  const startup = lazy ? host.startLazy(slot) : host.singleFlightConnect(slot);
+  const startup = (lazy ? host.startLazy(slot) : host.singleFlightConnect(slot)).then(() => {
+    if (!options?.activate) return;
+    activateServer(host, cfg.name);
+    if (options.exposeToProvider && typeof host.toolRegistry.exposeToProvider === 'function') {
+      const current = host.servers.get(cfg.name);
+      if (current && current.toolNames.length > 0) {
+        host.toolRegistry.exposeToProvider(current.toolNames);
+      }
+    }
+  });
   const settled = startup.then(
     () => {},
     () => {},

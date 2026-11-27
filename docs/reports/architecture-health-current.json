@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T11:58:20.386Z",
+  "generatedAt": "2026-11-27T12:00:59.256Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6597,
-    "testFiles": 6532,
-    "sourceLines": 1354556,
+    "testFiles": 6533,
+    "sourceLines": 1354584,
     "workspaceEdges": 267,
-    "moduleEdges": 19358,
+    "moduleEdges": 19359,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -232,7 +232,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 654,
-      "testFiles": 750,
+      "testFiles": 751,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -284,7 +284,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 750
+          "testFiles": 751
         }
       ]
     },
@@ -8143,6 +8143,12 @@
       },
       {
         "file": "packages/cli/tests/mcp-config-flag.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/mcp-config-visibility.test.ts",
         "projects": [
           "root-node"
         ]
