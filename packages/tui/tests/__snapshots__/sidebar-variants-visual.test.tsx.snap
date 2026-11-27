@@ -3,7 +3,7 @@
 exports[`routed sidebar variants — real-TTY visual matrix > agents at 80 columns 1`] = `
 "                                                             ╭──────────────╮  ░
                                                              ▌ ⧉ AGENTS        ░
-                                                             ─ 3 1 1        ─  ░
+                                                             3 1 1             ░
                                                              ▎ ! HOTTEST·····  ░
                                                              refactor-plan…    ░
                                                              ctx 82% ◆ typec…  ░
@@ -17,7 +17,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > agents at 80 colum
                                                                typecheck       ░
                                                              ╰──────────────╯  ░
                                                                                ░
-                                                             ◆ F3 details ◆ …  ░
+                                                             F3 details ◆ $1…  ░
                                                                                ░
                                                                                ░
                                                                                ░
@@ -108,7 +108,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > agents at 160 colu
 exports[`routed sidebar variants — real-TTY visual matrix > connections at 80 columns 1`] = `
 "                                                             ╭──────────────╮  ░
                                                              ▌ ⚙ CONNECTIONS   ░
-                                                             ─ 1 DOWN       ─  ░
+                                                             1 DOWN            ░
                                                              ▎ SIGNAL MATRIX   ░
                                                                                ░
                                                              ✓3 !1 ×1          ░
@@ -213,7 +213,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > connections at 160
 exports[`routed sidebar variants — real-TTY visual matrix > coordinator at 80 columns 1`] = `
 "                                                             ╭──────────────╮  ░
                                                              ▌ ◴ COORDINATOR   ░
-                                                             ─ 3 active     ─  ░
+                                                             3 active          ░
                                                              ▎ ☷ PHASES⟦4/3⟧  ░
                                                                                ░
                                                              ████████████████  ░
@@ -228,7 +228,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > coordinator at 80 
                                                              regressions       ░
                                                              ╰──────────────╯  ░
                                                                                ░
-                                                             ◆ F11 details ◆…  ░
+                                                             F11 details ◆ 6…  ░
                                                                                ░
                                                                                ░
                                                                                ░
@@ -318,7 +318,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > coordinator at 160
 exports[`routed sidebar variants — real-TTY visual matrix > fleet at 80 columns 1`] = `
 "                                                             ╭──────────────╮  ░
                                                              ▌ ◈ AGENT SWARM   ░
-                                                             ─ 3 LIVE       ─  ░
+                                                             3 LIVE            ░
                                                                                ░
                                                              ▶3 ✓1 ×1          ░
                                                              ▶ Leader Agent    ░
@@ -423,7 +423,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > fleet at 160 colum
 exports[`routed sidebar variants — real-TTY visual matrix > goal at 80 columns 1`] = `
 "                                                             ╭──────────────╮  ░
                                                              ▌ ◎ GOAL          ░
-                                                             ─ ▶ ACTIVE     ─  ░
+                                                             ▶ ACTIVE          ░
                                                              ▎ ◎ MISSION·····  ░
                                                              Ship a dense,…    ░
                                                              ▎▶ state··ACTIVE  ░
@@ -448,7 +448,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > goal at 80 columns
                                                              typechecks        ░
                                                              ╰──────────────╯  ░
                                                                                ░
-                                                             ◆ F9 details      ░
+                                                             F9 details        ░
                                                                                ░
                                                                                ░
                                                                                ░
@@ -528,7 +528,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > goal at 160 column
 exports[`routed sidebar variants — real-TTY visual matrix > kanban at 80 columns 1`] = `
 "                                                             ╭──────────────╮  ░
                                                              ▌ ◆ KANBAN        ░
-                                                             ─ ✓0 24        ─  ░
+                                                             ✓0 24             ░
                                                              ▎ ◈ COLUMNS·····  ░
                                                              Backlog       14  ░
                                                              Todo / …       5  ░
@@ -554,7 +554,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > kanban at 80 colum
                                                              Biome             ░
                                                              ╰──────────────╯  ░
                                                                                ░
-                                                             ◆ F12 details     ░
+                                                             F12 details       ░
                                                                                ░
                                                                                ░
                                                             ────────────────────"
@@ -633,7 +633,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > kanban at 160 colu
 exports[`routed sidebar variants — real-TTY visual matrix > plan at 80 columns 1`] = `
 "                                                             ╭──────────────╮  ░
                                                              ▌ ☷ PLAN         ░
-                                                             ─ ◐1 ✓1 4      ─  ░
+                                                             ◐1 ✓1 4           ░
                                                              ▎ ☷ PROGRESS···  ░
                                                                                ░
                                                              ████░░░░░░░░░░░░  ░
@@ -657,7 +657,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > plan at 80 columns
                                                              ownership         ░
                                                              ╰──────────────╯  ░
                                                                                ░
-                                                             ◆ F5 details      ░
+                                                             F5 details        ░
                                                                                ░
                                                                                ░
                                                                                ░
@@ -738,7 +738,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > plan at 160 column
 exports[`routed sidebar variants — real-TTY visual matrix > processList at 80 columns 1`] = `
 "                                                             ╭──────────────╮  ░
                                                              ▌ ⚡ PROCESSES    ░
-                                                             ─ 3/4          ─  ░
+                                                             3/4               ░
                                                                                ░
                                                              ▶3                ░
                                                              ▶ wrongstack-tu…  ░
@@ -747,7 +747,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > processList at 80 
                                                              ● idle-backgrou…  ░
                                                              ╰──────────────╯  ░
                                                                                ░
-                                                             ◆ F8 details      ░
+                                                             F8 details        ░
                                                                                ░
                                                                                ░
                                                                                ░
@@ -843,7 +843,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > processList at 160
 exports[`routed sidebar variants — real-TTY visual matrix > projectPicker at 80 columns 1`] = `
 "                                                             ╭──────────────╮  ░
                                                              ▌ ▣ PROJECT       ░
-                                                             ─ 2 projects   ─  ░
+                                                             2 projects        ░
                                                              ▎ ▣ CURRENT·····  ░
                                                              WrongStack — …    ░
                                                              ▎ ▣ CHOICES·····  ░
@@ -859,7 +859,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > projectPicker at 8
                                                              ! Enter opens t…  ░
                                                              ╰──────────────╯  ░
                                                                                ░
-                                                             ◆ ↑↓ select · E…  ░
+                                                             ↑↓ select · Ent…  ░
                                                                                ░
                                                                                ░
                                                                                ░
@@ -948,7 +948,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > projectPicker at 1
 exports[`routed sidebar variants — real-TTY visual matrix > queue at 80 columns 1`] = `
 "                                                             ╭──────────────╮  ░
                                                              ▌ ◴ QUEUE         ░
-                                                             ─ 3            ─  ░
+                                                             3                 ░
                                                              01 Explain why    ░
                                                              the connection    ░
                                                              topology changed  ░
@@ -966,7 +966,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > queue at 80 column
                                                              visual pass       ░
                                                              ╰──────────────╯  ░
                                                                                ░
-                                                             ◆ F7 details      ░
+                                                             F7 details        ░
                                                                                ░
                                                                                ░
                                                                                ░
@@ -1053,7 +1053,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > queue at 160 colum
 exports[`routed sidebar variants — real-TTY visual matrix > sessions at 80 columns 1`] = `
 "                                                             ╭──────────────╮  ░
                                                              ▌ ⧉ SESSIONS      ░
-                                                             ─ 4            ─  ░
+                                                             4                 ░
                                                                                ░
                                                              ●2 ▰2             ░
                                                              ▎ ⧉ LIVE·····⟦2⟧  ░
@@ -1064,7 +1064,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > sessions at 80 col
                                                              ⏱ Unicode-width…  ░
                                                              ╰──────────────╯  ░
                                                                                ░
-                                                             ◆ F10 details     ░
+                                                             F10 details       ░
                                                                                ░
                                                                                ░
                                                                                ░
@@ -1158,7 +1158,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > sessions at 160 co
 exports[`routed sidebar variants — real-TTY visual matrix > todos at 80 columns 1`] = `
 "                                                             ╭──────────────╮  ░
                                                              ▌ ◎ TODOS         ░
-                                                             ─ 1/3          ─  ░
+                                                             1/3               ░
                                                              █████░░░░░░░░░░░  ░
                                                                                ░
                                                              ▶1 ○1 ✓1          ░
@@ -1180,7 +1180,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > todos at 80 column
                                                              contract          ░
                                                              ╰──────────────╯  ░
                                                                                ░
-                                                             ◆ F6 details      ░
+                                                             F6 details        ░
                                                                                ░
                                                                                ░
                                                                                ░
@@ -1263,7 +1263,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > todos at 160 colum
 exports[`routed sidebar variants — real-TTY visual matrix > worktree at 80 columns 1`] = `
 "                                                             ╭──────────────╮  ░
                                                              ▌ ⎇ WORKTREES     ░
-                                                             ─ A1 D0 !1     ─  ░
+                                                             A1 D0 !1          ░
                                                                                ░
                                                              ▶1 ×1             ░
                                                              • sidebar-visua…  ░
@@ -1272,7 +1272,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > worktree at 80 col
                                                                └─ unicode-ve…  ░
                                                              ╰──────────────╯  ░
                                                                                ░
-                                                             ◆ F4 details      ░
+                                                             F4 details        ░
                                                                                ░
                                                                                ░
                                                                                ░

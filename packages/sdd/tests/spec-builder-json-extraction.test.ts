@@ -2,6 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { extractJSONArrayFromText, extractJSONFromText } from '../src/spec-builder-parsing.js';
 
 describe('raw JSON extraction with trailing prose', () => {
+  it.each([
+    'Spec: {"requirements":[{"id":"REQ-1"}]}',
+    '```json\n{"requirements":[{"id":"REQ-1"}]}\n```',
+  ])('does not extract the requirements inside a spec object as tasks: %s', (text) => {
+    expect(extractJSONArrayFromText(text)).toBeNull();
+    expect(extractJSONArrayFromText(`${text}\nTasks: [{"title":"Add tests"}]`)).toBe(
+      '[{"title":"Add tests"}]',
+    );
+  });
+
+  it('does not extract a nested object from a raw task array as a spec', () => {
+    expect(extractJSONFromText('Tasks: [{"title":"Add tests"}]')).toBeNull();
+  });
+
   it('extracts an object followed by prose without braces', () => {
     expect(extractJSONFromText('Spec: {"title":"x","overview":"y"}\nDone.')).toBe(
       '{"title":"x","overview":"y"}',

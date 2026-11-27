@@ -86,8 +86,8 @@ describe('ACP registry fallback behavior', () => {
       const localBin = join(root, 'home', '.local', 'bin');
       mkdirSync(npmDir, { recursive: true });
       mkdirSync(localBin, { recursive: true });
-      writeFileSync(join(npmDir, 'codex.cmd'), '@echo off\n');
-      writeFileSync(join(localBin, 'claude'), '#!/bin/sh\n');
+      writeFileSync(join(npmDir, 'codex.CMD'), '@echo off\n');
+      writeFileSync(join(localBin, 'claude'), '#!/bin/sh\n', { mode: 0o755 });
       expect(
         acpCommandOnPath(
           'codex',

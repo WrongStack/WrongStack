@@ -323,9 +323,10 @@ describe('architecture decision review panel', () => {
     render(<ArchitectureDecisionsPanel sessionId="conversation-a" />);
     fireEvent.click(await screen.findByRole('button', { name: /Provider boundary/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'activity:adr.checks.run' }));
-    expect((await screen.findByRole('status')).textContent).toContain(
-      'activity:adr.checks.status.blocked',
+    const result = await screen.findByText(
+      'activity:adr.checks.result: activity:adr.checks.status.blocked',
     );
+    expect(result.closest('[role="status"]')).not.toBeNull();
     expect(fixture.rpc).toHaveBeenCalledWith('adr', `check-json ${record.id}`, {
       sessionId: 'conversation-a',
     });

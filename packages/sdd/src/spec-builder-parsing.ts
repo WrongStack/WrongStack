@@ -118,12 +118,11 @@ export function parseSpecificationJSON(
  * through trailing prose such as `{"a":1} Hope {that} helps.`, one big slice
  * that JSON.parse rejects even though a complete object is present.
  */
-function balancedContainers(text: string, open: '{' | '[', close: '}' | ']'): string[] {
-  const out: string[] = [];
+function* balancedContainers(text: string, open: '{' | '['): Generator<string> {
+  const closingDelimiters: string[] = [];
   let inString = false;
   let escaped = false;
   let start = -1;
-  let depth = 0;
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     if (inString) {
@@ -136,18 +135,17 @@ function balancedContainers(text: string, open: '{' | '[', close: '}' | ']'): st
       inString = true;
       continue;
     }
-    if (ch === open) {
-      if (depth === 0) start = i;
-      depth++;
-    } else if (ch === close && depth > 0) {
-      depth--;
-      if (depth === 0 && start >= 0) {
-        out.push(text.slice(start, i + 1));
-        start = -1;
+    if (ch === '{' || ch === '[') {
+      if (closingDelimiters.length === 0) start = i;
+      closingDelimiters.push(ch === '{' ? '}' : ']');
+    } else if ((ch === '}' || ch === ']') && closingDelimiters.length > 0) {
+      if (closingDelimiters.pop() !== ch) {
+        closingDelimiters.length = 0;
+      } else if (closingDelimiters.length === 0 && text[start] === open) {
+        yield text.slice(start, i + 1);
       }
     }
   }
-  return out;
 }
 
 /** Extract JSON from AI output (handles ```json blocks and raw JSON). */
@@ -169,7 +167,7 @@ export function extractJSONFromText(text: string): string | null {
 
   // Try raw JSON object one balanced group at a time, so trailing prose that
   // contains its own braces cannot extend the candidate past a complete object.
-  for (const candidate of balancedContainers(text, '{', '}')) {
+  for (const candidate of balancedContainers(text, '{')) {
     try {
       JSON.parse(candidate);
       return candidate;
@@ -189,7 +187,7 @@ export function extractJSONArrayFromText(text: string): string | null {
     if (trimmed.startsWith('[')) return trimmed;
   }
 
-  for (const candidate of balancedContainers(text, '[', ']')) {
+  for (const candidate of balancedContainers(text, '[')) {
     try {
       const parsed = JSON.parse(candidate);
       if (Array.isArray(parsed)) return candidate;
