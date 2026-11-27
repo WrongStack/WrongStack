@@ -1,7 +1,7 @@
 {
   "name": "wrongstack-website",
   "private": true,
-  "version": "1.7.22",
+  "version": "1.7.23",
   "type": "module",
   "scripts": {
     "dev": "bun --bun run vite",

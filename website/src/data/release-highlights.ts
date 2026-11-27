@@ -1,27 +1,27 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.7.22',
-  title: 'An IDE-style desktop workbench.',
+  version: '1.7.23',
+  title: 'A command palette for the desktop workbench.',
   summary:
-    "An IDE-style desktop workbench with a saved pane layout, ACP mode switching from WebUI and the desktop, a suspend-first Windows tree kill that no longer orphans a shell's command, and an edge-case round across approvals, YOLO gates, planning and display formatting.",
+    'Search commands, projects and sessions from one desktop palette. Open the session inspector without shifting the transcript, use project services from desktop-hosted ACP leaders, and navigate WebUI more easily with a keyboard or screen reader.',
   socialDescription:
-    'WrongStack 1.7.22: an IDE-style desktop workbench, ACP mode switching from WebUI and desktop, steadier Windows process stops and tighter YOLO gates.',
+    'WrongStack 1.7.23: a desktop command palette, ACP project services and better WebUI keyboard and screen-reader navigation.',
   cards: [
     {
-      title: 'ACP session modes',
-      body: 'default, plan, auto-edit and yolo through session/set_mode or wstack acp serve --mode; yolo still asks before destructive calls.',
-      href: '/acp',
-      linkLabel: 'Use WrongStack over ACP',
-    },
-    {
-      title: 'MCP server instructions',
-      body: "Each MCP server's initialize instructions reach the system prompt, over ACP and with --mcp-config.",
+      title: 'Desktop workbench',
+      body: 'Use Ctrl+K to find commands, projects and sessions. Pick a model from your saved catalogs or type a model reference in settings.',
       href: '/interfaces',
       linkLabel: 'Explore the interfaces',
     },
     {
-      title: 'Tighter guards',
-      body: 'Pipeline-fed kills, cross-worktree git commands and quoted secret values no longer slip past the gates.',
+      title: 'ACP project services',
+      body: 'Desktop-hosted ACP leaders can use project indexing, SAGE, Mailbox, Kanban and Intake.',
+      href: '/acp',
+      linkLabel: 'Use WrongStack over ACP',
+    },
+    {
+      title: 'WebUI accessibility',
+      body: 'Dialogs restore focus, tab groups respond to arrow keys, and screen readers announce loading states and icon controls.',
       href: '/getting-started',
       linkLabel: 'Upgrade your installation',
     },

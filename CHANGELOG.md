@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.23] — 2026-11-27
+
+The desktop workbench gains a grouped command palette and a compact session
+inspector. ACP leaders hosted in the desktop engine can now reach WrongStack’s
+project services, and WebUI improves keyboard and screen-reader navigation.
+
+### Added
+
+- Desktop: `Ctrl+K` searches commands, projects and sessions in one palette.
+  Settings use a model picker that searches saved catalogs and accepts typed
+  model references.
+- Desktop: the session inspector opens without shifting the transcript. The
+  Windows title bar names the current session, and the status bar shows the
+  active project, engine connection and version. Layout presets have visual
+  previews, and the terminal dock restores keyboard focus when it moves.
+- ACP: starting a leader in Desktop or WebUI refreshes the official agent
+  registry in the background. Agent discovery checks common user bin directories
+  on GUI launches.
+
+### Fixed
+
+- ACP leaders hosted in the desktop engine can connect to project indexing,
+  SAGE, Mailbox, Kanban and Intake services.
+- Desktop treats a host-requested engine shutdown as a normal stop, including
+  when the stop is requested during startup.
+- WebUI dialogs restore focus, tab groups support arrow-key navigation, and
+  screen readers receive loading announcements and labels for icon controls.
+  Model fallback references use the same parser as `/fallback`, and stale
+  socket timeouts can no longer interrupt a new connection.
+- HQ reports version drift for clients running non-release builds. CLI HQ paths
+  now use the shared validation rule for path segments.
+- SDD reads the first complete JSON group in model output. Core preserves
+  complete fields when repairing a truncated duplicate JSON key, recognizes
+  mixed-case next-step completion markers, and reports full history pages
+  accurately at the size limit.
+- The TUI status pill uses the full row on narrow sidebars, and Techstack trend
+  reports select the highest version by version order.
+
 ## [1.7.22] — 2026-11-26
 
 An IDE-style desktop workbench, native ACP mode switching from WebUI and the
