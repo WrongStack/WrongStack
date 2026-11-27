@@ -169,18 +169,13 @@ export function resolveAcpClientProfile(agentId: string | undefined): AcpClientP
     : { ...DEFAULT_GENERIC_ACP_PROFILE, id: normalized };
 }
 
-/**
- * Derive default MCP-bridged ACP agent ids dynamically from the bundled catalog
- * plus any live-synced official ACP Registry ids (`agentclientprotocol/registry`),
- * filtered by `resolveAcpClientProfile(id).bridgeByDefault`.
- */
-export function defaultBridgeAgentIds(liveIds?: Iterable<string>): string[] {
+function collectAgentIds(liveIds: Iterable<string> | undefined, bridgeOnly: boolean): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
   const add = (id: string) => {
     const normalized = id.trim().toLowerCase();
     if (!normalized || seen.has(normalized)) return;
-    if (!resolveAcpClientProfile(normalized).bridgeByDefault) return;
+    if (bridgeOnly && !resolveAcpClientProfile(normalized).bridgeByDefault) return;
     seen.add(normalized);
     out.push(normalized);
   };
@@ -189,6 +184,23 @@ export function defaultBridgeAgentIds(liveIds?: Iterable<string>): string[] {
     for (const id of liveIds) add(id);
   }
   return out;
+}
+
+/**
+ * Derive all known ACP agent ids from the bundled catalog plus any live-synced
+ * official ACP Registry ids, independent of MCP bridge defaults.
+ */
+export function allKnownAcpAgentIds(liveIds?: Iterable<string>): string[] {
+  return collectAgentIds(liveIds, false);
+}
+
+/**
+ * Derive default MCP-bridged ACP agent ids dynamically from the bundled catalog
+ * plus any live-synced official ACP Registry ids (`agentclientprotocol/registry`),
+ * filtered by `resolveAcpClientProfile(id).bridgeByDefault`.
+ */
+export function defaultBridgeAgentIds(liveIds?: Iterable<string>): string[] {
+  return collectAgentIds(liveIds, true);
 }
 
 /** Default MCP-bridged agent ids derived directly from `AGENTS_CATALOG` (never hardcoded). */

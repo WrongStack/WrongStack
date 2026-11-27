@@ -20,6 +20,7 @@ import {
   type AcpLiveCatalog,
   type AcpSessionSetup,
   acpCommandOnPath,
+  allKnownAcpAgentIds,
   canonicalAcpAgentId,
   defaultBridgeAgentIds,
   findAgentDescriptor,
@@ -404,7 +405,7 @@ export function installedAcpAgents(
   isOnPath: (command: string) => boolean = acpCommandOnPath,
   live: AcpLiveCatalog | undefined = readCachedAcpRegistry()?.byId,
 ): string[] {
-  const candidates = defaultBridgeAgentIds(Object.keys(live ?? {}));
+  const candidates = allKnownAcpAgentIds(Object.keys(live ?? {}));
   return detectAcpCommands(
     [...candidates, ...Object.keys(acp?.agents ?? {}), ...(acp?.bridge?.agents ?? [])],
     acp?.agents,
@@ -444,8 +445,17 @@ function detectAcpCommands(
     if (configured) {
       out.add(id);
     } else if (command === 'npx' || command === 'uvx') {
-      const probe = findAgentDescriptor(id)?.probe.command;
-      if (probe && isOnPath(probe) && isOnPath(command)) out.add(id);
+      const descriptor = findAgentDescriptor(id);
+      if (descriptor) {
+        if (isOnPath(descriptor.probe.command) && isOnPath(command)) out.add(id);
+      } else if (
+        live &&
+        (Object.hasOwn(live, id) || Object.hasOwn(live, listed)) &&
+        isOnPath(command)
+      ) {
+        // Live-synced registry entries without a bundled probe run directly via npx/uvx.
+        out.add(id);
+      }
     } else if (command && isOnPath(command)) {
       out.add(id);
     }

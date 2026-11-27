@@ -122,6 +122,7 @@ export type {
   AcpSystemPromptChannel,
 } from './registry/acp-client-profiles.js';
 export {
+  allKnownAcpAgentIds,
   DEFAULT_BRIDGE_AGENTS,
   DEFAULT_GENERIC_ACP_PROFILE,
   defaultBridgeAgentIds,

@@ -1,8 +1,9 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  defaultBridgeAgentIds,
-  resolveAcpClientProfile,
-} from '../src/registry/acp-client-profiles.js';
+import { acpCommandOnPath, allKnownAcpAgentIds, defaultBridgeAgentIds } from '../src/index.js';
+import { resolveAcpClientProfile } from '../src/registry/acp-client-profiles.js';
 import { fetchAcpRegistry, mapRegistryEntry } from '../src/registry/acp-registry-fetch.js';
 
 describe('ACP registry fallback behavior', () => {
@@ -69,5 +70,36 @@ describe('ACP registry fallback behavior', () => {
     expect(result.filter((id) => id === 'copilot')).toHaveLength(1);
     expect(result.filter((id) => id === 'future-agent')).toHaveLength(1);
     expect(result.every((id) => id === id.trim().toLowerCase())).toBe(true);
+  });
+
+  it('includes non-default-bridged agents like openhands in allKnownAcpAgentIds', () => {
+    const all = allKnownAcpAgentIds();
+    const bridged = defaultBridgeAgentIds();
+    expect(all).toContain('openhands');
+    expect(bridged).not.toContain('openhands');
+  });
+
+  it('finds executables in user-local npm/bun/local bin dirs even when missing from GUI PATH', () => {
+    const root = mkdtempSync(join(tmpdir(), 'acp-path-'));
+    try {
+      const npmDir = join(root, 'appdata', 'npm');
+      const localBin = join(root, 'home', '.local', 'bin');
+      mkdirSync(npmDir, { recursive: true });
+      mkdirSync(localBin, { recursive: true });
+      writeFileSync(join(npmDir, 'codex.cmd'), '@echo off\n');
+      writeFileSync(join(localBin, 'claude'), '#!/bin/sh\n');
+      expect(
+        acpCommandOnPath(
+          'codex',
+          { PATH: '', APPDATA: join(root, 'appdata'), PATHEXT: '.CMD;.EXE' },
+          'win32',
+        ),
+      ).toBe(true);
+      expect(acpCommandOnPath('claude', { PATH: '', HOME: join(root, 'home') }, 'linux')).toBe(
+        true,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
