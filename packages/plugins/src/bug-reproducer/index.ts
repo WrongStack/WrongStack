@@ -1,3 +1,5 @@
+import { advice, reviewField } from '../workflow-runtime/advice.js';
+import { filesOrChanged } from '../workflow-runtime/discover.js';
 import {
   commandField,
   digest,
@@ -7,10 +9,8 @@ import {
   run,
   str,
   stringField,
-  strings,
   workflowPlugin,
 } from '../workflow-runtime/index.js';
-import { advice, reviewField } from '../workflow-runtime/advice.js';
 
 export default workflowPlugin({
   name: 'bug-reproducer',
@@ -21,16 +21,16 @@ export default workflowPlugin({
       name: 'bug_reproduce',
       mutating: true,
       description:
-        'Run an explicit regression command twice. expectedOutput is a literal failure marker required to attribute the failure to the reported bug. Returns a portable Node test recipe and file fingerprints.',
+        'Run an explicit regression command twice. expectedOutput is a literal failure marker required to attribute the failure to the reported bug. files defaults to the working-tree change (git diff HEAD + untracked). Returns a portable Node test recipe and file fingerprints.',
       properties: {
         command: commandField,
         files: filesField,
         expectedOutput: stringField,
         review: reviewField,
       },
-      required: ['command', 'files', 'expectedOutput'],
+      required: ['command', 'expectedOutput'],
       async run(input, context) {
-        const files = strings(input.files);
+        const { files, source } = await filesOrChanged(input.files, context, 'bug_reproduce');
         const before = await fingerprints(context.root, files);
         const marker = str(input.expectedOutput);
         const first = await run(input.command, context);
@@ -56,6 +56,7 @@ export default workflowPlugin({
                 ? 'unstable'
                 : 'not-reproduced',
           fingerprints: before,
+          filesSource: source,
           runs: [first, second],
           marker,
           recipe,

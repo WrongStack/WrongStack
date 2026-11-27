@@ -1,4 +1,5 @@
-import { filesField, read, rows, str, strings, workflowPlugin } from '../workflow-runtime/index.js';
+import { filesOrSources } from '../workflow-runtime/discover.js';
+import { filesField, read, rows, str, workflowPlugin } from '../workflow-runtime/index.js';
 export default workflowPlugin({
   name: 'feature-flag-lifecycle',
   description:
@@ -7,7 +8,7 @@ export default workflowPlugin({
     {
       name: 'feature_flag_inventory',
       description:
-        'Supply flags [{name,expiresAt?,owner?}] and source files. Reports exact literal-token references, expiry and retirement review candidates; dynamic flag construction is outside scope.',
+        'Supply flags [{name,expiresAt?,owner?}]; files defaults to the project source files (up to 3000). Reports exact literal-token references, expiry and retirement review candidates; dynamic flag construction is outside scope.',
       properties: {
         flags: {
           type: 'array',
@@ -23,10 +24,11 @@ export default workflowPlugin({
         },
         files: filesField,
       },
-      required: ['flags', 'files'],
+      required: ['flags'],
       async run(input, context) {
+        const scope = await filesOrSources(input.files, context);
         const files = await Promise.all(
-          strings(input.files).map(async (path) => ({
+          scope.files.map(async (path) => ({
             path,
             lines: (await read(context.root, path)).split(/\r?\n/),
           })),
@@ -54,8 +56,13 @@ export default workflowPlugin({
         });
         return {
           flags,
-          limitation:
-            'Literal references include definitions/comments; absence is scoped to supplied files and does not prove global non-use.',
+          scope: {
+            source: scope.source,
+            files: scope.files.length,
+            ...(scope.truncated ? { truncated: true } : {}),
+            ...(scope.skipped ? { skippedUnreadable: scope.skipped } : {}),
+          },
+          limitation: `Literal references include definitions/comments; absence is scoped to the ${scope.files.length} scanned file(s) and does not prove global non-use.${scope.truncated ? ' The source walk was truncated; unusedInScope may be false positive — pass files to cover the rest.' : ''}`,
         };
       },
     },

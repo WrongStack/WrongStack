@@ -1,9 +1,11 @@
 import { createEvidenceAnalyzerPlugin } from '../evidence-analyzer/index.js';
+import { collectWorkspaceHealth } from './project.js';
+
 export default createEvidenceAnalyzerPlugin({
   name: 'workspace-health',
   toolName: 'workspace_health_analyze',
   description:
-    'Inspects supplied workspace configuration evidence for broken package-manager, Node, and script contracts',
+    'Checks the workspace manifests (or supplied output) for broken package-manager, Node engine, script and workspace-link contracts',
   evidenceHint:
     'Inspect package.json, tool output, or workspace configuration for health-contract failures.',
   rules: [
@@ -26,4 +28,9 @@ export default createEvidenceAnalyzerPlugin({
       advice: 'Verify workspace globs and workspace dependency names.',
     },
   ],
+  project: {
+    description:
+      'reads the root and workspace package.json files to find lockfile/packageManager mismatches, unmet engines.node, `run` references to undefined scripts, empty workspace globs and unresolved workspace: dependencies.',
+    collect: collectWorkspaceHealth,
+  },
 });

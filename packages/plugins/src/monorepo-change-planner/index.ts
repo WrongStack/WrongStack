@@ -1,20 +1,31 @@
 import { dirname } from 'node:path';
-import { filesField, json, object, strings, workflowPlugin } from '../workflow-runtime/index.js';
-import { cycles } from '../workflow-runtime/graph.js';
 import { advice, reviewField } from '../workflow-runtime/advice.js';
+import { filesOrChanged, workspaceManifests } from '../workflow-runtime/discover.js';
+import { cycles } from '../workflow-runtime/graph.js';
+import { filesField, json, object, strings, workflowPlugin } from '../workflow-runtime/index.js';
+
 export default workflowPlugin({
   name: 'monorepo-change-planner',
   description:
-    'Computes transitive workspace consumers and dependency-first validation order from explicit package manifests and changed paths',
+    'Computes transitive workspace consumers and dependency-first validation order from the workspace manifests and the working-tree change (or supplied lists)',
   tools: [
     {
       name: 'monorepo_change_plan',
       description:
-        'Supply workspace package.json paths and changed files. Returns impacted packages, dependency-first build/test recipes, cycles and unknown changes.',
+        'Plan validation for a change. manifests defaults to every declared workspace package.json, changedFiles to the working-tree change (git diff HEAD + untracked). Returns impacted packages, dependency-first build/test recipes, cycles and changes outside any package.',
       properties: { manifests: filesField, changedFiles: filesField, review: reviewField },
-      required: ['manifests', 'changedFiles'],
       async run(input, context) {
-        const manifests = strings(input.manifests);
+        const manifests =
+          input.manifests === undefined
+            ? await workspaceManifests(context)
+            : strings(input.manifests);
+        // A clean tree is a valid "nothing to validate" answer here.
+        const changedInput = await filesOrChanged(
+          input.changedFiles,
+          context,
+          'monorepo_change_plan',
+          { allowEmpty: true, includeDeleted: true },
+        );
         const packages = await Promise.all(
           manifests.map(async (path) => {
             const manifest = await json(context.root, path);
@@ -39,7 +50,7 @@ export default workflowPlugin({
         const edges = new Map(
           packages.map((pkg) => [pkg.name, pkg.dependencies.filter((name) => names.has(name))]),
         );
-        const changed = strings(input.changedFiles).map((path) =>
+        const changed = changedInput.files.map((path) =>
           path.replaceAll('\\', '/').replace(/^\.\//, ''),
         );
         const affected = new Set(
@@ -86,8 +97,12 @@ export default workflowPlugin({
           unknownChanges: changed.filter(
             (path) => !packages.some((pkg) => pkg.dir === '.' || path.startsWith(`${pkg.dir}/`)),
           ),
+          inputs: {
+            manifests: input.manifests === undefined ? 'workspace' : 'supplied',
+            changedFiles: changedInput.source,
+          },
           limitation:
-            'Publish candidates require release-policy review; changes outside supplied package directories are not attributed.',
+            'Publish candidates require release-policy review; changes outside the package directories (root config, CI) are listed as unknownChanges, not attributed.',
         };
         return { ...report, advice: await advice(input.review, report, context) };
       },

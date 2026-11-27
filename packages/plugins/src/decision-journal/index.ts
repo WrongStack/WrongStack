@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { appendFile, mkdir } from 'node:fs/promises';
 import { dirname, relative } from 'node:path';
 import { restrictFilePermissions } from '@wrongstack/core/security';
+import { filesOrChanged } from '../workflow-runtime/discover.js';
 import {
   filesField,
   projectPath,
@@ -66,11 +67,12 @@ export default workflowPlugin({
     {
       name: 'decision_lookup',
       description:
-        'Read a JSONL decision journal; return decisions associated with supplied paths, along with explicit supersession links.',
+        'Read a JSONL decision journal; return decisions associated with the given paths (default: the working-tree change), along with explicit supersession links.',
       properties: { journal: stringField, files: filesField },
-      required: ['journal', 'files'],
+      required: ['journal'],
       async run(input, context) {
-        const files = strings(input.files).map((file) =>
+        const scope = await filesOrChanged(input.files, context, 'decision_lookup');
+        const files = scope.files.map((file) =>
           relative(context.root, projectPath(context.root, file)).replaceAll('\\', '/'),
         );
         const records = (await read(context.root, input.journal))

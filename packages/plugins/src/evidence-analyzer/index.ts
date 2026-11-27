@@ -1,9 +1,14 @@
 /**
  * Shared implementation for the focused evidence analyzers.
  *
- * These plugins intentionally analyse an explicit file or pasted command/CI
- * output. They never execute a project command, mutate a file, or quietly
- * claim that a broad check passed without the caller supplying evidence.
+ * Given `path` or `content`, an analyzer inspects only that evidence (a file
+ * or pasted command/CI output). Given neither, an analyzer that declares a
+ * `project` collector inspects the calling project itself (`./project.ts`):
+ * manifests, lockfile names and sources inside the project root, plus
+ * read-only `git diff`/`status`/`ls-files` under the repository isolation env
+ * (the same read-only git diff-summary runs automatically). No analyzer runs
+ * a project script, installs anything, writes a file, or claims a broad check
+ * passed; a collector that cannot read its evidence throws.
  */
 import { open } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -15,6 +20,9 @@ import {
 } from '../runtime/llm.js';
 import { safePath } from '../runtime/sandbox.js';
 import { nonnegativeFiniteLimit, safePrefix } from '../runtime/string-boundaries.js';
+import { capPerRule, type EvidenceFinding, type ProjectCollector } from './project.js';
+
+export type { EvidenceFinding, ProjectCollection, ProjectCollector } from './project.js';
 
 const MAX_INPUT_CHARS = 1_000_000;
 
@@ -31,11 +39,23 @@ export interface EvidenceAnalyzerProfile {
   description: string;
   evidenceHint: string;
   rules: readonly EvidenceRule[];
+  /**
+   * Rewrites pasted evidence before the rules run, keeping its line count so
+   * reported line numbers stay true (e.g. blank a diff's context lines).
+   */
+  preprocess?: (content: string) => string;
+  /** Structural checks a line regex cannot express; merged before rule findings. */
+  inspect?: (content: string) => EvidenceFinding[];
+  /** Inspect the project itself when the caller supplies neither path nor content. */
+  project?: ProjectCollector;
+  /** Extra configSchema properties read by the project collector (`context.options`). */
+  options?: Record<string, Record<string, unknown>>;
 }
 
 interface EvidenceAnalyzerConfig {
   enabled: boolean;
   maxFindings: number;
+  maxPerRule: number;
 }
 
 interface EvidenceAnalyzerState {
@@ -47,10 +67,15 @@ interface EvidenceAnalyzerState {
 function readConfig(raw: unknown): EvidenceAnalyzerConfig {
   const record = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
   const max = record['maxFindings'] ?? record['max_findings'];
+  const perRule = record['maxPerRule'] ?? record['max_per_rule'];
+  const bounded = (value: unknown, fallback: number) =>
+    typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 200
+      ? value
+      : fallback;
   return {
     enabled: record['enabled'] !== false,
-    maxFindings:
-      typeof max === 'number' && Number.isInteger(max) && max >= 1 && max <= 200 ? max : 40,
+    maxFindings: bounded(max, 40),
+    maxPerRule: bounded(perRule, 5),
   };
 }
 
@@ -90,22 +115,16 @@ export const EVIDENCE_MATCH_OVERLAP = EVIDENCE_MATCH_WINDOW / 4;
  */
 export const EVIDENCE_ANALYZE_BUDGET_MS = 2000;
 
-interface EvidenceFinding {
-  rule: string;
-  severity: EvidenceRule['severity'];
-  line: number;
-  excerpt: string;
-  advice: string;
-}
-
 export function analyzeEvidence(
   content: string,
   profile: EvidenceAnalyzerProfile,
   maxFindings: number,
   now: () => number = Date.now,
-): { findings: EvidenceFinding[]; partial: boolean } {
+  perRuleLimit = Number.POSITIVE_INFINITY,
+): { findings: EvidenceFinding[]; partial: boolean; ruleCounts: Record<string, number> } {
   const findingLimit = nonnegativeFiniteLimit(maxFindings);
-  if (findingLimit === 0) return { findings: [], partial: false };
+  const ruleCounts: Record<string, number> = {};
+  if (findingLimit === 0) return { findings: [], partial: false, ruleCounts };
   const starts = [0];
   for (let index = content.indexOf('\n'); index !== -1; index = content.indexOf('\n', index + 1)) {
     starts.push(index + 1);
@@ -117,6 +136,9 @@ export function analyzeEvidence(
     return content.slice(starts[index], next === undefined ? content.length : next - 1);
   };
   for (const rule of profile.rules) {
+    // One chatty rule must not spend the whole finding budget before the
+    // others run: past `perRuleLimit` its matches are only counted.
+    let kept = 0;
     const matcher = new RegExp(rule.pattern.source, rule.pattern.flags.replace('g', '') + 'g');
     const spansLines =
       rule.pattern.flags.includes('s') || /\[\\s\\S\]|\[\\S\\s\]/.test(rule.pattern.source);
@@ -130,7 +152,7 @@ export function analyzeEvidence(
       // window — would otherwise each be reported for one logical finding.
       let reportedEnd = 0;
       for (let offset = 0; offset === 0 || offset < line.length; offset += EVIDENCE_MATCH_WINDOW) {
-        if (now() > deadline) return { findings, partial: true };
+        if (now() > deadline) return { findings, partial: true, ruleCounts };
         // The window reaches BACK by EVIDENCE_MATCH_OVERLAP (so a match that
         // starts in the previous window's tail is still seen whole — a one-char
         // overlap missed `ECONNRESET` split across offset 1024) and FORWARD by
@@ -150,6 +172,9 @@ export function analyzeEvidence(
           // double-count one logical finding.
           if (absStart < reportedEnd) continue;
           reportedEnd = absStart + match[0].length;
+          ruleCounts[rule.label] = (ruleCounts[rule.label] ?? 0) + 1;
+          if (kept >= perRuleLimit) continue;
+          kept += 1;
           const lineIndex = spansLines ? lineIndexOf(starts, absStart) : segment;
           findings.push({
             rule: rule.label,
@@ -158,12 +183,12 @@ export function analyzeEvidence(
             excerpt: safePrefix(redactExcerpt(lineAt(lineIndex).trim()), 240),
             advice: rule.advice,
           });
-          if (findings.length >= findingLimit) return { findings, partial: false };
+          if (findings.length >= findingLimit) return { findings, partial: false, ruleCounts };
         }
       }
     }
   }
-  return { findings, partial: false };
+  return { findings, partial: false, ruleCounts };
 }
 
 /** Index of the line containing `offset`, by binary search over line starts. */
@@ -302,10 +327,81 @@ async function sourceFromInput(
   return { content, source: path };
 }
 
+interface GatheredFindings {
+  findings: EvidenceFinding[];
+  partial: boolean;
+  ruleCounts: Record<string, number>;
+  suppressed: number;
+  source: string;
+  evidenceChars?: number;
+  inspected?: string[];
+  facts?: Record<string, unknown>;
+  limitation: string;
+}
+
+/** Findings from supplied evidence, or from the project when none is supplied. */
+async function gatherFindings(
+  profile: EvidenceAnalyzerProfile,
+  input: { path?: string; content?: string },
+  root: string,
+  config: EvidenceAnalyzerConfig,
+  signal: AbortSignal,
+  options: Record<string, unknown>,
+): Promise<GatheredFindings> {
+  const noPath = typeof input.path !== 'string' || input.path.trim() === '';
+  if (profile.project && noPath && typeof input.content !== 'string') {
+    const collected = await profile.project.collect({ root, signal, options });
+    signal.throwIfAborted();
+    const rank = { error: 0, warning: 1, info: 2 } as const;
+    const ordered = [...collected.findings].sort((a, b) => rank[a.severity] - rank[b.severity]);
+    const capped = capPerRule(ordered, config.maxPerRule);
+    const kept = capped.findings.slice(0, config.maxFindings);
+    return {
+      findings: kept,
+      partial: false,
+      ruleCounts: capped.ruleCounts,
+      suppressed: collected.findings.length - kept.length,
+      source: 'project',
+      inspected:
+        collected.inspected.length > 12
+          ? [...collected.inspected.slice(0, 10), `… and ${collected.inspected.length - 10} more`]
+          : collected.inspected,
+      ...(collected.facts ? { facts: collected.facts } : {}),
+      limitation: collected.limitation,
+    };
+  }
+  const evidence = await sourceFromInput(input, root, signal);
+  signal.throwIfAborted();
+  const content = profile.preprocess ? profile.preprocess(evidence.content) : evidence.content;
+  const structural = profile.inspect ? profile.inspect(content) : [];
+  const analysed = analyzeEvidence(
+    content,
+    profile,
+    config.maxFindings,
+    Date.now,
+    config.maxPerRule,
+  );
+  const structuralCapped = capPerRule(structural, config.maxPerRule);
+  const ruleCounts = { ...structuralCapped.ruleCounts, ...analysed.ruleCounts };
+  const kept = [...structuralCapped.findings, ...analysed.findings].slice(0, config.maxFindings);
+  const total = Object.values(ruleCounts).reduce((sum, count) => sum + count, 0);
+  return {
+    findings: kept,
+    partial: analysed.partial,
+    ruleCounts,
+    suppressed: Math.max(0, total - kept.length),
+    source: evidence.source,
+    evidenceChars: evidence.content.length,
+    limitation: analysed.partial
+      ? `Only part of the supplied evidence was inspected (analysis stopped after ${EVIDENCE_ANALYZE_BUDGET_MS} ms); no project command was executed.`
+      : 'Only the supplied evidence was inspected; no project command was executed.',
+  };
+}
+
 /** Build a deterministic, evidence-first diagnostic plugin. */
 export function createEvidenceAnalyzerPlugin(profile: EvidenceAnalyzerProfile): Plugin {
   const hosts = new Map<object, { state: EvidenceAnalyzerState; abort: AbortController }>();
-  const defaults: EvidenceAnalyzerConfig = { enabled: true, maxFindings: 40 };
+  const defaults: EvidenceAnalyzerConfig = { enabled: true, maxFindings: 40, maxPerRule: 5 };
   return {
     name: profile.name,
     version: '0.1.0',
@@ -324,6 +420,15 @@ export function createEvidenceAnalyzerPlugin(profile: EvidenceAnalyzerProfile): 
           default: 40,
           description: 'Maximum reported findings per analysis.',
         },
+        maxPerRule: {
+          type: 'number',
+          minimum: 1,
+          maximum: 200,
+          default: 5,
+          description:
+            'Maximum findings kept per rule; further matches are only counted in ruleCounts.',
+        },
+        ...profile.options,
       },
     },
     setup(api) {
@@ -333,13 +438,17 @@ export function createEvidenceAnalyzerPlugin(profile: EvidenceAnalyzerProfile): 
       hosts.set(api, { state, abort });
       api.tools.register({
         name: profile.toolName,
-        description: `${profile.evidenceHint} Returns only evidence found in the supplied file or pasted content; it does not run commands.`,
+        description: profile.project
+          ? `${profile.evidenceHint} With path or content, inspects only that evidence. With neither, inspects the project itself: ${profile.project.description} Never runs project scripts or writes files.`
+          : `${profile.evidenceHint} Returns only evidence found in the supplied file or pasted content; it does not run commands.`,
         inputSchema: {
           type: 'object',
           properties: {
             path: {
               type: 'string',
-              description: 'Project-relative file containing evidence to inspect.',
+              description: profile.project
+                ? 'Project-relative file containing evidence to inspect. Omit together with content to inspect the project.'
+                : 'Project-relative file containing evidence to inspect.',
             },
             content: {
               type: 'string',
@@ -362,17 +471,15 @@ export function createEvidenceAnalyzerPlugin(profile: EvidenceAnalyzerProfile): 
           const config = readConfig(api.config.extensions?.[profile.name]);
           if (!config.enabled) throw new Error(`${profile.name} is disabled`);
           try {
-            const evidence = await sourceFromInput(
-              input ?? {},
-              resolve(ctx?.projectRoot ?? ctx?.cwd ?? process.cwd()),
-              signal,
-            );
-            signal.throwIfAborted();
-            const { findings, partial } = analyzeEvidence(
-              evidence.content,
-              profile,
-              config.maxFindings,
-            );
+            const root = resolve(ctx?.projectRoot ?? ctx?.cwd ?? process.cwd());
+            const extensions = api.config.extensions?.[profile.name];
+            const gathered = await gatherFindings(profile, input ?? {}, root, config, signal, {
+              ...((extensions && typeof extensions === 'object' ? extensions : {}) as Record<
+                string,
+                unknown
+              >),
+            });
+            const { findings, partial } = gathered;
             if (
               input.review !== undefined &&
               !['none', 'one-shot', 'council', 'jev'].includes(input.review)
@@ -423,8 +530,12 @@ export function createEvidenceAnalyzerPlugin(profile: EvidenceAnalyzerProfile): 
             return {
               ok: true,
               plugin: profile.name,
-              source: evidence.source,
-              evidenceChars: evidence.content.length,
+              source: gathered.source,
+              ...(gathered.evidenceChars !== undefined
+                ? { evidenceChars: gathered.evidenceChars }
+                : {}),
+              ...(gathered.inspected ? { inspected: gathered.inspected } : {}),
+              ...(gathered.facts ? { facts: gathered.facts } : {}),
               findings,
               ...(reviewRequested ? { review } : {}),
               summary: {
@@ -432,10 +543,11 @@ export function createEvidenceAnalyzerPlugin(profile: EvidenceAnalyzerProfile): 
                 warnings: findings.filter((finding) => finding.severity === 'warning').length,
                 info: findings.filter((finding) => finding.severity === 'info').length,
               },
+              ...(gathered.suppressed > 0
+                ? { ruleCounts: gathered.ruleCounts, suppressed: gathered.suppressed }
+                : {}),
               ...(partial ? { partial: true } : {}),
-              limitation: partial
-                ? `Only part of the supplied evidence was inspected (analysis stopped after ${EVIDENCE_ANALYZE_BUDGET_MS} ms); no project command was executed.`
-                : 'Only the supplied evidence was inspected; no project command was executed.',
+              limitation: gathered.limitation,
             };
           } catch (error) {
             if (!signal.aborted) state.readErrors += 1;

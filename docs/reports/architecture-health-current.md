@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-27T12:08:45.983Z
+**Generated:** 2026-11-27T12:11:33.459Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 51 |
-| Production source files | 6597 |
-| Production source lines | 1354452 |
-| Test files | 6537 |
+| Production source files | 6610 |
+| Production source lines | 1356974 |
+| Test files | 6539 |
 | Workspace dependency edges | 267 |
-| Relative module edges | 19359 |
+| Relative module edges | 19399 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -53,7 +53,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/persistence | 10 | 31 | — |
 | @wrongstack/plug-lsp | 52 | 73 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugin-sdk | 12 | 18 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
-| @wrongstack/plugins | 157 | 171 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
+| @wrongstack/plugins | 170 | 173 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 27 | 55 | — |
 | @wrongstack/project-surfaces | 263 | 57 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers, @wrongstack/tools |
 | @wrongstack/providers | 142 | 163 | @wrongstack/contracts, @wrongstack/core |
@@ -146,7 +146,7 @@ None.
 
 ## Exports only tests reference
 
-- 1063 runtime exports are referenced by tests and by no other production file.
+- 1062 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

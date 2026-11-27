@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T12:08:45.983Z",
+  "generatedAt": "2026-11-27T12:11:33.459Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6597,
-    "testFiles": 6537,
-    "sourceLines": 1354452,
+    "sourceFiles": 6610,
+    "testFiles": 6539,
+    "sourceLines": 1356974,
     "workspaceEdges": 267,
-    "moduleEdges": 19359,
+    "moduleEdges": 19399,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 15,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1063
+    "testOnlyExports": 1062
   },
   "errors": [],
   "packageCycles": [],
@@ -740,8 +740,8 @@
     {
       "name": "@wrongstack/plugins",
       "dir": "packages/plugins",
-      "sourceFiles": 157,
-      "testFiles": 171,
+      "sourceFiles": 170,
+      "testFiles": 173,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -759,7 +759,7 @@
         {
           "path": "packages/plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 171
+          "testFiles": 173
         }
       ]
     },
@@ -22128,6 +22128,12 @@
         ]
       },
       {
+        "file": "packages/plugins/tests/evidence-analyzer-project-mode.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plugins/tests/evidence-analyzer-suite.test.ts",
         "projects": [
           "root-node"
@@ -22765,6 +22771,12 @@
       },
       {
         "file": "packages/plugins/tests/webhook-channel.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugins/tests/workflow-default-inputs.test.ts",
         "projects": [
           "root-node"
         ]
@@ -44676,10 +44688,6 @@
     {
       "file": "packages/plugins/src/error-lens/index.ts",
       "name": "extractFrames"
-    },
-    {
-      "file": "packages/plugins/src/evidence-analyzer/index.ts",
-      "name": "analyzeEvidence"
     },
     {
       "file": "packages/plugins/src/evidence-analyzer/index.ts",

@@ -1,9 +1,11 @@
 import { createEvidenceAnalyzerPlugin } from '../evidence-analyzer/index.js';
+import { collectBundleBudget } from './project.js';
+
 export default createEvidenceAnalyzerPlugin({
   name: 'bundle-budget-guard',
   toolName: 'bundle_budget_analyze',
   description:
-    'Inspects build and bundle reports for budget breaches, unexpectedly large assets, and sourcemap publication signals',
+    'Measures browser build output on disk (or a supplied bundle report) against size budgets and flags published source maps',
   evidenceHint:
     'Inspect a bundle report or build output for size-budget and artifact exposure evidence.',
   rules: [
@@ -26,4 +28,28 @@ export default createEvidenceAnalyzerPlugin({
       advice: 'Confirm sourcemap access matches the intended observability and disclosure policy.',
     },
   ],
+  options: {
+    maxAssetKb: {
+      type: 'number',
+      minimum: 1,
+      default: 500,
+      description: 'JS asset budget in kB (project mode).',
+    },
+    maxCssKb: {
+      type: 'number',
+      minimum: 1,
+      default: 150,
+      description: 'CSS asset budget in kB (project mode).',
+    },
+    includeServerOutput: {
+      type: 'boolean',
+      default: false,
+      description: 'Also budget library/server output (dist without index.html or assets/).',
+    },
+  },
+  project: {
+    description:
+      'measures browser build output already on disk (dist/build/out with index.html or assets/, .next/static) against maxAssetKb/maxCssKb budgets and lists source maps; nothing is built.',
+    collect: collectBundleBudget,
+  },
 });

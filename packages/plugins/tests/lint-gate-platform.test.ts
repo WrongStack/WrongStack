@@ -295,6 +295,43 @@ describe('lint-gate local linter resolution', () => {
     expect(lintCall[2]).toEqual(expect.objectContaining({ cwd: projectRoot, shell: false }));
   });
 
+  it('retries without the VCS flag when an older Biome rejects it', async () => {
+    await installFakeLinter(projectRoot, '@biomejs/biome', 'biome', 'bin/biome.js');
+    execFileMock
+      .mockImplementationOnce(() => {
+        queueMicrotask(() => completeExecCall(0, null, 'Version: 1.0.0'));
+        return {} as never;
+      })
+      .mockImplementationOnce(() => {
+        // Usage error: no stdout.
+        queueMicrotask(() => completeExecCall(1, new Error('unexpected argument'), ''));
+        return {} as never;
+      })
+      .mockImplementationOnce(() => {
+        queueMicrotask(() =>
+          completeExecCall(
+            2,
+            null,
+            JSON.stringify({
+              diagnostics: [{ category: 'lint/x/y', severity: 'error', description: 'found' }],
+            }),
+          ),
+        );
+        return {} as never;
+      });
+    api = makeApi(projectRoot, { linter: 'biome' });
+    lintGatePlugin.setup(api as never);
+    const result = (await getHook(api)({
+      toolName: 'write',
+      toolInput: { path: path.join(projectRoot, 'a.ts'), content: 'const a = 1;\n' },
+    })) as { additionalContext?: string };
+    const first = execFileMock.mock.calls[1]![1] as string[];
+    const retry = execFileMock.mock.calls[2]![1] as string[];
+    expect(first).toContain('--vcs-use-ignore-file=false');
+    expect(retry).not.toContain('--vcs-use-ignore-file=false');
+    expect(result.additionalContext).toContain('lint/x/y');
+  });
+
   it.each([
     {
       name: 'Biome',

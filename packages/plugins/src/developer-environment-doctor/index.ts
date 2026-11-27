@@ -10,11 +10,10 @@ export default workflowPlugin({
       name: 'developer_environment_check',
       mutating: true,
       description:
-        'Probe Node and the declared npm/pnpm/yarn/bun launcher with --version; compare exact packageManager pin and detect a missing node_modules. Engine ranges are reported, not guessed.',
+        'Probe Node and the declared npm/pnpm/yarn/bun launcher with --version; compare exact packageManager pin and detect a missing node_modules. Engine ranges are reported, not guessed. manifest defaults to the project root package.json.',
       properties: { manifest: stringField },
-      required: ['manifest'],
       async run(input, context) {
-        const manifest = await json(context.root, input.manifest);
+        const manifest = await json(context.root, input.manifest ?? 'package.json');
         const declaration =
           typeof manifest.packageManager === 'string' ? manifest.packageManager : null;
         const manager = declaration?.split('@')[0] ?? null;

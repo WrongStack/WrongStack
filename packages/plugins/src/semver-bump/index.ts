@@ -476,20 +476,21 @@ const plugin: Plugin = {
             // not a git repo or no tags yet
           }
           let suggestion: BumpType = 'patch';
-          let commitCount = 0;
+          let commitCount: number | null = null;
           try {
             const commits = await getRecentCommits(lastTag, cwd);
             commitCount = commits.length;
             suggestion = determineBump(commits);
           } catch {
-            // git unavailable — keep the patch default
+            // git unavailable — keep the patch default, but say the commits
+            // were not read instead of presenting "0 commits" as a fact.
           }
           return {
             message: [
               `Current version: ${pkg.version}`,
               `Latest tag:      ${lastTag ?? '(none)'}`,
-              `Commits since:   ${commitCount}`,
-              `Suggested bump:  ${suggestion} → ${bumpVersion(pkg.version, suggestion)}`,
+              `Commits since:   ${commitCount ?? 'unknown (git history unreadable)'}`,
+              `Suggested bump:  ${suggestion} → ${bumpVersion(pkg.version, suggestion)}${commitCount === null ? ' (default; no commits analysed)' : ''}`,
               `Default part:    ${defaultPart} (change: /settings semver-part)`,
               '',
               'Run /semver patch|minor|major|auto to apply (add --dry to preview).',

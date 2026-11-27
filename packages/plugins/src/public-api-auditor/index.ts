@@ -1,19 +1,17 @@
 import { createEvidenceAnalyzerPlugin } from '../evidence-analyzer/index.js';
+import { collectPublicApi, undocumentedExports } from './project.js';
+
 export default createEvidenceAnalyzerPlugin({
   name: 'public-api-auditor',
   toolName: 'public_api_analyze',
   description:
-    'Inspects public entry-point evidence for undocumented exports, deprecated contracts, and accidental internal API exposure',
+    'Audits package entry points for undocumented exports, missing export-map targets, deprecated contracts and accidental internal API exposure',
   evidenceHint:
-    'Inspect a public entry point or API report for documentation and compatibility signals.',
+    'Audit a public entry point (or every package entry point) for documentation and compatibility signals.',
+  // Only declarations with no /** */ comment above them; the old line rule
+  // flagged every export, documented or not.
+  inspect: undocumentedExports,
   rules: [
-    {
-      label: 'undocumented exported declaration',
-      severity: 'warning',
-      pattern: /^export\s+(?:async\s+)?(?:function|class|interface|type|const)\s+/m,
-      advice:
-        'Review exported declarations for an adjacent public contract comment and test coverage.',
-    },
     {
       label: 'deprecated public contract',
       severity: 'info',
@@ -27,4 +25,9 @@ export default createEvidenceAnalyzerPlugin({
       advice: 'Expose a stable facade instead of leaking internal module paths.',
     },
   ],
+  project: {
+    description:
+      'resolves entry points from every non-private package.json (exports/main/types, dist mapped to src), reports export-map targets that do not exist, undocumented exported declarations and internal paths re-exported.',
+    collect: collectPublicApi,
+  },
 });

@@ -1,9 +1,11 @@
 import { createEvidenceAnalyzerPlugin } from '../evidence-analyzer/index.js';
+import { collectDependencyDrift } from './project.js';
+
 export default createEvidenceAnalyzerPlugin({
   name: 'dependency-drift-detector',
   toolName: 'dependency_drift_analyze',
   description:
-    'Inspects manifests and package-manager output for unpinned ranges, lockfile mismatch, and peer dependency drift',
+    'Checks workspace manifests (or supplied output) for unbounded ranges, non-registry sources, cross-package version drift and lockfile mismatch',
   evidenceHint:
     'Inspect a package manifest, lockfile fragment, or package-manager output for dependency drift.',
   rules: [
@@ -28,4 +30,9 @@ export default createEvidenceAnalyzerPlugin({
       advice: 'Resolve the compatible version set instead of forcing installation.',
     },
   ],
+  project: {
+    description:
+      'reads the root and workspace package.json files for unbounded ranges (*, latest, >=N), git/URL/file sources, and the same dependency declared with different ranges in different packages.',
+    collect: collectDependencyDrift,
+  },
 });

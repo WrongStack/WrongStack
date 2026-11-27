@@ -8,11 +8,11 @@ export default workflowPlugin({
       name: 'documentation_verify',
       mutating: true,
       description:
-        'Run only fenced blocks beginning ```js verify or ```javascript verify from the selected Markdown file. Executes with Node ESM in the project directory; examples should contain assertions.',
+        'Run only fenced blocks beginning ```js verify or ```javascript verify from the selected Markdown file (default: README.md). Executes with Node ESM in the project directory; examples should contain assertions.',
       properties: { path: stringField },
-      required: ['path'],
       async run(input, context) {
-        const source = await read(context.root, input.path);
+        const docPath = input.path ?? 'README.md';
+        const source = await read(context.root, docPath);
         const blocks = [
           ...source.matchAll(/^```(?:js|javascript) verify\s*\r?\n([\s\S]*?)^```\s*$/gm),
         ];
@@ -37,7 +37,7 @@ export default workflowPlugin({
               ? 'passed'
               : 'failed',
           examples: results,
-          source: input.path,
+          source: docPath,
         };
       },
     },

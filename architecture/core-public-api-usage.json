@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1040,
+      "files": 1041,
       "typeOnly": 78,
-      "runtimeOrMixed": 997
+      "runtimeOrMixed": 998
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -15594,6 +15594,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/plugins/src/dep-guard/lockfile-sync.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/plugins/src/evidence-analyzer/project.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

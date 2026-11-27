@@ -1,9 +1,11 @@
 import { createEvidenceAnalyzerPlugin } from '../evidence-analyzer/index.js';
+import { collectLockfileConsistency } from './project.js';
+
 export default createEvidenceAnalyzerPlugin({
   name: 'lockfile-consistency-guard',
   toolName: 'lockfile_consistency_analyze',
   description:
-    'Inspects lockfile and install evidence for mixed package managers, integrity failures, and reproducibility breaks',
+    'Checks the project lockfiles (or supplied install output) for mixed package managers, missing, nested or untracked lockfiles, and integrity failures',
   evidenceHint:
     'Inspect lockfile text or install output for reproducibility and consistency evidence.',
   rules: [
@@ -28,4 +30,9 @@ export default createEvidenceAnalyzerPlugin({
       advice: 'Use frozen installs in CI and commit the reviewed lockfile change.',
     },
   ],
+  project: {
+    description:
+      'checks root lockfiles against packageManager, finds multiple, missing, nested workspace and git-untracked lockfiles.',
+    collect: collectLockfileConsistency,
+  },
 });

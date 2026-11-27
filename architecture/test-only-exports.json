@@ -1213,7 +1213,6 @@
       "extractFrames"
     ],
     "packages/plugins/src/evidence-analyzer/index.ts": [
-      "analyzeEvidence",
       "EVIDENCE_ANALYZE_BUDGET_MS",
       "EVIDENCE_MATCH_OVERLAP",
       "EVIDENCE_MATCH_WINDOW"

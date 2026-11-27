@@ -1,3 +1,4 @@
+import { dirname, relative } from 'node:path';
 import {
   commandField,
   json,
@@ -7,7 +8,6 @@ import {
   stringField,
   workflowPlugin,
 } from '../workflow-runtime/index.js';
-import { dirname, relative } from 'node:path';
 
 export default workflowPlugin({
   name: 'workspace-recipe-runner',
@@ -17,16 +17,16 @@ export default workflowPlugin({
     {
       name: 'workspace_recipes',
       description:
-        'Read a package.json and list its scripts, working directory, declared package manager, engines and required workspace dependency builds.',
+        'Read a package.json (default: the project root package.json) and list its scripts, working directory, declared package manager, engines and required workspace dependency builds.',
       properties: { path: stringField },
-      required: ['path'],
       async run(input, context) {
-        const manifest = await json(context.root, input.path);
+        const path = input.path ?? 'package.json';
+        const manifest = await json(context.root, path);
         const manager =
           typeof manifest.packageManager === 'string'
             ? manifest.packageManager.split('@')[0]
             : null;
-        const cwd = relative(context.root, dirname(projectPath(context.root, input.path))) || '.';
+        const cwd = relative(context.root, dirname(projectPath(context.root, path))) || '.';
         return {
           package: manifest.name,
           manager,

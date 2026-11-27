@@ -5,7 +5,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Inspects supplied workspace configuration evidence for broken package-manager, Node, and script contracts. Opt in through config.plugins; tools run only when invoked. Inspect package.json, tool output, or workspace configuration for health-contract failures. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
+      'Checks the workspace manifests (or supplied output) for broken package-manager, Node engine, script and workspace-link contracts. Opt in through config.plugins; tools run only when invoked. Inspect package.json, tool output, or workspace configuration for health-contract failures. With path or content, inspects only that evidence. With neither, inspects the project itself: reads the root and workspace package.json files to find lockfile/packageManager mismatches, unmet engines.node, `run` references to undefined scripts, empty workspace globs and unresolved workspace: dependencies. Never runs project scripts or writes files.',
     tools: [
       {
         name: 'workspace_health_analyze',
@@ -13,12 +13,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         permission: 'auto',
         mutating: false,
         summary:
-          'Inspect package.json, tool output, or workspace configuration for health-contract failures. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
+          'Inspect package.json, tool output, or workspace configuration for health-contract failures. With path or content, inspects only that evidence. With neither, inspects the project itself: reads the root and workspace package.json files to find lockfile/packageManager mismatches, unmet engines.node, `run` references to undefined scripts, empty workspace globs and unresolved workspace: dependencies. Never runs project scripts or writes files.',
         params: [
           {
             name: 'path',
             type: 'string',
-            description: 'Project-relative file containing evidence to inspect.',
+            description:
+              'Project-relative file containing evidence to inspect. Omit together with content to inspect the project.',
           },
           {
             name: 'content',
@@ -46,6 +47,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         type: 'number',
         defaultValue: '40',
         description: 'Maximum reported findings per analysis.',
+      },
+      {
+        name: 'maxPerRule',
+        type: 'number',
+        defaultValue: '5',
+        description:
+          'Maximum findings kept per rule; further matches are only counted in ruleCounts.',
       },
     ],
     hooks: [],
@@ -56,7 +64,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Inspects diffs and test output for untested changes, focused-test exclusions, and skipped coverage evidence. Opt in through config.plugins; tools run only when invoked. Inspect a diff, changed-file list, or test output for test-impact signals. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
+      'Maps changed source files to the tests that cover them, and flags focused/skipped tests and coverage-threshold failures in diffs or test output. Opt in through config.plugins; tools run only when invoked. Find which tests a change needs: changed source without changed tests (with existing test files to run), committed .only/.skip, and coverage threshold failures. With path or content, inspects only that evidence. With neither, inspects the project itself: reads the changed files (`git diff HEAD` + untracked), maps each changed source file to existing test files by name, and reports .only/.skip added in changed tests; facts.suggestedTests lists the test files to run. Never runs project scripts or writes files.',
     tools: [
       {
         name: 'test_impact_analyze',
@@ -64,12 +72,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         permission: 'auto',
         mutating: false,
         summary:
-          'Inspect a diff, changed-file list, or test output for test-impact signals. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
+          'Find which tests a change needs: changed source without changed tests (with existing test files to run), committed .only/.skip, and coverage threshold failures. With path or content, inspects only that evidence. With neither, inspects the project itself: reads the changed files (`git diff HEAD` + untracked), maps each changed source file to existing test files by name, and reports .only/.skip added in changed tests; facts.suggestedTests lists the test files to run. Never runs project scripts or writes files.',
         params: [
           {
             name: 'path',
             type: 'string',
-            description: 'Project-relative file containing evidence to inspect.',
+            description:
+              'Project-relative file containing evidence to inspect. Omit together with content to inspect the project.',
           },
           {
             name: 'content',
@@ -98,6 +107,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         defaultValue: '40',
         description: 'Maximum reported findings per analysis.',
       },
+      {
+        name: 'maxPerRule',
+        type: 'number',
+        defaultValue: '5',
+        description:
+          'Maximum findings kept per rule; further matches are only counted in ruleCounts.',
+      },
     ],
     hooks: [],
     example:
@@ -107,7 +123,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Classifies supplied CI logs into actionable dependency, test, type-check, and infrastructure failure evidence. Opt in through config.plugins; tools run only when invoked. Inspect CI or command output and classify actionable failure signatures. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
+      'Classifies supplied CI logs into test, type-check, lint, build, missing-module, lockfile, out-of-memory, timeout, permission and network failure evidence. Opt in through config.plugins; tools run only when invoked. Inspect CI or command output and classify actionable failure signatures. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
     tools: [
       {
         name: 'ci_failure_triage',
@@ -149,6 +165,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         defaultValue: '40',
         description: 'Maximum reported findings per analysis.',
       },
+      {
+        name: 'maxPerRule',
+        type: 'number',
+        defaultValue: '5',
+        description:
+          'Maximum findings kept per rule; further matches are only counted in ruleCounts.',
+      },
     ],
     hooks: [],
     example:
@@ -158,7 +181,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Inspects environment templates and runtime diagnostics for missing, placeholder, or accidentally exposed configuration contracts. Opt in through config.plugins; tools run only when invoked. Inspect an environment template or runtime diagnostic without submitting secret values. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
+      'Compares the env template with variables the source reads, flags committed .env files and exposed secrets (or inspects a supplied template/diagnostic). Opt in through config.plugins; tools run only when invoked. Inspect an environment template or runtime diagnostic without submitting secret values. With path or content, inspects only that evidence. With neither, inspects the project itself: compares the .env template with the variables source code reads (process.env, import.meta.env, Bun.env, os.getenv, env::var), flags committed .env files and real-looking secrets in the template; values are never echoed. Never runs project scripts or writes files.',
     tools: [
       {
         name: 'env_contract_analyze',
@@ -166,12 +189,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         permission: 'auto',
         mutating: false,
         summary:
-          'Inspect an environment template or runtime diagnostic without submitting secret values. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
+          'Inspect an environment template or runtime diagnostic without submitting secret values. With path or content, inspects only that evidence. With neither, inspects the project itself: compares the .env template with the variables source code reads (process.env, import.meta.env, Bun.env, os.getenv, env::var), flags committed .env files and real-looking secrets in the template; values are never echoed. Never runs project scripts or writes files.',
         params: [
           {
             name: 'path',
             type: 'string',
-            description: 'Project-relative file containing evidence to inspect.',
+            description:
+              'Project-relative file containing evidence to inspect. Omit together with content to inspect the project.',
           },
           {
             name: 'content',
@@ -199,6 +223,19 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         type: 'number',
         defaultValue: '40',
         description: 'Maximum reported findings per analysis.',
+      },
+      {
+        name: 'maxPerRule',
+        type: 'number',
+        defaultValue: '5',
+        description:
+          'Maximum findings kept per rule; further matches are only counted in ruleCounts.',
+      },
+      {
+        name: 'maxFiles',
+        type: 'number',
+        defaultValue: '5000',
+        description: 'Source files scanned for env references in project mode.',
       },
     ],
     hooks: [],
@@ -209,7 +246,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Inspects manifests and package-manager output for unpinned ranges, lockfile mismatch, and peer dependency drift. Opt in through config.plugins; tools run only when invoked. Inspect a package manifest, lockfile fragment, or package-manager output for dependency drift. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
+      'Checks workspace manifests (or supplied output) for unbounded ranges, non-registry sources, cross-package version drift and lockfile mismatch. Opt in through config.plugins; tools run only when invoked. Inspect a package manifest, lockfile fragment, or package-manager output for dependency drift. With path or content, inspects only that evidence. With neither, inspects the project itself: reads the root and workspace package.json files for unbounded ranges (*, latest, >=N), git/URL/file sources, and the same dependency declared with different ranges in different packages. Never runs project scripts or writes files.',
     tools: [
       {
         name: 'dependency_drift_analyze',
@@ -217,12 +254,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         permission: 'auto',
         mutating: false,
         summary:
-          'Inspect a package manifest, lockfile fragment, or package-manager output for dependency drift. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
+          'Inspect a package manifest, lockfile fragment, or package-manager output for dependency drift. With path or content, inspects only that evidence. With neither, inspects the project itself: reads the root and workspace package.json files for unbounded ranges (*, latest, >=N), git/URL/file sources, and the same dependency declared with different ranges in different packages. Never runs project scripts or writes files.',
         params: [
           {
             name: 'path',
             type: 'string',
-            description: 'Project-relative file containing evidence to inspect.',
+            description:
+              'Project-relative file containing evidence to inspect. Omit together with content to inspect the project.',
           },
           {
             name: 'content',
@@ -250,6 +288,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         type: 'number',
         defaultValue: '40',
         description: 'Maximum reported findings per analysis.',
+      },
+      {
+        name: 'maxPerRule',
+        type: 'number',
+        defaultValue: '5',
+        description:
+          'Maximum findings kept per rule; further matches are only counted in ruleCounts.',
       },
     ],
     hooks: [],
@@ -260,7 +305,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Inspects supplied release-gate output for unmet validation, dirty-tree, publish, and version-alignment evidence. Opt in through config.plugins; tools run only when invoked. Inspect release-gate output, a changelog, or a version manifest for blocking readiness evidence. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
+      'Checks release readiness of the working tree (dirty tree, version alignment, changelog entry, already-tagged version, upstream drift) or of supplied release-gate output. Opt in through config.plugins; tools run only when invoked. Inspect release-gate output, a changelog, or a version manifest for blocking readiness evidence. With path or content, inspects only that evidence. With neither, inspects the project itself: reads git status, workspace package versions (lockstep vs independent), CHANGELOG.md heading for the version, whether that version is already tagged with commits after it, and upstream ahead/behind. Never runs project scripts or writes files.',
     tools: [
       {
         name: 'release_readiness_analyze',
@@ -268,12 +313,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         permission: 'auto',
         mutating: false,
         summary:
-          'Inspect release-gate output, a changelog, or a version manifest for blocking readiness evidence. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
+          'Inspect release-gate output, a changelog, or a version manifest for blocking readiness evidence. With path or content, inspects only that evidence. With neither, inspects the project itself: reads git status, workspace package versions (lockstep vs independent), CHANGELOG.md heading for the version, whether that version is already tagged with commits after it, and upstream ahead/behind. Never runs project scripts or writes files.',
         params: [
           {
             name: 'path',
             type: 'string',
-            description: 'Project-relative file containing evidence to inspect.',
+            description:
+              'Project-relative file containing evidence to inspect. Omit together with content to inspect the project.',
           },
           {
             name: 'content',
@@ -301,6 +347,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         type: 'number',
         defaultValue: '40',
         description: 'Maximum reported findings per analysis.',
+      },
+      {
+        name: 'maxPerRule',
+        type: 'number',
+        defaultValue: '5',
+        description:
+          'Maximum findings kept per rule; further matches are only counted in ruleCounts.',
       },
     ],
     hooks: [],
@@ -311,7 +364,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Inspects build and bundle reports for budget breaches, unexpectedly large assets, and sourcemap publication signals. Opt in through config.plugins; tools run only when invoked. Inspect a bundle report or build output for size-budget and artifact exposure evidence. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
+      'Measures browser build output on disk (or a supplied bundle report) against size budgets and flags published source maps. Opt in through config.plugins; tools run only when invoked. Inspect a bundle report or build output for size-budget and artifact exposure evidence. With path or content, inspects only that evidence. With neither, inspects the project itself: measures browser build output already on disk (dist/build/out with index.html or assets/, .next/static) against maxAssetKb/maxCssKb budgets and lists source maps; nothing is built. Never runs project scripts or writes files.',
     tools: [
       {
         name: 'bundle_budget_analyze',
@@ -319,12 +372,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         permission: 'auto',
         mutating: false,
         summary:
-          'Inspect a bundle report or build output for size-budget and artifact exposure evidence. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
+          'Inspect a bundle report or build output for size-budget and artifact exposure evidence. With path or content, inspects only that evidence. With neither, inspects the project itself: measures browser build output already on disk (dist/build/out with index.html or assets/, .next/static) against maxAssetKb/maxCssKb budgets and lists source maps; nothing is built. Never runs project scripts or writes files.',
         params: [
           {
             name: 'path',
             type: 'string',
-            description: 'Project-relative file containing evidence to inspect.',
+            description:
+              'Project-relative file containing evidence to inspect. Omit together with content to inspect the project.',
           },
           {
             name: 'content',
@@ -352,6 +406,31 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         type: 'number',
         defaultValue: '40',
         description: 'Maximum reported findings per analysis.',
+      },
+      {
+        name: 'maxPerRule',
+        type: 'number',
+        defaultValue: '5',
+        description:
+          'Maximum findings kept per rule; further matches are only counted in ruleCounts.',
+      },
+      {
+        name: 'maxAssetKb',
+        type: 'number',
+        defaultValue: '500',
+        description: 'JS asset budget in kB (project mode).',
+      },
+      {
+        name: 'maxCssKb',
+        type: 'number',
+        defaultValue: '150',
+        description: 'CSS asset budget in kB (project mode).',
+      },
+      {
+        name: 'includeServerOutput',
+        type: 'boolean',
+        defaultValue: 'false',
+        description: 'Also budget library/server output (dist without index.html or assets/).',
       },
     ],
     hooks: [],
@@ -362,7 +441,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Inspects public entry-point evidence for undocumented exports, deprecated contracts, and accidental internal API exposure. Opt in through config.plugins; tools run only when invoked. Inspect a public entry point or API report for documentation and compatibility signals. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
+      'Audits package entry points for undocumented exports, missing export-map targets, deprecated contracts and accidental internal API exposure. Opt in through config.plugins; tools run only when invoked. Audit a public entry point (or every package entry point) for documentation and compatibility signals. With path or content, inspects only that evidence. With neither, inspects the project itself: resolves entry points from every non-private package.json (exports/main/types, dist mapped to src), reports export-map targets that do not exist, undocumented exported declarations and internal paths re-exported. Never runs project scripts or writes files.',
     tools: [
       {
         name: 'public_api_analyze',
@@ -370,12 +449,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         permission: 'auto',
         mutating: false,
         summary:
-          'Inspect a public entry point or API report for documentation and compatibility signals. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
+          'Audit a public entry point (or every package entry point) for documentation and compatibility signals. With path or content, inspects only that evidence. With neither, inspects the project itself: resolves entry points from every non-private package.json (exports/main/types, dist mapped to src), reports export-map targets that do not exist, undocumented exported declarations and internal paths re-exported. Never runs project scripts or writes files.',
         params: [
           {
             name: 'path',
             type: 'string',
-            description: 'Project-relative file containing evidence to inspect.',
+            description:
+              'Project-relative file containing evidence to inspect. Omit together with content to inspect the project.',
           },
           {
             name: 'content',
@@ -403,6 +483,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         type: 'number',
         defaultValue: '40',
         description: 'Maximum reported findings per analysis.',
+      },
+      {
+        name: 'maxPerRule',
+        type: 'number',
+        defaultValue: '5',
+        description:
+          'Maximum findings kept per rule; further matches are only counted in ruleCounts.',
       },
     ],
     hooks: [],
@@ -413,7 +500,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Inspects lockfile and install evidence for mixed package managers, integrity failures, and reproducibility breaks. Opt in through config.plugins; tools run only when invoked. Inspect lockfile text or install output for reproducibility and consistency evidence. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
+      'Checks the project lockfiles (or supplied install output) for mixed package managers, missing, nested or untracked lockfiles, and integrity failures. Opt in through config.plugins; tools run only when invoked. Inspect lockfile text or install output for reproducibility and consistency evidence. With path or content, inspects only that evidence. With neither, inspects the project itself: checks root lockfiles against packageManager, finds multiple, missing, nested workspace and git-untracked lockfiles. Never runs project scripts or writes files.',
     tools: [
       {
         name: 'lockfile_consistency_analyze',
@@ -421,12 +508,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         permission: 'auto',
         mutating: false,
         summary:
-          'Inspect lockfile text or install output for reproducibility and consistency evidence. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
+          'Inspect lockfile text or install output for reproducibility and consistency evidence. With path or content, inspects only that evidence. With neither, inspects the project itself: checks root lockfiles against packageManager, finds multiple, missing, nested workspace and git-untracked lockfiles. Never runs project scripts or writes files.',
         params: [
           {
             name: 'path',
             type: 'string',
-            description: 'Project-relative file containing evidence to inspect.',
+            description:
+              'Project-relative file containing evidence to inspect. Omit together with content to inspect the project.',
           },
           {
             name: 'content',
@@ -454,6 +542,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         type: 'number',
         defaultValue: '40',
         description: 'Maximum reported findings per analysis.',
+      },
+      {
+        name: 'maxPerRule',
+        type: 'number',
+        defaultValue: '5',
+        description:
+          'Maximum findings kept per rule; further matches are only counted in ruleCounts.',
       },
     ],
     hooks: [],
@@ -464,7 +559,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Inspects diffs or change descriptions for authentication, persistence, destructive-operation, and compatibility risk signals. Opt in through config.plugins; tools run only when invoked. Inspect a diff or change description and surface risk signals that merit targeted proof. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
+      'Classifies the working-tree change (or a supplied diff) into authentication, persistence, destructive-operation, CI, infrastructure and dependency risk signals per file. Opt in through config.plugins; tools run only when invoked. Classify a change by the risks that merit targeted proof before it ships (auth, persistence, destructive operations, CI, infrastructure, dependencies). With path or content, inspects only that evidence. With neither, inspects the project itself: reads `git diff HEAD` plus untracked files and classifies each changed file by path and by its changed (non-test) lines. Never runs project scripts or writes files.',
     tools: [
       {
         name: 'change_risk_analyze',
@@ -472,12 +567,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         permission: 'auto',
         mutating: false,
         summary:
-          'Inspect a diff or change description and surface risk signals that merit targeted proof. Returns only evidence found in the supplied file or pasted content; it does not run commands.',
+          'Classify a change by the risks that merit targeted proof before it ships (auth, persistence, destructive operations, CI, infrastructure, dependencies). With path or content, inspects only that evidence. With neither, inspects the project itself: reads `git diff HEAD` plus untracked files and classifies each changed file by path and by its changed (non-test) lines. Never runs project scripts or writes files.',
         params: [
           {
             name: 'path',
             type: 'string',
-            description: 'Project-relative file containing evidence to inspect.',
+            description:
+              'Project-relative file containing evidence to inspect. Omit together with content to inspect the project.',
           },
           {
             name: 'content',
@@ -506,6 +602,13 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         defaultValue: '40',
         description: 'Maximum reported findings per analysis.',
       },
+      {
+        name: 'maxPerRule',
+        type: 'number',
+        defaultValue: '5',
+        description:
+          'Maximum findings kept per rule; further matches are only counted in ruleCounts.',
+      },
     ],
     hooks: [],
     example:
@@ -515,7 +618,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Runs a supplied regression command twice against fingerprinted files and distinguishes a reproducible failure from instability or infrastructure errors. Opt in through config.plugins; tools run only when invoked. Run an explicit regression command twice. expectedOutput is a literal failure marker required to attribute the failure to the reported bug. Returns a portable Node test recipe and file fingerprints.',
+      'Runs a supplied regression command twice against fingerprinted files and distinguishes a reproducible failure from instability or infrastructure errors. Opt in through config.plugins; tools run only when invoked. Run an explicit regression command twice. expectedOutput is a literal failure marker required to attribute the failure to the reported bug. files defaults to the working-tree change (git diff HEAD + untracked). Returns a portable Node test recipe and file fingerprints.',
     tools: [
       {
         name: 'bug_reproduce',
@@ -523,7 +626,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         permission: 'confirm',
         mutating: true,
         summary:
-          'Run an explicit regression command twice. expectedOutput is a literal failure marker required to attribute the failure to the reported bug. Returns a portable Node test recipe and file fingerprints.',
+          'Run an explicit regression command twice. expectedOutput is a literal failure marker required to attribute the failure to the reported bug. files defaults to the working-tree change (git diff HEAD + untracked). Returns a portable Node test recipe and file fingerprints.',
         params: [
           {
             name: 'command',
@@ -533,7 +636,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'files',
             type: 'array',
-            description: 'Required.',
+            description: 'Optional.',
           },
           {
             name: 'expectedOutput',
@@ -565,7 +668,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Records executed checks with source fingerprints and invalidates their evidence when relevant files change within the host session. Opt in through config.plugins; tools run only when invoked. Execute a check and record its result against the exact supplied source files. Evidence is session-local; include all inputs influencing the check. Recompute source fingerprints for every recorded check; missing or modified files invalidate previous success.',
+      'Records executed checks with source fingerprints and invalidates their evidence when relevant files change within the host session. Opt in through config.plugins; tools run only when invoked. Execute a check and record its result against the exact supplied source files. Evidence is session-local; include all inputs influencing the check. files defaults to the working-tree change (git diff HEAD + untracked). Recompute source fingerprints for every recorded check; missing or modified files invalidate previous success.',
     tools: [
       {
         name: 'verification_record',
@@ -573,7 +676,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         permission: 'confirm',
         mutating: true,
         summary:
-          'Execute a check and record its result against the exact supplied source files. Evidence is session-local; include all inputs influencing the check.',
+          'Execute a check and record its result against the exact supplied source files. Evidence is session-local; include all inputs influencing the check. files defaults to the working-tree change (git diff HEAD + untracked).',
         params: [
           {
             name: 'command',
@@ -583,7 +686,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'files',
             type: 'array',
-            description: 'Required.',
+            description: 'Optional.',
           },
           {
             name: 'label',
@@ -696,7 +799,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Discovers explicit package scripts and their package-manager and runtime prerequisites, then runs a selected structured command. Opt in through config.plugins; tools run only when invoked. Read a package.json and list its scripts, working directory, declared package manager, engines and required workspace dependency builds. Execute a reviewed structured recipe with project-contained cwd, cancellation and timeout.',
+      'Discovers explicit package scripts and their package-manager and runtime prerequisites, then runs a selected structured command. Opt in through config.plugins; tools run only when invoked. Read a package.json (default: the project root package.json) and list its scripts, working directory, declared package manager, engines and required workspace dependency builds. Execute a reviewed structured recipe with project-contained cwd, cancellation and timeout.',
     tools: [
       {
         name: 'workspace_recipes',
@@ -704,12 +807,12 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         permission: 'auto',
         mutating: false,
         summary:
-          'Read a package.json and list its scripts, working directory, declared package manager, engines and required workspace dependency builds.',
+          'Read a package.json (default: the project root package.json) and list its scripts, working directory, declared package manager, engines and required workspace dependency builds.',
         params: [
           {
             name: 'path',
             type: 'string',
-            description: 'Required.',
+            description: 'Optional.',
           },
         ],
       },
@@ -745,7 +848,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Builds a literal source import graph, reports dependency cycles, and checks explicitly forbidden directory boundaries. Opt in through config.plugins; tools run only when invoked. Inspect imports in the supplied files. forbidden contains {from,to} directory prefixes; unresolved external/alias imports remain visible.',
+      'Builds a literal source import graph, reports dependency cycles, and checks explicitly forbidden directory boundaries. Opt in through config.plugins; tools run only when invoked. Inspect imports in the supplied files (default: the project source files, up to 3000). forbidden contains {from,to} directory prefixes; unresolved external/alias imports remain visible.',
     tools: [
       {
         name: 'architecture_boundaries',
@@ -753,12 +856,12 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         permission: 'auto',
         mutating: false,
         summary:
-          'Inspect imports in the supplied files. forbidden contains {from,to} directory prefixes; unresolved external/alias imports remain visible.',
+          'Inspect imports in the supplied files (default: the project source files, up to 3000). forbidden contains {from,to} directory prefixes; unresolved external/alias imports remain visible.',
         params: [
           {
             name: 'files',
             type: 'array',
-            description: 'Required.',
+            description: 'Optional.',
           },
           {
             name: 'forbidden',
@@ -784,7 +887,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Computes transitive workspace consumers and dependency-first validation order from explicit package manifests and changed paths. Opt in through config.plugins; tools run only when invoked. Supply workspace package.json paths and changed files. Returns impacted packages, dependency-first build/test recipes, cycles and unknown changes.',
+      'Computes transitive workspace consumers and dependency-first validation order from the workspace manifests and the working-tree change (or supplied lists). Opt in through config.plugins; tools run only when invoked. Plan validation for a change. manifests defaults to every declared workspace package.json, changedFiles to the working-tree change (git diff HEAD + untracked). Returns impacted packages, dependency-first build/test recipes, cycles and changes outside any package.',
     tools: [
       {
         name: 'monorepo_change_plan',
@@ -792,17 +895,17 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         permission: 'auto',
         mutating: false,
         summary:
-          'Supply workspace package.json paths and changed files. Returns impacted packages, dependency-first build/test recipes, cycles and unknown changes.',
+          'Plan validation for a change. manifests defaults to every declared workspace package.json, changedFiles to the working-tree change (git diff HEAD + untracked). Returns impacted packages, dependency-first build/test recipes, cycles and changes outside any package.',
         params: [
           {
             name: 'manifests',
             type: 'array',
-            description: 'Required.',
+            description: 'Optional.',
           },
           {
             name: 'changedFiles',
             type: 'array',
-            description: 'Required.',
+            description: 'Optional.',
           },
           {
             name: 'review',
@@ -873,7 +976,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Maps declared feature flags to literal source references and reports expired flags and definitions without visible consumers. Opt in through config.plugins; tools run only when invoked. Supply flags [{name,expiresAt?,owner?}] and source files. Reports exact literal-token references, expiry and retirement review candidates; dynamic flag construction is outside scope.',
+      'Maps declared feature flags to literal source references and reports expired flags and definitions without visible consumers. Opt in through config.plugins; tools run only when invoked. Supply flags [{name,expiresAt?,owner?}]; files defaults to the project source files (up to 3000). Reports exact literal-token references, expiry and retirement review candidates; dynamic flag construction is outside scope.',
     tools: [
       {
         name: 'feature_flag_inventory',
@@ -881,7 +984,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         permission: 'auto',
         mutating: false,
         summary:
-          'Supply flags [{name,expiresAt?,owner?}] and source files. Reports exact literal-token references, expiry and retirement review candidates; dynamic flag construction is outside scope.',
+          'Supply flags [{name,expiresAt?,owner?}]; files defaults to the project source files (up to 3000). Reports exact literal-token references, expiry and retirement review candidates; dynamic flag construction is outside scope.',
         params: [
           {
             name: 'flags',
@@ -891,7 +994,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'files',
             type: 'array',
-            description: 'Required.',
+            description: 'Optional.',
           },
         ],
       },
@@ -1318,7 +1421,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Executes explicitly marked JavaScript documentation examples in Node and records their actual exit status and source location. Opt in through config.plugins; tools run only when invoked. Run only fenced blocks beginning ```js verify or ```javascript verify from the selected Markdown file. Executes with Node ESM in the project directory; examples should contain assertions.',
+      'Executes explicitly marked JavaScript documentation examples in Node and records their actual exit status and source location. Opt in through config.plugins; tools run only when invoked. Run only fenced blocks beginning ```js verify or ```javascript verify from the selected Markdown file (default: README.md). Executes with Node ESM in the project directory; examples should contain assertions.',
     tools: [
       {
         name: 'documentation_verify',
@@ -1326,12 +1429,12 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         permission: 'confirm',
         mutating: true,
         summary:
-          'Run only fenced blocks beginning ```js verify or ```javascript verify from the selected Markdown file. Executes with Node ESM in the project directory; examples should contain assertions.',
+          'Run only fenced blocks beginning ```js verify or ```javascript verify from the selected Markdown file (default: README.md). Executes with Node ESM in the project directory; examples should contain assertions.',
         params: [
           {
             name: 'path',
             type: 'string',
-            description: 'Required.',
+            description: 'Optional.',
           },
         ],
       },
@@ -1407,7 +1510,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Probes the active Node runtime, declared package-manager launcher and dependency-install presence using the project package manifest. Opt in through config.plugins; tools run only when invoked. Probe Node and the declared npm/pnpm/yarn/bun launcher with --version; compare exact packageManager pin and detect a missing node_modules. Engine ranges are reported, not guessed.',
+      'Probes the active Node runtime, declared package-manager launcher and dependency-install presence using the project package manifest. Opt in through config.plugins; tools run only when invoked. Probe Node and the declared npm/pnpm/yarn/bun launcher with --version; compare exact packageManager pin and detect a missing node_modules. Engine ranges are reported, not guessed. manifest defaults to the project root package.json.',
     tools: [
       {
         name: 'developer_environment_check',
@@ -1415,12 +1518,12 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         permission: 'confirm',
         mutating: true,
         summary:
-          'Probe Node and the declared npm/pnpm/yarn/bun launcher with --version; compare exact packageManager pin and detect a missing node_modules. Engine ranges are reported, not guessed.',
+          'Probe Node and the declared npm/pnpm/yarn/bun launcher with --version; compare exact packageManager pin and detect a missing node_modules. Engine ranges are reported, not guessed. manifest defaults to the project root package.json.',
         params: [
           {
             name: 'manifest',
             type: 'string',
-            description: 'Required.',
+            description: 'Optional.',
           },
         ],
       },
@@ -1475,7 +1578,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
     version: '0.1.0',
     apiVersion: '^0.1.10',
     longDescription:
-      'Appends explicit architectural decisions and rationales to a project JSONL journal and retrieves decisions linked to changed files. Opt in through config.plugins; tools run only when invoked. Append {title,rationale,files} to an explicit project-contained JSONL journal. Each record has an id and timestamp. Does not inject decisions into prompts automatically. Read a JSONL decision journal; return decisions associated with supplied paths, along with explicit supersession links.',
+      'Appends explicit architectural decisions and rationales to a project JSONL journal and retrieves decisions linked to changed files. Opt in through config.plugins; tools run only when invoked. Append {title,rationale,files} to an explicit project-contained JSONL journal. Each record has an id and timestamp. Does not inject decisions into prompts automatically. Read a JSONL decision journal; return decisions associated with the given paths (default: the working-tree change), along with explicit supersession links.',
     tools: [
       {
         name: 'decision_record',
@@ -1518,7 +1621,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
         permission: 'auto',
         mutating: false,
         summary:
-          'Read a JSONL decision journal; return decisions associated with supplied paths, along with explicit supersession links.',
+          'Read a JSONL decision journal; return decisions associated with the given paths (default: the working-tree change), along with explicit supersession links.',
         params: [
           {
             name: 'journal',
@@ -1528,7 +1631,7 @@ export const workflowPluginDetails: Record<string, PluginDetail> = {
           {
             name: 'files',
             type: 'array',
-            description: 'Required.',
+            description: 'Optional.',
           },
         ],
       },
