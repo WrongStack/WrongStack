@@ -225,6 +225,7 @@ export function ActivityIcon({
       type="button"
       onClick={onClick}
       aria-label={label}
+      aria-pressed={active}
       title={label}
       className={cn(
         'ws-nav-button relative flex h-11 w-11 shrink-0 items-center justify-center rounded-md transition-colors',

@@ -7,11 +7,21 @@ import { useConfigStore, useSessionStore, useUIStore } from '@/stores';
 import type { WSServerMessage } from '@/types';
 import '@xterm/xterm/css/xterm.css';
 import { Plus, RotateCcw, TerminalSquare, Trash2, X } from 'lucide-react';
-import { type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from 'react';
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useFontSettings } from '@/hooks/use-font-settings';
 import { i18n, useAppTranslation } from '@/i18n';
 import { terminalFontOptions } from '@/lib/fonts';
-import { clampTerminalHeight, TERMINAL_HEIGHT_STORAGE_KEY } from '@/lib/terminal-dock';
+import {
+  clampTerminalHeight,
+  MIN_TERMINAL_HEIGHT,
+  TERMINAL_HEIGHT_STORAGE_KEY,
+} from '@/lib/terminal-dock';
 import { cn } from '@/lib/utils';
 import { noteTerminalOutput, useTerminalStripStore } from '@/stores/terminal-strip-store';
 
@@ -237,6 +247,22 @@ export function TerminalPanel({
   };
 
   const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0] ?? null;
+  const maxTerminalHeight = clampTerminalHeight(Number.MAX_SAFE_INTEGER);
+
+  const resizeWithKeyboard = (event: ReactKeyboardEvent<HTMLHRElement>) => {
+    const step = event.shiftKey ? 64 : 16;
+    let next: number | undefined;
+    if (event.key === 'ArrowUp') next = height + step;
+    else if (event.key === 'ArrowDown') next = height - step;
+    else if (event.key === 'Home') next = MIN_TERMINAL_HEIGHT;
+    else if (event.key === 'End') next = maxTerminalHeight;
+    if (next === undefined) return;
+
+    event.preventDefault();
+    const clamped = clampTerminalHeight(next);
+    setHeight(clamped);
+    persistTerminalHeight(clamped);
+  };
 
   return (
     <div
@@ -250,9 +276,13 @@ export function TerminalPanel({
     >
       <hr
         aria-orientation="horizontal"
+        aria-valuemin={MIN_TERMINAL_HEIGHT}
+        aria-valuemax={maxTerminalHeight}
+        aria-valuenow={height}
         tabIndex={0}
         title={t('activity:terminal.resize')}
         onPointerDown={startResize}
+        onKeyDown={resizeWithKeyboard}
         className="h-1.5 cursor-ns-resize bg-muted/70 transition-colors hover:bg-primary/35 border-0"
       />
       <div className="flex min-w-0 items-center justify-between gap-3 border-b border-border/70 bg-card/85 px-3 py-1.5">

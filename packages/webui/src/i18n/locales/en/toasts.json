@@ -12,6 +12,7 @@
   "menu": {
     "title": "Notifications",
     "unreadCount": "{{count}} unread",
+    "unreadIndicator": "Unread indicator",
     "allRead": "All caught up",
     "markAllRead": "Mark all as read",
     "clearAll": "Clear all",

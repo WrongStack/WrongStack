@@ -1,5 +1,5 @@
 import { Activity, Brain, Clock, PanelRightClose, Tag } from 'lucide-react';
-import { memo, useEffect } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { useMemoryInjectorTraceStore } from '@/stores/memory-injector-store';
@@ -83,6 +83,8 @@ export const MemoryInjectorPanel = memo(function MemoryInjectorPanel({
   const contextMemories = useMemoryInjectorTraceStore((s) => s.contextMemories);
   const transitions = useMemoryInjectorTraceStore((s) => s.transitions);
   const clear = useMemoryInjectorTraceStore((s) => s.clear);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
 
   // Close on Escape
   useEffect(() => {
@@ -93,6 +95,19 @@ export const MemoryInjectorPanel = memo(function MemoryInjectorPanel({
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [open, onClose]);
+
+  // A drawer is a dialog: move focus inside on open and hand it back on close.
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement;
+    returnFocusRef.current = previous instanceof HTMLElement ? previous : null;
+    closeButtonRef.current?.focus();
+    return () => {
+      const target = returnFocusRef.current;
+      if (target?.isConnected) target.focus();
+      returnFocusRef.current = null;
+    };
+  }, [open]);
 
   const latest = traces[0];
   const records = Object.values(contextMemories);
@@ -153,6 +168,7 @@ export const MemoryInjectorPanel = memo(function MemoryInjectorPanel({
                 </button>
               )}
               <button
+                ref={closeButtonRef}
                 type="button"
                 onClick={onClose}
                 className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"

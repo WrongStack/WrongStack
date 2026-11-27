@@ -143,4 +143,31 @@ describe('ADR historical revisions', () => {
     await screen.findByRole('button', { name: /history.revision:3/ });
     expect(screen.queryByRole('alert')).toBeNull();
   });
+
+  it('updates an already-mounted status region when history loading starts', async () => {
+    let resolveHistory!: (value: unknown) => void;
+    rpc.mockImplementation((_name: string, args: string) =>
+      args.startsWith('history-json')
+        ? new Promise((resolve) => {
+            resolveHistory = resolve;
+          })
+        : Promise.resolve(page()),
+    );
+    render(<ArchitectureDecisionHistory record={current} sessionId="s" />);
+
+    // Control: the disclosure is rendered and no request has started yet.
+    const trigger = screen.getByRole('button', { name: 'activity:adr.history.title' });
+    expect(trigger).toBeTruthy();
+    expect(rpc).not.toHaveBeenCalled();
+
+    const status = screen.getByRole('status');
+    expect(status.textContent).toBe('');
+    fireEvent.click(trigger);
+
+    await waitFor(() => expect(status.textContent).toContain('activity:adr.history.loading'));
+    expect(status.isConnected).toBe(true);
+    expect(screen.getByRole('status')).toBe(status);
+
+    await act(async () => resolveHistory(page()));
+  });
 });

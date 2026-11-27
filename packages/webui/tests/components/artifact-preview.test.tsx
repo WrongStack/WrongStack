@@ -78,6 +78,14 @@ describe('rich artifact preview ownership', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(mock.listeners.size).toBe(0);
   });
+  it('mounts the loading status region before the message is written', () => {
+    render(<ArtifactPreview />);
+    const status = screen.getByRole('status');
+    expect(status.textContent).toBe('');
+    show();
+    expect(status.textContent).toBe('Loading artifact…');
+  });
+
   it('renders a patch without inserting HTML or touching editor contents', () => {
     render(<ArtifactPreview />);
     show({ ...item, kind: 'diff', path: 'fix.patch' });

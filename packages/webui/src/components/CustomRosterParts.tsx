@@ -20,7 +20,12 @@ export function CustomRosterRoleList({
     <div className="w-64 border-r border-line shrink-0 overflow-y-auto">
       <div className="p-3 border-b border-line flex items-center justify-between">
         <h2 className="text-sm font-semibold">{t('activity:customRoster.heading')}</h2>
-        <button type="button" onClick={onRefresh} className="p-1 hover:bg-accent rounded">
+        <button
+          type="button"
+          onClick={onRefresh}
+          aria-label={t('common:action.refresh')}
+          className="p-1 hover:bg-accent rounded"
+        >
           <RefreshCw className="h-3.5 w-3.5" />
         </button>
       </div>

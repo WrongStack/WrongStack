@@ -68,6 +68,10 @@ export function FilePicker({ query, onPick, onClose }: FilePickerProps) {
   // We listen too so click+keyboard mixing works.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // A foreground dialog owns the keyboard. This listener runs in the
+      // capture phase on window, so without the guard Tab/Enter/Escape would
+      // be consumed behind a modal that the user is trying to operate.
+      if (document.querySelector('[role="dialog"]:not([aria-hidden="true"]):not([inert])')) return;
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setIndex((i) => (i + 1) % Math.max(1, files.length));

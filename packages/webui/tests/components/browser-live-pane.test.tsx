@@ -196,4 +196,46 @@ describe('BrowserLivePane', () => {
     emit('browser.live.details', { sessionId: 's1', id: 'b2', gone: true });
     expect(screen.getByText('The browser was closed.')).toBeTruthy();
   });
+
+  it('moves selection and focus with arrow keys in the browser session tablist', () => {
+    render(<BrowserLivePane />);
+    emit('browser.live.list', { sessionId: 's1', sessions: [shop, docs] });
+
+    // Control: the real tablist renders both sessions with one selected tab.
+    const first = screen.getByRole('tab', { name: 'Shop' });
+    const second = screen.getByRole('tab', { name: 'Docs' });
+    expect(first.getAttribute('aria-selected')).toBe('true');
+    expect(second.getAttribute('aria-selected')).toBe('false');
+    expect(first.tabIndex).toBe(0);
+    expect(second.tabIndex).toBe(-1);
+
+    first.focus();
+    fireEvent.keyDown(first, { key: 'ArrowRight' });
+    expect(second.getAttribute('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(second);
+    expect(first.tabIndex).toBe(-1);
+    expect(second.tabIndex).toBe(0);
+
+    fireEvent.keyDown(second, { key: 'ArrowLeft' });
+    expect(first.getAttribute('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(first);
+  });
+
+  it('moves selection and focus with arrow keys in the console/network tablist', () => {
+    render(<BrowserLivePane />);
+    emit('browser.live.list', { sessionId: 's1', sessions: [shop] });
+    const consoleTab = screen.getByRole('tab', { name: /Console/ });
+    const networkTab = screen.getByRole('tab', { name: /Network/ });
+    expect(consoleTab.getAttribute('aria-selected')).toBe('true');
+    expect(networkTab.getAttribute('aria-selected')).toBe('false');
+
+    consoleTab.focus();
+    fireEvent.keyDown(consoleTab, { key: 'ArrowRight' });
+    expect(networkTab.getAttribute('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(networkTab);
+
+    fireEvent.keyDown(networkTab, { key: 'ArrowLeft' });
+    expect(consoleTab.getAttribute('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(consoleTab);
+  });
 });

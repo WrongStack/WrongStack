@@ -89,4 +89,25 @@ describe('LimitsSection bounds', () => {
     expect(screen.getByText(/Must be ≥ 20 messages/)).toBeTruthy();
     expect(syncPref).not.toHaveBeenCalled();
   });
+
+  it('describes an invalid limit with its visible error', () => {
+    useLocalPrefs.getState().set({ limits: {} });
+    const syncPref = vi.fn();
+    render(<LimitsSection syncPref={syncPref} />);
+    const field = input('limit-historyMessages');
+
+    // Control: the real field entered its invalid state and rendered the error.
+    fireEvent.change(field, { target: { value: '5' } });
+    fireEvent.blur(field);
+    expect(field.getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByText(/Must be ≥ 20 messages/)).toBeTruthy();
+
+    const ids = (field.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(Boolean);
+    const description = ids
+      .map((id) => document.getElementById(id)?.textContent ?? '')
+      .join(' ')
+      .trim();
+    expect(description).toContain('Must be ≥ 20 messages');
+    expect(syncPref).not.toHaveBeenCalled();
+  });
 });

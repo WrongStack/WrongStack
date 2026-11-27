@@ -628,7 +628,12 @@ function LifecycleResultBanner({
         <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
       )}
       <span className="flex-1">{lifecycleMessage(result)}</span>
-      <button type="button" onClick={onDismiss} className="shrink-0 opacity-60 hover:opacity-100">
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label={i18n.t('common:action.dismiss')}
+        className="shrink-0 opacity-60 hover:opacity-100"
+      >
         <X className="h-3.5 w-3.5" />
       </button>
     </div>

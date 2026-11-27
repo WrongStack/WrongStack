@@ -147,6 +147,42 @@ describe('SessionTabBar component', () => {
     expect(second?.className).toContain('bg-info/15');
   });
 
+  it('moves focus and selection with arrow keys in the tablist', () => {
+    useSessionTabStore.setState({ openTabIds: ['sess-12345678', 'sess-87654321'] });
+    useChatLanes.setState({ activeSessionId: 'sess-12345678' });
+    render(<SessionTabBar />);
+
+    const [first] = screen.getAllByRole('tab');
+    first?.focus();
+    expect(document.activeElement).toBe(first);
+
+    fireEvent.keyDown(first!, { key: 'ArrowRight' });
+    const [afterFirst, afterSecond] = screen.getAllByRole('tab');
+    expect(document.activeElement).toBe(afterSecond);
+    expect(afterFirst?.getAttribute('aria-selected')).toBe('false');
+    expect(afterSecond?.getAttribute('aria-selected')).toBe('true');
+
+    fireEvent.keyDown(afterSecond!, { key: 'ArrowLeft' });
+    const [backFirst, backSecond] = screen.getAllByRole('tab');
+    expect(document.activeElement).toBe(backFirst);
+    expect(backFirst?.getAttribute('aria-selected')).toBe('true');
+    expect(backSecond?.getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('keeps only the selected tab in the sequential tab order', () => {
+    useSessionTabStore.setState({ openTabIds: ['sess-12345678', 'sess-87654321'] });
+    useChatLanes.setState({ activeSessionId: 'sess-12345678' });
+    render(<SessionTabBar />);
+
+    const [first, second] = screen.getAllByRole('tab');
+    expect(first?.getAttribute('aria-selected')).toBe('true');
+    expect([first?.tabIndex, second?.tabIndex]).toEqual([0, -1]);
+
+    fireEvent.keyDown(first!, { key: 'ArrowRight' });
+    const [afterFirst, afterSecond] = screen.getAllByRole('tab');
+    expect([afterFirst?.tabIndex, afterSecond?.tabIndex]).toEqual([-1, 0]);
+  });
+
   it('triggers new session creation when + button is clicked', () => {
     render(<SessionTabBar />);
 

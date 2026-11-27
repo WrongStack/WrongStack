@@ -29,6 +29,15 @@ const TASK_STATUS_CONFIG: Record<TaskItem['status'], { icon: React.ReactNode; co
   completed: { icon: <CheckCircle2 className="w-4 h-4" />, color: 'text-success' },
 };
 
+const STATUS_LABEL_KEY: Record<TaskItem['status'], string> = {
+  pending: 'activity:task.statusPending',
+  in_progress: 'activity:task.statusInProgress',
+  blocked: 'activity:task.statusBlocked',
+  failed: 'activity:task.statusFailed',
+  review: 'activity:task.statusReview',
+  completed: 'activity:task.statusDone',
+};
+
 const PRIORITY_BADGE: Record<TaskItem['priority'], string> = {
   critical: 'bg-destructive/15 text-destructive',
   high: 'bg-warning/15 text-warning',
@@ -107,7 +116,7 @@ export function TaskCard({
         <span
           className={cn('mt-0.5', status.color)}
           role="img"
-          aria-label={running ? t('common:status.inProgress') : undefined}
+          aria-label={t(STATUS_LABEL_KEY[task.status])}
         >
           {status.icon}
         </span>

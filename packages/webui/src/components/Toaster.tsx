@@ -102,7 +102,6 @@ function ToastItem({ entry }: { entry: ToastEntry }) {
 export function Toaster() {
   const { t } = useAppTranslation();
   const toasts = useNotificationStore((s) => s.toasts);
-  if (toasts.length === 0) return null;
   return (
     <section
       className="fixed bottom-4 right-4 z-[60] flex w-[calc(100vw-2rem)] max-w-sm flex-col gap-2 pointer-events-auto"

@@ -1,5 +1,5 @@
 import { Bot, Clock, Layers, TriangleAlert, Wrench, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { getToolVisual } from '@/lib/tool-icon';
 import { toolDisplayName as canonicalToolDisplayName } from '@/lib/tool-summary';
@@ -162,6 +162,7 @@ export function ToolStatsModal({ open, onClose }: ToolStatsModalProps) {
   const historyEntries = useHistoryStore((s) => s.entries);
 
   const [animateIn, setAnimateIn] = useState(false);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open) {
       setAnimateIn(false);
@@ -178,6 +179,16 @@ export function ToolStatsModal({ open, onClose }: ToolStatsModalProps) {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousFocus =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeButtonRef.current?.focus();
+    return () => {
+      if (previousFocus?.isConnected) previousFocus.focus();
+    };
+  }, [open]);
 
   const liveSessions = useMemo(
     () => Object.values(sessions).sort((a, b) => b.lastActivityAt - a.lastActivityAt),
@@ -221,6 +232,8 @@ export function ToolStatsModal({ open, onClose }: ToolStatsModalProps) {
     >
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: only stops propagation so content clicks don't hit the backdrop. */}
       <section
+        role="dialog"
+        aria-modal="true"
         aria-label={t('chat:toolStats.title', 'Tool call statistics')}
         className={cn(
           'flex max-h-[86vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-border/70 bg-card ws-dialog transition-transform duration-200',
@@ -238,6 +251,7 @@ export function ToolStatsModal({ open, onClose }: ToolStatsModalProps) {
             {t('chat:toolStats.liveScope', 'This page · live + closed sessions')}
           </span>
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
             className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"

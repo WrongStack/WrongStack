@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { cn } from '@/lib/utils';
 
 // ── Small building blocks ─────────────────────────────────────────────
@@ -121,9 +122,14 @@ export function QuickSegmented<T extends string>({
     0,
     options.findIndex((o) => o.value === value),
   );
+  const optionRefs = useRef(new Map<T, HTMLButtonElement>());
   const move = (delta: number) => {
     const next = options[(index + delta + options.length) % options.length];
-    if (next && next.value !== value) onChange(next.value);
+    if (!next || next.value === value) return;
+    // The arrow key changes the checked radio; focus must travel with it,
+    // otherwise the old radio keeps focus after its tabIndex drops to -1.
+    onChange(next.value);
+    optionRefs.current.get(next.value)?.focus();
   };
   return (
     <div className="flex items-center justify-between gap-2 py-1" title={title}>
@@ -148,6 +154,10 @@ export function QuickSegmented<T extends string>({
             // biome-ignore lint/a11y/useSemanticElements: a segmented pill; native radios cannot take this styling, and the group handles arrow keys itself.
             <button
               key={o.value}
+              ref={(node) => {
+                if (node) optionRefs.current.set(o.value, node);
+                else optionRefs.current.delete(o.value);
+              }}
               type="button"
               role="radio"
               aria-checked={active}

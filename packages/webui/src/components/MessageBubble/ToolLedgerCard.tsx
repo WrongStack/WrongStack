@@ -98,7 +98,7 @@ export const ToolLedgerCard = memo(function ToolLedgerCard({
       <button
         type="button"
         onClick={() => hasBody && setExpanded((v) => !v)}
-        aria-expanded={expanded}
+        aria-expanded={hasBody ? expanded : undefined}
         title={tooltip}
         className={cn(
           'ws-tool-disclosure flex w-full items-center gap-2 px-3 py-2 text-left font-mono text-xs select-none',

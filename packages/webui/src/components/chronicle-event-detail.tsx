@@ -112,6 +112,7 @@ export function Field({
       <input
         className="w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground/70"
         placeholder={placeholder}
+        aria-label={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {

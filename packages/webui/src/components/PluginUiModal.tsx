@@ -179,6 +179,20 @@ export function PluginUiBarAndModal(): React.ReactElement | null {
     });
   }, []);
 
+  // Both overlays are hand-built role=dialog surfaces, so nothing supplies the
+  // Escape dismissal a native dialog would give. The prompt sits above the
+  // panel catalog, so it owns the key while it is open.
+  useEffect(() => {
+    if (!open && !pendingPrompt) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      if (pendingPrompt) submitPromptResponse(pendingPrompt.requestId, null);
+      else setOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, pendingPrompt, submitPromptResponse]);
+
   useEffect(() => {
     const handler: ModalOpenListener = (requestedPanelId) => {
       setOpen(true);

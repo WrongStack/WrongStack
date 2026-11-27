@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const handlers = new Set<(msg: { type: string; payload: unknown }) => void>();
 const requested: string[] = [];
+const picked = vi.fn();
 const client = {
   on: (_type: string, fn: (msg: { type: string; payload: unknown }) => void) => {
     handlers.add(fn);
@@ -35,6 +36,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   handlers.clear();
   requested.length = 0;
+  picked.mockClear();
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -45,9 +47,18 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
-const render = (query: string) =>
+const render = (query: string, withDialog = false) =>
   act(async () => {
-    root.render(<FilePicker query={query} onPick={() => {}} onClose={() => {}} />);
+    root.render(
+      <>
+        {withDialog ? (
+          <div role="dialog" aria-label="Foreground dialog">
+            <button type="button">Dialog action</button>
+          </div>
+        ) : null}
+        <FilePicker query={query} onPick={picked} onClose={() => {}} />
+      </>,
+    );
   });
 const tick = () =>
   act(async () => {
@@ -59,6 +70,11 @@ const reply = (files: string[], query?: string) =>
       fn({ type: 'files.list', payload: { files, ...(query === undefined ? {} : { query }) } });
   });
 const shown = () => [...container.querySelectorAll('button')].map((b) => b.textContent?.trim());
+const pressTab = () => {
+  const event = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+  window.dispatchEvent(event);
+  return event;
+};
 
 describe('FilePicker follows the current query', () => {
   it('control: in-order replies show the current query results', async () => {
@@ -87,5 +103,23 @@ describe('FilePicker follows the current query', () => {
     await tick();
     await reply(['legacy.ts']);
     expect(shown()).toEqual(['legacy.ts']);
+  });
+
+  it('control: Tab selects the active file while no dialog is open', async () => {
+    await render('se');
+    await tick();
+    await reply(['src/settings.ts'], 'se');
+    const event = pressTab();
+    expect(picked).toHaveBeenCalledWith('src/settings.ts');
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('a foreground dialog owns Tab while the picker is open', async () => {
+    await render('se', true);
+    await tick();
+    await reply(['src/settings.ts'], 'se');
+    const event = pressTab();
+    expect(event.defaultPrevented).toBe(false);
+    expect(picked).not.toHaveBeenCalled();
   });
 });

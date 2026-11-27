@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T00:10:30.821Z",
+  "generatedAt": "2026-11-27T00:13:42.759Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6587,
-    "testFiles": 6503,
-    "sourceLines": 1352470,
+    "testFiles": 6514,
+    "sourceLines": 1352678,
     "workspaceEdges": 267,
     "moduleEdges": 19312,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 15,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1063
+    "testOnlyExports": 1062
   },
   "errors": [],
   "packageCycles": [],
@@ -1200,7 +1200,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 799,
-      "testFiles": 583,
+      "testFiles": 594,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1226,7 +1226,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 583
+          "testFiles": 594
         }
       ]
     },
@@ -36888,6 +36888,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/activity-icon-pressed-state.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/agent-detail-section.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -37140,6 +37146,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/chronicle-field-label.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/code-editor-completion.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -37207,6 +37219,12 @@
       },
       {
         "file": "packages/webui/tests/components/composer-button-bar.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/concurrency-gauge.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -37284,6 +37302,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/context-mode-picker-expanded.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/context-window-editor.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -37303,6 +37327,12 @@
       },
       {
         "file": "packages/webui/tests/components/custom-roster-panel.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/custom-roster-parts-accessible-name.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -37417,6 +37447,12 @@
       },
       {
         "file": "packages/webui/tests/components/fallback-suggestions.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/file-activity-drawer-tabs.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -37794,6 +37830,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/model-catalog-picker-dialog.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/model-editor.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -37843,6 +37885,12 @@
       },
       {
         "file": "packages/webui/tests/components/next-steps-parser.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/notification-menu-unread-i18n.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -37921,6 +37969,12 @@
       },
       {
         "file": "packages/webui/tests/components/plugin-toggle-list.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/plugin-ui-modal-escape.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -38394,6 +38448,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/task-card-status-name.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/task-execution-attempts.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -38437,6 +38497,12 @@
       },
       {
         "file": "packages/webui/tests/components/toaster-helpers.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/toaster-live-region.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -46409,10 +46475,6 @@
     {
       "file": "packages/webui/src/lib/terminal-dock.ts",
       "name": "MAX_TERMINAL_HEIGHT"
-    },
-    {
-      "file": "packages/webui/src/lib/terminal-dock.ts",
-      "name": "MIN_TERMINAL_HEIGHT"
     },
     {
       "file": "packages/webui/src/lib/tool-icon.ts",

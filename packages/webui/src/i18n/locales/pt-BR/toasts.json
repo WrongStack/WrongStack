@@ -12,6 +12,7 @@
   "menu": {
     "title": "Notificações",
     "unreadCount": "{{count}} não lidas",
+    "unreadIndicator": "Indicador de não lido",
     "allRead": "Tudo em dia",
     "markAllRead": "Marcar todas como lidas",
     "clearAll": "Limpar tudo",

@@ -318,5 +318,19 @@ describe('SessionPanel quick actions', () => {
       });
       expect(sent()).toEqual([{ yoloPlus: true }]);
     });
+
+    it('arrow keys move focus to the newly checked segment', () => {
+      useLocalPrefs.setState({ yolo: true, yoloPlus: false });
+      renderPanel();
+      level('On').focus();
+      expect(document.activeElement).toBe(level('On'));
+      act(() => {
+        fireEvent.keyDown(screen.getByRole('radiogroup', { name: 'YOLO mode' }), {
+          key: 'ArrowRight',
+        });
+      });
+      expect(level('YOLO+').getAttribute('aria-checked')).toBe('true');
+      expect(document.activeElement).toBe(level('YOLO+'));
+    });
   });
 });

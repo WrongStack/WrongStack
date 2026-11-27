@@ -1,4 +1,4 @@
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 
 const fixture = vi.hoisted(() => ({
@@ -70,10 +70,13 @@ vi.mock('@xterm/addon-unicode11', () => ({
 
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { TerminalPanel } from '@/components/TerminalPanel';
+import { i18n } from '@/i18n';
+import { TERMINAL_HEIGHT_STORAGE_KEY } from '@/lib/terminal-dock';
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  window.localStorage.clear();
 });
 
 it('sends a font-driven grid change to the PTY without a container resize', () => {
@@ -113,4 +116,46 @@ it('measures with Unicode 11 widths, as the TUI and the PTY host do', () => {
   expect(terminal.options.allowProposedApi).toBe(true);
   expect(terminal.addons.some((addon) => addon instanceof Unicode11Addon)).toBe(true);
   expect(terminal.unicode.activeVersion).toBe('11');
+});
+
+it('resizes the terminal dock from the keyboard and exposes separator state', async () => {
+  await i18n.changeLanguage('en');
+  vi.stubGlobal('innerHeight', 900);
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    callback(0);
+    return 1;
+  });
+  window.localStorage.setItem(TERMINAL_HEIGHT_STORAGE_KEY, '300');
+
+  render(<TerminalPanel onClose={() => {}} onDispose={() => {}} />);
+  const dock = document.querySelector<HTMLElement>('[data-terminal-dock]');
+  const handle = screen.getByTitle('Resize terminals');
+
+  // Control: the real dock renders a focusable separator at the stored height.
+  expect(handle.getAttribute('tabindex')).toBe('0');
+  expect(dock?.style.height).toBe('300px');
+  expect(handle.getAttribute('aria-valuemin')).toBe('140');
+  expect(handle.getAttribute('aria-valuemax')).toBe('495');
+  expect(handle.getAttribute('aria-valuenow')).toBe('300');
+
+  fireEvent.keyDown(handle, { key: 'ArrowUp' });
+  expect(dock?.style.height).toBe('316px');
+  expect(handle.getAttribute('aria-valuenow')).toBe('316');
+
+  fireEvent.keyDown(handle, { key: 'ArrowDown' });
+  expect(dock?.style.height).toBe('300px');
+
+  fireEvent.keyDown(handle, { key: 'Home' });
+  expect(dock?.style.height).toBe('140px');
+
+  fireEvent.keyDown(handle, { key: 'End' });
+  expect(dock?.style.height).toBe('495px');
+  expect(handle.getAttribute('aria-valuenow')).toBe('495');
 });

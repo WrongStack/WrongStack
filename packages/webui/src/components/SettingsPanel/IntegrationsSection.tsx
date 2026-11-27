@@ -253,6 +253,7 @@ export function IntegrationsSection({ syncPref }: IntegrationsSectionProps) {
                 inputMode="numeric"
                 value={chatDraft}
                 aria-invalid={chatInvalid}
+                aria-describedby={chatInvalid ? 'telegram-chat-id-error' : undefined}
                 onChange={(e) => {
                   setChatDraft(e.target.value);
                   if (chatInvalid) setChatInvalid(false);
@@ -266,7 +267,7 @@ export function IntegrationsSection({ syncPref }: IntegrationsSectionProps) {
                 {t('settings:integrations.telegramChatIdHint')}
               </p>
               {chatInvalid && (
-                <p role="alert" className="text-xs text-destructive">
+                <p id="telegram-chat-id-error" role="alert" className="text-xs text-destructive">
                   {t('settings:integrations.telegramChatIdInvalid')}
                 </p>
               )}

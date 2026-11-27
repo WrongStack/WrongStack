@@ -120,6 +120,11 @@ export function ArchitectureDecisionHistory({
     'rounded-md border border-border px-3 py-2 text-xs hover:bg-muted disabled:opacity-50';
   return (
     <div className="space-y-2 border-t border-border pt-3">
+      {/* Mount the live region before the loading message: a region inserted
+          together with its text is not reliably announced. */}
+      <span role="status" className="sr-only">
+        {loading || detailLoading ? t('activity:adr.history.loading') : ''}
+      </span>
       <button
         type="button"
         className={button}
@@ -142,9 +147,7 @@ export function ArchitectureDecisionHistory({
             </p>
           )}
           {(loading || detailLoading) && (
-            <p role="status" className="text-xs">
-              {t('activity:adr.history.loading')}
-            </p>
+            <p className="text-xs">{t('activity:adr.history.loading')}</p>
           )}
           <ul className="space-y-1">
             {records.map((entry) => (

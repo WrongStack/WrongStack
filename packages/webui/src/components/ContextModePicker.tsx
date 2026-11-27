@@ -39,14 +39,21 @@ export function ContextModePicker() {
     };
   }, [open]);
 
-  // Dismiss ops menu when clicking outside
+  // Dismiss ops menu when clicking outside or pressing Escape
   useEffect(() => {
     if (!opsOpen) return;
     const onClick = (e: MouseEvent) => {
       if (!opsRef.current?.contains(e.target as Node)) setOpsOpen(false);
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpsOpen(false);
+    };
     document.addEventListener('mousedown', onClick);
-    return () => document.removeEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
   }, [opsOpen]);
 
   const compact = useCallback(
@@ -91,6 +98,7 @@ export function ContextModePicker() {
             'bg-success/10 text-success hover:bg-success/15 transition-colors border border-transparent hover:border-success/30',
           )}
           title={t('activity:ctxMode.triggerTitle')}
+          aria-expanded={open}
         >
           <Gauge className="h-3 w-3" />
           {t('activity:ctxMode.ctxPrefix')}{' '}
@@ -109,6 +117,7 @@ export function ContextModePicker() {
               opsOpen && 'bg-accent/50 text-foreground',
             )}
             title={t('activity:ctxMode.opsHeading')}
+            aria-expanded={opsOpen}
           >
             <Wrench className="h-3 w-3" />
           </button>

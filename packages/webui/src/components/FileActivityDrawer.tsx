@@ -317,12 +317,16 @@ export function FileActivityDrawer({ file }: { file: OpenFile }) {
 
       {expanded && (
         <div className="flex min-h-0 flex-1 flex-col">
-          <nav className="flex shrink-0 items-center gap-0.5 border-b border-border/60 bg-muted/20 px-2">
+          <fieldset
+            aria-label={t('activity:fileActivity.title')}
+            className="flex min-w-0 shrink-0 items-center gap-0.5 border-b border-border/60 bg-muted/20 px-2"
+          >
             {tabs.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => setTab(item.id)}
+                aria-pressed={tab === item.id}
                 className={cn(
                   'inline-flex h-7 items-center gap-1.5 border-b-2 px-2 text-[10px] transition-colors [&>svg]:h-3 [&>svg]:w-3',
                   tab === item.id
@@ -339,7 +343,7 @@ export function FileActivityDrawer({ file }: { file: OpenFile }) {
                 {chronicleError}
               </span>
             )}
-          </nav>
+          </fieldset>
 
           <div className="min-h-0 flex-1 overflow-auto">
             {tab === 'overview' && (

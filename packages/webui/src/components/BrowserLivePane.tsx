@@ -37,6 +37,27 @@ interface Details {
   gone?: boolean | undefined;
 }
 
+/** ARIA tablist keyboard map: arrows wrap, Home/End jump, focus follows selection. */
+function handleTabKeyDown(
+  event: React.KeyboardEvent<HTMLButtonElement>,
+  index: number,
+  count: number,
+  onSelect: (index: number) => void,
+): void {
+  let next: number | undefined;
+  if (event.key === 'ArrowRight') next = (index + 1) % count;
+  if (event.key === 'ArrowLeft') next = (index - 1 + count) % count;
+  if (event.key === 'Home') next = 0;
+  if (event.key === 'End') next = count - 1;
+  if (next === undefined) return;
+
+  event.preventDefault();
+  onSelect(next);
+  event.currentTarget.parentElement
+    ?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+    [next]?.focus();
+}
+
 export function BrowserLivePane(): React.ReactElement {
   const { t } = useAppTranslation();
   const sessions = useLiveBrowserSessions();
@@ -65,13 +86,19 @@ export function BrowserLivePane(): React.ReactElement {
     <div className="space-y-2">
       {sessions.length > 1 ? (
         <div className="flex flex-wrap gap-1.5" role="tablist">
-          {sessions.map((s) => (
+          {sessions.map((s, index) => (
             <button
               key={s.id}
               type="button"
               role="tab"
               aria-selected={s.id === selected.id}
+              tabIndex={s.id === selected.id ? 0 : -1}
               onClick={() => setSelectedId(s.id)}
+              onKeyDown={(event) =>
+                handleTabKeyDown(event, index, sessions.length, (next) =>
+                  setSelectedId(sessions[next]?.id),
+                )
+              }
               className={cn(
                 'max-w-[14rem] truncate rounded-md border px-2 py-0.5 text-[11px]',
                 s.id === selected.id
@@ -283,13 +310,19 @@ function LiveView({ session }: { session: LiveBrowserSession }): React.ReactElem
       {selection && selection.url === url && <BrowserElementSelection selection={selection} />}
       <div className="rounded-md border border-border/60 text-xs">
         <div className="flex gap-1 border-b border-border/40 px-1.5 py-1" role="tablist">
-          {(['console', 'network'] as const).map((name) => (
+          {(['console', 'network'] as const).map((name, index) => (
             <button
               key={name}
               type="button"
               role="tab"
               aria-selected={tab === name}
+              tabIndex={tab === name ? 0 : -1}
               onClick={() => setTab(name)}
+              onKeyDown={(event) =>
+                handleTabKeyDown(event, index, 2, (next) =>
+                  setTab(next === 0 ? 'console' : 'network'),
+                )
+              }
               className={cn(
                 'rounded px-2 py-0.5',
                 tab === name ? 'bg-primary/10 text-primary' : 'text-muted-foreground',

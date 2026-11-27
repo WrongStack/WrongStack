@@ -2259,8 +2259,7 @@
       "reduceSandboxEvent"
     ],
     "packages/webui/src/lib/terminal-dock.ts": [
-      "MAX_TERMINAL_HEIGHT",
-      "MIN_TERMINAL_HEIGHT"
+      "MAX_TERMINAL_HEIGHT"
     ],
     "packages/webui/src/lib/tool-icon.ts": [
       "TOOL_CATEGORY_LABELS"

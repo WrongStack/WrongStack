@@ -129,4 +129,15 @@ describe('<ToolLedgerCard />', () => {
     );
     expect(screen.queryByRole('button', { name: 'Allow access' })).toBeNull();
   });
+
+  it('does not advertise disclosure state when the tool has no expandable body', () => {
+    render(
+      <ToolLedgerCard message={{ ...message, toolInput: undefined, toolResult: undefined }} />,
+    );
+
+    // Control: the real header rendered for this tool message.
+    const header = screen.getByRole('button', { name: /bash/i });
+    expect(header.className).toContain('ws-tool-disclosure');
+    expect(header.hasAttribute('aria-expanded')).toBe(false);
+  });
 });

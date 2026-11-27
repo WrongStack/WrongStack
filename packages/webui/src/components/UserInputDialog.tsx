@@ -239,13 +239,27 @@ export function UserInputDialog() {
           )}
         </DialogHeader>
         {request.tabs.length > 1 && (
-          <div className="flex shrink-0 gap-1 overflow-x-auto border-b px-3 pt-2" role="tablist">
+          <div
+            className="flex shrink-0 gap-1 overflow-x-auto border-b px-3 pt-2"
+            role="tablist"
+            onKeyDown={(event) => {
+              if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+              event.preventDefault();
+              const step = event.key === 'ArrowRight' ? 1 : -1;
+              const next = (activeTab + step + request.tabs.length) % request.tabs.length;
+              setActiveTab(next);
+              event.currentTarget
+                .querySelectorAll<HTMLButtonElement>('[role="tab"]')
+                [next]?.focus();
+            }}
+          >
             {request.tabs.map((item, index) => (
               <button
                 key={item.id}
                 type="button"
                 role="tab"
                 aria-selected={index === activeTab}
+                tabIndex={index === activeTab ? 0 : -1}
                 onClick={() => setActiveTab(index)}
                 className={`rounded-t-md px-3 py-2 text-sm ${index === activeTab ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground'}`}
               >

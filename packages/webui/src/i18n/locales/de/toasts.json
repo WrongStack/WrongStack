@@ -12,6 +12,7 @@
   "menu": {
     "title": "Benachrichtigungen",
     "unreadCount": "{{count}} ungelesen",
+    "unreadIndicator": "Ungelesen-Hinweis",
     "allRead": "Alles gelesen",
     "markAllRead": "Alle als gelesen markieren",
     "clearAll": "Alle löschen",

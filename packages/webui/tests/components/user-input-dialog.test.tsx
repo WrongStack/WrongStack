@@ -307,4 +307,16 @@ describe('WebUI structured user input dialog', () => {
     expect(screen.getByRole('button', { name: 'Submit answers' })).toBeTruthy();
     expect(screen.getByText(/Cancel requested/)).toBeTruthy();
   });
+
+  it('moves tab selection and focus with arrow keys', () => {
+    render(<UserInputDialog />);
+    act(() => socket.emit('user.input_requested', request('r1', 'Tab keyboard')));
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs).toHaveLength(2);
+    tabs[0]?.focus();
+    expect(tabs[0]?.getAttribute('aria-selected')).toBe('true');
+    fireEvent.keyDown(tabs[0]!, { key: 'ArrowRight' });
+    expect(tabs[1]?.getAttribute('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(tabs[1]);
+  });
 });

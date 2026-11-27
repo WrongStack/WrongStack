@@ -29,7 +29,12 @@ export function ConcurrencyGauge({
   const barColor = pct >= 90 ? 'text-destructive' : pct >= 70 ? 'text-warning' : 'text-success';
 
   return (
-    <span className={className} title={`Fleet concurrency: ${current}/${max}`}>
+    <span
+      className={className}
+      role="img"
+      aria-label={`Fleet concurrency: ${current}/${max}`}
+      title={`Fleet concurrency: ${current}/${max}`}
+    >
       <span aria-hidden="true" className="font-mono text-[10px] tracking-tight">
         [<span className={barColor}>{'█'.repeat(filled)}</span>
         <span className="text-[hsl(var(--muted))]">{'░'.repeat(empty)}</span>]

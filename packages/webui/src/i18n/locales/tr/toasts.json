@@ -12,6 +12,7 @@
   "menu": {
     "title": "Bildirimler",
     "unreadCount": "{{count}} okunmamış",
+    "unreadIndicator": "Okunmamış göstergesi",
     "allRead": "Tümü okundu",
     "markAllRead": "Tümünü okundu işaretle",
     "clearAll": "Tümünü temizle",

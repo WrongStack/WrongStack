@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToolStatsModal } from '../../src/components/ToolStatsModal.js';
 import {
@@ -8,6 +9,18 @@ import {
   useToolStatsStore,
   useUIStore,
 } from '../../src/stores/index.js';
+
+function FocusReturnHarness() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" data-testid="stats-opener" onClick={() => setOpen(true)}>
+        Open tool stats
+      </button>
+      <ToolStatsModal open={open} onClose={() => setOpen(false)} />
+    </>
+  );
+}
 
 describe('ToolStatsModal', () => {
   beforeEach(() => {
@@ -28,7 +41,31 @@ describe('ToolStatsModal', () => {
 
     expect(screen.getByTestId('tool-stats-modal')).toBeTruthy();
     expect(screen.getByRole('heading', { name: /Tool call statistics/i })).toBeTruthy();
+    const dialog = screen.getByRole('dialog', { name: /Tool call statistics/i });
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
     expect(screen.getByText(/No tool calls recorded yet on this page/i)).toBeTruthy();
+  });
+
+  it('moves focus into the dialog when it opens', () => {
+    render(<ToolStatsModal open={true} onClose={() => {}} />);
+
+    const dialog = screen.getByRole('dialog', { name: /Tool call statistics/i });
+    expect(screen.getByTitle(/Close/i)).toBeTruthy();
+    expect(dialog.contains(document.activeElement)).toBe(true);
+  });
+
+  it('returns focus to the opener when the dialog closes', () => {
+    render(<FocusReturnHarness />);
+    const opener = screen.getByTestId('stats-opener');
+    opener.focus();
+    expect(document.activeElement).toBe(opener);
+
+    fireEvent.click(opener);
+    const dialog = screen.getByRole('dialog', { name: /Tool call statistics/i });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    fireEvent.click(screen.getByTitle(/Close/i));
+    expect(document.activeElement).toBe(opener);
   });
 
   it('calls onClose when clicking close button or pressing Escape', () => {
@@ -54,7 +91,7 @@ describe('ToolStatsModal', () => {
     const onClose = vi.fn();
     render(<ToolStatsModal open={true} onClose={onClose} />);
 
-    const section = screen.getByRole('region', { name: /Tool call statistics/i });
+    const section = screen.getByRole('dialog', { name: /Tool call statistics/i });
     fireEvent.click(section);
     expect(onClose).not.toHaveBeenCalled();
   });

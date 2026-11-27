@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // Capture every WS message the board sends.
@@ -32,6 +32,7 @@ vi.mock('@/components/SddTaskDrawer', () => ({
 }));
 
 import { SddBoardView } from '../../src/components/SddBoardView.js';
+import { i18n } from '../../src/i18n';
 import { useSddBoardStore, type SddBoardSnapshotUI } from '../../src/stores/sdd-board-store.js';
 
 function snapshot(over: Partial<SddBoardSnapshotUI> = {}): SddBoardSnapshotUI {
@@ -170,5 +171,23 @@ describe('SddBoardView — lifecycle controls', () => {
     });
     render(<SddBoardView onClose={() => {}} />);
     expect(screen.getByText(/3 worktrees removed/)).toBeTruthy();
+  });
+
+  it('names the lifecycle result dismiss control', async () => {
+    await i18n.changeLanguage('en');
+    act(() => {
+      useSddBoardStore.setState({
+        snapshot: snapshot(),
+        lifecycleResult: { op: 'cleanup_worktrees', ok: true, removed: 3, at: 1 },
+      });
+    });
+    render(<SddBoardView onClose={() => {}} />);
+
+    // Control: the real banner rendered with its icon-only dismiss control.
+    const bannerText = screen.getByText(/3 worktrees removed/);
+    const banner = bannerText.parentElement as HTMLElement;
+    const dismiss = within(banner).getByRole('button', { name: 'Dismiss' });
+    fireEvent.click(dismiss);
+    expect(screen.queryByText(/3 worktrees removed/)).toBeNull();
   });
 });

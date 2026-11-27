@@ -130,6 +130,7 @@ function LimitInput({
         value={draft}
         placeholder="no limit"
         aria-invalid={invalid}
+        aria-describedby={invalid ? `${testId}-error` : undefined}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
@@ -141,6 +142,7 @@ function LimitInput({
         data-testid={testId}
       />
       <span
+        id={`${testId}-error`}
         className={`block text-[11px] leading-snug ${invalid ? 'text-destructive' : 'text-muted-foreground'}`}
       >
         {invalid

@@ -90,7 +90,8 @@ describe('IntegrationsSection — Telegram settings', () => {
       fireEvent.blur(chatInput());
       expect(syncPref).not.toHaveBeenCalled();
       expect(chatInput().getAttribute('aria-invalid')).toBe('true');
-      expect(screen.getByRole('alert')).toBeTruthy();
+      const alert = screen.getByRole('alert');
+      expect(chatInput().getAttribute('aria-describedby')).toBe(alert.id);
     },
   );
 

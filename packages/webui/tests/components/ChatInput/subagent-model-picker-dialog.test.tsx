@@ -129,4 +129,12 @@ describe('SubagentModelPickerDialog', () => {
     expect(screen.getByText(/tier:budget/)).toBeTruthy();
     expect(screen.getByText(/replaces this pin/)).toBeTruthy();
   });
+
+  it('pinned the close button name to the shared i18n key', () => {
+    openDialog();
+    // The fixture mock returns the key itself, so this fails if the label is
+    // ever hardcoded back to English ("Close") in the production component.
+    expect(screen.getByRole('button', { name: 'common:action.close' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
+  });
 });

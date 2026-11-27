@@ -65,32 +65,41 @@ export function ArtifactPreview() {
     };
   }, [artifact, sessionId, ws.client]);
   const current = artifact?.sessionId === sessionId ? artifact : null;
+  const loading = current !== null && content === null && error === '';
   return (
-    <Dialog
-      open={current !== null}
-      onOpenChange={(open) => {
-        if (!open) setArtifact(null);
-      }}
-    >
-      {current && (
-        <DialogContent className="max-w-5xl max-h-[85vh] overflow-auto">
-          <DialogTitle>{current.title}</DialogTitle>
-          <DialogDescription>Read-only preview · {current.path}</DialogDescription>
-          {error ? (
-            <p role="alert">{error}</p>
-          ) : content === null ? (
-            <p role="status">Loading artifact…</p>
-          ) : current.kind === 'image' ? (
-            <img
-              src={content}
-              alt={current.title}
-              className="max-h-[65vh] max-w-full object-contain"
-            />
-          ) : (
-            <ToolDiffView diff={{ mode: 'unified', patchText: content, caption: current.path }} />
-          )}
-        </DialogContent>
-      )}
-    </Dialog>
+    <>
+      {/* Mounted before the message changes so assistive tech is watching the
+          region when loading starts; a region inserted with its text is not
+          reliably announced. */}
+      <span role="status" className="sr-only">
+        {loading ? 'Loading artifact…' : ''}
+      </span>
+      <Dialog
+        open={current !== null}
+        onOpenChange={(open) => {
+          if (!open) setArtifact(null);
+        }}
+      >
+        {current && (
+          <DialogContent className="max-w-5xl max-h-[85vh] overflow-auto">
+            <DialogTitle>{current.title}</DialogTitle>
+            <DialogDescription>Read-only preview · {current.path}</DialogDescription>
+            {error ? (
+              <p role="alert">{error}</p>
+            ) : content === null ? (
+              <p>Loading artifact…</p>
+            ) : current.kind === 'image' ? (
+              <img
+                src={content}
+                alt={current.title}
+                className="max-h-[65vh] max-w-full object-contain"
+              />
+            ) : (
+              <ToolDiffView diff={{ mode: 'unified', patchText: content, caption: current.path }} />
+            )}
+          </DialogContent>
+        )}
+      </Dialog>
+    </>
   );
 }

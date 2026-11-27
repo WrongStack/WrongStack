@@ -169,7 +169,7 @@ function NotificationItem({
             // gets the role that makes its label part of the a11y tree.
             role="img"
             className="h-1.5 w-1.5 rounded-full bg-primary shrink-0"
-            aria-label="Unread indicator"
+            aria-label={t('toasts:menu.unreadIndicator', { defaultValue: 'Unread indicator' })}
           />
         )}
       </div>

@@ -4,7 +4,7 @@
  * so the 3.45MB catalog is never shipped to the browser.
  */
 import { Loader2, Search, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import type { WrongStackWebSocketClient } from '../../lib/ws-client';
 import type { WSServerMessage } from '../../types';
@@ -31,6 +31,7 @@ interface ModelCatalogPickerProps {
 
 export function ModelCatalogPicker({ ws, onSelect, onClose }: ModelCatalogPickerProps) {
   const { t } = useAppTranslation();
+  const titleId = useId();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<CatalogMatch[]>([]);
   const [loading, setLoading] = useState(false);
@@ -121,9 +122,14 @@ export function ModelCatalogPicker({ ws, onSelect, onClose }: ModelCatalogPicker
         onClick={onClose}
         aria-label={t('common:action.close')}
       />
-      <div className="relative max-h-[80vh] w-full max-w-xl overflow-y-auto rounded-lg border border-border bg-background p-4 shadow-lg">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="relative max-h-[80vh] w-full max-w-xl overflow-y-auto rounded-lg border border-border bg-background p-4 shadow-lg"
+      >
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold">
+          <h3 id={titleId} className="text-sm font-semibold">
             {t('settings:providerModels.catalogSearchTitle')}
           </h3>
           <button

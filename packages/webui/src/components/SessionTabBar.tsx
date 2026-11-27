@@ -176,10 +176,24 @@ export function SessionTabBar() {
             <div
               key={tab.sessionId}
               role="tab"
-              tabIndex={0}
+              tabIndex={tab.isActive ? 0 : -1}
               aria-selected={tab.isActive}
               onClick={() => handleSelect(tab.sessionId)}
               onKeyDown={(e) => {
+                if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                  e.preventDefault();
+                  const currentIndex = tabs.findIndex((t) => t.sessionId === tab.sessionId);
+                  const step = e.key === 'ArrowRight' ? 1 : -1;
+                  const nextIndex = (currentIndex + step + tabs.length) % tabs.length;
+                  const nextTab = tabs[nextIndex];
+                  if (!nextTab) return;
+                  // Roving focus follows activation, matching the tab pattern.
+                  e.currentTarget.parentElement
+                    ?.querySelectorAll<HTMLElement>('[role="tab"]')
+                    [nextIndex]?.focus();
+                  handleSelect(nextTab.sessionId);
+                  return;
+                }
                 if (e.key !== 'Enter' && e.key !== ' ') return;
                 e.preventDefault();
                 handleSelect(tab.sessionId);
