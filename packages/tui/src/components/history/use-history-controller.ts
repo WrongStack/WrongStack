@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { type CellRange, selectionText, type TextRun } from '../../cell-selection.js';
-import { writeClipboardText } from '../../clipboard.js';
+import { clipboardFailureMessage, writeClipboardTextOutcome } from '../../clipboard.js';
 import {
   anchorForGroupIndex,
   anchorForTrackCell,
@@ -236,7 +236,7 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
           ...(hit.entryIds && hit.entryIds.length > 0 ? { entryIds: hit.entryIds } : {}),
         };
       },
-      copyAtViewportCell: async (row, col) => {
+      copyAtViewportCell: async (row, col, onCopyFailure) => {
         const liveHit = findCopyHit(
           liveToolCopyHitRef.current ? [liveToolCopyHitRef.current] : [],
           row,
@@ -250,7 +250,11 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
           toolStreamRef.current?.text,
         );
         if (payload === null) return null;
-        return (await writeClipboardText(payload.text)) ? payload.entryId : null;
+        const outcome = await writeClipboardTextOutcome(payload.text);
+        if (outcome.ok) return payload.entryId;
+        // A real write failure (not a missed target) must reach the user.
+        onCopyFailure?.(clipboardFailureMessage(outcome.reason));
+        return null;
       },
       activateToolViewControlAt: (row, col) => {
         const control = findToolViewControl(copyHitsRef.current, row, col);
@@ -313,7 +317,7 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
         selectionRef.current = { anchor: null, head: null, inProgress: false };
         publishBand();
       },
-      commitSelection: async () => {
+      commitSelection: async (onCopyFailure) => {
         const cur = selectionRef.current;
         if (cur.anchor === null || cur.head === null) return false;
         if (cur.anchor.row === cur.head.row && cur.anchor.col === cur.head.col) {
@@ -346,8 +350,13 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
         publishBand();
         if (text.length === 0) return false;
         try {
-          return await writeClipboardText(text);
+          const outcome = await writeClipboardTextOutcome(text);
+          // No-op commits (no selection / empty text) stay silent above; only
+          // an actual write failure is reported to the caller.
+          if (!outcome.ok) onCopyFailure?.(clipboardFailureMessage(outcome.reason));
+          return outcome.ok;
         } catch {
+          onCopyFailure?.('Copy failed: the clipboard write raised an unexpected error.');
           return false;
         }
       },

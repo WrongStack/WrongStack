@@ -13,6 +13,7 @@
 //   - the helper never throws on garbage input (defensive against typos)
 
 import { describe, expect, it, vi } from 'vitest';
+import { F_KEY_PANEL_ENTRIES } from '../src/f-key-panels.js';
 import { createPanelOpenDispatcher, type PanelOpenDeps } from '../src/on-panel-open.js';
 
 type MockedPanelOpenDeps = PanelOpenDeps & {
@@ -220,5 +221,15 @@ describe('createPanelOpenDispatcher — full action catalogue', () => {
     expect(new Set(catalogue).size).toBe(catalogue.length);
     // Plus fallthrough returns false.
     expect(dispatcher('whatever')).toBe(false);
+  });
+
+  it('launches every action advertised by the shared F-key metadata', () => {
+    // Drift guard: adding an entry to F_KEY_PANEL_ENTRIES whose action the
+    // bridge cannot launch would silently break /f<N> slash commands.
+    const deps = makeDeps();
+    const dispatcher = createPanelOpenDispatcher(deps);
+    for (const entry of F_KEY_PANEL_ENTRIES) {
+      expect(dispatcher(entry.action)).toBe(true);
+    }
   });
 });

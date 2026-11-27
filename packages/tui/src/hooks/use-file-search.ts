@@ -14,7 +14,7 @@ import { toErrorMessage } from '@wrongstack/core/utils';
 import { PDF_ATTACH_MAX_BYTES, preparePdfAttachment } from '@wrongstack/tools';
 import { useEffect } from 'react';
 import type { Action, State } from '../app-reducer.js';
-import { searchFiles } from '../file-search.js';
+import { invalidateFileCache, searchFiles } from '../file-search.js';
 import {
   TEXT_FILE_ATTACHMENT_INLINE_MAX_BYTES,
   type TokenPreviewStore,
@@ -91,6 +91,17 @@ interface FileSearchResult {
 export function useFileSearch(options: UseFileSearchOptions): FileSearchResult {
   const { state, dispatch, projectRoot, builderRef, draftRef, setDraft, tokenPreviewsRef } =
     options;
+
+  // ── Stale-index invalidation (scan report I4) ─────────────────────
+  // Tool writes during a turn create files the cached 30s index has never
+  // seen, so they stayed invisible to the @ picker until the TTL expired.
+  // A turn completing (status returning to idle) is the safe, cheap trigger:
+  // this only DROPS the cache — the next search rebuilds it lazily through
+  // the debounced path below. No synchronous index walk happens here, and
+  // the per-keystroke debounce is untouched.
+  useEffect(() => {
+    if (state.status === 'idle') invalidateFileCache();
+  }, [state.status]);
 
   // ── @-token detection + file search ──────────────────────────────
   useEffect(() => {

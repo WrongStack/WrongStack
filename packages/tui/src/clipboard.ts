@@ -35,23 +35,68 @@ interface ClipboardWriteDeps {
   stdout: Pick<NodeJS.WriteStream, 'write' | 'isTTY'>;
 }
 
+/** Why a clipboard write failed. */
+export type ClipboardFailureReason =
+  /** Native tooling failed AND the cleaned text is over the OSC 52 payload cap. */
+  | 'too-large'
+  /** Native tooling failed and there is no TTY to ask via OSC 52. */
+  | 'unavailable';
+
+/** Outcome of a clipboard write attempt: success, or failure with a reason. */
+export type ClipboardWriteOutcome = { ok: true } | { ok: false; reason: ClipboardFailureReason };
+
 /**
- * Copy text for the TUI's copy actions. The OS clipboard tool first; when there
- * is none that works — an SSH session, a headless Linux box without
- * wl-copy/xclip — the terminal is asked to copy it with OSC 52, which reaches
- * the clipboard of the machine the user is actually sitting at. (Inside tmux
- * that needs `set -g set-clipboard on`.) OSC 52 has no acknowledgement, so a
- * sent sequence counts as copied.
+ * Copy text for the TUI's copy actions, reporting WHY a failure happened so
+ * callers can surface an accurate notice instead of failing silently. The OS
+ * clipboard tool first; when there is none that works — an SSH session, a
+ * headless Linux box without wl-copy/xclip — the terminal is asked to copy it
+ * with OSC 52, which reaches the clipboard of the machine the user is actually
+ * sitting at. (Inside tmux that needs `set -g set-clipboard on`.) OSC 52 has
+ * no acknowledgement, so a sent sequence counts as copied. Over-cap text is
+ * NOT chunked across multiple OSC 52 sequences — terminals reassemble them
+ * inconsistently, and a partial copy is worse than a reported failure.
+ */
+export async function writeClipboardTextOutcome(
+  text: string,
+  deps: ClipboardWriteDeps = { native: writeNativeClipboardText, stdout: process.stdout },
+): Promise<ClipboardWriteOutcome> {
+  const clean = clipboardSafeText(text);
+  if (await deps.native(clean)) return { ok: true };
+  if (!deps.stdout.isTTY) return { ok: false, reason: 'unavailable' };
+  const sequence = osc52Sequence(clean);
+  if (!sequence) return { ok: false, reason: 'too-large' };
+  deps.stdout.write(sequence);
+  return { ok: true };
+}
+
+/**
+ * Copy text for the TUI's copy actions. Boolean wrapper over
+ * {@link writeClipboardTextOutcome} for callers that only need success/failure.
  */
 export async function writeClipboardText(
   text: string,
   deps: ClipboardWriteDeps = { native: writeNativeClipboardText, stdout: process.stdout },
 ): Promise<boolean> {
-  const clean = clipboardSafeText(text);
-  if (await deps.native(clean)) return true;
-  if (!deps.stdout.isTTY) return false;
-  const sequence = osc52Sequence(clean);
-  if (!sequence) return false;
-  deps.stdout.write(sequence);
-  return true;
+  return (await writeClipboardTextOutcome(text, deps)).ok;
+}
+
+/** Approximate raw-text byte cap implied by the base64 limit (base64 is 4:3). */
+const OSC52_MAX_TEXT_KB = Math.floor(((OSC52_MAX_BASE64 / 4) * 3) / 1000);
+
+/**
+ * User-facing transcript message for a failed copy. Mentions the size limit
+ * when that is the cause, so an over-cap failure is not mistaken for a
+ * missing clipboard tool.
+ */
+export function clipboardFailureMessage(reason: ClipboardFailureReason): string {
+  return reason === 'too-large'
+    ? `Copy failed: the text is over the terminal clipboard size limit (~${OSC52_MAX_TEXT_KB} KB) and no system clipboard tool is available.`
+    : 'Copy failed: no system clipboard tool is available and this terminal cannot receive OSC 52.';
+}
+
+/** Short one-line variant for transient status notices (composer hint row). */
+export function clipboardFailureNotice(reason: ClipboardFailureReason): string {
+  return reason === 'too-large'
+    ? 'Copy failed: too large for terminal clipboard'
+    : 'Copy failed: no clipboard available';
 }

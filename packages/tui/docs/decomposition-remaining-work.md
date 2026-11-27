@@ -5,6 +5,11 @@ everything still outstanding at the point the executing session paused, so any f
 can resume without archaeology. Work through it top-down; keep the plan's execution log
 (`decomposition-plan.md`, append-only) updated as steps land.
 
+> **Partly superseded (2026-11-27):** Phases 3 and 4 are complete, the deferred decisions
+> below have been made, and the out-of-scope findings H5/H6/H7/M2/M8 are fixed in code.
+> Read the [2026-11-27 status update](#status-update--2026-11-27) at the bottom before
+> acting on anything in this file. The historical text below is preserved as-recorded.
+
 ## Status snapshot (as of this file)
 
 - **Phase 0 (safety nets)** — COMPLETE. `tests/public-api-surface.test.ts`,
@@ -26,7 +31,7 @@ can resume without archaeology. Work through it top-down; keep the plan's execut
   `key-route-composer.ts` (routeComposer + routeComposerTail). Shared context module:
   `key-handler-context.ts` (`KeyRouteContext` = `AppKeyHandlerOptions` + stdout/historyWidth/detach).
   `app-key-handler.ts` is down from 1102 to ~330 lines — an ordered route orchestrator.
-- **Phase 4 (app.tsx facades)** — NOT STARTED.
+- **Phase 4 (app.tsx facades)** — NOT STARTED. *(Superseded 2026-11-27: COMPLETE — see status update.)*
 
 ## Remaining Phase 3 work (finish these before Phase 4)
 
@@ -77,7 +82,7 @@ can resume without archaeology. Work through it top-down; keep the plan's execut
 - Optional but recommended: `pnpm --filter @wrongstack/cli run typecheck` (chains a tools+tui
   build; verifies the downstream consumer against fresh dist).
 
-## Phase 4 — app.tsx facades (NOT STARTED)
+## Phase 4 — app.tsx facades (NOT STARTED) *(superseded 2026-11-27: COMPLETE — see status update)*
 
 1. **A0 (read-and-map, do this first)**: read the full current `src/app.tsx` (~1000 lines;
    line counts drift — re-read, do not trust stored numbers) and produce the dependency
@@ -96,6 +101,8 @@ can resume without archaeology. Work through it top-down; keep the plan's execut
 
 ## Deferred items needing a review decision (not defects in the decomposition)
 
+*(All three decided/resolved 2026-11-27 — see status update.)*
+
 - **Settings slice part-param split (chimera MEDIUM, Phase 2)**: splitting
   `useSettingsSlashCommands(deps, part: 'core'|'appearance')` into two purpose-named hooks
   would change D2-approved facade names → requires a new review per D2. Current state is
@@ -108,6 +115,8 @@ can resume without archaeology. Work through it top-down; keep the plan's execut
   the decomposition (found by a peer probe; not touched).
 
 ## Out-of-scope report findings still open (from the 2026-09-10 investigation; separate workstreams)
+
+*(Superseded 2026-11-27: H5/H6/H7/M2/M8 are all fixed in code — evidence in the status update.)*
 
 These were explicit non-goals of the decomposition and remain open as their own future
 fixes (see the investigation report for details and line anchors):
@@ -133,3 +142,64 @@ fixes (see the investigation report for details and line anchors):
   explicit name).
 - Before every step: re-read the target region (line numbers in this file, the plan, and
   SAGE memories are dated 2026-09-10 and drift as steps land — contract §0.6).
+
+## Status update — 2026-11-27
+
+Verified against the live tree on 2026-11-27 (line counts re-measured, not taken on faith
+from this file or the plan). This section supersedes the stale status claims above; the
+historical text is preserved unchanged apart from superseded markers.
+
+### Phases complete
+
+- **Phase 3 — COMPLETE.** R5 (picker) closed as "no move needed" (single delegation to the
+  `useAppPickerKeys`-built handler) and R6 (composer) landed as `key-route-composer.ts`
+  (`routeComposer` + `routeComposerTail`); both recorded in the plan execution log.
+  `app-key-handler.ts` is the ordered route orchestrator.
+- **Phase 4 — COMPLETE.** `src/app.tsx` is now **140 lines of pure composition**: one
+  `useAppController(props)` call plus the `AppView`/`UserInputPrompt` render. The facade
+  hooks all exist: `src/hooks/use-app-state.ts` (22 lines), `use-app-ref-spine.ts` (51),
+  `use-app-environment.ts` (380), `use-app-session-state.ts` (110),
+  `use-app-event-bridges.ts` (173), `use-app-panels-state.ts` (127),
+  `use-app-execution-pipeline.ts` (38), `use-app-pipeline-builders.ts` (428).
+  `src/use-app-controller.tsx` (430 lines) carries the fixed-order facade wiring with
+  "Decomposition Phase 4" landing comments (A1 state/ref-spine, A2 environment; behavior
+  contract §0.3 call order preserved). Note: the plan's execution log stops at the A2
+  entry (2026-09-11, "paused" steering note); the later A-step landings are evidenced in
+  code, not in the log — the log was not back-filled.
+
+### Deferred decisions
+
+- **Settings slice part-param split — KEEP as-is (decision recorded 2026-11-27).**
+  `useSettingsSlashCommands(deps, part: 'core' | 'appearance')` stays part-parameterized
+  (`SettingsSlashPart` in `src/hooks/use-settings-slash-commands.ts`). Splitting it into
+  two purpose-named hooks would change D2-approved facade names and requires a new review
+  per D2; the current state is correct and gated. No split.
+- **`key-handler-context.ts` re-export block — DELETED (2026-11-27).** The block had
+  shrunk from the 11 re-exports recorded above to 3 (`Dispatch`, `MutableRefObject`,
+  `SetStateAction`). Grep across `packages/tui/src`, `packages/tui/tests`, and
+  `packages/cli` found zero consumers: every import of the module takes only
+  `AppKeyHandlerOptions` / `KeyRouteContext`. The react type imports stay (used by the
+  interface fields themselves). Gate: typecheck + replay corpus + api-surface green.
+- **`kanban-panel-render.test.ts` header comment — FIXED (2026-11-27).** The header
+  bullet now says Ctrl+Y, matching the suite's assertions (comment-only change; the
+  historical note explaining the original Ctrl+J → Ctrl+Y switch is accurate and kept).
+
+### Out-of-scope findings H5/H6/H7/M2/M8 — fixed in code
+
+- **H5** (`/clear` vs in-flight leader run): session-generation gating is present —
+  `use-provider-event-bridge.ts` checks `activeRunGenerationRef.current !==
+  sessionGenerationRef.current` before applying run events (lines ~178, 199, 217, 230,
+  365, 392); the generation is bumped on session change/clear paths
+  (`use-session-interrupt-controller.ts`, `use-exit-command.ts`, `app-resume-runner.ts`,
+  `use-tui-event-bridge.ts`) and `/clear` is generation-aware in `submit-slash-command.ts`.
+- **H6** (swallowed key-handler rejections): `use-stable-key-handler.ts` now takes an
+  `onError` callback and reports failures through it (`reportKeyError`) instead of
+  silently swallowing them.
+- **H7** (unmemoized scrollbar rail): `components/history/scrollbar-rail.tsx` exports
+  `Scrollbar = memo(..., scrollbarPropsEqual)` — memoized with a custom prop comparator.
+- **M2** (reducer importing from a `.tsx` component): `filterPromptPicker` now lives in
+  the plain module `components/prompt-picker-model.ts`; `reducers/composer-pickers.ts`
+  imports it from there (no `.tsx` import in the reducer graph for this function).
+- **M8** (stale heap benchmark): `.github/workflows/ci.yml` has a `tui-heap-soak` job
+  running `bun run bench:tui-heap --quick` and asserting plateau slope + mounted-heap
+  ceiling from `.reports/tui-heap-soak/report.json`.

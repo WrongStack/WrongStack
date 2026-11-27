@@ -20,6 +20,12 @@ import {
 
 export interface MemorySlashDeps {
   memoryStore: MemoryPort;
+  /**
+   * Opens the interactive memory browser. When present, bare `/memory` opens
+   * the panel instead of printing stats; any argument keeps the text path.
+   * Returns true when the panel actually opened.
+   */
+  onOpenPanel?: (() => boolean) | undefined;
 }
 
 /**
@@ -88,13 +94,14 @@ function parseArgs(raw: string): ParsedArgs {
 export function createMemorySlashCommand(deps: MemorySlashDeps) {
   return {
     name: 'memory',
-    description: 'Display memory stats with filtering by tag and path (supports SAGE).',
+    description:
+      'Browse memory interactively (bare /memory) or show stats with tag/path filters (supports SAGE).',
     argsHint: '[--tag <tag>] [--path <path>] [--limit N] [--compact] [scope]',
     category: 'Inspect' as const,
     help:
       'Usage:\n' +
-      `  /memory                     — show memory stats + first ${DEFAULT_MEMORY_LIMIT} entries\n` +
-      `  /memory --limit <N>         — show up to N entries (default ${DEFAULT_MEMORY_LIMIT}, max ${MAX_MEMORY_LIMIT})\n` +
+      '  /memory                     — open the interactive memory browser (TUI)\n' +
+      `  /memory --limit <N>         — show up to N entries as text (default ${DEFAULT_MEMORY_LIMIT}, max ${MAX_MEMORY_LIMIT})\n` +
       '  /memory --tag <tag>         — filter entries by tag\n' +
       '  /memory --path <path>       — filter entries by file path\n' +
       '  /memory --compact           — compact table format\n' +
@@ -110,6 +117,12 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
       '',
     async run(args: string) {
       const store = deps.memoryStore;
+
+      // Bare `/memory` opens the interactive browser when the host wired it;
+      // any argument (subcommand or flag) keeps the canonical text output.
+      if (args.trim() === '' && deps.onOpenPanel?.()) {
+        return { message: '' };
+      }
 
       // ── Write subcommands (remember/update/delete/forget) ──────────────
       const tokens = args.trim().split(/\s+/).filter(Boolean);

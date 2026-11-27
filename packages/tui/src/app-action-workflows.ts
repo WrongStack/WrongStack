@@ -1,4 +1,4 @@
-import type { AutonomyStage } from '@wrongstack/contracts/types';
+import type { AutonomyStage, MemoryEntry } from '@wrongstack/contracts/types';
 import type { WorktreeTimelineEvent } from '@wrongstack/contracts/types/worktree-timeline';
 import type { SddBoardSnapshot } from '@wrongstack/sdd';
 import type { State } from './app-state.js';
@@ -14,6 +14,13 @@ export type AppActionWorkflows =
   | { type: 'shadowClose' }
   | { type: 'shadowUpdate'; shadow: ShadowState }
   | { type: 'shadowHint'; text?: string | undefined }
+  | { type: 'memoryPanelOpen' }
+  | { type: 'memoryPanelClose' }
+  | { type: 'memoryPanelMove'; delta: number }
+  | { type: 'memoryPanelSetEntries'; entries: MemoryEntry[] }
+  | { type: 'memoryPanelSetFilter'; filter: string }
+  | { type: 'memoryPanelBusy'; on: boolean }
+  | { type: 'memoryPanelHint'; text?: string | undefined }
   | { type: 'bugHuntContinueOpen'; info: NonNullable<State['bugHuntContinue']> }
   | { type: 'bugHuntContinueClose' }
   | { type: 'bugHuntRunningOpen'; info: NonNullable<State['bugHuntRunning']> }

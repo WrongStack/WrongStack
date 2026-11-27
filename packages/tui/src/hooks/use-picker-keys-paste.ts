@@ -100,6 +100,10 @@ export function routePickerPaste(host: PickerKeysHost, input: string): boolean {
     if (text) dispatch({ type: 'helpFilter', filter: state.helpPanel.filter + text });
     return true;
   }
+  if (state.memoryPanel?.open) {
+    if (text) dispatch({ type: 'memoryPanelSetFilter', filter: state.memoryPanel.filter + text });
+    return true;
+  }
 
   if (state.brainPanel.open || state.shadowPanel.open || state.subagentModels?.open) return true;
   if (state.statuslinePicker.open) {

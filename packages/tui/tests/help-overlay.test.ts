@@ -34,6 +34,24 @@ describe('helpSections', () => {
     expect(keys).toContain('/settings-get');
   });
 
+  it('documents /mouse native so native terminal selection is discoverable', () => {
+    const commands = helpSections().find((s) => s.title === 'Commands')?.entries ?? [];
+    const mouse = commands.find((e) => e.keys === '/mouse native');
+    expect(mouse).toBeDefined();
+    expect(mouse?.desc).toContain('terminal');
+    expect(mouse?.desc).toContain('select + copy');
+  });
+
+  it('renders every F-key monitor row verbatim from the shared metadata', () => {
+    // Single source of truth: the Monitors section must consume helpKeys /
+    // helpDescription from F_KEY_PANEL_ENTRIES, not hand-copy labels that
+    // can drift from the picker.
+    const monitors = helpSections().find((s) => s.title === 'Monitors')?.entries ?? [];
+    for (const entry of F_KEY_ENTRIES) {
+      expect(monitors).toContainEqual({ keys: entry.helpKeys, desc: entry.helpDescription });
+    }
+  });
+
   it('documents the /settings inline syntax variants', () => {
     const settingsEntry = helpSections()
       .find((s) => s.title === 'Commands')

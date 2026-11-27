@@ -137,6 +137,3 @@ export interface KeyRouteContext extends AppKeyHandlerOptions {
   /** Runs a detached promise from a route; failures surface as error entries. */
   detach: (work: Promise<unknown> | undefined, what: string) => void;
 }
-
-/** Re-exported for route modules that need the ref/callback shapes. */
-export type { Dispatch, MutableRefObject, SetStateAction };

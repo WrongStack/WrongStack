@@ -7,7 +7,6 @@ import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Action, State } from '../app-reducer.js';
 import { type HeapSample, startSharedHeapWatchdog, takeHeapSample } from '../heap-watchdog.js';
-import { useAnimation } from '../ink.js';
 import { liveStreamStoreOf } from '../live-stream-store.js';
 import { isRandomTuiThinkingWord, pickRandomTuiThinkingWord } from '../thinking-word.js';
 import { recordTuiAppRender, snapshotTuiMemoryCounters } from '../tui-memory-counters.js';
@@ -81,7 +80,6 @@ function pushMetricHistory<T>(buffer: T[], value: T): void {
 interface UseTuiActivityOptions {
   status: State['status'];
   fleet: State['fleet'];
-  enhanceBusy: boolean;
   thinkingWord: string;
   projectRoot: string;
   stateRef: React.RefObject<State>;
@@ -101,7 +99,6 @@ interface UseTuiActivityOptions {
 export function useTuiActivity({
   status,
   fleet,
-  enhanceBusy,
   thinkingWord,
   projectRoot,
   stateRef,
@@ -140,8 +137,11 @@ export function useTuiActivity({
   }, []);
 
   // Track foreground agent working time across running/streaming spells.
+  // The live start is STATE (not a ref): the elapsed leaves subscribe to the
+  // shared 1s clock based on the rendered `workingStartedAt`, so the spell
+  // transition must schedule a re-render or the chip would never start.
   const [workingTimeBase, setWorkingTimeBase] = useState(0);
-  const workingStartRef = useRef<number | null>(null);
+  const [workingStartedAt, setWorkingStartedAt] = useState<number | null>(null);
   const prevStatusRef = useRef(status);
   useEffect(() => {
     if (prevStatusRef.current === status) return;
@@ -149,18 +149,18 @@ export function useTuiActivity({
     const wasWorking = prevStatusRef.current === 'running' || prevStatusRef.current === 'streaming';
     const isWorking = status === 'running' || status === 'streaming';
     if (wasWorking && !isWorking) {
-      const delta = Date.now() - (workingStartRef.current ?? Date.now());
-      workingStartRef.current = null;
+      const delta = Date.now() - (workingStartedAt ?? Date.now());
+      setWorkingStartedAt(null);
       setWorkingTimeBase((base) => base + delta);
     } else if (!wasWorking && isWorking) {
-      workingStartRef.current = Date.now();
+      setWorkingStartedAt(Date.now());
     }
     prevStatusRef.current = status;
-  }, [status]);
+  }, [status, workingStartedAt]);
 
   // Track the time during which at least one background fleet entry is active.
   const [fleetWorkingBase, setFleetWorkingBase] = useState(0);
-  const fleetWorkingStartRef = useRef<number | null>(null);
+  const [fleetWorkingStartedAt, setFleetWorkingStartedAt] = useState<number | null>(null);
   const prevFleetRunningRef = useRef(0);
   useEffect(() => {
     const running = fleetRunningCount;
@@ -169,37 +169,21 @@ export function useTuiActivity({
     const wasRunning = prevFleetRunningRef.current > 0;
     const isRunning = running > 0;
     if (wasRunning && !isRunning) {
-      const delta = Date.now() - (fleetWorkingStartRef.current ?? Date.now());
-      fleetWorkingStartRef.current = null;
+      const delta = Date.now() - (fleetWorkingStartedAt ?? Date.now());
+      setFleetWorkingStartedAt(null);
       setFleetWorkingBase((base) => base + delta);
     } else if (!wasRunning && isRunning) {
-      fleetWorkingStartRef.current = Date.now();
+      setFleetWorkingStartedAt(Date.now());
     }
     prevFleetRunningRef.current = running;
-  }, [fleetRunningCount]);
+  }, [fleetRunningCount, fleetWorkingStartedAt]);
 
-  // Foreground and fleet elapsed clocks used to own independent 1s intervals,
-  // causing two root renders per second whenever both were active. The enhance
-  // animation (the loading-dot cycle shown by `setEnhanceBusy`) used to own a
-  // SECOND independent 1s interval — so an active enhance with no leader/fleet
-  // work still triggered a re-render every second. One shared Ink animation
-  // tick is sufficient to derive both values; include `enhanceBusy` so the
-  // dots animation keeps ticking when enhance is the only thing active.
-  const timingActive = thinkingWorking || fleetRunningCount > 0;
-  const enhanceActive = enhanceBusy;
-  const { frame: timingFrame } = useAnimation({
-    interval: 1_000,
-    isActive: timingActive || enhanceActive,
-  });
-  const timingNow = Date.now();
-  const workingTimeMs =
-    workingStartRef.current === null
-      ? workingTimeBase
-      : workingTimeBase + (timingNow - workingStartRef.current);
-  const fleetWorkingTimeMs =
-    fleetWorkingStartRef.current === null
-      ? fleetWorkingBase
-      : fleetWorkingBase + (timingNow - fleetWorkingStartRef.current);
+  // Elapsed-time leaves (composer working-time chip, status-bar fleet chip,
+  // refiner pulse) subscribe to the shared 1s clock in `second-clock.ts` and
+  // derive their own values from the base/start pairs returned below. The
+  // App shell no longer owns a 1s animation tick: it only re-renders when a
+  // spell STARTS or ENDS (the base accumulation effects above), never once
+  // per second while work is merely ongoing (scan-report P4).
 
   // Sidebar SYSTEM-card trend buffers (one capped array per metric, fed by
   // the memos below). Declared before the memos: React runs a useMemo
@@ -373,27 +357,21 @@ export function useTuiActivity({
     refreshGoalSummary();
   }, [nowTick, refreshGoalSummary]);
 
-  // Enhance dots share the timingFrame animation tick declared above. When
-  // enhance is the only active consumer, isActive still keeps the tick alive
-  // (timingActive || enhanceActive), so timingFrame keeps advancing and the
-  // dots animate. When nothing is active, both pause together — a single
-  // animation interval instead of two independent ones.
-  const enhanceDots = enhanceBusy ? timingFrame % 36 : 0;
-
   return {
     displayThinkingWord,
     startedAt: startedAtRef.current,
     nowTick,
     setNowTick,
-    workingTimeMs,
-    fleetWorkingTimeMs,
+    workingTimeBase,
+    workingStartedAt,
+    fleetWorkingBase,
+    fleetWorkingStartedAt,
     processMemory,
     cpuPercent,
     cpuHistory: cpuHistoryRef.current,
     rssHistory: rssHistoryRef.current,
     heapHistory: heapHistoryRef.current,
     totalMem: TOTAL_MEM,
-    enhanceDots,
     refreshGoalSummary,
   };
 }

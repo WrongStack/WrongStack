@@ -4,6 +4,7 @@ import type {
   ContentBlock,
   DesignKitEntry,
   FleetChatVerbosity,
+  MemoryEntry,
   SkillEntry,
   TokenSavingTier,
 } from '@wrongstack/contracts/types';
@@ -449,6 +450,15 @@ export type PanelState = {
   shadowPanel: {
     open: boolean;
     shadow: ShadowState;
+    hint?: string | undefined;
+  };
+  /** Interactive memory browser — opened by bare `/memory`. Browse-only. */
+  memoryPanel: {
+    open: boolean;
+    entries: MemoryEntry[];
+    selected: number;
+    filter: string;
+    busy: boolean;
     hint?: string | undefined;
   };
   /** Interactive API-key / OAuth manager — opened by `/auth`. */

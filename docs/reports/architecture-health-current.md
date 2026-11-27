@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-27T12:16:52.664Z
+**Generated:** 2026-11-27T12:19:57.595Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 51 |
-| Production source files | 6617 |
-| Production source lines | 1357967 |
-| Test files | 6549 |
+| Production source files | 6620 |
+| Production source lines | 1358543 |
+| Test files | 6554 |
 | Workspace dependency edges | 267 |
-| Relative module edges | 19415 |
+| Relative module edges | 19423 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -68,7 +68,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/telegram | 28 | 55 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/toolflow | 3 | 2 | @wrongstack/contracts |
 | @wrongstack/tools | 352 | 421 | @wrongstack/agent-catalog, @wrongstack/browser-tools, @wrongstack/codebase, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives, @wrongstack/toolflow |
-| @wrongstack/tui | 517 | 507 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
+| @wrongstack/tui | 520 | 512 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 18 | 31 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/vibeui | 101 | 53 | @wrongstack/webui-protocol |
 | @wrongstack/webui | 802 | 599 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
@@ -130,6 +130,7 @@ None.
 | 774 | `packages/mailbox-mcp/src/adapter.ts` |
 | 770 | `packages/webui-server/src/server/provider-routes.ts` |
 | 763 | `packages/plugins/src/adversary-mode/index.ts` |
+| 762 | `packages/tui/src/reducers/panel-pickers.ts` |
 | 761 | `apps/desktop-v2/src/useFileWorkspace.ts` |
 | 761 | `packages/coordination/src/agent-monitor.ts` |
 | 761 | `packages/coordination/src/multi-agent-coordinator.ts` |
@@ -142,7 +143,6 @@ None.
 | 748 | `packages/coordination/src/sqlite-mailbox.ts` |
 | 744 | `packages/webui-server/src/server/completion-handlers.ts` |
 | 741 | `packages/builtin-plugins/src/auto-review-plugin.ts` |
-| 741 | `packages/project-surfaces/src/analytics/AnalyticsDashboard.tsx` |
 
 ## Exports only tests reference
 

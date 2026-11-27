@@ -1,9 +1,10 @@
 import type React from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppMainColumn } from './app-main-column.js';
 import { AppStatusRegion } from './app-status-region.js';
 import {
   buildSidebarOpenFlags,
+  isBlockingPromptOpen,
   isPickerOverlayOpen,
   resolveAppSidebarLayout,
 } from './app-ui-state.js';
@@ -74,7 +75,13 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
   const replayBanner = useCallback(() => {
     setBannerAnimation({ generation: state.historyGen, startedAt: Date.now() });
   }, [state.historyGen]);
-  const { workingTimeMs } = activity;
+  const { workingTimeBase, workingStartedAt } = activity;
+  // Stable clock descriptor for the memoized Input; the top rail derives the
+  // live chip value from the shared 1s leaf clock.
+  const workingClock = useMemo(
+    () => ({ base: workingTimeBase, startedAt: workingStartedAt }),
+    [workingTimeBase, workingStartedAt],
+  );
   const { autonomyLive } = environment;
   const { inputHint, composerStatus, composerAnimationStyle, inputHeight, hideInput } = viewState;
   // Leaves without a style prop (tool stream spinner, composer activity icon)
@@ -97,26 +104,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
   useEffect(() => {
     if (messageJumpEntryId !== null) historyScrollRef.current?.scrollToEntry(messageJumpEntryId);
   }, [state.messageJump.seq]);
-  const blockingPrompt =
-    state.confirmQueue.length > 0 ||
-    state.shellCommandWarning != null ||
-    state.brainPrompt != null ||
-    state.clearConfirm != null ||
-    state.exitConfirm != null ||
-    state.slashConfirm != null ||
-    state.escConfirm != null ||
-    state.enhance != null ||
-    state.enhanceBusy ||
-    state.topicCheckBusy ||
-    state.refineFailure != null ||
-    state.continueConfirm != null ||
-    state.bugHuntContinue != null ||
-    state.sendModePicker != null ||
-    state.rewindOverlay != null ||
-    state.fallbackOverlay != null ||
-    state.inspectOverlay != null ||
-    state.helpOpen ||
-    (state.status === 'aborting' && !state.steeringPending);
+  const blockingPrompt = isBlockingPromptOpen(state);
   const foregroundPrompt = blockingPrompt || isPickerOverlayOpen(state);
   // Bash mode relabels the whole composer (`$` prompt, warn-colored rail,
   // BASH MODE title) so the shell-command state is unmistakable at a glance.
@@ -382,7 +370,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                   }
                   hint={selectionModeError || (bashMode ? BASH_HINT : inputHint)}
                   onKey={stableOnKey}
-                  workingTime={workingTimeMs}
+                  workingClock={workingClock}
                 />
                 <MonitorViewportProvider
                   value={{

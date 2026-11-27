@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1041,
+      "files": 1042,
       "typeOnly": 78,
-      "runtimeOrMixed": 998
+      "runtimeOrMixed": 999
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -17202,6 +17202,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tui/src/hooks/use-input-history-persistence.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tui/src/hooks/use-memory-panel.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

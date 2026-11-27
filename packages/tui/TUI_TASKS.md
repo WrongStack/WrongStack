@@ -6,15 +6,27 @@ Keep the TUI shortcut registry, help overlay, README documentation, and panel be
 
 ## Tasks
 
-1. Extract shared F-key panel metadata
-   - Create a single source of truth for F1-F12 panel labels, descriptions, actions, and documentation text.
-   - Use it from the F-key picker and HelpOverlay instead of duplicating labels.
-   - Keep special aliases such as Ctrl+F/F2, Ctrl+G/F3, and Ctrl+T/F4 represented clearly.
+1. ✅ Extract shared F-key panel metadata (done)
+   - Single source of truth is `src/f-key-panels.ts` (`F_KEY_PANEL_ENTRIES`:
+     label, helpKeys, helpDescription, action, ctrlAlias, hostAction).
+   - The F-key picker and HelpOverlay both consume it; a drift test pins every
+     HelpOverlay Monitors row verbatim to the shared table.
+   - Special aliases Ctrl+F/F2, Ctrl+G/F3, Ctrl+T/F4 are represented via
+     `ctrlAlias` + `helpKeys` and pinned by tests.
 
-2. Harden F-key launcher behavior
-   - Ensure every advertised F-key can be opened directly from the keyboard and from the `/f` picker.
-   - Handle actions that require payloads, such as `statuslineOpen`, without unsafe casts.
-   - Add focused tests for F5 plan panel and F12 status line picker routing.
+2. ✅ Harden F-key launcher behavior (done)
+   - Every advertised F-key opens from the keyboard and from the `/f` picker
+     (launchability matrix in `tests/f-key-routing.test.ts`).
+   - The bridge's grouped-toggle dispatch no longer uses an unsafe cast; the
+     payload-free action set is a const tuple with a narrowing type guard
+     (`isPayloadFreeAction`), and `statuslineOpen` carries a typed `hiddenItems`
+     payload. `toggleCronMonitor` was added to the dispatch-action union.
+   - The `/f` picker path now runs host-side work too: F10 calls
+     `loadLiveSessions()` on open (previously showed stale/empty sessions until
+     the 5s auto-refresh), mirroring `routeFKeyPanels`.
+   - Focused tests cover F5 plan panel and F12 kanban routing (F12 is the kanban
+     board; the statusline picker is the payload-requiring `statuslineOpen`
+     action reached via `/statusline`).
 
 3. ✅ Reduce duplicated panel-close logic (done)
    - Route panel opening through reducer actions where possible.

@@ -408,7 +408,7 @@ interface UnsweptEntry {
 const UNSWEPT: Record<string, UnsweptEntry> = {
   'input.tsx': {
     reason: 'drops the leak itself before forwarding a keystroke to handleKey',
-    guard: { line: 197, contains: 'isLeakedMouseInput' },
+    guard: { line: 199, contains: 'isLeakedMouseInput' },
   },
   'user-input-prompt.tsx': {
     reason: 'drops the leak itself; also owns a raw-stdin mouse parser',

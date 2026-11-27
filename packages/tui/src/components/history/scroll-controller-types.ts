@@ -56,9 +56,15 @@ export interface HistoryScrollController {
    * caller passes the terminal column directly; a band that is inset from the
    * left must subtract its left offset first. When the cell lands on a copyable
    * card's copy icon, its content is written to the system clipboard and the
-   * entry id is returned; otherwise returns null.
+   * entry id is returned; otherwise returns null. A clipboard WRITE failure
+   * (as opposed to a missed target) also returns null, but is reported through
+   * `onCopyFailure` with a user-facing message so the host can surface it.
    */
-  copyAtViewportCell(row: number, col: number): Promise<number | null>;
+  copyAtViewportCell(
+    row: number,
+    col: number,
+    onCopyFailure?: (message: string) => void,
+  ): Promise<number | null>;
   /**
    * Resolve the inspect target for the cell, or null on a miss.
    * The host opens the overlay; the view loads the full payload from live state.
@@ -129,11 +135,13 @@ export interface HistoryScrollController {
    * contract); a right-press in the history band commits any selection that
    * is still pending after an unusual end. Returns true if a non-empty
    * selection was resolved and the write succeeded. Returns false silently
-   * when there is no selection, the selection is empty (e.g. the drag never
-   * moved), or the write fails — the caller can show a transient notice on
-   * the truthy branch and stay silent on the falsy branch.
+   * when there is no selection or the selection is empty (e.g. the drag never
+   * moved). A clipboard WRITE failure also returns false, but is reported
+   * through `onCopyFailure` with a user-facing message — the caller shows a
+   * transient notice on the truthy branch and surfaces the failure message
+   * instead of staying silent.
    */
-  commitSelection(): Promise<boolean>;
+  commitSelection(onCopyFailure?: (message: string) => void): Promise<boolean>;
 }
 
 export interface ScrollableHistoryProps extends HistoryProps {

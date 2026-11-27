@@ -173,11 +173,15 @@ type FKeyDispatchAction = Extract<
   | { type: 'toggleGoalPanel' }
   | { type: 'toggleSessionsPanel' }
   | { type: 'toggleCoordinatorMonitor' }
+  | { type: 'toggleCronMonitor' }
   | { type: 'toggleConnectionsPanel' }
   | { type: 'statuslineOpen' }
 >;
 
-const PAYLOAD_FREE_ACTIONS = new Set<FKeyPanelAction>([
+/** Payload-free panel actions, as a const tuple so membership narrows the
+ *  action type (a `Set.has` check cannot narrow, which previously forced an
+ *  unsound cast). Every member maps to a `{ type }`-only reducer action. */
+const PAYLOAD_FREE_ACTIONS = [
   'toggleMonitor',
   'toggleAgentsMonitor',
   'toggleWorktreeMonitor',
@@ -191,7 +195,13 @@ const PAYLOAD_FREE_ACTIONS = new Set<FKeyPanelAction>([
   'toggleCoordinatorMonitor',
   'toggleCronMonitor',
   'toggleConnectionsPanel',
-]);
+] as const;
+
+type PayloadFreeFKeyAction = (typeof PAYLOAD_FREE_ACTIONS)[number];
+
+function isPayloadFreeAction(action: FKeyPanelAction): action is PayloadFreeFKeyAction {
+  return (PAYLOAD_FREE_ACTIONS as readonly FKeyPanelAction[]).includes(action);
+}
 
 /**
  * Find the F-key panel entry matching the pressed key — either a plain
@@ -225,8 +235,8 @@ export function actionForFKeyPanel(
   if (entry.action === 'statuslineOpen') {
     return { type: 'statuslineOpen', hiddenItems: [...hiddenItems] };
   }
-  if (PAYLOAD_FREE_ACTIONS.has(entry.action)) {
-    return { type: entry.action } as FKeyDispatchAction;
+  if (isPayloadFreeAction(entry.action)) {
+    return { type: entry.action };
   }
   return null;
 }

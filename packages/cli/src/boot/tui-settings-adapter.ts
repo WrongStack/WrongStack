@@ -26,6 +26,7 @@ import {
 
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { getProcessRegistry } from '@wrongstack/tools';
+import type { Settings } from '@wrongstack/tui';
 import type { LiveSettingsInput } from '../live-settings-input.js';
 import { activeProfileConfigPath } from '../profile-config-path.js';
 import { deriveFsAccessPair, persistConfigSetting } from '../settings-menu.js';
@@ -41,7 +42,7 @@ interface SettingsAdapterContext {
 }
 
 interface SettingsAdapter {
-  getSettings: () => Record<string, unknown>;
+  getSettings: () => Settings & { restrictFsToRoot: boolean };
   saveSettings: (s: LiveSettingsInput) => Promise<string | null>;
 }
 
@@ -74,11 +75,11 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
     if (saved && nextSystemPromptVariant === undefined) nextSystemPromptVariant = saved;
   })().catch(() => undefined);
 
-  function getSettings(): Record<string, unknown> {
+  function getSettings(): Settings & { restrictFsToRoot: boolean } {
     const settings = readTuiSettings(configStore);
     return {
       ...settings,
-      nextSystemPromptVariant: nextSystemPromptVariant ?? settings.systemPromptVariant,
+      nextSystemPromptVariant: nextSystemPromptVariant ?? settings.systemPromptVariant ?? 'pro',
       includeGlobalAgents:
         (configStore.get().systemPrompt as { includeGlobalAgents?: boolean } | undefined)
           ?.includeGlobalAgents ?? true,

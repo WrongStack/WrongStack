@@ -129,6 +129,12 @@ export async function routePointerEvents(
     openModelPicker,
     openStatuslinePicker,
   } = ctx;
+  // A clipboard WRITE failure must not be silent: surface it as a warn
+  // transcript entry (the same mechanism the SDD lifecycle routes use).
+  // No-op commits — missed targets, empty selections — never call this.
+  const warnCopyFailure = (text: string): void => {
+    dispatch({ type: 'addEntry', entry: { kind: 'warn', text } });
+  };
   // History lives in a bounded managed viewport. Skip scrolling when ANY
   // overlay below the statusline is open — these overlays
   // use arrow keys for their own navigation (↑↓ selection, scrolling).
@@ -155,9 +161,10 @@ export async function routePointerEvents(
         key.mouse.y,
       );
       if (region?.kind === 'history' && key.mouse.x <= historyWidth - SCROLLBAR_HIT_WIDTH) {
-        // Clipboard write — fails with no `xclip` / `clip.exe` on PATH.
+        // Clipboard write — fails with no `xclip` / `clip.exe` on PATH, or
+        // over the OSC 52 size cap; failures surface as a warn entry.
         ctx.detach(
-          historyScrollRef.current?.commitSelection().then((copied) => {
+          historyScrollRef.current?.commitSelection(warnCopyFailure).then((copied) => {
             if (copied) onHistoryCopy?.(SELECTION_COPY_ID);
           }),
           'Copy',
@@ -306,11 +313,12 @@ export async function routePointerEvents(
       ) {
         historyScrollRef.current?.clearSelection();
         void historyScrollRef.current
-          .copyAtViewportCell(pressedRailRow, key.mouse.x - 1)
+          .copyAtViewportCell(pressedRailRow, key.mouse.x - 1, warnCopyFailure)
           .then((entryId) => {
             // Non-null id means the clipboard write succeeded — surface the
             // transient "Copied" confirmation and flash that card's icon. A
-            // null result (missed target or write failure) is silent.
+            // missed target stays silent; a write failure already dispatched
+            // a warn entry through warnCopyFailure.
             if (entryId !== null) onHistoryCopy?.(entryId);
           })
           .catch(() => null);
@@ -364,7 +372,7 @@ export async function routePointerEvents(
         historyScrollRef.current.extendSelection(key.mouse.y - 1, key.mouse.x - 1);
         if (!historyScrollRef.current.hasSelection()) return true;
         ctx.detach(
-          historyScrollRef.current?.commitSelection().then((copied) => {
+          historyScrollRef.current?.commitSelection(warnCopyFailure).then((copied) => {
             if (copied) onHistoryCopy?.(SELECTION_COPY_ID);
           }),
           'Copy',

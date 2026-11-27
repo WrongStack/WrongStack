@@ -52,11 +52,13 @@ export interface InputProps {
   /** Animation style for the working-state chip (`'cycle'` rotates variants). */
   animationStyle?: AnimationStyle | 'cycle' | undefined;
   /**
-   * Working time in ms — total time the agent has been actively running/streaming.
-   * Displayed on the composer top rail as a dimmed time chip after the version.
+   * Working clock — accumulated ms from finished work spells plus the start
+   * timestamp of the live spell (null when idle). The composer top rail
+   * subscribes to the shared 1s leaf clock and renders the dimmed time chip
+   * itself, so only the rail repaints per second — not the App shell.
    * Only visible when > 0; ticks up only while the agent is working.
    */
-  workingTime?: number | undefined;
+  workingClock?: { base: number; startedAt: number | null } | undefined;
   /** Stable bottom-rail help; a non-empty `hint` temporarily replaces it. */
   footerHint?: string | undefined;
   /**
@@ -148,7 +150,7 @@ export const Input = memo(function Input({
   accent,
   status,
   animationStyle = 'rainbow',
-  workingTime,
+  workingClock,
   footerHint = 'Enter send · @ file · / commands · $ skill',
   hidden,
   placeholderHeight,
@@ -383,7 +385,7 @@ export const Input = memo(function Input({
         status={railStatus}
         animationStyle={animationStyle}
         disabled={disabled ?? false}
-        workingTime={workingTime}
+        workingClock={workingClock}
       />
       {visibleRows.map((row, i) => {
         const rowWidth = displayWidth(row.map((cell) => cell.ch).join(''));

@@ -93,6 +93,7 @@ export function helpSections(): HelpSection[] {
         },
         { keys: '/settings-get', desc: 'show setting value(s) without opening picker' },
         { keys: '/clear', desc: 'clear the conversation' },
+        { keys: '/mouse native', desc: 'hand the mouse back to the terminal (select + copy)' },
       ],
     },
     {

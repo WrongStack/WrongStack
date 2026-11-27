@@ -12,7 +12,7 @@
 /**
  * Get the active SDD context for the current session.
  */
-export async function getSDDContext(): Promise<unknown> {
+export async function getSDDContext(): Promise<string | null> {
   const { getActiveSDDContext } = await import('../services/sdd-runtime.js');
   return getActiveSDDContext();
 }

@@ -1,5 +1,5 @@
 import { effectivePanelPositions } from '../app-ui-state.js';
-import { writeClipboardText } from '../clipboard.js';
+import { clipboardFailureMessage, writeClipboardTextOutcome } from '../clipboard.js';
 import type { KeyEvent } from '../components/input.js';
 import {
   inspectOverlayHeaderActionAt,
@@ -61,8 +61,17 @@ export function routeModalOverlay(ctx: KeyRouteContext, input: string, key: KeyE
             liveStreamStoreOf(ctx.dispatch).get().toolStream,
           );
           ctx.detach(
-            writeClipboardText(content.body).then((copied) => {
-              if (copied) ctx.onHistoryCopy?.(overlay.entryId);
+            writeClipboardTextOutcome(content.body).then((outcome) => {
+              if (outcome.ok) {
+                ctx.onHistoryCopy?.(overlay.entryId);
+              } else {
+                // Failed copies (no clipboard tool, or over the OSC 52 size
+                // cap) must not be silent — surface a warn transcript entry.
+                ctx.dispatch({
+                  type: 'addEntry',
+                  entry: { kind: 'warn', text: clipboardFailureMessage(outcome.reason) },
+                });
+              }
             }),
             'Inspect copy',
           );

@@ -615,7 +615,7 @@ export async function runExecutionTui(
         };
         return coordinator;
       },
-    } as never as import('@wrongstack/tui').RunTuiOptions);
+    });
 
     const spawnResult = await handleProjectSwitchSpawn({
       code,

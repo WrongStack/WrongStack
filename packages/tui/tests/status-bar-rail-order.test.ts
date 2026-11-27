@@ -38,7 +38,7 @@ const richProps = {
   context: { used: 25_000, max: 100_000 },
   queueCount: 2,
   processCount: 1,
-  fleetWorkingTime: 5_000,
+  fleetWorkingClock: { base: 5_000, startedAt: null },
   tokenSavingMode: 'medium',
   sideEffectCount: 1,
   hint: 'ok',

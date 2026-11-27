@@ -37,6 +37,7 @@ type PanelResetState = Pick<
   | 'brainPanel'
   | 'helpPanel'
   | 'shadowPanel'
+  | 'memoryPanel'
   | 'authPanel'
   | 'projectPicker'
   | 'fKeyPicker'
@@ -76,6 +77,7 @@ export function closePanels(state: State): PanelResetState {
     brainPanel: { ...state.brainPanel, open: false },
     helpPanel: { ...state.helpPanel, open: false },
     shadowPanel: { ...state.shadowPanel, open: false },
+    memoryPanel: { ...state.memoryPanel, open: false },
     authPanel: { ...state.authPanel, open: false, busy: false },
     projectPicker: { ...state.projectPicker, open: false },
     fKeyPicker: { ...state.fKeyPicker, open: false },

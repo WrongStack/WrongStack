@@ -243,7 +243,6 @@ export function useAppEnvironment(deps: AppEnvironmentDeps) {
   const activity = useTuiActivity({
     status: state.status,
     fleet: state.fleet,
-    enhanceBusy: state.enhanceBusy,
     thinkingWord: liveThinkingWord,
     projectRoot,
     stateRef,

@@ -97,7 +97,13 @@ export function useCoreTuiCommands({
     );
     if (memoryStore) {
       cleanups.push(
-        registerSlashCommandLifecycle(slashRegistry, createMemorySlashCommand({ memoryStore })),
+        registerSlashCommandLifecycle(
+          slashRegistry,
+          createMemorySlashCommand({
+            memoryStore,
+            onOpenPanel: () => onPanelOpen?.current?.('memoryPanelOpen') ?? false,
+          }),
+        ),
       );
     }
 

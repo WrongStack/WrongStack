@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   EnhancePanel,
   formatRefinementDuration,
+  LiveRefiningPanel,
   RefiningPanel,
   refinementPulse,
   wrapRefinementPreview,
@@ -57,6 +58,54 @@ describe('RefiningPanel', () => {
     expect(frame).toContain('Esc cancels and returns to edit');
 
     view.unmount();
+  });
+});
+
+describe('LiveRefiningPanel shared-clock wrapper', () => {
+  // Regression: the enhance dots used to be driven by an App-scope 1s
+  // animation tick, re-rendering the whole shell every second while a refine
+  // was in flight. The live wrapper now subscribes to the shared leaf clock
+  // itself; only this panel repaints per second.
+  function pulseOf(frame: string): string {
+    return /[●·]{4,}/.exec(frame)?.[0] ?? '';
+  }
+
+  it('ticks elapsed and pulse once per second while mounted', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-15T00:00:10.000Z'));
+    let view!: ReturnType<typeof render>;
+    act(() => {
+      view = render(
+        React.createElement(LiveRefiningPanel, {
+          original: 'fix auth',
+          startedAt: Date.now() - 1_000,
+        }),
+      );
+    });
+    expect(view.lastFrame() ?? '').toContain('1.0s');
+    const initialPulse = pulseOf(view.lastFrame() ?? '');
+    expect(initialPulse.startsWith('●')).toBe(true);
+
+    act(() => vi.advanceTimersByTime(2_000));
+    expect(view.lastFrame() ?? '').toContain('3.0s');
+
+    act(() => vi.advanceTimersByTime(1_000));
+    const laterPulse = pulseOf(view.lastFrame() ?? '');
+    expect(laterPulse).not.toBe(initialPulse);
+    expect(view.lastFrame() ?? '').toContain('4.0s');
+    act(() => view.unmount());
+  });
+
+  it('renders zero elapsed before the request starts', () => {
+    vi.useFakeTimers();
+    let view!: ReturnType<typeof render>;
+    act(() => {
+      view = render(
+        React.createElement(LiveRefiningPanel, { original: 'fix auth', startedAt: null }),
+      );
+    });
+    expect(view.lastFrame() ?? '').toContain('0ms');
+    act(() => view.unmount());
   });
 });
 

@@ -53,8 +53,9 @@ export interface LiveSettingsInput {
   breakerEnabled?: boolean | undefined;
   /** Auto kill/reset delay (ms) when the breaker trips. 0 = manual recovery. */
   breakerAutoKillResetMs?: number | undefined;
-  /** TUI statusline density. Defaults to minimum when unset. */
-  statuslineMode?: 'minimum' | 'detailed' | undefined;
+  /** TUI statusline density. Defaults to minimum when unset. `no-color` is the
+   * monochrome variant the TUI picker can cycle to; persisted verbatim. */
+  statuslineMode?: 'minimum' | 'detailed' | 'no-color' | undefined;
   /** Single word shown in the TUI rainbow working-state chip. */
   thinkingWord?: string | undefined;
   /** Animation style for the TUI working-state chip. */

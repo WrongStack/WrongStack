@@ -151,7 +151,9 @@ terminal; WrongStack does not silently install or change system fonts.
 | `F9` | Toggle goal panel |
 | `F10` | Toggle live sessions panel |
 | `F11` | Toggle coordinator monitor |
-| `F12` | Open status line picker |
+| `F12` / `Ctrl+Y` | Toggle kanban board panel (also `/kanban`) |
+| `Ctrl+N` | Toggle service connections panel (also `/connections`) |
+| `/statusline` | Open status line picker (chip visibility / order / density) |
 | `Ctrl+S` | Edit autonomy/settings defaults; also `/settings` |
 | `Esc` | Close any picker / dialog / monitor / panel |
 | `Ctrl+L` | Clear screen (TUI keeps state — equivalent to scrolling) |
@@ -176,7 +178,7 @@ State is a single `useReducer` `State` shape with discriminated-union `Action`s.
 
 ## React Version
 
-TUI uses React 19 with Ink 7, matching the package dependencies in this workspace.
+TUI uses React 19 with Ink 8, matching the package dependencies in this workspace.
 
 ## License
 

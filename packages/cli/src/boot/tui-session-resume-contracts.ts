@@ -55,7 +55,12 @@ export interface SessionResumeFailure {
 }
 
 export interface SessionResumeResult {
-  entries: unknown[];
+  /**
+   * Replayed TUI history rows. Typed via the public replay export so the
+   * resume contract matches what `runTui`'s `onResumeSession` consumes —
+   * the producer (`replaySessionMessages`) already returns exactly this.
+   */
+  entries: ReturnType<typeof import('@wrongstack/tui').replaySessionMessages>;
   nextId: number;
   sessionId: string;
   /**

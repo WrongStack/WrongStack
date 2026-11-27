@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { type CellRange, screenOrigin, selectionText, type TextRun } from '../cell-selection.js';
-import { writeClipboardText } from '../clipboard.js';
+import { clipboardFailureNotice, writeClipboardTextOutcome } from '../clipboard.js';
 import type { DOMElement } from '../ink.js';
 import type { MouseEventInfo } from '../mouse.js';
 
@@ -91,9 +91,9 @@ export function useComposerPointer() {
       const text = selectionText(current.runs, { anchor, head: point });
       if (text)
         void Promise.resolve()
-          .then(() => writeClipboardText(text))
+          .then(() => writeClipboardTextOutcome(text))
           .then(
-            (ok) => setNotice(ok ? 'Copied' : 'Copy failed'),
+            (outcome) => setNotice(outcome.ok ? 'Copied' : clipboardFailureNotice(outcome.reason)),
             () => setNotice('Copy failed'),
           );
       return true;

@@ -1,6 +1,7 @@
 import type React from 'react';
 import { Text } from '../ink.js';
 import type { InputCell } from '../input-tokens.js';
+import { useElapsedMs } from '../second-clock.js';
 import { displayWidth } from '../terminal-width.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
@@ -25,7 +26,7 @@ export function ComposerTopRail({
   status,
   animationStyle,
   disabled,
-  workingTime,
+  workingClock,
   icon = glyphs.brand,
   accent,
 }: {
@@ -34,13 +35,16 @@ export function ComposerTopRail({
   status: ComposerStatus;
   animationStyle: AnimationStyle | 'cycle';
   disabled: boolean;
-  workingTime?: number | undefined;
+  workingClock?: { base: number; startedAt: number | null } | undefined;
   /** Glyph drawn before the title; defaults to the brand glyph. */
   icon?: string | undefined;
   /** Rail color override (e.g. warn color while bash mode is active). */
   accent?: string | undefined;
 }): React.ReactElement {
   const available = Math.max(0, width - 2);
+  // Per-second repaint is confined to this rail: the shared 1s clock is only
+  // subscribed while a work spell is live (startedAt !== null).
+  const workingTime = useElapsedMs(workingClock?.base ?? 0, workingClock?.startedAt ?? null);
   // The 'static' style flattens the whole working surface: the left orb rests
   // on the brand glyph instead of pulsing (the right chip renders flat text).
   // 'cycle' keeps animating — it means "shuffle all styles".

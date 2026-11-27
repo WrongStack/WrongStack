@@ -4,6 +4,7 @@ import { useBrainRiskSync } from './hooks/use-brain-risk-sync.js';
 import { useBugHuntLoop } from './hooks/use-bug-hunt-loop.js';
 import { useHelpPanel } from './hooks/use-help-panel.js';
 import { useMailboxViewModel } from './hooks/use-mailbox-view-model.js';
+import { useMemoryPanel } from './hooks/use-memory-panel.js';
 import { useModePicker } from './hooks/use-mode-picker.js';
 import { useModelPickRequest } from './hooks/use-model-pick.js';
 import { usePromptPicker } from './hooks/use-prompt-picker.js';
@@ -35,6 +36,7 @@ export function useControllerPanelHooks(inputs: {
     | undefined;
   onShadowStart: (() => Promise<string | undefined>) | undefined;
   onShadowStop: (() => Promise<string | undefined>) | undefined;
+  memoryStore: import('@wrongstack/contracts/types').MemoryPort | undefined;
   subagentModelsHost:
     | import('./subagent-models-panel-model.js').SubagentModelsPanelHost
     | undefined;
@@ -57,6 +59,7 @@ export function useControllerPanelHooks(inputs: {
     getShadowData,
     onShadowStart,
     onShadowStop,
+    memoryStore,
     subagentModelsHost,
     slashRegistry,
     subscribeCoordinatorEvents,
@@ -85,6 +88,13 @@ export function useControllerPanelHooks(inputs: {
     getShadowData,
     onShadowStart,
     onShadowStop,
+  });
+
+  useMemoryPanel({
+    dispatch,
+    memoryStore,
+    open: state.memoryPanel.open,
+    filter: state.memoryPanel.filter,
   });
 
   const subagentModelsCtl = useSubagentModelsPanel({

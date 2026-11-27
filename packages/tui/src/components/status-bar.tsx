@@ -12,6 +12,7 @@ import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { useTodosAutoClear } from '../hooks/use-todos-auto-clear.js';
 import { useTokenCounterRefresh } from '../hooks/use-token-counter-refresh.js';
 import { Box, Text, useAnimation } from '../ink.js';
+import { useElapsedMs } from '../second-clock.js';
 import { theme } from '../theme.js';
 import type { AnimationStyle } from './animation-style.js';
 import { layoutPluginStatusStrip, PluginStatusStrip } from './plugin-panel-overlay.js';
@@ -91,7 +92,7 @@ export const StatusBar = memo(function StatusBar({
   yolo = false,
   yoloPlus = false,
   autonomy,
-  fleetWorkingTime,
+  fleetWorkingClock,
   todos,
   plan,
   tasks,
@@ -290,6 +291,13 @@ export const StatusBar = memo(function StatusBar({
   // here rather than threaded through app state: no session owns it, and every
   // metered provider feeds the same store.
   const quota = useProviderQuota();
+
+  // Fleet elapsed chip: subscribe to the shared 1s leaf clock only while a
+  // fleet spell is live (startedAt !== null). Idle sessions never tick.
+  const fleetWorkingTime = useElapsedMs(
+    fleetWorkingClock?.base ?? 0,
+    fleetWorkingClock?.startedAt ?? null,
+  );
 
   const buildParams: StatusBarRailBuildParams = {
     showChip,

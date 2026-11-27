@@ -89,6 +89,24 @@ describe('invalidateFileCache', () => {
     const after = await searchFiles(root, '', 100);
     expect(after).toEqual(before);
   });
+
+  it('a file created after indexing becomes searchable after invalidation, before TTL expiry', async () => {
+    invalidateFileCache();
+    // Build the index while the file does not exist yet.
+    expect(await searchFiles(root, 'latecreated', 10)).toEqual([]);
+    const file = path.join(root, 'late-created.ts');
+    await fs.writeFile(file, '');
+    try {
+      // The 30s TTL cache is still fresh: without invalidation the new file
+      // stays invisible (this is the mid-session tool-write gap, report I4).
+      expect(await searchFiles(root, 'latecreated', 10)).toEqual([]);
+      invalidateFileCache();
+      expect(await searchFiles(root, 'latecreated', 10)).toContain('late-created.ts');
+    } finally {
+      await fs.rm(file, { force: true });
+      invalidateFileCache();
+    }
+  });
 });
 
 describe('empty query returns cached results', () => {

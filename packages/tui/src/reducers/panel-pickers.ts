@@ -76,6 +76,13 @@ const panelPickerActionTypes = [
   'shadowClose',
   'shadowUpdate',
   'shadowHint',
+  'memoryPanelOpen',
+  'memoryPanelClose',
+  'memoryPanelMove',
+  'memoryPanelSetEntries',
+  'memoryPanelSetFilter',
+  'memoryPanelBusy',
+  'memoryPanelHint',
   'subagentModelsOpen',
   'subagentModelsClose',
   'subagentModelsMove',
@@ -660,6 +667,47 @@ export function reducePanelPickers(state: State, action: PanelPickerAction): Sta
       return { ...state, shadowPanel: { ...state.shadowPanel, shadow: action.shadow } };
     case 'shadowHint':
       return { ...state, shadowPanel: { ...state.shadowPanel, hint: action.text } };
+    case 'memoryPanelOpen':
+      return {
+        ...state,
+        ...closePanels(state),
+        memoryPanel: {
+          open: true,
+          entries: [],
+          selected: 0,
+          filter: '',
+          busy: true,
+          hint: undefined,
+        },
+      };
+    case 'memoryPanelClose':
+      return { ...state, memoryPanel: { ...state.memoryPanel, open: false } };
+    case 'memoryPanelMove': {
+      const panel = state.memoryPanel;
+      const max = Math.max(0, panel.entries.length - 1);
+      const selected = Math.min(max, Math.max(0, panel.selected + action.delta));
+      return { ...state, memoryPanel: { ...panel, selected } };
+    }
+    case 'memoryPanelSetEntries': {
+      const panel = state.memoryPanel;
+      const selected = Math.min(
+        Math.max(0, panel.selected),
+        Math.max(0, action.entries.length - 1),
+      );
+      return {
+        ...state,
+        memoryPanel: { ...panel, entries: action.entries, selected, busy: false },
+      };
+    }
+    case 'memoryPanelSetFilter':
+      return {
+        ...state,
+        memoryPanel: { ...state.memoryPanel, filter: action.filter, selected: 0, busy: true },
+      };
+    case 'memoryPanelBusy':
+      return { ...state, memoryPanel: { ...state.memoryPanel, busy: action.on } };
+    case 'memoryPanelHint':
+      return { ...state, memoryPanel: { ...state.memoryPanel, hint: action.text } };
     case 'subagentModelsOpen':
       return {
         ...state,

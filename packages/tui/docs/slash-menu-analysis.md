@@ -4,6 +4,14 @@
 > **Scope:** `packages/cli/src/slash-commands/` (70+ commands), `packages/tui/src/` (panel/picker infrastructure)
 > **Goal:** Identify which `/` commands could gain an interactive TUI menu instead of the current text output
 
+> **Implementation status — 2026-11-27 (re-verified against code, not this proposal):**
+> `McpPicker`, `ToolsPicker`, `BrainPanel`, `CoordinatorPanel`, `ShadowPanel` and now
+> `MemoryPanel` are all implemented. Bare `/memory` opens the browse-only interactive
+> browser (`src/components/memory-panel.tsx`); argument forms keep the text path.
+> The only remaining proposal is the **Fleet toolbar** (per-subagent kill/retry/log),
+> which still needs new per-subagent CLI callbacks wired through `RunTuiOptions` —
+> a separate design round, not yet built. Do not re-derive the closed items as open.
+
 ---
 
 ## 1. Current State: Existing Panels & Pickers

@@ -1,7 +1,8 @@
 import type React from 'react';
 import { useEffect, useRef } from 'react';
-import { Box, Text, useInput } from '../ink.js';
 import { useTerminalSize } from '../hooks/use-terminal-size.js';
+import { Box, Text, useInput } from '../ink.js';
+import { useSecondTick } from '../second-clock.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 
@@ -233,6 +234,25 @@ export function RefiningPanel({
       </Box>
     </Box>
   );
+}
+
+/**
+ * Live wrapper around RefiningPanel: subscribes to the shared 1s leaf clock
+ * while mounted (the panel only mounts during an active refine) and derives
+ * the elapsed readout and pulse frame itself. The App shell no longer owns a
+ * 1s animation tick for the enhance dots — only this leaf repaints per
+ * second. RefiningPanel keeps its pure props for tests and static previews.
+ */
+export function LiveRefiningPanel({
+  startedAt,
+  ...rest
+}: Omit<RefiningPanelProps, 'elapsedMs' | 'pulseFrame'> & {
+  /** Refiner request start timestamp (ms), or null before it began. */
+  startedAt: number | null;
+}): React.ReactElement {
+  const frame = useSecondTick(true);
+  const elapsedMs = startedAt === null ? 0 : Math.max(0, Date.now() - startedAt);
+  return <RefiningPanel {...rest} elapsedMs={elapsedMs} pulseFrame={frame % 36} />;
 }
 
 /**

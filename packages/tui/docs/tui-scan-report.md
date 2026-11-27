@@ -4,17 +4,17 @@
 **Scope:** `packages/tui` (Ink/React renderer, ~595 files, 19 files over the repo's 800-line hotspot threshold)
 **Method:** Static analysis of source read during the scan; every finding below is verified against the code. No runtime profiling was performed (see [Assumptions](#assumptions--unverified)). Timers and polling paths that checked out clean are listed in [Verified clean](#verified-clean-no-action) so the negative space is explicit.
 
-> **Status as of 2026-08-13 — most of this report is closed. Re-verify before acting on it.**
+> **Status as of 2026-11-27 — most of this report is closed. Re-verify before acting on it.**
 >
 > | Finding | State |
 > |---|---|
 > | P1 goal read per tick | **Fixed** — mtime/size gate in `use-tui-activity.ts` |
 > | P2 git child processes | **Fixed** — `gitHidden` visibility gate in `use-git-session-status.ts` |
 > | P3 plan/task `fs.stat` polls | **Fixed** — `planHidden`/`taskHidden` gates in `use-statusbar-view-model.ts` |
-> | P4 1s root animation tick | **Open, but the premise below is wrong** — see the note in P4 |
+> | P4 1s root animation tick | **Fixed (2026-11-27)** — the App-scope 1s `useAnimation` tick was removed from `use-tui-activity.ts`. Elapsed leaves (composer top rail, status-bar fleet chip, refiner pulse) now subscribe to a shared ref-counted 1s clock (`src/second-clock.ts`) that notifies all subscribers in one batched callback; the shell only re-renders on spell start/end. Pinned by `tests/second-clock.test.ts` + `tests/use-tui-activity.test.ts`. See the note in P4 |
 > | P5 `@`-search debounce | **Fixed** — `FILE_SEARCH_DEBOUNCE_MS` in `use-file-search.ts` |
 > | I1 history archive stub | **Fixed** — `use-history-archive.ts` wires it; covered by `tests/use-history-archive.test.tsx` |
-> | I2 hotspot files | Open; the line counts below are stale (21 files over threshold, `theme.ts` at 1447 is the largest and is missing from the table) |
+> | I2 hotspot files | **Fixed** — 2026-11-27 line-count scan of `src/**/*.{ts,tsx}`: zero files over the 800-line threshold (largest: `reducers/panel-pickers.ts` at 713). The table below is the historical 2026-08-07 snapshot |
 > | I3 duplicated polling | **Not a real finding** — see the correction in I3 |
 >
 > This report has twice been re-derived by tools that read it, restated its
@@ -83,6 +83,19 @@ there is now one. Doing this correctly needs a shared subscriber clock (one
 interval, both setStates in the same callback so React batches them), which is
 a deliberate design change rather than a drive-by fix. Left open on purpose.
 
+**Update (2026-11-27):** the shared-subscriber-clock design described above is now
+**landed**. `src/second-clock.ts` owns one ref-counted 1s interval; `useSecondTick` /
+`useElapsedMs` let each elapsed leaf subscribe only while its spell is live, and all
+subscribers are notified inside a single timer callback so React batches them into one
+commit per second. The App-scope `useAnimation` tick was removed from
+`use-tui-activity.ts`, which now only accumulates base/start pairs on spell transitions
+(state, not refs, so the transition schedules the re-render that arms the leaf clock).
+Consumers: composer top rail (`input-rows.tsx`), status-bar fleet chip (`status-bar.tsx`),
+and the refiner pulse (`LiveRefiningPanel` in `enhance-panel.tsx`). The interval is
+unref'd and stops when the last subscriber unmounts. Pinned by `tests/second-clock.test.ts`
+(one interval for many subscribers, stop-on-last-unmount, inactive never ticks) and the
+rewritten `tests/use-tui-activity.test.ts` (shell output frozen while a spell is ongoing).
+
 ---
 
 ### P5. Per-keystroke file-index scan + dispatch in `@`-search, no debounce
@@ -108,6 +121,13 @@ The effect runs on every buffer/cursor change; with an active `@` token it calls
 ---
 
 ### I2. 19 TUI files exceed the repo's own 800-line hotspot threshold
+
+**Update (2026-11-27):** a fresh line-count scan of `packages/tui/src/**/*.{ts,tsx}`
+shows **zero** files over the 800-line threshold. The largest is
+`src/reducers/panel-pickers.ts` at 713 lines (next: `reducers/settings-value-cycle.ts`
+702, `app-view-prompts.tsx` and `hooks/use-provider-event-bridge.ts` 693). The
+decomposition (Phases 1–4) and the hotspot-split work closed this finding. The table
+below is the original 2026-08-07 snapshot, kept for history — do not act on it.
 
 **Verified in:** `architecture/hotspots.json`
 

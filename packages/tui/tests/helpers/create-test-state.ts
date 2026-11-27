@@ -226,6 +226,14 @@ export function createTestState(
       shadow: { activeId: null, running: false, model: '', intervalMs: 30000 },
       hint: undefined,
     },
+    memoryPanel: {
+      open: false,
+      entries: [],
+      selected: 0,
+      filter: '',
+      busy: false,
+      hint: undefined,
+    },
     subagentModels: {
       open: false,
       lanes: [],

@@ -15,9 +15,11 @@ import { standaloneModalStoreOf } from './standalone-modal-store.js';
 
 export interface PanelOpenDeps {
   /**
-   * Reducer dispatcher. For an action that has typed reducer cases the
-   * caller passes a narrowed `Dispatch<Action>`; for the action-typed-aliasing
-   * cases below we widen via `dispatch as (a: Action) => void` internally.
+   * Reducer dispatcher. Every dispatch below is fully typed: the switch
+   * narrows payload-free panel toggles to their literal action types, and
+   * payload-requiring actions (e.g. `statuslineOpen`, which needs a
+   * hiddenItems snapshot) are delegated to host openers that build the
+   * payload — no `as Action` widening anywhere in the bridge.
    */
   dispatch: (action: Action) => void;
   /** Async opener for the project picker panel (F1). Fetches items first. */
@@ -147,9 +149,11 @@ export function createPanelOpenDispatcher(deps: PanelOpenDeps): (action: string)
         dispatch({ type: 'toggleAuditPanel' });
         return true;
       // All other toggle* panels share the same handler in the reducer —
-      // the action type string IS the dispatch type. Dispatching them
-      // verbatim works because the reducer's switch covers every F-key
-      // panel action.
+      // the action type string IS the dispatch type. Every case below is a
+      // payload-free `{ type: … }` member of Action, and the switch narrows
+      // `action` to exactly that literal union, so `{ type: action }` is a
+      // valid Action without a cast. Payload-requiring actions must NOT be
+      // added here — give them a host opener (see statuslineOpen above).
       case 'toggleAgentsMonitor':
       case 'toggleWorktreeMonitor':
       case 'togglePlanPanel':
@@ -164,7 +168,8 @@ export function createPanelOpenDispatcher(deps: PanelOpenDeps): (action: string)
       case 'toggleGoalKanbanPanel':
       case 'toggleSessionsPanel':
       case 'toggleCoordinatorMonitor':
-        dispatch({ type: action } as Action);
+      case 'memoryPanelOpen':
+        dispatch({ type: action });
         return true;
       default:
         if (action.startsWith('plugin-panel:')) {

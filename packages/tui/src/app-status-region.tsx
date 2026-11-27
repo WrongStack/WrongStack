@@ -172,7 +172,8 @@ export function AppStatusRegion({
     getLeaderTranscript,
     coordinatorRunning,
   } = runtime;
-  const { displayThinkingWord, startedAt, nowTick, fleetWorkingTimeMs } = activity;
+  const { displayThinkingWord, startedAt, nowTick, fleetWorkingBase, fleetWorkingStartedAt } =
+    activity;
   const {
     liveModel,
     liveProvider,
@@ -216,6 +217,12 @@ export function AppStatusRegion({
   // a resize or a draft settings edit cannot render the panel twice.
   const routedToBottom = (id: PanelId): boolean => panelPositions[id] === 'bottom';
   const effectiveHiddenItems = useMemo(() => mergeComposerOwnedChips(hiddenItems), [hiddenItems]);
+  // Stable clock descriptor: a fresh object per render would defeat the
+  // memoized StatusBar even when no fleet spell is active.
+  const fleetWorkingClock = useMemo(
+    () => ({ base: fleetWorkingBase, startedAt: fleetWorkingStartedAt }),
+    [fleetWorkingBase, fleetWorkingStartedAt],
+  );
   const [updateReadyVersion, setUpdateReadyVersion] = useState<string | undefined>();
   useEffect(() => subscribeUpdateReady?.(setUpdateReadyVersion), [subscribeUpdateReady]);
 
@@ -266,7 +273,7 @@ export function AppStatusRegion({
           autonomy={autonomyLive}
           droppedTools={droppedTools}
           startedAt={startedAt}
-          fleetWorkingTime={fleetWorkingTimeMs}
+          fleetWorkingClock={fleetWorkingClock}
           todos={todos}
           plan={planCounts ?? undefined}
           tasks={taskCounts ?? undefined}

@@ -4,6 +4,7 @@ import {
   resolveFleetChatVerbosity,
   resolveNextStepsMode,
 } from '@wrongstack/contracts/types';
+import type { Settings } from '@wrongstack/tui';
 import { normalizeTuiThinkingWord } from '../tui-thinking-word.js';
 
 /**
@@ -78,7 +79,13 @@ function normalizeAnimationStyle(raw: unknown): AnimationStyleValue {
     ? (raw as AnimationStyleValue)
     : 'rainbow';
 }
-export function readTuiSettings(configStore: ConfigStore): Record<string, unknown> {
+export function readTuiSettings(configStore: ConfigStore): Omit<
+  Settings,
+  'nextSystemPromptVariant'
+> & {
+  restrictFsToRoot: boolean;
+  autonomyNextPrompt: string;
+} {
   const cfg = configStore.get();
   const autonomy = cfg.autonomy as Record<string, unknown> | undefined;
   const rawMode = autonomy?.defaultMode as string | undefined;
@@ -223,15 +230,16 @@ export function readTuiSettings(configStore: ConfigStore): Record<string, unknow
         : 'default',
     breakerEnabled: cfg.circuitBreaker?.enabled === true,
     breakerAutoKillResetMs: cfg.circuitBreaker?.autoKillResetMs ?? 60_000,
-    showModelReasoning: autonomy?.showModelReasoning ?? false,
+    showModelReasoning: autonomy?.showModelReasoning === true,
     selectionMode: autonomy?.selectionMode === 'text' ? 'text' : 'block',
     toolResultViewMode:
       autonomy?.toolResultViewMode === 'minimal' || autonomy?.toolResultViewMode === 'full'
         ? autonomy.toolResultViewMode
         : 'normal',
     showAgentSwarmPanel: coerceAgentSwarmMode(autonomy?.showAgentSwarmPanel),
-    showSidebar: autonomy?.showSidebar ?? true,
-    lastSettingsField: autonomy?.lastSettingsField ?? 0,
+    showSidebar: autonomy?.showSidebar !== false,
+    lastSettingsField:
+      typeof autonomy?.lastSettingsField === 'number' ? autonomy.lastSettingsField : 0,
     // Migrate the legacy `autonomy.showAgentSwarmPanel: 'sidebar'` into
     // the new per-panel `panelPositions.fleet` map at the read boundary
     // so users with old configs (no `panelPositions` key on disk) get
@@ -246,11 +254,17 @@ export function readTuiSettings(configStore: ConfigStore): Record<string, unknow
         ? { fleet: 'sidebar' as const }
         : {}),
     }),
-    showSageMemoryInject: autonomy?.showSageMemoryInject ?? false,
-    readSymbols: autonomy?.readAdvancedMode ?? false,
-    sageMemoryInjectThreshold: (cfg.Sage as Record<string, unknown> | undefined)?.inject
-      ? ((cfg.Sage as Record<string, unknown>).inject as Record<string, unknown>)?.relationFloor
-      : undefined,
+    showSageMemoryInject: autonomy?.showSageMemoryInject === true,
+    readSymbols: autonomy?.readAdvancedMode === true,
+    sageMemoryInjectThreshold: (() => {
+      const inject = (cfg.Sage as Record<string, unknown> | undefined)?.inject as
+        | Record<string, unknown>
+        | undefined;
+      // Consumers coalesce a missing threshold to the 0.85 default; returning
+      // it here keeps the read boundary a concrete number without changing
+      // what the picker displays or persists.
+      return typeof inject?.relationFloor === 'number' ? inject.relationFloor : 0.85;
+    })(),
     // WrongProxy / WrongTrace: read from `tools.wrongProxy.{enabled,url}`
     // so the persistence shape mirrors the WebUI `LocalPrefs` shape
     // (single object with two fields, not two top-level keys). The

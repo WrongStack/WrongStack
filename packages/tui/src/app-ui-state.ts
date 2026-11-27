@@ -59,6 +59,7 @@ export function isPickerOverlayOpen(state: State): boolean {
     state.brainPanel.open ||
     state.helpPanel.open ||
     state.shadowPanel.open ||
+    state.memoryPanel.open ||
     // Optional: partial State fixtures (and any state persisted before this
     // slice existed) legitimately lack it; a throw here would black out the
     // whole layout resolver.
@@ -69,6 +70,42 @@ export function isPickerOverlayOpen(state: State): boolean {
     state.skillPicker.open ||
     state.resourceMenu.open ||
     state.picker.open
+  );
+}
+
+/**
+ * Single authority for "does a foreground prompt own the keyboard?". When
+ * true, the composer's normal input is suspended and picker/panel shortcuts
+ * must not fire underneath the prompt. Centralized here (next to
+ * {@link isPickerOverlayOpen}) so adding a new modal surface is one reviewed
+ * edit in one place, instead of a fragile inline boolean in the renderer.
+ *
+ * Note the deliberate asymmetry with the sidebar `overlayOpen` resolver:
+ * this gate is about KEYBOARD ownership, not layout, so it includes the
+ * busy/refine states and the aborting-without-steering condition, and it does
+ * NOT apply per-panel sidebar routing guards.
+ */
+export function isBlockingPromptOpen(state: State): boolean {
+  return (
+    state.confirmQueue.length > 0 ||
+    state.shellCommandWarning != null ||
+    state.brainPrompt != null ||
+    state.clearConfirm != null ||
+    state.exitConfirm != null ||
+    state.slashConfirm != null ||
+    state.escConfirm != null ||
+    state.enhance != null ||
+    state.enhanceBusy ||
+    state.topicCheckBusy ||
+    state.refineFailure != null ||
+    state.continueConfirm != null ||
+    state.bugHuntContinue != null ||
+    state.sendModePicker != null ||
+    state.rewindOverlay != null ||
+    state.fallbackOverlay != null ||
+    state.inspectOverlay != null ||
+    state.helpOpen ||
+    (state.status === 'aborting' && !state.steeringPending)
   );
 }
 

@@ -8,7 +8,7 @@
 //   - `summarizeSuccessCriteria` and `summarizeGoalMetrics` produce the
 //     strings the visible "Criteria N/M passed" and "Metrics …" lines use,
 //     including their null-shape fast paths (no checks / no metrics)
-//   - The kanban panel advertises Ctrl+J in its footer hint so users can
+//   - The kanban panel advertises Ctrl+Y in its footer hint so users can
 //     discover the chord (Sprint 2 introduced it)
 
 import type { KanbanBoard, KanbanCheck, KanbanGoalMetric, KanbanTask } from '@wrongstack/kanban';

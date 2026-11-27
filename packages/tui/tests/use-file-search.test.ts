@@ -76,7 +76,12 @@ describe('detectAtToken', () => {
 // ─── useFileSearch hook ──────────────────────────────────────────────
 
 interface HarnessRefs {
-  state: { buffer: string; cursor: number; picker: PickerState };
+  state: {
+    buffer: string;
+    cursor: number;
+    picker: PickerState;
+    status?: 'idle' | 'running' | 'streaming' | 'aborting';
+  };
   dispatch: Mock;
   projectRoot: string;
   builderRef: React.MutableRefObject<InputBuilder | null>;
@@ -298,5 +303,119 @@ describe('useFileSearch - @-token detection effect', () => {
       entry: { kind: 'error', text: 'Attach failed: not found' },
     });
     expect(refs.dispatch).toHaveBeenCalledWith({ type: 'pickerClose' });
+  });
+});
+
+// ─── Stale-index invalidation on turn completion (scan report I4) ────
+
+describe('useFileSearch - file index invalidation', () => {
+  it('invalidates the file cache when status returns to idle (turn complete)', () => {
+    const invalidateSpy = vi.spyOn(fileSearchModule, 'invalidateFileCache');
+    const refs = buildHarness();
+    refs.state.status = 'streaming';
+    const app = render(React.createElement(Harness, { refs }));
+    expect(invalidateSpy).not.toHaveBeenCalled();
+
+    refs.state.status = 'idle';
+    app.rerender(React.createElement(Harness, { refs }));
+    expect(invalidateSpy).toHaveBeenCalledTimes(1);
+    app.unmount();
+  });
+
+  it('does not re-invalidate on idle→idle re-renders (keystrokes stay cheap)', () => {
+    const invalidateSpy = vi.spyOn(fileSearchModule, 'invalidateFileCache');
+    const refs = buildHarness();
+    refs.state.status = 'idle';
+    const app = render(React.createElement(Harness, { refs }));
+    // Mount at idle invalidates once; subsequent idle re-renders must not.
+    expect(invalidateSpy).toHaveBeenCalledTimes(1);
+
+    refs.state.buffer = '@a';
+    refs.state.cursor = 2;
+    app.rerender(React.createElement(Harness, { refs }));
+    refs.state.buffer = '@ab';
+    refs.state.cursor = 3;
+    app.rerender(React.createElement(Harness, { refs }));
+    expect(invalidateSpy).toHaveBeenCalledTimes(1);
+    app.unmount();
+  });
+
+  it('a file created mid-turn becomes searchable after the idle trigger, before TTL expiry', async () => {
+    const fs = await import('node:fs/promises');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-tui-idle-invalidate-'));
+    try {
+      await fs.writeFile(path.join(root, 'existing.ts'), '');
+      const refs = buildHarness();
+      refs.projectRoot = root;
+      refs.state.status = 'streaming';
+      refs.state.buffer = '@fresh';
+      refs.state.cursor = 6;
+      refs.state.picker = { open: true, query: 'fresh', matches: [], selected: 0 };
+      const app = render(React.createElement(Harness, { refs }));
+      // Debounced search runs against the index built BEFORE the file exists.
+      await vi.waitFor(() => {
+        expect(refs.dispatch).toHaveBeenCalledWith({
+          type: 'pickerSetMatches',
+          query: 'fresh',
+          matches: [],
+        });
+      });
+
+      // Tool write creates the file mid-turn. The 30s TTL cache is still
+      // fresh, so the index must NOT see it yet.
+      await fs.writeFile(path.join(root, 'fresh-file.ts'), '');
+      expect(await fileSearchModule.searchFiles(root, 'fresh', 8)).toEqual([]);
+
+      // Turn completes → idle transition drops the cache…
+      refs.state.status = 'idle';
+      app.rerender(React.createElement(Harness, { refs }));
+      // …and the next picker search rebuilds it, finding the new file well
+      // before the TTL could have expired (this test runs in <1s).
+      refs.state.buffer = '@fre';
+      refs.state.cursor = 4;
+      app.rerender(React.createElement(Harness, { refs }));
+      await vi.waitFor(() => {
+        expect(refs.dispatch).toHaveBeenCalledWith({
+          type: 'pickerSetMatches',
+          query: 'fre',
+          matches: ['fresh-file.ts'],
+        });
+      });
+      app.unmount();
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+      fileSearchModule.invalidateFileCache();
+    }
+  });
+});
+
+// ─── Debounce contract (must survive the invalidation wiring) ────────
+
+describe('useFileSearch - keystroke debounce', () => {
+  it('coalesces a burst of query edits into ONE search after the debounce window', async () => {
+    const searchSpy = vi.spyOn(fileSearchModule, 'searchFiles').mockResolvedValue([]);
+    const refs = buildHarness();
+    refs.state.status = 'streaming';
+    refs.state.buffer = '@a';
+    refs.state.cursor = 2;
+    refs.state.picker = { open: true, query: 'a', matches: [], selected: 0 };
+    const app = render(React.createElement(Harness, { refs }));
+
+    // Two more keystrokes inside the 150ms window: each re-render must cancel
+    // the pending search rather than fire it.
+    refs.state.buffer = '@ab';
+    refs.state.cursor = 3;
+    app.rerender(React.createElement(Harness, { refs }));
+    refs.state.buffer = '@abc';
+    refs.state.cursor = 4;
+    app.rerender(React.createElement(Harness, { refs }));
+    expect(searchSpy).not.toHaveBeenCalled();
+
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    expect(searchSpy).toHaveBeenCalledTimes(1);
+    expect(searchSpy).toHaveBeenCalledWith(refs.projectRoot, 'abc', 8);
+    app.unmount();
   });
 });

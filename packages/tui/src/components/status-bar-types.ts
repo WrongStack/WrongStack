@@ -179,11 +179,14 @@ export interface StatusBarProps {
    */
   startedAt?: number | undefined;
   /**
-   * Fleet working time in ms — the total time background subagents have been
-   * active. Only ticks up while fleet.running > 0. Rendered as a chip on the
-   * status bar so the user can see how long background work has been running.
+   * Fleet working clock — accumulated ms from finished fleet spells plus the
+   * start timestamp of the live spell (null when no background work is
+   * active). StatusBar subscribes to the shared 1s leaf clock only while a
+   * spell is live, so the elapsed chip ticks without re-rendering the App
+   * shell. Rendered as a chip so the user can see how long background work
+   * has been running.
    */
-  fleetWorkingTime?: number | undefined;
+  fleetWorkingClock?: { base: number; startedAt: number | null } | undefined;
   todos?: TodoCounts | undefined;
   /**
    * Plan board counts surfaced as a chip on line 2. Distinct from

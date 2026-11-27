@@ -11,6 +11,7 @@ import { FKeyPicker } from './components/f-key-picker.js';
 import { FilePicker } from './components/file-picker.js';
 import { HelpPanel } from './components/help-panel.js';
 import { McpPicker } from './components/mcp-picker.js';
+import { MemoryPanel } from './components/memory-panel.js';
 import { ModePicker } from './components/mode-picker.js';
 import { ModelPicker } from './components/model-picker.js';
 import { effortOptionsForFocused } from './components/model-picker-effort.js';
@@ -331,6 +332,17 @@ export function AppViewPickers({
             maxRows={pickerMaxRows}
             shadow={state.shadowPanel.shadow}
             hint={state.shadowPanel.hint}
+          />
+        ) : null}
+        {state.memoryPanel.open ? (
+          <MemoryPanel
+            entries={state.memoryPanel.entries}
+            selected={state.memoryPanel.selected}
+            filter={state.memoryPanel.filter}
+            busy={state.memoryPanel.busy}
+            hint={state.memoryPanel.hint}
+            maxRows={pickerMaxRows}
+            columns={mainColumnWidth}
           />
         ) : null}
         {state.authPanel.open ? (

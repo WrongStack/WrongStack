@@ -105,6 +105,7 @@ export function useAppController(props: AppProps) {
     getShadowData: controllerProps.getShadowData,
     onShadowStart: controllerProps.onShadowStart,
     onShadowStop: controllerProps.onShadowStop,
+    memoryStore: controllerProps.memoryStore,
     subagentModelsHost: controllerProps.subagentModelsHost,
     slashRegistry: controllerProps.slashRegistry,
     subscribeCoordinatorEvents: controllerProps.subscribeCoordinatorEvents,

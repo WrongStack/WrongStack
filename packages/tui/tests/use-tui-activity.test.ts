@@ -3,6 +3,7 @@ import React, { act, StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useTuiActivity } from '../src/hooks/use-tui-activity.js';
 import { Text } from '../src/ink.js';
+import { useElapsedMs } from '../src/second-clock.js';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -51,18 +52,13 @@ function deferred<T>(): { promise: Promise<T>; resolve(value: T): void } {
 function ActivityHarness({
   status,
   projectRoot = '',
-  enhanceBusy = false,
-  renderDots = false,
 }: {
   status: 'idle' | 'running' | 'streaming' | 'aborting';
   projectRoot?: string | undefined;
-  enhanceBusy?: boolean | undefined;
-  renderDots?: boolean | undefined;
 }): React.ReactElement {
   const result = useTuiActivity({
     status,
     fleet: {},
-    enhanceBusy,
     thinkingWord: 'thinking',
     projectRoot,
     stateRef,
@@ -71,11 +67,10 @@ function ActivityHarness({
     attachments,
     builderRef,
   });
-  return React.createElement(
-    Text,
-    null,
-    renderDots ? `dots=${result.enhanceDots}` : result.workingTimeMs,
-  );
+  // The hook hands the elapsed computation to the shared 1s leaf clock;
+  // the harness mirrors what the composer top rail does with the pair.
+  const workingTimeMs = useElapsedMs(result.workingTimeBase, result.workingStartedAt);
+  return React.createElement(Text, null, workingTimeMs);
 }
 
 function harness(status: 'idle' | 'running' | 'streaming' | 'aborting'): React.ReactElement {
@@ -161,7 +156,6 @@ describe('useTuiActivity foreground working time', () => {
       useTuiActivity({
         status: 'idle',
         fleet: {},
-        enhanceBusy: false,
         thinkingWord: 'thinking',
         projectRoot: '',
         stateRef: localStateRef,
@@ -417,65 +411,61 @@ describe('useTuiActivity foreground working time', () => {
   });
 });
 
-describe('useTuiActivity shared animation tick', () => {
-  // Regression: useTuiActivity used to own TWO independent 1s useAnimation
-  // intervals — one for the foreground/fleet timing clock and one for the
-  // enhance loading-dot cycle. The second interval kept ticking even when
-  // nothing else was active, doubling the Ink render cadence during
-  // enhanceBusy. The fix routes both through the same `useAnimation` tick
-  // (isActive: timingActive || enhanceActive) and derives enhanceDots from
-  // the shared frame: `enhanceBusy ? timingFrame % 36 : 0`.
-  function lastDotsFrame(view: ReturnType<typeof render>): number | null {
-    for (let i = view.frames.length - 1; i >= 0; i--) {
-      const candidate = view.frames[i];
-      if (!candidate) continue;
-      const match = /dots=(\d+)/.exec(candidate);
-      if (match) return Number(match[1]);
-    }
-    return null;
+describe('useTuiActivity elapsed clock handoff', () => {
+  // Regression: useTuiActivity used to own an App-scope 1s useAnimation tick
+  // (and before that, TWO independent intervals), re-rendering the whole App
+  // shell every second during any work. The shell now only accumulates the
+  // base/start pairs on spell transitions; the per-second repaint belongs to
+  // the leaves via the shared clock in second-clock.ts (pinned separately in
+  // second-clock.test.ts and the LiveRefiningPanel tests).
+  function ClockHarness({
+    status,
+  }: {
+    status: 'idle' | 'running' | 'streaming' | 'aborting';
+  }): React.ReactElement {
+    const result = useTuiActivity({
+      status,
+      fleet: {},
+      thinkingWord: 'thinking',
+      projectRoot: '',
+      stateRef,
+      agentContext,
+      dispatch,
+      attachments,
+      builderRef,
+    });
+    return React.createElement(
+      Text,
+      null,
+      `base=${result.workingTimeBase} live=${result.workingStartedAt !== null}`,
+    );
   }
 
-  it('enhanceDots advances when enhanceBusy is the only active consumer', () => {
+  it('exposes a live start while running and freezes the base on idle', () => {
     vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-15T00:00:00.000Z'));
     let view!: ReturnType<typeof render>;
     act(() => {
-      // status='idle' (timingActive=false) but enhanceBusy=true → the shared
-      // tick must still be alive so the dots animate.
-      view = render(
-        React.createElement(ActivityHarness, {
-          status: 'idle',
-          enhanceBusy: true,
-          renderDots: true,
-        }),
-      );
+      view = render(React.createElement(ClockHarness, { status: 'idle' }));
     });
-    // Initial frame before any tick — dots frame is 0.
-    expect(lastDotsFrame(view)).toBe(0);
+    expect(view.lastFrame()?.trim()).toBe('base=0 live=false');
 
+    act(() => {
+      vi.setSystemTime(new Date('2026-07-15T00:00:01.000Z'));
+      view.rerender(React.createElement(ClockHarness, { status: 'running' }));
+    });
+    expect(view.lastFrame()?.trim()).toBe('base=0 live=true');
+
+    // While the spell is merely ongoing, the hook's own output must not
+    // change per tick — only spell transitions move it.
     act(() => vi.advanceTimersByTime(3_000));
-    // After 3s of ticks: frame === 3, dots === 3 % 36 === 3.
-    expect(lastDotsFrame(view)).toBe(3);
+    expect(view.lastFrame()?.trim()).toBe('base=0 live=true');
 
-    act(() => vi.advanceTimersByTime(2_000));
-    expect(lastDotsFrame(view)).toBe(5);
-    act(() => view.unmount());
-  });
-
-  it('enhanceDots collapses to 0 when enhanceBusy is false', () => {
-    vi.useFakeTimers();
-    let view!: ReturnType<typeof render>;
     act(() => {
-      view = render(
-        React.createElement(ActivityHarness, {
-          status: 'idle',
-          enhanceBusy: false,
-          renderDots: true,
-        }),
-      );
+      vi.setSystemTime(new Date('2026-07-15T00:00:04.000Z'));
+      view.rerender(React.createElement(ClockHarness, { status: 'idle' }));
     });
-    act(() => vi.advanceTimersByTime(5_000));
-    // enhanceBusy=false → enhanceDots=0 regardless of how many ticks fired.
-    expect(lastDotsFrame(view)).toBe(0);
+    expect(view.lastFrame()?.trim()).toBe('base=3000 live=false');
     act(() => view.unmount());
   });
 });

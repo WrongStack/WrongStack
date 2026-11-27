@@ -105,6 +105,7 @@ export function useAppPickerKeys({
   const { currentContextTokens } = statusbar;
   const {
     openProjectPicker,
+    loadLiveSessions,
     restartSelectedMcpServer,
     saveMcpEditor,
     toggleSelectedMcpServer,
@@ -498,8 +499,16 @@ export function useAppPickerKeys({
       const entry = F_KEY_ENTRIES[selected];
       if (!entry) return;
       dispatch({ type: 'fKeyPickerClose' });
-      if (entry.action === 'projectPickerOpen') {
+      // Mirror routeFKeyPanels: entries with host-side work must run it on the
+      // picker path too, or the panel opens without loading its data (F10
+      // previously showed stale/empty sessions until the 5s auto-refresh).
+      if (entry.hostAction === 'openProjectPicker') {
         openProjectPicker();
+        return;
+      }
+      if (entry.hostAction === 'loadLiveSessions') {
+        dispatch({ type: 'toggleSessionsPanel' });
+        if (!state.sessionsPanelOpen) loadLiveSessions();
         return;
       }
       const action = actionForFKeyPanel(entry, statuslineHiddenForPicker());

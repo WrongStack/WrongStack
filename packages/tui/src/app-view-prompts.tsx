@@ -12,7 +12,7 @@ import { CheckpointTimeline } from './components/checkpoint-timeline.js';
 import { ClearConfirmPanel } from './components/clear-confirm-panel.js';
 import { type ConfirmDecision, ConfirmPrompt } from './components/confirm-prompt.js';
 import { ContinueConfirmPanel } from './components/continue-confirm-panel.js';
-import { EnhancePanel, RefiningPanel } from './components/enhance-panel.js';
+import { EnhancePanel, LiveRefiningPanel } from './components/enhance-panel.js';
 import { EscConfirmPrompt } from './components/esc-confirm-prompt.js';
 import { ExitConfirmPanel } from './components/exit-confirm-panel.js';
 import { FallbackOverlay } from './components/fallback-overlay.js';
@@ -207,7 +207,6 @@ export function AppViewPrompts({
   const {
     state,
     dispatch,
-    activity,
     environment,
     handleRewindTo,
     activeCtrlRef,
@@ -222,7 +221,6 @@ export function AppViewPrompts({
     setEnhanceCountdown,
     enhanceDelayMs,
   } = runtime;
-  const { enhanceDots } = activity;
   const { setYoloLive } = environment;
   const { modal: standaloneModal, closeModal: closeStandaloneModal } = useStandaloneModal(dispatch);
 
@@ -582,10 +580,9 @@ export function AppViewPrompts({
           })()
         : null}
       {state.enhanceBusy && !state.enhance ? (
-        <RefiningPanel
+        <LiveRefiningPanel
           original={enhanceOriginalRef.current}
-          elapsedMs={enhanceStartedAt === null ? 0 : Math.max(0, Date.now() - enhanceStartedAt)}
-          pulseFrame={enhanceDots}
+          startedAt={enhanceStartedAt}
           providerId={refineProviderId ?? (agent.ctx.provider as { id?: string } | undefined)?.id}
           model={refineModel ?? agent.ctx.model}
         />

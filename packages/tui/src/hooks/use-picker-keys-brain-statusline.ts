@@ -125,6 +125,40 @@ export function tryBrainStatuslinePickerKeys(
     return true;
   }
 
+  // ── Memory browser panel ──────────────────────────────────
+  // `?.` tolerates partial State fixtures that predate this slice (same
+  // convention as subagentModels); the block only runs when it is present.
+  if (state.memoryPanel?.open) {
+    if (key.ctrl || key.meta) return true;
+    if (key.escape) {
+      dispatch({ type: 'memoryPanelClose' });
+      return true;
+    }
+    if (key.upArrow) {
+      dispatch({ type: 'memoryPanelMove', delta: -1 });
+      return true;
+    }
+    if (key.downArrow) {
+      dispatch({ type: 'memoryPanelMove', delta: 1 });
+      return true;
+    }
+    if (key.mouse?.kind === 'wheel') {
+      dispatch({ type: 'memoryPanelMove', delta: key.mouse.wheel > 0 ? -1 : 1 });
+      return true;
+    }
+    if (key.backspace || key.delete) {
+      dispatch({ type: 'memoryPanelSetFilter', filter: state.memoryPanel.filter.slice(0, -1) });
+      return true;
+    }
+    // Single printable characters build the filter; multi-char paste is ignored
+    // so a clipboard dump can't flood the query.
+    if (input && input.length === 1 && input >= ' ') {
+      dispatch({ type: 'memoryPanelSetFilter', filter: state.memoryPanel.filter + input });
+      return true;
+    }
+    return true;
+  }
+
   // ── Subagent model lanes panel ────────────────────────────
   if (state.subagentModels?.open) {
     if (key.ctrl || key.meta) return true;
